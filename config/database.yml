@@ -1,0 +1,18 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  database: wit_calendar_backend_development
+
+test:
+  <<: *default
+  database: wit_calendar_backend_test
+
+production:
+  <<: *default
+  database: wit_calendar_backend_production
+  username: wit_calendar_backend
+  password: <%= ENV["WIT_CALENDAR_BACKEND_DATABASE_PASSWORD"] %>
