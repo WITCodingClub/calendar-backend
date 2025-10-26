@@ -10,7 +10,7 @@ class CreateAcademicClasses < ActiveRecord::Migration[8.0]
       t.integer :credit_hours
       t.string :grade_mode
 
-      t.integer :schedule_type, null: false # 1: Lecture (LEC), 2: Laboratory (LAB)
+      t.string :schedule_type, null: false
 
       t.timestamps
     end
