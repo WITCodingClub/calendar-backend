@@ -63,6 +63,8 @@ group :test do
 end
 gem "devise"
 gem "pundit"
+gem "jwt"
+gem "rack-cors"
 gem "pg", "~> 1.6.2"
 gem "redis", "~> 5.0"
 gem "redis-session-store"

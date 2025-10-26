@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sign In Successful - WIT Calendar</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      width: 100%;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .checkmark-circle {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      background: #10b981;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: scaleIn 0.3s ease-out;
+    }
+
+    .checkmark {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      stroke: white;
+      stroke-width: 3;
+      stroke-linecap: round;
+      animation: checkmark 0.3s ease-out 0.3s both;
+    }
+
+    @keyframes scaleIn {
+      from {
+        transform: scale(0);
+      }
+      to {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes checkmark {
+      from {
+        stroke-dashoffset: 50;
+      }
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    h1 {
+      color: #1f2937;
+      margin-bottom: 12px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    p {
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .status {
+      background: #f3f4f6;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 24px;
+    }
+
+    .status p {
+      margin: 0;
+      font-size: 14px;
+      color: #10b981;
+      font-weight: 600;
+    }
+
+    .close-button {
+      margin-top: 24px;
+      padding: 12px 24px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .close-button:hover {
+      background: #5568d3;
+    }
+
+    .token-container {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="checkmark-circle">
+      <svg class="checkmark" viewBox="0 0 52 52">
+        <path fill="none" stroke-dasharray="50" stroke-dashoffset="50" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+      </svg>
+    </div>
+
+    <h1>✨ Sign In Successful!</h1>
+    <p>You're now authenticated with WIT Calendar.</p>
+    <p class="status">
+      ✓ Authenticated as <%= @user.email %>
+    </p>
+
+    <div class="status">
+      <p id="extension-status">🔄 Connecting to extension...</p>
+    </div>
+
+    <button class="close-button" onclick="window.close()">Close this tab</button>
+
+    <!-- Hidden token data for extension -->
+    <div class="token-container">
+      <input type="hidden" id="jwt-token" value="<%= @jwt_token %>">
+      <input type="hidden" id="user-email" value="<%= @user.email %>">
+      <input type="hidden" id="user-id" value="<%= @user.id %>">
+    </div>
+  </div>
+
+  <script>
+    // Send authentication data to Chrome extension
+    document.addEventListener('DOMContentLoaded', function() {
+      const token = document.getElementById('jwt-token').value;
+      const userEmail = document.getElementById('user-email').value;
+      const userId = document.getElementById('user-id').value;
+      const statusEl = document.getElementById('extension-status');
+
+      const authData = {
+        type: 'WIT_CALENDAR_AUTH',
+        token: token,
+        user: {
+          id: userId,
+          email: userEmail
+        }
+      };
+
+      // Try to communicate with extension via postMessage
+      // The extension should be listening for this
+      try {
+        // Attempt 1: Send to window.opener (if opened by extension)
+        if (window.opener) {
+          window.opener.postMessage(authData, '*');
+          statusEl.textContent = '✓ Authentication sent to extension!';
+          statusEl.style.color = '#10b981';
+        } else {
+          // Attempt 2: Send to all frames (extension might inject a listener)
+          window.postMessage(authData, '*');
+          statusEl.textContent = '✓ Ready for extension to read token';
+          statusEl.style.color = '#10b981';
+        }
+
+        // Also store in localStorage as a fallback
+        localStorage.setItem('wit_calendar_auth', JSON.stringify(authData));
+
+        // Auto-close after 3 seconds if opened by extension
+        if (window.opener) {
+          setTimeout(() => {
+            window.close();
+          }, 3000);
+        }
+      } catch (e) {
+        console.error('Error communicating with extension:', e);
+        statusEl.textContent = '⚠ Please copy the token manually if needed';
+        statusEl.style.color = '#f59e0b';
+      }
+    });
+
+    // Listen for messages from extension (for handshake)
+    window.addEventListener('message', function(event) {
+      if (event.data.type === 'WIT_CALENDAR_AUTH_REQUEST') {
+        const token = document.getElementById('jwt-token').value;
+        const userEmail = document.getElementById('user-email').value;
+        const userId = document.getElementById('user-id').value;
+
+        event.source.postMessage({
+          type: 'WIT_CALENDAR_AUTH_RESPONSE',
+          token: token,
+          user: {
+            id: userId,
+            email: userEmail
+          }
+        }, event.origin);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+    <p class="mt-2 text-sm text-gray-600">
+      Welcome back, <%= @current_user.full_name %>
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <!-- Blazer Card -->
+    <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+      <div class="p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+            <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">Blazer</dt>
+              <dd class="mt-1 text-sm text-gray-900">Business Intelligence & Analytics</dd>
+            </dl>
+          </div>
+        </div>
+        <div class="mt-4">
+          <%= link_to "Open Blazer", "/admin/blazer", class: "text-blue-600 hover:text-blue-800 text-sm font-medium" %>
+        </div>
+      </div>
+    </div>
+
+    <% if @current_user.super_admin? || @current_user.owner? %>
+      <!-- Flipper Card -->
+      <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+        <div class="p-6">
+          <div class="flex items-center">
+            <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
+              <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+            </div>
+            <div class="ml-5 w-0 flex-1">
+              <dl>
+                <dt class="text-sm font-medium text-gray-500 truncate">Flipper</dt>
+                <dd class="mt-1 text-sm text-gray-900">Feature Flags Management</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="mt-4">
+            <%= link_to "Manage Features", "/admin/flipper", class: "text-purple-600 hover:text-purple-800 text-sm font-medium" %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Performance Card -->
+    <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+      <div class="p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
+            <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">Performance</dt>
+              <dd class="mt-1 text-sm text-gray-900">Monitor Application Performance</dd>
+            </dl>
+          </div>
+        </div>
+        <div class="mt-4">
+          <%= link_to "View Performance", "/admin/performance", class: "text-green-600 hover:text-green-800 text-sm font-medium" %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Card -->
+    <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+      <div class="p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0 bg-yellow-500 rounded-md p-3">
+            <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">Users</dt>
+              <dd class="mt-1 text-sm text-gray-900">Manage User Accounts</dd>
+            </dl>
+          </div>
+        </div>
+        <div class="mt-4">
+          <%= link_to "Manage Users", admin_users_path, class: "text-yellow-600 hover:text-yellow-800 text-sm font-medium" %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health Checks Card -->
+    <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+      <div class="p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0 bg-red-500 rounded-md p-3">
+            <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">Health Checks</dt>
+              <dd class="mt-1 text-sm text-gray-900">System Health Monitoring</dd>
+            </dl>
+          </div>
+        </div>
+        <div class="mt-4">
+          <%= link_to "View Health", "/healthchecks", class: "text-red-600 hover:text-red-800 text-sm font-medium" %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mission Control Card -->
+    <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
+      <div class="p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0 bg-indigo-500 rounded-md p-3">
+            <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">Background Jobs</dt>
+              <dd class="mt-1 text-sm text-gray-900">Monitor Background Jobs</dd>
+            </dl>
+          </div>
+        </div>
+        <div class="mt-4">
+          <%= link_to "View Jobs", "/jobs", class: "text-indigo-600 hover:text-indigo-800 text-sm font-medium" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

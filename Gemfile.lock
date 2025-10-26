@@ -246,6 +246,8 @@ GEM
       actionview (>= 7.0.0)
       activesupport (>= 7.0.0)
     json (2.15.1)
+    jwt (2.10.1)
+      base64
     kamal (2.8.1)
       activesupport (>= 7.0)
       base64 (~> 0.2)
@@ -383,6 +385,8 @@ GEM
     rack (3.2.3)
     rack-attack (6.8.0)
       rack (>= 1.0, < 4)
+    rack-cors (2.0.2)
+      rack (>= 2.0.0)
     rack-mini-profiler (3.3.1)
       rack (>= 1.2.0)
     rack-protection (4.2.1)
@@ -653,6 +657,7 @@ DEPENDENCIES
   importmap-rails
   invisible_captcha
   jbuilder
+  jwt
   kamal
   letter_opener_web
   listen (~> 3.9)
@@ -669,6 +674,7 @@ DEPENDENCIES
   pundit
   query_count
   rack-attack
+  rack-cors
   rack-mini-profiler (~> 3.3)
   rails (~> 8.1.0)
   rails_performance
