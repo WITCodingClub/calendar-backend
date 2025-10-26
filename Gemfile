@@ -120,3 +120,5 @@ group :development do
   gem "rack-mini-profiler", "~> 3.3", require: false
   gem "stackprof"
 end
+
+gem 'faraday', '~> 2.14'
