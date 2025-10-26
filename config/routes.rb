@@ -10,6 +10,52 @@ Rails.application.routes.draw do
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
+  # API routes
+  namespace :api do
+    # Authentication
+    post "login", to: "authentication#login"
+    post "signup", to: "authentication#signup"
+    post "request_magic_link", to: "authentication#request_magic_link"
+
+    # Course events
+    post "process_events", to: "course_events#process_events"
+  end
+
+  namespace :admin do
+    root to: "application#index"
+
+    mount Blazer::Engine, at: "blazer", constraints: ->(request) {
+      user = User.find_by(id: request.session[:user_id])
+      user && AdminPolicy.new(user, :admin).blazer?
+    }
+
+    mount Flipper::UI.app(Flipper), at: "flipper", constraints: ->(request) {
+      user = User.find_by(id: request.session[:user_id])
+      user && AdminPolicy.new(user, :admin).flipper?
+    }
+
+    mount RailsPerformance::Engine, at: "performance", constraints: ->(request) {
+      user = User.find_by(id: request.session[:user_id])
+      user && AdminPolicy.new(user, :admin).access_admin_endpoints?
+    }
+
+    mount Audits1984::Engine, at: "audits", constraints: ->(request) {
+      user = User.find_by(id: request.session[:user_id])
+      user && AdminPolicy.new(user, :admin).access_admin_endpoints?
+    }
+
+    resources :users, shallow: true
+  end
+
+  if Rails.env.development?
+    mount LetterOpenerWeb::Engine, at: "/letter_opener"
+  end
+
+  mount OkComputer::Engine, at: "/healthchecks"
+
+  # Magic link verification (HTML page)
+  get "magic_link/verify", to: "magic_link#verify"
+
   # Defines the root path route ("/")
   # root "posts#index"
 end

@@ -14,5 +14,8 @@ class CreateAcademicClasses < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
+
+    add_index :academic_classes, :crn, unique: true
+
   end
 end

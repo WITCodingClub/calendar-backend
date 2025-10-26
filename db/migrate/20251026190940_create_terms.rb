@@ -10,6 +10,7 @@ class CreateTerms < ActiveRecord::Migration[8.0]
     end
 
     add_index :terms, [:year, :semester], unique: true
+    add_index :terms, :uid, unique: true
 
   end
 end
