@@ -117,6 +117,6 @@ group :development do
   gem "letter_opener_web"
   gem "foreman"
   gem "awesome_print"
-  gem "rack-mini-profiler", "~> 3.3", require: false
+  gem "rack-mini-profiler", "~> 4.0", require: false
   gem "stackprof"
 end
