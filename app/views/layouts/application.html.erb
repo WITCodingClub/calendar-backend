@@ -20,6 +20,17 @@
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+
+    <% bg_url = random_background_url %>
+
+    <style>
+        body {
+            background-image: url('<%=(bg_url) %>');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+    </style>
   </head>
 
   <body>

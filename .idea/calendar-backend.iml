@@ -111,7 +111,7 @@
     <orderEntry type="library" scope="PROVIDED" name="irb (v1.15.2, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="jbuilder (v2.14.1, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="json (v2.15.1, mise: 3.4.7) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="jwt (v2.10.1, mise: 3.4.7) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="jwt (v3.1.2, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="kamal (v2.8.1, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="language_server-protocol (v3.17.0.5, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="launchy (v3.1.1, mise: 3.4.7) [gem]" level="application" />
@@ -163,7 +163,7 @@
     <orderEntry type="library" scope="PROVIDED" name="racc (v1.8.1, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rack (v3.2.3, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rack-attack (v6.8.0, mise: 3.4.7) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="rack-cors (v2.0.2, mise: 3.4.7) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="rack-cors (v3.0.0, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rack-mini-profiler (v3.3.1, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rack-protection (v4.2.1, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rack-session (v2.1.1, mise: 3.4.7) [gem]" level="application" />
