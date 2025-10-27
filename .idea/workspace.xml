@@ -5,17 +5,61 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/app/services/course_processor_service.rb" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/app/services/meeting_times_ingest_service.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/calendar-backend.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/calendar-backend.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/400.html" beforeDir="false" afterPath="$PROJECT_DIR$/public/400.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/404.html" beforeDir="false" afterPath="$PROJECT_DIR$/public/404.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/406-unsupported-browser.html" beforeDir="false" afterPath="$PROJECT_DIR$/public/406-unsupported-browser.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/422.html" beforeDir="false" afterPath="$PROJECT_DIR$/public/422.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/public/500.html" beforeDir="false" afterPath="$PROJECT_DIR$/public/500.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/controllers/api/course_events_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/api/course_controller.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/academic_class.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/course.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/ahoy/event.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/ahoy/event.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/ahoy/message.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/ahoy/message.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/ahoy/visit.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/ahoy/visit.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/building.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/building.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/enrollment.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/enrollment.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/faculty.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/faculty.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/lockbox_audit.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/lockbox_audit.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/magic_link.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/magic_link.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/meeting_time.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/meeting_time.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/room.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/room.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/term.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/term.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/user.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/user.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/course_events_processor_service.rb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/database.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/database.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/queue.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/queue.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/recurring.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/recurring.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/routes.rb" beforeDir="false" afterPath="$PROJECT_DIR$/config/routes.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251026190940_create_terms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026190940_create_terms.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191200_create_buildings.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191200_create_buildings.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191210_create_rooms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191210_create_rooms.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/queue_schema.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/queue_schema.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/schema.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/schema.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/seeds.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/seeds.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/academic_classes.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/academic_classes.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/buildings.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/buildings.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/enrollments.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/enrollments.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/faculties.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/faculties.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/magic_links.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/magic_links.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/meeting_times.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/meeting_times.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/rooms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/rooms.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/terms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/terms.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/users.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/users.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/academic_class_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/course_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/building_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/building_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/enrollment_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/enrollment_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/faculty_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/faculty_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/magic_link_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/magic_link_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/room_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/room_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/term_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/term_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/user_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/user_spec.rb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="GeneratorOptions">
+    <option name="VCS_SHOW_CONFIRMATION" value="true" />
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -43,22 +87,28 @@
     <option name="openDirectoriesWithSingleClick" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_interpreter_path&quot;: &quot;/Users/jsp/.local/share/mise/installs/node/23.10.0/bin/node&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;ruby.structure.view.model.defaults.configured&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;file.status.colors&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "com.intellij.lang.ruby.rbs.tools.collection.workspace.sync.RbsCollectionUpdateProjectActivity#LAST_UPDATE_TIMESTAMP": "1761594706870",
+    "git-widget-placeholder": "main",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_interpreter_path": "/Users/jsp/.local/share/mise/installs/node/23.10.0/bin/node",
+    "nodejs_package_manager_path": "npm",
+    "ruby.structure.view.model.defaults.configured": "true",
+    "settings.editor.selected.configurable": "file.status.colors",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
+  </component>
   <component name="RunManager" selected="Rails.calendar-backend">
     <configuration name="calendar-backend" type="RailsRunConfigurationType" factoryName="Rails">
       <module name="calendar-backend" />
@@ -152,6 +202,8 @@
       <option name="presentableId" value="Default" />
       <updated>1761528679084</updated>
       <workItem from="1761528683648" duration="3592000" />
+      <workItem from="1761589186167" duration="4347000" />
+      <workItem from="1761594647936" duration="9375000" />
     </task>
     <servers />
   </component>

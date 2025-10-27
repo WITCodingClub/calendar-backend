@@ -1,6 +1,7 @@
 # == Schema Information
 #
 # Table name: magic_links
+# Database name: primary
 #
 #  id         :bigint           not null, primary key
 #  expires_at :datetime         not null

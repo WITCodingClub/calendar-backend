@@ -1,18 +1,19 @@
 # == Schema Information
 #
 # Table name: terms
+# Database name: primary
 #
 #  id         :bigint           not null, primary key
-#  semester   :integer          not null
-#  uid        :string           not null
-#  year       :integer          not null
+#  season     :integer
+#  uid        :integer          not null
+#  year       :integer
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
 #
 # Indexes
 #
-#  index_terms_on_uid                (uid) UNIQUE
-#  index_terms_on_year_and_semester  (year,semester) UNIQUE
+#  index_terms_on_uid              (uid) UNIQUE
+#  index_terms_on_year_and_season  (year,season) UNIQUE
 #
 require 'rails_helper'
 

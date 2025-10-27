@@ -25,7 +25,7 @@
 #  fk_rails_...  (term_id => terms.id)
 #
 FactoryBot.define do
-  factory :academic_class do
+  factory :course do
     
   end
 end

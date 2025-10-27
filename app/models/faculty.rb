@@ -1,6 +1,7 @@
 # == Schema Information
 #
 # Table name: faculties
+# Database name: primary
 #
 #  id         :bigint           not null, primary key
 #  email      :string           not null
@@ -14,7 +15,7 @@
 #  index_faculties_on_email  (email) UNIQUE
 #
 class Faculty < ApplicationRecord
-  has_and_belongs_to_many :academic_classes
+  has_and_belongs_to_many :courses
 
   def full_name
     "#{first_name} #{last_name}"

@@ -10,25 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_26_214220) do
+ActiveRecord::Schema[8.1].define(version: 2025_10_27_230058) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
-
-  create_table "academic_classes", force: :cascade do |t|
-    t.integer "course_number"
-    t.datetime "created_at", null: false
-    t.integer "credit_hours"
-    t.integer "crn"
-    t.string "grade_mode"
-    t.string "schedule_type", null: false
-    t.string "section_number", null: false
-    t.string "subject"
-    t.bigint "term_id", null: false
-    t.string "title"
-    t.datetime "updated_at", null: false
-    t.index ["crn"], name: "index_academic_classes_on_crn", unique: true
-    t.index ["term_id"], name: "index_academic_classes_on_term_id"
-  end
 
   create_table "academic_classes_faculties", id: false, force: :cascade do |t|
     t.bigint "academic_class_id", null: false
@@ -156,32 +140,34 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_26_214220) do
     t.index ["creator_id"], name: "index_blazer_queries_on_creator_id"
   end
 
-  create_table "buildings", force: :cascade do |t|
-    t.string "abbreviation", null: false
+  create_table "courses", force: :cascade do |t|
+    t.integer "course_number"
     t.datetime "created_at", null: false
-    t.string "name", null: false
+    t.integer "credit_hours"
+    t.integer "crn"
+    t.date "end_date"
+    t.string "grade_mode"
+    t.string "schedule_type", null: false
+    t.string "section_number", null: false
+    t.date "start_date"
+    t.string "subject"
+    t.bigint "term_id", null: false
+    t.string "title"
     t.datetime "updated_at", null: false
+    t.index ["crn"], name: "index_courses_on_crn", unique: true
+    t.index ["term_id"], name: "index_courses_on_term_id"
   end
 
   create_table "enrollments", force: :cascade do |t|
-    t.bigint "academic_class_id", null: false
+    t.bigint "course_id", null: false
     t.datetime "created_at", null: false
     t.bigint "term_id", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["academic_class_id"], name: "index_enrollments_on_academic_class_id"
+    t.index ["course_id"], name: "index_enrollments_on_course_id"
     t.index ["term_id"], name: "index_enrollments_on_term_id"
-    t.index ["user_id", "academic_class_id", "term_id"], name: "index_enrollments_on_user_class_term", unique: true
+    t.index ["user_id", "course_id", "term_id"], name: "index_enrollments_on_user_class_term", unique: true
     t.index ["user_id"], name: "index_enrollments_on_user_id"
-  end
-
-  create_table "faculties", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "email", null: false
-    t.string "first_name", null: false
-    t.string "last_name", null: false
-    t.datetime "updated_at", null: false
-    t.index ["email"], name: "index_faculties_on_email", unique: true
   end
 
   create_table "flipper_features", force: :cascade do |t|
@@ -234,8 +220,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_26_214220) do
   end
 
   create_table "meeting_times", force: :cascade do |t|
-    t.bigint "academic_class_id", null: false
     t.integer "begin_time", null: false
+    t.bigint "course_id", null: false
     t.datetime "created_at", null: false
     t.datetime "end_date", null: false
     t.integer "end_time", null: false
@@ -252,7 +238,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_26_214220) do
     t.boolean "tuesday"
     t.datetime "updated_at", null: false
     t.boolean "wednesday"
-    t.index ["academic_class_id"], name: "index_meeting_times_on_academic_class_id"
+    t.index ["course_id"], name: "index_meeting_times_on_course_id"
     t.index ["room_id"], name: "index_meeting_times_on_room_id"
   end
 
@@ -266,21 +252,19 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_26_214220) do
   end
 
   create_table "rooms", force: :cascade do |t|
-    t.bigint "building_id", null: false
     t.datetime "created_at", null: false
     t.integer "number"
     t.datetime "updated_at", null: false
-    t.index ["building_id"], name: "index_rooms_on_building_id"
   end
 
   create_table "terms", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "semester", null: false
-    t.string "uid", null: false
+    t.integer "season"
+    t.integer "uid", null: false
     t.datetime "updated_at", null: false
-    t.integer "year", null: false
+    t.integer "year"
     t.index ["uid"], name: "index_terms_on_uid", unique: true
-    t.index ["year", "semester"], name: "index_terms_on_year_and_semester", unique: true
+    t.index ["year", "season"], name: "index_terms_on_year_and_season", unique: true
   end
 
   create_table "users", force: :cascade do |t|
@@ -303,12 +287,11 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_26_214220) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
-  add_foreign_key "academic_classes", "terms"
-  add_foreign_key "enrollments", "academic_classes"
+  add_foreign_key "courses", "terms"
+  add_foreign_key "enrollments", "courses"
   add_foreign_key "enrollments", "terms"
   add_foreign_key "enrollments", "users"
   add_foreign_key "magic_links", "users"
-  add_foreign_key "meeting_times", "academic_classes"
+  add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
-  add_foreign_key "rooms", "buildings"
 end

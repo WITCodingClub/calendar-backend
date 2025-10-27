@@ -1,6 +1,7 @@
 # == Schema Information
 #
 # Table name: lockbox_audits
+# Database name: primary
 #
 #  id           :bigint           not null, primary key
 #  context      :string

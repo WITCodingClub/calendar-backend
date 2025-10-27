@@ -1,6 +1,7 @@
 # == Schema Information
 #
 # Table name: users
+# Database name: primary
 #
 #  id           :bigint           not null, primary key
 #  access_level :integer          default("user"), not null

@@ -1,6 +1,7 @@
 # == Schema Information
 #
 # Table name: buildings
+# Database name: primary
 #
 #  id           :bigint           not null, primary key
 #  abbreviation :string           not null
