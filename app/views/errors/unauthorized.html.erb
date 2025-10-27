@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Access Denied - WIT Calendar</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+</head>
+<body class="bg-gradient-to-br from-indigo-500 to-purple-600 min-h-screen flex items-center justify-center p-5">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-10 text-center">
+    <div class="w-24 h-24 mx-auto mb-5 rounded-full bg-red-500 flex items-center justify-center text-6xl animate-[scaleIn_0.3s_ease-out]">
+      🔒
+    </div>
+
+    <h1 class="text-gray-900 mb-3 text-4xl font-bold">Access Denied</h1>
+    <div class="text-red-500 text-lg font-semibold mb-5">403 Forbidden</div>
+
+    <p class="text-gray-600 leading-relaxed mb-4 text-base">You don't have permission to access this resource.</p>
+    <p class="text-gray-600 leading-relaxed mb-4 text-base">If you believe this is a mistake, please contact your administrator.</p>
+
+    <div class="mt-8 flex flex-col gap-3">
+      <% if user_signed_in? %>
+        <a href="<%= root_path %>" class="px-6 py-3 rounded-lg text-base font-semibold no-underline transition-all inline-block bg-indigo-500 text-white hover:bg-indigo-600">Go to Dashboard</a>
+        <%= button_to "Sign Out", destroy_user_session_path, method: :delete, class: "px-6 py-3 rounded-lg text-base font-semibold transition-all bg-gray-200 text-gray-700 hover:bg-gray-300" %>
+      <% else %>
+        <a href="<%= new_user_session_path %>" class="px-6 py-3 rounded-lg text-base font-semibold no-underline transition-all inline-block bg-indigo-500 text-white hover:bg-indigo-600">Sign In</a>
+        <a href="<%= root_path %>" class="px-6 py-3 rounded-lg text-base font-semibold no-underline transition-all inline-block bg-gray-200 text-gray-700 hover:bg-gray-300">Go Home</a>
+      <% end %>
+    </div>
+  </div>
+
+  <style>
+    @keyframes scaleIn {
+      from { transform: scale(0); }
+      to { transform: scale(1); }
+    }
+  </style>
+</body>
+</html>

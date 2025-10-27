@@ -3,41 +3,19 @@ module Api
     skip_before_action :verify_authenticity_token
 
     # POST /api/login
+    # Deprecated: Use magic link authentication instead
     def login
-      user = User.find_by(email: params[:email])
-
-      if user&.valid_password?(params[:password])
-        token = JsonWebTokenService.encode(user_id: user.id)
-        render json: {
-          token: token,
-          user: {
-            id: user.id,
-            email: user.email,
-            access_level: user.access_level
-          }
-        }, status: :ok
-      else
-        render json: { error: "Invalid email or password" }, status: :unauthorized
-      end
+      render json: {
+        error: "Password authentication is disabled. Please use magic link authentication via /api/request_magic_link"
+      }, status: :unauthorized
     end
 
     # POST /api/signup
+    # Deprecated: Use magic link authentication instead
     def signup
-      user = User.new(user_params)
-
-      if user.save
-        token = JsonWebTokenService.encode(user_id: user.id)
-        render json: {
-          token: token,
-          user: {
-            id: user.id,
-            email: user.email,
-            access_level: user.access_level
-          }
-        }, status: :created
-      else
-        render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
-      end
+      render json: {
+        error: "Password registration is disabled. Please use magic link authentication via /api/request_magic_link"
+      }, status: :unauthorized
     end
 
     # POST /api/request_magic_link
@@ -50,10 +28,7 @@ module Api
       end
 
       # Find or create user (for passwordless, we auto-create accounts)
-      user = User.find_or_create_by(email: email.downcase.strip) do |u|
-        # Generate a random password for new users (they won't use it)
-        u.password = SecureRandom.urlsafe_base64(32)
-      end
+      user = User.find_or_create_by(email: email.downcase.strip)
 
       # Create magic link
       magic_link = user.magic_links.create!
@@ -69,10 +44,5 @@ module Api
       render json: { error: "Failed to send magic link" }, status: :internal_server_error
     end
 
-    private
-
-    def user_params
-      params.permit(:email, :password, :password_confirmation)
-    end
   end
 end

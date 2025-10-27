@@ -21,15 +21,9 @@ if defined?(RailsPerformance)
     # default path where to mount gem
     config.mount_at = "/rails/performance"
 
-    # protect your Performance Dashboard with HTTP BASIC password
+    # Authentication handled via route constraint (AdminConstraint)
     config.http_basic_authentication_enabled = false
-    config.http_basic_authentication_user_name = "rails_performance"
-    config.http_basic_authentication_password = "password12"
-
-    # if you need an additional rules to check user permissions
     config.verify_access_proc = proc { |controller| true }
-    # for example when you have `current_user`
-    # config.verify_access_proc = proc { |controller| controller.current_user && controller.current_user.admin? }
 
     # Override engine url options, necessary if hosting under a unique domain
     # config.url_options = {host: "sub.example.com"}

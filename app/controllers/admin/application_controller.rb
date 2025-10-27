@@ -12,14 +12,19 @@ module Admin
     private
 
     def require_admin
-      unless current_user&.admin? || current_user&.super_admin? || current_user&.owner?
-        redirect_to root_path, alert: "You are not authorized to access this area."
+      unless user_signed_in?
+        redirect_to new_user_session_path, alert: "Please sign in to continue."
+        return
+      end
+
+      unless current_user.admin_access?
+        redirect_to admin_unauthorized_path
       end
     end
 
     def user_not_authorized
       flash[:alert] = "You are not authorized to perform this action."
-      redirect_to(request.referrer || root_path)
+      redirect_to admin_unauthorized_path
     end
   end
 end
