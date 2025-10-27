@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Access Denied - WIT Calendar</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+</head>
+<body class="bg-gradient-to-br from-red-600 to-red-800 min-h-screen flex items-center justify-center p-5">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-10 text-center">
+    <div class="w-24 h-24 mx-auto mb-5 rounded-full bg-red-600 flex items-center justify-center text-6xl shadow-lg shadow-red-600/30 animate-[scaleRotate_0.3s_ease-out]">
+      ⛔
+    </div>
+
+    <h1 class="text-gray-900 mb-2 text-4xl font-bold">Admin Access Denied</h1>
+    <div class="text-red-600 text-lg font-semibold mb-6">403 Forbidden</div>
+
+    <p class="text-gray-600 leading-relaxed mb-4 text-base">You do not have administrator privileges to access this area.</p>
+
+    <div class="bg-red-50 border-l-4 border-red-600 p-4 my-6 rounded text-left">
+      <strong class="text-red-900 block mb-2">🔐 Administrator Access Only</strong>
+      <p class="text-red-900 m-0 text-sm">This section is restricted to users with administrator or owner permissions. Unauthorized access attempts are logged and monitored.</p>
+    </div>
+
+    <% if user_signed_in? %>
+      <div class="bg-gray-100 p-3 rounded-lg my-5 text-sm text-gray-700">
+        Signed in as: <strong class="text-gray-900"><%= current_user.email %></strong><br>
+        Access level: <strong class="text-gray-900">
+          <%= case current_user.access_level
+              when 0 then "User"
+              when 1 then "Admin"
+              when 2 then "Super Admin"
+              when 3 then "Owner"
+              else "Unknown"
+              end %>
+        </strong>
+      </div>
+    <% end %>
+
+    <div class="mt-8 flex flex-col gap-3">
+      <% if user_signed_in? %>
+        <a href="<%= root_path %>" class="px-6 py-3 rounded-lg text-base font-semibold no-underline transition-all inline-block bg-blue-600 text-white hover:bg-blue-700">Go to Dashboard</a>
+        <%= button_to "Sign Out", destroy_user_session_path, method: :delete, class: "px-6 py-3 rounded-lg text-base font-semibold transition-all border-0 cursor-pointer bg-gray-200 text-gray-700 hover:bg-gray-300" %>
+      <% else %>
+        <a href="<%= new_user_session_path %>" class="px-6 py-3 rounded-lg text-base font-semibold no-underline transition-all inline-block bg-blue-600 text-white hover:bg-blue-700">Sign In with Admin Account</a>
+        <a href="<%= root_path %>" class="px-6 py-3 rounded-lg text-base font-semibold no-underline transition-all inline-block bg-gray-200 text-gray-700 hover:bg-gray-300">Go Home</a>
+      <% end %>
+    </div>
+
+    <div class="mt-6 pt-6 border-t border-gray-200 text-sm text-gray-600">
+      <p>Need administrator access? Contact your system administrator.</p>
+    </div>
+  </div>
+
+  <style>
+    @keyframes scaleRotate {
+      from {
+        transform: scale(0) rotate(-180deg);
+      }
+      to {
+        transform: scale(1) rotate(0deg);
+      }
+    }
+  </style>
+</body>
+</html>

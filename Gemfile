@@ -124,3 +124,5 @@ group :development do
 end
 
 gem 'faraday', '~> 2.14'
+
+gem "tailwindcss-ruby", "~> 4.1"

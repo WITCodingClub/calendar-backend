@@ -22,7 +22,7 @@
 class MagicLink < ApplicationRecord
   belongs_to :user
 
-  before_create :generate_token, :set_expiration
+  before_validation :generate_token, :set_expiration, on: :create
 
   validates :token, presence: true, uniqueness: true
   validates :expires_at, presence: true
@@ -37,7 +37,7 @@ class MagicLink < ApplicationRecord
     used_at.present?
   end
 
-  def valid?
+  def usable?
     !expired? && !used?
   end
 

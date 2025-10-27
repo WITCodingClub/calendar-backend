@@ -1,5 +1,7 @@
 Rails.application.routes.draw do
-  devise_for :users
+  # Authentication routes (custom, no Devise)
+  get 'users/sign_in', to: 'sessions#new', as: :new_user_session
+  delete 'users/sign_out', to: 'sessions#destroy', as: :destroy_user_session
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
@@ -21,31 +23,29 @@ Rails.application.routes.draw do
     post "process_events", to: "course_events#process_events"
   end
 
-  namespace :admin do
-    root to: "application#index"
+  # Admin area with authentication constraint
+  constraints AdminConstraint.new do
+    namespace :admin do
+      root to: "application#index"
 
-    mount Blazer::Engine, at: "blazer", constraints: ->(request) {
-      user = User.find_by(id: request.session[:user_id])
-      user && AdminPolicy.new(user, :admin).blazer?
-    }
+      # Mounted engines
+      mount MissionControl::Jobs::Engine, at: "jobs"
+      mount Blazer::Engine, at: "blazer"
+      mount Flipper::UI.app(Flipper), at: "flipper"
+      mount RailsPerformance::Engine, at: "performance"
+      mount Audits1984::Engine, at: "audits"
 
-    mount Flipper::UI.app(Flipper), at: "flipper", constraints: ->(request) {
-      user = User.find_by(id: request.session[:user_id])
-      user && AdminPolicy.new(user, :admin).flipper?
-    }
-
-    mount RailsPerformance::Engine, at: "performance", constraints: ->(request) {
-      user = User.find_by(id: request.session[:user_id])
-      user && AdminPolicy.new(user, :admin).access_admin_endpoints?
-    }
-
-    mount Audits1984::Engine, at: "audits", constraints: ->(request) {
-      user = User.find_by(id: request.session[:user_id])
-      user && AdminPolicy.new(user, :admin).access_admin_endpoints?
-    }
-
-    resources :users, shallow: true
+      resources :users, shallow: true
+    end
   end
+
+  # Fallback redirects if AdminConstraint fails
+  get "admin", to: redirect("/users/sign_in")
+  get "admin/*path", to: redirect("/users/sign_in")
+
+  # Error pages
+  get "unauthorized", to: "errors#unauthorized"
+  get "404", to: "errors#not_found"
 
   if Rails.env.development?
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
@@ -53,9 +53,13 @@ Rails.application.routes.draw do
 
   mount OkComputer::Engine, at: "/healthchecks"
 
-  # Magic link verification (HTML page)
+  # Magic link routes (HTML pages)
+  post "request_magic_link", to: "magic_link#request_link"
   get "magic_link/verify", to: "magic_link#verify"
+  get "magic_link/sent", to: "magic_link#sent"
 
-  # Defines the root path route ("/")
-  # root "posts#index"
+  # Root redirects to admin for authenticated users, otherwise sign in
+  root to: redirect { |params, request|
+    request.session[:user_id].present? ? '/admin' : '/users/sign_in'
+  }
 end

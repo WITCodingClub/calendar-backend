@@ -618,6 +618,7 @@ PLATFORMS
   aarch64-linux-musl
   arm-linux-gnu
   arm-linux-musl
+  arm64-darwin-24
   arm64-darwin-25
   x86_64-linux
   x86_64-linux-gnu
@@ -697,6 +698,7 @@ DEPENDENCIES
   stimulus-rails
   strong_migrations
   tailwindcss-rails
+  tailwindcss-ruby (~> 4.1)
   thruster
   turbo-rails
   tzinfo-data
