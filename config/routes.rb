@@ -21,12 +21,17 @@ Rails.application.routes.draw do
 
     # Course events
     post "process_events", to: "course_events#process_events"
+
+    # Server-Sent Events
+    get "events/stream", to: "events#stream"
+    get "events/heartbeat", to: "events#heartbeat"
   end
 
   # Admin area with authentication constraint
   constraints AdminConstraint.new do
     namespace :admin do
       root to: "application#index"
+      resources :users, only: [:index, :show, :edit, :update, :destroy]
 
       # Mounted engines
       mount MissionControl::Jobs::Engine, at: "jobs"
@@ -34,8 +39,6 @@ Rails.application.routes.draw do
       mount Flipper::UI.app(Flipper), at: "flipper"
       mount RailsPerformance::Engine, at: "performance"
       mount Audits1984::Engine, at: "audits"
-
-      resources :users, shallow: true
     end
   end
 
