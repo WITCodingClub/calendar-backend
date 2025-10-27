@@ -246,7 +246,7 @@ GEM
       actionview (>= 7.0.0)
       activesupport (>= 7.0.0)
     json (2.15.1)
-    jwt (2.10.1)
+    jwt (3.1.2)
       base64
     kamal (2.8.1)
       activesupport (>= 7.0)
@@ -385,8 +385,9 @@ GEM
     rack (3.2.3)
     rack-attack (6.8.0)
       rack (>= 1.0, < 4)
-    rack-cors (2.0.2)
-      rack (>= 2.0.0)
+    rack-cors (3.0.0)
+      logger
+      rack (>= 3.0.14)
     rack-mini-profiler (3.3.1)
       rack (>= 1.2.0)
     rack-protection (4.2.1)
