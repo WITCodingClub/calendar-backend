@@ -385,8 +385,9 @@ GEM
     rack (3.2.3)
     rack-attack (6.8.0)
       rack (>= 1.0, < 4)
-    rack-cors (2.0.2)
-      rack (>= 2.0.0)
+    rack-cors (3.0.0)
+      logger
+      rack (>= 3.0.14)
     rack-mini-profiler (3.3.1)
       rack (>= 1.2.0)
     rack-protection (4.2.1)
