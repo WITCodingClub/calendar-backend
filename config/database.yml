@@ -4,15 +4,27 @@ default: &default
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
 
 development:
-  <<: *default
-  database: wit_calendar_backend_development
+  primary: &primary_development
+    <<: *default
+    database: wit_calendar_backend_development
+  queue:
+    <<: *primary_development
+    database: wit_calendar_backend_queue_development
+    migrations_paths: db/queue_migrate
+
+
 
 test:
   <<: *default
   database: wit_calendar_backend_test
 
 production:
-  <<: *default
-  database: wit_calendar_backend_production
-  username: wit_calendar_backend
-  password: <%= ENV["WIT_CALENDAR_BACKEND_DATABASE_PASSWORD"] %>
+  primary: &primary_production
+    <<: *default
+    database: wit_calendar_backend_production
+    username: wit_calendar_backend
+    password: <%= ENV["WIT_CALENDAR_BACKEND_DATABASE_PASSWORD"] %>
+  queue:
+    <<: *primary_production
+    database: wit_calendar_backend_queue_production
+    migrations_paths: db/queue_migrate

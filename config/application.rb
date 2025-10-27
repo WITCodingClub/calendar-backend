@@ -19,11 +19,16 @@ module WitCalendarBackend
     # Add constraints directory to autoload paths
     config.autoload_paths << Rails.root.join("app/constraints")
 
+    config.active_job.queue_adapter = :solid_queue
+
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
-    #
+
+    config.mission_control.jobs.base_controller_class = "Admin::BaseController"
+    config.mission_control.jobs.http_basic_auth_enabled = false
+
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
   end
