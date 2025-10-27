@@ -1,6 +1,7 @@
 # == Schema Information
 #
 # Table name: users
+# Database name: primary
 #
 #  id           :bigint           not null, primary key
 #  access_level :integer          default("user"), not null
@@ -18,7 +19,7 @@ class User < ApplicationRecord
   has_subscriptions
 
   has_many :enrollments, dependent: :destroy
-  has_many :academic_classes, through: :enrollments
+  has_many :courses, through: :enrollments
   has_many :magic_links, dependent: :destroy
 
   enum :access_level, {

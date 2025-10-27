@@ -1,7 +1,7 @@
 Rails.application.routes.draw do
   # Authentication routes (custom, no Devise)
-  get 'users/sign_in', to: 'sessions#new', as: :new_user_session
-  delete 'users/sign_out', to: 'sessions#destroy', as: :destroy_user_session
+  get "users/sign_in", to: "sessions#new", as: :new_user_session
+  delete "users/sign_out", to: "sessions#destroy", as: :destroy_user_session
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
@@ -20,11 +20,7 @@ Rails.application.routes.draw do
     post "request_magic_link", to: "authentication#request_magic_link"
 
     # Course events
-    post "process_events", to: "course_events#process_events"
-
-    # Server-Sent Events
-    get "events/stream", to: "events#stream"
-    get "events/heartbeat", to: "events#heartbeat"
+    post "process_courses", to: "course#process_courses"
   end
 
   # Admin area with authentication constraint
@@ -63,6 +59,6 @@ Rails.application.routes.draw do
 
   # Root redirects to admin for authenticated users, otherwise sign in
   root to: redirect { |params, request|
-    request.session[:user_id].present? ? '/admin' : '/users/sign_in'
+    request.session[:user_id].present? ? "/admin" : "/users/sign_in"
   }
 end

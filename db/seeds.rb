@@ -8,18 +8,3 @@
 #     MovieGenre.find_or_create_by!(name: genre_name)
 #   end
 
-# if env is development
-if Rails.env.development?
-  # Create sample terms
-  terms = [
-    {
-      uid: "202600",
-      year: 2025,
-      semester: 1
-    },
-  {
-    uid: "202610",
-    year: 2025,
-    semester: 2
-  }
-  ]

@@ -6,5 +6,8 @@ class CreateBuildings < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
+
+    add_index :buildings, :abbreviation, unique: true
+    add_index :buildings, :name, unique: true
   end
 end

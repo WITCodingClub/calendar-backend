@@ -1,7 +1,8 @@
 default: &default
   adapter: postgresql
   encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 7 } %>
+  url: <%= ENV['DATABASE_URL'] %>
 
 development:
   primary: &primary_development
@@ -9,14 +10,18 @@ development:
     database: wit_calendar_backend_development
   queue:
     <<: *primary_development
-    database: wit_calendar_backend_queue_development
+    database: wit_calendar_backend_development_queue
     migrations_paths: db/queue_migrate
 
 
-
 test:
-  <<: *default
-  database: wit_calendar_backend_test
+    primary: &primary_test
+        <<: *default
+        database: wit_calendar_backend_test
+    queue:
+        <<: *primary_test
+        database: wit_calendar_backend_test_queue
+        migrations_paths: db/queue_migrate
 
 production:
   primary: &primary_production
@@ -26,5 +31,5 @@ production:
     password: <%= ENV["WIT_CALENDAR_BACKEND_DATABASE_PASSWORD"] %>
   queue:
     <<: *primary_production
-    database: wit_calendar_backend_queue_production
+    database: wit_calendar_backend_production_queue
     migrations_paths: db/queue_migrate

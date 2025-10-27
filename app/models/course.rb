@@ -1,14 +1,17 @@
 # == Schema Information
 #
-# Table name: academic_classes
+# Table name: courses
+# Database name: primary
 #
 #  id             :bigint           not null, primary key
 #  course_number  :integer
 #  credit_hours   :integer
 #  crn            :integer
+#  end_date       :date
 #  grade_mode     :string
 #  schedule_type  :string           not null
 #  section_number :string           not null
+#  start_date     :date
 #  subject        :string
 #  title          :string
 #  created_at     :datetime         not null
@@ -17,14 +20,14 @@
 #
 # Indexes
 #
-#  index_academic_classes_on_crn      (crn) UNIQUE
-#  index_academic_classes_on_term_id  (term_id)
+#  index_courses_on_crn      (crn) UNIQUE
+#  index_courses_on_term_id  (term_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (term_id => terms.id)
 #
-class AcademicClass < ApplicationRecord
+class Course < ApplicationRecord
   belongs_to :term
 
   has_and_belongs_to_many :faculties

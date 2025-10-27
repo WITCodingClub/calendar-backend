@@ -1,6 +1,7 @@
 # == Schema Information
 #
 # Table name: meeting_times
+# Database name: primary
 #
 #  id                    :bigint           not null, primary key
 #  begin_time            :integer          not null
@@ -19,21 +20,21 @@
 #  wednesday             :boolean
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
-#  academic_class_id     :bigint           not null
+#  course_id             :bigint           not null
 #  room_id               :bigint           not null
 #
 # Indexes
 #
-#  index_meeting_times_on_academic_class_id  (academic_class_id)
-#  index_meeting_times_on_room_id            (room_id)
+#  index_meeting_times_on_course_id  (course_id)
+#  index_meeting_times_on_room_id    (room_id)
 #
 # Foreign Keys
 #
-#  fk_rails_...  (academic_class_id => academic_classes.id)
+#  fk_rails_...  (course_id => courses.id)
 #  fk_rails_...  (room_id => rooms.id)
 #
 class MeetingTime < ApplicationRecord
-  belongs_to :academic_class
+  belongs_to :course
   belongs_to :room
   has_one :building, through: :room
 
