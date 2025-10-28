@@ -25,4 +25,9 @@ class Room < ApplicationRecord
     number.to_s[0].to_i
   end
 
+  def formatted_number
+    # Pad room numbers to 3 digits (e.g., 6 becomes "006")
+    number.to_s.rjust(3, "0")
+  end
+
 end

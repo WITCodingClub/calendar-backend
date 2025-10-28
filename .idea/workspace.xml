@@ -4,18 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/controllers/admin/application_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/admin/application_controller.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/controllers/api/authentication_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/api/authentication_controller.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/controllers/magic_link_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/magic_link_controller.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/user.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/user.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/views/admin/application/index.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/admin/application/index.html.erb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/views/layouts/auth.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/layouts/auth.html.erb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/views/magic_link/error.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/magic_link/error.html.erb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/views/magic_link/sent.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/magic_link/sent.html.erb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/views/magic_link/success.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/magic_link/success.html.erb" afterDir="false" />
-    </list>
+    <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -169,7 +158,7 @@
       <workItem from="1761589186167" duration="4347000" />
       <workItem from="1761594647936" duration="12067000" />
       <workItem from="1761610188550" duration="5000" />
-      <workItem from="1761610198081" duration="2511000" />
+      <workItem from="1761610198081" duration="3236000" />
     </task>
     <servers />
   </component>

@@ -106,7 +106,7 @@ class CourseProcessorService < ApplicationService
                 name: mt.building.name,
                 abbreviation: mt.building.abbreviation
               } : nil,
-              room: mt.room&.number
+              room: mt.room&.formatted_number
             },
             monday: mt.monday,
             tuesday: mt.tuesday,
