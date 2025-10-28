@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_27_230058) do
+ActiveRecord::Schema[8.1].define(version: 2025_10_28_000316) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -140,6 +140,15 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_27_230058) do
     t.index ["creator_id"], name: "index_blazer_queries_on_creator_id"
   end
 
+  create_table "buildings", force: :cascade do |t|
+    t.string "abbreviation", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.string "name", null: false
+    t.datetime "updated_at", precision: nil, null: false
+    t.index ["abbreviation"], name: "index_buildings_on_abbreviation", unique: true
+    t.index ["name"], name: "index_buildings_on_name", unique: true
+  end
+
   create_table "courses", force: :cascade do |t|
     t.integer "course_number"
     t.datetime "created_at", null: false
@@ -220,11 +229,11 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_27_230058) do
   end
 
   create_table "meeting_times", force: :cascade do |t|
-    t.integer "begin_time", null: false
+    t.integer "begin_time"
     t.bigint "course_id", null: false
     t.datetime "created_at", null: false
     t.datetime "end_date", null: false
-    t.integer "end_time", null: false
+    t.integer "end_time"
     t.boolean "friday"
     t.integer "hours_week"
     t.integer "meeting_schedule_type"
@@ -252,9 +261,11 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_27_230058) do
   end
 
   create_table "rooms", force: :cascade do |t|
+    t.bigint "building_id", null: false
     t.datetime "created_at", null: false
     t.integer "number"
     t.datetime "updated_at", null: false
+    t.index ["building_id"], name: "index_rooms_on_building_id"
   end
 
   create_table "terms", force: :cascade do |t|
@@ -294,4 +305,5 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_27_230058) do
   add_foreign_key "magic_links", "users"
   add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
+  add_foreign_key "rooms", "buildings", name: "fk_rails_rooms_building_id"
 end

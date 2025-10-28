@@ -8,7 +8,12 @@ class CourseProcessorService < ApplicationService
   end
 
   def call
-    courses.each do |course_data|
+    processed_courses = []
+
+    # Deduplicate courses by CRN and term
+    unique_courses = courses.uniq { |c| [c[:crn], c[:term]] }
+
+    unique_courses.each do |course_data|
       detailed_course_info = LeopardWebService.get_class_details(
         term: course_data[:term],
         course_reference_number: course_data[:crn]
@@ -26,7 +31,7 @@ class CourseProcessorService < ApplicationService
         when "Fall"
           :fall
         when "Summer"
-          :summer 
+          :summer
         else
           raise "Unknown season string: #{season_str.inspect}"
         end
@@ -76,9 +81,45 @@ class CourseProcessorService < ApplicationService
 
       Enrollment.find_or_create_by!(user: user, course: course, term: term)
 
+      # Reload course to get associated meeting times
+      course.reload
 
-
-
+      # Collect processed course data
+      processed_courses << {
+        id: course.id,
+        title: course.title,
+        course_number: course.course_number,
+        schedule_type: course.schedule_type,
+        term: {
+          uid: term.uid,
+          season: term.season,
+          year: term.year
+        },
+        meeting_times: course.meeting_times.map do |mt|
+          {
+            begin_time: mt.begin_time,
+            end_time: mt.end_time,
+            start_date: mt.start_date,
+            end_date: mt.end_date,
+            location: {
+              building: mt.building ? {
+                name: mt.building.name,
+                abbreviation: mt.building.abbreviation
+              } : nil,
+              room: mt.room&.number
+            },
+            monday: mt.monday,
+            tuesday: mt.tuesday,
+            wednesday: mt.wednesday,
+            thursday: mt.thursday,
+            friday: mt.friday,
+            saturday: mt.saturday,
+            sunday: mt.sunday
+          }
+        end
+      }
     end
+
+    processed_courses
   end
 end

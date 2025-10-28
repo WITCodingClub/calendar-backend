@@ -13,9 +13,15 @@ module Api
       end
 
       # Process courses using the service with the current user
-      CourseProcessorService.new(courses, current_user).call
+      processed_data = CourseProcessorService.new(courses, current_user).call
 
-      render json: { status: "ok" }, status: :ok
+      # remove all id fields from processed_data for security
+      processed_data.each do |course|
+        course.delete(:id)
+        course[:term].delete(:id) if course[:term]
+      end
+
+      render json: { classes: processed_data }, status: :ok
     rescue StandardError => e
       Rails.logger.error("Error processing courses: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))

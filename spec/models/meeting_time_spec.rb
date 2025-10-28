@@ -4,9 +4,9 @@
 # Database name: primary
 #
 #  id                    :bigint           not null, primary key
-#  begin_time            :integer          not null
+#  begin_time            :integer
 #  end_date              :datetime         not null
-#  end_time              :integer          not null
+#  end_time              :integer
 #  friday                :boolean
 #  hours_week            :integer
 #  meeting_schedule_type :integer
