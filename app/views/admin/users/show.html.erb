@@ -1,0 +1,107 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">User Details</h1>
+    <%= link_to "Back to Users", admin_users_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+  </div>
+
+  <div class="bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+    <div class="px-6 py-5">
+      <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+        <div>
+          <dt class="text-sm font-medium text-gray-500">First Name</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @user.first_name %></dd>
+        </div>
+
+        <div>
+          <dt class="text-sm font-medium text-gray-500">Last Name</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @user.last_name %></dd>
+        </div>
+
+        <div>
+          <dt class="text-sm font-medium text-gray-500">Email</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @user.email %></dd>
+        </div>
+
+        <div>
+          <dt class="text-sm font-medium text-gray-500">Access Level</dt>
+          <dd class="mt-1">
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" style="background: rgba(209, 55, 50, 0.1); color: #d13732;">
+              <%= @user.access_level_text %>
+            </span>
+          </dd>
+        </div>
+
+        <div>
+          <dt class="text-sm font-medium text-gray-500">Created At</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @user.created_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
+        </div>
+
+        <div>
+          <dt class="text-sm font-medium text-gray-500">Updated At</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @user.updated_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
+        </div>
+      </dl>
+
+      <div class="mt-6 flex gap-3">
+        <%= link_to "Edit User", edit_admin_user_path(@user), class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+        <%= button_to "Delete User", admin_user_path(@user), method: :delete, data: { confirm: "Are you sure you want to delete this user?" }, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer" %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enrollments Section -->
+  <div class="mt-8 bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+    <div class="px-6 py-5">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold">Enrollments</h2>
+        <span class="text-sm text-gray-600">Total: <%= @user.enrollments.count %></span>
+      </div>
+
+      <% if @user.enrollments.any? %>
+        <div class="space-y-4">
+          <% @user.enrollments.includes(:course, :term).joins(:term).order("terms.year DESC, terms.season DESC").group_by(&:term).each do |term, enrollments| %>
+            <div class="mb-6">
+              <h3 class="text-lg font-semibold mb-3" style="color: #d13732;"><%= term.name %></h3>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead style="background: rgba(255, 255, 255, 0.5);">
+                    <tr>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">CRN</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Course</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Title</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Type</th>
+                      <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Credits</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200" style="background: rgba(255, 255, 255, 0.3);">
+                    <% enrollments.each do |enrollment| %>
+                      <tr>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                          <%= enrollment.course.crn %>
+                        </td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <%= enrollment.course.subject %> <%= enrollment.course.course_number %>
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-900">
+                          <%= enrollment.course.title %>
+                        </td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                          <%= enrollment.course.schedule_type %>
+                        </td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                          <%= enrollment.course.credit_hours %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-gray-600">No enrollments found for this user.</p>
+      <% end %>
+    </div>
+  </div>
+</div>

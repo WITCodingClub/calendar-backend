@@ -6,19 +6,15 @@
   <component name="ChangeListManager">
     <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/controllers/api/course_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/api/course_controller.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/building.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/building.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/meeting_time.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/meeting_time.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/room.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/room.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/course_processor_service.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/course_processor_service.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/meeting_times_ingest_service.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/meeting_times_ingest_service.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/schema.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/schema.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/buildings.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/buildings.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/meeting_times.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/meeting_times.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/rooms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/rooms.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/building_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/building_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/room_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/room_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/controllers/admin/application_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/admin/application_controller.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/controllers/api/authentication_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/api/authentication_controller.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/controllers/magic_link_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/magic_link_controller.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/user.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/user.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/views/admin/application/index.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/admin/application/index.html.erb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/views/layouts/auth.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/layouts/auth.html.erb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/views/magic_link/error.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/magic_link/error.html.erb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/views/magic_link/sent.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/magic_link/sent.html.erb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/views/magic_link/success.html.erb" beforeDir="false" afterPath="$PROJECT_DIR$/app/views/magic_link/success.html.erb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,7 +54,8 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "com.intellij.lang.ruby.rbs.tools.collection.workspace.sync.RbsCollectionUpdateProjectActivity#LAST_UPDATE_TIMESTAMP": "1761594706870",
+    "com.intellij.lang.ruby.rbs.tools.collection.workspace.sync.RbsCollectionUpdateProjectActivity#LAST_UPDATE_TIMESTAMP": "1761610257082",
+    "full.screen.before.presentation.mode": "false",
     "git-widget-placeholder": "main",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
@@ -170,7 +167,9 @@
       <updated>1761528679084</updated>
       <workItem from="1761528683648" duration="3592000" />
       <workItem from="1761589186167" duration="4347000" />
-      <workItem from="1761594647936" duration="11726000" />
+      <workItem from="1761594647936" duration="12067000" />
+      <workItem from="1761610188550" duration="5000" />
+      <workItem from="1761610198081" duration="2511000" />
     </task>
     <servers />
   </component>
