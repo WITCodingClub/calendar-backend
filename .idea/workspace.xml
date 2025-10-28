@@ -4,7 +4,30 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="" />
+    <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/db/migrate/20251026200335_create_join_table_courses_faculties.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/enrollment.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/enrollment.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/meeting_time.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/meeting_time.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/room.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/room.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/term.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/term.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251024221507_create_users.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251024221507_create_users.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191220_create_academic_classes.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191220_create_courses.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191229_create_meeting_times.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191229_create_meeting_times.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251026200335_create_join_table_academic_classes_faculties.rb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251026214220_rename_columns_to_snake_case_in_meeting_times.rb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251027184316_rename_academic_class_to_course.rb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/migrate/20251027184534_add_start_and_end_to_courses.rb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/schema.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/schema.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/enrollments.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/enrollments.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/meeting_times.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/meeting_times.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/rooms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/rooms.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/factories/terms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/terms.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/enrollment_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/enrollment_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/room_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/room_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/spec/models/term_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/term_spec.rb" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -59,6 +82,8 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/db/migrate" />
+      <recent name="$PROJECT_DIR$/docs" />
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
@@ -158,7 +183,7 @@
       <workItem from="1761589186167" duration="4347000" />
       <workItem from="1761594647936" duration="12067000" />
       <workItem from="1761610188550" duration="5000" />
-      <workItem from="1761610198081" duration="3236000" />
+      <workItem from="1761610198081" duration="4290000" />
     </task>
     <servers />
   </component>
