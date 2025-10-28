@@ -5,28 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/db/migrate/20251026200335_create_join_table_courses_faculties.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/enrollment.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/enrollment.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/meeting_time.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/meeting_time.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/room.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/room.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/term.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/term.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251024221507_create_users.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251024221507_create_users.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191220_create_academic_classes.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191220_create_courses.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191229_create_meeting_times.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191229_create_meeting_times.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026200335_create_join_table_academic_classes_faculties.rb" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026214220_rename_columns_to_snake_case_in_meeting_times.rb" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251027184316_rename_academic_class_to_course.rb" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251027184534_add_start_and_end_to_courses.rb" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/schema.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/schema.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/enrollments.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/enrollments.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/meeting_times.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/meeting_times.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/rooms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/rooms.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/terms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/terms.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/enrollment_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/enrollment_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/room_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/room_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/term_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/term_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/assets/images/gemini-watermark-removed-1761611527645.png" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -62,24 +42,24 @@
     <option name="openDirectoriesWithSingleClick" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "com.intellij.lang.ruby.rbs.tools.collection.workspace.sync.RbsCollectionUpdateProjectActivity#LAST_UPDATE_TIMESTAMP": "1761610257082",
-    "full.screen.before.presentation.mode": "false",
-    "git-widget-placeholder": "main",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_interpreter_path": "/Users/jsp/.local/share/mise/installs/node/23.10.0/bin/node",
-    "nodejs_package_manager_path": "npm",
-    "ruby.structure.view.model.defaults.configured": "true",
-    "settings.editor.selected.configurable": "file.status.colors",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;com.intellij.lang.ruby.rbs.tools.collection.workspace.sync.RbsCollectionUpdateProjectActivity#LAST_UPDATE_TIMESTAMP&quot;: &quot;1761610257082&quot;,
+    &quot;full.screen.before.presentation.mode&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_interpreter_path&quot;: &quot;/Users/jsp/.local/share/mise/installs/node/23.10.0/bin/node&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;ruby.structure.view.model.defaults.configured&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;file.status.colors&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/db/migrate" />
