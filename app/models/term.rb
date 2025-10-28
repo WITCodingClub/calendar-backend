@@ -4,7 +4,7 @@
 # Database name: primary
 #
 #  id         :bigint           not null, primary key
-#  season     :integer
+#  semester   :integer
 #  uid        :integer          not null
 #  year       :integer
 #  created_at :datetime         not null
@@ -12,8 +12,8 @@
 #
 # Indexes
 #
-#  index_terms_on_uid              (uid) UNIQUE
-#  index_terms_on_year_and_season  (year,season) UNIQUE
+#  index_terms_on_uid                (uid) UNIQUE
+#  index_terms_on_year_and_semester  (year,semester) UNIQUE
 #
 class Term < ApplicationRecord
   has_many :courses, dependent: :destroy
@@ -21,11 +21,11 @@ class Term < ApplicationRecord
 
   validates :uid, presence: true, uniqueness: true
 
-  enum :season, {
-    spring: 1,
-    fall: 2,
-    summer: 3
-  }
+  # enum :season, {
+  #   spring: 1,
+  #   fall: 2,
+  #   summer: 3
+  # }
 
   def name
     "#{season.to_s.capitalize} #{year}"

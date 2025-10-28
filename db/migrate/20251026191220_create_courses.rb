@@ -1,6 +1,6 @@
-class CreateAcademicClasses < ActiveRecord::Migration[8.0]
+class CreateCourses < ActiveRecord::Migration[8.0]
   def change
-    create_table :academic_classes do |t|
+    create_table :courses do |t|
       t.belongs_to :term, null: false, foreign_key: true
       t.integer :crn
       t.string :section_number, null: false
@@ -10,12 +10,15 @@ class CreateAcademicClasses < ActiveRecord::Migration[8.0]
       t.integer :credit_hours
       t.string :grade_mode
 
+      t.date :start_date
+      t.date :end_date
+
       t.string :schedule_type, null: false
 
       t.timestamps
     end
 
-    add_index :academic_classes, :crn, unique: true
+    add_index :courses, :crn, unique: true
 
   end
 end

@@ -20,17 +20,17 @@
 #  wednesday             :boolean
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
-#  course_id             :bigint           not null
+#  academic_class_id     :bigint           not null
 #  room_id               :bigint           not null
 #
 # Indexes
 #
-#  index_meeting_times_on_course_id  (course_id)
-#  index_meeting_times_on_room_id    (room_id)
+#  index_meeting_times_on_academic_class_id  (academic_class_id)
+#  index_meeting_times_on_room_id            (room_id)
 #
 # Foreign Keys
 #
-#  fk_rails_...  (course_id => courses.id)
+#  fk_rails_...  (academic_class_id => courses.id)
 #  fk_rails_...  (room_id => rooms.id)
 #
 class MeetingTime < ApplicationRecord
@@ -38,13 +38,13 @@ class MeetingTime < ApplicationRecord
   belongs_to :room
   has_one :building, through: :room
 
-  enum :meeting_schedule_type, {
-    lecture: 1, # LEC
-    laboratory: 2 # LAB
-  }
-
-  enum :meeting_type, {
-    class_meeting: 1 # CLAS
-  }
+  # enum :meeting_schedule_type, {
+  #   lecture: 1, # LEC
+  #   laboratory: 2 # LAB
+  # }
+  #
+  # enum :meeting_type, {
+  #   class_meeting: 1 # CLAS
+  # }
 
 end
