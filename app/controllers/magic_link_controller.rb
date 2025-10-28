@@ -11,6 +11,12 @@ class MagicLinkController < ApplicationController
       redirect_to new_user_session_path and return
     end
 
+    # Validate email domain
+    unless email.downcase.strip.end_with?("@wit.edu")
+      flash[:error] = "Only @wit.edu email addresses are allowed"
+      redirect_to new_user_session_path and return
+    end
+
     # Find or create user (for passwordless, we auto-create accounts)
     user = User.find_or_create_by(email: email.downcase.strip)
 
