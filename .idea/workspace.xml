@@ -5,53 +5,20 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/services/course_processor_service.rb" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/services/meeting_times_ingest_service.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/calendar-backend.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/calendar-backend.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/controllers/api/course_events_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/api/course_controller.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/academic_class.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/course.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/ahoy/event.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/ahoy/event.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/ahoy/message.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/ahoy/message.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/ahoy/visit.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/ahoy/visit.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/controllers/api/course_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/api/course_controller.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/models/building.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/building.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/enrollment.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/enrollment.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/faculty.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/faculty.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/lockbox_audit.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/lockbox_audit.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/magic_link.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/magic_link.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/models/meeting_time.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/meeting_time.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/models/room.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/room.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/term.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/term.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/user.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/user.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/course_events_processor_service.rb" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/database.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/database.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/queue.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/queue.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/recurring.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/recurring.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/routes.rb" beforeDir="false" afterPath="$PROJECT_DIR$/config/routes.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026190940_create_terms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026190940_create_terms.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191200_create_buildings.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191200_create_buildings.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191210_create_rooms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191210_create_rooms.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/queue_schema.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/queue_schema.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/course_processor_service.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/course_processor_service.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/meeting_times_ingest_service.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/meeting_times_ingest_service.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/db/schema.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/schema.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/seeds.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/seeds.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/academic_classes.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/academic_classes.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/spec/factories/buildings.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/buildings.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/enrollments.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/enrollments.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/faculties.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/faculties.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/magic_links.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/magic_links.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/spec/factories/meeting_times.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/meeting_times.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/spec/factories/rooms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/rooms.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/terms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/terms.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/factories/users.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/factories/users.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/academic_class_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/course_spec.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/spec/models/building_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/building_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/enrollment_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/enrollment_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/faculty_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/faculty_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/magic_link_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/magic_link_spec.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/meeting_time_spec.rb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/spec/models/room_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/room_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/term_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/term_spec.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/spec/models/user_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/spec/models/user_spec.rb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -203,7 +170,7 @@
       <updated>1761528679084</updated>
       <workItem from="1761528683648" duration="3592000" />
       <workItem from="1761589186167" duration="4347000" />
-      <workItem from="1761594647936" duration="9375000" />
+      <workItem from="1761594647936" duration="11726000" />
     </task>
     <servers />
   </component>

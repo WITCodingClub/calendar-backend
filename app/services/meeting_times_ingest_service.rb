@@ -28,10 +28,10 @@ class MeetingTimesIngestService < ApplicationService
 
     start_dt = parse_date_to_beginning_of_day(start_date_str)
     end_dt   = parse_date_to_end_of_day(end_date_str)
-    begin_minutes = to_minutes_since_midnight(begin_time_str)
-    end_minutes   = to_minutes_since_midnight(end_time_str)
+    begin_hhmm = to_hhmm_format(begin_time_str)
+    end_hhmm   = to_hhmm_format(end_time_str)
 
-    return if start_dt.nil? || end_dt.nil? || begin_minutes.nil? || end_minutes.nil?
+    return if start_dt.nil? || end_dt.nil? || begin_hhmm.nil? || end_hhmm.nil?
 
     days = {
       monday:    to_bool(mt["monday"]    || mt[:monday]),
@@ -64,15 +64,15 @@ class MeetingTimesIngestService < ApplicationService
       room_id: room.id,
       start_date: start_dt,
       end_date: end_dt,
-      begin_time: begin_minutes,
-      end_time: end_minutes
+      begin_time: begin_hhmm,
+      end_time: end_hhmm
     }.merge(days)
 
     MeetingTime.find_or_create_by!(attrs) do |mt_record|
       mt_record.meeting_schedule_type = meeting_schedule_type
       mt_record.meeting_type = meeting_type
       if @compute_hours_week
-        mt_record.hours_week = compute_hours_week(begin_minutes, end_minutes, days)
+        mt_record.hours_week = compute_hours_week(begin_hhmm, end_hhmm, days)
       end
     end
   end
@@ -103,8 +103,8 @@ class MeetingTimesIngestService < ApplicationService
     end
   end
 
-  # Convert "10:00 AM"/ "22:15" / "1000" → integer minutes since midnight
-  def to_minutes_since_midnight(value)
+  # Convert "10:00 AM"/ "22:15" / "1000" → HHMM integer format
+  def to_hhmm_format(value)
     return nil if value.nil? || value.to_s.strip.empty?
     str = value.to_s.strip
     if str =~ /\A(\d{1,2}):(\d{2})\s*(AM|PM)\z/i
@@ -112,18 +112,18 @@ class MeetingTimesIngestService < ApplicationService
       m = Regexp.last_match(2).to_i
       meridian = Regexp.last_match(3).upcase
       h = (h % 12) + (meridian == "PM" ? 12 : 0)
-      (h * 60) + m
+      (h * 100) + m
     elsif str =~ /\A(\d{1,2}):(\d{2})\z/
       h = Regexp.last_match(1).to_i
       m = Regexp.last_match(2).to_i
       return nil if h > 23 || m > 59
-      (h * 60) + m
+      (h * 100) + m
     elsif str =~ /\A(\d{2})(\d{2})\z/
-      # Handle HHMM format like "1000" or "1145"
+      # Handle HHMM format like "1000" or "1145" - already in correct format
       h = Regexp.last_match(1).to_i
       m = Regexp.last_match(2).to_i
       return nil if h > 23 || m > 59
-      (h * 60) + m
+      (h * 100) + m
     else
       nil
     end
@@ -172,9 +172,18 @@ class MeetingTimesIngestService < ApplicationService
   end
 
   # Compute weekly hours: duration in hours × number of true days
-  def compute_hours_week(begin_minutes, end_minutes, days)
-    per_day_minutes = [end_minutes - begin_minutes, 0].max
+  def compute_hours_week(begin_hhmm, end_hhmm, days)
+    # Convert HHMM to decimal hours for calculation
+    begin_h = begin_hhmm / 100
+    begin_m = begin_hhmm % 100
+    begin_decimal = begin_h + (begin_m / 60.0)
+
+    end_h = end_hhmm / 100
+    end_m = end_hhmm % 100
+    end_decimal = end_h + (end_m / 60.0)
+
+    per_day_hours = [end_decimal - begin_decimal, 0].max
     day_count = days.values.count(true)
-    ((per_day_minutes / 60.0) * day_count).round
+    (per_day_hours * day_count).round
   end
 end
