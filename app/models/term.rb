@@ -21,11 +21,11 @@ class Term < ApplicationRecord
 
   validates :uid, presence: true, uniqueness: true
 
-  # enum :season, {
-  #   spring: 1,
-  #   fall: 2,
-  #   summer: 3
-  # }
+  enum :season, {
+    spring: 1,
+    fall: 2,
+    summer: 3
+  }
 
   def name
     "#{season.to_s.capitalize} #{year}"
