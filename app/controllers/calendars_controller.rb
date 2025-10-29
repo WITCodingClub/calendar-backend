@@ -6,7 +6,7 @@ class CalendarsController < ApplicationController
 
     # Get all enrolled courses (filtering by meeting_times dates will be handled in the iCal RRULE)
     @courses = @user.courses
-                    .includes(:meeting_times, :term, meeting_times: [:room, :building])
+                    .includes(:meeting_times, meeting_times: [:room, :building])
 
     respond_to do |format|
       format.ics do
@@ -23,7 +23,8 @@ class CalendarsController < ApplicationController
 
     cal = Icalendar::Calendar.new
     cal.prodid = "-//WITCC//Course Calendar//EN"
-    cal.description "WIT Course Schedule Calendar for #{@user.email}"
+    cal.append_custom_property("X-WR-CALNAME", "WIT Course Schedule")
+    cal.append_custom_property("X-WR-CALDESC", "WIT Course Schedule Calendar for #{@user.email}")
 
       cal.timezone do |t|
       t.tzid = "America/New_York"
@@ -65,7 +66,7 @@ class CalendarsController < ApplicationController
           e.dtend = Icalendar::Values::DateTime.new(end_time)
 
           # Course title with section
-          e.summary = "#{course.subject} #{course.course_number}-#{course.section_number}: #{course.title}"
+          e.summary = course.title
 
           # Location
           if meeting_time.room && meeting_time.building
@@ -79,10 +80,11 @@ class CalendarsController < ApplicationController
 
           # Stable UID for consistent event identity across refreshes
           e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
-          e.ip_class = "PRIVATE"
 
           # Timestamps for change detection
           e.dtstamp = Icalendar::Values::DateTime.new(Time.current)
+
+          e.color = "##{meeting_time.event_color}"
 
           # Use the most recent update time between course and meeting_time
           last_modified = [course.updated_at, meeting_time.updated_at].max
@@ -92,12 +94,9 @@ class CalendarsController < ApplicationController
           # Using seconds since epoch divided by 60 to get a stable incrementing number
           e.sequence = (last_modified.to_i / 60)
 
-
         end
       end
     end
-
-    cal.publish
 
     cal
   end

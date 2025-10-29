@@ -5,13 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/calendar-backend.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/calendar-backend.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Gemfile" beforeDir="false" afterPath="$PROJECT_DIR$/Gemfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Gemfile.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Gemfile.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/user.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/user.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/routes.rb" beforeDir="false" afterPath="$PROJECT_DIR$/config/routes.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/schema.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/schema.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/controllers/calendars_controller.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/controllers/calendars_controller.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/models/meeting_time.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/meeting_time.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/course_processor_service.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/course_processor_service.rb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -170,7 +167,7 @@
       <workItem from="1761594647936" duration="12067000" />
       <workItem from="1761610188550" duration="5000" />
       <workItem from="1761610198081" duration="4290000" />
-      <workItem from="1761769793452" duration="4326000" />
+      <workItem from="1761769793452" duration="9209000" />
     </task>
     <servers />
   </component>

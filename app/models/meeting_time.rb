@@ -38,6 +38,17 @@ class MeetingTime < ApplicationRecord
   belongs_to :room
   has_one :building, through: :room
 
+  def event_color
+    case meeting_schedule_type
+    when "lecture"
+      ColorPalette::MAP[:gold]
+    when "laboratory"
+      ColorPalette::MAP[:ruby_red]
+    else
+      ColorPalette::MAP[:platinum]
+    end
+  end
+
   enum :meeting_schedule_type, {
     lecture: 1, # LEC
     laboratory: 2 # LAB
