@@ -23,6 +23,8 @@ Rails.application.routes.draw do
     post "process_courses", to: "course#process_courses"
   end
 
+  get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
+
   # Admin area with authentication constraint
   constraints AdminConstraint.new do
     namespace :admin do
