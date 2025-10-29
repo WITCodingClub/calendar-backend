@@ -1,0 +1,46 @@
+<div class="min-h-screen bg-gray-50 py-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white shadow rounded-lg p-6">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Welcome, <%= current_user.full_name %></h1>
+        <%= button_to "Sign Out", destroy_user_session_path, method: :delete, class: "bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" %>
+      </div>
+
+      <div class="mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Your Profile</h2>
+        <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Email</dt>
+            <dd class="mt-1 text-sm text-gray-900"><%= current_user.email %></dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Access Level</dt>
+            <dd class="mt-1 text-sm text-gray-900"><%= current_user.access_level_text %></dd>
+          </div>
+        </dl>
+      </div>
+
+      <% if current_user.admin_access? %>
+        <div class="mb-8">
+          <h2 class="text-xl font-semibold text-gray-800 mb-4">Admin Access</h2>
+          <%= link_to "Go to Admin Panel", admin_root_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700" %>
+        </div>
+      <% end %>
+
+      <div>
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Your Courses</h2>
+        <% if @enrollments.any? %>
+          <ul class="divide-y divide-gray-200">
+            <% @enrollments.each do |enrollment| %>
+              <li class="py-4">
+                <p class="text-sm font-medium text-gray-900"><%= enrollment.course.title %></p>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p class="text-gray-500">No courses enrolled yet.</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

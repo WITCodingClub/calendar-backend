@@ -46,6 +46,9 @@ Rails.application.routes.draw do
   get "unauthorized", to: "errors#unauthorized"
   get "404", to: "errors#not_found"
 
+  # User dashboard
+  get "dashboard", to: "dashboard#index", as: :dashboard
+
   if Rails.env.development?
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
   end
@@ -57,8 +60,6 @@ Rails.application.routes.draw do
   get "magic_link/verify", to: "magic_link#verify"
   get "magic_link/sent", to: "magic_link#sent"
 
-  # Root redirects to admin for authenticated users, otherwise sign in
-  root to: redirect { |params, request|
-    request.session[:user_id].present? ? "/admin" : "/users/sign_in"
-  }
+  # Root route
+  root to: "sessions#new"
 end
