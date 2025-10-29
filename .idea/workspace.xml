@@ -5,13 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="8c6fe89a-0022-47f6-aea9-924cb0730c52" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/meeting_time.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/meeting_time.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/models/term.rb" beforeDir="false" afterPath="$PROJECT_DIR$/app/models/term.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191210_create_rooms.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191210_create_rooms.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026191229_create_meeting_times.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026191229_create_meeting_times.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/migrate/20251026210756_create_enrollments.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/migrate/20251026210756_create_enrollments.rb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db/schema.rb" beforeDir="false" afterPath="$PROJECT_DIR$/db/schema.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/initializers/session_store.rb" beforeDir="false" afterPath="$PROJECT_DIR$/config/initializers/session_store.rb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
