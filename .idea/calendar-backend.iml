@@ -105,6 +105,8 @@
     <orderEntry type="library" scope="PROVIDED" name="hashids (v1.0.6, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="htmlentities (v4.3.4, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="i18n (v1.14.7, mise: 3.4.7) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="icalendar (v2.12.1, mise: 3.4.7) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="ice_cube (v0.17.0, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="importmap-rails (v2.2.2, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="invisible_captcha (v2.3.0, mise: 3.4.7) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="io-console (v0.8.1, mise: 3.4.7) [gem]" level="application" />

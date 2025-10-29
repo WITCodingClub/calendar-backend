@@ -125,3 +125,4 @@ end
 gem 'faraday', '~> 2.14'
 
 gem "tailwindcss-ruby", "~> 4.1"
+gem 'icalendar'
