@@ -67,7 +67,7 @@ class MagicLinkController < ApplicationController
     # Mark as used
     magic_link.mark_as_used!
 
-    # Sign in the user with Devise
+    # Sign in the user
     sign_in(magic_link.user)
 
     # Generate JWT token for API use
@@ -77,6 +77,17 @@ class MagicLinkController < ApplicationController
     @jwt_token = jwt_token
     @user = magic_link.user
 
-    render :success
+    # If redirect parameter is present, redirect to dashboard instead of showing success page
+    # This allows for normal web flow vs extension flow
+    if params[:redirect].present?
+      if @user.admin_access?
+        redirect_to admin_root_path, notice: "Successfully signed in!"
+      else
+        redirect_to dashboard_path, notice: "Successfully signed in!"
+      end
+    else
+      # Show success page for extension authentication
+      render :success
+    end
   end
 end
