@@ -47,4 +47,16 @@ class MeetingTime < ApplicationRecord
     class_meeting: 1 # CLAS
   }
 
+  def fmt_begin_time
+    hours = begin_time / 100
+    minutes = begin_time % 100
+    format("%02d:%02d", hours, minutes)
+  end
+
+  def fmt_end_time
+    hours = end_time / 100
+    minutes = end_time % 100
+    format("%02d:%02d", hours, minutes)
+  end
+
 end
