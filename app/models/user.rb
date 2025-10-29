@@ -45,6 +45,10 @@ class User < ApplicationRecord
     "#{first_name} #{last_name}"
   end
 
+  def cal_url
+    "#{Rails.application.routes.url_helpers.root_url}/calendar/#{calendar_token}.ics"
+  end
+
   def access_level_text
     case access_level
     when "user" then "User"
