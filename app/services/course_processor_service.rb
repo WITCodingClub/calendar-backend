@@ -97,8 +97,8 @@ class CourseProcessorService < ApplicationService
         },
         meeting_times: course.meeting_times.map do |mt|
           {
-            begin_time: mt.begin_time,
-            end_time: mt.end_time,
+            begin_time: mt.fmt_begin_time,
+            end_time: mt.fmt_end_time,
             start_date: mt.start_date,
             end_date: mt.end_date,
             location: {
