@@ -23,7 +23,9 @@ class CalendarsController < ApplicationController
 
     cal = Icalendar::Calendar.new
     cal.prodid = "-//WITCC//Course Calendar//EN"
-    cal.timezone do |t|
+    cal.description "WIT Course Schedule Calendar for #{@user.email}"
+
+      cal.timezone do |t|
       t.tzid = "America/New_York"
 
       t.daylight do |d|
@@ -42,8 +44,6 @@ class CalendarsController < ApplicationController
         s.rrule        = "FREQ=YEARLY;BYMONTH=11;BYDAY=1SU"
       end
     end
-
-    cal.common_name
 
     courses.each do |course|
       course.meeting_times.each do |meeting_time|
@@ -91,6 +91,8 @@ class CalendarsController < ApplicationController
           # Sequence number based on update timestamps (helps clients detect changes)
           # Using seconds since epoch divided by 60 to get a stable incrementing number
           e.sequence = (last_modified.to_i / 60)
+
+
         end
       end
     end
