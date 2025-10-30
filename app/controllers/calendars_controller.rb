@@ -86,12 +86,9 @@ class CalendarsController < ApplicationController
           # Timestamps for change detection
           e.dtstamp = Icalendar::Values::DateTime.new(Time.current)
 
-          # Set color using custom properties for different calendar clients
-          # Note: Google Calendar doesn't support color properties well via iCal
-          # These work best for Apple Calendar and other clients
           if meeting_time.event_color.present?
             e.append_custom_property("X-APPLE-CALENDAR-COLOR", "##{meeting_time.event_color}")
-            e.append_custom_property("COLOR", "##{meeting_time.event_color}")
+            e.append_custom_property("COLOR", "#{meeting_time.event_color}")
           end
 
           # Use the most recent update time between course and meeting_time
