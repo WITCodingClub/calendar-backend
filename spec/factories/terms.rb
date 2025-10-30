@@ -4,7 +4,7 @@
 # Database name: primary
 #
 #  id         :bigint           not null, primary key
-#  semester   :integer
+#  season     :integer
 #  uid        :integer          not null
 #  year       :integer
 #  created_at :datetime         not null
@@ -12,8 +12,8 @@
 #
 # Indexes
 #
-#  index_terms_on_uid                (uid) UNIQUE
-#  index_terms_on_year_and_semester  (year,semester) UNIQUE
+#  index_terms_on_uid              (uid) UNIQUE
+#  index_terms_on_year_and_season  (year,season) UNIQUE
 #
 FactoryBot.define do
   factory :term do
