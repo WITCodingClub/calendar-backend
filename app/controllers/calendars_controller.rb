@@ -81,10 +81,18 @@ class CalendarsController < ApplicationController
           # Stable UID for consistent event identity across refreshes
           e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
 
+          e.color = "##{meeting_time.event_color}" if meeting_time.event_color.present?
+
           # Timestamps for change detection
           e.dtstamp = Icalendar::Values::DateTime.new(Time.current)
 
-          e.color = "##{meeting_time.event_color}"
+          # Set color using custom properties for different calendar clients
+          # Note: Google Calendar doesn't support color properties well via iCal
+          # These work best for Apple Calendar and other clients
+          if meeting_time.event_color.present?
+            e.append_custom_property("X-APPLE-CALENDAR-COLOR", "##{meeting_time.event_color}")
+            e.append_custom_property("COLOR", "##{meeting_time.event_color}")
+          end
 
           # Use the most recent update time between course and meeting_time
           last_modified = [course.updated_at, meeting_time.updated_at].max
