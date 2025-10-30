@@ -59,6 +59,10 @@ class User < ApplicationRecord
     end
   end
 
+  def google_token_expired?
+    google_token_expires_at.present? && Time.current >= google_token_expires_at
+  end
+
   private
 
   def generate_calendar_token
