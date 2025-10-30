@@ -1,4 +1,6 @@
 class CourseProcessorService < ApplicationService
+  include ApplicationHelper
+
   attr_reader :courses, :user
 
   def initialize(courses, user)
@@ -122,16 +124,4 @@ class CourseProcessorService < ApplicationService
 
     processed_courses
   end
-
-  def titleize_with_roman_numerals(title)
-    # First, apply standard titleize
-    titleized = title.downcase.titleize
-
-    # Then fix Roman numerals (I, II, III, IV, V, etc.)
-    # Match Roman numerals as separate words
-    titleized.gsub(/\b(I{1,3}|Iv|V|Vi{1,3}|Ix|X)\b/) do |match|
-      match.upcase
-    end
-  end
-
 end
