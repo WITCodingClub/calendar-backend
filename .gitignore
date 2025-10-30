@@ -36,4 +36,4 @@
 /app/assets/builds/*
 !/app/assets/builds/.keep
 
-.idea/*
+.idea/
