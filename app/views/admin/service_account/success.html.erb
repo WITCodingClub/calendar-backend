@@ -1,0 +1,116 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">OAuth Authorization Successful!</h1>
+  </div>
+
+  <!-- Success Message -->
+  <div class="shadow-lg rounded-lg mb-6" style="background: rgba(34, 197, 94, 0.15); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border-left: 4px solid #22c55e;">
+    <div class="p-4">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5" style="color: #15803d;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium" style="color: #15803d;">Success!</h3>
+          <div class="mt-2 text-sm" style="color: #166534;">
+            <p>Successfully obtained OAuth tokens from Google.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Token Card -->
+  <div class="shadow-lg rounded-lg mb-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+    <div class="p-6">
+      <h2 class="text-xl font-semibold mb-4" style="color: #d13732;">Your Refresh Token</h2>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Refresh Token (copy this):</label>
+        <div class="relative">
+          <input type="text"
+                 readonly
+                 id="refresh-token-input"
+                 value="<%= @refresh_token %>"
+                 class="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                 style="background: rgba(255, 255, 255, 0.8); border-color: rgba(209, 55, 50, 0.3);">
+          <button onclick="copyToClipboard('refresh-token-input')"
+                  class="glass-button absolute right-2 top-2 px-3 py-1 text-xs rounded">
+            Copy
+          </button>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Access Token (for reference only):</label>
+        <input type="text"
+               readonly
+               value="<%= @access_token[0..50] %>..."
+               class="w-full px-3 py-2 border rounded-md font-mono text-sm"
+               style="background: rgba(255, 255, 255, 0.8); border-color: rgba(209, 55, 50, 0.3);">
+      </div>
+    </div>
+  </div>
+
+  <!-- Instructions Card -->
+  <div class="shadow-lg rounded-lg mb-6" style="background: rgba(250, 204, 21, 0.15); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border-left: 4px solid #eab308;">
+    <div class="p-4">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5" style="color: #ca8a04;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium" style="color: #a16207;">Next Steps</h3>
+          <div class="mt-2 text-sm" style="color: #713f12;">
+            <ol class="list-decimal list-inside space-y-2">
+              <li>Copy the refresh token above using the "Copy" button</li>
+              <li>Edit your Rails credentials:
+                <code class="block mt-1 px-2 py-1 rounded" style="background: rgba(250, 204, 21, 0.2);">EDITOR=nano rails credentials:edit</code>
+              </li>
+              <li>Add the following to your credentials file:
+                <pre class="mt-2 px-2 py-1 rounded overflow-x-auto" style="background: rgba(250, 204, 21, 0.2);">google:
+  service_account_oauth_refresh_token: "<%= @refresh_token %>"</pre>
+              </li>
+              <li>Save and exit (in nano: Ctrl+O, Enter, Ctrl+X)</li>
+              <li>Restart your Rails server to load the new credentials</li>
+              <li>Test by running: <code class="px-1 rounded" style="background: rgba(250, 204, 21, 0.2);">user.sync_course_schedule</code></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-4">
+    <%= link_to admin_service_account_index_path, class: "glass-button inline-flex items-center px-4 py-2 text-sm font-medium rounded-md" do %>
+      ← Back to Service Account Management
+    <% end %>
+  </div>
+</div>
+
+<script>
+function copyToClipboard(elementId) {
+  const input = document.getElementById(elementId);
+  input.select();
+  input.setSelectionRange(0, 99999); // For mobile devices
+
+  navigator.clipboard.writeText(input.value).then(() => {
+    // Show feedback
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = 'Copied!';
+    button.classList.add('bg-green-600');
+    button.classList.remove('bg-blue-600');
+
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.classList.remove('bg-green-600');
+      button.classList.add('bg-blue-600');
+    }, 2000);
+  });
+}
+</script>
