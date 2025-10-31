@@ -28,10 +28,6 @@ Rails.application.routes.draw do
   # Admin OAuth callback for service account
   get '/admin/oauth/callback', to: 'admin/service_account#callback'
 
-  # temporary google auth test page
-  get '/tmp/google', to: 'google_test#index'
-
-
   # Admin area with authentication constraint
   constraints AdminConstraint.new do
     namespace :admin do

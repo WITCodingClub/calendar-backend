@@ -41,11 +41,14 @@ class MeetingTime < ApplicationRecord
   def event_color
     case meeting_schedule_type
     when "lecture"
-      ColorPalette::MAP[:gold]
+      GoogleColors::EVENT_MAP[5]
+      # ColorPalette::MAP[:gold]
     when "laboratory"
-      ColorPalette::MAP[:ruby_red]
+      # ColorPalette::MAP[:ruby_red]
+      GoogleColors::EVENT_MAP[11]
     else
-      ColorPalette::MAP[:platinum]
+      # ColorPalette::MAP[:platinum]
+      GoogleColors::EVENT_MAP[8]
     end
   end
 
