@@ -55,6 +55,13 @@ class User < ApplicationRecord
     "#{Rails.application.routes.url_helpers.root_url}/calendar/#{calendar_token}.ics"
   end
 
+  def generate_calendar_token
+    if calendar_token.blank?
+      self.calendar_token = SecureRandom.urlsafe_base64(32)
+      save!
+    end
+  end
+
   def access_level_text
     case access_level
     when "user" then "User"
@@ -213,10 +220,6 @@ class User < ApplicationRecord
       google_access_token: credentials.access_token,
       google_token_expires_at: Time.at(credentials.expires_at)
     )
-  end
-
-  def generate_calendar_token
-    self.calendar_token ||= SecureRandom.urlsafe_base64(32)
   end
 
   private
