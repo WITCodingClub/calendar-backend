@@ -30,8 +30,6 @@ class User < ApplicationRecord
   has_many :courses, through: :enrollments
   has_many :magic_links, dependent: :destroy
 
-  before_create :generate_calendar_token
-
   validates :email, presence: true, uniqueness: true, format: {
     with: /@wit\.edu\z/i,
     message: "must be a @wit.edu email address"
@@ -215,6 +213,10 @@ class User < ApplicationRecord
       google_access_token: credentials.access_token,
       google_token_expires_at: Time.at(credentials.expires_at)
     )
+  end
+
+  def generate_calendar_token
+    self.calendar_token ||= SecureRandom.urlsafe_base64(32)
   end
 
   private
