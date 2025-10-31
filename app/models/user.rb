@@ -66,10 +66,9 @@ class User < ApplicationRecord
     end
   end
 
-  private
-
   def generate_calendar_token
     self.calendar_token ||= SecureRandom.urlsafe_base64(32)
+    self.save!
   end
 
 end
