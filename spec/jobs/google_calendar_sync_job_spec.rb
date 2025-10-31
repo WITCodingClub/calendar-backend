@@ -5,7 +5,7 @@ RSpec.describe GoogleCalendarSyncJob, type: :job do
     let(:user) { create(:user) }
 
     it 'calls sync_course_schedule on the user' do
-      allow_any_instance_of(User).to receive(:sync_course_schedule)
+      allow(user).to receive(:sync_course_schedule)
 
       described_class.perform_now(user)
 
