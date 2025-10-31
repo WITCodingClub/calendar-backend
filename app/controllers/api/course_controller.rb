@@ -12,20 +12,69 @@ module Api
         return
       end
 
-      # Process courses using the service with the current user
-      processed_data = CourseProcessorService.new(courses, current_user).call
-
-      # remove all id fields from processed_data for security
-      processed_data.each do |course|
-        course.delete(:id)
-        course[:term].delete(:id) if course[:term]
-      end
+      # Process courses synchronously using job (for Chrome extension compatibility)
+      CourseProcessorJob.perform_now(courses, current_user.id)
+      
+      # Fetch the processed data to return to client
+      processed_data = fetch_processed_courses(courses, current_user)
 
       render json: { classes: processed_data }, status: :ok
     rescue StandardError => e
       Rails.logger.error("Error processing courses: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: "Failed to process courses" }, status: :internal_server_error
+    end
+
+    private
+
+    def fetch_processed_courses(courses, user)
+      # Deduplicate courses by CRN and term
+      unique_courses = courses.uniq { |c| [c[:crn] || c['crn'], c[:term] || c['term']] }
+      
+      processed_data = unique_courses.map do |course_data|
+        crn = course_data[:crn] || course_data['crn']
+        term_uid = course_data[:term] || course_data['term']
+        
+        course = Course.find_by(crn: crn)
+        next unless course
+        
+        term = course.term
+        
+        {
+          title: course.title,
+          course_number: course.course_number,
+          schedule_type: course.schedule_type,
+          term: {
+            uid: term.uid,
+            season: term.season,
+            year: term.year
+          },
+          meeting_times: course.meeting_times.map do |mt|
+            {
+              begin_time: mt.fmt_begin_time,
+              end_time: mt.fmt_end_time,
+              start_date: mt.start_date,
+              end_date: mt.end_date,
+              location: {
+                building: mt.building ? {
+                  name: mt.building.name,
+                  abbreviation: mt.building.abbreviation
+                } : nil,
+                room: mt.room&.formatted_number
+              },
+              monday: mt.monday,
+              tuesday: mt.tuesday,
+              wednesday: mt.wednesday,
+              thursday: mt.thursday,
+              friday: mt.friday,
+              saturday: mt.saturday,
+              sunday: mt.sunday
+            }
+          end
+        }
+      end.compact
+      
+      processed_data
     end
   end
 end

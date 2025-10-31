@@ -25,6 +25,9 @@
 #
 FactoryBot.define do
   factory :user do
-    
+    sequence(:email) { |n| "user#{n}@wit.edu" }
+    first_name { "Test" }
+    last_name { "User" }
+    access_level { :user }
   end
 end
