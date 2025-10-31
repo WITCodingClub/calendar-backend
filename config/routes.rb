@@ -15,6 +15,10 @@ Rails.application.routes.draw do
     post "signup", to: "authentication#signup"
     post "request_magic_link", to: "authentication#request_magic_link"
 
+    # user
+    post "/user/request/gcal", to: "user#request_gcal"
+    post "/user/request/ics", to: "user#request_ics"
+
     # Course events
     post "process_courses", to: "course#process_courses"
   end
