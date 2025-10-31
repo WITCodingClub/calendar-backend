@@ -1,4 +1,5 @@
-class Admin::ServiceAccountController < ApplicationController
+class Admin::ServiceAccountController < Admin::ApplicationController
+  skip_before_action :require_admin # We have our own authorization
   before_action :require_owner!, except: [:callback]
 
   def index

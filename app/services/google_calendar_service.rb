@@ -49,6 +49,23 @@ class GoogleCalendarService
     service.delete_calendar(calendar_id)
   end
 
+  def get_available_colors
+    service = service_account_calendar_service
+    colors = service.get_color
+
+    puts "\n=== Google Calendar Event Colors ==="
+    colors.event.each do |id, color_info|
+      puts "ID: #{id.rjust(2)} - Background: #{color_info.background} - Foreground: #{color_info.foreground}"
+    end
+
+    puts "\n=== Google Calendar Colors ==="
+    colors.calendar.each do |id, color_info|
+      puts "ID: #{id.rjust(2)} - Background: #{color_info.background} - Foreground: #{color_info.foreground}"
+    end
+
+    colors
+  end
+
   private
 
   def service_account_calendar_service
@@ -58,14 +75,7 @@ class GoogleCalendarService
   end
 
   def service_account_credentials
-    # Check if OAuth refresh token is configured (preferred method)
-    oauth_refresh_token = Rails.application.credentials.dig(:google, :service_account_oauth_refresh_token)
-
-    if oauth_refresh_token.present?
-      return service_account_oauth_credentials(oauth_refresh_token)
-    end
-
-    # Fallback to service account JSON key
+    # Use IAM service account JSON key for all calendar operations
     # The service account credentials can be stored as a raw JSON string or as a
     # structured hash in Rails credentials. This method handles both cases.
     service_account_config = Rails.application.credentials.dig(:google, :service_account)
@@ -79,17 +89,6 @@ class GoogleCalendarService
     Google::Auth::ServiceAccountCredentials.make_creds(
       json_key_io: StringIO.new(credentials_json),
       scope: Google::Apis::CalendarV3::AUTH_CALENDAR
-    )
-  end
-
-  def service_account_oauth_credentials(refresh_token)
-    # Use OAuth user credentials for the service account email
-    # This provides user-level permissions instead of service account permissions
-    Google::Auth::UserRefreshCredentials.new(
-      client_id: Rails.application.credentials.dig(:google, :client_id),
-      client_secret: Rails.application.credentials.dig(:google, :client_secret),
-      scope: Google::Apis::CalendarV3::AUTH_CALENDAR,
-      refresh_token: refresh_token
     )
   end
 
@@ -165,9 +164,9 @@ class GoogleCalendarService
 
     calendar_list_entry = Google::Apis::CalendarV3::CalendarListEntry.new(
       id: calendar_id,
-      summary_override: "WIT Courses",  # Optional: customize how it appears for the user
-      color_id: "9",  # Optional: set a default color (1-24)
-      selected: true,  # Show by default in their calendar
+      summary_override: "WIT Courses",
+      color_id: "5",
+      selected: true,
       hidden: false
     )
 
@@ -193,7 +192,6 @@ class GoogleCalendarService
     event = Google::Apis::CalendarV3::Event.new(
       summary: course_event[:summary],
       location: course_event[:location],
-      description: course_event[:description],
       start: {
         date_time: course_event[:start_time].iso8601,
         time_zone: 'America/New_York'
@@ -202,18 +200,28 @@ class GoogleCalendarService
         date_time: course_event[:end_time].iso8601,
         time_zone: 'America/New_York'
       },
-      color_id: course_event[:color_id] || get_color_for_course(course_event[:course_code]),
+      color_id: get_color_for_course(course_event[:course_code]),
       recurrence: course_event[:recurrence], # If you have recurring events
-      guests_can_see_other_guests: false,
     )
 
     service.insert_event(calendar_id, event)
   end
 
   def get_color_for_course(course_code)
-    # Map courses to Google Calendar colors (1-11)
-    # You could hash the course code to get consistent colors
-    colors = %w[1 2 3 4 5 6 7 8 9 10 11]
-    colors[course_code.hash % colors.length]
+    # find the meeting time for the course as meeting_time has a event_color method
+    meeting_time = MeetingTime.joins(:course).find_by(courses: { course_code: course_code })
+    return nil unless meeting_time
+
+    # Map the event color to Google Calendar color IDs
+    case meeting_time.event_color
+    when GoogleColors::EVENT_MAP[5]
+      "5"  # Gold
+    when GoogleColors::EVENT_MAP[11]
+      "11" # Ruby Red
+    when GoogleColors::EVENT_MAP[8]
+      "8"  # Platinum
+    else
+      nil  # Default color
+    end
   end
 end
