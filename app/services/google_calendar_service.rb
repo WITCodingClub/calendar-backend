@@ -58,6 +58,14 @@ class GoogleCalendarService
   end
 
   def service_account_credentials
+    # Check if OAuth refresh token is configured (preferred method)
+    oauth_refresh_token = Rails.application.credentials.dig(:google, :service_account_oauth_refresh_token)
+
+    if oauth_refresh_token.present?
+      return service_account_oauth_credentials(oauth_refresh_token)
+    end
+
+    # Fallback to service account JSON key
     # The service account credentials can be stored as a raw JSON string or as a
     # structured hash in Rails credentials. This method handles both cases.
     service_account_config = Rails.application.credentials.dig(:google, :service_account)
@@ -71,6 +79,17 @@ class GoogleCalendarService
     Google::Auth::ServiceAccountCredentials.make_creds(
       json_key_io: StringIO.new(credentials_json),
       scope: Google::Apis::CalendarV3::AUTH_CALENDAR
+    )
+  end
+
+  def service_account_oauth_credentials(refresh_token)
+    # Use OAuth user credentials for the service account email
+    # This provides user-level permissions instead of service account permissions
+    Google::Auth::UserRefreshCredentials.new(
+      client_id: Rails.application.credentials.dig(:google, :client_id),
+      client_secret: Rails.application.credentials.dig(:google, :client_secret),
+      scope: Google::Apis::CalendarV3::AUTH_CALENDAR,
+      refresh_token: refresh_token
     )
   end
 
@@ -184,7 +203,8 @@ class GoogleCalendarService
         time_zone: 'America/New_York'
       },
       color_id: course_event[:color_id] || get_color_for_course(course_event[:course_code]),
-      recurrence: course_event[:recurrence]  # If you have recurring events
+      recurrence: course_event[:recurrence], # If you have recurring events
+      guests_can_see_other_guests: false,
     )
 
     service.insert_event(calendar_id, event)

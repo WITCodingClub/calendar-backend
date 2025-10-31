@@ -261,6 +261,12 @@
               <%= link_to "Users", admin_users_path,
                   class: "admin-nav-link #{request.path.start_with?('/admin/users') ? 'active' : ''}" %>
             </li>
+            <% if current_user.owner? %>
+              <li class="admin-nav-item">
+                <%= link_to "Service Account", admin_service_account_index_path,
+                    class: "admin-nav-link #{request.path.start_with?('/admin/service_account') ? 'active' : ''}" %>
+              </li>
+            <% end %>
             <% if current_user.super_admin? || current_user.owner? %>
               <li class="admin-nav-item">
                 <%= link_to "Flipper", "/admin/flipper",

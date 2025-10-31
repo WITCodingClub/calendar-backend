@@ -25,6 +25,9 @@ Rails.application.routes.draw do
   # google oauth2 callback
   get '/auth/google_oauth2/callback', to: 'auth#google'
 
+  # Admin OAuth callback for service account
+  get '/admin/oauth/callback', to: 'admin/service_account#callback'
+
   # temporary google auth test page
   get '/tmp/google', to: 'google_test#index'
 
@@ -35,6 +38,12 @@ Rails.application.routes.draw do
       root to: "application#index"
       resources :users, only: [:index, :show, :edit, :update, :destroy]
       resources :calendars, only: [:index, :destroy]
+
+      # Service account OAuth management (owner only)
+      get "service_account", to: "service_account#index", as: :service_account_index
+      get "service_account/authorize", to: "service_account#authorize", as: :service_account_authorize
+      get "service_account/callback", to: "service_account#callback", as: :service_account_callback
+      post "service_account/revoke", to: "service_account#revoke", as: :service_account_revoke
 
       # Mounted engines
       mount MissionControl::Jobs::Engine, at: "jobs"
