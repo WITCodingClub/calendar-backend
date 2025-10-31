@@ -24,6 +24,27 @@ class User < ApplicationRecord
   has_many :oauth_credentials, dependent: :destroy
   has_many :emails, dependent: :destroy
 
+  # Class method to find or create a user by email
+  def self.find_or_create_by_email(email_address)
+    email_record = Email.find_by(email: email_address)
+
+    if email_record
+      email_record.user
+    else
+      # Create user and email in a transaction
+      transaction do
+        user = create!
+        user.emails.create!(email: email_address, primary: true)
+        user
+      end
+    end
+  end
+
+  # Class method to find a user by email
+  def self.find_by_email(email_address)
+    Email.find_by(email: email_address)&.user
+  end
+
   enum :access_level, {
     user: 0,
     admin: 1,
@@ -66,6 +87,18 @@ class User < ApplicationRecord
     admin? || super_admin? || owner?
   end
 
+  # Get the user's primary email address
+  def email
+    emails.find_by(primary: true)&.email
+  end
+
+  # Set the user's primary email address
+  def email=(value)
+    primary_email = emails.find_or_initialize_by(primary: true)
+    primary_email.email = value
+    primary_email.save! if persisted?
+  end
+
   def full_name
     # first_name then last_name or John Doe if no name
     "#{first_name} #{last_name}"
@@ -93,7 +126,7 @@ class User < ApplicationRecord
   end
 
   def google_token_expired?
-    google_token_expires_at.present? && Time.current >= google_token_expires_at
+    google_credential&.token_expired? || false
   end
 
   def sync_course_schedule

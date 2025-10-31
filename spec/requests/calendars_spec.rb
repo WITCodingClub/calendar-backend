@@ -2,7 +2,11 @@ require 'rails_helper'
 
 RSpec.describe "Calendars", type: :request do
   describe "GET /calendars/:calendar_token.ics" do
-    let(:user) { User.create!(email: "test@example.com", calendar_token: "test-token-123") }
+    let(:user) do
+      u = User.create!(calendar_token: "test-token-123")
+      u.emails.create!(email: "test@example.com", primary: true)
+      u
+    end
     
     context "when requesting ICS format" do
       before do

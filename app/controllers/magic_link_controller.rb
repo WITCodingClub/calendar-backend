@@ -18,7 +18,7 @@ class MagicLinkController < ApplicationController
     end
 
     # Find or create user (for passwordless, we auto-create accounts)
-    user = User.find_or_create_by(email: email.downcase.strip)
+    user = User.find_or_create_by_email(email.downcase.strip)
 
     # Create magic link
     magic_link = user.magic_links.create!
