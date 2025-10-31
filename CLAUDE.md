@@ -1,2 +1,1 @@
 - annotate models with bundle exec annotaterb models
-- annotate models with bundle exec annotaterb models
