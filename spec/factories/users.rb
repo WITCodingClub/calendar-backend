@@ -3,18 +3,19 @@
 # Table name: users
 # Database name: primary
 #
-#  id                      :bigint           not null, primary key
-#  access_level            :integer          default("user"), not null
-#  calendar_token          :string
-#  email                   :string           default(""), not null
-#  first_name              :string
-#  google_access_token     :string
-#  google_refresh_token    :string
-#  google_token_expires_at :datetime
-#  google_uid              :string
-#  last_name               :string
-#  created_at              :datetime         not null
-#  updated_at              :datetime         not null
+#  id                        :bigint           not null, primary key
+#  access_level              :integer          default("user"), not null
+#  calendar_token            :string
+#  email                     :string           default(""), not null
+#  first_name                :string
+#  google_access_token       :string
+#  google_refresh_token      :string
+#  google_token_expires_at   :datetime
+#  google_uid                :string
+#  last_name                 :string
+#  created_at                :datetime         not null
+#  updated_at                :datetime         not null
+#  google_course_calendar_id :string
 #
 # Indexes
 #

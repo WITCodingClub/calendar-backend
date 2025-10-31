@@ -1,0 +1,22 @@
+<h1>Google Calendars</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Summary</th>
+      <th>ID</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @calendars.each do |calendar| %>
+      <tr>
+        <td><%= calendar.summary %></td>
+        <td><%= calendar.id %></td>
+        <td>
+                              <%= link_to "Delete", admin_calendar_path(URI.encode_www_form_component(calendar.id)), data: { turbo_method: :delete, turbo_confirm: "Are you sure you want to delete this calendar?" } %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
