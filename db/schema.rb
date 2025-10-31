@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_30_202340) do
+ActiveRecord::Schema[8.1].define(version: 2025_10_31_231533) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -167,6 +167,16 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_30_202340) do
     t.index ["faculty_id", "course_id"], name: "index_courses_faculties_on_faculty_id_and_course_id"
   end
 
+  create_table "emails", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.boolean "primary", default: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["user_id", "primary"], name: "index_emails_on_user_id_and_primary", unique: true, where: "(\"primary\" = true)"
+    t.index ["user_id"], name: "index_emails_on_user_id"
+  end
+
   create_table "enrollments", force: :cascade do |t|
     t.bigint "course_id", null: false
     t.datetime "created_at", null: false
@@ -260,6 +270,21 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_30_202340) do
     t.index ["room_id"], name: "index_meeting_times_on_room_id"
   end
 
+  create_table "oauth_credentials", force: :cascade do |t|
+    t.string "access_token", null: false
+    t.datetime "created_at", null: false
+    t.jsonb "metadata", default: {}
+    t.string "provider", null: false
+    t.string "refresh_token"
+    t.datetime "token_expires_at"
+    t.string "uid", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["provider", "uid"], name: "index_oauth_credentials_on_provider_and_uid", unique: true
+    t.index ["user_id", "provider"], name: "index_oauth_credentials_on_user_id_and_provider", unique: true
+    t.index ["user_id"], name: "index_oauth_credentials_on_user_id"
+  end
+
   create_table "pg_search_documents", force: :cascade do |t|
     t.text "content"
     t.datetime "created_at", null: false
@@ -291,18 +316,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_30_202340) do
     t.integer "access_level", default: 0, null: false
     t.string "calendar_token"
     t.datetime "created_at", null: false
-    t.string "email", default: "", null: false
     t.string "first_name"
-    t.string "google_access_token"
-    t.string "google_course_calendar_id"
-    t.string "google_refresh_token"
-    t.datetime "google_token_expires_at"
-    t.string "google_uid"
     t.string "last_name"
     t.datetime "updated_at", null: false
     t.index ["calendar_token"], name: "index_users_on_calendar_token", unique: true
-    t.index ["email"], name: "index_users_on_email", unique: true
-    t.index ["google_uid"], name: "index_users_on_google_uid"
   end
 
   create_table "versions", force: :cascade do |t|
@@ -316,11 +333,13 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_30_202340) do
   end
 
   add_foreign_key "courses", "terms"
+  add_foreign_key "emails", "users"
   add_foreign_key "enrollments", "courses"
   add_foreign_key "enrollments", "terms"
   add_foreign_key "enrollments", "users"
   add_foreign_key "magic_links", "users"
   add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
+  add_foreign_key "oauth_credentials", "users"
   add_foreign_key "rooms", "buildings"
 end

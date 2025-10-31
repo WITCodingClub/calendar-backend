@@ -19,18 +19,22 @@ class AuthController < ApplicationController
     # Update user info from OAuth
     user.first_name ||= auth.info.first_name
     user.last_name ||= auth.info.last_name
+    user.save!
 
-    # Update Google OAuth credentials
-    user.google_uid = auth.uid
-    user.google_access_token = auth.credentials.token
+    # Find or create Google OAuth credential
+    credential = user.oauth_credentials.find_or_initialize_by(provider: "google")
+
+    # Update OAuth credentials
+    credential.uid = auth.uid
+    credential.access_token = auth.credentials.token
 
     # Only update refresh token if present (it may not be on subsequent authorizations)
-    user.google_refresh_token = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
+    credential.refresh_token = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
 
     # Store token expiration time
-    user.google_token_expires_at = Time.at(auth.credentials.expires_at) if auth.credentials.expires_at
+    credential.token_expires_at = Time.at(auth.credentials.expires_at) if auth.credentials.expires_at
 
-    user.save!
+    credential.save!
 
     # Sign in the user using the existing authentication system
     sign_in(user)

@@ -5,7 +5,12 @@ namespace :google_calendar do
     # Force reload of classes in development
     Rails.application.eager_load! if Rails.env.development?
 
-    User.where.not(google_course_calendar_id: nil).find_each do |user|
+    # Find users with Google credentials that have a course_calendar_id
+    User.joins(:oauth_credentials)
+        .where(oauth_credentials: { provider: 'google' })
+        .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
+        .distinct
+        .find_each do |user|
       begin
         puts "Migrating calendar for #{user.email}..."
 
@@ -19,7 +24,7 @@ namespace :google_calendar do
         end
 
         # Clear the stored ID to force recreation
-        user.update!(google_course_calendar_id: nil)
+        user.google_course_calendar_id = nil
 
         # Create new service-account-owned calendar
         new_calendar_id = user.create_or_get_course_calendar

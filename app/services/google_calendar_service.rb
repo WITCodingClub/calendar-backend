@@ -99,8 +99,8 @@ class GoogleCalendarService
   end
 
   def user_google_authorization
+    raise "User has no Google credential" unless user.google_credential
     raise "User has no Google access token" if user.google_access_token.blank?
-    raise "Google token has expired" if user.google_token_expired?
 
     credentials = Google::Auth::UserRefreshCredentials.new(
       client_id: Rails.application.credentials.dig(:google, :client_id),
@@ -112,12 +112,14 @@ class GoogleCalendarService
     )
 
     # Refresh the token if needed
-    if user.google_token_expired?
+    if user.google_credential.token_expired?
       credentials.refresh!
-      user.update!(
-        google_access_token: credentials.access_token,
-        google_token_expires_at: Time.at(credentials.expires_at)
+      user.google_credential.update!(
+        access_token: credentials.access_token,
+        token_expires_at: Time.at(credentials.expires_at)
       )
+      # Clear the cached credential
+      user.instance_variable_set(:@google_credential, nil)
     end
 
     credentials

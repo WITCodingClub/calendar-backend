@@ -3,31 +3,40 @@
 # Table name: users
 # Database name: primary
 #
-#  id                        :bigint           not null, primary key
-#  access_level              :integer          default("user"), not null
-#  calendar_token            :string
-#  email                     :string           default(""), not null
-#  first_name                :string
-#  google_access_token       :string
-#  google_refresh_token      :string
-#  google_token_expires_at   :datetime
-#  google_uid                :string
-#  last_name                 :string
-#  created_at                :datetime         not null
-#  updated_at                :datetime         not null
-#  google_course_calendar_id :string
+#  id             :bigint           not null, primary key
+#  access_level   :integer          default("user"), not null
+#  calendar_token :string
+#  first_name     :string
+#  last_name      :string
+#  created_at     :datetime         not null
+#  updated_at     :datetime         not null
 #
 # Indexes
 #
 #  index_users_on_calendar_token  (calendar_token) UNIQUE
-#  index_users_on_email           (email) UNIQUE
-#  index_users_on_google_uid      (google_uid)
 #
 FactoryBot.define do
   factory :user do
-    sequence(:email) { |n| "user#{n}@wit.edu" }
-    first_name { "Test" }
-    last_name { "User" }
+    first_name { "John" }
+    last_name { "Doe" }
     access_level { :user }
+
+    trait :with_google_credential do
+      after(:create) do |user|
+        create(:oauth_credential, user: user)
+      end
+    end
+
+    trait :admin do
+      access_level { :admin }
+    end
+
+    trait :super_admin do
+      access_level { :super_admin }
+    end
+
+    trait :owner do
+      access_level { :owner }
+    end
   end
 end

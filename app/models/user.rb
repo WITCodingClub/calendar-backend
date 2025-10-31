@@ -3,25 +3,17 @@
 # Table name: users
 # Database name: primary
 #
-#  id                        :bigint           not null, primary key
-#  access_level              :integer          default("user"), not null
-#  calendar_token            :string
-#  email                     :string           default(""), not null
-#  first_name                :string
-#  google_access_token       :string
-#  google_refresh_token      :string
-#  google_token_expires_at   :datetime
-#  google_uid                :string
-#  last_name                 :string
-#  created_at                :datetime         not null
-#  updated_at                :datetime         not null
-#  google_course_calendar_id :string
+#  id             :bigint           not null, primary key
+#  access_level   :integer          default("user"), not null
+#  calendar_token :string
+#  first_name     :string
+#  last_name      :string
+#  created_at     :datetime         not null
+#  updated_at     :datetime         not null
 #
 # Indexes
 #
 #  index_users_on_calendar_token  (calendar_token) UNIQUE
-#  index_users_on_email           (email) UNIQUE
-#  index_users_on_google_uid      (google_uid)
 #
 class User < ApplicationRecord
   has_subscriptions
@@ -29,11 +21,8 @@ class User < ApplicationRecord
   has_many :enrollments, dependent: :destroy
   has_many :courses, through: :enrollments
   has_many :magic_links, dependent: :destroy
-
-  validates :email, presence: true, uniqueness: true, format: {
-    with: /@wit\.edu\z/i,
-    message: "must be a @wit.edu email address"
-  }
+  has_many :oauth_credentials, dependent: :destroy
+  has_many :emails, dependent: :destroy
 
   enum :access_level, {
     user: 0,
@@ -41,6 +30,37 @@ class User < ApplicationRecord
     super_admin: 2,
     owner: 3
   }, default: :user, null: false
+
+  # Convenience methods for accessing Google OAuth credentials
+  def google_credential
+    @google_credential ||= oauth_credentials.find_by(provider: "google")
+  end
+
+  def google_uid
+    google_credential&.uid
+  end
+
+  def google_access_token
+    google_credential&.access_token
+  end
+
+  def google_refresh_token
+    google_credential&.refresh_token
+  end
+
+  def google_token_expires_at
+    google_credential&.token_expires_at
+  end
+
+  def google_course_calendar_id
+    google_credential&.course_calendar_id
+  end
+
+  def google_course_calendar_id=(value)
+    return unless google_credential
+    google_credential.course_calendar_id = value
+    google_credential.save!
+  end
 
   def admin_access?
     admin? || super_admin? || owner?
@@ -194,7 +214,7 @@ class User < ApplicationRecord
     service_account_service = service.send(:service_account_calendar_service)
 
     service_account_service.delete_calendar(google_course_calendar_id)
-    update!(google_course_calendar_id: nil)
+    self.google_course_calendar_id = nil
   rescue Google::Apis::Error => e
     Rails.logger.error "Failed to delete calendar: #{e.message}"
   end
@@ -205,6 +225,7 @@ class User < ApplicationRecord
 
   def refresh_google_token!
     require "googleauth"
+    return unless google_credential
 
     credentials = Google::Auth::UserRefreshCredentials.new(
       client_id: Rails.application.credentials.dig(:google, :client_id),
@@ -216,16 +237,20 @@ class User < ApplicationRecord
     )
 
     credentials.refresh!
-    update!(
-      google_access_token: credentials.access_token,
-      google_token_expires_at: Time.at(credentials.expires_at)
+    google_credential.update!(
+      access_token: credentials.access_token,
+      token_expires_at: Time.at(credentials.expires_at)
     )
+
+    # Clear the cached credential
+    @google_credential = nil
   end
 
   private
 
   def build_google_authorization
     require "googleauth"
+    return unless google_credential
 
     credentials = Google::Auth::UserRefreshCredentials.new(
       client_id: Rails.application.credentials.dig(:google, :client_id),
@@ -239,10 +264,12 @@ class User < ApplicationRecord
     # Refresh the token if needed
     if google_token_expired?
       credentials.refresh!
-      update!(
-        google_access_token: credentials.access_token,
-        google_token_expires_at: Time.at(credentials.expires_at)
+      google_credential.update!(
+        access_token: credentials.access_token,
+        token_expires_at: Time.at(credentials.expires_at)
       )
+      # Clear the cached credential
+      @google_credential = nil
     end
 
     credentials
