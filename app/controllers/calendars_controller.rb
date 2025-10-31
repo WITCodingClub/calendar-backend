@@ -11,6 +11,12 @@ class CalendarsController < ApplicationController
     respond_to do |format|
       format.ics do
         calendar = generate_ical(@courses)
+        
+        # Add cache control headers to suggest refresh intervals
+        response.headers['Cache-Control'] = 'max-age=3600, must-revalidate' # 1 hour
+        response.headers['X-Published-TTL'] = 'PT1H' # iCalendar refresh hint (1 hour)
+        response.headers['Refresh-Interval'] = '3600' # Alternative hint
+        
         render plain: calendar.to_ical, content_type: "text/calendar"
       end
     end
