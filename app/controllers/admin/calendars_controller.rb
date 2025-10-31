@@ -4,11 +4,10 @@ class Admin::CalendarsController < Admin::BaseController
   end
 
   def destroy
-    begin
-      GoogleCalendarService.new.delete_calendar(params[:id])
-      redirect_to admin_calendars_path, notice: "Calendar deleted successfully."
-    rescue Google::Apis::ClientError => e
-      redirect_to admin_calendars_path, alert: "Failed to delete calendar: #{e.message}"
-    end
+    # Enqueue job to delete calendar
+    GoogleCalendarDeleteJob.perform_later(params[:id])
+    redirect_to admin_calendars_path, notice: "Calendar deletion job enqueued."
+  rescue StandardError => e
+    redirect_to admin_calendars_path, alert: "Failed to enqueue calendar deletion: #{e.message}"
   end
 end

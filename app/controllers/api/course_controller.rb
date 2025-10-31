@@ -12,20 +12,17 @@ module Api
         return
       end
 
-      # Process courses using the service with the current user
-      processed_data = CourseProcessorService.new(courses, current_user).call
+      # Enqueue job to process courses
+      job = CourseProcessorJob.perform_later(courses, current_user.id)
 
-      # remove all id fields from processed_data for security
-      processed_data.each do |course|
-        course.delete(:id)
-        course[:term].delete(:id) if course[:term]
-      end
-
-      render json: { classes: processed_data }, status: :ok
+      render json: {
+        message: "Course processing job enqueued",
+        job_id: job.job_id
+      }, status: :accepted
     rescue StandardError => e
-      Rails.logger.error("Error processing courses: #{e.message}")
+      Rails.logger.error("Error enqueuing course processing job: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
-      render json: { error: "Failed to process courses" }, status: :internal_server_error
+      render json: { error: "Failed to enqueue course processing job" }, status: :internal_server_error
     end
   end
 end

@@ -6,10 +6,10 @@ module Api
 
     def request_gcal
       @user = current_user
-      @user.create_or_get_course_calendar
+      GoogleCalendarCreateJob.perform_later(@user.id)
       GoogleCalendarSyncJob.perform_later(@user)
 
-      render json: { message: "Google Calendar Created, Sync Inititalized" }, status: :ok
+      render json: { message: "Google Calendar creation and sync jobs enqueued" }, status: :accepted
     end
 
     def request_ics
