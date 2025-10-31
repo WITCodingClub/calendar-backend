@@ -1,7 +1,7 @@
 module Admin
   class ApplicationController < ::ApplicationController
     layout "admin"
-    include Pundit
+    include Pundit::Authorization
     rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
     before_action :require_admin
 

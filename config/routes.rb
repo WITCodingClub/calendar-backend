@@ -25,12 +25,16 @@ Rails.application.routes.draw do
   # google oauth2 callback
   get '/auth/google_oauth2/callback', to: 'auth#google'
 
+  # temporary google auth test page
+  get '/tmp/google', to: 'google_test#index'
+
 
   # Admin area with authentication constraint
   constraints AdminConstraint.new do
     namespace :admin do
       root to: "application#index"
       resources :users, only: [:index, :show, :edit, :update, :destroy]
+      resources :calendars, only: [:index, :destroy]
 
       # Mounted engines
       mount MissionControl::Jobs::Engine, at: "jobs"

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_30_194318) do
+ActiveRecord::Schema[8.1].define(version: 2025_10_30_202340) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -294,6 +294,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_30_194318) do
     t.string "email", default: "", null: false
     t.string "first_name"
     t.string "google_access_token"
+    t.string "google_course_calendar_id"
     t.string "google_refresh_token"
     t.datetime "google_token_expires_at"
     t.string "google_uid"
