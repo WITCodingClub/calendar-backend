@@ -179,8 +179,6 @@ class User < ApplicationRecord
     service.update_calendar_events(events)
   end
 
-  private
-
   def has_meeting_days?(meeting_time)
     meeting_time.monday || meeting_time.tuesday || meeting_time.wednesday ||
     meeting_time.thursday || meeting_time.friday || meeting_time.saturday ||
@@ -277,6 +275,10 @@ class User < ApplicationRecord
 
     # Clear the cached credential
     @google_credential = nil
+  end
+
+  def flipper_id
+    self.emails.find_by(primary: true)&.email
   end
 
   private

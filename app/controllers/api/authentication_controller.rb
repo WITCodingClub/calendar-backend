@@ -3,18 +3,18 @@ module Api
     skip_before_action :verify_authenticity_token
 
     # POST /api/login
-    # Deprecated: Use magic link authentication instead
+    # Deprecated: Use Google OAuth instead
     def login
       render json: {
-        error: "Password authentication is disabled. Please use magic link authentication via /api/request_magic_link"
+        error: "Password authentication is disabled. Please use Google Sign-In."
       }, status: :unauthorized
     end
 
     # POST /api/signup
-    # Deprecated: Use magic link authentication instead
+    # Deprecated: Use Google OAuth instead
     def signup
       render json: {
-        error: "Password registration is disabled. Please use magic link authentication via /api/request_magic_link"
+        error: "Password registration is disabled. Please use Google Sign-In."
       }, status: :unauthorized
     end
 
@@ -33,8 +33,14 @@ module Api
         return
       end
 
-      # Find or create user (for passwordless, we auto-create accounts)
-      user = User.find_or_create_by_email(email.downcase.strip)
+      # Find existing user (no longer auto-create accounts)
+      user = User.find_by_email(email.downcase.strip)
+
+      # Check if user exists and is an admin
+      unless user&.admin_access?
+        render json: { error: "Magic link authentication is only available for administrators. Please use Google Sign-In." }, status: :forbidden
+        return
+      end
 
       # Create magic link
       magic_link = user.magic_links.create!

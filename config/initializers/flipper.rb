@@ -1,7 +1,7 @@
 Rails.application.configure do
   ## Memoization ensures that only one adapter call is made per feature per request.
   ## For more info, see https://www.flippercloud.io/docs/optimization#memoization
-  # config.flipper.memoize = true
+  config.flipper.memoize = true
 
   ## Flipper preloads all features before each request, which is recommended if:
   ##   * you have a limited number of features (< 100?)
@@ -43,3 +43,14 @@ end
 # Flipper.register(:admins) do |actor|
 #  actor.respond_to?(:admin?) && actor.admin?
 # end
+
+Flipper::UI.configure do |config|
+  config.actor_names_source = ->(actor_ids) {
+    # Lookup actor_ids and return hash with user ID => primary email
+    User.where(id: actor_ids)
+        .joins(:emails)
+        .where(emails: { primary: true })
+        .pluck(:id, 'emails.email')
+        .to_h
+  }
+end

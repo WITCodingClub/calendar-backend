@@ -17,8 +17,14 @@ class MagicLinkController < ApplicationController
       redirect_to new_user_session_path and return
     end
 
-    # Find or create user (for passwordless, we auto-create accounts)
-    user = User.find_or_create_by_email(email.downcase.strip)
+    # Find existing user (no longer auto-create accounts)
+    user = User.find_by_email(email.downcase.strip)
+
+    # Check if user exists and is an admin
+    unless user&.admin_access?
+      flash[:error] = "Magic link authentication is only available for administrators. Please use Google Sign-In."
+      redirect_to new_user_session_path and return
+    end
 
     # Create magic link
     magic_link = user.magic_links.create!

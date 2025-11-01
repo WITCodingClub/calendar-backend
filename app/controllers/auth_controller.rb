@@ -13,25 +13,19 @@ class AuthController < ApplicationController
       return
     end
 
-    # Find or create user by email
-    email_record = Email.find_or_initialize_by(email: email)
+    # Find existing user (no longer auto-create accounts)
+    user = User.find_by_email(email)
 
-    if email_record.new_record?
-      # Create a new user if email doesn't exist
-      user = User.create!(
-        first_name: auth.info.first_name,
-        last_name: auth.info.last_name
-      )
-      email_record.user = user
-      email_record.primary = true
-      email_record.save!
-    else
-      user = email_record.user
-      # Update user info from OAuth if not set
-      user.first_name ||= auth.info.first_name
-      user.last_name ||= auth.info.last_name
-      user.save! if user.changed?
+    # Check if user exists and is an admin
+    unless user&.admin_access?
+      redirect_to new_user_session_path, alert: 'Sign-in is restricted to administrators only.'
+      return
     end
+
+    # Update user info from OAuth if not set
+    user.first_name ||= auth.info.first_name
+    user.last_name ||= auth.info.last_name
+    user.save! if user.changed?
 
     # Find or create Google OAuth credential
     credential = user.oauth_credentials.find_or_initialize_by(provider: "google")
