@@ -6,21 +6,21 @@ class GoogleCalendarService
   end
 
   def create_or_get_course_calendar
-    return user.google_course_calendar_id if user.google_course_calendar_id.present?
+    # Create calendar if it doesn't exist
+    if user.google_course_calendar_id.blank?
+      calendar = create_calendar_with_service_account
+      user.update!(google_course_calendar_id: calendar.id)
+    end
 
-    # Create calendar using service account
-    calendar = create_calendar_with_service_account
+    calendar_id = user.google_course_calendar_id
 
-    # Share with user
-    share_calendar_with_user(calendar.id)
+    # Share calendar with all g_cal emails
+    share_calendar_with_user(calendar_id)
 
-    # Add to user's calendar list
-    add_calendar_to_user_list(calendar.id)
+    # Add calendar to each OAuth'd email's Google Calendar list
+    add_calendar_to_all_oauth_users(calendar_id)
 
-    # Save the calendar ID
-    user.update!(google_course_calendar_id: calendar.id)
-
-    calendar.id
+    calendar_id
   rescue Google::Apis::Error => e
     Rails.logger.error "Failed to create Google Calendar: #{e.message}"
     raise "Failed to create course calendar: #{e.message}"
@@ -140,29 +140,39 @@ class GoogleCalendarService
   def share_calendar_with_user(calendar_id)
     service = service_account_calendar_service
 
-    # Give user writer access (can add/edit events but not delete calendar)
-    rule = Google::Apis::CalendarV3::AclRule.new(
-      scope: {
-        type: 'user',
-        value: user.email
-      },
-      role: 'reader'  # or 'writer' if you only want write access
-    )
+    # for each user email where g_cal is true, share the calendar
+    user.emails.where(g_cal: true).find_each do |email_record|
+      rule = Google::Apis::CalendarV3::AclRule.new(
+        scope: {
+          type: 'user',
+          value: email_record.email
+        },
+        role: 'reader'  # reader access
+      )
 
-    # Insert ACL with send_notifications set to false to avoid the ugly email
-    service.insert_acl(
-      calendar_id,
-      rule,
-      send_notifications: false  # Don't send the default invite
-    )
-
-  rescue Google::Apis::ClientError => e
-    # Ignore if user already has access
-    raise unless e.status_code == 409
+      service.insert_acl(
+        calendar_id,
+        rule,
+        send_notifications: false  # Don't send the default invite
+      )
+    rescue Google::Apis::ClientError => e
+      # Ignore if user already has access
+      raise unless e.status_code == 409
+    end
   end
 
-  def add_calendar_to_user_list(calendar_id)
-    service = user_calendar_service
+  def add_calendar_to_all_oauth_users(calendar_id)
+    # Add calendar to each OAuth'd email's Google Calendar list
+    user.google_credentials.find_each do |credential|
+      add_calendar_to_user_list_for_email(calendar_id, credential.email)
+    end
+  end
+
+  def add_calendar_to_user_list_for_email(calendar_id, email)
+    credential = user.google_credential_for_email(email)
+    return unless credential
+
+    service = user_calendar_service_for_credential(credential)
 
     calendar_list_entry = Google::Apis::CalendarV3::CalendarListEntry.new(
       id: calendar_id,
@@ -176,6 +186,34 @@ class GoogleCalendarService
   rescue Google::Apis::ClientError => e
     # Ignore if already in list
     raise unless e.status_code == 409
+  end
+
+  def user_calendar_service_for_credential(credential)
+    service = Google::Apis::CalendarV3::CalendarService.new
+    service.authorization = user_google_authorization_for_credential(credential)
+    service
+  end
+
+  def user_google_authorization_for_credential(credential)
+    credentials = Google::Auth::UserRefreshCredentials.new(
+      client_id: Rails.application.credentials.dig(:google, :client_id),
+      client_secret: Rails.application.credentials.dig(:google, :client_secret),
+      scope: ["https://www.googleapis.com/auth/calendar"],
+      access_token: credential.access_token,
+      refresh_token: credential.refresh_token,
+      expires_at: credential.token_expires_at
+    )
+
+    # Refresh the token if needed
+    if credential.token_expired?
+      credentials.refresh!
+      credential.update!(
+        access_token: credentials.access_token,
+        token_expires_at: Time.at(credentials.expires_at)
+      )
+    end
+
+    credentials
   end
 
   def clear_calendar_events(service, calendar_id)

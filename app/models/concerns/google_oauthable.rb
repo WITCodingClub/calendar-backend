@@ -1,7 +1,17 @@
 module GoogleOauthable
   extend ActiveSupport::Concern
 
-  # Convenience methods for accessing Google OAuth credentials
+  # Get all Google OAuth credentials for this user
+  def google_credentials
+    oauth_credentials.where(provider: "google")
+  end
+
+  # Get Google OAuth credential for a specific email
+  def google_credential_for_email(email)
+    oauth_credentials.find_by(provider: "google", email: email)
+  end
+
+  # Legacy method - returns the first Google credential (for backward compatibility)
   def google_credential
     @google_credential ||= oauth_credentials.find_by(provider: "google")
   end

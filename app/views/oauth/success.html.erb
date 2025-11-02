@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OAuth Success</title>
+  <meta name="oauth-status" content="success">
+  <meta name="oauth-email" content="<%= @email %>">
+  <meta name="calendar-id" content="<%= @calendar_id %>">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .container {
+      background: white;
+      padding: 3rem;
+      border-radius: 1rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      text-align: center;
+      max-width: 500px;
+    }
+    .success-icon {
+      font-size: 4rem;
+      color: #10b981;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      color: #1f2937;
+      margin: 0 0 1rem 0;
+      font-size: 1.75rem;
+    }
+    p {
+      color: #6b7280;
+      margin: 0.5rem 0;
+      line-height: 1.6;
+    }
+    .email {
+      font-weight: 600;
+      color: #667eea;
+    }
+    .close-info {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: #f3f4f6;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+  </style>
+  <script>
+    // Post message to extension
+    if (window.opener) {
+      window.opener.postMessage({
+        type: 'oauth-success',
+        email: '<%= @email %>',
+        calendarId: '<%= @calendar_id %>'
+      }, '*');
+    }
+
+    // Auto-close after 3 seconds if opened in popup
+    if (window.opener) {
+      setTimeout(() => window.close(), 3000);
+    }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div class="success-icon">✓</div>
+    <h1>Calendar Connected!</h1>
+    <p>Successfully connected <span class="email"><%= @email %></span> to your WIT calendar.</p>
+    <p>Your courses will now sync to Google Calendar.</p>
+    <div class="close-info">
+      <% if true %>
+        This window will close automatically in 3 seconds...
+      <% else %>
+        You can close this window now.
+      <% end %>
+    </div>
+  </div>
+</body>
+</html>

@@ -27,6 +27,7 @@ class User < ApplicationRecord
   has_many :magic_links, dependent: :destroy
   has_many :oauth_credentials, dependent: :destroy
   has_many :emails, dependent: :destroy
+  before_create :generate_calendar_token
 
   # Class method to find or create a user by email
   def self.find_or_create_by_email(email_address)
@@ -90,4 +91,5 @@ class User < ApplicationRecord
   def flipper_id
     self.emails.find_by(primary: true)&.email
   end
+
 end

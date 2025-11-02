@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_02_171317) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_02_223812) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -170,6 +170,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_02_171317) do
   create_table "emails", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
+    t.boolean "g_cal", default: false, null: false
     t.boolean "primary", default: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
@@ -257,6 +258,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_02_171317) do
   create_table "oauth_credentials", force: :cascade do |t|
     t.string "access_token", null: false
     t.datetime "created_at", null: false
+    t.string "email"
     t.jsonb "metadata", default: {}
     t.string "provider", null: false
     t.string "refresh_token"
@@ -265,7 +267,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_02_171317) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["provider", "uid"], name: "index_oauth_credentials_on_provider_and_uid", unique: true
-    t.index ["user_id", "provider"], name: "index_oauth_credentials_on_user_id_and_provider", unique: true
+    t.index ["user_id", "provider", "email"], name: "index_oauth_credentials_on_user_provider_email", unique: true
     t.index ["user_id"], name: "index_oauth_credentials_on_user_id"
   end
 

@@ -17,8 +17,13 @@ module Api
 
       # Fetch the processed data to return to a client
       processed_data = fetch_processed_courses(courses, current_user)
+      ics_url = current_user.cal_url_with_extension
 
-      render json: { classes: processed_data }, status: :ok
+
+      render json: {
+        ics_url: ics_url,
+        classes: processed_data
+      }, status: :ok
     rescue StandardError => e
       Rails.logger.error("Error processing courses: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))

@@ -5,6 +5,61 @@ class AuthController < ApplicationController
     auth = request.env['omniauth.auth']
     raise "Missing omniauth.auth" unless auth
 
+    # Check if this is a calendar OAuth flow (has state parameter)
+    if params[:state].present?
+      handle_calendar_oauth(auth)
+    else
+      handle_admin_login(auth)
+    end
+  rescue => e
+    Rails.logger.error("Google OAuth error: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n"))
+
+    if params[:state].present?
+      redirect_to "/oauth/failure?error=#{CGI.escape(e.message)}"
+    else
+      redirect_to new_user_session_path, alert: 'Failed to connect with Google. Please try again.'
+    end
+  end
+
+  private
+
+  def handle_calendar_oauth(auth)
+    # Verify and decode state parameter
+    state_data = GoogleOauthStateService.verify_state(params[:state])
+    unless state_data
+      raise "Invalid or expired state parameter"
+    end
+
+    user = User.find(state_data['user_id'])
+    target_email = state_data['email']
+
+    # Verify the OAuth email matches the target email
+    unless auth.info.email == target_email
+      raise "OAuth email (#{auth.info.email}) does not match expected email (#{target_email})"
+    end
+
+    # Create or update OAuth credential for this specific email
+    credential = user.oauth_credentials.find_or_initialize_by(
+      provider: "google",
+      email: target_email
+    )
+
+    credential.uid = auth.uid
+    credential.access_token = auth.credentials.token
+    credential.refresh_token = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
+    credential.token_expires_at = Time.at(auth.credentials.expires_at) if auth.credentials.expires_at
+    credential.save!
+
+    # Create calendar if it doesn't exist and share with this email
+    service = GoogleCalendarService.new(user)
+    calendar_id = service.create_or_get_course_calendar
+
+    # Redirect to success page
+    redirect_to "/oauth/success?email=#{CGI.escape(target_email)}&calendar_id=#{calendar_id}"
+  end
+
+  def handle_admin_login(auth)
     email = auth.info.email
 
     # Validate that the email is from @wit.edu domain
@@ -27,32 +82,21 @@ class AuthController < ApplicationController
     user.last_name ||= auth.info.last_name
     user.save! if user.changed?
 
-    # Find or create Google OAuth credential
-    credential = user.oauth_credentials.find_or_initialize_by(provider: "google")
+    # Find or create Google OAuth credential (for backward compatibility, use first credential)
+    credential = user.oauth_credentials.find_or_initialize_by(provider: "google", email: email)
 
     # Update OAuth credentials
     credential.uid = auth.uid
     credential.access_token = auth.credentials.token
-
-    # Only update refresh token if present (it may not be on subsequent authorizations)
     credential.refresh_token = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
-
-    # Store token expiration time
     credential.token_expires_at = Time.at(auth.credentials.expires_at) if auth.credentials.expires_at
-
     credential.save!
 
     # Sign in the user using the existing authentication system
     sign_in(user)
 
     redirect_to after_sign_in_path, notice: 'Successfully connected with Google.'
-  rescue => e
-    Rails.logger.error("Google OAuth error: #{e.message}")
-    Rails.logger.error(e.backtrace.join("\n"))
-    redirect_to new_user_session_path, alert: 'Failed to connect with Google. Please try again.'
   end
-
-  private
 
   def after_sign_in_path
     if current_user.admin_access?

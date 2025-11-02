@@ -2,7 +2,21 @@ module CalendarTokenable
   extend ActiveSupport::Concern
 
   def cal_url
-    "#{Rails.application.routes.url_helpers.root_url}/calendar/#{calendar_token}.ics"
+    # Ensure token exists before generating URL
+    generate_calendar_token if calendar_token.blank?
+
+    # Get default URL options from the environment config
+    url_options = Rails.application.config.action_controller.default_url_options || {}
+
+    Rails.application.routes.url_helpers.calendar_url(
+      calendar_token,
+      format: :ics,
+      **url_options
+    )
+  end
+
+  def cal_url_with_extension
+    "#{cal_url}.ics"
   end
 
   def generate_calendar_token
