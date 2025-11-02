@@ -55,14 +55,20 @@ module Api
               end_time: mt.fmt_end_time,
               start_date: mt.start_date,
               end_date: mt.end_date,
-              day_of_week: mt.day_of_week,
               location: {
                 building: mt.building ? {
                   name: mt.building.name,
                   abbreviation: mt.building.abbreviation
                 } : nil,
                 room: mt.room&.formatted_number
-              }
+              },
+              monday: mt.monday?,
+              tuesday: mt.tuesday?,
+              wednesday: mt.wednesday?,
+              thursday: mt.thursday?,
+              friday: mt.friday?,
+              saturday: mt.saturday?,
+              sunday: mt.sunday?
             }
           end
         }
