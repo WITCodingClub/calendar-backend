@@ -1,8 +1,8 @@
 Rails.application.routes.draw do
-  # Authentication routes (custom, no Devise)
+  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+
   get "users/sign_in", to: "sessions#new", as: :new_user_session
   delete "users/sign_out", to: "sessions#destroy", as: :destroy_user_session
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.
@@ -10,26 +10,17 @@ Rails.application.routes.draw do
 
   # API routes
   namespace :api do
-    # Authentication
-    post "login", to: "authentication#login"
-    post "signup", to: "authentication#signup"
-    post "request_magic_link", to: "authentication#request_magic_link"
-
-    # user
-    post "/user/request/gcal", to: "user#request_gcal"
-    post "/user/request/ics", to: "user#request_ics"
+    post "user/onboard", to: "users#onboard"
 
     # Course events
-    post "process_courses", to: "course#process_courses"
+    post "process_courses", to: "courses#process_courses"
   end
 
-  # ical / ics calendar
-  get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
 
   # google oauth2 callback
   get '/auth/google_oauth2/callback', to: 'auth#google'
 
-  # Admin OAuth callback for service account
+  # Admin OAuth callback for the service account
   get '/admin/oauth/callback', to: 'admin/service_account#callback'
 
   # Admin area with authentication constraint
@@ -62,19 +53,11 @@ Rails.application.routes.draw do
   get "unauthorized", to: "errors#unauthorized"
   get "404", to: "errors#not_found"
 
-  # User dashboard
-  get "dashboard", to: "dashboard#index", as: :dashboard
-
   if Rails.env.development?
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
   end
 
   mount OkComputer::Engine, at: "/healthchecks"
-
-  # Magic link routes (HTML pages)
-  post "request_magic_link", to: "magic_link#request_link"
-  get "magic_link/verify", to: "magic_link#verify"
-  get "magic_link/sent", to: "magic_link#sent"
 
   # Root route
   root to: "sessions#new"

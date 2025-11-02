@@ -5,19 +5,13 @@
 #
 #  id                    :bigint           not null, primary key
 #  begin_time            :integer          not null
+#  day_of_week           :integer
 #  end_date              :datetime         not null
 #  end_time              :integer          not null
-#  friday                :boolean
 #  hours_week            :integer
 #  meeting_schedule_type :integer
 #  meeting_type          :integer
-#  monday                :boolean
-#  saturday              :boolean
 #  start_date            :datetime         not null
-#  sunday                :boolean
-#  thursday              :boolean
-#  tuesday               :boolean
-#  wednesday             :boolean
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
 #  course_id             :bigint           not null
@@ -25,8 +19,9 @@
 #
 # Indexes
 #
-#  index_meeting_times_on_course_id  (course_id)
-#  index_meeting_times_on_room_id    (room_id)
+#  index_meeting_times_on_course_id    (course_id)
+#  index_meeting_times_on_day_of_week  (day_of_week)
+#  index_meeting_times_on_room_id      (room_id)
 #
 # Foreign Keys
 #
@@ -51,6 +46,17 @@ class MeetingTime < ApplicationRecord
       GoogleColors::EVENT_MAP[8]
     end
   end
+
+  # Day of week enum (matches Ruby's Date.wday: 0=Sunday, 1=Monday, ..., 6=Saturday)
+  enum :day_of_week, {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6
+  }
 
   enum :meeting_schedule_type, {
     lecture: 1, # LEC

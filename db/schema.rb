@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_31_231533) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_02_171317) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -227,17 +227,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_31_231533) do
     t.index ["viewer_type", "viewer_id"], name: "index_lockbox_audits_on_viewer"
   end
 
-  create_table "magic_links", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.datetime "expires_at", null: false
-    t.string "token", null: false
-    t.datetime "updated_at", null: false
-    t.datetime "used_at"
-    t.bigint "user_id", null: false
-    t.index ["token"], name: "index_magic_links_on_token", unique: true
-    t.index ["user_id"], name: "index_magic_links_on_user_id"
-  end
-
   create_table "mailkick_subscriptions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "list"
@@ -251,22 +240,17 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_31_231533) do
     t.integer "begin_time", null: false
     t.bigint "course_id", null: false
     t.datetime "created_at", null: false
+    t.integer "day_of_week"
     t.datetime "end_date", null: false
     t.integer "end_time", null: false
-    t.boolean "friday"
     t.integer "hours_week"
     t.integer "meeting_schedule_type"
     t.integer "meeting_type"
-    t.boolean "monday"
     t.bigint "room_id", null: false
-    t.boolean "saturday"
     t.datetime "start_date", null: false
-    t.boolean "sunday"
-    t.boolean "thursday"
-    t.boolean "tuesday"
     t.datetime "updated_at", null: false
-    t.boolean "wednesday"
     t.index ["course_id"], name: "index_meeting_times_on_course_id"
+    t.index ["day_of_week"], name: "index_meeting_times_on_day_of_week"
     t.index ["room_id"], name: "index_meeting_times_on_room_id"
   end
 
@@ -337,7 +321,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_31_231533) do
   add_foreign_key "enrollments", "courses"
   add_foreign_key "enrollments", "terms"
   add_foreign_key "enrollments", "users"
-  add_foreign_key "magic_links", "users"
   add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
   add_foreign_key "oauth_credentials", "users"

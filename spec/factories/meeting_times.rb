@@ -5,19 +5,13 @@
 #
 #  id                    :bigint           not null, primary key
 #  begin_time            :integer          not null
+#  day_of_week           :integer
 #  end_date              :datetime         not null
 #  end_time              :integer          not null
-#  friday                :boolean
 #  hours_week            :integer
 #  meeting_schedule_type :integer
 #  meeting_type          :integer
-#  monday                :boolean
-#  saturday              :boolean
 #  start_date            :datetime         not null
-#  sunday                :boolean
-#  thursday              :boolean
-#  tuesday               :boolean
-#  wednesday             :boolean
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
 #  course_id             :bigint           not null
@@ -25,8 +19,9 @@
 #
 # Indexes
 #
-#  index_meeting_times_on_course_id  (course_id)
-#  index_meeting_times_on_room_id    (room_id)
+#  index_meeting_times_on_course_id    (course_id)
+#  index_meeting_times_on_day_of_week  (day_of_week)
+#  index_meeting_times_on_room_id      (room_id)
 #
 # Foreign Keys
 #
@@ -35,6 +30,16 @@
 #
 FactoryBot.define do
   factory :meeting_time do
-    
+    association :course
+    association :room
+
+    start_date { 3.days.from_now }
+    end_date { 3.months.from_now }
+    begin_time { 1000 } # 10:00 AM
+    end_time { 1150 } # 11:50 AM
+    day_of_week { :monday }
+    hours_week { 2 }
+    meeting_schedule_type { :lecture }
+    meeting_type { :class_meeting }
   end
 end

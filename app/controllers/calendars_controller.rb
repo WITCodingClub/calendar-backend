@@ -6,17 +6,17 @@ class CalendarsController < ApplicationController
 
     # Get all enrolled courses (filtering by meeting_times dates will be handled in the iCal RRULE)
     @courses = @user.courses
-                    .includes(:meeting_times, meeting_times: [:room, :building])
+                    .includes(:meeting_times, meeting_times: [ :room, :building ])
 
     respond_to do |format|
       format.ics do
         calendar = generate_ical(@courses)
-        
+
         # Add cache control headers to suggest refresh intervals
-        response.headers['Cache-Control'] = 'max-age=3600, must-revalidate' # 1 hour
-        response.headers['X-Published-TTL'] = 'PT1H' # iCalendar refresh hint (1 hour)
-        response.headers['Refresh-Interval'] = '3600' # Alternative hint
-        
+        response.headers["Cache-Control"] = "max-age=3600, must-revalidate" # 1 hour
+        response.headers["X-Published-TTL"] = "PT1H" # iCalendar refresh hint (1 hour)
+        response.headers["Refresh-Interval"] = "3600" # Alternative hint
+
         render plain: calendar.to_ical, content_type: "text/calendar"
       end
     end
@@ -54,13 +54,16 @@ class CalendarsController < ApplicationController
 
     courses.each do |course|
       course.meeting_times.each do |meeting_time|
-        # Get the days this class meets
-        days = get_meeting_days(meeting_time)
-        next if days.empty?
+        # Skip if day_of_week is not set
+        next unless meeting_time.day_of_week.present?
+
+        # Get the day code for this meeting time
+        day_code = get_day_code(meeting_time)
+        next unless day_code
 
         # Create event for this meeting time
         cal.event do |e|
-          # Find the first day that matches one of the meeting days
+          # Find the first day that matches the meeting day
           first_meeting_date = find_first_meeting_date(meeting_time)
           next unless first_meeting_date
 
@@ -81,8 +84,9 @@ class CalendarsController < ApplicationController
             e.location = meeting_time.room.name
           end
 
-          # Recurring rule for days of the week
-          e.rrule = "FREQ=WEEKLY;BYDAY=#{days.join(',')};UNTIL=#{meeting_time.end_date.strftime('%Y%m%dT%H%M%SZ')}"
+          # Recurring rule for this specific day of the week
+          # Each meeting_time now represents a single day
+          e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{meeting_time.end_date.strftime('%Y%m%dT%H%M%SZ')}"
 
           # Stable UID for consistent event identity across refreshes
           e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
@@ -98,7 +102,7 @@ class CalendarsController < ApplicationController
           end
 
           # Use the most recent update time between course and meeting_time
-          last_modified = [course.updated_at, meeting_time.updated_at].max
+          last_modified = [ course.updated_at, meeting_time.updated_at ].max
           e.last_modified = Icalendar::Values::DateTime.new(last_modified)
 
           # Sequence number based on update timestamps (helps clients detect changes)
@@ -112,16 +116,21 @@ class CalendarsController < ApplicationController
     cal
   end
 
-  def get_meeting_days(meeting_time)
-    days = []
-    days << "MO" if meeting_time.monday
-    days << "TU" if meeting_time.tuesday
-    days << "WE" if meeting_time.wednesday
-    days << "TH" if meeting_time.thursday
-    days << "FR" if meeting_time.friday
-    days << "SA" if meeting_time.saturday
-    days << "SU" if meeting_time.sunday
-    days
+  def get_day_code(meeting_time)
+    return nil unless meeting_time.day_of_week.present?
+
+    # Map day_of_week enum to RFC 5545 day codes
+    day_codes = {
+      "sunday" => "SU",
+      "monday" => "MO",
+      "tuesday" => "TU",
+      "wednesday" => "WE",
+      "thursday" => "TH",
+      "friday" => "FR",
+      "saturday" => "SA"
+    }
+
+    day_codes[meeting_time.day_of_week]
   end
 
   def parse_time(date, time_int)
@@ -135,24 +144,17 @@ class CalendarsController < ApplicationController
   end
 
   def find_first_meeting_date(meeting_time)
-    # Map day booleans to wday numbers (0=Sunday, 1=Monday, etc.)
-    meeting_wdays = []
-    meeting_wdays << 0 if meeting_time.sunday
-    meeting_wdays << 1 if meeting_time.monday
-    meeting_wdays << 2 if meeting_time.tuesday
-    meeting_wdays << 3 if meeting_time.wednesday
-    meeting_wdays << 4 if meeting_time.thursday
-    meeting_wdays << 5 if meeting_time.friday
-    meeting_wdays << 6 if meeting_time.saturday
+    return nil unless meeting_time.day_of_week.present?
 
-    return nil if meeting_wdays.empty?
+    # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
+    target_wday = MeetingTime.day_of_weeks[meeting_time.day_of_week]
 
     # Start from the meeting start_date
     current_date = meeting_time.start_date.to_date
 
-    # Find the first day that matches one of the meeting days (max 7 days search)
+    # Find the first day that matches the meeting day (max 7 days search)
     7.times do
-      return current_date if meeting_wdays.include?(current_date.wday)
+      return current_date if current_date.wday == target_wday
       current_date += 1.day
     end
 

@@ -33,15 +33,23 @@ class MeetingTimesIngestService < ApplicationService
 
     return if start_dt.nil? || end_dt.nil? || begin_hhmm.nil? || end_hhmm.nil?
 
-    days = {
-      monday:    to_bool(mt["monday"]    || mt[:monday]),
-      tuesday:   to_bool(mt["tuesday"]   || mt[:tuesday]),
-      wednesday: to_bool(mt["wednesday"] || mt[:wednesday]),
-      thursday:  to_bool(mt["thursday"]  || mt[:thursday]),
-      friday:    to_bool(mt["friday"]    || mt[:friday]),
-      saturday:  to_bool(mt["saturday"]  || mt[:saturday]),
-      sunday:    to_bool(mt["sunday"]    || mt[:sunday])
+    # Extract which days are active
+    days_map = {
+      sunday: 0,
+      monday: 1,
+      tuesday: 2,
+      wednesday: 3,
+      thursday: 4,
+      friday: 5,
+      saturday: 6
     }
+
+    active_days = days_map.select do |day_name, day_num|
+      to_bool(mt[day_name.to_s] || mt[day_name])
+    end
+
+    # Skip if no days are active
+    return if active_days.empty?
 
     # Building is required by Room
     building_abbr = (mt["building"] || mt[:building]).to_s.strip
@@ -59,20 +67,29 @@ class MeetingTimesIngestService < ApplicationService
     meeting_schedule_type = map_schedule_type(mt["meetingScheduleType"] || mt[:meetingScheduleType] || mt["scheduleType"] || mt[:scheduleType])
     meeting_type          = map_meeting_type(mt["meetingType"] || mt[:meetingType])
 
-    attrs = {
-      course_id: course.id,
-      room_id: room.id,
-      start_date: start_dt,
-      end_date: end_dt,
-      begin_time: begin_hhmm,
-      end_time: end_hhmm
-    }.merge(days)
+    # Calculate hours per day (not per week)
+    hours_per_day = if @compute_hours_week
+      compute_hours_per_day(begin_hhmm, end_hhmm)
+    else
+      nil
+    end
 
-    MeetingTime.find_or_create_by!(attrs) do |mt_record|
-      mt_record.meeting_schedule_type = meeting_schedule_type
-      mt_record.meeting_type = meeting_type
-      if @compute_hours_week
-        mt_record.hours_week = compute_hours_week(begin_hhmm, end_hhmm, days)
+    # Create a separate MeetingTime record for each active day
+    active_days.each do |day_name, day_num|
+      attrs = {
+        course_id: course.id,
+        room_id: room.id,
+        start_date: start_dt,
+        end_date: end_dt,
+        begin_time: begin_hhmm,
+        end_time: end_hhmm,
+        day_of_week: day_num
+      }
+
+      MeetingTime.find_or_create_by!(attrs) do |mt_record|
+        mt_record.meeting_schedule_type = meeting_schedule_type
+        mt_record.meeting_type = meeting_type
+        mt_record.hours_week = hours_per_day
       end
     end
   end
@@ -171,8 +188,8 @@ class MeetingTimesIngestService < ApplicationService
     end
   end
 
-  # Compute weekly hours: duration in hours × number of true days
-  def compute_hours_week(begin_hhmm, end_hhmm, days)
+  # Compute hours per day: duration in hours for a single meeting
+  def compute_hours_per_day(begin_hhmm, end_hhmm)
     # Convert HHMM to decimal hours for calculation
     begin_h = begin_hhmm / 100
     begin_m = begin_hhmm % 100
@@ -182,8 +199,6 @@ class MeetingTimesIngestService < ApplicationService
     end_m = end_hhmm % 100
     end_decimal = end_h + (end_m / 60.0)
 
-    per_day_hours = [end_decimal - begin_decimal, 0].max
-    day_count = days.values.count(true)
-    (per_day_hours * day_count).round
+    [end_decimal - begin_decimal, 0].max.round
   end
 end
