@@ -15,15 +15,11 @@ class CreateMeetingTimes < ActiveRecord::Migration[8.0]
       t.integer :meeting_schedule_type # LEC, LAB
       t.integer :meeting_type # CLAS,
 
-      t.boolean :monday
-      t.boolean :tuesday
-      t.boolean :wednesday
-      t.boolean :thursday
-      t.boolean :friday
-      t.boolean :saturday
-      t.boolean :sunday
+      t.integer :day_of_week # 0=sunday, 1=monday, ..., 6=saturday
 
       t.timestamps
     end
+
+    add_index :meeting_times, :day_of_week
   end
 end

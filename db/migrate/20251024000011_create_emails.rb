@@ -3,6 +3,7 @@ class CreateEmails < ActiveRecord::Migration[8.1]
     create_table :emails do |t|
       t.string :email, null: false
       t.boolean :primary, default: false
+      t.boolean :g_cal, default: false, null: false
 
       t.references :user, null: false, foreign_key: true
 
