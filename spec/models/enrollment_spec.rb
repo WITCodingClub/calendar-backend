@@ -26,5 +26,39 @@
 require 'rails_helper'
 
 RSpec.describe Enrollment, type: :model do
-  pending "add some examples to (or delete) #{__FILE__}"
+  describe 'calendar sync tracking' do
+    let(:user) { create(:user, google_course_calendar_id: 'cal_123', calendar_needs_sync: false) }
+    let(:term) { create(:term) }
+    let(:course) { create(:course, term: term) }
+
+    context 'when enrollment is created' do
+      it 'marks user calendar as needing sync' do
+        expect {
+          create(:enrollment, user: user, course: course, term: term)
+        }.to change { user.reload.calendar_needs_sync }.from(false).to(true)
+      end
+
+      it 'does not mark user without google calendar' do
+        user_without_cal = create(:user, google_course_calendar_id: nil)
+        
+        expect {
+          create(:enrollment, user: user_without_cal, course: course, term: term)
+        }.not_to change { user_without_cal.reload.calendar_needs_sync }
+      end
+    end
+
+    context 'when enrollment is destroyed' do
+      let!(:enrollment) { create(:enrollment, user: user, course: course, term: term) }
+
+      before do
+        user.update_column(:calendar_needs_sync, false)
+      end
+
+      it 'marks user calendar as needing sync' do
+        expect {
+          enrollment.destroy
+        }.to change { user.reload.calendar_needs_sync }.from(false).to(true)
+      end
+    end
+  end
 end

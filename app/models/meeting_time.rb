@@ -29,6 +29,8 @@
 #  fk_rails_...  (room_id => rooms.id)
 #
 class MeetingTime < ApplicationRecord
+  include MeetingTimeChangeTrackable
+
   belongs_to :course
   belongs_to :room
   has_one :building, through: :room
