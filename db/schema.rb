@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_24_000020) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_03_003520) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -195,8 +195,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_24_000020) do
     t.string "email", null: false
     t.string "first_name", null: false
     t.string "last_name", null: false
+    t.string "rmp_id"
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_faculties_on_email", unique: true
+    t.index ["rmp_id"], name: "index_faculties_on_rmp_id", unique: true
   end
 
   create_table "flipper_features", force: :cascade do |t|
@@ -280,12 +282,73 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_24_000020) do
     t.index ["searchable_type", "searchable_id"], name: "index_pg_search_documents_on_searchable"
   end
 
+  create_table "rating_distributions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "faculty_id", null: false
+    t.integer "r1", default: 0
+    t.integer "r2", default: 0
+    t.integer "r3", default: 0
+    t.integer "r4", default: 0
+    t.integer "r5", default: 0
+    t.integer "total", default: 0
+    t.datetime "updated_at", null: false
+    t.index ["faculty_id"], name: "index_rating_distributions_on_faculty_id", unique: true
+  end
+
+  create_table "related_professors", force: :cascade do |t|
+    t.decimal "avg_rating", precision: 3, scale: 2
+    t.datetime "created_at", null: false
+    t.bigint "faculty_id", null: false
+    t.string "first_name"
+    t.string "last_name"
+    t.bigint "related_faculty_id"
+    t.string "rmp_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["faculty_id", "rmp_id"], name: "index_related_professors_on_faculty_id_and_rmp_id", unique: true
+    t.index ["faculty_id"], name: "index_related_professors_on_faculty_id"
+    t.index ["related_faculty_id"], name: "index_related_professors_on_related_faculty_id"
+  end
+
+  create_table "rmp_ratings", force: :cascade do |t|
+    t.string "attendance_mandatory"
+    t.integer "clarity_rating"
+    t.text "comment"
+    t.string "course_name"
+    t.datetime "created_at", null: false
+    t.integer "difficulty_rating"
+    t.bigint "faculty_id", null: false
+    t.string "grade"
+    t.integer "helpful_rating"
+    t.boolean "is_for_credit"
+    t.boolean "is_for_online_class"
+    t.datetime "rating_date"
+    t.text "rating_tags"
+    t.string "rmp_id", null: false
+    t.integer "thumbs_down_total", default: 0
+    t.integer "thumbs_up_total", default: 0
+    t.datetime "updated_at", null: false
+    t.boolean "would_take_again"
+    t.index ["faculty_id"], name: "index_rmp_ratings_on_faculty_id"
+    t.index ["rmp_id"], name: "index_rmp_ratings_on_rmp_id", unique: true
+  end
+
   create_table "rooms", force: :cascade do |t|
     t.bigint "building_id", null: false
     t.datetime "created_at", null: false
     t.integer "number"
     t.datetime "updated_at", null: false
     t.index ["building_id"], name: "index_rooms_on_building_id"
+  end
+
+  create_table "teacher_rating_tags", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "faculty_id", null: false
+    t.integer "rmp_legacy_id", null: false
+    t.integer "tag_count", default: 0
+    t.string "tag_name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["faculty_id", "rmp_legacy_id"], name: "index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id", unique: true
+    t.index ["faculty_id"], name: "index_teacher_rating_tags_on_faculty_id"
   end
 
   create_table "terms", force: :cascade do |t|
@@ -326,5 +389,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_24_000020) do
   add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
   add_foreign_key "oauth_credentials", "users"
+  add_foreign_key "rating_distributions", "faculties", validate: false
+  add_foreign_key "related_professors", "faculties", column: "related_faculty_id", validate: false
+  add_foreign_key "related_professors", "faculties", validate: false
+  add_foreign_key "rmp_ratings", "faculties", validate: false
   add_foreign_key "rooms", "buildings"
+  add_foreign_key "teacher_rating_tags", "faculties", validate: false
 end
