@@ -53,9 +53,9 @@ Rails.application.configure do
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
 
-  # Set localhost to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
-  config.action_controller.default_url_options = { host: "localhost", port: 3000 }
+  # Set ngrok URL to be used by links generated in mailer templates and OAuth callbacks.
+  config.action_mailer.default_url_options = { host: "heron-selected-literally.ngrok-free.app", protocol: "https" }
+  config.action_controller.default_url_options = { host: "heron-selected-literally.ngrok-free.app", protocol: "https" }
 
   config.hosts << "heron-selected-literally.ngrok-free.app"
 

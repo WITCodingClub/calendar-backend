@@ -44,6 +44,7 @@ module CourseScheduleSyncable
           start_time: start_time,
           end_time: end_time,
           course_code: course_code,
+          meeting_time_id: meeting_time.id,
           recurrence: recurrence_rule ? [recurrence_rule] : nil
         }
       end
@@ -78,6 +79,7 @@ module CourseScheduleSyncable
     hours = time_int / 100
     minutes = time_int % 100
 
+    # Create time in configured timezone (Eastern Time)
     Time.zone.local(date.year, date.month, date.day, hours, minutes)
   end
 

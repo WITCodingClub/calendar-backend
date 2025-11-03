@@ -229,27 +229,35 @@ class GoogleCalendarService
   end
 
   def add_event_to_calendar(service, calendar_id, course_event)
+    # Ensure times are in Eastern timezone
+    start_time_et = course_event[:start_time].in_time_zone('America/New_York')
+    end_time_et = course_event[:end_time].in_time_zone('America/New_York')
+
+    Rails.logger.debug "Creating event: #{course_event[:summary]}"
+    Rails.logger.debug "Start: #{start_time_et.iso8601} (#{start_time_et})"
+    Rails.logger.debug "End: #{end_time_et.iso8601} (#{end_time_et})"
+
     event = Google::Apis::CalendarV3::Event.new(
       summary: course_event[:summary],
       location: course_event[:location],
       start: {
-        date_time: course_event[:start_time].iso8601,
+        date_time: start_time_et.iso8601,
         time_zone: 'America/New_York'
       },
       end: {
-        date_time: course_event[:end_time].iso8601,
+        date_time: end_time_et.iso8601,
         time_zone: 'America/New_York'
       },
-      color_id: get_color_for_course(course_event[:course_code]),
-      recurrence: course_event[:recurrence], # If you have recurring events
+      color_id: get_color_for_meeting_time(course_event[:meeting_time_id]),
+      recurrence: course_event[:recurrence]
     )
 
     service.insert_event(calendar_id, event)
   end
 
-  def get_color_for_course(course_code)
-    # find the meeting time for the course as meeting_time has a event_color method
-    meeting_time = MeetingTime.joins(:course).find_by(courses: { course_code: course_code })
+  def get_color_for_meeting_time(meeting_time_id)
+    # find the meeting time by id as meeting_time has a event_color method
+    meeting_time = MeetingTime.find_by(id: meeting_time_id)
     return nil unless meeting_time
 
     # Map the event color to Google Calendar color IDs

@@ -29,7 +29,7 @@ module WitCalendarBackend
     config.mission_control.jobs.base_controller_class = "Admin::BaseController"
     config.mission_control.jobs.http_basic_auth_enabled = false
 
-    # config.time_zone = "Central Time (US & Canada)"
+    config.time_zone = "Eastern Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
     config.autoload_paths << Rails.root.join('app', 'lib')
     config.eager_load_paths << Rails.root.join('app', 'lib')
