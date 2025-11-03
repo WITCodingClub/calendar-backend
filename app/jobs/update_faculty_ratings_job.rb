@@ -40,6 +40,12 @@ class UpdateFacultyRatingsJob < ApplicationJob
 
     return unless teacher
 
+    # Fetch all ratings
+    all_ratings = service.get_all_ratings(faculty.rmp_id)
+
+    # Store the raw GraphQL response for graph reconstruction
+    store_raw_data(faculty, teacher_data, all_ratings)
+
     # Store rating distribution
     store_rating_distribution(faculty, teacher["ratingsDistribution"])
 
@@ -49,8 +55,7 @@ class UpdateFacultyRatingsJob < ApplicationJob
     # Store related professors
     store_related_professors(faculty, teacher["relatedTeachers"] || [])
 
-    # Fetch and store all ratings
-    all_ratings = service.get_all_ratings(faculty.rmp_id)
+    # Store individual ratings
     store_ratings(faculty, all_ratings)
 
     Rails.logger.info "Updated #{all_ratings.count} ratings for #{faculty.full_name}"
@@ -132,6 +137,19 @@ class UpdateFacultyRatingsJob < ApplicationJob
 
       rating_tag.save!
     end
+  end
+
+  def store_raw_data(faculty, teacher_data, all_ratings)
+    raw_data = {
+      teacher: teacher_data,
+      all_ratings: all_ratings,
+      metadata: {
+        last_updated_at: Time.current.iso8601,
+        total_ratings_fetched: all_ratings.count
+      }
+    }
+
+    faculty.update!(rmp_raw_data: raw_data)
   end
 
   def parse_date(date_string)

@@ -3,18 +3,20 @@
 # Table name: faculties
 # Database name: primary
 #
-#  id         :bigint           not null, primary key
-#  email      :string           not null
-#  first_name :string           not null
-#  last_name  :string           not null
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  rmp_id     :string
+#  id           :bigint           not null, primary key
+#  email        :string           not null
+#  first_name   :string           not null
+#  last_name    :string           not null
+#  rmp_raw_data :jsonb
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
+#  rmp_id       :string
 #
 # Indexes
 #
-#  index_faculties_on_email   (email) UNIQUE
-#  index_faculties_on_rmp_id  (rmp_id) UNIQUE
+#  index_faculties_on_email         (email) UNIQUE
+#  index_faculties_on_rmp_id        (rmp_id) UNIQUE
+#  index_faculties_on_rmp_raw_data  (rmp_raw_data) USING gin
 #
 class Faculty < ApplicationRecord
   has_and_belongs_to_many :courses
@@ -70,6 +72,42 @@ class Faculty < ApplicationRecord
   # Synchronously update ratings (useful for console/rake tasks)
   def update_ratings_now!
     UpdateFacultyRatingsJob.perform_now(id)
+  end
+
+  # Access raw RMP GraphQL data
+  def rmp_graph_data
+    return {} if rmp_raw_data.blank?
+    rmp_raw_data
+  end
+
+  # Get the teacher node from raw data
+  def rmp_teacher_node
+    rmp_raw_data.dig("teacher", "data", "node")
+  end
+
+  # Get all ratings from raw data
+  def rmp_all_ratings_raw
+    rmp_raw_data["all_ratings"] || []
+  end
+
+  # Get metadata about the last RMP data fetch
+  def rmp_last_updated
+    timestamp = rmp_raw_data.dig("metadata", "last_updated_at")
+    return nil if timestamp.blank?
+
+    Time.parse(timestamp)
+  rescue ArgumentError
+    nil
+  end
+
+  # Reconstruct GraphQL edges structure for ratings
+  def rmp_ratings_as_edges
+    rmp_all_ratings_raw.map.with_index do |rating, index|
+      {
+        cursor: Base64.strict_encode64("arrayconnection:#{index}"),
+        node: rating
+      }
+    end
   end
 
   # Class method to update all faculty ratings

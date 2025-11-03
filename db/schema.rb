@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_03_003520) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_03_005424) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -196,9 +196,11 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_03_003520) do
     t.string "first_name", null: false
     t.string "last_name", null: false
     t.string "rmp_id"
+    t.jsonb "rmp_raw_data", default: {}
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_faculties_on_email", unique: true
     t.index ["rmp_id"], name: "index_faculties_on_rmp_id", unique: true
+    t.index ["rmp_raw_data"], name: "index_faculties_on_rmp_raw_data", using: :gin
   end
 
   create_table "flipper_features", force: :cascade do |t|
