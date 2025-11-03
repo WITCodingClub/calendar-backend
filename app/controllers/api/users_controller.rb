@@ -28,75 +28,44 @@ module Api
     end
 
     def request_g_cal
-      raw = request.raw_post
+      email = params[:email]
 
-      emails =
-        begin
-          parsed = JSON.parse(raw)
-          case parsed
-          when Array
-            parsed
-          when Hash
-            parsed["emails"] || parsed["_json"] || []
-          else
-            []
-          end
-        rescue JSON::ParserError
-          []
-        end
-
-      emails = emails.compact.map(&:to_s).map(&:strip).reject(&:empty?)
-
-      # if there are no emails provided, return bad request
-      if emails.empty?
-        render json: { error: "At least one email is required" }, status: :bad_request
+      if email.blank?
+        render json: { error: "Email is required" }, status: :bad_request
         return
       end
 
-      # For each email, create/update Email record with g_cal = true
-      emails.each do |email_address|
-        email_record = current_user.emails.find_or_initialize_by(email: email_address)
-        email_record.g_cal = true
-        email_record.save!
-      end
+      email = email.to_s.strip
 
-      # Generate OAuth URLs for emails that don't have credentials yet
-      oauth_urls = []
+      # Create/update Email record with g_cal = true
+      email_record = current_user.emails.find_or_initialize_by(email: email)
+      email_record.g_cal = true
+      email_record.save!
 
-      emails.each do |email_address|
-        # Check if this email already has OAuth credentials
-        next if current_user.google_credential_for_email(email_address).present?
+      # Check if this email already has OAuth credentials
+      if current_user.google_credential_for_email(email).present?
+        # Email has credentials, ensure calendar is created and shared
+        service = GoogleCalendarService.new(current_user)
+        calendar_id = service.create_or_get_course_calendar
 
+        render json: {
+          message: "Email already connected",
+          calendar_id: calendar_id
+        }, status: :ok
+      else
         # Generate state parameter
         state = GoogleOauthStateService.generate_state(
           user_id: current_user.id,
-          email: email_address
+          email: email
         )
 
         # Build OAuth URL
         oauth_url = "/auth/google_oauth2?state=#{CGI.escape(state)}"
 
-        oauth_urls << {
-          email: email_address,
+        render json: {
+          message: "OAuth required",
+          email: email,
           oauth_url: oauth_url
-        }
-      end
-
-      # If all emails are already OAuth'd, check if calendar needs to be created/shared
-      if oauth_urls.empty?
-        # All emails have credentials, ensure calendar is created and shared
-        service = GoogleCalendarService.new(current_user)
-        calendar_id = service.create_or_get_course_calendar
-
-        render json: {
-          message: "All emails already connected",
-          calendar_id: calendar_id,
-          oauth_urls: []
-        }, status: :ok
-      else
-        render json: {
-          message: "OAuth required for some emails",
-          oauth_urls: oauth_urls
         }, status: :ok
       end
     rescue StandardError => e

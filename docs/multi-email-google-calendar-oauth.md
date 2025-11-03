@@ -27,46 +27,39 @@ This document describes the OAuth flow for connecting multiple email addresses t
 
 ## User Flow (Chrome Extension)
 
-### Step 1: Request OAuth URLs
+### Step 1: Request OAuth URL
 
-Extension calls `/api/user/gcal` with a list of emails:
+Extension calls `/api/user/gcal` with a single email:
 
 ```bash
 POST /api/user/gcal
 Content-Type: application/json
 
-["jaspermayone@gmail.com", "student@example.com"]
+{
+  "email": "jaspermayone@gmail.com"
+}
 ```
 
 **Response** (when OAuth needed):
 ```json
 {
-  "message": "OAuth required for some emails",
-  "oauth_urls": [
-    {
-      "email": "jaspermayone@gmail.com",
-      "oauth_url": "/auth/google_oauth2?state=eyJhbG..."
-    },
-    {
-      "email": "student@example.com",
-      "oauth_url": "/auth/google_oauth2?state=eyJhbG..."
-    }
-  ]
+  "message": "OAuth required",
+  "email": "jaspermayone@gmail.com",
+  "oauth_url": "/auth/google_oauth2?state=eyJhbG..."
 }
 ```
 
-**Response** (when all emails already OAuth'd):
+**Response** (when email already OAuth'd):
 ```json
 {
-  "message": "All emails already connected",
-  "calendar_id": "74a23fc8e0d20b751e83183c614e284429a0e2376b5d9cc080d4a38da1989e9a@group.calendar.google.com",
-  "oauth_urls": []
+  "message": "Email already connected",
+  "calendar_id": "74a23fc8e0d20b751e83183c614e284429a0e2376b5d9cc080d4a38da1989e9a@group.calendar.google.com"
 }
 ```
 
-### Step 2: Open OAuth URLs
+### Step 2: Open OAuth URL
 
-Extension opens each OAuth URL (e.g., in a popup or new tab). User completes Google OAuth for each email.
+Extension opens the OAuth URL (e.g., in a popup or new tab). User completes Google OAuth for the email.
 
 ### Step 3: OAuth Callback Processing
 
@@ -153,10 +146,10 @@ end
 ### Controllers
 
 **`Api::UsersController#request_g_cal`**:
-1. Parse emails from request
-2. Create/update `Email` records with `g_cal = true`
-3. Generate OAuth URLs for emails without credentials
-4. Return OAuth URLs to extension
+1. Parse email from request
+2. Create/update `Email` record with `g_cal = true`
+3. Generate OAuth URL if email doesn't have credentials
+4. Return OAuth URL to extension (or calendar_id if already connected)
 
 **`AuthController#google`** (callback):
 - If `params[:state]` present → calendar OAuth flow
@@ -199,38 +192,36 @@ service.insert_calendar_list({
 ## Extension Integration Example
 
 ```javascript
-// 1. Request OAuth URLs
+// 1. Request OAuth URL
 const response = await fetch('/api/user/gcal', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${jwt}`
   },
-  body: JSON.stringify(['jaspermayone@gmail.com'])
+  body: JSON.stringify({ email: 'jaspermayone@gmail.com' })
 });
 
 const data = await response.json();
 
-// 2. Open OAuth URLs
-if (data.oauth_urls && data.oauth_urls.length > 0) {
-  for (const {email, oauth_url} of data.oauth_urls) {
-    const popup = window.open(
-      `https://your-domain.com${oauth_url}`,
-      `oauth_${email}`,
-      'width=600,height=700'
-    );
+// 2. Open OAuth URL if needed
+if (data.oauth_url) {
+  const popup = window.open(
+    `https://your-domain.com${data.oauth_url}`,
+    `oauth_${data.email}`,
+    'width=600,height=700'
+  );
 
-    // 3. Listen for success/failure
-    window.addEventListener('message', (event) => {
-      if (event.data.type === 'oauth-success') {
-        console.log('Success!', event.data.email, event.data.calendarId);
-      } else if (event.data.type === 'oauth-failure') {
-        console.error('Failed:', event.data.error);
-      }
-    });
-  }
+  // 3. Listen for success/failure
+  window.addEventListener('message', (event) => {
+    if (event.data.type === 'oauth-success') {
+      console.log('Success!', event.data.email, event.data.calendarId);
+    } else if (event.data.type === 'oauth-failure') {
+      console.error('Failed:', event.data.error);
+    }
+  });
 } else {
-  console.log('All emails already connected!');
+  console.log('Email already connected!', data.calendar_id);
 }
 ```
 
@@ -244,12 +235,12 @@ if (data.oauth_urls && data.oauth_urls.length > 0) {
    user.emails.create!(email: 'test@example.com', primary: true)
    ```
 
-2. **Request OAuth URLs**:
+2. **Request OAuth URL**:
    ```bash
    curl -X POST http://localhost:3000/api/user/gcal \
      -H "Authorization: Bearer YOUR_JWT" \
      -H "Content-Type: application/json" \
-     -d '["your-email@gmail.com"]'
+     -d '{"email": "your-email@gmail.com"}'
    ```
 
 3. **Open OAuth URL** in browser and complete flow
