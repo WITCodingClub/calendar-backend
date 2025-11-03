@@ -31,6 +31,21 @@ See `.devcontainer/README.md` for more details about the Dev Container setup.
     git clone git@github.com:jaspermayone/witcc-calendar-backend.git
     cd witcc-calendar-backend
     ```
+	
+    If using the submodule:
+    1. Clone the main calendar repo and navigate into it:
+
+        ```bash
+        git clone git@github.com:WITCodingClub/calendar.git
+        cd calendar
+        ```
+
+    2. Initialize and update the submodule:
+
+        ```bash
+        git submodule sync
+        git submodule update --init
+        ```
 
 2.  **Install dependencies:**
 
