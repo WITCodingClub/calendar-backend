@@ -205,6 +205,8 @@ Rails.application.routes.draw do
   namespace :api do
     post "user/onboard", to: "users#onboard"
     post "user/gcal", to: "users#request_g_cal"
+    post "user/gcal/add_email", to: "users#add_email_to_g_cal"
+    delete "user/gcal/remove_email", to: "users#remove_email_from_g_cal"
 
     # Course events
     post "process_courses", to: "courses#process_courses"

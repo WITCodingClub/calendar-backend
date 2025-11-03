@@ -27,6 +27,63 @@ module Api
 
     end
 
+    def add_email_to_g_cal
+      email = params[:email]
+
+      if email.blank?
+        render json: { error: "Email is required" }, status: :bad_request
+        return
+      end
+
+      email = email.to_s.strip
+      # Create/update Email record with g_cal = true
+      email_record = current_user.emails.find_or_initialize_by(email: email)
+      email_record.g_cal = true
+      email_record.save!
+
+      # trigger function to ensure calendar is shared with that email synchronously
+      service = GoogleCalendarService.new(current_user)
+      calendar_id = service.create_or_get_course_calendar
+      service.share_calendar_with_email(calendar_id, email.id)
+      render json: { message: "Calendar shared with email", calendar_id: calendar_id }, status: :ok
+    rescue StandardError => e
+      Rails.logger.error("Error adding email to Google Calendar for user #{current_user.id}: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+      render json: { error: "Failed to add email to Google Calendar" }, status: :internal_server_error
+
+    end
+
+    def remove_email_from_g_cal
+      email = params[:email]
+
+      if email.blank?
+        render json: { error: "Email is required" }, status: :bad_request
+        return
+      end
+
+      email = email.to_s.strip
+      email_record = current_user.emails.find_by(email: email)
+
+      if email_record.nil? || !email_record.g_cal
+        render json: { error: "Email not found or not associated with Google Calendar" }, status: :not_found
+        return
+      end
+
+      # Remove g_cal association
+      email_record.g_cal = false
+      email_record.save!
+
+      service = GoogleCalendarService.new(current_user)
+      calendar_id = current_user.google_course_calendar_id
+      service.unshare_calendar_with_email(calendar_id, email_record.id)
+
+      render json: { message: "Email removed from Google Calendar association" }, status: :ok
+    rescue StandardError => e
+      Rails.logger.error("Error removing email from Google Calendar for user #{current_user.id}: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+      render json: { error: "Failed to remove email from Google Calendar" }, status: :internal_server_error
+    end
+
     def request_g_cal
       email = params[:email]
 

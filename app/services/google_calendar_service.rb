@@ -161,6 +161,46 @@ class GoogleCalendarService
     end
   end
 
+  def share_calendar_with_email(calendar_id, email_id)
+    service = service_account_calendar_service
+    email = Email.find_by(email: email_id, user_id: user.id)
+    return unless email && email.g_cal
+
+    rule = Google::Apis::CalendarV3::AclRule.new(
+      scope: {
+        type: 'user',
+        value: email.email
+      },
+      role: 'reader'  # reader access
+    )
+
+    service.insert_acl(
+      calendar_id,
+      rule,
+      send_notifications: false
+    )
+  rescue Google::Apis::ClientError => e
+    # Ignore if user already has access
+    raise unless e.status_code == 409
+
+  end
+
+  def unshare_calendar_with_email(calendar_id, email_id)
+    service = service_account_calendar_service
+    email = Email.find_by(email: email_id, user_id: user.id)
+    return unless email && email.g_cal
+
+    # Find the ACL entry for the email
+    acl_list = service.list_acls(calendar_id)
+    acl_entry = acl_list.items.find { |item| item.scope.type == 'user' && item.scope.value == email.email }
+    return unless acl_entry
+
+    service.delete_acl(calendar_id, acl_entry.id)
+  rescue Google::Apis::ClientError => e
+    # Ignore if user doesn't have access
+    raise unless e.status_code == 404
+  end
+
   def add_calendar_to_all_oauth_users(calendar_id)
     # Add calendar to each OAuth'd email's Google Calendar list
     user.google_credentials.find_each do |credential|
