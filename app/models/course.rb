@@ -28,6 +28,8 @@
 #  fk_rails_...  (term_id => terms.id)
 #
 class Course < ApplicationRecord
+  include CourseChangeTrackable
+
   belongs_to :term
 
   has_and_belongs_to_many :faculties

@@ -24,6 +24,8 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class Enrollment < ApplicationRecord
+  include CalendarSyncable
+
   belongs_to :user
   belongs_to :course
   belongs_to :term
