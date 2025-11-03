@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe 'recurring.yml configuration', type: :config do
-  let(:config) { YAML.load_file(Rails.root.join('config', 'recurring.yml')) }
+  let(:config) { YAML.safe_load_file(Rails.root.join('config', 'recurring.yml')) }
 
   it 'loads successfully' do
     expect(config).to be_a(Hash)

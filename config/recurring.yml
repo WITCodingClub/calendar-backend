@@ -25,6 +25,8 @@ blazer_send_failing_checks:
   command: "Blazer.send_failing_checks"
   schedule: every day at 8am
 
+# Update all faculty RateMyProfessor ratings weekly
+# Runs every Sunday at 3:00 AM in application timezone (Eastern Time)
 update_faculty_rmp_ratings:
   command: "Faculty.update_all_ratings!"
   schedule: every sunday at 3am
