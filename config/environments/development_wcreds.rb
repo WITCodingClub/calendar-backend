@@ -14,6 +14,12 @@ Rails.application.configure do
 
   # Settings specified here will take precedence over those in config/application.rb.
 
+  # Allow web-console in this custom development environment
+  config.web_console.development_only = false
+
+  config.hosts << "heron-selected-literally.ngrok-free.app"
+  config.hosts << "127.0.0.1:3000"
+
   # Make code changes take effect immediately without server restart.
   config.enable_reloading = true
 

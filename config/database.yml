@@ -17,8 +17,6 @@ development_wcreds:
   primary: &primary_development_wcreds
     <<: *default
     database: wit_calendar_backend_development_wcreds
-    username: wit_calendar_backend
-    password: <%= ENV["WIT_CALENDAR_BACKEND_DATABASE_PASSWORD"] %>
   queue:
     <<: *primary_development_wcreds
     database: wit_calendar_backend_development_wcreds_queue
