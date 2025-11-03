@@ -20,17 +20,20 @@ Make sure you have the following installed on your system:
     cd witcc-calendar-backend
     ```
 	
-	If using the submodule:
-	1. Clone the main calendar repo:
-	
-	```bash
-    git clone git@github.com:WITCodingClub/calendar.git
-    cd witcc-calendar-backend
-    ```
+    If using the submodule:
+    1. Clone the main calendar repo and navigate into it:
 
-	Then, in the root directory of the project:
-	2. Run ``git submodule sync``
-	3. Run ``git submodule update --init``
+        ```bash
+        git clone git@github.com:WITCodingClub/calendar.git
+        cd calendar
+        ```
+
+    2. Initialize and update the submodule:
+
+        ```bash
+        git submodule sync
+        git submodule update --init
+        ```
 
 2.  **Install dependencies:**
 
