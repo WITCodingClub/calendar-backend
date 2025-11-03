@@ -1,6 +1,6 @@
 require "active_support/core_ext/integer/time"
 
-# MUST BE MIRRORED to development-wcreds.rb at all times
+# MUST MIRROR development.rb at all times
 
 Rails.application.configure do
   config.after_initialize do

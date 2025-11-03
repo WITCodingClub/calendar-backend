@@ -1,3 +1,4 @@
 - annotate models with the bundle exec annotaterb models command after database migrations
 - annotate models with the bundle exec annotaterb routes command after anything that makes changes to routes
 - for anything that blocks threads, prefer using an active job
+- I document systems and things in the /docs/ folder

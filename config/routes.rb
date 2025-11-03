@@ -252,7 +252,7 @@ Rails.application.routes.draw do
   get "unauthorized", to: "errors#unauthorized"
   get "404", to: "errors#not_found"
 
-  if Rails.env.development?
+  if Rails.env.in?(%w[development development_wcreds])
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
   end
 
