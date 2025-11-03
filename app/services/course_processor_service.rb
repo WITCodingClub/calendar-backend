@@ -109,7 +109,7 @@ class CourseProcessorService < ApplicationService
           season: term.season,
           year: term.year
         },
-        meeting_times: course.meeting_times.map do |mt|
+        meeting_times: course.meeting_times.includes(:building, :room).map do |mt|
           {
             begin_time: mt.fmt_begin_time,
             end_time: mt.fmt_end_time,
