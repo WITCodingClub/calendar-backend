@@ -25,6 +25,10 @@ blazer_send_failing_checks:
   command: "Blazer.send_failing_checks"
   schedule: every day at 8am
 
+update_faculty_rmp_ratings:
+  command: "Faculty.update_all_ratings!"
+  schedule: every sunday at 3am
+
 production:
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
