@@ -11,6 +11,18 @@ Make sure you have the following installed on your system:
 *   **PostgreSQL:** Version 15 is recommended.
 *   **Redis:** A running Redis server.
 
+**Alternative: Use Dev Containers** (Recommended for quick setup)
+
+If you have VS Code and Docker Desktop installed, you can use the included Dev Container configuration:
+
+1. Install [VS Code](https://code.visualstudio.com/) and [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+2. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+3. Open this project in VS Code
+4. Click "Reopen in Container" when prompted (or use Command Palette: `Dev Containers: Reopen in Container`)
+5. The container will automatically set up Ruby, PostgreSQL, Redis, and all dependencies
+
+See `.devcontainer/README.md` for more details about the Dev Container setup.
+
 ### Setup
 
 1.  **Clone the repository:** (or use the submodule from the main calendar repo (which is preferred))
