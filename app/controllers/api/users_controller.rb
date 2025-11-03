@@ -116,8 +116,8 @@ module Api
           email: email
         )
 
-        # Build OAuth URL
-        oauth_url = "/auth/google_oauth2?state=#{CGI.escape(state)}"
+        # Build OAuth URL with full path
+        oauth_url = "#{request.base_url}/auth/google_oauth2?state=#{CGI.escape(state)}"
 
         render json: {
           message: "OAuth required",
