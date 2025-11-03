@@ -22,7 +22,12 @@ module CalendarTokenable
   def generate_calendar_token
     if calendar_token.blank?
       self.calendar_token = SecureRandom.urlsafe_base64(32)
-      save!
+      # Ensure uniqueness
+      while User.exists?(calendar_token: calendar_token)
+        self.calendar_token = SecureRandom.urlsafe_base64(32)
+      end
+      # Only save if the record is already persisted (not being created)
+      save! if persisted?
     end
   end
 end

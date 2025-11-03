@@ -13,16 +13,6 @@ development:
     database: wit_calendar_backend_development_queue
     migrations_paths: db/queue_migrate
 
-development_wcreds:
-  primary: &primary_development_wcreds
-    <<: *default
-    database: wit_calendar_backend_development_wcreds
-  queue:
-    <<: *primary_development_wcreds
-    database: wit_calendar_backend_development_wcreds_queue
-    migrations_paths: db/queue_migrate
-
-
 test:
     primary: &primary_test
         <<: *default

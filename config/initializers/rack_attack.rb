@@ -38,6 +38,6 @@ class Rack::Attack
 
   # Always allow requests from localhost in development
   safelist('allow from localhost') do |req|
-    req.ip == '127.0.0.1' || req.ip == '::1' if Rails.env.in?(%w[development development_wcreds])
+    req.ip == '127.0.0.1' || req.ip == '::1' if Rails.env.development?
   end
 end

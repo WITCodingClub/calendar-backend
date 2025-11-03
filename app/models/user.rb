@@ -24,7 +24,6 @@ class User < ApplicationRecord
 
   has_many :enrollments, dependent: :destroy
   has_many :courses, through: :enrollments
-  has_many :magic_links, dependent: :destroy
   has_many :oauth_credentials, dependent: :destroy
   has_many :emails, dependent: :destroy
   before_create :generate_calendar_token

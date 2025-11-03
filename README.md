@@ -38,21 +38,18 @@ Make sure you have the following installed on your system:
 
 4.  **Set up Rails credentials:**
 
-    This project uses Rails encrypted credentials. You will need the appropriate master key file(s) in the `config/credentials` directory.
+    This project uses Rails encrypted credentials for storing sensitive configuration like Google OAuth credentials and Active Record encryption keys.
 
-    **Two Development Environments:**
+    *   Uses `config/credentials/development.yml.enc`
+    *   Request `config/credentials/development.key` from @jsp
 
-    This project has two development environments to accommodate different use cases:
+    The credentials file should include:
+    - Google OAuth client ID and secret (for admin authentication)
+    - Active Record encryption keys (for encrypting OAuth tokens)
+    - Rate My Professor API credentials
+    - Any other third-party service credentials
 
-    *   **`development`** - Basic development environment without third-party service credentials. Suitable for most development work that doesn't require OAuth or external API integrations.
-        *   Uses `config/credentials/development.yml.enc`
-        *   Request `config/credentials/development.key` from @jsp
-
-    *   **`development_wcreds`** - Development environment with full credentials for testing Google OAuth, Rate My Professor integration, and other third-party services.
-        *   Uses `config/credentials/development_wcreds.yml.enc`
-        *   Request `config/credentials/development_wcreds.key` from @jsp
-
-    Ask @jsp for the appropriate master key file(s) based on what you're working on.
+    Ask @jsp for the master key file to decrypt the credentials.
 
 5.  **Create and seed the database:**
 
@@ -64,18 +61,10 @@ Make sure you have the following installed on your system:
 
 6.  **Run the application:**
 
-    **Standard development environment (no credentials):**
-
     ```bash
     bin/dev
     ```
 
-    **Development environment with credentials (for Google OAuth testing, etc.):**
-
-    ```bash
-    RAILS_ENV=development_wcreds bin/dev
-    ```
-
     This will start the web server, the background job worker, and the CSS watcher. You can access the application at `http://127.0.0.1:3000`.
 
-    **Note:** When running with `development_wcreds`, make sure you have the corresponding master key file at `config/credentials/development_wcreds.key`.
+    **Note:** Make sure you have the credentials master key file at `config/credentials/development.key` to access encrypted credentials for Google OAuth and other services.

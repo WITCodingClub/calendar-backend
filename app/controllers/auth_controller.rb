@@ -5,8 +5,9 @@ class AuthController < ApplicationController
     auth = request.env['omniauth.auth']
     raise "Missing omniauth.auth" unless auth
 
-    # Check if this is a calendar OAuth flow (has state parameter)
-    if params[:state].present?
+    # Check if this is a calendar OAuth flow (has our custom JWT state parameter)
+    # OmniAuth adds its own state for CSRF, so we need to check if it's a valid JWT
+    if is_calendar_oauth_flow?
       handle_calendar_oauth(auth)
     else
       handle_admin_login(auth)
@@ -15,7 +16,7 @@ class AuthController < ApplicationController
     Rails.logger.error("Google OAuth error: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n"))
 
-    if params[:state].present?
+    if is_calendar_oauth_flow?
       redirect_to "/oauth/failure?error=#{CGI.escape(e.message)}"
     else
       redirect_to new_user_session_path, alert: 'Failed to connect with Google. Please try again.'
@@ -23,6 +24,15 @@ class AuthController < ApplicationController
   end
 
   private
+
+  def is_calendar_oauth_flow?
+    return false unless params[:state].present?
+    # Try to verify the state as a JWT - if it succeeds, it's our calendar OAuth flow
+    GoogleOauthStateService.verify_state(params[:state]).present?
+  rescue
+    # If verification fails, it's not our JWT state (just OmniAuth's CSRF state)
+    false
+  end
 
   def handle_calendar_oauth(auth)
     # Verify and decode state parameter
@@ -82,7 +92,7 @@ class AuthController < ApplicationController
     user.last_name ||= auth.info.last_name
     user.save! if user.changed?
 
-    # Find or create Google OAuth credential (for backward compatibility, use first credential)
+    # Find or create Google OAuth credential
     credential = user.oauth_credentials.find_or_initialize_by(provider: "google", email: email)
 
     # Update OAuth credentials
@@ -92,10 +102,10 @@ class AuthController < ApplicationController
     credential.token_expires_at = Time.at(auth.credentials.expires_at) if auth.credentials.expires_at
     credential.save!
 
-    # Sign in the user using the existing authentication system
+    # Sign in the user
     sign_in(user)
 
-    redirect_to after_sign_in_path, notice: 'Successfully connected with Google.'
+    redirect_to after_sign_in_path, notice: 'Successfully signed in with Google.'
   end
 
   def after_sign_in_path
