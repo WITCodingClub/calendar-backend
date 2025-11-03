@@ -435,6 +435,22 @@ tag_count     | integer | default: 0
 Unique index: [faculty_id, rmp_legacy_id]
 ```
 
+## Automated Scheduled Updates
+
+The system automatically updates all faculty RMP ratings on a weekly schedule:
+
+**Schedule:** Every Sunday at 3:00 AM EST
+**Configuration:** `config/recurring.yml`
+**Command:** `Faculty.update_all_ratings!`
+
+This recurring job will:
+1. Iterate through all faculty members
+2. Enqueue an `UpdateFacultyRatingsJob` for each faculty
+3. Update ratings, tags, distributions, and related professors
+4. Match new related professors to existing faculty records
+
+The job is configured using SolidQueue's recurring jobs feature and will run automatically in production.
+
 ## Notes
 
 - All indexes use `algorithm: :concurrently` for safe production deployments
@@ -450,7 +466,7 @@ Potential improvements:
 - [ ] Add fuzzy name matching for better professor matching
 - [ ] Cache RMP data with TTL to reduce API calls
 - [ ] Add rate limiting to respect RMP's API
-- [ ] Schedule periodic updates for all faculty
+- [x] Schedule periodic updates for all faculty ✅
 - [ ] Add webhooks/callbacks for rating updates
 - [ ] Implement retry logic with exponential backoff
 - [ ] Add metrics/monitoring for job success rates
