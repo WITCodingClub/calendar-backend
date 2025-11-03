@@ -67,12 +67,21 @@ class CourseProcessorService < ApplicationService
         c.term = term
       end
 
-      # Extract meeting times from nested structure
+      # Extract meeting times and faculty from nested structure
       meeting_times = []
+      faculty_data = []
       if detailed_meeting_times["fmt"].is_a?(Array)
         detailed_meeting_times["fmt"].each do |session|
           meeting_time = session["meetingTime"]
           meeting_times << meeting_time if meeting_time
+
+          # Extract faculty information (faculty is an array)
+          faculty = session["faculty"]
+          if faculty.present? && faculty.is_a?(Array)
+            faculty_data.concat(faculty)
+          elsif faculty.present?
+            faculty_data << faculty
+          end
         end
       end
 
@@ -80,6 +89,9 @@ class CourseProcessorService < ApplicationService
         course: course,
         raw_meeting_times: meeting_times
       )
+
+      # Process and associate faculty with the course
+      process_faculty(course, faculty_data)
 
       Enrollment.find_or_create_by!(user: user, course: course, term: term)
 
@@ -117,5 +129,52 @@ class CourseProcessorService < ApplicationService
     end
 
     processed_courses
+  end
+
+  def process_faculty(course, faculty_data)
+    # Deduplicate faculty by email
+    unique_faculty = faculty_data.uniq { |f| f["emailAddress"] || f[:emailAddress] }
+
+    unique_faculty.each do |faculty_info|
+      next if faculty_info.blank?
+
+      # Extract faculty details (support both string and symbol keys)
+      email = (faculty_info["emailAddress"] || faculty_info[:emailAddress]).to_s.strip
+      display_name = (faculty_info["displayName"] || faculty_info[:displayName]).to_s.strip
+
+      # Skip if no email
+      next if email.blank?
+
+      # Parse name (usually in format "Last, First" or "First Last")
+      first_name, last_name = parse_faculty_name(display_name)
+      next if first_name.blank? || last_name.blank?
+
+      # Find or create faculty
+      faculty = Faculty.find_or_create_by!(email: email) do |f|
+        f.first_name = first_name
+        f.last_name = last_name
+      end
+
+      # Associate with course (HABTM - won't create duplicates)
+      course.faculties << faculty unless course.faculties.include?(faculty)
+    end
+  end
+
+  def parse_faculty_name(display_name)
+    return [nil, nil] if display_name.blank?
+
+    # Handle "Last, First" format
+    if display_name.include?(',')
+      parts = display_name.split(',').map(&:strip)
+      [parts[1], parts[0]]
+    # Handle "First Last" format
+    else
+      parts = display_name.split(/\s+/)
+      if parts.length >= 2
+        [parts[0], parts[-1]]
+      else
+        [display_name, display_name]
+      end
+    end
   end
 end
