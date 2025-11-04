@@ -28,17 +28,81 @@ class GoogleCalendarService
     raise "Failed to create course calendar: #{e.message}"
   end
 
-  def update_calendar_events(events)
+  def update_calendar_events(events, force: false)
     service = service_account_calendar_service
     calendar_id = user.google_course_calendar_id
 
-    # Clear existing events (optional)
-    clear_calendar_events(service, calendar_id)
+    # Get existing calendar events from database
+    existing_events = user.google_calendar_events.for_calendar(calendar_id).index_by(&:meeting_time_id)
 
-    # Add new events with colors
-    events.each do |event|
-      add_event_to_calendar(service, calendar_id, event)
+    # Track which meeting times are in the new events list
+    current_meeting_time_ids = events.map { |e| e[:meeting_time_id] }.compact
+
+    # Delete events that are no longer needed
+    events_to_delete = existing_events.reject { |mt_id, _| current_meeting_time_ids.include?(mt_id) }
+    events_to_delete.each do |_, cal_event|
+      delete_event_from_calendar(service, calendar_id, cal_event)
     end
+
+    # Stats for logging
+    stats = { created: 0, updated: 0, skipped: 0 }
+
+    # Create or update events
+    events.each do |event|
+      meeting_time_id = event[:meeting_time_id]
+      existing_event = existing_events[meeting_time_id]
+
+      if existing_event
+        # Update existing event if needed (or skip if no changes and not forced)
+        if force || existing_event.data_changed?(event)
+          update_event_in_calendar(service, calendar_id, existing_event, event, force: force)
+          stats[:updated] += 1
+        else
+          Rails.logger.debug { "Skipping #{event[:summary]} - no changes" }
+          existing_event.mark_synced!
+          stats[:skipped] += 1
+        end
+      else
+        # Create new event
+        create_event_in_calendar(service, calendar_id, event)
+        stats[:created] += 1
+      end
+    end
+
+    Rails.logger.info "Sync complete: #{stats[:created]} created, #{stats[:updated]} updated, #{stats[:skipped]} skipped"
+    stats
+  end
+
+  # Update only specific events (for partial syncs)
+  def update_specific_events(events, force: false)
+    service = service_account_calendar_service
+    calendar_id = user.google_course_calendar_id
+
+    stats = { created: 0, updated: 0, skipped: 0 }
+
+    events.each do |event|
+      meeting_time_id = event[:meeting_time_id]
+      existing_event = user.google_calendar_events.find_by(
+        calendar_id: calendar_id,
+        meeting_time_id: meeting_time_id
+      )
+
+      if existing_event
+        if force || existing_event.data_changed?(event)
+          update_event_in_calendar(service, calendar_id, existing_event, event, force: force)
+          stats[:updated] += 1
+        else
+          existing_event.mark_synced!
+          stats[:skipped] += 1
+        end
+      else
+        create_event_in_calendar(service, calendar_id, event)
+        stats[:created] += 1
+      end
+    end
+
+    Rails.logger.info "Partial sync complete: #{stats[:created]} created, #{stats[:updated]} updated, #{stats[:skipped]} skipped"
+    stats
   end
 
   def list_calendars
@@ -173,7 +237,8 @@ class GoogleCalendarService
         type: "user",
         value: email.email
       },
-      role: "reader" # reader access
+      # role: "reader" # reader access
+      role: "editor" # editor access
     )
 
     service.insert_acl(
@@ -270,7 +335,7 @@ class GoogleCalendarService
     end
   end
 
-  def add_event_to_calendar(service, calendar_id, course_event)
+  def create_event_in_calendar(service, calendar_id, course_event)
     # Ensure times are in Eastern timezone
     start_time_et = course_event[:start_time].in_time_zone("America/New_York")
     end_time_et = course_event[:end_time].in_time_zone("America/New_York")
@@ -294,7 +359,94 @@ class GoogleCalendarService
       recurrence: course_event[:recurrence]
     )
 
-    service.insert_event(calendar_id, event)
+    created_event = service.insert_event(calendar_id, event)
+
+    # Save the event ID in the database
+    user.google_calendar_events.create!(
+      google_event_id: created_event.id,
+      calendar_id: calendar_id,
+      meeting_time_id: course_event[:meeting_time_id],
+      summary: course_event[:summary],
+      location: course_event[:location],
+      start_time: course_event[:start_time],
+      end_time: course_event[:end_time],
+      recurrence: course_event[:recurrence],
+      event_data_hash: GoogleCalendarEvent.generate_data_hash(course_event),
+      last_synced_at: Time.current
+    )
+
+    Rails.logger.debug { "Created event with ID: #{created_event.id}" }
+  end
+
+  def update_event_in_calendar(service, calendar_id, db_event, course_event, force: false)
+    # Use hash-based change detection for efficiency (unless forced)
+    unless force || db_event.data_changed?(course_event)
+      Rails.logger.debug { "Skipping update for #{course_event[:summary]} - no changes detected" }
+      db_event.mark_synced!
+      return
+    end
+
+    Rails.logger.debug { "#{force ? 'Force updating' : 'Detected changes for'} #{course_event[:summary]}" }
+
+    # Ensure times are in Eastern timezone
+    start_time_et = course_event[:start_time].in_time_zone("America/New_York")
+    end_time_et = course_event[:end_time].in_time_zone("America/New_York")
+
+    Rails.logger.debug { "Updating event: #{course_event[:summary]}" }
+
+    event = Google::Apis::CalendarV3::Event.new(
+      summary: course_event[:summary],
+      location: course_event[:location],
+      start: {
+        date_time: start_time_et.iso8601,
+        time_zone: "America/New_York"
+      },
+      end: {
+        date_time: end_time_et.iso8601,
+        time_zone: "America/New_York"
+      },
+      color_id: get_color_for_meeting_time(course_event[:meeting_time_id]),
+      recurrence: course_event[:recurrence]
+    )
+
+    service.update_event(calendar_id, db_event.google_event_id, event)
+
+    # Update the database record with new data and hash
+    db_event.update!(
+      summary: course_event[:summary],
+      location: course_event[:location],
+      start_time: course_event[:start_time],
+      end_time: course_event[:end_time],
+      recurrence: course_event[:recurrence],
+      event_data_hash: GoogleCalendarEvent.generate_data_hash(course_event),
+      last_synced_at: Time.current
+    )
+
+    Rails.logger.debug { "Updated event with ID: #{db_event.google_event_id}" }
+  rescue Google::Apis::ClientError => e
+    # If event doesn't exist in Google Calendar, recreate it
+    if e.status_code == 404
+      Rails.logger.warn "Event not found in Google Calendar, recreating: #{db_event.google_event_id}"
+      db_event.destroy
+      create_event_in_calendar(service, calendar_id, course_event)
+    else
+      raise
+    end
+  end
+
+  def delete_event_from_calendar(service, calendar_id, db_event)
+    Rails.logger.debug { "Deleting event: #{db_event.summary} (ID: #{db_event.google_event_id})" }
+
+    service.delete_event(calendar_id, db_event.google_event_id)
+    db_event.destroy
+  rescue Google::Apis::ClientError => e
+    # If event doesn't exist, just remove from database
+    if e.status_code == 404
+      Rails.logger.warn "Event not found in Google Calendar, removing from database: #{db_event.google_event_id}"
+      db_event.destroy
+    else
+      raise
+    end
   end
 
   def get_color_for_meeting_time(meeting_time_id)

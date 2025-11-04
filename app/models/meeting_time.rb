@@ -36,6 +36,7 @@ class MeetingTime < ApplicationRecord
   belongs_to :course
   belongs_to :room
   has_one :building, through: :room
+  has_many :google_calendar_events, dependent: :destroy
 
   def event_color
     case meeting_schedule_type

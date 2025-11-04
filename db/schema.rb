@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_04_031125) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_04_234307) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -219,6 +219,27 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_031125) do
     t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
   end
 
+  create_table "google_calendar_events", force: :cascade do |t|
+    t.string "calendar_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "end_time"
+    t.string "event_data_hash"
+    t.string "google_event_id", null: false
+    t.datetime "last_synced_at"
+    t.string "location"
+    t.bigint "meeting_time_id"
+    t.text "recurrence"
+    t.datetime "start_time"
+    t.string "summary"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
+    t.index ["meeting_time_id"], name: "index_google_calendar_events_on_meeting_time_id"
+    t.index ["user_id", "calendar_id"], name: "index_google_calendar_events_on_user_id_and_calendar_id"
+    t.index ["user_id", "meeting_time_id"], name: "index_google_calendar_events_on_user_id_and_meeting_time_id", unique: true
+    t.index ["user_id"], name: "index_google_calendar_events_on_user_id"
+  end
+
   create_table "lockbox_audits", force: :cascade do |t|
     t.string "context"
     t.datetime "created_at"
@@ -394,6 +415,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_031125) do
   add_foreign_key "enrollments", "courses"
   add_foreign_key "enrollments", "terms"
   add_foreign_key "enrollments", "users"
+  add_foreign_key "google_calendar_events", "meeting_times"
+  add_foreign_key "google_calendar_events", "users"
   add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
   add_foreign_key "oauth_credentials", "users"

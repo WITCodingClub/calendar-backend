@@ -30,6 +30,7 @@ class User < ApplicationRecord
   has_many :courses, through: :enrollments
   has_many :oauth_credentials, dependent: :destroy
   has_many :emails, dependent: :destroy
+  has_many :google_calendar_events, dependent: :destroy
   before_create :generate_calendar_token
 
   # Class method to find or create a user by email

@@ -3,7 +3,7 @@
 module CourseScheduleSyncable
   extend ActiveSupport::Concern
 
-  def sync_course_schedule
+  def sync_course_schedule(force: false)
     service = GoogleCalendarService.new(self)
 
     # Build events from enrollments - each course can have multiple meeting times
@@ -52,7 +52,61 @@ module CourseScheduleSyncable
       end
     end
 
-    service.update_calendar_events(events)
+    service.update_calendar_events(events, force: force)
+  end
+
+  # Intelligent partial sync - only sync specific enrollments
+  def sync_enrollments(enrollment_ids, force: false)
+    service = GoogleCalendarService.new(self)
+    events = []
+
+    enrollments.where(id: enrollment_ids).includes(course: [meeting_times: [:room, :building]]).find_each do |enrollment|
+      course = enrollment.course
+
+      course.meeting_times.each do |meeting_time|
+        next if meeting_time.day_of_week.blank?
+
+        first_meeting_date = find_first_meeting_date(meeting_time)
+        next unless first_meeting_date
+
+        start_time = parse_time(first_meeting_date, meeting_time.begin_time)
+        end_time = parse_time(first_meeting_date, meeting_time.end_time)
+        next unless start_time && end_time
+
+        location = if meeting_time.room && meeting_time.building
+                     "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
+                   elsif meeting_time.room
+                     meeting_time.room.name
+                   end
+
+        course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
+        recurrence_rule = build_recurrence_rule(meeting_time)
+
+        events << {
+          summary: course.title,
+          description: course_code,
+          location: location,
+          start_time: start_time,
+          end_time: end_time,
+          course_code: course_code,
+          meeting_time_id: meeting_time.id,
+          recurrence: recurrence_rule ? [recurrence_rule] : nil
+        }
+      end
+    end
+
+    # Only sync these specific events
+    service.update_specific_events(events, force: force)
+  end
+
+  # Quick sync - only update stale events (not synced in last hour)
+  def quick_sync
+    sync_course_schedule(force: false)
+  end
+
+  # Force sync - update all events regardless of staleness
+  def force_sync
+    sync_course_schedule(force: true)
   end
 
   def find_first_meeting_date(meeting_time)
@@ -117,6 +171,10 @@ module CourseScheduleSyncable
     service_account_service = service.send(:service_account_calendar_service)
 
     service_account_service.delete_calendar(google_course_calendar_id)
+
+    # Clean up all google_calendar_events for this calendar
+    google_calendar_events.where(calendar_id: google_course_calendar_id).destroy_all
+
     self.google_course_calendar_id = nil
   rescue Google::Apis::Error => e
     Rails.logger.error "Failed to delete calendar: #{e.message}"
