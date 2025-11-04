@@ -46,8 +46,8 @@ class UpdateFacultyRatingsJob < ApplicationJob
     # Store the raw GraphQL response for graph reconstruction
     store_raw_data(faculty, teacher_data, all_ratings)
 
-    # Store rating distribution
-    store_rating_distribution(faculty, teacher["ratingsDistribution"])
+    # Store rating distribution and aggregate stats
+    store_rating_distribution(faculty, teacher["ratingsDistribution"], teacher)
 
     # Store teacher rating tags
     store_teacher_rating_tags(faculty, teacher["teacherRatingTags"] || [])
@@ -107,7 +107,7 @@ class UpdateFacultyRatingsJob < ApplicationJob
     end
   end
 
-  def store_rating_distribution(faculty, distribution_data)
+  def store_rating_distribution(faculty, distribution_data, teacher_data)
     return unless distribution_data
 
     rating_dist = faculty.rating_distribution || faculty.build_rating_distribution
@@ -118,7 +118,11 @@ class UpdateFacultyRatingsJob < ApplicationJob
       r3: distribution_data["r3"] || 0,
       r4: distribution_data["r4"] || 0,
       r5: distribution_data["r5"] || 0,
-      total: distribution_data["total"] || 0
+      total: distribution_data["total"] || 0,
+      avg_rating: teacher_data["avgRating"],
+      avg_difficulty: teacher_data["avgDifficulty"],
+      num_ratings: teacher_data["numRatings"],
+      would_take_again_percent: teacher_data["wouldTakeAgainPercent"]
     )
 
     rating_dist.save!

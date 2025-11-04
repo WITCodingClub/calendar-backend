@@ -125,7 +125,8 @@ module Api
           professor: {
             first_name: course.faculties[0]&.first_name,
             last_name: course.faculties[0]&.last_name,
-            email: course.faculties[0]&.email
+            email: course.faculties[0]&.email,
+            rmp_id: course.faculties[0]&.rmp_id
           },
           meeting_times: group_meeting_times(course.meeting_times)
         }

@@ -208,6 +208,8 @@ Rails.application.routes.draw do
     post "user/gcal/add_email", to: "users#add_email_to_g_cal"
     delete "user/gcal/remove_email", to: "users#remove_email_from_g_cal"
 
+    get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
+
     # Course events
     post "process_courses", to: "courses#process_courses"
   end

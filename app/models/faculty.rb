@@ -45,6 +45,18 @@ class Faculty < ApplicationRecord
     end
   end
 
+  # Get RMP aggregate stats (from rating_distribution table)
+  def rmp_stats
+    return nil unless rating_distribution
+
+    {
+      avg_rating: rating_distribution.avg_rating&.to_f,
+      avg_difficulty: rating_distribution.avg_difficulty&.to_f,
+      num_ratings: rating_distribution.num_ratings,
+      would_take_again_percent: rating_distribution.would_take_again_percent&.to_f
+    }
+  end
+
   # Calculate aggregate rating statistics from stored ratings
   def calculate_rating_stats
     return {} if rmp_ratings.empty?

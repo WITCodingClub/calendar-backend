@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_03_234019) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_04_031125) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -285,8 +285,11 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_03_234019) do
   end
 
   create_table "rating_distributions", force: :cascade do |t|
+    t.decimal "avg_difficulty", precision: 3, scale: 2
+    t.decimal "avg_rating", precision: 3, scale: 2
     t.datetime "created_at", null: false
     t.bigint "faculty_id", null: false
+    t.integer "num_ratings", default: 0
     t.integer "r1", default: 0
     t.integer "r2", default: 0
     t.integer "r3", default: 0
@@ -294,6 +297,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_03_234019) do
     t.integer "r5", default: 0
     t.integer "total", default: 0
     t.datetime "updated_at", null: false
+    t.decimal "would_take_again_percent", precision: 5, scale: 2
     t.index ["faculty_id"], name: "index_rating_distributions_on_faculty_id", unique: true
   end
 
