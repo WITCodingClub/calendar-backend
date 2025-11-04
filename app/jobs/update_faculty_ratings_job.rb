@@ -1,5 +1,5 @@
 class UpdateFacultyRatingsJob < ApplicationJob
-  queue_as :default
+  queue_as :low_priority
 
   def perform(faculty_id)
     faculty = Faculty.find(faculty_id)

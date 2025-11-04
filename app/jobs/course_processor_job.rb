@@ -1,5 +1,5 @@
 class CourseProcessorJob < ApplicationJob
-  queue_as :default
+  queue_as :high_priority
 
   def perform(courses, user_id)
     user = User.find_by(id: user_id)

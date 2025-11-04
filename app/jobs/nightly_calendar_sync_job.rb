@@ -1,5 +1,5 @@
 class NightlyCalendarSyncJob < ApplicationJob
-  queue_as :default
+  queue_as :low_priority
 
   def perform
     # Find all users who need their calendar synced
