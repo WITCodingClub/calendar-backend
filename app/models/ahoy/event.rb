@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: ahoy_events
@@ -24,4 +26,5 @@ class Ahoy::Event < ApplicationRecord
 
   belongs_to :visit
   belongs_to :user, optional: true
+
 end

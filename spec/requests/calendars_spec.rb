@@ -1,13 +1,15 @@
-require 'rails_helper'
+# frozen_string_literal: true
 
-RSpec.describe "Calendars", type: :request do
+require "rails_helper"
+
+RSpec.describe "Calendars" do
   describe "GET /calendars/:calendar_token.ics" do
     let(:user) do
       u = User.create!(calendar_token: "test-token-123")
       u.emails.create!(email: "test@example.com", primary: true)
       u
     end
-    
+
     context "when requesting ICS format" do
       before do
         get "/calendars/#{user.calendar_token}.ics"
@@ -22,15 +24,15 @@ RSpec.describe "Calendars", type: :request do
       end
 
       it "sets Cache-Control header with 1 hour max-age" do
-        expect(response.headers['Cache-Control']).to eq('max-age=3600, must-revalidate')
+        expect(response.headers["Cache-Control"]).to eq("max-age=3600, must-revalidate")
       end
 
       it "sets X-Published-TTL header for iCalendar refresh hint" do
-        expect(response.headers['X-Published-TTL']).to eq('PT1H')
+        expect(response.headers["X-Published-TTL"]).to eq("PT1H")
       end
 
       it "sets Refresh-Interval header" do
-        expect(response.headers['Refresh-Interval']).to eq('3600')
+        expect(response.headers["Refresh-Interval"]).to eq("3600")
       end
     end
 

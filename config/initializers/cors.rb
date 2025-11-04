@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # config/initializers/cors.rb
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
@@ -9,9 +11,9 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
             /\Ahttps?:\/\/localhost:\d+\z/ # Allow any localhost port
 
     resource "/api/*",
-      headers: :any,
-      methods: [:get, :post, :put, :patch, :delete, :options, :head],
-      credentials: true,
-      expose: ["Authorization"]
+             headers: :any,
+             methods: [:get, :post, :put, :patch, :delete, :options, :head],
+             credentials: true,
+             expose: ["Authorization"]
   end
 end

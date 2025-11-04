@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: faculties
@@ -18,8 +20,8 @@
 #  index_faculties_on_rmp_id        (rmp_id) UNIQUE
 #  index_faculties_on_rmp_raw_data  (rmp_raw_data) USING gin
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe Faculty, type: :model do
+RSpec.describe Faculty do
   pending "add some examples to (or delete) #{__FILE__}"
 end

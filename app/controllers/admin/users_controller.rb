@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Admin
   class UsersController < Admin::ApplicationController
     before_action :set_user, only: [:show, :edit, :update, :destroy]
@@ -10,9 +12,10 @@ module Admin
       end
 
       # For Turbo Frame requests, only render the frame
-      if turbo_frame_request?
-        render partial: "users_table"
-      end
+      return unless turbo_frame_request?
+
+      render partial: "users_table"
+
     end
 
     def show
@@ -41,7 +44,8 @@ module Admin
     end
 
     def user_params
-      params.require(:user).permit(:email, :first_name, :last_name, :access_level)
+      params.expect(user: [:email, :first_name, :last_name, :access_level])
     end
+
   end
 end

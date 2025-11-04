@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CalendarSyncable
   extend ActiveSupport::Concern
 
@@ -11,7 +13,7 @@ module CalendarSyncable
 
   def mark_user_calendar_for_sync
     # Only mark if the user has a Google Calendar set up
-    return unless user&.google_course_calendar_id.present?
+    return if user&.google_course_calendar_id.blank?
 
     user.update_column(:calendar_needs_sync, true)
   end

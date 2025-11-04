@@ -1,9 +1,11 @@
+# frozen_string_literal: true
+
 class RateMyProfessorService < ApplicationService
   require "faraday"
   require "json"
 
-  BASE_URL = "https://www.ratemyprofessors.com/graphql".freeze
-  WENTWORTH_SCHOOL_ID = "U2Nob29sLTExNTg=".freeze
+  BASE_URL = "https://www.ratemyprofessors.com/graphql"
+  WENTWORTH_SCHOOL_ID = "U2Nob29sLTExNTg="
 
   SEARCH_QUERY = <<~GRAPHQL
     query NewSearchTeachersQuery(
@@ -244,7 +246,7 @@ class RateMyProfessorService < ApplicationService
       break unless ratings_data
 
       edges = ratings_data["edges"] || []
-      all_ratings.concat(edges.map { |edge| edge["node"] })
+      all_ratings.concat(edges.pluck("node"))
 
       page_info = ratings_data["pageInfo"]
       has_next_page = page_info["hasNextPage"]
@@ -277,4 +279,5 @@ class RateMyProfessorService < ApplicationService
       }
     end
   end
+
 end

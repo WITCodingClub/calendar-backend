@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Api
   class UsersController < ApplicationController
     include JsonWebTokenAuthenticatable
@@ -20,7 +22,7 @@ module Api
       token = JsonWebTokenService.encode({ user_id: user.id }, nil) # nil expiration for never expiring
 
       render json: { jwt: token }, status: :ok
-    rescue StandardError => e
+    rescue => e
       Rails.logger.error("Error in onboarding user: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: "Failed to onboard user" }, status: :internal_server_error
@@ -50,7 +52,7 @@ module Api
       GoogleCalendarSyncJob.perform_later(current_user)
 
       render json: { message: "Calendar shared with email", calendar_id: calendar_id }, status: :ok
-    rescue StandardError => e
+    rescue => e
       Rails.logger.error("Error adding email to Google Calendar for user #{current_user.id}: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: "Failed to add email to Google Calendar" }, status: :internal_server_error
@@ -82,7 +84,7 @@ module Api
       service.unshare_calendar_with_email(calendar_id, email_record.id)
 
       render json: { message: "Email removed from Google Calendar association" }, status: :ok
-    rescue StandardError => e
+    rescue => e
       Rails.logger.error("Error removing email from Google Calendar for user #{current_user.id}: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: "Failed to remove email from Google Calendar" }, status: :internal_server_error
@@ -132,7 +134,7 @@ module Api
           oauth_url: oauth_url
         }, status: :ok
       end
-    rescue StandardError => e
+    rescue => e
       Rails.logger.error("Error requesting Google Calendar for user #{current_user.id}: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: "Failed to request Google Calendar" }, status: :internal_server_error

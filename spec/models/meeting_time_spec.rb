@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: meeting_times
@@ -28,39 +30,39 @@
 #  fk_rails_...  (course_id => courses.id)
 #  fk_rails_...  (room_id => rooms.id)
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe MeetingTime, type: :model do
-  describe 'calendar sync tracking' do
+RSpec.describe MeetingTime do
+  describe "calendar sync tracking" do
     let(:term) { create(:term) }
     let(:course) { create(:course, term: term) }
     let(:room) { create(:room) }
     let(:meeting_time) { create(:meeting_time, course: course, room: room) }
-    let(:user) { create(:user, google_course_calendar_id: 'cal_123', calendar_needs_sync: false) }
-    
+    let(:user) { create(:user, google_course_calendar_id: "cal_123", calendar_needs_sync: false) }
+
     before do
       create(:enrollment, user: user, course: course, term: term)
       user.update_column(:calendar_needs_sync, false)
     end
 
-    context 'when meeting time changes' do
-      it 'marks enrolled users as needing sync' do
+    context "when meeting time changes" do
+      it "marks enrolled users as needing sync" do
         expect {
           meeting_time.update!(begin_time: 1000)
         }.to change { user.reload.calendar_needs_sync }.from(false).to(true)
       end
     end
 
-    context 'when day_of_week changes' do
-      it 'marks enrolled users as needing sync' do
+    context "when day_of_week changes" do
+      it "marks enrolled users as needing sync" do
         expect {
           meeting_time.update!(day_of_week: :tuesday)
         }.to change { user.reload.calendar_needs_sync }.from(false).to(true)
       end
     end
 
-    context 'when meeting_time is destroyed' do
-      it 'marks enrolled users as needing sync' do
+    context "when meeting_time is destroyed" do
+      it "marks enrolled users as needing sync" do
         expect {
           meeting_time.destroy
         }.to change { user.reload.calendar_needs_sync }.from(false).to(true)

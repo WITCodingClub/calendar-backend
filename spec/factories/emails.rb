@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: emails
@@ -22,6 +24,6 @@
 #
 FactoryBot.define do
   factory :email do
-    
+
   end
 end

@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 class OauthController < ApplicationController
   skip_before_action :verify_authenticity_token
-  layout 'auth'
+  layout "auth"
 
   def success
     @email = params[:email]
@@ -10,4 +12,5 @@ class OauthController < ApplicationController
   def failure
     @error = params[:error] || "Unknown error occurred"
   end
+
 end

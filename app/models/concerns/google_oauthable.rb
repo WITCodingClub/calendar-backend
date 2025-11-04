@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module GoogleOauthable
   extend ActiveSupport::Concern
 
@@ -13,7 +15,9 @@ module GoogleOauthable
 
   # Legacy method - returns the first Google credential (for backward compatibility)
   def google_credential
-    @google_credential ||= oauth_credentials.find_by(provider: "google")
+    return @google_credential if defined?(@google_credential)
+
+    @google_credential = oauth_credentials.find_by(provider: "google")
   end
 
   def google_uid
@@ -38,6 +42,7 @@ module GoogleOauthable
 
   def google_course_calendar_id=(value)
     return unless google_credential
+
     google_credential.course_calendar_id = value
     google_credential.save!
   end
@@ -62,7 +67,7 @@ module GoogleOauthable
     credentials.refresh!
     google_credential.update!(
       access_token: credentials.access_token,
-      token_expires_at: Time.at(credentials.expires_at)
+      token_expires_at: Time.zone.at(credentials.expires_at)
     )
 
     # Clear the cached credential
@@ -89,7 +94,7 @@ module GoogleOauthable
       credentials.refresh!
       google_credential.update!(
         access_token: credentials.access_token,
-        token_expires_at: Time.at(credentials.expires_at)
+        token_expires_at: Time.zone.at(credentials.expires_at)
       )
       # Clear the cached credential
       @google_credential = nil

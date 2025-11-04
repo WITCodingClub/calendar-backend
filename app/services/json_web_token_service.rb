@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class JsonWebTokenService
   SECRET_KEY = Rails.application.credentials.secret_key_base || Rails.application.secret_key_base
 
@@ -8,15 +10,16 @@ class JsonWebTokenService
 
   def self.decode(token)
     # Decode without verifying expiration first to check if exp claim exists
-    decoded = JWT.decode(token, SECRET_KEY, true, { verify_expiration: false, algorithm: 'HS256' })[0]
+    decoded = JWT.decode(token, SECRET_KEY, true, { verify_expiration: false, algorithm: "HS256" })[0]
 
     # If exp claim exists, verify it manually (this will raise if expired)
-    if decoded['exp']
-      decoded = JWT.decode(token, SECRET_KEY, true, { algorithm: 'HS256' })[0]
+    if decoded["exp"]
+      decoded = JWT.decode(token, SECRET_KEY, true, { algorithm: "HS256" })[0]
     end
 
-    HashWithIndifferentAccess.new(decoded)
+    ActiveSupport::HashWithIndifferentAccess.new(decoded)
   rescue JWT::DecodeError, JWT::ExpiredSignature
     nil
   end
+
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Route Map
 #
 # Routes for application:
@@ -217,14 +219,14 @@ Rails.application.routes.draw do
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
 
   # google oauth2 callback
-  get '/auth/google_oauth2/callback', to: 'auth#google'
+  get "/auth/google_oauth2/callback", to: "auth#google"
 
   # OAuth success/failure pages (for extension detection)
-  get '/oauth/success', to: 'oauth#success'
-  get '/oauth/failure', to: 'oauth#failure'
+  get "/oauth/success", to: "oauth#success"
+  get "/oauth/failure", to: "oauth#failure"
 
   # Admin OAuth callback for the service account
-  get '/admin/oauth/callback', to: 'admin/service_account#callback'
+  get "/admin/oauth/callback", to: "admin/service_account#callback"
 
   # Admin area with authentication constraint
   constraints AdminConstraint.new do

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CourseProcessorService < ApplicationService
   include ApplicationHelper
 
@@ -28,15 +30,15 @@ class CourseProcessorService < ApplicationService
         season_str, year_str = associated_term.to_s.strip.split(/\s+/)
         year = year_str.to_i
         season = case season_str
-        when "Spring"
-          :spring
-        when "Fall"
-          :fall
-        when "Summer"
-          :summer
-        else
-          raise "Unknown season string: #{season_str.inspect}"
-        end
+                 when "Spring"
+                   :spring
+                 when "Fall"
+                   :fall
+                 when "Summer"
+                   :summer
+                 else
+                   raise "Unknown season string: #{season_str.inspect}"
+                 end
 
         t.year = year
         t.season = Term.seasons[season]
@@ -117,10 +119,14 @@ class CourseProcessorService < ApplicationService
             end_date: mt.end_date,
             day_of_week: mt.day_of_week,
             location: {
-              building: mt.building ? {
-                name: mt.building.name,
-                abbreviation: mt.building.abbreviation
-              } : nil,
+              building: if mt.building
+                          {
+                            name: mt.building.name,
+                            abbreviation: mt.building.abbreviation
+                          }
+                        else
+                          nil
+                        end,
               room: mt.room&.formatted_number
             }
           }
@@ -164,8 +170,8 @@ class CourseProcessorService < ApplicationService
     return [nil, nil] if display_name.blank?
 
     # Handle "Last, First" format
-    if display_name.include?(',')
-      parts = display_name.split(',').map(&:strip)
+    if display_name.include?(",")
+      parts = display_name.split(",").map(&:strip)
       [parts[1], parts[0]]
     # Handle "First Last" format
     else
@@ -177,4 +183,5 @@ class CourseProcessorService < ApplicationService
       end
     end
   end
+
 end

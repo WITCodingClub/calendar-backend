@@ -1,9 +1,11 @@
+# frozen_string_literal: true
+
 # app/services/leopard_web_service.rb
 class LeopardWebService < ApplicationService
   require "faraday"
   require "nokogiri"
 
-  BASE_URL = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/searchResults/".freeze
+  BASE_URL = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/searchResults/"
 
   attr_reader :term, :course_reference_number, :action
 
@@ -59,9 +61,9 @@ class LeopardWebService < ApplicationService
     raise ArgumentError, "course_reference_number is required" unless course_reference_number
 
     response = connection.get("getClassDetails", {
-      term: term,
-      courseReferenceNumber: course_reference_number
-    })
+                                term: term,
+                                courseReferenceNumber: course_reference_number
+                              })
 
     handle_response(response, :class_details)
   end
@@ -76,9 +78,9 @@ class LeopardWebService < ApplicationService
     raise ArgumentError, "course_reference_number is required" unless course_reference_number
 
     response = connection.get("getFacultyMeetingTimes", {
-      term: term,
-      courseReferenceNumber: course_reference_number
-    })
+                                term: term,
+                                courseReferenceNumber: course_reference_number
+                              })
 
     handle_response(response, :json)
   end
@@ -126,13 +128,13 @@ class LeopardWebService < ApplicationService
 
     {
       associated_term: extract_labeled_value(section, "Associated Term:"),
-      crn: section.at_css('#courseReferenceNumber').text.strip,
+      crn: section.at_css("#courseReferenceNumber").text.strip,
       campus: extract_labeled_value(section, "Campus:"),
       schedule_type: extract_labeled_value(section, "Schedule Type:"),
-      section_number: section.at_css('#sectionNumber').text.strip,
-      subject: section.at_css('#subject').text.strip,
-      course_number: section.at_css('#courseNumber').text.strip,
-      title: section.at_css('#courseTitle').text.strip,
+      section_number: section.at_css("#sectionNumber").text.strip,
+      subject: section.at_css("#subject").text.strip,
+      course_number: section.at_css("#courseNumber").text.strip,
+      title: section.at_css("#courseTitle").text.strip,
       credit_hours: extract_labeled_value(section, "Credit Hours:")&.to_i,
       grade_mode: extract_labeled_value(section, "Grade Mode:")
     }
@@ -190,4 +192,5 @@ class LeopardWebService < ApplicationService
   def handle_error(response)
     raise "Request failed with status #{response.status}: #{response.body}"
   end
+
 end

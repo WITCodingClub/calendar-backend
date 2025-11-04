@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Set Lockbox master key from credentials
 if Rails.application.credentials.lockbox&.key?(:master_key)
   Lockbox.master_key = Rails.application.credentials.lockbox[:master_key]

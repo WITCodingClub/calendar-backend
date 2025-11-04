@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: related_professors
@@ -41,4 +43,5 @@ class RelatedProfessor < ApplicationRecord
   def full_name
     "#{first_name} #{last_name}"
   end
+
 end

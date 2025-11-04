@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: meeting_times
@@ -30,8 +32,8 @@
 #
 FactoryBot.define do
   factory :meeting_time do
-    association :course
-    association :room
+    course
+    room
 
     start_date { 3.days.from_now }
     end_date { 3.months.from_now }

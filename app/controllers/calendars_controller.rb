@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CalendarsController < ApplicationController
   skip_before_action :verify_authenticity_token
 
@@ -6,7 +8,7 @@ class CalendarsController < ApplicationController
 
     # Get all enrolled courses (filtering by meeting_times dates will be handled in the iCal RRULE)
     @courses = @user.courses
-                    .includes(:meeting_times, meeting_times: [ :room, :building ])
+                    .includes(:meeting_times, meeting_times: [:room, :building])
 
     respond_to do |format|
       format.ics do
@@ -32,7 +34,7 @@ class CalendarsController < ApplicationController
     cal.append_custom_property("X-WR-CALNAME", "WIT Course Schedule")
     cal.append_custom_property("X-WR-CALDESC", "WIT Course Schedule Calendar for #{@user.email}")
 
-      cal.timezone do |t|
+    cal.timezone do |t|
       t.tzid = "America/New_York"
 
       t.daylight do |d|
@@ -55,7 +57,7 @@ class CalendarsController < ApplicationController
     courses.each do |course|
       course.meeting_times.each do |meeting_time|
         # Skip if day_of_week is not set
-        next unless meeting_time.day_of_week.present?
+        next if meeting_time.day_of_week.blank?
 
         # Get the day code for this meeting time
         day_code = get_day_code(meeting_time)
@@ -98,11 +100,11 @@ class CalendarsController < ApplicationController
 
           if meeting_time.event_color.present?
             e.append_custom_property("X-APPLE-CALENDAR-COLOR", "##{meeting_time.event_color}")
-            e.append_custom_property("COLOR", "#{meeting_time.event_color}")
+            e.append_custom_property("COLOR", meeting_time.event_color.to_s)
           end
 
           # Use the most recent update time between course and meeting_time
-          last_modified = [ course.updated_at, meeting_time.updated_at ].max
+          last_modified = [course.updated_at, meeting_time.updated_at].max
           e.last_modified = Icalendar::Values::DateTime.new(last_modified)
 
           # Sequence number based on update timestamps (helps clients detect changes)
@@ -117,17 +119,17 @@ class CalendarsController < ApplicationController
   end
 
   def get_day_code(meeting_time)
-    return nil unless meeting_time.day_of_week.present?
+    return nil if meeting_time.day_of_week.blank?
 
     # Map day_of_week enum to RFC 5545 day codes
     day_codes = {
-      "sunday" => "SU",
-      "monday" => "MO",
-      "tuesday" => "TU",
+      "sunday"    => "SU",
+      "monday"    => "MO",
+      "tuesday"   => "TU",
       "wednesday" => "WE",
-      "thursday" => "TH",
-      "friday" => "FR",
-      "saturday" => "SA"
+      "thursday"  => "TH",
+      "friday"    => "FR",
+      "saturday"  => "SA"
     }
 
     day_codes[meeting_time.day_of_week]
@@ -144,7 +146,7 @@ class CalendarsController < ApplicationController
   end
 
   def find_first_meeting_date(meeting_time)
-    return nil unless meeting_time.day_of_week.present?
+    return nil if meeting_time.day_of_week.blank?
 
     # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
     target_wday = MeetingTime.day_of_weeks[meeting_time.day_of_week]
@@ -155,9 +157,11 @@ class CalendarsController < ApplicationController
     # Find the first day that matches the meeting day (max 7 days search)
     7.times do
       return current_date if current_date.wday == target_wday
+
       current_date += 1.day
     end
 
     nil
   end
+
 end

@@ -1,6 +1,9 @@
+# frozen_string_literal: true
+
 module Api
   class FacultyController < ApplicationController
     include JsonWebTokenAuthenticatable
+
     skip_before_action :verify_authenticity_token
 
     def get_info_by_rmp_id
@@ -30,7 +33,7 @@ module Api
         rmp_ratings: rmp_ratings
       }, status: :ok
 
-    rescue StandardError => e
+    rescue => e
       Rails.logger.error("Error fetching RMP data for rmp_id #{rmp_id}: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: "Failed to fetch RMP data" }, status: :internal_server_error

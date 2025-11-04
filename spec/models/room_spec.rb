@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: rooms
@@ -17,8 +19,8 @@
 #
 #  fk_rails_...  (building_id => buildings.id)
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe Room, type: :model do
+RSpec.describe Room do
   pending "add some examples to (or delete) #{__FILE__}"
 end

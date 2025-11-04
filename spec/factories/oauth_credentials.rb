@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: oauth_credentials
@@ -27,7 +29,7 @@
 #
 FactoryBot.define do
   factory :oauth_credential do
-    association :user
+    user
     provider { "google" }
     sequence(:uid) { |n| "google_user_#{n}" }
     access_token { SecureRandom.hex(32) }

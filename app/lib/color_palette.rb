@@ -1,12 +1,14 @@
-module ColorPalette
-  GOLD = "#FFCB05".freeze
-  BLACK = "#00000".freeze
+# frozen_string_literal: true
 
-  RUBY_RED = "#D92228".freeze
-  SAPHIRE = "#3D439B".freeze
-  TURQOUISE = "#359EA6".freeze
-  OLD_GOLD = "#C49E39".freeze
-  PLATINUM = "#E8E6E6".freeze
+module ColorPalette
+  GOLD = "#FFCB05"
+  BLACK = "#00000"
+
+  RUBY_RED = "#D92228"
+  SAPHIRE = "#3D439B"
+  TURQOUISE = "#359EA6"
+  OLD_GOLD = "#C49E39"
+  PLATINUM = "#E8E6E6"
 
   MAP = {
     gold: GOLD,

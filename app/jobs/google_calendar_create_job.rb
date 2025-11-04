@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class GoogleCalendarCreateJob < ApplicationJob
   queue_as :high
 
@@ -7,4 +9,5 @@ class GoogleCalendarCreateJob < ApplicationJob
 
     GoogleCalendarService.new(user).create_or_get_course_calendar
   end
+
 end

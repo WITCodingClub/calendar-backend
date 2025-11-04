@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 class AuthController < ApplicationController
   skip_before_action :verify_authenticity_token, only: [:google]
 
   def google
-    auth = request.env['omniauth.auth']
+    auth = request.env["omniauth.auth"]
     raise "Missing omniauth.auth" unless auth
 
     # Check if this is a calendar OAuth flow (has our custom JWT state parameter)
@@ -19,14 +21,15 @@ class AuthController < ApplicationController
     if is_calendar_oauth_flow?
       redirect_to "/oauth/failure?error=#{CGI.escape(e.message)}"
     else
-      redirect_to new_user_session_path, alert: 'Failed to connect with Google. Please try again.'
+      redirect_to new_user_session_path, alert: "Failed to connect with Google. Please try again."
     end
   end
 
   private
 
   def is_calendar_oauth_flow?
-    return false unless params[:state].present?
+    return false if params[:state].blank?
+
     # Try to verify the state as a JWT - if it succeeds, it's our calendar OAuth flow
     GoogleOauthStateService.verify_state(params[:state]).present?
   rescue
@@ -41,8 +44,8 @@ class AuthController < ApplicationController
       raise "Invalid or expired state parameter"
     end
 
-    user = User.find(state_data['user_id'])
-    target_email = state_data['email']
+    user = User.find(state_data["user_id"])
+    target_email = state_data["email"]
 
     # Verify the OAuth email matches the target email
     unless auth.info.email == target_email
@@ -58,7 +61,7 @@ class AuthController < ApplicationController
     credential.uid = auth.uid
     credential.access_token = auth.credentials.token
     credential.refresh_token = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
-    credential.token_expires_at = Time.at(auth.credentials.expires_at) if auth.credentials.expires_at
+    credential.token_expires_at = Time.zone.at(auth.credentials.expires_at) if auth.credentials.expires_at
     credential.save!
 
     # Create calendar if it doesn't exist and share with this email
@@ -74,16 +77,16 @@ class AuthController < ApplicationController
 
     # Validate that the email is from @wit.edu domain
     unless email&.match?(/@wit\.edu\z/i)
-      redirect_to new_user_session_path, alert: 'Only @wit.edu email addresses are allowed.'
+      redirect_to new_user_session_path, alert: "Only @wit.edu email addresses are allowed."
       return
     end
 
     # Find existing user (no longer auto-create accounts)
-    user = User.find_by_email(email)
+    user = User.find_by(email: email)
 
     # Check if user exists and is an admin
     unless user&.admin_access?
-      redirect_to new_user_session_path, alert: 'Sign-in is restricted to administrators only.'
+      redirect_to new_user_session_path, alert: "Sign-in is restricted to administrators only."
       return
     end
 
@@ -99,13 +102,13 @@ class AuthController < ApplicationController
     credential.uid = auth.uid
     credential.access_token = auth.credentials.token
     credential.refresh_token = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
-    credential.token_expires_at = Time.at(auth.credentials.expires_at) if auth.credentials.expires_at
+    credential.token_expires_at = Time.zone.at(auth.credentials.expires_at) if auth.credentials.expires_at
     credential.save!
 
     # Sign in the user
     sign_in(user)
 
-    redirect_to after_sign_in_path, notice: 'Successfully signed in with Google.'
+    redirect_to after_sign_in_path, notice: "Successfully signed in with Google."
   end
 
   def after_sign_in_path
@@ -115,4 +118,5 @@ class AuthController < ApplicationController
       dashboard_path
     end
   end
+
 end

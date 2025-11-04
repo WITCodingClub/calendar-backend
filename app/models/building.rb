@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: buildings
@@ -15,5 +17,6 @@
 #  index_buildings_on_name          (name) UNIQUE
 #
 class Building < ApplicationRecord
-  has_many :rooms
+  has_many :rooms, dependent: :restrict_with_exception
+
 end

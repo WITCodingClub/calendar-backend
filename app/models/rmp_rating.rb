@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: rmp_ratings
@@ -38,11 +40,11 @@ class RmpRating < ApplicationRecord
   validates :rmp_id, presence: true, uniqueness: true
 
   scope :recent, -> { order(rating_date: :desc) }
-  scope :positive, -> { where("clarity_rating >= ?", 4) }
-  scope :negative, -> { where("clarity_rating <= ?", 2) }
+  scope :positive, -> { where(clarity_rating: 4..) }
+  scope :negative, -> { where(clarity_rating: ..2) }
 
   def overall_sentiment
-    return "neutral" unless clarity_rating.present?
+    return "neutral" if clarity_rating.blank?
 
     if clarity_rating >= 4
       "positive"
@@ -52,4 +54,5 @@ class RmpRating < ApplicationRecord
       "neutral"
     end
   end
+
 end

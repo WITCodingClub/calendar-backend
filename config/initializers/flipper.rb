@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Rails.application.configure do
   ## Memoization ensures that only one adapter call is made per feature per request.
   ## For more info, see https://www.flippercloud.io/docs/optimization#memoization
@@ -50,7 +52,7 @@ Flipper::UI.configure do |config|
     User.where(id: actor_ids)
         .joins(:emails)
         .where(emails: { primary: true })
-        .pluck(:id, 'emails.email')
+        .pluck(:id, "emails.email")
         .to_h
   }
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: rating_distributions
@@ -34,6 +36,7 @@ class RatingDistribution < ApplicationRecord
   # Get percentage for each rating level
   def percentage(level)
     return 0 if total.zero?
+
     ((send("r#{level}").to_f / total) * 100).round(2)
   end
 
@@ -47,4 +50,5 @@ class RatingDistribution < ApplicationRecord
       r5: percentage(5)
     }
   end
+
 end

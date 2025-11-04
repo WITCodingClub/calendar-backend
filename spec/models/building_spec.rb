@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: buildings
@@ -14,8 +16,8 @@
 #  index_buildings_on_abbreviation  (abbreviation) UNIQUE
 #  index_buildings_on_name          (name) UNIQUE
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe Building, type: :model do
+RSpec.describe Building do
   pending "add some examples to (or delete) #{__FILE__}"
 end

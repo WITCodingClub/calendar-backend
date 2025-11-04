@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Api
   class CoursesController < ApplicationController
     include JsonWebTokenAuthenticatable
@@ -8,8 +10,8 @@ module Api
       courses = params[:courses] || params[:_json]
 
       Rails.logger.debug "=== COURSES API CALLED ==="
-      Rails.logger.debug "Raw params: #{params.inspect}"
-      Rails.logger.debug "Courses param: #{courses.inspect}"
+      Rails.logger.debug { "Raw params: #{params.inspect}" }
+      Rails.logger.debug { "Courses param: #{courses.inspect}" }
 
       if courses.blank?
         render json: { error: "No courses provided" }, status: :bad_request
@@ -17,7 +19,7 @@ module Api
       end
 
       # Process courses synchronously
-      Rails.logger.debug "Processing #{courses.size} courses for user #{current_user.id}"
+      Rails.logger.debug { "Processing #{courses.size} courses for user #{current_user.id}" }
       CourseProcessorJob.perform_now(courses, current_user.id)
       Rails.logger.debug "Course processing completed"
 
@@ -30,7 +32,7 @@ module Api
         ics_url: ics_url,
         classes: processed_data
       }, status: :ok
-    rescue StandardError => e
+    rescue => e
       Rails.logger.error("Error processing courses: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: "Failed to process courses" }, status: :internal_server_error
@@ -72,10 +74,14 @@ module Api
           start_date: mt.start_date,
           end_date: mt.end_date,
           location: {
-            building: mt.building ? {
-              name: mt.building.name,
-              abbreviation: mt.building.abbreviation
-            } : nil,
+            building: if mt.building
+                        {
+                          name: mt.building.name,
+                          abbreviation: mt.building.abbreviation
+                        }
+                      else
+                        nil
+                      end,
             room: mt.room&.formatted_number
           },
           **days
@@ -85,24 +91,24 @@ module Api
 
     def fetch_processed_courses(courses, user)
       # Deduplicate courses by CRN and term
-      unique_courses = courses.uniq { |c| [c[:crn] || c['crn'], c[:term] || c['term']] }
+      unique_courses = courses.uniq { |c| [c[:crn] || c["crn"], c[:term] || c["term"]] }
 
       # Collect all CRNs and convert to integers
-      crns = unique_courses.map { |c| (c[:crn] || c['crn']).to_i }.compact
+      crns = unique_courses.map { |c| (c[:crn] || c["crn"]).to_i }.compact
 
-      Rails.logger.debug "Looking for courses with CRNs: #{crns.inspect}"
+      Rails.logger.debug { "Looking for courses with CRNs: #{crns.inspect}" }
 
       # Eager load associations to avoid N+1 queries
       courses_by_crn = Course.where(crn: crns)
                              .includes(:term, :faculties, meeting_times: [:room, :building])
                              .index_by(&:crn)
 
-      Rails.logger.debug "Found #{courses_by_crn.size} courses in database"
-      Rails.logger.debug "Course CRNs found: #{courses_by_crn.keys.inspect}"
+      Rails.logger.debug { "Found #{courses_by_crn.size} courses in database" }
+      Rails.logger.debug { "Course CRNs found: #{courses_by_crn.keys.inspect}" }
 
       processed_data = unique_courses.map do |course_data|
-        crn = (course_data[:crn] || course_data['crn']).to_i
-        Rails.logger.debug "Processing course with CRN: #{crn} (#{crn.class})"
+        crn = (course_data[:crn] || course_data["crn"]).to_i
+        Rails.logger.debug { "Processing course with CRN: #{crn} (#{crn.class})" }
         course = courses_by_crn[crn]
 
         unless course
@@ -110,7 +116,7 @@ module Api
           next
         end
 
-        Rails.logger.debug "Found course: #{course.title}"
+        Rails.logger.debug { "Found course: #{course.title}" }
         term = course.term
 
         {
@@ -132,8 +138,9 @@ module Api
         }
       end.compact
 
-      Rails.logger.debug "Processed #{processed_data.size} courses for response"
+      Rails.logger.debug { "Processed #{processed_data.size} courses for response" }
       processed_data
     end
+
   end
 end

@@ -1,7 +1,10 @@
+# frozen_string_literal: true
+
 module Admin
   class ApplicationController < ::ApplicationController
     layout "admin"
     include Pundit::Authorization
+
     rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
     before_action :require_admin
 
@@ -21,14 +24,16 @@ module Admin
         return
       end
 
-      unless current_user.admin_access?
-        redirect_to admin_unauthorized_path
-      end
+      return if current_user.admin_access?
+
+      redirect_to admin_unauthorized_path
+
     end
 
     def user_not_authorized
       flash[:alert] = "You are not authorized to perform this action."
       redirect_to admin_unauthorized_path
     end
+
   end
 end

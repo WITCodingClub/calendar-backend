@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # app/services/application_service.rb
 class ApplicationService
   class << self
@@ -8,6 +10,7 @@ class ApplicationService
     def call!(*, **)
       new(*, **).call!
     end
+
   end
 
   def initialize(*, **); end
@@ -19,4 +22,5 @@ class ApplicationService
   def call!
     raise NotImplementedError
   end
+
 end
