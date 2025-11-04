@@ -169,16 +169,22 @@ class CourseProcessorService < ApplicationService
   def parse_faculty_name(display_name)
     return [nil, nil] if display_name.blank?
 
-    # Handle "Last, First" format
+    # Handle "Last, First" or "Last, First Middle" format
     if display_name.include?(",")
       parts = display_name.split(",").map(&:strip)
-      [parts[1], parts[0]]
-    # Handle "First Last" format
+      last_name = parts[0]
+      # For "Last, First Middle", take only the first word as first name
+      first_name_parts = parts[1]&.split(/\s+/) || []
+      first_name = first_name_parts[0]
+      [first_name, last_name]
+    # Handle "First Last" or "First Middle Last" format
     else
       parts = display_name.split(/\s+/)
       if parts.length >= 2
+        # First word is first name, last word is last name (ignoring middle names)
         [parts[0], parts[-1]]
       else
+        # Single name - use for both first and last
         [display_name, display_name]
       end
     end
