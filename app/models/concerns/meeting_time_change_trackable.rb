@@ -17,9 +17,13 @@ module MeetingTimeChangeTrackable
 
   def mark_enrolled_users_for_sync
     # Mark all users enrolled in this course as needing a calendar sync
+    # Only mark users who have Google OAuth credentials with a course calendar ID set
     User.joins(:enrollments)
+        .joins(:oauth_credentials)
         .where(enrollments: { course_id: course_id })
-        .where.not(google_course_calendar_id: nil)
+        .where(oauth_credentials: { provider: "google" })
+        .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
+        .distinct
         .update_all(calendar_needs_sync: true)
   end
 end

@@ -38,6 +38,51 @@ module Api
 
     private
 
+    def group_meeting_times(meeting_times)
+      # Group meeting times by their common attributes (time, date range, location)
+      grouped = meeting_times.group_by do |mt|
+        [mt.begin_time, mt.end_time, mt.start_date, mt.end_date, mt.room_id]
+      end
+
+      # Convert each group into a single meeting time object with day flags
+      grouped.map do |_key, mts|
+        # Use the first meeting time as the base
+        mt = mts.first
+
+        # Initialize all days to false
+        days = {
+          monday: false,
+          tuesday: false,
+          wednesday: false,
+          thursday: false,
+          friday: false,
+          saturday: false,
+          sunday: false
+        }
+
+        # Set true for each day that appears in the group
+        mts.each do |meeting_time|
+          day_symbol = meeting_time.day_of_week&.to_sym
+          days[day_symbol] = true if day_symbol
+        end
+
+        {
+          begin_time: mt.fmt_begin_time,
+          end_time: mt.fmt_end_time,
+          start_date: mt.start_date,
+          end_date: mt.end_date,
+          location: {
+            building: mt.building ? {
+              name: mt.building.name,
+              abbreviation: mt.building.abbreviation
+            } : nil,
+            room: mt.room&.formatted_number
+          },
+          **days
+        }
+      end
+    end
+
     def fetch_processed_courses(courses, user)
       # Deduplicate courses by CRN and term
       unique_courses = courses.uniq { |c| [c[:crn] || c['crn'], c[:term] || c['term']] }
@@ -82,28 +127,7 @@ module Api
             last_name: course.faculties[0]&.last_name,
             email: course.faculties[0]&.email
           },
-          meeting_times: course.meeting_times.map do |mt|
-            {
-              begin_time: mt.fmt_begin_time,
-              end_time: mt.fmt_end_time,
-              start_date: mt.start_date,
-              end_date: mt.end_date,
-              location: {
-                building: mt.building ? {
-                  name: mt.building.name,
-                  abbreviation: mt.building.abbreviation
-                } : nil,
-                room: mt.room&.formatted_number
-              },
-              monday: mt.monday?,
-              tuesday: mt.tuesday?,
-              wednesday: mt.wednesday?,
-              thursday: mt.thursday?,
-              friday: mt.friday?,
-              saturday: mt.saturday?,
-              sunday: mt.sunday?
-            }
-          end
+          meeting_times: group_meeting_times(course.meeting_times)
         }
       end.compact
 
