@@ -20,9 +20,7 @@ module Api
       end
 
       # Process courses synchronously
-      Rails.logger.debug { "Processing #{courses.size} courses for user #{current_user.id}" }
       CourseProcessorJob.perform_now(courses, current_user.id)
-      Rails.logger.debug "Course processing completed"
 
       # Fetch the processed data to return to a client
       processed_data = fetch_processed_courses(courses, current_user)
