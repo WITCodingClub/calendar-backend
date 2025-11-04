@@ -7,10 +7,12 @@ class OauthController < ApplicationController
   def success
     @email = params[:email]
     @calendar_id = params[:calendar_id]
+    @background_url = view_context.asset_path("ia-no-logo.png")
   end
 
   def failure
     @error = params[:error] || "Unknown error occurred"
+    @background_url = view_context.asset_path("ia-no-logo.png")
   end
 
 end
