@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: oauth_credentials
@@ -54,4 +56,5 @@ class OauthCredential < ApplicationRecord
   # Scope for finding credentials by provider
   scope :for_provider, ->(provider) { where(provider: provider) }
   scope :google, -> { for_provider("google") }
+
 end

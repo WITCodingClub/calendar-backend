@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: lockbox_audits
@@ -21,4 +23,5 @@
 class LockboxAudit < ApplicationRecord
   belongs_to :subject, polymorphic: true
   belongs_to :viewer, polymorphic: true
+
 end

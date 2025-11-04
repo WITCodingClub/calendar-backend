@@ -1,16 +1,18 @@
-require 'rails_helper'
+# frozen_string_literal: true
 
-RSpec.describe GoogleCalendarDeleteJob, type: :job do
-  describe 'queue assignment' do
-    it 'is assigned to the high queue' do
-      expect(described_class.new.queue_name).to eq('high')
+require "rails_helper"
+
+RSpec.describe GoogleCalendarDeleteJob do
+  describe "queue assignment" do
+    it "is assigned to the high queue" do
+      expect(described_class.new.queue_name).to eq("high")
     end
   end
 
-  describe '#perform' do
-    let(:calendar_id) { 'test_calendar_id@group.calendar.google.com' }
+  describe "#perform" do
+    let(:calendar_id) { "test_calendar_id@group.calendar.google.com" }
 
-    it 'calls GoogleCalendarService#delete_calendar with the correct calendar_id' do
+    it "calls GoogleCalendarService#delete_calendar with the correct calendar_id" do
       service_double = instance_double(GoogleCalendarService)
       allow(GoogleCalendarService).to receive(:new).and_return(service_double)
       allow(service_double).to receive(:delete_calendar).with(calendar_id)

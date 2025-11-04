@@ -1,5 +1,7 @@
+# frozen_string_literal: true
+
 class SseBroadcaster
-  CHANNEL = "sse_events".freeze
+  CHANNEL = "sse_events"
 
   class << self
     # Broadcast an event to all SSE clients
@@ -70,5 +72,7 @@ class SseBroadcaster
     def redis
       @redis ||= Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/1"))
     end
+
   end
+
 end

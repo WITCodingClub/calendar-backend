@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: emails
@@ -36,12 +38,14 @@ class Email < ApplicationRecord
   private
 
   def has_one_primary_email
-    if primary
-      existing_primary = Email.where(user_id: user_id, primary: true).where.not(id: id)
-      if existing_primary.exists?
-        errors.add(:primary, "There can only be one primary email.")
-      end
-    end
+    return unless primary
+
+    existing_primary = Email.where(user_id: user_id, primary: true).where.not(id: id)
+    return unless existing_primary.exists?
+
+    errors.add(:primary, "There can only be one primary email.")
+
+
   end
 
 end

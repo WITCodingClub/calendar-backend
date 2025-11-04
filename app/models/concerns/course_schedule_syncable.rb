@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CourseScheduleSyncable
   extend ActiveSupport::Concern
 
@@ -8,12 +10,12 @@ module CourseScheduleSyncable
     # Each meeting_time now represents a single day of the week
     events = []
 
-    enrollments.includes(course: [meeting_times: [:room, :building]]).each do |enrollment|
+    enrollments.includes(course: [meeting_times: [:room, :building]]).find_each do |enrollment|
       course = enrollment.course
 
       course.meeting_times.each do |meeting_time|
         # Skip if day_of_week is not set
-        next unless meeting_time.day_of_week.present?
+        next if meeting_time.day_of_week.blank?
 
         # Find the first date this class actually meets
         first_meeting_date = find_first_meeting_date(meeting_time)
@@ -26,10 +28,10 @@ module CourseScheduleSyncable
 
         # Build location string
         location = if meeting_time.room && meeting_time.building
-          "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-        elsif meeting_time.room
-          meeting_time.room.name
-        end
+                     "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
+                   elsif meeting_time.room
+                     meeting_time.room.name
+                   end
 
         # Build course code from subject-number-section
         course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
@@ -54,7 +56,7 @@ module CourseScheduleSyncable
   end
 
   def find_first_meeting_date(meeting_time)
-    return nil unless meeting_time.day_of_week.present?
+    return nil if meeting_time.day_of_week.blank?
 
     # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
     # The enum value is already stored as the integer wday value
@@ -66,6 +68,7 @@ module CourseScheduleSyncable
     # Find the first day that matches the meeting day (max 7 days search)
     7.times do
       return current_date if current_date.wday == target_wday
+
       current_date += 1.day
     end
 
@@ -84,17 +87,17 @@ module CourseScheduleSyncable
   end
 
   def build_recurrence_rule(meeting_time)
-    return nil unless meeting_time.day_of_week.present?
+    return nil if meeting_time.day_of_week.blank?
 
     # Map day_of_week enum to RFC 5545 day codes
     day_codes = {
-      "sunday" => "SU",
-      "monday" => "MO",
-      "tuesday" => "TU",
+      "sunday"    => "SU",
+      "monday"    => "MO",
+      "tuesday"   => "TU",
       "wednesday" => "WE",
-      "thursday" => "TH",
-      "friday" => "FR",
-      "saturday" => "SA"
+      "thursday"  => "TH",
+      "friday"    => "FR",
+      "saturday"  => "SA"
     }
 
     day_code = day_codes[meeting_time.day_of_week]
@@ -102,13 +105,13 @@ module CourseScheduleSyncable
 
     # Format: RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20240515T235959Z
     # Each meeting_time now represents a single day, so only one day code
-    until_date = meeting_time.end_date.strftime('%Y%m%dT235959Z')
+    until_date = meeting_time.end_date.strftime("%Y%m%dT235959Z")
     "RRULE:FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_date}"
   end
 
   # Add a method to handle calendar deletion/cleanup
   def delete_course_calendar
-    return unless google_course_calendar_id.present?
+    return if google_course_calendar_id.blank?
 
     service = GoogleCalendarService.new(self)
     service_account_service = service.send(:service_account_calendar_service)

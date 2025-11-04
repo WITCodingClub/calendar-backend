@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: terms
@@ -34,9 +36,10 @@ class Term < ApplicationRecord
   private
 
   def uniqueness_of_year_and_semester
-    if Term.exists?(year: year, semester: semester)
-      errors.add(:base, "Term with year #{year} and semester #{semester} already exists")
-    end
+    return unless Term.exists?(year: year, semester: semester)
+
+    errors.add(:base, "Term with year #{year} and semester #{semester} already exists")
+
   end
 
 

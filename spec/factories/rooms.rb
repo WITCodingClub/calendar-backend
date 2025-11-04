@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: rooms
@@ -19,6 +21,6 @@
 #
 FactoryBot.define do
   factory :room do
-    
+
   end
 end

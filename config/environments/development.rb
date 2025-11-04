@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "active_support/core_ext/integer/time"
 
 # MUST BE MIRRORED to development-wcreds.rb at all times

@@ -1,45 +1,47 @@
+# frozen_string_literal: true
+
 module GoogleColors
   # Event Colors
-  EVENT_LAVENDER = "#a4bdfc".freeze
-  EVENT_SAGE = "#7ae7bf".freeze
-  EVENT_GRAPE = "#dbadff".freeze
-  EVENT_FLAMINGO = "#ff887c".freeze
-  EVENT_BANANA = "#fbd75b".freeze
-  EVENT_TANGERINE = "#ffb878".freeze
-  EVENT_PEACOCK = "#46d6db".freeze
-  EVENT_GRAPHITE = "#e1e1e1".freeze
-  EVENT_BLUEBERRY = "#5484ed".freeze
-  EVENT_BASIL = "#51b749".freeze
-  EVENT_TOMATO = "#dc2127".freeze
+  EVENT_LAVENDER = "#a4bdfc"
+  EVENT_SAGE = "#7ae7bf"
+  EVENT_GRAPE = "#dbadff"
+  EVENT_FLAMINGO = "#ff887c"
+  EVENT_BANANA = "#fbd75b"
+  EVENT_TANGERINE = "#ffb878"
+  EVENT_PEACOCK = "#46d6db"
+  EVENT_GRAPHITE = "#e1e1e1"
+  EVENT_BLUEBERRY = "#5484ed"
+  EVENT_BASIL = "#51b749"
+  EVENT_TOMATO = "#dc2127"
 
   # Calendar Colors (first 12 for brevity, extend as needed)
-  CAL_COCOA = "#ac725e".freeze
-  CAL_BIRCH = "#d06b64".freeze
-  CAL_CHERRY = "#f83a22".freeze
-  CAL_FIRE = "#fa573c".freeze
-  CAL_MANDARIN = "#ff7537".freeze
-  CAL_PUMPKIN = "#ffad46".freeze
-  CAL_AVOCADO = "#42d692".freeze
-  CAL_EUCALYPTUS = "#16a765".freeze
-  CAL_PISTACHIO = "#7bd148".freeze
-  CAL_CITRON = "#b3dc6c".freeze
-  CAL_LEMON = "#fbe983".freeze
-  CAL_MANGO = "#fad165".freeze
-  CAL_SEAFOAM = "#92e1c0".freeze
-  CAL_POOL = "#9fe1e7".freeze
-  CAL_SKY = "#9fc6e7".freeze
-  CAL_COBALT = "#4986e7".freeze
-  CAL_AMETHYST = "#9a9cff".freeze
-  CAL_WISTERIA = "#b99aff".freeze
-  CAL_SILVER = "#c2c2c2".freeze
-  CAL_MUSHROOM = "#cabdbf".freeze
-  CAL_ROSE = "#cca6ac".freeze
-  CAL_BUBBLEGUM = "#f691b2".freeze
-  CAL_LAVENDER = "#cd74e6".freeze
-  CAL_PURPLE = "#a47ae2".freeze
+  CAL_COCOA = "#ac725e"
+  CAL_BIRCH = "#d06b64"
+  CAL_CHERRY = "#f83a22"
+  CAL_FIRE = "#fa573c"
+  CAL_MANDARIN = "#ff7537"
+  CAL_PUMPKIN = "#ffad46"
+  CAL_AVOCADO = "#42d692"
+  CAL_EUCALYPTUS = "#16a765"
+  CAL_PISTACHIO = "#7bd148"
+  CAL_CITRON = "#b3dc6c"
+  CAL_LEMON = "#fbe983"
+  CAL_MANGO = "#fad165"
+  CAL_SEAFOAM = "#92e1c0"
+  CAL_POOL = "#9fe1e7"
+  CAL_SKY = "#9fc6e7"
+  CAL_COBALT = "#4986e7"
+  CAL_AMETHYST = "#9a9cff"
+  CAL_WISTERIA = "#b99aff"
+  CAL_SILVER = "#c2c2c2"
+  CAL_MUSHROOM = "#cabdbf"
+  CAL_ROSE = "#cca6ac"
+  CAL_BUBBLEGUM = "#f691b2"
+  CAL_LAVENDER = "#cd74e6"
+  CAL_PURPLE = "#a47ae2"
 
   # Standard foreground color for all
-  FOREGROUND = "#1d1d1d".freeze
+  FOREGROUND = "#1d1d1d"
 
   # Event colors map
   EVENT_MAP = {

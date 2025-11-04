@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class GoogleCalendarService
   attr_reader :user
 
@@ -53,14 +55,14 @@ class GoogleCalendarService
     service = service_account_calendar_service
     colors = service.get_color
 
-    puts "\n=== Google Calendar Event Colors ==="
+    Rails.logger.debug "\n=== Google Calendar Event Colors ==="
     colors.event.each do |id, color_info|
-      puts "ID: #{id.rjust(2)} - Background: #{color_info.background} - Foreground: #{color_info.foreground}"
+      Rails.logger.debug "ID: #{id.rjust(2)} - Background: #{color_info.background} - Foreground: #{color_info.foreground}"
     end
 
-    puts "\n=== Google Calendar Colors ==="
+    Rails.logger.debug "\n=== Google Calendar Colors ==="
     colors.calendar.each do |id, color_info|
-      puts "ID: #{id.rjust(2)} - Background: #{color_info.background} - Foreground: #{color_info.foreground}"
+      Rails.logger.debug "ID: #{id.rjust(2)} - Background: #{color_info.background} - Foreground: #{color_info.foreground}"
     end
 
     colors
@@ -116,7 +118,7 @@ class GoogleCalendarService
       credentials.refresh!
       user.google_credential.update!(
         access_token: credentials.access_token,
-        token_expires_at: Time.at(credentials.expires_at)
+        token_expires_at: Time.zone.at(credentials.expires_at)
       )
       # Clear the cached credential
       user.instance_variable_set(:@google_credential, nil)
@@ -144,16 +146,16 @@ class GoogleCalendarService
     user.emails.where(g_cal: true).find_each do |email_record|
       rule = Google::Apis::CalendarV3::AclRule.new(
         scope: {
-          type: 'user',
+          type: "user",
           value: email_record.email
         },
-        role: 'reader'  # reader access
+        role: "reader" # reader access
       )
 
       service.insert_acl(
         calendar_id,
         rule,
-        send_notifications: false  # Don't send the default invite
+        send_notifications: false # Don't send the default invite
       )
     rescue Google::Apis::ClientError => e
       # Ignore if user already has access
@@ -164,14 +166,14 @@ class GoogleCalendarService
   def share_calendar_with_email(calendar_id, email_id)
     service = service_account_calendar_service
     email = Email.find_by(email: email_id, user_id: user.id)
-    return unless email && email.g_cal
+    return unless email&.g_cal
 
     rule = Google::Apis::CalendarV3::AclRule.new(
       scope: {
-        type: 'user',
+        type: "user",
         value: email.email
       },
-      role: 'reader'  # reader access
+      role: "reader" # reader access
     )
 
     service.insert_acl(
@@ -188,11 +190,11 @@ class GoogleCalendarService
   def unshare_calendar_with_email(calendar_id, email_id)
     service = service_account_calendar_service
     email = Email.find_by(email: email_id, user_id: user.id)
-    return unless email && email.g_cal
+    return unless email&.g_cal
 
     # Find the ACL entry for the email
     acl_list = service.list_acls(calendar_id)
-    acl_entry = acl_list.items.find { |item| item.scope.type == 'user' && item.scope.value == email.email }
+    acl_entry = acl_list.items.find { |item| item.scope.type == "user" && item.scope.value == email.email }
     return unless acl_entry
 
     service.delete_acl(calendar_id, acl_entry.id)
@@ -249,7 +251,7 @@ class GoogleCalendarService
       credentials.refresh!
       credential.update!(
         access_token: credentials.access_token,
-        token_expires_at: Time.at(credentials.expires_at)
+        token_expires_at: Time.zone.at(credentials.expires_at)
       )
     end
 
@@ -270,23 +272,23 @@ class GoogleCalendarService
 
   def add_event_to_calendar(service, calendar_id, course_event)
     # Ensure times are in Eastern timezone
-    start_time_et = course_event[:start_time].in_time_zone('America/New_York')
-    end_time_et = course_event[:end_time].in_time_zone('America/New_York')
+    start_time_et = course_event[:start_time].in_time_zone("America/New_York")
+    end_time_et = course_event[:end_time].in_time_zone("America/New_York")
 
-    Rails.logger.debug "Creating event: #{course_event[:summary]}"
-    Rails.logger.debug "Start: #{start_time_et.iso8601} (#{start_time_et})"
-    Rails.logger.debug "End: #{end_time_et.iso8601} (#{end_time_et})"
+    Rails.logger.debug { "Creating event: #{course_event[:summary]}" }
+    Rails.logger.debug { "Start: #{start_time_et.iso8601} (#{start_time_et})" }
+    Rails.logger.debug { "End: #{end_time_et.iso8601} (#{end_time_et})" }
 
     event = Google::Apis::CalendarV3::Event.new(
       summary: course_event[:summary],
       location: course_event[:location],
       start: {
         date_time: start_time_et.iso8601,
-        time_zone: 'America/New_York'
+        time_zone: "America/New_York"
       },
       end: {
         date_time: end_time_et.iso8601,
-        time_zone: 'America/New_York'
+        time_zone: "America/New_York"
       },
       color_id: get_color_for_meeting_time(course_event[:meeting_time_id]),
       recurrence: course_event[:recurrence]
@@ -312,4 +314,5 @@ class GoogleCalendarService
       nil  # Default color
     end
   end
+
 end

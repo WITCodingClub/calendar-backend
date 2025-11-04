@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Authentication
   extend ActiveSupport::Concern
 
@@ -24,14 +26,16 @@ module Authentication
   end
 
   def authenticate_user!
-    unless user_signed_in?
-      redirect_to new_user_session_path, alert: "Please sign in to continue."
-    end
+    return if user_signed_in?
+
+    redirect_to new_user_session_path, alert: "Please sign in to continue."
+
   end
 
   def require_admin!
-    unless current_user&.admin_access?
-      redirect_to unauthorized_path, alert: "You don't have permission to access this page."
-    end
+    return if current_user&.admin_access?
+
+    redirect_to unauthorized_path, alert: "You don't have permission to access this page."
+
   end
 end

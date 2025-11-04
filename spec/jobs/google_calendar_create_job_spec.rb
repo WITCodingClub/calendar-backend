@@ -1,16 +1,18 @@
-require 'rails_helper'
+# frozen_string_literal: true
 
-RSpec.describe GoogleCalendarCreateJob, type: :job do
-  describe 'queue assignment' do
-    it 'is assigned to the high queue' do
-      expect(described_class.new.queue_name).to eq('high')
+require "rails_helper"
+
+RSpec.describe GoogleCalendarCreateJob do
+  describe "queue assignment" do
+    it "is assigned to the high queue" do
+      expect(described_class.new.queue_name).to eq("high")
     end
   end
 
-  describe '#perform' do
+  describe "#perform" do
     let(:user) { create(:user) }
 
-    it 'calls GoogleCalendarService#create_or_get_course_calendar' do
+    it "calls GoogleCalendarService#create_or_get_course_calendar" do
       service_double = instance_double(GoogleCalendarService)
       allow(GoogleCalendarService).to receive(:new).with(user).and_return(service_double)
       allow(service_double).to receive(:create_or_get_course_calendar)
@@ -21,7 +23,7 @@ RSpec.describe GoogleCalendarCreateJob, type: :job do
       expect(service_double).to have_received(:create_or_get_course_calendar)
     end
 
-    it 'finds the user by id' do
+    it "finds the user by id" do
       allow(User).to receive(:find).and_call_original
       allow_any_instance_of(GoogleCalendarService).to receive(:create_or_get_course_calendar)
 

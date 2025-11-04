@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: teacher_rating_tags
@@ -29,4 +31,5 @@ class TeacherRatingTag < ApplicationRecord
 
   scope :ordered_by_count, -> { order(tag_count: :desc) }
   scope :top_tags, ->(limit = 5) { ordered_by_count.limit(limit) }
+
 end

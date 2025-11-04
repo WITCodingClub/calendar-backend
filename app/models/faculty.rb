@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: faculties
@@ -36,13 +38,10 @@ class Faculty < ApplicationRecord
   end
 
   def u_name
-    def fwd
-      "#{first_name[0]}. #{last_name}"
-    end
-
-    def rev
-      "#{last_name}, #{first_name[0]}."
-    end
+    {
+      fwd: "#{first_name[0]}. #{last_name}",
+      rev: "#{last_name}, #{first_name[0]}."
+    }
   end
 
   # Get RMP aggregate stats (from rating_distribution table)
@@ -72,7 +71,7 @@ class Faculty < ApplicationRecord
   # Get matched related faculty (professors that exist in our database)
   def matched_related_faculty
     Faculty.joins("INNER JOIN related_professors ON related_professors.related_faculty_id = faculties.id")
-           .where("related_professors.faculty_id = ?", id)
+           .where(related_professors: { faculty_id: id })
            .distinct
   end
 
@@ -89,6 +88,7 @@ class Faculty < ApplicationRecord
   # Access raw RMP GraphQL data
   def rmp_graph_data
     return {} if rmp_raw_data.blank?
+
     rmp_raw_data
   end
 
@@ -107,7 +107,7 @@ class Faculty < ApplicationRecord
     timestamp = rmp_raw_data.dig("metadata", "last_updated_at")
     return nil if timestamp.blank?
 
-    Time.parse(timestamp)
+    Time.zone.parse(timestamp)
   rescue ArgumentError
     nil
   end
@@ -138,4 +138,5 @@ class Faculty < ApplicationRecord
     yes_count = rmp_ratings.where(would_take_again: true).count
     ((yes_count.to_f / total) * 100).round(2)
   end
+
 end

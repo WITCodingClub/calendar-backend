@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module CalendarSyncable
   extend ActiveSupport::Concern
 
@@ -11,8 +13,9 @@ module CalendarSyncable
 
   def mark_user_calendar_for_sync
     # Only mark if the user has a Google Calendar set up
-    return unless user&.google_course_calendar_id.present?
+    return if user&.google_course_calendar_id.blank?
 
-    user.update_column(:calendar_needs_sync, true)
+    # Using update_column to avoid triggering validations and callbacks in an after_save hook
+    user.update_column(:calendar_needs_sync, true) # rubocop:disable Rails/SkipsModelValidations
   end
 end

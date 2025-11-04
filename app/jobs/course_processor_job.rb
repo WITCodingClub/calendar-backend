@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CourseProcessorJob < ApplicationJob
   queue_as :high
 
@@ -7,4 +9,5 @@ class CourseProcessorJob < ApplicationJob
 
     CourseProcessorService.new(courses, user).call
   end
+
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class UpdateFacultyRatingsJob < ApplicationJob
   queue_as :low
 
@@ -8,7 +10,7 @@ class UpdateFacultyRatingsJob < ApplicationJob
     # If faculty doesn't have an rmp_id, search for them first
     if faculty.rmp_id.blank?
       search_and_link_faculty(faculty, service)
-      return unless faculty.rmp_id.present?
+      return if faculty.rmp_id.blank?
     end
 
     # Fetch teacher details and all ratings
@@ -174,4 +176,5 @@ class UpdateFacultyRatingsJob < ApplicationJob
       nil
     end
   end
+
 end

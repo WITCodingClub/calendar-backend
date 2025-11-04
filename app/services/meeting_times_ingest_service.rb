@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # app/services/meeting_times_ingest_service.rb
 class MeetingTimesIngestService < ApplicationService
   attr_reader :course, :raw_meeting_times
@@ -45,7 +47,7 @@ class MeetingTimesIngestService < ApplicationService
     }
 
     active_days = days_map.select do |day_name, day_num|
-      to_bool(mt[day_name.to_s] || mt[day_name])
+      to_boolean(mt[day_name.to_s] || mt[day_name])
     end
 
     # Skip if no days are active
@@ -69,13 +71,13 @@ class MeetingTimesIngestService < ApplicationService
 
     # Calculate hours per day (not per week)
     hours_per_day = if @compute_hours_week
-      compute_hours_per_day(begin_hhmm, end_hhmm)
-    else
-      nil
-    end
+                      compute_hours_per_day(begin_hhmm, end_hhmm)
+                    else
+                      nil
+                    end
 
     # Create a separate MeetingTime record for each active day
-    active_days.each do |day_name, day_num|
+    active_days.each_value do |day_num|
       attrs = {
         course_id: course.id,
         room_id: room.id,
@@ -99,17 +101,20 @@ class MeetingTimesIngestService < ApplicationService
   def parse_date_to_beginning_of_day(value)
     date = parse_date(value)
     return nil unless date
+
     Time.zone.local(date.year, date.month, date.day, 0, 0, 0)
   end
 
   def parse_date_to_end_of_day(value)
     date = parse_date(value)
     return nil unless date
+
     Time.zone.local(date.year, date.month, date.day, 23, 59, 59)
   end
 
   def parse_date(value)
     return nil if value.nil? || value.to_s.strip.empty?
+
     str = value.to_s.strip
     Date.iso8601(str)
   rescue ArgumentError
@@ -123,35 +128,39 @@ class MeetingTimesIngestService < ApplicationService
   # Convert "10:00 AM"/ "22:15" / "1000" → HHMM integer format
   def to_hhmm_format(value)
     return nil if value.nil? || value.to_s.strip.empty?
+
     str = value.to_s.strip
-    if str =~ /\A(\d{1,2}):(\d{2})\s*(AM|PM)\z/i
+    case str
+    when /\A(\d{1,2}):(\d{2})\s*(AM|PM)\z/i
       h = Regexp.last_match(1).to_i
       m = Regexp.last_match(2).to_i
       meridian = Regexp.last_match(3).upcase
       h = (h % 12) + (meridian == "PM" ? 12 : 0)
       (h * 100) + m
-    elsif str =~ /\A(\d{1,2}):(\d{2})\z/
+    when /\A(\d{1,2}):(\d{2})\z/
       h = Regexp.last_match(1).to_i
       m = Regexp.last_match(2).to_i
       return nil if h > 23 || m > 59
+
       (h * 100) + m
-    elsif str =~ /\A(\d{2})(\d{2})\z/
+    when /\A(\d{2})(\d{2})\z/
       # Handle HHMM format like "1000" or "1145" - already in correct format
-      h = Regexp.last_match(1).to_i
-      m = Regexp.last_match(2).to_i
+      hhmm = str.to_i
+      h = hhmm / 100
+      m = hhmm % 100
       return nil if h > 23 || m > 59
-      (h * 100) + m
+
+      hhmm
     else
       nil
     end
   end
 
   # Banner often uses true/Y/1
-  def to_bool(val)
+  def to_boolean(val) # rubocop:disable Naming/PredicateMethod
     case val
-    when true, "true", "TRUE" then true
-    when "Y", "y"             then true
-    when 1, "1"               then true
+    when true, "true", "TRUE", "Y", "y", 1, "1"
+      true
     else
       false
     end
@@ -159,7 +168,8 @@ class MeetingTimesIngestService < ApplicationService
 
   # Extract numeric room; fallback to 0 if unknown (room_id is NOT NULL)
   def parse_room_number(room_str)
-    return 0 if room_str.nil? || room_str.empty?
+    return 0 if room_str.blank?
+
     if room_str =~ /(\d+)/
       Regexp.last_match(1).to_i
     else
@@ -170,6 +180,7 @@ class MeetingTimesIngestService < ApplicationService
   # Map schedule type string → integer; returns nil if unknown
   def map_schedule_type(val)
     return nil if val.nil?
+
     case val.to_s.strip.upcase
     when "LEC"   then 1 # lecture
     when "LAB"   then 2 # laboratory
@@ -181,6 +192,7 @@ class MeetingTimesIngestService < ApplicationService
   # Map meeting type string → integer; returns nil if unknown
   def map_meeting_type(val)
     return nil if val.nil?
+
     case val.to_s.strip.upcase
     when "CLAS" then 1 # class_meeting
     else
@@ -201,4 +213,5 @@ class MeetingTimesIngestService < ApplicationService
 
     [end_decimal - begin_decimal, 0].max.round
   end
+
 end

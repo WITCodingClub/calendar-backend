@@ -1,8 +1,10 @@
+# frozen_string_literal: true
+
 # app/helpers/background_helper.rb
 module BackgroundHelper
   def random_background_url
     # Prefer app/assets images during development/normal asset pipeline usage
-    asset_dir = Rails.root.join("app", "assets", "images", "bg")
+    asset_dir = Rails.root.join("app/assets/images/bg")
 
     # Collect possible files from either location
     candidates = []
@@ -21,12 +23,12 @@ module BackgroundHelper
     # Convert filesystem path to a request path
     # If the file is under app/assets, use asset_path so fingerprinting/CDN works
     if picked.start_with?(asset_dir.to_s)
-      relative = picked.sub(asset_dir.to_s + "/", "")
+      relative = picked.sub("#{asset_dir}/", "")
       # Use the logical asset path "bg/<file>"
       asset_path(File.join("bg", relative))
     else
       # Otherwise, just return a path relative to public/
-      picked.sub(Rails.root.join("public").to_s, "")
+      picked.sub(Rails.public_path.to_s, "")
     end
   end
 

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module JsonWebTokenAuthenticatable
   extend ActiveSupport::Concern
 
@@ -25,9 +27,10 @@ module JsonWebTokenAuthenticatable
 
     @current_user = User.find_by(id: decoded[:user_id])
 
-    if @current_user.nil?
-      render json: { error: "User not found" }, status: :unauthorized
-    end
+    return unless @current_user.nil?
+
+    render json: { error: "User not found" }, status: :unauthorized
+
   end
 
   def extract_token_from_header

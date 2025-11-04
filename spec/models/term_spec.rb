@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: terms
@@ -15,8 +17,8 @@
 #  index_terms_on_uid              (uid) UNIQUE
 #  index_terms_on_year_and_season  (year,season) UNIQUE
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe Term, type: :model do
+RSpec.describe Term do
   pending "add some examples to (or delete) #{__FILE__}"
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class ErrorsController < ApplicationController
   def unauthorized
     render :unauthorized, status: :forbidden
@@ -6,4 +8,5 @@ class ErrorsController < ApplicationController
   def not_found
     render :not_found, status: :not_found
   end
+
 end

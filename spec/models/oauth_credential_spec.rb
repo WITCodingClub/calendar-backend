@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: oauth_credentials
@@ -25,28 +27,28 @@
 #
 #  fk_rails_...  (user_id => users.id)
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe OauthCredential, type: :model do
+RSpec.describe OauthCredential do
   describe "associations" do
-    it { should belong_to(:user) }
+    it { is_expected.to belong_to(:user) }
   end
 
   describe "validations" do
-    it { should validate_presence_of(:provider) }
-    it { should validate_presence_of(:uid) }
-    it { should validate_presence_of(:access_token) }
+    it { is_expected.to validate_presence_of(:provider) }
+    it { is_expected.to validate_presence_of(:uid) }
+    it { is_expected.to validate_presence_of(:access_token) }
   end
 
   describe "scopes" do
     let!(:google_credential) { create(:oauth_credential) }
 
     it "filters by provider with for_provider scope" do
-      expect(OauthCredential.for_provider("google")).to include(google_credential)
+      expect(described_class.for_provider("google")).to include(google_credential)
     end
 
     it "filters Google credentials with google scope" do
-      expect(OauthCredential.google).to include(google_credential)
+      expect(described_class.google).to include(google_credential)
     end
   end
 

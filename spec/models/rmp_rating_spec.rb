@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: rmp_ratings
@@ -32,8 +34,8 @@
 #
 #  fk_rails_...  (faculty_id => faculties.id)
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe RmpRating, type: :model do
+RSpec.describe RmpRating do
   pending "add some examples to (or delete) #{__FILE__}"
 end

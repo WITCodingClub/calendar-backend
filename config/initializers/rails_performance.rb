@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 if defined?(RailsPerformance)
   RailsPerformance.setup do |config|
     # Redis configuration

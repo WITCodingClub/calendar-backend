@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: enrollments
@@ -38,8 +40,10 @@ class Enrollment < ApplicationRecord
   def term_matches_course
     return unless course && term
 
-    if course.term_id != term_id
-      errors.add(:term, "must match the course's term")
-    end
+    return unless course.term_id != term_id
+
+    errors.add(:term, "must match the course's term")
+
   end
+
 end

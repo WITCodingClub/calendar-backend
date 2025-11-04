@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: ahoy_visits
@@ -39,6 +41,7 @@
 class Ahoy::Visit < ApplicationRecord
   self.table_name = "ahoy_visits"
 
-  has_many :events, class_name: "Ahoy::Event"
+  has_many :events, class_name: "Ahoy::Event", dependent: :destroy
   belongs_to :user, optional: true
+
 end

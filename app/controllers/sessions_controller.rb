@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class SessionsController < ApplicationController
   layout "auth"
   before_action :redirect_if_authenticated, only: [:new]
@@ -16,9 +18,10 @@ class SessionsController < ApplicationController
   private
 
   def redirect_if_authenticated
-    if user_signed_in?
-      redirect_to after_sign_in_path
-    end
+    return unless user_signed_in?
+
+    redirect_to after_sign_in_path
+
   end
 
   def after_sign_in_path
@@ -28,4 +31,5 @@ class SessionsController < ApplicationController
       dashboard_path
     end
   end
+
 end

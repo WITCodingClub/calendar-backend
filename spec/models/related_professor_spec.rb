@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: related_professors
@@ -24,8 +26,8 @@
 #  fk_rails_...  (faculty_id => faculties.id)
 #  fk_rails_...  (related_faculty_id => faculties.id)
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe RelatedProfessor, type: :model do
+RSpec.describe RelatedProfessor do
   pending "add some examples to (or delete) #{__FILE__}"
 end

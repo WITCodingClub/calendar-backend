@@ -1,8 +1,215 @@
-# Omakase Ruby styling for Rails
-inherit_gem: { rubocop-rails-omakase: rubocop.yml }
+AllCops:
+  NewCops: enable
+  Exclude:
+    - 'db/**/*'
+    - 'lib/tasks/**/*'
+    - 'vendor/**/*'
 
-# Overwrite or add rules to create your own house style
-#
-# # Use `[a, [b, c]]` not `[ a, [ b, c ] ]`
-# Layout/SpaceInsideArrayLiteralBrackets:
-#   Enabled: false
+# The "offical" rubocop style guide is indeed quite strict. So intead, we use
+# the Relaxed Ruby Style guide. https://relaxed.ruby.style/
+
+inherit_gem:
+  relaxed-rubocop: .rubocop.yml
+
+plugins:
+  - rubocop-rails
+  - rubocop-factory_bot
+  - rubocop-capybara
+  - rubocop-rspec
+  - rubocop-rspec_rails
+
+Style/FrozenStringLiteralComment:
+  Enabled: true
+  EnforcedStyle: always_true
+
+Style/RedundantSelf:
+  Enabled: false
+
+Style/RescueStandardError:
+  EnforcedStyle: implicit
+
+Lint/UselessAssignment:
+  Enabled: false
+
+Layout/EmptyLinesAroundClassBody:
+  EnforcedStyle: ending_only
+
+Layout/EmptyLinesAroundBlockBody:
+  Enabled: false
+
+Style/AndOr:
+  EnforcedStyle: conditionals
+
+Style/RedundantReturn:
+  Enabled: false
+
+Style/StringLiteralsInInterpolation:
+  Enabled: false
+
+Style/StringLiterals:
+  Enabled: true
+  EnforcedStyle: double_quotes
+
+Layout/HashAlignment:
+  EnforcedHashRocketStyle: table
+
+Style/NumericLiterals:
+  Enabled: false
+
+Style/SymbolProc:
+  Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Style/EmptyMethod:
+  Enabled: false
+
+Style/RedundantBegin:
+  Enabled: false
+
+Style/ZeroLengthPredicate:
+  Enabled: false
+
+Layout/EmptyLines:
+  Enabled: false
+
+Style/RaiseArgs:
+  Enabled: false
+
+Naming/PredicatePrefix:
+  Enabled: false
+
+Style/ConditionalAssignment:
+  Enabled: false
+
+Lint/UnusedMethodArgument:
+  Enabled: false
+
+Style/EmptyElse:
+  Enabled: false
+
+Layout/EmptyLineBetweenDefs:
+  NumberOfEmptyLines: [1, 2, 3, 4, 5]
+
+Style/CommentedKeyword:
+  Enabled: false
+
+Lint/SuppressedException:
+  Enabled: false
+
+Lint/UnusedBlockArgument:
+  Enabled: false
+
+Layout/EmptyLinesAroundMethodBody:
+  Enabled: false
+
+Layout/EmptyLinesAroundModuleBody:
+  Enabled: false
+
+Lint/UselessAccessModifier:
+  Enabled: false
+
+Style/ParenthesesAroundCondition:
+  Enabled: false
+
+Layout/EmptyLinesAroundExceptionHandlingKeywords:
+  Enabled: false
+
+Layout/MultilineHashBraceLayout:
+  EnforcedStyle: new_line
+
+Style/RescueModifier:
+  Enabled: false
+
+Layout/SpaceInsideStringInterpolation:
+  Enabled: false
+
+Naming/RescuedExceptionsVariableName:
+  Enabled: false
+
+Style/Encoding:
+  Enabled: false
+
+Style/IfInsideElse:
+  Enabled: false
+
+Style/MixinUsage:
+  Enabled: false
+
+Style/TrivialAccessors:
+  Enabled: false
+
+Style/RegexpLiteral:
+  EnforcedStyle: mixed
+  AllowInnerSlashes: true
+
+Layout/DotPosition:
+  Enabled: true
+
+Bundler/OrderedGems:
+  Enabled: false
+
+Naming/AccessorMethodName:
+  Enabled: false
+
+Style/HashLikeCase:
+  Enabled: false
+
+Style/FormatStringToken:
+  EnforcedStyle: template
+
+Style/ClassAndModuleChildren:
+  Exclude:
+    - 'config/**/*.rb'
+    - 'app/models/ahoy/{event,visit}.rb'
+
+Rails/UnknownEnv:
+  Environments:
+    - production
+    - development
+    - test
+    - staging
+
+Rails/RequestReferer:
+  EnforcedStyle: referrer
+
+Rails/HasAndBelongsToMany:
+  Enabled: false
+
+Rails/Validation:
+  Enabled: false
+
+Rails/UniqueValidationWithoutIndex:
+  Enabled: false
+
+# RSpec configuration
+RSpec/DescribeClass:
+  Exclude:
+    - 'spec/config/**/*'
+
+RSpec/ExampleLength:
+  Max: 10
+
+RSpec/MultipleExpectations:
+  Max: 3
+
+RSpec/AnyInstance:
+  Enabled: false
+
+RSpec/LetSetup:
+  Enabled: false
+
+# Rails cops for specs
+Rails/SkipsModelValidations:
+  Exclude:
+    - 'spec/**/*'
+    - 'tmp/migrated/**/*'
+
+Rails/I18nLocaleTexts:
+  Enabled: false
+
+# Allow empty factory blocks
+Lint/EmptyBlock:
+  Exclude:
+    - 'spec/factories/**/*'

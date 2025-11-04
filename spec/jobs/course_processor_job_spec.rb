@@ -1,13 +1,15 @@
-require 'rails_helper'
+# frozen_string_literal: true
 
-RSpec.describe CourseProcessorJob, type: :job do
-  describe 'queue assignment' do
-    it 'is assigned to the high queue' do
-      expect(described_class.new.queue_name).to eq('high')
+require "rails_helper"
+
+RSpec.describe CourseProcessorJob do
+  describe "queue assignment" do
+    it "is assigned to the high queue" do
+      expect(described_class.new.queue_name).to eq("high")
     end
   end
 
-  describe '#perform' do
+  describe "#perform" do
     let(:user) { create(:user) }
     let(:courses) do
       [
@@ -21,7 +23,7 @@ RSpec.describe CourseProcessorJob, type: :job do
       ]
     end
 
-    it 'calls CourseProcessorService with the correct arguments' do
+    it "calls CourseProcessorService with the correct arguments" do
       service_double = instance_double(CourseProcessorService)
       allow(CourseProcessorService).to receive(:new).with(courses, user).and_return(service_double)
       allow(service_double).to receive(:call)
@@ -32,7 +34,7 @@ RSpec.describe CourseProcessorJob, type: :job do
       expect(service_double).to have_received(:call)
     end
 
-    it 'finds the user by id' do
+    it "finds the user by id" do
       allow(User).to receive(:find).and_call_original
       allow_any_instance_of(CourseProcessorService).to receive(:call)
 
