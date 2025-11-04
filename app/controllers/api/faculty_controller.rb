@@ -3,6 +3,7 @@
 module Api
   class FacultyController < ApplicationController
     include JsonWebTokenAuthenticatable
+    include FeatureFlagGated
 
     skip_before_action :verify_authenticity_token
 

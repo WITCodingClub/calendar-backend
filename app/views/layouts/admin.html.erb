@@ -247,7 +247,11 @@
             </li>
             <li class="admin-nav-item">
               <%= link_to "Users", admin_users_path,
-                  class: "admin-nav-link #{request.path.start_with?('/admin/users') ? 'active' : ''}" %>
+                  class: "admin-nav-link #{request.path.start_with?('/admin/users') && !request.path.start_with?('/admin/beta_testers') ? 'active' : ''}" %>
+            </li>
+            <li class="admin-nav-item">
+              <%= link_to "Beta Testers", admin_beta_testers_path,
+                  class: "admin-nav-link #{request.path.start_with?('/admin/beta_testers') ? 'active' : ''}" %>
             </li>
             <% if current_user.owner? %>
               <li class="admin-nav-item">

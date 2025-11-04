@@ -10,6 +10,9 @@
 #                       rails_health_check GET    /up(.:format)                                                                                     rails/health#show
 #                         api_user_onboard POST   /api/user/onboard(.:format)                                                                       api/users#onboard
 #                            api_user_gcal POST   /api/user/gcal(.:format)                                                                          api/users#request_g_cal
+#                  api_user_gcal_add_email POST   /api/user/gcal/add_email(.:format)                                                                api/users#add_email_to_g_cal
+#               api_user_gcal_remove_email DELETE /api/user/gcal/remove_email(.:format)                                                             api/users#remove_email_from_g_cal
+#                       api_faculty_by_rmp GET    /api/faculty/by_rmp(.:format)                                                                     api/faculty#get_info_by_rmp_id
 #                      api_process_courses POST   /api/process_courses(.:format)                                                                    api/courses#process_courses
 #                                 calendar GET    /calendar/:calendar_token(.:format)                                                               calendars#show {format: :ics}
 #              auth_google_oauth2_callback GET    /auth/google_oauth2/callback(.:format)                                                            auth#google
@@ -25,6 +28,10 @@
 #                                          DELETE /admin/users/:id(.:format)                                                                        admin/users#destroy
 #                          admin_calendars GET    /admin/calendars(.:format)                                                                        admin/calendars#index
 #                           admin_calendar DELETE /admin/calendars/:id(.:format)                                                                    admin/calendars#destroy
+#                       admin_beta_testers GET    /admin/beta_testers(.:format)                                                                     admin/beta_testers#index
+#                                          POST   /admin/beta_testers(.:format)                                                                     admin/beta_testers#create
+#                    new_admin_beta_tester GET    /admin/beta_testers/new(.:format)                                                                 admin/beta_testers#new
+#                        admin_beta_tester DELETE /admin/beta_testers/:id(.:format)                                                                 admin/beta_testers#destroy
 #              admin_service_account_index GET    /admin/service_account(.:format)                                                                  admin/service_account#index
 #          admin_service_account_authorize GET    /admin/service_account/authorize(.:format)                                                        admin/service_account#authorize
 #           admin_service_account_callback GET    /admin/service_account/callback(.:format)                                                         admin/service_account#callback
@@ -234,6 +241,7 @@ Rails.application.routes.draw do
       root to: "application#index"
       resources :users, only: [:index, :show, :edit, :update, :destroy]
       resources :calendars, only: [:index, :destroy]
+      resources :beta_testers, only: [:index, :new, :create, :destroy]
 
       # Service account OAuth management (owner only)
       get "service_account", to: "service_account#index", as: :service_account_index
