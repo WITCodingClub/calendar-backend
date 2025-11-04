@@ -43,10 +43,18 @@ module Api
       email_record.g_cal = true
       email_record.save!
 
+      # Check if user has completed OAuth for at least one email
+      if current_user.google_credential.nil?
+        render json: {
+          error: "You must complete Google OAuth for at least one email before adding calendar access. Please use the /api/user/gcal endpoint first."
+        }, status: :unprocessable_entity
+        return
+      end
+
       # trigger function to ensure calendar is shared with that email synchronously
       service = GoogleCalendarService.new(current_user)
       calendar_id = service.create_or_get_course_calendar
-      service.share_calendar_with_email(calendar_id, email.id)
+      service.share_calendar_with_email(calendar_id, email)
 
       # Trigger calendar sync to update the newly shared calendar
       GoogleCalendarSyncJob.perform_later(current_user)
@@ -75,13 +83,19 @@ module Api
         return
       end
 
+      # Check if user has a calendar to remove access from
+      calendar_id = current_user.google_course_calendar_id
+      if calendar_id.blank?
+        render json: { error: "No Google Calendar found to remove access from" }, status: :not_found
+        return
+      end
+
       # Remove g_cal association
       email_record.g_cal = false
       email_record.save!
 
       service = GoogleCalendarService.new(current_user)
-      calendar_id = current_user.google_course_calendar_id
-      service.unshare_calendar_with_email(calendar_id, email_record.id)
+      service.unshare_calendar_with_email(calendar_id, email)
 
       render json: { message: "Email removed from Google Calendar association" }, status: :ok
     rescue => e
