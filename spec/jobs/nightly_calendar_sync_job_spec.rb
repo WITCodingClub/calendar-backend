@@ -1,6 +1,12 @@
 require 'rails_helper'
 
 RSpec.describe NightlyCalendarSyncJob, type: :job do
+  describe 'queue assignment' do
+    it 'is assigned to the low queue' do
+      expect(described_class.new.queue_name).to eq('low')
+    end
+  end
+
   describe '#perform' do
     let!(:user_with_sync_needed) { create(:user, calendar_needs_sync: true, google_course_calendar_id: 'cal_123') }
     let!(:user_never_synced) { create(:user, last_calendar_sync_at: nil, google_course_calendar_id: 'cal_456') }

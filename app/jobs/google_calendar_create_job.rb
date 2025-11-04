@@ -1,5 +1,5 @@
 class GoogleCalendarCreateJob < ApplicationJob
-  queue_as :default
+  queue_as :high
 
   def perform(user_id)
     user = User.find_by(id: user_id)

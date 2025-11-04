@@ -1,5 +1,5 @@
 class GoogleCalendarSyncJob < ApplicationJob
-  queue_as :default
+  queue_as :high
 
   def perform(user)
     user.sync_course_schedule

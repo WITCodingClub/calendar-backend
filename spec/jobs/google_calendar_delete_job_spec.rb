@@ -1,6 +1,12 @@
 require 'rails_helper'
 
 RSpec.describe GoogleCalendarDeleteJob, type: :job do
+  describe 'queue assignment' do
+    it 'is assigned to the high queue' do
+      expect(described_class.new.queue_name).to eq('high')
+    end
+  end
+
   describe '#perform' do
     let(:calendar_id) { 'test_calendar_id@group.calendar.google.com' }
 
