@@ -8,7 +8,7 @@ The application uses Solid Queue as the Active Job backend with multiple priorit
 
 The application uses three priority queues configured in `config/queue.yml`:
 
-### 1. High Priority Queue (`high_priority`)
+### 1. High Priority Queue (`high`)
 - **Threads:** 3
 - **Polling Interval:** 0.1 seconds
 - **Purpose:** User-facing operations that should complete as quickly as possible
@@ -24,7 +24,7 @@ The application uses three priority queues configured in `config/queue.yml`:
 - **Purpose:** Standard priority jobs that don't require immediate processing
 - **Jobs:** Currently reserved for future use
 
-### 3. Low Priority Queue (`low_priority`)
+### 3. Low Priority Queue (`low`)
 - **Threads:** 1
 - **Polling Interval:** 1 second
 - **Purpose:** Background batch operations and scheduled tasks
@@ -52,17 +52,17 @@ When creating a new job, specify the appropriate queue based on its characterist
 
 ```ruby
 class MyJob < ApplicationJob
-  queue_as :high_priority  # For user-facing operations
+  queue_as :high  # For user-facing operations
   # or
   queue_as :default        # For standard operations
   # or
-  queue_as :low_priority   # For background/batch operations
+  queue_as :low   # For background/batch operations
 end
 ```
 
 ### Guidelines for Queue Selection
 
-Choose **high_priority** if:
+Choose **high** if:
 - The job is triggered by a user action
 - The user is waiting for the job to complete
 - Fast response time is critical to user experience
@@ -71,7 +71,7 @@ Choose **default** if:
 - The job doesn't fit high or low priority criteria
 - Response time is important but not critical
 
-Choose **low_priority** if:
+Choose **low** if:
 - The job is a scheduled/recurring task
 - The job processes data in batches
 - The job can run during off-peak hours
@@ -84,7 +84,7 @@ Recurring jobs configured in `config/recurring.yml` should explicitly specify th
 ```yaml
 my_nightly_job:
   class: MyNightlyJob
-  queue: low_priority  # Explicitly assign to low_priority
+  queue: low  # Explicitly assign to low
   schedule: every day at 3am
 ```
 
@@ -100,7 +100,7 @@ Monitor queue health and job performance through:
 
 ```ruby
 # Check jobs by queue
-SolidQueue::Job.where(queue_name: 'high_priority')
+SolidQueue::Job.where(queue_name: 'high')
 
 # Check pending jobs
 SolidQueue::Job.where(finished_at: nil)
@@ -129,7 +129,7 @@ To handle higher load:
 
 2. **Adjust thread counts in queue.yml:**
    ```yaml
-   - queues: high_priority
+   - queues: high
      threads: 5  # Increase from 3
    ```
 
@@ -143,8 +143,8 @@ All job specs include queue assignment tests:
 
 ```ruby
 describe 'queue assignment' do
-  it 'is assigned to the high_priority queue' do
-    expect(described_class.new.queue_name).to eq('high_priority')
+  it 'is assigned to the high queue' do
+    expect(described_class.new.queue_name).to eq('high')
   end
 end
 ```
@@ -189,7 +189,7 @@ If a queue has too many pending jobs:
 1. Increase job timeout in the job class:
    ```ruby
    class MyJob < ApplicationJob
-     queue_as :low_priority
+     queue_as :low
      
      # Set custom timeout (default is 600 seconds)
      retry_on Timeout::Error, wait: 5.seconds, attempts: 3

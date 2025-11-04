@@ -4,7 +4,7 @@ default: &default
       batch_size: 500
   workers:
     # High priority worker for user-facing operations
-    - queues: high_priority
+    - queues: high
       threads: 3
       processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
       polling_interval: 0.1
@@ -14,7 +14,7 @@ default: &default
       processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
       polling_interval: 0.5
     # Low priority worker for background jobs
-    - queues: low_priority
+    - queues: low
       threads: 1
       processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
       polling_interval: 1

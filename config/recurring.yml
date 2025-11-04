@@ -29,12 +29,12 @@ blazer_send_failing_checks:
 # Runs every Sunday at 3:00 AM in application timezone (Eastern Time)
 update_faculty_rmp_ratings:
   command: "Faculty.update_all_ratings!"
-  queue: low_priority
+  queue: low
   schedule: every sunday at 3am
 
 nightly_calendar_sync:
   class: NightlyCalendarSyncJob
-  queue: low_priority
+  queue: low
   schedule: every day at 3:30am
 
 production:

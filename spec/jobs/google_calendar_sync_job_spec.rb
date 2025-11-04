@@ -2,8 +2,8 @@ require 'rails_helper'
 
 RSpec.describe GoogleCalendarSyncJob, type: :job do
   describe 'queue assignment' do
-    it 'is assigned to the high_priority queue' do
-      expect(described_class.new.queue_name).to eq('high_priority')
+    it 'is assigned to the high queue' do
+      expect(described_class.new.queue_name).to eq('high')
     end
   end
 

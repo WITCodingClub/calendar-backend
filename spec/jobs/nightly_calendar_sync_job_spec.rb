@@ -2,8 +2,8 @@ require 'rails_helper'
 
 RSpec.describe NightlyCalendarSyncJob, type: :job do
   describe 'queue assignment' do
-    it 'is assigned to the low_priority queue' do
-      expect(described_class.new.queue_name).to eq('low_priority')
+    it 'is assigned to the low queue' do
+      expect(described_class.new.queue_name).to eq('low')
     end
   end
 
