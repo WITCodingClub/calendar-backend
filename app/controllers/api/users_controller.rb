@@ -45,6 +45,10 @@ module Api
       service = GoogleCalendarService.new(current_user)
       calendar_id = service.create_or_get_course_calendar
       service.share_calendar_with_email(calendar_id, email.id)
+
+      # Trigger calendar sync to update the newly shared calendar
+      GoogleCalendarSyncJob.perform_later(current_user)
+
       render json: { message: "Calendar shared with email", calendar_id: calendar_id }, status: :ok
     rescue StandardError => e
       Rails.logger.error("Error adding email to Google Calendar for user #{current_user.id}: #{e.message}")
@@ -104,6 +108,9 @@ module Api
         # Email has credentials, ensure calendar is created and shared
         service = GoogleCalendarService.new(current_user)
         calendar_id = service.create_or_get_course_calendar
+
+        # Trigger calendar sync to populate the calendar with course events
+        GoogleCalendarSyncJob.perform_later(current_user)
 
         render json: {
           message: "Email already connected",
