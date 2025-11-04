@@ -47,7 +47,7 @@ class MeetingTimesIngestService < ApplicationService
     }
 
     active_days = days_map.select do |day_name, day_num|
-      to_bool(mt[day_name.to_s] || mt[day_name])
+      to_boolean(mt[day_name.to_s] || mt[day_name])
     end
 
     # Skip if no days are active
@@ -145,22 +145,22 @@ class MeetingTimesIngestService < ApplicationService
       (h * 100) + m
     when /\A(\d{2})(\d{2})\z/
       # Handle HHMM format like "1000" or "1145" - already in correct format
-      h = Regexp.last_match(1).to_i
-      m = Regexp.last_match(2).to_i
+      hhmm = str.to_i
+      h = hhmm / 100
+      m = hhmm % 100
       return nil if h > 23 || m > 59
 
-      (h * 100) + m
+      hhmm
     else
       nil
     end
   end
 
   # Banner often uses true/Y/1
-  def to_bool(val)
+  def to_boolean(val) # rubocop:disable Naming/PredicateMethod
     case val
-    when true, "true", "TRUE" then true
-    when "Y", "y"             then true
-    when 1, "1"               then true
+    when true, "true", "TRUE", "Y", "y", 1, "1"
+      true
     else
       false
     end

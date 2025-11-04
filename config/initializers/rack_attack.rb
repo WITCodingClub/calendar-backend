@@ -15,14 +15,16 @@ class Rack::Attack
   # Throttle login attempts by email
   throttle("logins/email", limit: 5, period: 20.seconds) do |req|
     if req.path == "/users/sign_in" && req.post?
-      req.params["user"]&.dig("email")&.to_s&.downcase&.gsub(/\\s+/, "")
+      email = req.params["user"]&.dig("email")
+      email.to_s.downcase.gsub(/\\s+/, "") if email.present?
     end
   end
 
   # Throttle password reset attempts
   throttle("password_resets/email", limit: 3, period: 20.minutes) do |req|
     if req.path == "/users/password" && req.post?
-      req.params["user"]&.dig("email")&.to_s&.downcase&.gsub(/\\s+/, "")
+      email = req.params["user"]&.dig("email")
+      email.to_s.downcase.gsub(/\\s+/, "") if email.present?
     end
   end
 

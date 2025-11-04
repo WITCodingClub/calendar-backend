@@ -38,13 +38,10 @@ class Faculty < ApplicationRecord
   end
 
   def u_name
-    def fwd
-      "#{first_name[0]}. #{last_name}"
-    end
-
-    def rev
-      "#{last_name}, #{first_name[0]}."
-    end
+    {
+      fwd: "#{first_name[0]}. #{last_name}",
+      rev: "#{last_name}, #{first_name[0]}."
+    }
   end
 
   # Get RMP aggregate stats (from rating_distribution table)

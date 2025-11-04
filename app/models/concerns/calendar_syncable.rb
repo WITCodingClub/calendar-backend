@@ -15,6 +15,7 @@ module CalendarSyncable
     # Only mark if the user has a Google Calendar set up
     return if user&.google_course_calendar_id.blank?
 
-    user.update_column(:calendar_needs_sync, true)
+    # Using update_column to avoid triggering validations and callbacks in an after_save hook
+    user.update_column(:calendar_needs_sync, true) # rubocop:disable Rails/SkipsModelValidations
   end
 end

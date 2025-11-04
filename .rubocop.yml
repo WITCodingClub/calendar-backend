@@ -182,3 +182,34 @@ Rails/Validation:
 
 Rails/UniqueValidationWithoutIndex:
   Enabled: false
+
+# RSpec configuration
+RSpec/DescribeClass:
+  Exclude:
+    - 'spec/config/**/*'
+
+RSpec/ExampleLength:
+  Max: 10
+
+RSpec/MultipleExpectations:
+  Max: 3
+
+RSpec/AnyInstance:
+  Enabled: false
+
+RSpec/LetSetup:
+  Enabled: false
+
+# Rails cops for specs
+Rails/SkipsModelValidations:
+  Exclude:
+    - 'spec/**/*'
+    - 'tmp/migrated/**/*'
+
+Rails/I18nLocaleTexts:
+  Enabled: false
+
+# Allow empty factory blocks
+Lint/EmptyBlock:
+  Exclude:
+    - 'spec/factories/**/*'
