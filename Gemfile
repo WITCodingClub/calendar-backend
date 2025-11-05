@@ -129,3 +129,5 @@ gem "googleauth", "~> 1.15", ">= 1.15.1"
 
 gem "omniauth", "~> 2.1", ">= 2.1.4"
 gem "omniauth-google-oauth2", "~> 1.2", ">= 1.2.1"
+
+gem 'log_bench'
