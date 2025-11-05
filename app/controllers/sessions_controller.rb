@@ -20,15 +20,10 @@ class SessionsController < ApplicationController
   def redirect_if_authenticated
     return unless user_signed_in?
 
-    redirect_to after_sign_in_path
-
-  end
-
-  def after_sign_in_path
     if current_user.admin_access?
-      admin_root_path
+      redirect_to admin_root_path
     else
-      dashboard_path
+      redirect_to unauthorized_path
     end
   end
 
