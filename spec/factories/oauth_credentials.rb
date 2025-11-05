@@ -32,6 +32,7 @@ FactoryBot.define do
     user
     provider { "google" }
     sequence(:uid) { |n| "google_user_#{n}" }
+    sequence(:email) { |n| "user#{n}@example.com" }
     access_token { SecureRandom.hex(32) }
     refresh_token { SecureRandom.hex(32) }
     token_expires_at { 1.hour.from_now }

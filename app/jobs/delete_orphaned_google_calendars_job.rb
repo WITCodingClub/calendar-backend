@@ -9,24 +9,36 @@ class DeleteOrphanedGoogleCalendarsJob < ApplicationJob
     deleted_count = 0
     error_count = 0
 
+    # Find all calendars and check their status
+    all_calendar_ids = GoogleCalendar.pluck(:id)
+    orphaned_calendar_ids = []
+
     # Find calendars with missing oauth credentials
-    orphaned_by_credential = GoogleCalendar.left_joins(:oauth_credential)
+    orphaned_by_credential = GoogleCalendar.left_outer_joins(:oauth_credential)
                                            .where(oauth_credentials: { id: nil })
+                                           .pluck(:id)
+    orphaned_calendar_ids.concat(orphaned_by_credential)
 
     # Find calendars with expired credentials that cannot be refreshed
     orphaned_by_expired_token = GoogleCalendar.joins(:oauth_credential)
                                               .where("oauth_credentials.token_expires_at <= ?", Time.current)
                                               .where(oauth_credentials: { refresh_token: nil })
+                                              .pluck(:id)
+    orphaned_calendar_ids.concat(orphaned_by_expired_token)
 
     # Find calendars whose oauth credential has no user
-    orphaned_by_user = GoogleCalendar.joins(:oauth_credential)
-                                     .left_joins("LEFT JOIN users ON users.id = oauth_credentials.user_id")
-                                     .where(users: { id: nil })
+    orphaned_by_user_sql = <<-SQL
+      SELECT google_calendars.id
+      FROM google_calendars
+      INNER JOIN oauth_credentials ON oauth_credentials.id = google_calendars.oauth_credential_id
+      LEFT OUTER JOIN users ON users.id = oauth_credentials.user_id
+      WHERE users.id IS NULL
+    SQL
+    orphaned_by_user = ActiveRecord::Base.connection.execute(orphaned_by_user_sql).to_a.map { |row| row["id"] }
+    orphaned_calendar_ids.concat(orphaned_by_user)
 
-    # Combine all orphaned calendars
-    orphaned_calendars = (orphaned_by_credential.to_a +
-                          orphaned_by_expired_token.to_a +
-                          orphaned_by_user.to_a).uniq
+    # Get unique calendar objects
+    orphaned_calendars = GoogleCalendar.where(id: orphaned_calendar_ids.uniq)
 
     Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Found #{orphaned_calendars.size} orphaned calendars"
 
