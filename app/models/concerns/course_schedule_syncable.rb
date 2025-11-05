@@ -165,17 +165,16 @@ module CourseScheduleSyncable
 
   # Add a method to handle calendar deletion/cleanup
   def delete_course_calendar
-    return if google_course_calendar_id.blank?
+    google_calendar = google_credential&.google_calendar
+    return if google_calendar.blank?
 
     service = GoogleCalendarService.new(self)
     service_account_service = service.send(:service_account_calendar_service)
 
-    service_account_service.delete_calendar(google_course_calendar_id)
+    service_account_service.delete_calendar(google_calendar.google_calendar_id)
 
-    # Clean up all google_calendar_events for this calendar
-    google_calendar_events.where(calendar_id: google_course_calendar_id).destroy_all
-
-    self.google_course_calendar_id = nil
+    # Destroy the GoogleCalendar record (this will cascade delete all associated events)
+    google_calendar.destroy
   rescue Google::Apis::Error => e
     Rails.logger.error "Failed to delete calendar: #{e.message}"
   end

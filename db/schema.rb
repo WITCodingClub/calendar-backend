@@ -224,6 +224,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_234307) do
     t.datetime "created_at", null: false
     t.datetime "end_time"
     t.string "event_data_hash"
+    t.bigint "google_calendar_id"
     t.string "google_event_id", null: false
     t.datetime "last_synced_at"
     t.string "location"
@@ -233,6 +234,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_234307) do
     t.string "summary"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
     t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
     t.index ["meeting_time_id"], name: "index_google_calendar_events_on_meeting_time_id"
     t.index ["user_id", "calendar_id"], name: "index_google_calendar_events_on_user_id_and_calendar_id"

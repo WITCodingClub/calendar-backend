@@ -8,13 +8,21 @@ class GoogleCalendarService
   end
 
   def create_or_get_course_calendar
+    # Get or create the GoogleCalendar database record
+    google_calendar = user.google_credential&.google_calendar
+
     # Create calendar if it doesn't exist
-    if user.google_course_calendar_id.blank?
-      calendar = create_calendar_with_service_account
-      user.update!(google_course_calendar_id: calendar.id)
+    if google_calendar.blank?
+      google_api_calendar = create_calendar_with_service_account
+      google_calendar = user.google_credential.create_google_calendar!(
+        google_calendar_id: google_api_calendar.id,
+        summary: google_api_calendar.summary,
+        description: google_api_calendar.description,
+        time_zone: google_api_calendar.time_zone
+      )
     end
 
-    calendar_id = user.google_course_calendar_id
+    calendar_id = google_calendar.google_calendar_id
 
     # Share calendar with all g_cal emails
     share_calendar_with_user(calendar_id)
@@ -30,10 +38,13 @@ class GoogleCalendarService
 
   def update_calendar_events(events, force: false)
     service = service_account_calendar_service
-    calendar_id = user.google_course_calendar_id
+    google_calendar = user.google_credential&.google_calendar
+    return { created: 0, updated: 0, skipped: 0 } unless google_calendar
+
+    calendar_id = google_calendar.google_calendar_id
 
     # Get existing calendar events from database
-    existing_events = user.google_calendar_events.for_calendar(calendar_id).index_by(&:meeting_time_id)
+    existing_events = google_calendar.google_calendar_events.index_by(&:meeting_time_id)
 
     # Track which meeting times are in the new events list
     current_meeting_time_ids = events.map { |e| e[:meeting_time_id] }.compact
@@ -41,7 +52,7 @@ class GoogleCalendarService
     # Delete events that are no longer needed
     events_to_delete = existing_events.reject { |mt_id, _| current_meeting_time_ids.include?(mt_id) }
     events_to_delete.each do |_, cal_event|
-      delete_event_from_calendar(service, calendar_id, cal_event)
+      delete_event_from_calendar(service, google_calendar, cal_event)
     end
 
     # Stats for logging
@@ -55,7 +66,7 @@ class GoogleCalendarService
       if existing_event
         # Update existing event if needed (or skip if no changes and not forced)
         if force || existing_event.data_changed?(event)
-          update_event_in_calendar(service, calendar_id, existing_event, event, force: force)
+          update_event_in_calendar(service, google_calendar, existing_event, event, force: force)
           stats[:updated] += 1
         else
           existing_event.mark_synced!
@@ -63,7 +74,7 @@ class GoogleCalendarService
         end
       else
         # Create new event
-        create_event_in_calendar(service, calendar_id, event)
+        create_event_in_calendar(service, google_calendar, event)
         stats[:created] += 1
       end
     end
@@ -75,27 +86,27 @@ class GoogleCalendarService
   # Update only specific events (for partial syncs)
   def update_specific_events(events, force: false)
     service = service_account_calendar_service
-    calendar_id = user.google_course_calendar_id
+    google_calendar = user.google_credential&.google_calendar
+    return { created: 0, updated: 0, skipped: 0 } unless google_calendar
 
     stats = { created: 0, updated: 0, skipped: 0 }
 
     events.each do |event|
       meeting_time_id = event[:meeting_time_id]
-      existing_event = user.google_calendar_events.find_by(
-        calendar_id: calendar_id,
+      existing_event = google_calendar.google_calendar_events.find_by(
         meeting_time_id: meeting_time_id
       )
 
       if existing_event
         if force || existing_event.data_changed?(event)
-          update_event_in_calendar(service, calendar_id, existing_event, event, force: force)
+          update_event_in_calendar(service, google_calendar, existing_event, event, force: force)
           stats[:updated] += 1
         else
           existing_event.mark_synced!
           stats[:skipped] += 1
         end
       else
-        create_event_in_calendar(service, calendar_id, event)
+        create_event_in_calendar(service, google_calendar, event)
         stats[:created] += 1
       end
     end
@@ -324,7 +335,9 @@ class GoogleCalendarService
     end
   end
 
-  def create_event_in_calendar(service, calendar_id, course_event)
+  def create_event_in_calendar(service, google_calendar, course_event)
+    calendar_id = google_calendar.google_calendar_id
+
     # Ensure times are in Eastern timezone
     start_time_et = course_event[:start_time].in_time_zone("America/New_York")
     end_time_et = course_event[:end_time].in_time_zone("America/New_York")
@@ -347,9 +360,9 @@ class GoogleCalendarService
     created_event = service.insert_event(calendar_id, event)
 
     # Save the event ID in the database
-    user.google_calendar_events.create!(
+    google_calendar.google_calendar_events.create!(
+      user: user,
       google_event_id: created_event.id,
-      calendar_id: calendar_id,
       meeting_time_id: course_event[:meeting_time_id],
       summary: course_event[:summary],
       location: course_event[:location],
@@ -362,12 +375,14 @@ class GoogleCalendarService
 
   end
 
-  def update_event_in_calendar(service, calendar_id, db_event, course_event, force: false)
+  def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false)
     # Use hash-based change detection for efficiency (unless forced)
     unless force || db_event.data_changed?(course_event)
       db_event.mark_synced!
       return
     end
+
+    calendar_id = google_calendar.google_calendar_id
 
     # Ensure times are in Eastern timezone
     start_time_et = course_event[:start_time].in_time_zone("America/New_York")
@@ -406,13 +421,14 @@ class GoogleCalendarService
     if e.status_code == 404
       Rails.logger.warn "Event not found in Google Calendar, recreating: #{db_event.google_event_id}"
       db_event.destroy
-      create_event_in_calendar(service, calendar_id, course_event)
+      create_event_in_calendar(service, google_calendar, course_event)
     else
       raise
     end
   end
 
-  def delete_event_from_calendar(service, calendar_id, db_event)
+  def delete_event_from_calendar(service, google_calendar, db_event)
+    calendar_id = google_calendar.google_calendar_id
 
     service.delete_event(calendar_id, db_event.google_event_id)
     db_event.destroy
