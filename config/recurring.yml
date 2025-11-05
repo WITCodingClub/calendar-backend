@@ -37,6 +37,11 @@ nightly_calendar_sync:
   queue: low
   schedule: every day at 3:30am
 
+delete_orphaned_google_calendars:
+  class: DeleteOrphanedGoogleCalendarsJob
+  queue: low
+  schedule: every day at 4am
+
 production:
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"

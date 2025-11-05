@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_04_234307) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_05_000759) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -220,11 +220,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_234307) do
   end
 
   create_table "google_calendar_events", force: :cascade do |t|
-    t.string "calendar_id", null: false
     t.datetime "created_at", null: false
     t.datetime "end_time"
     t.string "event_data_hash"
-    t.bigint "google_calendar_id"
+    t.bigint "google_calendar_id", null: false
     t.string "google_event_id", null: false
     t.datetime "last_synced_at"
     t.string "location"
@@ -234,12 +233,25 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_234307) do
     t.string "summary"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["google_calendar_id", "meeting_time_id"], name: "index_google_calendar_events_on_google_calendar_id_and_meeting_"
     t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
     t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
     t.index ["meeting_time_id"], name: "index_google_calendar_events_on_meeting_time_id"
-    t.index ["user_id", "calendar_id"], name: "index_google_calendar_events_on_user_id_and_calendar_id"
     t.index ["user_id", "meeting_time_id"], name: "index_google_calendar_events_on_user_id_and_meeting_time_id", unique: true
     t.index ["user_id"], name: "index_google_calendar_events_on_user_id"
+  end
+
+  create_table "google_calendars", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "google_calendar_id", null: false
+    t.datetime "last_synced_at"
+    t.bigint "oauth_credential_id", null: false
+    t.string "summary"
+    t.string "time_zone"
+    t.datetime "updated_at", null: false
+    t.index ["google_calendar_id"], name: "index_google_calendars_on_google_calendar_id", unique: true
+    t.index ["oauth_credential_id"], name: "index_google_calendars_on_oauth_credential_id"
   end
 
   create_table "lockbox_audits", force: :cascade do |t|
@@ -419,6 +431,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_234307) do
   add_foreign_key "enrollments", "users"
   add_foreign_key "google_calendar_events", "meeting_times"
   add_foreign_key "google_calendar_events", "users"
+  add_foreign_key "google_calendars", "oauth_credentials"
   add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
   add_foreign_key "oauth_credentials", "users"

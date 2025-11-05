@@ -1,0 +1,71 @@
+# frozen_string_literal: true
+
+class DeleteOrphanedGoogleCalendarsJob < ApplicationJob
+  queue_as :low
+
+  def perform
+    Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Starting orphaned calendar cleanup"
+
+    deleted_count = 0
+    error_count = 0
+
+    # Find calendars with missing oauth credentials
+    orphaned_by_credential = GoogleCalendar.left_joins(:oauth_credential)
+                                           .where(oauth_credentials: { id: nil })
+
+    # Find calendars with expired credentials that cannot be refreshed
+    orphaned_by_expired_token = GoogleCalendar.joins(:oauth_credential)
+                                              .where("oauth_credentials.token_expires_at <= ?", Time.current)
+                                              .where(oauth_credentials: { refresh_token: nil })
+
+    # Find calendars whose oauth credential has no user
+    orphaned_by_user = GoogleCalendar.joins(:oauth_credential)
+                                     .left_joins("LEFT JOIN users ON users.id = oauth_credentials.user_id")
+                                     .where(users: { id: nil })
+
+    # Combine all orphaned calendars
+    orphaned_calendars = (orphaned_by_credential.to_a +
+                          orphaned_by_expired_token.to_a +
+                          orphaned_by_user.to_a).uniq
+
+    Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Found #{orphaned_calendars.size} orphaned calendars"
+
+    orphaned_calendars.each do |calendar|
+      begin
+        reason = determine_orphan_reason(calendar)
+        Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Deleting calendar #{calendar.id} " \
+                         "(google_calendar_id: #{calendar.google_calendar_id}) - Reason: #{reason}"
+
+        calendar.destroy!
+        deleted_count += 1
+      rescue => e
+        error_count += 1
+        Rails.logger.error "[DeleteOrphanedGoogleCalendarsJob] Failed to delete calendar #{calendar.id}: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+      end
+    end
+
+    Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Completed: " \
+                     "#{deleted_count} deleted, #{error_count} errors"
+
+    { deleted: deleted_count, errors: error_count }
+  end
+
+  private
+
+  def determine_orphan_reason(calendar)
+    return "Missing OAuth credential" unless calendar.oauth_credential.present?
+
+    credential = calendar.oauth_credential
+
+    return "Missing user" unless credential.user_id.present? && User.exists?(credential.user_id)
+
+    if credential.token_expires_at.present? &&
+       credential.token_expires_at <= Time.current &&
+       credential.refresh_token.blank?
+      return "Expired token without refresh capability"
+    end
+
+    "Unknown reason"
+  end
+end
