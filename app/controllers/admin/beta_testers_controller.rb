@@ -2,7 +2,7 @@
 
 module Admin
   class BetaTestersController < Admin::ApplicationController
-    FEATURE_FLAG = :"2025_10_04_beta_test"
+    FEATURE_FLAG = Features::V1
 
     def index
       # Get all actors who have the feature enabled

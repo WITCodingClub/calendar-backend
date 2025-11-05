@@ -4,22 +4,20 @@ module FeatureFlagGated
   extend ActiveSupport::Concern
 
   included do
-    # Note: Controllers can override this by using skip_before_action :check_beta_access, only: [:action_name]
+    class_attribute :gated_feature_key, default: :v1
     before_action :check_beta_access
   end
 
   private
 
   def check_beta_access
-    feature_flag = :"2025_10_04_beta_test"
-
-    # Check if feature is globally enabled
-    return if Flipper.enabled?(feature_flag)
-
-    # Check if feature is enabled for the current user
-    if current_user && Flipper.enabled?(feature_flag, current_user)
-      return
+    feature_flag = Features::MAP[gated_feature_key]
+    unless feature_flag
+      render json: { error: "Access denied. Unknown feature." }, status: :forbidden and return
     end
+
+    return if Flipper.enabled?(feature_flag)
+    return if current_user && Flipper.enabled?(feature_flag, current_user)
 
     render json: {
       error: "Access denied. This feature is currently in beta testing.",
