@@ -121,6 +121,18 @@ class GoogleCalendarService
   end
 
   def delete_calendar(calendar_id)
+    # First, get the calendar to access its user
+    google_calendar = GoogleCalendar.find_by(google_calendar_id: calendar_id)
+
+    if google_calendar
+      # Remove calendar from all OAuth'd users' calendar lists (sidebar)
+      calendar_user = google_calendar.user
+      calendar_user.google_credentials.find_each do |credential|
+        remove_calendar_from_user_list_for_email(calendar_id, credential.email)
+      end
+    end
+
+    # Then delete the actual calendar
     service = service_account_calendar_service
     service.delete_calendar(calendar_id)
   end
@@ -293,6 +305,22 @@ class GoogleCalendarService
   rescue Google::Apis::ClientError => e
     # Ignore if already in list
     raise unless e.status_code == 409
+  end
+
+  def remove_calendar_from_user_list_for_email(calendar_id, email)
+    # Need to get the user from the calendar to access their credentials
+    google_calendar = GoogleCalendar.find_by(google_calendar_id: calendar_id)
+    return unless google_calendar
+
+    calendar_user = google_calendar.user
+    credential = calendar_user.google_credential_for_email(email)
+    return unless credential
+
+    service = user_calendar_service_for_credential(credential)
+    service.delete_calendar_list(calendar_id)
+  rescue Google::Apis::ClientError => e
+    # Ignore if not in list (404) or already removed
+    Rails.logger.warn "Failed to remove calendar from user list: #{e.message}" unless e.status_code == 404
   end
 
   def user_calendar_service_for_credential(credential)
