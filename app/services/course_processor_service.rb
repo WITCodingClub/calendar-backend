@@ -97,8 +97,8 @@ class CourseProcessorService < ApplicationService
 
       Enrollment.find_or_create_by!(user: user, course: course, term: term)
 
-      # Reload course to get associated meeting times
-      course.reload
+      # Reload course to get associated meeting times with their associations
+      course = Course.includes(meeting_times: [:building, :room]).find(course.id)
 
       # Collect processed course data
       processed_courses << {
@@ -111,7 +111,7 @@ class CourseProcessorService < ApplicationService
           season: term.season,
           year: term.year
         },
-        meeting_times: course.meeting_times.includes(:building, :room).map do |mt|
+        meeting_times: course.meeting_times.map do |mt|
           {
             begin_time: mt.fmt_begin_time,
             end_time: mt.fmt_end_time,

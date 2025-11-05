@@ -21,6 +21,20 @@ module Admin
     end
 
     def show
+      # Eager load enrollments with their associations for the view
+      @enrollments_by_term = @user.enrollments
+                                  .includes(:course, :term)
+                                  .joins(:term)
+                                  .order("terms.year DESC, terms.season DESC")
+                                  .group_by(&:term)
+
+      # Eager load oauth credentials with calendar and event counts
+      @oauth_credentials = @user.oauth_credentials
+                                .includes(:google_calendar)
+                                .left_joins(google_calendar: :google_calendar_events)
+                                .select("oauth_credentials.*, COUNT(google_calendar_events.id) as events_count")
+                                .group("oauth_credentials.id")
+                                .order(created_at: :desc)
     end
 
     def edit

@@ -93,7 +93,7 @@
 
       <% if @user.enrollments.any? %>
         <div class="space-y-4">
-          <% @user.enrollments.includes(:course, :term).joins(:term).order("terms.year DESC, terms.season DESC").group_by(&:term).each do |term, enrollments| %>
+          <% @enrollments_by_term.each do |term, enrollments| %>
             <div class="mb-6">
               <h3 class="text-lg font-semibold mb-3" style="color: #d13732;"><%= term.name %></h3>
               <div class="overflow-x-auto">
@@ -144,10 +144,10 @@
     <div class="px-6 py-5">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold">OAuth Credentials</h2>
-        <span class="text-sm text-gray-600">Total: <%= @user.oauth_credentials.count %></span>
+        <span class="text-sm text-gray-600">Total: <%= @oauth_credentials.size %></span>
       </div>
 
-      <% if @user.oauth_credentials.any? %>
+      <% if @oauth_credentials.any? %>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead style="background: rgba(255, 255, 255, 0.5);">
@@ -161,7 +161,7 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200" style="background: rgba(255, 255, 255, 0.3);">
-              <% @user.oauth_credentials.order(created_at: :desc).each do |credential| %>
+              <% @oauth_credentials.each do |credential| %>
                 <tr>
                   <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                     <%= credential.email %>
@@ -185,7 +185,7 @@
                   <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                     <% if credential.google_calendar %>
                       <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" style="background: rgba(209, 55, 50, 0.1); color: #d13732;">
-                        <%= credential.google_calendar.google_calendar_events.count %> events
+                        <%= credential.events_count %> events
                       </span>
                     <% else %>
                       <span class="text-gray-400">None</span>

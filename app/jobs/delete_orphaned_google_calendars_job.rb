@@ -37,8 +37,9 @@ class DeleteOrphanedGoogleCalendarsJob < ApplicationJob
     orphaned_by_user = ActiveRecord::Base.connection.execute(orphaned_by_user_sql).to_a.map { |row| row["id"] }
     orphaned_calendar_ids.concat(orphaned_by_user)
 
-    # Get unique calendar objects
+    # Get unique calendar objects with eager loaded associations
     orphaned_calendars = GoogleCalendar.where(id: orphaned_calendar_ids.uniq)
+                                       .includes(:oauth_credential)
 
     Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Found #{orphaned_calendars.size} orphaned calendars"
 
