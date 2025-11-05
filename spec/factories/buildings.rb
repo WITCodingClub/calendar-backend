@@ -18,6 +18,7 @@
 #
 FactoryBot.define do
   factory :building do
-
+    sequence(:name) { |n| "Building #{n}" }
+    sequence(:abbreviation) { |n| "B#{n}" }
   end
 end

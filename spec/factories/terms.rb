@@ -19,6 +19,8 @@
 #
 FactoryBot.define do
   factory :term do
-
+    sequence(:uid) { |n| 202500 + n }
+    year { 2025 }
+    season { :spring }
   end
 end

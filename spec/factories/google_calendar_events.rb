@@ -34,14 +34,30 @@
 #
 FactoryBot.define do
   factory :google_calendar_event do
-    user { nil }
+    user
+    google_calendar
     meeting_time { nil }
-    google_event_id { "MyString" }
-    calendar_id { "MyString" }
-    summary { "MyString" }
-    location { "MyString" }
-    start_time { "2025-11-04 18:34:25" }
-    end_time { "2025-11-04 18:34:25" }
-    recurrence { "MyText" }
+    sequence(:google_event_id) { |n| "event_#{n}_#{SecureRandom.hex(8)}" }
+    summary { "Course Title" }
+    location { "Building - Room 101" }
+    start_time { Time.zone.parse("2025-01-15 09:00:00") }
+    end_time { Time.zone.parse("2025-01-15 10:30:00") }
+    recurrence { ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"] }
+    event_data_hash { GoogleCalendarEvent.generate_data_hash({
+      summary: summary,
+      location: location,
+      start_time: start_time,
+      end_time: end_time,
+      recurrence: recurrence
+    }) }
+    last_synced_at { 1.hour.ago }
+    
+    trait :never_synced do
+      last_synced_at { nil }
+    end
+    
+    trait :stale do
+      last_synced_at { 2.hours.ago }
+    end
   end
 end
