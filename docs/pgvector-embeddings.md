@@ -1,11 +1,12 @@
-# pgvector Embeddings for RateMyProfessor
+# pgvector Embeddings
 
 ## Overview
 
-This project uses pgvector to store and search semantic embeddings of RateMyProfessor reviews. This enables:
+This project uses pgvector to store and search semantic embeddings for various entities. This enables:
 
-- **Semantic search**: Find reviews by meaning, not just keywords
+- **Semantic search**: Find content by meaning, not just keywords
 - **Similar professors**: Discover faculty with similar teaching styles
+- **Course discovery**: Find courses based on semantic similarity
 - **Teaching profile matching**: Match professors based on student feedback themes
 
 ## Database Schema
@@ -18,7 +19,12 @@ This project uses pgvector to store and search semantic embeddings of RateMyProf
 ### Faculty Embeddings
 - **Column**: `faculties.embedding` (vector, 1536 dimensions)
 - **Purpose**: Aggregated embedding representing overall teaching profile
-- **Index**: Will be added after embeddings are generated
+- **Index**: HNSW index for fast cosine similarity search
+
+### Course Embeddings
+- **Column**: `courses.embedding` (vector, 1536 dimensions)
+- **Purpose**: Semantic representation of course title, subject, and type
+- **Index**: HNSW index for fast cosine similarity search
 
 ## Model Methods
 
@@ -46,6 +52,27 @@ Faculty.semantic_search(query_embedding, limit: 10)
 
 # Scope for faculty with embeddings
 Faculty.with_embeddings
+```
+
+### Course
+
+```ruby
+# Get the text representation used for embedding
+course.embedding_text
+# => "Web Development CS lecture"
+
+# Get human-readable schedule type description
+course.schedule_type_description
+# => "lecture"
+
+# Find similar courses based on content/subject
+course.similar_courses(limit: 10, distance: "cosine")
+
+# Semantic search across all courses
+Course.semantic_search(query_embedding, limit: 10)
+
+# Scope for courses with embeddings
+Course.with_embeddings
 ```
 
 ## Distance Metrics
@@ -96,10 +123,18 @@ class GenerateFacultyEmbeddingJob < ApplicationJob
 end
 ```
 
-3. Add the index to faculties after embeddings are generated:
+3. Create a job to generate course embeddings:
 ```ruby
-# In a migration
-add_index :faculties, :embedding, using: :hnsw, opclass: :vector_cosine_ops, algorithm: :concurrently
+class GenerateCourseEmbeddingJob < ApplicationJob
+  def perform(course_id)
+    course = Course.find(course_id)
+    text = course.embedding_text
+    return if text.blank?
+
+    embedding = EmbeddingService.generate(text)
+    course.update(embedding: embedding)
+  end
+end
 ```
 
 ## Docker Setup
@@ -146,6 +181,23 @@ results = Faculty.semantic_search(query_embedding, limit: 10)
 ```ruby
 # Find reviews similar to this one, but from other professors
 rating.similar_comments_other_faculties(limit: 10)
+```
+
+### 5. Course Discovery & Recommendations
+```ruby
+# Find similar courses
+course = Course.find(123)
+similar = course.similar_courses(limit: 5)
+
+# Semantic search for courses
+query = "web development programming"
+query_embedding = EmbeddingService.generate(query)
+results = Course.semantic_search(query_embedding, limit: 10)
+
+# Recommend courses based on student interests
+student_interests = "data science and machine learning"
+interest_embedding = EmbeddingService.generate(student_interests)
+recommended = Course.semantic_search(interest_embedding, limit: 10)
 ```
 
 ## Performance Considerations

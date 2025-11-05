@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_05_200250) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_05_202447) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -148,6 +148,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_200250) do
     t.datetime "created_at", null: false
     t.integer "credit_hours"
     t.integer "crn"
+    t.vector "embedding", limit: 1536
     t.date "end_date"
     t.string "grade_mode"
     t.string "schedule_type", null: false
@@ -158,6 +159,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_200250) do
     t.string "title"
     t.datetime "updated_at", null: false
     t.index ["crn"], name: "index_courses_on_crn", unique: true
+    t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["term_id"], name: "index_courses_on_term_id"
   end
 
@@ -191,9 +193,20 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_200250) do
     t.index ["user_id"], name: "index_enrollments_on_user_id"
   end
 
-# Could not dump table "faculties" because of following StandardError
-#   Unknown type 'vector' for column 'embedding'
-
+  create_table "faculties", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.vector "embedding"
+    t.string "first_name", null: false
+    t.string "last_name", null: false
+    t.string "rmp_id"
+    t.jsonb "rmp_raw_data", default: {}
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_faculties_on_email", unique: true
+    t.index ["embedding"], name: "index_faculties_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
+    t.index ["rmp_id"], name: "index_faculties_on_rmp_id", unique: true
+    t.index ["rmp_raw_data"], name: "index_faculties_on_rmp_raw_data", using: :gin
+  end
 
   create_table "flipper_features", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -342,9 +355,30 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_200250) do
     t.index ["related_faculty_id"], name: "index_related_professors_on_related_faculty_id"
   end
 
-# Could not dump table "rmp_ratings" because of following StandardError
-#   Unknown type 'vector' for column 'embedding'
-
+  create_table "rmp_ratings", force: :cascade do |t|
+    t.string "attendance_mandatory"
+    t.integer "clarity_rating"
+    t.text "comment"
+    t.string "course_name"
+    t.datetime "created_at", null: false
+    t.integer "difficulty_rating"
+    t.vector "embedding"
+    t.bigint "faculty_id", null: false
+    t.string "grade"
+    t.integer "helpful_rating"
+    t.boolean "is_for_credit"
+    t.boolean "is_for_online_class"
+    t.datetime "rating_date"
+    t.text "rating_tags"
+    t.string "rmp_id", null: false
+    t.integer "thumbs_down_total", default: 0
+    t.integer "thumbs_up_total", default: 0
+    t.datetime "updated_at", null: false
+    t.boolean "would_take_again"
+    t.index ["embedding"], name: "index_rmp_ratings_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
+    t.index ["faculty_id"], name: "index_rmp_ratings_on_faculty_id"
+    t.index ["rmp_id"], name: "index_rmp_ratings_on_rmp_id", unique: true
+  end
 
   create_table "rooms", force: :cascade do |t|
     t.bigint "building_id", null: false

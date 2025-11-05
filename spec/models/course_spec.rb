@@ -9,6 +9,7 @@
 #  course_number  :integer
 #  credit_hours   :integer
 #  crn            :integer
+#  embedding      :vector(1536)
 #  end_date       :date
 #  grade_mode     :string
 #  schedule_type  :string           not null
@@ -22,8 +23,9 @@
 #
 # Indexes
 #
-#  index_courses_on_crn      (crn) UNIQUE
-#  index_courses_on_term_id  (term_id)
+#  index_courses_on_crn        (crn) UNIQUE
+#  index_courses_on_embedding  (embedding) USING hnsw
+#  index_courses_on_term_id    (term_id)
 #
 # Foreign Keys
 #
@@ -71,6 +73,78 @@ RSpec.describe Course do
         expect {
           course.destroy
         }.to change { user.reload.calendar_needs_sync }.from(false).to(true)
+      end
+    end
+  end
+
+  describe "embeddings" do
+    let(:term) { create(:term) }
+    let(:course) { create(:course, term: term, title: "Web Development", subject: "CS", schedule_type: :lecture) }
+
+    describe "#embedding_text" do
+      it "combines title, subject, and schedule type description" do
+        expect(course.embedding_text).to eq("Web Development CS lecture")
+      end
+
+      it "handles missing optional fields" do
+        course.subject = nil
+        expect(course.embedding_text).to eq("Web Development lecture")
+      end
+    end
+
+    describe "#schedule_type_description" do
+      it "returns human-readable description for lecture" do
+        course.schedule_type = :lecture
+        expect(course.schedule_type_description).to eq("lecture")
+      end
+
+      it "returns human-readable description for hybrid" do
+        course.schedule_type = :hybrid
+        expect(course.schedule_type_description).to eq("hybrid in-person and online")
+      end
+
+      it "returns nil when schedule_type is not set" do
+        course.schedule_type = nil
+        expect(course.schedule_type_description).to be_nil
+      end
+    end
+
+    describe "#similar_courses" do
+      it "returns empty relation when embedding is nil" do
+        expect(course.similar_courses).to eq(Course.none)
+      end
+
+      it "finds similar courses when embedding is present" do
+        # Create sample embedding vectors
+        embedding1 = Array.new(1536) { rand }
+        embedding2 = Array.new(1536) { rand }
+
+        course.update!(embedding: embedding1)
+        similar_course = create(:course, term: term, title: "Advanced Web Development", embedding: embedding2)
+
+        # Should return a relation (actual similarity depends on vector values)
+        expect(course.similar_courses).to be_a(ActiveRecord::Relation)
+        expect(course.similar_courses).not_to include(course)
+      end
+    end
+
+    describe ".semantic_search" do
+      it "performs nearest neighbor search with given embedding" do
+        query_embedding = Array.new(1536) { rand }
+        course.update!(embedding: Array.new(1536) { rand })
+
+        results = Course.semantic_search(query_embedding, limit: 5)
+        expect(results).to be_a(ActiveRecord::Relation)
+      end
+    end
+
+    describe ".with_embeddings scope" do
+      it "returns only courses with embeddings" do
+        course_with_embedding = create(:course, term: term, embedding: Array.new(1536) { rand })
+        course_without_embedding = create(:course, term: term)
+
+        expect(Course.with_embeddings).to include(course_with_embedding)
+        expect(Course.with_embeddings).not_to include(course_without_embedding)
       end
     end
   end
