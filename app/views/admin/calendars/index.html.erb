@@ -1,22 +1,54 @@
-<h1>Google Calendars</h1>
+<div class="container mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold mb-6">Google Calendars</h1>
 
-<table>
-  <thead>
-    <tr>
-      <th>Summary</th>
-      <th>ID</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @calendars.each do |calendar| %>
-      <tr>
-        <td><%= calendar.summary %></td>
-        <td><%= calendar.id %></td>
-        <td>
-                              <%= link_to "Delete", admin_calendar_path(URI.encode_www_form_component(calendar.id)), data: { turbo_method: :delete, turbo_confirm: "Are you sure you want to delete this calendar?" } %>
-        </td>
-      </tr>
-    <% end %>
-  </tbody>
-</table>
+  <div class="bg-white shadow-md rounded-lg overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Summary</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calendar ID</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% @calendars.each do |calendar| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm font-medium text-gray-900"><%= calendar[:summary] %></div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-500 font-mono" title="<%= calendar[:google_calendar_id] %>">
+                <%= calendar[:google_calendar_id].first(8) %>...<%= calendar[:google_calendar_id].last(8) %>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <% if calendar[:user] %>
+                <div class="text-sm text-gray-900"><%= calendar[:user].email %></div>
+                <div class="text-xs text-gray-500"><%= calendar[:user_email] %></div>
+              <% else %>
+                <div class="text-sm text-gray-400">No user</div>
+              <% end %>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <% if calendar[:last_updated] %>
+                <div class="text-sm text-gray-900"><%= time_ago_in_words(calendar[:last_updated]) %> ago</div>
+                <div class="text-xs text-gray-500"><%= calendar[:last_updated].strftime("%Y-%m-%d %H:%M") %></div>
+              <% else %>
+                <div class="text-sm text-gray-400">Never</div>
+              <% end %>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <%= button_to "Delete",
+                  admin_calendar_path(calendar[:id]),
+                  method: :delete,
+                  data: { turbo_confirm: "Are you sure you want to delete this calendar?" },
+                  class: "text-red-600 hover:text-red-900" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

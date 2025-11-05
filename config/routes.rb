@@ -20,6 +20,9 @@
 #                            oauth_failure GET    /oauth/failure(.:format)                                                                          oauth#failure
 #                     admin_oauth_callback GET    /admin/oauth/callback(.:format)                                                                   admin/service_account#callback
 #                               admin_root GET    /admin(.:format)                                                                                  admin/application#index
+#       revoke_oauth_credential_admin_user DELETE /admin/users/:id/oauth_credentials/:credential_id(.:format)                                       admin/users#revoke_oauth_credential
+#                   enable_beta_admin_user POST   /admin/users/:id/enable_beta(.:format)                                                            admin/users#enable_beta
+#                  disable_beta_admin_user DELETE /admin/users/:id/disable_beta(.:format)                                                           admin/users#disable_beta
 #                              admin_users GET    /admin/users(.:format)                                                                            admin/users#index
 #                          edit_admin_user GET    /admin/users/:id/edit(.:format)                                                                   admin/users#edit
 #                               admin_user GET    /admin/users/:id(.:format)                                                                        admin/users#show
@@ -239,7 +242,13 @@ Rails.application.routes.draw do
   constraints AdminConstraint.new do
     namespace :admin do
       root to: "application#index"
-      resources :users, only: [:index, :show, :edit, :update, :destroy]
+      resources :users, only: [:index, :show, :edit, :update, :destroy] do
+        member do
+          delete "oauth_credentials/:credential_id", to: "users#revoke_oauth_credential", as: :revoke_oauth_credential
+          post :enable_beta, to: "users#enable_beta"
+          delete :disable_beta, to: "users#disable_beta"
+        end
+      end
       resources :calendars, only: [:index, :destroy]
       resources :beta_testers, only: [:index, :new, :create, :destroy]
 
