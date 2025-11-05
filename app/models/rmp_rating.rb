@@ -11,6 +11,7 @@
 #  comment              :text
 #  course_name          :string
 #  difficulty_rating    :integer
+#  embedding            :vector
 #  grade                :string
 #  helpful_rating       :integer
 #  is_for_credit        :boolean
@@ -27,6 +28,7 @@
 #
 # Indexes
 #
+#  index_rmp_ratings_on_embedding   (embedding) USING hnsw
 #  index_rmp_ratings_on_faculty_id  (faculty_id)
 #  index_rmp_ratings_on_rmp_id      (rmp_id) UNIQUE
 #
@@ -37,11 +39,14 @@
 class RmpRating < ApplicationRecord
   belongs_to :faculty
 
+  has_neighbors :embedding
+
   validates :rmp_id, presence: true, uniqueness: true
 
   scope :recent, -> { order(rating_date: :desc) }
   scope :positive, -> { where(clarity_rating: 4..) }
   scope :negative, -> { where(clarity_rating: ..2) }
+  scope :with_embeddings, -> { where.not(embedding: nil) }
 
   def overall_sentiment
     return "neutral" if clarity_rating.blank?
@@ -53,6 +58,24 @@ class RmpRating < ApplicationRecord
     else
       "neutral"
     end
+  end
+
+  # Find similar ratings based on comment embeddings
+  def similar_ratings(limit: 10, distance: "cosine")
+    return self.class.none if embedding.nil?
+
+    self.class.nearest_neighbors(:embedding, embedding, distance: distance)
+              .where.not(id: id)
+              .limit(limit)
+  end
+
+  # Find similar comments from other faculties
+  def similar_comments_other_faculties(limit: 10)
+    return self.class.none if embedding.nil?
+
+    self.class.nearest_neighbors(:embedding, embedding, distance: "cosine")
+              .where.not(faculty_id: faculty_id)
+              .limit(limit)
   end
 
 end

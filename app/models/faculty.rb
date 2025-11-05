@@ -7,6 +7,7 @@
 #
 #  id           :bigint           not null, primary key
 #  email        :string           not null
+#  embedding    :vector
 #  first_name   :string           not null
 #  last_name    :string           not null
 #  rmp_raw_data :jsonb
@@ -17,6 +18,7 @@
 # Indexes
 #
 #  index_faculties_on_email         (email) UNIQUE
+#  index_faculties_on_embedding     (embedding) USING hnsw
 #  index_faculties_on_rmp_id        (rmp_id) UNIQUE
 #  index_faculties_on_rmp_raw_data  (rmp_raw_data) USING gin
 #
@@ -27,7 +29,11 @@ class Faculty < ApplicationRecord
   has_one :rating_distribution, dependent: :destroy
   has_many :teacher_rating_tags, dependent: :destroy
 
+  has_neighbors :embedding
+
   validates :rmp_id, uniqueness: true, allow_nil: true
+
+  scope :with_embeddings, -> { where.not(embedding: nil) }
 
   def full_name
     "#{first_name} #{last_name}"
@@ -127,6 +133,22 @@ class Faculty < ApplicationRecord
     find_each do |faculty|
       faculty.update_ratings!
     end
+  end
+
+  # Find faculty with similar teaching profiles based on aggregated embedding
+  def similar_faculty(limit: 10, distance: "cosine")
+    return self.class.none if embedding.nil?
+
+    self.class.nearest_neighbors(:embedding, embedding, distance: distance)
+              .where.not(id: id)
+              .limit(limit)
+  end
+
+  # Search for faculty by semantic query
+  # Requires passing an embedding vector generated from a search query
+  def self.semantic_search(query_embedding, limit: 10, distance: "cosine")
+    nearest_neighbors(:embedding, query_embedding, distance: distance)
+      .limit(limit)
   end
 
   private

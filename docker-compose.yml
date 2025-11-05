@@ -3,7 +3,7 @@
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:0.8.1-pg17
     container_name: wit_calendar_postgres
     environment:
       POSTGRES_USER: postgres

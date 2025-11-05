@@ -349,6 +349,8 @@ GEM
     multi_json (1.17.0)
     multi_xml (0.7.2)
       bigdecimal (~> 3.1)
+    neighbor (0.6.0)
+      activerecord (>= 7.1)
     net-http (0.6.0)
       uri
     net-imap (0.5.12)
@@ -421,6 +423,7 @@ GEM
     pg_search (2.3.7)
       activerecord (>= 6.1)
       activesupport (>= 6.1)
+    pgvector (0.3.2)
     pp (0.6.3)
       prettyprint
     premailer (1.27.0)
@@ -744,12 +747,14 @@ DEPENDENCIES
   log_bench
   mailkick
   mission_control-jobs
+  neighbor
   okcomputer
   omniauth (~> 2.1, >= 2.1.4)
   omniauth-google-oauth2 (~> 1.2, >= 1.2.1)
   paper_trail
   pg (~> 1.6.2)
   pg_search
+  pgvector
   premailer-rails
   propshaft
   puma (>= 5.0)
