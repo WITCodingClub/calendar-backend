@@ -225,7 +225,7 @@ class GoogleCalendarService
           type: "user",
           value: email_record.email
         },
-        role: "reader" # reader access
+        role: "writer" # writer access (can edit events)
       )
 
       service.insert_acl(
@@ -250,7 +250,7 @@ class GoogleCalendarService
         value: email.email
       },
       # role: "reader" # reader access
-      role: "editor" # editor access
+      role: "writer" # writer access (can edit events)
     )
 
     service.insert_acl(
