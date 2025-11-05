@@ -20,10 +20,15 @@ module Api
 
       user = User.find_or_create_by_email(email)
 
+      beta_access = Flipper.enabled?(Features::V1, user)
+
       # return JSON with a jwt token for the user. this token should be signed, and never expire
       token = JsonWebTokenService.encode({ user_id: user.id }, nil) # nil expiration for never expiring
 
-      render json: { jwt: token }, status: :ok
+      render json: {
+        beta_access: beta_access,
+        jwt: token
+      }, status: :ok
     rescue => e
       Rails.logger.error("Error in onboarding user: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
