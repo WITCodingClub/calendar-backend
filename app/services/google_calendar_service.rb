@@ -479,10 +479,20 @@ class GoogleCalendarService
     # If any field differs, the user must have edited it
     summary_changed = gcal_summary != db_event.summary
     location_changed = gcal_location != db_event.location
-    start_time_changed = gcal_start_time && db_event.start_time && 
-                         (gcal_start_time.to_i != db_event.start_time.to_i)
-    end_time_changed = gcal_end_time && db_event.end_time && 
-                       (gcal_end_time.to_i != db_event.end_time.to_i)
+    
+    # Time comparison - handle nil cases properly
+    start_time_changed = if gcal_start_time.nil? || db_event.start_time.nil?
+                          gcal_start_time != db_event.start_time
+                        else
+                          gcal_start_time.to_i != db_event.start_time.to_i
+                        end
+    
+    end_time_changed = if gcal_end_time.nil? || db_event.end_time.nil?
+                        gcal_end_time != db_event.end_time
+                      else
+                        gcal_end_time.to_i != db_event.end_time.to_i
+                      end
+    
     recurrence_changed = normalize_recurrence(gcal_recurrence) != normalize_recurrence(db_event.recurrence)
     
     # If any field changed, user edited the event
@@ -533,10 +543,12 @@ class GoogleCalendarService
     
     if time_obj.date_time
       # Parse datetime string to Time object in Eastern timezone
-      Time.zone.parse(time_obj.date_time.to_s).in_time_zone("America/New_York")
+      # date_time is already a string in ISO 8601 format from Google Calendar API
+      Time.zone.parse(time_obj.date_time).in_time_zone("America/New_York")
     elsif time_obj.date
       # All-day event - not currently supported but handle gracefully
-      Time.zone.parse(time_obj.date.to_s).in_time_zone("America/New_York")
+      # date is already a string in 'YYYY-MM-DD' format from Google Calendar API
+      Time.zone.parse(time_obj.date).in_time_zone("America/New_York")
     end
   end
   

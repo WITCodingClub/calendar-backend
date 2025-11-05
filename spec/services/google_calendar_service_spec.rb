@@ -154,7 +154,8 @@ RSpec.describe GoogleCalendarService do
       it "parses the datetime to Eastern timezone" do
         result = service.send(:parse_gcal_time, time_obj)
         expect(result).to be_a(Time)
-        expect(result.zone).to eq("EST")
+        # Eastern Time can be either EST or EDT depending on daylight saving time
+        expect(result.zone).to match(/^E[SD]T$/)
         expect(result.hour).to eq(9)
       end
     end
