@@ -412,6 +412,35 @@ class GoogleCalendarService
 
     calendar_id = google_calendar.google_calendar_id
 
+    # IMPORTANT: Check if user made edits in Google Calendar before overwriting
+    # Fetch the current state from Google Calendar to detect user edits
+    begin
+      current_gcal_event = service.get_event(calendar_id, db_event.google_event_id)
+      
+      # Check if user edited the event in Google Calendar
+      if user_edited_event?(db_event, current_gcal_event)
+        Rails.logger.info "User edited event in Google Calendar: #{db_event.google_event_id}. Preserving user changes."
+        
+        # Update local DB with user's Google Calendar edits
+        update_db_from_gcal_event(db_event, current_gcal_event)
+        
+        # Mark as synced since we just pulled the latest from Google Calendar
+        db_event.mark_synced!
+        return
+      end
+    rescue Google::Apis::ClientError => e
+      # If event doesn't exist in Google Calendar, we'll recreate it below
+      if e.status_code == 404
+        Rails.logger.warn "Event not found in Google Calendar, recreating: #{db_event.google_event_id}"
+        db_event.destroy
+        create_event_in_calendar(service, google_calendar, course_event)
+        return
+      else
+        raise
+      end
+    end
+
+    # No user edits detected, proceed with normal update from our system
     # Ensure times are in Eastern timezone
     start_time_et = course_event[:start_time].in_time_zone("America/New_York")
     end_time_et = course_event[:end_time].in_time_zone("America/New_York")
@@ -443,16 +472,6 @@ class GoogleCalendarService
       event_data_hash: GoogleCalendarEvent.generate_data_hash(course_event),
       last_synced_at: Time.current
     )
-
-  rescue Google::Apis::ClientError => e
-    # If event doesn't exist in Google Calendar, recreate it
-    if e.status_code == 404
-      Rails.logger.warn "Event not found in Google Calendar, recreating: #{db_event.google_event_id}"
-      db_event.destroy
-      create_event_in_calendar(service, google_calendar, course_event)
-    else
-      raise
-    end
   end
 
   def delete_event_from_calendar(service, google_calendar, db_event)
@@ -468,6 +487,105 @@ class GoogleCalendarService
     else
       raise
     end
+  end
+
+  # Check if user edited the event in Google Calendar
+  # Compares our local DB state with the current Google Calendar state
+  def user_edited_event?(db_event, gcal_event)
+    # Extract data from Google Calendar event
+    gcal_summary = gcal_event.summary
+    gcal_location = gcal_event.location
+    
+    # Parse Google Calendar times to Ruby Time objects in Eastern timezone
+    gcal_start_time = parse_gcal_time(gcal_event.start)
+    gcal_end_time = parse_gcal_time(gcal_event.end)
+    
+    # Extract recurrence from Google Calendar event
+    gcal_recurrence = gcal_event.recurrence
+    
+    # Compare with our local DB state
+    # If any field differs, the user must have edited it
+    summary_changed = gcal_summary != db_event.summary
+    location_changed = gcal_location != db_event.location
+    
+    # Time comparison - handle nil cases properly
+    start_time_changed = if gcal_start_time.nil? || db_event.start_time.nil?
+                          gcal_start_time != db_event.start_time
+                        else
+                          gcal_start_time.to_i != db_event.start_time.to_i
+                        end
+    
+    end_time_changed = if gcal_end_time.nil? || db_event.end_time.nil?
+                        gcal_end_time != db_event.end_time
+                      else
+                        gcal_end_time.to_i != db_event.end_time.to_i
+                      end
+    
+    recurrence_changed = normalize_recurrence(gcal_recurrence) != normalize_recurrence(db_event.recurrence)
+    
+    # If any field changed, user edited the event
+    if summary_changed || location_changed || start_time_changed || end_time_changed || recurrence_changed
+      Rails.logger.info "User edit detected - Summary: #{summary_changed}, Location: #{location_changed}, " \
+                        "Start: #{start_time_changed}, End: #{end_time_changed}, Recurrence: #{recurrence_changed}"
+      return true
+    end
+    
+    false
+  end
+  
+  # Update local DB with user's edits from Google Calendar
+  def update_db_from_gcal_event(db_event, gcal_event)
+    # Extract data from Google Calendar event
+    summary = gcal_event.summary
+    location = gcal_event.location
+    start_time = parse_gcal_time(gcal_event.start)
+    end_time = parse_gcal_time(gcal_event.end)
+    recurrence = gcal_event.recurrence
+    
+    # Build event data for hash generation
+    event_data = {
+      summary: summary,
+      location: location,
+      start_time: start_time,
+      end_time: end_time,
+      recurrence: recurrence
+    }
+    
+    # Update the database with Google Calendar data
+    db_event.update!(
+      summary: summary,
+      location: location,
+      start_time: start_time,
+      end_time: end_time,
+      recurrence: recurrence,
+      event_data_hash: GoogleCalendarEvent.generate_data_hash(event_data),
+      last_synced_at: Time.current
+    )
+    
+    Rails.logger.info "Updated local DB with user's Google Calendar edits for event: #{db_event.google_event_id}"
+  end
+  
+  # Parse Google Calendar event time to Ruby Time object
+  def parse_gcal_time(time_obj)
+    return nil unless time_obj
+    
+    if time_obj.date_time
+      # Parse datetime string to Time object in Eastern timezone
+      # date_time is already a string in ISO 8601 format from Google Calendar API
+      Time.zone.parse(time_obj.date_time).in_time_zone("America/New_York")
+    elsif time_obj.date
+      # All-day event - not currently supported but handle gracefully
+      # date is already a string in 'YYYY-MM-DD' format from Google Calendar API
+      Time.zone.parse(time_obj.date).in_time_zone("America/New_York")
+    end
+  end
+  
+  # Normalize recurrence arrays for comparison
+  def normalize_recurrence(recurrence)
+    return nil if recurrence.nil? || recurrence.empty?
+    
+    # Ensure it's an array and sort for consistent comparison
+    Array(recurrence).compact.sort
   end
 
   def get_color_for_meeting_time(meeting_time_id)

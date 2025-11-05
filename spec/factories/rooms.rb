@@ -21,6 +21,7 @@
 #
 FactoryBot.define do
   factory :room do
-
+    building
+    sequence(:number) { |n| 100 + n }
   end
 end
