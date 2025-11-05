@@ -58,7 +58,6 @@ class GoogleCalendarService
           update_event_in_calendar(service, calendar_id, existing_event, event, force: force)
           stats[:updated] += 1
         else
-          Rails.logger.debug { "Skipping #{event[:summary]} - no changes" }
           existing_event.mark_synced!
           stats[:skipped] += 1
         end
@@ -118,16 +117,6 @@ class GoogleCalendarService
   def get_available_colors
     service = service_account_calendar_service
     colors = service.get_color
-
-    Rails.logger.debug "\n=== Google Calendar Event Colors ==="
-    colors.event.each do |id, color_info|
-      Rails.logger.debug "ID: #{id.rjust(2)} - Background: #{color_info.background} - Foreground: #{color_info.foreground}"
-    end
-
-    Rails.logger.debug "\n=== Google Calendar Colors ==="
-    colors.calendar.each do |id, color_info|
-      Rails.logger.debug "ID: #{id.rjust(2)} - Background: #{color_info.background} - Foreground: #{color_info.foreground}"
-    end
 
     colors
   end
@@ -340,10 +329,6 @@ class GoogleCalendarService
     start_time_et = course_event[:start_time].in_time_zone("America/New_York")
     end_time_et = course_event[:end_time].in_time_zone("America/New_York")
 
-    Rails.logger.debug { "Creating event: #{course_event[:summary]}" }
-    Rails.logger.debug { "Start: #{start_time_et.iso8601} (#{start_time_et})" }
-    Rails.logger.debug { "End: #{end_time_et.iso8601} (#{end_time_et})" }
-
     event = Google::Apis::CalendarV3::Event.new(
       summary: course_event[:summary],
       location: course_event[:location],
@@ -375,24 +360,18 @@ class GoogleCalendarService
       last_synced_at: Time.current
     )
 
-    Rails.logger.debug { "Created event with ID: #{created_event.id}" }
   end
 
   def update_event_in_calendar(service, calendar_id, db_event, course_event, force: false)
     # Use hash-based change detection for efficiency (unless forced)
     unless force || db_event.data_changed?(course_event)
-      Rails.logger.debug { "Skipping update for #{course_event[:summary]} - no changes detected" }
       db_event.mark_synced!
       return
     end
 
-    Rails.logger.debug { "#{force ? 'Force updating' : 'Detected changes for'} #{course_event[:summary]}" }
-
     # Ensure times are in Eastern timezone
     start_time_et = course_event[:start_time].in_time_zone("America/New_York")
     end_time_et = course_event[:end_time].in_time_zone("America/New_York")
-
-    Rails.logger.debug { "Updating event: #{course_event[:summary]}" }
 
     event = Google::Apis::CalendarV3::Event.new(
       summary: course_event[:summary],
@@ -422,7 +401,6 @@ class GoogleCalendarService
       last_synced_at: Time.current
     )
 
-    Rails.logger.debug { "Updated event with ID: #{db_event.google_event_id}" }
   rescue Google::Apis::ClientError => e
     # If event doesn't exist in Google Calendar, recreate it
     if e.status_code == 404
@@ -435,7 +413,6 @@ class GoogleCalendarService
   end
 
   def delete_event_from_calendar(service, calendar_id, db_event)
-    Rails.logger.debug { "Deleting event: #{db_event.summary} (ID: #{db_event.google_event_id})" }
 
     service.delete_event(calendar_id, db_event.google_event_id)
     db_event.destroy

@@ -10,10 +10,6 @@ module Api
     def process_courses
       courses = params[:courses] || params[:_json]
 
-      Rails.logger.debug "=== COURSES API CALLED ==="
-      Rails.logger.debug { "Raw params: #{params.inspect}" }
-      Rails.logger.debug { "Courses param: #{courses.inspect}" }
-
       if courses.blank?
         render json: { error: "No courses provided" }, status: :bad_request
         return
@@ -95,19 +91,14 @@ module Api
       # Collect all CRNs and convert to integers
       crns = unique_courses.map { |c| (c[:crn] || c["crn"]).to_i }.compact
 
-      Rails.logger.debug { "Looking for courses with CRNs: #{crns.inspect}" }
-
       # Eager load associations to avoid N+1 queries
       courses_by_crn = Course.where(crn: crns)
                              .includes(:term, :faculties, meeting_times: [:room, :building])
                              .index_by(&:crn)
 
-      Rails.logger.debug { "Found #{courses_by_crn.size} courses in database" }
-      Rails.logger.debug { "Course CRNs found: #{courses_by_crn.keys.inspect}" }
 
       processed_data = unique_courses.map do |course_data|
         crn = (course_data[:crn] || course_data["crn"]).to_i
-        Rails.logger.debug { "Processing course with CRN: #{crn} (#{crn.class})" }
         course = courses_by_crn[crn]
 
         unless course
@@ -115,7 +106,6 @@ module Api
           next
         end
 
-        Rails.logger.debug { "Found course: #{course.title}" }
         term = course.term
 
         {
@@ -137,7 +127,6 @@ module Api
         }
       end.compact
 
-      Rails.logger.debug { "Processed #{processed_data.size} courses for response" }
       processed_data
     end
 
