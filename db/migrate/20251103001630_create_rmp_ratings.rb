@@ -19,6 +19,7 @@ class CreateRmpRatings < ActiveRecord::Migration[8.1]
       t.text :rating_tags
       t.integer :thumbs_up_total, default: 0
       t.integer :thumbs_down_total, default: 0
+      t.vector :embedding, limit: 1536
 
       t.timestamps
     end

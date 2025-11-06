@@ -15,6 +15,8 @@ class CreateCourses < ActiveRecord::Migration[8.0]
 
       t.string :schedule_type, null: false
 
+      t.vector :embedding, limit: 1536
+
       t.timestamps
     end
 
