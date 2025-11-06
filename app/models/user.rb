@@ -33,6 +33,7 @@ class User < ApplicationRecord
   has_many :google_calendar_events, dependent: :destroy
   has_many :calendar_preferences, dependent: :destroy
   has_many :event_preferences, dependent: :destroy
+  has_one :user_extension_config, dependent: :destroy
   before_create :generate_calendar_token
 
   # Class method to find or create a user by email
