@@ -38,7 +38,7 @@ module Api
 
     def get_email
 
-      email = current_user.primary_email
+      email = Email.where(user_id: current_user.id, primary: true).pluck(:email).first
 
       render json: { email: email}, status: :ok
     end
