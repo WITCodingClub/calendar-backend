@@ -9,7 +9,7 @@
 
 ### For Backend Developers
 1. Architecture: [`calendar_preferences.md`](./calendar-preferences/calendar_preferences.md)
-2. Implementation: [`../CALENDAR_PREFERENCES_IMPLEMENTATION.md`](../CALENDAR_PREFERENCES_IMPLEMENTATION.md)
+2. Implementation: [`../CALENDAR_PREFERENCES_IMPLEMENTATION.md`](needs-sort/CALENDAR_PREFERENCES_IMPLEMENTATION.md)
 
 ## 📋 API Endpoints Cheat Sheet
 
@@ -207,4 +207,4 @@ bundle exec rspec spec/models/calendar_preference_spec.rb:42
 - [Full API Docs](./calendar-preferences/api_calendar_preferences.md)
 - [Extension Guide](./calendar-preferences/extension_integration_guide.md)
 - [Template Variables](./calendar-preferences/template_variables.md)
-- [Implementation Summary](../CALENDAR_PREFERENCES_IMPLEMENTATION.md)
+- [Implementation Summary](needs-sort/CALENDAR_PREFERENCES_IMPLEMENTATION.md)

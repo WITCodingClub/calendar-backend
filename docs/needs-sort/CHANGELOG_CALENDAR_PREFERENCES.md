@@ -297,7 +297,7 @@ Planned for future releases:
 - [API Documentation](docs/api_calendar_preferences.md)
 - [Template Variables](docs/template_variables.md)
 - [Extension Integration](docs/extension_integration_guide.md)
-- [Quick Reference](docs/QUICK_REFERENCE.md)
+- [Quick Reference](../QUICK_REFERENCE.md)
 
 ---
 
