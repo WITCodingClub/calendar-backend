@@ -5,7 +5,7 @@ module Api
     include JsonWebTokenAuthenticatable
     include FeatureFlagGated
 
-    self.gated_feature_key = :V1
+    self.gated_feature_key = :v1
 
     skip_before_action :verify_authenticity_token
 
