@@ -241,7 +241,7 @@ Rails.application.routes.draw do
     get "user/email", to: "users#get_email"
 
     get "user/extension_config", to: "user_extension_config#get"
-    post "user/extension_config", to: "user_extension_config#set"
+    put "user/extension_config", to: "user_extension_config#set"
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
 
