@@ -70,6 +70,14 @@ class Course < ApplicationRecord
     parts.join(" ")
   end
 
+  def prefix
+    if subject =~ /\(([^)]+)\)/
+      $1
+    else
+      "UNKNWN"
+    end
+  end
+
   # Human-readable schedule type description
   def schedule_type_description
     return nil unless schedule_type

@@ -107,6 +107,7 @@ module Api
           title: course.title,
           course_number: course.course_number,
           schedule_type: course.schedule_type,
+          prefix: course.prefix,
           term: {
             uid: term.uid,
             season: term.season,
