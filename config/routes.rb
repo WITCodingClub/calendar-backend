@@ -58,6 +58,13 @@
 #                                          POST   /admin/beta_testers(.:format)                                                                     admin/beta_testers#create
 #                    new_admin_beta_tester GET    /admin/beta_testers/new(.:format)                                                                 admin/beta_testers#new
 #                        admin_beta_tester DELETE /admin/beta_testers/:id(.:format)                                                                 admin/beta_testers#destroy
+#                          admin_buildings GET    /admin/buildings(.:format)                                                                        admin/buildings#index
+#                              admin_rooms GET    /admin/rooms(.:format)                                                                            admin/rooms#index
+#                            admin_courses GET    /admin/courses(.:format)                                                                          admin/courses#index
+#                          admin_faculties GET    /admin/faculties(.:format)                                                                        admin/faculties#index
+#                              admin_terms GET    /admin/terms(.:format)                                                                            admin/terms#index
+#             admin_google_calendar_events GET    /admin/google_calendar_events(.:format)                                                           admin/google_calendar_events#index
+#                        admin_rmp_ratings GET    /admin/rmp_ratings(.:format)                                                                      admin/rmp_ratings#index
 #              admin_service_account_index GET    /admin/service_account(.:format)                                                                  admin/service_account#index
 #          admin_service_account_authorize GET    /admin/service_account/authorize(.:format)                                                        admin/service_account#authorize
 #           admin_service_account_callback GET    /admin/service_account/callback(.:format)                                                         admin/service_account#callback
@@ -296,6 +303,13 @@ Rails.application.routes.draw do
       end
       resources :calendars, only: [:index, :destroy]
       resources :beta_testers, only: [:index, :new, :create, :destroy]
+      resources :buildings, only: [:index]
+      resources :rooms, only: [:index]
+      resources :courses, only: [:index]
+      resources :faculties, only: [:index]
+      resources :terms, only: [:index]
+      resources :google_calendar_events, only: [:index]
+      resources :rmp_ratings, only: [:index]
 
       # Service account OAuth management (owner only)
       get "service_account", to: "service_account#index", as: :service_account_index

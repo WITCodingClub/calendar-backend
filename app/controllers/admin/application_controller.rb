@@ -11,19 +11,14 @@ module Admin
     # Shared admin logic here
     def index
       @current_user = current_user
-
       @users_count = User.count
-      @admin_count = User.where(access_level: [:admin, :super_admin, :owner]).count
-
       @buildings_count = Building.count
       @rooms_count = Room.count
       @courses_count = Course.count
       @faculties_count = Faculty.count
       @terms_count = Term.count
       @google_calendars_count = GoogleCalendar.count
-      @google_calendar_events_count = GoogleCalendarEvent.count
       @rmp_ratings_count = RmpRating.count
-
     end
 
     private
