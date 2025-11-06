@@ -1,9 +1,6 @@
+# frozen_string_literal: true
 module Api
-  class MiscController < ApplicationController
-    include JsonWebTokenAuthenticatable
-    include FeatureFlagGated
-
-    skip_before_action :verify_authenticity_token
+  class MiscController < ApiController
     skip_before_action :authenticate_user_from_token!, only: [:get_current_terms]
     skip_before_action :check_beta_access, only: [:get_current_terms]
 

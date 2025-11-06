@@ -1,12 +1,7 @@
 # frozen_string_literal: true
 
 module Api
-  class CoursesController < ApplicationController
-    include JsonWebTokenAuthenticatable
-    include FeatureFlagGated
-
-    skip_before_action :verify_authenticity_token
-
+  class CoursesController < ApiController
     def process_courses
       courses = params[:courses] || params[:_json]
 

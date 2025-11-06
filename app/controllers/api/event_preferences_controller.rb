@@ -1,11 +1,7 @@
 # frozen_string_literal: true
 
 module Api
-  class EventPreferencesController < ApplicationController
-    include JsonWebTokenAuthenticatable
-    include FeatureFlagGated
-
-    skip_before_action :verify_authenticity_token
+  class EventPreferencesController < ApiController
     before_action :set_preferenceable
 
     # GET /api/meeting_times/:meeting_time_id/preference

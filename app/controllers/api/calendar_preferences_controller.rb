@@ -1,11 +1,7 @@
 # frozen_string_literal: true
 
 module Api
-  class CalendarPreferencesController < ApplicationController
-    include JsonWebTokenAuthenticatable
-    include FeatureFlagGated
-
-    skip_before_action :verify_authenticity_token
+  class CalendarPreferencesController < ApiController
     before_action :set_calendar_preference, only: [:show, :update, :destroy]
 
     # GET /api/calendar_preferences

@@ -1,12 +1,7 @@
 # frozen_string_literal: true
 
 module Api
-  class FacultyController < ApplicationController
-    include JsonWebTokenAuthenticatable
-    include FeatureFlagGated
-
-    skip_before_action :verify_authenticity_token
-
+  class FacultyController < ApiController
     def get_info_by_rmp_id
       rmp_id = params[:rmp_id]
 
