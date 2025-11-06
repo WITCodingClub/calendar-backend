@@ -36,6 +36,13 @@ module Api
 
     end
 
+    def get_email
+
+      email = current_user.primary_email
+
+      render json: { email: email}, status: :ok
+    end
+
     def add_email_to_g_cal
       email = params[:email]
 
