@@ -1,5 +1,8 @@
 module Api
   class UserExtensionConfigController < ApplicationController
+    include JsonWebTokenAuthenticatable
+    include FeatureFlagGated
+
     skip_before_action :verify_authenticity_token
 
     def set

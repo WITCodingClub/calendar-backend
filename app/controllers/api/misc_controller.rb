@@ -1,5 +1,11 @@
 module Api
   class MiscController < ApplicationController
+    include JsonWebTokenAuthenticatable
+    include FeatureFlagGated
+
+    skip_before_action :verify_authenticity_token
+    skip_before_action :authenticate_user_from_token!, only: [:get_current_terms]
+    skip_before_action :check_beta_access, only: [:get_current_terms]
 
     def get_current_terms
       #   returns the current term, and the next term
