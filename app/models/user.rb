@@ -30,7 +30,8 @@ class User < ApplicationRecord
   has_many :courses, through: :enrollments
   has_many :oauth_credentials, dependent: :destroy
   has_many :emails, dependent: :destroy
-  has_many :google_calendar_events, dependent: :destroy
+  has_many :google_calendars, through: :oauth_credentials
+  has_many :google_calendar_events, through: :google_calendars
   has_many :calendar_preferences, dependent: :destroy
   has_many :event_preferences, dependent: :destroy
   has_one :user_extension_config, dependent: :destroy

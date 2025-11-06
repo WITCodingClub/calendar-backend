@@ -390,17 +390,28 @@ class GoogleCalendarService
       recurrence: event_data[:recurrence]
     )
 
-    # Apply reminders if present
-    if event_data[:reminder_settings].present?
-      google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
-        use_default: false,
-        overrides: event_data[:reminder_settings].map do |reminder|
-          Google::Apis::CalendarV3::EventReminder.new(
-            method: reminder["method"],
-            minutes: reminder["minutes"]
-          )
-        end
-      )
+    # Apply reminders if present and valid
+    if event_data[:reminder_settings].present? && event_data[:reminder_settings].is_a?(Array)
+      # Filter to only valid reminders with required fields
+      valid_reminders = event_data[:reminder_settings].select do |reminder|
+        reminder.is_a?(Hash) &&
+        reminder["method"].present? &&
+        reminder["minutes"].present? &&
+        ["email", "popup"].include?(reminder["method"])
+      end
+
+      # Only set custom reminders if we have at least one valid reminder
+      if valid_reminders.any?
+        google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
+          use_default: false,
+          overrides: valid_reminders.map do |reminder|
+            Google::Apis::CalendarV3::EventReminder.new(
+              reminder_method: reminder["method"],
+              minutes: reminder["minutes"].to_i
+            )
+          end
+        )
+      end
     end
 
     # Apply visibility if present
@@ -410,7 +421,6 @@ class GoogleCalendarService
 
     # Save the event ID in the database
     google_calendar.google_calendar_events.create!(
-      user: user,
       google_event_id: created_event.id,
       meeting_time_id: course_event[:meeting_time_id],
       summary: event_data[:summary],
@@ -485,17 +495,28 @@ class GoogleCalendarService
       recurrence: event_data[:recurrence]
     )
 
-    # Apply reminders if present
-    if event_data[:reminder_settings].present?
-      google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
-        use_default: false,
-        overrides: event_data[:reminder_settings].map do |reminder|
-          Google::Apis::CalendarV3::EventReminder.new(
-            method: reminder["method"],
-            minutes: reminder["minutes"]
-          )
-        end
-      )
+    # Apply reminders if present and valid
+    if event_data[:reminder_settings].present? && event_data[:reminder_settings].is_a?(Array)
+      # Filter to only valid reminders with required fields
+      valid_reminders = event_data[:reminder_settings].select do |reminder|
+        reminder.is_a?(Hash) &&
+        reminder["method"].present? &&
+        reminder["minutes"].present? &&
+        ["email", "popup"].include?(reminder["method"])
+      end
+
+      # Only set custom reminders if we have at least one valid reminder
+      if valid_reminders.any?
+        google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
+          use_default: false,
+          overrides: valid_reminders.map do |reminder|
+            Google::Apis::CalendarV3::EventReminder.new(
+              reminder_method: reminder["method"],
+              minutes: reminder["minutes"].to_i
+            )
+          end
+        )
+      end
     end
 
     # Apply visibility if present

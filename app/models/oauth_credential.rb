@@ -39,6 +39,9 @@ class OauthCredential < ApplicationRecord
   encrypts :access_token
   encrypts :refresh_token
 
+  # Revoke calendar access before destroying the OAuth credential
+  before_destroy :revoke_calendar_access
+
   # Convenience methods for metadata access
   def course_calendar_id
     metadata&.dig("course_calendar_id")
@@ -57,5 +60,22 @@ class OauthCredential < ApplicationRecord
   # Scope for finding credentials by provider
   scope :for_provider, ->(provider) { where(provider: provider) }
   scope :google, -> { for_provider("google") }
+
+  private
+
+  def revoke_calendar_access
+    return unless google_calendar&.google_calendar_id.present?
+
+    begin
+      # Remove the email's access to the Google Calendar
+      service = GoogleCalendarService.new(user)
+      service.unshare_calendar_with_email(google_calendar.google_calendar_id, email)
+
+      Rails.logger.info("Revoked calendar access for #{email} from calendar #{google_calendar.google_calendar_id}")
+    rescue => e
+      # Log but don't prevent deletion if calendar access revocation fails
+      Rails.logger.error("Failed to revoke calendar access for #{email}: #{e.message}")
+    end
+  end
 
 end

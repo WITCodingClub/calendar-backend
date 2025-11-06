@@ -23,9 +23,8 @@
 #
 # Indexes
 #
-#  index_courses_on_crn        (crn) UNIQUE
-#  index_courses_on_embedding  (embedding) USING hnsw
-#  index_courses_on_term_id    (term_id)
+#  index_courses_on_crn      (crn) UNIQUE
+#  index_courses_on_term_id  (term_id)
 #
 # Foreign Keys
 #

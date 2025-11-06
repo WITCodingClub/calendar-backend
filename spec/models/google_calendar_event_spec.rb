@@ -18,21 +18,18 @@
 #  google_calendar_id :bigint           not null
 #  google_event_id    :string           not null
 #  meeting_time_id    :bigint
-#  user_id            :bigint           not null
 #
 # Indexes
 #
-#  index_google_calendar_events_on_google_calendar_id               (google_calendar_id)
-#  index_google_calendar_events_on_google_calendar_id_and_meeting_  (google_calendar_id,meeting_time_id)
-#  index_google_calendar_events_on_google_event_id                  (google_event_id)
-#  index_google_calendar_events_on_meeting_time_id                  (meeting_time_id)
-#  index_google_calendar_events_on_user_id                          (user_id)
-#  index_google_calendar_events_on_user_id_and_meeting_time_id      (user_id,meeting_time_id) UNIQUE
+#  idx_on_google_calendar_id_meeting_time_id_6c9efabf50  (google_calendar_id,meeting_time_id)
+#  index_google_calendar_events_on_google_calendar_id    (google_calendar_id)
+#  index_google_calendar_events_on_google_event_id       (google_event_id)
+#  index_google_calendar_events_on_meeting_time_id       (meeting_time_id)
 #
 # Foreign Keys
 #
+#  fk_rails_...  (google_calendar_id => google_calendars.id)
 #  fk_rails_...  (meeting_time_id => meeting_times.id)
-#  fk_rails_...  (user_id => users.id)
 #
 require "rails_helper"
 

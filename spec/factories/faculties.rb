@@ -7,7 +7,7 @@
 #
 #  id           :bigint           not null, primary key
 #  email        :string           not null
-#  embedding    :vector
+#  embedding    :vector(1536)
 #  first_name   :string           not null
 #  last_name    :string           not null
 #  rmp_raw_data :jsonb
@@ -18,7 +18,6 @@
 # Indexes
 #
 #  index_faculties_on_email         (email) UNIQUE
-#  index_faculties_on_embedding     (embedding) USING hnsw
 #  index_faculties_on_rmp_id        (rmp_id) UNIQUE
 #  index_faculties_on_rmp_raw_data  (rmp_raw_data) USING gin
 #
