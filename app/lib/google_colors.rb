@@ -6,9 +6,9 @@ module GoogleColors
   EVENT_SAGE = "#7ae7bf"
   EVENT_GRAPE = "#dbadff"
   EVENT_FLAMINGO = "#ff887c"
-  EVENT_BANANA = "#f6bf26" # this was manually updated
+  EVENT_BANANA = "#fbd75b"
   EVENT_TANGERINE = "#ffb878"
-  EVENT_PEACOCK = "#039be5" # this was manually updated
+  EVENT_PEACOCK = "#46d6db"
   EVENT_GRAPHITE = "#e1e1e1"
   EVENT_BLUEBERRY = "#5484ed"
   EVENT_BASIL = "#51b749"
