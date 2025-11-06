@@ -134,3 +134,5 @@ gem "omniauth-google-oauth2", "~> 1.2", ">= 1.2.1"
 gem "pgvector"
 gem "neighbor"
 gem "log_bench"
+
+gem "kaminari", "~> 1.2"
