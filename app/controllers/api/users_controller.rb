@@ -16,7 +16,7 @@ module Api
 
       user = User.find_or_create_by_email(email)
 
-      beta_access = Flipper.enabled?(Features::V1, user)
+      beta_access = Flipper.enabled?(FlipperFlags::V1, user)
 
       # return JSON with a jwt token for the user. this token should be signed, and never expire
       token = JsonWebTokenService.encode({ user_id: user.id }, nil) # nil expiration for never expiring

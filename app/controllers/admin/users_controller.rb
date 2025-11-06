@@ -4,7 +4,7 @@ module Admin
   class UsersController < Admin::ApplicationController
     before_action :set_user, only: [:show, :edit, :update, :destroy, :revoke_oauth_credential, :enable_beta, :disable_beta]
 
-    BETA_FEATURE_FLAG = Features::V1
+    BETA_FEATURE_FLAG = FlipperFlags::V1
 
     def index
       @users = User.order(created_at: :desc)

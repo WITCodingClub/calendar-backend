@@ -2,7 +2,7 @@
 
 module Admin
   class BetaTestersController < Admin::ApplicationController
-    FEATURE_FLAG = Features::V1
+    FEATURE_FLAG = FlipperFlags::V1
 
     def index
       # Get all actors who have the feature enabled

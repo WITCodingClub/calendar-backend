@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Features
+module FlipperFlags
   V1 = :"2025_10_04_v1"
 
   MAP = {

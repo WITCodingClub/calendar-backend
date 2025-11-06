@@ -11,7 +11,7 @@ module FeatureFlagGated
   private
 
   def check_beta_access
-    feature_flag = Features::MAP[gated_feature_key]
+    feature_flag = FlipperFlags::MAP[gated_feature_key]
     unless feature_flag
       render json: { error: "Access denied. Unknown feature." }, status: :forbidden and return
     end
