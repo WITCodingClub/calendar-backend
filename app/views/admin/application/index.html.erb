@@ -1,17 +1,13 @@
-<div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold">Admin Dashboard</h1>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+  <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 mb-8">
     <!-- Stats Cards -->
     <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-5">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="text-lg font-medium text-gray-700">Total Users</div>
-          </div>
-        </div>
+      <div class="p-3">
+        <%= link_to "Users", admin_users_path, class: "text-base font-medium text-gray-700 hover:underline" %>
         <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
           <%= @users_count %>
         </div>
@@ -19,12 +15,8 @@
     </div>
 
     <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-5">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="text-lg font-medium text-gray-700">Admins</div>
-          </div>
-        </div>
+      <div class="p-3">
+        <%= link_to "Admins", admin_users_path, class: "text-base font-medium text-gray-700 hover:underline" %>
         <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
           <%= @admin_count %>
         </div>
@@ -32,14 +24,73 @@
     </div>
 
     <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-5">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="text-lg font-medium text-gray-700">Active Sessions</div>
-          </div>
-        </div>
+      <div class="p-3">
+        <%= link_to "Buildings", admin_buildings_path, class: "text-base font-medium text-gray-700 hover:underline" %>
         <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
-          <%= @active_sessions_count %>
+          <%= @buildings_count %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="p-3">
+        <%= link_to "Rooms", admin_rooms_path, class: "text-base font-medium text-gray-700 hover:underline" %>
+        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
+          <%= @rooms_count %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="p-3">
+        <%= link_to "Courses", admin_courses_path, class: "text-base font-medium text-gray-700 hover:underline" %>
+        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
+          <%= @courses_count %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="p-3">
+        <%= link_to "Faculty", admin_faculties_path, class: "text-base font-medium text-gray-700 hover:underline" %>
+        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
+          <%= @faculties_count %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="p-3">
+        <%= link_to "Terms", admin_terms_path, class: "text-base font-medium text-gray-700 hover:underline" %>
+        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
+          <%= @terms_count %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="p-3">
+        <%= link_to "Google Calendars", admin_calendars_path, class: "text-base font-medium text-gray-700 hover:underline" %>
+        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
+          <%= @google_calendars_count %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="p-3">
+        <%= link_to "Calendar Events", admin_google_calendar_events_path, class: "text-base font-medium text-gray-700 hover:underline" %>
+        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
+          <%= @google_calendar_events_count %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="p-3">
+        <%= link_to "RMP Ratings", admin_rmp_ratings_path, class: "text-base font-medium text-gray-700 hover:underline" %>
+        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
+          <%= @rmp_ratings_count %>
         </div>
       </div>
     </div>
