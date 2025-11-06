@@ -14,9 +14,7 @@ class DeleteOrphanedGoogleCalendarsJob < ApplicationJob
     orphaned_calendar_ids = []
 
     # Find calendars with missing oauth credentials
-    orphaned_by_credential = GoogleCalendar.where.missing(:oauth_credential)
-                                           
-                                           .pluck(:id)
+    orphaned_by_credential = GoogleCalendar.where.missing(:oauth_credential).pluck(:id)
     orphaned_calendar_ids.concat(orphaned_by_credential)
 
     # Find calendars with expired credentials that cannot be refreshed
