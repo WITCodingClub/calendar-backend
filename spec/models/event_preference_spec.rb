@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: event_preferences
@@ -26,8 +28,8 @@
 #
 #  fk_rails_...  (user_id => users.id)
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe EventPreference, type: :model do
+RSpec.describe EventPreference do
   pending "add some examples to (or delete) #{__FILE__}"
 end

@@ -1,24 +1,24 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe EnsureFutureTermsJob, type: :job do
-  describe '#perform' do
-    let(:current_year) { Date.today.year }
+RSpec.describe EnsureFutureTermsJob do
+  describe "#perform" do
+    let(:current_year) { Time.zone.today.year }
 
     before do
       # Clear existing terms
       Term.destroy_all
     end
 
-    context 'when no terms exist' do
-      it 'creates current term and 2 terms ahead (3 terms total)' do
+    context "when no terms exist" do
+      it "creates current term and 2 terms ahead (3 terms total)" do
         expect {
           described_class.perform_now
         }.to change(Term, :count).by(3) # current + 2 ahead = 3 terms
       end
 
-      it 'assigns uids based on term pattern (fall: [year+1]10, spring: [year]20, summer: [year]30)' do
+      it "assigns uids based on term pattern (fall: [year+1]10, spring: [year]20, summer: [year]30)" do
         # Since we only create current + 2 ahead, let's verify the UIDs are correct
         # for whatever terms are created based on current date
         described_class.perform_now
@@ -26,48 +26,48 @@ RSpec.describe EnsureFutureTermsJob, type: :job do
         terms = Term.all
         terms.each do |term|
           expected_uid = case term.season.to_sym
-                        when :fall
-                          (term.year + 1) * 100 + 10
-                        when :spring
-                          term.year * 100 + 20
-                        when :summer
-                          term.year * 100 + 30
-                        end
+                         when :fall
+                           ((term.year + 1) * 100) + 10
+                         when :spring
+                           (term.year * 100) + 20
+                         when :summer
+                           (term.year * 100) + 30
+                         end
           expect(term.uid).to eq(expected_uid)
         end
       end
     end
 
-    context 'when some terms already exist' do
+    context "when some terms already exist" do
       before do
         # Create current term (based on today's date)
         # If today is in Fall (Aug-Dec), create Fall term
-        today = Date.today
+        today = Time.zone.today
         if today.month >= 8
-          Term.create!(year: current_year, season: :fall, uid: (current_year + 1) * 100 + 10)
+          Term.create!(year: current_year, season: :fall, uid: ((current_year + 1) * 100) + 10)
         elsif today.month >= 6
-          Term.create!(year: current_year, season: :summer, uid: current_year * 100 + 30)
+          Term.create!(year: current_year, season: :summer, uid: (current_year * 100) + 30)
         else
-          Term.create!(year: current_year, season: :spring, uid: current_year * 100 + 20)
+          Term.create!(year: current_year, season: :spring, uid: (current_year * 100) + 20)
         end
       end
 
-      it 'only creates missing future terms' do
+      it "only creates missing future terms" do
         expect {
           described_class.perform_now
         }.to change(Term, :count).by(2) # 2 future terms (current already exists)
       end
 
-      it 'generates correct uids for new terms' do
+      it "generates correct uids for new terms" do
         described_class.perform_now
 
         next_year = current_year + 1
         # Check next year's spring term has correct UID
         next_spring = Term.find_by(year: next_year, season: :spring)
-        expect(next_spring.uid).to eq(next_year * 100 + 20)
+        expect(next_spring.uid).to eq((next_year * 100) + 20)
       end
 
-      it 'does not duplicate existing terms' do
+      it "does not duplicate existing terms" do
         initial_count = Term.count
         described_class.perform_now
 
@@ -80,16 +80,16 @@ RSpec.describe EnsureFutureTermsJob, type: :job do
       end
     end
 
-    context 'with custom terms_ahead parameter' do
-      it 'creates current term and specified number of terms ahead' do
+    context "with custom terms_ahead parameter" do
+      it "creates current term and specified number of terms ahead" do
         expect {
           described_class.perform_now(terms_ahead: 4)
         }.to change(Term, :count).by(5) # current + 4 ahead = 5 terms
       end
     end
 
-    context 'term progression' do
-      it 'creates terms in correct seasonal order' do
+    context "term progression" do
+      it "creates terms in correct seasonal order" do
         described_class.perform_now(terms_ahead: 2)
 
         terms = Term.order(:created_at).pluck(:season, :year)
@@ -100,8 +100,8 @@ RSpec.describe EnsureFutureTermsJob, type: :job do
       end
     end
 
-    context 'logging' do
-      it 'logs each created term' do
+    context "logging" do
+      it "logs each created term" do
         allow(Rails.logger).to receive(:info).and_call_original
 
         described_class.perform_now(terms_ahead: 2)

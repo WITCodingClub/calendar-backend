@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: google_calendar_events
@@ -32,8 +34,8 @@
 #  fk_rails_...  (meeting_time_id => meeting_times.id)
 #  fk_rails_...  (user_id => users.id)
 #
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe GoogleCalendarEvent, type: :model do
+RSpec.describe GoogleCalendarEvent do
   pending "add some examples to (or delete) #{__FILE__}"
 end

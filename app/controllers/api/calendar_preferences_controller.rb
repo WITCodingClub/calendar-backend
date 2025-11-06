@@ -82,7 +82,7 @@ module Api
     def set_calendar_preference
       scope_param = params[:id] || params[:scope]
 
-      if scope_param == 'global'
+      if scope_param == "global"
         @calendar_preference = current_user.calendar_preferences.find_or_initialize_by(
           scope: :global
         )
@@ -96,12 +96,12 @@ module Api
     end
 
     def calendar_preference_params
-      params.require(:calendar_preference).permit(
-        :title_template,
-        :description_template,
-        :color_id,
-        :visibility,
-        reminder_settings: []
+      params.expect(
+        calendar_preference: [:title_template,
+                              :description_template,
+                              :color_id,
+                              :visibility,
+                              { reminder_settings: [] }]
       )
     end
 
@@ -116,5 +116,6 @@ module Api
         visibility: preference.visibility
       }
     end
+
   end
 end

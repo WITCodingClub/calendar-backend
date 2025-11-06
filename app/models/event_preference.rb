@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: event_preferences
@@ -40,8 +42,8 @@ class EventPreference < ApplicationRecord
   validate :at_least_one_preference_set
 
   # Scopes
-  scope :for_meeting_times, -> { where(preferenceable_type: 'MeetingTime') }
-  scope :for_google_calendar_events, -> { where(preferenceable_type: 'GoogleCalendarEvent') }
+  scope :for_meeting_times, -> { where(preferenceable_type: "MeetingTime") }
+  scope :for_google_calendar_events, -> { where(preferenceable_type: "GoogleCalendarEvent") }
 
   private
 
@@ -54,13 +56,14 @@ class EventPreference < ApplicationRecord
       end
     end
 
-    if description_template.present?
-      begin
-        CalendarTemplateRenderer.validate_template(description_template)
-      rescue CalendarTemplateRenderer::InvalidTemplateError => e
-        errors.add(:description_template, "invalid syntax: #{e.message}")
-      end
+    return if description_template.blank?
+
+    begin
+      CalendarTemplateRenderer.validate_template(description_template)
+    rescue CalendarTemplateRenderer::InvalidTemplateError => e
+      errors.add(:description_template, "invalid syntax: #{e.message}")
     end
+
   end
 
   def validate_reminder_settings_format
@@ -88,8 +91,10 @@ class EventPreference < ApplicationRecord
   end
 
   def at_least_one_preference_set
-    if title_template.blank? && description_template.blank? && reminder_settings.blank? && color_id.blank? && visibility.blank?
-      errors.add(:base, "At least one preference must be set")
-    end
+    return unless title_template.blank? && description_template.blank? && reminder_settings.blank? && color_id.blank? && visibility.blank?
+
+    errors.add(:base, "At least one preference must be set")
+
   end
+
 end

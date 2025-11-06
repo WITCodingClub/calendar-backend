@@ -1,6 +1,8 @@
-require 'rails_helper'
+# frozen_string_literal: true
 
-RSpec.describe "Api::UserExtensionConfigs", type: :request do
+require "rails_helper"
+
+RSpec.describe "Api::UserExtensionConfigs" do
   describe "GET /index" do
     pending "add some examples (or delete) #{__FILE__}"
   end

@@ -111,7 +111,7 @@ RSpec.describe Course do
 
     describe "#similar_courses" do
       it "returns empty relation when embedding is nil" do
-        expect(course.similar_courses).to eq(Course.none)
+        expect(course.similar_courses).to eq(described_class.none)
       end
 
       it "finds similar courses when embedding is present" do
@@ -133,7 +133,7 @@ RSpec.describe Course do
         query_embedding = Array.new(1536) { rand }
         course.update!(embedding: Array.new(1536) { rand })
 
-        results = Course.semantic_search(query_embedding, limit: 5)
+        results = described_class.semantic_search(query_embedding, limit: 5)
         expect(results).to be_a(ActiveRecord::Relation)
       end
     end
@@ -143,8 +143,8 @@ RSpec.describe Course do
         course_with_embedding = create(:course, term: term, embedding: Array.new(1536) { rand })
         course_without_embedding = create(:course, term: term)
 
-        expect(Course.with_embeddings).to include(course_with_embedding)
-        expect(Course.with_embeddings).not_to include(course_without_embedding)
+        expect(described_class.with_embeddings).to include(course_with_embedding)
+        expect(described_class.with_embeddings).not_to include(course_without_embedding)
       end
     end
   end

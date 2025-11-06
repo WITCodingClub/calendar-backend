@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: calendar_preferences
@@ -26,32 +28,32 @@
 #
 FactoryBot.define do
   factory :calendar_preference do
-    association :user
+    user
     scope { :global }
     event_type { nil }
     title_template { "{{course_code}}: {{title}}" }
     description_template { nil }
-    reminder_settings { [{ 'minutes' => 15, 'method' => 'popup' }] }
+    reminder_settings { [{ "minutes" => 15, "method" => "popup" }] }
     color_id { nil }
-    visibility { 'default' }
+    visibility { "default" }
 
     trait :event_type_lecture do
       scope { :event_type }
-      event_type { 'lecture' }
+      event_type { "lecture" }
       title_template { "{{course_code}}: {{title}}" }
       color_id { 1 }
     end
 
     trait :event_type_laboratory do
       scope { :event_type }
-      event_type { 'laboratory' }
+      event_type { "laboratory" }
       title_template { "{{title}} - Lab ({{room}})" }
       color_id { 7 }
     end
 
     trait :event_type_hybrid do
       scope { :event_type }
-      event_type { 'hybrid' }
+      event_type { "hybrid" }
       title_template { "{{title}} [{{schedule_type}}]" }
     end
   end

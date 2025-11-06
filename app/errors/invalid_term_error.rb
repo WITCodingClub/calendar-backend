@@ -9,4 +9,5 @@ class InvalidTermError < StandardError
     @message = message || "Invalid term UID: #{uid}. Term does not exist."
     super(@message)
   end
+
 end

@@ -50,7 +50,7 @@ class Term < ApplicationRecord
 
   # Returns the current academic term based on today's date
   def self.current
-    today = Date.today
+    today = Time.zone.today
     current_year = today.year
 
     # Determine current season based on date ranges:

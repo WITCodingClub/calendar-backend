@@ -34,9 +34,9 @@ module Api
 
     def get_email
 
-      email = Email.where(user_id: current_user.id, primary: true).pluck(:email).first
+      email = Email.where(user_id: current_user.id, primary: true).pick(:email)
 
-      render json: { email: email}, status: :ok
+      render json: { email: email }, status: :ok
     end
 
     def add_email_to_g_cal

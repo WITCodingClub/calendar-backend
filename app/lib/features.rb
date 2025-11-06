@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Features
   V1 = :"2025_10_04_v1"
 

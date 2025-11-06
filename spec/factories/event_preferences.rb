@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: event_preferences
@@ -28,11 +30,11 @@
 #
 FactoryBot.define do
   factory :event_preference do
-    association :user
-    association :preferenceable, factory: :meeting_time
+    user
+    preferenceable factory: %i[meeting_time]
     title_template { nil }
     description_template { nil }
-    reminder_settings { [{ 'minutes' => 60, 'method' => 'popup' }] }
+    reminder_settings { [{ "minutes" => 60, "method" => "popup" }] }
     color_id { nil }
     visibility { nil }
 
@@ -49,7 +51,7 @@ FactoryBot.define do
     end
 
     trait :for_google_calendar_event do
-      association :preferenceable, factory: :google_calendar_event
+      preferenceable factory: %i[google_calendar_event]
     end
   end
 end

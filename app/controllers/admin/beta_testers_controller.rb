@@ -16,7 +16,7 @@ module Admin
         # Fetch users based on their primary emails (since flipper_id returns email)
         @beta_testers = User.joins(:emails)
                             .where(emails: { primary: true })
-                            .where("emails.email IN (?)", actor_ids)
+                            .where(emails: { email: actor_ids })
                             .order(created_at: :desc)
       else
         @beta_testers = []
@@ -37,7 +37,7 @@ module Admin
       end
 
       # Find or create user by email
-      @user = User.find_by_email(email)
+      @user = User.find_by(email: email)
 
       if @user.nil?
         # Create a new user with this email
@@ -65,5 +65,6 @@ module Admin
       Rails.logger.error("Error removing beta tester: #{e.message}")
       redirect_to admin_beta_testers_path, alert: "Failed to remove beta tester: #{e.message}"
     end
+
   end
 end

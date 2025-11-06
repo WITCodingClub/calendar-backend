@@ -17,30 +17,31 @@ class CleanupOrphanedGoogleCalendarsJob < ApplicationJob
     skipped_count = 0
 
     google_calendars.items.each do |cal|
-      unless db_calendar_ids.include?(cal.id)
-        begin
-          Rails.logger.info "[CleanupOrphanedGoogleCalendarsJob] Deleting orphaned calendar: #{cal.id} - #{cal.summary}"
-          service.delete_calendar(cal.id)
-          deleted_count += 1
-        rescue Google::Apis::ClientError => e
-          if e.status_code == 404
-            Rails.logger.warn "[CleanupOrphanedGoogleCalendarsJob] Calendar not found (already deleted): #{cal.id}"
-            skipped_count += 1
-          else
-            Rails.logger.error "[CleanupOrphanedGoogleCalendarsJob] Failed to delete calendar #{cal.id}: #{e.message}"
-            error_count += 1
-          end
-        rescue => e
-          Rails.logger.error "[CleanupOrphanedGoogleCalendarsJob] Error deleting calendar #{cal.id}: #{e.message}"
-          Rails.logger.error e.backtrace.join("\n")
+      next if db_calendar_ids.include?(cal.id)
+
+      begin
+        Rails.logger.info "[CleanupOrphanedGoogleCalendarsJob] Deleting orphaned calendar: #{cal.id} - #{cal.summary}"
+        service.delete_calendar(cal.id)
+        deleted_count += 1
+      rescue Google::Apis::ClientError => e
+        if e.status_code == 404
+          Rails.logger.warn "[CleanupOrphanedGoogleCalendarsJob] Calendar not found (already deleted): #{cal.id}"
+          skipped_count += 1
+        else
+          Rails.logger.error "[CleanupOrphanedGoogleCalendarsJob] Failed to delete calendar #{cal.id}: #{e.message}"
           error_count += 1
         end
+      rescue => e
+        Rails.logger.error "[CleanupOrphanedGoogleCalendarsJob] Error deleting calendar #{cal.id}: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+        error_count += 1
       end
     end
 
     Rails.logger.info "[CleanupOrphanedGoogleCalendarsJob] Completed: " \
-                     "#{deleted_count} deleted, #{skipped_count} skipped, #{error_count} errors"
+                      "#{deleted_count} deleted, #{skipped_count} skipped, #{error_count} errors"
 
     { deleted: deleted_count, skipped: skipped_count, errors: error_count }
   end
+
 end

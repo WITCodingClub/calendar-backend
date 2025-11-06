@@ -259,11 +259,11 @@ Rails.application.routes.draw do
 
     # Event preferences (per meeting time or calendar event)
     resources :meeting_times, only: [] do
-      resource :preference, controller: 'event_preferences', only: [:show, :update, :destroy]
+      resource :preference, controller: "event_preferences", only: [:show, :update, :destroy]
     end
 
     resources :google_calendar_events, only: [] do
-      resource :preference, controller: 'event_preferences', only: [:show, :update, :destroy]
+      resource :preference, controller: "event_preferences", only: [:show, :update, :destroy]
     end
   end
 

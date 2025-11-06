@@ -1,53 +1,53 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe CourseProcessorService, type: :service do
   let(:user) { create(:user) }
   let(:term) { create(:term, uid: 202610, year: 2025, season: :fall) }
 
-  describe '#call' do
-    context 'validation' do
-      it 'raises error when courses is nil' do
+  describe "#call" do
+    context "validation" do
+      it "raises error when courses is nil" do
         expect {
           described_class.new(nil, user).call
         }.to raise_error(ArgumentError, /courses cannot be nil/)
       end
 
-      it 'raises error when courses is not an array' do
+      it "raises error when courses is not an array" do
         expect {
           described_class.new("not an array", user).call
         }.to raise_error(ArgumentError, /courses must be an array/)
       end
 
-      it 'raises error when courses is empty' do
+      it "raises error when courses is empty" do
         expect {
           described_class.new([], user).call
         }.to raise_error(ArgumentError, /courses cannot be empty/)
       end
 
-      it 'raises error when course is not a hash' do
+      it "raises error when course is not a hash" do
         courses = ["not a hash"]
         expect {
           described_class.new(courses, user).call
         }.to raise_error(ArgumentError, /must be a hash/)
       end
 
-      it 'raises error when crn is missing' do
+      it "raises error when crn is missing" do
         courses = [{ term: 202610 }]
         expect {
           described_class.new(courses, user).call
         }.to raise_error(ArgumentError, /missing required field: crn/)
       end
 
-      it 'raises error when term is missing' do
+      it "raises error when term is missing" do
         courses = [{ crn: 12345 }]
         expect {
           described_class.new(courses, user).call
         }.to raise_error(ArgumentError, /missing required field: term/)
       end
 
-      it 'raises error when term UID is not numeric' do
+      it "raises error when term UID is not numeric" do
         courses = [{ crn: 12345, term: "invalid" }]
         expect {
           described_class.new(courses, user).call
@@ -55,8 +55,8 @@ RSpec.describe CourseProcessorService, type: :service do
       end
     end
 
-    context 'term lookup' do
-      it 'raises InvalidTermError when term does not exist' do
+    context "term lookup" do
+      it "raises InvalidTermError when term does not exist" do
         courses = [{ crn: 12345, term: 999999 }]
 
         expect {
@@ -67,29 +67,28 @@ RSpec.describe CourseProcessorService, type: :service do
         end
       end
 
-      it 'successfully finds term when it exists' do
+      it "successfully finds term when it exists" do
         courses = [{
           crn: 12345,
           term: term.uid,
-          start: Date.today,
-          end: Date.today + 90.days,
+          start: Time.zone.today,
+          end: Time.zone.today + 90.days,
           courseNumber: "CS101"
         }]
 
         # Mock LeopardWebService responses
-        allow(LeopardWebService).to receive(:get_class_details).and_return({
-          associated_term: "Fall 2025",
-          subject: "CS",
-          title: "Intro to CS",
-          schedule_type: "Lecture (LEC)",
-          section_number: "01",
-          credit_hours: 3,
-          grade_mode: "Normal"
-        })
 
-        allow(LeopardWebService).to receive(:get_faculty_meeting_times).and_return({
-          "fmt" => []
-        })
+        allow(LeopardWebService).to receive_messages(get_class_details: {
+                                                       associated_term: "Fall 2025",
+                                                       subject: "CS",
+                                                       title: "Intro to CS",
+                                                       schedule_type: "Lecture (LEC)",
+                                                       section_number: "01",
+                                                       credit_hours: 3,
+                                                       grade_mode: "Normal"
+                                                     }, get_faculty_meeting_times: {
+                                                       "fmt" => []
+                                                     })
 
         expect {
           described_class.new(courses, user).call
@@ -97,28 +96,27 @@ RSpec.describe CourseProcessorService, type: :service do
       end
     end
 
-    context 'deduplication' do
+    context "deduplication" do
       before do
-        allow(LeopardWebService).to receive(:get_class_details).and_return({
-          associated_term: "Fall 2025",
-          subject: "CS",
-          title: "Intro to CS",
-          schedule_type: "Lecture (LEC)",
-          section_number: "01",
-          credit_hours: 3,
-          grade_mode: "Normal"
-        })
 
-        allow(LeopardWebService).to receive(:get_faculty_meeting_times).and_return({
-          "fmt" => []
-        })
+        allow(LeopardWebService).to receive_messages(get_class_details: {
+                                                       associated_term: "Fall 2025",
+                                                       subject: "CS",
+                                                       title: "Intro to CS",
+                                                       schedule_type: "Lecture (LEC)",
+                                                       section_number: "01",
+                                                       credit_hours: 3,
+                                                       grade_mode: "Normal"
+                                                     }, get_faculty_meeting_times: {
+                                                       "fmt" => []
+                                                     })
       end
 
-      it 'deduplicates courses by CRN and term' do
+      it "deduplicates courses by CRN and term" do
         courses = [
-          { crn: 12345, term: term.uid, start: Date.today, end: Date.today + 90.days, courseNumber: "CS101" },
-          { crn: 12345, term: term.uid, start: Date.today, end: Date.today + 90.days, courseNumber: "CS101" },
-          { crn: 12345, term: term.uid, start: Date.today, end: Date.today + 90.days, courseNumber: "CS101" }
+          { crn: 12345, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" },
+          { crn: 12345, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" },
+          { crn: 12345, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" }
         ]
 
         # Should only call LeopardWebService once

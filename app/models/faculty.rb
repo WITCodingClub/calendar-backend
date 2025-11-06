@@ -140,8 +140,8 @@ class Faculty < ApplicationRecord
     return self.class.none if embedding.nil?
 
     self.class.nearest_neighbors(:embedding, embedding, distance: distance)
-              .where.not(id: id)
-              .limit(limit)
+        .where.not(id: id)
+        .limit(limit)
   end
 
   # Search for faculty by semantic query

@@ -105,4 +105,5 @@ class User < ApplicationRecord
   def create_user_extension_config
     UserExtensionConfig.create(user: self)
   end
+
 end

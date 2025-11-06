@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CalendarTemplateRenderer
   class InvalidTemplateError < StandardError; end
 
@@ -149,4 +151,5 @@ class CalendarTemplateRenderer
 
     format("%d:%02d %s", display_hours, minutes, period)
   end
+
 end

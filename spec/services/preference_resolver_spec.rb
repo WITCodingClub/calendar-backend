@@ -1,225 +1,216 @@
-require 'rails_helper'
+# frozen_string_literal: true
+
+require "rails_helper"
 
 RSpec.describe PreferenceResolver do
   let(:user) { create(:user) }
-  let(:resolver) { PreferenceResolver.new(user) }
+  let(:resolver) { described_class.new(user) }
 
   let(:term) { create(:term) }
-  let(:course) { create(:course, schedule_type: 'lecture', term: term) }
+  let(:course) { create(:course, schedule_type: "lecture", term: term) }
   let(:building) { create(:building) }
   let(:room) { create(:room, building: building) }
   let(:meeting_time) { create(:meeting_time, course: course, room: room) }
 
-  describe '#resolve_for' do
-    context 'with no preferences set' do
-      it 'returns system defaults' do
+  describe "#resolve_for" do
+    context "with no preferences set" do
+      it "returns system defaults" do
         prefs = resolver.resolve_for(meeting_time)
 
-        expect(prefs[:title_template]).to eq('{{course_code}}: {{title}}')
-        expect(prefs[:reminder_settings]).to eq([{ 'minutes' => 15, 'method' => 'popup' }])
+        expect(prefs[:title_template]).to eq("{{course_code}}: {{title}}")
+        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 15, "method" => "popup" }])
         expect(prefs[:color_id]).to be_nil
-        expect(prefs[:visibility]).to eq('default')
+        expect(prefs[:visibility]).to eq("default")
       end
     end
 
-    context 'with global preference' do
+    context "with global preference" do
       let!(:global_pref) do
         create(:calendar_preference,
-          user: user,
-          scope: :global,
-          title_template: 'Global: {{title}}',
-          reminder_settings: [{ 'minutes' => 30, 'method' => 'popup' }],
-          color_id: 5
-        )
+               user: user,
+               scope: :global,
+               title_template: "Global: {{title}}",
+               reminder_settings: [{ "minutes" => 30, "method" => "popup" }],
+               color_id: 5)
       end
 
-      it 'uses global preferences' do
+      it "uses global preferences" do
         prefs = resolver.resolve_for(meeting_time)
 
-        expect(prefs[:title_template]).to eq('Global: {{title}}')
-        expect(prefs[:reminder_settings]).to eq([{ 'minutes' => 30, 'method' => 'popup' }])
+        expect(prefs[:title_template]).to eq("Global: {{title}}")
+        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 30, "method" => "popup" }])
         expect(prefs[:color_id]).to eq(5)
       end
     end
 
-    context 'with event type preference' do
+    context "with event type preference" do
       let!(:global_pref) do
         create(:calendar_preference,
-          user: user,
-          scope: :global,
-          title_template: 'Global: {{title}}',
-          color_id: 1
-        )
+               user: user,
+               scope: :global,
+               title_template: "Global: {{title}}",
+               color_id: 1)
       end
 
       let!(:event_type_pref) do
         create(:calendar_preference,
-          user: user,
-          scope: :event_type,
-          event_type: 'lecture',
-          title_template: 'Lecture: {{title}}',
-          reminder_settings: [{ 'minutes' => 45, 'method' => 'popup' }]
-        )
+               user: user,
+               scope: :event_type,
+               event_type: "lecture",
+               title_template: "Lecture: {{title}}",
+               reminder_settings: [{ "minutes" => 45, "method" => "popup" }])
       end
 
-      it 'prefers event type over global' do
+      it "prefers event type over global" do
         prefs = resolver.resolve_for(meeting_time)
 
-        expect(prefs[:title_template]).to eq('Lecture: {{title}}')
-        expect(prefs[:reminder_settings]).to eq([{ 'minutes' => 45, 'method' => 'popup' }])
+        expect(prefs[:title_template]).to eq("Lecture: {{title}}")
+        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 45, "method" => "popup" }])
         expect(prefs[:color_id]).to eq(1) # Falls back to global
       end
     end
 
-    context 'with individual event preference' do
+    context "with individual event preference" do
       let!(:global_pref) do
         create(:calendar_preference,
-          user: user,
-          scope: :global,
-          title_template: 'Global: {{title}}',
-          color_id: 1
-        )
+               user: user,
+               scope: :global,
+               title_template: "Global: {{title}}",
+               color_id: 1)
       end
 
       let!(:event_type_pref) do
         create(:calendar_preference,
-          user: user,
-          scope: :event_type,
-          event_type: 'lecture',
-          title_template: 'Lecture: {{title}}',
-          reminder_settings: [{ 'minutes' => 45, 'method' => 'popup' }]
-        )
+               user: user,
+               scope: :event_type,
+               event_type: "lecture",
+               title_template: "Lecture: {{title}}",
+               reminder_settings: [{ "minutes" => 45, "method" => "popup" }])
       end
 
       let!(:individual_pref) do
         create(:event_preference,
-          user: user,
-          preferenceable: meeting_time,
-          reminder_settings: [{ 'minutes' => 60, 'method' => 'popup' }]
-        )
+               user: user,
+               preferenceable: meeting_time,
+               reminder_settings: [{ "minutes" => 60, "method" => "popup" }])
       end
 
-      it 'prefers individual over event type and global' do
+      it "prefers individual over event type and global" do
         prefs = resolver.resolve_for(meeting_time)
 
-        expect(prefs[:title_template]).to eq('Lecture: {{title}}') # Falls back to event type
-        expect(prefs[:reminder_settings]).to eq([{ 'minutes' => 60, 'method' => 'popup' }]) # Individual
+        expect(prefs[:title_template]).to eq("Lecture: {{title}}") # Falls back to event type
+        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 60, "method" => "popup" }]) # Individual
         expect(prefs[:color_id]).to eq(1) # Falls back to global
       end
     end
 
-    context 'with laboratory schedule type' do
-      let(:lab_course) { create(:course, schedule_type: 'laboratory', term: term) }
+    context "with laboratory schedule type" do
+      let(:lab_course) { create(:course, schedule_type: "laboratory", term: term) }
       let(:lab_meeting) { create(:meeting_time, course: lab_course, room: room) }
 
-      it 'uses laboratory system default' do
+      it "uses laboratory system default" do
         prefs = resolver.resolve_for(lab_meeting)
 
-        expect(prefs[:title_template]).to eq('{{title}} - Lab ({{room}})')
+        expect(prefs[:title_template]).to eq("{{title}} - Lab ({{room}})")
       end
 
-      context 'with event type preference for laboratory' do
+      context "with event type preference for laboratory" do
         let!(:lab_pref) do
           create(:calendar_preference,
-            user: user,
-            scope: :event_type,
-            event_type: 'laboratory',
-            title_template: 'Custom Lab: {{title}}',
-            color_id: 7
-          )
+                 user: user,
+                 scope: :event_type,
+                 event_type: "laboratory",
+                 title_template: "Custom Lab: {{title}}",
+                 color_id: 7)
         end
 
-        it 'uses laboratory preference' do
+        it "uses laboratory preference" do
           prefs = resolver.resolve_for(lab_meeting)
 
-          expect(prefs[:title_template]).to eq('Custom Lab: {{title}}')
+          expect(prefs[:title_template]).to eq("Custom Lab: {{title}}")
           expect(prefs[:color_id]).to eq(7)
         end
       end
     end
 
-    context 'with hybrid schedule type' do
-      let(:hybrid_course) { create(:course, schedule_type: 'hybrid', term: term) }
+    context "with hybrid schedule type" do
+      let(:hybrid_course) { create(:course, schedule_type: "hybrid", term: term) }
       let(:hybrid_meeting) { create(:meeting_time, course: hybrid_course, room: room) }
 
-      it 'uses hybrid system default' do
+      it "uses hybrid system default" do
         prefs = resolver.resolve_for(hybrid_meeting)
 
-        expect(prefs[:title_template]).to eq('{{title}} [{{schedule_type}}]')
+        expect(prefs[:title_template]).to eq("{{title}} [{{schedule_type}}]")
       end
     end
   end
 
-  describe '#resolve_with_sources' do
+  describe "#resolve_with_sources" do
     let!(:global_pref) do
       create(:calendar_preference,
-        user: user,
-        scope: :global,
-        title_template: 'Global: {{title}}',
-        color_id: 1,
-        visibility: 'default'
-      )
+             user: user,
+             scope: :global,
+             title_template: "Global: {{title}}",
+             color_id: 1,
+             visibility: "default")
     end
 
     let!(:event_type_pref) do
       create(:calendar_preference,
-        user: user,
-        scope: :event_type,
-        event_type: 'lecture',
-        reminder_settings: [{ 'minutes' => 45, 'method' => 'popup' }]
-      )
+             user: user,
+             scope: :event_type,
+             event_type: "lecture",
+             reminder_settings: [{ "minutes" => 45, "method" => "popup" }])
     end
 
-    it 'returns preferences with source information' do
+    it "returns preferences with source information" do
       result = resolver.resolve_with_sources(meeting_time)
 
-      expect(result[:preferences][:title_template]).to eq('Global: {{title}}')
-      expect(result[:preferences][:reminder_settings]).to eq([{ 'minutes' => 45, 'method' => 'popup' }])
+      expect(result[:preferences][:title_template]).to eq("Global: {{title}}")
+      expect(result[:preferences][:reminder_settings]).to eq([{ "minutes" => 45, "method" => "popup" }])
       expect(result[:preferences][:color_id]).to eq(1)
 
-      expect(result[:sources][:title_template]).to eq('global')
-      expect(result[:sources][:reminder_settings]).to eq('event_type:lecture')
-      expect(result[:sources][:color_id]).to eq('global')
-      expect(result[:sources][:visibility]).to eq('global')
+      expect(result[:sources][:title_template]).to eq("global")
+      expect(result[:sources][:reminder_settings]).to eq("event_type:lecture")
+      expect(result[:sources][:color_id]).to eq("global")
+      expect(result[:sources][:visibility]).to eq("global")
     end
 
-    context 'with individual overrides' do
+    context "with individual overrides" do
       let!(:individual_pref) do
         create(:event_preference,
-          user: user,
-          preferenceable: meeting_time,
-          color_id: 9
-        )
+               user: user,
+               preferenceable: meeting_time,
+               color_id: 9)
       end
 
-      it 'shows individual as source' do
+      it "shows individual as source" do
         result = resolver.resolve_with_sources(meeting_time)
 
         expect(result[:preferences][:color_id]).to eq(9)
-        expect(result[:sources][:color_id]).to eq('individual')
+        expect(result[:sources][:color_id]).to eq("individual")
       end
     end
 
-    context 'with system defaults' do
-      it 'shows system_default as source for unset values' do
+    context "with system defaults" do
+      it "shows system_default as source for unset values" do
         result = resolver.resolve_with_sources(meeting_time)
 
-        expect(result[:sources][:description_template]).to eq('system_default')
+        expect(result[:sources][:description_template]).to eq("system_default")
       end
     end
   end
 
-  describe 'caching' do
-    it 'caches resolved preferences for the same event' do
+  describe "caching" do
+    it "caches resolved preferences for the same event" do
       # First call
       prefs1 = resolver.resolve_for(meeting_time)
 
       # Modify preferences in database
       create(:calendar_preference,
-        user: user,
-        scope: :global,
-        title_template: 'New Global: {{title}}'
-      )
+             user: user,
+             scope: :global,
+             title_template: "New Global: {{title}}")
 
       # Second call should return cached value
       prefs2 = resolver.resolve_for(meeting_time)
@@ -227,20 +218,18 @@ RSpec.describe PreferenceResolver do
       expect(prefs2[:title_template]).to eq(prefs1[:title_template])
     end
 
-    it 'uses different cache keys for different events' do
+    it "uses different cache keys for different events" do
       other_meeting = create(:meeting_time, course: course, room: room)
 
       create(:event_preference,
-        user: user,
-        preferenceable: meeting_time,
-        color_id: 5
-      )
+             user: user,
+             preferenceable: meeting_time,
+             color_id: 5)
 
       create(:event_preference,
-        user: user,
-        preferenceable: other_meeting,
-        color_id: 7
-      )
+             user: user,
+             preferenceable: other_meeting,
+             color_id: 7)
 
       prefs1 = resolver.resolve_for(meeting_time)
       prefs2 = resolver.resolve_for(other_meeting)
@@ -250,8 +239,8 @@ RSpec.describe PreferenceResolver do
     end
   end
 
-  describe 'PREFERENCE_FIELDS constant' do
-    it 'includes all expected fields' do
+  describe "PREFERENCE_FIELDS constant" do
+    it "includes all expected fields" do
       expected_fields = %i[
         title_template
         description_template
@@ -264,8 +253,8 @@ RSpec.describe PreferenceResolver do
     end
   end
 
-  describe 'SYSTEM_DEFAULTS constant' do
-    it 'defines defaults for all preference fields' do
+  describe "SYSTEM_DEFAULTS constant" do
+    it "defines defaults for all preference fields" do
       expect(PreferenceResolver::SYSTEM_DEFAULTS).to include(
         :title_template,
         :description_template,
@@ -275,20 +264,20 @@ RSpec.describe PreferenceResolver do
       )
     end
 
-    it 'has per-type title templates' do
+    it "has per-type title templates" do
       title_templates = PreferenceResolver::SYSTEM_DEFAULTS[:title_template]
 
-      expect(title_templates['lecture']).to be_present
-      expect(title_templates['laboratory']).to be_present
-      expect(title_templates['hybrid']).to be_present
-      expect(title_templates['default']).to be_present
+      expect(title_templates["lecture"]).to be_present
+      expect(title_templates["laboratory"]).to be_present
+      expect(title_templates["hybrid"]).to be_present
+      expect(title_templates["default"]).to be_present
     end
 
-    it 'has default reminder settings' do
+    it "has default reminder settings" do
       reminders = PreferenceResolver::SYSTEM_DEFAULTS[:reminder_settings]
 
       expect(reminders).to be_an(Array)
-      expect(reminders.first).to include('minutes', 'method')
+      expect(reminders.first).to include("minutes", "method")
     end
   end
 end

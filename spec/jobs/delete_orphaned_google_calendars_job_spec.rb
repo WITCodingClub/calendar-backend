@@ -24,7 +24,7 @@ RSpec.describe DeleteOrphanedGoogleCalendarsJob do
       it "deletes calendars with missing oauth credentials" do
         expect {
           described_class.perform_now
-        }.to change { GoogleCalendar.count }.by(-1)
+        }.to change(GoogleCalendar, :count).by(-1)
       end
 
       it "logs the deletion" do
@@ -47,7 +47,7 @@ RSpec.describe DeleteOrphanedGoogleCalendarsJob do
       it "deletes calendars with expired non-refreshable tokens" do
         expect {
           described_class.perform_now
-        }.to change { GoogleCalendar.count }.by(-1)
+        }.to change(GoogleCalendar, :count).by(-1)
       end
 
       it "logs the deletion with reason" do
@@ -70,7 +70,7 @@ RSpec.describe DeleteOrphanedGoogleCalendarsJob do
       it "deletes calendars whose user is missing" do
         expect {
           described_class.perform_now
-        }.to change { GoogleCalendar.count }.by(-1)
+        }.to change(GoogleCalendar, :count).by(-1)
       end
 
       it "logs the deletion with reason" do
@@ -87,7 +87,7 @@ RSpec.describe DeleteOrphanedGoogleCalendarsJob do
       it "does not delete calendars with valid credentials and users" do
         expect {
           described_class.perform_now
-        }.not_to change { GoogleCalendar.count }
+        }.not_to(change(GoogleCalendar, :count))
       end
     end
 
@@ -101,7 +101,7 @@ RSpec.describe DeleteOrphanedGoogleCalendarsJob do
 
       it "continues processing other calendars if one fails" do
         allow(orphaned_calendar).to receive(:destroy!).and_raise(StandardError.new("Test error"))
-        allow(GoogleCalendar).to receive(:left_joins).and_return(double(where: [ orphaned_calendar ]))
+        allow(GoogleCalendar).to receive(:left_joins).and_return(double(where: [orphaned_calendar]))
 
         expect {
           described_class.perform_now
@@ -128,9 +128,9 @@ RSpec.describe DeleteOrphanedGoogleCalendarsJob do
 
       let!(:orphaned_calendar2) do
         credential = create(:oauth_credential,
-                           user: user,
-                           token_expires_at: 1.day.ago,
-                           refresh_token: nil)
+                            user: user,
+                            token_expires_at: 1.day.ago,
+                            refresh_token: nil)
         create(:google_calendar, oauth_credential: credential)
       end
 

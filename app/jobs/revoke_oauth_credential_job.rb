@@ -37,8 +37,9 @@ class RevokeOauthCredentialJob < ApplicationJob
     else
       Rails.logger.warn "Google OAuth revocation returned: HTTP #{response.code}"
     end
-  rescue StandardError => e
+  rescue => e
     Rails.logger.error "Error revoking OAuth token with Google: #{e.message}"
     # Continue with database deletion even if Google revocation fails
   end
+
 end

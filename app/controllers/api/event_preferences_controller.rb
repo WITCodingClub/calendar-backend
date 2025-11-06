@@ -76,12 +76,12 @@ module Api
     end
 
     def event_preference_params
-      params.require(:event_preference).permit(
-        :title_template,
-        :description_template,
-        :color_id,
-        :visibility,
-        reminder_settings: []
+      params.expect(
+        event_preference: [:title_template,
+                           :description_template,
+                           :color_id,
+                           :visibility,
+                           { reminder_settings: [] }]
       )
     end
 
@@ -94,5 +94,6 @@ module Api
         visibility: preference.visibility
       }
     end
+
   end
 end

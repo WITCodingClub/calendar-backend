@@ -75,13 +75,13 @@ class Course < ApplicationRecord
     return nil unless schedule_type
 
     {
-      "hybrid" => "hybrid in-person and online",
-      "laboratory" => "laboratory hands-on",
-      "lecture" => "lecture",
-      "online_sync_lab" => "online synchronous lab",
+      "hybrid"              => "hybrid in-person and online",
+      "laboratory"          => "laboratory hands-on",
+      "lecture"             => "lecture",
+      "online_sync_lab"     => "online synchronous lab",
       "online_sync_lecture" => "online synchronous lecture",
-      "rotating_lab" => "rotating laboratory",
-      "rotating_lecture" => "rotating lecture"
+      "rotating_lab"        => "rotating laboratory",
+      "rotating_lecture"    => "rotating lecture"
     }[schedule_type]
   end
 
@@ -90,8 +90,8 @@ class Course < ApplicationRecord
     return self.class.none if embedding.nil?
 
     self.class.nearest_neighbors(:embedding, embedding, distance: distance)
-              .where.not(id: id)
-              .limit(limit)
+        .where.not(id: id)
+        .limit(limit)
   end
 
   # Search for courses by semantic query

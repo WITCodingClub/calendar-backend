@@ -41,7 +41,6 @@ class GoogleCalendarEvent < ApplicationRecord
   has_one :event_preference, as: :preferenceable, dependent: :destroy
 
   validates :google_event_id, presence: true
-  validates :google_calendar_id, presence: true
   validates :user_id, uniqueness: { scope: :meeting_time_id }, if: :meeting_time_id?
 
   # Serialize recurrence as an array
@@ -86,4 +85,5 @@ class GoogleCalendarEvent < ApplicationRecord
   def needs_sync?(threshold = 1.hour)
     last_synced_at.nil? || last_synced_at < threshold.ago
   end
+
 end

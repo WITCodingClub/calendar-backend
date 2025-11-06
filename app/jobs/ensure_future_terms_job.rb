@@ -6,7 +6,7 @@ class EnsureFutureTermsJob < ApplicationJob
   # Ensures current term and N terms ahead exist (default: 2 terms in the future)
   def perform(terms_ahead: 2)
     # Determine current term
-    today = Date.today
+    today = Time.zone.today
     current_year = today.year
     current_season = if today.month >= 8
                        :fall
@@ -47,11 +47,11 @@ class EnsureFutureTermsJob < ApplicationJob
       # Summer [year] → [year]30
       uid = case term_attrs[:season].to_sym
             when :fall
-              (term_attrs[:year] + 1) * 100 + 10
+              ((term_attrs[:year] + 1) * 100) + 10
             when :spring
-              term_attrs[:year] * 100 + 20
+              (term_attrs[:year] * 100) + 20
             when :summer
-              term_attrs[:year] * 100 + 30
+              (term_attrs[:year] * 100) + 30
             end
 
       Term.create!(
@@ -63,4 +63,5 @@ class EnsureFutureTermsJob < ApplicationJob
       Rails.logger.info "Created term: #{term_attrs[:season].capitalize} #{term_attrs[:year]} (uid: #{uid})"
     end
   end
+
 end

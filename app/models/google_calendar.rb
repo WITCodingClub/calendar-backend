@@ -43,4 +43,5 @@ class GoogleCalendar < ApplicationRecord
   def needs_sync?(threshold = 1.hour)
     last_synced_at.nil? || last_synced_at < threshold.ago
   end
+
 end

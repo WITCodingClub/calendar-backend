@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: calendar_preferences
@@ -59,13 +61,14 @@ class CalendarPreference < ApplicationRecord
       end
     end
 
-    if description_template.present?
-      begin
-        CalendarTemplateRenderer.validate_template(description_template)
-      rescue CalendarTemplateRenderer::InvalidTemplateError => e
-        errors.add(:description_template, "invalid syntax: #{e.message}")
-      end
+    return if description_template.blank?
+
+    begin
+      CalendarTemplateRenderer.validate_template(description_template)
+    rescue CalendarTemplateRenderer::InvalidTemplateError => e
+      errors.add(:description_template, "invalid syntax: #{e.message}")
     end
+
   end
 
   def validate_reminder_settings_format
@@ -91,4 +94,5 @@ class CalendarPreference < ApplicationRecord
       end
     end
   end
+
 end

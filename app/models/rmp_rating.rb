@@ -65,8 +65,8 @@ class RmpRating < ApplicationRecord
     return self.class.none if embedding.nil?
 
     self.class.nearest_neighbors(:embedding, embedding, distance: distance)
-              .where.not(id: id)
-              .limit(limit)
+        .where.not(id: id)
+        .limit(limit)
   end
 
   # Find similar comments from other faculties
@@ -74,8 +74,8 @@ class RmpRating < ApplicationRecord
     return self.class.none if embedding.nil?
 
     self.class.nearest_neighbors(:embedding, embedding, distance: "cosine")
-              .where.not(faculty_id: faculty_id)
-              .limit(limit)
+        .where.not(faculty_id: faculty_id)
+        .limit(limit)
   end
 
 end

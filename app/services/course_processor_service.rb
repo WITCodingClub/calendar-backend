@@ -27,7 +27,7 @@ class CourseProcessorService < ApplicationService
       )
 
       # Look up term by UID - it should already exist via EnsureFutureTermsJob
-      term = Term.find_by_uid(course_data[:term])
+      term = Term.find_by(uid: course_data[:term])
 
       unless term
         raise InvalidTermError.new(
@@ -140,11 +140,11 @@ class CourseProcessorService < ApplicationService
         raise ArgumentError, "course at index #{index} must be a hash"
       end
 
-      unless course_data[:crn].present?
+      if course_data[:crn].blank?
         raise ArgumentError, "course at index #{index} missing required field: crn"
       end
 
-      unless course_data[:term].present?
+      if course_data[:term].blank?
         raise ArgumentError, "course at index #{index} missing required field: term"
       end
 

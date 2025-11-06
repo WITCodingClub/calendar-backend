@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # == Schema Information
 #
 # Table name: google_calendar_events
@@ -43,19 +45,21 @@ FactoryBot.define do
     start_time { Time.zone.parse("2025-01-15 09:00:00") }
     end_time { Time.zone.parse("2025-01-15 10:30:00") }
     recurrence { ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"] }
-    event_data_hash { GoogleCalendarEvent.generate_data_hash({
-      summary: summary,
-      location: location,
-      start_time: start_time,
-      end_time: end_time,
-      recurrence: recurrence
-    }) }
+    event_data_hash {
+      GoogleCalendarEvent.generate_data_hash({
+                                               summary: summary,
+                                               location: location,
+                                               start_time: start_time,
+                                               end_time: end_time,
+                                               recurrence: recurrence
+                                             })
+    }
     last_synced_at { 1.hour.ago }
-    
+
     trait :never_synced do
       last_synced_at { nil }
     end
-    
+
     trait :stale do
       last_synced_at { 2.hours.ago }
     end
