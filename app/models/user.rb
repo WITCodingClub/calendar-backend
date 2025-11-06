@@ -35,6 +35,7 @@ class User < ApplicationRecord
   has_many :event_preferences, dependent: :destroy
   has_one :user_extension_config, dependent: :destroy
   before_create :generate_calendar_token
+  after_create :create_user_extension_config
 
   # Class method to find or create a user by email
   def self.find_or_create_by_email(email_address)
@@ -99,4 +100,9 @@ class User < ApplicationRecord
     self.emails.find_by(primary: true)&.email
   end
 
+  private
+
+  def create_user_extension_config
+    UserExtensionConfig.create(user: self)
+  end
 end
