@@ -32,11 +32,6 @@ class CalendarTemplateRenderer
     end
   end
 
-  def initialize
-    @liquid = Liquid::Template.new
-    @liquid.error_mode = :strict
-  end
-
   def render(template_string, context)
     return "" if template_string.blank?
 
