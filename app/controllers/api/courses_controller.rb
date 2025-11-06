@@ -97,7 +97,7 @@ module Api
                              .index_by(&:crn)
 
 
-      processed_data = unique_courses.map do |course_data|
+      unique_courses.map do |course_data|
         crn = (course_data[:crn] || course_data["crn"]).to_i
         course = courses_by_crn[crn]
 
@@ -127,7 +127,7 @@ module Api
         }
       end.compact
 
-      processed_data
+
     end
 
   end

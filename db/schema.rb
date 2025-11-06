@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_05_224657) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_05_224600) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -174,7 +174,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_224657) do
     t.string "title"
     t.datetime "updated_at", null: false
     t.index ["crn"], name: "index_courses_on_crn", unique: true
-    t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["term_id"], name: "index_courses_on_term_id"
   end
 
@@ -228,14 +227,13 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_224657) do
   create_table "faculties", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
-    t.vector "embedding"
+    t.vector "embedding", limit: 1536
     t.string "first_name", null: false
     t.string "last_name", null: false
     t.string "rmp_id"
     t.jsonb "rmp_raw_data", default: {}
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_faculties_on_email", unique: true
-    t.index ["embedding"], name: "index_faculties_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["rmp_id"], name: "index_faculties_on_rmp_id", unique: true
     t.index ["rmp_raw_data"], name: "index_faculties_on_rmp_raw_data", using: :gin
   end
@@ -269,13 +267,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_224657) do
     t.datetime "start_time"
     t.string "summary"
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["google_calendar_id", "meeting_time_id"], name: "index_google_calendar_events_on_google_calendar_id_and_meeting_"
+    t.index ["google_calendar_id", "meeting_time_id"], name: "idx_on_google_calendar_id_meeting_time_id_6c9efabf50"
     t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
     t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
     t.index ["meeting_time_id"], name: "index_google_calendar_events_on_meeting_time_id"
-    t.index ["user_id", "meeting_time_id"], name: "index_google_calendar_events_on_user_id_and_meeting_time_id", unique: true
-    t.index ["user_id"], name: "index_google_calendar_events_on_user_id"
   end
 
   create_table "google_calendars", force: :cascade do |t|
@@ -394,7 +389,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_224657) do
     t.string "course_name"
     t.datetime "created_at", null: false
     t.integer "difficulty_rating"
-    t.vector "embedding"
+    t.vector "embedding", limit: 1536
     t.bigint "faculty_id", null: false
     t.string "grade"
     t.integer "helpful_rating"
@@ -407,7 +402,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_224657) do
     t.integer "thumbs_up_total", default: 0
     t.datetime "updated_at", null: false
     t.boolean "would_take_again"
-    t.index ["embedding"], name: "index_rmp_ratings_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["faculty_id"], name: "index_rmp_ratings_on_faculty_id"
     t.index ["rmp_id"], name: "index_rmp_ratings_on_rmp_id", unique: true
   end
@@ -470,8 +464,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_224657) do
   add_foreign_key "enrollments", "terms"
   add_foreign_key "enrollments", "users"
   add_foreign_key "event_preferences", "users"
+  add_foreign_key "google_calendar_events", "google_calendars"
   add_foreign_key "google_calendar_events", "meeting_times"
-  add_foreign_key "google_calendar_events", "users"
   add_foreign_key "google_calendars", "oauth_credentials"
   add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
