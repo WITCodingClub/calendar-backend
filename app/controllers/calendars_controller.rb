@@ -29,6 +29,10 @@ class CalendarsController < ApplicationController
   def generate_ical(courses)
     require "icalendar"
 
+    # Initialize preference resolver and template renderer for this user
+    @preference_resolver = PreferenceResolver.new(@user)
+    @template_renderer = CalendarTemplateRenderer.new
+
     cal = Icalendar::Calendar.new
     cal.prodid = "-//WITCC//Course Calendar//EN"
     cal.append_custom_property("X-WR-CALNAME", "WIT Course Schedule")
@@ -76,8 +80,21 @@ class CalendarsController < ApplicationController
           e.dtstart = Icalendar::Values::DateTime.new(start_time)
           e.dtend = Icalendar::Values::DateTime.new(end_time)
 
-          # Course title with section
-          e.summary = course.title
+          # Resolve user preferences for this meeting time
+          prefs = @preference_resolver.resolve_for(meeting_time)
+          context = CalendarTemplateRenderer.build_context_from_meeting_time(meeting_time)
+
+          # Apply title template (or fallback to course title)
+          if prefs[:title_template].present?
+            e.summary = @template_renderer.render(prefs[:title_template], context)
+          else
+            e.summary = course.title
+          end
+
+          # Apply description template if set
+          if prefs[:description_template].present?
+            e.description = @template_renderer.render(prefs[:description_template], context)
+          end
 
           # Location
           if meeting_time.room && meeting_time.building
@@ -93,14 +110,23 @@ class CalendarsController < ApplicationController
           # Stable UID for consistent event identity across refreshes
           e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
 
-          e.color = "##{meeting_time.event_color}" if meeting_time.event_color.present?
+          # Use preference color if set, otherwise use meeting_time default
+          color_hex = if prefs[:color_id].present?
+                        get_google_color_hex(prefs[:color_id])
+                      elsif meeting_time.event_color.present?
+                        meeting_time.event_color
+                      end
+
+          if color_hex
+            e.color = "##{color_hex}"
+          end
 
           # Timestamps for change detection
           e.dtstamp = Icalendar::Values::DateTime.new(Time.current)
 
-          if meeting_time.event_color.present?
-            e.append_custom_property("X-APPLE-CALENDAR-COLOR", "##{meeting_time.event_color}")
-            e.append_custom_property("COLOR", meeting_time.event_color.to_s)
+          if color_hex
+            e.append_custom_property("X-APPLE-CALENDAR-COLOR", "##{color_hex}")
+            e.append_custom_property("COLOR", color_hex.to_s)
           end
 
           # Use the most recent update time between course and meeting_time
@@ -162,6 +188,26 @@ class CalendarsController < ApplicationController
     end
 
     nil
+  end
+
+  def get_google_color_hex(color_id)
+    # Map Google Calendar color IDs (1-11) to hex colors
+    # These match the Google Calendar color palette
+    color_map = {
+      1 => 'A4BDFC',  # Lavender
+      2 => '7AE7BF',  # Sage
+      3 => 'DBADFF',  # Grape
+      4 => 'FF887C',  # Flamingo
+      5 => 'FBD75B',  # Banana
+      6 => 'FFB878',  # Tangerine
+      7 => '46D6DB',  # Peacock
+      8 => 'E1E1E1',  # Graphite
+      9 => '5484ED',  # Blueberry
+      10 => '51B749', # Basil
+      11 => 'DC2127'  # Tomato
+    }
+
+    color_map[color_id]
   end
 
 end

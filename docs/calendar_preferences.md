@@ -250,7 +250,11 @@ If no preferences are configured:
 **Color:**
 - Uses `MeetingTime#event_color` (existing logic based on schedule_type)
 
-## Google Calendar Sync Integration
+## Calendar Integration
+
+Preferences are applied to both **Google Calendar sync** and **iCal feeds** for consistent event formatting across all calendar platforms.
+
+### Google Calendar Sync Integration
 
 The `GoogleCalendarService` uses resolved preferences when creating/updating events:
 
@@ -282,6 +286,45 @@ def create_event_in_calendar(user, meeting_time)
   # Create via Google Calendar API...
 end
 ```
+
+### iCal Feed Integration
+
+The `CalendarsController` also uses resolved preferences when generating iCal feeds:
+
+```ruby
+# In CalendarsController#generate_ical
+def generate_ical(courses)
+  # Initialize preference resolver for this user
+  @preference_resolver = PreferenceResolver.new(@user)
+  @template_renderer = CalendarTemplateRenderer.new
+
+  courses.each do |course|
+    course.meeting_times.each do |meeting_time|
+      # Resolve user preferences for this meeting time
+      prefs = @preference_resolver.resolve_for(meeting_time)
+      context = CalendarTemplateRenderer.build_context_from_meeting_time(meeting_time)
+
+      # Apply title template
+      event.summary = @template_renderer.render(prefs[:title_template], context)
+
+      # Apply description template if set
+      event.description = @template_renderer.render(prefs[:description_template], context)
+
+      # Apply color preferences
+      color_hex = get_google_color_hex(prefs[:color_id]) if prefs[:color_id].present?
+      event.color = "##{color_hex}" if color_hex
+
+      # ... rest of event creation
+    end
+  end
+end
+```
+
+**Note:** iCal feeds are accessed via the calendar token:
+- URL format: `/calendar/:calendar_token.ics`
+- No authentication required (token acts as security)
+- Feeds respect all user preferences
+- Refreshed based on cache headers (1 hour)
 
 ## API Endpoints
 
