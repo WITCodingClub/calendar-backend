@@ -365,14 +365,19 @@ class GoogleCalendarService
 
   def create_event_in_calendar(service, google_calendar, course_event)
     calendar_id = google_calendar.google_calendar_id
+    meeting_time = MeetingTime.find_by(id: course_event[:meeting_time_id])
+
+    # Apply user preferences to event data
+    event_data = apply_preferences_to_event(meeting_time, course_event)
 
     # Ensure times are in Eastern timezone
-    start_time_et = course_event[:start_time].in_time_zone("America/New_York")
-    end_time_et = course_event[:end_time].in_time_zone("America/New_York")
+    start_time_et = event_data[:start_time].in_time_zone("America/New_York")
+    end_time_et = event_data[:end_time].in_time_zone("America/New_York")
 
-    event = Google::Apis::CalendarV3::Event.new(
-      summary: course_event[:summary],
-      location: course_event[:location],
+    google_event = Google::Apis::CalendarV3::Event.new(
+      summary: event_data[:summary],
+      description: event_data[:description],
+      location: event_data[:location],
       start: {
         date_time: start_time_et.iso8601,
         time_zone: "America/New_York"
@@ -381,23 +386,39 @@ class GoogleCalendarService
         date_time: end_time_et.iso8601,
         time_zone: "America/New_York"
       },
-      color_id: get_color_for_meeting_time(course_event[:meeting_time_id]),
-      recurrence: course_event[:recurrence]
+      color_id: event_data[:color_id]&.to_s,
+      recurrence: event_data[:recurrence]
     )
 
-    created_event = service.insert_event(calendar_id, event)
+    # Apply reminders if present
+    if event_data[:reminder_settings].present?
+      google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
+        use_default: false,
+        overrides: event_data[:reminder_settings].map do |reminder|
+          Google::Apis::CalendarV3::EventReminder.new(
+            method: reminder['method'],
+            minutes: reminder['minutes']
+          )
+        end
+      )
+    end
+
+    # Apply visibility if present
+    google_event.visibility = event_data[:visibility] if event_data[:visibility].present?
+
+    created_event = service.insert_event(calendar_id, google_event)
 
     # Save the event ID in the database
     google_calendar.google_calendar_events.create!(
       user: user,
       google_event_id: created_event.id,
       meeting_time_id: course_event[:meeting_time_id],
-      summary: course_event[:summary],
-      location: course_event[:location],
-      start_time: course_event[:start_time],
-      end_time: course_event[:end_time],
-      recurrence: course_event[:recurrence],
-      event_data_hash: GoogleCalendarEvent.generate_data_hash(course_event),
+      summary: event_data[:summary],
+      location: event_data[:location],
+      start_time: event_data[:start_time],
+      end_time: event_data[:end_time],
+      recurrence: event_data[:recurrence],
+      event_data_hash: GoogleCalendarEvent.generate_data_hash(event_data),
       last_synced_at: Time.current
     )
 
@@ -441,13 +462,19 @@ class GoogleCalendarService
     end
 
     # No user edits detected, proceed with normal update from our system
-    # Ensure times are in Eastern timezone
-    start_time_et = course_event[:start_time].in_time_zone("America/New_York")
-    end_time_et = course_event[:end_time].in_time_zone("America/New_York")
+    meeting_time = MeetingTime.find_by(id: course_event[:meeting_time_id])
 
-    event = Google::Apis::CalendarV3::Event.new(
-      summary: course_event[:summary],
-      location: course_event[:location],
+    # Apply user preferences to event data
+    event_data = apply_preferences_to_event(meeting_time, course_event)
+
+    # Ensure times are in Eastern timezone
+    start_time_et = event_data[:start_time].in_time_zone("America/New_York")
+    end_time_et = event_data[:end_time].in_time_zone("America/New_York")
+
+    google_event = Google::Apis::CalendarV3::Event.new(
+      summary: event_data[:summary],
+      description: event_data[:description],
+      location: event_data[:location],
       start: {
         date_time: start_time_et.iso8601,
         time_zone: "America/New_York"
@@ -456,20 +483,36 @@ class GoogleCalendarService
         date_time: end_time_et.iso8601,
         time_zone: "America/New_York"
       },
-      color_id: get_color_for_meeting_time(course_event[:meeting_time_id]),
-      recurrence: course_event[:recurrence]
+      color_id: event_data[:color_id]&.to_s,
+      recurrence: event_data[:recurrence]
     )
 
-    service.update_event(calendar_id, db_event.google_event_id, event)
+    # Apply reminders if present
+    if event_data[:reminder_settings].present?
+      google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
+        use_default: false,
+        overrides: event_data[:reminder_settings].map do |reminder|
+          Google::Apis::CalendarV3::EventReminder.new(
+            method: reminder['method'],
+            minutes: reminder['minutes']
+          )
+        end
+      )
+    end
+
+    # Apply visibility if present
+    google_event.visibility = event_data[:visibility] if event_data[:visibility].present?
+
+    service.update_event(calendar_id, db_event.google_event_id, google_event)
 
     # Update the database record with new data and hash
     db_event.update!(
-      summary: course_event[:summary],
-      location: course_event[:location],
-      start_time: course_event[:start_time],
-      end_time: course_event[:end_time],
-      recurrence: course_event[:recurrence],
-      event_data_hash: GoogleCalendarEvent.generate_data_hash(course_event),
+      summary: event_data[:summary],
+      location: event_data[:location],
+      start_time: event_data[:start_time],
+      end_time: event_data[:end_time],
+      recurrence: event_data[:recurrence],
+      event_data_hash: GoogleCalendarEvent.generate_data_hash(event_data),
       last_synced_at: Time.current
     )
   end
@@ -586,6 +629,48 @@ class GoogleCalendarService
     
     # Ensure it's an array and sort for consistent comparison
     Array(recurrence).compact.sort
+  end
+
+  def apply_preferences_to_event(meeting_time, course_event)
+    return course_event unless meeting_time
+
+    # Initialize preference resolver and renderer
+    resolver = PreferenceResolver.new(user)
+    renderer = CalendarTemplateRenderer.new
+
+    # Resolve preferences for this meeting time
+    prefs = resolver.resolve_for(meeting_time)
+
+    # Build template context
+    context = CalendarTemplateRenderer.build_context_from_meeting_time(meeting_time)
+
+    # Apply preferences to event data
+    event_data = course_event.dup
+
+    # Render title template if present
+    if prefs[:title_template].present?
+      event_data[:summary] = renderer.render(prefs[:title_template], context)
+    end
+
+    # Render description template if present
+    if prefs[:description_template].present?
+      event_data[:description] = renderer.render(prefs[:description_template], context)
+    end
+
+    # Apply reminder settings
+    event_data[:reminder_settings] = prefs[:reminder_settings] if prefs[:reminder_settings].present?
+
+    # Apply color (use preference or fall back to meeting time's default color)
+    if prefs[:color_id].present?
+      event_data[:color_id] = prefs[:color_id]
+    else
+      event_data[:color_id] = get_color_for_meeting_time(meeting_time.id)&.to_i
+    end
+
+    # Apply visibility
+    event_data[:visibility] = prefs[:visibility] if prefs[:visibility].present?
+
+    event_data
   end
 
   def get_color_for_meeting_time(meeting_time_id)

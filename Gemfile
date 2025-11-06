@@ -78,6 +78,7 @@ gem "flipper-active_record"
 gem "flipper-ui"
 gem "flipper-active_support_cache_store"
 gem "dotenv-rails"
+gem "liquid"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem

@@ -2,6 +2,11 @@
 
 # == Route Map
 #
+# ======================================================================
+# ✅ LogBench is ready to use!
+# View your logs: log_bench log/development.log
+# For help: log_bench --help
+# ======================================================================
 # Routes for application:
 #                                   Prefix Verb   URI Pattern                                                                                       Controller#Action
 #                               okcomputer        /okcomputer                                                                                       OkComputer::Engine
@@ -14,6 +19,20 @@
 #               api_user_gcal_remove_email DELETE /api/user/gcal/remove_email(.:format)                                                             api/users#remove_email_from_g_cal
 #                       api_faculty_by_rmp GET    /api/faculty/by_rmp(.:format)                                                                     api/faculty#get_info_by_rmp_id
 #                      api_process_courses POST   /api/process_courses(.:format)                                                                    api/courses#process_courses
+#         preview_api_calendar_preferences POST   /api/calendar_preferences/preview(.:format)                                                       api/calendar_preferences#preview
+#                 api_calendar_preferences GET    /api/calendar_preferences(.:format)                                                               api/calendar_preferences#index
+#                  api_calendar_preference GET    /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#show
+#                                          PATCH  /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#update
+#                                          PUT    /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#update
+#                                          DELETE /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#destroy
+#              api_meeting_time_preference GET    /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#show
+#                                          PATCH  /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#update
+#                                          PUT    /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#update
+#                                          DELETE /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#destroy
+#     api_google_calendar_event_preference GET    /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#show
+#                                          PATCH  /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#update
+#                                          PUT    /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#update
+#                                          DELETE /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#destroy
 #                                 calendar GET    /calendar/:calendar_token(.:format)                                                               calendars#show {format: :ics}
 #              auth_google_oauth2_callback GET    /auth/google_oauth2/callback(.:format)                                                            auth#google
 #                            oauth_success GET    /oauth/success(.:format)                                                                          oauth#success
@@ -224,6 +243,22 @@ Rails.application.routes.draw do
 
     # Course events
     post "process_courses", to: "courses#process_courses"
+
+    # Calendar preferences
+    resources :calendar_preferences, only: [:index, :show, :update, :destroy] do
+      collection do
+        post :preview
+      end
+    end
+
+    # Event preferences (per meeting time or calendar event)
+    resources :meeting_times, only: [] do
+      resource :preference, controller: 'event_preferences', only: [:show, :update, :destroy]
+    end
+
+    resources :google_calendar_events, only: [] do
+      resource :preference, controller: 'event_preferences', only: [:show, :update, :destroy]
+    end
   end
 
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }

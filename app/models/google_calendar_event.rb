@@ -38,6 +38,7 @@ class GoogleCalendarEvent < ApplicationRecord
   belongs_to :user
   belongs_to :google_calendar
   belongs_to :meeting_time, optional: true
+  has_one :event_preference, as: :preferenceable, dependent: :destroy
 
   validates :google_event_id, presence: true
   validates :google_calendar_id, presence: true

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_05_202447) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_05_224657) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -143,6 +143,21 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_202447) do
     t.index ["name"], name: "index_buildings_on_name", unique: true
   end
 
+  create_table "calendar_preferences", force: :cascade do |t|
+    t.integer "color_id"
+    t.datetime "created_at", null: false
+    t.text "description_template"
+    t.string "event_type"
+    t.jsonb "reminder_settings", default: []
+    t.integer "scope", null: false
+    t.text "title_template"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.string "visibility"
+    t.index ["user_id", "scope", "event_type"], name: "index_calendar_prefs_on_user_scope_type", unique: true
+    t.index ["user_id"], name: "index_calendar_preferences_on_user_id"
+  end
+
   create_table "courses", force: :cascade do |t|
     t.integer "course_number"
     t.datetime "created_at", null: false
@@ -191,6 +206,23 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_202447) do
     t.index ["term_id"], name: "index_enrollments_on_term_id"
     t.index ["user_id", "course_id", "term_id"], name: "index_enrollments_on_user_class_term", unique: true
     t.index ["user_id"], name: "index_enrollments_on_user_id"
+  end
+
+  create_table "event_preferences", force: :cascade do |t|
+    t.integer "color_id"
+    t.datetime "created_at", null: false
+    t.text "description_template"
+    t.bigint "preferenceable_id", null: false
+    t.string "preferenceable_type", null: false
+    t.jsonb "reminder_settings"
+    t.text "title_template"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.string "visibility"
+    t.index ["preferenceable_type", "preferenceable_id"], name: "index_event_preferences_on_preferenceable"
+    t.index ["preferenceable_type", "preferenceable_id"], name: "index_event_prefs_on_preferenceable"
+    t.index ["user_id", "preferenceable_type", "preferenceable_id"], name: "index_event_prefs_on_user_and_preferenceable", unique: true
+    t.index ["user_id"], name: "index_event_preferences_on_user_id"
   end
 
   create_table "faculties", force: :cascade do |t|
@@ -431,11 +463,13 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_05_202447) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  add_foreign_key "calendar_preferences", "users"
   add_foreign_key "courses", "terms"
   add_foreign_key "emails", "users"
   add_foreign_key "enrollments", "courses"
   add_foreign_key "enrollments", "terms"
   add_foreign_key "enrollments", "users"
+  add_foreign_key "event_preferences", "users"
   add_foreign_key "google_calendar_events", "meeting_times"
   add_foreign_key "google_calendar_events", "users"
   add_foreign_key "google_calendars", "oauth_credentials"
