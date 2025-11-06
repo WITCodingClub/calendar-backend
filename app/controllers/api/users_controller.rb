@@ -7,7 +7,7 @@ module Api
 
     skip_before_action :verify_authenticity_token
     skip_before_action :authenticate_user_from_token!, only: [:onboard]
-    skip_before_action :check_beta_access, only: [:onboard]
+    skip_before_action :check_beta_access, only: [:onboard, :get_email]
 
     def onboard
       #   takes email as it's one param
