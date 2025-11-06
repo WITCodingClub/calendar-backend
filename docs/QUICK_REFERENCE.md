@@ -3,12 +3,12 @@
 ## 🚀 Quick Start
 
 ### For Extension Developers
-1. Read: [`extension_integration_guide.md`](./extension_integration_guide.md)
-2. API Reference: [`api_calendar_preferences.md`](./api_calendar_preferences.md)
-3. Template Variables: [`template_variables.md`](./template_variables.md)
+1. Read: [`extension_integration_guide.md`](./calendar-preferences/extension_integration_guide.md)
+2. API Reference: [`api_calendar_preferences.md`](./calendar-preferences/api_calendar_preferences.md)
+3. Template Variables: [`template_variables.md`](./calendar-preferences/template_variables.md)
 
 ### For Backend Developers
-1. Architecture: [`calendar_preferences.md`](./calendar_preferences.md)
+1. Architecture: [`calendar_preferences.md`](./calendar-preferences/calendar_preferences.md)
 2. Implementation: [`../CALENDAR_PREFERENCES_IMPLEMENTATION.md`](../CALENDAR_PREFERENCES_IMPLEMENTATION.md)
 
 ## 📋 API Endpoints Cheat Sheet
@@ -44,7 +44,7 @@ Time: start_time, end_time, day, day_abbr
 Academic: term, schedule_type
 ```
 
-Full reference: [`template_variables.md`](./template_variables.md)
+Full reference: [`template_variables.md`](./calendar-preferences/template_variables.md)
 
 ## 📝 Template Examples
 
@@ -165,12 +165,13 @@ curl -X POST /api/calendar_preferences/preview \
 
 ```
 docs/
-├── README.md                          # Start here
-├── QUICK_REFERENCE.md                 # This file
-├── calendar_preferences.md            # System architecture
-├── api_calendar_preferences.md        # API reference
-├── template_variables.md              # Template guide
-└── extension_integration_guide.md     # Extension guide
+├── README.md                                           # Start here
+├── QUICK_REFERENCE.md                                  # This file
+└── calendar-preferences/
+    ├── calendar_preferences.md                         # System architecture
+    ├── api_calendar_preferences.md                     # API reference
+    ├── template_variables.md                           # Template guide
+    └── extension_integration_guide.md                  # Extension guide
 ```
 
 ## 🧪 Testing
@@ -203,7 +204,7 @@ bundle exec rspec spec/models/calendar_preference_spec.rb:42
 ---
 
 **Quick Links:**
-- [Full API Docs](./api_calendar_preferences.md)
-- [Extension Guide](./extension_integration_guide.md)
-- [Template Variables](./template_variables.md)
+- [Full API Docs](./calendar-preferences/api_calendar_preferences.md)
+- [Extension Guide](./calendar-preferences/extension_integration_guide.md)
+- [Template Variables](./calendar-preferences/template_variables.md)
 - [Implementation Summary](../CALENDAR_PREFERENCES_IMPLEMENTATION.md)
