@@ -17,7 +17,11 @@
 #                            api_user_gcal POST   /api/user/gcal(.:format)                                                                          api/users#request_g_cal
 #                  api_user_gcal_add_email POST   /api/user/gcal/add_email(.:format)                                                                api/users#add_email_to_g_cal
 #               api_user_gcal_remove_email DELETE /api/user/gcal/remove_email(.:format)                                                             api/users#remove_email_from_g_cal
+#                           api_user_email GET    /api/user/email(.:format)                                                                         api/users#get_email
+#                api_user_extension_config GET    /api/user/extension_config(.:format)                                                              api/user_extension_config#get
+#                                          PUT    /api/user/extension_config(.:format)                                                              api/user_extension_config#set
 #                       api_faculty_by_rmp GET    /api/faculty/by_rmp(.:format)                                                                     api/faculty#get_info_by_rmp_id
+#               api_terms_current_and_next GET    /api/terms/current_and_next(.:format)                                                             api/misc#get_current_terms
 #                      api_process_courses POST   /api/process_courses(.:format)                                                                    api/courses#process_courses
 #         preview_api_calendar_preferences POST   /api/calendar_preferences/preview(.:format)                                                       api/calendar_preferences#preview
 #                 api_calendar_preferences GET    /api/calendar_preferences(.:format)                                                               api/calendar_preferences#index
