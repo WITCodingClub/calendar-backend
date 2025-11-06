@@ -1,5 +1,6 @@
 module Api
   class UserExtensionConfigController < ApplicationController
+    skip_before_action :verify_authenticity_token
 
     def set
       config = UserExtensionConfig.find_or_initialize_by(user_id: current_user.id)
