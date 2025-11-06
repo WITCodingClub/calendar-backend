@@ -29,6 +29,13 @@ blazer_send_failing_checks:
   queue: low
   schedule: every day at 8am
 
+# Ensure future academic terms exist (current + 2 terms ahead)
+# Runs on the 1st of every month at 2:00 AM in application timezone (Eastern Time)
+ensure_future_terms:
+  class: EnsureFutureTermsJob
+  queue: low
+  schedule: every month on the 1st at 2am
+
 # Update all faculty RateMyProfessor ratings weekly
 # Runs every Sunday at 3:00 AM in application timezone (Eastern Time)
 update_faculty_rmp_ratings:
