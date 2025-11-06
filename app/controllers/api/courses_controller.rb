@@ -38,7 +38,7 @@ module Api
     def group_meeting_times(meeting_times)
       # Group meeting times by their common attributes (time, date range, location)
       grouped = meeting_times.group_by do |mt|
-        [mt.begin_time, mt.end_time, mt.start_date, mt.end_date, mt.room_id]
+        [mt.begin_time, mt.end_time, mt.start_date, mt.end_date, mt.room_id, mt.id]
       end
 
       # Convert each group into a single meeting time object with day flags
@@ -57,10 +57,28 @@ module Api
           sunday: false
         }
 
+        day_ids = {
+          monday_id: nil,
+          tuesday_id: nil,
+          wednesday_id: nil,
+          thursday_id: nil,
+          friday_id: nil,
+          saturday_id: nil,
+          sunday_id: nil
+        }
+
         # Set true for each day that appears in the group
         mts.each do |meeting_time|
           day_symbol = meeting_time.day_of_week&.to_sym
-          days[day_symbol] = true if day_symbol
+          next unless day_symbol
+
+          # Set boolean flag
+          days[day_symbol] = true
+
+          # Set the *_id key (e.g., :friday_id)
+          id_key = :"#{day_symbol}_id"
+          day_ids[id_key] = meeting_time.id
+
         end
 
         {
@@ -79,7 +97,8 @@ module Api
                       end,
             room: mt.room&.formatted_number
           },
-          **days
+          **days,
+          **day_ids
         }
       end
     end
@@ -108,6 +127,12 @@ module Api
 
         term = course.term
 
+        5.times { puts "\n"}
+        puts group_meeting_times(course.meeting_times)
+        5.times { puts "\n"}
+
+
+
         {
           title: course.title,
           course_number: course.course_number,
@@ -127,6 +152,7 @@ module Api
           meeting_times: group_meeting_times(course.meeting_times)
         }
       end.compact
+
 
 
     end
