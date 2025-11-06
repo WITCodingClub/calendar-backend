@@ -52,6 +52,7 @@ A complete hierarchical event configuration system has been implemented for the 
 
 **Updated:**
 - `app/services/google_calendar_service.rb` - Integrated preferences into event creation/update
+- `app/controllers/calendars_controller.rb` - Integrated preferences into iCal feed generation
 
 ### API Controllers
 
@@ -152,6 +153,11 @@ System Defaults
 - ✅ Reminders (multiple per event, popup/email)
 - ✅ Colors (Google Calendar color IDs 1-11)
 - ✅ Visibility (public/private/default)
+
+### Calendar Integration
+- ✅ **Google Calendar Sync** - Full preference support in GoogleCalendarService
+- ✅ **iCal Feeds** - Preferences applied to .ics exports
+- ✅ **Consistent Formatting** - Same templates used across all calendar platforms
 
 ## 📊 Database Schema
 
@@ -341,11 +347,12 @@ See `/docs/extension_integration_guide.md` for complete integration guide.
 
 1. User configures preferences in Chrome extension
 2. Extension saves via API endpoints
-3. When calendar syncs:
-   - `GoogleCalendarService` creates/updates events
+3. When calendar syncs (Google Calendar) or iCal feed is requested:
+   - `GoogleCalendarService` creates/updates events (for Google Calendar sync)
+   - `CalendarsController` generates iCal feed (for iCal subscriptions)
    - For each event, `PreferenceResolver` walks hierarchy
    - `CalendarTemplateRenderer` renders templates
-   - Formatted event sent to Google Calendar API
+   - Formatted events sent to Google Calendar API or included in iCal feed
 
 ### Data Flow
 ```
@@ -354,14 +361,18 @@ Chrome Extension (UI)
 Rails Backend (API Controllers)
     ↓ (saves to)
 Database (calendar_preferences, event_preferences)
-    ↓ (read during sync)
+    ↓ (read during sync/feed generation)
 PreferenceResolver (resolves hierarchy)
     ↓ (provides context)
 CalendarTemplateRenderer (renders templates)
-    ↓ (formats event)
-GoogleCalendarService (creates events)
-    ↓ (syncs to)
-Google Calendar API
+    ↓ (formats events)
+    ├─→ GoogleCalendarService (creates events)
+    │       ↓ (syncs to)
+    │   Google Calendar API
+    │
+    └─→ CalendarsController (generates iCal)
+            ↓ (serves)
+        iCal Feed (.ics file)
 ```
 
 ## 🎓 Learning Resources
