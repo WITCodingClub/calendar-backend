@@ -12,6 +12,9 @@ class CourseProcessorService < ApplicationService
   end
 
   def call
+    # Validate input
+    validate_courses_data!
+
     processed_courses = []
 
     # Deduplicate courses by CRN and term
@@ -23,26 +26,14 @@ class CourseProcessorService < ApplicationService
         course_reference_number: course_data[:crn]
       )
 
-      term = Term.find_or_create_by!(uid: course_data[:term]) do |t|
-        associated_term = detailed_course_info[:associated_term]
+      # Look up term by UID - it should already exist via EnsureFutureTermsJob
+      term = Term.find_by_uid(course_data[:term])
 
-        #   associated term is in format "Fall 2025"
-        season_str, year_str = associated_term.to_s.strip.split(/\s+/)
-        year = year_str.to_i
-        season = case season_str
-                 when "Spring"
-                   :spring
-                 when "Fall"
-                   :fall
-                 when "Summer"
-                   :summer
-                 else
-                   raise "Unknown season string: #{season_str.inspect}"
-                 end
-
-        t.year = year
-        t.season = Term.seasons[season]
-
+      unless term
+        raise InvalidTermError.new(
+          course_data[:term],
+          "Term with UID #{course_data[:term]} not found. Please ensure EnsureFutureTermsJob has run."
+        )
       end
 
       # schedule_type: "Lecture (LEC)",
@@ -135,6 +126,33 @@ class CourseProcessorService < ApplicationService
     end
 
     processed_courses
+  end
+
+  private
+
+  def validate_courses_data!
+    raise ArgumentError, "courses cannot be nil" if courses.nil?
+    raise ArgumentError, "courses must be an array" unless courses.is_a?(Array)
+    raise ArgumentError, "courses cannot be empty" if courses.empty?
+
+    courses.each_with_index do |course_data, index|
+      unless course_data.is_a?(Hash)
+        raise ArgumentError, "course at index #{index} must be a hash"
+      end
+
+      unless course_data[:crn].present?
+        raise ArgumentError, "course at index #{index} missing required field: crn"
+      end
+
+      unless course_data[:term].present?
+        raise ArgumentError, "course at index #{index} missing required field: term"
+      end
+
+      # Validate term UID is numeric
+      unless course_data[:term].to_s.match?(/^\d+$/)
+        raise ArgumentError, "course at index #{index} has invalid term UID: #{course_data[:term]}"
+      end
+    end
   end
 
   def process_faculty(course, faculty_data)
