@@ -633,13 +633,21 @@ class GoogleCalendarService
     return nil unless time_obj
 
     if time_obj.date_time
-      # Parse datetime string to Time object in Eastern timezone
-      # date_time is already a string in ISO 8601 format from Google Calendar API
-      Time.zone.parse(time_obj.date_time).in_time_zone("America/New_York")
+      # date_time can be either a DateTime object or a string depending on the API gem version
+      # Convert to Time and ensure it's in Eastern timezone
+      if time_obj.date_time.is_a?(String)
+        Time.zone.parse(time_obj.date_time).in_time_zone("America/New_York")
+      else
+        time_obj.date_time.in_time_zone("America/New_York")
+      end
     elsif time_obj.date
       # All-day event - not currently supported but handle gracefully
-      # date is already a string in 'YYYY-MM-DD' format from Google Calendar API
-      Time.zone.parse(time_obj.date).in_time_zone("America/New_York")
+      # date can be either a Date object or a string
+      if time_obj.date.is_a?(String)
+        Time.zone.parse(time_obj.date).in_time_zone("America/New_York")
+      else
+        time_obj.date.in_time_zone("America/New_York")
+      end
     end
   end
 
