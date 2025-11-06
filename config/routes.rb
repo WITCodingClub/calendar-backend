@@ -240,8 +240,8 @@ Rails.application.routes.draw do
     delete "user/gcal/remove_email", to: "users#remove_email_from_g_cal"
     get "user/email", to: "users#get_email"
 
-    get "user/extension_config", to: "users#get_extension_config"
-    post "user/extension_config", to: "users#set_extension_config"
+    get "user/extension_config", to: "user_extension_config#get"
+    post "user/extension_config", to: "user_extension_config#set"
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
 
