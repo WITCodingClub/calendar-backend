@@ -10,11 +10,16 @@ module Api
         return
       end
 
+      # Convert ActionController::Parameters to plain hashes
+      courses_array = courses.map do |course|
+        course.is_a?(ActionController::Parameters) ? course.to_unsafe_h : course.to_h
+      end
+
       # Process courses synchronously
-      CourseProcessorJob.perform_now(courses, current_user.id)
+      CourseProcessorJob.perform_now(courses_array, current_user.id)
 
       # Fetch the processed data to return to a client
-      processed_data = fetch_processed_courses(courses, current_user)
+      processed_data = fetch_processed_courses(courses_array, current_user)
       ics_url = current_user.cal_url_with_extension
 
 
