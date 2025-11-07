@@ -256,6 +256,17 @@ class RateMyProfessorService < ApplicationService
     all_ratings
   end
 
+  # Generate URL to add a professor to RMP
+  # Note: RMP requires reCAPTCHA, so automated submission via GraphQL is not possible
+  def add_professor_url(first_name: nil, last_name: nil, school_id: WENTWORTH_SCHOOL_ID)
+    "https://www.ratemyprofessors.com/add/professor"
+  end
+
+  # Generate WIT faculty directory URL for a professor
+  def faculty_directory_url(first_name:, last_name:)
+    "https://wit.edu/faculty-staff-directory?search=#{URI.encode_www_form_component(first_name)}+#{URI.encode_www_form_component(last_name)}&dept=&school=&employee_type=All"
+  end
+
   private
 
   def make_request(query:, operation_name:, variables:)

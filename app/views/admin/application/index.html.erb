@@ -89,6 +89,9 @@
         <%= link_to "Manage Calendars", admin_calendars_path,
             class: "quick-action-link block w-full text-left px-4 py-2 text-sm font-medium rounded transition-colors",
             style: "color: #d13732;" %>
+        <%= link_to "Fill Missing RMP IDs#{" (#{@missing_rmp_ids_count})" if @missing_rmp_ids_count > 0}", missing_rmp_ids_admin_faculties_path,
+            class: "quick-action-link block w-full text-left px-4 py-2 text-sm font-medium rounded transition-colors",
+            style: "color: #d13732;" %>
       </div>
     </div>
   </div>

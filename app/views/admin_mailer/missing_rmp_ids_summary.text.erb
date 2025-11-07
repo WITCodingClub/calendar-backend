@@ -1,0 +1,25 @@
+Weekly RMP Summary - Calendar Backend Admin
+============================================================
+
+<%= @count %> faculty member<%= 's' if @count != 1 %> currently missing Rate My Professor IDs
+
+Faculty Members Missing RMP IDs:
+------------------------------------------------------------
+
+<% @faculties.each do |faculty| %>
+- <%= faculty.full_name %>
+  Email: <%= faculty.email %>
+  Courses: <%= faculty.courses.count %>
+
+<% end %>
+
+Fill Missing RMP IDs: <%= missing_rmp_ids_admin_faculties_url %>
+
+Next Steps:
+1. Click "Auto Search" to automatically find matching professors on RMP
+2. Click "Manual Search" to review potential matches and assign manually
+3. If not found, submit the professor to RMP using the form links provided
+
+------------------------------------------------------------
+This is an automated weekly summary sent every Sunday.
+The nightly sync job will automatically pick up newly approved professors from RMP.

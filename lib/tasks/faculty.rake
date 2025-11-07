@@ -36,6 +36,8 @@ namespace :faculty do
     success_count = 0
     not_found_count = 0
     error_count = 0
+    not_found_faculty = []
+    service = RateMyProfessorService.new
 
     missing.each_with_index do |faculty, index|
       print "[#{(index + 1).to_s.rjust(3)}/#{missing.count}] #{faculty.full_name.ljust(30)} ... "
@@ -53,6 +55,7 @@ namespace :faculty do
         else
           puts "✗ Not found"
           not_found_count += 1
+          not_found_faculty << faculty
         end
       rescue => e
         puts "✗ Error: #{e.message}"
@@ -69,6 +72,17 @@ namespace :faculty do
     puts "  ✗ Not found:          #{not_found_count}"
     puts "  ✗ Errors:             #{error_count}"
     puts "\nTotal processed:      #{missing.count}"
+
+    if not_found_faculty.any?
+      puts "\n#{"=" * 80}"
+      puts "Faculty not found on RMP - You can manually add them:"
+      puts "=" * 80
+      not_found_faculty.each do |faculty|
+        rmp_url = service.add_professor_url(first_name: faculty.first_name, last_name: faculty.last_name)
+        puts "\n#{faculty.full_name}:"
+        puts "  #{rmp_url}"
+      end
+    end
   end
 
   desc "Search for a specific faculty member on Rate My Professor by name"
@@ -89,6 +103,16 @@ namespace :faculty do
 
       if teachers.empty?
         puts "No results found."
+        puts "\nYou can manually add this professor to Rate My Professors:"
+
+        # Try to parse first and last name from the search query
+        name_parts = args[:name].split
+        if name_parts.length >= 2
+          first_name = name_parts[0]
+          last_name = name_parts[-1]
+          rmp_url = service.add_professor_url(first_name: first_name, last_name: last_name)
+          puts "  #{rmp_url}"
+        end
       else
         puts "Found #{teachers.count} result(s):\n\n"
 

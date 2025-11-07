@@ -257,6 +257,7 @@ Rails.application.routes.draw do
     post "user/gcal/add_email", to: "users#add_email_to_g_cal"
     delete "user/gcal/remove_email", to: "users#remove_email_from_g_cal"
     get "user/email", to: "users#get_email"
+    get "user/ics_url", to: "users#get_ics_url"
 
     post "user/is_processed", to: "users#is_processed"
     post "user/processed_events", to: "users#get_processed_events_by_term"

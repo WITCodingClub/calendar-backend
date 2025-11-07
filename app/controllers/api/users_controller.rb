@@ -266,6 +266,12 @@ module Api
       end
     end
 
+    def get_ics_url
+      render json: {
+        ics_url: current_user.cal_url_with_extension
+      }
+    end
+
     def get_processed_events_by_term
       term_uid = params[:term_uid]
 

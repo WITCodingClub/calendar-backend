@@ -19,6 +19,7 @@ module Admin
       @terms_count = Term.count
       @google_calendars_count = GoogleCalendar.count
       @rmp_ratings_count = RmpRating.count
+      @missing_rmp_ids_count = Faculty.where(rmp_id: nil).count
     end
 
     private

@@ -36,6 +36,21 @@ ensure_future_terms:
   queue: low
   schedule: every month on the 1st at 2am
 
+# Search for and fill in missing RateMyProfessor IDs weekly
+# Runs before the ratings update so newly approved professors can be found
+# Runs every Sunday at 2:30 AM in application timezone (Eastern Time)
+fill_missing_rmp_ids:
+  class: FillMissingRmpIdsJob
+  queue: low
+  schedule: every sunday at 2:30am
+
+# Send weekly email summary of missing RMP IDs (only if there are missing IDs)
+# Runs every Sunday at 2:00 AM in application timezone (Eastern Time)
+send_missing_rmp_ids_summary:
+  class: SendMissingRmpIdsSummaryJob
+  queue: low
+  schedule: every sunday at 2am
+
 # Update all faculty RateMyProfessor ratings weekly
 # Runs every Sunday at 3:00 AM in application timezone (Eastern Time)
 update_faculty_rmp_ratings:
