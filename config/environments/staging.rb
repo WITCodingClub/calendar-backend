@@ -11,8 +11,8 @@ Rails.application.configure do
   # Eager load code on boot for better performance and memory savings (ignored by Rake tasks).
   config.eager_load = true
 
-  # Full error reports are disabled.
-  config.consider_all_requests_local = false
+  # Show full error reports for debugging in staging.
+  config.consider_all_requests_local = true
 
   # Turn on fragment caching in view templates.
   config.action_controller.perform_caching = true
@@ -39,14 +39,15 @@ Rails.application.configure do
   config.log_tags = [:request_id]
   config.logger   = ActiveSupport::TaggedLogging.logger($stdout)
 
-  # Change to "debug" to log everything (including potentially personally-identifiable information!)
-  config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
+  # More verbose logging for staging environment.
+  config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "debug")
 
   # Prevent health checks from clogging up the logs.
   config.silence_healthcheck_path = "/up"
 
-  # Don't log any deprecations.
-  config.active_support.report_deprecations = false
+  # Log deprecations for visibility in staging.
+  config.active_support.report_deprecations = true
+  config.active_support.deprecation = :log
 
   # Replace the default in-process memory cache store with a durable alternative.
   config.cache_store = :redis_cache_store, { url: ENV.fetch("REDIS_URL", "redis://localhost:6379/1") }
@@ -63,8 +64,8 @@ Rails.application.configure do
   # config.action_mailer.raise_delivery_errors = false
 
   # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "server.calendar.witcc.dev" }
-  config.action_controller.default_url_options = { host: "server.calendar.witcc.dev" }
+  config.action_mailer.default_url_options = { host: ENV.fetch("STAGING_HOST", "staging.server.calendar.witcc.dev") }
+  config.action_controller.default_url_options = { host: ENV.fetch("STAGING_HOST", "staging.server.calendar.witcc.dev") }
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via rails credentials:edit.
   # config.action_mailer.smtp_settings = {
@@ -82,13 +83,13 @@ Rails.application.configure do
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
-  # Only use :id for inspections in production.
-  config.active_record.attributes_for_inspect = [:id]
+  # Enable more detailed Active Record logging in staging.
+  config.active_record.attributes_for_inspect = :all
 
   # Enable DNS rebinding protection and other `Host` header attacks.
   # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
+  #   "staging.example.com",     # Allow requests from staging.example.com
+  #   /.*\.staging\.example\.com/ # Allow requests from subdomains
   # ]
   #
   # Skip DNS rebinding protection for the default health check endpoint.
