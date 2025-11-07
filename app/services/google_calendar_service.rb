@@ -303,8 +303,14 @@ class GoogleCalendarService
 
     service.insert_calendar_list(calendar_list_entry)
   rescue Google::Apis::ClientError => e
-    # Ignore if already in list
-    raise unless e.status_code == 409
+    # Ignore if already in list (409) or not found yet due to propagation delay (404)
+    if e.status_code == 409
+      Rails.logger.debug "Calendar #{calendar_id} already in list for #{email}"
+    elsif e.status_code == 404
+      Rails.logger.warn "Calendar #{calendar_id} not accessible yet for #{email} - ACL may need time to propagate"
+    else
+      raise
+    end
   end
 
   def remove_calendar_from_user_list_for_email(calendar_id, email)
