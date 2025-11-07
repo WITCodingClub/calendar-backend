@@ -31,6 +31,9 @@ The application uses three priority queues configured in `config/queue.yml`:
 - **Jobs:**
   - `NightlyCalendarSyncJob` - Nightly batch sync of user calendars (scheduled at 3:30 AM)
   - `UpdateFacultyRatingsJob` - Fetching Rate My Professor data (scheduled weekly on Sundays at 3:00 AM)
+  - `DeleteOrphanedGoogleCalendarsJob` - Delete orphaned Google calendars from database (scheduled at 4:00 AM)
+  - `CleanupOrphanedGoogleCalendarsJob` - Cleanup orphaned Google calendars (scheduled at 4:15 AM)
+  - `CleanupOrphanedOauthCredentialsJob` - Cleanup orphaned OAuth credentials (scheduled at 4:30 AM)
 
 ## How It Works
 
