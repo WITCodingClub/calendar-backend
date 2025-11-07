@@ -4,6 +4,7 @@ module Api
   class UserExtensionConfigController < ApiController
     def set
       config = UserExtensionConfig.find_or_initialize_by(user_id: current_user.id)
+      authorize config
 
       config.military_time = params[:military_time] unless params[:military_time].nil?
       config.default_color_lecture = params[:default_color_lecture] unless params[:default_color_lecture].nil?
@@ -28,6 +29,8 @@ module Api
         render json: { error: "User extension config not found" }, status: :not_found
         return
       end
+
+      authorize config
 
       render json: {
         military_time: config.military_time,

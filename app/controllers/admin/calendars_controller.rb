@@ -4,7 +4,7 @@ module Admin
   class CalendarsController < Admin::BaseController
     def index
       # Get calendars from the database with associations
-      @calendars = GoogleCalendar
+      @calendars = policy_scope(GoogleCalendar)
                    .includes(:oauth_credential, :user)
                    .left_joins(:google_calendar_events)
                    .select("google_calendars.*, MAX(google_calendar_events.updated_at) as max_event_updated_at")
@@ -24,6 +24,8 @@ module Admin
 
     def destroy
       calendar = GoogleCalendar.find(params[:id])
+      authorize calendar
+
       # Enqueue job to delete calendar from Google
       GoogleCalendarDeleteJob.perform_later(calendar.google_calendar_id)
       # Delete the database record

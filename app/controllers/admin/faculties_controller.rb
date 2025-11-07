@@ -3,15 +3,16 @@
 module Admin
   class FacultiesController < Admin::ApplicationController
     def index
-      @faculties = Faculty.order(:last_name, :first_name).page(params[:page])
+      @faculties = policy_scope(Faculty).order(:last_name, :first_name).page(params[:page])
     end
 
     def missing_rmp_ids
-      @faculties = Faculty.where(rmp_id: nil).order(:last_name, :first_name).page(params[:page])
+      @faculties = policy_scope(Faculty).where(rmp_id: nil).order(:last_name, :first_name).page(params[:page])
     end
 
     def search_rmp
       @faculty = Faculty.find(params[:id])
+      authorize @faculty
       service = RateMyProfessorService.new
 
       search_result = service.search_professors(@faculty.full_name, count: 10)
@@ -30,6 +31,8 @@ module Admin
 
     def assign_rmp_id
       @faculty = Faculty.find(params[:id])
+      authorize @faculty
+
       rmp_id = params[:rmp_id]
 
       if rmp_id.blank?

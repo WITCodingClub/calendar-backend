@@ -67,6 +67,16 @@ A Rails 8 API backend that syncs college course schedules to Google Calendar wit
 - Audit logging with Audits1984 and Console1984
 - Admin access via Google OAuth + access_level enum (user/admin/super_admin/owner)
 
+**Authorization System (Pundit)**
+- Role-based access control via User `access_level`: user/admin/super_admin/owner
+- **user** (0): Can manage their own resources only
+- **admin** (1): VIEW all resources for support, manage public data (courses/faculty), NO destructive actions
+- **super_admin** (2): View AND modify all resources, perform destructive actions, access feature flags. **Cannot delete owners**
+- **owner** (3): Full access including managing other admins
+- Three policy categories: User-Owned (users manage their own), Public-Read (everyone reads, admins manage), Admin-Only (admins view only)
+- All controllers use `authorize @resource` to check permissions via policies in `app/policies/`
+- See `docs/authorization.md` for complete documentation
+
 ### Domain Models
 
 **User & Authentication**
@@ -119,10 +129,11 @@ A Rails 8 API backend that syncs college course schedules to Google Calendar wit
 2. **Always annotate after route changes**: Run `bundle exec annotaterb routes` after modifying routes
 3. **Prefer background jobs**: Use ActiveJob for blocking operations (Google Calendar API calls, web scraping, etc.)
 4. **Full test coverage required**: Write RSpec tests for all new code
-5. **Respect user edits**: The calendar sync intelligently detects and preserves user modifications in Google Calendar
-6. **Template validation**: Calendar preference templates are validated; invalid syntax is rejected
-7. **OAuth token encryption**: All sensitive tokens are encrypted with Lockbox
-8. **Multi-email support**: Design features to support users with multiple connected Google accounts
+5. **Use Pundit authorization**: All controller actions must use `authorize @resource` to check permissions
+6. **Respect user edits**: The calendar sync intelligently detects and preserves user modifications in Google Calendar
+7. **Template validation**: Calendar preference templates are validated; invalid syntax is rejected
+8. **OAuth token encryption**: All sensitive tokens are encrypted with Lockbox
+9. **Multi-email support**: Design features to support users with multiple connected Google accounts
 
 ## Common Development Workflows
 
@@ -145,8 +156,17 @@ A Rails 8 API backend that syncs college course schedules to Google Calendar wit
 3. Add validation tests
 4. Update preview endpoint tests
 
+### Adding Authorization to Controllers
+1. Add `authorize @resource` after finding/creating records
+2. Use `policy_scope(Model)` to filter collections by user permissions
+3. Create corresponding policy in `app/policies/` if it doesn't exist
+4. Write RSpec tests in `spec/policies/` to verify permissions
+5. See `docs/authorization.md` for policy patterns
+
 ### Running Tests for Specific Features
+- Authorization policies: `bundle exec rspec spec/policies/`
 - Calendar preferences: `bundle exec rspec spec/models/calendar_preference_spec.rb`
 - Template rendering: `bundle exec rspec spec/services/calendar_template_renderer_spec.rb`
 - Preference resolution: `bundle exec rspec spec/services/preference_resolver_spec.rb`
 - Google Calendar sync: `bundle exec rspec spec/services/google_calendar_service_spec.rb`
+- always make and follow pundit policies

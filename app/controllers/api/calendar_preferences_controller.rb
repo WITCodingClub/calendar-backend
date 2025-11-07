@@ -6,8 +6,9 @@ module Api
 
     # GET /api/calendar_preferences
     def index
-      global_pref = current_user.calendar_preferences.find_by(scope: :global)
-      event_type_prefs = current_user.calendar_preferences.where(scope: :event_type)
+      preferences = policy_scope(current_user.calendar_preferences)
+      global_pref = preferences.find_by(scope: :global)
+      event_type_prefs = preferences.where(scope: :event_type)
 
       render json: {
         global: global_pref ? preference_json(global_pref) : nil,
@@ -18,12 +19,14 @@ module Api
     # GET /api/calendar_preferences/global
     # GET /api/calendar_preferences/:event_type
     def show
+      authorize @calendar_preference
       render json: preference_json(@calendar_preference)
     end
 
     # PUT /api/calendar_preferences/global
     # PUT /api/calendar_preferences/:event_type
     def update
+      authorize @calendar_preference
       if @calendar_preference.update(calendar_preference_params)
         render json: preference_json(@calendar_preference)
       else
@@ -33,6 +36,7 @@ module Api
 
     # DELETE /api/calendar_preferences/:event_type
     def destroy
+      authorize @calendar_preference
       @calendar_preference.destroy
       head :no_content
     end

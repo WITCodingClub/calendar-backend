@@ -12,6 +12,9 @@ module Api
         preferenceable: @preferenceable
       )
 
+      # Authorize either the existing preference or create a new one to check authorization
+      authorize preference || EventPreference.new(user: current_user, preferenceable: @preferenceable)
+
       # Get resolved preferences with sources
       resolver = PreferenceResolver.new(current_user)
       resolved_data = resolver.resolve_with_sources(@preferenceable)
@@ -40,6 +43,8 @@ module Api
         preferenceable: @preferenceable
       )
 
+      authorize preference
+
       if preference.update(event_preference_params)
         render json: event_preference_json(preference)
       else
@@ -56,6 +61,7 @@ module Api
       )
 
       if preference
+        authorize preference
         preference.destroy
         head :no_content
       else

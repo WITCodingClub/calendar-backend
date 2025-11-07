@@ -7,7 +7,7 @@ module Admin
     BETA_FEATURE_FLAG = FlipperFlags::V1
 
     def index
-      @users = User.order(created_at: :desc)
+      @users = policy_scope(User).order(created_at: :desc)
 
       if params[:search].present?
         @users = @users.where("email ILIKE ?", "%#{params[:search]}%")
@@ -21,6 +21,8 @@ module Admin
     end
 
     def show
+      authorize @user
+
       # Eager load enrollments with their associations for the view
       @enrollments_by_term = @user.enrollments
                                   .includes(:course, :term)
@@ -38,9 +40,12 @@ module Admin
     end
 
     def edit
+      authorize @user
     end
 
     def update
+      authorize @user
+
       if @user.update(user_params)
         redirect_to admin_user_path(@user), notice: "User was successfully updated."
       else
@@ -49,12 +54,15 @@ module Admin
     end
 
     def destroy
+      authorize @user
+
       @user.destroy
       redirect_to admin_users_path, notice: "User was successfully deleted."
     end
 
     def revoke_oauth_credential
       credential = @user.oauth_credentials.find(params[:credential_id])
+      authorize credential
       credential_email = credential.email
 
       # Queue the revocation job
@@ -66,6 +74,8 @@ module Admin
     end
 
     def enable_beta
+      authorize @user, :update? # Beta management requires update permission
+
       Flipper.enable_actor(BETA_FEATURE_FLAG, @user)
       redirect_to admin_user_path(@user), notice: "#{@user.email} has been added to the beta test group."
     rescue => e
@@ -74,6 +84,8 @@ module Admin
     end
 
     def disable_beta
+      authorize @user, :update? # Beta management requires update permission
+
       Flipper.disable_actor(BETA_FEATURE_FLAG, @user)
       redirect_to admin_user_path(@user), notice: "Beta tester access removed for #{@user.email}."
     rescue => e

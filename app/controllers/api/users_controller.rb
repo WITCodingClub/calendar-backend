@@ -32,6 +32,8 @@ module Api
     end
 
     def is_processed
+      authorize current_user
+
       term_uid = params[:term_uid]
 
       if term_uid.blank?
@@ -51,6 +53,7 @@ module Api
     end
 
     def get_email
+      authorize current_user
 
       email = Email.where(user_id: current_user.id, primary: true).pick(:email)
 
@@ -68,6 +71,7 @@ module Api
       email = email.to_s.strip
       # Create/update Email record with g_cal = true
       email_record = current_user.emails.find_or_initialize_by(email: email)
+      authorize email_record
       email_record.g_cal = true
       email_record.save!
 
@@ -111,6 +115,8 @@ module Api
         return
       end
 
+      authorize email_record
+
       # Check if user has a calendar to remove access from
       calendar_id = current_user.google_course_calendar_id
       if calendar_id.blank?
@@ -144,6 +150,7 @@ module Api
 
       # Create/update Email record with g_cal = true
       email_record = current_user.emails.find_or_initialize_by(email: email)
+      authorize email_record
       email_record.g_cal = true
       email_record.save!
 
@@ -267,12 +274,16 @@ module Api
     end
 
     def get_ics_url
+      authorize current_user
+
       render json: {
         ics_url: current_user.cal_url_with_extension
       }
     end
 
     def get_processed_events_by_term
+      authorize current_user
+
       term_uid = params[:term_uid]
 
       if term_uid.blank?
