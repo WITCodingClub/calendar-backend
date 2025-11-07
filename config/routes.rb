@@ -252,7 +252,7 @@ Rails.application.routes.draw do
     get "user/email", to: "users#get_email"
 
     get "user/is_processed", to: "users#is_processed"
-    get "user/processed_events", to: "users#get_processed_events_by_term"
+    post "user/processed_events", to: "users#get_processed_events_by_term"
 
     get "user/extension_config", to: "user_extension_config#get"
     put "user/extension_config", to: "user_extension_config#set"
