@@ -182,6 +182,110 @@ module Api
       render json: { error: "Failed to request Google Calendar" }, status: :internal_server_error
     end
 
+    def group_meeting_times(meeting_times)
+          # Group meeting times by their common attributes (time, date range, location)
+      grouped = meeting_times.group_by do |mt|
+        [mt.begin_time, mt.end_time, mt.start_date, mt.end_date, mt.room_id, mt.id]
+      end
+
+          # Convert each group into a single meeting time object with day flags
+      grouped.map do |_key, mts|
+        # Use the first meeting time as the base
+        mt = mts.first
+
+        # Initialize all days to false
+        days = {
+          monday: false,
+          tuesday: false,
+          wednesday: false,
+          thursday: false,
+          friday: false,
+          saturday: false,
+          sunday: false
+        }
+
+
+        # Set true for each day that appears in the group
+        mts.each do |meeting_time|
+          day_symbol = meeting_time.day_of_week&.to_sym
+          next unless day_symbol
+
+          # Set boolean flag
+          days[day_symbol] = true
+
+        end
+
+        {
+          id: mt.id,
+          begin_time: mt.fmt_begin_time,
+          end_time: mt.fmt_end_time,
+          start_date: mt.start_date,
+          end_date: mt.end_date,
+          location: {
+            building: if mt.building
+                        {
+                          name: mt.building.name,
+                          abbreviation: mt.building.abbreviation
+                        }
+                      else
+                        nil
+                      end,
+            room: mt.room&.formatted_number
+          },
+          **days,
+        }
+      end
+        end
+
+    def get_processed_events_by_term
+      term_uid = params[:term_uid]
+
+      if term_uid.blank?
+        render json: { error: "term_uid is required" }, status: :bad_request
+        return
+      end
+
+      term = Term.find_by(uid: term_uid)
+      if term.nil?
+        render json: { error: "Term not found" }, status: :not_found
+        return
+      end
+
+      # Preload course associations to prevent N+1 (meeting_times and faculties)
+      enrollments = current_user
+                      .enrollments
+                      .where(term_id: term.id)
+                      .includes(course: [:meeting_times, :faculties])
+
+      structured_data = enrollments.map do |enrollment|
+        course = enrollment.course
+        faculty = course.faculties.first # safer than [0]
+        meeting_times = course.meeting_times
+
+        {
+          title: course.title,
+          course_number: course.course_number,
+          schedule_type: course.schedule_type,
+          prefix: course.prefix,
+          term: {
+            uid: term.uid,
+            season: term.season,
+            year: term.year
+          },
+          professor: {
+            first_name: faculty&.first_name,
+            last_name: faculty&.last_name,
+            email: faculty&.email,
+            rmp_id: faculty&.rmp_id
+          },
+          meeting_times: group_meeting_times(meeting_times)
+        }
+      end
+
+      render json: { classes: structured_data }, status: :ok
+    end
+
+
 
   end
 end
