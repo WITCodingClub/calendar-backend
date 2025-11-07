@@ -1,0 +1,106 @@
+<div class="container mx-auto px-2 pb-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Search Rate My Professor</h1>
+    <div class="flex gap-2">
+      <%= link_to "Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    </div>
+  </div>
+
+  <div class="bg-white shadow-lg rounded-lg mb-4 p-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+    <h2 class="text-xl font-semibold mb-2">Searching for: <%= @faculty.full_name %></h2>
+    <p class="text-gray-600 mb-1"><strong>Email:</strong> <%= @faculty.email || "N/A" %></p>
+    <p class="text-gray-600"><strong>Courses:</strong> <%= @faculty.courses.count %></p>
+  </div>
+
+  <% if @teachers.empty? %>
+    <div class="bg-white shadow-lg rounded-lg p-8 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="text-yellow-600 text-lg font-semibold mb-2">
+        No Results Found
+      </div>
+      <p class="text-gray-600 mb-4">No matching professors found on Rate My Professor for "<%= @faculty.full_name %>".</p>
+      <%= link_to "Back to Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    </div>
+  <% else %>
+    <div class="bg-white shadow-lg rounded-lg mb-4 p-4" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <p class="text-gray-700">
+        Found <span class="font-bold"><%= @teachers.count %></span> result(s) on Rate My Professor
+      </p>
+    </div>
+
+    <div class="space-y-4">
+      <% @teachers.each_with_index do |edge, index| %>
+        <% teacher = edge["node"] %>
+        <% school = teacher.dig("school", "name") || "Unknown School" %>
+        <% department = teacher["department"] || "Unknown Department" %>
+        <% is_exact_match = teacher["firstName"]&.downcase&.strip == @faculty.first_name&.downcase&.strip &&
+                            teacher["lastName"]&.downcase&.strip == @faculty.last_name&.downcase&.strip %>
+
+        <div class="bg-white shadow-lg rounded-lg p-6 <%= is_exact_match ? 'border-2 border-green-500' : '' %>" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+          <% if is_exact_match %>
+            <div class="mb-2">
+              <span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">
+                ✓ Exact Name Match
+              </span>
+            </div>
+          <% end %>
+
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <h3 class="text-xl font-semibold mb-2">
+                <%= teacher["firstName"] %> <%= teacher["lastName"] %>
+              </h3>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                <div>
+                  <p class="text-sm text-gray-600"><strong>School:</strong> <%= school %></p>
+                  <p class="text-sm text-gray-600"><strong>Department:</strong> <%= department %></p>
+                  <p class="text-sm text-gray-600 mt-2">
+                    <strong>RMP ID:</strong>
+                    <code class="bg-gray-100 px-2 py-1 rounded text-xs"><%= teacher["id"] %></code>
+                  </p>
+                </div>
+
+                <div>
+                  <% if teacher["avgRating"] %>
+                    <p class="text-sm text-gray-600">
+                      <strong>Rating:</strong>
+                      <span class="font-semibold <%= teacher["avgRating"] >= 4.0 ? 'text-green-600' : teacher["avgRating"] >= 3.0 ? 'text-yellow-600' : 'text-red-600' %>">
+                        <%= teacher["avgRating"] %> / 5.0
+                      </span>
+                      (<%= teacher["numRatings"] || 0 %> ratings)
+                    </p>
+                  <% else %>
+                    <p class="text-sm text-gray-600"><strong>Rating:</strong> N/A</p>
+                  <% end %>
+
+                  <% if teacher["avgDifficulty"] %>
+                    <p class="text-sm text-gray-600">
+                      <strong>Difficulty:</strong> <%= teacher["avgDifficulty"] %> / 5.0
+                    </p>
+                  <% else %>
+                    <p class="text-sm text-gray-600"><strong>Difficulty:</strong> N/A</p>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <div class="ml-4">
+              <%= button_to "Assign This ID",
+                  assign_rmp_id_admin_faculty_path(@faculty, rmp_id: teacher["id"]),
+                  method: :post,
+                  class: "bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm cursor-pointer whitespace-nowrap",
+                  data: {
+                    turbo_confirm: "Assign RMP ID '#{teacher['id']}' to #{@faculty.full_name}?"
+                  } %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="mt-6 text-center">
+      <%= link_to "Back to Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    </div>
+  <% end %>
+</div>

@@ -1,7 +1,10 @@
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold">Faculty</h1>
-    <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    <div class="flex gap-2">
+      <%= link_to "Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    </div>
   </div>
 
   <div class="bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">

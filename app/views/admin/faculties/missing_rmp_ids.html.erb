@@ -1,0 +1,94 @@
+<div class="container mx-auto px-2 pb-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Faculty Missing RMP IDs</h1>
+    <div class="flex gap-2">
+      <%= link_to "All Faculty", admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    </div>
+  </div>
+
+  <% if @faculties.empty? %>
+    <div class="bg-white shadow-lg rounded-lg p-8 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="text-green-600 text-lg font-semibold mb-2">
+        ✓ All faculty members have RMP IDs assigned!
+      </div>
+      <p class="text-gray-600">There are no faculty members missing Rate My Professor IDs.</p>
+    </div>
+  <% else %>
+    <div class="bg-white shadow-lg rounded-lg mb-4 p-4" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-gray-700">
+            <span class="font-bold text-lg"><%= @faculties.total_count %></span> faculty members are missing RMP IDs
+          </p>
+        </div>
+        <div>
+          <%= button_to "Auto-Fill All",
+              batch_auto_fill_admin_faculties_path,
+              method: :post,
+              class: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm cursor-pointer",
+              data: {
+                turbo_confirm: "This will queue background jobs to search Rate My Professor for all #{@faculties.total_count} faculty members. Continue?"
+              } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead style="background: rgba(255, 255, 255, 0.5);">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Name
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Email
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Courses
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200" style="background: rgba(255, 255, 255, 0.3);">
+            <% @faculties.each do |faculty| %>
+              <tr>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="text-sm text-gray-900 font-medium">
+                    <%= faculty.full_name %>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <%= faculty.email || "N/A" %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <%= faculty.courses.count %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                  <div class="flex gap-2">
+                    <%= button_to "Auto Search",
+                        auto_fill_rmp_id_admin_faculty_path(faculty),
+                        method: :post,
+                        class: "bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs cursor-pointer" %>
+                    <%= link_to "Manual Search",
+                        search_rmp_admin_faculty_path(faculty),
+                        class: "bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs cursor-pointer inline-block" %>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if @faculties.respond_to?(:total_pages) %>
+        <div class="px-6 py-4 border-t border-gray-200" style="background: rgba(255, 255, 255, 0.4);">
+          <%= paginate @faculties %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
