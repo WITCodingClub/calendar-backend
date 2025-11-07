@@ -62,6 +62,13 @@ Vector embeddings and semantic search capabilities.
 - Adding background jobs: See Job Queues
 - Understanding async processing: See Job Queues
 
+## Security
+
+- **[Authorization](./authorization.md)** - Role-based access control with Pundit
+
+**Use Cases:**
+- Adding authorization: See Authorization
+
 ## Documentation Map
 
 ```
