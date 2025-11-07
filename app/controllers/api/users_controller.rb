@@ -29,6 +29,24 @@ module Api
       Rails.logger.error("Error in onboarding user: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: "Failed to onboard user" }, status: :internal_server_error
+    end
+
+    def is_processed
+      term_uid = params[:term_uid]
+
+      if term_uid.blank?
+        render json: { error: "term_uid is required" }, status: :bad_request
+        return
+      end
+
+      term = Term.find_by(uid: term_uid)
+      if term.nil?
+        render json: { error: "Term not found" }, status: :not_found
+        return
+      end
+
+      processed = current_user.enrollments.exists?(term_id: term.id)
+      render json: { processed: processed }, status: :ok
 
     end
 

@@ -251,6 +251,8 @@ Rails.application.routes.draw do
     delete "user/gcal/remove_email", to: "users#remove_email_from_g_cal"
     get "user/email", to: "users#get_email"
 
+    get "user/is_processed", to: "users#is_processed"
+
     get "user/extension_config", to: "user_extension_config#get"
     put "user/extension_config", to: "user_extension_config#set"
 
