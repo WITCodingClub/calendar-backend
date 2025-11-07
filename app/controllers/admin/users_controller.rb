@@ -62,7 +62,7 @@ module Admin
 
     def revoke_oauth_credential
       credential = @user.oauth_credentials.find(params[:credential_id])
-      authorize credential
+      authorize credential, :destroy?
       credential_email = credential.email
 
       # Queue the revocation job

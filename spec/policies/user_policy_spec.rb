@@ -25,7 +25,7 @@ RSpec.describe UserPolicy, type: :policy do
   end
 
   permissions :show? do
-    it "allows users to view their own profile" do
+    it "allows users to view their own profile (record == user)" do
       expect(subject).to permit(regular_user, regular_user)
     end
 
@@ -55,7 +55,7 @@ RSpec.describe UserPolicy, type: :policy do
   end
 
   permissions :update? do
-    it "allows users to update their own profile" do
+    it "allows users to update their own profile (record == user)" do
       expect(subject).to permit(regular_user, regular_user)
     end
 
@@ -74,7 +74,7 @@ RSpec.describe UserPolicy, type: :policy do
   end
 
   permissions :destroy? do
-    it "allows users to delete their own account" do
+    it "allows users to delete their own account (record == user)" do
       expect(subject).to permit(regular_user, regular_user)
     end
 

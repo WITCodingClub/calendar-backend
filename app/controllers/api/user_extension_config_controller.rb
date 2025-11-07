@@ -4,7 +4,7 @@ module Api
   class UserExtensionConfigController < ApiController
     def set
       config = UserExtensionConfig.find_or_initialize_by(user_id: current_user.id)
-      authorize config
+      authorize config, :update?
 
       config.military_time = params[:military_time] unless params[:military_time].nil?
       config.default_color_lecture = params[:default_color_lecture] unless params[:default_color_lecture].nil?
@@ -30,7 +30,7 @@ module Api
         return
       end
 
-      authorize config
+      authorize config, :show?
 
       render json: {
         military_time: config.military_time,

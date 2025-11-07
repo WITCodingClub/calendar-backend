@@ -71,6 +71,10 @@ destroy? # owner_of_record? || can_perform_destructive_action? - Users delete th
 ```
 
 **Special Case - User Model:**
+- Uses `record == user` instead of `owner_of_record?` (User model doesn't have `user_id` attribute)
+- `show?` checks `record == user || admin?`
+- `update?` checks `record == user || super_admin?`
+- `destroy?` checks `record == user || can_perform_destructive_action?`
 - `create?` allows `admin?` (admins can create new user accounts)
 - `destroy?` uses `can_perform_destructive_action?` which prevents super_admins from deleting owner accounts
 

@@ -8,7 +8,7 @@ class UserPolicy < ApplicationPolicy
 
   # Users can view their own profile, admins+ can view all for support
   def show?
-    owner_of_record? || admin?
+    record == user || admin?
   end
 
   # Admins+ can create new users
@@ -19,12 +19,12 @@ class UserPolicy < ApplicationPolicy
   # Users can update their own profile, super_admins+ can modify others
   # (super_admin needed to change access_level)
   def update?
-    owner_of_record? || super_admin?
+    record == user || super_admin?
   end
 
   # Users can delete their own account, but super_admins cannot delete owners
   def destroy?
-    owner_of_record? || can_perform_destructive_action?
+    record == user || can_perform_destructive_action?
   end
 
   class Scope < ApplicationPolicy::Scope
