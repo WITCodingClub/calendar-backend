@@ -183,12 +183,16 @@ module Api
     end
 
     def group_meeting_times(meeting_times)
-          # Group meeting times by their common attributes (time, date range, location)
+      # Create preference resolver for the user
+      preference_resolver = PreferenceResolver.new(current_user)
+      template_renderer = CalendarTemplateRenderer.new
+
+      # Group meeting times by their common attributes (time, date range, location)
       grouped = meeting_times.group_by do |mt|
         [mt.begin_time, mt.end_time, mt.start_date, mt.end_date, mt.room_id, mt.id]
       end
 
-          # Convert each group into a single meeting time object with day flags
+      # Convert each group into a single meeting time object with day flags
       grouped.map do |_key, mts|
         # Use the first meeting time as the base
         mt = mts.first
@@ -204,7 +208,6 @@ module Api
           sunday: false
         }
 
-
         # Set true for each day that appears in the group
         mts.each do |meeting_time|
           day_symbol = meeting_time.day_of_week&.to_sym
@@ -212,8 +215,26 @@ module Api
 
           # Set boolean flag
           days[day_symbol] = true
-
         end
+
+        # Resolve preferences for this meeting time
+        preferences = preference_resolver.resolve_for(mt)
+
+        # Build template context
+        context = CalendarTemplateRenderer.build_context_from_meeting_time(mt)
+
+        # Render title and description from templates
+        rendered_title = if preferences[:title_template].present?
+                           template_renderer.render(preferences[:title_template], context)
+                         else
+                           mt.course.title
+                         end
+
+        rendered_description = if preferences[:description_template].present?
+                                 template_renderer.render(preferences[:description_template], context)
+                               else
+                                 nil
+                               end
 
         {
           id: mt.id,
@@ -233,9 +254,17 @@ module Api
             room: mt.room&.formatted_number
           },
           **days,
+          # Preference-resolved calendar configuration
+          calendar_config: {
+            title: rendered_title,
+            description: rendered_description,
+            color_id: preferences[:color_id] || mt.event_color,
+            reminder_settings: preferences[:reminder_settings],
+            visibility: preferences[:visibility]
+          }
         }
       end
-        end
+    end
 
     def get_processed_events_by_term
       term_uid = params[:term_uid]
@@ -251,11 +280,18 @@ module Api
         return
       end
 
-      # Preload course associations to prevent N+1 (meeting_times and faculties)
+      # Preload user's calendar preferences to avoid N+1 queries in PreferenceResolver
+      current_user.calendar_preferences.load
+      current_user.event_preferences.load
+
+      # Preload course associations to prevent N+1 (meeting_times, faculties, buildings, rooms, event_preferences)
       enrollments = current_user
-                      .enrollments
-                      .where(term_id: term.id)
-                      .includes(course: [:meeting_times, :faculties])
+                    .enrollments
+                    .where(term_id: term.id)
+                    .includes(course: [
+                                :faculties,
+                                { meeting_times: [:event_preference, { room: :building }] }
+                              ])
 
       structured_data = enrollments.map do |enrollment|
         course = enrollment.course
