@@ -20,6 +20,7 @@ module WitCalendarBackend
 
     # Add constraints directory to autoload paths
     config.autoload_paths << Rails.root.join("app/constraints")
+    config.autoload_paths << Rails.root.join("app/middleware")
 
     config.active_job.queue_adapter = :solid_queue
 
@@ -38,3 +39,8 @@ module WitCalendarBackend
 
   end
 end
+
+# Load and configure Rack::Attack middleware
+require_relative "../app/middleware/rate_limit_headers_middleware"
+Rails.application.config.middleware.use Rack::Attack
+Rails.application.config.middleware.insert_after Rack::Attack, RateLimitHeadersMiddleware

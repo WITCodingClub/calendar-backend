@@ -64,9 +64,12 @@ Vector embeddings and semantic search capabilities.
 
 ## Security
 
+- **[Rate Limiting](./security/rate-limiting.md)** - Rate limiting and DDoS protection with Rack::Attack
 - **[Authorization](./authorization.md)** - Role-based access control with Pundit
 
 **Use Cases:**
+- Understanding rate limits: See Rate Limiting
+- Configuring rate limits: See Rate Limiting
 - Adding authorization: See Authorization
 
 ## Documentation Map
@@ -99,8 +102,11 @@ docs/
 ├── integrations/
 │   └── rate-my-professor-integration.md
 │
-└── infrastructure/
-    └── job-queues.md
+├── infrastructure/
+│   └── job-queues.md
+│
+└── security/
+    └── rate-limiting.md
 ```
 
 ## Common Workflows
@@ -139,6 +145,12 @@ docs/
 
 **Integrate RateMyProfessor data**
 → [Rate My Professor Integration](./integrations/rate-my-professor-integration.md)
+
+**Configure rate limiting**
+→ [Rate Limiting](./security/rate-limiting.md)
+
+**Set up authorization policies**
+→ [Authorization](./authorization.md)
 
 ## Need Help?
 
