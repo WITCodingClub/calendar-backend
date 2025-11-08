@@ -1,4 +1,5 @@
-# Docker Compose for local development dependencies
+# Docker Compose for production deployment
+# For local development dependencies only, use docker-compose.dev.yml
 # For full Dev Container setup with VS Code, see .devcontainer/docker-compose.yml
 
 services:
@@ -7,8 +8,8 @@ services:
     container_name: wit_calendar_postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: wit_calendar_backend_development
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-wit_calendar_backend_production}
     ports:
       - "5432:5432"
     volumes:
@@ -19,6 +20,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - wit_calendar_network
 
   redis:
     image: redis:7-alpine
@@ -33,7 +36,47 @@ services:
       timeout: 3s
       retries: 5
     command: redis-server --appendonly yes
+    networks:
+      - wit_calendar_network
+
+  backend:
+    image: jaspermayone/witcc-calendar-backend:latest
+    container_name: wit_calendar_backend
+    ports:
+      - "80:80"
+    environment:
+      RAILS_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-wit_calendar_backend_production}
+      REDIS_URL: redis://redis:6379/0
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      RAILS_LOG_TO_STDOUT: "true"
+      RAILS_SERVE_STATIC_FILES: "true"
+      # Add other environment variables as needed:
+      # GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      # GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      # etc.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/up || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - wit_calendar_network
+    volumes:
+      - storage_data:/rails/storage
 
 volumes:
   postgres_data:
   redis_data:
+  storage_data:
+
+networks:
+  wit_calendar_network:
+    driver: bridge
