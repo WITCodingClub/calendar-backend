@@ -34,5 +34,7 @@ class GoogleCalendarPolicy < ApplicationPolicy
         scope.joins(:oauth_credential).where(oauth_credentials: { user_id: user&.id })
       end
     end
+
   end
+
 end

@@ -5,5 +5,6 @@ module Admin
     def index
       @rmp_ratings = RmpRating.includes(:faculty).order(created_at: :desc).page(params[:page])
     end
+
   end
 end

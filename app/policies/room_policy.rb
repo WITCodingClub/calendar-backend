@@ -30,5 +30,7 @@ class RoomPolicy < ApplicationPolicy
     def resolve
       scope.all
     end
+
   end
+
 end

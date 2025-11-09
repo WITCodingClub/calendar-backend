@@ -29,5 +29,6 @@ module Api
       Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: "Failed to process courses" }, status: :internal_server_error
     end
+
   end
 end

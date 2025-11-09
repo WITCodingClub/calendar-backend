@@ -309,7 +309,7 @@ class GoogleCalendarService
     rescue Google::Apis::ClientError => e
       if e.status_code == 409
         # Calendar already in list - this is fine
-        Rails.logger.debug "Calendar #{calendar_id} already in list for #{email}"
+        Rails.logger.debug { "Calendar #{calendar_id} already in list for #{email}" }
       elsif e.status_code == 404 && retries < max_retries
         # ACL hasn't propagated yet - retry with exponential backoff
         retries += 1
@@ -416,9 +416,9 @@ class GoogleCalendarService
       # Accept "notification" as alias for "popup"
       valid_reminders = event_data[:reminder_settings].select do |reminder|
         reminder.is_a?(Hash) &&
-        reminder["method"].present? &&
-        reminder["minutes"].present? &&
-        ["email", "popup", "notification"].include?(reminder["method"])
+          reminder["method"].present? &&
+          reminder["minutes"].present? &&
+          ["email", "popup", "notification"].include?(reminder["method"])
       end
 
       # Only set custom reminders if we have at least one valid reminder
@@ -524,9 +524,9 @@ class GoogleCalendarService
       # Accept "notification" as alias for "popup"
       valid_reminders = event_data[:reminder_settings].select do |reminder|
         reminder.is_a?(Hash) &&
-        reminder["method"].present? &&
-        reminder["minutes"].present? &&
-        ["email", "popup", "notification"].include?(reminder["method"])
+          reminder["method"].present? &&
+          reminder["minutes"].present? &&
+          ["email", "popup", "notification"].include?(reminder["method"])
       end
 
       # Only set custom reminders if we have at least one valid reminder

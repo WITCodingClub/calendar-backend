@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe BuildingPolicy, type: :policy do
-  include_examples "public-read resource policy", :building
+  it_behaves_like "public-read resource policy", :building
 end

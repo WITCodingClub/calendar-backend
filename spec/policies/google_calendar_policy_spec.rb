@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe GoogleCalendarPolicy, type: :policy do
   # Note: GoogleCalendar ownership is through oauth_credential, not directly through user_id

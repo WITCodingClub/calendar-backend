@@ -17,5 +17,6 @@ module Api
     def pundit_not_authorized
       render json: { error: "You are not authorized to perform this action." }, status: :forbidden
     end
+
   end
 end

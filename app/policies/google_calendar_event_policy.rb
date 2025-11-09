@@ -25,10 +25,13 @@ class GoogleCalendarEventPolicy < ApplicationPolicy
 
   def owner_of_record_through_calendar?
     return false unless user && record.respond_to?(:google_calendar)
+
     calendar = record.google_calendar
-    return false unless calendar&.respond_to?(:oauth_credential)
+    return false unless calendar.respond_to?(:oauth_credential)
+
     oauth_credential = calendar.oauth_credential
-    return false unless oauth_credential&.respond_to?(:user_id)
+    return false unless oauth_credential.respond_to?(:user_id)
+
     oauth_credential.user_id == user.id
   end
 
@@ -41,5 +44,7 @@ class GoogleCalendarEventPolicy < ApplicationPolicy
              .where(oauth_credentials: { user_id: user&.id })
       end
     end
+
   end
+
 end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe EventPreferencePolicy, type: :policy do
-  include_examples "user-owned resource policy", :event_preference
+  it_behaves_like "user-owned resource policy", :event_preference
 end

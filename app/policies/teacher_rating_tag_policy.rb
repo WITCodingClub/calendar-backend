@@ -30,5 +30,7 @@ class TeacherRatingTagPolicy < ApplicationPolicy
     def resolve
       scope.all
     end
+
   end
+
 end

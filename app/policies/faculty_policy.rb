@@ -55,5 +55,7 @@ class FacultyPolicy < ApplicationPolicy
     def resolve
       scope.all
     end
+
   end
+
 end

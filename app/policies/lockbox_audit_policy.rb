@@ -34,5 +34,7 @@ class LockboxAuditPolicy < ApplicationPolicy
         scope.none
       end
     end
+
   end
+
 end

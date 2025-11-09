@@ -30,5 +30,7 @@ class BuildingPolicy < ApplicationPolicy
     def resolve
       scope.all
     end
+
   end
+
 end

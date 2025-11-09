@@ -66,7 +66,7 @@ class OauthCredential < ApplicationRecord
   private
 
   def revoke_calendar_access
-    return unless google_calendar&.google_calendar_id.present?
+    return if google_calendar&.google_calendar_id.blank?
 
     begin
       # Remove the email's access to the Google Calendar

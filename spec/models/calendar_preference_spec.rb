@@ -155,10 +155,10 @@ RSpec.describe CalendarPreference do
         subject.reload
 
         expect(subject.reminder_settings).to eq([
-          { "minutes" => 15, "method" => "popup" },
-          { "minutes" => 30, "method" => "popup" },
-          { "minutes" => 60, "method" => "email" }
-        ])
+                                                  { "minutes" => 15, "method" => "popup" },
+                                                  { "minutes" => 30, "method" => "popup" },
+                                                  { "minutes" => 60, "method" => "email" }
+                                                ])
       end
     end
   end

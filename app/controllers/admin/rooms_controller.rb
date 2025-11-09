@@ -5,5 +5,6 @@ module Admin
     def index
       @rooms = Room.includes(:building).order("buildings.name, rooms.number").page(params[:page])
     end
+
   end
 end

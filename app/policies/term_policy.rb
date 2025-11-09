@@ -30,5 +30,7 @@ class TermPolicy < ApplicationPolicy
     def resolve
       scope.all
     end
+
   end
+
 end

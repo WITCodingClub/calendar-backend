@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe LockboxAuditPolicy, type: :policy do
-  include_examples "admin-only resource policy", :lockbox_audit
+  it_behaves_like "admin-only resource policy", :lockbox_audit
 end

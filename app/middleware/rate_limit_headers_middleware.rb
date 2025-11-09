@@ -16,4 +16,5 @@ class RateLimitHeadersMiddleware
 
     [status, headers, response]
   end
+
 end

@@ -80,4 +80,5 @@ class CalendarPreference < ApplicationRecord
       errors.add(:location_template, "invalid syntax: #{e.message}")
     end
   end
+
 end

@@ -30,5 +30,7 @@ class MeetingTimePolicy < ApplicationPolicy
     def resolve
       scope.all
     end
+
   end
+
 end

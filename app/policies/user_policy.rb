@@ -35,5 +35,7 @@ class UserPolicy < ApplicationPolicy
         scope.where(id: user&.id)
       end
     end
+
   end
+
 end

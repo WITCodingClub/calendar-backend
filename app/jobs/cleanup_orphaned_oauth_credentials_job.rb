@@ -55,9 +55,9 @@ class CleanupOrphanedOauthCredentialsJob < ApplicationJob
     orphaned_ids.concat(orphaned_by_email)
 
     # Find credentials with expired tokens that cannot be refreshed
-    orphaned_by_expired_token = OauthCredential.where("token_expires_at <= ?", Time.current)
-                                                .where(refresh_token: nil)
-                                                .pluck(:id)
+    orphaned_by_expired_token = OauthCredential.where(token_expires_at: ..Time.current)
+                                               .where(refresh_token: nil)
+                                               .pluck(:id)
     orphaned_ids.concat(orphaned_by_expired_token)
 
     # Find credentials whose user no longer exists
@@ -111,4 +111,5 @@ class CleanupOrphanedOauthCredentialsJob < ApplicationJob
     Rails.logger.error "Error revoking OAuth token with Google: #{e.message}"
     # Continue with database deletion even if Google revocation fails
   end
+
 end

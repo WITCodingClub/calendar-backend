@@ -35,6 +35,8 @@ module Ahoy
           scope.none
         end
       end
+
     end
+
   end
 end

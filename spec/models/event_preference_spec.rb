@@ -33,9 +33,11 @@ require "rails_helper"
 
 RSpec.describe EventPreference do
   describe "validations" do
+    subject { build(:event_preference, user: user, preferenceable: meeting_time, color_id: 5) }
+
     let(:user) { create(:user) }
     let(:meeting_time) { create(:meeting_time) }
-    subject { build(:event_preference, user: user, preferenceable: meeting_time, color_id: 5) }
+
 
     context "color_id validation" do
       it "allows valid color IDs (1-11)" do
@@ -112,10 +114,10 @@ RSpec.describe EventPreference do
         subject.reload
 
         expect(subject.reminder_settings).to eq([
-          { "minutes" => 15, "method" => "popup" },
-          { "minutes" => 30, "method" => "popup" },
-          { "minutes" => 60, "method" => "email" }
-        ])
+                                                  { "minutes" => 15, "method" => "popup" },
+                                                  { "minutes" => 30, "method" => "popup" },
+                                                  { "minutes" => 60, "method" => "email" }
+                                                ])
       end
     end
 

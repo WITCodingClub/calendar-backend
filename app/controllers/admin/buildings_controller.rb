@@ -5,5 +5,6 @@ module Admin
     def index
       @buildings = Building.order(:name).page(params[:page])
     end
+
   end
 end

@@ -29,7 +29,7 @@ class Rack::Attack
   blocklist("block-suspicious-requests") do |req|
     Rack::Attack::Fail2Ban.filter("pentesters-#{req.ip}", maxretry: 5, findtime: 10.minutes, bantime: 1.hour) do
       # Return true if this is a suspicious request
-      CGI.unescape(req.query_string) =~ %r{/etc/passwd} ||
+      CGI.unescape(req.query_string) =~ /\/etc\/passwd/ ||
         req.path.include?("/etc/passwd") ||
         req.path.include?("wp-admin") ||
         req.path.include?("wp-login") ||
@@ -46,7 +46,7 @@ class Rack::Attack
 
     user_agent = req.user_agent.to_s.downcase
     user_agent.include?("scraper") ||
-      (user_agent.include?("bot") && !user_agent.include?("googlebot")) ||
+      (user_agent.include?("bot") && user_agent.exclude?("googlebot")) ||
       user_agent.include?("crawler") ||
       user_agent.empty?
   end
@@ -110,7 +110,7 @@ class Rack::Attack
     auth_header = req.env["HTTP_AUTHORIZATION"]
     return nil unless auth_header&.start_with?("Bearer ")
 
-    token = auth_header.split(" ").last
+    token = auth_header.split.last
     begin
       # Decode JWT without verification (we only need the user_id for rate limiting)
       # The actual authentication is handled by the controller
@@ -128,9 +128,9 @@ class Rack::Attack
 
   # API requests by IP for unauthenticated/anonymous requests (strict limit)
   throttle("api/ip", limit: 20, period: 1.minute) do |req|
-    if req.path.start_with?("/api/")
+    if req.path.start_with?("/api/") && !extract_user_id_from_jwt(req)
       # Only apply if there's no valid user token
-      req.ip unless extract_user_id_from_jwt(req)
+      req.ip
     end
   end
 
@@ -196,11 +196,11 @@ class Rack::Attack
     now = match_data[:epoch_time]
 
     headers = {
-      "RateLimit-Limit" => match_data[:limit].to_s,
+      "RateLimit-Limit"     => match_data[:limit].to_s,
       "RateLimit-Remaining" => "0",
-      "RateLimit-Reset" => (now + (match_data[:period] - (now % match_data[:period]))).to_s,
-      "Content-Type" => "application/json",
-      "Retry-After" => match_data[:period].to_s
+      "RateLimit-Reset"     => (now + (match_data[:period] - (now % match_data[:period]))).to_s,
+      "Content-Type"        => "application/json",
+      "Retry-After"         => match_data[:period].to_s
     }
 
     body = {
@@ -229,10 +229,11 @@ class Rack::Attack
       now = match_data[:epoch_time]
 
       request.env["rack.attack.rate_limit_headers"] = {
-        "RateLimit-Limit" => match_data[:limit].to_s,
+        "RateLimit-Limit"     => match_data[:limit].to_s,
         "RateLimit-Remaining" => (match_data[:limit] - match_data[:count]).to_s,
-        "RateLimit-Reset" => (now + (match_data[:period] - (now % match_data[:period]))).to_s
+        "RateLimit-Reset"     => (now + (match_data[:period] - (now % match_data[:period]))).to_s
       }
     end
   end
+
 end

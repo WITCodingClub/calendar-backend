@@ -30,5 +30,7 @@ class RelatedProfessorPolicy < ApplicationPolicy
     def resolve
       scope.all
     end
+
   end
+
 end

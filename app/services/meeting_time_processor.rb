@@ -31,4 +31,5 @@ class MeetingTimeProcessor
       }
     }
   end
+
 end

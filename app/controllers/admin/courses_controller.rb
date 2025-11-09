@@ -5,5 +5,6 @@ module Admin
     def index
       @courses = policy_scope(Course).includes(:term, :faculty).order(created_at: :desc).page(params[:page])
     end
+
   end
 end

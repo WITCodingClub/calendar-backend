@@ -34,5 +34,7 @@ class EventPreferencePolicy < ApplicationPolicy
         scope.where(user_id: user&.id)
       end
     end
+
   end
+
 end

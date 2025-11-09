@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Rack::Attack", type: :request do
+RSpec.describe "Rack::Attack" do
   before do
     # Clear the cache before each test
     Rack::Attack.cache.store.clear
@@ -248,13 +248,13 @@ RSpec.describe "Rack::Attack", type: :request do
       # This test would require 301 requests which takes too long
       # Instead, verify that admin endpoints are not exempt from rate limiting
       get_with_agent "/admin/users"
-      expect(response.status).not_to eq(429) # Should not be rate limited on first request
+      expect(response).not_to have_http_status(:too_many_requests) # Should not be rate limited on first request
     end
 
     describe "destructive operations" do
       it "destructive operations respect rate limits" do
         20.times { delete_with_agent "/admin/calendars/123" }
-        expect(response.status).not_to eq(429)
+        expect(response).not_to have_http_status(:too_many_requests)
       end
 
       it "session-based admin throttles work with valid sessions" do
@@ -271,7 +271,7 @@ RSpec.describe "Rack::Attack", type: :request do
       expect(response).to have_http_status(:too_many_requests)
       expect(response.content_type).to include("application/json")
 
-      json = JSON.parse(response.body)
+      json = response.parsed_body
       expect(json["error"]).to eq("Rate limit exceeded")
       expect(json["message"]).to eq("Too many requests. Please try again later.")
       expect(json["retry_after"]).to be_present
@@ -288,7 +288,7 @@ RSpec.describe "Rack::Attack", type: :request do
       expect(response).to have_http_status(:forbidden)
       expect(response.content_type).to include("application/json")
 
-      json = JSON.parse(response.body)
+      json = response.parsed_body
       expect(json["error"]).to eq("Forbidden")
       expect(json["message"]).to eq("Request blocked")
     end
