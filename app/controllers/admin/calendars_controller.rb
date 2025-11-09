@@ -10,7 +10,7 @@ module Admin
                    .select("google_calendars.*, MAX(google_calendar_events.updated_at) as max_event_updated_at")
                    .group("google_calendars.id")
                    .order(updated_at: :desc)
-                   .page(params[:page])
+                   .page(params[:page]).per(7)
     end
 
     def destroy

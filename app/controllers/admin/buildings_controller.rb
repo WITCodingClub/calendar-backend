@@ -3,7 +3,7 @@
 module Admin
   class BuildingsController < Admin::ApplicationController
     def index
-      @buildings = Building.order(:name).page(params[:page])
+      @buildings = Building.order(:name).page(params[:page]).per(7)
     end
 
   end

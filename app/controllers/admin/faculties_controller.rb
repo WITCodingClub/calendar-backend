@@ -3,7 +3,13 @@
 module Admin
   class FacultiesController < Admin::ApplicationController
     def index
-      @faculties = policy_scope(Faculty).order(:last_name, :first_name).page(params[:page])
+      @faculties = policy_scope(Faculty).order(:last_name, :first_name)
+
+      if params[:search].present?
+        @faculties = @faculties.where("first_name ILIKE ? OR last_name ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
+      end
+
+      @faculties = @faculties.page(params[:page]).per(7)
     end
 
     def show
@@ -22,7 +28,13 @@ module Admin
     end
 
     def missing_rmp_ids
-      @faculties = policy_scope(Faculty).where(rmp_id: nil).order(:last_name, :first_name).page(params[:page])
+      @faculties = policy_scope(Faculty).where(rmp_id: nil).order(:last_name, :first_name)
+
+      if params[:search].present?
+        @faculties = @faculties.where("first_name ILIKE ? OR last_name ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
+      end
+
+      @faculties = @faculties.page(params[:page]).per(4)
     end
 
     def search_rmp

@@ -7,6 +7,19 @@
     </div>
   </div>
 
+  <!-- Search Bar -->
+  <div class="mb-4">
+    <%= form_with(url: missing_rmp_ids_admin_faculties_path, method: :get, class: "flex gap-2") do |f| %>
+      <%= f.text_field :search,
+          value: params[:search],
+          placeholder: "Search by name...",
+          class: "glass-input flex-1 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50" %>
+      <% if params[:search].present? %>
+        <%= link_to "Clear", missing_rmp_ids_admin_faculties_path, class: "glass-button px-6 py-2 rounded inline-flex items-center" %>
+      <% end %>
+    <% end %>
+  </div>
+
   <% if @faculties.empty? %>
     <div class="bg-white shadow-lg rounded-lg p-8 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
       <div class="text-green-600 text-lg font-semibold mb-2">
