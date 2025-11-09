@@ -152,7 +152,7 @@ RSpec.describe CalendarTemplateRenderer do
       expect(context[:day]).to eq("Monday")
       expect(context[:day_abbr]).to eq("Mon")
       expect(context[:term]).to eq("Spring 2024")
-      expect(context[:schedule_type]).to eq("lecture")
+      expect(context[:schedule_type]).to eq("Lecture")
     end
 
     it "formats times correctly with AM/PM" do

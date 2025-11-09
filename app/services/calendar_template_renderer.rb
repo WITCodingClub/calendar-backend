@@ -76,7 +76,7 @@ class CalendarTemplateRenderer
       day: meeting_time.day_of_week&.titleize || "",
       day_abbr: meeting_time.day_of_week&.first(3)&.capitalize || "",
       term: course.term&.name || "",
-      schedule_type: course.schedule_type || ""
+      schedule_type: course.schedule_type&.capitalize || ""
     }
   end
 

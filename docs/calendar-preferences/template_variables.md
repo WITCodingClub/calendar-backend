@@ -43,7 +43,7 @@ Complete course code including subject, number, and section.
 → "COMP-101-01: Computer Science I"
 
 [{{course_code}}] {{schedule_type}}
-→ "[COMP-101-01] lecture"
+→ "[COMP-101-01] Lecture"
 ```
 
 ---
@@ -238,7 +238,7 @@ Full day of week name.
 → "Monday: Computer Science I"
 
 {{day}} {{schedule_type}}
-→ "Monday lecture"
+→ "Monday Lecture"
 ```
 
 ---
@@ -278,16 +278,16 @@ Academic term name.
 ---
 
 #### `{{schedule_type}}`
-Type of scheduled meeting (lecture, laboratory, hybrid, etc.).
+Type of scheduled meeting (lecture, laboratory, hybrid, etc.). The value is automatically capitalized.
 
-**Example value:** `"lecture"`, `"laboratory"`, `"hybrid"`
+**Example value:** `"Lecture"`, `"Laboratory"`, `"Hybrid"`
 
 **Usage:**
 ```liquid
 {{title}} ({{schedule_type}})
-→ "Computer Science I (lecture)"
+→ "Computer Science I (Lecture)"
 
-{{schedule_type | capitalize}}: {{title}}
+{{schedule_type}}: {{title}}
 → "Lecture: Computer Science I"
 ```
 
@@ -374,7 +374,7 @@ Show content only when a condition is true:
 Choose between two options:
 
 ```liquid
-{% if schedule_type == 'laboratory' %}Lab{% else %}Class{% endif %}: {{title}}
+{% if schedule_type == 'Laboratory' %}Lab{% else %}Class{% endif %}: {{title}}
 → "Lab: Computer Science I" (if laboratory)
 → "Class: Computer Science I" (otherwise)
 ```
@@ -382,9 +382,9 @@ Choose between two options:
 ### Multiple Conditions
 
 ```liquid
-{% if schedule_type == 'laboratory' %}
+{% if schedule_type == 'Laboratory' %}
   Lab: {{title}} in {{room}}
-{% elsif schedule_type == 'hybrid' %}
+{% elsif schedule_type == 'Hybrid' %}
   {{title}} [Hybrid]
 {% else %}
   {{course_code}}: {{title}}
@@ -397,11 +397,11 @@ Better for multiple options:
 
 ```liquid
 {% case schedule_type %}
-  {% when 'laboratory' %}
+  {% when 'Laboratory' %}
     🧪 Lab: {{title}}
-  {% when 'lecture' %}
+  {% when 'Lecture' %}
     📚 Lecture: {{title}}
-  {% when 'hybrid' %}
+  {% when 'Hybrid' %}
     💻 {{title}} (Hybrid)
   {% else %}
     {{title}}
@@ -539,7 +539,7 @@ Result: `"Computer Science I class in 306"`
 ### Pattern: Show room for labs only
 
 ```liquid
-{{title}}{% if schedule_type == 'laboratory' %} - Lab ({{room}}){% endif %}
+{{title}}{% if schedule_type == 'Laboratory' %} - Lab ({{room}}){% endif %}
 ```
 
 ### Pattern: Include faculty if available

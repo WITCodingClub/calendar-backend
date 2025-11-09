@@ -487,7 +487,7 @@ Templates use Liquid syntax. Available variables:
 
 ### Academic Information
 - `{{term}}` - Academic term (e.g., "Spring 2024")
-- `{{schedule_type}}` - Type (e.g., "lecture", "laboratory", "hybrid")
+- `{{schedule_type}}` - Type (e.g., "Lecture", "Laboratory", "Hybrid")
 
 ### Liquid Features
 ```liquid
@@ -501,8 +501,8 @@ Templates use Liquid syntax. Available variables:
 → "Instructor: Dr. Smith" (if faculty exists)
 
 {% case schedule_type %}
-  {% when 'laboratory' %}Lab: {{title}}
-  {% when 'lecture' %}Class: {{title}}
+  {% when 'Laboratory' %}Lab: {{title}}
+  {% when 'Lecture' %}Class: {{title}}
   {% else %}{{title}}
 {% endcase %}
 → "Lab: Computer Science I" (if laboratory)
