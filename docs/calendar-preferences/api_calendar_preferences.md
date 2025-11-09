@@ -34,6 +34,34 @@ Authorization: Bearer <jwt_token>
 
 ## API Endpoints
 
+### Quick Reference
+
+The API provides access to preferences at three levels:
+
+1. **Global & Event Type Preferences** (endpoints 1-5)
+   - `/api/calendar_preferences` - Manage user-wide defaults
+   - Use `:id` parameter as `"global"` or event type name (e.g., `"lecture"`)
+
+2. **Individual Event Preferences** (endpoints 6-8)
+   - `/api/meeting_times/:meeting_time_id/preference` - Configure specific meeting times
+   - `/api/google_calendar_events/:google_calendar_event_id/preference` - Configure specific calendar events
+   - Use the **event's ID** to get/update/delete that specific event's configuration
+
+3. **Template Preview** (endpoint 5)
+   - `/api/calendar_preferences/preview` - Test templates before saving
+
+**Example: Getting Config for a Specific Event**
+
+To get the current configuration for meeting time #123:
+```http
+GET /api/meeting_times/123/preference
+Authorization: Bearer <token>
+```
+
+This returns the individual overrides (if any) AND the resolved preferences after walking the hierarchy.
+
+---
+
 ### 1. List All User Preferences
 
 Get all calendar preferences for the authenticated user.
@@ -224,11 +252,17 @@ Test a template with real data before saving.
 
 ---
 
-### 6. Get Individual Event Preference (with Resolution)
+### 6. Get Preference for a Specific Event by ID
 
-Get preferences for a specific meeting time, including resolved values from the hierarchy.
+Get preferences for a **specific event** using its meeting time ID or calendar event ID. This returns both the individual overrides (if any) AND the resolved preferences after walking the hierarchy.
 
-**Endpoint:** `GET /api/meeting_times/:meeting_time_id/preference`
+**Endpoints:**
+- `GET /api/meeting_times/:meeting_time_id/preference` - Get config for a specific meeting time
+- `GET /api/google_calendar_events/:google_calendar_event_id/preference` - Get config for a specific calendar event
+
+**Parameters:**
+- `:meeting_time_id` - The ID of the specific meeting time you want to configure
+- `:google_calendar_event_id` - Alternative: use the GoogleCalendarEvent ID
 
 **Response:**
 ```json
@@ -274,11 +308,17 @@ Get preferences for a specific meeting time, including resolved values from the 
 
 ---
 
-### 7. Update Individual Event Preference
+### 7. Update Preference for a Specific Event by ID
 
-Set an override for a specific meeting time or calendar event.
+Set an override for a **specific event** using its meeting time ID or calendar event ID.
 
-**Endpoint:** `PUT /api/meeting_times/:meeting_time_id/preference`
+**Endpoints:**
+- `PUT /api/meeting_times/:meeting_time_id/preference` - Update config for a specific meeting time
+- `PUT /api/google_calendar_events/:google_calendar_event_id/preference` - Update config for a specific calendar event
+
+**Parameters:**
+- `:meeting_time_id` - The ID of the specific meeting time you want to configure
+- `:google_calendar_event_id` - Alternative: use the GoogleCalendarEvent ID
 
 **Request Body:**
 ```json
@@ -296,22 +336,23 @@ Set an override for a specific meeting time or calendar event.
 - Setting a field to `null` removes that specific override (falls back to hierarchy)
 - At least one non-null field is required
 
-**Response:** Same as Get Individual Event Preference
-
-**Alternative Endpoint:** `PUT /api/google_calendar_events/:google_calendar_event_id/preference`
-(Use when you have the GoogleCalendarEvent ID instead of MeetingTime ID)
+**Response:** Same as section 6 (Get Preference for a Specific Event by ID)
 
 ---
 
-### 8. Delete Individual Event Preference
+### 8. Delete Preference for a Specific Event by ID
 
-Remove all overrides for a specific event (falls back to event-type/global/system defaults).
+Remove all overrides for a **specific event** using its meeting time ID or calendar event ID. After deletion, the event will fall back to event-type/global/system defaults.
 
-**Endpoint:** `DELETE /api/meeting_times/:meeting_time_id/preference`
+**Endpoints:**
+- `DELETE /api/meeting_times/:meeting_time_id/preference` - Delete config for a specific meeting time
+- `DELETE /api/google_calendar_events/:google_calendar_event_id/preference` - Delete config for a specific calendar event
+
+**Parameters:**
+- `:meeting_time_id` - The ID of the specific meeting time
+- `:google_calendar_event_id` - Alternative: use the GoogleCalendarEvent ID
 
 **Response:** `204 No Content`
-
-**Alternative Endpoint:** `DELETE /api/google_calendar_events/:google_calendar_event_id/preference`
 
 ---
 
