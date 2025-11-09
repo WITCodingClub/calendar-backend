@@ -89,6 +89,18 @@ RSpec.describe CalendarTemplateRenderer do
       expect(result).to eq("Computer Science I") # Falls back to title
     end
 
+    it "renders plain text without template variables" do
+      template = "Math 101 - Lab Session"
+      result = renderer.render(template, context)
+      expect(result).to eq("Math 101 - Lab Session")
+    end
+
+    it "renders mixed plain text and template variables" do
+      template = "{{title}} - My Custom Notes"
+      result = renderer.render(template, context)
+      expect(result).to eq("Computer Science I - My Custom Notes")
+    end
+
     it "handles blank templates" do
       result = renderer.render("", context)
       expect(result).to eq("")

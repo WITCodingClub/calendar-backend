@@ -174,15 +174,24 @@ Create or update a preference at global or event-type level.
 ```
 
 **Field Specifications:**
-- `title_template` (string, max 500 chars) - Liquid template for event title
-- `description_template` (string, max 2000 chars) - Liquid template for description
-- `location_template` (string, max 500 chars) - Liquid template for event location
+- `title_template` (string, max 500 chars) - Event title - can be plain text OR Liquid template
+  - Examples: `"Math 101"` (plain text) or `"{{course_code}}: {{title}}"` (template)
+- `description_template` (string, max 2000 chars) - Event description - can be plain text OR Liquid template
+  - Examples: `"My class notes"` (plain text) or `"Instructor: {{faculty}}"` (template)
+- `location_template` (string, max 500 chars) - Event location - can be plain text OR Liquid template
+  - Examples: `"Room 306"` (plain text) or `"{{building}} - {{room}}"` (template)
 - `reminder_settings` (array) - Array of `{minutes: integer, method: "popup"|"notification"|"email"}` objects
   - **Note:** `"notification"` is an alias for `"popup"` and will be normalized to `"popup"`
 - `color_id` (integer, 1-11) - Google Calendar color ID
 - `visibility` (string) - One of: `"public"`, `"private"`, `"default"`
 
-**Example:** Set global preferences
+**Template Usage Note:**
+- All `*_template` fields accept **either plain text or Liquid template syntax**
+- Templates are completely optional - you can use static text if you prefer
+- When using templates, wrap variable names in double curly braces: `{{variable_name}}`
+- See the Template Variables section for all available variables
+
+**Example 1:** Set global preferences with templates
 ```http
 PUT /api/calendar_preferences/global
 Content-Type: application/json
@@ -194,6 +203,21 @@ Authorization: Bearer <token>
     "reminder_settings": [
       {"minutes": 15, "method": "popup"}
     ]
+  }
+}
+```
+
+**Example 2:** Set preferences with plain text (no templates)
+```http
+PUT /api/calendar_preferences/laboratory
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "calendar_preference": {
+    "title_template": "Lab Session",
+    "description_template": "Bring your laptop and materials",
+    "color_id": 7
   }
 }
 ```
@@ -397,13 +421,22 @@ Set an override for a **specific event** using its meeting time ID or calendar e
 }
 ```
 
-**Notes:**
+**Template Field Notes:**
+- Template fields (`title_template`, `description_template`, `location_template`) accept **either**:
+  - **Liquid template syntax**: `{{title}} - Lab` (variables will be rendered)
+  - **Plain text**: `Math 101 - Lab` (rendered as-is, no template processing)
+- Templates are **completely optional** - plain text is perfectly valid
+- See the Template Variables section below for available template variables
+
+**Request Notes:**
 - Only include fields you want to override
 - Setting a field to `null` removes that specific override (falls back to hierarchy)
 - At least one non-null field is required
 - Allowed fields: `title_template`, `description_template`, `location_template`, `reminder_settings`, `color_id`, `visibility`
 
 **Response:** Same as section 6 (Get Preference for a Specific Event by ID)
+- Includes a `templates` object showing all available template variables with their calculated values
+- The `templates` object is read-only and for reference only - it helps you see what values are available for use in your templates
 
 ---
 
