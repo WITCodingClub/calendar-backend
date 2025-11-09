@@ -11,6 +11,11 @@ class Rack::Attack
   # SAFELISTS - Requests that bypass all rate limiting
   # ============================================================================
 
+  # Disable rate limiting entirely in test environment
+  safelist("allow-test-environment") do |req|
+    Rails.env.test?
+  end
+
   # Always allow requests from localhost in development
   safelist("allow-localhost") do |req|
     ["127.0.0.1", "::1"].include?(req.ip) if Rails.env.development?
