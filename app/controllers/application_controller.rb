@@ -8,4 +8,9 @@ class ApplicationController < ActionController::Base
   allow_browser versions: :modern
   before_action :set_paper_trail_whodunnit
 
+  # Required by Audits1984 gem for audit logging
+  def find_current_auditor
+    current_user
+  end
+
 end

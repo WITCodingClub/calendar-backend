@@ -24,6 +24,10 @@
         <%= link_to "Flipper", "/admin/flipper",
             class: "admin-nav-link #{request.path.start_with?('/admin/flipper') ? 'active' : ''}" %>
       </li>
+      <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+        <%= link_to "Audits", "/admin/audits",
+            class: "admin-nav-link #{request.path.start_with?('/admin/audits') ? 'active' : ''}" %>
+      </li>
     <% end %>
     <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
       <%= link_to "Blazer", "/admin/blazer",
