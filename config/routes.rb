@@ -18,6 +18,7 @@
 #                  api_user_gcal_add_email POST   /api/user/gcal/add_email(.:format)                                                                api/users#add_email_to_g_cal
 #               api_user_gcal_remove_email DELETE /api/user/gcal/remove_email(.:format)                                                             api/users#remove_email_from_g_cal
 #                           api_user_email GET    /api/user/email(.:format)                                                                         api/users#get_email
+#                         api_user_ics_url GET    /api/user/ics_url(.:format)                                                                       api/users#get_ics_url
 #                    api_user_is_processed POST   /api/user/is_processed(.:format)                                                                  api/users#is_processed
 #                api_user_processed_events POST   /api/user/processed_events(.:format)                                                              api/users#get_processed_events_by_term
 #                api_user_extension_config GET    /api/user/extension_config(.:format)                                                              api/user_extension_config#get
@@ -69,6 +70,7 @@
 #              assign_rmp_id_admin_faculty POST   /admin/faculties/:id/assign_rmp_id(.:format)                                                      admin/faculties#assign_rmp_id
 #           auto_fill_rmp_id_admin_faculty POST   /admin/faculties/:id/auto_fill_rmp_id(.:format)                                                   admin/faculties#auto_fill_rmp_id
 #                          admin_faculties GET    /admin/faculties(.:format)                                                                        admin/faculties#index
+#                            admin_faculty GET    /admin/faculties/:id(.:format)                                                                    admin/faculties#show
 #                              admin_terms GET    /admin/terms(.:format)                                                                            admin/terms#index
 #             admin_google_calendar_events GET    /admin/google_calendar_events(.:format)                                                           admin/google_calendar_events#index
 #                        admin_rmp_ratings GET    /admin/rmp_ratings(.:format)                                                                      admin/rmp_ratings#index
@@ -317,7 +319,7 @@ Rails.application.routes.draw do
       resources :buildings, only: [:index]
       resources :rooms, only: [:index]
       resources :courses, only: [:index]
-      resources :faculties, only: [:index] do
+      resources :faculties, only: [:index, :show] do
         collection do
           get :missing_rmp_ids
           post :batch_auto_fill

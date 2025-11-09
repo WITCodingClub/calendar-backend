@@ -31,7 +31,7 @@
             <tr>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm text-gray-900 font-medium">
-                  <%= faculty.full_name %>
+                  <%= link_to faculty.full_name, admin_faculty_path(faculty), class: "hover:underline", style: "color: #d13732;" %>
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">

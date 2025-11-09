@@ -6,6 +6,21 @@ module Admin
       @faculties = policy_scope(Faculty).order(:last_name, :first_name).page(params[:page])
     end
 
+    def show
+      @faculty = Faculty.find(params[:id])
+      authorize @faculty
+
+      # Get courses grouped by term, ordered by most recent first
+      @courses_by_term = @faculty.courses
+                                 .includes(:term, meeting_times: { room: :building })
+                                 .joins(:term)
+                                 .order("terms.year DESC, terms.season DESC")
+                                 .group_by(&:term)
+
+      # Get RMP ratings if available
+      @rmp_ratings = @faculty.rmp_ratings.order(created_at: :desc) if @faculty.rmp_id.present?
+    end
+
     def missing_rmp_ids
       @faculties = policy_scope(Faculty).where(rmp_id: nil).order(:last_name, :first_name).page(params[:page])
     end
