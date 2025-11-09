@@ -429,7 +429,8 @@ class GoogleCalendarService
       valid_reminders = event_data[:reminder_settings].select do |reminder|
         reminder.is_a?(Hash) &&
           reminder["method"].present? &&
-          reminder["minutes"].present? &&
+          reminder["time"].present? &&
+          reminder["type"].present? &&
           ["email", "popup", "notification"].include?(reminder["method"])
       end
 
@@ -440,9 +441,11 @@ class GoogleCalendarService
           overrides: valid_reminders.map do |reminder|
             # Normalize "notification" to "popup" for Google Calendar API
             method = reminder["method"] == "notification" ? "popup" : reminder["method"]
+            # Convert time and type to minutes
+            minutes = convert_time_to_minutes(reminder["time"], reminder["type"])
             Google::Apis::CalendarV3::EventReminder.new(
               reminder_method: method,
-              minutes: reminder["minutes"].to_i
+              minutes: minutes
             )
           end
         )
@@ -537,7 +540,8 @@ class GoogleCalendarService
       valid_reminders = event_data[:reminder_settings].select do |reminder|
         reminder.is_a?(Hash) &&
           reminder["method"].present? &&
-          reminder["minutes"].present? &&
+          reminder["time"].present? &&
+          reminder["type"].present? &&
           ["email", "popup", "notification"].include?(reminder["method"])
       end
 
@@ -548,9 +552,11 @@ class GoogleCalendarService
           overrides: valid_reminders.map do |reminder|
             # Normalize "notification" to "popup" for Google Calendar API
             method = reminder["method"] == "notification" ? "popup" : reminder["method"]
+            # Convert time and type to minutes
+            minutes = convert_time_to_minutes(reminder["time"], reminder["type"])
             Google::Apis::CalendarV3::EventReminder.new(
               reminder_method: method,
-              minutes: reminder["minutes"].to_i
+              minutes: minutes
             )
           end
         )
@@ -759,6 +765,25 @@ class GoogleCalendarService
       "8"  # Platinum
     else
       nil  # Default color
+    end
+  end
+
+  # Convert reminder time and type to minutes for Google Calendar API
+  # @param time [String] The time value (e.g., "30", "2", "1")
+  # @param type [String] The time unit ("minutes", "hours", "days")
+  # @return [Integer] The time in minutes
+  def convert_time_to_minutes(time, type)
+    time_value = time.to_f
+
+    case type
+    when "minutes"
+      time_value.to_i
+    when "hours"
+      (time_value * 60).to_i
+    when "days"
+      (time_value * 1440).to_i
+    else
+      time_value.to_i # default to minutes
     end
   end
 

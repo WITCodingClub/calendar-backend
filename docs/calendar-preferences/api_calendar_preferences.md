@@ -26,7 +26,7 @@ Each preference level can configure:
 - **Title Template** - Liquid template for event summary (e.g., `{{course_code}}: {{title}}`)
 - **Description Template** - Liquid template for event description
 - **Location Template** - Liquid template for event location (e.g., `{{building}} - {{room}}`)
-- **Reminder Settings** - Array of reminders with minutes and method (popup/email)
+- **Reminder Settings** - Array of reminders with time, type (minutes/hours/days), and method (popup/email)
 - **Color** - Google Calendar color ID (1-11)
 - **Visibility** - Event visibility (public, private, default)
 
@@ -84,7 +84,7 @@ Get all calendar preferences for the authenticated user.
     "description_template": null,
     "location_template": null,
     "reminder_settings": [
-      {"minutes": 15, "method": "popup"}
+      {"time": "15", "type": "minutes", "method": "popup"}
     ],
     "color_id": null,
     "visibility": null
@@ -107,8 +107,8 @@ Get all calendar preferences for the authenticated user.
       "description_template": null,
       "location_template": "{{building}} - Room {{room}}",
       "reminder_settings": [
-        {"minutes": 30, "method": "popup"},
-        {"minutes": 1440, "method": "email"}
+        {"time": "30", "type": "minutes", "method": "popup"},
+        {"time": "1", "type": "days", "method": "email"}
       ],
       "color_id": 7,
       "visibility": null
@@ -165,7 +165,7 @@ Create or update a preference at global or event-type level.
     "description_template": "{{course_code}}\nInstructor: {{faculty}}",
     "location_template": "{{building}} - {{room}}",
     "reminder_settings": [
-      {"minutes": 30, "method": "popup"}
+      {"time": "30", "type": "minutes", "method": "popup"}
     ],
     "color_id": 5,
     "visibility": "default"
@@ -180,8 +180,10 @@ Create or update a preference at global or event-type level.
   - Examples: `"My class notes"` (plain text) or `"Instructor: {{faculty}}"` (template)
 - `location_template` (string, max 500 chars) - Event location - can be plain text OR Liquid template
   - Examples: `"Room 306"` (plain text) or `"{{building}} - {{room}}"` (template)
-- `reminder_settings` (array) - Array of `{minutes: integer, method: "popup"|"notification"|"email"}` objects
+- `reminder_settings` (array) - Array of `{time: string, type: "minutes"|"hours"|"days", method: "popup"|"notification"|"email"}` objects
   - **Note:** `"notification"` is an alias for `"popup"` and will be normalized to `"popup"`
+  - **Time units:** `"minutes"` = minutes before, `"hours"` = hours before, `"days"` = days before
+  - **Examples:** `{"time": "30", "type": "minutes", "method": "popup"}` (30 min before), `{"time": "2", "type": "hours", "method": "email"}` (2 hours before), `{"time": "1", "type": "days", "method": "email"}` (1 day before)
 - `color_id` (integer, 1-11) - Google Calendar color ID
 - `visibility` (string) - One of: `"public"`, `"private"`, `"default"`
 
@@ -201,7 +203,7 @@ Authorization: Bearer <token>
   "calendar_preference": {
     "title_template": "{{course_code}}: {{title}}",
     "reminder_settings": [
-      {"minutes": 15, "method": "popup"}
+      {"time": "15", "type": "minutes", "method": "popup"}
     ]
   }
 }
@@ -309,7 +311,7 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
     "description_template": null,
     "location_template": null,
     "reminder_settings": [
-      {"minutes": 60, "method": "popup"}
+      {"time": "1", "type": "hours", "method": "popup"}
     ],
     "color_id": null,
     "visibility": null
@@ -319,7 +321,7 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
     "description_template": "Instructor: {{faculty}}",
     "location_template": "{{building}} - Room {{room}}",
     "reminder_settings": [
-      {"minutes": 60, "method": "popup"}
+      {"time": "1", "type": "hours", "method": "popup"}
     ],
     "color_id": 7,
     "visibility": "default"
@@ -415,7 +417,7 @@ Set an override for a **specific event** using its meeting time ID or calendar e
   "event_preference": {
     "location_template": "Room {{room}} ({{building}})",
     "reminder_settings": [
-      {"minutes": 60, "method": "popup"}
+      {"time": "1", "type": "hours", "method": "popup"}
     ]
   }
 }
@@ -655,7 +657,7 @@ await fetch(`/api/meeting_times/${wednesdayMeeting.id}/preference`, {
   body: JSON.stringify({
     event_preference: {
       reminder_settings: [
-        { minutes: 60, method: 'popup' }
+        { time: '1', type: 'hours', method: 'popup' }
       ]
     }
   })
@@ -722,7 +724,7 @@ triggerCalendarSync()
 {
   "errors": [
     "Title template invalid syntax: unexpected token at line 1",
-    "Reminder settings item 0 must have integer 'minutes' field",
+    "Reminder settings item 0 must have 'time' field (minutes, hours, or days)",
     "Color id must be between 1 and 11"
   ]
 }

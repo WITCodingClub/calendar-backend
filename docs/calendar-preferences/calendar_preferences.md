@@ -50,7 +50,7 @@ Stores global and event-type level preferences for a user.
   scope: 'global',
   event_type: nil,
   title_template: '{{course_code}}: {{title}}',
-  reminder_settings: [{minutes: 15, method: 'popup'}]
+  reminder_settings: [{time: "15", type: "minutes", method: "popup"}]
 }
 
 # Event type default for laboratories
@@ -60,7 +60,7 @@ Stores global and event-type level preferences for a user.
   event_type: 'laboratory',
   title_template: '{{title}} - Lab ({{room}})',
   color_id: 7,
-  reminder_settings: [{minutes: 30, method: 'popup'}, {minutes: 1440, method: 'email'}]
+  reminder_settings: [{time: "30", type: "minutes", method: "popup"}, {time: "1", type: "days", method: "email"}]
 }
 ```
 
@@ -89,7 +89,7 @@ Stores individual event-level preference overrides. Uses polymorphic association
   user_id: 1,
   preferenceable_type: 'MeetingTime',
   preferenceable_id: 42,
-  reminder_settings: [{minutes: 60, method: 'popup'}],  # Override just reminders
+  reminder_settings: [{time: "1", type: "hours", method: "popup"}],  # Override just reminders
   # title_template: nil,  # Use default from event type or global
   # color_id: nil         # Use default from event type or global
 }
@@ -166,29 +166,32 @@ Reminders are stored as a JSONB array of reminder objects:
 ```json
 [
   {
-    "minutes": 30,
+    "time": "30",
+    "type": "minutes",
     "method": "popup"
   },
   {
-    "minutes": 1440,
+    "time": "1",
+    "type": "days",
     "method": "email"
   }
 ]
 ```
 
 **Fields:**
-- `minutes` - Minutes before event to trigger reminder (integer)
+- `time` - Time value before event (string, e.g., "30", "2", "1")
+- `type` - Time unit: `minutes`, `hours`, or `days`
 - `method` - Reminder method: `popup`, `notification`, or `email`
   - `popup` - Display UI popup notification
   - `notification` - Alias for `popup` (will be normalized to `popup`)
   - `email` - Send email reminder
 
 **Common reminder times:**
-- 15 minutes: `{minutes: 15, method: 'popup'}`
-- 30 minutes: `{minutes: 30, method: 'popup'}`
-- 1 hour: `{minutes: 60, method: 'popup'}`
-- 1 day: `{minutes: 1440, method: 'email'}`
-- 1 week: `{minutes: 10080, method: 'email'}`
+- 15 minutes: `{time: "15", type: "minutes", method: "popup"}`
+- 30 minutes: `{time: "30", type: "minutes", method: "popup"}`
+- 1 hour: `{time: "1", type: "hours", method: "popup"}`
+- 1 day: `{time: "1", type: "days", method: "email"}`
+- 1 week: `{time: "7", type: "days", method: "email"}`
 
 ## Color Settings
 
@@ -224,7 +227,7 @@ prefs = resolver.resolve_for(google_calendar_event)
 
 # Access resolved values
 prefs[:title_template]       # => "{{course_code}}: {{title}}"
-prefs[:reminder_settings]    # => [{minutes: 30, method: 'popup'}]
+prefs[:reminder_settings]    # => [{time: "30", type: "minutes", method: "popup"}]
 prefs[:color_id]            # => 7
 ```
 
@@ -248,7 +251,7 @@ If no preferences are configured:
 - Other: `{{title}}`
 
 **Reminders:**
-- `[{minutes: 15, method: 'popup'}]`
+- `[{time: "15", type: "minutes", method: "popup"}]`
 
 **Color:**
 - Uses `MeetingTime#event_color` (existing logic based on schedule_type)
@@ -343,7 +346,7 @@ Response:
 {
   "global": {
     "title_template": "{{course_code}}: {{title}}",
-    "reminder_settings": [{"minutes": 15, "method": "popup"}]
+    "reminder_settings": [{"time": "15", "type": "minutes", "method": "popup"}]
   },
   "event_types": {
     "lecture": {
@@ -354,8 +357,8 @@ Response:
       "title_template": "{{title}} - Lab ({{room}})",
       "color_id": 7,
       "reminder_settings": [
-        {"minutes": 30, "method": "popup"},
-        {"minutes": 1440, "method": "email"}
+        {"time": "30", "type": "minutes", "method": "popup"},
+        {"time": "1", "type": "days", "method": "email"}
       ]
     }
   }
@@ -369,7 +372,7 @@ Content-Type: application/json
 
 {
   "title_template": "{{day_abbr}} - {{title}}",
-  "reminder_settings": [{"minutes": 30, "method": "popup"}]
+  "reminder_settings": [{"time": "30", "type": "minutes", "method": "popup"}]
 }
 ```
 
@@ -396,7 +399,7 @@ Response includes resolved values and their sources:
 {
   "resolved": {
     "title_template": "Lab: {{title}} in {{room}}",
-    "reminder_settings": [{"minutes": 60, "method": "popup"}],
+    "reminder_settings": [{"time": "1", "type": "hours", "method": "popup"}],
     "color_id": 7
   },
   "sources": {
@@ -415,7 +418,7 @@ Content-Type: application/json
 
 {
   "reminder_settings": [
-    {"minutes": 60, "method": "popup"}
+    {"time": "1", "type": "hours", "method": "popup"}
   ]
 }
 ```
@@ -456,7 +459,7 @@ CalendarPreference.create!(
   user: user,
   scope: 'event_type',
   event_type: 'lecture',
-  reminder_settings: [{minutes: 15, method: 'popup'}]
+  reminder_settings: [{time: "15", type: "minutes", method: "popup"}]
 )
 
 # Individual override for Wednesday meeting

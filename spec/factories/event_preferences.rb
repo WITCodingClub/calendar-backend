@@ -35,7 +35,7 @@ FactoryBot.define do
     preferenceable factory: %i[meeting_time]
     title_template { nil }
     description_template { nil }
-    reminder_settings { [{ "minutes" => 60, "method" => "popup" }] }
+    reminder_settings { [{ "time" => "60", "type" => "minutes", "method" => "popup" }] }
     color_id { nil }
     visibility { nil }
 

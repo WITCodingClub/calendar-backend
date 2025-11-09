@@ -114,50 +114,79 @@ RSpec.describe CalendarPreference do
 
       it "accepts valid reminder settings" do
         subject.reminder_settings = [
-          { "minutes" => 15, "method" => "popup" },
-          { "minutes" => 1440, "method" => "email" }
+          { "time" => "15", "type" => "minutes", "method" => "popup" },
+          { "time" => "1", "type" => "days", "method" => "email" }
+        ]
+        expect(subject).to be_valid
+      end
+
+      it "accepts reminder settings with different time units" do
+        subject.reminder_settings = [
+          { "time" => "30", "type" => "minutes", "method" => "popup" },
+          { "time" => "2", "type" => "hours", "method" => "popup" },
+          { "time" => "1", "type" => "days", "method" => "email" }
         ]
         expect(subject).to be_valid
       end
 
       it "rejects non-array reminder settings" do
-        subject.reminder_settings = { "minutes" => 15, "method" => "popup" }
+        subject.reminder_settings = { "time" => "15", "type" => "minutes", "method" => "popup" }
         expect(subject).not_to be_valid
       end
 
-      it "rejects reminders without minutes field" do
-        subject.reminder_settings = [{ "method" => "popup" }]
+      it "rejects reminders without time field" do
+        subject.reminder_settings = [{ "type" => "minutes", "method" => "popup" }]
+        expect(subject).not_to be_valid
+      end
+
+      it "rejects reminders without type field" do
+        subject.reminder_settings = [{ "time" => "15", "method" => "popup" }]
         expect(subject).not_to be_valid
       end
 
       it "rejects reminders without method field" do
-        subject.reminder_settings = [{ "minutes" => 15 }]
+        subject.reminder_settings = [{ "time" => "15", "type" => "minutes" }]
         expect(subject).not_to be_valid
       end
 
       it "rejects reminders with invalid method" do
-        subject.reminder_settings = [{ "minutes" => 15, "method" => "invalid" }]
+        subject.reminder_settings = [{ "time" => "15", "type" => "minutes", "method" => "invalid" }]
+        expect(subject).not_to be_valid
+      end
+
+      it "rejects reminders with invalid type" do
+        subject.reminder_settings = [{ "time" => "15", "type" => "seconds", "method" => "popup" }]
+        expect(subject).not_to be_valid
+      end
+
+      it "rejects reminders with non-numeric time" do
+        subject.reminder_settings = [{ "time" => "abc", "type" => "minutes", "method" => "popup" }]
+        expect(subject).not_to be_valid
+      end
+
+      it "rejects reminders with negative time" do
+        subject.reminder_settings = [{ "time" => "-15", "type" => "minutes", "method" => "popup" }]
         expect(subject).not_to be_valid
       end
 
       it "accepts 'notification' as an alias for 'popup'" do
-        subject.reminder_settings = [{ "minutes" => 15, "method" => "notification" }]
+        subject.reminder_settings = [{ "time" => "15", "type" => "minutes", "method" => "notification" }]
         expect(subject).to be_valid
       end
 
       it "normalizes 'notification' to 'popup' before save" do
         subject.reminder_settings = [
-          { "minutes" => 15, "method" => "notification" },
-          { "minutes" => 30, "method" => "popup" },
-          { "minutes" => 60, "method" => "email" }
+          { "time" => "15", "type" => "minutes", "method" => "notification" },
+          { "time" => "30", "type" => "minutes", "method" => "popup" },
+          { "time" => "1", "type" => "hours", "method" => "email" }
         ]
         subject.save!
         subject.reload
 
         expect(subject.reminder_settings).to eq([
-                                                  { "minutes" => 15, "method" => "popup" },
-                                                  { "minutes" => 30, "method" => "popup" },
-                                                  { "minutes" => 60, "method" => "email" }
+                                                  { "time" => "15", "type" => "minutes", "method" => "popup" },
+                                                  { "time" => "30", "type" => "minutes", "method" => "popup" },
+                                                  { "time" => "1", "type" => "hours", "method" => "email" }
                                                 ])
       end
     end

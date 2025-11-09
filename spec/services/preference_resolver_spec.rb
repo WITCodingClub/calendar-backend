@@ -20,7 +20,7 @@ RSpec.describe PreferenceResolver do
         expect(prefs[:title_template]).to eq("{{title}}")
         expect(prefs[:description_template]).to eq("{{faculty}}\n{{faculty_email}}")
         expect(prefs[:location_template]).to eq("{{building}} {{room}}")
-        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 30, "method" => "popup" }])
+        expect(prefs[:reminder_settings]).to eq([{ "time" => "30", "type" => "minutes", "method" => "popup" }])
         expect(prefs[:color_id]).to be_nil
         expect(prefs[:visibility]).to eq("default")
       end
@@ -32,7 +32,7 @@ RSpec.describe PreferenceResolver do
                user: user,
                scope: :global,
                title_template: "Global: {{title}}",
-               reminder_settings: [{ "minutes" => 30, "method" => "popup" }],
+               reminder_settings: [{ "time" => "30", "type" => "minutes", "method" => "popup" }],
                color_id: 5)
       end
 
@@ -40,7 +40,7 @@ RSpec.describe PreferenceResolver do
         prefs = resolver.resolve_for(meeting_time)
 
         expect(prefs[:title_template]).to eq("Global: {{title}}")
-        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 30, "method" => "popup" }])
+        expect(prefs[:reminder_settings]).to eq([{ "time" => "30", "type" => "minutes", "method" => "popup" }])
         expect(prefs[:color_id]).to eq(5)
       end
     end
@@ -60,14 +60,14 @@ RSpec.describe PreferenceResolver do
                scope: :event_type,
                event_type: "lecture",
                title_template: "Lecture: {{title}}",
-               reminder_settings: [{ "minutes" => 45, "method" => "popup" }])
+               reminder_settings: [{ "time" => "45", "type" => "minutes", "method" => "popup" }])
       end
 
       it "prefers event type over global" do
         prefs = resolver.resolve_for(meeting_time)
 
         expect(prefs[:title_template]).to eq("Lecture: {{title}}")
-        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 45, "method" => "popup" }])
+        expect(prefs[:reminder_settings]).to eq([{ "time" => "45", "type" => "minutes", "method" => "popup" }])
         expect(prefs[:color_id]).to eq(1) # Falls back to global
       end
     end
@@ -87,21 +87,21 @@ RSpec.describe PreferenceResolver do
                scope: :event_type,
                event_type: "lecture",
                title_template: "Lecture: {{title}}",
-               reminder_settings: [{ "minutes" => 45, "method" => "popup" }])
+               reminder_settings: [{ "time" => "45", "type" => "minutes", "method" => "popup" }])
       end
 
       let!(:individual_pref) do
         create(:event_preference,
                user: user,
                preferenceable: meeting_time,
-               reminder_settings: [{ "minutes" => 60, "method" => "popup" }])
+               reminder_settings: [{ "time" => "60", "type" => "minutes", "method" => "popup" }])
       end
 
       it "prefers individual over event type and global" do
         prefs = resolver.resolve_for(meeting_time)
 
         expect(prefs[:title_template]).to eq("Lecture: {{title}}") # Falls back to event type
-        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 60, "method" => "popup" }]) # Individual
+        expect(prefs[:reminder_settings]).to eq([{ "time" => "60", "type" => "minutes", "method" => "popup" }]) # Individual
         expect(prefs[:color_id]).to eq(1) # Falls back to global
       end
     end
@@ -162,14 +162,14 @@ RSpec.describe PreferenceResolver do
              user: user,
              scope: :event_type,
              event_type: "lecture",
-             reminder_settings: [{ "minutes" => 45, "method" => "popup" }])
+             reminder_settings: [{ "time" => "45", "type" => "minutes", "method" => "popup" }])
     end
 
     it "returns preferences with source information" do
       result = resolver.resolve_with_sources(meeting_time)
 
       expect(result[:preferences][:title_template]).to eq("Global: {{title}}")
-      expect(result[:preferences][:reminder_settings]).to eq([{ "minutes" => 45, "method" => "popup" }])
+      expect(result[:preferences][:reminder_settings]).to eq([{ "time" => "45", "type" => "minutes", "method" => "popup" }])
       expect(result[:preferences][:color_id]).to eq(1)
 
       expect(result[:sources][:title_template]).to eq("global")
@@ -278,7 +278,7 @@ RSpec.describe PreferenceResolver do
       reminders = PreferenceResolver::SYSTEM_DEFAULTS[:reminder_settings]
 
       expect(reminders).to be_an(Array)
-      expect(reminders.first).to include("minutes" => 30, "method" => "popup")
+      expect(reminders.first).to include("time" => "30", "type" => "minutes", "method" => "popup")
     end
   end
 end

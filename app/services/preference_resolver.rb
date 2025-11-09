@@ -14,7 +14,7 @@ class PreferenceResolver
     title_template: "{{title}}",
     description_template: "{{faculty}}\n{{faculty_email}}",
     location_template: "{{building}} {{room}}",
-    reminder_settings: [{ "minutes" => 30, "method" => "popup" }],
+    reminder_settings: [{ "time" => "30", "type" => "minutes", "method" => "popup" }],
     color_id: nil, # Will use MeetingTime#event_color if not set
     visibility: "default"
   }.freeze
