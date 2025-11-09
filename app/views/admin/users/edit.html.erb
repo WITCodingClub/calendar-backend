@@ -4,15 +4,15 @@
     <%= link_to "Back to User", admin_user_path(@user), class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
   </div>
 
-  <div class="bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+  <div class="glass-card shadow-lg rounded-lg overflow-hidden">
     <div class="px-6 py-5">
       <%= form_with(model: @user, url: admin_user_path(@user), method: :patch, local: true) do |form| %>
         <% if @user.errors.any? %>
-          <div class="mb-4 p-4 rounded" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);">
-            <h3 class="text-sm font-medium" style="color: #dc2626;">
+          <div class="mb-4 p-4 rounded bg-red-50/40 border border-red-300">
+            <h3 class="text-sm font-medium text-red-600">
               <%= pluralize(@user.errors.count, "error") %> prohibited this user from being saved:
             </h3>
-            <ul class="mt-2 list-disc list-inside text-sm" style="color: #dc2626;">
+            <ul class="mt-2 list-disc list-inside text-sm text-red-600">
               <% @user.errors.full_messages.each do |message| %>
                 <li><%= message %></li>
               <% end %>
@@ -23,17 +23,17 @@
         <div class="space-y-4">
           <div>
             <%= form.label :first_name, class: "block text-sm font-medium text-gray-700 mb-1" %>
-            <%= form.text_field :first_name, class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50", style: "focus:ring-color: #d13732; focus:border-color: #d13732;" %>
+            <%= form.text_field :first_name, class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#d13732] focus:ring-opacity-50 focus:border-[#d13732]" %>
           </div>
 
           <div>
             <%= form.label :last_name, class: "block text-sm font-medium text-gray-700 mb-1" %>
-            <%= form.text_field :last_name, class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50", style: "focus:ring-color: #d13732; focus:border-color: #d13732;" %>
+            <%= form.text_field :last_name, class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#d13732] focus:ring-opacity-50 focus:border-[#d13732]" %>
           </div>
 
           <div>
             <%= form.label :email, class: "block text-sm font-medium text-gray-700 mb-1" %>
-            <%= form.email_field :email, class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50", style: "focus:ring-color: #d13732; focus:border-color: #d13732;" %>
+            <%= form.email_field :email, class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#d13732] focus:ring-opacity-50 focus:border-[#d13732]" %>
           </div>
 
           <div>
@@ -41,13 +41,12 @@
             <%= form.select :access_level,
                 User.access_levels.map { |k, v| [k.titleize, k] },
                 {},
-                class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50",
-                style: "focus:ring-color: #d13732; focus:border-color: #d13732;" %>
+                class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#d13732] focus:ring-opacity-50 focus:border-[#d13732]" %>
           </div>
 
           <div class="flex gap-3 pt-4">
             <%= form.submit "Update User", class: "glass-button px-4 py-2 rounded text-sm cursor-pointer" %>
-            <%= link_to "Cancel", admin_user_path(@user), class: "px-4 py-2 rounded text-sm inline-block", style: "color: #d13732;" %>
+            <%= link_to "Cancel", admin_user_path(@user), class: "px-4 py-2 rounded text-sm inline-block text-[#d13732] hover:underline" %>
           </div>
         </div>
       <% end %>

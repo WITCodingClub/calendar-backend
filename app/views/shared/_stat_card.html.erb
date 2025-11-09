@@ -1,0 +1,11 @@
+<%# Stat Card Component
+  Usage: render "shared/stat_card", title: "Users", count: @users_count, path: admin_users_path
+%>
+<div class="stat-card">
+  <div class="p-3">
+    <%= link_to title, path, class: "text-base font-medium text-gray-700 hover:underline" %>
+    <div class="mt-1 text-3xl font-semibold text-[#d13732]">
+      <%= count %>
+    </div>
+  </div>
+</div>

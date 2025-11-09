@@ -5,103 +5,26 @@
 
   <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 mb-8">
     <!-- Stats Cards -->
-    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-3">
-        <%= link_to "Users", admin_users_path, class: "text-base font-medium text-gray-700 hover:underline" %>
-        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
-          <%= @users_count %>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-3">
-        <%= link_to "Buildings", admin_buildings_path, class: "text-base font-medium text-gray-700 hover:underline" %>
-        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
-          <%= @buildings_count %>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-3">
-        <%= link_to "Rooms", admin_rooms_path, class: "text-base font-medium text-gray-700 hover:underline" %>
-        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
-          <%= @rooms_count %>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-3">
-        <%= link_to "Courses", admin_courses_path, class: "text-base font-medium text-gray-700 hover:underline" %>
-        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
-          <%= @courses_count %>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-3">
-        <%= link_to "Faculty", admin_faculties_path, class: "text-base font-medium text-gray-700 hover:underline" %>
-        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
-          <%= @faculties_count %>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-3">
-        <%= link_to "Terms", admin_terms_path, class: "text-base font-medium text-gray-700 hover:underline" %>
-        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
-          <%= @terms_count %>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-3">
-        <%= link_to "Google Calendars", admin_calendars_path, class: "text-base font-medium text-gray-700 hover:underline" %>
-        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
-          <%= @google_calendars_count %>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white overflow-hidden shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="p-3">
-        <%= link_to "RMP Ratings", admin_rmp_ratings_path, class: "text-base font-medium text-gray-700 hover:underline" %>
-        <div class="mt-1 text-3xl font-semibold" style="color: #d13732;">
-          <%= @rmp_ratings_count %>
-        </div>
-      </div>
-    </div>
+    <%= render "shared/stat_card", title: "Users", count: @users_count, path: admin_users_path %>
+    <%= render "shared/stat_card", title: "Buildings", count: @buildings_count, path: admin_buildings_path %>
+    <%= render "shared/stat_card", title: "Rooms", count: @rooms_count, path: admin_rooms_path %>
+    <%= render "shared/stat_card", title: "Courses", count: @courses_count, path: admin_courses_path %>
+    <%= render "shared/stat_card", title: "Faculty", count: @faculties_count, path: admin_faculties_path %>
+    <%= render "shared/stat_card", title: "Terms", count: @terms_count, path: admin_terms_path %>
+    <%= render "shared/stat_card", title: "Google Calendars", count: @google_calendars_count, path: admin_calendars_path %>
+    <%= render "shared/stat_card", title: "RMP Ratings", count: @rmp_ratings_count, path: admin_rmp_ratings_path %>
   </div>
 
   <!-- Quick Actions -->
-  <div class="bg-white shadow-lg rounded-lg" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+  <div class="glass-card shadow-lg rounded-lg">
     <div class="px-4 py-5 sm:p-6">
       <h3 class="text-lg leading-6 font-medium mb-4">Quick Actions</h3>
       <div class="space-y-2">
-        <%= link_to "Manage Users", admin_users_path,
-            class: "quick-action-link block w-full text-left px-4 py-2 text-sm font-medium rounded transition-colors",
-            style: "color: #d13732; background: rgba(209, 55, 50, 0.05); border: 1px solid rgba(209, 55, 50, 0.2);" %>
-        <%= link_to "Manage Calendars", admin_calendars_path,
-            class: "quick-action-link block w-full text-left px-4 py-2 text-sm font-medium rounded transition-colors",
-            style: "color: #d13732; background: rgba(209, 55, 50, 0.05); border: 1px solid rgba(209, 55, 50, 0.2);" %>
-        <%= link_to "Fill Missing RMP IDs#{" (#{@missing_rmp_ids_count})" if @missing_rmp_ids_count > 0}", missing_rmp_ids_admin_faculties_path,
-            class: "quick-action-link block w-full text-left px-4 py-2 text-sm font-medium rounded transition-colors",
-            style: "color: #d13732; background: rgba(209, 55, 50, 0.05); border: 1px solid rgba(209, 55, 50, 0.2);" %>
-        <%= link_to "Fetch Course Catalog", admin_course_catalog_path,
-            class: "quick-action-link block w-full text-left px-4 py-2 text-sm font-medium rounded transition-colors",
-            style: "color: #d13732; background: rgba(209, 55, 50, 0.05); border: 1px solid rgba(209, 55, 50, 0.2);" %>
+        <%= link_to "Manage Users", admin_users_path, class: "quick-action-link" %>
+        <%= link_to "Manage Calendars", admin_calendars_path, class: "quick-action-link" %>
+        <%= link_to "Fill Missing RMP IDs#{" (#{@missing_rmp_ids_count})" if @missing_rmp_ids_count > 0}", missing_rmp_ids_admin_faculties_path, class: "quick-action-link" %>
+        <%= link_to "Fetch Course Catalog", admin_course_catalog_path, class: "quick-action-link" %>
       </div>
     </div>
   </div>
 </div>
-
-<style>
-  .quick-action-link:hover {
-    background: rgba(209, 55, 50, 0.1) !important;
-  }
-</style>

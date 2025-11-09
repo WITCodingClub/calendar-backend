@@ -1,0 +1,41 @@
+<%# Admin Navigation Component %>
+<nav class="glass-nav p-0">
+  <ul class="flex flex-wrap m-0 p-0 list-none">
+    <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+      <%= link_to "Dashboard", admin_root_path,
+          class: "admin-nav-link #{request.path == admin_root_path ? 'active' : ''}" %>
+    </li>
+    <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+      <%= link_to "Users", admin_users_path,
+          class: "admin-nav-link #{request.path.start_with?('/admin/users') && !request.path.start_with?('/admin/beta_testers') ? 'active' : ''}" %>
+    </li>
+    <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+      <%= link_to "Beta Testers", admin_beta_testers_path,
+          class: "admin-nav-link #{request.path.start_with?('/admin/beta_testers') ? 'active' : ''}" %>
+    </li>
+    <% if current_user.owner? %>
+      <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.8)]">
+        <%= link_to "Service Account", admin_service_account_index_path,
+            class: "admin-nav-link #{request.path.start_with?('/admin/service_account') ? 'active' : ''}" %>
+      </li>
+    <% end %>
+    <% if current_user.super_admin? || current_user.owner? %>
+      <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+        <%= link_to "Flipper", "/admin/flipper",
+            class: "admin-nav-link #{request.path.start_with?('/admin/flipper') ? 'active' : ''}" %>
+      </li>
+    <% end %>
+    <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+      <%= link_to "Blazer", "/admin/blazer",
+          class: "admin-nav-link #{request.path.start_with?('/admin/blazer') ? 'active' : ''}" %>
+    </li>
+    <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+      <%= link_to "Performance", "/admin/performance",
+          class: "admin-nav-link #{request.path.start_with?('/admin/performance') ? 'active' : ''}" %>
+    </li>
+    <li class="m-0">
+      <%= link_to "Jobs", "/admin/jobs",
+          class: "admin-nav-link #{request.path.start_with?('/admin/jobs') ? 'active' : ''}" %>
+    </li>
+  </ul>
+</nav>

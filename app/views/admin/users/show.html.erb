@@ -4,7 +4,7 @@
     <%= link_to "Back to Users", admin_users_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
   </div>
 
-  <div class="bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+  <div class="glass-card shadow-lg rounded-lg overflow-hidden">
     <div class="px-6 py-5">
       <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
         <div>
@@ -25,7 +25,7 @@
         <div>
           <dt class="text-sm font-medium text-gray-500">Access Level</dt>
           <dd class="mt-1">
-            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" style="background: rgba(209, 55, 50, 0.1); color: #d13732;">
+            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-[#d13732]/10 text-[#d13732]">
               <%= @user.access_level_text %>
             </span>
           </dd>
@@ -59,7 +59,7 @@
         </div>
       </dl>
 
-      <div class="mt-6 flex gap-3">
+      <div class="mt-6 flex gap-3 flex-wrap">
         <%= link_to "Edit User", edit_admin_user_path(@user), class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
 
         <% beta_feature_flag = FlipperFlags::V1 %>
@@ -69,13 +69,11 @@
           <%= button_to "Remove from Beta", disable_beta_admin_user_path(@user),
             method: :delete,
             data: { confirm: "Remove #{@user.email} from beta testers?" },
-            class: "glass-button px-4 py-2 rounded text-sm cursor-pointer",
-            style: "background: rgba(239, 68, 68, 0.1); color: #dc2626;" %>
+            class: "glass-button px-4 py-2 rounded text-sm cursor-pointer bg-red-50/40 text-red-600" %>
         <% else %>
           <%= button_to "Add to Beta", enable_beta_admin_user_path(@user),
             method: :post,
-            class: "glass-button px-4 py-2 rounded text-sm cursor-pointer",
-            style: "background: rgba(34, 197, 94, 0.1); color: #16a34a;" %>
+            class: "glass-button px-4 py-2 rounded text-sm cursor-pointer bg-green-50/40 text-green-600" %>
         <% end %>
 
         <%= button_to "Delete User", admin_user_path(@user), method: :delete, data: { confirm: "Are you sure you want to delete this user?" }, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer" %>
@@ -84,7 +82,7 @@
   </div>
 
   <!-- Enrollments Section -->
-  <div class="mt-8 bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+  <div class="mt-8 glass-card shadow-lg rounded-lg overflow-hidden">
     <div class="px-6 py-5">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold">Enrollments</h2>
@@ -95,10 +93,10 @@
         <div class="space-y-4">
           <% @enrollments_by_term.each do |term, enrollments| %>
             <div class="mb-6">
-              <h3 class="text-lg font-semibold mb-3" style="color: #d13732;"><%= term.name %></h3>
+              <h3 class="text-lg font-semibold mb-3 text-[#d13732]"><%= term.name %></h3>
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                  <thead style="background: rgba(255, 255, 255, 0.5);">
+                  <thead class="bg-white/50">
                     <tr>
                       <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">CRN</th>
                       <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Course</th>
@@ -107,7 +105,7 @@
                       <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Credits</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-gray-200" style="background: rgba(255, 255, 255, 0.3);">
+                  <tbody class="divide-y divide-gray-200 bg-white/30">
                     <% enrollments.each do |enrollment| %>
                       <tr>
                         <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
@@ -140,7 +138,7 @@
   </div>
 
   <!-- OAuth Credentials Section -->
-  <div class="mt-8 bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+  <div class="mt-8 glass-card shadow-lg rounded-lg overflow-hidden">
     <div class="px-6 py-5">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold">OAuth Credentials</h2>
@@ -150,7 +148,7 @@
       <% if @oauth_credentials.any? %>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
-            <thead style="background: rgba(255, 255, 255, 0.5);">
+            <thead class="bg-white/50">
               <tr>
                 <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email</th>
                 <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Provider</th>
@@ -160,7 +158,7 @@
                 <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200" style="background: rgba(255, 255, 255, 0.3);">
+            <tbody class="divide-y divide-gray-200 bg-white/30">
               <% @oauth_credentials.each do |credential| %>
                 <tr>
                   <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
@@ -184,7 +182,7 @@
                   </td>
                   <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
                     <% if credential.google_calendar %>
-                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full" style="background: rgba(209, 55, 50, 0.1); color: #d13732;">
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-[#d13732]/10 text-[#d13732]">
                         <%= credential.events_count %> events
                       </span>
                     <% else %>

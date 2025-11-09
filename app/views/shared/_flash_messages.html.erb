@@ -1,0 +1,30 @@
+<%# Flash Messages Component %>
+<% flash.each do |type, message| %>
+  <div class="fixed top-4 right-4 z-50 max-w-sm">
+    <div class="bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+      <div class="flex items-center">
+        <div class="flex-1">
+          <p class="text-sm text-gray-900"><%= message %></p>
+        </div>
+        <button onclick="this.parentElement.parentElement.parentElement.remove()"
+                class="ml-4 text-gray-400 hover:text-gray-600">
+          <span class="sr-only">Close</span>
+          ×
+        </button>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const flashMessages = document.querySelectorAll('.fixed.top-4.right-4');
+    flashMessages.forEach(message => {
+      setTimeout(() => {
+        if (message.parentElement) {
+          message.remove();
+        }
+      }, 5000);
+    });
+  });
+</script>

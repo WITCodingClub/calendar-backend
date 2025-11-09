@@ -9,8 +9,7 @@
       <%= f.text_field :search,
           value: params[:search],
           placeholder: "Search by email...",
-          class: "flex-1 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50",
-          style: "background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(3px);",
+          class: "glass-input flex-1 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50",
           data: { action: "input->users-search#search" } %>
       <% if params[:search].present? %>
         <%= link_to "Clear", admin_users_path, data: { turbo_frame: "users_table" }, class: "glass-button px-6 py-2 rounded inline-flex items-center" %>
