@@ -84,8 +84,8 @@ class AuthController < ApplicationController
       return
     end
 
-    # Find existing user (no longer auto-create accounts)
-    user = User.find_by(email: email)
+    # Find existing user by any connected email (no longer auto-create accounts)
+    user = User.find_by_email(email)
 
     # Check if user exists and is an admin
     unless user&.admin_access?
