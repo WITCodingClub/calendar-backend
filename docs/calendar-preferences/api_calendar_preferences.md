@@ -20,6 +20,7 @@ Preferences are resolved in this order (first match wins):
 Each preference level can configure:
 - **Title Template** - Liquid template for event summary (e.g., `{{course_code}}: {{title}}`)
 - **Description Template** - Liquid template for event description
+- **Location Template** - Liquid template for event location (e.g., `{{building}} - {{room}}`)
 - **Reminder Settings** - Array of reminders with minutes and method (popup/email)
 - **Color** - Google Calendar color ID (1-11)
 - **Visibility** - Event visibility (public, private, default)
@@ -76,6 +77,7 @@ Get all calendar preferences for the authenticated user.
     "event_type": null,
     "title_template": "{{course_code}}: {{title}}",
     "description_template": null,
+    "location_template": null,
     "reminder_settings": [
       {"minutes": 15, "method": "popup"}
     ],
@@ -88,6 +90,7 @@ Get all calendar preferences for the authenticated user.
       "event_type": "lecture",
       "title_template": "{{course_code}}: {{title}}",
       "description_template": null,
+      "location_template": null,
       "reminder_settings": null,
       "color_id": 1,
       "visibility": null
@@ -97,6 +100,7 @@ Get all calendar preferences for the authenticated user.
       "event_type": "laboratory",
       "title_template": "{{title}} - Lab ({{room}})",
       "description_template": null,
+      "location_template": "{{building}} - Room {{room}}",
       "reminder_settings": [
         {"minutes": 30, "method": "popup"},
         {"minutes": 1440, "method": "email"}
@@ -130,6 +134,7 @@ Get a single preference (global or event type).
   "event_type": "lecture",
   "title_template": "{{course_code}}: {{title}}",
   "description_template": null,
+  "location_template": null,
   "reminder_settings": null,
   "color_id": 1,
   "visibility": null
@@ -152,7 +157,8 @@ Create or update a preference at global or event-type level.
 {
   "calendar_preference": {
     "title_template": "{{day_abbr}} {{start_time}}: {{title}}",
-    "description_template": "{{course_code}}\nLocation: {{location}}\nInstructor: {{faculty}}",
+    "description_template": "{{course_code}}\nInstructor: {{faculty}}",
+    "location_template": "{{building}} - {{room}}",
     "reminder_settings": [
       {"minutes": 30, "method": "popup"}
     ],
@@ -165,6 +171,7 @@ Create or update a preference at global or event-type level.
 **Field Specifications:**
 - `title_template` (string, max 500 chars) - Liquid template for event title
 - `description_template` (string, max 2000 chars) - Liquid template for description
+- `location_template` (string, max 500 chars) - Liquid template for event location
 - `reminder_settings` (array) - Array of `{minutes: integer, method: "popup"|"notification"|"email"}` objects
   - **Note:** `"notification"` is an alias for `"popup"` and will be normalized to `"popup"`
 - `color_id` (integer, 1-11) - Google Calendar color ID
@@ -271,6 +278,7 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
   "individual_preference": {
     "title_template": null,
     "description_template": null,
+    "location_template": null,
     "reminder_settings": [
       {"minutes": 60, "method": "popup"}
     ],
@@ -279,7 +287,8 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
   },
   "resolved": {
     "title_template": "{{title}} - Lab ({{room}})",
-    "description_template": "Location: {{location}}\\nInstructor: {{faculty}}",
+    "description_template": "Instructor: {{faculty}}",
+    "location_template": "{{building}} - Room {{room}}",
     "reminder_settings": [
       {"minutes": 60, "method": "popup"}
     ],
@@ -289,14 +298,15 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
   "sources": {
     "title_template": "event_type:laboratory",
     "description_template": "event_type:laboratory",
+    "location_template": "event_type:laboratory",
     "reminder_settings": "individual",
     "color_id": "event_type:laboratory",
     "visibility": "global"
   },
   "preview": {
     "title": "Computer Science I - Lab (306)",
-    "description": "Location: Wentworth Hall - 306\\nInstructor: Dr. Jane Smith",
-    "location": "Wentworth Hall - 306"
+    "description": "Instructor: Dr. Jane Smith",
+    "location": "Wentworth Hall - Room 306"
   }
 }
 ```
@@ -305,7 +315,10 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
 - `individual_preference` - Only the overrides set specifically for this event (null if not set)
 - `resolved` - Actual values that will be used (after walking the hierarchy)
 - `sources` - Where each value came from (useful for UI to show inheritance)
-- `preview` - Object containing rendered title, description, and location using resolved templates
+- `preview` - Rendered event preview with actual values using resolved templates:
+  - `title` (string) - Rendered event title
+  - `description` (string) - Rendered event description
+  - `location` (string) - Rendered event location
 
 **Use Case:**
 - Display current settings when user clicks on a specific event
@@ -329,6 +342,7 @@ Set an override for a **specific event** using its meeting time ID or calendar e
 ```json
 {
   "event_preference": {
+    "location_template": "Room {{room}} ({{building}})",
     "reminder_settings": [
       {"minutes": 60, "method": "popup"}
     ]
@@ -340,6 +354,7 @@ Set an override for a **specific event** using its meeting time ID or calendar e
 - Only include fields you want to override
 - Setting a field to `null` removes that specific override (falls back to hierarchy)
 - At least one non-null field is required
+- Allowed fields: `title_template`, `description_template`, `location_template`, `reminder_settings`, `color_id`, `visibility`
 
 **Response:** Same as section 6 (Get Preference for a Specific Event by ID)
 

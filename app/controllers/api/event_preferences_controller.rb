@@ -92,6 +92,7 @@ module Api
       params.expect(
         event_preference: [:title_template,
                            :description_template,
+                           :location_template,
                            :color_id,
                            :visibility,
                            { reminder_settings: [] }]
@@ -102,6 +103,7 @@ module Api
       {
         title_template: preference.title_template,
         description_template: preference.description_template,
+        location_template: preference.location_template,
         reminder_settings: preference.reminder_settings,
         color_id: preference.color_id,
         visibility: preference.visibility
@@ -126,8 +128,12 @@ module Api
                       ""
                     end
 
-      # Extract location from context
-      location = context[:location] || ""
+      # Render location template
+      location = if resolved_preferences[:location_template].present?
+                   renderer.render(resolved_preferences[:location_template], context)
+                 else
+                   context[:location] || ""
+                 end
 
       {
         title: title,

@@ -103,6 +103,7 @@ module Api
       params.expect(
         calendar_preference: [:title_template,
                               :description_template,
+                              :location_template,
                               :color_id,
                               :visibility,
                               { reminder_settings: [] }]
@@ -115,6 +116,7 @@ module Api
         event_type: preference.event_type,
         title_template: preference.title_template,
         description_template: preference.description_template,
+        location_template: preference.location_template,
         reminder_settings: preference.reminder_settings,
         color_id: preference.color_id,
         visibility: preference.visibility
