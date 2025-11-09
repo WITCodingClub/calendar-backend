@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_09_035454) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_09_052419) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -432,6 +432,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_035454) do
   end
 
   create_table "terms", force: :cascade do |t|
+    t.boolean "catalog_imported", default: false, null: false
+    t.datetime "catalog_imported_at"
     t.datetime "created_at", null: false
     t.integer "season"
     t.integer "uid", null: false

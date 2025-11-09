@@ -74,6 +74,9 @@
 #                              admin_terms GET    /admin/terms(.:format)                                                                            admin/terms#index
 #             admin_google_calendar_events GET    /admin/google_calendar_events(.:format)                                                           admin/google_calendar_events#index
 #                        admin_rmp_ratings GET    /admin/rmp_ratings(.:format)                                                                      admin/rmp_ratings#index
+#                     admin_course_catalog GET    /admin/course_catalog(.:format)                                                                   admin/course_catalog#index
+#               admin_course_catalog_fetch POST   /admin/course_catalog/fetch(.:format)                                                             admin/course_catalog#fetch
+#              admin_course_catalog_import POST   /admin/course_catalog/import(.:format)                                                            admin/course_catalog#import_courses
 #              admin_service_account_index GET    /admin/service_account(.:format)                                                                  admin/service_account#index
 #          admin_service_account_authorize GET    /admin/service_account/authorize(.:format)                                                        admin/service_account#authorize
 #           admin_service_account_callback GET    /admin/service_account/callback(.:format)                                                         admin/service_account#callback
@@ -333,6 +336,11 @@ Rails.application.routes.draw do
       resources :terms, only: [:index]
       resources :google_calendar_events, only: [:index]
       resources :rmp_ratings, only: [:index]
+
+      # Course catalog fetcher (admin utility)
+      get "course_catalog", to: "course_catalog#index", as: :course_catalog
+      post "course_catalog/fetch", to: "course_catalog#fetch", as: :course_catalog_fetch
+      post "course_catalog/import", to: "course_catalog#import_courses", as: :course_catalog_import
 
       # Service account OAuth management (owner only)
       get "service_account", to: "service_account#index", as: :service_account_index

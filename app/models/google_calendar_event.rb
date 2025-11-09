@@ -24,6 +24,7 @@
 #  idx_on_google_calendar_id_meeting_time_id_6c9efabf50  (google_calendar_id,meeting_time_id)
 #  index_google_calendar_events_on_google_calendar_id    (google_calendar_id)
 #  index_google_calendar_events_on_google_event_id       (google_event_id)
+#  index_google_calendar_events_on_last_synced_at        (last_synced_at)
 #  index_google_calendar_events_on_meeting_time_id       (meeting_time_id)
 #
 # Foreign Keys

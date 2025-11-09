@@ -92,6 +92,7 @@ group :development, :test do
   gem "factory_bot_rails"
   gem "faker"
   gem "shoulda-matchers"
+  gem "pundit-matchers"
   gem "rubocop-capybara", "~> 2.22", ">= 2.22.1"
   gem "rubocop-rspec", "~> 3.6"
   gem "rubocop-rspec_rails", "~> 2.31"

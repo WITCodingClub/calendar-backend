@@ -7,12 +7,14 @@ class LeopardWebService < ApplicationService
 
   BASE_URL = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/searchResults/"
 
-  attr_reader :term, :course_reference_number, :action
+  attr_reader :term, :course_reference_number, :action, :jsessionid, :idmsessid
 
-  def initialize(action:, term: nil, course_reference_number: nil)
+  def initialize(action:, term: nil, course_reference_number: nil, jsessionid: nil, idmsessid: nil)
     @action = action
     @term = term
     @course_reference_number = course_reference_number
+    @jsessionid = jsessionid
+    @idmsessid = idmsessid
     super()
   end
 
@@ -24,6 +26,8 @@ class LeopardWebService < ApplicationService
       get_enrollment_info
     when :get_faculty_meeting_times
       get_faculty_meeting_times
+    when :get_course_catalog
+      get_course_catalog
     else
       raise ArgumentError, "Unknown action: #{action}"
     end
@@ -51,6 +55,15 @@ class LeopardWebService < ApplicationService
       action: :get_faculty_meeting_times,
       term: term,
       course_reference_number: course_reference_number
+    ).call
+  end
+
+  def self.get_course_catalog(term:, jsessionid:, idmsessid:)
+    new(
+      action: :get_course_catalog,
+      term: term,
+      jsessionid: jsessionid,
+      idmsessid: idmsessid
     ).call
   end
 
@@ -191,6 +204,89 @@ class LeopardWebService < ApplicationService
 
   def handle_error(response)
     raise "Request failed with status #{response.status}: #{response.body}"
+  end
+
+  def get_course_catalog
+    raise ArgumentError, "term is required" unless term
+    raise ArgumentError, "jsessionid is required" unless jsessionid
+
+    all_courses = []
+    offset = 0
+    total_count = nil
+    page_size = 500
+    first_response_data = nil
+
+    loop do
+      response = fetch_catalog_page(offset, page_size)
+
+      if response.success?
+        data = parse_json_response(response.body)
+        first_response_data ||= data # Save first response for debugging
+        courses = data["data"] || []
+        total_count ||= data["totalCount"] || 0
+
+        all_courses.concat(courses)
+
+        # Break if we've fetched all courses
+        break if all_courses.length >= total_count || courses.empty?
+
+        offset += page_size
+      else
+        handle_error(response)
+      end
+    end
+
+    {
+      success: true,
+      courses: all_courses,
+      total_count: total_count,
+      raw_response: first_response_data
+    }
+  rescue => e
+    {
+      success: false,
+      error: e.message,
+      courses: [],
+      total_count: 0
+    }
+  end
+
+  def fetch_catalog_page(offset, page_size)
+    # Generate a unique session ID for this request (mimics browser behavior)
+    unique_session_id = "sess#{Time.now.to_i}#{rand(1000..9999)}"
+
+    authenticated_connection.get("searchResults/searchResults", {
+      txt_term: term,
+      startDatepicker: "",
+      endDatepicker: "",
+      uniqueSessionId: unique_session_id,
+      pageOffset: offset,
+      pageMaxSize: page_size,
+      sortColumn: "subjectDescription",
+      sortDirection: "asc"
+    })
+  end
+
+  def authenticated_connection
+    @authenticated_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
+      faraday.headers["Accept"] = "application/json, text/javascript, */*; q=0.01"
+      faraday.headers["Accept-Language"] = "en-US,en;q=0.9"
+      faraday.headers["X-Requested-With"] = "XMLHttpRequest"
+      faraday.headers["Referer"] = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/courseSearch/courseSearch"
+      faraday.headers["DNT"] = "1"
+      faraday.headers["Sec-Fetch-Dest"] = "empty"
+      faraday.headers["Sec-Fetch-Mode"] = "cors"
+      faraday.headers["Sec-Fetch-Site"] = "same-origin"
+
+      # Build cookie header with optional IDMSESSID
+      cookies = ["JSESSIONID=#{jsessionid}"]
+      cookies << "IDMSESSID=#{idmsessid}" if idmsessid.present?
+      faraday.headers["Cookie"] = cookies.join("; ")
+
+      faraday.request :url_encoded
+      faraday.response :json, content_type: /\bjson$/
+      faraday.adapter Faraday.default_adapter
+    end
   end
 
 end

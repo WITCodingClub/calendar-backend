@@ -92,6 +92,9 @@
         <%= link_to "Fill Missing RMP IDs#{" (#{@missing_rmp_ids_count})" if @missing_rmp_ids_count > 0}", missing_rmp_ids_admin_faculties_path,
             class: "quick-action-link block w-full text-left px-4 py-2 text-sm font-medium rounded transition-colors",
             style: "color: #d13732; background: rgba(209, 55, 50, 0.05); border: 1px solid rgba(209, 55, 50, 0.2);" %>
+        <%= link_to "Fetch Course Catalog", admin_course_catalog_path,
+            class: "quick-action-link block w-full text-left px-4 py-2 text-sm font-medium rounded transition-colors",
+            style: "color: #d13732; background: rgba(209, 55, 50, 0.05); border: 1px solid rgba(209, 55, 50, 0.2);" %>
       </div>
     </div>
   </div>

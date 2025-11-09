@@ -15,6 +15,7 @@
 #
 # Indexes
 #
+#  index_emails_on_email                (email) UNIQUE
 #  index_emails_on_user_id              (user_id)
 #  index_emails_on_user_id_and_primary  (user_id,primary) UNIQUE WHERE ("primary" = true)
 #

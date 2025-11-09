@@ -17,7 +17,9 @@
 #
 # Indexes
 #
-#  index_users_on_calendar_token  (calendar_token) UNIQUE
+#  index_users_on_calendar_needs_sync    (calendar_needs_sync)
+#  index_users_on_calendar_token         (calendar_token) UNIQUE
+#  index_users_on_last_calendar_sync_at  (last_calendar_sync_at)
 #
 require "rails_helper"
 

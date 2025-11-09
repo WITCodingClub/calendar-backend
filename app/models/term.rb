@@ -5,12 +5,14 @@
 # Table name: terms
 # Database name: primary
 #
-#  id         :bigint           not null, primary key
-#  season     :integer
-#  uid        :integer          not null
-#  year       :integer
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
+#  id                  :bigint           not null, primary key
+#  catalog_imported    :boolean          default(FALSE), not null
+#  catalog_imported_at :datetime
+#  season              :integer
+#  uid                 :integer          not null
+#  year                :integer
+#  created_at          :datetime         not null
+#  updated_at          :datetime         not null
 #
 # Indexes
 #

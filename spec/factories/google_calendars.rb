@@ -18,6 +18,7 @@
 # Indexes
 #
 #  index_google_calendars_on_google_calendar_id   (google_calendar_id) UNIQUE
+#  index_google_calendars_on_last_synced_at       (last_synced_at)
 #  index_google_calendars_on_oauth_credential_id  (oauth_credential_id)
 #
 # Foreign Keys

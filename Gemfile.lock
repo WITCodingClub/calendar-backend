@@ -463,6 +463,11 @@ GEM
       nio4r (~> 2.0)
     pundit (2.5.2)
       activesupport (>= 3.0.0)
+    pundit-matchers (4.0.0)
+      rspec-core (~> 3.12)
+      rspec-expectations (~> 3.12)
+      rspec-mocks (~> 3.12)
+      rspec-support (~> 3.12)
     query_count (1.1.1)
       activerecord (>= 4.2)
       railties (>= 4.2)
@@ -766,6 +771,7 @@ DEPENDENCIES
   propshaft
   puma (>= 5.0)
   pundit
+  pundit-matchers
   query_count
   rack-attack
   rack-cors
