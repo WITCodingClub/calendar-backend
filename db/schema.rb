@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_09_020957) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_09_035454) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -192,6 +192,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_020957) do
     t.boolean "primary", default: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["email"], name: "index_emails_on_email", unique: true
     t.index ["user_id", "primary"], name: "index_emails_on_user_id_and_primary", unique: true, where: "(\"primary\" = true)"
     t.index ["user_id"], name: "index_emails_on_user_id"
   end
@@ -272,6 +273,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_020957) do
     t.index ["google_calendar_id", "meeting_time_id"], name: "idx_on_google_calendar_id_meeting_time_id_6c9efabf50"
     t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
     t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
+    t.index ["last_synced_at"], name: "index_google_calendar_events_on_last_synced_at"
     t.index ["meeting_time_id"], name: "index_google_calendar_events_on_meeting_time_id"
   end
 
@@ -285,6 +287,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_020957) do
     t.string "time_zone"
     t.datetime "updated_at", null: false
     t.index ["google_calendar_id"], name: "index_google_calendars_on_google_calendar_id", unique: true
+    t.index ["last_synced_at"], name: "index_google_calendars_on_last_synced_at"
     t.index ["oauth_credential_id"], name: "index_google_calendars_on_oauth_credential_id"
   end
 
@@ -340,6 +343,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_020957) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["provider", "uid"], name: "index_oauth_credentials_on_provider_and_uid", unique: true
+    t.index ["token_expires_at"], name: "index_oauth_credentials_on_token_expires_at"
     t.index ["user_id", "provider", "email"], name: "index_oauth_credentials_on_user_provider_email", unique: true
     t.index ["user_id"], name: "index_oauth_credentials_on_user_id"
   end
@@ -456,7 +460,9 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_020957) do
     t.datetime "last_calendar_sync_at"
     t.string "last_name"
     t.datetime "updated_at", null: false
+    t.index ["calendar_needs_sync"], name: "index_users_on_calendar_needs_sync"
     t.index ["calendar_token"], name: "index_users_on_calendar_token", unique: true
+    t.index ["last_calendar_sync_at"], name: "index_users_on_last_calendar_sync_at"
   end
 
   create_table "versions", force: :cascade do |t|

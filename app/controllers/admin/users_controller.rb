@@ -27,7 +27,7 @@ module Admin
 
       # Eager load enrollments with their associations for the view
       @enrollments_by_term = @user.enrollments
-                                  .includes(:course, :term)
+                                  .includes({ course: :faculties }, :term)
                                   .joins(:term)
                                   .order("terms.year DESC, terms.season DESC")
                                   .group_by(&:term)

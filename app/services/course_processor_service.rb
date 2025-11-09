@@ -164,6 +164,9 @@ class CourseProcessorService < ApplicationService
     # Deduplicate faculty by email
     unique_faculty = faculty_data.uniq { |f| f["emailAddress"] || f[:emailAddress] }
 
+    # Preload existing faculty IDs to avoid N+1 queries
+    existing_faculty_ids = course.faculty_ids.to_set
+
     unique_faculty.each do |faculty_info|
       next if faculty_info.blank?
 
@@ -184,8 +187,11 @@ class CourseProcessorService < ApplicationService
         f.last_name = last_name
       end
 
-      # Associate with course (HABTM - won't create duplicates)
-      course.faculties << faculty unless course.faculties.include?(faculty)
+      # Associate with course (use Set for O(1) lookup instead of loading all faculties)
+      unless existing_faculty_ids.include?(faculty.id)
+        course.faculties << faculty
+        existing_faculty_ids.add(faculty.id)
+      end
     end
   end
 

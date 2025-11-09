@@ -22,6 +22,8 @@ class PreferenceResolver
   def initialize(user)
     @user = user
     @cache = {}
+    # Preload all preferences to avoid N+1 queries
+    preload_preferences
   end
 
   # Resolve preferences for a MeetingTime or GoogleCalendarEvent
@@ -48,7 +50,22 @@ class PreferenceResolver
     { preferences: preferences, sources: sources }
   end
 
+  # Get a specific EventPreference from preloaded data
+  def get_event_preference(event)
+    @event_preferences[[event.class.name, event.id]]
+  end
+
   private
+
+  def preload_preferences
+    # Load all EventPreferences for this user, indexed by preferenceable_type and preferenceable_id
+    @event_preferences = EventPreference.where(user: @user)
+                                        .index_by { |ep| [ep.preferenceable_type, ep.preferenceable_id] }
+
+    # Load all CalendarPreferences for this user, indexed by scope and event_type
+    @calendar_preferences = CalendarPreference.where(user: @user)
+                                              .index_by { |cp| [cp.scope, cp.event_type] }
+  end
 
   def resolve_preferences(event)
     preferences = {}
@@ -61,35 +78,26 @@ class PreferenceResolver
   end
 
   def resolve_field(event, field)
-    # 1. Check individual event preference
-    if event.respond_to?(:event_preference) && event.event_preference.present?
-      value = event.event_preference.public_send(field)
-      return [value, "individual"] if value.present?
-    end
-
-    # 2. Check for EventPreference record
-    event_pref = EventPreference.find_by(user: @user, preferenceable: event)
+    # 1. Check for EventPreference record (use preloaded data)
+    # This replaces the old event.event_preference check which would trigger a query
+    event_pref = @event_preferences[[event.class.name, event.id]]
     if event_pref.present?
       value = event_pref.public_send(field)
       return [value, "individual"] if value.present?
     end
 
-    # 3. Check event-type preference (if event has a schedule_type or event_type)
+    # 3. Check event-type preference (use preloaded data)
     event_type = extract_event_type(event)
     if event_type.present?
-      type_pref = CalendarPreference.find_by(
-        user: @user,
-        scope: :event_type,
-        event_type: event_type
-      )
+      type_pref = @calendar_preferences[["event_type", event_type]]
       if type_pref.present?
         value = type_pref.public_send(field)
         return [value, "event_type:#{event_type}"] if value.present?
       end
     end
 
-    # 4. Check global user preference
-    global_pref = CalendarPreference.find_by(user: @user, scope: :global)
+    # 4. Check global user preference (use preloaded data)
+    global_pref = @calendar_preferences[["global", nil]]
     if global_pref.present?
       value = global_pref.public_send(field)
       return [value, "global"] if value.present?

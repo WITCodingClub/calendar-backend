@@ -7,17 +7,15 @@ module Api
     # GET /api/meeting_times/:meeting_time_id/preference
     # GET /api/google_calendar_events/:google_calendar_event_id/preference
     def show
-      preference = EventPreference.find_by(
-        user: current_user,
-        preferenceable: @preferenceable
-      )
+      # Get resolved preferences with sources (PreferenceResolver preloads all EventPreferences)
+      resolver = PreferenceResolver.new(current_user)
+      resolved_data = resolver.resolve_with_sources(@preferenceable)
+
+      # Get individual preference from resolver's preloaded data instead of separate query
+      preference = resolver.get_event_preference(@preferenceable)
 
       # Authorize either the existing preference or create a new one to check authorization
       authorize preference || EventPreference.new(user: current_user, preferenceable: @preferenceable)
-
-      # Get resolved preferences with sources
-      resolver = PreferenceResolver.new(current_user)
-      resolved_data = resolver.resolve_with_sources(@preferenceable)
 
       # Generate preview with title, description, and location
       preview = generate_preview(resolved_data[:preferences])
@@ -33,16 +31,16 @@ module Api
     # PUT /api/meeting_times/:meeting_time_id/preference
     # PUT /api/google_calendar_events/:google_calendar_event_id/preference
     def update
-      preference = EventPreference.find_or_initialize_by(
-        user: current_user,
-        preferenceable: @preferenceable
-      )
+      # Get resolved preferences with sources (PreferenceResolver preloads all EventPreferences)
+      resolver = PreferenceResolver.new(current_user)
+
+      # Get individual preference from resolver's preloaded data instead of separate query
+      preference = resolver.get_event_preference(@preferenceable)
+      preference ||= EventPreference.new(user: current_user, preferenceable: @preferenceable)
 
       authorize preference
 
       if preference.update(event_preference_params)
-        # Get resolved preferences with sources
-        resolver = PreferenceResolver.new(current_user)
         resolved_data = resolver.resolve_with_sources(@preferenceable)
 
         # Generate preview with title, description, and location
@@ -62,10 +60,9 @@ module Api
     # DELETE /api/meeting_times/:meeting_time_id/preference
     # DELETE /api/google_calendar_events/:google_calendar_event_id/preference
     def destroy
-      preference = EventPreference.find_by(
-        user: current_user,
-        preferenceable: @preferenceable
-      )
+      # Create resolver to get preloaded EventPreferences
+      resolver = PreferenceResolver.new(current_user)
+      preference = resolver.get_event_preference(@preferenceable)
 
       if preference
         authorize preference
@@ -80,9 +77,11 @@ module Api
 
     def set_preferenceable
       if params[:meeting_time_id]
-        @preferenceable = MeetingTime.find(params[:meeting_time_id])
+        # Use eager_load to force LEFT OUTER JOINs (single query) instead of separate SELECTs
+        @preferenceable = MeetingTime.eager_load(course: :faculties, room: :building).find(params[:meeting_time_id])
       elsif params[:google_calendar_event_id]
-        @preferenceable = GoogleCalendarEvent.find(params[:google_calendar_event_id])
+        # Use eager_load for GoogleCalendarEvent as well
+        @preferenceable = GoogleCalendarEvent.eager_load(meeting_time: { course: :faculties, room: :building }).find(params[:google_calendar_event_id])
       else
         render json: { error: "Preferenceable not specified" }, status: :bad_request
       end

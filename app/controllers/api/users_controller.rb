@@ -308,7 +308,7 @@ module Api
                     .where(term_id: term.id)
                     .includes(course: [
                                 :faculties,
-                                { meeting_times: [:event_preference, { room: :building }] }
+                                { meeting_times: [:event_preference, { room: :building }, { course: :faculties }] }
                               ])
 
       structured_data = enrollments.map do |enrollment|

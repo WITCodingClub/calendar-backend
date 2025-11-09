@@ -58,6 +58,10 @@ class GoogleCalendarService
     # Stats for logging
     stats = { created: 0, updated: 0, skipped: 0 }
 
+    # Initialize shared preference resolver and template renderer to avoid re-creating per event
+    preference_resolver = PreferenceResolver.new(user)
+    template_renderer = CalendarTemplateRenderer.new
+
     # Create or update events
     events.each do |event|
       meeting_time_id = event[:meeting_time_id]
@@ -66,7 +70,7 @@ class GoogleCalendarService
       if existing_event
         # Update existing event if needed (or skip if no changes and not forced)
         if force || existing_event.data_changed?(event)
-          update_event_in_calendar(service, google_calendar, existing_event, event, force: force)
+          update_event_in_calendar(service, google_calendar, existing_event, event, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
           stats[:updated] += 1
         else
           existing_event.mark_synced!
@@ -74,7 +78,7 @@ class GoogleCalendarService
         end
       else
         # Create new event
-        create_event_in_calendar(service, google_calendar, event)
+        create_event_in_calendar(service, google_calendar, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
         stats[:created] += 1
       end
     end
@@ -89,24 +93,32 @@ class GoogleCalendarService
     google_calendar = user.google_credential&.google_calendar
     return { created: 0, updated: 0, skipped: 0 } unless google_calendar
 
+    # Preload existing events to avoid N+1 queries
+    meeting_time_ids = events.map { |e| e[:meeting_time_id] }.compact
+    existing_events = google_calendar.google_calendar_events
+                                     .where(meeting_time_id: meeting_time_ids)
+                                     .index_by(&:meeting_time_id)
+
+    # Initialize shared preference resolver and template renderer to avoid re-creating per event
+    preference_resolver = PreferenceResolver.new(user)
+    template_renderer = CalendarTemplateRenderer.new
+
     stats = { created: 0, updated: 0, skipped: 0 }
 
     events.each do |event|
       meeting_time_id = event[:meeting_time_id]
-      existing_event = google_calendar.google_calendar_events.find_by(
-        meeting_time_id: meeting_time_id
-      )
+      existing_event = existing_events[meeting_time_id]
 
       if existing_event
         if force || existing_event.data_changed?(event)
-          update_event_in_calendar(service, google_calendar, existing_event, event, force: force)
+          update_event_in_calendar(service, google_calendar, existing_event, event, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
           stats[:updated] += 1
         else
           existing_event.mark_synced!
           stats[:skipped] += 1
         end
       else
-        create_event_in_calendar(service, google_calendar, event)
+        create_event_in_calendar(service, google_calendar, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
         stats[:created] += 1
       end
     end
@@ -383,12 +395,12 @@ class GoogleCalendarService
     end
   end
 
-  def create_event_in_calendar(service, google_calendar, course_event)
+  def create_event_in_calendar(service, google_calendar, course_event, preference_resolver: nil, template_renderer: nil)
     calendar_id = google_calendar.google_calendar_id
-    meeting_time = MeetingTime.find_by(id: course_event[:meeting_time_id])
+    meeting_time = MeetingTime.includes(course: :faculties).find_by(id: course_event[:meeting_time_id])
 
     # Apply user preferences to event data
-    event_data = apply_preferences_to_event(meeting_time, course_event)
+    event_data = apply_preferences_to_event(meeting_time, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
     # Ensure times are in Eastern timezone
     start_time_et = event_data[:start_time].in_time_zone("America/New_York")
@@ -457,7 +469,7 @@ class GoogleCalendarService
 
   end
 
-  def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false)
+  def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, preference_resolver: nil, template_renderer: nil)
     # Use hash-based change detection for efficiency (unless forced)
     unless force || db_event.data_changed?(course_event)
       db_event.mark_synced!
@@ -493,10 +505,10 @@ class GoogleCalendarService
     end
 
     # No user edits detected, proceed with normal update from our system
-    meeting_time = MeetingTime.find_by(id: course_event[:meeting_time_id])
+    meeting_time = MeetingTime.includes(course: :faculties).find_by(id: course_event[:meeting_time_id])
 
     # Apply user preferences to event data
-    event_data = apply_preferences_to_event(meeting_time, course_event)
+    event_data = apply_preferences_to_event(meeting_time, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
     # Ensure times are in Eastern timezone
     start_time_et = event_data[:start_time].in_time_zone("America/New_York")
@@ -685,12 +697,12 @@ class GoogleCalendarService
     Array(recurrence).compact.sort
   end
 
-  def apply_preferences_to_event(meeting_time, course_event)
+  def apply_preferences_to_event(meeting_time, course_event, preference_resolver: nil, template_renderer: nil)
     return course_event unless meeting_time
 
-    # Initialize preference resolver and renderer
-    resolver = PreferenceResolver.new(user)
-    renderer = CalendarTemplateRenderer.new
+    # Use provided instances or create new ones (for backward compatibility)
+    resolver = preference_resolver || PreferenceResolver.new(user)
+    renderer = template_renderer || CalendarTemplateRenderer.new
 
     # Resolve preferences for this meeting time
     prefs = resolver.resolve_for(meeting_time)

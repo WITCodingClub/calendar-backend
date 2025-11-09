@@ -56,7 +56,7 @@ module Api
         return
       end
 
-      meeting_time = MeetingTime.find_by(id: meeting_time_id)
+      meeting_time = MeetingTime.includes(course: :faculties).find_by(id: meeting_time_id)
       unless meeting_time
         render json: { error: "Meeting time not found" }, status: :not_found
         return
