@@ -41,6 +41,7 @@
 #                                          PUT    /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#update
 #                                          DELETE /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#destroy
 #                                 calendar GET    /calendar/:calendar_token(.:format)                                                               calendars#show {format: :ics}
+#                              risc_events POST   /risc/events(.:format)                                                                            risc#create
 #              auth_google_oauth2_callback GET    /auth/google_oauth2/callback(.:format)                                                            auth#google
 #                            oauth_success GET    /oauth/success(.:format)                                                                          oauth#success
 #                            oauth_failure GET    /oauth/failure(.:format)                                                                          oauth#failure
@@ -295,6 +296,9 @@ Rails.application.routes.draw do
   end
 
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
+
+  # Google RISC (Cross-Account Protection) webhook
+  post "/risc/events", to: "risc#create", as: :risc_events
 
   # google oauth2 callback
   get "/auth/google_oauth2/callback", to: "auth#google"

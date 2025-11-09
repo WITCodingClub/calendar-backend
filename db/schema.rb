@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_09_063001) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_09_072738) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -420,6 +420,28 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_063001) do
     t.index ["building_id"], name: "index_rooms_on_building_id"
   end
 
+  create_table "security_events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "event_type", null: false
+    t.datetime "expires_at"
+    t.string "google_subject", null: false
+    t.string "jti", null: false
+    t.bigint "oauth_credential_id"
+    t.boolean "processed", default: false, null: false
+    t.datetime "processed_at"
+    t.text "processing_error"
+    t.text "raw_event_data"
+    t.string "reason"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["event_type"], name: "index_security_events_on_event_type"
+    t.index ["expires_at"], name: "index_security_events_on_expires_at"
+    t.index ["jti"], name: "index_security_events_on_jti", unique: true
+    t.index ["oauth_credential_id"], name: "index_security_events_on_oauth_credential_id"
+    t.index ["processed"], name: "index_security_events_on_processed"
+    t.index ["user_id"], name: "index_security_events_on_user_id"
+  end
+
   create_table "teacher_rating_tags", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "faculty_id", null: false
@@ -495,6 +517,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_063001) do
   add_foreign_key "related_professors", "faculties", validate: false
   add_foreign_key "rmp_ratings", "faculties", validate: false
   add_foreign_key "rooms", "buildings"
+  add_foreign_key "security_events", "oauth_credentials"
+  add_foreign_key "security_events", "users"
   add_foreign_key "teacher_rating_tags", "faculties", validate: false
   add_foreign_key "user_extension_configs", "users"
 end

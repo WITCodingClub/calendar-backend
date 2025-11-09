@@ -64,10 +64,13 @@ Vector embeddings and semantic search capabilities.
 
 ## Security
 
+- **[Cross-Account Protection (RISC)](./security/cross-account-protection.md)** - Google security event notifications and response
 - **[Rate Limiting](./security/rate-limiting.md)** - Rate limiting and DDoS protection with Rack::Attack
 - **[Authorization](./authorization.md)** - Role-based access control with Pundit
 
 **Use Cases:**
+- Setting up Google security events: See Cross-Account Protection
+- Responding to account compromises: See Cross-Account Protection
 - Understanding rate limits: See Rate Limiting
 - Configuring rate limits: See Rate Limiting
 - Adding authorization: See Authorization
@@ -106,6 +109,7 @@ docs/
 │   └── job-queues.md
 │
 └── security/
+    ├── cross-account-protection.md (Google RISC)
     └── rate-limiting.md
 ```
 
@@ -151,6 +155,9 @@ docs/
 
 **Set up authorization policies**
 → [Authorization](./authorization.md)
+
+**Configure Google security event notifications**
+→ [Cross-Account Protection (RISC)](./security/cross-account-protection.md)
 
 ## Need Help?
 

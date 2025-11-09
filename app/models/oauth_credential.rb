@@ -31,6 +31,7 @@
 class OauthCredential < ApplicationRecord
   belongs_to :user
   has_one :google_calendar, dependent: :destroy
+  has_many :security_events, dependent: :nullify
 
   validates :provider, presence: true, inclusion: { in: %w[google] }
   validates :uid, presence: true, uniqueness: { scope: :provider }
