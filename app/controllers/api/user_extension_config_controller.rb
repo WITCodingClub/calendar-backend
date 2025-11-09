@@ -35,7 +35,8 @@ module Api
       render json: {
         military_time: config.military_time,
         default_color_lecture: config.default_color_lecture,
-        default_color_lab: config.default_color_lab
+        default_color_lab: config.default_color_lab,
+        advanced_editing: config.advanced_editing
       }, status: :ok
     rescue => e
       Rails.logger.error("Error fetching user extension config for user #{current_user.id}: #{e.message}")
