@@ -312,6 +312,27 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
     "title": "Computer Science I - Lab (306)",
     "description": "Instructor: Dr. Jane Smith",
     "location": "Wentworth Hall - Room 306"
+  },
+  "templates": {
+    "title": "Computer Science I",
+    "class_name": "Computer Science I",
+    "course_code": "COMP-101-01",
+    "subject": "COMP",
+    "course_number": "101",
+    "section_number": "01",
+    "crn": "12345",
+    "room": "306",
+    "building": "Wentworth Hall",
+    "location": "Wentworth Hall - 306",
+    "faculty": "Dr. Jane Smith",
+    "faculty_email": "jane.smith@witcc.edu",
+    "all_faculty": "Dr. Jane Smith",
+    "start_time": "9:00 AM",
+    "end_time": "10:30 AM",
+    "day": "Monday",
+    "day_abbr": "Mon",
+    "term": "Spring 2024",
+    "schedule_type": "laboratory"
   }
 }
 ```
@@ -324,10 +345,31 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
   - `title` (string) - Rendered event title
   - `description` (string) - Rendered event description
   - `location` (string) - Rendered event location
+- `templates` - All available template variable values for this specific event. These are the raw values that can be used in templates:
+  - `title` (string) - Course title
+  - `class_name` (string) - Alias for course title
+  - `course_code` (string) - Full course code (e.g., "COMP-101-01")
+  - `subject` (string) - Subject code (e.g., "COMP")
+  - `course_number` (string) - Course number (e.g., "101")
+  - `section_number` (string) - Section number (e.g., "01")
+  - `crn` (string) - Course Reference Number
+  - `room` (string) - Room number/name
+  - `building` (string) - Building name
+  - `location` (string) - Pre-formatted location string
+  - `faculty` (string) - Primary instructor name
+  - `faculty_email` (string) - Primary instructor email
+  - `all_faculty` (string) - All instructors (comma-separated)
+  - `start_time` (string) - Start time (formatted, e.g., "9:00 AM")
+  - `end_time` (string) - End time (formatted, e.g., "10:30 AM")
+  - `day` (string) - Full day name (e.g., "Monday")
+  - `day_abbr` (string) - Abbreviated day (e.g., "Mon")
+  - `term` (string) - Academic term (e.g., "Spring 2024")
+  - `schedule_type` (string) - Event type (e.g., "lecture", "laboratory", "hybrid")
 
 **Use Case:**
 - Display current settings when user clicks on a specific event
 - Show where each setting is inherited from
+- The server is the source of truth for all template variable values
 
 ---
 

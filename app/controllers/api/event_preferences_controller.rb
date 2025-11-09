@@ -17,14 +17,18 @@ module Api
       # Authorize either the existing preference or create a new one to check authorization
       authorize preference || EventPreference.new(user: current_user, preferenceable: @preferenceable)
 
+      # Build template context for preview and template values
+      context = CalendarTemplateRenderer.build_context_from_meeting_time(@preferenceable)
+
       # Generate preview with title, description, and location
-      preview = generate_preview(resolved_data[:preferences])
+      preview = generate_preview(resolved_data[:preferences], context)
 
       render json: {
         individual_preference: preference ? event_preference_json(preference) : nil,
         resolved: resolved_data[:preferences],
         sources: resolved_data[:sources],
-        preview: preview
+        preview: preview,
+        templates: context
       }
     end
 
@@ -43,14 +47,18 @@ module Api
       if preference.update(event_preference_params)
         resolved_data = resolver.resolve_with_sources(@preferenceable)
 
+        # Build template context for preview and template values
+        context = CalendarTemplateRenderer.build_context_from_meeting_time(@preferenceable)
+
         # Generate preview with title, description, and location
-        preview = generate_preview(resolved_data[:preferences])
+        preview = generate_preview(resolved_data[:preferences], context)
 
         render json: {
           individual_preference: event_preference_json(preference),
           resolved: resolved_data[:preferences],
           sources: resolved_data[:sources],
-          preview: preview
+          preview: preview,
+          templates: context
         }
       else
         render json: { errors: preference.errors.full_messages }, status: :unprocessable_entity
@@ -109,9 +117,8 @@ module Api
       }
     end
 
-    def generate_preview(resolved_preferences)
+    def generate_preview(resolved_preferences, context)
       renderer = CalendarTemplateRenderer.new
-      context = CalendarTemplateRenderer.build_context_from_meeting_time(@preferenceable)
 
       # Render title template
       title = if resolved_preferences[:title_template].present?
