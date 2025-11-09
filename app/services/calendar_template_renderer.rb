@@ -5,7 +5,7 @@ class CalendarTemplateRenderer
 
   # Whitelist of allowed variables in templates
   ALLOWED_VARIABLES = %w[
-    title class_name course_code subject course_number section_number crn
+    title course_code subject course_number section_number crn
     room building location
     faculty faculty_email all_faculty
     start_time end_time day day_abbr
@@ -60,7 +60,6 @@ class CalendarTemplateRenderer
 
     {
       title: course.title,
-      class_name: course.title, # Alias for title
       course_code: "#{course.subject}-#{course.course_number}-#{course.section_number}",
       subject: course.subject,
       course_number: course.course_number,

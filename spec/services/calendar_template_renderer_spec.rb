@@ -139,7 +139,6 @@ RSpec.describe CalendarTemplateRenderer do
       context = described_class.build_context_from_meeting_time(meeting_time)
 
       expect(context[:title]).to eq("Computer Science I")
-      expect(context[:class_name]).to eq("Computer Science I")
       expect(context[:course_code]).to eq("COMP-101-01")
       expect(context[:subject]).to eq("COMP")
       expect(context[:course_number]).to eq(101)
@@ -258,7 +257,7 @@ RSpec.describe CalendarTemplateRenderer do
   describe "ALLOWED_VARIABLES constant" do
     it "includes all expected variables" do
       expected_vars = %w[
-        title class_name course_code subject course_number section_number crn
+        title course_code subject course_number section_number crn
         room building location
         faculty faculty_email all_faculty
         start_time end_time day day_abbr

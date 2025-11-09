@@ -48,7 +48,6 @@ RSpec.describe "Api::EventPreferences", type: :request do
       templates = json["templates"]
       expect(templates).to include(
         "title"          => "Computer Science I",
-        "class_name"     => "Computer Science I",
         "course_code"    => "COMP-101-01",
         "subject"        => "COMP",
         "course_number"  => 101, # Integer from database

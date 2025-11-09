@@ -17,7 +17,7 @@ RSpec.describe PreferenceResolver do
       it "returns system defaults" do
         prefs = resolver.resolve_for(meeting_time)
 
-        expect(prefs[:title_template]).to eq("{{class_name}}")
+        expect(prefs[:title_template]).to eq("{{title}}")
         expect(prefs[:description_template]).to eq("{{faculty}}\n{{faculty_email}}")
         expect(prefs[:location_template]).to eq("{{building}} {{room}}")
         expect(prefs[:reminder_settings]).to eq([{ "minutes" => 30, "method" => "popup" }])
@@ -113,7 +113,7 @@ RSpec.describe PreferenceResolver do
       it "uses system default" do
         prefs = resolver.resolve_for(lab_meeting)
 
-        expect(prefs[:title_template]).to eq("{{class_name}}")
+        expect(prefs[:title_template]).to eq("{{title}}")
       end
 
       context "with event type preference for laboratory" do
@@ -142,7 +142,7 @@ RSpec.describe PreferenceResolver do
       it "uses system default" do
         prefs = resolver.resolve_for(hybrid_meeting)
 
-        expect(prefs[:title_template]).to eq("{{class_name}}")
+        expect(prefs[:title_template]).to eq("{{title}}")
       end
     end
   end
@@ -269,7 +269,7 @@ RSpec.describe PreferenceResolver do
     end
 
     it "has correct default templates" do
-      expect(PreferenceResolver::SYSTEM_DEFAULTS[:title_template]).to eq("{{class_name}}")
+      expect(PreferenceResolver::SYSTEM_DEFAULTS[:title_template]).to eq("{{title}}")
       expect(PreferenceResolver::SYSTEM_DEFAULTS[:description_template]).to eq("{{faculty}}\n{{faculty_email}}")
       expect(PreferenceResolver::SYSTEM_DEFAULTS[:location_template]).to eq("{{building}} {{room}}")
     end

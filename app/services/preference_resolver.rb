@@ -11,7 +11,7 @@ class PreferenceResolver
   ].freeze
 
   SYSTEM_DEFAULTS = {
-    title_template: "{{class_name}}",
+    title_template: "{{title}}",
     description_template: "{{faculty}}\n{{faculty_email}}",
     location_template: "{{building}} {{room}}",
     reminder_settings: [{ "minutes" => 30, "method" => "popup" }],
