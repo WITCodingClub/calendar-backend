@@ -43,6 +43,19 @@ module GoogleColors
   # Standard foreground color for all
   FOREGROUND = "#1d1d1d"
 
+  # WITCC Colors
+  WITCC_TOMATO = "#d50000"
+  WITCC_FLAMINGO = "#e67c73"
+  WITCC_TANGERINE = "#f4511e"
+  WITCC_BANANA = "#f6bf26"
+  WITCC_SAGE = "#33b679"
+  WITCC_BASIL = "#0b8043"
+  WITCC_PEACOCK = "#039be5"
+  WITCC_BLUEBERRY = "#3f51b5"
+  WITCC_LAVENDER = "#7986cb"
+  WITCC_GRAPE = "#8e24aa"
+  WITCC_GRAPHITE = "#616161"
+
   # Event colors map
   EVENT_MAP = {
     1 => EVENT_LAVENDER,
@@ -112,4 +125,41 @@ module GoogleColors
     silver: CAL_SILVER,
     purple: CAL_PURPLE
   }.freeze
+
+
+  # I need a way to map the witcc colors to the event colors
+  WITCC_MAP = {
+    WITCC_TOMATO    => EVENT_TOMATO,
+    WITCC_FLAMINGO  => EVENT_FLAMINGO,
+    WITCC_TANGERINE => EVENT_TANGERINE,
+    WITCC_BANANA    => EVENT_BANANA,
+    WITCC_SAGE      => EVENT_SAGE,
+    WITCC_BASIL     => EVENT_BASIL,
+    WITCC_PEACOCK   => EVENT_PEACOCK,
+    WITCC_BLUEBERRY => EVENT_BLUEBERRY,
+    WITCC_LAVENDER  => EVENT_LAVENDER,
+    WITCC_GRAPE     => EVENT_GRAPE,
+    WITCC_GRAPHITE  => EVENT_GRAPHITE
+  }.freeze
+
+  # Convert a WITCC color hex to Google Calendar event color ID (1-11)
+  # @param witcc_hex [String] WITCC color hex value (e.g., "#d50000")
+  # @return [Integer, nil] Google Calendar color ID (1-11), or nil if not found
+  def self.witcc_to_color_id(witcc_hex)
+    return nil if witcc_hex.blank?
+
+    # Normalize hex input (case-insensitive)
+    normalized_hex = witcc_hex.downcase
+
+    # Map WITCC color to Google event color
+    google_event_hex = WITCC_MAP[normalized_hex]
+    return nil unless google_event_hex
+
+    # Find the color ID in EVENT_MAP by searching for the hex value
+    EVENT_MAP.each do |key, hex|
+      return key if key.is_a?(Integer) && hex == google_event_hex
+    end
+
+    nil
+  end
 end

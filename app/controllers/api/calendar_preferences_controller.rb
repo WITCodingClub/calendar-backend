@@ -107,7 +107,7 @@ module Api
     end
 
     def calendar_preference_params
-      params.require(:calendar_preference).permit(
+      permitted = params.require(:calendar_preference).permit(
         :title_template,
         :description_template,
         :location_template,
@@ -115,6 +115,13 @@ module Api
         :visibility,
         reminder_settings: [:time, :method, :type]
       )
+
+      # Convert WITCC hex color to Google color ID if needed
+      if permitted[:color_id].is_a?(String) && permitted[:color_id].start_with?("#")
+        permitted[:color_id] = GoogleColors.witcc_to_color_id(permitted[:color_id])
+      end
+
+      permitted
     end
 
     def preference_json(preference)
