@@ -99,6 +99,45 @@ module CourseScheduleSyncable
     service.update_specific_events(events, force: force)
   end
 
+  # Sync a single meeting time immediately (for preference changes)
+  def sync_meeting_time(meeting_time_id, force: true)
+    service = GoogleCalendarService.new(self)
+    meeting_time = MeetingTime.includes(course: [:faculties], room: :building).find_by(id: meeting_time_id)
+    return unless meeting_time
+    return if meeting_time.day_of_week.blank?
+
+    first_meeting_date = find_first_meeting_date(meeting_time)
+    return unless first_meeting_date
+
+    start_time = parse_time(first_meeting_date, meeting_time.begin_time)
+    end_time = parse_time(first_meeting_date, meeting_time.end_time)
+    return unless start_time && end_time
+
+    location = if meeting_time.room && meeting_time.building
+                 "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
+               elsif meeting_time.room
+                 meeting_time.room.name
+               end
+
+    course = meeting_time.course
+    course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
+    recurrence_rule = build_recurrence_rule(meeting_time)
+
+    event = {
+      summary: course.title,
+      description: course_code,
+      location: location,
+      start_time: start_time,
+      end_time: end_time,
+      course_code: course_code,
+      meeting_time_id: meeting_time.id,
+      recurrence: recurrence_rule ? [recurrence_rule] : nil
+    }
+
+    # Sync just this one event
+    service.update_specific_events([event], force: force)
+  end
+
   # Quick sync - only update stale events (not synced in last hour)
   def quick_sync
     sync_course_schedule(force: false)

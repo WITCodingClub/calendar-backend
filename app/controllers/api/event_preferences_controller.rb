@@ -45,6 +45,9 @@ module Api
       authorize preference
 
       if preference.update(event_preference_params)
+        # Trigger immediate sync for this specific event
+        sync_updated_event
+
         resolved_data = resolver.resolve_with_sources(@preferenceable)
 
         # Build template context for preview and template values
@@ -75,6 +78,10 @@ module Api
       if preference
         authorize preference
         preference.destroy
+
+        # Trigger immediate sync for this specific event
+        sync_updated_event
+
         head :no_content
       else
         head :not_found
@@ -146,6 +153,20 @@ module Api
         description: description,
         location: location
       }
+    end
+
+    def sync_updated_event
+      # Get the meeting_time from the preferenceable
+      meeting_time = if @preferenceable.is_a?(MeetingTime)
+                       @preferenceable
+                     elsif @preferenceable.is_a?(GoogleCalendarEvent)
+                       @preferenceable.meeting_time
+                     end
+
+      # Sync just this specific meeting time in the background
+      if meeting_time
+        SyncMeetingTimeJob.perform_later(current_user.id, meeting_time.id)
+      end
     end
 
   end

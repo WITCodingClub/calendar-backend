@@ -28,6 +28,9 @@ module Api
     def update
       authorize @calendar_preference
       if @calendar_preference.update(calendar_preference_params)
+        # Trigger immediate calendar sync in background
+        GoogleCalendarSyncJob.perform_later(current_user, force: true)
+
         render json: preference_json(@calendar_preference)
       else
         render json: { errors: @calendar_preference.errors.full_messages }, status: :unprocessable_entity
@@ -38,6 +41,10 @@ module Api
     def destroy
       authorize @calendar_preference
       @calendar_preference.destroy
+
+      # Trigger immediate calendar sync in background
+      GoogleCalendarSyncJob.perform_later(current_user, force: true)
+
       head :no_content
     end
 
