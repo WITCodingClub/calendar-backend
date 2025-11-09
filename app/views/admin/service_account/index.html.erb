@@ -1,89 +1,87 @@
-<div class="container mx-auto px-2 pb-8">
-  <div class="flex justify-between items-center">
-    <h1 class="text-2xl font-bold pb-1">Service Account OAuth</h1>
-  </div>
+<div class="flex justify-between items-center mb-6">
+  <h1 class="text-2xl font-bold">Service Account OAuth</h1>
+</div>
 
-  <!-- Service Account Management Card -->
-  <div class="shadow-lg rounded-lg mb-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-    <div class="p-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Current Status Section -->
-        <div class="md:border-r md:border-gray-200 md:pr-6">
-          <h2 class="text-xl font-semibold mb-4" style="color: #d13732;">Current Status</h2>
+<!-- Service Account Management Card -->
+<div class="glass-card shadow-lg rounded-lg mb-6">
+  <div class="p-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Current Status Section -->
+      <div class="md:border-r md:border-gray-200 md:pr-6">
+        <h2 class="text-xl font-semibold mb-4 text-[#d13732]">Current Status</h2>
 
-          <dl class="space-y-3">
-            <div>
-              <dt class="text-sm font-medium text-gray-700">Service Account Email</dt>
-              <dd class="mt-1 text-sm font-semibold text-gray-900"><%= @service_account_email || 'Not configured' %></dd>
-            </div>
-
-            <div>
-              <dt class="text-sm font-medium text-gray-700">OAuth Refresh Token</dt>
-              <dd class="mt-1">
-                <% if @has_oauth_token %>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style="background: rgba(34, 197, 94, 0.2); color: #15803d;">
-                  ✓ Configured
-                </span>
-                <% else %>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style="background: rgba(239, 68, 68, 0.2); color: #b91c1c;">
-                  ✗ Not configured
-                </span>
-                <% end %>
-              </dd>
-            </div>
-          </dl>
-        </div>
-
-        <!-- Actions Section -->
-        <div class="md:pl-6">
-          <h2 class="text-xl font-semibold mb-4" style="color: #d13732;">Actions</h2>
-
-          <div class="space-y-3">
-            <%= link_to admin_service_account_authorize_path, class: "glass-button inline-flex items-center px-4 py-2 text-sm font-medium rounded-md shadow-sm w-full justify-center" do %>
-              <svg class="mr-2 -ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" />
-              </svg>
-              Authorize with Google
-            <% end %>
-
-            <%= link_to admin_service_account_revoke_path, method: :post, class: "inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md w-full justify-center", style: "border: 1px solid rgba(209, 55, 50, 0.4); background: rgba(255, 255, 255, 0.3); color: #374151;" do %>
-              <svg class="mr-2 -ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-              </svg>
-              Revoke Access
-            <% end %>
+        <dl class="space-y-3">
+          <div>
+            <dt class="text-sm font-medium text-gray-700">Service Account Email</dt>
+            <dd class="mt-1 text-sm font-semibold text-gray-900"><%= @service_account_email || 'Not configured' %></dd>
           </div>
+
+          <div>
+            <dt class="text-sm font-medium text-gray-700">OAuth Refresh Token</dt>
+            <dd class="mt-1">
+              <% if @has_oauth_token %>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-800">
+                ✓ Configured
+              </span>
+              <% else %>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-800">
+                ✗ Not configured
+              </span>
+              <% end %>
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <!-- Actions Section -->
+      <div class="md:pl-6">
+        <h2 class="text-xl font-semibold mb-4 text-[#d13732]">Actions</h2>
+
+        <div class="space-y-3">
+          <%= link_to admin_service_account_authorize_path, class: "glass-button inline-flex items-center px-4 py-2 text-sm font-medium rounded-md shadow-sm w-full justify-center" do %>
+            <svg class="mr-2 -ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" />
+            </svg>
+            Authorize with Google
+          <% end %>
+
+          <%= link_to admin_service_account_revoke_path, method: :post, class: "inline-flex items-center px-4 py-2 border border-[#d13732]/40 bg-white/30 text-gray-700 text-sm font-medium rounded-md w-full justify-center hover:bg-white/40" do %>
+            <svg class="mr-2 -ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+            Revoke Access
+          <% end %>
         </div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Instructions Card -->
-  <div class="shadow-lg rounded-lg" style="background: rgba(250, 204, 21, 0.15); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border-left: 4px solid #eab308;">
-    <div class="p-4">
-      <div class="flex">
-        <div class="flex-shrink-0">
-          <svg class="h-5 w-5" style="color: #ca8a04;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-          </svg>
-        </div>
-        <div class="ml-3">
-          <h3 class="text-sm font-medium" style="color: #a16207;">Important Instructions</h3>
-          <div class="mt-2 text-sm" style="color: #713f12;">
-            <p class="font-medium mb-2">Before you start, add this redirect URI to Google Cloud Console:</p>
-            <code class="block px-2 py-1 rounded mb-3" style="background: rgba(250, 204, 21, 0.2);"><%= "#{request.base_url}/admin/oauth/callback" %></code>
+<!-- Instructions Card -->
+<div class="shadow-lg rounded-lg bg-yellow-500/15 backdrop-blur-sm border-l-4 border-yellow-500">
+  <div class="p-4">
+    <div class="flex">
+      <div class="flex-shrink-0">
+        <svg class="h-5 w-5 text-yellow-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+        </svg>
+      </div>
+      <div class="ml-3">
+        <h3 class="text-sm font-medium text-yellow-800">Important Instructions</h3>
+        <div class="mt-2 text-sm text-yellow-900">
+          <p class="font-medium mb-2">Before you start, add this redirect URI to Google Cloud Console:</p>
+          <code class="block px-2 py-1 rounded mb-3 bg-yellow-500/20"><%= "#{request.base_url}/admin/oauth/callback" %></code>
 
-            <ol class="list-decimal list-inside space-y-1">
-              <li>Add the redirect URI above to your Google Cloud Console OAuth client</li>
-              <li>Click "Authorize Service Account with Google"</li>
-              <li>Sign in with the service account email (<%= @service_account_email %>)</li>
-              <li>Grant calendar permissions</li>
-              <li>Copy the refresh token displayed after authorization</li>
-              <li>Add it to your Rails credentials under <code class="px-1 rounded" style="background: rgba(250, 204, 21, 0.2);">google.service_account_oauth_refresh_token</code></li>
-            </ol>
-            <p class="mt-2 font-medium">Command to edit credentials:</p>
-            <code class="block mt-1 px-2 py-1 rounded" style="background: rgba(250, 204, 21, 0.2);">EDITOR=nano rails credentials:edit</code>
-          </div>
+          <ol class="list-decimal list-inside space-y-1">
+            <li>Add the redirect URI above to your Google Cloud Console OAuth client</li>
+            <li>Click "Authorize Service Account with Google"</li>
+            <li>Sign in with the service account email (<%= @service_account_email %>)</li>
+            <li>Grant calendar permissions</li>
+            <li>Copy the refresh token displayed after authorization</li>
+            <li>Add it to your Rails credentials under <code class="px-1 rounded bg-yellow-500/20">google.service_account_oauth_refresh_token</code></li>
+          </ol>
+          <p class="mt-2 font-medium">Command to edit credentials:</p>
+          <code class="block mt-1 px-2 py-1 rounded bg-yellow-500/20">EDITOR=nano rails credentials:edit</code>
         </div>
       </div>
     </div>

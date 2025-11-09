@@ -1,30 +1,28 @@
-<div class="container mx-auto px-2 pb-8">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Admin Dashboard</h1>
-  </div>
+<div class="flex justify-between items-center mb-6">
+  <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+</div>
 
-  <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 mb-8">
-    <!-- Stats Cards -->
-    <%= render "shared/stat_card", title: "Users", count: @users_count, path: admin_users_path %>
-    <%= render "shared/stat_card", title: "Buildings", count: @buildings_count, path: admin_buildings_path %>
-    <%= render "shared/stat_card", title: "Rooms", count: @rooms_count, path: admin_rooms_path %>
-    <%= render "shared/stat_card", title: "Courses", count: @courses_count, path: admin_courses_path %>
-    <%= render "shared/stat_card", title: "Faculty", count: @faculties_count, path: admin_faculties_path %>
-    <%= render "shared/stat_card", title: "Terms", count: @terms_count, path: admin_terms_path %>
-    <%= render "shared/stat_card", title: "Google Calendars", count: @google_calendars_count, path: admin_calendars_path %>
-    <%= render "shared/stat_card", title: "RMP Ratings", count: @rmp_ratings_count, path: admin_rmp_ratings_path %>
-  </div>
+<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 mb-8">
+  <!-- Stats Cards -->
+  <%= render "shared/stat_card", title: "Users", count: @users_count, path: admin_users_path %>
+  <%= render "shared/stat_card", title: "Buildings", count: @buildings_count, path: admin_buildings_path %>
+  <%= render "shared/stat_card", title: "Rooms", count: @rooms_count, path: admin_rooms_path %>
+  <%= render "shared/stat_card", title: "Courses", count: @courses_count, path: admin_courses_path %>
+  <%= render "shared/stat_card", title: "Faculty", count: @faculties_count, path: admin_faculties_path %>
+  <%= render "shared/stat_card", title: "Terms", count: @terms_count, path: admin_terms_path %>
+  <%= render "shared/stat_card", title: "Google Calendars", count: @google_calendars_count, path: admin_calendars_path %>
+  <%= render "shared/stat_card", title: "RMP Ratings", count: @rmp_ratings_count, path: admin_rmp_ratings_path %>
+</div>
 
-  <!-- Quick Actions -->
-  <div class="glass-card shadow-lg rounded-lg">
-    <div class="px-4 py-5 sm:p-6">
-      <h3 class="text-lg leading-6 font-medium mb-4">Quick Actions</h3>
-      <div class="space-y-2">
-        <%= link_to "Manage Users", admin_users_path, class: "quick-action-link" %>
-        <%= link_to "Manage Calendars", admin_calendars_path, class: "quick-action-link" %>
-        <%= link_to "Fill Missing RMP IDs#{" (#{@missing_rmp_ids_count})" if @missing_rmp_ids_count > 0}", missing_rmp_ids_admin_faculties_path, class: "quick-action-link" %>
-        <%= link_to "Fetch Course Catalog", admin_course_catalog_path, class: "quick-action-link" %>
-      </div>
+<!-- Quick Actions -->
+<div class="glass-card shadow-lg rounded-lg">
+  <div class="px-4 py-5 sm:p-6">
+    <h3 class="text-lg leading-6 font-medium mb-4">Quick Actions</h3>
+    <div class="space-y-2">
+      <%= link_to "Manage Users", admin_users_path, class: "quick-action-link" %>
+      <%= link_to "Manage Calendars", admin_calendars_path, class: "quick-action-link" %>
+      <%= link_to "Fill Missing RMP IDs#{" (#{@missing_rmp_ids_count})" if @missing_rmp_ids_count > 0}", missing_rmp_ids_admin_faculties_path, class: "quick-action-link" %>
+      <%= link_to "Fetch Course Catalog", admin_course_catalog_path, class: "quick-action-link" %>
     </div>
   </div>
 </div>
