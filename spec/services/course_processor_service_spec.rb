@@ -127,5 +127,45 @@ RSpec.describe CourseProcessorService, type: :service do
         expect(result.length).to eq(1)
       end
     end
+
+    context "calendar sync" do
+      before do
+        allow(LeopardWebService).to receive_messages(get_class_details: {
+                                                       associated_term: "Fall 2025",
+                                                       subject: "CS",
+                                                       title: "Intro to CS",
+                                                       schedule_type: "Lecture (LEC)",
+                                                       section_number: "01",
+                                                       credit_hours: 3,
+                                                       grade_mode: "Normal"
+                                                     }, get_faculty_meeting_times: {
+                                                       "fmt" => []
+                                                     })
+      end
+
+      it "enqueues GoogleCalendarSyncJob when user has google calendar" do
+        # Create a Google credential with a calendar
+        credential = create(:oauth_credential, user: user, provider: "google")
+        create(:google_calendar, oauth_credential: credential)
+
+        courses = [
+          { crn: 12345, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" }
+        ]
+
+        expect {
+          described_class.new(courses, user).call
+        }.to have_enqueued_job(GoogleCalendarSyncJob).with(user, force: false)
+      end
+
+      it "does not enqueue GoogleCalendarSyncJob when user has no google calendar" do
+        courses = [
+          { crn: 12345, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" }
+        ]
+
+        expect {
+          described_class.new(courses, user).call
+        }.not_to have_enqueued_job(GoogleCalendarSyncJob)
+      end
+    end
   end
 end

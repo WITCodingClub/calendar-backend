@@ -125,6 +125,11 @@ class CourseProcessorService < ApplicationService
       }
     end
 
+    # Trigger immediate calendar sync if user has Google Calendar configured
+    if user.google_course_calendar_id.present?
+      GoogleCalendarSyncJob.perform_later(user, force: false)
+    end
+
     processed_courses
   end
 
