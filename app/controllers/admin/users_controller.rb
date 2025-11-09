@@ -13,6 +13,8 @@ module Admin
         @users = @users.where("email ILIKE ?", "%#{params[:search]}%")
       end
 
+      @users = @users.page(params[:page])
+
       # For Turbo Frame requests, only render the frame
       return unless turbo_frame_request?
 

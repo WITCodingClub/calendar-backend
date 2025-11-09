@@ -18,8 +18,9 @@ module Admin
                             .where(emails: { primary: true })
                             .where(emails: { email: actor_ids })
                             .order(created_at: :desc)
+                            .page(params[:page])
       else
-        @beta_testers = []
+        @beta_testers = User.none.page(params[:page])
       end
     end
 
