@@ -24,10 +24,13 @@ module ReminderSettingsNormalizable
     return if reminder_settings.blank?
     return unless reminder_settings.is_a?(Array)
 
-    reminder_settings.each do |reminder|
-      next unless reminder.is_a?(Hash) && reminder["method"] == "notification"
+    # Ensure all hashes have string keys and normalize notification -> popup
+    self.reminder_settings = reminder_settings.map do |reminder|
+      next reminder unless reminder.is_a?(Hash)
 
-      reminder["method"] = "popup"
+      stringified = reminder.stringify_keys
+      stringified["method"] = "popup" if stringified["method"] == "notification"
+      stringified
     end
   end
 

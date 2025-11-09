@@ -107,13 +107,13 @@ module Api
     end
 
     def calendar_preference_params
-      params.expect(
-        calendar_preference: [:title_template,
-                              :description_template,
-                              :location_template,
-                              :color_id,
-                              :visibility,
-                              { reminder_settings: [] }]
+      params.require(:calendar_preference).permit(
+        :title_template,
+        :description_template,
+        :location_template,
+        :color_id,
+        :visibility,
+        reminder_settings: [:time, :method, :type]
       )
     end
 
