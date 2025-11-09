@@ -178,7 +178,10 @@ Reminders are stored as a JSONB array of reminder objects:
 
 **Fields:**
 - `minutes` - Minutes before event to trigger reminder (integer)
-- `method` - Reminder method: `popup` or `email` (Google Calendar API values)
+- `method` - Reminder method: `popup`, `notification`, or `email`
+  - `popup` - Display UI popup notification
+  - `notification` - Alias for `popup` (will be normalized to `popup`)
+  - `email` - Send email reminder
 
 **Common reminder times:**
 - 15 minutes: `{minutes: 15, method: 'popup'}`

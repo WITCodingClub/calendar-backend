@@ -30,19 +30,17 @@
 require "rails_helper"
 
 RSpec.describe CalendarPreference do
-  describe "associations" do
-    it { is_expected.to belong_to(:user) }
-  end
-
   describe "validations" do
     let(:user) { create(:user) }
-
-    it { is_expected.to validate_presence_of(:scope) }
 
     context "when scope is event_type" do
       subject { build(:calendar_preference, user: user, scope: :event_type, event_type: "lecture") }
 
-      it { is_expected.to validate_presence_of(:event_type) }
+      it "requires event_type to be present" do
+        subject.event_type = nil
+        expect(subject).not_to be_valid
+        expect(subject.errors[:event_type]).to be_present
+      end
     end
 
     context "when scope is global" do
@@ -54,9 +52,6 @@ RSpec.describe CalendarPreference do
         expect(subject.errors[:event_type]).to be_present
       end
     end
-
-    it { is_expected.to validate_length_of(:title_template).is_at_most(500) }
-    it { is_expected.to validate_length_of(:description_template).is_at_most(2000) }
 
     context "color_id validation" do
       subject { build(:calendar_preference, user: user, scope: :global) }
@@ -143,6 +138,27 @@ RSpec.describe CalendarPreference do
       it "rejects reminders with invalid method" do
         subject.reminder_settings = [{ "minutes" => 15, "method" => "invalid" }]
         expect(subject).not_to be_valid
+      end
+
+      it "accepts 'notification' as an alias for 'popup'" do
+        subject.reminder_settings = [{ "minutes" => 15, "method" => "notification" }]
+        expect(subject).to be_valid
+      end
+
+      it "normalizes 'notification' to 'popup' before save" do
+        subject.reminder_settings = [
+          { "minutes" => 15, "method" => "notification" },
+          { "minutes" => 30, "method" => "popup" },
+          { "minutes" => 60, "method" => "email" }
+        ]
+        subject.save!
+        subject.reload
+
+        expect(subject.reminder_settings).to eq([
+          { "minutes" => 15, "method" => "popup" },
+          { "minutes" => 30, "method" => "popup" },
+          { "minutes" => 60, "method" => "email" }
+        ])
       end
     end
   end

@@ -36,7 +36,7 @@ FactoryBot.define do
     course_number { 101 }
     section_number { "01" }
     title { "Introduction to Computer Science" }
-    schedule_type { "Lecture" }
+    schedule_type { :lecture }
     credit_hours { 3 }
     grade_mode { "Standard Letter" }
     start_date { 3.days.from_now }

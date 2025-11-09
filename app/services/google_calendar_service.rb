@@ -413,11 +413,12 @@ class GoogleCalendarService
     # Apply reminders if present and valid
     if event_data[:reminder_settings].present? && event_data[:reminder_settings].is_a?(Array)
       # Filter to only valid reminders with required fields
+      # Accept "notification" as alias for "popup"
       valid_reminders = event_data[:reminder_settings].select do |reminder|
         reminder.is_a?(Hash) &&
         reminder["method"].present? &&
         reminder["minutes"].present? &&
-        ["email", "popup"].include?(reminder["method"])
+        ["email", "popup", "notification"].include?(reminder["method"])
       end
 
       # Only set custom reminders if we have at least one valid reminder
@@ -425,8 +426,10 @@ class GoogleCalendarService
         google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
           use_default: false,
           overrides: valid_reminders.map do |reminder|
+            # Normalize "notification" to "popup" for Google Calendar API
+            method = reminder["method"] == "notification" ? "popup" : reminder["method"]
             Google::Apis::CalendarV3::EventReminder.new(
-              reminder_method: reminder["method"],
+              reminder_method: method,
               minutes: reminder["minutes"].to_i
             )
           end
@@ -518,11 +521,12 @@ class GoogleCalendarService
     # Apply reminders if present and valid
     if event_data[:reminder_settings].present? && event_data[:reminder_settings].is_a?(Array)
       # Filter to only valid reminders with required fields
+      # Accept "notification" as alias for "popup"
       valid_reminders = event_data[:reminder_settings].select do |reminder|
         reminder.is_a?(Hash) &&
         reminder["method"].present? &&
         reminder["minutes"].present? &&
-        ["email", "popup"].include?(reminder["method"])
+        ["email", "popup", "notification"].include?(reminder["method"])
       end
 
       # Only set custom reminders if we have at least one valid reminder
@@ -530,8 +534,10 @@ class GoogleCalendarService
         google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
           use_default: false,
           overrides: valid_reminders.map do |reminder|
+            # Normalize "notification" to "popup" for Google Calendar API
+            method = reminder["method"] == "notification" ? "popup" : reminder["method"]
             Google::Apis::CalendarV3::EventReminder.new(
-              reminder_method: reminder["method"],
+              reminder_method: method,
               minutes: reminder["minutes"].to_i
             )
           end

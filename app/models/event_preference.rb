@@ -30,6 +30,8 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class EventPreference < ApplicationRecord
+  include ReminderSettingsNormalizable
+
   belongs_to :user
   belongs_to :preferenceable, polymorphic: true
 
@@ -40,7 +42,6 @@ class EventPreference < ApplicationRecord
   validates :color_id, inclusion: { in: 1..11 }, allow_nil: true
   validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
   validate :validate_template_syntax
-  validate :validate_reminder_settings_format
   validate :at_least_one_preference_set
 
   # Scopes
@@ -72,31 +73,6 @@ class EventPreference < ApplicationRecord
       CalendarTemplateRenderer.validate_template(location_template)
     rescue CalendarTemplateRenderer::InvalidTemplateError => e
       errors.add(:location_template, "invalid syntax: #{e.message}")
-    end
-
-  end
-
-  def validate_reminder_settings_format
-    return if reminder_settings.blank?
-
-    unless reminder_settings.is_a?(Array)
-      errors.add(:reminder_settings, "must be an array")
-      return
-    end
-
-    reminder_settings.each_with_index do |reminder, index|
-      unless reminder.is_a?(Hash)
-        errors.add(:reminder_settings, "item #{index} must be a hash")
-        next
-      end
-
-      unless reminder.key?("minutes") && reminder["minutes"].is_a?(Integer)
-        errors.add(:reminder_settings, "item #{index} must have integer 'minutes' field")
-      end
-
-      unless reminder.key?("method") && %w[popup email].include?(reminder["method"])
-        errors.add(:reminder_settings, "item #{index} must have 'method' field (popup or email)")
-      end
     end
   end
 

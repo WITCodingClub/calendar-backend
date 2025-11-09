@@ -165,7 +165,8 @@ Create or update a preference at global or event-type level.
 **Field Specifications:**
 - `title_template` (string, max 500 chars) - Liquid template for event title
 - `description_template` (string, max 2000 chars) - Liquid template for description
-- `reminder_settings` (array) - Array of `{minutes: integer, method: "popup"|"email"}` objects
+- `reminder_settings` (array) - Array of `{minutes: integer, method: "popup"|"notification"|"email"}` objects
+  - **Note:** `"notification"` is an alias for `"popup"` and will be normalized to `"popup"`
 - `color_id` (integer, 1-11) - Google Calendar color ID
 - `visibility` (string) - One of: `"public"`, `"private"`, `"default"`
 
