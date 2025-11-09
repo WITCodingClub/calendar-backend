@@ -23,9 +23,13 @@ module Api
       # Generate preview with title, description, and location
       preview = generate_preview(resolved_data[:preferences], context)
 
+      # Transform resolved preferences to alias "popup" to "notification"
+      resolved_prefs = resolved_data[:preferences].dup
+      resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])
+
       render json: {
         individual_preference: preference ? event_preference_json(preference) : nil,
-        resolved: resolved_data[:preferences],
+        resolved: resolved_prefs,
         sources: resolved_data[:sources],
         preview: preview,
         templates: context
@@ -56,9 +60,13 @@ module Api
         # Generate preview with title, description, and location
         preview = generate_preview(resolved_data[:preferences], context)
 
+        # Transform resolved preferences to alias "popup" to "notification"
+        resolved_prefs = resolved_data[:preferences].dup
+        resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])
+
         render json: {
           individual_preference: event_preference_json(preference),
-          resolved: resolved_data[:preferences],
+          resolved: resolved_prefs,
           sources: resolved_data[:sources],
           preview: preview,
           templates: context
@@ -118,7 +126,7 @@ module Api
         title_template: preference.title_template,
         description_template: preference.description_template,
         location_template: preference.location_template,
-        reminder_settings: preference.reminder_settings,
+        reminder_settings: transform_reminder_settings(preference.reminder_settings),
         color_id: preference.color_id,
         visibility: preference.visibility
       }

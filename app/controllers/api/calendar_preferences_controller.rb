@@ -124,7 +124,7 @@ module Api
         title_template: preference.title_template,
         description_template: preference.description_template,
         location_template: preference.location_template,
-        reminder_settings: preference.reminder_settings,
+        reminder_settings: transform_reminder_settings(preference.reminder_settings),
         color_id: preference.color_id,
         visibility: preference.visibility
       }

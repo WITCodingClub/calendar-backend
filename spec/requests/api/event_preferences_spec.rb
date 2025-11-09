@@ -78,6 +78,58 @@ RSpec.describe "Api::EventPreferences", type: :request do
       expect(json).to have_key("sources")
       expect(json).to have_key("preview")
     end
+
+    it "transforms 'popup' to 'notification' in reminder settings" do
+      get "/api/meeting_times/#{meeting_time.id}/preference", headers: headers
+
+      expect(response).to have_http_status(:ok)
+
+      json = response.parsed_body
+      resolved = json["resolved"]
+      reminder_settings = resolved["reminder_settings"]
+
+      # Default system reminder uses "popup" internally but should be transformed to "notification"
+      expect(reminder_settings).to be_an(Array)
+      expect(reminder_settings.first).to include(
+        "time" => "30",
+        "type" => "minutes",
+        "method" => "notification" # Should be "notification", not "popup"
+      )
+    end
+
+    it "transforms 'popup' to 'notification' in custom event preference reminder settings" do
+      # Create an event preference with popup reminders
+      EventPreference.create!(
+        user: user,
+        preferenceable: meeting_time,
+        reminder_settings: [
+          { "time" => "15", "type" => "minutes", "method" => "popup" },
+          { "time" => "1", "type" => "hours", "method" => "popup" }
+        ]
+      )
+
+      get "/api/meeting_times/#{meeting_time.id}/preference", headers: headers
+
+      expect(response).to have_http_status(:ok)
+
+      json = response.parsed_body
+      individual = json["individual_preference"]
+      reminder_settings = individual["reminder_settings"]
+
+      # Both reminders should have "notification" instead of "popup"
+      expect(reminder_settings).to be_an(Array)
+      expect(reminder_settings.length).to eq(2)
+      expect(reminder_settings[0]).to include(
+        "time" => "15",
+        "type" => "minutes",
+        "method" => "notification"
+      )
+      expect(reminder_settings[1]).to include(
+        "time" => "1",
+        "type" => "hours",
+        "method" => "notification"
+      )
+    end
   end
 
   describe "PUT /api/meeting_times/:meeting_time_id/preference" do
