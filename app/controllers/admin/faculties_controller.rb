@@ -59,6 +59,7 @@ module Admin
 
     def auto_fill_rmp_id
       @faculty = Faculty.find(params[:id])
+      authorize @faculty
 
       # Use the existing job to search and link
       UpdateFacultyRatingsJob.perform_later(@faculty.id)
@@ -70,6 +71,7 @@ module Admin
     end
 
     def batch_auto_fill
+      authorize Faculty
       missing = Faculty.where(rmp_id: nil)
 
       missing.find_each do |faculty|
