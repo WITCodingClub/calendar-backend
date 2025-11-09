@@ -182,10 +182,10 @@ module Api
                        @preferenceable.meeting_time
                      end
 
-      # Sync just this specific meeting time in the background
+      # Sync this specific meeting time immediately (synchronously)
       return unless meeting_time
 
-      SyncMeetingTimeJob.perform_later(current_user.id, meeting_time.id)
+      SyncMeetingTimeJob.perform_now(current_user.id, meeting_time.id)
 
     end
 

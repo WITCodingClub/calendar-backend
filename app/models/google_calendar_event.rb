@@ -51,13 +51,17 @@ class GoogleCalendarEvent < ApplicationRecord
   scope :recently_synced, -> { where("last_synced_at > ?", 5.minutes.ago) }
 
   # Generate a hash of the event data to detect changes
+  # Includes all preference-controlled fields to ensure events update when preferences change
   def self.generate_data_hash(event_data)
     hash_input = [
       event_data[:summary],
       event_data[:location],
       event_data[:start_time]&.to_i,
       event_data[:end_time]&.to_i,
-      event_data[:recurrence]&.to_json
+      event_data[:recurrence]&.to_json,
+      event_data[:reminder_settings]&.to_json,
+      event_data[:color_id]&.to_s,
+      event_data[:visibility]
     ].join("|")
 
     Digest::SHA256.hexdigest(hash_input)[0..15] # Use first 16 chars

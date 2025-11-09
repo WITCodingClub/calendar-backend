@@ -37,7 +37,8 @@ class GoogleCalendarService
   end
 
   def update_calendar_events(events, force: false)
-    service = service_account_calendar_service
+    # Use user's OAuth credentials so reminders are visible to the user
+    service = user_calendar_service
     google_calendar = user.google_credential&.google_calendar
     return { created: 0, updated: 0, skipped: 0 } unless google_calendar
 
@@ -74,7 +75,7 @@ class GoogleCalendarService
 
         # Update existing event if needed (or skip if no changes and not forced)
         if force || existing_event.data_changed?(event_with_preferences)
-          update_event_in_calendar(service, google_calendar, existing_event, event, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
+          update_event_in_calendar(service, google_calendar, existing_event, event_with_preferences, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
           stats[:updated] += 1
         else
           existing_event.mark_synced!
@@ -93,7 +94,8 @@ class GoogleCalendarService
 
   # Update only specific events (for partial syncs)
   def update_specific_events(events, force: false)
-    service = service_account_calendar_service
+    # Use user's OAuth credentials so reminders are visible to the user
+    service = user_calendar_service
     google_calendar = user.google_credential&.google_calendar
     return { created: 0, updated: 0, skipped: 0 } unless google_calendar
 
@@ -119,7 +121,7 @@ class GoogleCalendarService
         event_with_preferences = apply_preferences_to_event(meeting_time, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
         if force || existing_event.data_changed?(event_with_preferences)
-          update_event_in_calendar(service, google_calendar, existing_event, event, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
+          update_event_in_calendar(service, google_calendar, existing_event, event_with_preferences, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
           stats[:updated] += 1
         else
           existing_event.mark_synced!
@@ -251,7 +253,7 @@ class GoogleCalendarService
           type: "user",
           value: email_record.email
         },
-        role: "writer" # writer access (can edit events)
+        role: "owner" # owner access (full permissions including notifications)
       )
 
       service.insert_acl(
@@ -275,8 +277,7 @@ class GoogleCalendarService
         type: "user",
         value: email.email
       },
-      # role: "reader" # reader access
-      role: "writer" # writer access (can edit events)
+      role: "owner" # owner access (full permissions including notifications)
     )
 
     service.insert_acl(
@@ -528,6 +529,7 @@ class GoogleCalendarService
     meeting_time = MeetingTime.includes(course: :faculties).find_by(id: course_event[:meeting_time_id])
 
     # Apply user preferences to event data
+    # Note: course_event may already have preferences applied, but re-applying is safe (idempotent)
     event_data = apply_preferences_to_event(meeting_time, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
     # Ensure times are in Eastern timezone

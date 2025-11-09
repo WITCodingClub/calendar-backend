@@ -34,7 +34,8 @@
 #
 FactoryBot.define do
   factory :google_calendar_event do
-    user
+    # Note: Don't include 'user' here - it's a has_one :through association and cannot be set directly
+    # Instead, set google_calendar which will provide the user through oauth_credential
     google_calendar
     meeting_time { nil }
     sequence(:google_event_id) { |n| "event_#{n}_#{SecureRandom.hex(8)}" }

@@ -11,7 +11,6 @@ RSpec.describe GoogleCalendarService do
   describe "#user_edited_event?" do
     let(:db_event) do
       create(:google_calendar_event,
-             user: user,
              google_calendar: google_calendar,
              google_event_id: "test_event_123",
              summary: "Original Course Title",
@@ -143,7 +142,6 @@ RSpec.describe GoogleCalendarService do
   describe "#update_db_from_gcal_event" do
     let(:db_event) do
       create(:google_calendar_event,
-             user: user,
              google_calendar: google_calendar,
              google_event_id: "test_event_123",
              summary: "Original Course Title",
@@ -184,12 +182,10 @@ RSpec.describe GoogleCalendarService do
     end
 
     it "updates the last_synced_at timestamp" do
-      freeze_time do
-        service.send(:update_db_from_gcal_event, db_event, gcal_event)
+      service.send(:update_db_from_gcal_event, db_event, gcal_event)
 
-        db_event.reload
-        expect(db_event.last_synced_at).to be_within(1.second).of(Time.current)
-      end
+      db_event.reload
+      expect(db_event.last_synced_at).to be_within(1.second).of(Time.current)
     end
   end
 
@@ -256,7 +252,6 @@ RSpec.describe GoogleCalendarService do
     let(:meeting_time) { create(:meeting_time) }
     let(:db_event) do
       create(:google_calendar_event,
-             user: user,
              google_calendar: google_calendar,
              google_event_id: "test_event_123",
              meeting_time: meeting_time,
@@ -316,12 +311,10 @@ RSpec.describe GoogleCalendarService do
       end
 
       it "marks the event as synced" do
-        freeze_time do
-          service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
 
-          db_event.reload
-          expect(db_event.last_synced_at).to be_within(1.second).of(Time.current)
-        end
+        db_event.reload
+        expect(db_event.last_synced_at).to be_within(1.second).of(Time.current)
       end
     end
 
