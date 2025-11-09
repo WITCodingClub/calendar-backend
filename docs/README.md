@@ -34,11 +34,13 @@ Smart syncing between course schedules and Google Calendar.
 - **[Google Calendar Events](./calendar-sync/google_calendar_events.md)** - Event creation and management
 - **[User Google Calendar Edits](./calendar-sync/user_google_calendar_edits.md)** - Handling user modifications
 - **[Multi-Email OAuth](./calendar-sync/multi-email-google-calendar-oauth.md)** - OAuth setup for multiple Google accounts
+- **[OAuth Credential Management API](./calendar-sync/oauth-credential-management-api.md)** - API for managing connected Google accounts
 
 **Use Cases:**
 - Understanding sync performance: See Intelligent Calendar Sync
 - Setting up automated syncs: See Nightly Calendar Sync
 - OAuth configuration: See Multi-Email OAuth
+- Managing connected accounts: See OAuth Credential Management API
 
 ### Embeddings & AI
 Vector embeddings and semantic search capabilities.
@@ -96,7 +98,8 @@ docs/
 │   ├── nightly-calendar-sync.md (automated sync)
 │   ├── google_calendar_events.md (event management)
 │   ├── user_google_calendar_edits.md (user modifications)
-│   └── multi-email-google-calendar-oauth.md (OAuth setup)
+│   ├── multi-email-google-calendar-oauth.md (OAuth setup)
+│   └── oauth-credential-management-api.md (account management API)
 │
 ├── embeddings/
 │   ├── pgvector-embeddings.md (vector database)
@@ -140,6 +143,9 @@ docs/
 
 **Configure Google OAuth**
 → [Multi-Email OAuth](./calendar-sync/multi-email-google-calendar-oauth.md)
+
+**Manage connected Google accounts**
+→ [OAuth Credential Management API](./calendar-sync/oauth-credential-management-api.md)
 
 **Add background jobs**
 → [Job Queues](./infrastructure/job-queues.md)

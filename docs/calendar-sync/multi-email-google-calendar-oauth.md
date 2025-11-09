@@ -276,9 +276,19 @@ Test coverage should include:
 - Check calendar was added to user's list (requires OAuth)
 - Verify user has OAuth credentials for that email
 
+## Managing Connected Accounts
+
+Users can manage their connected Google accounts through the OAuth Credential Management API:
+
+- **List connected accounts**: `GET /api/user/oauth_credentials`
+- **Disconnect account**: `DELETE /api/user/oauth_credentials/:credential_id`
+- **Add email to calendar**: `POST /api/user/gcal/add_email`
+- **Remove email from calendar**: `DELETE /api/user/gcal/remove_email`
+
+See **[OAuth Credential Management API](./oauth-credential-management-api.md)** for complete documentation.
+
 ## Future Enhancements
 
 1. **Webhook notifications**: Notify extension when OAuth completes (vs. polling)
 2. **Batch OAuth**: Single OAuth flow for multiple emails (if Google supports)
 3. **Email verification**: Verify email ownership before allowing OAuth
-4. **Revocation**: Allow users to revoke individual email connections

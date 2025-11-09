@@ -19,6 +19,8 @@
 #               api_user_gcal_remove_email DELETE /api/user/gcal/remove_email(.:format)                                                             api/users#remove_email_from_g_cal
 #                           api_user_email GET    /api/user/email(.:format)                                                                         api/users#get_email
 #                         api_user_ics_url GET    /api/user/ics_url(.:format)                                                                       api/users#get_ics_url
+#               api_user_oauth_credentials GET    /api/user/oauth_credentials(.:format)                                                             api/users#list_oauth_credentials
+#                                      api DELETE /api/user/oauth_credentials/:credential_id(.:format)                                              api/users#disconnect_oauth_credential
 #                    api_user_is_processed POST   /api/user/is_processed(.:format)                                                                  api/users#is_processed
 #                api_user_processed_events POST   /api/user/processed_events(.:format)                                                              api/users#get_processed_events_by_term
 #                api_user_extension_config GET    /api/user/extension_config(.:format)                                                              api/user_extension_config#get
@@ -264,6 +266,8 @@ Rails.application.routes.draw do
     delete "user/gcal/remove_email", to: "users#remove_email_from_g_cal"
     get "user/email", to: "users#get_email"
     get "user/ics_url", to: "users#get_ics_url"
+    get "user/oauth_credentials", to: "users#list_oauth_credentials"
+    delete "user/oauth_credentials/:credential_id", to: "users#disconnect_oauth_credential"
 
     post "user/is_processed", to: "users#is_processed"
     post "user/processed_events", to: "users#get_processed_events_by_term"

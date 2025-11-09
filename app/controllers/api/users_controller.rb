@@ -287,6 +287,57 @@ module Api
       }
     end
 
+    def list_oauth_credentials
+      authorize current_user, :show?
+
+      credentials = current_user.oauth_credentials.includes(:google_calendar).map do |credential|
+        {
+          id: credential.id,
+          email: credential.email,
+          provider: credential.provider,
+          has_calendar: credential.google_calendar.present?,
+          calendar_id: credential.google_calendar&.google_calendar_id,
+          created_at: credential.created_at
+        }
+      end
+
+      render json: { oauth_credentials: credentials }, status: :ok
+    end
+
+    def disconnect_oauth_credential
+      credential_id = params[:credential_id]
+
+      if credential_id.blank?
+        render json: { error: "credential_id is required" }, status: :bad_request
+        return
+      end
+
+      credential = current_user.oauth_credentials.find_by(id: credential_id)
+
+      if credential.nil?
+        render json: { error: "OAuth credential not found" }, status: :not_found
+        return
+      end
+
+      authorize credential, :destroy?
+
+      # Check if this is the last credential
+      if current_user.oauth_credentials.count == 1
+        render json: {
+          error: "Cannot disconnect the last OAuth credential. You must have at least one connected account."
+        }, status: :unprocessable_entity
+        return
+      end
+
+      credential.destroy!
+
+      render json: { message: "OAuth credential disconnected successfully" }, status: :ok
+    rescue => e
+      Rails.logger.error("Error disconnecting OAuth credential for user #{current_user.id}: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+      render json: { error: "Failed to disconnect OAuth credential" }, status: :internal_server_error
+    end
+
     def get_processed_events_by_term
       authorize current_user, :show?
 
