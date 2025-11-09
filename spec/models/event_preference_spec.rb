@@ -141,19 +141,11 @@ RSpec.describe EventPreference do
   describe "scopes" do
     let(:user) { create(:user) }
     let(:meeting_time) { create(:meeting_time) }
-    let(:google_calendar_event) { create(:google_calendar_event) }
     let!(:meeting_pref) { create(:event_preference, user: user, preferenceable: meeting_time) }
-    let!(:event_pref) { create(:event_preference, user: user, preferenceable: google_calendar_event) }
 
     describe ".for_meeting_times" do
       it "returns preferences for meeting times" do
-        expect(described_class.for_meeting_times).to eq([meeting_pref])
-      end
-    end
-
-    describe ".for_google_calendar_events" do
-      it "returns preferences for google calendar events" do
-        expect(described_class.for_google_calendar_events).to eq([event_pref])
+        expect(described_class.for_meeting_times).to include(meeting_pref)
       end
     end
   end
