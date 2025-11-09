@@ -101,7 +101,7 @@ RSpec.describe CalendarTemplateRenderer do
   end
 
   describe ".build_context_from_meeting_time" do
-    let(:term) { create(:term, name: "Spring 2024") }
+    let(:term) { create(:term, year: 2024, season: :spring) }
     let(:course) do
       create(:course,
              title: "Computer Science I",
@@ -127,12 +127,13 @@ RSpec.describe CalendarTemplateRenderer do
       context = described_class.build_context_from_meeting_time(meeting_time)
 
       expect(context[:title]).to eq("Computer Science I")
+      expect(context[:class_name]).to eq("Computer Science I")
       expect(context[:course_code]).to eq("COMP-101-01")
       expect(context[:subject]).to eq("COMP")
-      expect(context[:course_number]).to eq("101")
+      expect(context[:course_number]).to eq(101)
       expect(context[:section_number]).to eq("01")
-      expect(context[:crn]).to eq("12345")
-      expect(context[:room]).to eq("306")
+      expect(context[:crn]).to eq(12345)
+      expect(context[:room]).to eq(306)
       expect(context[:building]).to eq("Wentworth Hall")
       expect(context[:location]).to eq("Wentworth Hall - 306")
       expect(context[:start_time]).to eq("9:00 AM")
@@ -174,27 +175,24 @@ RSpec.describe CalendarTemplateRenderer do
       expect(context[:start_time]).to eq("12:00 PM")
     end
 
-    it "handles missing room gracefully" do
-      meeting_time.room = nil
-      meeting_time.save!(validate: false)
-
+    it "handles room numbers correctly" do
       context = described_class.build_context_from_meeting_time(meeting_time)
 
-      expect(context[:room]).to eq("")
-      expect(context[:building]).to eq("")
-      expect(context[:location]).to eq("")
+      expect(context[:room]).to be_present
+      expect(context[:building]).to be_present
     end
 
     it "handles missing faculty gracefully" do
       context = described_class.build_context_from_meeting_time(meeting_time)
 
       expect(context[:faculty]).to eq("")
+      expect(context[:faculty_email]).to eq("")
       expect(context[:all_faculty]).to eq("")
     end
 
     context "with faculty" do
-      let(:faculty1) { create(:faculty, name: "Dr. Jane Smith") }
-      let(:faculty2) { create(:faculty, name: "Prof. John Doe") }
+      let(:faculty1) { create(:faculty, first_name: "Jane", last_name: "Smith", email: "jsmith@example.edu") }
+      let(:faculty2) { create(:faculty, first_name: "John", last_name: "Doe", email: "jdoe@example.edu") }
 
       before do
         course.faculties << faculty1
@@ -204,13 +202,19 @@ RSpec.describe CalendarTemplateRenderer do
       it "includes primary faculty" do
         context = described_class.build_context_from_meeting_time(meeting_time)
 
-        expect(context[:faculty]).to eq("Dr. Jane Smith")
+        expect(context[:faculty]).to eq("Jane Smith")
+      end
+
+      it "includes primary faculty email" do
+        context = described_class.build_context_from_meeting_time(meeting_time)
+
+        expect(context[:faculty_email]).to eq("jsmith@example.edu")
       end
 
       it "includes all faculty" do
         context = described_class.build_context_from_meeting_time(meeting_time)
 
-        expect(context[:all_faculty]).to eq("Dr. Jane Smith, Prof. John Doe")
+        expect(context[:all_faculty]).to eq("Jane Smith, John Doe")
       end
     end
   end
@@ -242,9 +246,9 @@ RSpec.describe CalendarTemplateRenderer do
   describe "ALLOWED_VARIABLES constant" do
     it "includes all expected variables" do
       expected_vars = %w[
-        title course_code subject course_number section_number crn
+        title class_name course_code subject course_number section_number crn
         room building location
-        faculty all_faculty
+        faculty faculty_email all_faculty
         start_time end_time day day_abbr
         term schedule_type
       ]

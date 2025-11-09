@@ -7,6 +7,7 @@
 #
 #  id                   :bigint           not null, primary key
 #  description_template :text
+#  location_template    :text
 #  preferenceable_type  :string           not null
 #  reminder_settings    :jsonb
 #  title_template       :text
@@ -35,6 +36,7 @@ class EventPreference < ApplicationRecord
   # Validations
   validates :title_template, length: { maximum: 500 }, allow_blank: true
   validates :description_template, length: { maximum: 2000 }, allow_blank: true
+  validates :location_template, length: { maximum: 500 }, allow_blank: true
   validates :color_id, inclusion: { in: 1..11 }, allow_nil: true
   validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
   validate :validate_template_syntax
@@ -56,12 +58,20 @@ class EventPreference < ApplicationRecord
       end
     end
 
-    return if description_template.blank?
+    if description_template.present?
+      begin
+        CalendarTemplateRenderer.validate_template(description_template)
+      rescue CalendarTemplateRenderer::InvalidTemplateError => e
+        errors.add(:description_template, "invalid syntax: #{e.message}")
+      end
+    end
+
+    return if location_template.blank?
 
     begin
-      CalendarTemplateRenderer.validate_template(description_template)
+      CalendarTemplateRenderer.validate_template(location_template)
     rescue CalendarTemplateRenderer::InvalidTemplateError => e
-      errors.add(:description_template, "invalid syntax: #{e.message}")
+      errors.add(:location_template, "invalid syntax: #{e.message}")
     end
 
   end
@@ -91,7 +101,7 @@ class EventPreference < ApplicationRecord
   end
 
   def at_least_one_preference_set
-    return unless title_template.blank? && description_template.blank? && reminder_settings.blank? && color_id.blank? && visibility.blank?
+    return unless title_template.blank? && description_template.blank? && location_template.blank? && reminder_settings.blank? && color_id.blank? && visibility.blank?
 
     errors.add(:base, "At least one preference must be set")
 

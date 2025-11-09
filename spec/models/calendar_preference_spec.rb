@@ -8,6 +8,7 @@
 #  id                   :bigint           not null, primary key
 #  description_template :text
 #  event_type           :string
+#  location_template    :text
 #  reminder_settings    :jsonb
 #  scope                :integer          not null
 #  title_template       :text

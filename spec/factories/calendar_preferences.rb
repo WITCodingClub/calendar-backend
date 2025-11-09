@@ -8,6 +8,7 @@
 #  id                   :bigint           not null, primary key
 #  description_template :text
 #  event_type           :string
+#  location_template    :text
 #  reminder_settings    :jsonb
 #  scope                :integer          not null
 #  title_template       :text
@@ -31,11 +32,12 @@ FactoryBot.define do
     user
     scope { :global }
     event_type { nil }
-    title_template { "{{course_code}}: {{title}}" }
+    title_template { nil }
     description_template { nil }
-    reminder_settings { [{ "minutes" => 15, "method" => "popup" }] }
+    location_template { nil }
+    reminder_settings { nil }
     color_id { nil }
-    visibility { "default" }
+    visibility { nil }
 
     trait :event_type_lecture do
       scope { :event_type }

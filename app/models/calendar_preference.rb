@@ -8,6 +8,7 @@
 #  id                   :bigint           not null, primary key
 #  description_template :text
 #  event_type           :string
+#  location_template    :text
 #  reminder_settings    :jsonb
 #  scope                :integer          not null
 #  title_template       :text
@@ -41,6 +42,7 @@ class CalendarPreference < ApplicationRecord
   validates :event_type, absence: true, if: :scope_global?
   validates :title_template, length: { maximum: 500 }, allow_blank: true
   validates :description_template, length: { maximum: 2000 }, allow_blank: true
+  validates :location_template, length: { maximum: 500 }, allow_blank: true
   validates :color_id, inclusion: { in: 1..11 }, allow_nil: true
   validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
   validate :validate_template_syntax
@@ -61,12 +63,20 @@ class CalendarPreference < ApplicationRecord
       end
     end
 
-    return if description_template.blank?
+    if description_template.present?
+      begin
+        CalendarTemplateRenderer.validate_template(description_template)
+      rescue CalendarTemplateRenderer::InvalidTemplateError => e
+        errors.add(:description_template, "invalid syntax: #{e.message}")
+      end
+    end
+
+    return if location_template.blank?
 
     begin
-      CalendarTemplateRenderer.validate_template(description_template)
+      CalendarTemplateRenderer.validate_template(location_template)
     rescue CalendarTemplateRenderer::InvalidTemplateError => e
-      errors.add(:description_template, "invalid syntax: #{e.message}")
+      errors.add(:location_template, "invalid syntax: #{e.message}")
     end
 
   end

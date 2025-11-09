@@ -7,6 +7,7 @@
 #
 #  id                   :bigint           not null, primary key
 #  description_template :text
+#  location_template    :text
 #  preferenceable_type  :string           not null
 #  reminder_settings    :jsonb
 #  title_template       :text

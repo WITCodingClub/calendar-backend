@@ -17,8 +17,10 @@ RSpec.describe PreferenceResolver do
       it "returns system defaults" do
         prefs = resolver.resolve_for(meeting_time)
 
-        expect(prefs[:title_template]).to eq("{{course_code}}: {{title}}")
-        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 15, "method" => "popup" }])
+        expect(prefs[:title_template]).to eq("{{class_name}}")
+        expect(prefs[:description_template]).to eq("{{faculty}} {{faculty_email}}")
+        expect(prefs[:location_template]).to eq("{{building}} {{room}}")
+        expect(prefs[:reminder_settings]).to eq([{ "minutes" => 30, "method" => "popup" }])
         expect(prefs[:color_id]).to be_nil
         expect(prefs[:visibility]).to eq("default")
       end
@@ -108,10 +110,10 @@ RSpec.describe PreferenceResolver do
       let(:lab_course) { create(:course, schedule_type: "laboratory", term: term) }
       let(:lab_meeting) { create(:meeting_time, course: lab_course, room: room) }
 
-      it "uses laboratory system default" do
+      it "uses system default" do
         prefs = resolver.resolve_for(lab_meeting)
 
-        expect(prefs[:title_template]).to eq("{{title}} - Lab ({{room}})")
+        expect(prefs[:title_template]).to eq("{{class_name}}")
       end
 
       context "with event type preference for laboratory" do
@@ -137,10 +139,10 @@ RSpec.describe PreferenceResolver do
       let(:hybrid_course) { create(:course, schedule_type: "hybrid", term: term) }
       let(:hybrid_meeting) { create(:meeting_time, course: hybrid_course, room: room) }
 
-      it "uses hybrid system default" do
+      it "uses system default" do
         prefs = resolver.resolve_for(hybrid_meeting)
 
-        expect(prefs[:title_template]).to eq("{{title}} [{{schedule_type}}]")
+        expect(prefs[:title_template]).to eq("{{class_name}}")
       end
     end
   end
@@ -244,6 +246,7 @@ RSpec.describe PreferenceResolver do
       expected_fields = %i[
         title_template
         description_template
+        location_template
         reminder_settings
         color_id
         visibility
@@ -258,26 +261,24 @@ RSpec.describe PreferenceResolver do
       expect(PreferenceResolver::SYSTEM_DEFAULTS).to include(
         :title_template,
         :description_template,
+        :location_template,
         :reminder_settings,
         :color_id,
         :visibility
       )
     end
 
-    it "has per-type title templates" do
-      title_templates = PreferenceResolver::SYSTEM_DEFAULTS[:title_template]
-
-      expect(title_templates["lecture"]).to be_present
-      expect(title_templates["laboratory"]).to be_present
-      expect(title_templates["hybrid"]).to be_present
-      expect(title_templates["default"]).to be_present
+    it "has correct default templates" do
+      expect(PreferenceResolver::SYSTEM_DEFAULTS[:title_template]).to eq("{{class_name}}")
+      expect(PreferenceResolver::SYSTEM_DEFAULTS[:description_template]).to eq("{{faculty}} {{faculty_email}}")
+      expect(PreferenceResolver::SYSTEM_DEFAULTS[:location_template]).to eq("{{building}} {{room}}")
     end
 
-    it "has default reminder settings" do
+    it "has default reminder settings of 30 minutes" do
       reminders = PreferenceResolver::SYSTEM_DEFAULTS[:reminder_settings]
 
       expect(reminders).to be_an(Array)
-      expect(reminders.first).to include("minutes", "method")
+      expect(reminders.first).to include("minutes" => 30, "method" => "popup")
     end
   end
 end

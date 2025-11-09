@@ -5,9 +5,9 @@ class CalendarTemplateRenderer
 
   # Whitelist of allowed variables in templates
   ALLOWED_VARIABLES = %w[
-    title course_code subject course_number section_number crn
+    title class_name course_code subject course_number section_number crn
     room building location
-    faculty all_faculty
+    faculty faculty_email all_faculty
     start_time end_time day day_abbr
     term schedule_type
   ].freeze
@@ -47,7 +47,7 @@ class CalendarTemplateRenderer
     # Parse and render
     template = Liquid::Template.parse(template_string)
     template.render(filtered_context)
-  rescue Liquid::Error => e
+  rescue Liquid::Error, InvalidTemplateError => e
     Rails.logger.error("Liquid template rendering error: #{e.message}")
     # Return a safe fallback
     context[:title] || "Event"
@@ -60,6 +60,7 @@ class CalendarTemplateRenderer
 
     {
       title: course.title,
+      class_name: course.title, # Alias for title
       course_code: "#{course.subject}-#{course.course_number}-#{course.section_number}",
       subject: course.subject,
       course_number: course.course_number,
@@ -69,6 +70,7 @@ class CalendarTemplateRenderer
       building: building&.name || "",
       location: build_location_string(building, room),
       faculty: primary_faculty_name(course),
+      faculty_email: primary_faculty_email(course),
       all_faculty: all_faculty_names(course),
       start_time: format_time_with_ampm(meeting_time.begin_time),
       end_time: format_time_with_ampm(meeting_time.end_time),
@@ -125,16 +127,22 @@ class CalendarTemplateRenderer
     faculty = course.faculties.first
     return "" unless faculty
 
-    # Assuming Faculty model has name or first_name/last_name
-    faculty.name || "#{faculty.first_name} #{faculty.last_name}".strip
+    faculty.full_name
+  rescue
+    ""
+  end
+
+  def self.primary_faculty_email(course)
+    faculty = course.faculties.first
+    return "" unless faculty
+
+    faculty.email || ""
   rescue
     ""
   end
 
   def self.all_faculty_names(course)
-    course.faculties.map do |faculty|
-      faculty.name || "#{faculty.first_name} #{faculty.last_name}".strip
-    end.join(", ")
+    course.faculties.map(&:full_name).join(", ")
   rescue
     ""
   end

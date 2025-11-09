@@ -4,20 +4,17 @@ class PreferenceResolver
   PREFERENCE_FIELDS = %i[
     title_template
     description_template
+    location_template
     reminder_settings
     color_id
     visibility
   ].freeze
 
   SYSTEM_DEFAULTS = {
-    title_template: {
-      "laboratory" => "{{title}} - Lab ({{room}})",
-      "lecture"    => "{{course_code}}: {{title}}",
-      "hybrid"     => "{{title}} [{{schedule_type}}]",
-      "default"    => "{{title}}"
-    },
-    description_template: nil,
-    reminder_settings: [{ "minutes" => 15, "method" => "popup" }],
+    title_template: "{{class_name}}",
+    description_template: "{{faculty}} {{faculty_email}}",
+    location_template: "{{building}} {{room}}",
+    reminder_settings: [{ "minutes" => 30, "method" => "popup" }],
     color_id: nil, # Will use MeetingTime#event_color if not set
     visibility: "default"
   }.freeze
@@ -116,14 +113,7 @@ class PreferenceResolver
   end
 
   def system_default_for(field, event_type)
-    default = SYSTEM_DEFAULTS[field]
-
-    # For title_template, select based on event_type
-    if field == :title_template && default.is_a?(Hash)
-      default[event_type] || default["default"]
-    else
-      default
-    end
+    SYSTEM_DEFAULTS[field]
   end
 
   def cache_key_for(event)

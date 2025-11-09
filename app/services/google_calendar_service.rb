@@ -691,6 +691,11 @@ class GoogleCalendarService
       event_data[:description] = renderer.render(prefs[:description_template], context)
     end
 
+    # Render location template if present
+    if prefs[:location_template].present?
+      event_data[:location] = renderer.render(prefs[:location_template], context)
+    end
+
     # Apply reminder settings
     event_data[:reminder_settings] = prefs[:reminder_settings] if prefs[:reminder_settings].present?
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_06_012149) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_09_020957) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -148,6 +148,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_06_012149) do
     t.datetime "created_at", null: false
     t.text "description_template"
     t.string "event_type"
+    t.text "location_template"
     t.jsonb "reminder_settings", default: []
     t.integer "scope", null: false
     t.text "title_template"
@@ -211,6 +212,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_06_012149) do
     t.integer "color_id"
     t.datetime "created_at", null: false
     t.text "description_template"
+    t.text "location_template"
     t.bigint "preferenceable_id", null: false
     t.string "preferenceable_type", null: false
     t.jsonb "reminder_settings"
