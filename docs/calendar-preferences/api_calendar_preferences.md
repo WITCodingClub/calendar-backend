@@ -279,7 +279,7 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
   },
   "resolved": {
     "title_template": "{{title}} - Lab ({{room}})",
-    "description_template": null,
+    "description_template": "Location: {{location}}\\nInstructor: {{faculty}}",
     "reminder_settings": [
       {"minutes": 60, "method": "popup"}
     ],
@@ -288,12 +288,16 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
   },
   "sources": {
     "title_template": "event_type:laboratory",
-    "description_template": "system_default",
+    "description_template": "event_type:laboratory",
     "reminder_settings": "individual",
     "color_id": "event_type:laboratory",
     "visibility": "global"
   },
-  "preview": "Computer Science I - Lab (306)"
+  "preview": {
+    "title": "Computer Science I - Lab (306)",
+    "description": "Location: Wentworth Hall - 306\\nInstructor: Dr. Jane Smith",
+    "location": "Wentworth Hall - 306"
+  }
 }
 ```
 
@@ -301,7 +305,7 @@ Get preferences for a **specific event** using its meeting time ID or calendar e
 - `individual_preference` - Only the overrides set specifically for this event (null if not set)
 - `resolved` - Actual values that will be used (after walking the hierarchy)
 - `sources` - Where each value came from (useful for UI to show inheritance)
-- `preview` - Rendered title using resolved template
+- `preview` - Object containing rendered title, description, and location using resolved templates
 
 **Use Case:**
 - Display current settings when user clicks on a specific event

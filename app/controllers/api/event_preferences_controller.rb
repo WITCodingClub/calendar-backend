@@ -19,13 +19,8 @@ module Api
       resolver = PreferenceResolver.new(current_user)
       resolved_data = resolver.resolve_with_sources(@preferenceable)
 
-      # Generate preview if template available
-      preview = nil
-      if resolved_data[:preferences][:title_template].present?
-        renderer = CalendarTemplateRenderer.new
-        context = CalendarTemplateRenderer.build_context_from_meeting_time(@preferenceable)
-        preview = renderer.render(resolved_data[:preferences][:title_template], context)
-      end
+      # Generate preview with title, description, and location
+      preview = generate_preview(resolved_data[:preferences])
 
       render json: {
         individual_preference: preference ? event_preference_json(preference) : nil,
@@ -46,7 +41,19 @@ module Api
       authorize preference
 
       if preference.update(event_preference_params)
-        render json: event_preference_json(preference)
+        # Get resolved preferences with sources
+        resolver = PreferenceResolver.new(current_user)
+        resolved_data = resolver.resolve_with_sources(@preferenceable)
+
+        # Generate preview with title, description, and location
+        preview = generate_preview(resolved_data[:preferences])
+
+        render json: {
+          individual_preference: event_preference_json(preference),
+          resolved: resolved_data[:preferences],
+          sources: resolved_data[:sources],
+          preview: preview
+        }
       else
         render json: { errors: preference.errors.full_messages }, status: :unprocessable_entity
       end
@@ -98,6 +105,34 @@ module Api
         reminder_settings: preference.reminder_settings,
         color_id: preference.color_id,
         visibility: preference.visibility
+      }
+    end
+
+    def generate_preview(resolved_preferences)
+      renderer = CalendarTemplateRenderer.new
+      context = CalendarTemplateRenderer.build_context_from_meeting_time(@preferenceable)
+
+      # Render title template
+      title = if resolved_preferences[:title_template].present?
+                renderer.render(resolved_preferences[:title_template], context)
+              else
+                context[:title]
+              end
+
+      # Render description template
+      description = if resolved_preferences[:description_template].present?
+                      renderer.render(resolved_preferences[:description_template], context)
+                    else
+                      ""
+                    end
+
+      # Extract location from context
+      location = context[:location] || ""
+
+      {
+        title: title,
+        description: description,
+        location: location
       }
     end
 
