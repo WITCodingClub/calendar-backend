@@ -218,9 +218,15 @@ class GoogleCalendarService
   def create_calendar_with_service_account
     service = service_account_calendar_service
 
+    env_prefix = {
+      "test"        => "[TEST] ",
+      "development" => "[DEV] ",
+      "stage"       => "[STAGE] "
+    }[Rails.env] || ""
+
     calendar = Google::Apis::CalendarV3::Calendar.new(
-      summary: "WIT Courses",
-      description: "Course schedule for #{user.email}.\nCreated and Updated by WIT Course Calendar App.",
+      summary: "#{env_prefix}WIT Courses",
+      description: "#{env_prefix}Course schedule for #{user.email}.\nCreated and Updated by WIT Course Calendar App.",
       time_zone: "America/New_York"
     )
 
