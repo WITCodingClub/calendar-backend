@@ -24,4 +24,17 @@
 class UserExtensionConfig < ApplicationRecord
   belongs_to :user
 
+  # Trigger calendar sync when default colors change
+  after_update :sync_calendar_if_colors_changed
+
+  private
+
+  def sync_calendar_if_colors_changed
+    # Only sync if lecture or lab colors changed
+    if saved_change_to_default_color_lecture? || saved_change_to_default_color_lab?
+      # Queue a forced sync to update all calendar events with new colors
+      GoogleCalendarSyncJob.perform_later(user, force: true)
+    end
+  end
+
 end

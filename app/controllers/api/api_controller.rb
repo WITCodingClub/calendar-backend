@@ -33,5 +33,31 @@ module Api
       end
     end
 
+    # Normalize color to WITCC hex format for API responses
+    # Handles: integers (1-11), WITCC hex (already correct), Google event hex (convert to WITCC)
+    # @param color_id_or_hex [Integer, String, nil] Color ID or hex string
+    # @return [String, nil] WITCC hex color or nil
+    def normalize_color_to_witcc_hex(color_id_or_hex)
+      return nil if color_id_or_hex.blank?
+
+      # If it's an integer, convert to WITCC hex
+      if color_id_or_hex.is_a?(Integer)
+        return GoogleColors.to_witcc_hex(color_id_or_hex)
+      end
+
+      # If it's a hex string, check if it's already a WITCC color
+      if color_id_or_hex.is_a?(String) && color_id_or_hex.start_with?("#")
+        normalized_hex = color_id_or_hex.downcase
+
+        # Check if it's already a WITCC color (key in WITCC_MAP)
+        return normalized_hex if GoogleColors::WITCC_MAP.key?(normalized_hex)
+
+        # Otherwise try to convert from Google event hex to WITCC hex
+        return GoogleColors.to_witcc_hex(color_id_or_hex)
+      end
+
+      nil
+    end
+
   end
 end

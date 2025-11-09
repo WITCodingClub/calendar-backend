@@ -68,8 +68,12 @@ class GoogleCalendarService
       existing_event = existing_events[meeting_time_id]
 
       if existing_event
+        # Apply preferences to get the full event data for comparison
+        meeting_time = MeetingTime.includes(course: :faculties).find_by(id: meeting_time_id)
+        event_with_preferences = apply_preferences_to_event(meeting_time, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
+
         # Update existing event if needed (or skip if no changes and not forced)
-        if force || existing_event.data_changed?(event)
+        if force || existing_event.data_changed?(event_with_preferences)
           update_event_in_calendar(service, google_calendar, existing_event, event, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
           stats[:updated] += 1
         else
@@ -110,7 +114,11 @@ class GoogleCalendarService
       existing_event = existing_events[meeting_time_id]
 
       if existing_event
-        if force || existing_event.data_changed?(event)
+        # Apply preferences to get the full event data for comparison
+        meeting_time = MeetingTime.includes(course: :faculties).find_by(id: meeting_time_id)
+        event_with_preferences = apply_preferences_to_event(meeting_time, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
+
+        if force || existing_event.data_changed?(event_with_preferences)
           update_event_in_calendar(service, google_calendar, existing_event, event, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
           stats[:updated] += 1
         else
@@ -760,7 +768,7 @@ class GoogleCalendarService
   end
 
   # Normalize color ID - convert hex codes to numeric IDs for Google Calendar API
-  # @param color_id_or_hex [Integer, String] Either a numeric ID (1-11) or hex code
+  # @param color_id_or_hex [Integer, String] Either a numeric ID (1-11) or hex code (WITCC or Google event)
   # @return [Integer, nil] Numeric color ID (1-11) or nil
   def normalize_color_id(color_id_or_hex)
     return nil if color_id_or_hex.blank?
@@ -780,9 +788,15 @@ class GoogleCalendarService
       return nil
     end
 
-    # If it's a hex code, convert it to numeric ID
+    # If it's a hex code, try converting from WITCC hex first, then Google event hex
     if color_id_or_hex.is_a?(String) && color_id_or_hex.start_with?("#")
       normalized_hex = color_id_or_hex.downcase
+
+      # Try WITCC hex to color ID conversion first (e.g., "#039be5" -> 7)
+      witcc_color_id = GoogleColors.witcc_to_color_id(normalized_hex)
+      return witcc_color_id if witcc_color_id.present?
+
+      # Fall back to searching Google event hex colors directly (e.g., "#46d6db" -> 7)
       GoogleColors::EVENT_MAP.each do |key, hex_value|
         return key if key.is_a?(Integer) && hex_value == normalized_hex
       end

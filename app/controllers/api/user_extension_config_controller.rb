@@ -7,8 +7,17 @@ module Api
       authorize config, :update?
 
       config.military_time = params[:military_time] unless params[:military_time].nil?
-      config.default_color_lecture = params[:default_color_lecture] unless params[:default_color_lecture].nil?
-      config.default_color_lab = params[:default_color_lab] unless params[:default_color_lab].nil?
+
+      # Convert Google event colors to WITCC colors before storing
+      unless params[:default_color_lecture].nil?
+        witcc_color = GoogleColors.to_witcc_hex(params[:default_color_lecture])
+        config.default_color_lecture = witcc_color || params[:default_color_lecture]
+      end
+
+      unless params[:default_color_lab].nil?
+        witcc_color = GoogleColors.to_witcc_hex(params[:default_color_lab])
+        config.default_color_lab = witcc_color || params[:default_color_lab]
+      end
 
       if config.save
         render json: { message: "User extension config updated successfully" }, status: :ok
@@ -32,10 +41,14 @@ module Api
 
       authorize config, :show?
 
+      # Convert WITCC colors to Google event colors for the extension
+      lecture_color_id = GoogleColors.witcc_to_color_id(config.default_color_lecture)
+      lab_color_id = GoogleColors.witcc_to_color_id(config.default_color_lab)
+
       render json: {
         military_time: config.military_time,
-        default_color_lecture: config.default_color_lecture,
-        default_color_lab: config.default_color_lab,
+        default_color_lecture: lecture_color_id ? GoogleColors::EVENT_MAP[lecture_color_id] : config.default_color_lecture,
+        default_color_lab: lab_color_id ? GoogleColors::EVENT_MAP[lab_color_id] : config.default_color_lab,
         advanced_editing: config.advanced_editing
       }, status: :ok
     rescue => e

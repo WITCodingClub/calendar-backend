@@ -118,6 +118,18 @@ RSpec.describe GoogleCalendarService do
       expect(service.send(:normalize_color_id, "#FBD75B")).to eq(5)
     end
 
+    it "converts WITCC hex codes to numeric IDs" do
+      expect(service.send(:normalize_color_id, "#039be5")).to eq(7)  # WITCC_PEACOCK -> EVENT_PEACOCK
+      expect(service.send(:normalize_color_id, "#f6bf26")).to eq(5)  # WITCC_BANANA -> EVENT_BANANA
+      expect(service.send(:normalize_color_id, "#d50000")).to eq(11) # WITCC_TOMATO -> EVENT_TOMATO
+      expect(service.send(:normalize_color_id, "#0b8043")).to eq(10) # WITCC_BASIL -> EVENT_BASIL
+    end
+
+    it "handles uppercase WITCC hex codes" do
+      expect(service.send(:normalize_color_id, "#039BE5")).to eq(7) # WITCC_PEACOCK
+      expect(service.send(:normalize_color_id, "#F6BF26")).to eq(5) # WITCC_BANANA
+    end
+
     it "returns nil for unknown hex codes" do
       expect(service.send(:normalize_color_id, "#000000")).to be_nil
     end

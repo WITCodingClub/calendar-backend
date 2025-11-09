@@ -26,7 +26,7 @@ module Api
       # Transform resolved preferences to alias "popup" to "notification" and convert color to WITCC hex
       resolved_prefs = resolved_data[:preferences].dup
       resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])
-      resolved_prefs[:color_id] = GoogleColors.to_witcc_hex(resolved_prefs[:color_id])
+      resolved_prefs[:color_id] = normalize_color_to_witcc_hex(resolved_prefs[:color_id])
 
       render json: {
         individual_preference: preference ? event_preference_json(preference) : nil,
@@ -66,7 +66,7 @@ module Api
         # Transform resolved preferences to alias "popup" to "notification" and convert color to WITCC hex
         resolved_prefs = resolved_data[:preferences].dup
         resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])
-        resolved_prefs[:color_id] = GoogleColors.to_witcc_hex(resolved_prefs[:color_id])
+        resolved_prefs[:color_id] = normalize_color_to_witcc_hex(resolved_prefs[:color_id])
 
         render json: {
           individual_preference: event_preference_json(preference),
@@ -138,7 +138,7 @@ module Api
         description_template: preference.description_template,
         location_template: preference.location_template,
         reminder_settings: transform_reminder_settings(preference.reminder_settings),
-        color_id: GoogleColors.to_witcc_hex(preference.color_id),
+        color_id: normalize_color_to_witcc_hex(preference.color_id),
         visibility: preference.visibility
       }
     end
@@ -183,9 +183,10 @@ module Api
                      end
 
       # Sync just this specific meeting time in the background
-      if meeting_time
-        SyncMeetingTimeJob.perform_later(current_user.id, meeting_time.id)
-      end
+      return unless meeting_time
+
+      SyncMeetingTimeJob.perform_later(current_user.id, meeting_time.id)
+
     end
 
   end
