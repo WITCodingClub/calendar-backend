@@ -76,4 +76,84 @@ RSpec.describe GoogleColors do
       end
     end
   end
+
+  describe ".to_witcc_hex" do
+    context "with Google color IDs" do
+      it "converts color ID 11 to WITCC_TOMATO" do
+        expect(described_class.to_witcc_hex(11)).to eq("#d50000")
+      end
+
+      it "converts color ID 4 to WITCC_FLAMINGO" do
+        expect(described_class.to_witcc_hex(4)).to eq("#e67c73")
+      end
+
+      it "converts color ID 6 to WITCC_TANGERINE" do
+        expect(described_class.to_witcc_hex(6)).to eq("#f4511e")
+      end
+
+      it "converts color ID 5 to WITCC_BANANA" do
+        expect(described_class.to_witcc_hex(5)).to eq("#f6bf26")
+      end
+
+      it "converts color ID 2 to WITCC_SAGE" do
+        expect(described_class.to_witcc_hex(2)).to eq("#33b679")
+      end
+
+      it "converts color ID 10 to WITCC_BASIL" do
+        expect(described_class.to_witcc_hex(10)).to eq("#0b8043")
+      end
+
+      it "converts color ID 7 to WITCC_PEACOCK" do
+        expect(described_class.to_witcc_hex(7)).to eq("#039be5")
+      end
+
+      it "converts color ID 9 to WITCC_BLUEBERRY" do
+        expect(described_class.to_witcc_hex(9)).to eq("#3f51b5")
+      end
+
+      it "converts color ID 1 to WITCC_LAVENDER" do
+        expect(described_class.to_witcc_hex(1)).to eq("#7986cb")
+      end
+
+      it "converts color ID 3 to WITCC_GRAPE" do
+        expect(described_class.to_witcc_hex(3)).to eq("#8e24aa")
+      end
+
+      it "converts color ID 8 to WITCC_GRAPHITE" do
+        expect(described_class.to_witcc_hex(8)).to eq("#616161")
+      end
+    end
+
+    context "with Google event hex colors" do
+      it "converts EVENT_TOMATO hex to WITCC_TOMATO" do
+        expect(described_class.to_witcc_hex("#dc2127")).to eq("#d50000")
+      end
+
+      it "converts EVENT_BANANA hex to WITCC_BANANA" do
+        expect(described_class.to_witcc_hex("#fbd75b")).to eq("#f6bf26")
+      end
+
+      it "handles uppercase hex values" do
+        expect(described_class.to_witcc_hex("#DC2127")).to eq("#d50000")
+      end
+    end
+
+    context "with invalid inputs" do
+      it "returns nil for blank input" do
+        expect(described_class.to_witcc_hex("")).to be_nil
+      end
+
+      it "returns nil for nil input" do
+        expect(described_class.to_witcc_hex(nil)).to be_nil
+      end
+
+      it "returns nil for unmapped color ID" do
+        expect(described_class.to_witcc_hex(99)).to be_nil
+      end
+
+      it "returns nil for invalid input type" do
+        expect(described_class.to_witcc_hex("not-a-color")).to be_nil
+      end
+    end
+  end
 end

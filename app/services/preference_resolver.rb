@@ -104,7 +104,7 @@ class PreferenceResolver
     end
 
     # 5. Use system defaults
-    default_value = system_default_for(field, event_type)
+    default_value = system_default_for(field, event, event_type)
     [default_value, "system_default"]
   end
 
@@ -120,7 +120,13 @@ class PreferenceResolver
     end
   end
 
-  def system_default_for(field, event_type)
+  def system_default_for(field, event, event_type)
+    # Special handling for color_id: use the meeting time's event color
+    if field == :color_id
+      meeting_time = event.is_a?(MeetingTime) ? event : event.meeting_time
+      return meeting_time&.event_color
+    end
+
     SYSTEM_DEFAULTS[field]
   end
 

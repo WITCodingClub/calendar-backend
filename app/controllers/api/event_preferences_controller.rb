@@ -23,9 +23,10 @@ module Api
       # Generate preview with title, description, and location
       preview = generate_preview(resolved_data[:preferences], context)
 
-      # Transform resolved preferences to alias "popup" to "notification"
+      # Transform resolved preferences to alias "popup" to "notification" and convert color to WITCC hex
       resolved_prefs = resolved_data[:preferences].dup
       resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])
+      resolved_prefs[:color_id] = GoogleColors.to_witcc_hex(resolved_prefs[:color_id])
 
       render json: {
         individual_preference: preference ? event_preference_json(preference) : nil,
@@ -52,7 +53,9 @@ module Api
         # Trigger immediate sync for this specific event
         sync_updated_event
 
-        resolved_data = resolver.resolve_with_sources(@preferenceable)
+        # Create a fresh resolver after updating to get the latest preferences
+        fresh_resolver = PreferenceResolver.new(current_user)
+        resolved_data = fresh_resolver.resolve_with_sources(@preferenceable)
 
         # Build template context for preview and template values
         context = CalendarTemplateRenderer.build_context_from_meeting_time(@preferenceable)
@@ -60,9 +63,10 @@ module Api
         # Generate preview with title, description, and location
         preview = generate_preview(resolved_data[:preferences], context)
 
-        # Transform resolved preferences to alias "popup" to "notification"
+        # Transform resolved preferences to alias "popup" to "notification" and convert color to WITCC hex
         resolved_prefs = resolved_data[:preferences].dup
         resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])
+        resolved_prefs[:color_id] = GoogleColors.to_witcc_hex(resolved_prefs[:color_id])
 
         render json: {
           individual_preference: event_preference_json(preference),
@@ -134,7 +138,7 @@ module Api
         description_template: preference.description_template,
         location_template: preference.location_template,
         reminder_settings: transform_reminder_settings(preference.reminder_settings),
-        color_id: preference.color_id,
+        color_id: GoogleColors.to_witcc_hex(preference.color_id),
         visibility: preference.visibility
       }
     end

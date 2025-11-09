@@ -244,6 +244,11 @@ module Api
                                  nil
                                end
 
+        # Convert color to WITCC hex format
+        # Use preference color if set, otherwise use meeting time's default color
+        color_value = preferences[:color_id] || mt.event_color
+        witcc_color = GoogleColors.to_witcc_hex(color_value)
+
         {
           id: mt.id,
           begin_time: mt.fmt_begin_time,
@@ -266,7 +271,7 @@ module Api
           calendar_config: {
             title: rendered_title,
             description: rendered_description,
-            color_id: preferences[:color_id] || mt.event_color,
+            color_id: witcc_color,
             reminder_settings: preferences[:reminder_settings],
             visibility: preferences[:visibility]
           }

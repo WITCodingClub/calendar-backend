@@ -159,7 +159,7 @@ RSpec.describe "Api::EventPreferences", type: :request do
       )
     end
 
-    it "converts WITCC hex color to Google color ID" do
+    it "converts WITCC hex color to Google color ID in DB and returns WITCC hex in response" do
       put "/api/meeting_times/#{meeting_time.id}/preference",
           params: {
             event_preference: {
@@ -171,16 +171,18 @@ RSpec.describe "Api::EventPreferences", type: :request do
 
       expect(response).to have_http_status(:ok)
 
-      # Verify that the color was converted to Google's color ID 11 (EVENT_TOMATO)
+      # Verify that the color was converted to Google's color ID 11 (EVENT_TOMATO) in the database
       preference = EventPreference.find_by(user: user, preferenceable: meeting_time)
       expect(preference.color_id).to eq(11)
 
+      # Verify that the API returns the WITCC hex color
       json = response.parsed_body
-      expect(json["individual_preference"]["color_id"]).to eq(11)
+      expect(json["individual_preference"]["color_id"]).to eq("#d50000")
+      expect(json["resolved"]["color_id"]).to eq("#d50000")
     end
 
     it "handles multiple WITCC colors correctly" do
-      # Test WITCC_PEACOCK -> EVENT_PEACOCK (color ID 7)
+      # Test WITCC_PEACOCK -> EVENT_PEACOCK (color ID 7) -> WITCC_PEACOCK
       put "/api/meeting_times/#{meeting_time.id}/preference",
           params: {
             event_preference: {
@@ -191,8 +193,14 @@ RSpec.describe "Api::EventPreferences", type: :request do
           as: :json
 
       expect(response).to have_http_status(:ok)
+
+      # Verify database storage
       preference = EventPreference.find_by(user: user, preferenceable: meeting_time)
       expect(preference.color_id).to eq(7)
+
+      # Verify API response
+      json = response.parsed_body
+      expect(json["individual_preference"]["color_id"]).to eq("#039be5")
     end
   end
 end

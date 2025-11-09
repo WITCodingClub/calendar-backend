@@ -162,4 +162,29 @@ module GoogleColors
 
     nil
   end
+
+  # Convert a Google Calendar event color ID (1-11) or hex to WITCC color hex
+  # @param color_id_or_hex [Integer, String] Google Calendar color ID (1-11) or Google event hex
+  # @return [String, nil] WITCC color hex value (e.g., "#d50000"), or nil if not found
+  def self.to_witcc_hex(color_id_or_hex)
+    return nil if color_id_or_hex.blank?
+
+    # Get Google event hex from color ID or use the hex directly
+    google_event_hex = if color_id_or_hex.is_a?(Integer)
+                         EVENT_MAP[color_id_or_hex]
+                       elsif color_id_or_hex.is_a?(String) && color_id_or_hex.start_with?("#")
+                         color_id_or_hex.downcase
+                       else
+                         nil
+                       end
+
+    return nil unless google_event_hex
+
+    # Find the WITCC color that maps to this Google event color
+    WITCC_MAP.each do |witcc_hex, event_hex|
+      return witcc_hex if event_hex == google_event_hex
+    end
+
+    nil
+  end
 end
