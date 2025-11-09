@@ -125,7 +125,7 @@ RSpec.describe CalendarTemplateRenderer do
              term: term)
     end
     let(:building) { create(:building, name: "Wentworth Hall") }
-    let(:room) { create(:room, number: "306", building: building) }
+    let(:room) { create(:room, number: 306, building: building) }
     let(:meeting_time) do
       create(:meeting_time,
              course: course,
@@ -144,7 +144,7 @@ RSpec.describe CalendarTemplateRenderer do
       expect(context[:course_number]).to eq(101)
       expect(context[:section_number]).to eq("01")
       expect(context[:crn]).to eq(12345)
-      expect(context[:room]).to eq(306)
+      expect(context[:room]).to eq("306")
       expect(context[:building]).to eq("Wentworth Hall")
       expect(context[:location]).to eq("Wentworth Hall - 306")
       expect(context[:start_time]).to eq("9:00 AM")
@@ -191,6 +191,18 @@ RSpec.describe CalendarTemplateRenderer do
 
       expect(context[:room]).to be_present
       expect(context[:building]).to be_present
+    end
+
+    it "formats room numbers with leading zeros" do
+      # Test single-digit room number (e.g., room 6 should be "006")
+      single_digit_room = create(:room, number: 6, building: building)
+      meeting_time.room = single_digit_room
+      meeting_time.save!
+
+      context = described_class.build_context_from_meeting_time(meeting_time)
+
+      expect(context[:room]).to eq("006")
+      expect(context[:location]).to eq("Wentworth Hall - 006")
     end
 
     it "handles missing faculty gracefully" do

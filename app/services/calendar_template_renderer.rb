@@ -65,7 +65,7 @@ class CalendarTemplateRenderer
       course_number: course.course_number,
       section_number: course.section_number,
       crn: course.crn,
-      room: room&.number || room&.name || "",
+      room: room&.formatted_number || room&.name || "",
       building: building&.name || "",
       location: build_location_string(building, room),
       faculty: primary_faculty_name(course),
@@ -116,10 +116,10 @@ class CalendarTemplateRenderer
 
   def self.build_location_string(building, room)
     return "" if building.nil? && room.nil?
-    return room.number || room.name if building.nil?
+    return room.formatted_number || room.name if building.nil?
     return building.name if room.nil?
 
-    "#{building.name} - #{room.number || room.name}"
+    "#{building.name} - #{room.formatted_number || room.name}"
   end
 
   def self.primary_faculty_name(course)
