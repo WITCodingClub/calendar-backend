@@ -347,4 +347,168 @@ RSpec.describe GoogleCalendarService do
       end
     end
   end
+
+  describe "#add_calendar_to_user_list_for_email" do
+    let(:calendar_id) { "test_calendar_id@group.calendar.google.com" }
+    let(:email) { "test@example.com" }
+    let(:credential) { create(:oauth_credential, user: user, email: email) }
+    let(:mock_service) { double("Google::Apis::CalendarV3::CalendarService") }
+    let(:calendar_list_entry) { instance_double(Google::Apis::CalendarV3::CalendarListEntry) }
+
+    before do
+      allow(user).to receive(:google_credential_for_email).with(email).and_return(credential)
+      allow(service).to receive(:user_calendar_service_for_credential).with(credential).and_return(mock_service)
+      allow(Google::Apis::CalendarV3::CalendarListEntry).to receive(:new).and_return(calendar_list_entry)
+    end
+
+    context "when calendar is successfully added" do
+      before do
+        allow(mock_service).to receive(:insert_calendar_list).with(calendar_list_entry)
+      end
+
+      it "adds the calendar to the user's list" do
+        service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+
+        expect(mock_service).to have_received(:insert_calendar_list).with(calendar_list_entry)
+      end
+    end
+
+    context "when calendar is already in list (409 error)" do
+      before do
+        allow(mock_service).to receive(:insert_calendar_list).and_raise(
+          Google::Apis::ClientError.new("Conflict", status_code: 409)
+        )
+      end
+
+      it "handles the error gracefully without raising" do
+        expect do
+          service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+        end.not_to raise_error
+      end
+
+      it "logs a debug message" do
+        allow(Rails.logger).to receive(:debug)
+
+        service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+
+        expect(Rails.logger).to have_received(:debug).with(/already in list/)
+      end
+    end
+
+    context "when ACL has not propagated yet (404 error with retry)" do
+      before do
+        # First attempt fails with 404, second attempt succeeds
+        call_count = 0
+        allow(mock_service).to receive(:insert_calendar_list) do
+          call_count += 1
+          if call_count == 1
+            raise Google::Apis::ClientError.new("Not Found", status_code: 404)
+          end
+          # Second call succeeds
+        end
+        allow(service).to receive(:sleep) # Don't actually sleep in tests
+      end
+
+      it "retries and succeeds" do
+        expect do
+          service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+        end.not_to raise_error
+
+        expect(mock_service).to have_received(:insert_calendar_list).twice
+      end
+
+      it "sleeps before retrying" do
+        service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+
+        expect(service).to have_received(:sleep).with(10)
+      end
+
+      it "logs a warning with retry information" do
+        allow(Rails.logger).to receive(:warn)
+
+        service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+
+        expect(Rails.logger).to have_received(:warn).with(/not accessible yet.*retrying in 10s/)
+      end
+    end
+
+    context "when ACL never propagates (404 error exhausts retries)" do
+      before do
+        allow(mock_service).to receive(:insert_calendar_list).and_raise(
+          Google::Apis::ClientError.new("Not Found", status_code: 404)
+        )
+        allow(service).to receive(:sleep) # Don't actually sleep in tests
+      end
+
+      it "raises an error after max retries" do
+        expect do
+          service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+        end.to raise_error(Google::Apis::ClientError)
+      end
+
+      it "retries the maximum number of times" do
+        begin
+          service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+        rescue Google::Apis::ClientError
+          # Expected
+        end
+
+        # Initial attempt + 3 retries = 4 total calls
+        expect(mock_service).to have_received(:insert_calendar_list).exactly(4).times
+      end
+
+      it "logs an error after exhausting retries" do
+        allow(Rails.logger).to receive(:error)
+
+        begin
+          service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+        rescue Google::Apis::ClientError
+          # Expected
+        end
+
+        expect(Rails.logger).to have_received(:error).with(/still not accessible.*after 3 retries/)
+      end
+
+      it "uses exponential backoff (10s, 20s, 30s)" do
+        begin
+          service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+        rescue Google::Apis::ClientError
+          # Expected
+        end
+
+        expect(service).to have_received(:sleep).with(10).ordered
+        expect(service).to have_received(:sleep).with(20).ordered
+        expect(service).to have_received(:sleep).with(30).ordered
+      end
+    end
+
+    context "when other errors occur" do
+      before do
+        allow(mock_service).to receive(:insert_calendar_list).and_raise(
+          Google::Apis::ClientError.new("Server Error", status_code: 500)
+        )
+      end
+
+      it "raises the error immediately without retrying" do
+        expect do
+          service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+        end.to raise_error(Google::Apis::ClientError)
+
+        expect(mock_service).to have_received(:insert_calendar_list).once
+      end
+    end
+
+    context "when credential is not found" do
+      before do
+        allow(user).to receive(:google_credential_for_email).with(email).and_return(nil)
+        allow(mock_service).to receive(:insert_calendar_list)
+      end
+
+      it "returns early without attempting to add calendar" do
+        service.send(:add_calendar_to_user_list_for_email, calendar_id, email)
+
+        expect(mock_service).not_to have_received(:insert_calendar_list)
+      end
+    end
+  end
 end

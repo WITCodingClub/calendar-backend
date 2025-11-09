@@ -301,15 +301,29 @@ class GoogleCalendarService
       hidden: false
     )
 
-    service.insert_calendar_list(calendar_list_entry)
-  rescue Google::Apis::ClientError => e
-    # Ignore if already in list (409) or not found yet due to propagation delay (404)
-    if e.status_code == 409
-      Rails.logger.debug "Calendar #{calendar_id} already in list for #{email}"
-    elsif e.status_code == 404
-      Rails.logger.warn "Calendar #{calendar_id} not accessible yet for #{email} - ACL may need time to propagate"
-    else
-      raise
+    retries = 0
+    max_retries = 3
+
+    begin
+      service.insert_calendar_list(calendar_list_entry)
+    rescue Google::Apis::ClientError => e
+      if e.status_code == 409
+        # Calendar already in list - this is fine
+        Rails.logger.debug "Calendar #{calendar_id} already in list for #{email}"
+      elsif e.status_code == 404 && retries < max_retries
+        # ACL hasn't propagated yet - retry with exponential backoff
+        retries += 1
+        wait_time = 10 * retries # 10s, 20s, 30s
+        Rails.logger.warn "Calendar #{calendar_id} not accessible yet for #{email} - retrying in #{wait_time}s (attempt #{retries}/#{max_retries})"
+        sleep(wait_time)
+        retry
+      elsif e.status_code == 404
+        # Exhausted retries - ACL still hasn't propagated
+        Rails.logger.error "Calendar #{calendar_id} still not accessible for #{email} after #{max_retries} retries - ACL may have failed to propagate"
+        raise
+      else
+        raise
+      end
     end
   end
 
