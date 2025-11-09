@@ -65,6 +65,9 @@ class PreferenceResolver
     # Load all CalendarPreferences for this user, indexed by scope and event_type
     @calendar_preferences = CalendarPreference.where(user: @user)
                                               .index_by { |cp| [cp.scope, cp.event_type] }
+
+    # Preload user_extension_config to avoid N+1 queries when checking default colors
+    @user.user_extension_config if @user.association(:user_extension_config).loaded? == false
   end
 
   def resolve_preferences(event)
@@ -121,9 +124,22 @@ class PreferenceResolver
   end
 
   def system_default_for(field, event, event_type)
-    # Special handling for color_id: use the meeting time's event color
+    # Special handling for color_id: use user extension config, then meeting time's event color
     if field == :color_id
       meeting_time = event.is_a?(MeetingTime) ? event : event.meeting_time
+
+      # First check UserExtensionConfig for user's default colors
+      if @user.user_extension_config.present? && event_type.present?
+        color = case event_type
+                when "lecture"
+                  @user.user_extension_config.default_color_lecture
+                when "laboratory"
+                  @user.user_extension_config.default_color_lab
+                end
+        return color if color.present?
+      end
+
+      # Fall back to meeting time's hardcoded event color
       return meeting_time&.event_color
     end
 

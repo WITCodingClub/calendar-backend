@@ -14,15 +14,63 @@ RSpec.describe PreferenceResolver do
 
   describe "#resolve_for" do
     context "with no preferences set" do
-      it "returns system defaults" do
+      it "returns system defaults including UserExtensionConfig colors" do
         prefs = resolver.resolve_for(meeting_time)
 
         expect(prefs[:title_template]).to eq("{{title}}")
         expect(prefs[:description_template]).to eq("{{faculty}}\n{{faculty_email}}")
         expect(prefs[:location_template]).to eq("{{building}} {{room}}")
         expect(prefs[:reminder_settings]).to eq([{ "time" => "30", "type" => "minutes", "method" => "popup" }])
-        expect(prefs[:color_id]).to be_nil
+        # Color should come from UserExtensionConfig default (created by User after_create callback)
+        expect(prefs[:color_id]).to eq(user.user_extension_config.default_color_lecture)
         expect(prefs[:visibility]).to eq("default")
+      end
+    end
+
+    context "with UserExtensionConfig default colors" do
+      before do
+        # User automatically gets a UserExtensionConfig via after_create callback
+        user.user_extension_config.update!(
+          default_color_lecture: "#3f51b5",
+          default_color_lab: "#616161"
+        )
+      end
+
+      it "uses UserExtensionConfig lecture color for lecture courses" do
+        prefs = resolver.resolve_for(meeting_time)
+        expect(prefs[:color_id]).to eq("#3f51b5")
+      end
+
+      it "uses UserExtensionConfig lab color for laboratory courses" do
+        lab_course = create(:course, schedule_type: "laboratory", term: term)
+        lab_meeting = create(:meeting_time, course: lab_course, room: room)
+
+        prefs = resolver.resolve_for(lab_meeting)
+        expect(prefs[:color_id]).to eq("#616161")
+      end
+
+      it "falls back to hardcoded color for hybrid courses" do
+        hybrid_course = create(:course, schedule_type: "hybrid", term: term)
+        hybrid_meeting = create(:meeting_time, course: hybrid_course, room: room)
+
+        prefs = resolver.resolve_for(hybrid_meeting)
+        # Should use MeetingTime#event_color since there's no UserExtensionConfig field for hybrid
+        expect(prefs[:color_id]).to be_present
+      end
+
+      context "with CalendarPreference overriding UserExtensionConfig" do
+        let!(:event_type_pref) do
+          create(:calendar_preference,
+                 user: user,
+                 scope: :event_type,
+                 event_type: "lecture",
+                 color_id: 9)
+        end
+
+        it "prefers CalendarPreference over UserExtensionConfig" do
+          prefs = resolver.resolve_for(meeting_time)
+          expect(prefs[:color_id]).to eq(9)
+        end
       end
     end
 
