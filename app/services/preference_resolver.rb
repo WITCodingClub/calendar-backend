@@ -12,7 +12,7 @@ class PreferenceResolver
 
   SYSTEM_DEFAULTS = {
     title_template: "{{class_name}}",
-    description_template: "{{faculty}} {{faculty_email}}",
+    description_template: "{{faculty}}\n{{faculty_email}}",
     location_template: "{{building}} {{room}}",
     reminder_settings: [{ "minutes" => 30, "method" => "popup" }],
     color_id: nil, # Will use MeetingTime#event_color if not set

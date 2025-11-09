@@ -13,7 +13,12 @@ Preferences are resolved in this order (first match wins):
 1. **Individual Event** - Specific override for a single meeting (e.g., "Wednesday's COMP-101 lecture")
 2. **Event Type** - Defaults for all events of a type (e.g., all "laboratory" classes)
 3. **Global** - User's default for all events
-4. **System Defaults** - Built-in fallbacks
+4. **System Defaults** - Built-in fallbacks:
+   - Title: `{{class_name}}`
+   - Description: `{{faculty}}\n{{faculty_email}}`
+   - Location: `{{building}} {{room}}`
+   - Reminders: 30 minutes before (popup)
+   - Visibility: default
 
 ### What Can Be Customized
 

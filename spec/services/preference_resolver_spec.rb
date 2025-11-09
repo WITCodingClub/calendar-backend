@@ -18,7 +18,7 @@ RSpec.describe PreferenceResolver do
         prefs = resolver.resolve_for(meeting_time)
 
         expect(prefs[:title_template]).to eq("{{class_name}}")
-        expect(prefs[:description_template]).to eq("{{faculty}} {{faculty_email}}")
+        expect(prefs[:description_template]).to eq("{{faculty}}\n{{faculty_email}}")
         expect(prefs[:location_template]).to eq("{{building}} {{room}}")
         expect(prefs[:reminder_settings]).to eq([{ "minutes" => 30, "method" => "popup" }])
         expect(prefs[:color_id]).to be_nil
@@ -270,7 +270,7 @@ RSpec.describe PreferenceResolver do
 
     it "has correct default templates" do
       expect(PreferenceResolver::SYSTEM_DEFAULTS[:title_template]).to eq("{{class_name}}")
-      expect(PreferenceResolver::SYSTEM_DEFAULTS[:description_template]).to eq("{{faculty}} {{faculty_email}}")
+      expect(PreferenceResolver::SYSTEM_DEFAULTS[:description_template]).to eq("{{faculty}}\n{{faculty_email}}")
       expect(PreferenceResolver::SYSTEM_DEFAULTS[:location_template]).to eq("{{building}} {{room}}")
     end
 
