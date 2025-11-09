@@ -488,29 +488,32 @@ class GoogleCalendarService
     calendar_id = google_calendar.google_calendar_id
 
     # IMPORTANT: Check if user made edits in Google Calendar before overwriting
-    # Fetch the current state from Google Calendar to detect user edits
-    begin
-      current_gcal_event = service.get_event(calendar_id, db_event.google_event_id)
+    # Skip this check when force=true (e.g., user changed preferences and expects them to be applied)
+    unless force
+      # Fetch the current state from Google Calendar to detect user edits
+      begin
+        current_gcal_event = service.get_event(calendar_id, db_event.google_event_id)
 
-      # Check if user edited the event in Google Calendar
-      if user_edited_event?(db_event, current_gcal_event)
-        Rails.logger.info "User edited event in Google Calendar: #{db_event.google_event_id}. Preserving user changes."
+        # Check if user edited the event in Google Calendar
+        if user_edited_event?(db_event, current_gcal_event)
+          Rails.logger.info "User edited event in Google Calendar: #{db_event.google_event_id}. Preserving user changes."
 
-        # Update local DB with user's Google Calendar edits
-        update_db_from_gcal_event(db_event, current_gcal_event)
+          # Update local DB with user's Google Calendar edits
+          update_db_from_gcal_event(db_event, current_gcal_event)
 
-        # Mark as synced since we just pulled the latest from Google Calendar
-        db_event.mark_synced!
+          # Mark as synced since we just pulled the latest from Google Calendar
+          db_event.mark_synced!
+          return
+        end
+      rescue Google::Apis::ClientError => e
+        # If event doesn't exist in Google Calendar, we'll recreate it below
+        raise unless e.status_code == 404
+
+        Rails.logger.warn "Event not found in Google Calendar, recreating: #{db_event.google_event_id}"
+        db_event.destroy
+        create_event_in_calendar(service, google_calendar, course_event)
         return
       end
-    rescue Google::Apis::ClientError => e
-      # If event doesn't exist in Google Calendar, we'll recreate it below
-      raise unless e.status_code == 404
-
-      Rails.logger.warn "Event not found in Google Calendar, recreating: #{db_event.google_event_id}"
-      db_event.destroy
-      create_event_in_calendar(service, google_calendar, course_event)
-      return
     end
 
     # No user edits detected, proceed with normal update from our system
@@ -743,11 +746,11 @@ class GoogleCalendarService
     # Apply reminder settings
     event_data[:reminder_settings] = prefs[:reminder_settings] if prefs[:reminder_settings].present?
 
-    # Apply color (use preference or fall back to meeting time's default color)
+    # Apply color - convert hex codes to numeric IDs if needed
     if prefs[:color_id].present?
-      event_data[:color_id] = prefs[:color_id]
+      event_data[:color_id] = normalize_color_id(prefs[:color_id])
     else
-      event_data[:color_id] = get_color_for_meeting_time(meeting_time.id)&.to_i
+      event_data[:color_id] = nil
     end
 
     # Apply visibility
@@ -756,23 +759,38 @@ class GoogleCalendarService
     event_data
   end
 
-  def get_color_for_meeting_time(meeting_time_id)
-    # find the meeting time by id as meeting_time has a event_color method
-    meeting_time = MeetingTime.find_by(id: meeting_time_id)
-    return nil unless meeting_time
+  # Normalize color ID - convert hex codes to numeric IDs for Google Calendar API
+  # @param color_id_or_hex [Integer, String] Either a numeric ID (1-11) or hex code
+  # @return [Integer, nil] Numeric color ID (1-11) or nil
+  def normalize_color_id(color_id_or_hex)
+    return nil if color_id_or_hex.blank?
 
-    # Map the event color to Google Calendar color IDs
-    case meeting_time.event_color
-    when GoogleColors::EVENT_MAP[5]
-      "5"  # Gold
-    when GoogleColors::EVENT_MAP[11]
-      "11" # Ruby Red
-    when GoogleColors::EVENT_MAP[8]
-      "8"  # Platinum
-    else
-      nil  # Default color
+    # If it's already a number (Integer or numeric String), use it directly
+    if color_id_or_hex.is_a?(Integer)
+      return color_id_or_hex if (1..11).cover?(color_id_or_hex)
+
+      return nil
     end
+
+    # If it's a string that looks like a number, convert it
+    if color_id_or_hex.is_a?(String) && color_id_or_hex.match?(/\A\d+\z/)
+      id = color_id_or_hex.to_i
+      return id if (1..11).cover?(id)
+
+      return nil
+    end
+
+    # If it's a hex code, convert it to numeric ID
+    if color_id_or_hex.is_a?(String) && color_id_or_hex.start_with?("#")
+      normalized_hex = color_id_or_hex.downcase
+      GoogleColors::EVENT_MAP.each do |key, hex_value|
+        return key if key.is_a?(Integer) && hex_value == normalized_hex
+      end
+    end
+
+    nil
   end
+
 
   # Convert reminder time and type to minutes for Google Calendar API
   # @param time [String] The time value (e.g., "30", "2", "1")

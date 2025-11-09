@@ -94,6 +94,40 @@ RSpec.describe GoogleCalendarService do
     end
   end
 
+  describe "#normalize_color_id" do
+    it "returns numeric ID when given an integer" do
+      expect(service.send(:normalize_color_id, 5)).to eq(5)
+    end
+
+    it "returns numeric ID when given a numeric string" do
+      expect(service.send(:normalize_color_id, "11")).to eq(11)
+    end
+
+    it "returns nil for invalid numeric IDs" do
+      expect(service.send(:normalize_color_id, 0)).to be_nil
+      expect(service.send(:normalize_color_id, 12)).to be_nil
+    end
+
+    it "converts hex codes to numeric IDs" do
+      expect(service.send(:normalize_color_id, "#fbd75b")).to eq(5)  # EVENT_BANANA
+      expect(service.send(:normalize_color_id, "#dc2127")).to eq(11) # EVENT_TOMATO
+      expect(service.send(:normalize_color_id, "#e1e1e1")).to eq(8)  # EVENT_GRAPHITE
+    end
+
+    it "handles uppercase hex codes" do
+      expect(service.send(:normalize_color_id, "#FBD75B")).to eq(5)
+    end
+
+    it "returns nil for unknown hex codes" do
+      expect(service.send(:normalize_color_id, "#000000")).to be_nil
+    end
+
+    it "returns nil for blank values" do
+      expect(service.send(:normalize_color_id, nil)).to be_nil
+      expect(service.send(:normalize_color_id, "")).to be_nil
+    end
+  end
+
   describe "#update_db_from_gcal_event" do
     let(:db_event) do
       create(:google_calendar_event,
@@ -294,7 +328,7 @@ RSpec.describe GoogleCalendarService do
       end
 
       before do
-        allow(service).to receive_messages(service_account_calendar_service: mock_service, get_color_for_meeting_time: "5")
+        allow(service).to receive(:service_account_calendar_service).and_return(mock_service)
         allow(mock_service).to receive(:get_event).with(
           google_calendar.google_calendar_id,
           db_event.google_event_id
@@ -344,6 +378,57 @@ RSpec.describe GoogleCalendarService do
         service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
 
         expect(GoogleCalendarEvent.exists?(db_event.id)).to be false
+      end
+    end
+
+    context "when force=true is passed" do
+      let(:gcal_event) do
+        double("Google::Apis::CalendarV3::Event",
+               summary: "User Modified Title in GCal",
+               location: "Room 999 - User Changed",
+               start: double(date_time: "2025-01-15T09:00:00-05:00", date: nil),
+               end: double(date_time: "2025-01-15T10:30:00-05:00", date: nil),
+               recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"])
+      end
+
+      let(:updated_gcal_event) do
+        double("Google::Apis::CalendarV3::Event", id: db_event.google_event_id)
+      end
+
+      before do
+        allow(service).to receive(:service_account_calendar_service).and_return(mock_service)
+        # Don't mock get_event - it should be skipped when force=true
+        allow(mock_service).to receive(:update_event).and_return(updated_gcal_event)
+      end
+
+      it "skips user edit detection and updates the event" do
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event, force: true)
+
+        expect(mock_service).not_to have_received(:get_event)
+        expect(mock_service).to have_received(:update_event).with(
+          google_calendar.google_calendar_id,
+          db_event.google_event_id,
+          an_instance_of(Google::Apis::CalendarV3::Event)
+        )
+      end
+
+      it "applies system changes even if user previously edited the event" do
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event, force: true)
+
+        db_event.reload
+        expect(db_event.summary).to eq("Updated Course Title from System")
+        expect(db_event.location).to eq("Room 303")
+      end
+
+      it "applies color preferences when force=true" do
+        # Create a calendar preference with a custom color
+        create(:calendar_preference, user: user, color_id: 11)
+
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event, force: true)
+
+        expect(mock_service).to have_received(:update_event) do |_calendar_id, _event_id, event|
+          expect(event.color_id).to eq("11")
+        end
       end
     end
   end
