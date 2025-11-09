@@ -42,14 +42,16 @@ class OauthCredential < ApplicationRecord
   # Revoke calendar access before destroying the OAuth credential
   before_destroy :revoke_calendar_access
 
-  # Convenience methods for metadata access
+  # Get the course calendar ID from the associated GoogleCalendar record
   def course_calendar_id
-    metadata&.dig("course_calendar_id")
+    google_calendar&.google_calendar_id
   end
 
+  # Legacy setter - no longer needed since we use GoogleCalendar association
+  # But kept for backward compatibility in case anything still calls it
   def course_calendar_id=(value)
-    self.metadata ||= {}
-    self.metadata["course_calendar_id"] = value
+    # This is a no-op now - the calendar ID is managed by the GoogleCalendar record
+    Rails.logger.warn("OauthCredential#course_calendar_id= is deprecated. Use GoogleCalendar association instead.")
   end
 
   # Check if token is expired or about to expire (within 5 minutes)

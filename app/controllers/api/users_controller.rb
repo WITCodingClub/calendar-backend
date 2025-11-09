@@ -88,8 +88,8 @@ module Api
       calendar_id = service.create_or_get_course_calendar
       service.share_calendar_with_email(calendar_id, email)
 
-      # Trigger force sync to update the newly shared calendar
-      GoogleCalendarSyncJob.perform_later(current_user, force: true)
+      # Note: Sharing the calendar doesn't require a full sync
+      # Events are already created. The new email just gets access to the existing calendar.
 
       render json: { message: "Calendar shared with email", calendar_id: calendar_id }, status: :ok
     rescue => e
@@ -160,8 +160,9 @@ module Api
         service = GoogleCalendarService.new(current_user)
         calendar_id = service.create_or_get_course_calendar
 
-        # Trigger force sync to populate the calendar with course events
-        GoogleCalendarSyncJob.perform_later(current_user, force: true)
+        # Note: Don't sync here - may run before enrollments exist!
+        # The sync will be triggered by CourseProcessorService after enrollments are created.
+        # For existing users with enrollments, they can manually trigger a sync.
 
         render json: {
           message: "Email already connected",
