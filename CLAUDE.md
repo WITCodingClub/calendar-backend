@@ -170,3 +170,4 @@ A Rails 8 API backend that syncs college course schedules to Google Calendar wit
 - Preference resolution: `bundle exec rspec spec/services/preference_resolver_spec.rb`
 - Google Calendar sync: `bundle exec rspec spec/services/google_calendar_service_spec.rb`
 - always make and follow pundit policies
+- thread blocking operations are ok, just not prefered where ever possible
