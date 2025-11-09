@@ -89,9 +89,25 @@
       </div>
 
       <% if @user.enrollments.any? %>
-        <div class="space-y-4">
+        <div class="space-y-4" data-controller="semester-switcher">
+          <% if @enrollments_by_term.size > 1 %>
+            <div class="flex items-center gap-2 mb-4">
+              <label for="enrollment-semester-select" class="text-sm font-medium text-gray-700">Select Semester:</label>
+              <select
+                id="enrollment-semester-select"
+                data-semester-switcher-target="dropdown"
+                data-action="change->semester-switcher#switch"
+                class="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50"
+                style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(3px); color: #d13732; border-color: rgba(209, 55, 50, 0.3);">
+                <% @enrollments_by_term.each_with_index do |(term, enrollments), index| %>
+                  <option value="<%= index %>"><%= term.name %> (<%= enrollments.count %> course<%= enrollments.count == 1 ? '' : 's' %>)</option>
+                <% end %>
+              </select>
+            </div>
+          <% end %>
+
           <% @enrollments_by_term.each do |term, enrollments| %>
-            <div class="mb-6">
+            <div class="mb-6" data-semester-switcher-target="semester">
               <h3 class="text-lg font-semibold mb-3 text-[#d13732]"><%= term.name %></h3>
               <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
