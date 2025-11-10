@@ -78,11 +78,16 @@ class GoogleCalendarService
 
         # Update existing event if needed (or skip if no changes and not forced)
         if force || existing_event.data_changed?(event_with_preferences)
-          update_event_in_calendar(service, google_calendar, existing_event, event_with_preferences, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
-          stats[:updated] += 1
+          result = update_event_in_calendar(service, google_calendar, existing_event, event_with_preferences, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
+          stats[:updated] += 1 if result == :updated
+          stats[:skipped] += 1 if result == :skipped_user_edit
         else
           existing_event.mark_synced!
           stats[:skipped] += 1
+
+          # Track hash-based skip
+          StatsD.increment("calendar.sync.event.skipped",
+                           tags: ["reason:no_data_change", "user_id:#{user.id}"])
         end
       else
         # Create new event
@@ -91,7 +96,29 @@ class GoogleCalendarService
       end
     end
 
-    Rails.logger.info "Sync complete: #{stats[:created]} created, #{stats[:updated]} updated, #{stats[:skipped]} skipped"
+    # Track aggregate sync metrics
+    StatsD.gauge("calendar.sync.events.created", stats[:created],
+                 tags: ["user_id:#{user.id}"])
+    StatsD.gauge("calendar.sync.events.updated", stats[:updated],
+                 tags: ["user_id:#{user.id}"])
+    StatsD.gauge("calendar.sync.events.skipped", stats[:skipped],
+                 tags: ["user_id:#{user.id}"])
+
+    # Calculate optimization effectiveness
+    total_processed = stats[:created] + stats[:updated] + stats[:skipped]
+    skip_percentage = total_processed > 0 ? (stats[:skipped].to_f / total_processed * 100).round(2) : 0
+
+    Rails.logger.info({
+      message: "Calendar sync completed",
+      user_id: user.id,
+      events_created: stats[:created],
+      events_updated: stats[:updated],
+      events_skipped: stats[:skipped],
+      total_processed: total_processed,
+      skip_percentage: skip_percentage,
+      optimization_effective: skip_percentage > 0
+    }.to_json)
+
     stats
   end
 
@@ -103,7 +130,9 @@ class GoogleCalendarService
     return { created: 0, updated: 0, skipped: 0 } unless google_calendar
 
     # Preload existing events to avoid N+1 queries
+    # rubocop:disable Rails/Pluck -- events is an array of hashes, not an ActiveRecord relation
     meeting_time_ids = events.map { |e| e[:meeting_time_id] }.compact
+    # rubocop:enable Rails/Pluck
     existing_events = google_calendar.google_calendar_events
                                      .where(meeting_time_id: meeting_time_ids)
                                      .index_by(&:meeting_time_id)
@@ -512,13 +541,16 @@ class GoogleCalendarService
       last_synced_at: Time.current
     )
 
+    # Track successful creation
+    StatsD.increment("calendar.sync.event.created",
+                     tags: ["user_id:#{user.id}"])
   end
 
   def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, preference_resolver: nil, template_renderer: nil)
     # Use hash-based change detection for efficiency (unless forced)
     unless force || db_event.data_changed?(course_event)
       db_event.mark_synced!
-      return
+      return :skipped_no_change
     end
 
     calendar_id = google_calendar.google_calendar_id
@@ -537,20 +569,38 @@ class GoogleCalendarService
           Rails.logger.info "User edited event in Google Calendar: #{db_event.google_event_id}. Preserving user changes."
 
           # Update local DB with user's Google Calendar edits
+          # Track user edit detection
+          StatsD.increment("calendar.sync.event.skipped",
+                           tags: ["reason:user_edit", "user_id:#{user.id}"])
+
+          Rails.logger.info({
+            message: "Event skipped - user edited in Google Calendar",
+            user_id: user.id,
+            google_event_id: db_event.google_event_id,
+            meeting_time_id: db_event.meeting_time_id,
+            reason: "user_edit"
+          }.to_json)
+
           update_db_from_gcal_event(db_event, current_gcal_event)
 
           # Mark as synced since we just pulled the latest from Google Calendar
           db_event.mark_synced!
-          return
+          return :skipped_user_edit
         end
       rescue Google::Apis::ClientError => e
         # If event doesn't exist in Google Calendar, we'll recreate it below
         raise unless e.status_code == 404
 
-        Rails.logger.warn "Event not found in Google Calendar, recreating: #{db_event.google_event_id}"
+        Rails.logger.warn({
+          message: "Event not found in Google Calendar, recreating",
+          user_id: user.id,
+          google_event_id: db_event.google_event_id,
+          meeting_time_id: db_event.meeting_time_id
+        }.to_json)
+
         db_event.destroy
         create_event_in_calendar(service, google_calendar, course_event)
-        return
+        return :recreated
       end
     end
 
@@ -628,6 +678,12 @@ class GoogleCalendarService
       event_data_hash: GoogleCalendarEvent.generate_data_hash(event_data),
       last_synced_at: Time.current
     )
+
+    # Track successful update
+    StatsD.increment("calendar.sync.event.updated",
+                     tags: ["user_id:#{user.id}", "forced:#{force}"])
+
+    :updated
   end
 
   def delete_event_from_calendar(service, google_calendar, db_event)
@@ -637,15 +693,25 @@ class GoogleCalendarService
       service.delete_event(calendar_id, db_event.google_event_id)
     end
     db_event.destroy
+
+    # Track successful deletion
+    StatsD.increment("calendar.sync.event.deleted",
+                     tags: ["user_id:#{user.id}"])
   rescue Google::Apis::ClientError => e
     # If event doesn't exist, just remove from database
     raise unless e.status_code == 404
 
-    Rails.logger.warn "Event not found in Google Calendar, removing from database: #{db_event.google_event_id}"
+    Rails.logger.warn({
+      message: "Event not found in Google Calendar, removing from database",
+      user_id: user.id,
+      google_event_id: db_event.google_event_id
+    }.to_json)
+
     db_event.destroy
 
-
-
+    # Track deletion of already-deleted event
+    StatsD.increment("calendar.sync.event.deleted",
+                     tags: ["user_id:#{user.id}", "already_deleted:true"])
   end
 
   # Check if user edited the event in Google Calendar

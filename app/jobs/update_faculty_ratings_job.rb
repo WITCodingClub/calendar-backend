@@ -10,8 +10,33 @@ class UpdateFacultyRatingsJob < ApplicationJob
     # If faculty doesn't have an rmp_id, search for them first
     if faculty.rmp_id.blank?
       search_and_link_faculty(faculty, service)
-      return if faculty.rmp_id.blank?
+
+      if faculty.rmp_id.blank?
+        # Track skip for missing RMP ID
+        StatsD.increment("jobs.update_faculty_ratings.skipped",
+                         tags: ["reason:no_rmp_id", "faculty_id:#{faculty.id}"])
+
+        Rails.logger.info({
+          message: "UpdateFacultyRatingsJob skipped - no RMP ID found",
+          faculty_id: faculty.id,
+          faculty_name: faculty.full_name,
+          reason: "no_rmp_id"
+        }.to_json)
+
+        return
+      end
     end
+
+    # Track execution
+    StatsD.increment("jobs.update_faculty_ratings.executed",
+                     tags: ["faculty_id:#{faculty.id}"])
+
+    Rails.logger.info({
+      message: "UpdateFacultyRatingsJob executing",
+      faculty_id: faculty.id,
+      faculty_name: faculty.full_name,
+      rmp_id: faculty.rmp_id
+    }.to_json)
 
     # Fetch teacher details and all ratings
     fetch_and_store_ratings(faculty, service)
@@ -60,7 +85,19 @@ class UpdateFacultyRatingsJob < ApplicationJob
     # Store individual ratings
     store_ratings(faculty, all_ratings)
 
-    Rails.logger.info "Updated #{all_ratings.count} ratings for #{faculty.full_name}"
+    # Track successful update with count
+    StatsD.increment("jobs.update_faculty_ratings.ratings_updated",
+                     tags: ["faculty_id:#{faculty.id}"],
+                     sample_rate: 1.0)
+    StatsD.gauge("jobs.update_faculty_ratings.rating_count", all_ratings.count,
+                 tags: ["faculty_id:#{faculty.id}"])
+
+    Rails.logger.info({
+      message: "UpdateFacultyRatingsJob completed",
+      faculty_id: faculty.id,
+      faculty_name: faculty.full_name,
+      ratings_count: all_ratings.count
+    }.to_json)
   end
 
   def store_related_professors(faculty, related_teachers)
