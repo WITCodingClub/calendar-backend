@@ -46,9 +46,9 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
         json = JSON.parse(response.body)
 
         expect(json["military_time"]).to be false
-        # Default colors in database are Google event colors
-        expect(json["default_color_lecture"]).to eq("#46d6db")  # Default lecture color
-        expect(json["default_color_lab"]).to eq("#fbd75b")      # Default lab color
+        # Default colors in database are WITCC colors
+        expect(json["default_color_lecture"]).to eq(GoogleColors::WITCC_PEACOCK)  # Default lecture color (#039be5)
+        expect(json["default_color_lab"]).to eq(GoogleColors::WITCC_BANANA)       # Default lab color (#f6bf26)
       end
     end
   end

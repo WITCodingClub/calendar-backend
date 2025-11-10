@@ -6,8 +6,9 @@
 # Database name: primary
 #
 #  id                    :bigint           not null, primary key
-#  default_color_lab     :string           default("#fbd75b"), not null
-#  default_color_lecture :string           default("#46d6db"), not null
+#  advanced_editing      :boolean          default(FALSE), not null
+#  default_color_lab     :string           default("#f6bf26"), not null
+#  default_color_lecture :string           default("#039be5"), not null
 #  military_time         :boolean          default(FALSE), not null
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null

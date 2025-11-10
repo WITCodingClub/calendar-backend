@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_10_003813) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_10_033855) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -517,8 +517,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_10_003813) do
   create_table "user_extension_configs", force: :cascade do |t|
     t.boolean "advanced_editing", default: false, null: false
     t.datetime "created_at", null: false
-    t.string "default_color_lab", default: "#fbd75b", null: false
-    t.string "default_color_lecture", default: "#46d6db", null: false
+    t.string "default_color_lab", default: "#f6bf26", null: false
+    t.string "default_color_lecture", default: "#039be5", null: false
     t.boolean "military_time", default: false, null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
