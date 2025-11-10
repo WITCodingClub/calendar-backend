@@ -515,18 +515,16 @@ class GoogleCalendarService
   end
 
   def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, preference_resolver: nil, template_renderer: nil)
-    # Use hash-based change detection for efficiency (unless forced)
-    unless force || db_event.data_changed?(course_event)
+    calendar_id = google_calendar.google_calendar_id
+
+    # Skip if no changes detected and not forced
+    if !force && !db_event.data_changed?(course_event)
       db_event.mark_synced!
       return
     end
 
-    calendar_id = google_calendar.google_calendar_id
-
-    # IMPORTANT: Check if user made edits in Google Calendar before overwriting
-    # Skip this check when force=true (e.g., user changed preferences and expects them to be applied)
+    # At this point we know data changed, so check for user edits (unless forced)
     unless force
-      # Fetch the current state from Google Calendar to detect user edits
       begin
         current_gcal_event = with_rate_limit_handling do
           service.get_event(calendar_id, db_event.google_event_id)
@@ -535,11 +533,7 @@ class GoogleCalendarService
         # Check if user edited the event in Google Calendar
         if user_edited_event?(db_event, current_gcal_event)
           Rails.logger.info "User edited event in Google Calendar: #{db_event.google_event_id}. Preserving user changes."
-
-          # Update local DB with user's Google Calendar edits
           update_db_from_gcal_event(db_event, current_gcal_event)
-
-          # Mark as synced since we just pulled the latest from Google Calendar
           db_event.mark_synced!
           return
         end

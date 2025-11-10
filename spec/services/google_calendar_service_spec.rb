@@ -450,6 +450,53 @@ RSpec.describe GoogleCalendarService do
         end
       end
     end
+
+    context "when no changes are detected (hash-based optimization)" do
+      let(:unchanged_course_event) do
+        {
+          summary: "Original Course Title",
+          location: "Room 101",
+          start_time: Time.zone.parse("2025-01-15 09:00:00"),
+          end_time: Time.zone.parse("2025-01-15 10:30:00"),
+          recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"],
+          meeting_time_id: meeting_time.id
+        }
+      end
+
+      before do
+        allow(service).to receive(:service_account_calendar_service).and_return(mock_service)
+        # Stub get_event so we can verify it's NOT called
+        allow(mock_service).to receive(:get_event)
+        allow(mock_service).to receive(:update_event)
+      end
+
+      it "skips user edit detection API call when no changes detected" do
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, unchanged_course_event)
+
+        # Should NOT call get_event because no changes were detected
+        expect(mock_service).not_to have_received(:get_event)
+        # Should NOT call update_event either
+        expect(mock_service).not_to have_received(:update_event)
+      end
+
+      it "marks the event as synced even when no changes detected" do
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, unchanged_course_event)
+
+        db_event.reload
+        expect(db_event.last_synced_at).to be_within(1.second).of(Time.current)
+      end
+
+      it "does not modify the database record when no changes detected" do
+        original_summary = db_event.summary
+        original_location = db_event.location
+
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, unchanged_course_event)
+
+        db_event.reload
+        expect(db_event.summary).to eq(original_summary)
+        expect(db_event.location).to eq(original_location)
+      end
+    end
   end
 
   describe "#add_calendar_to_user_list_for_email" do
