@@ -41,6 +41,7 @@ class AuthController < ApplicationController
     # Verify and decode state parameter
     state_data = GoogleOauthStateService.verify_state(params[:state])
     unless state_data
+      StatsD.increment("oauth.flow.failed", tags: ["type:calendar", "reason:invalid_state"])
       raise "Invalid or expired state parameter"
     end
 
@@ -49,6 +50,7 @@ class AuthController < ApplicationController
 
     # Verify the OAuth email matches the target email
     unless auth.info.email == target_email
+      StatsD.increment("oauth.flow.failed", tags: ["type:calendar", "reason:email_mismatch", "user_id:#{user.id}"])
       raise "OAuth email (#{auth.info.email}) does not match expected email (#{target_email})"
     end
 
@@ -71,6 +73,9 @@ class AuthController < ApplicationController
     # Note: Don't sync here - user has no enrollments yet!
     # The sync will be triggered by CourseProcessorService after enrollments are created.
 
+    # Track successful calendar OAuth flow
+    StatsD.increment("oauth.flow.completed", tags: ["type:calendar", "user_id:#{user.id}"])
+
     # Redirect to success page
     redirect_to "/oauth/success?email=#{CGI.escape(target_email)}&calendar_id=#{calendar_id}"
   end
@@ -80,6 +85,7 @@ class AuthController < ApplicationController
 
     # Validate that the email is from @wit.edu domain
     unless email&.match?(/@wit\.edu\z/i)
+      StatsD.increment("oauth.flow.failed", tags: ["type:admin_login", "reason:invalid_domain"])
       redirect_to new_user_session_path, alert: "Only @wit.edu email addresses are allowed."
       return
     end
@@ -89,6 +95,7 @@ class AuthController < ApplicationController
 
     # Check if user exists and is an admin
     unless user&.admin_access?
+      StatsD.increment("oauth.flow.failed", tags: ["type:admin_login", "reason:not_admin"])
       redirect_to new_user_session_path, alert: "Sign-in is restricted to administrators only."
       return
     end
@@ -110,6 +117,9 @@ class AuthController < ApplicationController
 
     # Sign in the user
     sign_in(user)
+
+    # Track successful admin login
+    StatsD.increment("oauth.flow.completed", tags: ["type:admin_login", "user_id:#{user.id}", "access_level:#{user.access_level}"])
 
     redirect_to after_sign_in_path, notice: "Successfully signed in with Google."
   end

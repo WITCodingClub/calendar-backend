@@ -56,9 +56,14 @@ class UpdateFacultyRatingsJob < ApplicationJob
       first_name_match && last_name_match
     end&.dig("node")
 
-    return unless best_match
-
-    faculty.update(rmp_id: best_match["id"])
+    if best_match
+      faculty.update(rmp_id: best_match["id"])
+      # Track successful match
+      StatsD.increment("rmp.faculty.matched", tags: ["faculty_id:#{faculty.id}"])
+    else
+      # Track faculty not found
+      StatsD.increment("rmp.faculty.not_found", tags: ["faculty_name:#{faculty.full_name}"])
+    end
   end
 
   def fetch_and_store_ratings(faculty, service)
@@ -69,6 +74,9 @@ class UpdateFacultyRatingsJob < ApplicationJob
 
     # Fetch all ratings
     all_ratings = service.get_all_ratings(faculty.rmp_id)
+
+    # Track ratings fetched
+    StatsD.gauge("rmp.ratings.fetched", all_ratings.count, tags: ["faculty_id:#{faculty.id}"])
 
     # Store the raw GraphQL response for graph reconstruction
     store_raw_data(faculty, teacher_data, all_ratings)

@@ -198,7 +198,11 @@ class RateMyProfessorService < ApplicationService
     # Cache professor searches for 24 hours since professor lists change infrequently
     cache_key = "rmp:search:#{school_id}:#{name.parameterize}:#{count}"
 
-    Rails.cache.fetch(cache_key, expires_in: 24.hours) do
+    cache_hit = Rails.cache.exist?(cache_key)
+    result = Rails.cache.fetch(cache_key, expires_in: 24.hours) do
+      # Track cache miss
+      StatsD.increment("rmp.cache.miss", tags: ["action:search_professors"])
+
       response = make_request(
         query: SEARCH_QUERY,
         operation_name: "NewSearchTeachersQuery",
@@ -213,13 +217,22 @@ class RateMyProfessorService < ApplicationService
 
       response.body
     end
+
+    # Track cache hit
+    StatsD.increment("rmp.cache.hit", tags: ["action:search_professors"]) if cache_hit
+
+    result
   end
 
   def get_teacher_details(teacher_id)
     # Cache teacher details for 12 hours since basic info changes infrequently
     cache_key = "rmp:teacher:#{teacher_id}"
 
-    Rails.cache.fetch(cache_key, expires_in: 12.hours) do
+    cache_hit = Rails.cache.exist?(cache_key)
+    result = Rails.cache.fetch(cache_key, expires_in: 12.hours) do
+      # Track cache miss
+      StatsD.increment("rmp.cache.miss", tags: ["action:get_teacher_details"])
+
       response = make_request(
         query: TEACHER_DETAILS_QUERY,
         operation_name: "TeacherRatingsPageQuery",
@@ -228,6 +241,11 @@ class RateMyProfessorService < ApplicationService
 
       response.body
     end
+
+    # Track cache hit
+    StatsD.increment("rmp.cache.hit", tags: ["action:get_teacher_details"]) if cache_hit
+
+    result
   end
 
   def get_ratings(teacher_id, count: 100, cursor: nil)
@@ -235,7 +253,11 @@ class RateMyProfessorService < ApplicationService
     # Note: get_all_ratings() will use this cached data
     cache_key = "rmp:ratings:#{teacher_id}:#{count}:#{cursor || 'start'}"
 
-    Rails.cache.fetch(cache_key, expires_in: 6.hours) do
+    cache_hit = Rails.cache.exist?(cache_key)
+    result = Rails.cache.fetch(cache_key, expires_in: 6.hours) do
+      # Track cache miss
+      StatsD.increment("rmp.cache.miss", tags: ["action:get_ratings"])
+
       response = make_request(
         query: RATINGS_QUERY,
         operation_name: "RatingsListQuery",
@@ -248,6 +270,11 @@ class RateMyProfessorService < ApplicationService
 
       response.body
     end
+
+    # Track cache hit
+    StatsD.increment("rmp.cache.hit", tags: ["action:get_ratings"]) if cache_hit
+
+    result
   end
 
   def get_all_ratings(teacher_id)

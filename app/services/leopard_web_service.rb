@@ -78,7 +78,11 @@ class LeopardWebService < ApplicationService
     cache_key = "leopard:class_details:#{term}:#{course_reference_number}"
     cache_duration = registration_period? ? 1.hour : 24.hours
 
-    Rails.cache.fetch(cache_key, expires_in: cache_duration) do
+    cache_hit = Rails.cache.exist?(cache_key)
+    result = Rails.cache.fetch(cache_key, expires_in: cache_duration) do
+      # Track cache miss
+      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_class_details"])
+
       response = connection.get("getClassDetails", {
                                   term: term,
                                   courseReferenceNumber: course_reference_number
@@ -86,16 +90,30 @@ class LeopardWebService < ApplicationService
 
       handle_response(response, :class_details)
     end
+
+    # Track cache hit if it existed before fetch
+    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_class_details"]) if cache_hit
+
+    result
   end
 
   def get_enrollment_info
     # Cache enrollment info for 5 minutes since it can change frequently
     cache_key = "leopard:enrollment:#{term}:#{course_reference_number}"
 
-    Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
+    cache_hit = Rails.cache.exist?(cache_key)
+    result = Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
+      # Track cache miss
+      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_enrollment_info"])
+
       response = connection.get("getEnrollmentInfo")
       handle_response(response, :enrollment_info)
     end
+
+    # Track cache hit if it existed before fetch
+    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_enrollment_info"]) if cache_hit
+
+    result
   end
 
   def get_faculty_meeting_times
@@ -106,7 +124,11 @@ class LeopardWebService < ApplicationService
     cache_key = "leopard:meeting_times:#{term}:#{course_reference_number}"
     cache_duration = registration_period? ? 1.hour : 24.hours
 
-    Rails.cache.fetch(cache_key, expires_in: cache_duration) do
+    cache_hit = Rails.cache.exist?(cache_key)
+    result = Rails.cache.fetch(cache_key, expires_in: cache_duration) do
+      # Track cache miss
+      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_faculty_meeting_times"])
+
       response = connection.get("getFacultyMeetingTimes", {
                                   term: term,
                                   courseReferenceNumber: course_reference_number
@@ -114,6 +136,11 @@ class LeopardWebService < ApplicationService
 
       handle_response(response, :json)
     end
+
+    # Track cache hit if it existed before fetch
+    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_faculty_meeting_times"]) if cache_hit
+
+    result
   end
 
   def connection
@@ -233,7 +260,10 @@ class LeopardWebService < ApplicationService
     # This is a large payload but saves multiple paginated API requests
     cache_key = "leopard:catalog:#{term}"
 
-    Rails.cache.fetch(cache_key, expires_in: 7.days) do
+    cache_hit = Rails.cache.exist?(cache_key)
+    result = Rails.cache.fetch(cache_key, expires_in: 7.days) do
+      # Track cache miss
+      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_course_catalog"])
       all_courses = []
       offset = 0
       total_count = nil
@@ -274,6 +304,11 @@ class LeopardWebService < ApplicationService
         total_count: 0
       }
     end
+
+    # Track cache hit if it existed before fetch
+    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_course_catalog"]) if cache_hit
+
+    result
   end
 
   def fetch_catalog_page(offset, page_size)

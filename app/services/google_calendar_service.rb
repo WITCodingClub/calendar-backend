@@ -276,6 +276,9 @@ class GoogleCalendarService
 
     # Refresh the token if needed
     if user.google_credential.token_expired?
+      # Track token expiration
+      StatsD.increment("oauth.token.expired", tags: ["user_id:#{user.id}", "provider:google"])
+
       credentials.refresh!
       user.google_credential.update!(
         access_token: credentials.access_token,
@@ -283,6 +286,9 @@ class GoogleCalendarService
       )
       # Clear the cached credential
       user.instance_variable_set(:@google_credential, nil)
+
+      # Track successful token refresh
+      StatsD.increment("oauth.token.refreshed", tags: ["user_id:#{user.id}", "provider:google"])
     end
 
     credentials
@@ -469,11 +475,17 @@ class GoogleCalendarService
 
     # Refresh the token if needed
     if credential.token_expired?
+      # Track token expiration
+      StatsD.increment("oauth.token.expired", tags: ["email:#{credential.email}", "provider:google"])
+
       credentials.refresh!
       credential.update!(
         access_token: credentials.access_token,
         token_expires_at: Time.zone.at(credentials.expires_at)
       )
+
+      # Track successful token refresh
+      StatsD.increment("oauth.token.refreshed", tags: ["email:#{credential.email}", "provider:google"])
     end
 
     credentials

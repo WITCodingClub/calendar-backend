@@ -20,6 +20,9 @@ class CourseProcessorService < ApplicationService
     # Deduplicate courses by CRN and term
     unique_courses = courses.uniq { |c| [c[:crn], c[:term]] }
 
+    # Track courses to be processed
+    StatsD.gauge("course.processor.courses_count", unique_courses.count, tags: ["user_id:#{user.id}"])
+
     unique_courses.each do |course_data|
       detailed_course_info = LeopardWebService.get_class_details(
         term: course_data[:term],
@@ -89,7 +92,10 @@ class CourseProcessorService < ApplicationService
       # Process and associate faculty with the course
       process_faculty(course, faculty_data)
 
-      Enrollment.find_or_create_by!(user: user, course: course, term: term)
+      enrollment = Enrollment.find_or_create_by!(user: user, course: course, term: term)
+
+      # Track enrollment creation
+      StatsD.increment("course.processor.enrollment_created", tags: ["user_id:#{user.id}", "course_id:#{course.id}"])
 
       # Reload course to get associated meeting times with their associations
       course = Course.includes(meeting_times: [:building, :room]).find(course.id)
@@ -167,6 +173,9 @@ class CourseProcessorService < ApplicationService
     # Deduplicate faculty by email
     unique_faculty = faculty_data.uniq { |f| f["emailAddress"] || f[:emailAddress] }
 
+    # Track faculty count
+    StatsD.gauge("course.processor.faculty_count", unique_faculty.count, tags: ["course_id:#{course.id}"])
+
     # Preload existing faculty IDs to avoid N+1 queries
     existing_faculty_ids = course.faculty_ids.to_set
 
@@ -194,6 +203,9 @@ class CourseProcessorService < ApplicationService
       unless existing_faculty_ids.include?(faculty.id)
         course.faculties << faculty
         existing_faculty_ids.add(faculty.id)
+
+        # Track faculty association
+        StatsD.increment("course.processor.faculty_associated", tags: ["course_id:#{course.id}", "faculty_id:#{faculty.id}"])
       end
     end
   end

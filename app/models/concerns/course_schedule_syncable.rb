@@ -10,6 +10,8 @@ module CourseScheduleSyncable
     # Each meeting_time now represents a single day of the week
     events = []
 
+    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
     enrollments.includes(course: [meeting_times: [:room, :building]]).find_each do |enrollment|
       course = enrollment.course
 
@@ -52,7 +54,16 @@ module CourseScheduleSyncable
       end
     end
 
-    service.update_calendar_events(events, force: force)
+    # Track events built for sync
+    StatsD.gauge("sync.events_built", events.count, tags: ["user_id:#{id}", "force:#{force}"])
+
+    result = service.update_calendar_events(events, force: force)
+
+    # Track sync completion
+    duration = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0
+    StatsD.measure("sync.full_sync.duration", duration, tags: ["user_id:#{id}", "force:#{force}"])
+
+    result
   end
 
   # Intelligent partial sync - only sync specific enrollments
@@ -101,6 +112,9 @@ module CourseScheduleSyncable
 
   # Sync a single meeting time immediately (for preference changes)
   def sync_meeting_time(meeting_time_id, force: true)
+    # Track individual meeting time sync
+    StatsD.increment("sync.meeting_time.synced", tags: ["user_id:#{id}", "meeting_time_id:#{meeting_time_id}"])
+
     service = GoogleCalendarService.new(self)
     meeting_time = MeetingTime.includes(course: [:faculties], room: :building).find_by(id: meeting_time_id)
     return unless meeting_time
