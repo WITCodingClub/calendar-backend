@@ -169,13 +169,6 @@ class GoogleCalendarService
     end
   end
 
-  def get_available_colors
-    service = service_account_calendar_service
-    with_rate_limit_handling do
-      service.get_color
-    end
-  end
-
   private
 
   def service_account_calendar_service

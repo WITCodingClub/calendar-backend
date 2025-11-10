@@ -124,7 +124,6 @@ The following Google Calendar operations are protected with rate limiting:
 - `create_calendar_with_service_account` - Create calendar
 - `delete_calendar` - Delete calendar
 - `list_calendars` - List user's calendars
-- `get_available_colors` - Get color options
 
 ### ACL (Sharing) Operations
 - `share_calendar_with_user` - Share with all user emails (batch throttled)
