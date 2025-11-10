@@ -3,6 +3,36 @@
 # Subscribe to ActiveSupport::Notifications to send metrics to StatsD
 # This tracks database queries, cache operations, view rendering, and more
 
+# Helper method to extract SQL operation type
+def extract_sql_operation(sql)
+  return "unknown" if sql.blank?
+
+  case sql
+  when /^SELECT/i
+    "select"
+  when /^INSERT/i
+    "insert"
+  when /^UPDATE/i
+    "update"
+  when /^DELETE/i
+    "delete"
+  when /^BEGIN/i
+    "begin"
+  when /^COMMIT/i
+    "commit"
+  when /^ROLLBACK/i
+    "rollback"
+  when /^CREATE/i
+    "create"
+  when /^ALTER/i
+    "alter"
+  when /^DROP/i
+    "drop"
+  else
+    "other"
+  end
+end
+
 # Track SQL queries
 ActiveSupport::Notifications.subscribe("sql.active_record") do |_name, start, finish, _id, payload|
   duration = (finish - start) * 1000.0 # Convert to milliseconds
@@ -109,34 +139,4 @@ ActiveSupport::Notifications.subscribe("service_download.active_storage") do |_n
 
   StatsD.measure("storage.download.duration", duration, tags: tags)
   StatsD.increment("storage.download.count", tags: tags)
-end
-
-# Helper method to extract SQL operation type
-def extract_sql_operation(sql)
-  return "unknown" if sql.blank?
-
-  case sql
-  when /^SELECT/i
-    "select"
-  when /^INSERT/i
-    "insert"
-  when /^UPDATE/i
-    "update"
-  when /^DELETE/i
-    "delete"
-  when /^BEGIN/i
-    "begin"
-  when /^COMMIT/i
-    "commit"
-  when /^ROLLBACK/i
-    "rollback"
-  when /^CREATE/i
-    "create"
-  when /^ALTER/i
-    "alter"
-  when /^DROP/i
-    "drop"
-  else
-    "other"
-  end
 end
