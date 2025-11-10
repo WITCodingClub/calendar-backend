@@ -5,6 +5,14 @@ class UpdateFacultyRatingsJob < ApplicationJob
 
   def perform(faculty_id)
     faculty = Faculty.find(faculty_id)
+    
+    # Skip if ratings were updated recently
+    if faculty.rating_distribution&.updated_at.present? &&
+       faculty.rating_distribution.updated_at > 1.week.ago
+      Rails.logger.info "Skipping #{faculty.full_name} - ratings updated recently (#{faculty.rating_distribution.updated_at})"
+      return
+    end
+    
     service = RateMyProfessorService.new
 
     # If faculty doesn't have an rmp_id, search for them first
