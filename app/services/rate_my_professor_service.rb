@@ -195,43 +195,59 @@ class RateMyProfessorService < ApplicationService
   GRAPHQL
 
   def search_professors(name, school_id: WENTWORTH_SCHOOL_ID, count: 10)
-    response = make_request(
-      query: SEARCH_QUERY,
-      operation_name: "NewSearchTeachersQuery",
-      variables: {
-        query: {
-          text: name,
-          schoolID: school_id
-        },
-        count: count
-      }
-    )
+    # Cache professor searches for 24 hours since professor lists change infrequently
+    cache_key = "rmp:search:#{school_id}:#{name.parameterize}:#{count}"
 
-    response.body
+    Rails.cache.fetch(cache_key, expires_in: 24.hours) do
+      response = make_request(
+        query: SEARCH_QUERY,
+        operation_name: "NewSearchTeachersQuery",
+        variables: {
+          query: {
+            text: name,
+            schoolID: school_id
+          },
+          count: count
+        }
+      )
+
+      response.body
+    end
   end
 
   def get_teacher_details(teacher_id)
-    response = make_request(
-      query: TEACHER_DETAILS_QUERY,
-      operation_name: "TeacherRatingsPageQuery",
-      variables: { id: teacher_id }
-    )
+    # Cache teacher details for 12 hours since basic info changes infrequently
+    cache_key = "rmp:teacher:#{teacher_id}"
 
-    response.body
+    Rails.cache.fetch(cache_key, expires_in: 12.hours) do
+      response = make_request(
+        query: TEACHER_DETAILS_QUERY,
+        operation_name: "TeacherRatingsPageQuery",
+        variables: { id: teacher_id }
+      )
+
+      response.body
+    end
   end
 
   def get_ratings(teacher_id, count: 100, cursor: nil)
-    response = make_request(
-      query: RATINGS_QUERY,
-      operation_name: "RatingsListQuery",
-      variables: {
-        id: teacher_id,
-        count: count,
-        cursor: cursor
-      }
-    )
+    # Cache individual rating pages for 6 hours
+    # Note: get_all_ratings() will use this cached data
+    cache_key = "rmp:ratings:#{teacher_id}:#{count}:#{cursor || 'start'}"
 
-    response.body
+    Rails.cache.fetch(cache_key, expires_in: 6.hours) do
+      response = make_request(
+        query: RATINGS_QUERY,
+        operation_name: "RatingsListQuery",
+        variables: {
+          id: teacher_id,
+          count: count,
+          cursor: cursor
+        }
+      )
+
+      response.body
+    end
   end
 
   def get_all_ratings(teacher_id)
