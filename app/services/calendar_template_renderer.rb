@@ -9,7 +9,7 @@ class CalendarTemplateRenderer
     room building location
     faculty faculty_email all_faculty
     start_time end_time day day_abbr
-    term schedule_type
+    term schedule_type schedule_type_short
   ].freeze
 
   def self.validate_template(template_string)
@@ -76,7 +76,8 @@ class CalendarTemplateRenderer
       day: meeting_time.day_of_week&.titleize || "",
       day_abbr: meeting_time.day_of_week&.first(3)&.capitalize || "",
       term: course.term&.name || "",
-      schedule_type: course.schedule_type&.capitalize || ""
+      schedule_type: course.schedule_type&.capitalize || "",
+      schedule_type_short: shorthand_schedule_type(course.schedule_type)
     }
   end
 
@@ -157,6 +158,17 @@ class CalendarTemplateRenderer
     display_hours = 12 if display_hours.zero?
 
     format("%d:%02d %s", display_hours, minutes, period)
+  end
+
+  def self.shorthand_schedule_type(schedule_type)
+    return "" if schedule_type.nil?
+
+    case schedule_type.downcase
+    when "laboratory"
+      "Lab"
+    else
+      schedule_type.capitalize
+    end
   end
 
 end

@@ -153,6 +153,7 @@ RSpec.describe CalendarTemplateRenderer do
       expect(context[:day_abbr]).to eq("Mon")
       expect(context[:term]).to eq("Spring 2024")
       expect(context[:schedule_type]).to eq("Lecture")
+      expect(context[:schedule_type_short]).to eq("Lecture")
     end
 
     it "formats times correctly with AM/PM" do
@@ -213,6 +214,16 @@ RSpec.describe CalendarTemplateRenderer do
       expect(context[:all_faculty]).to eq("")
     end
 
+    it "converts laboratory schedule type to 'Lab' in shorthand" do
+      course.schedule_type = "laboratory"
+      course.save!
+
+      context = described_class.build_context_from_meeting_time(meeting_time)
+
+      expect(context[:schedule_type]).to eq("Laboratory")
+      expect(context[:schedule_type_short]).to eq("Lab")
+    end
+
     context "with faculty" do
       let(:faculty1) { create(:faculty, first_name: "Jane", last_name: "Smith", email: "jsmith@example.edu") }
       let(:faculty2) { create(:faculty, first_name: "John", last_name: "Doe", email: "jdoe@example.edu") }
@@ -266,6 +277,32 @@ RSpec.describe CalendarTemplateRenderer do
     end
   end
 
+  describe ".shorthand_schedule_type" do
+    it "converts 'laboratory' to 'Lab'" do
+      expect(described_class.shorthand_schedule_type("laboratory")).to eq("Lab")
+    end
+
+    it "converts 'Laboratory' to 'Lab'" do
+      expect(described_class.shorthand_schedule_type("Laboratory")).to eq("Lab")
+    end
+
+    it "keeps 'lecture' as 'Lecture'" do
+      expect(described_class.shorthand_schedule_type("lecture")).to eq("Lecture")
+    end
+
+    it "keeps 'hybrid' as 'Hybrid'" do
+      expect(described_class.shorthand_schedule_type("hybrid")).to eq("Hybrid")
+    end
+
+    it "handles nil gracefully" do
+      expect(described_class.shorthand_schedule_type(nil)).to eq("")
+    end
+
+    it "capitalizes unknown schedule types" do
+      expect(described_class.shorthand_schedule_type("seminar")).to eq("Seminar")
+    end
+  end
+
   describe "ALLOWED_VARIABLES constant" do
     it "includes all expected variables" do
       expected_vars = %w[
@@ -273,7 +310,7 @@ RSpec.describe CalendarTemplateRenderer do
         room building location
         faculty faculty_email all_faculty
         start_time end_time day day_abbr
-        term schedule_type
+        term schedule_type schedule_type_short
       ]
 
       expect(CalendarTemplateRenderer::ALLOWED_VARIABLES).to match_array(expected_vars)

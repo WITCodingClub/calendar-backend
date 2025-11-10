@@ -293,6 +293,22 @@ Type of scheduled meeting (lecture, laboratory, hybrid, etc.). The value is auto
 
 ---
 
+#### `{{schedule_type_short}}`
+Shorthand version of the schedule type. Specifically converts "Laboratory" to "Lab" while keeping other types as-is.
+
+**Example value:** `"Lab"` (from Laboratory), `"Lecture"`, `"Hybrid"`
+
+**Usage:**
+```liquid
+{{title}} - {{schedule_type_short}}
+→ "Computer Science I - Lab"
+
+{{schedule_type_short}}: {{course_code}}
+→ "Lab: COMP-101-01"
+```
+
+---
+
 ## Liquid Filters
 
 Liquid provides built-in filters to transform variables. Here are commonly useful ones:
