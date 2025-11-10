@@ -41,14 +41,11 @@ module Api
 
       authorize config, :show?
 
-      # Convert WITCC colors to Google event colors for the extension
-      lecture_color_id = GoogleColors.witcc_to_color_id(config.default_color_lecture)
-      lab_color_id = GoogleColors.witcc_to_color_id(config.default_color_lab)
-
+      # Return WITCC colors as stored in database
       render json: {
         military_time: config.military_time,
-        default_color_lecture: lecture_color_id ? GoogleColors::EVENT_MAP[lecture_color_id] : config.default_color_lecture,
-        default_color_lab: lab_color_id ? GoogleColors::EVENT_MAP[lab_color_id] : config.default_color_lab,
+        default_color_lecture: config.default_color_lecture,
+        default_color_lab: config.default_color_lab,
         advanced_editing: config.advanced_editing
       }, status: :ok
     rescue => e

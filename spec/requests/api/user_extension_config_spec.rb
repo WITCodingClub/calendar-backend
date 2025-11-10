@@ -7,42 +7,54 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
   let(:token) { JsonWebTokenService.encode(user_id: user.id) }
   let(:headers) { { "Authorization" => "Bearer #{token}" } }
 
+  before do
+    # Enable the v1 feature flag for API access
+    Flipper.enable(FlipperFlags::V1, user)
+    # Stub the background job to prevent it from running during tests
+    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+  end
+
   describe "GET /api/user/extension_config" do
-    context "when user has extension config" do
-      let!(:config) do
-        create(:user_extension_config,
-               user: user,
-               military_time: true,
-               default_color_lecture: GoogleColors::WITCC_PEACOCK,  # WITCC hex
-               default_color_lab: GoogleColors::WITCC_BANANA)       # WITCC hex
+    context "when user has extension config with custom settings" do
+      before do
+        # User automatically gets a config on creation, so update it
+        user.user_extension_config.update!(
+          military_time: true,
+          default_color_lecture: GoogleColors::WITCC_PEACOCK,  # WITCC hex
+          default_color_lab: GoogleColors::WITCC_BANANA        # WITCC hex
+        )
       end
 
-      it "returns the config with colors converted to Google event hex" do
+      it "returns the config with WITCC colors as stored" do
         get "/api/user/extension_config", headers: headers
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
 
         expect(json["military_time"]).to be true
-        # Should return Google event colors, not WITCC colors
-        expect(json["default_color_lecture"]).to eq(GoogleColors::EVENT_PEACOCK)  # Google hex
-        expect(json["default_color_lab"]).to eq(GoogleColors::EVENT_BANANA)       # Google hex
+        # Should return WITCC colors as stored in database
+        expect(json["default_color_lecture"]).to eq(GoogleColors::WITCC_PEACOCK)  # WITCC hex
+        expect(json["default_color_lab"]).to eq(GoogleColors::WITCC_BANANA)       # WITCC hex
       end
     end
 
-    context "when user has no extension config" do
-      it "returns not found" do
+    context "when user has default extension config" do
+      it "returns the config with default values" do
         get "/api/user/extension_config", headers: headers
 
-        expect(response).to have_http_status(:not_found)
+        expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
-        expect(json["error"]).to eq("User extension config not found")
+
+        expect(json["military_time"]).to be false
+        # Default colors in database are Google event colors
+        expect(json["default_color_lecture"]).to eq("#46d6db")  # Default lecture color
+        expect(json["default_color_lab"]).to eq("#fbd75b")      # Default lab color
       end
     end
   end
 
   describe "PUT /api/user/extension_config" do
-    context "when creating new config with Google event colors" do
+    context "when updating config with Google event colors" do
       it "converts Google event colors to WITCC colors before saving" do
         put "/api/user/extension_config", params: {
           military_time: false,
@@ -59,12 +71,13 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
       end
     end
 
-    context "when updating existing config with Google event colors" do
-      let!(:config) do
-        create(:user_extension_config,
-               user: user,
-               default_color_lecture: GoogleColors::WITCC_TOMATO,
-               default_color_lab: GoogleColors::WITCC_BASIL)
+    context "when updating existing config with different Google event colors" do
+      before do
+        # Update the existing config first
+        user.user_extension_config.update!(
+          default_color_lecture: GoogleColors::WITCC_TOMATO,
+          default_color_lab: GoogleColors::WITCC_BASIL
+        )
       end
 
       it "converts and updates colors" do
@@ -75,7 +88,7 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
 
         expect(response).to have_http_status(:ok)
 
-        config.reload
+        config = user.reload.user_extension_config
         # Should store WITCC colors in database
         expect(config.default_color_lecture).to eq(GoogleColors::WITCC_BLUEBERRY)
         expect(config.default_color_lab).to eq(GoogleColors::WITCC_SAGE)
