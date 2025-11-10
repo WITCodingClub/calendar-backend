@@ -287,6 +287,7 @@ class RateMyProfessorService < ApplicationService
 
   def make_request(query:, operation_name:, variables:)
     connection = Faraday.new(url: BASE_URL) do |faraday|
+      faraday.use FaradayStatsd
       faraday.request :json
       faraday.response :json
       faraday.adapter Faraday.default_adapter

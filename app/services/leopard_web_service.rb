@@ -118,6 +118,7 @@ class LeopardWebService < ApplicationService
 
   def connection
     @connection ||= Faraday.new(url: BASE_URL) do |faraday|
+      faraday.use FaradayStatsd
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -293,6 +294,8 @@ class LeopardWebService < ApplicationService
 
   def authenticated_connection
     @authenticated_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
+      faraday.use FaradayStatsd
+
       faraday.headers["Accept"] = "application/json, text/javascript, */*; q=0.01"
       faraday.headers["Accept-Language"] = "en-US,en;q=0.9"
       faraday.headers["X-Requested-With"] = "XMLHttpRequest"

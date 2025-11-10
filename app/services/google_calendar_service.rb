@@ -10,6 +10,8 @@ class GoogleCalendarService
   end
 
   def create_or_get_course_calendar
+    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
     # Get or create the GoogleCalendar database record
     google_calendar = user.google_credential&.google_calendar
     newly_created = false
@@ -24,6 +26,8 @@ class GoogleCalendarService
         time_zone: google_api_calendar.time_zone
       )
       newly_created = true
+
+      StatsD.increment("calendar.created", tags: ["user_id:#{user.id}"])
     end
 
     calendar_id = google_calendar.google_calendar_id
@@ -39,13 +43,19 @@ class GoogleCalendarService
       GoogleCalendarSyncJob.perform_later(user, force: true)
     end
 
+    duration = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0
+    StatsD.measure("calendar.create_or_get.duration", duration, tags: ["user_id:#{user.id}", "newly_created:#{newly_created}"])
+
     calendar_id
   rescue Google::Apis::Error => e
+    StatsD.increment("calendar.create.error", tags: ["user_id:#{user.id}", "error:#{e.class.name}"])
     Rails.logger.error "Failed to create Google Calendar: #{e.message}"
     raise "Failed to create course calendar: #{e.message}"
   end
 
   def update_calendar_events(events, force: false)
+    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
     # Use user's OAuth credentials so reminders are visible to the user
     service = user_calendar_service
     google_calendar = user.google_credential&.google_calendar
@@ -126,6 +136,10 @@ class GoogleCalendarService
       optimization_effective: skip_percentage > 0
     }.to_json)
 
+    duration = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0
+    StatsD.measure("calendar.sync.duration", duration,
+                   tags: ["user_id:#{user.id}", "force:#{force}", "events:#{total_processed}"])
+
     stats
   end
 
@@ -184,6 +198,8 @@ class GoogleCalendarService
   end
 
   def delete_calendar(calendar_id)
+    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
     # First, get the calendar to access its user
     google_calendar = GoogleCalendar.find_by(google_calendar_id: calendar_id)
 
@@ -196,6 +212,8 @@ class GoogleCalendarService
       with_batch_throttling(credentials) do |credential|
         remove_calendar_from_user_list_for_email(calendar_id, credential.email)
       end
+
+      StatsD.increment("calendar.deleted", tags: ["user_id:#{calendar_user.id}"])
     end
 
     # Then delete the actual calendar
@@ -203,6 +221,12 @@ class GoogleCalendarService
     with_rate_limit_handling do
       service.delete_calendar(calendar_id)
     end
+
+    duration = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0
+    StatsD.measure("calendar.delete.duration", duration, tags: ["calendar_id:#{calendar_id}"])
+  rescue Google::Apis::Error => e
+    StatsD.increment("calendar.delete.error", tags: ["calendar_id:#{calendar_id}", "error:#{e.class.name}"])
+    raise
   end
 
   private
