@@ -128,6 +128,89 @@ RSpec.describe CourseProcessorService, type: :service do
       end
     end
 
+    context "credit hours" do
+      it "sets lab courses to 0 credit hours" do
+        courses = [
+          { crn: 12345, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" }
+        ]
+
+        # Mock LeopardWebService to return a LAB schedule type
+        allow(LeopardWebService).to receive(:get_class_details).and_return({
+          associated_term: "Fall 2025",
+          subject: "CS",
+          title: "Computer Science I - Lab",
+          schedule_type: "Laboratory (LAB)",
+          section_number: "01",
+          credit_hours: 4, # LeopardWeb incorrectly returns total course credits
+          grade_mode: "Normal"
+        })
+
+        allow(LeopardWebService).to receive(:get_faculty_meeting_times).and_return({
+          "fmt" => []
+        })
+
+        described_class.new(courses, user).call
+
+        course = Course.find_by(crn: 12345)
+        expect(course.credit_hours).to eq(0)
+        expect(course.schedule_type).to eq("laboratory")
+      end
+
+      it "keeps lecture courses with original credit hours" do
+        courses = [
+          { crn: 12346, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" }
+        ]
+
+        # Mock LeopardWebService to return a LEC schedule type
+        allow(LeopardWebService).to receive(:get_class_details).and_return({
+          associated_term: "Fall 2025",
+          subject: "CS",
+          title: "Computer Science I",
+          schedule_type: "Lecture (LEC)",
+          section_number: "01",
+          credit_hours: 4,
+          grade_mode: "Normal"
+        })
+
+        allow(LeopardWebService).to receive(:get_faculty_meeting_times).and_return({
+          "fmt" => []
+        })
+
+        described_class.new(courses, user).call
+
+        course = Course.find_by(crn: 12346)
+        expect(course.credit_hours).to eq(4)
+        expect(course.schedule_type).to eq("lecture")
+      end
+
+      it "keeps hybrid courses with original credit hours" do
+        courses = [
+          { crn: 12347, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS201" }
+        ]
+
+        # Mock LeopardWebService to return a HYB schedule type
+        allow(LeopardWebService).to receive(:get_class_details).and_return({
+          associated_term: "Fall 2025",
+          subject: "CS",
+          title: "Advanced Programming",
+          schedule_type: "Hybrid (HYB)",
+          section_number: "01",
+          credit_hours: 3,
+          grade_mode: "Normal"
+        })
+
+        allow(LeopardWebService).to receive(:get_faculty_meeting_times).and_return({
+          "fmt" => []
+        })
+
+        described_class.new(courses, user).call
+
+        course = Course.find_by(crn: 12347)
+        expect(course.credit_hours).to eq(3)
+        expect(course.schedule_type).to eq("hybrid")
+      end
+    end
+
     context "calendar sync" do
       before do
         allow(LeopardWebService).to receive_messages(get_class_details: {

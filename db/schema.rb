@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_09_161821) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_10_003813) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -334,6 +334,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_161821) do
     t.index ["google_calendar_id"], name: "index_google_calendars_on_google_calendar_id", unique: true
     t.index ["last_synced_at"], name: "index_google_calendars_on_last_synced_at"
     t.index ["oauth_credential_id"], name: "index_google_calendars_on_oauth_credential_id"
+  end
+
+  create_table "lab_credit_hours_backup", primary_key: "course_id", id: :bigint, default: nil, force: :cascade do |t|
+    t.integer "original_credit_hours"
   end
 
   create_table "lockbox_audits", force: :cascade do |t|

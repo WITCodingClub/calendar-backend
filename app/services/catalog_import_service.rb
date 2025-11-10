@@ -113,7 +113,10 @@ class CatalogImportService < ApplicationService
       c.course_number = course_data["courseNumber"]
       c.schedule_type = schedule_type_match ? schedule_type_match[1] : nil
       c.section_number = course_data["sequenceNumber"] || course_data["sectionNumber"]
-      c.credit_hours = course_data["creditHours"]
+
+      # LeopardWeb shows total course credit hours for all sections (lecture + lab)
+      # Labs are typically 0-credit companion sections, so override for LAB schedule type
+      c.credit_hours = (schedule_type_match && schedule_type_match[1] == "LAB") ? 0 : course_data["creditHours"]
       c.grade_mode = nil # Not available in bulk catalog data
       c.start_date = start_date
       c.end_date = end_date

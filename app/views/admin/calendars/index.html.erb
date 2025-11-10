@@ -5,25 +5,21 @@
     <table class="min-w-full divide-y divide-gray-200">
       <thead class="bg-gray-50">
         <tr>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Summary</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calendar ID</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
-          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Calendar ID</th>
+          <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+          <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
+          <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200">
         <% @calendars.each do |calendar| %>
           <tr class="hover:bg-gray-50">
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm font-medium text-gray-900"><%= calendar.summary || "WIT Courses" %></div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="px-3 py-4 whitespace-nowrap">
               <div class="text-sm text-gray-500 font-mono" title="<%= calendar.google_calendar_id %>">
-                <%= calendar.google_calendar_id.first(8) %>...<%= calendar.google_calendar_id.last(8) %>
+                <%= calendar.google_calendar_id %>
               </div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="px-3 py-4 whitespace-nowrap">
               <% if calendar.user %>
                 <div class="text-sm text-gray-900"><%= calendar.user.email %></div>
                 <div class="text-xs text-gray-500"><%= calendar.oauth_credential&.email %></div>
@@ -31,7 +27,7 @@
                 <div class="text-sm text-gray-400">No user</div>
               <% end %>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap">
+            <td class="px-3 py-4 whitespace-nowrap">
               <% last_updated = calendar.max_event_updated_at || calendar.updated_at %>
               <% if last_updated %>
                 <div class="text-sm text-gray-900"><%= time_ago_in_words(last_updated) %> ago</div>
@@ -40,7 +36,7 @@
                 <div class="text-sm text-gray-400">Never</div>
               <% end %>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+            <td class="px-3 py-4 whitespace-nowrap text-sm font-medium">
               <%= button_to "Delete",
                   admin_calendar_path(calendar.id),
                   method: :delete,
