@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class GoogleCalendarService
+  include GoogleApiRateLimiter
+
   attr_reader :user
 
   def initialize(user = nil)
@@ -52,7 +54,8 @@ class GoogleCalendarService
 
     # Delete events that are no longer needed
     events_to_delete = existing_events.except(*current_meeting_time_ids)
-    events_to_delete.each_value do |cal_event|
+    # Use batch throttling when deleting multiple events to avoid rate limits
+    with_batch_throttling(events_to_delete.values) do |cal_event|
       delete_event_from_calendar(service, google_calendar, cal_event)
     end
 
@@ -139,7 +142,9 @@ class GoogleCalendarService
 
   def list_calendars
     service = service_account_calendar_service
-    service.list_calendar_lists
+    with_rate_limit_handling do
+      service.list_calendar_lists
+    end
   end
 
   def delete_calendar(calendar_id)
@@ -149,21 +154,26 @@ class GoogleCalendarService
     if google_calendar
       # Remove calendar from all OAuth'd users' calendar lists (sidebar)
       calendar_user = google_calendar.user
-      calendar_user.google_credentials.find_each do |credential|
+      credentials = calendar_user.google_credentials.to_a
+
+      # Use batch throttling when removing from multiple users
+      with_batch_throttling(credentials) do |credential|
         remove_calendar_from_user_list_for_email(calendar_id, credential.email)
       end
     end
 
     # Then delete the actual calendar
     service = service_account_calendar_service
-    service.delete_calendar(calendar_id)
+    with_rate_limit_handling do
+      service.delete_calendar(calendar_id)
+    end
   end
 
   def get_available_colors
     service = service_account_calendar_service
-    service.get_color
-
-
+    with_rate_limit_handling do
+      service.get_color
+    end
   end
 
   private
@@ -240,14 +250,17 @@ class GoogleCalendarService
       time_zone: "America/New_York"
     )
 
-    service.insert_calendar(calendar)
+    with_rate_limit_handling do
+      service.insert_calendar(calendar)
+    end
   end
 
   def share_calendar_with_user(calendar_id)
     service = service_account_calendar_service
+    emails = user.emails.where(g_cal: true).to_a
 
-    # for each user email where g_cal is true, share the calendar
-    user.emails.where(g_cal: true).find_each do |email_record|
+    # Use batch throttling to avoid rate limits when sharing with multiple emails
+    with_batch_throttling(emails) do |email_record|
       rule = Google::Apis::CalendarV3::AclRule.new(
         scope: {
           type: "user",
@@ -256,14 +269,16 @@ class GoogleCalendarService
         role: "owner" # owner access (full permissions including notifications)
       )
 
-      service.insert_acl(
-        calendar_id,
-        rule,
-        send_notifications: false # Don't send the default invite
-      )
-    rescue Google::Apis::ClientError => e
-      # Ignore if user already has access
-      raise unless e.status_code == 409
+      begin
+        service.insert_acl(
+          calendar_id,
+          rule,
+          send_notifications: false # Don't send the default invite
+        )
+      rescue Google::Apis::ClientError => e
+        # Ignore if user already has access
+        raise unless e.status_code == 409
+      end
     end
   end
 
@@ -280,11 +295,13 @@ class GoogleCalendarService
       role: "owner" # owner access (full permissions including notifications)
     )
 
-    service.insert_acl(
-      calendar_id,
-      rule,
-      send_notifications: false
-    )
+    with_rate_limit_handling do
+      service.insert_acl(
+        calendar_id,
+        rule,
+        send_notifications: false
+      )
+    end
   rescue Google::Apis::ClientError => e
     # Ignore if user already has access
     raise unless e.status_code == 409
@@ -297,11 +314,15 @@ class GoogleCalendarService
     return unless email&.g_cal
 
     # Find the ACL entry for the email
-    acl_list = service.list_acls(calendar_id)
+    acl_list = with_rate_limit_handling do
+      service.list_acls(calendar_id)
+    end
     acl_entry = acl_list.items.find { |item| item.scope.type == "user" && item.scope.value == email.email }
     return unless acl_entry
 
-    service.delete_acl(calendar_id, acl_entry.id)
+    with_rate_limit_handling do
+      service.delete_acl(calendar_id, acl_entry.id)
+    end
   rescue Google::Apis::ClientError => e
     # Ignore if user doesn't have access
     raise unless e.status_code == 404
@@ -309,7 +330,10 @@ class GoogleCalendarService
 
   def add_calendar_to_all_oauth_users(calendar_id)
     # Add calendar to each OAuth'd email's Google Calendar list
-    user.google_credentials.find_each do |credential|
+    credentials = user.google_credentials.to_a
+
+    # Use batch throttling to avoid rate limits when adding to multiple users
+    with_batch_throttling(credentials) do |credential|
       add_calendar_to_user_list_for_email(calendar_id, credential.email)
     end
   end
@@ -332,7 +356,9 @@ class GoogleCalendarService
     max_retries = 3
 
     begin
-      service.insert_calendar_list(calendar_list_entry)
+      with_rate_limit_handling do
+        service.insert_calendar_list(calendar_list_entry)
+      end
     rescue Google::Apis::ClientError => e
       if e.status_code == 409
         # Calendar already in list - this is fine
@@ -364,7 +390,9 @@ class GoogleCalendarService
     return unless credential
 
     service = user_calendar_service_for_credential(credential)
-    service.delete_calendar_list(calendar_id)
+    with_rate_limit_handling do
+      service.delete_calendar_list(calendar_id)
+    end
   rescue Google::Apis::ClientError => e
     # Ignore if not in list (404) or already removed
     Rails.logger.warn "Failed to remove calendar from user list: #{e.message}" unless e.status_code == 404
@@ -400,13 +428,17 @@ class GoogleCalendarService
 
   def clear_calendar_events(service, calendar_id)
     # Get all events
-    events = service.list_events(calendar_id)
+    events = with_rate_limit_handling do
+      service.list_events(calendar_id)
+    end
 
-    # Delete each event
-    events.items.each do |event|
-      service.delete_event(calendar_id, event.id)
-    rescue Google::Apis::ClientError => e
-      Rails.logger.warn "Failed to delete event: #{e.message}"
+    # Delete each event with batch throttling
+    with_batch_throttling(events.items) do |event|
+      begin
+        service.delete_event(calendar_id, event.id)
+      rescue Google::Apis::ClientError => e
+        Rails.logger.warn "Failed to delete event: #{e.message}"
+      end
     end
   end
 
@@ -470,7 +502,9 @@ class GoogleCalendarService
     # Apply visibility if present
     google_event.visibility = event_data[:visibility] if event_data[:visibility].present?
 
-    created_event = service.insert_event(calendar_id, google_event)
+    created_event = with_rate_limit_handling do
+      service.insert_event(calendar_id, google_event)
+    end
 
     # Save the event ID in the database
     google_calendar.google_calendar_events.create!(
@@ -501,7 +535,9 @@ class GoogleCalendarService
     unless force
       # Fetch the current state from Google Calendar to detect user edits
       begin
-        current_gcal_event = service.get_event(calendar_id, db_event.google_event_id)
+        current_gcal_event = with_rate_limit_handling do
+          service.get_event(calendar_id, db_event.google_event_id)
+        end
 
         # Check if user edited the event in Google Calendar
         if user_edited_event?(db_event, current_gcal_event)
@@ -585,7 +621,9 @@ class GoogleCalendarService
     # Apply visibility if present
     google_event.visibility = event_data[:visibility] if event_data[:visibility].present?
 
-    service.update_event(calendar_id, db_event.google_event_id, google_event)
+    with_rate_limit_handling do
+      service.update_event(calendar_id, db_event.google_event_id, google_event)
+    end
 
     # Update the database record with new data and hash
     db_event.update!(
@@ -602,7 +640,9 @@ class GoogleCalendarService
   def delete_event_from_calendar(service, google_calendar, db_event)
     calendar_id = google_calendar.google_calendar_id
 
-    service.delete_event(calendar_id, db_event.google_event_id)
+    with_rate_limit_handling do
+      service.delete_event(calendar_id, db_event.google_event_id)
+    end
     db_event.destroy
   rescue Google::Apis::ClientError => e
     # If event doesn't exist, just remove from database

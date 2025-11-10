@@ -59,10 +59,13 @@ Vector embeddings and semantic search capabilities.
 ## Infrastructure
 
 - **[Job Queues](./infrastructure/job-queues.md)** - Background job processing with ActiveJob
+- **[Google API Rate Limiting](./infrastructure/google-api-rate-limiting.md)** - Rate limiting and retry logic for Google Calendar API
 
 **Use Cases:**
 - Adding background jobs: See Job Queues
 - Understanding async processing: See Job Queues
+- Handling Google API rate limits: See Google API Rate Limiting
+- Troubleshooting API quota issues: See Google API Rate Limiting
 
 ## Security
 
@@ -109,7 +112,8 @@ docs/
 │   └── rate-my-professor-integration.md
 │
 ├── infrastructure/
-│   └── job-queues.md
+│   ├── job-queues.md
+│   └── google-api-rate-limiting.md (Google Calendar API rate limits)
 │
 └── security/
     ├── cross-account-protection.md (Google RISC)
@@ -149,6 +153,9 @@ docs/
 
 **Add background jobs**
 → [Job Queues](./infrastructure/job-queues.md)
+
+**Handle Google API rate limits**
+→ [Google API Rate Limiting](./infrastructure/google-api-rate-limiting.md)
 
 **Implement semantic search**
 → [pgvector Embeddings](./embeddings/pgvector-embeddings.md)
