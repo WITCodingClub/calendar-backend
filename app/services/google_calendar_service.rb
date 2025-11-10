@@ -12,6 +12,7 @@ class GoogleCalendarService
   def create_or_get_course_calendar
     # Get or create the GoogleCalendar database record
     google_calendar = user.google_credential&.google_calendar
+    newly_created = false
 
     # Create calendar if it doesn't exist
     if google_calendar.blank?
@@ -22,6 +23,7 @@ class GoogleCalendarService
         description: google_api_calendar.description,
         time_zone: google_api_calendar.time_zone
       )
+      newly_created = true
     end
 
     calendar_id = google_calendar.google_calendar_id
@@ -31,6 +33,11 @@ class GoogleCalendarService
 
     # Add calendar to each OAuth'd email's Google Calendar list
     add_calendar_to_all_oauth_users(calendar_id)
+
+    # Trigger initial sync for newly created calendars
+    if newly_created && user.enrollments.any?
+      GoogleCalendarSyncJob.perform_later(user, force: true)
+    end
 
     calendar_id
   rescue Google::Apis::Error => e
