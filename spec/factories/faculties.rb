@@ -23,6 +23,8 @@
 #
 FactoryBot.define do
   factory :faculty do
-
+    sequence(:email) { |n| "faculty#{n}@witcc.edu" }
+    sequence(:first_name) { |n| "FirstName#{n}" }
+    sequence(:last_name) { |n| "LastName#{n}" }
   end
 end
