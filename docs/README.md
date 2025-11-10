@@ -59,13 +59,18 @@ Vector embeddings and semantic search capabilities.
 ## Infrastructure
 
 - **[Job Queues](./infrastructure/job-queues.md)** - Background job processing with ActiveJob
+- **[Calendar Sync Job Concurrency](./infrastructure/calendar-sync-job-concurrency.md)** - Preventing duplicate events with concurrency control
 - **[Google API Rate Limiting](./infrastructure/google-api-rate-limiting.md)** - Rate limiting and retry logic for Google Calendar API
+- **[Optimization Metrics](./infrastructure/optimization-metrics.md)** - Performance tracking and optimization metrics
 
 **Use Cases:**
 - Adding background jobs: See Job Queues
 - Understanding async processing: See Job Queues
+- Preventing duplicate calendar events: See Calendar Sync Job Concurrency
+- Troubleshooting duplicate events: See Calendar Sync Job Concurrency
 - Handling Google API rate limits: See Google API Rate Limiting
 - Troubleshooting API quota issues: See Google API Rate Limiting
+- Tracking sync performance: See Optimization Metrics
 
 ## Security
 
@@ -112,8 +117,10 @@ docs/
 │   └── rate-my-professor-integration.md
 │
 ├── infrastructure/
-│   ├── job-queues.md
-│   └── google-api-rate-limiting.md (Google Calendar API rate limits)
+│   ├── job-queues.md (background job queues)
+│   ├── calendar-sync-job-concurrency.md (concurrency control)
+│   ├── google-api-rate-limiting.md (Google Calendar API rate limits)
+│   └── optimization-metrics.md (performance metrics)
 │
 └── security/
     ├── cross-account-protection.md (Google RISC)
@@ -153,6 +160,12 @@ docs/
 
 **Add background jobs**
 → [Job Queues](./infrastructure/job-queues.md)
+
+**Prevent duplicate calendar events**
+→ [Calendar Sync Job Concurrency](./infrastructure/calendar-sync-job-concurrency.md)
+
+**Troubleshoot duplicate events**
+→ [Calendar Sync Job Concurrency](./infrastructure/calendar-sync-job-concurrency.md)
 
 **Handle Google API rate limits**
 → [Google API Rate Limiting](./infrastructure/google-api-rate-limiting.md)
