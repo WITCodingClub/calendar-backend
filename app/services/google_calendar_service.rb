@@ -406,7 +406,7 @@ class GoogleCalendarService
     calendar_list_entry = Google::Apis::CalendarV3::CalendarListEntry.new(
       id: calendar_id,
       summary_override: "WIT Courses",
-      color_id: "5",
+      color_id: "7",
       selected: true,
       hidden: false
     )
