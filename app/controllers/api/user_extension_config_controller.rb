@@ -7,6 +7,7 @@ module Api
       authorize config, :update?
 
       config.military_time = params[:military_time] unless params[:military_time].nil?
+      config.advanced_editing = params[:advanced_editing] unless params[:advanced_editing].nil?
 
       # Convert Google event colors to WITCC colors before storing
       unless params[:default_color_lecture].nil?

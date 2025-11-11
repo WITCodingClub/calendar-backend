@@ -32,6 +32,7 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
         json = JSON.parse(response.body)
 
         expect(json["military_time"]).to be true
+        expect(json["advanced_editing"]).to be false
         # Should return WITCC colors as stored in database
         expect(json["default_color_lecture"]).to eq(GoogleColors::WITCC_PEACOCK)  # WITCC hex
         expect(json["default_color_lab"]).to eq(GoogleColors::WITCC_BANANA)       # WITCC hex
@@ -46,6 +47,7 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
         json = JSON.parse(response.body)
 
         expect(json["military_time"]).to be false
+        expect(json["advanced_editing"]).to be false
         # Default colors in database are WITCC colors
         expect(json["default_color_lecture"]).to eq(GoogleColors::WITCC_PEACOCK)  # Default lecture color (#039be5)
         expect(json["default_color_lab"]).to eq(GoogleColors::WITCC_BANANA)       # Default lab color (#f6bf26)
@@ -108,6 +110,48 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
         config = user.reload.user_extension_config
         # Should store the original color if no mapping exists
         expect(config.default_color_lecture).to eq(custom_color)
+      end
+    end
+
+    context "when updating advanced_editing setting" do
+      it "updates advanced_editing to true" do
+        put "/api/user/extension_config", params: {
+          advanced_editing: true
+        }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+
+        config = user.reload.user_extension_config
+        expect(config.advanced_editing).to be true
+      end
+
+      it "updates advanced_editing to false" do
+        # First set it to true
+        user.user_extension_config.update!(advanced_editing: true)
+
+        put "/api/user/extension_config", params: {
+          advanced_editing: false
+        }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+
+        config = user.reload.user_extension_config
+        expect(config.advanced_editing).to be false
+      end
+
+      it "can update advanced_editing along with other settings" do
+        put "/api/user/extension_config", params: {
+          advanced_editing: true,
+          military_time: true,
+          default_color_lecture: GoogleColors::EVENT_TOMATO
+        }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+
+        config = user.reload.user_extension_config
+        expect(config.advanced_editing).to be true
+        expect(config.military_time).to be true
+        expect(config.default_color_lecture).to eq(GoogleColors::WITCC_TOMATO)
       end
     end
   end
