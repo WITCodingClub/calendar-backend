@@ -121,8 +121,18 @@ module Api
         :location_template,
         :color_id,
         :visibility,
-        reminder_settings: [:time, :method, :type]
+        reminder_settings: []
       )
+
+      # If reminder_settings is present, manually permit the nested attributes
+      if params[:event_preference][:reminder_settings].present?
+        permitted[:reminder_settings] = params[:event_preference][:reminder_settings].map do |reminder|
+          reminder.permit(:time, :method, :type)
+        end
+      elsif params[:event_preference].key?(:reminder_settings)
+        # Explicitly set to empty array if key is present but value is empty
+        permitted[:reminder_settings] = []
+      end
 
       # Convert WITCC hex color to Google color ID if needed
       if permitted[:color_id].is_a?(String) && permitted[:color_id].start_with?("#")

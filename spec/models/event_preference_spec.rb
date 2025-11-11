@@ -166,6 +166,26 @@ RSpec.describe EventPreference do
         subject.color_id = 5
         expect(subject).to be_valid
       end
+
+      it "is valid when only reminder_settings is set to empty array (no notifications)" do
+        subject.title_template = nil
+        subject.description_template = nil
+        subject.location_template = nil
+        subject.reminder_settings = []
+        subject.color_id = nil
+        subject.visibility = nil
+        expect(subject).to be_valid
+      end
+
+      it "treats empty array as a set preference (different from nil)" do
+        # Empty array = user wants no notifications (valid preference)
+        subject_with_empty = build(:event_preference, user: user, preferenceable: meeting_time, reminder_settings: [])
+        expect(subject_with_empty).to be_valid
+
+        # nil = user hasn't set anything (invalid if no other preferences)
+        subject_with_nil = build(:event_preference, user: user, preferenceable: meeting_time, reminder_settings: nil)
+        expect(subject_with_nil).not_to be_valid
+      end
     end
   end
 

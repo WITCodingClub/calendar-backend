@@ -189,6 +189,16 @@ RSpec.describe CalendarPreference do
                                                   { "time" => "1", "type" => "hours", "method" => "email" }
                                                 ])
       end
+
+      it "allows empty reminder_settings array (no notifications)" do
+        subject.reminder_settings = []
+        expect(subject).to be_valid
+      end
+
+      it "allows nil reminder_settings" do
+        subject.reminder_settings = nil
+        expect(subject).to be_valid
+      end
     end
   end
 

@@ -77,7 +77,9 @@ class EventPreference < ApplicationRecord
   end
 
   def at_least_one_preference_set
-    return unless title_template.blank? && description_template.blank? && location_template.blank? && reminder_settings.blank? && color_id.blank? && visibility.blank?
+    # Note: reminder_settings uses .nil? instead of .blank? because an empty array []
+    # is a valid preference (it means "no notifications"), not an unset field
+    return unless title_template.blank? && description_template.blank? && location_template.blank? && reminder_settings.nil? && color_id.blank? && visibility.blank?
 
     errors.add(:base, "At least one preference must be set")
 

@@ -135,7 +135,8 @@ RSpec.describe "Api::EventPreferences", type: :request do
 
   describe "PUT /api/meeting_times/:meeting_time_id/preference" do
     before do
-      # Stub background job to avoid solid_queue table dependency
+      # Stub sync job to avoid Google credential dependency
+      allow(SyncMeetingTimeJob).to receive(:perform_now)
       allow(SyncMeetingTimeJob).to receive(:perform_later)
     end
 
@@ -157,6 +158,56 @@ RSpec.describe "Api::EventPreferences", type: :request do
         "title"       => "Computer Science I",
         "course_code" => "COMP-101-01"
       )
+    end
+
+    it "allows setting reminder_settings to empty array (no notifications)" do
+      put "/api/meeting_times/#{meeting_time.id}/preference",
+          params: {
+            event_preference: {
+              reminder_settings: []
+            }
+          },
+          headers: headers,
+          as: :json
+
+      expect(response).to have_http_status(:ok)
+
+      json = response.parsed_body
+      expect(json["individual_preference"]["reminder_settings"]).to eq([])
+      expect(json["resolved"]["reminder_settings"]).to eq([])
+    end
+
+    it "allows updating only reminder_settings with empty array when no other changes" do
+      # First create a preference with some settings
+      put "/api/meeting_times/#{meeting_time.id}/preference",
+          params: {
+            event_preference: {
+              color_id: 5,
+              reminder_settings: [{ time: "30", type: "minutes", method: "notification" }]
+            }
+          },
+          headers: headers,
+          as: :json
+
+      expect(response).to have_http_status(:ok)
+
+      # Now update only reminder_settings to empty array
+      put "/api/meeting_times/#{meeting_time.id}/preference",
+          params: {
+            event_preference: {
+              reminder_settings: []
+            }
+          },
+          headers: headers,
+          as: :json
+
+      expect(response).to have_http_status(:ok)
+
+      json = response.parsed_body
+      expect(json["individual_preference"]["reminder_settings"]).to eq([])
+      expect(json["resolved"]["reminder_settings"]).to eq([])
+      # Color should be preserved
+      expect(json["individual_preference"]["color_id"]).to eq("#ad1457") # Color 5 = WITCC_GRAPE
     end
 
     it "converts WITCC hex color to Google color ID in DB and returns WITCC hex in response" do

@@ -90,7 +90,9 @@ class PreferenceResolver
     event_pref = @event_preferences[[event.class.name, event.id]]
     if event_pref.present?
       value = event_pref.public_send(field)
-      if value.present?
+      # For reminder_settings, treat empty array as a valid preference (no notifications)
+      # For other fields, use .present? to check if value is set
+      if field == :reminder_settings ? !value.nil? : value.present?
         # Track preference resolution source
         StatsD.increment("preferences.resolved", tags: ["source:individual", "field:#{field}", "user_id:#{@user.id}"])
         return [value, "individual"]
@@ -103,7 +105,9 @@ class PreferenceResolver
       type_pref = @calendar_preferences[["event_type", event_type]]
       if type_pref.present?
         value = type_pref.public_send(field)
-        if value.present?
+        # For reminder_settings, treat empty array as a valid preference (no notifications)
+        # For other fields, use .present? to check if value is set
+        if field == :reminder_settings ? !value.nil? : value.present?
           # Track preference resolution source
           StatsD.increment("preferences.resolved", tags: ["source:event_type", "field:#{field}", "event_type:#{event_type}", "user_id:#{@user.id}"])
           return [value, "event_type:#{event_type}"]
@@ -115,7 +119,9 @@ class PreferenceResolver
     global_pref = @calendar_preferences[["global", nil]]
     if global_pref.present?
       value = global_pref.public_send(field)
-      if value.present?
+      # For reminder_settings, treat empty array as a valid preference (no notifications)
+      # For other fields, use .present? to check if value is set
+      if field == :reminder_settings ? !value.nil? : value.present?
         # Track preference resolution source
         StatsD.increment("preferences.resolved", tags: ["source:global", "field:#{field}", "user_id:#{@user.id}"])
         return [value, "global"]
