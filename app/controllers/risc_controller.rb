@@ -5,7 +5,6 @@
 class RiscController < ApplicationController
   # Skip authentication - this is a public webhook endpoint
   skip_before_action :verify_authenticity_token
-  skip_before_action :authenticate_user!, if: :devise_enabled?
 
   # Receive security event token from Google
   # POST /risc/events
@@ -48,10 +47,5 @@ class RiscController < ApplicationController
       # If not JSON, treat the body as the raw token
       body
     end
-  end
-
-  # Check if Devise is being used (for skip_before_action)
-  def devise_enabled?
-    defined?(Devise)
   end
 end
