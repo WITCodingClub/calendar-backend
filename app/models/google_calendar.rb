@@ -32,6 +32,9 @@ class GoogleCalendar < ApplicationRecord
 
   validates :google_calendar_id, presence: true, uniqueness: true
 
+  # Delete the calendar from Google before destroying the database record
+  before_destroy :enqueue_google_calendar_deletion
+
   scope :for_user, ->(user) { joins(:oauth_credential).where(oauth_credentials: { user_id: user.id }) }
   scope :stale, ->(time_ago = 1.hour) { where("last_synced_at IS NULL OR last_synced_at < ?", time_ago.ago) }
 
@@ -43,6 +46,21 @@ class GoogleCalendar < ApplicationRecord
   # Check if calendar needs syncing based on staleness
   def needs_sync?(threshold = 1.hour)
     last_synced_at.nil? || last_synced_at < threshold.ago
+  end
+
+  private
+
+  def enqueue_google_calendar_deletion
+    return if google_calendar_id.blank?
+
+    begin
+      # Enqueue job to delete the calendar from Google
+      GoogleCalendarDeleteJob.perform_later(google_calendar_id)
+      Rails.logger.info("Enqueued GoogleCalendarDeleteJob for calendar #{google_calendar_id}")
+    rescue => e
+      # Log but don't prevent deletion if job enqueue fails
+      Rails.logger.error("Failed to enqueue GoogleCalendarDeleteJob for calendar #{google_calendar_id}: #{e.message}")
+    end
   end
 
 end
