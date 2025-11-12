@@ -94,4 +94,9 @@ Rails.application.configure do
   #
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  config.console1984.protected_environments = %i[production staging]
+  config.console1984.ask_for_username_if_empty = true
+  config.username_resolver = Console1984::Username::EnvResolver.new("CONSOLE_USER")
+
 end
