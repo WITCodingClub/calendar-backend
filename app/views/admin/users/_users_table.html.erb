@@ -37,7 +37,12 @@
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <%= link_to "View", admin_user_path(user), data: { turbo_frame: "_top" }, class: "text-sm font-medium text-[#d13732] hover:underline" %>
                 <%= link_to "Edit", edit_admin_user_path(user), data: { turbo_frame: "_top" }, class: "ml-3 text-sm font-medium text-[#d13732] hover:underline" %>
-                <%= button_to "Delete", admin_user_path(user), method: :delete, data: { confirm: "Are you sure?", turbo_frame: "_top" }, class: "ml-3 text-sm font-medium text-[#d13732] hover:underline bg-transparent border-0 p-0 cursor-pointer" %>
+                <span class="ml-3 inline-block">
+                  <%= render "delete_confirmation_modal",
+                      user: user,
+                      button_text: "Delete",
+                      button_class: "text-sm font-medium text-[#d13732] hover:underline bg-transparent border-0 p-0 cursor-pointer" %>
+                </span>
               </td>
             </tr>
           <% end %>

@@ -144,12 +144,12 @@
               <%= f.hidden_field :courses, value: @courses.to_json %>
               <%
                 confirm_message = if @term_already_imported
-                  "⚠️ This term was already imported on #{@term_imported_at.strftime('%B %d, %Y')}. Processing again will update existing courses and add new ones. Continue?"
+                  "⚠️ This term was already imported on #{@term_imported_at.strftime('%B %d, %Y')}.\n\nProcessing again will:\n• Update existing courses with new data\n• Add any new courses found\n• Queue background jobs for processing\n\nThis operation may take several minutes. Continue?"
                 else
-                  "This will process #{@total_count} courses into the database. This may take several minutes. Continue?"
+                  "⚠️ You're about to import #{@total_count} courses.\n\nThis will:\n• Create courses, meeting times, and faculty records\n• Queue background jobs for processing\n• Take several minutes to complete\n\nContinue with import?"
                 end
               %>
-              <%= button_tag type: "submit", class: "glass-button px-6 py-2 rounded inline-flex items-center", data: { confirm: confirm_message } do %>
+              <%= button_tag type: "submit", class: "glass-button px-6 py-2 rounded inline-flex items-center", data: { turbo_confirm: confirm_message } do %>
                 <svg class="mr-2 -ml-1 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" />
                 </svg>

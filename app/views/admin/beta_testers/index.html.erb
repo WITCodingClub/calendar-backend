@@ -59,7 +59,7 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <%= link_to "View User", admin_user_path(user), class: "text-sm font-medium text-[#d13732] hover:underline" %>
-                <%= button_to "Remove Access", admin_beta_tester_path(user), method: :delete, data: { confirm: "Remove beta tester access for #{user.email}?" }, class: "ml-3 text-sm font-medium text-[#d13732] hover:underline bg-transparent border-0 p-0 cursor-pointer" %>
+                <%= button_to "Remove Access", admin_beta_tester_path(user), method: :delete, data: { turbo_confirm: "Remove beta tester access for #{user.email}? This will revoke their API access." }, class: "ml-3 text-sm font-medium text-[#d13732] hover:underline bg-transparent border-0 p-0 cursor-pointer" %>
               </td>
             </tr>
           <% end %>
