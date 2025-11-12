@@ -36,13 +36,15 @@
           </p>
         </div>
         <div>
-          <%= button_to "Auto-Fill All",
-              batch_auto_fill_admin_faculties_path,
-              method: :post,
-              class: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm cursor-pointer",
-              data: {
-                turbo_confirm: "This will queue background jobs to search Rate My Professor for all #{@faculties.total_count} faculty members. Continue?"
-              } %>
+          <% if policy(Faculty).batch_auto_fill? %>
+            <%= button_to "Auto-Fill All",
+                batch_auto_fill_admin_faculties_path,
+                method: :post,
+                class: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm cursor-pointer",
+                data: {
+                  turbo_confirm: "This will queue background jobs to search Rate My Professor for all #{@faculties.total_count} faculty members. Continue?"
+                } %>
+          <% end %>
         </div>
       </div>
     </div>
@@ -82,13 +84,17 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                   <div class="flex gap-2 flex-wrap">
-                    <%= button_to "Auto Search",
-                        auto_fill_rmp_id_admin_faculty_path(faculty),
-                        method: :post,
-                        class: "bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs cursor-pointer" %>
-                    <%= link_to "Manual Search",
-                        search_rmp_admin_faculty_path(faculty),
-                        class: "bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs cursor-pointer inline-block" %>
+                    <% if policy(faculty).auto_fill_rmp_id? %>
+                      <%= button_to "Auto Search",
+                          auto_fill_rmp_id_admin_faculty_path(faculty),
+                          method: :post,
+                          class: "bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs cursor-pointer" %>
+                    <% end %>
+                    <% if policy(faculty).search_rmp? %>
+                      <%= link_to "Manual Search",
+                          search_rmp_admin_faculty_path(faculty),
+                          class: "bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs cursor-pointer inline-block" %>
+                    <% end %>
                   </div>
                 </td>
               </tr>

@@ -63,8 +63,8 @@ module Admin
     end
 
     def revoke_oauth_credential
+      authorize @user, :revoke_oauth_credential?
       credential = @user.oauth_credentials.find(params[:credential_id])
-      authorize credential, :destroy?
       credential_email = credential.email
 
       # Queue the revocation job
@@ -76,7 +76,7 @@ module Admin
     end
 
     def enable_beta
-      authorize @user, :update? # Beta management requires update permission
+      authorize @user, :enable_beta?
 
       Flipper.enable_actor(BETA_FEATURE_FLAG, @user)
       redirect_to admin_user_path(@user), notice: "#{@user.email} has been added to the beta test group."
@@ -86,7 +86,7 @@ module Admin
     end
 
     def disable_beta
-      authorize @user, :update? # Beta management requires update permission
+      authorize @user, :disable_beta?
 
       Flipper.disable_actor(BETA_FEATURE_FLAG, @user)
       redirect_to admin_user_path(@user), notice: "Beta tester access removed for #{@user.email}."

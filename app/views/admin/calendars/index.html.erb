@@ -37,11 +37,15 @@
               <% end %>
             </td>
             <td class="px-3 py-4 whitespace-nowrap text-sm font-medium">
-              <%= button_to "Delete",
-                  admin_calendar_path(calendar.id),
-                  method: :delete,
-                  data: { turbo_confirm: "⚠️ Permanently delete calendar for #{calendar.user&.email}? This will delete all associated events and cannot be undone." },
-                  class: "text-red-600 hover:text-red-900" %>
+              <% if policy(calendar).destroy? %>
+                <%= button_to "Delete",
+                    admin_calendar_path(calendar.id),
+                    method: :delete,
+                    data: { turbo_confirm: "⚠️ Permanently delete calendar for #{calendar.user&.email}? This will delete all associated events and cannot be undone." },
+                    class: "text-red-600 hover:text-red-900" %>
+              <% else %>
+                <span class="text-gray-400 text-sm">—</span>
+              <% end %>
             </td>
           </tr>
         <% end %>

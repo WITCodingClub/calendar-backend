@@ -1,30 +1,46 @@
 # frozen_string_literal: true
 
 class UserPolicy < ApplicationPolicy
-  # Admins can list all users for management
+  # Admins+ can list all users for management
   def index?
     admin?
   end
 
-  # Users can view their own profile, admins+ can view all for support
+  # Users can view their own profile, super_admins+ can view others
+  # View-only admins CANNOT view individual user details
   def show?
-    record == user || admin?
+    record == user || super_admin?
   end
 
-  # Admins+ can create new users
+  # Super_admins+ can create new users (admins cannot)
   def create?
-    admin?
+    super_admin?
   end
 
   # Users can update their own profile, super_admins+ can modify others
-  # (super_admin needed to change access_level)
   def update?
     record == user || super_admin?
   end
 
-  # Users can delete their own account, but super_admins cannot delete owners
+  # Users can delete their own account, super_admins+ can delete others
+  # (but super_admins cannot delete owners)
   def destroy?
     record == user || can_perform_destructive_action?
+  end
+
+  # Super_admins+ can revoke OAuth credentials (admins cannot)
+  def revoke_oauth_credential?
+    super_admin?
+  end
+
+  # Super_admins+ can manage beta tester status (admins cannot)
+  def enable_beta?
+    super_admin?
+  end
+
+  # Super_admins+ can manage beta tester status (admins cannot)
+  def disable_beta?
+    super_admin?
   end
 
   class Scope < ApplicationPolicy::Scope

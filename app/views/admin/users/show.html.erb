@@ -59,26 +59,34 @@
       </dl>
 
       <div class="mt-6 flex gap-3 flex-wrap">
-        <%= link_to "Edit User", edit_admin_user_path(@user), class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+        <% if policy(@user).edit? %>
+          <%= link_to "Edit User", edit_admin_user_path(@user), class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+        <% end %>
 
         <% beta_feature_flag = FlipperFlags::V1 %>
         <% is_beta_tester = Flipper.enabled?(beta_feature_flag, @user) %>
 
         <% if is_beta_tester %>
-          <%= button_to "Remove from Beta", disable_beta_admin_user_path(@user),
-            method: :delete,
-            data: { turbo_confirm: "Remove #{@user.email} from beta testers? This will revoke their API access." },
-            class: "glass-button px-4 py-2 rounded text-sm cursor-pointer bg-red-50/40 text-red-600" %>
+          <% if policy(@user).disable_beta? %>
+            <%= button_to "Remove from Beta", disable_beta_admin_user_path(@user),
+              method: :delete,
+              data: { turbo_confirm: "Remove #{@user.email} from beta testers? This will revoke their API access." },
+              class: "glass-button px-4 py-2 rounded text-sm cursor-pointer bg-red-50/40 text-red-600" %>
+          <% end %>
         <% else %>
-          <%= button_to "Add to Beta", enable_beta_admin_user_path(@user),
-            method: :post,
-            class: "glass-button px-4 py-2 rounded text-sm cursor-pointer bg-green-50/40 text-green-600" %>
+          <% if policy(@user).enable_beta? %>
+            <%= button_to "Add to Beta", enable_beta_admin_user_path(@user),
+              method: :post,
+              class: "glass-button px-4 py-2 rounded text-sm cursor-pointer bg-green-50/40 text-green-600" %>
+          <% end %>
         <% end %>
 
-        <%= render "delete_confirmation_modal",
-            user: @user,
-            button_text: "Delete User",
-            button_class: "glass-button px-4 py-2 rounded text-sm cursor-pointer bg-red-600 text-white" %>
+        <% if policy(@user).destroy? %>
+          <%= render "delete_confirmation_modal",
+              user: @user,
+              button_text: "Delete User",
+              button_class: "glass-button px-4 py-2 rounded text-sm cursor-pointer bg-red-600 text-white" %>
+        <% end %>
       </div>
     </div>
   </div>
@@ -211,10 +219,14 @@
                     <%= credential.created_at.strftime("%b %d, %Y") %>
                   </td>
                   <td class="px-4 py-2 whitespace-nowrap text-sm">
-                    <%= button_to "Revoke", revoke_oauth_credential_admin_user_path(@user, credential_id: credential.id),
-                      method: :delete,
-                      data: { turbo_confirm: "⚠️ Revoke OAuth access for #{credential.email}? This will delete the associated calendar (#{credential.events_count} events) and cannot be undone." },
-                      class: "text-red-600 hover:text-red-900 font-medium" %>
+                    <% if policy(@user).revoke_oauth_credential? %>
+                      <%= button_to "Revoke", revoke_oauth_credential_admin_user_path(@user, credential_id: credential.id),
+                        method: :delete,
+                        data: { turbo_confirm: "⚠️ Revoke OAuth access for #{credential.email}? This will delete the associated calendar (#{credential.events_count} events) and cannot be undone." },
+                        class: "text-red-600 hover:text-red-900 font-medium" %>
+                    <% else %>
+                      <span class="text-gray-400 text-sm">—</span>
+                    <% end %>
                   </td>
                 </tr>
               <% end %>
