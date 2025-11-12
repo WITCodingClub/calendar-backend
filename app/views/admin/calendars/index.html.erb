@@ -1,7 +1,7 @@
 <div class="container mx-auto px-2 pb-8">
   <h1 class="text-3xl font-bold mb-6">Google Calendars</h1>
 
-  <div class="bg-white shadow-md rounded-lg overflow-hidden">
+  <div class="bg-white shadow-md rounded-lg overflow-hidden overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200">
       <thead class="bg-gray-50">
         <tr>
@@ -14,15 +14,15 @@
       <tbody class="bg-white divide-y divide-gray-200">
         <% @calendars.each do |calendar| %>
           <tr class="hover:bg-gray-50">
-            <td class="px-3 py-4 whitespace-nowrap">
-              <div class="text-sm text-gray-500 font-mono" title="<%= calendar.google_calendar_id %>">
+            <td class="px-3 py-4">
+              <div class="text-sm text-gray-500 font-mono break-all max-w-xs lg:max-w-md" title="<%= calendar.google_calendar_id %>">
                 <%= calendar.google_calendar_id %>
               </div>
             </td>
-            <td class="px-3 py-4 whitespace-nowrap">
+            <td class="px-3 py-4">
               <% if calendar.user %>
-                <div class="text-sm text-gray-900"><%= calendar.user.email %></div>
-                <div class="text-xs text-gray-500"><%= calendar.oauth_credential&.email %></div>
+                <div class="text-sm text-gray-900 break-all"><%= calendar.user.email %></div>
+                <div class="text-xs text-gray-500 break-all"><%= calendar.oauth_credential&.email %></div>
               <% else %>
                 <div class="text-sm text-gray-400">No user</div>
               <% end %>
