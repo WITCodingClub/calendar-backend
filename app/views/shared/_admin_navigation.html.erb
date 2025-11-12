@@ -1,6 +1,6 @@
 <%# Admin Navigation Component %>
-<nav class="glass-nav p-0">
-  <ul class="flex flex-wrap m-0 p-0 list-none">
+<nav class="glass-nav p-0 overflow-x-auto">
+  <ul class="flex flex-nowrap m-0 p-0 list-none min-w-max">
     <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
       <%= link_to "Dashboard", admin_root_path,
           class: "admin-nav-link #{request.path == admin_root_path ? 'active' : ''}" %>
