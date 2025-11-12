@@ -42,7 +42,7 @@ class User < ApplicationRecord
   after_create :create_user_extension_config
 
   # Class method to find or create a user by email
-  def self.find_or_create_by_email(email_address)
+  def self.find_or_create_by_email(email_address, fname, lname)
     email_record = Email.find_by(email: email_address)
 
     if email_record
@@ -50,7 +50,7 @@ class User < ApplicationRecord
     else
       # Create user and email in a transaction
       transaction do
-        user = create!
+        user = create!(first_name: fname, last_name: lname)
         user.emails.create!(email: email_address, primary: true)
         user
       end
