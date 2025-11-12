@@ -3,14 +3,15 @@
 module Admin
   class CourseCatalogController < Admin::ApplicationController
     # Admin access already enforced by Admin::ApplicationController's before_action :require_admin
-    before_action :check_super_admin_for_process, only: [:import_courses]
 
     def index
+      authorize :course_catalog
       @terms = Term.order(year: :desc, season: :desc)
       # Show the form for fetching course catalog
     end
 
     def fetch
+      authorize :course_catalog
       @terms = Term.order(year: :desc, season: :desc)
 
       # Extract parameters
@@ -58,6 +59,7 @@ module Admin
     end
 
     def import_courses
+      authorize :course_catalog, :process?
       courses_json = params[:courses]
 
       if courses_json.blank?
@@ -83,15 +85,6 @@ module Admin
     rescue => e
       flash[:alert] = "Unexpected error: #{e.message}"
       redirect_to admin_course_catalog_path
-    end
-
-    private
-
-    def check_super_admin_for_process
-      unless current_user.super_admin? || current_user.owner?
-        flash[:alert] = "Only super admins and owners can process courses into the database."
-        redirect_to admin_course_catalog_path
-      end
     end
   end
 end
