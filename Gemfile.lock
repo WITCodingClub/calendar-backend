@@ -784,7 +784,6 @@ DEPENDENCIES
   tailwindcss-ruby (~> 4.1)
   thruster
   turbo-rails
-  tzinfo-data
   web-console
 
 BUNDLED WITH
