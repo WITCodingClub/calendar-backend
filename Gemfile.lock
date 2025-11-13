@@ -576,7 +576,7 @@ GEM
       rubocop-ast (>= 1.47.1, < 2.0)
       ruby-progressbar (~> 1.7)
       unicode-display_width (>= 2.4.0, < 4.0)
-    rubocop-ast (1.47.1)
+    rubocop-ast (1.48.0)
       parser (>= 3.3.7.2)
       prism (~> 1.4)
     rubocop-capybara (2.22.1)
@@ -594,7 +594,7 @@ GEM
     rubocop-rspec (3.7.0)
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
-    rubocop-rspec_rails (2.31.0)
+    rubocop-rspec_rails (2.32.0)
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
       rubocop-rspec (~> 3.5)
@@ -772,7 +772,7 @@ DEPENDENCIES
   rubocop-factory_bot
   rubocop-rails
   rubocop-rspec (~> 3.6)
-  rubocop-rspec_rails (~> 2.31)
+  rubocop-rspec_rails (~> 2.32)
   selenium-webdriver
   shoulda-matchers
   solid_queue
