@@ -30,6 +30,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bundle exec rubocop -a` - Run linter with auto-fix
 - `bundle exec brakeman` - Run security vulnerability scanner
 
+### API Documentation
+- `OPENAPI=1 bundle exec rspec spec/requests/api` - Generate OpenAPI/Swagger documentation from request specs
+- Access docs at `/admin/api-docs` (requires admin login)
+- **Automatic generation**: GitHub Actions automatically updates docs when API specs change on `main` branch
+- **Configuration files**:
+  - `config/initializers/rspec_openapi.rb` - OpenAPI generation config
+  - `config/initializers/rswag_ui.rb` - Swagger UI config
+  - `config/initializers/rswag_api.rb` - API serving config
+- **Generated file**: `doc/openapi.yaml`
+- **Workflow**: `.github/workflows/update-api-docs.yml`
+- See `docs/api_documentation.md` for complete setup and usage
+
 ## Architecture Overview
 
 ### Core Purpose
@@ -134,6 +146,7 @@ A Rails 8 API backend that syncs college course schedules to Google Calendar wit
 7. **Template validation**: Calendar preference templates are validated; invalid syntax is rejected
 8. **OAuth token encryption**: All sensitive tokens are encrypted with Lockbox
 9. **Multi-email support**: Design features to support users with multiple connected Google accounts
+10. **API documentation auto-updates**: When modifying API endpoints, update request specs - docs regenerate automatically on `main` branch
 
 ## Common Development Workflows
 
@@ -163,8 +176,18 @@ A Rails 8 API backend that syncs college course schedules to Google Calendar wit
 4. Write RSpec tests in `spec/policies/` to verify permissions
 5. See `docs/authorization.md` for policy patterns
 
+### Adding/Updating API Endpoints
+1. Create/update controller action in `app/controllers/api/`
+2. Add request spec in `spec/requests/api/` - this generates the API docs
+3. Test locally: `OPENAPI=1 bundle exec rspec spec/requests/api`
+4. Check generated docs at `/admin/api-docs` (requires admin login)
+5. Docs auto-update on `main` branch via GitHub Actions
+6. To exclude specs from docs, add `openapi: false` to the describe block
+7. See `docs/api_documentation.md` for more details
+
 ### Running Tests for Specific Features
 - Authorization policies: `bundle exec rspec spec/policies/`
+- API endpoints: `bundle exec rspec spec/requests/api/` (or with `OPENAPI=1` to generate docs)
 - Calendar preferences: `bundle exec rspec spec/models/calendar_preference_spec.rb`
 - Template rendering: `bundle exec rspec spec/services/calendar_template_renderer_spec.rb`
 - Preference resolution: `bundle exec rspec spec/services/preference_resolver_spec.rb`

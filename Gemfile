@@ -116,6 +116,7 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+  gem "rspec-openapi", "~> 0.20"
 end
 
 gem "faraday", "~> 2.14"
@@ -134,3 +135,5 @@ gem "neighbor"
 gem "log_bench"
 
 gem "kaminari", "~> 1.2"
+gem "rswag-api", "~> 2.17.0"
+gem "rswag-ui", "~> 2.17.0"
