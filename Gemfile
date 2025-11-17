@@ -96,7 +96,8 @@ group :development, :test do
   gem "rubocop-rspec", "~> 3.6"
   gem "rubocop-rspec_rails", "~> 2.31"
   gem "query_count"
-  gem "bullet"
+  gem 'prosopite'
+  gem 'pg_query'
 end
 
 group :development do
@@ -117,6 +118,7 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
   gem "rspec-openapi", "~> 0.20"
+  gem 'simplecov', require: false
 end
 
 gem "faraday", "~> 2.14"
