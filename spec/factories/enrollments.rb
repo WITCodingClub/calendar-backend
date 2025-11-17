@@ -27,8 +27,8 @@
 #
 FactoryBot.define do
   factory :enrollment do
-    user { nil }
-    academic_class { nil }
-    term { nil }
+    user
+    course
+    term
   end
 end

@@ -4,13 +4,13 @@
 # This is a headless policy (no record) for authorizing admin utility actions
 class CourseCatalogPolicy < ApplicationPolicy
   def index?
-    # Super_admins+ can view the course catalog page (view-only admins cannot)
-    super_admin?
+    # All admins can view the course catalog page
+    admin?
   end
 
   def fetch?
-    # Super_admins+ can fetch the course catalog (view-only admins cannot)
-    super_admin?
+    # All admins can fetch the course catalog
+    admin?
   end
 
   def process?
