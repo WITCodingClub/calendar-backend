@@ -11,6 +11,10 @@ Rails.application.configure do
     Prosopite.raise = true
   end
 
+  # Use test adapter for ActiveJob in test environment
+  # This prevents Solid Queue from trying to use the queue database during tests
+  config.active_job.queue_adapter = :test
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # While tests run files are not watched, reloading is not necessary.

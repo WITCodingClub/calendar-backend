@@ -28,7 +28,8 @@
 FactoryBot.define do
   factory :enrollment do
     user
-    course
     term
+    # Ensure the course belongs to the same term as the enrollment
+    course { association :course, term: term }
   end
 end

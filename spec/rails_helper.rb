@@ -39,6 +39,9 @@ RSpec.configure do |config|
   # Include FactoryBot methods
   config.include FactoryBot::Syntax::Methods
 
+  # Include ActiveSupport::Testing::TimeHelpers for time travel in tests
+  config.include ActiveSupport::Testing::TimeHelpers
+
   # Configure Faker to use unique values by default
   Faker::Config.random = Random.new(config.seed)
 

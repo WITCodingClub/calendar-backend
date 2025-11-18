@@ -22,7 +22,7 @@
 FactoryBot.define do
   factory :term do
     sequence(:uid) { |n| 202500 + n }
-    sequence(:year) { |n| 2025 + (n / 4) }
-    sequence(:season) { |n| [:spring, :summer, :fall, :winter][n % 4] }
+    sequence(:year) { |n| 2025 + (n / 3) }
+    sequence(:season) { |n| [:spring, :summer, :fall][n % 3] }
   end
 end
