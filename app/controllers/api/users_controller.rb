@@ -8,13 +8,24 @@ module Api
     def onboard
       #   takes email as it's one param
       email = params[:email]
+      preferred_name = params[:preferred_name]
+
 
       if email.blank?
         render json: { error: "Email is required" }, status: :bad_request
         return
       end
 
-      user = User.find_or_create_by_email(email)
+      if preferred_name.blank?
+        render json: { error: "Preferred name is required" }, status: :bad_request
+        return
+      end
+
+      name_parts = preferred_name.strip.split(" ", 2)
+      first_name = name_parts[0]
+      last_name = name_parts[1] if name_parts.length > 1
+
+      user = User.find_or_create_by_email(email, first_name, last_name)
 
       beta_access = Flipper.enabled?(FlipperFlags::V1, user)
 
