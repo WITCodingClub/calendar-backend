@@ -448,6 +448,8 @@ GEM
     pg_search (2.3.7)
       activerecord (>= 6.1)
       activesupport (>= 6.1)
+    pghero (3.7.0)
+      activerecord (>= 7.1)
     pgvector (0.3.2)
     pp (0.6.3)
       prettyprint
@@ -784,8 +786,9 @@ DEPENDENCIES
   omniauth-google-oauth2 (~> 1.2, >= 1.2.1)
   paper_trail
   pg (~> 1.6.2)
-  pg_query
+  pg_query (>= 2)
   pg_search
+  pghero (~> 3.7)
   pgvector
   premailer-rails
   propshaft

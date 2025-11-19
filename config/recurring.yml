@@ -29,8 +29,16 @@ blazer_send_failing_checks:
   queue: low
   schedule: every day at 8am
 
-# Ensure future academic terms exist (current + 2 terms ahead)
-# Runs on the 1st of every month at 2:00 AM in application timezone (Eastern Time)
+pghero_capture_query_stats:
+  command: "PgHero.capture_query_stats"
+  queue: low
+  schedule: every 5 minutes
+
+pghero_space_stats:
+  command: "PgHero.capture_space_stats"
+  queue: low
+  schedule: every day at 5am
+
 ensure_future_terms:
   class: EnsureFutureTermsJob
   queue: low

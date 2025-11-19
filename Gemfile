@@ -97,7 +97,6 @@ group :development, :test do
   gem "rubocop-rspec_rails", "~> 2.31"
   gem "query_count"
   gem 'prosopite'
-  gem 'pg_query'
 end
 
 group :development do
@@ -139,3 +138,6 @@ gem "log_bench"
 gem "kaminari", "~> 1.2"
 gem "rswag-api", "~> 2.17.0"
 gem "rswag-ui", "~> 2.17.0"
+
+gem "pghero", "~> 3.7"
+gem "pg_query", ">= 2"

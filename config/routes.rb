@@ -364,6 +364,7 @@ Rails.application.routes.draw do
       mount Audits1984::Engine, at: "audits"
       mount Rswag::Ui::Engine, at: "api-docs"
       mount Rswag::Api::Engine, at: "api-docs"
+      mount PgHero::Engine, at: "pghero"
     end
   end
 
