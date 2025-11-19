@@ -594,7 +594,7 @@ GEM
     rubocop-rspec (3.7.0)
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
-    rubocop-rspec_rails (2.31.0)
+    rubocop-rspec_rails (2.32.0)
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
       rubocop-rspec (~> 3.5)
@@ -772,7 +772,7 @@ DEPENDENCIES
   rubocop-factory_bot
   rubocop-rails
   rubocop-rspec (~> 3.6)
-  rubocop-rspec_rails (~> 2.31)
+  rubocop-rspec_rails (~> 2.32)
   selenium-webdriver
   shoulda-matchers
   solid_queue
