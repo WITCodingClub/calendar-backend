@@ -195,8 +195,20 @@ module Api
       # Sync this specific meeting time immediately (synchronously)
       return unless meeting_time
 
-      SyncMeetingTimeJob.perform_now(current_user.id, meeting_time.id)
+      # Check if user has Google credentials before attempting sync
+      unless current_user.google_credential
+        Rails.logger.warn "Cannot sync event preference - user #{current_user.id} has no Google credential"
+        return
+      end
 
+      begin
+        SyncMeetingTimeJob.perform_now(current_user.id, meeting_time.id)
+        Rails.logger.info "Successfully synced event preference for user #{current_user.id}, meeting_time #{meeting_time.id}"
+      rescue => e
+        Rails.logger.error "Failed to sync event preference: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+        # Don't raise - we don't want to fail the API request if sync fails
+      end
     end
 
   end

@@ -148,7 +148,15 @@ class GoogleCalendarService
     # Use user's OAuth credentials so reminders are visible to the user
     service = user_calendar_service
     google_calendar = user.google_credential&.google_calendar
-    return { created: 0, updated: 0, skipped: 0 } unless google_calendar
+    unless google_calendar
+      Rails.logger.warn({
+        message: "Cannot update events - no Google Calendar found",
+        user_id: user&.id,
+        has_google_credential: user&.google_credential.present?,
+        event_count: events.size
+      }.to_json)
+      return { created: 0, updated: 0, skipped: 0 }
+    end
 
     # Preload existing events to avoid N+1 queries
     # rubocop:disable Rails/Pluck -- events is an array of hashes, not an ActiveRecord relation
@@ -721,6 +729,17 @@ class GoogleCalendarService
       event_data_hash: GoogleCalendarEvent.generate_data_hash(event_data),
       last_synced_at: Time.current
     )
+
+    # Log detailed update information (especially for color changes)
+    Rails.logger.info({
+      message: "Google Calendar event updated",
+      user_id: user.id,
+      google_event_id: db_event.google_event_id,
+      meeting_time_id: db_event.meeting_time_id,
+      forced: force,
+      color_id: event_data[:color_id],
+      has_color: event_data[:color_id].present?
+    }.to_json)
 
     # Track successful update
     StatsD.increment("calendar.sync.event.updated",
