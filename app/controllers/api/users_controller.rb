@@ -42,6 +42,32 @@ module Api
       render json: { error: "Failed to onboard user" }, status: :internal_server_error
     end
 
+    def flag_is_enabled
+      feature_name = params[:flag_name]
+      if feature_name.blank?
+        render json: { error: "flag_name is required" }, status: :bad_request
+        return
+      end
+
+      feature_sym = feature_name.to_sym
+      unless FlipperFlags::ALL_FLAGS.include?(feature_sym)
+        render json: { error: "Unknown feature flag", feature_name: feature_name }, status: :not_found
+        return
+      end
+
+      flipper_key = FlipperFlags::MAP[feature_sym]
+      if flipper_key.nil?
+        render json: { error: "Invalid flag mapping", feature_name: feature_name }, status: :unprocessable_entity
+        return
+      end
+
+      feature = Flipper[flipper_key] # Flipper::Feature
+      is_enabled = feature.enabled?(current_user)
+
+      render json: { feature_name: feature_name, is_enabled: is_enabled }, status: :ok
+    end
+
+
     def is_processed
       authorize current_user, :show?
 
