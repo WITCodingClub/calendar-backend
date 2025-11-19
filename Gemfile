@@ -93,8 +93,8 @@ group :development, :test do
   gem "shoulda-matchers"
   gem "pundit-matchers"
   gem "rubocop-capybara", "~> 2.22", ">= 2.22.1"
-  gem "rubocop-rspec", "~> 3.6"
-  gem "rubocop-rspec_rails", "~> 2.31"
+  gem "rubocop-rspec", "~> 3.8"
+  gem "rubocop-rspec_rails", "~> 2.32"
   gem "query_count"
   gem "bullet"
 end
