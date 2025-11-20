@@ -27,8 +27,9 @@
 #
 FactoryBot.define do
   factory :enrollment do
-    user { nil }
-    academic_class { nil }
-    term { nil }
+    user
+    term
+    # Ensure the course belongs to the same term as the enrollment
+    course { association :course, term: term }
   end
 end

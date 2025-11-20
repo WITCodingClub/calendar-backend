@@ -130,14 +130,33 @@ RSpec.describe LeopardWebService, type: :service do
         }.to raise_error(ArgumentError, /jsessionid is required/)
       end
 
-      it "raises error when idmsessid is missing" do
+      it "allows idmsessid to be nil (optional parameter)" do
+        # idmsessid is optional - it's only added to cookies if present
+        # Mock Faraday response
+        mock_response = double(
+          success?: true,
+          body: {
+            "data" => [],
+            "totalCount" => 0
+          }
+        )
+
+        # Mock the connection
+        mock_connection = double
+        allow(mock_connection).to receive(:get).and_return(mock_response)
+
+        service = described_class.new(
+          action: :get_course_catalog,
+          term: term,
+          jsessionid: jsessionid,
+          idmsessid: nil
+        )
+
+        allow(service).to receive(:authenticated_connection).and_return(mock_connection)
+
         expect {
-          described_class.get_course_catalog(
-            term: term,
-            jsessionid: jsessionid,
-            idmsessid: nil
-          )
-        }.to raise_error(ArgumentError, /idmsessid is required/)
+          service.call
+        }.not_to raise_error
       end
     end
   end

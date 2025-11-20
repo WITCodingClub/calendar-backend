@@ -2,19 +2,24 @@
 
 # Configure Rack Attack for rate limiting
 class Rack::Attack
-  # Use Redis for Rack Attack storage
-  Rack::Attack.cache.store = ActiveSupport::Cache::RedisCacheStore.new(
-    url: ENV.fetch("REDIS_URL", "redis://localhost:6379/5")
-  )
+  # Use Redis for Rack Attack storage in production/development, memory store in test
+  Rack::Attack.cache.store = if Rails.env.test?
+                                ActiveSupport::Cache::MemoryStore.new
+                              else
+                                ActiveSupport::Cache::RedisCacheStore.new(
+                                  url: ENV.fetch("REDIS_URL", "redis://localhost:6379/5")
+                                )
+                              end
 
   # ============================================================================
   # SAFELISTS - Requests that bypass all rate limiting
   # ============================================================================
 
   # Disable rate limiting entirely in test environment
-  safelist("allow-test-environment") do |req|
-    Rails.env.test?
-  end
+  # NOTE: Commented out to allow rate limiting tests to run
+  # safelist("allow-test-environment") do |req|
+  #   Rails.env.test?
+  # end
 
   # Always allow requests from localhost in development
   safelist("allow-localhost") do |req|

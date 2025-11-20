@@ -59,6 +59,9 @@ RSpec.describe CourseProcessorService, type: :service do
       it "raises InvalidTermError when term does not exist" do
         courses = [{ crn: 12345, term: 999999 }]
 
+        # Mock LeopardWebService to prevent actual HTTP calls
+        allow(LeopardWebService).to receive(:get_class_details).and_return({})
+
         expect {
           described_class.new(courses, user).call
         }.to raise_error(InvalidTermError) do |error|

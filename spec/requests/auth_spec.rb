@@ -3,12 +3,14 @@
 require "rails_helper"
 
 RSpec.describe "Admin OAuth Authentication", type: :request do
-  before do
+  before :each do
     # Enable OmniAuth test mode
     OmniAuth.config.test_mode = true
+    # Clear Rack::Attack cache to prevent rate limiting between tests
+    Rack::Attack.cache.store.clear
   end
 
-  after do
+  after :each do
     # Reset OmniAuth test mode
     OmniAuth.config.test_mode = false
     OmniAuth.config.mock_auth[:google_oauth2] = nil

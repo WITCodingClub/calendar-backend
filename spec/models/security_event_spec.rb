@@ -57,7 +57,7 @@ RSpec.describe SecurityEvent, type: :model do
   end
 
   describe "scopes" do
-    let!(:unprocessed_event) { create(:security_event, processed: false) }
+    let!(:unprocessed_event) { create(:security_event, :tokens_revoked, processed: false) }
     let!(:processed_event) { create(:security_event, processed: true) }
     let!(:expired_event) { create(:security_event, expires_at: 1.day.ago) }
     let!(:user) { create(:user) }

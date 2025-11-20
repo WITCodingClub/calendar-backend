@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class DeleteOrphanedGoogleCalendarsJob < ApplicationJob
+class CleanupOrphanedCalendarRecordsJob < ApplicationJob
   queue_as :low
 
   def perform

@@ -35,12 +35,12 @@ RSpec.describe CourseProcessorJob do
     end
 
     it "finds the user by id" do
-      allow(User).to receive(:find).and_call_original
+      allow(User).to receive(:find_by).and_call_original
       allow_any_instance_of(CourseProcessorService).to receive(:call)
 
       described_class.perform_now(courses, user.id)
 
-      expect(User).to have_received(:find).with(user.id)
+      expect(User).to have_received(:find_by).with(id: user.id)
     end
   end
 end

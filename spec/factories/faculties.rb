@@ -23,6 +23,10 @@
 #
 FactoryBot.define do
   factory :faculty do
-
+    sequence(:first_name) { |n| "Professor#{n}" }
+    sequence(:last_name) { |n| "Faculty#{n}" }
+    sequence(:email) { |n| "faculty#{n}@witcc.edu" }
+    rmp_id { nil }
+    rmp_raw_data { {} }
   end
 end

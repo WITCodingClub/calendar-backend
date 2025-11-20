@@ -1,0 +1,95 @@
+name: Update API Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'spec/requests/api/**'
+
+permissions:
+  contents: write
+
+env:
+  RAILS_ENV: test
+  CI: true
+
+jobs:
+  update-docs:
+    name: Generate and Update API Docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ssh-key: "${{ secrets.PUSH_KEY }}"
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          gem install bundler
+          bundle install
+          npm install
+
+      - name: Setup Database
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
+        run: |
+          bundle exec rails db:create
+          bundle exec rails db:schema:load
+
+      - name: Run API specs with OpenAPI generation
+        env:
+          OPENAPI: 1
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
+          REDIS_URL: redis://localhost:6379/0
+        run: bundle exec rspec spec/requests/api --format progress
+
+      - name: Merge API Docs
+        if: hashFiles('doc/openapi*.yaml') != ''
+        run: bundle exec ./bin/merge-api-docs.rb
+
+      - name: Commit and push API Docs
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add "doc/openapi.yaml"
+          git commit -m "Update API Documentation [skip ci]" || echo "No changes to commit"
+          git push origin main || echo "No changes to push"

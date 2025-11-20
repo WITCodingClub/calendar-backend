@@ -25,6 +25,9 @@
 #
 FactoryBot.define do
   factory :email do
-
+    user
+    sequence(:email) { |n| "user#{n}@example.com" }
+    primary { false }
+    g_cal { false }
   end
 end
