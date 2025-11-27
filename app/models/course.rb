@@ -32,6 +32,9 @@
 #
 class Course < ApplicationRecord
   include CourseChangeTrackable
+  include PublicIdentifiable
+
+  set_public_id_prefix :crs
 
   belongs_to :term
 

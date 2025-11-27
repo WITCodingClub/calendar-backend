@@ -26,6 +26,10 @@
 #  fk_rails_...  (oauth_credential_id => oauth_credentials.id)
 #
 class GoogleCalendar < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :gcl
+
   belongs_to :oauth_credential
   has_many :google_calendar_events, dependent: :destroy
   has_one :user, through: :oauth_credential

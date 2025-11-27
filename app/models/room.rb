@@ -20,6 +20,10 @@
 #  fk_rails_...  (building_id => buildings.id)
 #
 class Room < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :rom
+
   belongs_to :building
 
   def floor

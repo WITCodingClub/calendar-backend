@@ -17,6 +17,9 @@
 #  index_buildings_on_name          (name) UNIQUE
 #
 class Building < ApplicationRecord
-  has_many :rooms, dependent: :restrict_with_exception
+  include PublicIdentifiable
 
+  set_public_id_prefix :bld
+
+  has_many :rooms, dependent: :restrict_with_exception
 end

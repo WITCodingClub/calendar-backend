@@ -27,6 +27,10 @@
 #  fk_rails_...  (related_faculty_id => faculties.id)
 #
 class RelatedProfessor < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :rpr
+
   belongs_to :faculty
   belongs_to :related_faculty, class_name: "Faculty", optional: true
 

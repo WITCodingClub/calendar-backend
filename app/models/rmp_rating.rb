@@ -36,6 +36,10 @@
 #  fk_rails_...  (faculty_id => faculties.id)
 #
 class RmpRating < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :rmp, min_hash_length: 12
+
   belongs_to :faculty
 
   has_neighbors :embedding

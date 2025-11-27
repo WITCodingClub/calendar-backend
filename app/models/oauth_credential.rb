@@ -29,6 +29,10 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class OauthCredential < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :oac
+
   belongs_to :user
   has_one :google_calendar, dependent: :destroy
   has_many :security_events, dependent: :nullify

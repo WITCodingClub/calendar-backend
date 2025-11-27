@@ -33,6 +33,10 @@
 #  fk_rails_...  (meeting_time_id => meeting_times.id)
 #
 class GoogleCalendarEvent < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :gce, min_hash_length: 12
+
   belongs_to :google_calendar
   belongs_to :meeting_time, optional: true
   has_one :event_preference, as: :preferenceable, dependent: :destroy

@@ -35,6 +35,10 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class SecurityEvent < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :sev, min_hash_length: 12
+
   belongs_to :user, optional: true
   belongs_to :oauth_credential, optional: true
 
