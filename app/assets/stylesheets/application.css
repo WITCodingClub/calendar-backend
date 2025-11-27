@@ -8,3 +8,11 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+/* Admin Tools - Visual indicator for admin-only content */
+.admin-tools {
+  border: 2px dashed #ec3750;
+  background-color: rgba(236, 55, 80, 0.15);
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+}
