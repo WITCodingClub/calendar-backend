@@ -41,8 +41,7 @@ Rails.application.configure do
   # Change to :null_store to avoid any caching.
   config.cache_store = :null_store
 
-  # Use Rack::Attack for rate limiting and blocking abusive requests.
-  config.middleware.use Rack::Attack
+  # Rack::Attack is configured in config/application.rb (with RateLimitHeadersMiddleware)
 
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
