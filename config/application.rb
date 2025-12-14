@@ -39,6 +39,6 @@ module WitCalendarBackend
 
     # Load and configure Rack::Attack middleware
     config.middleware.use Rack::Attack
-    config.middleware.insert_after Rack::Attack, RateLimitHeadersMiddleware
+    config.middleware.insert_after Rack::Attack, "RateLimitHeadersMiddleware"
   end
 end
