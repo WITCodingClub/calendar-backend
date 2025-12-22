@@ -72,6 +72,11 @@ class User < ApplicationRecord
     owner: 3
   }, default: :user, null: false
 
+  scope :users, -> { where(access_level: [:user, :admin, :super_admin, :owner]) }
+  scope :admins, -> { where(access_level: [:admin, :super_admin, :owner]) }
+  scope :super_admins, -> { where(access_level: [:super_admin, :owner]) }
+  scope :owners, -> { where(access_level: :owner) }
+
   def admin_access?
     admin? || super_admin? || owner?
   end
