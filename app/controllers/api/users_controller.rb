@@ -33,6 +33,7 @@ module Api
       token = JsonWebTokenService.encode({ user_id: user.id }, nil) # nil expiration for never expiring
 
       render json: {
+        pub_id: user.public_id,
         beta_access: beta_access,
         jwt: token
       }, status: :ok
@@ -295,6 +296,7 @@ module Api
           location: {
             building: if mt.building
                         {
+                          pub_id: mt.building.public_id,
                           name: mt.building.name,
                           abbreviation: mt.building.abbreviation
                         }
@@ -417,15 +419,17 @@ module Api
           schedule_type: course.schedule_type,
           prefix: course.prefix,
           term: {
+            pub_id: term.public_id,
             uid: term.uid,
             season: term.season,
             year: term.year
           },
           professor: {
-            first_name: faculty&.first_name,
-            last_name: faculty&.last_name,
-            email: faculty&.email,
-            rmp_id: faculty&.rmp_id
+            pub_id: faculty.public_id,
+            first_name: faculty.first_name,
+            last_name: faculty.last_name,
+            email: faculty.email,
+            rmp_id: faculty.rmp_id
           },
           meeting_times: group_meeting_times(meeting_times)
         }

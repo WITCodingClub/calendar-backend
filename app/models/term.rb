@@ -8,7 +8,9 @@
 #  id                  :bigint           not null, primary key
 #  catalog_imported    :boolean          default(FALSE), not null
 #  catalog_imported_at :datetime
+#  end_date            :date
 #  season              :integer
+#  start_date          :date
 #  uid                 :integer          not null
 #  year                :integer
 #  created_at          :datetime         not null
@@ -39,6 +41,34 @@ class Term < ApplicationRecord
     "#{season.to_s.capitalize} #{year}"
   end
 
+  # Update start_date and end_date from course data
+  # Should be called after importing courses or when course dates change
+  def update_dates_from_courses!
+    return if courses.empty?
+
+    update!(
+      start_date: courses.where.not(start_date: nil).minimum(:start_date),
+      end_date: courses.where.not(end_date: nil).maximum(:end_date)
+    )
+  end
+
+  # Check if term is currently active based on dates
+  # @return [Boolean] true if today is within term dates
+  def active?
+    return false if start_date.nil? || end_date.nil?
+
+    today = Time.zone.today
+    today >= start_date && today <= end_date
+  end
+
+  # Check if term is upcoming (starts in the future)
+  # @return [Boolean] true if term starts after today
+  def upcoming?
+    return false if start_date.nil?
+
+    Time.zone.today < start_date
+  end
+
   # Find a term by its UID
   # @param uid [Integer] the term UID
   # @return [Term, nil] the term if found, nil otherwise
@@ -55,8 +85,18 @@ class Term < ApplicationRecord
   end
 
   # Returns the current academic term based on today's date
+  # Checks which term's date range contains today, falling back to season-based logic
   def self.current
     today = Time.zone.today
+
+    # First, try to find a term where today falls within start_date and end_date
+    active_term = where.not(start_date: nil, end_date: nil)
+                       .where("start_date <= ? AND end_date >= ?", today, today)
+                       .first
+
+    return active_term if active_term
+
+    # Fallback to season-based logic if no term has dates set
     current_year = today.year
 
     # Determine current season based on date ranges:
@@ -75,8 +115,23 @@ class Term < ApplicationRecord
   end
 
   # Returns the next academic term after the current term
+  # Uses date-based logic if available, falls back to season progression
   def self.next
+    today = Time.zone.today
     current_term = current
+
+    # If we have terms with dates, find the next upcoming term by start_date
+    if where.not(start_date: nil).exists?
+      # Find the earliest term that starts after today
+      upcoming = where.not(start_date: nil)
+                      .where("start_date > ?", today)
+                      .order(:start_date)
+                      .first
+
+      return upcoming if upcoming
+    end
+
+    # Fallback to season-based progression
     return nil unless current_term
 
     # Determine next term based on season progression:

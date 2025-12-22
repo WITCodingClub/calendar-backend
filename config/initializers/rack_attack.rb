@@ -2,13 +2,13 @@
 
 # Configure Rack Attack for rate limiting
 class Rack::Attack
-  # Use Redis for Rack Attack storage in production/development, memory store in test
-  Rack::Attack.cache.store = if Rails.env.test?
-                                ActiveSupport::Cache::MemoryStore.new
-                              else
+  # Use Redis for Rack Attack storage in production/staging, memory store in development/test
+  Rack::Attack.cache.store = if Rails.env.production? || Rails.env.staging?
                                 ActiveSupport::Cache::RedisCacheStore.new(
                                   url: ENV.fetch("REDIS_URL", "redis://localhost:6379/5")
                                 )
+                              else
+                                ActiveSupport::Cache::MemoryStore.new
                               end
 
   # ============================================================================

@@ -8,7 +8,9 @@
 #  id                  :bigint           not null, primary key
 #  catalog_imported    :boolean          default(FALSE), not null
 #  catalog_imported_at :datetime
+#  end_date            :date
 #  season              :integer
+#  start_date          :date
 #  uid                 :integer          not null
 #  year                :integer
 #  created_at          :datetime         not null

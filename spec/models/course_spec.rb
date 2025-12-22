@@ -155,4 +155,51 @@ RSpec.describe Course do
       end
     end
   end
+
+  describe "term date updates" do
+    let(:term) { create(:term, start_date: nil, end_date: nil) }
+
+    it "updates term dates when course is created with dates" do
+      course = create(:course, term: term, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
+
+      term.reload
+      expect(term.start_date).to eq(Date.new(2025, 8, 15))
+      expect(term.end_date).to eq(Date.new(2025, 12, 20))
+    end
+
+    it "updates term dates when course start_date changes" do
+      course = create(:course, term: term, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
+      course.update!(start_date: Date.new(2025, 8, 10))
+
+      term.reload
+      expect(term.start_date).to eq(Date.new(2025, 8, 10))
+    end
+
+    it "updates term dates when course end_date changes" do
+      course = create(:course, term: term, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
+      course.update!(end_date: Date.new(2025, 12, 25))
+
+      term.reload
+      expect(term.end_date).to eq(Date.new(2025, 12, 25))
+    end
+
+    it "updates term dates when course is destroyed" do
+      course1 = create(:course, term: term, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
+      course2 = create(:course, term: term, start_date: Date.new(2025, 8, 20), end_date: Date.new(2025, 12, 15))
+
+      course1.destroy
+
+      term.reload
+      expect(term.start_date).to eq(Date.new(2025, 8, 20))
+      expect(term.end_date).to eq(Date.new(2025, 12, 15))
+    end
+
+    it "does not update term dates when other attributes change" do
+      course = create(:course, term: term, title: "Original Title", start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
+
+      expect {
+        course.update!(title: "New Title")
+      }.not_to change { term.reload.updated_at }
+    end
+  end
 end

@@ -102,8 +102,9 @@ class CatalogImportService < ApplicationService
     end_date = nil
     if meeting_times.any?
       first_meeting = meeting_times.first
-      start_date = first_meeting["startDate"]
-      end_date = first_meeting["endDate"]
+      # Parse dates from MM/DD/YYYY format
+      start_date = parse_date(first_meeting["startDate"])
+      end_date = parse_date(first_meeting["endDate"])
     end
 
     # Create or update course using bulk catalog data
@@ -238,6 +239,18 @@ class CatalogImportService < ApplicationService
         # Single name - use for both first and last
         [display_name, display_name]
       end
+    end
+  end
+
+  # Parse date from MM/DD/YYYY format (e.g., "01/06/2026")
+  def parse_date(date_string)
+    return nil if date_string.blank?
+
+    begin
+      Date.strptime(date_string, "%m/%d/%Y")
+    rescue ArgumentError => e
+      Rails.logger.warn("Failed to parse date '#{date_string}': #{e.message}")
+      nil
     end
   end
 end

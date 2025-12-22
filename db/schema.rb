@@ -10,9 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_10_033855) do
+ActiveRecord::Schema[8.1].define(version: 2025_12_22_194633) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_stat_statements"
   enable_extension "vector"
 
   create_table "ahoy_clicks", force: :cascade do |t|
@@ -406,6 +407,26 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_10_033855) do
     t.index ["searchable_type", "searchable_id"], name: "index_pg_search_documents_on_searchable"
   end
 
+  create_table "pghero_query_stats", force: :cascade do |t|
+    t.bigint "calls"
+    t.datetime "captured_at", precision: nil
+    t.text "database"
+    t.text "query"
+    t.bigint "query_hash"
+    t.float "total_time"
+    t.text "user"
+    t.index ["database", "captured_at"], name: "index_pghero_query_stats_on_database_and_captured_at"
+  end
+
+  create_table "pghero_space_stats", force: :cascade do |t|
+    t.datetime "captured_at", precision: nil
+    t.text "database"
+    t.text "relation"
+    t.text "schema"
+    t.bigint "size"
+    t.index ["database", "captured_at"], name: "index_pghero_space_stats_on_database_and_captured_at"
+  end
+
   create_table "rating_distributions", force: :cascade do |t|
     t.decimal "avg_difficulty", precision: 3, scale: 2
     t.decimal "avg_rating", precision: 3, scale: 2
@@ -506,7 +527,9 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_10_033855) do
     t.boolean "catalog_imported", default: false, null: false
     t.datetime "catalog_imported_at"
     t.datetime "created_at", null: false
+    t.date "end_date"
     t.integer "season"
+    t.date "start_date"
     t.integer "uid", null: false
     t.datetime "updated_at", null: false
     t.integer "year"

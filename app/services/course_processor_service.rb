@@ -49,23 +49,6 @@ class CourseProcessorService < ApplicationService
         course_reference_number: course_data[:crn]
       )
 
-      course = Course.find_or_create_by!(crn: course_data[:crn]) do |c|
-        c.title = titleize_with_roman_numerals(detailed_course_info[:title])
-        c.start_date = course_data[:start]
-        c.end_date = course_data[:end]
-        c.subject = detailed_course_info[:subject]
-        c.course_number = course_data[:courseNumber]
-        c.schedule_type = schedule_type_match ? schedule_type_match[1] : nil
-        c.section_number = detailed_course_info[:section_number]
-
-        # LeopardWeb shows total course credit hours for all sections (lecture + lab)
-        # Labs are typically 0-credit companion sections, so override for LAB schedule type
-        c.credit_hours = (schedule_type_match && schedule_type_match[1] == "LAB") ? 0 : detailed_course_info[:credit_hours]
-        c.grade_mode = detailed_course_info[:grade_mode]
-
-        c.term = term
-      end
-
       # Extract meeting times and faculty from nested structure
       meeting_times = []
       faculty_data = []
@@ -82,6 +65,40 @@ class CourseProcessorService < ApplicationService
             faculty_data << faculty
           end
         end
+      end
+
+      # Get course start/end dates from first meeting time (in MM/DD/YYYY format)
+      start_date = nil
+      end_date = nil
+      if meeting_times.any?
+        first_meeting = meeting_times.first
+        start_date = parse_date(first_meeting["startDate"])
+        end_date = parse_date(first_meeting["endDate"])
+      end
+
+      course = Course.find_or_create_by!(crn: course_data[:crn]) do |c|
+        c.title = titleize_with_roman_numerals(detailed_course_info[:title])
+        c.start_date = start_date
+        c.end_date = end_date
+        c.subject = detailed_course_info[:subject]
+        c.course_number = course_data[:courseNumber]
+        c.schedule_type = schedule_type_match ? schedule_type_match[1] : nil
+        c.section_number = detailed_course_info[:section_number]
+
+        # LeopardWeb shows total course credit hours for all sections (lecture + lab)
+        # Labs are typically 0-credit companion sections, so override for LAB schedule type
+        c.credit_hours = (schedule_type_match && schedule_type_match[1] == "LAB") ? 0 : detailed_course_info[:credit_hours]
+        c.grade_mode = detailed_course_info[:grade_mode]
+
+        c.term = term
+      end
+
+      # Update dates if course already exists
+      if course.persisted? && !course.new_record? && start_date.present? && end_date.present?
+        course.update!(
+          start_date: start_date,
+          end_date: end_date
+        )
       end
 
       MeetingTimesIngestService.call(
@@ -231,6 +248,18 @@ class CourseProcessorService < ApplicationService
         # Single name - use for both first and last
         [display_name, display_name]
       end
+    end
+  end
+
+  # Parse date from MM/DD/YYYY format (e.g., "01/06/2026")
+  def parse_date(date_string)
+    return nil if date_string.blank?
+
+    begin
+      Date.strptime(date_string, "%m/%d/%Y")
+    rescue ArgumentError => e
+      Rails.logger.warn("Failed to parse date '#{date_string}': #{e.message}")
+      nil
     end
   end
 

@@ -21,9 +21,15 @@ module Api
       end
 
       if config.save
-        render json: { message: "User extension config updated successfully" }, status: :ok
+        render json: {
+          pub_id: config.public_id,
+          message: "User extension config updated successfully"
+        }, status: :ok
       else
-        render json: { error: "Failed to update user extension config", details: config.errors.full_messages }, status: :unprocessable_entity
+        render json: {
+          pub_id: config.public_id,
+          error: "Failed to update user extension config",
+          details: config.errors.full_messages }, status: :unprocessable_entity
       end
     rescue => e
       Rails.logger.error("Error updating user extension config for user #{current_user.id}: #{e.message}")
@@ -36,7 +42,9 @@ module Api
       config = current_user.user_extension_config
 
       if config.nil?
-        render json: { error: "User extension config not found" }, status: :not_found
+        render json: {
+          error: "User extension config not found"
+        }, status: :not_found
         return
       end
 
@@ -44,6 +52,7 @@ module Api
 
       # Return WITCC colors as stored in database
       render json: {
+        pub_id: config.public_id,
         military_time: config.military_time,
         default_color_lecture: config.default_color_lecture,
         default_color_lab: config.default_color_lab,
@@ -52,7 +61,8 @@ module Api
     rescue => e
       Rails.logger.error("Error fetching user extension config for user #{current_user.id}: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
-      render json: { error: "Failed to fetch user extension config" }, status: :internal_server_error
+      render json: {
+        error: "Failed to fetch user extension config" }, status: :internal_server_error
     end
 
   end

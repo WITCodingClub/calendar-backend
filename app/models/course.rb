@@ -48,6 +48,10 @@ class Course < ApplicationRecord
 
   validates :crn, uniqueness: true, allow_nil: true
 
+  # Update term dates when course dates change
+  after_save :update_term_dates, if: -> { saved_change_to_start_date? || saved_change_to_end_date? }
+  after_destroy :update_term_dates
+
   scope :with_embeddings, -> { where.not(embedding: nil) }
 
   enum :schedule_type, {
@@ -109,6 +113,13 @@ class Course < ApplicationRecord
   def self.semantic_search(query_embedding, limit: 10, distance: "cosine")
     nearest_neighbors(:embedding, query_embedding, distance: distance)
       .limit(limit)
+  end
+
+  private
+
+  # Update the term's start_date and end_date based on all courses
+  def update_term_dates
+    term.update_dates_from_courses!
   end
 
 end
