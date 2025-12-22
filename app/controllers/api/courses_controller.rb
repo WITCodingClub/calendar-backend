@@ -23,6 +23,7 @@ module Api
       ics_url = current_user.cal_url_with_extension
 
       render json: {
+        user_pub: current_user.public_id,
         ics_url: ics_url,
       }, status: :ok
 

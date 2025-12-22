@@ -348,6 +348,34 @@ RSpec.describe Term do
       travel_back
     end
 
+    it "returns upcoming term when it starts within 30 days" do
+      travel_to Date.new(2025, 12, 25) # 21 days before spring starts
+
+      # Fall term that just ended
+      create(:term, year: 2025, season: :fall, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
+
+      # Spring term starting soon
+      spring_term = create(:term, year: 2026, season: :spring, start_date: Date.new(2026, 1, 15), end_date: Date.new(2026, 5, 15))
+
+      # Should return spring term as current since it starts within 30 days
+      expect(described_class.current).to eq(spring_term)
+      travel_back
+    end
+
+    it "returns most recently started term when next term is far away" do
+      travel_to Date.new(2025, 6, 1) # Summer break, spring ended, fall far away
+
+      # Spring term that ended
+      spring_term = create(:term, year: 2025, season: :spring, start_date: Date.new(2025, 1, 15), end_date: Date.new(2025, 5, 15))
+
+      # Fall term that starts in 2+ months
+      create(:term, year: 2025, season: :fall, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
+
+      # Should return spring term as most recent
+      expect(described_class.current).to eq(spring_term)
+      travel_back
+    end
+
     it "falls back to season-based logic when no term has dates" do
       travel_to Date.new(2025, 10, 15)
 

@@ -55,25 +55,63 @@ This recalculates `start_date` and `end_date` from all associated courses.
 
 ## Term Identification
 
-### Current Term Logic
+### Current Term Logic (Prioritized)
 
-`Term.current` uses a two-tier approach:
+`Term.current` uses a four-tier approach:
 
-1. **Date-based (preferred)**: Finds the term where today falls within `start_date` and `end_date`
-2. **Season-based (fallback)**: Uses hard-coded season ranges if no terms have dates set:
+1. **Active Term (Priority 1)**: Find term where today falls within `start_date` and `end_date`
+   - Most accurate when courses have been imported
+   - Example: Today is Oct 15, 2025 → finds Fall 2025 (Sep 2 - Dec 11)
+
+2. **Past End Date → Next Term (Priority 2)**: If we're past a term's end_date, return the next term in sequence
+   - Handles transition between semesters even if next term has no dates yet
+   - Example: Today is Dec 22, 2025 (Fall ended Dec 11) → returns Spring 2026
+   - Uses season progression: Fall → Spring (next year), Spring → Summer (same year), Summer → Fall (same year)
+
+3. **Most Recent Started (Priority 3)**: Return the most recently started term
+   - Handles long gaps (summer break) when next term is far away
+   - Example: Today is June 1, 2025 (Spring ended, Fall starts Aug 15) → returns Spring 2025
+
+4. **Season-Based Fallback (Priority 4)**: Uses hard-coded season ranges if no terms have dates
    - Spring: January 1 - May 31
    - Summer: June 1 - July 31
    - Fall: August 1 - December 31
+   - Logs warning when used
 
-### Next Term Logic
+### Next Term Logic (Prioritized)
 
-`Term.next` also uses a two-tier approach:
+`Term.next` uses a two-tier approach:
 
-1. **Date-based (preferred)**: Finds the earliest term with a `start_date` after today
-2. **Season-based (fallback)**: Uses season progression logic:
+1. **Date-Based (Priority 1)**: Find the earliest term with a `start_date` after today
+   - Most accurate when courses have been imported
+   - Example: Today is Oct 15, 2025 → finds Spring 2026 (starts Jan 15, 2026)
+
+2. **Season-Based Fallback (Priority 2)**: Uses season progression logic
    - Fall → Spring (next year)
    - Spring → Summer (same year)
    - Summer → Fall (same year)
+   - Logs warning when used
+
+### Why This Works in Production
+
+**Crowdsourced Data Approach:**
+- Each user who processes courses contributes to the term date accuracy
+- User imports 5+ courses → their course dates update the term's aggregate dates
+- First user to import gets approximate dates based on their courses
+- Subsequent users refine the dates (earliest start_date, latest end_date across ALL courses)
+- After ~10-20 users, term dates are highly accurate
+
+**Example:**
+```
+User 1 imports: CS101 (Jan 15 - May 10), MATH201 (Jan 20 - May 5)
+→ Term: Jan 15 - May 10
+
+User 2 imports: ENGL102 (Jan 10 - May 12), PHYS150 (Jan 15 - May 8)
+→ Term: Jan 10 - May 12  (expanded range)
+
+User 3 imports: BUS200 (Jan 12 - May 15), CHEM101 (Jan 18 - May 10)
+→ Term: Jan 10 - May 15  (final range gets more accurate)
+```
 
 ## Helper Methods
 
