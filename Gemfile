@@ -135,4 +135,4 @@ gem "log_bench"
 
 gem "kaminari", "~> 1.2"
 
-gem "connection_pool", "~> 3.0.2"
+gem "connection_pool", "~> 2.4"
