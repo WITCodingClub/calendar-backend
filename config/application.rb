@@ -20,7 +20,8 @@ module WitCalendarBackend
 
     # Add constraints directory to autoload paths
     config.autoload_paths << Rails.root.join("app/constraints")
-    config.autoload_paths << Rails.root.join("app/middleware")
+    # Note: app/middleware is NOT in autoload_paths because middleware
+    # classes need to be required explicitly before Rails is fully initialized
 
     config.active_job.queue_adapter = :solid_queue
 
