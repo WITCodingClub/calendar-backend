@@ -282,6 +282,7 @@ Rails.application.routes.draw do
 
     # Course events
     post "process_courses", to: "courses#process_courses"
+    post "courses/reprocess", to: "courses#reprocess"
 
     # Calendar preferences
     resources :calendar_preferences, only: [:index, :show, :update, :destroy] do
