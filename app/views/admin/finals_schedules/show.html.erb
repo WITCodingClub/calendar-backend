@@ -1,0 +1,190 @@
+<%= turbo_frame_tag "finals_schedule_#{@finals_schedule.id}",
+    data: (@finals_schedule.pending? || @finals_schedule.processing?) ?
+      { controller: "auto-refresh", "auto-refresh-interval-value": 3000 } : {} do %>
+
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6">
+    <%= link_to "← Back to Finals Schedules", admin_finals_schedules_path, class: "text-sm font-medium hover:underline", style: "color: #d13732;" %>
+  </div>
+
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Finals Schedule: <%= @finals_schedule.term.name %></h1>
+    <% if policy(@finals_schedule).destroy? %>
+      <%= button_to "Delete Schedule", admin_finals_schedule_path(@finals_schedule),
+          method: :delete,
+          data: { turbo_confirm: "Delete this finals schedule? This will NOT delete the associated final exams." },
+          class: "glass-button px-6 py-2 rounded inline-flex items-center bg-red-100 text-red-700 hover:bg-red-200" %>
+    <% end %>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+      <div class="px-6 py-4 bg-white/50 border-b border-gray-200">
+        <h2 class="text-lg font-semibold">Upload Details</h2>
+      </div>
+      <div class="px-6 py-4">
+        <dl class="space-y-4">
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Status</dt>
+            <dd class="mt-1"><%= render "status_badge", status: @finals_schedule.status %></dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Uploaded By</dt>
+            <dd class="mt-1 text-sm text-gray-900"><%= @finals_schedule.uploaded_by.email %></dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Uploaded At</dt>
+            <dd class="mt-1 text-sm text-gray-900"><%= @finals_schedule.created_at.strftime("%B %d, %Y at %l:%M %p") %></dd>
+          </div>
+          <% if @finals_schedule.processed_at %>
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Processed At</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @finals_schedule.processed_at.strftime("%B %d, %Y at %l:%M %p") %></dd>
+            </div>
+          <% end %>
+          <% if @finals_schedule.pdf_file.attached? %>
+            <div>
+              <dt class="text-sm font-medium text-gray-500">PDF File</dt>
+              <dd class="mt-1">
+                <%= link_to "Download PDF", rails_blob_path(@finals_schedule.pdf_file, disposition: "attachment"),
+                    class: "text-sm text-[#d13732] hover:underline" %>
+                <span class="text-xs text-gray-500 ml-2">
+                  (<%= number_to_human_size(@finals_schedule.pdf_file.blob.byte_size) %>)
+                </span>
+              </dd>
+            </div>
+          <% end %>
+        </dl>
+      </div>
+    </div>
+
+    <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+      <div class="px-6 py-4 bg-white/50 border-b border-gray-200">
+        <h2 class="text-lg font-semibold">Processing Results</h2>
+      </div>
+      <div class="px-6 py-4">
+        <% if @finals_schedule.stats.present? %>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-green-50 rounded-lg p-4 text-center">
+              <div class="text-2xl font-bold text-green-600"><%= @finals_schedule.stats["created"] || 0 %></div>
+              <div class="text-sm text-green-700">Finals Created</div>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+              <div class="text-2xl font-bold text-blue-600"><%= @finals_schedule.stats["updated"] || 0 %></div>
+              <div class="text-sm text-blue-700">Finals Updated</div>
+            </div>
+            <div class="bg-teal-50 rounded-lg p-4 text-center">
+              <div class="text-2xl font-bold text-teal-600"><%= @finals_schedule.stats["linked"] || 0 %></div>
+              <div class="text-sm text-teal-700">Linked to Courses</div>
+            </div>
+            <div class="bg-amber-50 rounded-lg p-4 text-center">
+              <div class="text-2xl font-bold text-amber-600"><%= @finals_schedule.stats["orphan"] || 0 %></div>
+              <div class="text-sm text-amber-700">Awaiting Courses</div>
+            </div>
+            <div class="bg-purple-50 rounded-lg p-4 text-center col-span-2">
+              <div class="text-2xl font-bold text-purple-600"><%= @finals_schedule.stats["total"] || 0 %></div>
+              <div class="text-sm text-purple-700">Total Parsed</div>
+            </div>
+            <% if @finals_schedule.stats["rooms_created"].to_i > 0 %>
+              <div class="bg-orange-50 rounded-lg p-4 text-center col-span-2">
+                <div class="text-2xl font-bold text-orange-600"><%= @finals_schedule.stats["rooms_created"] %></div>
+                <div class="text-sm text-orange-700">Rooms Created</div>
+              </div>
+            <% end %>
+          </div>
+        <% elsif @finals_schedule.pending? || @finals_schedule.processing? %>
+          <p class="text-sm text-gray-600">Processing in progress...</p>
+        <% else %>
+          <p class="text-sm text-gray-600">No statistics available.</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <% if @finals_schedule.error_message.present? %>
+    <div class="glass-card shadow-lg rounded-lg overflow-hidden mb-6">
+      <div class="px-6 py-4 bg-red-50 border-b border-red-200 flex justify-between items-center">
+        <h2 class="text-lg font-semibold text-red-900">Errors & Warnings</h2>
+        <span class="text-sm text-red-600"><%= @finals_schedule.error_message.lines.count %> messages</span>
+      </div>
+      <div class="px-6 py-4 bg-red-50/50 max-h-64 overflow-y-auto">
+        <pre class="text-sm text-red-800 whitespace-pre-wrap font-mono"><%= @finals_schedule.error_message %></pre>
+      </div>
+    </div>
+  <% end %>
+
+  <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+    <div class="px-6 py-4 bg-white/50 border-b border-gray-200 flex justify-between items-center">
+      <h2 class="text-lg font-semibold">Final Exams for <%= @finals_schedule.term.name %></h2>
+      <span class="text-sm text-gray-600"><%= @final_exams.count %> exams</span>
+    </div>
+    <div class="max-h-[32rem] overflow-y-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-white/50 sticky top-0">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              CRN
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              Course
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              Date
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              Time
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              Location
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white/30">
+          <% if @final_exams.any? %>
+            <% @final_exams.each do |exam| %>
+              <tr class="<%= 'bg-amber-50/50' if exam.orphan? %>">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
+                  <%= exam.crn %>
+                  <% if exam.orphan? %>
+                    <span class="ml-1 text-xs text-amber-600" title="No course found for this CRN yet">⏳</span>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <% if exam.linked? %>
+                    <div class="text-sm font-medium text-gray-900">
+                      <%= exam.course.subject %>-<%= exam.course.course_number %>-<%= exam.course.section_number %>
+                    </div>
+                    <div class="text-sm text-gray-500"><%= exam.course.title %></div>
+                  <% else %>
+                    <div class="text-sm text-amber-600 italic">Awaiting course data...</div>
+                    <div class="text-xs text-gray-400">Will link when course is imported</div>
+                  <% end %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <%= exam.exam_date.strftime("%a, %b %d, %Y") %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <%= exam.formatted_start_time %> - <%= exam.formatted_end_time %>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <% if exam.rooms_matched? %>
+                    <span title="<%= exam.location %>"><%= exam.location_with_names %></span>
+                  <% else %>
+                    <%= exam.location.presence || "—" %>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          <% else %>
+            <tr>
+              <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">
+                No final exams found for this term.
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<% end %>

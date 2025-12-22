@@ -1,0 +1,108 @@
+<div class="container mx-auto px-4 py-8">
+  <div class="mb-6">
+    <%= link_to "← Back to Finals Schedules", admin_finals_schedules_path, class: "text-sm font-medium hover:underline", style: "color: #d13732;" %>
+  </div>
+
+  <div class="max-w-4xl">
+    <h1 class="text-2xl font-bold mb-6">Confirm Schedule Update</h1>
+
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+      <h3 class="text-lg font-semibold text-yellow-900 mb-2">Existing Finals Found</h3>
+      <p class="text-sm text-yellow-800">
+        There are already <strong><%= @existing_exams.count %></strong> final exams recorded for
+        <strong><%= @finals_schedule.term&.name %></strong>.
+        Processing the new schedule will update any matching CRNs and add new ones.
+      </p>
+    </div>
+
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <h3 class="text-lg font-semibold text-blue-900 mb-2">Uploaded File</h3>
+      <p class="text-sm text-blue-800">
+        <strong><%= @finals_schedule.pdf_file.filename %></strong>
+        (<%= number_to_human_size(@finals_schedule.pdf_file.blob.byte_size) %>)
+      </p>
+    </div>
+
+    <div class="glass-card shadow-lg rounded-lg overflow-hidden mb-6">
+      <div class="px-6 py-4 bg-white/50 border-b border-gray-200">
+        <h2 class="text-lg font-semibold">Current Final Exams (<%= @existing_exams.count %>)</h2>
+      </div>
+      <div class="overflow-x-auto max-h-96">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-white/50 sticky top-0">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                CRN
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Course
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Date
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Time
+              </th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Location
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white/30">
+            <% @existing_exams.each do |exam| %>
+              <tr class="<%= 'bg-amber-50/50' if exam.orphan? %>">
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900 font-mono">
+                  <%= exam.crn %>
+                  <% if exam.orphan? %>
+                    <span class="ml-1 text-xs text-amber-600" title="No course found for this CRN yet">⏳</span>
+                  <% end %>
+                </td>
+                <td class="px-6 py-3 whitespace-nowrap">
+                  <% if exam.linked? %>
+                    <div class="text-sm font-medium text-gray-900">
+                      <%= exam.course.subject %>-<%= exam.course.course_number %>-<%= exam.course.section_number %>
+                    </div>
+                    <div class="text-xs text-gray-500"><%= exam.course.title.truncate(40) %></div>
+                  <% else %>
+                    <div class="text-sm text-amber-600 italic">Awaiting course data</div>
+                  <% end %>
+                </td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                  <%= exam.exam_date.strftime("%b %d, %Y") %>
+                </td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                  <%= exam.formatted_start_time %> - <%= exam.formatted_end_time %>
+                </td>
+                <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                  <%= exam.location.presence || "—" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <div class="px-6 py-6">
+        <h3 class="text-lg font-semibold mb-4">What will happen:</h3>
+        <ul class="list-disc list-inside text-sm text-gray-700 mb-6 space-y-2">
+          <li>Final exams with <strong>matching CRNs</strong> will be <span class="text-blue-600 font-medium">updated</span> with new date/time/location</li>
+          <li>Final exams for <strong>new CRNs</strong> will be <span class="text-green-600 font-medium">created</span></li>
+          <li>Existing finals for CRNs <strong>not in the new PDF</strong> will be <span class="text-gray-600 font-medium">unchanged</span></li>
+        </ul>
+
+        <div class="flex gap-3 pt-4">
+          <%= button_to "Confirm and Process Schedule",
+              process_schedule_admin_finals_schedule_path(@finals_schedule),
+              method: :post,
+              class: "glass-button px-6 py-2 rounded inline-flex items-center bg-yellow-100 hover:bg-yellow-200 text-yellow-800" %>
+          <%= link_to "Cancel",
+              admin_finals_schedule_path(@finals_schedule),
+              data: { turbo_method: :delete, turbo_confirm: "Cancel upload and delete the pending schedule?" },
+              class: "px-6 py-2 rounded inline-flex items-center text-gray-700 hover:text-gray-900" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

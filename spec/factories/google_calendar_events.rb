@@ -15,6 +15,7 @@
 #  summary            :string
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
+#  final_exam_id      :bigint
 #  google_calendar_id :bigint           not null
 #  google_event_id    :string           not null
 #  meeting_time_id    :bigint
@@ -22,6 +23,7 @@
 # Indexes
 #
 #  idx_on_google_calendar_id_meeting_time_id_6c9efabf50  (google_calendar_id,meeting_time_id)
+#  index_google_calendar_events_on_final_exam_id         (final_exam_id)
 #  index_google_calendar_events_on_google_calendar_id    (google_calendar_id)
 #  index_google_calendar_events_on_google_event_id       (google_event_id)
 #  index_google_calendar_events_on_last_synced_at        (last_synced_at)
@@ -29,6 +31,7 @@
 #
 # Foreign Keys
 #
+#  fk_rails_...  (final_exam_id => final_exams.id)
 #  fk_rails_...  (google_calendar_id => google_calendars.id)
 #  fk_rails_...  (meeting_time_id => meeting_times.id)
 #

@@ -143,3 +143,4 @@ gem "pghero", "~> 3.7"
 gem "pg_query", ">= 2"
 
 gem "connection_pool", "~> 3.0"
+gem "pdf-reader"

@@ -43,6 +43,7 @@ class Course < ApplicationRecord
   has_many :rooms, through: :meeting_times
   has_many :enrollments, dependent: :destroy
   has_many :users, through: :enrollments
+  has_one :final_exam, dependent: :destroy
 
   has_neighbors :embedding
 

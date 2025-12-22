@@ -132,6 +132,13 @@ class CatalogImportService < ApplicationService
       )
     end
 
+    # Link orphan FinalExam records to this course (if finals schedule was uploaded before courses)
+    orphan_exam = FinalExam.orphan.find_by(crn: course.crn, term: term)
+    if orphan_exam
+      orphan_exam.update!(course: course)
+      Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
+    end
+
     # Ingest meeting times (only if we have them)
     if meeting_times.any?
       MeetingTimesIngestService.call(

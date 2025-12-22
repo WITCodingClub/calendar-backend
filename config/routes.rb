@@ -23,11 +23,13 @@
 #                                      api DELETE /api/user/oauth_credentials/:credential_id(.:format)                                              api/users#disconnect_oauth_credential
 #                    api_user_is_processed POST   /api/user/is_processed(.:format)                                                                  api/users#is_processed
 #                api_user_processed_events POST   /api/user/processed_events(.:format)                                                              api/users#get_processed_events_by_term
+#                    api_user_flag_enabled GET    /api/user/flag_enabled(.:format)                                                                  api/users#flag_is_enabled
 #                api_user_extension_config GET    /api/user/extension_config(.:format)                                                              api/user_extension_config#get
 #                                          PUT    /api/user/extension_config(.:format)                                                              api/user_extension_config#set
 #                       api_faculty_by_rmp GET    /api/faculty/by_rmp(.:format)                                                                     api/faculty#get_info_by_rmp_id
 #               api_terms_current_and_next GET    /api/terms/current_and_next(.:format)                                                             api/misc#get_current_terms
 #                      api_process_courses POST   /api/process_courses(.:format)                                                                    api/courses#process_courses
+#                    api_courses_reprocess POST   /api/courses/reprocess(.:format)                                                                  api/courses#reprocess
 #         preview_api_calendar_preferences POST   /api/calendar_preferences/preview(.:format)                                                       api/calendar_preferences#preview
 #                 api_calendar_preferences GET    /api/calendar_preferences(.:format)                                                               api/calendar_preferences#index
 #                  api_calendar_preference GET    /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#show
@@ -75,6 +77,13 @@
 #                          admin_faculties GET    /admin/faculties(.:format)                                                                        admin/faculties#index
 #                            admin_faculty GET    /admin/faculties/:id(.:format)                                                                    admin/faculties#show
 #                              admin_terms GET    /admin/terms(.:format)                                                                            admin/terms#index
+#    confirm_replace_admin_finals_schedule GET    /admin/finals_schedules/:id/confirm_replace(.:format)                                             admin/finals_schedules#confirm_replace
+#   process_schedule_admin_finals_schedule POST   /admin/finals_schedules/:id/process_schedule(.:format)                                            admin/finals_schedules#process_schedule
+#                   admin_finals_schedules GET    /admin/finals_schedules(.:format)                                                                 admin/finals_schedules#index
+#                                          POST   /admin/finals_schedules(.:format)                                                                 admin/finals_schedules#create
+#                new_admin_finals_schedule GET    /admin/finals_schedules/new(.:format)                                                             admin/finals_schedules#new
+#                    admin_finals_schedule GET    /admin/finals_schedules/:id(.:format)                                                             admin/finals_schedules#show
+#                                          DELETE /admin/finals_schedules/:id(.:format)                                                             admin/finals_schedules#destroy
 #             admin_google_calendar_events GET    /admin/google_calendar_events(.:format)                                                           admin/google_calendar_events#index
 #                        admin_rmp_ratings GET    /admin/rmp_ratings(.:format)                                                                      admin/rmp_ratings#index
 #                     admin_course_catalog GET    /admin/course_catalog(.:format)                                                                   admin/course_catalog#index
@@ -89,6 +98,9 @@
 #                                                 /admin/flipper                                                                                    Flipper::UI
 #                  admin_rails_performance        /admin/performance                                                                                RailsPerformance::Engine
 #                         admin_audits1984        /admin/audits                                                                                     Audits1984::Engine
+#                           admin_rswag_ui        /admin/api-docs                                                                                   Rswag::Ui::Engine
+#                          admin_rswag_api        /admin/api-docs                                                                                   Rswag::Api::Engine
+#                            admin_pg_hero        /admin/pghero                                                                                     PgHero::Engine
 #                                    admin GET    /admin(.:format)                                                                                  redirect(301, /users/sign_in)
 #                                          GET    /admin/*path(.:format)                                                                            redirect(301, /users/sign_in)
 #                             unauthorized GET    /unauthorized(.:format)                                                                           errors#unauthorized
@@ -219,6 +231,40 @@
 #                   PUT   /filtered_sessions(.:format)               audits1984/filtered_sessions#update
 #              root GET   /                                          audits1984/sessions#index
 #
+# Routes for Rswag::Ui::Engine:
+# No routes defined.
+#
+# Routes for Rswag::Api::Engine:
+# No routes defined.
+#
+# Routes for PgHero::Engine:
+#                    Prefix Verb URI Pattern                                      Controller#Action
+#                     space GET  (/:database)/space(.:format)                     pg_hero/home#space
+#            relation_space GET  (/:database)/space/:relation(.:format)           pg_hero/home#relation_space
+#               index_bloat GET  (/:database)/index_bloat(.:format)               pg_hero/home#index_bloat
+#              live_queries GET  (/:database)/live_queries(.:format)              pg_hero/home#live_queries
+#                   queries GET  (/:database)/queries(.:format)                   pg_hero/home#queries
+#                show_query GET  (/:database)/queries/:query_hash(.:format)       pg_hero/home#show_query
+#                    system GET  (/:database)/system(.:format)                    pg_hero/home#system
+#                 cpu_usage GET  (/:database)/cpu_usage(.:format)                 pg_hero/home#cpu_usage
+#          connection_stats GET  (/:database)/connection_stats(.:format)          pg_hero/home#connection_stats
+#     replication_lag_stats GET  (/:database)/replication_lag_stats(.:format)     pg_hero/home#replication_lag_stats
+#                load_stats GET  (/:database)/load_stats(.:format)                pg_hero/home#load_stats
+#          free_space_stats GET  (/:database)/free_space_stats(.:format)          pg_hero/home#free_space_stats
+#                   explain GET  (/:database)/explain(.:format)                   pg_hero/home#explain
+#                      tune GET  (/:database)/tune(.:format)                      pg_hero/home#tune
+#               connections GET  (/:database)/connections(.:format)               pg_hero/home#connections
+#               maintenance GET  (/:database)/maintenance(.:format)               pg_hero/home#maintenance
+#                      kill POST (/:database)/kill(.:format)                      pg_hero/home#kill
+# kill_long_running_queries POST (/:database)/kill_long_running_queries(.:format) pg_hero/home#kill_long_running_queries
+#                  kill_all POST (/:database)/kill_all(.:format)                  pg_hero/home#kill_all
+#        enable_query_stats POST (/:database)/enable_query_stats(.:format)        pg_hero/home#enable_query_stats
+#                           POST (/:database)/explain(.:format)                   pg_hero/home#explain
+#         reset_query_stats POST (/:database)/reset_query_stats(.:format)         pg_hero/home#reset_query_stats
+#              system_stats GET  (/:database)/system_stats(.:format)              redirect(301, system)
+#               query_stats GET  (/:database)/query_stats(.:format)               redirect(301, queries)
+#                      root GET  /(:database)(.:format)                           pg_hero/home#index
+#
 # Routes for LetterOpenerWeb::Engine:
 #        Prefix Verb URI Pattern                      Controller#Action
 #       letters GET  /                                letter_opener_web/letters#index
@@ -344,6 +390,12 @@ Rails.application.routes.draw do
         end
       end
       resources :terms, only: [:index]
+      resources :finals_schedules, only: [:index, :new, :create, :show, :destroy] do
+        member do
+          get :confirm_replace
+          post :process_schedule
+        end
+      end
       resources :google_calendar_events, only: [:index]
       resources :rmp_ratings, only: [:index]
 

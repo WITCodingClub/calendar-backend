@@ -10,6 +10,8 @@ class CalendarTemplateRenderer
     faculty faculty_email all_faculty
     start_time end_time day day_abbr
     term schedule_type schedule_type_short
+    exam_date exam_date_short exam_time_of_day duration
+    event_type is_final_exam combined_crns
   ].freeze
 
   def self.validate_template(template_string)
@@ -89,7 +91,79 @@ class CalendarTemplateRenderer
       day_abbr: meeting_time.day_of_week&.first(3)&.capitalize || "",
       term: course.term&.name || "",
       schedule_type: course.schedule_type&.capitalize || "",
-      schedule_type_short: shorthand_schedule_type(course.schedule_type)
+      schedule_type_short: shorthand_schedule_type(course.schedule_type),
+      event_type: "class",
+      is_final_exam: false,
+      exam_date: "",
+      exam_date_short: "",
+      exam_time_of_day: "",
+      duration: "",
+      combined_crns: course.crn.to_s
+    }
+  end
+
+  def self.build_context_from_final_exam(final_exam)
+    course = final_exam.course
+
+    # Handle orphan finals (no course linked yet)
+    if course.nil?
+      return {
+        title: "CRN #{final_exam.crn}",
+        course_code: final_exam.course_code,
+        subject: "",
+        course_number: "",
+        section_number: "",
+        crn: final_exam.crn,
+        room: "",
+        building: "",
+        location: final_exam.location || "",
+        faculty: "TBA",
+        faculty_email: "",
+        all_faculty: "TBA",
+        start_time: final_exam.formatted_start_time_ampm,
+        end_time: final_exam.formatted_end_time_ampm,
+        day: final_exam.exam_date.strftime("%A"),
+        day_abbr: final_exam.exam_date.strftime("%a"),
+        term: final_exam.term&.name || "",
+        schedule_type: "Final Exam",
+        schedule_type_short: "Final",
+        event_type: "final_exam",
+        is_final_exam: true,
+        exam_date: final_exam.exam_date.strftime("%B %d, %Y"),
+        exam_date_short: final_exam.exam_date.strftime("%m/%d/%Y"),
+        exam_time_of_day: final_exam.time_of_day&.capitalize || "",
+        duration: "#{final_exam.duration_hours} hours",
+        combined_crns: final_exam.combined_crns_display
+      }
+    end
+
+    {
+      title: course.title,
+      course_code: final_exam.course_code,
+      subject: course.subject,
+      course_number: course.course_number,
+      section_number: course.section_number,
+      crn: final_exam.crn,
+      room: "",
+      building: "",
+      location: final_exam.location || "",
+      faculty: final_exam.primary_instructor,
+      faculty_email: course.faculties.first&.email || "",
+      all_faculty: final_exam.all_instructors,
+      start_time: final_exam.formatted_start_time_ampm,
+      end_time: final_exam.formatted_end_time_ampm,
+      day: final_exam.exam_date.strftime("%A"),
+      day_abbr: final_exam.exam_date.strftime("%a"),
+      term: course.term&.name || "",
+      schedule_type: "Final Exam",
+      schedule_type_short: "Final",
+      event_type: "final_exam",
+      is_final_exam: true,
+      exam_date: final_exam.exam_date.strftime("%B %d, %Y"),
+      exam_date_short: final_exam.exam_date.strftime("%m/%d/%Y"),
+      exam_time_of_day: final_exam.time_of_day&.capitalize || "",
+      duration: "#{final_exam.duration_hours} hours",
+      combined_crns: final_exam.combined_crns_display
     }
   end
 

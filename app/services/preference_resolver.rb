@@ -19,6 +19,20 @@ class PreferenceResolver
     visibility: "default"
   }.freeze
 
+  # Special defaults for final exams - more aggressive reminders, distinct color
+  FINAL_EXAM_DEFAULTS = {
+    title_template: "Final Exam: {{title}}",
+    description_template: "{{course_code}}\n{{faculty}}\n{{location}}",
+    location_template: "{{location}}",
+    reminder_settings: [
+      { "time" => "1", "type" => "days", "method" => "popup" },
+      { "time" => "1", "type" => "hours", "method" => "popup" },
+      { "time" => "15", "type" => "minutes", "method" => "popup" }
+    ],
+    color_id: 11, # Tomato red - stands out for finals
+    visibility: "default"
+  }.freeze
+
   def initialize(user)
     @user = user
     @cache = {}
@@ -137,9 +151,13 @@ class PreferenceResolver
 
   def extract_event_type(event)
     case event
+    when FinalExam
+      "final_exam"
     when MeetingTime
       event.course&.schedule_type
     when GoogleCalendarEvent
+      # Check if it's a final exam event first
+      return "final_exam" if event.final_exam_id.present?
       # If GoogleCalendarEvent has meeting_time, use its schedule_type
       event.meeting_time&.course&.schedule_type
     else
@@ -148,6 +166,11 @@ class PreferenceResolver
   end
 
   def system_default_for(field, event, event_type)
+    # Use final exam defaults for final exams
+    if event_type == "final_exam"
+      return FINAL_EXAM_DEFAULTS[field]
+    end
+
     # Special handling for color_id: use user extension config, then meeting time's event color
     if field == :color_id
       meeting_time = event.is_a?(MeetingTime) ? event : event.meeting_time

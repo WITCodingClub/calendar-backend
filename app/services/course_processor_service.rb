@@ -101,6 +101,13 @@ class CourseProcessorService < ApplicationService
         )
       end
 
+      # Link orphan FinalExam records to this course (if finals schedule was uploaded before courses)
+      orphan_exam = FinalExam.orphan.find_by(crn: course.crn, term: term)
+      if orphan_exam
+        orphan_exam.update!(course: course)
+        Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
+      end
+
       MeetingTimesIngestService.call(
         course: course,
         raw_meeting_times: meeting_times

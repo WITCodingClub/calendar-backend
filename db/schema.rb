@@ -10,11 +10,39 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_12_22_194633) do
+ActiveRecord::Schema[8.1].define(version: 2025_12_22_212423) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
   enable_extension "vector"
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "record_id", null: false
+    t.string "record_type", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.string "content_type"
+    t.datetime "created_at", null: false
+    t.string "filename", null: false
+    t.string "key", null: false
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
 
   create_table "ahoy_clicks", force: :cascade do |t|
     t.string "campaign"
@@ -287,6 +315,37 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_22_194633) do
     t.index ["rmp_raw_data"], name: "index_faculties_on_rmp_raw_data", using: :gin
   end
 
+  create_table "final_exams", force: :cascade do |t|
+    t.text "combined_crns"
+    t.bigint "course_id"
+    t.datetime "created_at", null: false
+    t.integer "crn"
+    t.integer "end_time", null: false
+    t.date "exam_date", null: false
+    t.string "location"
+    t.text "notes"
+    t.integer "start_time", null: false
+    t.bigint "term_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_id"], name: "index_final_exams_on_course_id"
+    t.index ["crn", "term_id"], name: "index_final_exams_on_crn_and_term_id", unique: true
+    t.index ["term_id"], name: "index_final_exams_on_term_id"
+  end
+
+  create_table "finals_schedules", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.datetime "processed_at"
+    t.jsonb "stats", default: {}
+    t.integer "status", default: 0, null: false
+    t.bigint "term_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "uploaded_by_id", null: false
+    t.index ["term_id", "created_at"], name: "index_finals_schedules_on_term_id_and_created_at"
+    t.index ["term_id"], name: "index_finals_schedules_on_term_id"
+    t.index ["uploaded_by_id"], name: "index_finals_schedules_on_uploaded_by_id"
+  end
+
   create_table "flipper_features", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -307,6 +366,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_22_194633) do
     t.datetime "created_at", null: false
     t.datetime "end_time"
     t.string "event_data_hash"
+    t.bigint "final_exam_id"
     t.bigint "google_calendar_id", null: false
     t.string "google_event_id", null: false
     t.datetime "last_synced_at"
@@ -316,6 +376,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_22_194633) do
     t.datetime "start_time"
     t.string "summary"
     t.datetime "updated_at", null: false
+    t.index ["final_exam_id"], name: "index_google_calendar_events_on_final_exam_id"
     t.index ["google_calendar_id", "meeting_time_id"], name: "idx_on_google_calendar_id_meeting_time_id_6c9efabf50"
     t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
     t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
@@ -572,6 +633,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_22_194633) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_preferences", "users"
   add_foreign_key "courses", "terms"
   add_foreign_key "emails", "users"
@@ -579,19 +642,24 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_22_194633) do
   add_foreign_key "enrollments", "terms"
   add_foreign_key "enrollments", "users"
   add_foreign_key "event_preferences", "users"
+  add_foreign_key "final_exams", "courses"
+  add_foreign_key "final_exams", "terms"
+  add_foreign_key "finals_schedules", "terms"
+  add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
+  add_foreign_key "google_calendar_events", "final_exams"
   add_foreign_key "google_calendar_events", "google_calendars"
   add_foreign_key "google_calendar_events", "meeting_times"
   add_foreign_key "google_calendars", "oauth_credentials"
   add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
   add_foreign_key "oauth_credentials", "users"
-  add_foreign_key "rating_distributions", "faculties", validate: false
-  add_foreign_key "related_professors", "faculties", column: "related_faculty_id", validate: false
-  add_foreign_key "related_professors", "faculties", validate: false
-  add_foreign_key "rmp_ratings", "faculties", validate: false
+  add_foreign_key "rating_distributions", "faculties"
+  add_foreign_key "related_professors", "faculties"
+  add_foreign_key "related_professors", "faculties", column: "related_faculty_id"
+  add_foreign_key "rmp_ratings", "faculties"
   add_foreign_key "rooms", "buildings"
   add_foreign_key "security_events", "oauth_credentials"
   add_foreign_key "security_events", "users"
-  add_foreign_key "teacher_rating_tags", "faculties", validate: false
+  add_foreign_key "teacher_rating_tags", "faculties"
   add_foreign_key "user_extension_configs", "users"
 end

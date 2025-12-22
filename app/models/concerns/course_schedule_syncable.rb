@@ -54,8 +54,13 @@ module CourseScheduleSyncable
       end
     end
 
+    # Add final exams for enrolled courses
+    finals = build_finals_events_for_sync
+    events.concat(finals)
+
     # Track events built for sync
     StatsD.gauge("sync.events_built", events.count, tags: ["user_id:#{id}", "force:#{force}"])
+    StatsD.gauge("sync.finals_built", finals.count, tags: ["user_id:#{id}"])
 
     result = service.update_calendar_events(events, force: force)
 
@@ -214,6 +219,65 @@ module CourseScheduleSyncable
     # Each meeting_time now represents a single day, so only one day code
     until_date = meeting_time.end_date.strftime("%Y%m%dT235959Z")
     "RRULE:FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_date}"
+  end
+
+  # Build events for final exams of enrolled courses
+  def build_finals_events_for_sync
+    finals = []
+
+    # Get current and next term to include their finals
+    current_term = Term.current
+    next_term = Term.next
+    term_ids = [current_term&.id, next_term&.id].compact
+
+    return finals if term_ids.empty?
+
+    # Get finals for enrolled courses in current/next term
+    enrolled_course_ids = enrollments.joins(:course)
+                                     .where(courses: { term_id: term_ids })
+                                     .pluck(:course_id)
+
+    FinalExam.where(course_id: enrolled_course_ids)
+             .includes(course: :faculties)
+             .find_each do |final_exam|
+      next unless final_exam.start_datetime && final_exam.end_datetime
+
+      finals << {
+        summary: "Final Exam: #{final_exam.course_title}",
+        description: final_exam.course_code,
+        location: final_exam.location,
+        start_time: final_exam.start_datetime,
+        end_time: final_exam.end_datetime,
+        course_code: final_exam.course_code,
+        final_exam_id: final_exam.id,
+        recurrence: nil # Finals don't recur
+      }
+    end
+
+    finals
+  end
+
+  # Sync a single final exam immediately (for preference changes)
+  def sync_final_exam(final_exam_id, force: true)
+    StatsD.increment("sync.final_exam.synced", tags: ["user_id:#{id}", "final_exam_id:#{final_exam_id}"])
+
+    service = GoogleCalendarService.new(self)
+    final_exam = FinalExam.includes(course: :faculties).find_by(id: final_exam_id)
+    return unless final_exam
+    return unless final_exam.start_datetime && final_exam.end_datetime
+
+    event = {
+      summary: "Final Exam: #{final_exam.course_title}",
+      description: final_exam.course_code,
+      location: final_exam.location,
+      start_time: final_exam.start_datetime,
+      end_time: final_exam.end_datetime,
+      course_code: final_exam.course_code,
+      final_exam_id: final_exam.id,
+      recurrence: nil
+    }
+
+    service.update_specific_events([event], force: force)
   end
 
   # Add a method to handle calendar deletion/cleanup

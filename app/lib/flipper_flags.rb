@@ -6,6 +6,7 @@ module FlipperFlags
   # rubocop:disable Lint/SymbolConversion, Style/SymbolLiteral
   ENV_SWITCHER = :"env_switcher"
   DEBUG_MODE = :"debug_mode"
+  FINALS_RETROACTIVE = :"finals_retroactive"
   # rubocop:enable Lint/SymbolConversion, Style/SymbolLiteral
 
   MAP = {
@@ -13,6 +14,7 @@ module FlipperFlags
     v2: V2,
     envSwitcher: ENV_SWITCHER,
     debugMode: DEBUG_MODE,
+    finalsRetroactive: FINALS_RETROACTIVE,
   }.freeze
 
   ALL_FLAGS = [
@@ -20,6 +22,7 @@ module FlipperFlags
     :v2,
     :envSwitcher,
     :debugMode,
+    :finalsRetroactive,
   ].freeze
 
 

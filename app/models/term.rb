@@ -28,6 +28,7 @@ class Term < ApplicationRecord
 
   has_many :courses, dependent: :destroy
   has_many :enrollments, dependent: :destroy
+  has_many :final_exams, dependent: :destroy
 
   validates :uid, presence: true, uniqueness: true
 
@@ -35,6 +36,17 @@ class Term < ApplicationRecord
     spring: 1,
     fall: 2,
     summer: 3
+  }
+
+  # Scope for current and future terms (for finals schedule uploads)
+  scope :current_and_future, -> {
+    current_term = Term.current
+    return none unless current_term
+
+    # Include current term and any terms after it
+    where("(year > ?) OR (year = ? AND season >= ?)",
+          current_term.year, current_term.year, seasons[current_term.season])
+      .order(year: :desc, season: :desc)
   }
 
   def name

@@ -15,6 +15,7 @@
 #  summary            :string
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
+#  final_exam_id      :bigint
 #  google_calendar_id :bigint           not null
 #  google_event_id    :string           not null
 #  meeting_time_id    :bigint
@@ -22,6 +23,7 @@
 # Indexes
 #
 #  idx_on_google_calendar_id_meeting_time_id_6c9efabf50  (google_calendar_id,meeting_time_id)
+#  index_google_calendar_events_on_final_exam_id         (final_exam_id)
 #  index_google_calendar_events_on_google_calendar_id    (google_calendar_id)
 #  index_google_calendar_events_on_google_event_id       (google_event_id)
 #  index_google_calendar_events_on_last_synced_at        (last_synced_at)
@@ -29,6 +31,7 @@
 #
 # Foreign Keys
 #
+#  fk_rails_...  (final_exam_id => final_exams.id)
 #  fk_rails_...  (google_calendar_id => google_calendars.id)
 #  fk_rails_...  (meeting_time_id => meeting_times.id)
 #
@@ -39,6 +42,7 @@ class GoogleCalendarEvent < ApplicationRecord
 
   belongs_to :google_calendar
   belongs_to :meeting_time, optional: true
+  belongs_to :final_exam, optional: true
   has_one :event_preference, as: :preferenceable, dependent: :destroy
   has_one :oauth_credential, through: :google_calendar
   has_one :user, through: :oauth_credential
@@ -51,8 +55,26 @@ class GoogleCalendarEvent < ApplicationRecord
   scope :for_user, ->(user) { where(user: user) }
   scope :for_calendar, ->(calendar) { where(google_calendar: calendar) }
   scope :for_meeting_time, ->(meeting_time_id) { where(meeting_time_id: meeting_time_id) }
+  scope :for_final_exam, ->(final_exam_id) { where(final_exam_id: final_exam_id) }
   scope :stale, ->(time_ago = 1.hour) { where("last_synced_at IS NULL OR last_synced_at < ?", time_ago.ago) }
   scope :recently_synced, -> { where("last_synced_at > ?", 5.minutes.ago) }
+  scope :finals_only, -> { where.not(final_exam_id: nil) }
+  scope :courses_only, -> { where.not(meeting_time_id: nil) }
+
+  # Returns true if this event is for a final exam
+  def final_exam?
+    final_exam_id.present?
+  end
+
+  # Returns true if this event is for a regular class meeting
+  def meeting_time?
+    meeting_time_id.present?
+  end
+
+  # Get the syncable record (meeting_time or final_exam)
+  def syncable
+    meeting_time || final_exam
+  end
 
   # Generate a hash of the event data to detect changes
   # Includes all preference-controlled fields to ensure events update when preferences change
