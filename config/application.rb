@@ -38,9 +38,7 @@ module WitCalendarBackend
     config.autoload_paths << Rails.root.join("app/lib")
     config.eager_load_paths << Rails.root.join("app/lib")
 
-    # Load and configure Rack::Attack middleware
-    config.middleware.use Rack::Attack
-    require_relative "../app/middleware/rate_limit_headers_middleware"
-    config.middleware.insert_after Rack::Attack, RateLimitHeadersMiddleware
+    # RateLimitHeadersMiddleware is added after Rack::Attack via initializer
+    # (Rack::Attack is auto-inserted by its Railtie during initialization)
   end
 end

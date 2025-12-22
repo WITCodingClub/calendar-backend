@@ -242,3 +242,7 @@ class Rack::Attack
   end
 
 end
+
+# Insert RateLimitHeadersMiddleware after Rack::Attack (must be done after Railtie inserts Rack::Attack)
+require_relative "../../app/middleware/rate_limit_headers_middleware"
+Rails.application.config.middleware.insert_after Rack::Attack, RateLimitHeadersMiddleware
