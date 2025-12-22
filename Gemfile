@@ -96,7 +96,7 @@ group :development, :test do
   gem "rubocop-rspec", "~> 3.8"
   gem "rubocop-rspec_rails", "~> 2.32"
   gem "query_count"
-  gem "bullet"
+  gem 'prosopite'
 end
 
 group :development do
@@ -116,6 +116,8 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+  gem "rspec-openapi", "~> 0.20"
+  gem 'simplecov', require: false
 end
 
 gem "faraday", "~> 2.14"
@@ -134,5 +136,10 @@ gem "neighbor"
 gem "log_bench"
 
 gem "kaminari", "~> 1.2"
+gem "rswag-api", "~> 2.17.0"
+gem "rswag-ui", "~> 2.17.0"
+
+gem "pghero", "~> 3.7"
+gem "pg_query", ">= 2"
 
 gem "connection_pool", "~> 2.4"

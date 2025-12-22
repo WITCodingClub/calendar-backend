@@ -57,9 +57,19 @@ class ApplicationPolicy
 
   # Check if user owns the record directly
   def owner_of_record?
-    return false unless user && record.respond_to?(:user_id)
+    return false unless user
 
-    record.user_id == user.id
+    # Check user_id first (more efficient)
+    if record.respond_to?(:user_id) && record.user_id.present?
+      return record.user_id == user.id
+    end
+
+    # Fall back to checking user association (for unsaved records)
+    if record.respond_to?(:user) && record.user.present?
+      return record.user.id == user.id
+    end
+
+    false
   end
 
   # Check if user owns the record through an association

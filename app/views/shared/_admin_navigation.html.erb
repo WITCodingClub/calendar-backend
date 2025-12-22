@@ -36,7 +36,11 @@
         <%= link_to "Performance", "/admin/performance",
             class: "admin-nav-link #{request.path.start_with?('/admin/performance') ? 'active' : ''}" %>
       </li>
-      <li class="m-0">
+      <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+        <%= link_to "PgHero", "/admin/pghero",
+            class: "admin-nav-link #{request.path.start_with?('/admin/pghero') ? 'active' : ''}" %>
+      </li>
+      <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
         <%= link_to "Jobs", "/admin/jobs",
             class: "admin-nav-link #{request.path.start_with?('/admin/jobs') ? 'active' : ''}" %>
       </li>

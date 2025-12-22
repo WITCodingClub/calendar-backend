@@ -21,12 +21,15 @@ module MeetingTimeChangeTrackable
     # Mark all users enrolled in this course as needing a calendar sync
     # Only mark users who have Google OAuth credentials with a course calendar ID set
     # Using update_all for performance with bulk updates
-    User.joins(:enrollments)
-        .joins(:oauth_credentials)
-        .where(enrollments: { course_id: course_id })
-        .where(oauth_credentials: { provider: "google" })
-        .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
-        .distinct
-        .update_all(calendar_needs_sync: true) # rubocop:disable Rails/SkipsModelValidations
+    # First get distinct user IDs, then update them (Rails 8.2 compatibility)
+    user_ids = User.joins(:enrollments)
+                   .joins(:oauth_credentials)
+                   .where(enrollments: { course_id: course_id })
+                   .where(oauth_credentials: { provider: "google" })
+                   .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
+                   .distinct
+                   .pluck(:id)
+
+    User.where(id: user_ids).update_all(calendar_needs_sync: true) if user_ids.any? # rubocop:disable Rails/SkipsModelValidations
   end
 end

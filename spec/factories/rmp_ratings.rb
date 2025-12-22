@@ -37,21 +37,21 @@
 #
 FactoryBot.define do
   factory :rmp_rating do
-    faculty { nil }
-    rmp_id { "MyString" }
-    clarity_rating { 1 }
-    difficulty_rating { 1 }
-    helpful_rating { 1 }
-    course_name { "MyString" }
-    comment { "MyText" }
-    rating_date { "2025-11-02 19:16:30" }
-    grade { "MyString" }
-    would_take_again { false }
-    attendance_mandatory { "MyString" }
-    is_for_credit { false }
+    faculty
+    sequence(:rmp_id) { |n| "rmp_#{n}" }
+    clarity_rating { 4 }
+    difficulty_rating { 3 }
+    helpful_rating { 4 }
+    course_name { "Introduction to Programming" }
+    comment { "Great professor, explains concepts well." }
+    rating_date { 1.month.ago }
+    grade { "A" }
+    would_take_again { true }
+    attendance_mandatory { "No" }
+    is_for_credit { true }
     is_for_online_class { false }
-    rating_tags { "MyText" }
-    thumbs_up_total { 1 }
-    thumbs_down_total { 1 }
+    rating_tags { "Gives good feedback,Respected" }
+    thumbs_up_total { 10 }
+    thumbs_down_total { 2 }
   end
 end

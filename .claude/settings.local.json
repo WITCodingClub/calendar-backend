@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bundle exec rspec:*)",
+      "Bash(RAILS_ENV=test bundle exec rails:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

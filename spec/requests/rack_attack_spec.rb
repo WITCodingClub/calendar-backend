@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Rack::Attack" do
+RSpec.describe "Rack::Attack", type: :request do
   before do
     # Clear the cache before each test
     Rack::Attack.cache.store.clear
