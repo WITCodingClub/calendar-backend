@@ -38,7 +38,12 @@ RSpec.describe MeetingTime do
     let(:course) { create(:course, term: term) }
     let(:room) { create(:room) }
     let(:meeting_time) { create(:meeting_time, course: course, room: room) }
-    let(:user) { create(:user, google_course_calendar_id: "cal_123", calendar_needs_sync: false) }
+    let(:user) { create(:user, calendar_needs_sync: false) }
+    let!(:oauth_credential) do
+      create(:oauth_credential,
+             user: user,
+             metadata: { "course_calendar_id" => "cal_123" })
+    end
 
     before do
       create(:enrollment, user: user, course: course, term: term)

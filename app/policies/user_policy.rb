@@ -6,15 +6,14 @@ class UserPolicy < ApplicationPolicy
     admin?
   end
 
-  # Users can view their own profile, super_admins+ can view others
-  # View-only admins CANNOT view individual user details
+  # Users can view their own profile, admins+ can view others for support
   def show?
-    record == user || super_admin?
+    record == user || admin?
   end
 
-  # Super_admins+ can create new users (admins cannot)
+  # Admins+ can create new users
   def create?
-    super_admin?
+    admin?
   end
 
   # Users can update their own profile, super_admins+ can modify others

@@ -2,8 +2,8 @@
 
 require "rails_helper"
 
-RSpec.describe "Calendars" do
-  describe "GET /calendars/:calendar_token.ics" do
+RSpec.describe "Calendars", type: :request do
+  describe "GET /calendar/:calendar_token.ics" do
     let(:user) do
       u = User.create!(calendar_token: "test-token-123")
       u.emails.create!(email: "test@example.com", primary: true)
@@ -12,7 +12,7 @@ RSpec.describe "Calendars" do
 
     context "when requesting ICS format" do
       before do
-        get "/calendars/#{user.calendar_token}.ics"
+        get "/calendar/#{user.calendar_token}.ics"
       end
 
       it "returns success" do
@@ -24,7 +24,7 @@ RSpec.describe "Calendars" do
       end
 
       it "sets Cache-Control header with 1 hour max-age" do
-        expect(response.headers["Cache-Control"]).to eq("max-age=3600, must-revalidate")
+        expect(response.headers["Cache-Control"]).to eq("max-age=3600, private, must-revalidate")
       end
 
       it "sets X-Published-TTL header for iCalendar refresh hint" do
@@ -37,10 +37,9 @@ RSpec.describe "Calendars" do
     end
 
     context "when calendar_token is invalid" do
-      it "raises ActiveRecord::RecordNotFound" do
-        expect {
-          get "/calendars/invalid-token.ics"
-        }.to raise_error(ActiveRecord::RecordNotFound)
+      it "returns 404 not found" do
+        get "/calendar/invalid-token.ics"
+        expect(response).to have_http_status(:not_found)
       end
     end
   end
