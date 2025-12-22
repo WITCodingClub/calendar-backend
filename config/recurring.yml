@@ -53,8 +53,8 @@ nightly_calendar_sync:
   queue: low
   schedule: every day at 3am
 
-delete_orphaned_google_calendars:
-  class: DeleteOrphanedGoogleCalendarsJob
+cleanup_orphaned_calendar_records:
+  class: CleanupOrphanedCalendarRecordsJob
   queue: low
   schedule: every day at 4am
 
