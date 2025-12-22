@@ -37,6 +37,14 @@ RSpec.describe "Api::EventPreferences", type: :request do
 
 
   describe "GET /api/meeting_times/:meeting_time_id/preference" do
+    it "accepts public_id in URL" do
+      get "/api/meeting_times/#{meeting_time.public_id}/preference", headers: headers
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to have_key("templates")
+    end
+
     it "includes templates object with all template variable values" do
       get "/api/meeting_times/#{meeting_time.id}/preference", headers: headers
 

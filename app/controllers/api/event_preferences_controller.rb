@@ -76,7 +76,7 @@ module Api
           templates: context
         }
       else
-        render json: { errors: preference.errors.full_messages }, status: :unprocessable_entity
+        render json: { errors: preference.errors.full_messages }, status: :unprocessable_content
       end
     end
 
@@ -104,11 +104,13 @@ module Api
 
     def set_preferenceable
       if params[:meeting_time_id]
-        # Use eager_load to force LEFT OUTER JOINs (single query) instead of separate SELECTs
-        @preferenceable = MeetingTime.eager_load(course: :faculties, room: :building).find(params[:meeting_time_id])
+        # Accept both internal ID and public_id, use eager_load for associations
+        @preferenceable = find_by_any_id!(MeetingTime, params[:meeting_time_id])
+        @preferenceable = MeetingTime.eager_load(course: :faculties, room: :building).find(@preferenceable.id)
       elsif params[:google_calendar_event_id]
-        # Use eager_load for GoogleCalendarEvent as well
-        @preferenceable = GoogleCalendarEvent.eager_load(meeting_time: { course: :faculties, room: :building }).find(params[:google_calendar_event_id])
+        # Accept both internal ID and public_id, use eager_load for associations
+        @preferenceable = find_by_any_id!(GoogleCalendarEvent, params[:google_calendar_event_id])
+        @preferenceable = GoogleCalendarEvent.eager_load(meeting_time: { course: :faculties, room: :building }).find(@preferenceable.id)
       else
         render json: { error: "Preferenceable not specified" }, status: :bad_request
       end

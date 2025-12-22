@@ -40,7 +40,7 @@ RSpec.describe "Api::OauthCredentials", type: :request do
 
         expect(credentials.length).to eq(1)
         expect(credentials[0]).to include(
-          "id" => credential.id,
+          "id" => credential.public_id,
           "email" => "user@example.com",
           "provider" => "google",
           "has_calendar" => false,
@@ -83,7 +83,7 @@ RSpec.describe "Api::OauthCredentials", type: :request do
 
         expect(credentials.length).to eq(2)
 
-        cred1 = credentials.find { |c| c["id"] == credential1.id }
+        cred1 = credentials.find { |c| c["id"] == credential1.public_id }
         expect(cred1).to include(
           "email" => "personal@example.com",
           "provider" => "google",
@@ -91,7 +91,7 @@ RSpec.describe "Api::OauthCredentials", type: :request do
           "calendar_id" => "calendar1@google.com"
         )
 
-        cred2 = credentials.find { |c| c["id"] == credential2.id }
+        cred2 = credentials.find { |c| c["id"] == credential2.public_id }
         expect(cred2).to include(
           "email" => "work@example.com",
           "provider" => "google",
@@ -125,9 +125,22 @@ RSpec.describe "Api::OauthCredentials", type: :request do
                provider: "google")
       end
 
-      it "successfully deletes the credential" do
+      it "successfully deletes the credential using internal ID" do
         expect {
           delete "/api/user/oauth_credentials/#{credential1.id}", headers: headers
+        }.to change(OauthCredential, :count).by(-1)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json["message"]).to eq("OAuth credential disconnected successfully")
+
+        expect(OauthCredential.exists?(credential1.id)).to be false
+        expect(OauthCredential.exists?(credential2.id)).to be true
+      end
+
+      it "successfully deletes the credential using public_id" do
+        expect {
+          delete "/api/user/oauth_credentials/#{credential1.public_id}", headers: headers
         }.to change(OauthCredential, :count).by(-1)
 
         expect(response).to have_http_status(:ok)

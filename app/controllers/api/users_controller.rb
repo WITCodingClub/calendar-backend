@@ -57,7 +57,7 @@ module Api
 
       flipper_key = FlipperFlags::MAP[feature_sym]
       if flipper_key.nil?
-        render json: { error: "Invalid flag mapping", feature_name: feature_name }, status: :unprocessable_entity
+        render json: { error: "Invalid flag mapping", feature_name: feature_name }, status: :unprocessable_content
         return
       end
 
@@ -116,7 +116,7 @@ module Api
       if current_user.google_credential.nil?
         render json: {
           error: "You must complete Google OAuth for at least one email before adding calendar access. Please use the /api/user/gcal endpoint first."
-        }, status: :unprocessable_entity
+        }, status: :unprocessable_content
         return
       end
 
@@ -287,7 +287,7 @@ module Api
         witcc_color = GoogleColors.to_witcc_hex(color_value)
 
         {
-          id: mt.id,
+          id: mt.public_id,
           begin_time: mt.fmt_begin_time,
           end_time: mt.fmt_end_time,
           start_date: mt.start_date,
@@ -329,7 +329,7 @@ module Api
 
       credentials = current_user.oauth_credentials.includes(:google_calendar).map do |credential|
         {
-          id: credential.id,
+          id: credential.public_id,
           email: credential.email,
           provider: credential.provider,
           has_calendar: credential.google_calendar.present?,
@@ -349,7 +349,9 @@ module Api
         return
       end
 
-      credential = current_user.oauth_credentials.find_by(id: credential_id)
+      # Accept both internal ID and public_id
+      credential = find_by_any_id(OauthCredential, credential_id)
+      credential = nil unless credential&.user_id == current_user.id
 
       if credential.nil?
         render json: { error: "OAuth credential not found" }, status: :not_found
@@ -362,7 +364,7 @@ module Api
       if current_user.oauth_credentials.count == 1
         render json: {
           error: "Cannot disconnect the last OAuth credential. You must have at least one connected account."
-        }, status: :unprocessable_entity
+        }, status: :unprocessable_content
         return
       end
 
