@@ -24,6 +24,10 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class Email < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :eml
+
   belongs_to :user
 
   validates :email, presence: true, uniqueness: true, format: {

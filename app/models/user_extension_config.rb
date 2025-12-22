@@ -23,6 +23,10 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class UserExtensionConfig < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :uec
+
   belongs_to :user
 
   # Trigger calendar sync when default colors change

@@ -22,6 +22,10 @@
 #  index_faculties_on_rmp_raw_data  (rmp_raw_data) USING gin
 #
 class Faculty < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :fac
+
   has_and_belongs_to_many :courses
   has_many :rmp_ratings, dependent: :destroy
   has_many :related_professors, dependent: :destroy

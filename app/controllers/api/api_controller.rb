@@ -4,6 +4,7 @@ module Api
   class ApiController < ApplicationController
     include JsonWebTokenAuthenticatable
     include FeatureFlagGated
+    include PublicIdLookupable
 
     self.gated_feature_key = :v1
 

@@ -28,8 +28,8 @@ See `.devcontainer/README.md` for more details about the Dev Container setup.
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/jaspermayone/witcc-calendar-backend.git
-    cd witcc-calendar-backend
+    git clone https://github.com/WITCodingClub/calendar-backend.git
+    cd calendar-backend
     ```
 
 2.  **Install dependencies:**

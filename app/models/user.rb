@@ -25,6 +25,9 @@ class User < ApplicationRecord
   include GoogleOauthable
   include CourseScheduleSyncable
   include CalendarTokenable
+  include PublicIdentifiable
+
+  set_public_id_prefix :usr
 
   has_subscriptions
 
@@ -42,7 +45,7 @@ class User < ApplicationRecord
   after_create :create_user_extension_config
 
   # Class method to find or create a user by email
-  def self.find_or_create_by_email(email_address)
+  def self.find_or_create_by_email(email_address, fname, lname)
     email_record = Email.find_by(email: email_address)
 
     if email_record
@@ -50,7 +53,7 @@ class User < ApplicationRecord
     else
       # Create user and email in a transaction
       transaction do
-        user = create!
+        user = create!(first_name: fname, last_name: lname)
         user.emails.create!(email: email_address, primary: true)
         user
       end
@@ -68,6 +71,11 @@ class User < ApplicationRecord
     super_admin: 2,
     owner: 3
   }, default: :user, null: false
+
+  scope :users, -> { where(access_level: [:user, :admin, :super_admin, :owner]) }
+  scope :admins, -> { where(access_level: [:admin, :super_admin, :owner]) }
+  scope :super_admins, -> { where(access_level: [:super_admin, :owner]) }
+  scope :owners, -> { where(access_level: :owner) }
 
   def admin_access?
     admin? || super_admin? || owner?

@@ -21,7 +21,10 @@
 #  index_lockbox_audits_on_viewer   (viewer_type,viewer_id)
 #
 class LockboxAudit < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :lba, min_hash_length: 12
+
   belongs_to :subject, polymorphic: true
   belongs_to :viewer, polymorphic: true
-
 end

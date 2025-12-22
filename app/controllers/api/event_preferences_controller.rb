@@ -76,7 +76,7 @@ module Api
           templates: context
         }
       else
-        render json: { errors: preference.errors.full_messages }, status: :unprocessable_entity
+        render json: { errors: preference.errors.full_messages }, status: :unprocessable_content
       end
     end
 
@@ -104,11 +104,13 @@ module Api
 
     def set_preferenceable
       if params[:meeting_time_id]
-        # Use eager_load to force LEFT OUTER JOINs (single query) instead of separate SELECTs
-        @preferenceable = MeetingTime.eager_load(course: :faculties, room: :building).find(params[:meeting_time_id])
+        # Accept both internal ID and public_id, use eager_load for associations
+        @preferenceable = find_by_any_id!(MeetingTime, params[:meeting_time_id])
+        @preferenceable = MeetingTime.eager_load(course: :faculties, room: :building).find(@preferenceable.id)
       elsif params[:google_calendar_event_id]
-        # Use eager_load for GoogleCalendarEvent as well
-        @preferenceable = GoogleCalendarEvent.eager_load(meeting_time: { course: :faculties, room: :building }).find(params[:google_calendar_event_id])
+        # Accept both internal ID and public_id, use eager_load for associations
+        @preferenceable = find_by_any_id!(GoogleCalendarEvent, params[:google_calendar_event_id])
+        @preferenceable = GoogleCalendarEvent.eager_load(meeting_time: { course: :faculties, room: :building }).find(@preferenceable.id)
       else
         render json: { error: "Preferenceable not specified" }, status: :bad_request
       end
@@ -195,8 +197,20 @@ module Api
       # Sync this specific meeting time immediately (synchronously)
       return unless meeting_time
 
-      SyncMeetingTimeJob.perform_now(current_user.id, meeting_time.id)
+      # Check if user has Google credentials before attempting sync
+      unless current_user.google_credential
+        Rails.logger.warn "Cannot sync event preference - user #{current_user.id} has no Google credential"
+        return
+      end
 
+      begin
+        SyncMeetingTimeJob.perform_now(current_user.id, meeting_time.id)
+        Rails.logger.info "Successfully synced event preference for user #{current_user.id}, meeting_time #{meeting_time.id}"
+      rescue => e
+        Rails.logger.error "Failed to sync event preference: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+        # Don't raise - we don't want to fail the API request if sync fails
+      end
     end
 
   end

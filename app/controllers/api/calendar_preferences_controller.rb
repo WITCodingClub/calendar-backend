@@ -33,7 +33,7 @@ module Api
 
         render json: preference_json(@calendar_preference)
       else
-        render json: { errors: @calendar_preference.errors.full_messages }, status: :unprocessable_entity
+        render json: { errors: @calendar_preference.errors.full_messages }, status: :unprocessable_content
       end
     end
 
@@ -63,7 +63,9 @@ module Api
         return
       end
 
-      meeting_time = MeetingTime.includes(course: :faculties).find_by(id: meeting_time_id)
+      # Accept both internal ID and public_id
+      meeting_time = find_by_any_id(MeetingTime, meeting_time_id)
+      meeting_time = MeetingTime.includes(course: :faculties).find_by(id: meeting_time&.id) if meeting_time
       unless meeting_time
         render json: { error: "Meeting time not found" }, status: :not_found
         return
@@ -84,7 +86,7 @@ module Api
         render json: {
           valid: false,
           error: e.message
-        }, status: :unprocessable_entity
+        }, status: :unprocessable_content
       end
     end
 

@@ -29,6 +29,10 @@
 #  fk_rails_...  (faculty_id => faculties.id)
 #
 class RatingDistribution < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :rdi
+
   belongs_to :faculty
 
   validates :faculty_id, uniqueness: true

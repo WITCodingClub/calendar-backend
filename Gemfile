@@ -93,8 +93,8 @@ group :development, :test do
   gem "shoulda-matchers"
   gem "pundit-matchers"
   gem "rubocop-capybara", "~> 2.22", ">= 2.22.1"
-  gem "rubocop-rspec", "~> 3.6"
-  gem "rubocop-rspec_rails", "~> 2.31"
+  gem "rubocop-rspec", "~> 3.8"
+  gem "rubocop-rspec_rails", "~> 2.32"
   gem "query_count"
   gem 'prosopite'
 end
@@ -125,8 +125,8 @@ gem "faraday", "~> 2.14"
 gem "tailwindcss-ruby", "~> 4.1"
 gem "icalendar", "~> 2.12", ">= 2.12.1"
 
-gem "google-apis-calendar_v3", "~> 0.49.0"
-gem "googleauth", "~> 1.15", ">= 1.15.1"
+gem "google-apis-calendar_v3", "~> 0.51.0"
+gem "googleauth", "~> 1.16"
 
 gem "omniauth", "~> 2.1", ">= 2.1.4"
 gem "omniauth-google-oauth2", "~> 1.2", ">= 1.2.1"
@@ -141,3 +141,5 @@ gem "rswag-ui", "~> 2.17.0"
 
 gem "pghero", "~> 3.7"
 gem "pg_query", ">= 2"
+
+gem "connection_pool", "~> 2.4"

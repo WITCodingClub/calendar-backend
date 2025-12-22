@@ -56,3 +56,20 @@ Flipper::UI.configure do |config|
         .to_h
   }
 end
+
+
+Flipper.register(:users) do |actor, _context|
+  actor.is_a?(User)
+end
+
+Flipper.register(:admins) do |actor, _context|
+  actor.is_a?(User) && actor.admin_access?
+end
+
+Flipper.register(:super_admins) do |actor, _context|
+  actor.is_a?(User) && (actor.super_admin? || actor.owner?)
+end
+
+Flipper.register(:owners) do |actor, _context|
+  actor.is_a?(User) && actor.owner?
+end

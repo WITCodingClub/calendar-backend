@@ -23,6 +23,10 @@
 #  fk_rails_...  (faculty_id => faculties.id)
 #
 class TeacherRatingTag < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :trt
+
   belongs_to :faculty
 
   validates :rmp_legacy_id, presence: true, uniqueness: { scope: :faculty_id }

@@ -20,6 +20,10 @@
 #  index_terms_on_year_and_season  (year,season) UNIQUE
 #
 class Term < ApplicationRecord
+  include PublicIdentifiable
+
+  set_public_id_prefix :trm
+
   has_many :courses, dependent: :destroy
   has_many :enrollments, dependent: :destroy
 

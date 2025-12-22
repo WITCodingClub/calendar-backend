@@ -31,6 +31,9 @@
 #
 class EventPreference < ApplicationRecord
   include ReminderSettingsNormalizable
+  include PublicIdentifiable
+
+  set_public_id_prefix :epf, min_hash_length: 12
 
   belongs_to :user
   belongs_to :preferenceable, polymorphic: true

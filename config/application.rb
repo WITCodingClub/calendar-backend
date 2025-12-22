@@ -20,7 +20,10 @@ module WitCalendarBackend
 
     # Add constraints directory to autoload paths
     config.autoload_paths << Rails.root.join("app/constraints")
-    config.autoload_paths << Rails.root.join("app/middleware")
+
+    # Exclude app/middleware from autoloading - middleware classes must be
+    # required explicitly before Rails is fully initialized
+    Rails.autoloaders.main.ignore(Rails.root.join("app/middleware"))
 
     config.active_job.queue_adapter = :solid_queue
 
@@ -37,10 +40,7 @@ module WitCalendarBackend
     config.autoload_paths << Rails.root.join("app/lib")
     config.eager_load_paths << Rails.root.join("app/lib")
 
+    # RateLimitHeadersMiddleware is added after Rack::Attack via initializer
+    # (Rack::Attack is auto-inserted by its Railtie during initialization)
   end
 end
-
-# Load and configure Rack::Attack middleware
-require_relative "../app/middleware/rate_limit_headers_middleware"
-Rails.application.config.middleware.use Rack::Attack
-Rails.application.config.middleware.insert_after Rack::Attack, RateLimitHeadersMiddleware

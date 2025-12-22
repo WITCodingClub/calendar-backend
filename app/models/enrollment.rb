@@ -27,6 +27,9 @@
 #
 class Enrollment < ApplicationRecord
   include CalendarSyncable
+  include PublicIdentifiable
+
+  set_public_id_prefix :enr, min_hash_length: 12
 
   belongs_to :user
   belongs_to :course

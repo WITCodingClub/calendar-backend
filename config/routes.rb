@@ -271,6 +271,7 @@ Rails.application.routes.draw do
 
     post "user/is_processed", to: "users#is_processed"
     post "user/processed_events", to: "users#get_processed_events_by_term"
+    get "user/flag_enabled", to: "users#flag_is_enabled"
 
     get "user/extension_config", to: "user_extension_config#get"
     put "user/extension_config", to: "user_extension_config#set"
@@ -281,6 +282,7 @@ Rails.application.routes.draw do
 
     # Course events
     post "process_courses", to: "courses#process_courses"
+    post "courses/reprocess", to: "courses#reprocess"
 
     # Calendar preferences
     resources :calendar_preferences, only: [:index, :show, :update, :destroy] do

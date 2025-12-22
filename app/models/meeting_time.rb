@@ -32,6 +32,9 @@
 #
 class MeetingTime < ApplicationRecord
   include MeetingTimeChangeTrackable
+  include PublicIdentifiable
+
+  set_public_id_prefix :mtt, min_hash_length: 12
 
   belongs_to :course
   belongs_to :room
