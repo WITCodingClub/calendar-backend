@@ -90,6 +90,8 @@ module GoogleApiRateLimiter
     throttle_delay = delay || rate_limit_config.batch_throttle_delay
     results = []
 
+    return results if items.nil? || items.empty?
+
     items.each_with_index do |item, index|
       result = with_rate_limit_handling do
         block.call(item)
