@@ -348,6 +348,7 @@ GEM
       activesupport (>= 4)
       railties (>= 4)
       request_store (~> 1.0)
+    logster (2.20.1)
     loofah (2.25.0)
       crass (~> 1.0.2)
       nokogiri (>= 1.12.0)
@@ -792,6 +793,7 @@ DEPENDENCIES
   listen (~> 3.9)
   lockbox
   log_bench
+  logster
   mailkick
   mission_control-jobs
   neighbor

@@ -99,4 +99,9 @@ Rails.application.configure do
   config.console1984.ask_for_username_if_empty = true
   config.username_resolver = Console1984::Username::EnvResolver.new("CONSOLE_USER")
 
+  # Logster middleware to capture exceptions and log them to the web UI
+  if defined?(Logster)
+    require "logster/middleware/reporter"
+    config.middleware.use Logster::Middleware::Reporter
+  end
 end

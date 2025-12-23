@@ -101,6 +101,7 @@
 #                           admin_rswag_ui        /admin/api-docs                                                                                   Rswag::Ui::Engine
 #                          admin_rswag_api        /admin/api-docs                                                                                   Rswag::Api::Engine
 #                            admin_pg_hero        /admin/pghero                                                                                     PgHero::Engine
+#                        admin_logster_web        /admin/logs                                                                                       Logster::Web
 #                                    admin GET    /admin(.:format)                                                                                  redirect(301, /users/sign_in)
 #                                          GET    /admin/*path(.:format)                                                                            redirect(301, /users/sign_in)
 #                             unauthorized GET    /unauthorized(.:format)                                                                           errors#unauthorized
@@ -419,6 +420,7 @@ Rails.application.routes.draw do
       mount Rswag::Ui::Engine, at: "api-docs"
       mount Rswag::Api::Engine, at: "api-docs"
       mount PgHero::Engine, at: "pghero"
+      mount Logster::Web, at: "logs"
     end
   end
 
