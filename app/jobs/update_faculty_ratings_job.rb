@@ -57,9 +57,22 @@ class UpdateFacultyRatingsJob < ApplicationJob
     end&.dig("node")
 
     if best_match
-      faculty.update(rmp_id: best_match["id"])
-      # Track successful match
-      StatsD.increment("rmp.faculty.matched", tags: ["faculty_id:#{faculty.id}"])
+      if faculty.update(rmp_id: best_match["id"])
+        # Track successful match
+        StatsD.increment("rmp.faculty.matched", tags: ["faculty_id:#{faculty.id}"])
+      else
+        # Update failed (likely rmp_id already taken by another faculty)
+        # Reload to clear dirty attributes and skip this faculty
+        faculty.reload
+        StatsD.increment("rmp.faculty.duplicate_rmp_id", tags: ["faculty_id:#{faculty.id}", "rmp_id:#{best_match['id']}"])
+
+        Rails.logger.warn({
+          message: "RMP ID already assigned to another faculty",
+          faculty_id: faculty.id,
+          faculty_name: faculty.full_name,
+          rmp_id: best_match["id"]
+        }.to_json)
+      end
     else
       # Track faculty not found
       StatsD.increment("rmp.faculty.not_found", tags: ["faculty_name:#{faculty.full_name}"])
