@@ -6,85 +6,123 @@ module Admin
 
     def index
       authorize :course_catalog
-      @terms = Term.order(year: :desc, season: :desc)
-      # Show the form for fetching course catalog
+
+      # Fetch available terms from LeopardWeb API
+      api_result = LeopardWebService.get_available_terms
+      @api_terms = api_result[:success] ? api_result[:terms] : []
+
+      # Get existing terms from database
+      @db_terms = Term.order(year: :desc, season: :desc).index_by(&:uid)
+
+      # Build combined list showing both API and DB terms
+      @combined_terms = build_combined_terms_list
     end
 
-    def fetch
-      authorize :course_catalog
-      @terms = Term.order(year: :desc, season: :desc)
+    def import
+      authorize :course_catalog, :process?
 
-      # Extract parameters
-      term = params[:term]
-      jsessionid = params[:jsessionid]
-      idmsessid = params[:idmsessid]
+      term_uid = params[:term_uid]
+      term = Term.find_by(uid: term_uid)
 
-      if term.blank? || jsessionid.blank?
-        flash[:alert] = "Term and JSESSIONID are required"
+      if term.nil?
+        flash[:alert] = "Term not found: #{term_uid}"
         redirect_to admin_course_catalog_path
         return
       end
 
-      # Fetch courses using the service
-      result = LeopardWebService.get_course_catalog(
-        term: term,
-        jsessionid: jsessionid,
-        idmsessid: idmsessid.presence
+      # Enqueue background job to fetch and import courses
+      CatalogImportJob.perform_later(term.uid)
+
+      flash[:notice] = "Started importing courses for #{term.name} in the background. This may take a few minutes."
+      redirect_to admin_course_catalog_path
+    end
+
+    def provision
+      authorize :course_catalog, :process?
+
+      term_uid = params[:term_uid].to_i
+      term_description = params[:description]
+
+      # Check if term already exists
+      if Term.exists?(uid: term_uid)
+        flash[:alert] = "Term #{term_uid} already exists"
+        redirect_to admin_course_catalog_path
+        return
+      end
+
+      # Parse term uid to get year and season
+      parsed = parse_term_uid(term_uid)
+      unless parsed
+        flash[:alert] = "Invalid term UID format: #{term_uid}"
+        redirect_to admin_course_catalog_path
+        return
+      end
+
+      term = Term.create!(
+        uid: term_uid,
+        year: parsed[:year],
+        season: parsed[:season]
       )
 
-      if result[:success]
-        @courses = result[:courses]
-        @total_count = result[:total_count]
-        @raw_response = result[:raw_response] # For debugging
-
-        # Check if term has already been imported
-        @term_record = Term.find_by(uid: term)
-        @term_already_imported = @term_record&.catalog_imported?
-        @term_imported_at = @term_record&.catalog_imported_at
-
-        if @total_count == 0
-          flash.now[:alert] = "API returned 0 courses. This might mean: (1) Invalid/expired cookies, (2) No courses for this term, or (3) API authentication issue. Check the raw response below."
-        else
-          flash.now[:notice] = "Successfully fetched #{@total_count} courses for term #{term}"
-        end
-      else
-        flash.now[:alert] = "Error fetching courses: #{result[:error]}"
-      end
-
-      render :index
-    rescue => e
-      flash[:alert] = "Unexpected error: #{e.message}"
-      @terms = Term.order(year: :desc, season: :desc)
+      flash[:notice] = "Created term: #{term.name}"
       redirect_to admin_course_catalog_path
     end
 
-    def import_courses
-      authorize :course_catalog, :process?
-      courses_json = params[:courses]
+    private
 
-      if courses_json.blank?
-        flash[:alert] = "No courses data provided"
-        redirect_to admin_course_catalog_path
-        return
+    def build_combined_terms_list
+      combined = []
+
+      # Add API terms
+      @api_terms.each do |api_term|
+        uid = api_term[:code].to_i
+        db_term = @db_terms[uid]
+
+        combined << {
+          uid: uid,
+          description: api_term[:description],
+          in_database: db_term.present?,
+          db_term: db_term,
+          from_api: true
+        }
       end
 
-      # Parse JSON string back to array
-      begin
-        courses = JSON.parse(courses_json)
-      rescue JSON::ParserError => e
-        flash[:alert] = "Invalid courses data: #{e.message}"
-        redirect_to admin_course_catalog_path
-        return
+      # Add any DB terms not in API (older terms)
+      @db_terms.each do |uid, db_term|
+        next if combined.any? { |t| t[:uid] == uid }
+
+        combined << {
+          uid: uid,
+          description: db_term.name,
+          in_database: true,
+          db_term: db_term,
+          from_api: false
+        }
       end
 
-      # Enqueue background job to process courses
-      CatalogImportJob.perform_later(courses)
+      # Sort by uid descending (most recent first)
+      combined.sort_by { |t| -t[:uid] }
+    end
 
-      flash[:notice] = "Started processing #{courses.count} courses in the background. This may take several minutes. Check the logs or database for progress."
-      redirect_to admin_course_catalog_path
-    rescue => e
-      flash[:alert] = "Unexpected error: #{e.message}"
-      redirect_to admin_course_catalog_path
+    def parse_term_uid(uid)
+      uid_str = uid.to_s
+      return nil unless uid_str.length == 6
+
+      uid_year = uid_str[0..3].to_i
+      season_code = uid_str[4..5].to_i
+
+      # Season codes: 10 = Fall, 20 = Spring, 30 = Summer
+      # Fall terms use the NEXT calendar year in the UID (e.g., Fall 2025 = 202610)
+      case season_code
+      when 10 # Fall
+        { year: uid_year - 1, season: :fall }
+      when 20 # Spring
+        { year: uid_year, season: :spring }
+      when 30 # Summer
+        { year: uid_year, season: :summer }
+      else
+        nil
+      end
     end
   end
 end

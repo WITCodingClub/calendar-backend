@@ -5,13 +5,17 @@ require "rails_helper"
 RSpec.describe LeopardWebService, type: :service do
   describe ".get_course_catalog" do
     let(:term) { "202620" }
-    let(:jsessionid) { "test_session_id" }
-    let(:idmsessid) { "test_idm_session_id" }
 
-    context "when all parameters are provided" do
-      it "fetches courses successfully" do
-        # Mock Faraday response
-        mock_response = double(
+    context "when fetching courses successfully" do
+      it "initializes session and fetches courses" do
+        # Mock session initialization response
+        session_response = double(
+          success?: true,
+          headers: { "set-cookie" => "JSESSIONID=abc123; Path=/; HttpOnly" }
+        )
+
+        # Mock catalog response
+        catalog_response = double(
           success?: true,
           body: {
             "data" => [
@@ -21,18 +25,18 @@ RSpec.describe LeopardWebService, type: :service do
           }
         )
 
-        # Mock the connection
-        mock_connection = double
-        allow(mock_connection).to receive(:get).and_return(mock_response)
+        mock_session_connection = double
+        mock_catalog_connection = double
 
-        service = described_class.new(
-          action: :get_course_catalog,
-          term: term,
-          jsessionid: jsessionid,
-          idmsessid: idmsessid
-        )
+        allow(mock_session_connection).to receive(:post).and_yield(double(params: {}, body: nil).as_null_object).and_return(session_response)
+        allow(mock_catalog_connection).to receive(:get).and_return(catalog_response)
 
-        allow(service).to receive(:authenticated_connection).and_return(mock_connection)
+        service = described_class.new(action: :get_course_catalog, term: term)
+
+        allow(service).to receive(:session_connection).and_return(mock_session_connection)
+        # Set the session cookie manually since we're mocking
+        service.instance_variable_set(:@session_cookie, "abc123")
+        allow(service).to receive(:catalog_connection).and_return(mock_catalog_connection)
 
         result = service.call
 
@@ -42,6 +46,12 @@ RSpec.describe LeopardWebService, type: :service do
       end
 
       it "handles pagination correctly" do
+        # Mock session initialization response
+        session_response = double(
+          success?: true,
+          headers: { "set-cookie" => "JSESSIONID=abc123; Path=/; HttpOnly" }
+        )
+
         # First page
         first_response = double(
           success?: true,
@@ -60,17 +70,17 @@ RSpec.describe LeopardWebService, type: :service do
           }
         )
 
-        mock_connection = double
-        allow(mock_connection).to receive(:get).and_return(first_response, second_response)
+        mock_session_connection = double
+        mock_catalog_connection = double
 
-        service = described_class.new(
-          action: :get_course_catalog,
-          term: term,
-          jsessionid: jsessionid,
-          idmsessid: idmsessid
-        )
+        allow(mock_session_connection).to receive(:post).and_yield(double(params: {}, body: nil).as_null_object).and_return(session_response)
+        allow(mock_catalog_connection).to receive(:get).and_return(first_response, second_response)
 
-        allow(service).to receive(:authenticated_connection).and_return(mock_connection)
+        service = described_class.new(action: :get_course_catalog, term: term)
+
+        allow(service).to receive(:session_connection).and_return(mock_session_connection)
+        service.instance_variable_set(:@session_cookie, "abc123")
+        allow(service).to receive(:catalog_connection).and_return(mock_catalog_connection)
 
         result = service.call
 
@@ -80,25 +90,74 @@ RSpec.describe LeopardWebService, type: :service do
       end
     end
 
-    context "when request fails" do
+    context "when session initialization fails" do
       it "returns error information" do
-        mock_response = double(
+        session_response = double(
+          success?: false,
+          status: 500
+        )
+
+        mock_session_connection = double
+        allow(mock_session_connection).to receive(:post).and_yield(double(params: {}, body: nil).as_null_object).and_return(session_response)
+
+        service = described_class.new(action: :get_course_catalog, term: term)
+        allow(service).to receive(:session_connection).and_return(mock_session_connection)
+
+        result = service.call
+
+        expect(result[:success]).to be false
+        expect(result[:error]).to include("Failed to initialize search session")
+        expect(result[:courses]).to eq([])
+        expect(result[:total_count]).to eq(0)
+      end
+    end
+
+    context "when no session cookie is returned" do
+      it "returns error information" do
+        session_response = double(
+          success?: true,
+          headers: {} # No set-cookie header
+        )
+
+        mock_session_connection = double
+        allow(mock_session_connection).to receive(:post).and_yield(double(params: {}, body: nil).as_null_object).and_return(session_response)
+
+        service = described_class.new(action: :get_course_catalog, term: term)
+        allow(service).to receive(:session_connection).and_return(mock_session_connection)
+
+        result = service.call
+
+        expect(result[:success]).to be false
+        expect(result[:error]).to include("Failed to obtain session cookie")
+        expect(result[:courses]).to eq([])
+        expect(result[:total_count]).to eq(0)
+      end
+    end
+
+    context "when catalog request fails" do
+      it "returns error information" do
+        session_response = double(
+          success?: true,
+          headers: { "set-cookie" => "JSESSIONID=abc123; Path=/; HttpOnly" }
+        )
+
+        catalog_response = double(
           success?: false,
           status: 401,
           body: "Unauthorized"
         )
 
-        mock_connection = double
-        allow(mock_connection).to receive(:get).and_return(mock_response)
+        mock_session_connection = double
+        mock_catalog_connection = double
 
-        service = described_class.new(
-          action: :get_course_catalog,
-          term: term,
-          jsessionid: jsessionid,
-          idmsessid: idmsessid
-        )
+        allow(mock_session_connection).to receive(:post).and_yield(double(params: {}, body: nil).as_null_object).and_return(session_response)
+        allow(mock_catalog_connection).to receive(:get).and_return(catalog_response)
 
-        allow(service).to receive(:authenticated_connection).and_return(mock_connection)
+        service = described_class.new(action: :get_course_catalog, term: term)
+
+        allow(service).to receive(:session_connection).and_return(mock_session_connection)
+        service.instance_variable_set(:@session_cookie, "abc123")
+        allow(service).to receive(:catalog_connection).and_return(mock_catalog_connection)
 
         result = service.call
 
@@ -112,52 +171,30 @@ RSpec.describe LeopardWebService, type: :service do
     context "validation" do
       it "raises error when term is missing" do
         expect {
-          described_class.get_course_catalog(
-            term: nil,
-            jsessionid: jsessionid,
-            idmsessid: idmsessid
-          )
+          described_class.get_course_catalog(term: nil)
         }.to raise_error(ArgumentError, /term is required/)
       end
+    end
+  end
 
-      it "raises error when jsessionid is missing" do
-        expect {
-          described_class.get_course_catalog(
-            term: term,
-            jsessionid: nil,
-            idmsessid: idmsessid
-          )
-        }.to raise_error(ArgumentError, /jsessionid is required/)
-      end
+  describe "#initialize_search_session!" do
+    let(:term) { "202620" }
 
-      it "allows idmsessid to be nil (optional parameter)" do
-        # idmsessid is optional - it's only added to cookies if present
-        # Mock Faraday response
-        mock_response = double(
-          success?: true,
-          body: {
-            "data" => [],
-            "totalCount" => 0
-          }
-        )
+    it "extracts JSESSIONID from response cookies" do
+      session_response = double(
+        success?: true,
+        headers: { "set-cookie" => "JSESSIONID=my_session_123; Path=/; HttpOnly" }
+      )
 
-        # Mock the connection
-        mock_connection = double
-        allow(mock_connection).to receive(:get).and_return(mock_response)
+      mock_connection = double
+      allow(mock_connection).to receive(:post).and_yield(double(params: {}, body: nil).as_null_object).and_return(session_response)
 
-        service = described_class.new(
-          action: :get_course_catalog,
-          term: term,
-          jsessionid: jsessionid,
-          idmsessid: nil
-        )
+      service = described_class.new(action: :get_course_catalog, term: term)
+      allow(service).to receive(:session_connection).and_return(mock_connection)
 
-        allow(service).to receive(:authenticated_connection).and_return(mock_connection)
+      result = service.send(:initialize_search_session!)
 
-        expect {
-          service.call
-        }.not_to raise_error
-      end
+      expect(result).to eq("my_session_123")
     end
   end
 end

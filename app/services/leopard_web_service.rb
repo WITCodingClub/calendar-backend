@@ -7,14 +7,12 @@ class LeopardWebService < ApplicationService
 
   BASE_URL = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/searchResults/"
 
-  attr_reader :term, :course_reference_number, :action, :jsessionid, :idmsessid
+  attr_reader :term, :course_reference_number, :action
 
-  def initialize(action:, term: nil, course_reference_number: nil, jsessionid: nil, idmsessid: nil)
+  def initialize(action:, term: nil, course_reference_number: nil)
     @action = action
     @term = term
     @course_reference_number = course_reference_number
-    @jsessionid = jsessionid
-    @idmsessid = idmsessid
     super()
   end
 
@@ -28,6 +26,8 @@ class LeopardWebService < ApplicationService
       get_faculty_meeting_times
     when :get_course_catalog
       get_course_catalog
+    when :get_available_terms
+      get_available_terms
     else
       raise ArgumentError, "Unknown action: #{action}"
     end
@@ -58,13 +58,15 @@ class LeopardWebService < ApplicationService
     ).call
   end
 
-  def self.get_course_catalog(term:, jsessionid:, idmsessid:)
+  def self.get_course_catalog(term:)
     new(
       action: :get_course_catalog,
-      term: term,
-      jsessionid: jsessionid,
-      idmsessid: idmsessid
+      term: term
     ).call
+  end
+
+  def self.get_available_terms
+    new(action: :get_available_terms).call
   end
 
   private
@@ -252,9 +254,47 @@ class LeopardWebService < ApplicationService
     raise "Request failed with status #{response.status}: #{response.body}"
   end
 
+  def get_available_terms
+    # Cache available terms for 1 hour - they don't change often
+    cache_key = "leopard:available_terms"
+
+    cache_hit = Rails.cache.exist?(cache_key)
+    result = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
+      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_available_terms"])
+
+      response = terms_connection.get("classSearch/getTerms", {
+        searchTerm: "",
+        offset: 1,
+        max: 50
+      })
+
+      if response.success?
+        terms = parse_json_response(response.body)
+        {
+          success: true,
+          terms: terms.map do |t|
+            {
+              code: t["code"],
+              description: t["description"]
+            }
+          end
+        }
+      else
+        {
+          success: false,
+          error: "Failed to fetch terms: #{response.status}",
+          terms: []
+        }
+      end
+    end
+
+    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_available_terms"]) if cache_hit
+
+    result
+  end
+
   def get_course_catalog
     raise ArgumentError, "term is required" unless term
-    raise ArgumentError, "jsessionid is required" unless jsessionid
 
     # Cache entire course catalog for 7 days since it's relatively static per term
     # This is a large payload but saves multiple paginated API requests
@@ -264,6 +304,10 @@ class LeopardWebService < ApplicationService
     result = Rails.cache.fetch(cache_key, expires_in: 7.days) do
       # Track cache miss
       StatsD.increment("leopard_web.cache.miss", tags: ["action:get_course_catalog"])
+
+      # Initialize a search session (no auth required!)
+      initialize_search_session!
+
       all_courses = []
       offset = 0
       total_count = nil
@@ -311,11 +355,35 @@ class LeopardWebService < ApplicationService
     result
   end
 
+  # Initialize a search session by POSTing term selection
+  # This creates a JSESSIONID cookie that allows subsequent searches without user auth
+  def initialize_search_session!
+    response = session_connection.post("term/search") do |req|
+      req.params["mode"] = "search"
+      req.body = "term=#{term}"
+    end
+
+    unless response.success?
+      raise "Failed to initialize search session: #{response.status}"
+    end
+
+    # Extract JSESSIONID from response cookies
+    set_cookie = response.headers["set-cookie"]
+    if set_cookie
+      match = set_cookie.match(/JSESSIONID=([^;]+)/)
+      @session_cookie = match[1] if match
+    end
+
+    raise "Failed to obtain session cookie" unless @session_cookie
+
+    @session_cookie
+  end
+
   def fetch_catalog_page(offset, page_size)
     # Generate a unique session ID for this request (mimics browser behavior)
     unique_session_id = "sess#{Time.now.to_i}#{rand(1000..9999)}"
 
-    authenticated_connection.get("searchResults/searchResults", {
+    catalog_connection.get("searchResults/searchResults", {
       txt_term: term,
       startDatepicker: "",
       endDatepicker: "",
@@ -327,23 +395,38 @@ class LeopardWebService < ApplicationService
     })
   end
 
-  def authenticated_connection
-    @authenticated_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
+  # Connection for fetching available terms (no session required)
+  def terms_connection
+    @terms_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
+      faraday.use FaradayStatsd
+      faraday.request :url_encoded
+      faraday.response :json, content_type: /\bjson$/
+      faraday.adapter Faraday.default_adapter
+    end
+  end
+
+  # Connection for initializing the search session
+  def session_connection
+    @session_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
+      faraday.use FaradayStatsd
+      faraday.request :url_encoded
+      faraday.response :json, content_type: /\bjson$/
+      faraday.adapter Faraday.default_adapter
+    end
+  end
+
+  # Connection for fetching catalog pages using the self-created session
+  def catalog_connection
+    raise "Session not initialized - call initialize_search_session! first" unless @session_cookie
+
+    @catalog_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
       faraday.use FaradayStatsd
 
       faraday.headers["Accept"] = "application/json, text/javascript, */*; q=0.01"
       faraday.headers["Accept-Language"] = "en-US,en;q=0.9"
       faraday.headers["X-Requested-With"] = "XMLHttpRequest"
       faraday.headers["Referer"] = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/courseSearch/courseSearch"
-      faraday.headers["DNT"] = "1"
-      faraday.headers["Sec-Fetch-Dest"] = "empty"
-      faraday.headers["Sec-Fetch-Mode"] = "cors"
-      faraday.headers["Sec-Fetch-Site"] = "same-origin"
-
-      # Build cookie header with optional IDMSESSID
-      cookies = ["JSESSIONID=#{jsessionid}"]
-      cookies << "IDMSESSID=#{idmsessid}" if idmsessid.present?
-      faraday.headers["Cookie"] = cookies.join("; ")
+      faraday.headers["Cookie"] = "JSESSIONID=#{@session_cookie}"
 
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
