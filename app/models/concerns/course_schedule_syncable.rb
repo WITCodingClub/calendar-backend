@@ -237,7 +237,7 @@ module CourseScheduleSyncable
                                      .where(courses: { term_id: term_ids })
                                      .pluck(:course_id)
 
-    FinalExam.where(course_id: enrolled_course_ids)
+    ::FinalExam.where(course_id: enrolled_course_ids)
              .includes(course: :faculties)
              .find_each do |final_exam|
       next unless final_exam.start_datetime && final_exam.end_datetime
@@ -262,7 +262,7 @@ module CourseScheduleSyncable
     StatsD.increment("sync.final_exam.synced", tags: ["user_id:#{id}", "final_exam_id:#{final_exam_id}"])
 
     service = GoogleCalendarService.new(self)
-    final_exam = FinalExam.includes(course: :faculties).find_by(id: final_exam_id)
+    final_exam = ::FinalExam.includes(course: :faculties).find_by(id: final_exam_id)
     return unless final_exam
     return unless final_exam.start_datetime && final_exam.end_datetime
 
