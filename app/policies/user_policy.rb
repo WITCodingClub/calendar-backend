@@ -32,6 +32,11 @@ class UserPolicy < ApplicationPolicy
     super_admin?
   end
 
+  # Super_admins+ can refresh OAuth credentials
+  def refresh_oauth_credential?
+    super_admin?
+  end
+
   # Super_admins+ can manage beta tester status (admins cannot)
   def enable_beta?
     super_admin?
@@ -39,6 +44,11 @@ class UserPolicy < ApplicationPolicy
 
   # Super_admins+ can manage beta tester status (admins cannot)
   def disable_beta?
+    super_admin?
+  end
+
+  # Super_admins+ can force calendar sync for users
+  def force_calendar_sync?
     super_admin?
   end
 

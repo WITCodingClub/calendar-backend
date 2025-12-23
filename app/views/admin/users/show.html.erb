@@ -81,6 +81,13 @@
           <% end %>
         <% end %>
 
+        <% if policy(@user).force_calendar_sync? && @user.google_credential&.google_calendar %>
+          <%= button_to "Force Calendar Sync", force_calendar_sync_admin_user_path(@user),
+            method: :post,
+            data: { turbo_confirm: "Force sync calendar for #{@user.email}? This will update all events regardless of changes." },
+            class: "glass-button px-4 py-2 rounded text-sm cursor-pointer bg-blue-50/40 text-blue-600" %>
+        <% end %>
+
         <% if policy(@user).destroy? %>
           <%= render "delete_confirmation_modal",
               user: @user,
@@ -219,14 +226,22 @@
                     <%= credential.created_at.strftime("%b %d, %Y") %>
                   </td>
                   <td class="px-4 py-2 whitespace-nowrap text-sm">
-                    <% if policy(@user).revoke_oauth_credential? %>
-                      <%= button_to "Revoke", revoke_oauth_credential_admin_user_path(@user, credential_id: credential.id),
-                        method: :delete,
-                        data: { turbo_confirm: "⚠️ Revoke OAuth access for #{credential.email}? This will delete the associated calendar (#{credential.events_count} events) and cannot be undone." },
-                        class: "text-red-600 hover:text-red-900 font-medium" %>
-                    <% else %>
-                      <span class="text-gray-400 text-sm">—</span>
-                    <% end %>
+                    <div class="flex gap-2">
+                      <% if policy(@user).refresh_oauth_credential? %>
+                        <%= button_to "Refresh", refresh_oauth_credential_admin_user_path(@user, credential_id: credential.id),
+                          method: :post,
+                          class: "text-blue-600 hover:text-blue-900 font-medium" %>
+                      <% end %>
+                      <% if policy(@user).revoke_oauth_credential? %>
+                        <%= button_to "Revoke", revoke_oauth_credential_admin_user_path(@user, credential_id: credential.id),
+                          method: :delete,
+                          data: { turbo_confirm: "⚠️ Revoke OAuth access for #{credential.email}? This will delete the associated calendar (#{credential.events_count} events) and cannot be undone." },
+                          class: "text-red-600 hover:text-red-900 font-medium" %>
+                      <% end %>
+                      <% unless policy(@user).refresh_oauth_credential? || policy(@user).revoke_oauth_credential? %>
+                        <span class="text-gray-400 text-sm">—</span>
+                      <% end %>
+                    </div>
                   </td>
                 </tr>
               <% end %>

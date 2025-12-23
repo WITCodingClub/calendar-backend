@@ -2,7 +2,7 @@
 
 module Admin
   class UsersController < Admin::ApplicationController
-    before_action :set_user, only: [:show, :edit, :update, :destroy, :revoke_oauth_credential, :enable_beta, :disable_beta]
+    before_action :set_user, only: [:show, :edit, :update, :destroy, :revoke_oauth_credential, :refresh_oauth_credential, :enable_beta, :disable_beta, :force_calendar_sync]
 
     BETA_FEATURE_FLAG = FlipperFlags::V1
 
@@ -75,6 +75,41 @@ module Admin
       redirect_to admin_user_path(@user), alert: "OAuth credential not found."
     end
 
+    def refresh_oauth_credential
+      authorize @user, :refresh_oauth_credential?
+      credential = @user.oauth_credentials.find(params[:credential_id])
+
+      unless credential.refresh_token.present?
+        redirect_to admin_user_path(@user), alert: "No refresh token available for #{credential.email}. User needs to re-authenticate."
+        return
+      end
+
+      # Build Google credentials and refresh
+      credentials = Google::Auth::UserRefreshCredentials.new(
+        client_id: Rails.application.credentials.dig(:google, :client_id),
+        client_secret: Rails.application.credentials.dig(:google, :client_secret),
+        refresh_token: credential.refresh_token,
+        scope: ["https://www.googleapis.com/auth/calendar"]
+      )
+
+      credentials.refresh!
+
+      credential.update!(
+        access_token: credentials.access_token,
+        expires_at: Time.current + credentials.expires_in.seconds
+      )
+
+      redirect_to admin_user_path(@user), notice: "OAuth token refreshed for #{credential.email}."
+    rescue ActiveRecord::RecordNotFound
+      redirect_to admin_user_path(@user), alert: "OAuth credential not found."
+    rescue Signet::AuthorizationError => e
+      Rails.logger.error("Error refreshing OAuth token: #{e.message}")
+      redirect_to admin_user_path(@user), alert: "Failed to refresh token for #{credential.email}. User may need to re-authenticate."
+    rescue => e
+      Rails.logger.error("Error refreshing OAuth token: #{e.message}")
+      redirect_to admin_user_path(@user), alert: "Failed to refresh token: #{e.message}"
+    end
+
     def enable_beta
       authorize @user, :enable_beta?
 
@@ -93,6 +128,21 @@ module Admin
     rescue => e
       Rails.logger.error("Error removing user from beta: #{e.message}")
       redirect_to admin_user_path(@user), alert: "Failed to remove user from beta: #{e.message}"
+    end
+
+    def force_calendar_sync
+      authorize @user, :force_calendar_sync?
+
+      unless @user.google_credential&.google_calendar
+        redirect_to admin_user_path(@user), alert: "User does not have a Google Calendar set up."
+        return
+      end
+
+      GoogleCalendarSyncJob.perform_later(@user, force: true)
+      redirect_to admin_user_path(@user), notice: "Calendar sync queued for #{@user.email}."
+    rescue => e
+      Rails.logger.error("Error queueing calendar sync: #{e.message}")
+      redirect_to admin_user_path(@user), alert: "Failed to queue calendar sync: #{e.message}"
     end
 
     private
