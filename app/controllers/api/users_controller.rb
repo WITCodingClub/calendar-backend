@@ -424,13 +424,13 @@ module Api
             season: term.season,
             year: term.year
           },
-          professor: {
+          professor: faculty ? {
             pub_id: faculty.public_id,
             first_name: faculty.first_name,
             last_name: faculty.last_name,
             email: faculty.email,
             rmp_id: faculty.rmp_id
-          },
+          } : nil,
           meeting_times: group_meeting_times(meeting_times)
         }
       end
