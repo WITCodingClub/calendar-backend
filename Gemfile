@@ -142,5 +142,5 @@ gem "rswag-ui", "~> 2.17.0"
 gem "pghero", "~> 3.7"
 gem "pg_query", ">= 2"
 
-gem "connection_pool", "~> 2.2", ">= 2.2.5"
+gem "connection_pool", "~> 3.0"
 gem "pdf-reader"
