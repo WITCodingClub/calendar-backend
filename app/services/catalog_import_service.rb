@@ -21,8 +21,8 @@ class CatalogImportService < ApplicationService
     # Deduplicate courses by CRN and term
     unique_courses = catalog_courses.uniq { |c| [c["courseReferenceNumber"], c["term"]] }
 
-    # Track which terms we're importing
-    term_uids = unique_courses.map { |c| c["term"] }.uniq
+    # Track which terms we're importing (handle both possible field names)
+    term_uids = unique_courses.map { |c| c["term"] || c["termEffective"] }.compact.uniq
 
     unique_courses.each_with_index do |course_data, index|
       begin
