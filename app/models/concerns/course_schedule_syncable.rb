@@ -245,22 +245,16 @@ module CourseScheduleSyncable
   end
 
   # Build events for final exams of enrolled courses
+  # Only includes upcoming finals (today or future) - use sync_finals_for_term rake task for historical
   def build_finals_events_for_sync
     finals = []
 
-    # Get current and next term to include their finals
-    current_term = Term.current
-    next_term = Term.next
-    term_ids = [current_term&.id, next_term&.id].compact
+    enrolled_course_ids = enrollments.pluck(:course_id)
+    return finals if enrolled_course_ids.empty?
 
-    return finals if term_ids.empty?
-
-    # Get finals for enrolled courses in current/next term
-    enrolled_course_ids = enrollments.joins(:course)
-                                     .where(courses: { term_id: term_ids })
-                                     .pluck(:course_id)
-
+    # Only include finals that haven't happened yet (or are today)
     ::FinalExam.where(course_id: enrolled_course_ids)
+               .where("exam_date >= ?", Time.zone.today)
              .includes(course: :faculties)
              .find_each do |final_exam|
       next unless final_exam.start_datetime && final_exam.end_datetime
