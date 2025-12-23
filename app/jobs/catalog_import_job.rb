@@ -22,8 +22,8 @@ class CatalogImportJob < ApplicationJob
       return
     end
 
-    # Import the courses
-    CatalogImportService.new(courses).call
+    # Import the courses (use call! to fail loudly on errors like unknown schedule_type)
+    CatalogImportService.new(courses).call!
 
     Rails.logger.info "[CatalogImportJob] Completed import for term #{term_uid}"
   end

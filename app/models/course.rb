@@ -57,12 +57,15 @@ class Course < ApplicationRecord
 
   enum :schedule_type, {
     hybrid: "HYB",
+    independent_study: "IND",
     laboratory: "LAB",
     lecture: "LEC",
+    online: "ONL",
     online_sync_lab: "OLB",
     online_sync_lecture: "OLC",
     rotating_lab: "RLB",
-    rotating_lecture: "RLC"
+    rotating_lecture: "RLC",
+    study_abroad: "SAB"
   }
 
   # Generate the text representation for embedding
@@ -91,12 +94,15 @@ class Course < ApplicationRecord
 
     {
       "hybrid"              => "hybrid in-person and online",
+      "independent_study"   => "independent study",
       "laboratory"          => "laboratory hands-on",
       "lecture"             => "lecture",
+      "online"              => "online asynchronous",
       "online_sync_lab"     => "online synchronous lab",
       "online_sync_lecture" => "online synchronous lecture",
       "rotating_lab"        => "rotating laboratory",
-      "rotating_lecture"    => "rotating lecture"
+      "rotating_lecture"    => "rotating lecture",
+      "study_abroad"        => "study abroad"
     }[schedule_type]
   end
 
