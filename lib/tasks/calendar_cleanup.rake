@@ -136,9 +136,8 @@ namespace :calendar do
     puts "Syncing finals for #{term.name}..."
     puts ""
 
-    users_with_calendars = User.joins(:oauth_credentials)
+    users_with_calendars = User.joins(oauth_credentials: :google_calendar)
                                .where(oauth_credentials: { provider: "google" })
-                               .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
                                .distinct
 
     puts "Found #{users_with_calendars.count} users with calendars"
@@ -202,9 +201,8 @@ namespace :calendar do
     puts "Force syncing all user calendars..."
     puts ""
 
-    users_with_calendars = User.joins(:oauth_credentials)
+    users_with_calendars = User.joins(oauth_credentials: :google_calendar)
                                .where(oauth_credentials: { provider: "google" })
-                               .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
                                .distinct
 
     puts "Found #{users_with_calendars.count} users with calendars"

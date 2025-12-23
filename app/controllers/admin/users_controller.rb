@@ -96,7 +96,7 @@ module Admin
 
       credential.update!(
         access_token: credentials.access_token,
-        expires_at: Time.current + credentials.expires_in.seconds
+        token_expires_at: Time.current + credentials.expires_in.seconds
       )
 
       redirect_to admin_user_path(@user), notice: "OAuth token refreshed for #{credential.email}."
