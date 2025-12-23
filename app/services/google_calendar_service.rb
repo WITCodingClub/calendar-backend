@@ -570,9 +570,11 @@ class GoogleCalendarService
         date_time: end_time_et.iso8601,
         time_zone: "America/New_York"
       },
-      color_id: event_data[:color_id]&.to_s,
-      recurrence: event_data[:recurrence]
+      color_id: event_data[:color_id]&.to_s
     )
+
+    # Only set recurrence if it has a value - Google API gem fails on nil
+    google_event.recurrence = event_data[:recurrence] if event_data[:recurrence].present?
 
     # Apply reminders if present and valid
     if event_data[:reminder_settings].present? && event_data[:reminder_settings].is_a?(Array)
@@ -711,9 +713,11 @@ class GoogleCalendarService
         date_time: end_time_et.iso8601,
         time_zone: "America/New_York"
       },
-      color_id: event_data[:color_id]&.to_s,
-      recurrence: event_data[:recurrence]
+      color_id: event_data[:color_id]&.to_s
     )
+
+    # Only set recurrence if it has a value - Google API gem fails on nil
+    google_event.recurrence = event_data[:recurrence] if event_data[:recurrence].present?
 
     # Apply reminders if present and valid
     if event_data[:reminder_settings].present? && event_data[:reminder_settings].is_a?(Array)
