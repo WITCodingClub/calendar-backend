@@ -185,6 +185,7 @@ namespace :calendar do
         synced_count += 1
       rescue => e
         puts "✗ User #{user.id} (#{user.email}): #{e.message}"
+        puts "  Backtrace: #{e.backtrace.first(5).join("\n            ")}"
         error_count += 1
       end
     end
