@@ -215,10 +215,33 @@ module CourseScheduleSyncable
     day_code = day_codes[meeting_time.day_of_week]
     return nil unless day_code
 
+    # Determine the end date for recurrence
+    # Use meeting_time.end_date, but stop before finals week if finals exist
+    recurrence_end = meeting_time.end_date.to_date
+
+    # Check if this course's term has finals - if so, end classes before finals start
+    term = meeting_time.course&.term
+    if term
+      earliest_final = earliest_final_date_for_term(term.id)
+      if earliest_final && earliest_final < recurrence_end
+        # End classes the day before finals start
+        recurrence_end = earliest_final - 1.day
+      end
+    end
+
     # Format: RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20240515T235959Z
     # Each meeting_time now represents a single day, so only one day code
-    until_date = meeting_time.end_date.strftime("%Y%m%dT235959Z")
+    until_date = recurrence_end.strftime("%Y%m%dT235959Z")
     "RRULE:FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_date}"
+  end
+
+  # Memoized lookup of earliest final exam date for a term
+  # Avoids N+1 queries when building recurrence rules for multiple meeting times
+  def earliest_final_date_for_term(term_id)
+    @earliest_final_dates ||= {}
+    @earliest_final_dates[term_id] ||= ::FinalExam.where(term_id: term_id)
+                                                   .where.not(exam_date: nil)
+                                                   .minimum(:exam_date)
   end
 
   # Build events for final exams of enrolled courses
