@@ -215,8 +215,6 @@ GEM
       sanitize (< 8)
     foreman (0.90.0)
       thor (~> 1.4)
-    friendly_id (5.6.0)
-      activerecord (>= 4.0.0)
     fugit (1.12.1)
       et-orbi (~> 1.4)
       raabro (~> 1.4)
@@ -777,7 +775,6 @@ DEPENDENCIES
   flipper-active_support_cache_store
   flipper-ui
   foreman
-  friendly_id
   google-apis-calendar_v3 (~> 0.51.0)
   googleauth (~> 1.16)
   hashid-rails
