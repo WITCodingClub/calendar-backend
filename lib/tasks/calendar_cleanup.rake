@@ -183,6 +183,21 @@ namespace :calendar do
         GoogleCalendarService.new(user).update_specific_events(finals_events, force: true)
         puts "✓ User #{user.id} (#{user.email}): Synced #{finals_events.count} finals"
         synced_count += 1
+      rescue Signet::AuthorizationError => e
+        puts "⚠ User #{user.id} (#{user.email}): OAuth expired - user needs to re-authenticate"
+        error_count += 1
+      rescue Google::Apis::ClientError => e
+        puts "⚠ User #{user.id} (#{user.email}): Google API error - #{e.message}"
+        error_count += 1
+      rescue NoMethodError => e
+        if e.message.include?("each_with_index") || e.message.include?("nil")
+          puts "⚠ User #{user.id} (#{user.email}): Calendar data issue - calendar may not exist or be accessible"
+          error_count += 1
+        else
+          puts "✗ User #{user.id} (#{user.email}): #{e.message}"
+          puts "  Backtrace: #{e.backtrace.first(5).join("\n            ")}"
+          error_count += 1
+        end
       rescue => e
         puts "✗ User #{user.id} (#{user.email}): #{e.message}"
         puts "  Backtrace: #{e.backtrace.first(5).join("\n            ")}"
