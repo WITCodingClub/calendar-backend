@@ -339,7 +339,7 @@ GEM
       rb-fsevent (~> 0.10, >= 0.10.3)
       rb-inotify (~> 0.9, >= 0.9.10)
     lockbox (2.1.0)
-    log_bench (0.5.3)
+    log_bench (0.6.0)
       curses (~> 1.5)
       lograge (~> 0.14)
       net-http (~> 0.6)
