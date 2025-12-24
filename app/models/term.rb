@@ -97,58 +97,49 @@ class Term < ApplicationRecord
   end
 
   # Returns the current academic term based on today's date
-  # Prioritizes date-based logic using actual course dates, with season-based fallback
+  # Uses year/season-based logic as primary, with date validation
   # @return [Term, nil] the current term, or nil if none found
   def self.current
     today = Time.zone.today
+    current_year = today.year
 
-    # Priority 1: Find term where today falls within actual start_date and end_date
-    active_term = where.not(start_date: nil, end_date: nil)
-                       .where("start_date <= ? AND end_date >= ?", today, today)
-                       .first
+    # Determine expected season based on month
+    # Aug-Dec: Fall semester
+    # Jan-May: Spring semester
+    # Jun-Jul: Summer semester
+    expected_season = case today.month
+                      when 1..5 then :spring
+                      when 6..7 then :summer
+                      when 8..12 then :fall
+                      end
 
-    return active_term if active_term
-
-    # Priority 2: Check if we're past the end of the most recent term
-    # If so, return the next term (even if it doesn't have dates yet)
-    most_recent = where.not(end_date: nil)
-                       .where("end_date < ?", today)
-                       .order(end_date: :desc)
-                       .first
-
-    if most_recent
-      # We're past a term's end date - return the next term in sequence
-      next_term_after_recent = case most_recent.season.to_sym
-                               when :fall
-                                 find_by(year: most_recent.year + 1, season: :spring)
-                               when :spring
-                                 find_by(year: most_recent.year, season: :summer)
-                               when :summer
-                                 find_by(year: most_recent.year, season: :fall)
-                               end
-
-      return next_term_after_recent if next_term_after_recent
+    # For late December (after Fall ends), look ahead to Spring of next year
+    if today.month == 12 && today.day >= 15
+      spring_next_year = find_by(year: current_year + 1, season: :spring)
+      return spring_next_year if spring_next_year
     end
 
-    # Priority 3: Find the most recently started term with dates (for longer gaps)
-    most_recent_started = where.not(start_date: nil)
-                               .where("start_date <= ?", today)
-                               .order(start_date: :desc)
-                               .first
+    # Priority 1: Look for expected term in current year
+    expected_term = find_by(year: current_year, season: expected_season)
+    return expected_term if expected_term
 
-    return most_recent_started if most_recent_started
+    # Priority 2: If we're in spring months but no spring term, check if fall is still active
+    if expected_season == :spring
+      fall_term = find_by(year: current_year - 1, season: :fall)
+      return fall_term if fall_term&.active?
+    end
 
-    # Priority 4: Fallback to season-based logic for terms without dates
-    Rails.logger.warn("No terms with dates found, falling back to season-based logic")
-    
-    current_year = today.year
-    current_season = case today.month
-                     when 8..12 then :fall
-                     when 6..7 then :summer
-                     else :spring
-                     end
+    # Priority 3: Find the next upcoming term
+    upcoming_term = where.not(start_date: nil)
+                         .where("start_date > ?", today)
+                         .where("year >= ?", current_year)
+                         .order(start_date: :asc)
+                         .first
 
-    find_by(year: current_year, season: current_season)
+    return upcoming_term if upcoming_term
+
+    # Priority 4: Fall back to most recent term by year/season
+    order(year: :desc, season: :desc).first
   end
 
   # Returns the next academic term after the current term
