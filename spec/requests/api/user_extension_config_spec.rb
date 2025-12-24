@@ -154,5 +154,91 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
         expect(config.default_color_lecture).to eq(GoogleColors::WITCC_TOMATO)
       end
     end
+
+    context "when updating university event preferences" do
+      it "updates sync_university_events to true" do
+        put "/api/user/extension_config", params: {
+          sync_university_events: true
+        }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+
+        config = user.reload.user_extension_config
+        expect(config.sync_university_events).to be true
+      end
+
+      it "updates university_event_categories" do
+        put "/api/user/extension_config", params: {
+          sync_university_events: true,
+          university_event_categories: ["campus_event", "academic"]
+        }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+
+        config = user.reload.user_extension_config
+        expect(config.sync_university_events).to be true
+        expect(config.university_event_categories).to contain_exactly("campus_event", "academic")
+      end
+
+      it "filters out invalid categories" do
+        put "/api/user/extension_config", params: {
+          university_event_categories: ["campus_event", "invalid_category", "academic"]
+        }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+
+        config = user.reload.user_extension_config
+        expect(config.university_event_categories).to contain_exactly("campus_event", "academic")
+        expect(config.university_event_categories).not_to include("invalid_category")
+      end
+
+      it "triggers calendar sync job when university settings change" do
+        expect(GoogleCalendarSyncJob).to receive(:perform_later).with(user, force: true)
+
+        put "/api/user/extension_config", params: {
+          sync_university_events: true,
+          university_event_categories: ["campus_event"]
+        }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+  end
+
+  describe "GET /api/user/extension_config with university event settings" do
+    before do
+      user.user_extension_config.update!(
+        sync_university_events: true,
+        university_event_categories: ["campus_event", "academic"]
+      )
+    end
+
+    it "returns university event preferences" do
+      get "/api/user/extension_config", headers: headers
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+
+      expect(json["sync_university_events"]).to be true
+      expect(json["university_event_categories"]).to contain_exactly("campus_event", "academic")
+    end
+
+    it "returns available university event categories with descriptions" do
+      get "/api/user/extension_config", headers: headers
+
+      expect(response).to have_http_status(:ok)
+      json = JSON.parse(response.body)
+
+      expect(json["available_university_event_categories"]).to be_an(Array)
+      expect(json["available_university_event_categories"].length).to eq(UniversityCalendarEvent::CATEGORIES.length)
+
+      holiday_cat = json["available_university_event_categories"].find { |c| c["id"] == "holiday" }
+      expect(holiday_cat["name"]).to eq("Holiday")
+      expect(holiday_cat["description"]).to include("holidays")
+
+      campus_cat = json["available_university_event_categories"].find { |c| c["id"] == "campus_event" }
+      expect(campus_cat["name"]).to eq("Campus Event")
+      expect(campus_cat["description"]).to include("Campus activities")
+    end
   end
 end

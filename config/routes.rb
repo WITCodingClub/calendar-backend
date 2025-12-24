@@ -92,6 +92,9 @@
 #                     admin_finals_schedule GET    /admin/finals_schedules/:id(.:format)                                                             admin/finals_schedules#show
 #                                           DELETE /admin/finals_schedules/:id(.:format)                                                             admin/finals_schedules#destroy
 #              admin_google_calendar_events GET    /admin/google_calendar_events(.:format)                                                           admin/google_calendar_events#index
+#     sync_admin_university_calendar_events POST   /admin/university_calendar_events/sync(.:format)                                                  admin/university_calendar_events#sync
+#          admin_university_calendar_events GET    /admin/university_calendar_events(.:format)                                                       admin/university_calendar_events#index
+#           admin_university_calendar_event GET    /admin/university_calendar_events/:id(.:format)                                                   admin/university_calendar_events#show
 #                         admin_rmp_ratings GET    /admin/rmp_ratings(.:format)                                                                      admin/rmp_ratings#index
 #                      admin_course_catalog GET    /admin/course_catalog(.:format)                                                                   admin/course_catalog#index
 #               admin_course_catalog_import POST   /admin/course_catalog/import/:term_uid(.:format)                                                  admin/course_catalog#import
@@ -416,6 +419,11 @@ Rails.application.routes.draw do
         end
       end
       resources :google_calendar_events, only: [:index]
+      resources :university_calendar_events, only: [:index, :show] do
+        collection do
+          post :sync
+        end
+      end
       resources :rmp_ratings, only: [:index]
 
       # Course catalog importer (admin utility)

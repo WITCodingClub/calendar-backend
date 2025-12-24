@@ -20,6 +20,16 @@ module Api
         config.default_color_lab = witcc_color || params[:default_color_lab]
       end
 
+      # University calendar event preferences
+      config.sync_university_events = params[:sync_university_events] unless params[:sync_university_events].nil?
+
+      unless params[:university_event_categories].nil?
+        categories = params[:university_event_categories]
+        # Ensure it's an array and only contains valid categories
+        categories = Array(categories).map(&:to_s) & UniversityCalendarEvent::CATEGORIES
+        config.university_event_categories = categories
+      end
+
       if config.save
         render json: {
           pub_id: config.public_id,
@@ -56,7 +66,16 @@ module Api
         military_time: config.military_time,
         default_color_lecture: config.default_color_lecture,
         default_color_lab: config.default_color_lab,
-        advanced_editing: config.advanced_editing
+        advanced_editing: config.advanced_editing,
+        sync_university_events: config.sync_university_events,
+        university_event_categories: config.university_event_categories || [],
+        available_university_event_categories: UniversityCalendarEvent::CATEGORIES.map do |category|
+          {
+            id: category,
+            name: category.titleize,
+            description: university_event_category_description(category)
+          }
+        end
       }, status: :ok
     rescue => e
       Rails.logger.error("Error fetching user extension config for user #{current_user.id}: #{e.message}")
@@ -65,5 +84,25 @@ module Api
         error: "Failed to fetch user extension config" }, status: :internal_server_error
     end
 
+    private
+
+    def university_event_category_description(category)
+      case category
+      when "holiday"
+        "Official university holidays and breaks (always synced)"
+      when "academic"
+        "Academic deadlines, registration dates, and important academic events"
+      when "campus_event"
+        "Campus activities, concerts, and student events"
+      when "meeting"
+        "University meetings and administrative events"
+      when "exhibit"
+        "Art exhibits, displays, and gallery events"
+      when "announcement"
+        "Important university announcements and notices"
+      else
+        "Other university events"
+      end
+    end
   end
 end

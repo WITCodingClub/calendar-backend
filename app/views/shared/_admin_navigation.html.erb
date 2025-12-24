@@ -13,6 +13,10 @@
       <%= link_to "Finals", admin_finals_schedules_path,
           class: "admin-nav-link #{request.path.start_with?('/admin/finals_schedules') ? 'active' : ''}" %>
     </li>
+    <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+      <%= link_to "Calendar", admin_university_calendar_events_path,
+          class: "admin-nav-link #{request.path.start_with?('/admin/university_calendar_events') ? 'active' : ''}" %>
+    </li>
     <% if current_user.owner? %>
       <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.8)]">
         <%= link_to "Service Account", admin_service_account_index_path,

@@ -1,0 +1,154 @@
+<div class="container mx-auto px-2 pb-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">University Calendar Events</h1>
+    <div class="flex gap-2">
+      <%= button_to "Sync Now", sync_admin_university_calendar_events_path,
+          method: :post,
+          class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block",
+          data: { turbo_confirm: "This will sync events from the university calendar feed. Continue?" } %>
+      <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="stat-card p-4 rounded-lg text-center">
+      <div class="text-3xl font-bold text-gray-800"><%= @stats[:total] %></div>
+      <div class="text-sm text-gray-600">Total Events</div>
+    </div>
+    <div class="stat-card p-4 rounded-lg text-center">
+      <div class="text-3xl font-bold text-gray-800"><%= @stats[:holidays] %></div>
+      <div class="text-sm text-gray-600">Holidays</div>
+    </div>
+    <div class="stat-card p-4 rounded-lg text-center">
+      <div class="text-3xl font-bold text-gray-800"><%= @stats[:upcoming] %></div>
+      <div class="text-sm text-gray-600">Upcoming</div>
+    </div>
+    <div class="stat-card p-4 rounded-lg text-center">
+      <div class="text-3xl font-bold text-gray-800"><%= @stats[:categories].keys.count %></div>
+      <div class="text-sm text-gray-600">Categories</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="mb-4">
+    <%= form_with(url: admin_university_calendar_events_path, method: :get, class: "flex gap-2 flex-wrap") do |f| %>
+      <%= f.text_field :search,
+          value: params[:search],
+          placeholder: "Search events...",
+          class: "glass-input flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-md" %>
+      <%= f.select :category,
+          options_for_select(
+            [["All Categories", ""]] + UniversityCalendarEvent::CATEGORIES.map { |c| [c.titleize, c] },
+            params[:category]
+          ),
+          {},
+          class: "glass-input px-4 py-2 border border-gray-300 rounded-md" %>
+      <%= f.submit "Filter", class: "glass-button px-6 py-2 rounded cursor-pointer" %>
+      <% if params[:search].present? || params[:category].present? %>
+        <%= link_to "Clear", admin_university_calendar_events_path, class: "glass-button px-6 py-2 rounded" %>
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Events Table -->
+  <div class="bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead style="background: rgba(255, 255, 255, 0.5);">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              Summary
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              Category
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              Date/Time
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              Term
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200" style="background: rgba(255, 255, 255, 0.3);">
+          <% @university_calendar_events.each do |event| %>
+            <tr class="<%= event.start_time < Time.current ? 'opacity-50' : '' %>">
+              <td class="px-6 py-4">
+                <div class="text-sm font-medium text-gray-900">
+                  <%= truncate(event.summary, length: 50) %>
+                </div>
+                <% if event.location.present? %>
+                  <div class="text-xs text-gray-500"><%= truncate(event.location, length: 40) %></div>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                  <%= case event.category
+                      when 'holiday' then 'bg-red-100 text-red-800'
+                      when 'academic' then 'bg-blue-100 text-blue-800'
+                      when 'campus_event' then 'bg-green-100 text-green-800'
+                      when 'meeting' then 'bg-yellow-100 text-yellow-800'
+                      else 'bg-gray-100 text-gray-800'
+                      end %>">
+                  <%= event.category&.titleize || 'Unknown' %>
+                </span>
+                <% if event.excludes_classes? %>
+                  <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                    No Classes
+                  </span>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                <div><%= event.start_time.strftime("%b %d, %Y") %></div>
+                <% if event.all_day %>
+                  <div class="text-xs text-gray-500">All Day</div>
+                <% else %>
+                  <div class="text-xs text-gray-500">
+                    <%= event.start_time.strftime("%l:%M %p") %> - <%= event.end_time.strftime("%l:%M %p") %>
+                  </div>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                <% if event.term %>
+                  <%= event.term.name %>
+                <% elsif event.academic_term.present? %>
+                  <span class="text-gray-500"><%= event.academic_term %></span>
+                <% else %>
+                  <span class="text-gray-400">-</span>
+                <% end %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <%= link_to "View", admin_university_calendar_event_path(event),
+                    class: "text-red-600 hover:text-red-900" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if @university_calendar_events.respond_to?(:total_pages) %>
+      <div class="px-6 py-4 border-t border-gray-200" style="background: rgba(255, 255, 255, 0.4);">
+        <%= paginate @university_calendar_events %>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Category Breakdown -->
+  <div class="mt-6">
+    <h2 class="text-lg font-semibold mb-3">Events by Category</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+      <% @stats[:categories].each do |category, count| %>
+        <%= link_to admin_university_calendar_events_path(category: category),
+            class: "stat-card p-3 rounded-lg text-center hover:opacity-80 transition-opacity" do %>
+          <div class="text-xl font-bold text-gray-800"><%= count %></div>
+          <div class="text-xs text-gray-600"><%= category&.titleize || 'Unknown' %></div>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+</div>

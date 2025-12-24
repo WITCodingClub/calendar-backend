@@ -1,0 +1,188 @@
+<div class="container mx-auto px-2 pb-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold"><%= truncate(@event.summary, length: 60) %></h1>
+    <div class="flex gap-2">
+      <%= link_to "Back to Events", admin_university_calendar_events_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Details -->
+    <div class="lg:col-span-2">
+      <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-5">
+          <h2 class="text-lg font-semibold mb-4">Event Details</h2>
+
+          <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Summary</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @event.summary %></dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Category</dt>
+              <dd class="mt-1">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                  <%= case @event.category
+                      when 'holiday' then 'bg-red-100 text-red-800'
+                      when 'academic' then 'bg-blue-100 text-blue-800'
+                      when 'campus_event' then 'bg-green-100 text-green-800'
+                      when 'meeting' then 'bg-yellow-100 text-yellow-800'
+                      else 'bg-gray-100 text-gray-800'
+                      end %>">
+                  <%= @event.category&.titleize || 'Unknown' %>
+                </span>
+                <% if @event.excludes_classes? %>
+                  <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                    No Classes
+                  </span>
+                <% end %>
+              </dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Start Time</dt>
+              <dd class="mt-1 text-sm text-gray-900">
+                <%= @event.start_time.strftime("%B %d, %Y") %>
+                <% unless @event.all_day %>
+                  at <%= @event.start_time.strftime("%l:%M %p") %>
+                <% end %>
+              </dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">End Time</dt>
+              <dd class="mt-1 text-sm text-gray-900">
+                <%= @event.end_time.strftime("%B %d, %Y") %>
+                <% unless @event.all_day %>
+                  at <%= @event.end_time.strftime("%l:%M %p") %>
+                <% end %>
+              </dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">All Day Event</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @event.all_day ? 'Yes' : 'No' %></dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Location</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @event.location.presence || '-' %></dd>
+            </div>
+
+            <% if @event.description.present? %>
+              <div class="sm:col-span-2">
+                <dt class="text-sm font-medium text-gray-500">Description</dt>
+                <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap"><%= @event.description %></dd>
+              </div>
+            <% end %>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Term & Organization Info -->
+      <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-5">
+          <h2 class="text-lg font-semibold mb-4">Additional Info</h2>
+
+          <dl class="space-y-3">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Term</dt>
+              <dd class="mt-1 text-sm text-gray-900">
+                <% if @event.term %>
+                  <%= link_to @event.term.name, admin_terms_path, class: "text-red-600 hover:text-red-900" %>
+                <% else %>
+                  <span class="text-gray-400">Not assigned</span>
+                <% end %>
+              </dd>
+            </div>
+
+            <% if @event.academic_term.present? %>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Academic Term (ICS)</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @event.academic_term %></dd>
+              </div>
+            <% end %>
+
+            <% if @event.organization.present? %>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Organization</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @event.organization %></dd>
+              </div>
+            <% end %>
+
+            <% if @event.event_type_raw.present? %>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Event Type (Raw)</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @event.event_type_raw %></dd>
+              </div>
+            <% end %>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Sync Info -->
+      <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-5">
+          <h2 class="text-lg font-semibold mb-4">Sync Info</h2>
+
+          <dl class="space-y-3">
+            <div>
+              <dt class="text-sm font-medium text-gray-500">ICS UID</dt>
+              <dd class="mt-1 text-xs text-gray-900 font-mono break-all"><%= @event.ics_uid %></dd>
+            </div>
+
+            <% if @event.source_url.present? %>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Source URL</dt>
+                <dd class="mt-1 text-xs text-gray-900 font-mono break-all"><%= @event.source_url %></dd>
+              </div>
+            <% end %>
+
+            <% if @event.last_fetched_at.present? %>
+              <div>
+                <dt class="text-sm font-medium text-gray-500">Last Fetched</dt>
+                <dd class="mt-1 text-sm text-gray-900"><%= @event.last_fetched_at.strftime("%B %d, %Y at %l:%M %p") %></dd>
+              </div>
+            <% end %>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Created</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @event.created_at.strftime("%B %d, %Y at %l:%M %p") %></dd>
+            </div>
+
+            <div>
+              <dt class="text-sm font-medium text-gray-500">Updated</dt>
+              <dd class="mt-1 text-sm text-gray-900"><%= @event.updated_at.strftime("%B %d, %Y at %l:%M %p") %></dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+      <!-- Recurrence -->
+      <% if @event.recurrence.present? %>
+        <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+          <div class="px-6 py-5">
+            <h2 class="text-lg font-semibold mb-4">Recurrence</h2>
+            <pre class="text-xs text-gray-900 font-mono whitespace-pre-wrap bg-gray-50 p-2 rounded"><%= @event.recurrence %></pre>
+          </div>
+        </div>
+      <% end %>
+
+      <!-- Related Google Calendar Events -->
+      <% if @event.google_calendar_events.any? %>
+        <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+          <div class="px-6 py-5">
+            <h2 class="text-lg font-semibold mb-4">Synced to Calendars</h2>
+            <p class="text-sm text-gray-600">
+              This event has been synced to <strong><%= @event.google_calendar_events.count %></strong> user calendar(s).
+            </p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
