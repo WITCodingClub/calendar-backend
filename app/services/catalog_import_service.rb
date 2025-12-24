@@ -97,14 +97,24 @@ class CatalogImportService < ApplicationService
       end
     end
 
-    # Get start/end dates from first meeting time
+    # Get start/end dates from first meeting time, with validation
     start_date = nil
     end_date = nil
     if meeting_times.any?
       first_meeting = meeting_times.first
       # Parse dates from MM/DD/YYYY format
-      start_date = parse_date(first_meeting["startDate"])
-      end_date = parse_date(first_meeting["endDate"])
+      parsed_start = parse_date(first_meeting["startDate"])
+      parsed_end = parse_date(first_meeting["endDate"])
+
+      # Validate dates are reasonable for the term year (within 1 year tolerance)
+      if dates_valid_for_term?(parsed_start, parsed_end, term)
+        start_date = parsed_start
+        end_date = parsed_end
+      else
+        Rails.logger.warn("Invalid dates for term #{term.name}: #{parsed_start} to #{parsed_end}, using term defaults")
+        start_date = term.start_date
+        end_date = term.end_date
+      end
     end
 
     # Create or update course using bulk catalog data
@@ -259,5 +269,19 @@ class CatalogImportService < ApplicationService
       Rails.logger.warn("Failed to parse date '#{date_string}': #{e.message}")
       nil
     end
+  end
+
+  # Validate that dates are reasonable for the term year
+  # LeopardWeb sometimes returns stale/historical dates from previous years
+  def dates_valid_for_term?(start_date, end_date, term)
+    return false if start_date.nil? || end_date.nil?
+
+    term_year = term.year
+
+    # Allow dates within 1 year of the term year (for fall terms that span years)
+    start_year_valid = start_date.year >= (term_year - 1) && start_date.year <= term_year
+    end_year_valid = end_date.year >= term_year && end_date.year <= (term_year + 1)
+
+    start_year_valid && end_year_valid
   end
 end
