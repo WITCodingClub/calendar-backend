@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_12_22_212423) do
+ActiveRecord::Schema[8.1].define(version: 2025_12_24_030025) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -375,13 +375,16 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_22_212423) do
     t.text "recurrence"
     t.datetime "start_time"
     t.string "summary"
+    t.bigint "university_calendar_event_id"
     t.datetime "updated_at", null: false
     t.index ["final_exam_id"], name: "index_google_calendar_events_on_final_exam_id"
     t.index ["google_calendar_id", "meeting_time_id"], name: "idx_on_google_calendar_id_meeting_time_id_6c9efabf50"
+    t.index ["google_calendar_id", "university_calendar_event_id"], name: "idx_gcal_events_on_calendar_and_uni_event"
     t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
     t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
     t.index ["last_synced_at"], name: "index_google_calendar_events_on_last_synced_at"
     t.index ["meeting_time_id"], name: "index_google_calendar_events_on_meeting_time_id"
+    t.index ["university_calendar_event_id"], name: "index_google_calendar_events_on_university_calendar_event_id"
   end
 
   create_table "google_calendars", force: :cascade do |t|
@@ -598,12 +601,40 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_22_212423) do
     t.index ["year", "season"], name: "index_terms_on_year_and_season", unique: true
   end
 
+  create_table "university_calendar_events", force: :cascade do |t|
+    t.string "academic_term"
+    t.boolean "all_day", default: false, null: false
+    t.string "category"
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.datetime "end_time", null: false
+    t.string "event_type_raw"
+    t.string "ics_uid", null: false
+    t.datetime "last_fetched_at"
+    t.string "location"
+    t.string "organization"
+    t.text "recurrence"
+    t.string "source_url"
+    t.datetime "start_time", null: false
+    t.string "summary", null: false
+    t.bigint "term_id"
+    t.datetime "updated_at", null: false
+    t.index ["academic_term"], name: "index_university_calendar_events_on_academic_term"
+    t.index ["category"], name: "index_university_calendar_events_on_category"
+    t.index ["ics_uid"], name: "index_university_calendar_events_on_ics_uid", unique: true
+    t.index ["start_time", "end_time"], name: "index_university_calendar_events_on_start_time_and_end_time"
+    t.index ["start_time"], name: "index_university_calendar_events_on_start_time"
+    t.index ["term_id"], name: "index_university_calendar_events_on_term_id"
+  end
+
   create_table "user_extension_configs", force: :cascade do |t|
     t.boolean "advanced_editing", default: false, null: false
     t.datetime "created_at", null: false
     t.string "default_color_lab", default: "#f6bf26", null: false
     t.string "default_color_lecture", default: "#039be5", null: false
     t.boolean "military_time", default: false, null: false
+    t.boolean "sync_university_events", default: false, null: false
+    t.jsonb "university_event_categories", default: []
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["user_id"], name: "index_user_extension_configs_on_user_id"
@@ -649,6 +680,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_22_212423) do
   add_foreign_key "google_calendar_events", "final_exams"
   add_foreign_key "google_calendar_events", "google_calendars"
   add_foreign_key "google_calendar_events", "meeting_times"
+  add_foreign_key "google_calendar_events", "university_calendar_events"
   add_foreign_key "google_calendars", "oauth_credentials"
   add_foreign_key "meeting_times", "courses"
   add_foreign_key "meeting_times", "rooms"
@@ -661,5 +693,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_22_212423) do
   add_foreign_key "security_events", "oauth_credentials"
   add_foreign_key "security_events", "users"
   add_foreign_key "teacher_rating_tags", "faculties"
+  add_foreign_key "university_calendar_events", "terms"
   add_foreign_key "user_extension_configs", "users"
 end

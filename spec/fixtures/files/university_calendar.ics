@@ -1,0 +1,63 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//25Live//CollegeNET//EN
+X-WR-CALNAME:WIT Main Events Calendar
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20250825
+DTEND;VALUE=DATE:20250826
+DTSTAMP:20251224T000000Z
+UID:event-fall-classes-begin@university.edu
+SUMMARY:Fall 2025 Classes Begin
+DESCRIPTION:First day of classes for Fall 2025 semester.
+X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Fall
+X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Calendar Announcement
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20251127
+DTEND;VALUE=DATE:20251201
+DTSTAMP:20251224T000000Z
+UID:event-thanksgiving@university.edu
+SUMMARY:Thanksgiving Break - No Classes
+DESCRIPTION:All offices closed. No classes will be held.
+X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Fall
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20251215
+DTEND;VALUE=DATE:20251220
+DTSTAMP:20251224T000000Z
+UID:event-fall-finals@university.edu
+SUMMARY:Fall 2025 Final Exams
+DESCRIPTION:Final examination period for Fall 2025.
+X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Fall
+X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Calendar Announcement
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20251001T140000
+DTEND:20251001T160000
+DTSTAMP:20251224T000000Z
+UID:event-campus-tour@university.edu
+SUMMARY:Campus Tour
+DESCRIPTION:Join us for a tour of the campus.
+LOCATION:Main Entrance
+X-TRUMBA-CUSTOMFIELD;NAME="Organization";ID=3;TYPE=SingleLine:Admissions Office
+X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Open House
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20250901
+DTEND;VALUE=DATE:20250902
+DTSTAMP:20251224T000000Z
+UID:event-labor-day@university.edu
+SUMMARY:Labor Day - Offices Closed
+DESCRIPTION:All offices closed in observance of Labor Day.
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20251015T100000
+DTEND:20251015T120000
+DTSTAMP:20251224T000000Z
+UID:event-board-meeting@university.edu
+SUMMARY:Board of Trustees Meeting
+DESCRIPTION:Quarterly board meeting.
+LOCATION:Conference Room A
+X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Meeting
+END:VEVENT
+END:VCALENDAR

@@ -5,35 +5,39 @@
 # Table name: google_calendar_events
 # Database name: primary
 #
-#  id                 :bigint           not null, primary key
-#  end_time           :datetime
-#  event_data_hash    :string
-#  last_synced_at     :datetime
-#  location           :string
-#  recurrence         :text
-#  start_time         :datetime
-#  summary            :string
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  final_exam_id      :bigint
-#  google_calendar_id :bigint           not null
-#  google_event_id    :string           not null
-#  meeting_time_id    :bigint
+#  id                           :bigint           not null, primary key
+#  end_time                     :datetime
+#  event_data_hash              :string
+#  last_synced_at               :datetime
+#  location                     :string
+#  recurrence                   :text
+#  start_time                   :datetime
+#  summary                      :string
+#  created_at                   :datetime         not null
+#  updated_at                   :datetime         not null
+#  final_exam_id                :bigint
+#  google_calendar_id           :bigint           not null
+#  google_event_id              :string           not null
+#  meeting_time_id              :bigint
+#  university_calendar_event_id :bigint
 #
 # Indexes
 #
-#  idx_on_google_calendar_id_meeting_time_id_6c9efabf50  (google_calendar_id,meeting_time_id)
-#  index_google_calendar_events_on_final_exam_id         (final_exam_id)
-#  index_google_calendar_events_on_google_calendar_id    (google_calendar_id)
-#  index_google_calendar_events_on_google_event_id       (google_event_id)
-#  index_google_calendar_events_on_last_synced_at        (last_synced_at)
-#  index_google_calendar_events_on_meeting_time_id       (meeting_time_id)
+#  idx_gcal_events_on_calendar_and_uni_event                     (google_calendar_id,university_calendar_event_id)
+#  idx_on_google_calendar_id_meeting_time_id_6c9efabf50          (google_calendar_id,meeting_time_id)
+#  index_google_calendar_events_on_final_exam_id                 (final_exam_id)
+#  index_google_calendar_events_on_google_calendar_id            (google_calendar_id)
+#  index_google_calendar_events_on_google_event_id               (google_event_id)
+#  index_google_calendar_events_on_last_synced_at                (last_synced_at)
+#  index_google_calendar_events_on_meeting_time_id               (meeting_time_id)
+#  index_google_calendar_events_on_university_calendar_event_id  (university_calendar_event_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (final_exam_id => final_exams.id)
 #  fk_rails_...  (google_calendar_id => google_calendars.id)
 #  fk_rails_...  (meeting_time_id => meeting_times.id)
+#  fk_rails_...  (university_calendar_event_id => university_calendar_events.id)
 #
 FactoryBot.define do
   factory :google_calendar_event do

@@ -40,6 +40,8 @@ module CourseScheduleSyncable
 
         # Build recurrence rule for weekly repeating events
         recurrence_rule = build_recurrence_rule(meeting_time)
+        # Build recurrence with holiday exclusions
+        recurrence = build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
 
         events << {
           summary: course.title,
@@ -49,7 +51,7 @@ module CourseScheduleSyncable
           end_time: end_time,
           course_code: course_code,
           meeting_time_id: meeting_time.id,
-          recurrence: recurrence_rule ? [recurrence_rule] : nil
+          recurrence: recurrence
         }
       end
     end
@@ -87,6 +89,7 @@ module CourseScheduleSyncable
 
         course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
         recurrence_rule = build_recurrence_rule(meeting_time)
+        recurrence = build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
 
         events << {
           summary: course.title,
@@ -96,7 +99,7 @@ module CourseScheduleSyncable
           end_time: end_time,
           course_code: course_code,
           meeting_time_id: meeting_time.id,
-          recurrence: recurrence_rule ? [recurrence_rule] : nil
+          recurrence: recurrence
         }
       end
     end
@@ -128,6 +131,7 @@ module CourseScheduleSyncable
     course = meeting_time.course
     course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
     recurrence_rule = build_recurrence_rule(meeting_time)
+    recurrence = build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
 
     event = {
       summary: course.title,
@@ -137,7 +141,7 @@ module CourseScheduleSyncable
       end_time: end_time,
       course_code: course_code,
       meeting_time_id: meeting_time.id,
-      recurrence: recurrence_rule ? [recurrence_rule] : nil
+      recurrence: recurrence
     }
 
     # Sync just this one event
@@ -229,6 +233,76 @@ module CourseScheduleSyncable
     @earliest_final_dates[term_id] ||= ::FinalExam.where(term_id: term_id)
                                                    .where.not(exam_date: nil)
                                                    .minimum(:exam_date)
+  end
+
+  # Build recurrence array with RRULE and EXDATE entries for holidays
+  # @param meeting_time [MeetingTime] The meeting time object
+  # @param recurrence_rule [String, nil] The RRULE string
+  # @param start_time [Time] The start time of the first meeting
+  # @return [Array<String>, nil] Array of recurrence rules including EXDATEs, or nil
+  def build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
+    return nil unless recurrence_rule
+
+    recurrence = [recurrence_rule]
+
+    # Get holiday dates that should be excluded from this meeting time
+    exdates = build_holiday_exdates(meeting_time, start_time)
+    recurrence.concat(exdates) if exdates.any?
+
+    recurrence
+  end
+
+  # Build EXDATE strings for holidays that fall on this meeting time's day
+  # @param meeting_time [MeetingTime] The meeting time object
+  # @param start_time [Time] The start time of meetings (for time component)
+  # @return [Array<String>] Array of EXDATE strings
+  def build_holiday_exdates(meeting_time, start_time)
+    return [] unless defined?(UniversityCalendarEvent)
+
+    # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
+    target_wday = MeetingTime.day_of_weeks[meeting_time.day_of_week]
+    return [] if target_wday.nil?
+
+    # Get all holidays during the course date range
+    holidays = holidays_for_meeting_time(meeting_time)
+    return [] if holidays.empty?
+
+    # Filter to holidays that fall on this day of week and build EXDATE strings
+    holidays.select { |h| h.start_time.wday == target_wday }
+            .map { |h| format_exdate(h.start_time.to_date, start_time) }
+  end
+
+  # Get holidays that apply to a meeting time's date range
+  # Memoized to avoid repeated queries when processing multiple meeting times
+  # @param meeting_time [MeetingTime] The meeting time to get holidays for
+  # @return [Array<UniversityCalendarEvent>] Holiday events in the date range
+  def holidays_for_meeting_time(meeting_time)
+    @holidays_cache ||= {}
+    cache_key = [meeting_time.start_date, meeting_time.end_date]
+
+    @holidays_cache[cache_key] ||= UniversityCalendarEvent.holidays_between(
+      meeting_time.start_date,
+      meeting_time.end_date
+    ).to_a
+  end
+
+  # Format an EXDATE string for Google Calendar
+  # Uses date-time format matching the event's start time
+  # @param date [Date] The date to exclude
+  # @param start_time [Time] The event start time (for hour/minute)
+  # @return [String] Formatted EXDATE string
+  def format_exdate(date, start_time)
+    # Build the exclusion datetime using the date and the meeting's time
+    exclusion_time = Time.zone.local(
+      date.year, date.month, date.day,
+      start_time.hour, start_time.min, 0
+    )
+
+    # Format as EXDATE with timezone
+    # Google Calendar expects: EXDATE;TZID=America/New_York:20241128T090000
+    timezone = Time.zone.tzinfo.name
+    formatted_time = exclusion_time.strftime("%Y%m%dT%H%M%S")
+    "EXDATE;TZID=#{timezone}:#{formatted_time}"
   end
 
   # Build events for final exams of enrolled courses

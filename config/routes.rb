@@ -8,138 +8,143 @@
 # For help: log_bench --help
 # ======================================================================
 # Routes for application:
-#                                   Prefix Verb   URI Pattern                                                                                       Controller#Action
-#                               okcomputer        /okcomputer                                                                                       OkComputer::Engine
-#                         new_user_session GET    /users/sign_in(.:format)                                                                          sessions#new
-#                     destroy_user_session DELETE /users/sign_out(.:format)                                                                         sessions#destroy
-#                       rails_health_check GET    /up(.:format)                                                                                     rails/health#show
-#                         api_user_onboard POST   /api/user/onboard(.:format)                                                                       api/users#onboard
-#                            api_user_gcal POST   /api/user/gcal(.:format)                                                                          api/users#request_g_cal
-#                  api_user_gcal_add_email POST   /api/user/gcal/add_email(.:format)                                                                api/users#add_email_to_g_cal
-#               api_user_gcal_remove_email DELETE /api/user/gcal/remove_email(.:format)                                                             api/users#remove_email_from_g_cal
-#                           api_user_email GET    /api/user/email(.:format)                                                                         api/users#get_email
-#                         api_user_ics_url GET    /api/user/ics_url(.:format)                                                                       api/users#get_ics_url
-#               api_user_oauth_credentials GET    /api/user/oauth_credentials(.:format)                                                             api/users#list_oauth_credentials
-#                                      api DELETE /api/user/oauth_credentials/:credential_id(.:format)                                              api/users#disconnect_oauth_credential
-#                    api_user_is_processed POST   /api/user/is_processed(.:format)                                                                  api/users#is_processed
-#                api_user_processed_events POST   /api/user/processed_events(.:format)                                                              api/users#get_processed_events_by_term
-#                    api_user_flag_enabled GET    /api/user/flag_enabled(.:format)                                                                  api/users#flag_is_enabled
-#                api_user_extension_config GET    /api/user/extension_config(.:format)                                                              api/user_extension_config#get
-#                                          PUT    /api/user/extension_config(.:format)                                                              api/user_extension_config#set
-#                       api_faculty_by_rmp GET    /api/faculty/by_rmp(.:format)                                                                     api/faculty#get_info_by_rmp_id
-#               api_terms_current_and_next GET    /api/terms/current_and_next(.:format)                                                             api/misc#get_current_terms
-#                      api_process_courses POST   /api/process_courses(.:format)                                                                    api/courses#process_courses
-#                    api_courses_reprocess POST   /api/courses/reprocess(.:format)                                                                  api/courses#reprocess
-#         preview_api_calendar_preferences POST   /api/calendar_preferences/preview(.:format)                                                       api/calendar_preferences#preview
-#                 api_calendar_preferences GET    /api/calendar_preferences(.:format)                                                               api/calendar_preferences#index
-#                  api_calendar_preference GET    /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#show
-#                                          PATCH  /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#update
-#                                          PUT    /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#update
-#                                          DELETE /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#destroy
-#              api_meeting_time_preference GET    /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#show
-#                                          PATCH  /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#update
-#                                          PUT    /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#update
-#                                          DELETE /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#destroy
-#     api_google_calendar_event_preference GET    /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#show
-#                                          PATCH  /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#update
-#                                          PUT    /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#update
-#                                          DELETE /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#destroy
-#                                 calendar GET    /calendar/:calendar_token(.:format)                                                               calendars#show {format: :ics}
-#                              risc_events POST   /risc/events(.:format)                                                                            risc#create
-#              auth_google_oauth2_callback GET    /auth/google_oauth2/callback(.:format)                                                            auth#google
-#                            oauth_success GET    /oauth/success(.:format)                                                                          oauth#success
-#                            oauth_failure GET    /oauth/failure(.:format)                                                                          oauth#failure
-#                     admin_oauth_callback GET    /admin/oauth/callback(.:format)                                                                   admin/service_account#callback
-#                               admin_root GET    /admin(.:format)                                                                                  admin/application#index
-#       revoke_oauth_credential_admin_user DELETE /admin/users/:id/oauth_credentials/:credential_id(.:format)                                       admin/users#revoke_oauth_credential
-#      refresh_oauth_credential_admin_user POST   /admin/users/:id/oauth_credentials/:credential_id/refresh(.:format)                               admin/users#refresh_oauth_credential
-#                   enable_beta_admin_user POST   /admin/users/:id/enable_beta(.:format)                                                            admin/users#enable_beta
-#                  disable_beta_admin_user DELETE /admin/users/:id/disable_beta(.:format)                                                           admin/users#disable_beta
-#           force_calendar_sync_admin_user POST   /admin/users/:id/force_calendar_sync(.:format)                                                    admin/users#force_calendar_sync
-#                              admin_users GET    /admin/users(.:format)                                                                            admin/users#index
-#                          edit_admin_user GET    /admin/users/:id/edit(.:format)                                                                   admin/users#edit
-#                               admin_user GET    /admin/users/:id(.:format)                                                                        admin/users#show
-#                                          PATCH  /admin/users/:id(.:format)                                                                        admin/users#update
-#                                          PUT    /admin/users/:id(.:format)                                                                        admin/users#update
-#                                          DELETE /admin/users/:id(.:format)                                                                        admin/users#destroy
-#                          admin_calendars GET    /admin/calendars(.:format)                                                                        admin/calendars#index
-#                           admin_calendar DELETE /admin/calendars/:id(.:format)                                                                    admin/calendars#destroy
-#                       admin_beta_testers GET    /admin/beta_testers(.:format)                                                                     admin/beta_testers#index
-#                                          POST   /admin/beta_testers(.:format)                                                                     admin/beta_testers#create
-#                    new_admin_beta_tester GET    /admin/beta_testers/new(.:format)                                                                 admin/beta_testers#new
-#                        admin_beta_tester DELETE /admin/beta_testers/:id(.:format)                                                                 admin/beta_testers#destroy
-#                          admin_buildings GET    /admin/buildings(.:format)                                                                        admin/buildings#index
-#                              admin_rooms GET    /admin/rooms(.:format)                                                                            admin/rooms#index
-#                            admin_courses GET    /admin/courses(.:format)                                                                          admin/courses#index
-#          missing_rmp_ids_admin_faculties GET    /admin/faculties/missing_rmp_ids(.:format)                                                        admin/faculties#missing_rmp_ids
-#          batch_auto_fill_admin_faculties POST   /admin/faculties/batch_auto_fill(.:format)                                                        admin/faculties#batch_auto_fill
-#                 search_rmp_admin_faculty GET    /admin/faculties/:id/search_rmp(.:format)                                                         admin/faculties#search_rmp
-#              assign_rmp_id_admin_faculty POST   /admin/faculties/:id/assign_rmp_id(.:format)                                                      admin/faculties#assign_rmp_id
-#           auto_fill_rmp_id_admin_faculty POST   /admin/faculties/:id/auto_fill_rmp_id(.:format)                                                   admin/faculties#auto_fill_rmp_id
-#                          admin_faculties GET    /admin/faculties(.:format)                                                                        admin/faculties#index
-#                            admin_faculty GET    /admin/faculties/:id(.:format)                                                                    admin/faculties#show
-#                              admin_terms GET    /admin/terms(.:format)                                                                            admin/terms#index
-#    confirm_replace_admin_finals_schedule GET    /admin/finals_schedules/:id/confirm_replace(.:format)                                             admin/finals_schedules#confirm_replace
-#   process_schedule_admin_finals_schedule POST   /admin/finals_schedules/:id/process_schedule(.:format)                                            admin/finals_schedules#process_schedule
-#                   admin_finals_schedules GET    /admin/finals_schedules(.:format)                                                                 admin/finals_schedules#index
-#                                          POST   /admin/finals_schedules(.:format)                                                                 admin/finals_schedules#create
-#                new_admin_finals_schedule GET    /admin/finals_schedules/new(.:format)                                                             admin/finals_schedules#new
-#                    admin_finals_schedule GET    /admin/finals_schedules/:id(.:format)                                                             admin/finals_schedules#show
-#                                          DELETE /admin/finals_schedules/:id(.:format)                                                             admin/finals_schedules#destroy
-#             admin_google_calendar_events GET    /admin/google_calendar_events(.:format)                                                           admin/google_calendar_events#index
-#                        admin_rmp_ratings GET    /admin/rmp_ratings(.:format)                                                                      admin/rmp_ratings#index
-#                     admin_course_catalog GET    /admin/course_catalog(.:format)                                                                   admin/course_catalog#index
-#              admin_course_catalog_import POST   /admin/course_catalog/import/:term_uid(.:format)                                                  admin/course_catalog#import
-#           admin_course_catalog_provision POST   /admin/course_catalog/provision/:term_uid(.:format)                                               admin/course_catalog#provision
-#              admin_service_account_index GET    /admin/service_account(.:format)                                                                  admin/service_account#index
-#          admin_service_account_authorize GET    /admin/service_account/authorize(.:format)                                                        admin/service_account#authorize
-#           admin_service_account_callback GET    /admin/service_account/callback(.:format)                                                         admin/service_account#callback
-#             admin_service_account_revoke POST   /admin/service_account/revoke(.:format)                                                           admin/service_account#revoke
-#               admin_mission_control_jobs        /admin/jobs                                                                                       MissionControl::Jobs::Engine
-#                             admin_blazer        /admin/blazer                                                                                     Blazer::Engine
-#                                                 /admin/flipper                                                                                    Flipper::UI
-#                  admin_rails_performance        /admin/performance                                                                                RailsPerformance::Engine
-#                         admin_audits1984        /admin/audits                                                                                     Audits1984::Engine
-#                           admin_rswag_ui        /admin/api-docs                                                                                   Rswag::Ui::Engine
-#                          admin_rswag_api        /admin/api-docs                                                                                   Rswag::Api::Engine
-#                            admin_pg_hero        /admin/pghero                                                                                     PgHero::Engine
-#                        admin_logster_web        /admin/logs                                                                                       Logster::Web
-#                                    admin GET    /admin(.:format)                                                                                  redirect(301, /users/sign_in)
-#                                          GET    /admin/*path(.:format)                                                                            redirect(301, /users/sign_in)
-#                             unauthorized GET    /unauthorized(.:format)                                                                           errors#unauthorized
-#                                          GET    /404(.:format)                                                                                    errors#not_found
-#                        letter_opener_web        /letter_opener                                                                                    LetterOpenerWeb::Engine
-#                              ok_computer        /healthchecks                                                                                     OkComputer::Engine
-#                                     root GET    /                                                                                                 sessions#new
-#                                 mailkick        /mailkick                                                                                         Mailkick::Engine
-#                        rails_performance        /rails/performance                                                                                RailsPerformance::Engine
-#         turbo_recede_historical_location GET    /recede_historical_location(.:format)                                                             turbo/native/navigation#recede
-#         turbo_resume_historical_location GET    /resume_historical_location(.:format)                                                             turbo/native/navigation#resume
-#        turbo_refresh_historical_location GET    /refresh_historical_location(.:format)                                                            turbo/native/navigation#refresh
-#            rails_postmark_inbound_emails POST   /rails/action_mailbox/postmark/inbound_emails(.:format)                                           action_mailbox/ingresses/postmark/inbound_emails#create
-#               rails_relay_inbound_emails POST   /rails/action_mailbox/relay/inbound_emails(.:format)                                              action_mailbox/ingresses/relay/inbound_emails#create
-#            rails_sendgrid_inbound_emails POST   /rails/action_mailbox/sendgrid/inbound_emails(.:format)                                           action_mailbox/ingresses/sendgrid/inbound_emails#create
-#      rails_mandrill_inbound_health_check GET    /rails/action_mailbox/mandrill/inbound_emails(.:format)                                           action_mailbox/ingresses/mandrill/inbound_emails#health_check
-#            rails_mandrill_inbound_emails POST   /rails/action_mailbox/mandrill/inbound_emails(.:format)                                           action_mailbox/ingresses/mandrill/inbound_emails#create
-#             rails_mailgun_inbound_emails POST   /rails/action_mailbox/mailgun/inbound_emails/mime(.:format)                                       action_mailbox/ingresses/mailgun/inbound_emails#create
-#           rails_conductor_inbound_emails GET    /rails/conductor/action_mailbox/inbound_emails(.:format)                                          rails/conductor/action_mailbox/inbound_emails#index
-#                                          POST   /rails/conductor/action_mailbox/inbound_emails(.:format)                                          rails/conductor/action_mailbox/inbound_emails#create
-#        new_rails_conductor_inbound_email GET    /rails/conductor/action_mailbox/inbound_emails/new(.:format)                                      rails/conductor/action_mailbox/inbound_emails#new
-#            rails_conductor_inbound_email GET    /rails/conductor/action_mailbox/inbound_emails/:id(.:format)                                      rails/conductor/action_mailbox/inbound_emails#show
-# new_rails_conductor_inbound_email_source GET    /rails/conductor/action_mailbox/inbound_emails/sources/new(.:format)                              rails/conductor/action_mailbox/inbound_emails/sources#new
-#    rails_conductor_inbound_email_sources POST   /rails/conductor/action_mailbox/inbound_emails/sources(.:format)                                  rails/conductor/action_mailbox/inbound_emails/sources#create
-#    rails_conductor_inbound_email_reroute POST   /rails/conductor/action_mailbox/:inbound_email_id/reroute(.:format)                               rails/conductor/action_mailbox/reroutes#create
-# rails_conductor_inbound_email_incinerate POST   /rails/conductor/action_mailbox/:inbound_email_id/incinerate(.:format)                            rails/conductor/action_mailbox/incinerates#create
-#                       rails_service_blob GET    /rails/active_storage/blobs/redirect/:signed_id/*filename(.:format)                               active_storage/blobs/redirect#show
-#                 rails_service_blob_proxy GET    /rails/active_storage/blobs/proxy/:signed_id/*filename(.:format)                                  active_storage/blobs/proxy#show
-#                                          GET    /rails/active_storage/blobs/:signed_id/*filename(.:format)                                        active_storage/blobs/redirect#show
-#                rails_blob_representation GET    /rails/active_storage/representations/redirect/:signed_blob_id/:variation_key/*filename(.:format) active_storage/representations/redirect#show
-#          rails_blob_representation_proxy GET    /rails/active_storage/representations/proxy/:signed_blob_id/:variation_key/*filename(.:format)    active_storage/representations/proxy#show
-#                                          GET    /rails/active_storage/representations/:signed_blob_id/:variation_key/*filename(.:format)          active_storage/representations/redirect#show
-#                       rails_disk_service GET    /rails/active_storage/disk/:encoded_key/*filename(.:format)                                       active_storage/disk#show
-#                update_rails_disk_service PUT    /rails/active_storage/disk/:encoded_token(.:format)                                               active_storage/disk#update
-#                     rails_direct_uploads POST   /rails/active_storage/direct_uploads(.:format)                                                    active_storage/direct_uploads#create
-#                         actual_db_schema        /rails                                                                                            ActualDbSchema::Engine
+#                                    Prefix Verb   URI Pattern                                                                                       Controller#Action
+#                                okcomputer        /okcomputer                                                                                       OkComputer::Engine
+#                          new_user_session GET    /users/sign_in(.:format)                                                                          sessions#new
+#                      destroy_user_session DELETE /users/sign_out(.:format)                                                                         sessions#destroy
+#                        rails_health_check GET    /up(.:format)                                                                                     rails/health#show
+#                          api_user_onboard POST   /api/user/onboard(.:format)                                                                       api/users#onboard
+#                             api_user_gcal POST   /api/user/gcal(.:format)                                                                          api/users#request_g_cal
+#                   api_user_gcal_add_email POST   /api/user/gcal/add_email(.:format)                                                                api/users#add_email_to_g_cal
+#                api_user_gcal_remove_email DELETE /api/user/gcal/remove_email(.:format)                                                             api/users#remove_email_from_g_cal
+#                            api_user_email GET    /api/user/email(.:format)                                                                         api/users#get_email
+#                          api_user_ics_url GET    /api/user/ics_url(.:format)                                                                       api/users#get_ics_url
+#                api_user_oauth_credentials GET    /api/user/oauth_credentials(.:format)                                                             api/users#list_oauth_credentials
+#                                       api DELETE /api/user/oauth_credentials/:credential_id(.:format)                                              api/users#disconnect_oauth_credential
+#                     api_user_is_processed POST   /api/user/is_processed(.:format)                                                                  api/users#is_processed
+#                 api_user_processed_events POST   /api/user/processed_events(.:format)                                                              api/users#get_processed_events_by_term
+#                     api_user_flag_enabled GET    /api/user/flag_enabled(.:format)                                                                  api/users#flag_is_enabled
+#                 api_user_extension_config GET    /api/user/extension_config(.:format)                                                              api/user_extension_config#get
+#                                           PUT    /api/user/extension_config(.:format)                                                              api/user_extension_config#set
+#                        api_faculty_by_rmp GET    /api/faculty/by_rmp(.:format)                                                                     api/faculty#get_info_by_rmp_id
+#                api_terms_current_and_next GET    /api/terms/current_and_next(.:format)                                                             api/misc#get_current_terms
+#                       api_process_courses POST   /api/process_courses(.:format)                                                                    api/courses#process_courses
+#                     api_courses_reprocess POST   /api/courses/reprocess(.:format)                                                                  api/courses#reprocess
+#          preview_api_calendar_preferences POST   /api/calendar_preferences/preview(.:format)                                                       api/calendar_preferences#preview
+#                  api_calendar_preferences GET    /api/calendar_preferences(.:format)                                                               api/calendar_preferences#index
+#                   api_calendar_preference GET    /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#show
+#                                           PATCH  /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#update
+#                                           PUT    /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#update
+#                                           DELETE /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#destroy
+#               api_meeting_time_preference GET    /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#show
+#                                           PATCH  /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#update
+#                                           PUT    /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#update
+#                                           DELETE /api/meeting_times/:meeting_time_id/preference(.:format)                                          api/event_preferences#destroy
+#      api_google_calendar_event_preference GET    /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#show
+#                                           PATCH  /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#update
+#                                           PUT    /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#update
+#                                           DELETE /api/google_calendar_events/:google_calendar_event_id/preference(.:format)                        api/event_preferences#destroy
+# categories_api_university_calendar_events GET    /api/university_calendar_events/categories(.:format)                                              api/university_calendar_events#categories
+#   holidays_api_university_calendar_events GET    /api/university_calendar_events/holidays(.:format)                                                api/university_calendar_events#holidays
+#       sync_api_university_calendar_events POST   /api/university_calendar_events/sync(.:format)                                                    api/university_calendar_events#sync
+#            api_university_calendar_events GET    /api/university_calendar_events(.:format)                                                         api/university_calendar_events#index
+#             api_university_calendar_event GET    /api/university_calendar_events/:id(.:format)                                                     api/university_calendar_events#show
+#                                  calendar GET    /calendar/:calendar_token(.:format)                                                               calendars#show {format: :ics}
+#                               risc_events POST   /risc/events(.:format)                                                                            risc#create
+#               auth_google_oauth2_callback GET    /auth/google_oauth2/callback(.:format)                                                            auth#google
+#                             oauth_success GET    /oauth/success(.:format)                                                                          oauth#success
+#                             oauth_failure GET    /oauth/failure(.:format)                                                                          oauth#failure
+#                      admin_oauth_callback GET    /admin/oauth/callback(.:format)                                                                   admin/service_account#callback
+#                                admin_root GET    /admin(.:format)                                                                                  admin/application#index
+#        revoke_oauth_credential_admin_user DELETE /admin/users/:id/oauth_credentials/:credential_id(.:format)                                       admin/users#revoke_oauth_credential
+#       refresh_oauth_credential_admin_user POST   /admin/users/:id/oauth_credentials/:credential_id/refresh(.:format)                               admin/users#refresh_oauth_credential
+#                    enable_beta_admin_user POST   /admin/users/:id/enable_beta(.:format)                                                            admin/users#enable_beta
+#                   disable_beta_admin_user DELETE /admin/users/:id/disable_beta(.:format)                                                           admin/users#disable_beta
+#            force_calendar_sync_admin_user POST   /admin/users/:id/force_calendar_sync(.:format)                                                    admin/users#force_calendar_sync
+#                               admin_users GET    /admin/users(.:format)                                                                            admin/users#index
+#                           edit_admin_user GET    /admin/users/:id/edit(.:format)                                                                   admin/users#edit
+#                                admin_user GET    /admin/users/:id(.:format)                                                                        admin/users#show
+#                                           PATCH  /admin/users/:id(.:format)                                                                        admin/users#update
+#                                           PUT    /admin/users/:id(.:format)                                                                        admin/users#update
+#                                           DELETE /admin/users/:id(.:format)                                                                        admin/users#destroy
+#                           admin_calendars GET    /admin/calendars(.:format)                                                                        admin/calendars#index
+#                            admin_calendar DELETE /admin/calendars/:id(.:format)                                                                    admin/calendars#destroy
+#                        admin_beta_testers GET    /admin/beta_testers(.:format)                                                                     admin/beta_testers#index
+#                                           POST   /admin/beta_testers(.:format)                                                                     admin/beta_testers#create
+#                     new_admin_beta_tester GET    /admin/beta_testers/new(.:format)                                                                 admin/beta_testers#new
+#                         admin_beta_tester DELETE /admin/beta_testers/:id(.:format)                                                                 admin/beta_testers#destroy
+#                           admin_buildings GET    /admin/buildings(.:format)                                                                        admin/buildings#index
+#                               admin_rooms GET    /admin/rooms(.:format)                                                                            admin/rooms#index
+#                             admin_courses GET    /admin/courses(.:format)                                                                          admin/courses#index
+#           missing_rmp_ids_admin_faculties GET    /admin/faculties/missing_rmp_ids(.:format)                                                        admin/faculties#missing_rmp_ids
+#           batch_auto_fill_admin_faculties POST   /admin/faculties/batch_auto_fill(.:format)                                                        admin/faculties#batch_auto_fill
+#                  search_rmp_admin_faculty GET    /admin/faculties/:id/search_rmp(.:format)                                                         admin/faculties#search_rmp
+#               assign_rmp_id_admin_faculty POST   /admin/faculties/:id/assign_rmp_id(.:format)                                                      admin/faculties#assign_rmp_id
+#            auto_fill_rmp_id_admin_faculty POST   /admin/faculties/:id/auto_fill_rmp_id(.:format)                                                   admin/faculties#auto_fill_rmp_id
+#                           admin_faculties GET    /admin/faculties(.:format)                                                                        admin/faculties#index
+#                             admin_faculty GET    /admin/faculties/:id(.:format)                                                                    admin/faculties#show
+#                               admin_terms GET    /admin/terms(.:format)                                                                            admin/terms#index
+#     confirm_replace_admin_finals_schedule GET    /admin/finals_schedules/:id/confirm_replace(.:format)                                             admin/finals_schedules#confirm_replace
+#    process_schedule_admin_finals_schedule POST   /admin/finals_schedules/:id/process_schedule(.:format)                                            admin/finals_schedules#process_schedule
+#                    admin_finals_schedules GET    /admin/finals_schedules(.:format)                                                                 admin/finals_schedules#index
+#                                           POST   /admin/finals_schedules(.:format)                                                                 admin/finals_schedules#create
+#                 new_admin_finals_schedule GET    /admin/finals_schedules/new(.:format)                                                             admin/finals_schedules#new
+#                     admin_finals_schedule GET    /admin/finals_schedules/:id(.:format)                                                             admin/finals_schedules#show
+#                                           DELETE /admin/finals_schedules/:id(.:format)                                                             admin/finals_schedules#destroy
+#              admin_google_calendar_events GET    /admin/google_calendar_events(.:format)                                                           admin/google_calendar_events#index
+#                         admin_rmp_ratings GET    /admin/rmp_ratings(.:format)                                                                      admin/rmp_ratings#index
+#                      admin_course_catalog GET    /admin/course_catalog(.:format)                                                                   admin/course_catalog#index
+#               admin_course_catalog_import POST   /admin/course_catalog/import/:term_uid(.:format)                                                  admin/course_catalog#import
+#            admin_course_catalog_provision POST   /admin/course_catalog/provision/:term_uid(.:format)                                               admin/course_catalog#provision
+#               admin_service_account_index GET    /admin/service_account(.:format)                                                                  admin/service_account#index
+#           admin_service_account_authorize GET    /admin/service_account/authorize(.:format)                                                        admin/service_account#authorize
+#            admin_service_account_callback GET    /admin/service_account/callback(.:format)                                                         admin/service_account#callback
+#              admin_service_account_revoke POST   /admin/service_account/revoke(.:format)                                                           admin/service_account#revoke
+#                admin_mission_control_jobs        /admin/jobs                                                                                       MissionControl::Jobs::Engine
+#                              admin_blazer        /admin/blazer                                                                                     Blazer::Engine
+#                                                  /admin/flipper                                                                                    Flipper::UI
+#                   admin_rails_performance        /admin/performance                                                                                RailsPerformance::Engine
+#                          admin_audits1984        /admin/audits                                                                                     Audits1984::Engine
+#                            admin_rswag_ui        /admin/api-docs                                                                                   Rswag::Ui::Engine
+#                           admin_rswag_api        /admin/api-docs                                                                                   Rswag::Api::Engine
+#                             admin_pg_hero        /admin/pghero                                                                                     PgHero::Engine
+#                         admin_logster_web        /admin/logs                                                                                       Logster::Web
+#                                     admin GET    /admin(.:format)                                                                                  redirect(301, /users/sign_in)
+#                                           GET    /admin/*path(.:format)                                                                            redirect(301, /users/sign_in)
+#                              unauthorized GET    /unauthorized(.:format)                                                                           errors#unauthorized
+#                                           GET    /404(.:format)                                                                                    errors#not_found
+#                         letter_opener_web        /letter_opener                                                                                    LetterOpenerWeb::Engine
+#                               ok_computer        /healthchecks                                                                                     OkComputer::Engine
+#                                      root GET    /                                                                                                 sessions#new
+#                                  mailkick        /mailkick                                                                                         Mailkick::Engine
+#                         rails_performance        /rails/performance                                                                                RailsPerformance::Engine
+#          turbo_recede_historical_location GET    /recede_historical_location(.:format)                                                             turbo/native/navigation#recede
+#          turbo_resume_historical_location GET    /resume_historical_location(.:format)                                                             turbo/native/navigation#resume
+#         turbo_refresh_historical_location GET    /refresh_historical_location(.:format)                                                            turbo/native/navigation#refresh
+#             rails_postmark_inbound_emails POST   /rails/action_mailbox/postmark/inbound_emails(.:format)                                           action_mailbox/ingresses/postmark/inbound_emails#create
+#                rails_relay_inbound_emails POST   /rails/action_mailbox/relay/inbound_emails(.:format)                                              action_mailbox/ingresses/relay/inbound_emails#create
+#             rails_sendgrid_inbound_emails POST   /rails/action_mailbox/sendgrid/inbound_emails(.:format)                                           action_mailbox/ingresses/sendgrid/inbound_emails#create
+#       rails_mandrill_inbound_health_check GET    /rails/action_mailbox/mandrill/inbound_emails(.:format)                                           action_mailbox/ingresses/mandrill/inbound_emails#health_check
+#             rails_mandrill_inbound_emails POST   /rails/action_mailbox/mandrill/inbound_emails(.:format)                                           action_mailbox/ingresses/mandrill/inbound_emails#create
+#              rails_mailgun_inbound_emails POST   /rails/action_mailbox/mailgun/inbound_emails/mime(.:format)                                       action_mailbox/ingresses/mailgun/inbound_emails#create
+#            rails_conductor_inbound_emails GET    /rails/conductor/action_mailbox/inbound_emails(.:format)                                          rails/conductor/action_mailbox/inbound_emails#index
+#                                           POST   /rails/conductor/action_mailbox/inbound_emails(.:format)                                          rails/conductor/action_mailbox/inbound_emails#create
+#         new_rails_conductor_inbound_email GET    /rails/conductor/action_mailbox/inbound_emails/new(.:format)                                      rails/conductor/action_mailbox/inbound_emails#new
+#             rails_conductor_inbound_email GET    /rails/conductor/action_mailbox/inbound_emails/:id(.:format)                                      rails/conductor/action_mailbox/inbound_emails#show
+#  new_rails_conductor_inbound_email_source GET    /rails/conductor/action_mailbox/inbound_emails/sources/new(.:format)                              rails/conductor/action_mailbox/inbound_emails/sources#new
+#     rails_conductor_inbound_email_sources POST   /rails/conductor/action_mailbox/inbound_emails/sources(.:format)                                  rails/conductor/action_mailbox/inbound_emails/sources#create
+#     rails_conductor_inbound_email_reroute POST   /rails/conductor/action_mailbox/:inbound_email_id/reroute(.:format)                               rails/conductor/action_mailbox/reroutes#create
+#  rails_conductor_inbound_email_incinerate POST   /rails/conductor/action_mailbox/:inbound_email_id/incinerate(.:format)                            rails/conductor/action_mailbox/incinerates#create
+#                        rails_service_blob GET    /rails/active_storage/blobs/redirect/:signed_id/*filename(.:format)                               active_storage/blobs/redirect#show
+#                  rails_service_blob_proxy GET    /rails/active_storage/blobs/proxy/:signed_id/*filename(.:format)                                  active_storage/blobs/proxy#show
+#                                           GET    /rails/active_storage/blobs/:signed_id/*filename(.:format)                                        active_storage/blobs/redirect#show
+#                 rails_blob_representation GET    /rails/active_storage/representations/redirect/:signed_blob_id/:variation_key/*filename(.:format) active_storage/representations/redirect#show
+#           rails_blob_representation_proxy GET    /rails/active_storage/representations/proxy/:signed_blob_id/:variation_key/*filename(.:format)    active_storage/representations/proxy#show
+#                                           GET    /rails/active_storage/representations/:signed_blob_id/:variation_key/*filename(.:format)          active_storage/representations/redirect#show
+#                        rails_disk_service GET    /rails/active_storage/disk/:encoded_key/*filename(.:format)                                       active_storage/disk#show
+#                 update_rails_disk_service PUT    /rails/active_storage/disk/:encoded_token(.:format)                                               active_storage/disk#update
+#                      rails_direct_uploads POST   /rails/active_storage/direct_uploads(.:format)                                                    active_storage/direct_uploads#create
+#                          actual_db_schema        /rails                                                                                            ActualDbSchema::Engine
 #
 # Routes for OkComputer::Engine:
 #            Prefix Verb        URI Pattern       Controller#Action
@@ -347,6 +352,15 @@ Rails.application.routes.draw do
 
     resources :google_calendar_events, only: [] do
       resource :preference, controller: "event_preferences", only: [:show, :update, :destroy]
+    end
+
+    # University calendar events (public read, admin sync)
+    resources :university_calendar_events, only: [:index, :show] do
+      collection do
+        get :categories
+        get :holidays
+        post :sync
+      end
     end
   end
 

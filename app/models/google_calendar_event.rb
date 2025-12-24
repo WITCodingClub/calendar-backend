@@ -5,35 +5,39 @@
 # Table name: google_calendar_events
 # Database name: primary
 #
-#  id                 :bigint           not null, primary key
-#  end_time           :datetime
-#  event_data_hash    :string
-#  last_synced_at     :datetime
-#  location           :string
-#  recurrence         :text
-#  start_time         :datetime
-#  summary            :string
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  final_exam_id      :bigint
-#  google_calendar_id :bigint           not null
-#  google_event_id    :string           not null
-#  meeting_time_id    :bigint
+#  id                           :bigint           not null, primary key
+#  end_time                     :datetime
+#  event_data_hash              :string
+#  last_synced_at               :datetime
+#  location                     :string
+#  recurrence                   :text
+#  start_time                   :datetime
+#  summary                      :string
+#  created_at                   :datetime         not null
+#  updated_at                   :datetime         not null
+#  final_exam_id                :bigint
+#  google_calendar_id           :bigint           not null
+#  google_event_id              :string           not null
+#  meeting_time_id              :bigint
+#  university_calendar_event_id :bigint
 #
 # Indexes
 #
-#  idx_on_google_calendar_id_meeting_time_id_6c9efabf50  (google_calendar_id,meeting_time_id)
-#  index_google_calendar_events_on_final_exam_id         (final_exam_id)
-#  index_google_calendar_events_on_google_calendar_id    (google_calendar_id)
-#  index_google_calendar_events_on_google_event_id       (google_event_id)
-#  index_google_calendar_events_on_last_synced_at        (last_synced_at)
-#  index_google_calendar_events_on_meeting_time_id       (meeting_time_id)
+#  idx_gcal_events_on_calendar_and_uni_event                     (google_calendar_id,university_calendar_event_id)
+#  idx_on_google_calendar_id_meeting_time_id_6c9efabf50          (google_calendar_id,meeting_time_id)
+#  index_google_calendar_events_on_final_exam_id                 (final_exam_id)
+#  index_google_calendar_events_on_google_calendar_id            (google_calendar_id)
+#  index_google_calendar_events_on_google_event_id               (google_event_id)
+#  index_google_calendar_events_on_last_synced_at                (last_synced_at)
+#  index_google_calendar_events_on_meeting_time_id               (meeting_time_id)
+#  index_google_calendar_events_on_university_calendar_event_id  (university_calendar_event_id)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (final_exam_id => final_exams.id)
 #  fk_rails_...  (google_calendar_id => google_calendars.id)
 #  fk_rails_...  (meeting_time_id => meeting_times.id)
+#  fk_rails_...  (university_calendar_event_id => university_calendar_events.id)
 #
 class GoogleCalendarEvent < ApplicationRecord
   include PublicIdentifiable
@@ -43,6 +47,7 @@ class GoogleCalendarEvent < ApplicationRecord
   belongs_to :google_calendar
   belongs_to :meeting_time, optional: true
   belongs_to :final_exam, optional: true
+  belongs_to :university_calendar_event, optional: true
   has_one :event_preference, as: :preferenceable, dependent: :destroy
   has_one :oauth_credential, through: :google_calendar
   has_one :user, through: :oauth_credential
@@ -60,6 +65,8 @@ class GoogleCalendarEvent < ApplicationRecord
   scope :recently_synced, -> { where("last_synced_at > ?", 5.minutes.ago) }
   scope :finals_only, -> { where.not(final_exam_id: nil) }
   scope :courses_only, -> { where.not(meeting_time_id: nil) }
+  scope :university_events_only, -> { where.not(university_calendar_event_id: nil) }
+  scope :for_university_calendar_event, ->(event_id) { where(university_calendar_event_id: event_id) }
 
   # Returns true if this event is for a final exam
   def final_exam?
@@ -71,9 +78,14 @@ class GoogleCalendarEvent < ApplicationRecord
     meeting_time_id.present?
   end
 
-  # Get the syncable record (meeting_time or final_exam)
+  # Returns true if this event is for a university calendar event
+  def university_event?
+    university_calendar_event_id.present?
+  end
+
+  # Get the syncable record (meeting_time, final_exam, or university_calendar_event)
   def syncable
-    meeting_time || final_exam
+    meeting_time || final_exam || university_calendar_event
   end
 
   # Generate a hash of the event data to detect changes

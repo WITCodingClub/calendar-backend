@@ -117,6 +117,7 @@ group :test do
   gem "selenium-webdriver"
   gem "rspec-openapi", "~> 0.20"
   gem 'simplecov', require: false
+  gem 'webmock'
 end
 
 gem "faraday", "~> 2.14"

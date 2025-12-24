@@ -5,14 +5,16 @@
 # Table name: user_extension_configs
 # Database name: primary
 #
-#  id                    :bigint           not null, primary key
-#  advanced_editing      :boolean          default(FALSE), not null
-#  default_color_lab     :string           default("#f6bf26"), not null
-#  default_color_lecture :string           default("#039be5"), not null
-#  military_time         :boolean          default(FALSE), not null
-#  created_at            :datetime         not null
-#  updated_at            :datetime         not null
-#  user_id               :bigint           not null
+#  id                          :bigint           not null, primary key
+#  advanced_editing            :boolean          default(FALSE), not null
+#  default_color_lab           :string           default("#f6bf26"), not null
+#  default_color_lecture       :string           default("#039be5"), not null
+#  military_time               :boolean          default(FALSE), not null
+#  sync_university_events      :boolean          default(FALSE), not null
+#  university_event_categories :jsonb
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  user_id                     :bigint           not null
 #
 # Indexes
 #

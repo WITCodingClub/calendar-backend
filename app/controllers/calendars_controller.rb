@@ -6,13 +6,18 @@ class CalendarsController < ApplicationController
   def show
     @user = User.find_by!(calendar_token: params[:calendar_token])
 
-    # Get all enrolled courses (filtering by meeting_times dates will be handled in the iCal RRULE)
+    # Get all enrolled courses with meeting times
     @courses = @user.courses
-                    .includes(:meeting_times, meeting_times: [:room, :building])
+                    .includes(:meeting_times, :term, meeting_times: [:room, :building])
+
+    # Get final exams for enrolled courses
+    @final_exams = FinalExam.where(course_id: @courses.pluck(:id))
+                            .where(exam_date: Time.zone.today..)
+                            .includes(:course)
 
     respond_to do |format|
       format.ics do
-        calendar = generate_ical(@courses)
+        calendar = generate_ical(@courses, @final_exams)
 
         # Add cache control headers to suggest refresh intervals
         response.headers["Cache-Control"] = "max-age=3600, must-revalidate" # 1 hour
@@ -26,12 +31,15 @@ class CalendarsController < ApplicationController
 
   private
 
-  def generate_ical(courses)
+  def generate_ical(courses, final_exams)
     require "icalendar"
 
     # Initialize preference resolver and template renderer for this user
     @preference_resolver = PreferenceResolver.new(@user)
     @template_renderer = CalendarTemplateRenderer.new
+
+    # Cache holidays for EXDATE generation
+    @holidays_cache = {}
 
     cal = Icalendar::Calendar.new
     cal.prodid = "-//WITCC//Course Calendar//EN"
@@ -107,6 +115,12 @@ class CalendarsController < ApplicationController
           # Each meeting_time now represents a single day
           e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{meeting_time.end_date.strftime('%Y%m%dT%H%M%SZ')}"
 
+          # Add EXDATE entries for holidays to skip class on those days
+          holiday_exdates = build_holiday_exdates_for_meeting_time(meeting_time, start_time)
+          holiday_exdates.each do |exdate|
+            e.exdate = Icalendar::Values::DateTime.new(exdate)
+          end
+
           # Stable UID for consistent event identity across refreshes
           e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
 
@@ -141,7 +155,107 @@ class CalendarsController < ApplicationController
       end
     end
 
+    # Add final exam events
+    add_final_exam_events(cal, final_exams)
+
+    # Add university calendar events (holidays always, others if opted in)
+    add_university_events(cal)
+
     cal
+  end
+
+  # Add final exam events to the calendar
+  def add_final_exam_events(cal, final_exams)
+    final_exams.each do |final_exam|
+      next unless final_exam.start_datetime && final_exam.end_datetime
+
+      cal.event do |e|
+        e.dtstart = Icalendar::Values::DateTime.new(final_exam.start_datetime)
+        e.dtend = Icalendar::Values::DateTime.new(final_exam.end_datetime)
+
+        e.summary = "Final Exam: #{final_exam.course_title}"
+        e.description = final_exam.course_code
+        e.location = final_exam.location if final_exam.location.present?
+
+        # Stable UID for final exams
+        e.uid = "final-exam-#{final_exam.id}@calendar-util.wit.edu"
+
+        e.dtstamp = Icalendar::Values::DateTime.new(Time.current)
+        e.last_modified = Icalendar::Values::DateTime.new(final_exam.updated_at)
+        e.sequence = (final_exam.updated_at.to_i / 60)
+      end
+    end
+  end
+
+  # Add university calendar events (holidays auto-sync, others based on user preference)
+  def add_university_events(cal)
+    # Always include holidays (auto-sync for all users)
+    UniversityCalendarEvent.holidays.upcoming.find_each do |event|
+      add_university_event_to_calendar(cal, event)
+    end
+
+    # Include other categories only if user opted in
+    user_config = @user.user_extension_config
+    return unless user_config&.sync_university_events
+
+    categories = (user_config.university_event_categories || []) - ["holiday"]
+    return if categories.empty?
+
+    UniversityCalendarEvent.upcoming.by_categories(categories).find_each do |event|
+      add_university_event_to_calendar(cal, event)
+    end
+  end
+
+  # Add a single university event to the calendar
+  def add_university_event_to_calendar(cal, event)
+    cal.event do |e|
+      if event.all_day
+        e.dtstart = Icalendar::Values::Date.new(event.start_time.to_date)
+        e.dtend = Icalendar::Values::Date.new(event.end_time.to_date + 1.day) # ICS all-day is exclusive
+      else
+        e.dtstart = Icalendar::Values::DateTime.new(event.start_time)
+        e.dtend = Icalendar::Values::DateTime.new(event.end_time)
+      end
+
+      e.summary = event.summary
+      e.description = event.description if event.description.present?
+      e.location = event.location if event.location.present?
+
+      # Stable UID based on ICS UID from source
+      e.uid = "university-#{event.ics_uid}@calendar-util.wit.edu"
+
+      e.dtstamp = Icalendar::Values::DateTime.new(Time.current)
+      e.last_modified = Icalendar::Values::DateTime.new(event.updated_at)
+      e.sequence = (event.updated_at.to_i / 60)
+
+      # Add category as custom property
+      e.categories = [event.category.titleize] if event.category.present?
+    end
+  end
+
+  # Build EXDATE times for holidays that fall on a meeting time's day
+  def build_holiday_exdates_for_meeting_time(meeting_time, start_time)
+    return [] unless defined?(UniversityCalendarEvent)
+
+    target_wday = MeetingTime.day_of_weeks[meeting_time.day_of_week]
+    return [] if target_wday.nil?
+
+    # Get holidays for this date range (memoized)
+    cache_key = [meeting_time.start_date, meeting_time.end_date]
+    holidays = @holidays_cache[cache_key] ||= UniversityCalendarEvent.holidays_between(
+      meeting_time.start_date,
+      meeting_time.end_date
+    ).to_a
+
+    # Filter to holidays that fall on this day of week
+    holidays.select { |h| h.start_time.wday == target_wday }
+            .map do |h|
+              # Build datetime with the holiday's date but the meeting's time
+              Time.zone.local(
+                h.start_time.year, h.start_time.month, h.start_time.day,
+                start_time.hour, start_time.min, 0
+              )
+            end
   end
 
   def get_day_code(meeting_time)
