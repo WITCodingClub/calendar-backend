@@ -10,8 +10,6 @@ class GoogleCalendarService
   end
 
   def create_or_get_course_calendar
-    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
     # Get or create the GoogleCalendar database record
     google_calendar = user.google_credential&.google_calendar
     newly_created = false
@@ -26,8 +24,6 @@ class GoogleCalendarService
         time_zone: google_api_calendar.time_zone
       )
       newly_created = true
-
-      StatsD.increment("calendar.created", tags: ["user_id:#{user.id}"])
     end
 
     calendar_id = google_calendar.google_calendar_id
@@ -43,19 +39,13 @@ class GoogleCalendarService
       GoogleCalendarSyncJob.perform_later(user, force: true)
     end
 
-    duration = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0
-    StatsD.measure("calendar.create_or_get.duration", duration, tags: ["user_id:#{user.id}", "newly_created:#{newly_created}"])
-
     calendar_id
   rescue Google::Apis::Error => e
-    StatsD.increment("calendar.create.error", tags: ["user_id:#{user.id}", "error:#{e.class.name}"])
     Rails.logger.error "Failed to create Google Calendar: #{e.message}"
     raise "Failed to create course calendar: #{e.message}"
   end
 
   def update_calendar_events(events, force: false)
-    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
     # Use user's OAuth credentials so reminders are visible to the user
     service = user_calendar_service
     google_calendar = user.google_credential&.google_calendar
@@ -111,10 +101,6 @@ class GoogleCalendarService
         else
           existing_event.mark_synced!
           stats[:skipped] += 1
-
-          # Track hash-based skip
-          StatsD.increment("calendar.sync.event.skipped",
-                           tags: ["reason:no_data_change", "user_id:#{user.id}"])
         end
       else
         # Create new event
@@ -122,14 +108,6 @@ class GoogleCalendarService
         stats[:created] += 1
       end
     end
-
-    # Track aggregate sync metrics
-    StatsD.gauge("calendar.sync.events.created", stats[:created],
-                 tags: ["user_id:#{user.id}"])
-    StatsD.gauge("calendar.sync.events.updated", stats[:updated],
-                 tags: ["user_id:#{user.id}"])
-    StatsD.gauge("calendar.sync.events.skipped", stats[:skipped],
-                 tags: ["user_id:#{user.id}"])
 
     # Calculate optimization effectiveness
     total_processed = stats[:created] + stats[:updated] + stats[:skipped]
@@ -145,10 +123,6 @@ class GoogleCalendarService
       skip_percentage: skip_percentage,
       optimization_effective: skip_percentage > 0
     }.to_json)
-
-    duration = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0
-    StatsD.measure("calendar.sync.duration", duration,
-                   tags: ["user_id:#{user.id}", "force:#{force}", "events:#{total_processed}"])
 
     stats
   end
@@ -232,8 +206,6 @@ class GoogleCalendarService
   end
 
   def delete_calendar(calendar_id)
-    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
     # First, get the calendar to access its user
     google_calendar = GoogleCalendar.find_by(google_calendar_id: calendar_id)
 
@@ -246,8 +218,6 @@ class GoogleCalendarService
       with_batch_throttling(credentials) do |credential|
         remove_calendar_from_user_list_for_email(calendar_id, credential.email)
       end
-
-      StatsD.increment("calendar.deleted", tags: ["user_id:#{calendar_user.id}"])
     end
 
     # Then delete the actual calendar
@@ -255,12 +225,6 @@ class GoogleCalendarService
     with_rate_limit_handling do
       service.delete_calendar(calendar_id)
     end
-
-    duration = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0
-    StatsD.measure("calendar.delete.duration", duration, tags: ["calendar_id:#{calendar_id}"])
-  rescue Google::Apis::Error => e
-    StatsD.increment("calendar.delete.error", tags: ["calendar_id:#{calendar_id}", "error:#{e.class.name}"])
-    raise
   end
 
   private
@@ -310,9 +274,6 @@ class GoogleCalendarService
 
     # Refresh the token if needed
     if user.google_credential.token_expired?
-      # Track token expiration
-      StatsD.increment("oauth.token.expired", tags: ["user_id:#{user.id}", "provider:google"])
-
       credentials.refresh!
       user.google_credential.update!(
         access_token: credentials.access_token,
@@ -320,9 +281,6 @@ class GoogleCalendarService
       )
       # Clear the cached credential
       user.instance_variable_set(:@google_credential, nil)
-
-      # Track successful token refresh
-      StatsD.increment("oauth.token.refreshed", tags: ["user_id:#{user.id}", "provider:google"])
     end
 
     credentials
@@ -509,17 +467,11 @@ class GoogleCalendarService
 
     # Refresh the token if needed
     if credential.token_expired?
-      # Track token expiration
-      StatsD.increment("oauth.token.expired", tags: ["email:#{credential.email}", "provider:google"])
-
       credentials.refresh!
       credential.update!(
         access_token: credentials.access_token,
         token_expires_at: Time.zone.at(credentials.expires_at)
       )
-
-      # Track successful token refresh
-      StatsD.increment("oauth.token.refreshed", tags: ["email:#{credential.email}", "provider:google"])
     end
 
     credentials
@@ -626,10 +578,6 @@ class GoogleCalendarService
       event_data_hash: GoogleCalendarEvent.generate_data_hash(event_data),
       last_synced_at: Time.current
     )
-
-    # Track successful creation
-    StatsD.increment("calendar.sync.event.created",
-                     tags: ["user_id:#{user.id}"])
   end
 
   def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, preference_resolver: nil, template_renderer: nil)
@@ -653,11 +601,6 @@ class GoogleCalendarService
         # Check if user edited the event in Google Calendar
         if user_edited_event?(db_event, current_gcal_event)
           Rails.logger.info "User edited event in Google Calendar: #{db_event.google_event_id}. Preserving user changes."
-
-          # Update local DB with user's Google Calendar edits
-          # Track user edit detection
-          StatsD.increment("calendar.sync.event.skipped",
-                           tags: ["reason:user_edit", "user_id:#{user.id}"])
 
           Rails.logger.info({
             message: "Event skipped - user edited in Google Calendar",
@@ -778,10 +721,6 @@ class GoogleCalendarService
       has_color: event_data[:color_id].present?
     }.to_json)
 
-    # Track successful update
-    StatsD.increment("calendar.sync.event.updated",
-                     tags: ["user_id:#{user.id}", "forced:#{force}"])
-
     :updated
   end
 
@@ -792,10 +731,6 @@ class GoogleCalendarService
       service.delete_event(calendar_id, db_event.google_event_id)
     end
     db_event.destroy
-
-    # Track successful deletion
-    StatsD.increment("calendar.sync.event.deleted",
-                     tags: ["user_id:#{user.id}"])
   rescue Google::Apis::ClientError => e
     # If event doesn't exist, just remove from database
     raise unless e.status_code == 404
@@ -807,10 +742,6 @@ class GoogleCalendarService
     }.to_json)
 
     db_event.destroy
-
-    # Track deletion of already-deleted event
-    StatsD.increment("calendar.sync.event.deleted",
-                     tags: ["user_id:#{user.id}", "already_deleted:true"])
   end
 
   # Check if user edited the event in Google Calendar

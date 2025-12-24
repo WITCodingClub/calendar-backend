@@ -80,11 +80,7 @@ class LeopardWebService < ApplicationService
     cache_key = "leopard:class_details:#{term}:#{course_reference_number}"
     cache_duration = registration_period? ? 1.hour : 24.hours
 
-    cache_hit = Rails.cache.exist?(cache_key)
-    result = Rails.cache.fetch(cache_key, expires_in: cache_duration) do
-      # Track cache miss
-      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_class_details"])
-
+    Rails.cache.fetch(cache_key, expires_in: cache_duration) do
       response = connection.get("getClassDetails", {
                                   term: term,
                                   courseReferenceNumber: course_reference_number
@@ -92,30 +88,16 @@ class LeopardWebService < ApplicationService
 
       handle_response(response, :class_details)
     end
-
-    # Track cache hit if it existed before fetch
-    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_class_details"]) if cache_hit
-
-    result
   end
 
   def get_enrollment_info
     # Cache enrollment info for 5 minutes since it can change frequently
     cache_key = "leopard:enrollment:#{term}:#{course_reference_number}"
 
-    cache_hit = Rails.cache.exist?(cache_key)
-    result = Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
-      # Track cache miss
-      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_enrollment_info"])
-
+    Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
       response = connection.get("getEnrollmentInfo")
       handle_response(response, :enrollment_info)
     end
-
-    # Track cache hit if it existed before fetch
-    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_enrollment_info"]) if cache_hit
-
-    result
   end
 
   def get_faculty_meeting_times
@@ -126,11 +108,7 @@ class LeopardWebService < ApplicationService
     cache_key = "leopard:meeting_times:#{term}:#{course_reference_number}"
     cache_duration = registration_period? ? 1.hour : 24.hours
 
-    cache_hit = Rails.cache.exist?(cache_key)
-    result = Rails.cache.fetch(cache_key, expires_in: cache_duration) do
-      # Track cache miss
-      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_faculty_meeting_times"])
-
+    Rails.cache.fetch(cache_key, expires_in: cache_duration) do
       response = connection.get("getFacultyMeetingTimes", {
                                   term: term,
                                   courseReferenceNumber: course_reference_number
@@ -138,16 +116,10 @@ class LeopardWebService < ApplicationService
 
       handle_response(response, :json)
     end
-
-    # Track cache hit if it existed before fetch
-    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_faculty_meeting_times"]) if cache_hit
-
-    result
   end
 
   def connection
     @connection ||= Faraday.new(url: BASE_URL) do |faraday|
-      faraday.use FaradayStatsd
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -258,10 +230,7 @@ class LeopardWebService < ApplicationService
     # Cache available terms for 1 hour - they don't change often
     cache_key = "leopard:available_terms"
 
-    cache_hit = Rails.cache.exist?(cache_key)
-    result = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
-      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_available_terms"])
-
+    Rails.cache.fetch(cache_key, expires_in: 1.hour) do
       response = terms_connection.get("classSearch/getTerms", {
         searchTerm: "",
         offset: 1,
@@ -287,10 +256,6 @@ class LeopardWebService < ApplicationService
         }
       end
     end
-
-    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_available_terms"]) if cache_hit
-
-    result
   end
 
   def get_course_catalog
@@ -300,11 +265,7 @@ class LeopardWebService < ApplicationService
     # This is a large payload but saves multiple paginated API requests
     cache_key = "leopard:catalog:#{term}"
 
-    cache_hit = Rails.cache.exist?(cache_key)
-    result = Rails.cache.fetch(cache_key, expires_in: 7.days) do
-      # Track cache miss
-      StatsD.increment("leopard_web.cache.miss", tags: ["action:get_course_catalog"])
-
+    Rails.cache.fetch(cache_key, expires_in: 7.days) do
       # Initialize a search session (no auth required!)
       initialize_search_session!
 
@@ -348,11 +309,6 @@ class LeopardWebService < ApplicationService
         total_count: 0
       }
     end
-
-    # Track cache hit if it existed before fetch
-    StatsD.increment("leopard_web.cache.hit", tags: ["action:get_course_catalog"]) if cache_hit
-
-    result
   end
 
   # Initialize a search session by POSTing term selection

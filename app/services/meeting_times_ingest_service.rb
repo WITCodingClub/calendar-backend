@@ -14,9 +14,6 @@ class MeetingTimesIngestService < ApplicationService
   end
 
   def call
-    # Track meeting times to be ingested
-    StatsD.gauge("meeting_times.ingested", raw_meeting_times.count, tags: ["course_id:#{course.id}"])
-
     raw_meeting_times.each do |mt|
       ingest_one(mt)
     end
@@ -54,33 +51,19 @@ class MeetingTimesIngestService < ApplicationService
     end
 
     # Skip if no days are active
-    if active_days.empty?
-      StatsD.increment("meeting_times.skipped", tags: ["reason:no_active_days", "course_id:#{course.id}"])
-      return
-    end
+    return if active_days.empty?
 
     # Building is required by Room
     building_abbr = (mt["building"] || mt[:building]).to_s.strip
     building_name = (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip
-    building_created = false
     building = Building.find_or_create_by!(abbreviation: building_abbr) do |b|
       b.name = building_name.presence || building_abbr
-      building_created = true
     end
-
-    # Track building creation
-    StatsD.increment("building.created", tags: ["abbreviation:#{building_abbr}"]) if building_created
 
     # Room is required by schema
     room_str = (mt["room"] || mt[:room]).to_s.strip
     room_number = parse_room_number(room_str)
-    room_created = false
-    room = Room.find_or_create_by!(number: room_number, building: building) do |r|
-      room_created = true
-    end
-
-    # Track room creation
-    StatsD.increment("room.created", tags: ["building_id:#{building.id}"]) if room_created
+    room = Room.find_or_create_by!(number: room_number, building: building)
 
     # Optional schedule/meeting type mappings (ints per schema)
     meeting_schedule_type = map_schedule_type(mt["meetingScheduleType"] || mt[:meetingScheduleType] || mt["scheduleType"] || mt[:scheduleType])
@@ -105,17 +88,10 @@ class MeetingTimesIngestService < ApplicationService
         day_of_week: day_num
       }
 
-      meeting_time_created = false
       MeetingTime.find_or_create_by!(attrs) do |mt_record|
         mt_record.meeting_schedule_type = meeting_schedule_type
         mt_record.meeting_type = meeting_type
         mt_record.hours_week = hours_per_day
-        meeting_time_created = true
-      end
-
-      # Track meeting time creation
-      if meeting_time_created
-        StatsD.increment("meeting_times.created", tags: ["day:#{day_num}", "course_id:#{course.id}"])
       end
     end
   end

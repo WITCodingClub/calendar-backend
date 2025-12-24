@@ -39,8 +39,6 @@ class CalendarTemplateRenderer
   def render(template_string, context)
     return "" if template_string.blank?
 
-    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
     # Validate before rendering
     self.class.validate_template(template_string)
 
@@ -50,18 +48,8 @@ class CalendarTemplateRenderer
 
     # Parse and render
     template = Liquid::Template.parse(template_string)
-    result = template.render(filtered_context)
-
-    # Track successful rendering duration
-    duration = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0
-    StatsD.measure("template.render.duration", duration)
-    StatsD.increment("template.render.success")
-
-    result
+    template.render(filtered_context)
   rescue Liquid::Error, InvalidTemplateError => e
-    # Track rendering error
-    StatsD.increment("template.render.error", tags: ["error:#{e.class.name}"])
-
     Rails.logger.error("Liquid template rendering error: #{e.message}")
     # Return a safe fallback
     context[:title] || "Event"

@@ -63,16 +63,11 @@ class CourseReprocessService < ApplicationService
 
       # Destroy the enrollment (course remains in DB for other users)
       enrollment.destroy!
-
-      StatsD.increment("course.reprocess.enrollment_removed", tags: ["user_id:#{user.id}", "course_id:#{course.id}"])
     end
 
     # Process new courses (adds new enrollments, updates existing)
     # Note: CourseProcessorService will trigger GoogleCalendarSyncJob at the end
     processed_courses = CourseProcessorService.new(courses, user).call
-
-    StatsD.gauge("course.reprocess.removed_count", removed_courses.count, tags: ["user_id:#{user.id}"])
-    StatsD.gauge("course.reprocess.processed_count", processed_courses.count, tags: ["user_id:#{user.id}"])
 
     Rails.logger.info("[CourseReprocess] User #{user.id}: Completed - removed #{removed_courses.count} enrollments, processed #{processed_courses.count} courses")
 
@@ -121,7 +116,6 @@ class CourseReprocessService < ApplicationService
         service.delete_event(cal_event.google_event_id)
         cal_event.destroy!
         deleted_count += 1
-        StatsD.increment("course.reprocess.calendar_event_deleted", tags: ["user_id:#{user.id}"])
       rescue Google::Apis::ClientError => e
         # Event may already be deleted in Google Calendar, just remove from DB
         Rails.logger.warn("[CourseReprocess] User #{user.id}: Failed to delete calendar event #{cal_event.google_event_id}: #{e.message}")

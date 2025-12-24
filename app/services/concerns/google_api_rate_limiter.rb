@@ -59,9 +59,6 @@ module GoogleApiRateLimiter
         retries += 1
         delay = calculate_backoff_delay(retries, e)
 
-        # Track rate limit hit
-        StatsD.increment("google_api.rate_limit.hit", tags: ["retry_attempt:#{retries}", "max_attempts:#{max_attempts}"])
-
         Rails.logger.warn "Google API rate limit hit (attempt #{retries}/#{max_attempts}). " \
                           "Retrying in #{delay} seconds. Error: #{e.message}"
 
@@ -70,9 +67,6 @@ module GoogleApiRateLimiter
       else
         # Re-raise if not a rate limit error or max retries exceeded
         if retries >= max_attempts
-          # Track rate limit exhaustion
-          StatsD.increment("google_api.rate_limit.exhausted", tags: ["max_attempts:#{max_attempts}"])
-
           Rails.logger.error "Google API rate limit exceeded after #{max_attempts} retries. Giving up."
         end
         raise

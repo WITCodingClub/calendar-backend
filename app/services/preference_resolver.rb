@@ -43,11 +43,7 @@ class PreferenceResolver
   # Resolve preferences for a MeetingTime or GoogleCalendarEvent
   def resolve_for(event)
     cache_key = cache_key_for(event)
-    if @cache.key?(cache_key)
-      # Track cache hit
-      StatsD.increment("preferences.cache.hit", tags: ["user_id:#{@user.id}"])
-      return @cache[cache_key]
-    end
+    return @cache[cache_key] if @cache.key?(cache_key)
 
     resolved = resolve_preferences(event)
     @cache[cache_key] = resolved
@@ -107,8 +103,6 @@ class PreferenceResolver
       # For reminder_settings, treat empty array as a valid preference (no notifications)
       # For other fields, use .present? to check if value is set
       if field == :reminder_settings ? !value.nil? : value.present?
-        # Track preference resolution source
-        StatsD.increment("preferences.resolved", tags: ["source:individual", "field:#{field}", "user_id:#{@user.id}"])
         return [value, "individual"]
       end
     end
@@ -122,8 +116,6 @@ class PreferenceResolver
         # For reminder_settings, treat empty array as a valid preference (no notifications)
         # For other fields, use .present? to check if value is set
         if field == :reminder_settings ? !value.nil? : value.present?
-          # Track preference resolution source
-          StatsD.increment("preferences.resolved", tags: ["source:event_type", "field:#{field}", "event_type:#{event_type}", "user_id:#{@user.id}"])
           return [value, "event_type:#{event_type}"]
         end
       end
@@ -136,16 +128,12 @@ class PreferenceResolver
       # For reminder_settings, treat empty array as a valid preference (no notifications)
       # For other fields, use .present? to check if value is set
       if field == :reminder_settings ? !value.nil? : value.present?
-        # Track preference resolution source
-        StatsD.increment("preferences.resolved", tags: ["source:global", "field:#{field}", "user_id:#{@user.id}"])
         return [value, "global"]
       end
     end
 
     # 5. Use system defaults
     default_value = system_default_for(field, event, event_type)
-    # Track system default usage
-    StatsD.increment("preferences.resolved", tags: ["source:system_default", "field:#{field}", "user_id:#{@user.id}"])
     [default_value, "system_default"]
   end
 

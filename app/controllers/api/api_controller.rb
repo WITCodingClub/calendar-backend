@@ -3,7 +3,6 @@
 module Api
   class ApiController < ActionController::API
     include Pundit::Authorization
-    include Telemetry
     include JsonWebTokenAuthenticatable
     include FeatureFlagGated
     include PublicIdLookupable

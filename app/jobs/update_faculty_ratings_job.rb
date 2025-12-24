@@ -12,10 +12,6 @@ class UpdateFacultyRatingsJob < ApplicationJob
       search_and_link_faculty(faculty, service)
 
       if faculty.rmp_id.blank?
-        # Track skip for missing RMP ID
-        StatsD.increment("jobs.update_faculty_ratings.skipped",
-                         tags: ["reason:no_rmp_id", "faculty_id:#{faculty.id}"])
-
         Rails.logger.info({
           message: "UpdateFacultyRatingsJob skipped - no RMP ID found",
           faculty_id: faculty.id,
@@ -26,10 +22,6 @@ class UpdateFacultyRatingsJob < ApplicationJob
         return
       end
     end
-
-    # Track execution
-    StatsD.increment("jobs.update_faculty_ratings.executed",
-                     tags: ["faculty_id:#{faculty.id}"])
 
     Rails.logger.info({
       message: "UpdateFacultyRatingsJob executing",
@@ -57,14 +49,10 @@ class UpdateFacultyRatingsJob < ApplicationJob
     end&.dig("node")
 
     if best_match
-      if faculty.update(rmp_id: best_match["id"])
-        # Track successful match
-        StatsD.increment("rmp.faculty.matched", tags: ["faculty_id:#{faculty.id}"])
-      else
+      unless faculty.update(rmp_id: best_match["id"])
         # Update failed (likely rmp_id already taken by another faculty)
         # Reload to clear dirty attributes and skip this faculty
         faculty.reload
-        StatsD.increment("rmp.faculty.duplicate_rmp_id", tags: ["faculty_id:#{faculty.id}", "rmp_id:#{best_match['id']}"])
 
         Rails.logger.warn({
           message: "RMP ID already assigned to another faculty",
@@ -73,9 +61,6 @@ class UpdateFacultyRatingsJob < ApplicationJob
           rmp_id: best_match["id"]
         }.to_json)
       end
-    else
-      # Track faculty not found
-      StatsD.increment("rmp.faculty.not_found", tags: ["faculty_name:#{faculty.full_name}"])
     end
   end
 
@@ -87,9 +72,6 @@ class UpdateFacultyRatingsJob < ApplicationJob
 
     # Fetch all ratings
     all_ratings = service.get_all_ratings(faculty.rmp_id)
-
-    # Track ratings fetched
-    StatsD.gauge("rmp.ratings.fetched", all_ratings.count, tags: ["faculty_id:#{faculty.id}"])
 
     # Store the raw GraphQL response for graph reconstruction
     store_raw_data(faculty, teacher_data, all_ratings)
@@ -105,13 +87,6 @@ class UpdateFacultyRatingsJob < ApplicationJob
 
     # Store individual ratings
     store_ratings(faculty, all_ratings)
-
-    # Track successful update with count
-    StatsD.increment("jobs.update_faculty_ratings.ratings_updated",
-                     tags: ["faculty_id:#{faculty.id}"],
-                     sample_rate: 1.0)
-    StatsD.gauge("jobs.update_faculty_ratings.rating_count", all_ratings.count,
-                 tags: ["faculty_id:#{faculty.id}"])
 
     Rails.logger.info({
       message: "UpdateFacultyRatingsJob completed",
