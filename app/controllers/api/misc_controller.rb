@@ -6,28 +6,27 @@ module Api
     skip_before_action :check_beta_access, only: [:get_current_terms]
 
     def get_current_terms
-      #   returns the current term, and the next term
-
       current_term = Term.current
       next_term = Term.next
 
       render json: {
-        current_term: {
-          name: current_term.name,
-          id: current_term.uid,
-          pub_id: current_term.public_id,
-          start_date: current_term.start_date,
-          end_date: current_term.end_date
-        },
-        next_term: {
-          name: next_term.name,
-          id: next_term.uid,
-          pub_id: next_term.public_id,
-          start_date: next_term.start_date,
-          end_date: next_term.end_date
-        }
+        current_term: term_json(current_term),
+        next_term: term_json(next_term)
       }, status: :ok
+    end
 
+    private
+
+    def term_json(term)
+      return nil if term.nil?
+
+      {
+        name: term.name,
+        id: term.uid,
+        pub_id: term.public_id,
+        start_date: term.start_date,
+        end_date: term.end_date
+      }
     end
 
   end
