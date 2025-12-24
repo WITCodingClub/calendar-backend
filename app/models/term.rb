@@ -54,12 +54,21 @@ class Term < ApplicationRecord
   end
 
   # Update start_date and end_date from course data
-  # DISABLED: Term dates are now fixed based on year/season to avoid
-  # bad data from LeopardWeb polluting term dates. Courses should use
-  # the term's dates, not the other way around.
+  # Only applies dates that are valid for the term year
   def update_dates_from_courses!
-    # No-op - term dates are set based on year/season, not derived from courses
-    Rails.logger.debug("update_dates_from_courses! called but disabled - term dates are fixed")
+    return if courses.empty?
+
+    # Only consider courses with dates in a valid year range
+    valid_courses = courses.where.not(start_date: nil, end_date: nil)
+                           .where("EXTRACT(YEAR FROM start_date) >= ? AND EXTRACT(YEAR FROM start_date) <= ?", year - 1, year)
+                           .where("EXTRACT(YEAR FROM end_date) >= ? AND EXTRACT(YEAR FROM end_date) <= ?", year, year + 1)
+
+    return if valid_courses.empty?
+
+    new_start = valid_courses.minimum(:start_date)
+    new_end = valid_courses.maximum(:end_date)
+
+    update!(start_date: new_start, end_date: new_end)
   end
 
   # Check if term is currently active based on dates
