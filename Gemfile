@@ -42,7 +42,7 @@ gem "thruster", require: false
 gem "pundit"
 gem "jwt"
 gem "rack-cors"
-gem "pg", "~> 1.6.2"
+gem "pg", "~> 1.6.3"
 gem "redis", "~> 5.0"
 gem "redis-session-store"
 gem "rack-attack"
