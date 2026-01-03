@@ -66,8 +66,10 @@ class AuthController < ApplicationController
     service = GoogleCalendarService.new(user)
     calendar_id = service.create_or_get_course_calendar
 
-    # Note: Don't sync here - user has no enrollments yet!
-    # The sync will be triggered by CourseProcessorService after enrollments are created.
+    # Trigger sync if user already has enrollments (e.g., added courses before OAuth)
+    if user.enrollments.any?
+      GoogleCalendarSyncJob.perform_later(user, force: false)
+    end
 
     # Redirect to success page
     redirect_to "/oauth/success?email=#{CGI.escape(target_email)}&calendar_id=#{calendar_id}"

@@ -68,6 +68,11 @@ cleanup_orphaned_oauth_credentials:
   queue: low
   schedule: every day at 5:30am
 
+university_calendar_sync:
+  class: UniversityCalendarSyncJob
+  queue: low
+  schedule: every sunday at 2:30am
+
 clear_solid_queue_finished_jobs:
   command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
   queue: low

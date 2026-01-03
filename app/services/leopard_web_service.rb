@@ -232,10 +232,10 @@ class LeopardWebService < ApplicationService
 
     Rails.cache.fetch(cache_key, expires_in: 1.hour) do
       response = terms_connection.get("classSearch/getTerms", {
-        searchTerm: "",
-        offset: 1,
-        max: 50
-      })
+                                        searchTerm: "",
+                                        offset: 1,
+                                        max: 50
+                                      })
 
       if response.success?
         terms = parse_json_response(response.body)
@@ -340,21 +340,21 @@ class LeopardWebService < ApplicationService
     unique_session_id = "sess#{Time.now.to_i}#{rand(1000..9999)}"
 
     catalog_connection.get("searchResults/searchResults", {
-      txt_term: term,
-      startDatepicker: "",
-      endDatepicker: "",
-      uniqueSessionId: unique_session_id,
-      pageOffset: offset,
-      pageMaxSize: page_size,
-      sortColumn: "subjectDescription",
-      sortDirection: "asc"
-    })
+                             txt_term: term,
+                             startDatepicker: "",
+                             endDatepicker: "",
+                             uniqueSessionId: unique_session_id,
+                             pageOffset: offset,
+                             pageMaxSize: page_size,
+                             sortColumn: "subjectDescription",
+                             sortDirection: "asc"
+                           })
   end
 
   # Connection for fetching available terms (no session required)
   def terms_connection
     @terms_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-      faraday.use FaradayStatsd
+      # Statsd removed
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -364,7 +364,7 @@ class LeopardWebService < ApplicationService
   # Connection for initializing the search session
   def session_connection
     @session_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-      faraday.use FaradayStatsd
+      # Statsd removed
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -376,7 +376,7 @@ class LeopardWebService < ApplicationService
     raise "Session not initialized - call initialize_search_session! first" unless @session_cookie
 
     @catalog_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-      faraday.use FaradayStatsd
+      # Statsd removed
 
       faraday.headers["Accept"] = "application/json, text/javascript, */*; q=0.01"
       faraday.headers["Accept-Language"] = "en-US,en;q=0.9"
