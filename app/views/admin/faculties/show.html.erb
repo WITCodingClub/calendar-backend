@@ -7,65 +7,159 @@
     </div>
   </div>
 
-  <!-- Faculty Details Card -->
+  <!-- Profile Card -->
   <div class="bg-white shadow-lg rounded-lg p-6 mb-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Email</h3>
-        <p class="mt-1 text-sm text-gray-900"><%= @faculty.email || "N/A" %></p>
+    <div class="flex flex-col md:flex-row gap-6">
+      <!-- Photo -->
+      <div class="flex-shrink-0">
+        <% if @faculty.photo_url.present? %>
+          <img src="<%= @faculty.photo_url %>" alt="<%= @faculty.full_name %>" class="h-32 w-32 rounded-lg object-cover shadow">
+        <% else %>
+          <div class="h-32 w-32 rounded-lg bg-gray-300 flex items-center justify-center shadow">
+            <span class="text-gray-600 text-3xl font-bold"><%= @faculty.initials %></span>
+          </div>
+        <% end %>
       </div>
-      <div>
-        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Rate My Professor ID</h3>
-        <p class="mt-1 text-sm text-gray-900">
-          <% if @faculty.rmp_id.present? %>
-            <%= @faculty.rmp_id %>
-            <a href="https://www.ratemyprofessors.com/professor/<%= @faculty.rmp_id %>" target="_blank" class="ml-2 hover:underline" style="color: #d13732;">View Profile →</a>
-          <% else %>
-            <span class="text-gray-500">Not set</span>
-            <%= link_to "Search RMP", search_rmp_admin_faculty_path(@faculty), class: "ml-2 text-sm hover:underline", style: "color: #d13732;" %>
-          <% end %>
-        </p>
-      </div>
-      <div>
-        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Courses</h3>
-        <p class="mt-1 text-sm text-gray-900"><%= @faculty.courses.count %></p>
-      </div>
-      <div>
-        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Member Since</h3>
-        <p class="mt-1 text-sm text-gray-900"><%= @faculty.created_at.strftime("%B %d, %Y") %></p>
+
+      <!-- Info Grid -->
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Title</h3>
+          <p class="mt-1 text-sm text-gray-900"><%= @faculty.title || "Not available" %></p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Email</h3>
+          <p class="mt-1 text-sm text-gray-900">
+            <%= mail_to @faculty.email, @faculty.email, class: "hover:underline text-blue-600" %>
+          </p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Phone</h3>
+          <p class="mt-1 text-sm text-gray-900"><%= @faculty.phone || "Not available" %></p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Office</h3>
+          <p class="mt-1 text-sm text-gray-900"><%= @faculty.office_location || "Not available" %></p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Department</h3>
+          <p class="mt-1 text-sm text-gray-900"><%= @faculty.department || "Not available" %></p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">School</h3>
+          <p class="mt-1 text-sm text-gray-900"><%= @faculty.school || "Not available" %></p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Type</h3>
+          <p class="mt-1">
+            <% if @faculty.employee_type == "faculty" %>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">Faculty</span>
+            <% elsif @faculty.employee_type == "staff" %>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">Staff</span>
+            <% else %>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">Unknown</span>
+            <% end %>
+          </p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Directory Sync</h3>
+          <p class="mt-1 text-sm text-gray-900">
+            <% if @faculty.directory_last_synced_at %>
+              <span class="text-green-600">Synced <%= time_ago_in_words(@faculty.directory_last_synced_at) %> ago</span>
+            <% else %>
+              <span class="text-yellow-600">Not synced</span>
+            <% end %>
+          </p>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- RMP Ratings Card (if available) -->
-  <% if @rmp_ratings.present? %>
-    <div class="bg-white shadow-lg rounded-lg p-6 mb-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <h2 class="text-xl font-bold mb-4">Rate My Professor Ratings</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <% avg_clarity = @rmp_ratings.average(:clarity_rating) %>
-        <% avg_helpful = @rmp_ratings.average(:helpful_rating) %>
+  <!-- Stats Row -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+      <p class="text-2xl font-bold" style="color: #d13732;"><%= @faculty.courses.count %></p>
+      <p class="text-xs text-gray-600 uppercase">Courses</p>
+    </div>
+    <% if @faculty.teaches_courses? %>
+      <% if @rmp_ratings.present? %>
+        <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+          <p class="text-2xl font-bold" style="color: #d13732;"><%= @rmp_ratings.count %></p>
+          <p class="text-xs text-gray-600 uppercase">RMP Ratings</p>
+        </div>
+        <% avg_rating = @rmp_ratings.average(:clarity_rating) %>
+        <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+          <p class="text-2xl font-bold" style="color: #d13732;"><%= avg_rating ? number_with_precision(avg_rating, precision: 1) : "N/A" %></p>
+          <p class="text-xs text-gray-600 uppercase">Avg Rating</p>
+        </div>
         <% avg_difficulty = @rmp_ratings.average(:difficulty_rating) %>
-        <% would_take_again_pct = @rmp_ratings.where.not(would_take_again: nil).average("CASE WHEN would_take_again THEN 1.0 ELSE 0.0 END") %>
-
-        <div class="text-center">
-          <p class="text-2xl font-bold" style="color: #d13732;"><%= avg_clarity ? number_with_precision(avg_clarity, precision: 1) : "N/A" %></p>
-          <p class="text-xs text-gray-600 uppercase">Avg Clarity</p>
-        </div>
-        <div class="text-center">
-          <p class="text-2xl font-bold" style="color: #d13732;"><%= avg_helpful ? number_with_precision(avg_helpful, precision: 1) : "N/A" %></p>
-          <p class="text-xs text-gray-600 uppercase">Avg Helpful</p>
-        </div>
-        <div class="text-center">
+        <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
           <p class="text-2xl font-bold" style="color: #d13732;"><%= avg_difficulty ? number_with_precision(avg_difficulty, precision: 1) : "N/A" %></p>
           <p class="text-xs text-gray-600 uppercase">Avg Difficulty</p>
         </div>
-        <div class="text-center">
-          <p class="text-2xl font-bold" style="color: #d13732;"><%= would_take_again_pct ? number_to_percentage(would_take_again_pct * 100, precision: 0) : "N/A" %></p>
-          <p class="text-xs text-gray-600 uppercase">Would Take Again</p>
+      <% else %>
+        <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+          <p class="text-2xl font-bold text-gray-400">-</p>
+          <p class="text-xs text-gray-600 uppercase">RMP Ratings</p>
         </div>
-      </div>
-      <p class="text-xs text-gray-500 mt-4">Based on <%= @rmp_ratings.count %> rating(s)</p>
+        <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+          <p class="text-2xl font-bold text-gray-400">-</p>
+          <p class="text-xs text-gray-600 uppercase">Avg Rating</p>
+        </div>
+        <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+          <p class="text-2xl font-bold text-gray-400">-</p>
+          <p class="text-xs text-gray-600 uppercase">Avg Difficulty</p>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Rate My Professor Section (only shown for faculty with courses) -->
+  <% if @faculty.teaches_courses? %>
+  <div class="bg-white shadow-lg rounded-lg p-6 mb-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold">Rate My Professor</h2>
+      <% if @faculty.rmp_id.present? %>
+        <a href="https://www.ratemyprofessors.com/professor/<%= @faculty.rmp_id %>" target="_blank" class="text-sm hover:underline" style="color: #d13732;">View on RMP</a>
+      <% end %>
     </div>
+
+    <% if @faculty.rmp_id.present? %>
+      <p class="text-sm text-gray-600 mb-2">RMP ID: <span class="font-mono"><%= @faculty.rmp_id %></span></p>
+      <% if @rmp_ratings.present? %>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+          <% avg_clarity = @rmp_ratings.average(:clarity_rating) %>
+          <% avg_helpful = @rmp_ratings.average(:helpful_rating) %>
+          <% avg_difficulty = @rmp_ratings.average(:difficulty_rating) %>
+          <% would_take_again_pct = @rmp_ratings.where.not(would_take_again: nil).average("CASE WHEN would_take_again THEN 1.0 ELSE 0.0 END") %>
+
+          <div class="text-center">
+            <p class="text-2xl font-bold" style="color: #d13732;"><%= avg_clarity ? number_with_precision(avg_clarity, precision: 1) : "N/A" %></p>
+            <p class="text-xs text-gray-600 uppercase">Avg Clarity</p>
+          </div>
+          <div class="text-center">
+            <p class="text-2xl font-bold" style="color: #d13732;"><%= avg_helpful ? number_with_precision(avg_helpful, precision: 1) : "N/A" %></p>
+            <p class="text-xs text-gray-600 uppercase">Avg Helpful</p>
+          </div>
+          <div class="text-center">
+            <p class="text-2xl font-bold" style="color: #d13732;"><%= avg_difficulty ? number_with_precision(avg_difficulty, precision: 1) : "N/A" %></p>
+            <p class="text-xs text-gray-600 uppercase">Avg Difficulty</p>
+          </div>
+          <div class="text-center">
+            <p class="text-2xl font-bold" style="color: #d13732;"><%= would_take_again_pct ? number_to_percentage(would_take_again_pct * 100, precision: 0) : "N/A" %></p>
+            <p class="text-xs text-gray-600 uppercase">Would Take Again</p>
+          </div>
+        </div>
+      <% else %>
+        <p class="text-sm text-gray-500">No ratings data available.</p>
+      <% end %>
+    <% else %>
+      <div class="flex items-center gap-4">
+        <p class="text-sm text-gray-500">Not linked to Rate My Professor.</p>
+        <%= link_to "Search RMP", search_rmp_admin_faculty_path(@faculty), class: "text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded" %>
+      </div>
+    <% end %>
+  </div>
   <% end %>
 
   <!-- Courses by Term -->

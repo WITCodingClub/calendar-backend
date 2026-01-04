@@ -73,6 +73,8 @@
 #                             admin_courses GET    /admin/courses(.:format)                                                                          admin/courses#index
 #           missing_rmp_ids_admin_faculties GET    /admin/faculties/missing_rmp_ids(.:format)                                                        admin/faculties#missing_rmp_ids
 #           batch_auto_fill_admin_faculties POST   /admin/faculties/batch_auto_fill(.:format)                                                        admin/faculties#batch_auto_fill
+#            sync_directory_admin_faculties POST   /admin/faculties/sync_directory(.:format)                                                         admin/faculties#sync_directory
+#          directory_status_admin_faculties GET    /admin/faculties/directory_status(.:format)                                                       admin/faculties#directory_status
 #                  search_rmp_admin_faculty GET    /admin/faculties/:id/search_rmp(.:format)                                                         admin/faculties#search_rmp
 #               assign_rmp_id_admin_faculty POST   /admin/faculties/:id/assign_rmp_id(.:format)                                                      admin/faculties#assign_rmp_id
 #            auto_fill_rmp_id_admin_faculty POST   /admin/faculties/:id/auto_fill_rmp_id(.:format)                                                   admin/faculties#auto_fill_rmp_id
@@ -397,6 +399,8 @@ Rails.application.routes.draw do
         collection do
           get :missing_rmp_ids
           post :batch_auto_fill
+          post :sync_directory
+          get :directory_status
         end
         member do
           get :search_rmp

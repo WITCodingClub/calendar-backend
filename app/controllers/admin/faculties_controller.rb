@@ -6,10 +6,14 @@ module Admin
       @faculties = policy_scope(Faculty).order(:last_name, :first_name)
 
       if params[:search].present?
-        @faculties = @faculties.where("first_name ILIKE ? OR last_name ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
+        search_term = "%#{params[:search]}%"
+        @faculties = @faculties.where(
+          "first_name ILIKE :q OR last_name ILIKE :q OR display_name ILIKE :q OR email ILIKE :q OR department ILIKE :q OR title ILIKE :q",
+          q: search_term
+        )
       end
 
-      @faculties = @faculties.page(params[:page]).per(7)
+      @faculties = @faculties.page(params[:page]).per(15)
     end
 
     def show
@@ -28,7 +32,8 @@ module Admin
     end
 
     def missing_rmp_ids
-      @faculties = policy_scope(Faculty).where(rmp_id: nil).order(:last_name, :first_name)
+      # Only show faculty with courses - staff without courses don't need RMP data
+      @faculties = policy_scope(Faculty).with_courses.where(rmp_id: nil).order(:last_name, :first_name)
 
       if params[:search].present?
         @faculties = @faculties.where("first_name ILIKE ? OR last_name ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
@@ -52,7 +57,7 @@ module Admin
     rescue => e
       respond_to do |format|
         format.html { redirect_to missing_rmp_ids_admin_faculties_path, alert: "Error searching: #{e.message}" }
-        format.json { render json: { error: e.message }, status: :unprocessable_entity }
+        format.json { render json: { error: e.message }, status: :unprocessable_content }
       end
     end
 
@@ -80,7 +85,7 @@ module Admin
     rescue ActiveRecord::RecordInvalid => e
       respond_to do |format|
         format.html { redirect_to missing_rmp_ids_admin_faculties_path, alert: "Error: #{e.message}" }
-        format.json { render json: { error: e.message }, status: :unprocessable_entity }
+        format.json { render json: { error: e.message }, status: :unprocessable_content }
       end
     end
 
@@ -99,13 +104,33 @@ module Admin
 
     def batch_auto_fill
       authorize Faculty
-      missing = Faculty.where(rmp_id: nil)
+      # Only process faculty with courses - staff without courses don't need RMP data
+      missing = Faculty.with_courses.where(rmp_id: nil)
 
       missing.find_each do |faculty|
         UpdateFacultyRatingsJob.perform_later(faculty.id)
       end
 
-      redirect_to missing_rmp_ids_admin_faculties_path, notice: "Enqueued auto-fill jobs for #{missing.count} faculty members"
+      redirect_to missing_rmp_ids_admin_faculties_path, notice: "Enqueued auto-fill jobs for #{missing.count} faculty members (with courses)"
+    end
+
+    def sync_directory
+      authorize Faculty
+
+      FacultyDirectorySyncJob.perform_later
+
+      redirect_to admin_faculties_path, notice: "Directory sync started. This may take a few minutes."
+    end
+
+    def directory_status
+      authorize Faculty
+
+      @last_sync = Faculty.maximum(:directory_last_synced_at)
+      @synced_count = Faculty.where.not(directory_last_synced_at: nil).count
+      @unsynced_count = Faculty.where(directory_last_synced_at: nil).count
+      @total_count = Faculty.count
+      @faculty_count = Faculty.faculty_only.count
+      @staff_count = Faculty.staff_only.count
     end
 
   end

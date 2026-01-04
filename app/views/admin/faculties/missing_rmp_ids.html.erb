@@ -1,6 +1,6 @@
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Faculty Missing RMP IDs</h1>
+    <h1 class="text-2xl font-bold">Professors Missing RMP IDs</h1>
     <div class="flex gap-2">
       <%= link_to "All Faculty", admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
       <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
@@ -23,16 +23,16 @@
   <% if @faculties.empty? %>
     <div class="bg-white shadow-lg rounded-lg p-8 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
       <div class="text-green-600 text-lg font-semibold mb-2">
-        ✓ All faculty members have RMP IDs assigned!
+        All professors have RMP IDs assigned!
       </div>
-      <p class="text-gray-600">There are no faculty members missing Rate My Professor IDs.</p>
+      <p class="text-gray-600">All professors with courses have Rate My Professor IDs.</p>
     </div>
   <% else %>
     <div class="bg-white shadow-lg rounded-lg mb-4 p-4" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
       <div class="flex justify-between items-center">
         <div>
           <p class="text-gray-700">
-            <span class="font-bold text-lg"><%= @faculties.total_count %></span> faculty members are missing RMP IDs
+            <span class="font-bold text-lg"><%= @faculties.total_count %></span> professors (with courses) are missing RMP IDs
           </p>
         </div>
         <div>

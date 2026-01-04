@@ -1,0 +1,94 @@
+<div class="container mx-auto px-2 pb-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Directory Sync Status</h1>
+    <div class="flex gap-2">
+      <% if policy(Faculty).sync_directory? %>
+        <%= button_to "Sync Now", sync_directory_admin_faculties_path,
+            method: :post,
+            class: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm cursor-pointer",
+            data: {
+              turbo_confirm: "This will sync all 800+ faculty/staff from the WIT directory. Continue?"
+            } %>
+      <% end %>
+      <%= link_to "All Faculty", admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+    <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+      <p class="text-2xl font-bold" style="color: #d13732;"><%= @total_count %></p>
+      <p class="text-xs text-gray-600 uppercase">Total Records</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+      <p class="text-2xl font-bold text-green-600"><%= @synced_count %></p>
+      <p class="text-xs text-gray-600 uppercase">Synced</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+      <p class="text-2xl font-bold text-yellow-600"><%= @unsynced_count %></p>
+      <p class="text-xs text-gray-600 uppercase">Not Synced</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+      <p class="text-2xl font-bold text-blue-600"><%= @faculty_count %></p>
+      <p class="text-xs text-gray-600 uppercase">Faculty</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+      <p class="text-2xl font-bold text-gray-600"><%= @staff_count %></p>
+      <p class="text-xs text-gray-600 uppercase">Staff</p>
+    </div>
+    <div class="bg-white shadow rounded-lg p-4 text-center" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);">
+      <p class="text-2xl font-bold" style="color: #d13732;"><%= @total_count > 0 ? number_to_percentage((@synced_count.to_f / @total_count) * 100, precision: 0) : "0%" %></p>
+      <p class="text-xs text-gray-600 uppercase">Coverage</p>
+    </div>
+  </div>
+
+  <!-- Last Sync Info -->
+  <div class="bg-white shadow-lg rounded-lg p-6 mb-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+    <h2 class="text-xl font-bold mb-4">Sync Information</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Last Directory Sync</h3>
+        <p class="mt-1 text-sm text-gray-900">
+          <% if @last_sync %>
+            <%= @last_sync.strftime("%B %d, %Y at %I:%M %p") %>
+            <span class="text-gray-500">(<%= time_ago_in_words(@last_sync) %> ago)</span>
+          <% else %>
+            <span class="text-yellow-600">Never synced</span>
+          <% end %>
+        </p>
+      </div>
+      <div>
+        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Source</h3>
+        <p class="mt-1 text-sm">
+          <a href="https://wit.edu/faculty-staff-directory" target="_blank" class="text-blue-600 hover:underline">
+            wit.edu/faculty-staff-directory
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instructions -->
+  <div class="bg-white shadow-lg rounded-lg p-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+    <h2 class="text-xl font-bold mb-4">About Directory Sync</h2>
+    <div class="prose prose-sm text-gray-700">
+      <p>The directory sync pulls faculty and staff information from the WIT Faculty Directory, including:</p>
+      <ul class="list-disc list-inside mt-2 space-y-1">
+        <li>Full name (including middle names)</li>
+        <li>Job title</li>
+        <li>Email address</li>
+        <li>Phone number</li>
+        <li>Office location</li>
+        <li>Department and School</li>
+        <li>Profile photo</li>
+      </ul>
+      <p class="mt-4">
+        <strong>Automatic sync:</strong> When a new faculty member is added from LeopardWeb (course data), their directory information is automatically fetched.
+      </p>
+      <p class="mt-2">
+        <strong>Manual sync:</strong> Use the "Sync Now" button to refresh all faculty/staff data from the directory.
+      </p>
+    </div>
+  </div>
+</div>

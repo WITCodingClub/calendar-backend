@@ -5,21 +5,37 @@
 # Table name: faculties
 # Database name: primary
 #
-#  id           :bigint           not null, primary key
-#  email        :string           not null
-#  embedding    :vector(1536)
-#  first_name   :string           not null
-#  last_name    :string           not null
-#  rmp_raw_data :jsonb
-#  created_at   :datetime         not null
-#  updated_at   :datetime         not null
-#  rmp_id       :string
+#  id                       :bigint           not null, primary key
+#  department               :string
+#  directory_last_synced_at :datetime
+#  directory_raw_data       :jsonb
+#  display_name             :string
+#  email                    :string           not null
+#  embedding                :vector(1536)
+#  employee_type            :string
+#  first_name               :string           not null
+#  last_name                :string           not null
+#  middle_name              :string
+#  office_location          :string
+#  phone                    :string
+#  photo_url                :string
+#  rmp_raw_data             :jsonb
+#  school                   :string
+#  title                    :string
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  rmp_id                   :string
 #
 # Indexes
 #
-#  index_faculties_on_email         (email) UNIQUE
-#  index_faculties_on_rmp_id        (rmp_id) UNIQUE
-#  index_faculties_on_rmp_raw_data  (rmp_raw_data) USING gin
+#  index_faculties_on_department                (department)
+#  index_faculties_on_directory_last_synced_at  (directory_last_synced_at)
+#  index_faculties_on_directory_raw_data        (directory_raw_data) USING gin
+#  index_faculties_on_email                     (email) UNIQUE
+#  index_faculties_on_employee_type             (employee_type)
+#  index_faculties_on_rmp_id                    (rmp_id) UNIQUE
+#  index_faculties_on_rmp_raw_data              (rmp_raw_data) USING gin
+#  index_faculties_on_school                    (school)
 #
 class Faculty < ApplicationRecord
   include PublicIdentifiable
@@ -32,14 +48,28 @@ class Faculty < ApplicationRecord
   has_one :rating_distribution, dependent: :destroy
   has_many :teacher_rating_tags, dependent: :destroy
 
+  has_one_attached :photo
+
   has_neighbors :embedding
 
   validates :rmp_id, uniqueness: true, allow_nil: true
 
+  # Callbacks
+  after_create :enqueue_directory_lookup, if: :needs_directory_data?
+
+  # Scopes
   scope :with_embeddings, -> { where.not(embedding: nil) }
+  scope :faculty_only, -> { where(employee_type: "faculty") }
+  scope :staff_only, -> { where(employee_type: "staff") }
+  scope :by_school, ->(school) { where(school: school) }
+  scope :by_department, ->(department) { where(department: department) }
+  scope :needs_directory_sync, -> { where(directory_last_synced_at: nil).or(where("directory_last_synced_at < ?", 7.days.ago)) }
+  scope :with_directory_data, -> { where.not(directory_last_synced_at: nil) }
+  scope :with_courses, -> { joins(:courses).distinct }
+  scope :without_courses, -> { where.missing(:courses) }
 
   def full_name
-    "#{first_name} #{last_name}"
+    display_name.presence || [first_name, middle_name, last_name].compact.join(" ").squish
   end
 
   def initials
@@ -131,9 +161,9 @@ class Faculty < ApplicationRecord
     end
   end
 
-  # Class method to update all faculty ratings
+  # Class method to update all faculty ratings (only those who teach courses)
   def self.update_all_ratings!
-    find_each do |faculty|
+    with_courses.find_each do |faculty|
       faculty.update_ratings!
     end
   end
@@ -154,7 +184,104 @@ class Faculty < ApplicationRecord
       .limit(limit)
   end
 
+  # Get formatted name for different uses (includes title)
+  def formal_name
+    [title.presence, first_name, middle_name, last_name].compact.join(" ").squish
+  end
+
+  # Check if record has directory data
+  def has_directory_data?
+    directory_last_synced_at.present? || directory_raw_data.present?
+  end
+
+  # Check if directory data needs to be fetched
+  # Returns false if we already have directory data (from sync or prior lookup)
+  def needs_directory_data?
+    !has_directory_data?
+  end
+
+  # Check if faculty teaches any courses
+  def teaches_courses?
+    courses.exists?
+  end
+
+  # Trigger directory sync for this faculty member
+  def sync_from_directory!
+    FacultyDirectoryLookupJob.perform_later(id)
+  end
+
+  # Synchronously sync from directory (useful for console/rake tasks)
+  def sync_from_directory_now!
+    FacultyDirectoryLookupJob.perform_now(id)
+  end
+
+  # Get directory data age
+  def directory_data_age
+    return nil unless directory_last_synced_at
+
+    Time.current - directory_last_synced_at
+  end
+
+  # Class method to sync all faculty from directory
+  def self.sync_all_from_directory!
+    FacultyDirectorySyncJob.perform_later
+  end
+
+  # Download and attach photo from URL if it changed
+  def update_photo_from_url!(url)
+    return if url.blank?
+    return if url.include?("placeholder") || url.include?("Icon_User")
+
+    # Skip if URL hasn't changed
+    return if photo_url == url && photo.attached?
+
+    require "open-uri"
+
+    begin
+      # Download the image
+      downloaded_image = URI.parse(url).open(
+        "User-Agent" => "WITCalendarBot/1.0",
+        read_timeout: 10
+      )
+
+      # Determine filename and content type
+      filename = "#{email.split('@').first}_photo#{File.extname(URI.parse(url).path)}"
+      filename = "#{email.split('@').first}_photo.jpg" if filename.end_with?("_photo")
+
+      content_type = downloaded_image.content_type || "image/jpeg"
+
+      # Attach the image
+      photo.attach(
+        io: downloaded_image,
+        filename: filename,
+        content_type: content_type
+      )
+
+      # Update the URL to track what we downloaded
+      update_column(:photo_url, url) unless photo_url == url
+
+      Rails.logger.info("[Faculty] Photo downloaded for #{email}")
+      true
+    rescue => e
+      Rails.logger.warn("[Faculty] Failed to download photo for #{email}: #{e.message}")
+      false
+    end
+  end
+
+  # Get the photo URL (either local ActiveStorage or external)
+  def photo_display_url
+    if photo.attached?
+      Rails.application.routes.url_helpers.rails_blob_path(photo, only_path: true)
+    else
+      photo_url
+    end
+  end
+
   private
+
+  def enqueue_directory_lookup
+    FacultyDirectoryLookupJob.perform_later(id)
+  end
 
   def calculate_would_take_again_percent
     total = rmp_ratings.where.not(would_take_again: nil).count

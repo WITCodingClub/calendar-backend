@@ -51,6 +51,16 @@ class FacultyPolicy < ApplicationPolicy
     admin?
   end
 
+  # Super_admins+ can trigger directory sync
+  def sync_directory?
+    super_admin?
+  end
+
+  # Admins+ can view directory sync status
+  def directory_status?
+    admin?
+  end
+
   class Scope < ApplicationPolicy::Scope
     def resolve
       scope.all

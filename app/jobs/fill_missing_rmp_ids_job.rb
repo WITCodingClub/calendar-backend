@@ -7,11 +7,13 @@ class FillMissingRmpIdsJob < ApplicationJob
   queue_as :low
 
   def perform
-    missing = Faculty.where(rmp_id: nil)
+    # Only look for RMP IDs for faculty who actually teach courses
+    # Staff and faculty without courses don't need RMP data
+    missing = Faculty.with_courses.where(rmp_id: nil)
 
     return if missing.empty?
 
-    Rails.logger.info "FillMissingRmpIdsJob: Processing #{missing.count} faculty members without RMP IDs"
+    Rails.logger.info "FillMissingRmpIdsJob: Processing #{missing.count} faculty members (with courses) without RMP IDs"
 
     success_count = 0
     not_found_count = 0

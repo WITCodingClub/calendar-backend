@@ -5,6 +5,18 @@ class UpdateFacultyRatingsJob < ApplicationJob
 
   def perform(faculty_id)
     faculty = Faculty.find(faculty_id)
+
+    # Skip faculty who don't teach courses - they don't need RMP data
+    unless faculty.teaches_courses?
+      Rails.logger.info({
+        message: "UpdateFacultyRatingsJob skipped - faculty has no courses",
+        faculty_id: faculty.id,
+        faculty_name: faculty.full_name,
+        reason: "no_courses"
+      }.to_json)
+      return
+    end
+
     service = RateMyProfessorService.new
 
     # If faculty doesn't have an rmp_id, search for them first
@@ -48,20 +60,21 @@ class UpdateFacultyRatingsJob < ApplicationJob
       first_name_match && last_name_match
     end&.dig("node")
 
-    if best_match
-      unless faculty.update(rmp_id: best_match["id"])
-        # Update failed (likely rmp_id already taken by another faculty)
-        # Reload to clear dirty attributes and skip this faculty
-        faculty.reload
+    return unless best_match
+    return if faculty.update(rmp_id: best_match["id"])
 
-        Rails.logger.warn({
-          message: "RMP ID already assigned to another faculty",
-          faculty_id: faculty.id,
-          faculty_name: faculty.full_name,
-          rmp_id: best_match["id"]
-        }.to_json)
-      end
-    end
+    # Update failed (likely rmp_id already taken by another faculty)
+    # Reload to clear dirty attributes and skip this faculty
+    faculty.reload
+
+    Rails.logger.warn({
+      message: "RMP ID already assigned to another faculty",
+      faculty_id: faculty.id,
+      faculty_name: faculty.full_name,
+      rmp_id: best_match["id"]
+    }.to_json)
+
+
   end
 
   def fetch_and_store_ratings(faculty, service)

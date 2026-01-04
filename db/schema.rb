@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_12_24_030025) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_04_022109) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -303,16 +303,32 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_24_030025) do
 
   create_table "faculties", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.string "department"
+    t.datetime "directory_last_synced_at"
+    t.jsonb "directory_raw_data", default: {}
+    t.string "display_name"
     t.string "email", null: false
     t.vector "embedding", limit: 1536
+    t.string "employee_type"
     t.string "first_name", null: false
     t.string "last_name", null: false
+    t.string "middle_name"
+    t.string "office_location"
+    t.string "phone"
+    t.string "photo_url"
     t.string "rmp_id"
     t.jsonb "rmp_raw_data", default: {}
+    t.string "school"
+    t.string "title"
     t.datetime "updated_at", null: false
+    t.index ["department"], name: "index_faculties_on_department"
+    t.index ["directory_last_synced_at"], name: "index_faculties_on_directory_last_synced_at"
+    t.index ["directory_raw_data"], name: "index_faculties_on_directory_raw_data", using: :gin
     t.index ["email"], name: "index_faculties_on_email", unique: true
+    t.index ["employee_type"], name: "index_faculties_on_employee_type"
     t.index ["rmp_id"], name: "index_faculties_on_rmp_id", unique: true
     t.index ["rmp_raw_data"], name: "index_faculties_on_rmp_raw_data", using: :gin
+    t.index ["school"], name: "index_faculties_on_school"
   end
 
   create_table "final_exams", force: :cascade do |t|
