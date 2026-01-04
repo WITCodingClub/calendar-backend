@@ -65,9 +65,21 @@ class OauthCredential < ApplicationRecord
     token_expires_at.nil? || token_expires_at <= 5.minutes.from_now
   end
 
+  # Check if the token was revoked (e.g., by user or Google)
+  def token_revoked?
+    metadata&.dig("token_revoked") == true
+  end
+
+  # Check if the credential needs re-authentication
+  def needs_reauth?
+    token_revoked? || refresh_token.blank?
+  end
+
   # Scope for finding credentials by provider
   scope :for_provider, ->(provider) { where(provider: provider) }
   scope :google, -> { for_provider("google") }
+  scope :revoked, -> { where("metadata->>'token_revoked' = 'true'") }
+  scope :needs_refresh, -> { where("updated_at < ?", 7.days.ago).where.not(refresh_token: nil) }
 
   private
 

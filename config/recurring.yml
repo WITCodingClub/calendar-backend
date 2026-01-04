@@ -53,6 +53,13 @@ nightly_calendar_sync:
   queue: low
   schedule: every day at 3am
 
+# Proactively refresh OAuth tokens to prevent them from expiring due to inactivity
+# Google refresh tokens expire after 6 months of no use (for apps in "testing" mode)
+refresh_oauth_tokens:
+  class: RefreshOauthTokensJob
+  queue: low
+  schedule: every wednesday at 2am
+
 cleanup_orphaned_calendar_records:
   class: CleanupOrphanedCalendarRecordsJob
   queue: low
