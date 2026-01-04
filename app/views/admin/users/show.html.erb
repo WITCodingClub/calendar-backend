@@ -30,22 +30,31 @@
           </dd>
         </div>
 
-        <div>
-          <dt class="text-sm font-medium text-gray-500">Beta Tester</dt>
-          <dd class="mt-1">
-            <% beta_feature_flag = FlipperFlags::V1 %>
-            <% is_beta_tester = Flipper.enabled?(beta_feature_flag, @user) %>
-            <% if is_beta_tester %>
-              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                Yes
-              </span>
-            <% else %>
-              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                No
-              </span>
+        <% if policy(@user).toggle_support_flag? %>
+        <div class="sm:col-span-2">
+          <dt class="text-sm font-medium text-gray-500 mb-2">Support Tools</dt>
+          <dd class="mt-1 flex flex-wrap gap-2">
+            <% env_switcher_enabled = Flipper.enabled?(FlipperFlags::ENV_SWITCHER, @user) %>
+            <% debug_mode_enabled = Flipper.enabled?(FlipperFlags::DEBUG_MODE, @user) %>
+
+            <%= button_to toggle_support_flag_admin_user_path(@user, flag: :env_switcher),
+                method: :post,
+                class: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors #{env_switcher_enabled ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}",
+                title: env_switcher_enabled ? "Click to disable" : "Click to enable" do %>
+              <span class="w-2 h-2 rounded-full <%= env_switcher_enabled ? 'bg-green-500' : 'bg-gray-400' %>"></span>
+              Env Switcher
+            <% end %>
+
+            <%= button_to toggle_support_flag_admin_user_path(@user, flag: :debug_mode),
+                method: :post,
+                class: "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors #{debug_mode_enabled ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}",
+                title: debug_mode_enabled ? "Click to disable" : "Click to enable" do %>
+              <span class="w-2 h-2 rounded-full <%= debug_mode_enabled ? 'bg-green-500' : 'bg-gray-400' %>"></span>
+              Debug Mode
             <% end %>
           </dd>
         </div>
+        <% end %>
 
         <div>
           <dt class="text-sm font-medium text-gray-500">Created At</dt>

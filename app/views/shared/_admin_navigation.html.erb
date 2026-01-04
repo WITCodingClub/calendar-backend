@@ -7,7 +7,7 @@
     </li>
     <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
       <%= link_to "Users", admin_users_path,
-          class: "admin-nav-link #{request.path.start_with?('/admin/users') && !request.path.start_with?('/admin/beta_testers') ? 'active' : ''}" %>
+          class: "admin-nav-link #{request.path.start_with?('/admin/users') ? 'active' : ''}" %>
     </li>
     <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
       <%= link_to "Finals", admin_finals_schedules_path,

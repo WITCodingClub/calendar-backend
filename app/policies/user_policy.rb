@@ -37,13 +37,8 @@ class UserPolicy < ApplicationPolicy
     super_admin?
   end
 
-  # Super_admins+ can manage beta tester status (admins cannot)
-  def enable_beta?
-    super_admin?
-  end
-
-  # Super_admins+ can manage beta tester status (admins cannot)
-  def disable_beta?
+  # Super_admins+ can toggle support flags (env_switcher, debug_mode)
+  def toggle_support_flag?
     super_admin?
   end
 

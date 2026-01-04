@@ -58,8 +58,7 @@
 #                                admin_root GET    /admin(.:format)                                                                                  admin/application#index
 #        revoke_oauth_credential_admin_user DELETE /admin/users/:id/oauth_credentials/:credential_id(.:format)                                       admin/users#revoke_oauth_credential
 #       refresh_oauth_credential_admin_user POST   /admin/users/:id/oauth_credentials/:credential_id/refresh(.:format)                               admin/users#refresh_oauth_credential
-#                    enable_beta_admin_user POST   /admin/users/:id/enable_beta(.:format)                                                            admin/users#enable_beta
-#                   disable_beta_admin_user DELETE /admin/users/:id/disable_beta(.:format)                                                           admin/users#disable_beta
+#            toggle_support_flag_admin_user POST   /admin/users/:id/support_flags/:flag/toggle(.:format)                                             admin/users#toggle_support_flag
 #            force_calendar_sync_admin_user POST   /admin/users/:id/force_calendar_sync(.:format)                                                    admin/users#force_calendar_sync
 #                               admin_users GET    /admin/users(.:format)                                                                            admin/users#index
 #                           edit_admin_user GET    /admin/users/:id/edit(.:format)                                                                   admin/users#edit
@@ -69,10 +68,6 @@
 #                                           DELETE /admin/users/:id(.:format)                                                                        admin/users#destroy
 #                           admin_calendars GET    /admin/calendars(.:format)                                                                        admin/calendars#index
 #                            admin_calendar DELETE /admin/calendars/:id(.:format)                                                                    admin/calendars#destroy
-#                        admin_beta_testers GET    /admin/beta_testers(.:format)                                                                     admin/beta_testers#index
-#                                           POST   /admin/beta_testers(.:format)                                                                     admin/beta_testers#create
-#                     new_admin_beta_tester GET    /admin/beta_testers/new(.:format)                                                                 admin/beta_testers#new
-#                         admin_beta_tester DELETE /admin/beta_testers/:id(.:format)                                                                 admin/beta_testers#destroy
 #                           admin_buildings GET    /admin/buildings(.:format)                                                                        admin/buildings#index
 #                               admin_rooms GET    /admin/rooms(.:format)                                                                            admin/rooms#index
 #                             admin_courses GET    /admin/courses(.:format)                                                                          admin/courses#index
@@ -390,13 +385,11 @@ Rails.application.routes.draw do
         member do
           delete "oauth_credentials/:credential_id", to: "users#revoke_oauth_credential", as: :revoke_oauth_credential
           post "oauth_credentials/:credential_id/refresh", to: "users#refresh_oauth_credential", as: :refresh_oauth_credential
-          post :enable_beta, to: "users#enable_beta"
-          delete :disable_beta, to: "users#disable_beta"
+          post "support_flags/:flag/toggle", to: "users#toggle_support_flag", as: :toggle_support_flag
           post :force_calendar_sync, to: "users#force_calendar_sync"
         end
       end
       resources :calendars, only: [:index, :destroy]
-      resources :beta_testers, only: [:index, :new, :create, :destroy]
       resources :buildings, only: [:index]
       resources :rooms, only: [:index]
       resources :courses, only: [:index]

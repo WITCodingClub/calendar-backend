@@ -2,9 +2,13 @@
 
 module Admin
   class UsersController < Admin::ApplicationController
-    before_action :set_user, only: [:show, :edit, :update, :destroy, :revoke_oauth_credential, :refresh_oauth_credential, :enable_beta, :disable_beta, :force_calendar_sync]
+    before_action :set_user, only: [:show, :edit, :update, :destroy, :revoke_oauth_credential, :refresh_oauth_credential, :toggle_support_flag, :force_calendar_sync]
 
-    BETA_FEATURE_FLAG = FlipperFlags::V1
+    # Support tool flags that can be toggled via admin UI
+    SUPPORT_FLAGS = {
+      env_switcher: FlipperFlags::ENV_SWITCHER,
+      debug_mode: FlipperFlags::DEBUG_MODE
+    }.freeze
 
     def index
       @users = policy_scope(User).order(created_at: :desc)
@@ -110,24 +114,28 @@ module Admin
       redirect_to admin_user_path(@user), alert: "Failed to refresh token: #{e.message}"
     end
 
-    def enable_beta
-      authorize @user, :enable_beta?
+    def toggle_support_flag
+      authorize @user, :toggle_support_flag?
 
-      Flipper.enable_actor(BETA_FEATURE_FLAG, @user)
-      redirect_to admin_user_path(@user), notice: "#{@user.email} has been added to the beta test group."
+      flag_key = params[:flag]&.to_sym
+      unless SUPPORT_FLAGS.key?(flag_key)
+        redirect_to admin_user_path(@user), alert: "Unknown support flag: #{params[:flag]}"
+        return
+      end
+
+      flipper_flag = SUPPORT_FLAGS[flag_key]
+      flag_name = flag_key.to_s.titleize
+
+      if Flipper.enabled?(flipper_flag, @user)
+        Flipper.disable_actor(flipper_flag, @user)
+        redirect_to admin_user_path(@user), notice: "#{flag_name} disabled for #{@user.email}."
+      else
+        Flipper.enable_actor(flipper_flag, @user)
+        redirect_to admin_user_path(@user), notice: "#{flag_name} enabled for #{@user.email}."
+      end
     rescue => e
-      Rails.logger.error("Error adding user to beta: #{e.message}")
-      redirect_to admin_user_path(@user), alert: "Failed to add user to beta: #{e.message}"
-    end
-
-    def disable_beta
-      authorize @user, :disable_beta?
-
-      Flipper.disable_actor(BETA_FEATURE_FLAG, @user)
-      redirect_to admin_user_path(@user), notice: "Beta tester access removed for #{@user.email}."
-    rescue => e
-      Rails.logger.error("Error removing user from beta: #{e.message}")
-      redirect_to admin_user_path(@user), alert: "Failed to remove user from beta: #{e.message}"
+      Rails.logger.error("Error toggling support flag: #{e.message}")
+      redirect_to admin_user_path(@user), alert: "Failed to toggle #{flag_name}: #{e.message}"
     end
 
     def force_calendar_sync
