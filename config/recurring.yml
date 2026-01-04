@@ -1,86 +1,119 @@
+# =============================================================================
+# RECURRING JOBS SCHEDULE
+# =============================================================================
+# All times are in the application's configured timezone (EST)
+# Jobs run on the 'low' queue to not block critical operations
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# FREQUENT MONITORING
+# -----------------------------------------------------------------------------
+
 blazer_run_checks_5_minutes:
   command: "Blazer.run_checks(schedule: '5 minutes')"
   queue: low
   schedule: every 5 minutes
-
-blazer_run_checks_1_hour:
-  command: "Blazer.run_checks(schedule: '1 hour')"
-  queue: low
-  schedule: every hour
-
-blazer_run_checks_1_day:
-  command: "Blazer.run_checks(schedule: '1 day')"
-  queue: low
-  schedule: every day at 7:30am
-
-blazer_send_failing_checks:
-  command: "Blazer.send_failing_checks"
-  queue: low
-  schedule: every day at 8am
 
 pghero_capture_query_stats:
   command: "PgHero.capture_query_stats rescue PgHero::NotEnabled"
   queue: low
   schedule: every 5 minutes
 
-pghero_space_stats:
-  command: "PgHero.capture_space_stats rescue PgHero::NotEnabled"
-  queue: low
-  schedule: every day at 5am
+# -----------------------------------------------------------------------------
+# HOURLY
+# -----------------------------------------------------------------------------
 
-ensure_future_terms:
-  class: EnsureFutureTermsJob
+blazer_run_checks_1_hour:
+  command: "Blazer.run_checks(schedule: '1 hour')"
   queue: low
-  schedule: every month on the 1st at 2am
+  schedule: every hour
 
-fill_missing_rmp_ids:
-  class: FillMissingRmpIdsJob
+clear_solid_queue_finished_jobs:
+  command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
   queue: low
-  schedule: every sunday at 1:30am
+  schedule: every hour at minute 12
 
-send_missing_rmp_ids_summary:
-  class: SendMissingRmpIdsSummaryJob
-  queue: low
-  schedule: every sunday at 2:30am
-
-update_faculty_rmp_ratings:
-  command: "Faculty.update_all_ratings!"
-  queue: low
-  schedule: every sunday at 3:30am
+# -----------------------------------------------------------------------------
+# NIGHTLY (3am - 8am window, staggered 30 min apart)
+# -----------------------------------------------------------------------------
 
 nightly_calendar_sync:
   class: NightlyCalendarSyncJob
   queue: low
   schedule: every day at 3am
 
-# Proactively refresh OAuth tokens to prevent them from expiring due to inactivity
-# Google refresh tokens expire after 6 months of no use (for apps in "testing" mode)
+cleanup_orphaned_calendar_records:
+  class: CleanupOrphanedCalendarRecordsJob
+  queue: low
+  schedule: every day at 3:30am
+
+cleanup_orphaned_google_calendars:
+  class: CleanupOrphanedGoogleCalendarsJob
+  queue: low
+  schedule: every day at 4am
+
+cleanup_orphaned_oauth_credentials:
+  class: CleanupOrphanedOauthCredentialsJob
+  queue: low
+  schedule: every day at 4:30am
+
+pghero_space_stats:
+  command: "PgHero.capture_space_stats rescue PgHero::NotEnabled"
+  queue: low
+  schedule: every day at 5am
+
+blazer_run_checks_1_day:
+  command: "Blazer.run_checks(schedule: '1 day')"
+  queue: low
+  schedule: every day at 7:30am
+
+# -----------------------------------------------------------------------------
+# WEEKLY (spread across different days to balance load)
+# -----------------------------------------------------------------------------
+
+# Wednesday: OAuth maintenance
 refresh_oauth_tokens:
   class: RefreshOauthTokensJob
   queue: low
   schedule: every wednesday at 2am
 
-cleanup_orphaned_calendar_records:
-  class: CleanupOrphanedCalendarRecordsJob
-  queue: low
-  schedule: every day at 4am
-
-cleanup_orphaned_google_calendars:
-  class: CleanupOrphanedGoogleCalendarsJob
-  queue: low
-  schedule: every day at 4:30am
-
-cleanup_orphaned_oauth_credentials:
-  class: CleanupOrphanedOauthCredentialsJob
-  queue: low
-  schedule: every day at 5:30am
-
+# Saturday: University data sync
 university_calendar_sync:
   class: UniversityCalendarSyncJob
   queue: low
-  schedule: every sunday at 2:30am
+  schedule: every saturday at 2am
 
-clear_solid_queue_finished_jobs:
-  command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
+# Sunday: RateMyProfessor maintenance (in order: fill IDs, then update ratings)
+fill_missing_rmp_ids:
+  class: FillMissingRmpIdsJob
   queue: low
-  schedule: every hour at minute 12
+  schedule: every sunday at 2am
+
+update_faculty_rmp_ratings:
+  command: "Faculty.update_all_ratings!"
+  queue: low
+  schedule: every sunday at 3am
+
+# -----------------------------------------------------------------------------
+# MONTHLY
+# -----------------------------------------------------------------------------
+
+ensure_future_terms:
+  class: EnsureFutureTermsJob
+  queue: low
+  schedule: every month on the 1st at 2am
+
+# -----------------------------------------------------------------------------
+# DISABLED (email not configured)
+# Uncomment when email is set up
+# -----------------------------------------------------------------------------
+
+# blazer_send_failing_checks:
+#   command: "Blazer.send_failing_checks"
+#   queue: low
+#   schedule: every day at 8am
+
+# send_missing_rmp_ids_summary:
+#   class: SendMissingRmpIdsSummaryJob
+#   queue: low
+#   schedule: every sunday at 4am
