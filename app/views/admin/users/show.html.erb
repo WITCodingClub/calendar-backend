@@ -30,6 +30,22 @@
           </dd>
         </div>
 
+        <div class="sm:col-span-2">
+          <dt class="text-sm font-medium text-gray-500">ICS Calendar URL</dt>
+          <dd class="mt-1 flex items-center gap-2">
+            <% if @user.calendar_token.present? %>
+              <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700 break-all"><%= calendar_url(@user.calendar_token) %></code>
+              <button type="button"
+                      onclick="navigator.clipboard.writeText('<%= calendar_url(@user.calendar_token) %>'); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
+                      class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                Copy
+              </button>
+            <% else %>
+              <span class="text-gray-400">No calendar token</span>
+            <% end %>
+          </dd>
+        </div>
+
         <% if policy(@user).toggle_support_flag? %>
         <div class="sm:col-span-2">
           <dt class="text-sm font-medium text-gray-500 mb-2">Support Tools</dt>
