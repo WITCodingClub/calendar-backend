@@ -43,6 +43,11 @@ module Admin
                                 .select("oauth_credentials.*, COUNT(google_calendar_events.id) as events_count")
                                 .group("oauth_credentials.id")
                                 .order(created_at: :desc)
+
+      # Load recent security events for this user
+      @security_events = @user.security_events
+                              .order(created_at: :desc)
+                              .limit(10)
     end
 
     def edit

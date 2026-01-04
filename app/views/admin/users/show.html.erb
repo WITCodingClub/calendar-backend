@@ -57,13 +57,26 @@
         <% end %>
 
         <div>
-          <dt class="text-sm font-medium text-gray-500">Created At</dt>
-          <dd class="mt-1 text-sm text-gray-900"><%= @user.created_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
+          <dt class="text-sm font-medium text-gray-500">Last Calendar Sync</dt>
+          <dd class="mt-1 text-sm text-gray-900">
+            <% if @user.last_calendar_sync_at %>
+              <span title="<%= @user.last_calendar_sync_at.strftime("%B %d, %Y at %I:%M %p") %>">
+                <%= time_ago_in_words(@user.last_calendar_sync_at) %> ago
+              </span>
+              <% if @user.calendar_needs_sync %>
+                <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                  Needs Sync
+                </span>
+              <% end %>
+            <% else %>
+              <span class="text-gray-400">Never synced</span>
+            <% end %>
+          </dd>
         </div>
 
         <div>
-          <dt class="text-sm font-medium text-gray-500">Updated At</dt>
-          <dd class="mt-1 text-sm text-gray-900"><%= @user.updated_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
+          <dt class="text-sm font-medium text-gray-500">Created At</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @user.created_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
         </div>
       </dl>
 
@@ -249,6 +262,82 @@
         </div>
       <% else %>
         <p class="text-gray-600">No OAuth credentials found for this user.</p>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Security Events / Recent Activity Section -->
+  <div class="mt-8 glass-card shadow-lg rounded-lg overflow-hidden">
+    <div class="px-6 py-5">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold">Security Events</h2>
+        <span class="text-sm text-gray-600">Recent: <%= @security_events.size %></span>
+      </div>
+
+      <% if @security_events.any? %>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-white/50">
+              <tr>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Event Type</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Reason</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white/30">
+              <% @security_events.each do |event| %>
+                <tr>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                      <% case event.event_type_name %>
+                      <% when 'tokens-revoked', 'token-revoked', 'sessions-revoked' %>
+                        bg-red-100 text-red-800
+                      <% when 'account-disabled' %>
+                        bg-red-100 text-red-800
+                      <% when 'account-enabled' %>
+                        bg-green-100 text-green-800
+                      <% when 'account-credential-change-required' %>
+                        bg-yellow-100 text-yellow-800
+                      <% when 'verification' %>
+                        bg-blue-100 text-blue-800
+                      <% else %>
+                        bg-gray-100 text-gray-800
+                      <% end %>
+                    ">
+                      <%= event.event_type_name.titleize %>
+                    </span>
+                  </td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm">
+                    <% if event.processed? %>
+                      <% if event.processing_error.present? %>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800" title="<%= event.processing_error %>">
+                          Error
+                        </span>
+                      <% else %>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          Processed
+                        </span>
+                      <% end %>
+                    <% else %>
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                        Pending
+                      </span>
+                    <% end %>
+                  </td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                    <%= event.reason.presence || "—" %>
+                  </td>
+                  <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700" title="<%= event.created_at.strftime("%B %d, %Y at %I:%M %p") %>">
+                    <%= time_ago_in_words(event.created_at) %> ago
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="text-gray-600">No security events found for this user.</p>
       <% end %>
     </div>
   </div>
