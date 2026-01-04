@@ -88,6 +88,20 @@ class Term < ApplicationRecord
     Time.zone.today < start_date
   end
 
+  # Check if term has ended (is in the past)
+  # @return [Boolean] true if term ended before today
+  def past?
+    return false if end_date.nil?
+
+    Time.zone.today > end_date
+  end
+
+  # Check if term is current or future (not retroactive)
+  # @return [Boolean] true if term is not in the past
+  def current_or_future?
+    !past?
+  end
+
   # Find a term by its UID
   # @param uid [Integer] the term UID
   # @return [Term, nil] the term if found, nil otherwise
