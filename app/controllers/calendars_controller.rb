@@ -118,7 +118,7 @@ class CalendarsController < ApplicationController
           # Add EXDATE entries for holidays to skip class on those days
           holiday_exdates = build_holiday_exdates_for_meeting_time(meeting_time, start_time)
           holiday_exdates.each do |exdate|
-            e.exdate = Icalendar::Values::DateTime.new(exdate)
+            e.append_exdate(Icalendar::Values::DateTime.new(exdate))
           end
 
           # Stable UID for consistent event identity across refreshes
@@ -191,7 +191,7 @@ class CalendarsController < ApplicationController
   def add_university_events(cal)
     # Always include holidays (auto-sync for all users)
     UniversityCalendarEvent.holidays.upcoming.find_each do |event|
-      add_university_event_to_calendar(cal, event)
+      add_university_event_to_calendar(cal, event, force_all_day: true)
     end
 
     # Include other categories only if user opted in
@@ -207,9 +207,12 @@ class CalendarsController < ApplicationController
   end
 
   # Add a single university event to the calendar
-  def add_university_event_to_calendar(cal, event)
+  def add_university_event_to_calendar(cal, event, force_all_day: false)
     cal.event do |e|
-      if event.all_day
+      # Force holidays to be all-day events regardless of database value
+      is_all_day = force_all_day || event.all_day || event.category == "holiday"
+      
+      if is_all_day
         e.dtstart = Icalendar::Values::Date.new(event.start_time.to_date)
         e.dtend = Icalendar::Values::Date.new(event.end_time.to_date + 1.day) # ICS all-day is exclusive
       else
@@ -217,7 +220,13 @@ class CalendarsController < ApplicationController
         e.dtend = Icalendar::Values::DateTime.new(event.end_time)
       end
 
-      e.summary = event.summary
+      # Add holiday prefix to make it clear in calendar apps
+      if event.category == "holiday"
+        e.summary = "🏫 #{event.summary} - No Classes"
+      else
+        e.summary = event.summary
+      end
+      
       e.description = event.description if event.description.present?
       e.location = event.location if event.location.present?
 
@@ -230,6 +239,13 @@ class CalendarsController < ApplicationController
 
       # Add category as custom property
       e.categories = [event.category.titleize] if event.category.present?
+      
+      # Add custom properties to help calendar apps identify holidays
+      if event.category == "holiday"
+        e.append_custom_property("X-MICROSOFT-CDO-ALLDAYEVENT", "TRUE")
+        e.append_custom_property("X-MICROSOFT-CDO-BUSYSTATUS", "FREE")
+        e.transp = "TRANSPARENT"  # Show as "free" time
+      end
     end
   end
 
