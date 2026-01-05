@@ -60,6 +60,10 @@ module CourseScheduleSyncable
     finals = build_finals_events_for_sync
     events.concat(finals)
 
+    # Add university calendar events (holidays and other categories based on user preferences)
+    university_events = build_university_events_for_sync
+    events.concat(university_events)
+
     service.update_calendar_events(events, force: force)
   end
 
@@ -303,6 +307,47 @@ module CourseScheduleSyncable
     timezone = Time.zone.tzinfo.name
     formatted_time = exclusion_time.strftime("%Y%m%dT%H%M%S")
     "EXDATE;TZID=#{timezone}:#{formatted_time}"
+  end
+
+  # Build university calendar events for sync (holidays always, others based on preferences)
+  def build_university_events_for_sync
+    events = []
+    
+    # Always include holidays (auto-sync for all users)
+    UniversityCalendarEvent.holidays.upcoming.find_each do |event|
+      events << {
+        summary: "🏫 #{event.summary} - No Classes",
+        description: event.description,
+        location: event.location,
+        start_time: event.start_time,
+        end_time: event.end_time,
+        university_event_id: event.id,
+        all_day: true,
+        recurrence: nil
+      }
+    end
+
+    # Include other categories only if user opted in
+    user_config = user_extension_config
+    if user_config&.sync_university_events
+      categories = (user_config.university_event_categories || []) - ["holiday"]
+      unless categories.empty?
+        UniversityCalendarEvent.upcoming.by_categories(categories).find_each do |event|
+          events << {
+            summary: event.summary,
+            description: event.description,
+            location: event.location,
+            start_time: event.start_time,
+            end_time: event.end_time,
+            university_event_id: event.id,
+            all_day: event.all_day || false,
+            recurrence: nil
+          }
+        end
+      end
+    end
+
+    events
   end
 
   # Build events for final exams of enrolled courses

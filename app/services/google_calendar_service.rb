@@ -54,14 +54,26 @@ class GoogleCalendarService
     calendar_id = google_calendar.google_calendar_id
 
     # Get existing calendar events from database
-    # Index by a composite key that handles both meeting_time_id and final_exam_id
+    # Index by a composite key that handles meeting_time_id, final_exam_id, and university_event_id
     existing_events = google_calendar.google_calendar_events.index_by do |e|
-      e.meeting_time_id ? "mt_#{e.meeting_time_id}" : "fe_#{e.final_exam_id}"
+      if e.meeting_time_id
+        "mt_#{e.meeting_time_id}"
+      elsif e.final_exam_id
+        "fe_#{e.final_exam_id}"
+      else
+        "ue_#{e.university_event_id}"
+      end
     end
 
-    # Track which events are in the new events list (both meeting times and finals)
+    # Track which events are in the new events list (meeting times, finals, and university events)
     current_event_keys = events.map do |e|
-      e[:meeting_time_id] ? "mt_#{e[:meeting_time_id]}" : "fe_#{e[:final_exam_id]}"
+      if e[:meeting_time_id]
+        "mt_#{e[:meeting_time_id]}"
+      elsif e[:final_exam_id]
+        "fe_#{e[:final_exam_id]}"
+      elsif e[:university_event_id]
+        "ue_#{e[:university_event_id]}"
+      end
     end.compact
 
     # Delete events that are no longer needed
@@ -80,16 +92,26 @@ class GoogleCalendarService
 
     # Create or update events
     events.each do |event|
-      event_key = event[:meeting_time_id] ? "mt_#{event[:meeting_time_id]}" : "fe_#{event[:final_exam_id]}"
+      event_key = if event[:meeting_time_id]
+                    "mt_#{event[:meeting_time_id]}"
+                  elsif event[:final_exam_id]
+                    "fe_#{event[:final_exam_id]}"
+                  elsif event[:university_event_id]
+                    "ue_#{event[:university_event_id]}"
+                  end
       existing_event = existing_events[event_key]
 
       if existing_event
         # Apply preferences to get the full event data for comparison
-        # Handle both meeting times and final exams
+        # Handle meeting times, final exams, and university events
         syncable = if event[:meeting_time_id]
                      MeetingTime.includes(course: :faculties).find_by(id: event[:meeting_time_id])
-                   else
+                   elsif event[:final_exam_id]
                      FinalExam.includes(course: :faculties).find_by(id: event[:final_exam_id])
+                   elsif event[:university_event_id]
+                     UniversityCalendarEvent.find_by(id: event[:university_event_id])
+                   else
+                     raise "Unknown event type - missing meeting_time_id, final_exam_id, or university_event_id"
                    end
         event_with_preferences = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
@@ -146,20 +168,25 @@ class GoogleCalendarService
     # rubocop:disable Rails/Pluck -- events is an array of hashes, not an ActiveRecord relation
     meeting_time_ids = events.map { |e| e[:meeting_time_id] }.compact
     final_exam_ids = events.map { |e| e[:final_exam_id] }.compact
+    university_event_ids = events.map { |e| e[:university_event_id] }.compact
     # rubocop:enable Rails/Pluck
 
     existing_events_query = google_calendar.google_calendar_events
-    if meeting_time_ids.any? && final_exam_ids.any?
-      existing_events_query = existing_events_query.where(meeting_time_id: meeting_time_ids)
-                                                   .or(existing_events_query.where(final_exam_id: final_exam_ids))
-    elsif meeting_time_ids.any?
-      existing_events_query = existing_events_query.where(meeting_time_id: meeting_time_ids)
-    elsif final_exam_ids.any?
-      existing_events_query = existing_events_query.where(final_exam_id: final_exam_ids)
-    end
+    conditions = []
+    conditions << existing_events_query.where(meeting_time_id: meeting_time_ids) if meeting_time_ids.any?
+    conditions << existing_events_query.where(final_exam_id: final_exam_ids) if final_exam_ids.any?
+    conditions << existing_events_query.where(university_event_id: university_event_ids) if university_event_ids.any?
+    
+    existing_events_query = conditions.reduce { |query, condition| query.or(condition) } || existing_events_query
 
     existing_events = existing_events_query.index_by do |e|
-      e.meeting_time_id ? "mt_#{e.meeting_time_id}" : "fe_#{e.final_exam_id}"
+      if e.meeting_time_id
+        "mt_#{e.meeting_time_id}"
+      elsif e.final_exam_id
+        "fe_#{e.final_exam_id}"
+      else
+        "ue_#{e.university_event_id}"
+      end
     end
 
     # Initialize shared preference resolver and template renderer to avoid re-creating per event
@@ -169,15 +196,25 @@ class GoogleCalendarService
     stats = { created: 0, updated: 0, skipped: 0 }
 
     events.each do |event|
-      event_key = event[:meeting_time_id] ? "mt_#{event[:meeting_time_id]}" : "fe_#{event[:final_exam_id]}"
+      event_key = if event[:meeting_time_id]
+                    "mt_#{event[:meeting_time_id]}"
+                  elsif event[:final_exam_id]
+                    "fe_#{event[:final_exam_id]}"
+                  elsif event[:university_event_id]
+                    "ue_#{event[:university_event_id]}"
+                  end
       existing_event = existing_events[event_key]
 
       if existing_event
         # Apply preferences to get the full event data for comparison
         syncable = if event[:meeting_time_id]
                      MeetingTime.includes(course: :faculties).find_by(id: event[:meeting_time_id])
-                   else
+                   elsif event[:final_exam_id]
                      FinalExam.includes(course: :faculties).find_by(id: event[:final_exam_id])
+                   elsif event[:university_event_id]
+                     UniversityCalendarEvent.find_by(id: event[:university_event_id])
+                   else
+                     raise "Unknown event type - missing meeting_time_id, final_exam_id, or university_event_id"
                    end
         event_with_preferences = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
@@ -853,6 +890,9 @@ class GoogleCalendarService
 
   def apply_preferences_to_event(syncable, course_event, preference_resolver: nil, template_renderer: nil)
     return course_event unless syncable
+
+    # University events don't have preferences applied
+    return course_event if syncable.is_a?(UniversityCalendarEvent)
 
     # Use provided instances or create new ones (for backward compatibility)
     resolver = preference_resolver || PreferenceResolver.new(user)

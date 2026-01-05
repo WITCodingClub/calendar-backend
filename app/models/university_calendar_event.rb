@@ -115,10 +115,16 @@ class UniversityCalendarEvent < ApplicationRecord
     summary_lower = summary.to_s.downcase
     type_lower = event_type_raw.to_s.downcase
 
-    if summary_lower.include?("holiday") || summary_lower.include?("break") ||
-       summary_lower.include?("offices closed") || summary_lower.include?("no class") ||
-       summary_lower.include?("thanksgiving") || summary_lower.include?("memorial day") ||
-       summary_lower.include?("labor day") || summary_lower.include?("independence day")
+    # Check for holidays - be more specific about "break" to avoid false matches
+    if summary_lower.include?("holiday") ||
+       (summary_lower.include?("break") && (summary_lower.include?("spring") || summary_lower.include?("winter") || summary_lower.include?("fall") || summary_lower.include?("summer"))) ||
+       summary_lower.include?("offices closed") || summary_lower.include?("university closed") ||
+       summary_lower.include?("no class") || summary_lower.include?("thanksgiving") ||
+       summary_lower.include?("memorial day") || summary_lower.include?("labor day") ||
+       summary_lower.include?("independence day") || summary_lower.include?("martin luther king") ||
+       summary_lower.include?("presidents day") || summary_lower.include?("patriots day") ||
+       summary_lower.include?("juneteenth") || summary_lower.include?("july 4th") ||
+       summary_lower.include?("wellbeing day")
       "holiday"
     elsif summary_lower.include?("classes begin") || summary_lower.include?("classes end") ||
           summary_lower.include?("final") || summary_lower.include?("registration") ||
