@@ -394,7 +394,12 @@ Rails.application.routes.draw do
       resources :calendars, only: [:index, :destroy]
       resources :buildings, only: [:index]
       resources :rooms, only: [:index]
-      resources :courses, only: [:index]
+      resources :courses, only: [:index] do
+        collection do
+          get :manual_add
+          post :process_manual_add
+        end
+      end
       resources :faculties, only: [:index, :show] do
         collection do
           get :missing_rmp_ids

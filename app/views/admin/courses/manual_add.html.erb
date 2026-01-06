@@ -1,0 +1,77 @@
+<div class="flex items-center justify-between py-5 px-6 mb-5 border-b border-gray-200 dark:border-gray-700">
+  <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">Manual Course Add</h1>
+</div>
+
+<div class="px-6">
+  <div class="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+      <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
+        Add Courses for a User
+      </h3>
+      
+      <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md p-4 mb-6">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">
+              Instructions
+            </h3>
+            <div class="mt-2 text-sm text-blue-700 dark:text-blue-300">
+              <p>Paste the JSON array of course objects. Each course should have:</p>
+              <ul class="list-disc list-inside mt-1">
+                <li><code>crn</code> - Course Reference Number</li>
+                <li><code>term</code> - Term ID (e.g., "202620")</li>
+                <li><code>subject</code> - Subject code (e.g., "COMP")</li>
+                <li><code>courseNumber</code> - Course number (e.g., "1050")</li>
+                <li><code>title</code> - Course title</li>
+                <li><code>start</code> - Start date/time</li>
+                <li><code>end</code> - End date/time</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%= form_with url: process_manual_add_admin_courses_path, method: :post, local: true do |f| %>
+        <div class="space-y-6">
+          <div>
+            <%= f.label :user_id, "Select User", class: "block text-sm font-medium text-gray-700 dark:text-gray-300" %>
+            <%= f.select :user_id, 
+                options_for_select(@users.map { |u| ["#{u.email} (#{u.first_name} #{u.last_name})".strip, u.id] }),
+                { prompt: "Select a user..." },
+                class: "mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:text-white" %>
+          </div>
+
+          <div>
+            <%= f.label :courses_json, "Course JSON Data", class: "block text-sm font-medium text-gray-700 dark:text-gray-300" %>
+            <%= f.text_area :courses_json, 
+                rows: 15,
+                placeholder: '[
+  {
+    "crn": "12345",
+    "term": "202620",
+    "subject": "COMP",
+    "courseNumber": "1050",
+    "title": "Computer Science II",
+    "start": "2026-01-15T10:00:00",
+    "end": "2026-01-15T11:30:00"
+  }
+]',
+                class: "mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white font-mono",
+                required: true %>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <%= link_to "Cancel", admin_courses_path, class: "inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+            
+            <%= f.submit "Process Courses", class: "inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

@@ -26,6 +26,16 @@ class CoursePolicy < ApplicationPolicy
     super_admin?
   end
 
+  # Admins+ can manually add courses for users
+  def manual_add?
+    admin?
+  end
+
+  # Admins+ can process manual course additions
+  def process_manual_add?
+    admin?
+  end
+
   class Scope < ApplicationPolicy::Scope
     def resolve
       scope.all
