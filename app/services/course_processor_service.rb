@@ -17,10 +17,12 @@ class CourseProcessorService < ApplicationService
 
     processed_courses = []
 
-    # Deduplicate courses by CRN and term
-    unique_courses = courses.uniq { |c| [c[:crn], c[:term]] }
+    # Group courses by CRN and term to handle multiple meeting times per course
+    grouped_courses = courses.group_by { |c| [c[:crn], c[:term]] }
 
-    unique_courses.each do |course_data|
+    grouped_courses.each do |(crn, term_uid), course_meetings|
+      # Use the first meeting for course details (they should all be the same course)
+      course_data = course_meetings.first
       detailed_course_info = LeopardWebService.get_class_details(
         term: course_data[:term],
         course_reference_number: course_data[:crn]
@@ -41,28 +43,68 @@ class CourseProcessorService < ApplicationService
       schedule_type_match = detailed_course_info[:schedule_type].to_s.match(/\(([^)]+)\)/)
 
 
-      detailed_meeting_times = LeopardWebService.get_faculty_meeting_times(
-        term: course_data[:term],
-        course_reference_number: course_data[:crn]
-      )
-
-      # Extract meeting times and faculty from nested structure
-      meeting_times = []
-      faculty_data = []
-      if detailed_meeting_times["fmt"].is_a?(Array)
-        detailed_meeting_times["fmt"].each do |session|
-          meeting_time = session["meetingTime"]
-          meeting_times << meeting_time if meeting_time
-
-          # Extract faculty information (faculty is an array)
-          faculty = session["faculty"]
-          if faculty.present? && faculty.is_a?(Array)
-            faculty_data.concat(faculty)
-          elsif faculty.present?
-            faculty_data << faculty
-          end
-        end
+      # Convert frontend meeting time format to the expected format
+      # Group meetings by time to handle courses that meet multiple days per week
+      time_groups = course_meetings.group_by do |meeting|
+        start_value = meeting[:start] || meeting["start"]
+        end_value = meeting[:end] || meeting["end"]
+        
+        # Handle both datetime strings and Date objects
+        start_time = start_value.is_a?(String) ? Time.parse(start_value) : start_value.to_time
+        end_time = end_value.is_a?(String) ? Time.parse(end_value) : end_value.to_time
+        
+        [start_time.strftime("%H:%M"), end_time.strftime("%H:%M")]
       end
+      
+      meeting_times = time_groups.map do |time_key, meetings|
+        # Collect all days this time slot occurs
+        days = {
+          "sunday" => false,
+          "monday" => false,
+          "tuesday" => false,
+          "wednesday" => false,
+          "thursday" => false,
+          "friday" => false,
+          "saturday" => false
+        }
+        
+        start_dates = []
+        end_dates = []
+        
+        meetings.each do |meeting|
+          start_value = meeting[:start] || meeting["start"]
+          end_value = meeting[:end] || meeting["end"]
+          
+          # Handle both datetime strings and Date objects
+          start_time = start_value.is_a?(String) ? Time.parse(start_value) : start_value.to_time
+          end_time = end_value.is_a?(String) ? Time.parse(end_value) : end_value.to_time
+          
+          day_of_week = start_time.wday
+          day_names = %w[sunday monday tuesday wednesday thursday friday saturday]
+          days[day_names[day_of_week]] = true
+          
+          start_dates << start_time.strftime("%m/%d/%Y")
+          end_dates << end_time.strftime("%m/%d/%Y")
+        end
+        
+        # Use the earliest start date and latest end date
+        start_date = start_dates.min
+        end_date = end_dates.max
+        begin_time, end_time = time_key
+        
+        {
+          "startDate" => start_date,
+          "endDate" => end_date,
+          "beginTime" => begin_time,
+          "endTime" => end_time,
+          "building" => "TBD",
+          "buildingDescription" => "To Be Determined",
+          "room" => "TBD"
+        }.merge(days)
+      end
+      
+      # Faculty data will be fetched from LeopardWebService if needed
+      faculty_data = []
 
       # Get course start/end dates from first meeting time (in MM/DD/YYYY format)
       start_date = nil
@@ -84,7 +126,7 @@ class CourseProcessorService < ApplicationService
 
         # LeopardWeb shows total course credit hours for all sections (lecture + lab)
         # Labs are typically 0-credit companion sections, so override for LAB schedule type
-        c.credit_hours = (schedule_type_match && schedule_type_match[1] == "LAB") ? 0 : detailed_course_info[:credit_hours]
+        c.credit_hours = schedule_type_match && schedule_type_match[1] == "LAB" ? 0 : detailed_course_info[:credit_hours]
         c.grade_mode = detailed_course_info[:grade_mode]
 
         c.term = term
@@ -125,6 +167,8 @@ class CourseProcessorService < ApplicationService
       processed_courses << {
         id: course.id,
         title: course.title,
+        crn: course.crn,
+        subject: course.subject,
         course_number: course.course_number,
         schedule_type: course.schedule_type,
         term: {

@@ -124,7 +124,6 @@ RSpec.describe CourseProcessorService, type: :service do
 
         # Should only call LeopardWebService once
         expect(LeopardWebService).to receive(:get_class_details).once
-        expect(LeopardWebService).to receive(:get_faculty_meeting_times).once
 
         result = described_class.new(courses, user).call
         expect(result.length).to eq(1)
