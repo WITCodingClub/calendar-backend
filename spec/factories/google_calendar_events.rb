@@ -72,5 +72,19 @@ FactoryBot.define do
     trait :stale do
       last_synced_at { 2.hours.ago }
     end
+
+    trait :with_meeting_time do
+      association :meeting_time
+    end
+
+    trait :with_final_exam do
+      association :final_exam
+      meeting_time { nil }
+    end
+
+    trait :with_university_calendar_event do
+      association :university_calendar_event
+      meeting_time { nil }
+    end
   end
 end

@@ -68,7 +68,7 @@ class GoogleCalendarService
                   elsif e.final_exam_id
                     "fe_#{e.final_exam_id}"
                   else
-                    "ue_#{e.university_event_id}"
+                    "ue_#{e.university_calendar_event_id}"
                   end
 
       if existing_events[event_key]
@@ -98,8 +98,8 @@ class GoogleCalendarService
         "mt_#{e[:meeting_time_id]}"
       elsif e[:final_exam_id]
         "fe_#{e[:final_exam_id]}"
-      elsif e[:university_event_id]
-        "ue_#{e[:university_event_id]}"
+      elsif e[:university_calendar_event_id]
+        "ue_#{e[:university_calendar_event_id]}"
       end
     end.compact
 
@@ -123,8 +123,8 @@ class GoogleCalendarService
                     "mt_#{event[:meeting_time_id]}"
                   elsif event[:final_exam_id]
                     "fe_#{event[:final_exam_id]}"
-                  elsif event[:university_event_id]
-                    "ue_#{event[:university_event_id]}"
+                  elsif event[:university_calendar_event_id]
+                    "ue_#{event[:university_calendar_event_id]}"
                   end
       existing_event = existing_events[event_key]
 
@@ -195,14 +195,14 @@ class GoogleCalendarService
     # rubocop:disable Rails/Pluck -- events is an array of hashes, not an ActiveRecord relation
     meeting_time_ids = events.map { |e| e[:meeting_time_id] }.compact
     final_exam_ids = events.map { |e| e[:final_exam_id] }.compact
-    university_event_ids = events.map { |e| e[:university_event_id] }.compact
+    university_event_ids = events.map { |e| e[:university_calendar_event_id] }.compact
     # rubocop:enable Rails/Pluck
 
     existing_events_query = google_calendar.google_calendar_events
     conditions = []
     conditions << existing_events_query.where(meeting_time_id: meeting_time_ids) if meeting_time_ids.any?
     conditions << existing_events_query.where(final_exam_id: final_exam_ids) if final_exam_ids.any?
-    conditions << existing_events_query.where(university_event_id: university_event_ids) if university_event_ids.any?
+    conditions << existing_events_query.where(university_calendar_event_id: university_event_ids) if university_event_ids.any?
 
     existing_events_query = conditions.reduce { |query, condition| query.or(condition) } || existing_events_query
 
@@ -212,7 +212,7 @@ class GoogleCalendarService
       elsif e.final_exam_id
         "fe_#{e.final_exam_id}"
       else
-        "ue_#{e.university_event_id}"
+        "ue_#{e.university_calendar_event_id}"
       end
     end
 
@@ -227,8 +227,8 @@ class GoogleCalendarService
                     "mt_#{event[:meeting_time_id]}"
                   elsif event[:final_exam_id]
                     "fe_#{event[:final_exam_id]}"
-                  elsif event[:university_event_id]
-                    "ue_#{event[:university_event_id]}"
+                  elsif event[:university_calendar_event_id]
+                    "ue_#{event[:university_calendar_event_id]}"
                   end
       existing_event = existing_events[event_key]
 
@@ -630,10 +630,8 @@ class GoogleCalendarService
     end
 
     # Save the event ID in the database
-    google_calendar.google_calendar_events.create!(
+    event_attributes = {
       google_event_id: created_event.id,
-      meeting_time_id: course_event[:meeting_time_id],
-      final_exam_id: course_event[:final_exam_id],
       summary: event_data[:summary],
       location: event_data[:location],
       start_time: event_data[:start_time],
@@ -641,7 +639,18 @@ class GoogleCalendarService
       recurrence: event_data[:recurrence],
       event_data_hash: GoogleCalendarEvent.generate_data_hash(event_data),
       last_synced_at: Time.current
-    )
+    }
+
+    # Add only one event type association
+    if course_event[:meeting_time_id]
+      event_attributes[:meeting_time_id] = course_event[:meeting_time_id]
+    elsif course_event[:final_exam_id]
+      event_attributes[:final_exam_id] = course_event[:final_exam_id]
+    elsif course_event[:university_calendar_event_id]
+      event_attributes[:university_calendar_event_id] = course_event[:university_calendar_event_id]
+    end
+
+    google_calendar.google_calendar_events.create!(event_attributes)
   end
 
   def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, preference_resolver: nil, template_renderer: nil)
@@ -1016,14 +1025,12 @@ class GoogleCalendarService
     time_value = time.to_f
 
     case type
-    when "minutes"
-      time_value.to_i
     when "hours"
       (time_value * 60).to_i
     when "days"
       (time_value * 1440).to_i
     else
-      time_value.to_i # default to minutes
+      time_value.to_i # default to minutes (includes "minutes" case)
     end
   end
 

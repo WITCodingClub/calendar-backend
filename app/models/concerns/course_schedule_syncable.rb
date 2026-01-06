@@ -235,8 +235,8 @@ module CourseScheduleSyncable
   def earliest_final_date_for_term(term_id)
     @earliest_final_dates ||= {}
     @earliest_final_dates[term_id] ||= ::FinalExam.where(term_id: term_id)
-                                                   .where.not(exam_date: nil)
-                                                   .minimum(:exam_date)
+                                                  .where.not(exam_date: nil)
+                                                  .minimum(:exam_date)
   end
 
   # Build recurrence array with RRULE and EXDATE entries for holidays
@@ -312,7 +312,7 @@ module CourseScheduleSyncable
   # Build university calendar events for sync (holidays always, others based on preferences)
   def build_university_events_for_sync
     events = []
-    
+
     # Always include holidays (auto-sync for all users)
     UniversityCalendarEvent.holidays.upcoming.find_each do |event|
       events << {
@@ -321,7 +321,7 @@ module CourseScheduleSyncable
         location: event.location,
         start_time: event.start_time,
         end_time: event.end_time,
-        university_event_id: event.id,
+        university_calendar_event_id: event.id,
         all_day: true,
         recurrence: nil
       }
@@ -339,7 +339,7 @@ module CourseScheduleSyncable
             location: event.location,
             start_time: event.start_time,
             end_time: event.end_time,
-            university_event_id: event.id,
+            university_calendar_event_id: event.id,
             all_day: event.all_day || false,
             recurrence: nil
           }
@@ -360,9 +360,9 @@ module CourseScheduleSyncable
 
     # Only include finals that haven't happened yet (or are today)
     ::FinalExam.where(course_id: enrolled_course_ids)
-               .where("exam_date >= ?", Time.zone.today)
-             .includes(course: :faculties)
-             .find_each do |final_exam|
+               .where(exam_date: Time.zone.today..)
+               .includes(course: :faculties)
+               .find_each do |final_exam|
       next unless final_exam.start_datetime && final_exam.end_datetime
 
       finals << {

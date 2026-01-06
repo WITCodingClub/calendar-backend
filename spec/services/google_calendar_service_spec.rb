@@ -10,7 +10,7 @@ RSpec.describe GoogleCalendarService do
 
   describe "#user_edited_event?" do
     let(:db_event) do
-      create(:google_calendar_event,
+      create(:google_calendar_event, :with_meeting_time,
              google_calendar: google_calendar,
              google_event_id: "test_event_123",
              summary: "Original Course Title",
@@ -141,7 +141,7 @@ RSpec.describe GoogleCalendarService do
 
   describe "#update_db_from_gcal_event" do
     let(:db_event) do
-      create(:google_calendar_event,
+      create(:google_calendar_event, :with_meeting_time,
              google_calendar: google_calendar,
              google_event_id: "test_event_123",
              summary: "Original Course Title",
