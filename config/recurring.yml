@@ -83,6 +83,12 @@ university_calendar_sync:
   queue: low
   schedule: every saturday at 2am
 
+# Course data synchronization - check for changes daily
+course_data_sync:
+  class: CourseDataSyncJob
+  queue: low
+  schedule: every day at 4am
+
 # Sunday: RateMyProfessor maintenance (in order: fill IDs, then update ratings)
 fill_missing_rmp_ids:
   class: FillMissingRmpIdsJob
