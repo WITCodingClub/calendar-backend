@@ -90,6 +90,9 @@ class CourseProcessorService < ApplicationService
         c.term = term
       end
 
+      # Ensure existing courses also have the correct term
+      course.update!(term: term) if course.term_id != term.id
+
       # Update dates if course already exists
       if course.persisted? && !course.new_record? && start_date.present? && end_date.present?
         course.update!(
