@@ -55,13 +55,40 @@ class GoogleCalendarService
 
     # Get existing calendar events from database
     # Index by a composite key that handles meeting_time_id, final_exam_id, and university_event_id
-    existing_events = google_calendar.google_calendar_events.index_by do |e|
-      if e.meeting_time_id
-        "mt_#{e.meeting_time_id}"
-      elsif e.final_exam_id
-        "fe_#{e.final_exam_id}"
+    # Group duplicates and keep only the most recent one to handle existing duplicates
+    all_existing_events = google_calendar.google_calendar_events.to_a
+
+    # Detect and handle duplicates
+    existing_events = {}
+    duplicates_to_delete = []
+
+    all_existing_events.each do |e|
+      event_key = if e.meeting_time_id
+                    "mt_#{e.meeting_time_id}"
+                  elsif e.final_exam_id
+                    "fe_#{e.final_exam_id}"
+                  else
+                    "ue_#{e.university_event_id}"
+                  end
+
+      if existing_events[event_key]
+        # Duplicate found - keep the newer one, mark old one for deletion
+        if e.created_at > existing_events[event_key].created_at
+          duplicates_to_delete << existing_events[event_key]
+          existing_events[event_key] = e
+        else
+          duplicates_to_delete << e
+        end
       else
-        "ue_#{e.university_event_id}"
+        existing_events[event_key] = e
+      end
+    end
+
+    # Delete duplicates from both database and Google Calendar
+    if duplicates_to_delete.any?
+      Rails.logger.info "Cleaning up #{duplicates_to_delete.size} duplicate calendar events"
+      with_batch_throttling(duplicates_to_delete) do |cal_event|
+        delete_event_from_calendar(service, google_calendar, cal_event)
       end
     end
 
@@ -176,7 +203,7 @@ class GoogleCalendarService
     conditions << existing_events_query.where(meeting_time_id: meeting_time_ids) if meeting_time_ids.any?
     conditions << existing_events_query.where(final_exam_id: final_exam_ids) if final_exam_ids.any?
     conditions << existing_events_query.where(university_event_id: university_event_ids) if university_event_ids.any?
-    
+
     existing_events_query = conditions.reduce { |query, condition| query.or(condition) } || existing_events_query
 
     existing_events = existing_events_query.index_by do |e|

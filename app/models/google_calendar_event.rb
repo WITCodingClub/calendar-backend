@@ -24,6 +24,9 @@
 # Indexes
 #
 #  idx_gcal_events_on_calendar_and_uni_event                     (google_calendar_id,university_calendar_event_id)
+#  idx_gcal_events_unique_final_exam                             (google_calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
+#  idx_gcal_events_unique_meeting_time                           (google_calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
+#  idx_gcal_events_unique_university                             (google_calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
 #  idx_on_google_calendar_id_meeting_time_id_6c9efabf50          (google_calendar_id,meeting_time_id)
 #  index_google_calendar_events_on_final_exam_id                 (final_exam_id)
 #  index_google_calendar_events_on_google_calendar_id            (google_calendar_id)
@@ -53,6 +56,14 @@ class GoogleCalendarEvent < ApplicationRecord
   has_one :user, through: :oauth_credential
 
   validates :google_event_id, presence: true
+
+  # Ensure only one type of event is associated
+  validate :only_one_event_type_associated
+
+  # Ensure no duplicates for the same calendar and event
+  validates :meeting_time_id, uniqueness: { scope: :google_calendar_id }, if: :meeting_time_id?
+  validates :final_exam_id, uniqueness: { scope: :google_calendar_id }, if: :final_exam?
+  validates :university_calendar_event_id, uniqueness: { scope: :google_calendar_id }, if: :university_event?
 
   # Serialize recurrence as an array
   serialize :recurrence, coder: JSON
@@ -124,6 +135,17 @@ class GoogleCalendarEvent < ApplicationRecord
   # Check if event needs syncing based on staleness
   def needs_sync?(threshold = 1.hour)
     last_synced_at.nil? || last_synced_at < threshold.ago
+  end
+
+  private
+
+  # Ensure only one event type is associated at a time
+  def only_one_event_type_associated
+    event_types = [meeting_time_id, final_exam_id, university_calendar_event_id].compact
+    return unless event_types.size != 1
+
+    errors.add(:base, "Must be associated with exactly one of: meeting_time, final_exam, or university_calendar_event")
+
   end
 
 end

@@ -24,6 +24,9 @@
 # Indexes
 #
 #  idx_gcal_events_on_calendar_and_uni_event                     (google_calendar_id,university_calendar_event_id)
+#  idx_gcal_events_unique_final_exam                             (google_calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
+#  idx_gcal_events_unique_meeting_time                           (google_calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
+#  idx_gcal_events_unique_university                             (google_calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
 #  idx_on_google_calendar_id_meeting_time_id_6c9efabf50          (google_calendar_id,meeting_time_id)
 #  index_google_calendar_events_on_final_exam_id                 (final_exam_id)
 #  index_google_calendar_events_on_google_calendar_id            (google_calendar_id)

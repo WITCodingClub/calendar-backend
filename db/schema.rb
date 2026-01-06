@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_05_021459) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_05_212842) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -394,8 +394,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_021459) do
     t.bigint "university_calendar_event_id"
     t.datetime "updated_at", null: false
     t.index ["final_exam_id"], name: "index_google_calendar_events_on_final_exam_id"
+    t.index ["google_calendar_id", "final_exam_id"], name: "idx_gcal_events_unique_final_exam", unique: true, where: "(final_exam_id IS NOT NULL)"
+    t.index ["google_calendar_id", "meeting_time_id"], name: "idx_gcal_events_unique_meeting_time", unique: true, where: "(meeting_time_id IS NOT NULL)"
     t.index ["google_calendar_id", "meeting_time_id"], name: "idx_on_google_calendar_id_meeting_time_id_6c9efabf50"
     t.index ["google_calendar_id", "university_calendar_event_id"], name: "idx_gcal_events_on_calendar_and_uni_event"
+    t.index ["google_calendar_id", "university_calendar_event_id"], name: "idx_gcal_events_unique_university", unique: true, where: "(university_calendar_event_id IS NOT NULL)"
     t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
     t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
     t.index ["last_synced_at"], name: "index_google_calendar_events_on_last_synced_at"
