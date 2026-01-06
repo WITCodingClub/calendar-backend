@@ -13,7 +13,10 @@ class CourseReprocessService < ApplicationService
     @courses = courses
     @user = user
     # Extract term UID from first course (all courses should be same term)
-    @term_uid = courses.first&.dig(:term) || courses.first&.dig("term")
+    if courses.is_a?(Array) && courses.any?
+      first_course = courses.first
+      @term_uid = first_course.is_a?(Hash) ? (first_course[:term] || first_course["term"]) : nil
+    end
     super()
   end
 
@@ -30,7 +33,9 @@ class CourseReprocessService < ApplicationService
     current_crns = current_enrollments.map { |e| e.course.crn }
 
     # Get new CRNs from the incoming course list
-    new_crns = courses.map { |c| (c[:crn] || c["crn"]).to_i }
+    # Convert courses to use symbol keys for CourseProcessorService
+    @courses = courses.map { |c| c.deep_symbolize_keys }
+    new_crns = @courses.map { |c| c[:crn].to_i }
 
     Rails.logger.info("[CourseReprocess] User #{user.id}: Current CRNs: #{current_crns.inspect}")
     Rails.logger.info("[CourseReprocess] User #{user.id}: New CRNs: #{new_crns.inspect}")
@@ -83,6 +88,39 @@ class CourseReprocessService < ApplicationService
 
   private
 
+  def user_calendar_service
+    @user_calendar_service ||= begin
+      service = Google::Apis::CalendarV3::CalendarService.new
+      service.authorization = build_google_authorization
+      service
+    end
+  end
+
+  def build_google_authorization
+    require "googleauth"
+    return unless user.google_credential
+
+    credentials = Google::Auth::UserRefreshCredentials.new(
+      client_id: Rails.application.credentials.dig(:google, :client_id),
+      client_secret: Rails.application.credentials.dig(:google, :client_secret),
+      scope: ["https://www.googleapis.com/auth/calendar"],
+      access_token: user.google_access_token,
+      refresh_token: user.google_refresh_token,
+      expires_at: user.google_token_expires_at
+    )
+
+    # Refresh the token if needed
+    if user.google_token_expired?
+      credentials.refresh!
+      user.google_credential.update!(
+        access_token: credentials.access_token,
+        token_expires_at: Time.zone.at(credentials.expires_at)
+      )
+    end
+
+    credentials
+  end
+
   def validate_input!
     raise ArgumentError, "courses cannot be nil" if courses.nil?
     raise ArgumentError, "courses must be an array" unless courses.is_a?(Array)
@@ -101,19 +139,20 @@ class CourseReprocessService < ApplicationService
     return 0 if meeting_time_ids.empty?
 
     # Find and delete calendar events for these meeting times
-    google_calendar = user.google_calendar
+    google_calendar = user.google_calendars.find_by(google_calendar_id: user.google_course_calendar_id)
     return 0 unless google_calendar
 
     calendar_events = google_calendar.google_calendar_events.where(meeting_time_id: meeting_time_ids)
     return 0 if calendar_events.empty?
 
-    service = GoogleCalendarService.new(user)
+    # Delete events from Google Calendar and database
     deleted_count = 0
+    service = user_calendar_service
 
     calendar_events.find_each do |cal_event|
       begin
         Rails.logger.info("[CourseReprocess] User #{user.id}: Deleting calendar event #{cal_event.google_event_id} for meeting_time #{cal_event.meeting_time_id}")
-        service.delete_event(cal_event.google_event_id)
+        service.delete_event(user.google_course_calendar_id, cal_event.google_event_id)
         cal_event.destroy!
         deleted_count += 1
       rescue Google::Apis::ClientError => e

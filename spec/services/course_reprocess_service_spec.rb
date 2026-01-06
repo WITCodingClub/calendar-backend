@@ -131,7 +131,7 @@ RSpec.describe CourseReprocessService, type: :service do
 
     context "calendar event cleanup" do
       let(:credential) { create(:oauth_credential, user: user, provider: "google") }
-      let(:google_calendar) { create(:google_calendar, oauth_credential: credential) }
+      let(:google_calendar) { create(:google_calendar, oauth_credential: credential, google_calendar_id: "test_cal_123") }
       let(:existing_course) { create(:course, crn: 11111, term: term, title: "Course To Remove") }
       let!(:meeting_time) { create(:meeting_time, course: existing_course) }
       let!(:enrollment) { create(:enrollment, user: user, course: existing_course, term: term) }
@@ -143,8 +143,10 @@ RSpec.describe CourseReprocessService, type: :service do
       end
 
       before do
-        # Stub the GoogleCalendarService delete method
-        allow_any_instance_of(GoogleCalendarService).to receive(:delete_event)
+        # Stub the Google Calendar API delete method
+        allow_any_instance_of(Google::Apis::CalendarV3::CalendarService).to receive(:delete_event)
+        # Ensure the user returns the google calendar ID
+        allow(user).to receive(:google_course_calendar_id).and_return("test_cal_123")
       end
 
       it "deletes calendar events for removed courses" do
@@ -152,7 +154,7 @@ RSpec.describe CourseReprocessService, type: :service do
           { crn: 22222, term: term.uid, courseNumber: "ENG102", start: Time.zone.today, end: Time.zone.today + 90.days }
         ]
 
-        expect_any_instance_of(GoogleCalendarService).to receive(:delete_event).with("test_event_123")
+        expect_any_instance_of(Google::Apis::CalendarV3::CalendarService).to receive(:delete_event).with("test_cal_123", "test_event_123")
 
         result = described_class.new(courses, user).call
 
@@ -165,7 +167,7 @@ RSpec.describe CourseReprocessService, type: :service do
           { crn: 22222, term: term.uid, courseNumber: "ENG102", start: Time.zone.today, end: Time.zone.today + 90.days }
         ]
 
-        allow_any_instance_of(GoogleCalendarService).to receive(:delete_event)
+        allow_any_instance_of(Google::Apis::CalendarV3::CalendarService).to receive(:delete_event)
           .and_raise(Google::Apis::ClientError.new("Not Found"))
 
         result = described_class.new(courses, user).call
