@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_06_230416) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_06_230648) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -248,7 +248,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_06_230416) do
     t.bigint "term_id", null: false
     t.string "title"
     t.datetime "updated_at", null: false
-    t.index ["crn"], name: "index_courses_on_crn", unique: true
+    t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
+    t.index ["crn"], name: "index_courses_on_crn"
     t.index ["term_id"], name: "index_courses_on_term_id"
   end
 

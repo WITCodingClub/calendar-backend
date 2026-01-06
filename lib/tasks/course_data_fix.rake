@@ -74,11 +74,8 @@ namespace :course_data do
     
     # Disconnect calendar events (orphan them)
     puts "Orphaning Google Calendar events..."
-    GoogleCalendarEvent.update_all(
-      meeting_time_id: nil, 
-      enrollment_id: nil,
-      orphaned_at: Time.current,
-      orphaned_reason: "CRN uniqueness fix"
+    GoogleCalendarEvent.where.not(meeting_time_id: nil).update_all(
+      meeting_time_id: nil
     )
     
     # Delete in correct order to avoid foreign key constraints
