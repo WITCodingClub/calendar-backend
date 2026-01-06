@@ -115,7 +115,7 @@ class CourseProcessorService < ApplicationService
         end_date = parse_date(first_meeting["endDate"])
       end
 
-      course = Course.find_or_create_by!(crn: course_data[:crn]) do |c|
+      course = Course.find_or_create_by!(crn: course_data[:crn], term: term) do |c|
         c.title = titleize_with_roman_numerals(detailed_course_info[:title])
         c.start_date = start_date
         c.end_date = end_date
@@ -128,12 +128,7 @@ class CourseProcessorService < ApplicationService
         # Labs are typically 0-credit companion sections, so override for LAB schedule type
         c.credit_hours = schedule_type_match && schedule_type_match[1] == "LAB" ? 0 : detailed_course_info[:credit_hours]
         c.grade_mode = detailed_course_info[:grade_mode]
-
-        c.term = term
       end
-
-      # Ensure existing courses also have the correct term
-      course.update!(term: term) if course.term_id != term.id
 
       # Update dates if course already exists
       if course.persisted? && !course.new_record? && start_date.present? && end_date.present?

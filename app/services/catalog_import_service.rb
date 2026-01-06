@@ -118,7 +118,7 @@ class CatalogImportService < ApplicationService
     end
 
     # Create or update course using bulk catalog data
-    course = Course.find_or_create_by!(crn: crn) do |c|
+    course = Course.find_or_create_by!(crn: crn, term: term) do |c|
       c.title = titleize_with_roman_numerals(course_data["courseTitle"] || "Untitled Course")
       c.subject = course_data["subject"] || course_data["subjectCode"]
       c.course_number = course_data["courseNumber"]

@@ -47,7 +47,7 @@ class Course < ApplicationRecord
 
   has_neighbors :embedding
 
-  validates :crn, uniqueness: true, allow_nil: true
+  validates :crn, uniqueness: { scope: :term_id, message: "has already been taken for this term" }, allow_nil: true
 
   # Update term dates when course dates change
   after_save :update_term_dates, if: -> { saved_change_to_start_date? || saved_change_to_end_date? }

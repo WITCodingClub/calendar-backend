@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_05_212842) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_06_230416) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -269,6 +269,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212842) do
     t.index ["email"], name: "index_emails_on_email", unique: true
     t.index ["user_id", "primary"], name: "index_emails_on_user_id_and_primary", unique: true, where: "(\"primary\" = true)"
     t.index ["user_id"], name: "index_emails_on_user_id"
+  end
+
+  create_table "enrollment_snapshots", force: :cascade do |t|
+    t.integer "course_number"
+    t.datetime "created_at", null: false
+    t.integer "credit_hours"
+    t.integer "crn", null: false
+    t.jsonb "faculty_data", default: []
+    t.string "schedule_type"
+    t.string "section_number"
+    t.datetime "snapshot_created_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.string "snapshot_reason"
+    t.string "subject"
+    t.bigint "term_id", null: false
+    t.string "title"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["crn"], name: "index_enrollment_snapshots_on_crn"
+    t.index ["snapshot_created_at"], name: "index_enrollment_snapshots_on_snapshot_created_at"
+    t.index ["term_id"], name: "index_enrollment_snapshots_on_term_id"
+    t.index ["user_id", "term_id", "crn"], name: "idx_enrollment_snapshots_unique", unique: true
+    t.index ["user_id"], name: "index_enrollment_snapshots_on_user_id"
   end
 
   create_table "enrollments", force: :cascade do |t|
@@ -688,6 +710,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212842) do
   add_foreign_key "calendar_preferences", "users"
   add_foreign_key "courses", "terms"
   add_foreign_key "emails", "users"
+  add_foreign_key "enrollment_snapshots", "terms"
+  add_foreign_key "enrollment_snapshots", "users"
   add_foreign_key "enrollments", "courses"
   add_foreign_key "enrollments", "terms"
   add_foreign_key "enrollments", "users"
