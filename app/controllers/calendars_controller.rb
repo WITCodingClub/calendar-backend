@@ -50,16 +50,16 @@ class CalendarsController < ApplicationController
       t.tzid = "America/New_York"
 
       t.daylight do |d|
-        d.tzoffsetfrom = "-0600"
-        d.tzoffsetto   = "-0500"
+        d.tzoffsetfrom = "-0500"
+        d.tzoffsetto   = "-0400"
         d.tzname       = "EDT"
         d.dtstart      = "19700308T020000"
         d.rrule        = "FREQ=YEARLY;BYMONTH=3;BYDAY=2SU"
       end
 
       t.standard do |s|
-        s.tzoffsetfrom = "-0500"
-        s.tzoffsetto   = "-0600"
+        s.tzoffsetfrom = "-0400"
+        s.tzoffsetto   = "-0500"
         s.tzname       = "EST"
         s.dtstart      = "19701101T020000"
         s.rrule        = "FREQ=YEARLY;BYMONTH=11;BYDAY=1SU"
@@ -85,8 +85,8 @@ class CalendarsController < ApplicationController
           start_time = parse_time(first_meeting_date, meeting_time.begin_time)
           end_time = parse_time(first_meeting_date, meeting_time.end_time)
 
-          e.dtstart = Icalendar::Values::DateTime.new(start_time)
-          e.dtend = Icalendar::Values::DateTime.new(end_time)
+          e.dtstart = Icalendar::Values::DateTime.new(start_time, tzid: "America/New_York")
+          e.dtend = Icalendar::Values::DateTime.new(end_time, tzid: "America/New_York")
 
           # Resolve user preferences for this meeting time
           prefs = @preference_resolver.resolve_for(meeting_time)
@@ -113,12 +113,14 @@ class CalendarsController < ApplicationController
 
           # Recurring rule for this specific day of the week
           # Each meeting_time now represents a single day
-          e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{meeting_time.end_date.strftime('%Y%m%dT%H%M%SZ')}"
+          # Format UNTIL with timezone (235959 = end of day in Eastern Time)
+          until_datetime = Time.zone.local(meeting_time.end_date.year, meeting_time.end_date.month, meeting_time.end_date.day, 23, 59, 59)
+          e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_datetime.strftime('%Y%m%dT%H%M%S')}"
 
           # Add EXDATE entries for holidays to skip class on those days
           holiday_exdates = build_holiday_exdates_for_meeting_time(meeting_time, start_time)
           holiday_exdates.each do |exdate|
-            e.append_exdate(Icalendar::Values::DateTime.new(exdate))
+            e.append_exdate(Icalendar::Values::DateTime.new(exdate, tzid: "America/New_York"))
           end
 
           # Stable UID for consistent event identity across refreshes
@@ -136,7 +138,7 @@ class CalendarsController < ApplicationController
           end
 
           # Timestamps for change detection
-          e.dtstamp = Icalendar::Values::DateTime.new(Time.current)
+          e.dtstamp = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
 
           if color_hex
             e.append_custom_property("X-APPLE-CALENDAR-COLOR", "##{color_hex}")
@@ -145,7 +147,7 @@ class CalendarsController < ApplicationController
 
           # Use the most recent update time between course and meeting_time
           last_modified = [course.updated_at, meeting_time.updated_at].max
-          e.last_modified = Icalendar::Values::DateTime.new(last_modified)
+          e.last_modified = Icalendar::Values::DateTime.new(last_modified, tzid: "America/New_York")
 
           # Sequence number based on update timestamps (helps clients detect changes)
           # Using seconds since epoch divided by 60 to get a stable incrementing number
@@ -170,8 +172,8 @@ class CalendarsController < ApplicationController
       next unless final_exam.start_datetime && final_exam.end_datetime
 
       cal.event do |e|
-        e.dtstart = Icalendar::Values::DateTime.new(final_exam.start_datetime)
-        e.dtend = Icalendar::Values::DateTime.new(final_exam.end_datetime)
+        e.dtstart = Icalendar::Values::DateTime.new(final_exam.start_datetime, tzid: "America/New_York")
+        e.dtend = Icalendar::Values::DateTime.new(final_exam.end_datetime, tzid: "America/New_York")
 
         e.summary = "Final Exam: #{final_exam.course_title}"
         e.description = final_exam.course_code
@@ -180,8 +182,8 @@ class CalendarsController < ApplicationController
         # Stable UID for final exams
         e.uid = "final-exam-#{final_exam.id}@calendar-util.wit.edu"
 
-        e.dtstamp = Icalendar::Values::DateTime.new(Time.current)
-        e.last_modified = Icalendar::Values::DateTime.new(final_exam.updated_at)
+        e.dtstamp = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
+        e.last_modified = Icalendar::Values::DateTime.new(final_exam.updated_at, tzid: "America/New_York")
         e.sequence = (final_exam.updated_at.to_i / 60)
       end
     end
@@ -211,13 +213,13 @@ class CalendarsController < ApplicationController
     cal.event do |e|
       # Force holidays to be all-day events regardless of database value
       is_all_day = force_all_day || event.all_day || event.category == "holiday"
-      
+
       if is_all_day
         e.dtstart = Icalendar::Values::Date.new(event.start_time.to_date)
         e.dtend = Icalendar::Values::Date.new(event.end_time.to_date + 1.day) # ICS all-day is exclusive
       else
-        e.dtstart = Icalendar::Values::DateTime.new(event.start_time)
-        e.dtend = Icalendar::Values::DateTime.new(event.end_time)
+        e.dtstart = Icalendar::Values::DateTime.new(event.start_time, tzid: "America/New_York")
+        e.dtend = Icalendar::Values::DateTime.new(event.end_time, tzid: "America/New_York")
       end
 
       # Add holiday prefix to make it clear in calendar apps
@@ -226,25 +228,25 @@ class CalendarsController < ApplicationController
       else
         e.summary = event.summary
       end
-      
+
       e.description = event.description if event.description.present?
       e.location = event.location if event.location.present?
 
       # Stable UID based on ICS UID from source
       e.uid = "university-#{event.ics_uid}@calendar-util.wit.edu"
 
-      e.dtstamp = Icalendar::Values::DateTime.new(Time.current)
-      e.last_modified = Icalendar::Values::DateTime.new(event.updated_at)
+      e.dtstamp = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
+      e.last_modified = Icalendar::Values::DateTime.new(event.updated_at, tzid: "America/New_York")
       e.sequence = (event.updated_at.to_i / 60)
 
       # Add category as custom property
       e.categories = [event.category.titleize] if event.category.present?
-      
+
       # Add custom properties to help calendar apps identify holidays
       if event.category == "holiday"
         e.append_custom_property("X-MICROSOFT-CDO-ALLDAYEVENT", "TRUE")
         e.append_custom_property("X-MICROSOFT-CDO-BUSYSTATUS", "FREE")
-        e.transp = "TRANSPARENT"  # Show as "free" time
+        e.transp = "TRANSPARENT" # Show as "free" time
       end
     end
   end
