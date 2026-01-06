@@ -96,6 +96,18 @@ class UniversityCalendarIcsService < ApplicationService
       custom_fields["Event Type"]
     )
 
+    # Determine if this should be an all-day event
+    # Force holidays to be all-day regardless of ICS format
+    is_all_day = category == "holiday" || all_day_event?(ics_event)
+    
+    # For all-day events, normalize times to beginning and end of day
+    # but preserve original date range for multi-day events
+    if is_all_day
+      original_end_date = end_time.to_date
+      start_time = start_time.beginning_of_day
+      end_time = original_end_date.end_of_day
+    end
+
     # Assign attributes
     event.assign_attributes(
       summary: ics_event.summary.to_s,
@@ -103,7 +115,7 @@ class UniversityCalendarIcsService < ApplicationService
       location: ics_event.location&.to_s,
       start_time: start_time,
       end_time: end_time,
-      all_day: all_day_event?(ics_event),
+      all_day: is_all_day,
       recurrence: extract_recurrence(ics_event),
       category: category,
       organization: custom_fields["Organization"],
