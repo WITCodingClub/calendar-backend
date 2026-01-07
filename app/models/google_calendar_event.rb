@@ -114,7 +114,7 @@ class GoogleCalendarEvent < ApplicationRecord
       event_data[:all_day]
     ].join("|")
 
-    Digest::SHA256.hexdigest(hash_input)[0..15] # Use first 16 chars
+    Digest::SHA256.hexdigest(hash_input)
   end
 
   # Check if this event's data has changed
