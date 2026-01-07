@@ -106,13 +106,13 @@ namespace :calendars do
         
         # Create new calendar
         service = GoogleCalendarService.new(user)
-        calendar_response = service.create_or_get_course_calendar
+        calendar_id = service.create_or_get_course_calendar
         
-        if calendar_response[:success]
-          puts "✅ Successfully created calendar for #{user_email}"
+        if calendar_id
+          puts "✅ Successfully created calendar for #{user_email} (ID: #{calendar_id})"
           created_count += 1
         else
-          puts "❌ Failed to create calendar for #{user_email}: #{calendar_response[:error]}"
+          puts "❌ Failed to create calendar for #{user_email}"
           error_count += 1
         end
         
