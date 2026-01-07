@@ -29,11 +29,17 @@ module CourseScheduleSyncable
         next unless start_time && end_time
 
         # Skip TBD/placeholder locations entirely - don't create events for them
-        if (meeting_time.building && tbd_building?(meeting_time.building)) ||
-           (meeting_time.room && tbd_room?(meeting_time.room)) ||
-           (meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room))
+        Rails.logger.debug "TBD Check for meeting_time #{meeting_time.id}: course=#{course.title}, building=#{meeting_time.building&.name}, room=#{meeting_time.room&.number}"
+        building_check = meeting_time.building && tbd_building?(meeting_time.building)
+        room_check = meeting_time.room && tbd_room?(meeting_time.room)
+        location_check = meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room)
+        Rails.logger.debug "TBD Checks: building=#{building_check}, room=#{room_check}, location=#{location_check}"
+        
+        if building_check || room_check || location_check
+          Rails.logger.debug "✅ SKIPPING TBD meeting time #{meeting_time.id}"
           next # Skip this meeting time completely
         end
+        Rails.logger.debug "❌ NOT SKIPPING meeting time #{meeting_time.id} - creating event"
 
         # Build location string for valid locations
         location = if meeting_time.room && meeting_time.building
