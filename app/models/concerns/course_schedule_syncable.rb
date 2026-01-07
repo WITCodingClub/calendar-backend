@@ -33,7 +33,7 @@ module CourseScheduleSyncable
                       !tbd_location?(meeting_time.building, meeting_time.room)
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
                    elsif meeting_time.room && !tbd_room?(meeting_time.room)
-                     meeting_time.room.name
+                     meeting_time.room.formatted_number
                    end
 
         # Build course code from subject-number-section
@@ -90,7 +90,7 @@ module CourseScheduleSyncable
                       !tbd_location?(meeting_time.building, meeting_time.room)
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
                    elsif meeting_time.room && !tbd_room?(meeting_time.room)
-                     meeting_time.room.name
+                     meeting_time.room.formatted_number
                    end
 
         course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
@@ -274,9 +274,32 @@ module CourseScheduleSyncable
     holidays = holidays_for_meeting_time(meeting_time)
     return [] if holidays.empty?
 
-    # Filter to holidays that fall on this day of week and build EXDATE strings
-    holidays.select { |h| h.start_time.wday == target_wday }
-            .map { |h| format_exdate(h.start_time.to_date, start_time) }
+    # Filter to holidays that have any day falling on this meeting day
+    matching_holidays = holidays.select do |holiday|
+      if holiday.end_time && holiday.start_time.to_date != holiday.end_time.to_date
+        # Multi-day event: check if any day in the range matches target weekday
+        (holiday.start_time.to_date..holiday.end_time.to_date).any? { |date| date.wday == target_wday }
+      else
+        # Single-day event: check if the day matches
+        holiday.start_time.wday == target_wday
+      end
+    end
+
+    # Build EXDATE strings for all matching dates
+    exdates = []
+    matching_holidays.each do |holiday|
+      if holiday.end_time && holiday.start_time.to_date != holiday.end_time.to_date
+        # Multi-day: add EXDATE for each matching weekday in the range
+        (holiday.start_time.to_date..holiday.end_time.to_date).each do |date|
+          exdates << format_exdate(date, start_time) if date.wday == target_wday
+        end
+      else
+        # Single-day: add one EXDATE
+        exdates << format_exdate(holiday.start_time.to_date, start_time)
+      end
+    end
+
+    exdates
   end
 
   # Get holidays that apply to a meeting time's date range
@@ -442,8 +465,10 @@ module CourseScheduleSyncable
   def tbd_room?(room)
     return false unless room
     
-    room.number == 0 ||
-      room.name&.downcase&.include?("tbd") ||
-      room.name&.downcase&.include?("to be determined")
+    room.number == 0
+    # Note: Room model in production only has 'number', not 'name'
+    # If room.name is added later, uncomment these lines:
+    # room.name&.downcase&.include?("tbd") ||
+    # room.name&.downcase&.include?("to be determined")
   end
 end
