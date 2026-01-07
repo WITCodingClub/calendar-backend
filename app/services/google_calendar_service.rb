@@ -570,24 +570,33 @@ class GoogleCalendarService
     # Apply user preferences to event data
     event_data = apply_preferences_to_event(syncable, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
-    # Ensure times are in Eastern timezone
-    start_time_et = event_data[:start_time].in_time_zone("America/New_York")
-    end_time_et = event_data[:end_time].in_time_zone("America/New_York")
-
+    # Build the Google event object
     google_event = Google::Apis::CalendarV3::Event.new(
       summary: event_data[:summary],
       description: event_data[:description],
       location: event_data[:location],
-      start: {
-        date_time: start_time_et.iso8601,
-        time_zone: "America/New_York"
-      },
-      end: {
-        date_time: end_time_et.iso8601,
-        time_zone: "America/New_York"
-      },
       color_id: event_data[:color_id]&.to_s
     )
+
+    # Handle all-day events differently than timed events
+    if event_data[:all_day]
+      # For all-day events, use date format (not date_time)
+      google_event.start = { date: event_data[:start_time].to_date.to_s }
+      google_event.end = { date: event_data[:end_time].to_date.to_s }
+    else
+      # For timed events, use date_time format with timezone
+      start_time_et = event_data[:start_time].in_time_zone("America/New_York")
+      end_time_et = event_data[:end_time].in_time_zone("America/New_York")
+      
+      google_event.start = {
+        date_time: start_time_et.iso8601,
+        time_zone: "America/New_York"
+      }
+      google_event.end = {
+        date_time: end_time_et.iso8601,
+        time_zone: "America/New_York"
+      }
+    end
 
     # Only set recurrence if it has a value - Google API gem fails on nil
     google_event.recurrence = event_data[:recurrence] if event_data[:recurrence].present?
@@ -707,30 +716,46 @@ class GoogleCalendarService
     end
 
     # No user edits detected, proceed with normal update from our system
-    meeting_time = MeetingTime.includes(course: :faculties).find_by(id: course_event[:meeting_time_id])
+    # Determine the syncable object (meeting_time, final_exam, or university event)
+    syncable = if course_event[:meeting_time_id]
+                 MeetingTime.includes(course: :faculties).find_by(id: course_event[:meeting_time_id])
+               elsif course_event[:final_exam_id]
+                 FinalExam.includes(course: :faculties).find_by(id: course_event[:final_exam_id])
+               elsif course_event[:university_calendar_event_id]
+                 UniversityCalendarEvent.find_by(id: course_event[:university_calendar_event_id])
+               end
 
     # Apply user preferences to event data
     # Note: course_event may already have preferences applied, but re-applying is safe (idempotent)
-    event_data = apply_preferences_to_event(meeting_time, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
+    event_data = apply_preferences_to_event(syncable, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
-    # Ensure times are in Eastern timezone
-    start_time_et = event_data[:start_time].in_time_zone("America/New_York")
-    end_time_et = event_data[:end_time].in_time_zone("America/New_York")
-
+    # Build the Google event object
     google_event = Google::Apis::CalendarV3::Event.new(
       summary: event_data[:summary],
       description: event_data[:description],
       location: event_data[:location],
-      start: {
-        date_time: start_time_et.iso8601,
-        time_zone: "America/New_York"
-      },
-      end: {
-        date_time: end_time_et.iso8601,
-        time_zone: "America/New_York"
-      },
       color_id: event_data[:color_id]&.to_s
     )
+
+    # Handle all-day events differently than timed events
+    if event_data[:all_day]
+      # For all-day events, use date format (not date_time)
+      google_event.start = { date: event_data[:start_time].to_date.to_s }
+      google_event.end = { date: event_data[:end_time].to_date.to_s }
+    else
+      # For timed events, use date_time format with timezone
+      start_time_et = event_data[:start_time].in_time_zone("America/New_York")
+      end_time_et = event_data[:end_time].in_time_zone("America/New_York")
+      
+      google_event.start = {
+        date_time: start_time_et.iso8601,
+        time_zone: "America/New_York"
+      }
+      google_event.end = {
+        date_time: end_time_et.iso8601,
+        time_zone: "America/New_York"
+      }
+    end
 
     # Only set recurrence if it has a value - Google API gem fails on nil
     google_event.recurrence = event_data[:recurrence] if event_data[:recurrence].present?

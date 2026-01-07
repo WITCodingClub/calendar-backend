@@ -110,7 +110,8 @@ class GoogleCalendarEvent < ApplicationRecord
       event_data[:recurrence]&.to_json,
       event_data[:reminder_settings]&.to_json,
       event_data[:color_id]&.to_s,
-      event_data[:visibility]
+      event_data[:visibility],
+      event_data[:all_day]
     ].join("|")
 
     Digest::SHA256.hexdigest(hash_input)[0..15] # Use first 16 chars
