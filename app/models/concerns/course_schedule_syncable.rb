@@ -28,11 +28,17 @@ module CourseScheduleSyncable
         end_time = parse_time(first_meeting_date, meeting_time.end_time)
         next unless start_time && end_time
 
-        # Build location string - skip TBD/placeholder locations
-        location = if meeting_time.room && meeting_time.building && 
-                      !tbd_location?(meeting_time.building, meeting_time.room)
+        # Skip TBD/placeholder locations entirely - don't create events for them
+        if meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room)
+          next # Skip this meeting time completely
+        elsif meeting_time.room && tbd_room?(meeting_time.room) 
+          next # Skip this meeting time completely
+        end
+
+        # Build location string for valid locations
+        location = if meeting_time.room && meeting_time.building
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
+                   elsif meeting_time.room
                      meeting_time.room.formatted_number
                    end
 
@@ -86,10 +92,17 @@ module CourseScheduleSyncable
         end_time = parse_time(first_meeting_date, meeting_time.end_time)
         next unless start_time && end_time
 
-        location = if meeting_time.room && meeting_time.building && 
-                      !tbd_location?(meeting_time.building, meeting_time.room)
+        # Skip TBD/placeholder locations entirely - don't create events for them
+        if meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room)
+          next # Skip this meeting time completely
+        elsif meeting_time.room && tbd_room?(meeting_time.room) 
+          next # Skip this meeting time completely
+        end
+
+        # Build location string for valid locations
+        location = if meeting_time.room && meeting_time.building
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
+                   elsif meeting_time.room
                      meeting_time.room.formatted_number
                    end
 
@@ -128,11 +141,18 @@ module CourseScheduleSyncable
     end_time = parse_time(first_meeting_date, meeting_time.end_time)
     return unless start_time && end_time
 
-    location = if meeting_time.room && meeting_time.building && 
-                  !tbd_location?(meeting_time.building, meeting_time.room)
+    # Skip TBD/placeholder locations entirely - don't create events for them
+    if meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room)
+      return # Skip this meeting time completely
+    elsif meeting_time.room && tbd_room?(meeting_time.room) 
+      return # Skip this meeting time completely
+    end
+
+    # Build location string for valid locations
+    location = if meeting_time.room && meeting_time.building
                  "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-               elsif meeting_time.room && !tbd_room?(meeting_time.room)
-                 meeting_time.room.name
+               elsif meeting_time.room
+                 meeting_time.room.formatted_number
                end
 
     course = meeting_time.course
