@@ -28,10 +28,11 @@ module CourseScheduleSyncable
         end_time = parse_time(first_meeting_date, meeting_time.end_time)
         next unless start_time && end_time
 
-        # Build location string
-        location = if meeting_time.room && meeting_time.building
+        # Build location string - skip TBD/placeholder locations
+        location = if meeting_time.room && meeting_time.building && 
+                      !tbd_location?(meeting_time.building, meeting_time.room)
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room
+                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
                      meeting_time.room.name
                    end
 
@@ -85,9 +86,10 @@ module CourseScheduleSyncable
         end_time = parse_time(first_meeting_date, meeting_time.end_time)
         next unless start_time && end_time
 
-        location = if meeting_time.room && meeting_time.building
+        location = if meeting_time.room && meeting_time.building && 
+                      !tbd_location?(meeting_time.building, meeting_time.room)
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room
+                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
                      meeting_time.room.name
                    end
 
@@ -126,9 +128,10 @@ module CourseScheduleSyncable
     end_time = parse_time(first_meeting_date, meeting_time.end_time)
     return unless start_time && end_time
 
-    location = if meeting_time.room && meeting_time.building
+    location = if meeting_time.room && meeting_time.building && 
+                  !tbd_location?(meeting_time.building, meeting_time.room)
                  "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-               elsif meeting_time.room
+               elsif meeting_time.room && !tbd_room?(meeting_time.room)
                  meeting_time.room.name
                end
 
@@ -419,5 +422,28 @@ module CourseScheduleSyncable
 
   def create_or_get_course_calendar
     GoogleCalendarService.new(self).create_or_get_course_calendar
+  end
+
+  # Check if this is a TBD/placeholder location that should be skipped
+  def tbd_location?(building, room)
+    tbd_building?(building) || tbd_room?(room)
+  end
+
+  # Check if building is TBD/placeholder
+  def tbd_building?(building)
+    return false unless building
+    
+    building.name&.downcase&.include?("to be determined") ||
+      building.name&.downcase&.include?("tbd") ||
+      building.abbreviation&.downcase == "tbd"
+  end
+
+  # Check if room is TBD/placeholder (room 0 or room name contains TBD)
+  def tbd_room?(room)
+    return false unless room
+    
+    room.number == 0 ||
+      room.name&.downcase&.include?("tbd") ||
+      room.name&.downcase&.include?("to be determined")
   end
 end
