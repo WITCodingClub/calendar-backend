@@ -52,6 +52,9 @@ class CalendarPreference < ApplicationRecord
   validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
   validate :validate_template_syntax
 
+  # Trigger calendar sync when preferences change that affect event appearance
+  after_update :sync_calendar_if_preferences_changed
+
   # Scopes
   scope :for_event_type, ->(type) { where(scope: :event_type, event_type: type) }
   scope :global_scope, -> { where(scope: :global) }
@@ -81,6 +84,19 @@ class CalendarPreference < ApplicationRecord
       CalendarTemplateRenderer.validate_template(location_template)
     rescue CalendarTemplateRenderer::InvalidTemplateError => e
       errors.add(:location_template, "invalid syntax: #{e.message}")
+    end
+  end
+
+  def sync_calendar_if_preferences_changed
+    # Trigger forced sync if any template or display preferences changed
+    if saved_change_to_title_template? ||
+       saved_change_to_description_template? ||
+       saved_change_to_location_template? ||
+       saved_change_to_color_id? ||
+       saved_change_to_visibility? ||
+       saved_change_to_reminder_settings?
+      # Force sync to update all existing events with new preferences
+      GoogleCalendarSyncJob.perform_later(user, force: true)
     end
   end
 
