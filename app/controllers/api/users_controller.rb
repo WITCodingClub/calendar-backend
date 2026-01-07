@@ -234,8 +234,9 @@ module Api
       template_renderer = CalendarTemplateRenderer.new
 
       # Group meeting times by their common attributes (time, date range, location)
+      # Don't include mt.id in grouping to allow proper consolidation of days
       grouped = meeting_times.group_by do |mt|
-        [mt.begin_time, mt.end_time, mt.start_date, mt.end_date, mt.room_id, mt.id]
+        [mt.begin_time, mt.end_time, mt.start_date, mt.end_date, mt.room_id]
       end
 
       # Convert each group into a single meeting time object with day flags
@@ -411,7 +412,14 @@ module Api
       structured_data = enrollments.map do |enrollment|
         course = enrollment.course
         faculty = course.faculties.first # safer than [0]
-        meeting_times = course.meeting_times
+        
+        # Filter meeting times to prefer valid locations over TBD duplicates
+        filtered_meeting_times = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+                                                     .map do |key, meeting_times_group|
+          # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
+          non_tbd = meeting_times_group.reject { |mt| mt.building && current_user.send(:tbd_building?, mt.building) || mt.room && current_user.send(:tbd_room?, mt.room) }
+          non_tbd.any? ? non_tbd : meeting_times_group
+        end.flatten
 
         {
           title: course.title,
@@ -431,7 +439,7 @@ module Api
             email: faculty.email,
             rmp_id: faculty.rmp_id
           } : nil,
-          meeting_times: group_meeting_times(meeting_times)
+          meeting_times: group_meeting_times(filtered_meeting_times)
         }
       end
 
