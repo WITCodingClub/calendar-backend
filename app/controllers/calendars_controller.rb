@@ -67,7 +67,15 @@ class CalendarsController < ApplicationController
     end
 
     courses.each do |course|
-      course.meeting_times.each do |meeting_time|
+      # Filter meeting times to prefer valid locations over TBD duplicates
+      filtered_meeting_times = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+                                                   .map do |key, meeting_times|
+        # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
+        non_tbd = meeting_times.reject { |mt| mt.building && @user.send(:tbd_building?, mt.building) || mt.room && @user.send(:tbd_room?, mt.room) }
+        non_tbd.any? ? non_tbd.first : meeting_times.first
+      end
+      
+      filtered_meeting_times.each do |meeting_time|
         # Skip if day_of_week is not set
         next if meeting_time.day_of_week.blank?
 
@@ -104,11 +112,20 @@ class CalendarsController < ApplicationController
             e.description = @template_renderer.render(prefs[:description_template], context)
           end
 
-          # Location
-          if meeting_time.room && meeting_time.building
+          # Location - handle TBD locations gracefully
+          if meeting_time.room && meeting_time.building && 
+             !@user.send(:tbd_location?, meeting_time.building, meeting_time.room)
+            # Valid room and building
             e.location = "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-          elsif meeting_time.room
-            e.location = meeting_time.room.name
+          elsif meeting_time.room && !@user.send(:tbd_room?, meeting_time.room)
+            # Valid room, no building or invalid building
+            e.location = meeting_time.room.formatted_number
+          elsif @user.send(:tbd_building?, meeting_time.building) || @user.send(:tbd_room?, meeting_time.room)
+            # TBD location - show "TBD" instead of ugly "To Be Determined 000"
+            e.location = "TBD"
+          else
+            # No location info
+            e.location = nil
           end
 
           # Recurring rule for this specific day of the week
