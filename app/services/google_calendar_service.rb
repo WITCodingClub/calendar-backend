@@ -135,10 +135,10 @@ class GoogleCalendarService
                      MeetingTime.includes(course: :faculties).find_by(id: event[:meeting_time_id])
                    elsif event[:final_exam_id]
                      FinalExam.includes(course: :faculties).find_by(id: event[:final_exam_id])
-                   elsif event[:university_event_id]
-                     UniversityCalendarEvent.find_by(id: event[:university_event_id])
+                   elsif event[:university_calendar_event_id]
+                     UniversityCalendarEvent.find_by(id: event[:university_calendar_event_id])
                    else
-                     raise "Unknown event type - missing meeting_time_id, final_exam_id, or university_event_id"
+                     raise "Unknown event type - missing meeting_time_id, final_exam_id, or university_calendar_event_id"
                    end
         event_with_preferences = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
@@ -238,10 +238,10 @@ class GoogleCalendarService
                      MeetingTime.includes(course: :faculties).find_by(id: event[:meeting_time_id])
                    elsif event[:final_exam_id]
                      FinalExam.includes(course: :faculties).find_by(id: event[:final_exam_id])
-                   elsif event[:university_event_id]
-                     UniversityCalendarEvent.find_by(id: event[:university_event_id])
+                   elsif event[:university_calendar_event_id]
+                     UniversityCalendarEvent.find_by(id: event[:university_calendar_event_id])
                    else
-                     raise "Unknown event type - missing meeting_time_id, final_exam_id, or university_event_id"
+                     raise "Unknown event type - missing meeting_time_id, final_exam_id, or university_calendar_event_id"
                    end
         event_with_preferences = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
