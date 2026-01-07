@@ -5,22 +5,13 @@ namespace :courses do
 
     puts "Finding courses with incorrect Roman numerals..."
     
-    # Find courses that have lowercase Roman numerals that should be uppercase
-    # Common patterns: "Ii", "Iii", "Iv", "Vi", "Vii", "Viii", "Ix"
-    incorrect_patterns = [
-      /\bIi\b/,     # "Computer Science Ii"
-      /\bIii\b/,    # "Computer Science Iii"  
-      /\bIv\b/,     # "Computer Science Iv"
-      /\bVi\b/,     # "Computer Science Vi"
-      /\bVii\b/,    # "Computer Science Vii"
-      /\bViii\b/,   # "Computer Science Viii"
-      /\bIx\b/      # "Computer Science Ix"
-    ]
-    
-    courses_to_fix = Course.where(
-      incorrect_patterns.map { |pattern| "title ~ ?" }.join(" OR "),
-      *incorrect_patterns.map(&:source)
-    )
+    # Find courses where the title would change when passed through titleize_with_roman_numerals
+    # This catches any case where Roman numerals aren't properly capitalized
+    courses_to_fix = Course.where.not(title: nil).select do |course|
+      original_title = course.title
+      corrected_title = titleize_with_roman_numerals(original_title)
+      original_title != corrected_title
+    end
     
     puts "Found #{courses_to_fix.count} courses with incorrect Roman numerals"
     
@@ -30,7 +21,7 @@ namespace :courses do
     end
     
     puts "\nCourses that will be updated:"
-    courses_to_fix.find_each do |course|
+    courses_to_fix.each do |course|
       old_title = course.title
       new_title = titleize_with_roman_numerals(old_title)
       puts "CRN #{course.crn}: '#{old_title}' -> '#{new_title}'"
@@ -48,7 +39,7 @@ namespace :courses do
     updated_count = 0
     failed_count = 0
     
-    courses_to_fix.find_each do |course|
+    courses_to_fix.each do |course|
       begin
         old_title = course.title
         new_title = titleize_with_roman_numerals(old_title)
