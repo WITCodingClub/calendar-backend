@@ -28,24 +28,20 @@ module CourseScheduleSyncable
         end_time = parse_time(first_meeting_date, meeting_time.end_time)
         next unless start_time && end_time
 
-        # Skip TBD/placeholder locations entirely - don't create events for them
-        Rails.logger.debug "TBD Check for meeting_time #{meeting_time.id}: course=#{course.title}, building=#{meeting_time.building&.name}, room=#{meeting_time.room&.number}"
-        building_check = meeting_time.building && tbd_building?(meeting_time.building)
-        room_check = meeting_time.room && tbd_room?(meeting_time.room)
-        location_check = meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room)
-        Rails.logger.debug "TBD Checks: building=#{building_check}, room=#{room_check}, location=#{location_check}"
-        
-        if building_check || room_check || location_check
-          Rails.logger.debug "✅ SKIPPING TBD meeting time #{meeting_time.id}"
-          next # Skip this meeting time completely
-        end
-        Rails.logger.debug "❌ NOT SKIPPING meeting time #{meeting_time.id} - creating event"
-
-        # Build location string for valid locations
-        location = if meeting_time.room && meeting_time.building
+        # Build location string - handle TBD locations gracefully
+        location = if meeting_time.room && meeting_time.building && 
+                      !tbd_location?(meeting_time.building, meeting_time.room)
+                     # Valid room and building
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room
+                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
+                     # Valid room, no building or invalid building
                      meeting_time.room.formatted_number
+                   elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
+                     # TBD location - show "TBD" instead of ugly "To Be Determined 000"
+                     "TBD"
+                   else
+                     # No location info
+                     nil
                    end
 
         # Build course code from subject-number-section
@@ -98,18 +94,20 @@ module CourseScheduleSyncable
         end_time = parse_time(first_meeting_date, meeting_time.end_time)
         next unless start_time && end_time
 
-        # Skip TBD/placeholder locations entirely - don't create events for them
-        if (meeting_time.building && tbd_building?(meeting_time.building)) ||
-           (meeting_time.room && tbd_room?(meeting_time.room)) ||
-           (meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room))
-          next # Skip this meeting time completely
-        end
-
-        # Build location string for valid locations
-        location = if meeting_time.room && meeting_time.building
+        # Build location string - handle TBD locations gracefully
+        location = if meeting_time.room && meeting_time.building && 
+                      !tbd_location?(meeting_time.building, meeting_time.room)
+                     # Valid room and building
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room
+                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
+                     # Valid room, no building or invalid building
                      meeting_time.room.formatted_number
+                   elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
+                     # TBD location - show "TBD" instead of ugly "To Be Determined 000"
+                     "TBD"
+                   else
+                     # No location info
+                     nil
                    end
 
         course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
@@ -147,18 +145,20 @@ module CourseScheduleSyncable
     end_time = parse_time(first_meeting_date, meeting_time.end_time)
     return unless start_time && end_time
 
-    # Skip TBD/placeholder locations entirely - don't create events for them
-    if (meeting_time.building && tbd_building?(meeting_time.building)) ||
-       (meeting_time.room && tbd_room?(meeting_time.room)) ||
-       (meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room))
-      return # Skip this meeting time completely
-    end
-
-    # Build location string for valid locations
-    location = if meeting_time.room && meeting_time.building
+    # Build location string - handle TBD locations gracefully
+    location = if meeting_time.room && meeting_time.building && 
+                  !tbd_location?(meeting_time.building, meeting_time.room)
+                 # Valid room and building
                  "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-               elsif meeting_time.room
+               elsif meeting_time.room && !tbd_room?(meeting_time.room)
+                 # Valid room, no building or invalid building
                  meeting_time.room.formatted_number
+               elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
+                 # TBD location - show "TBD" instead of ugly "To Be Determined 000"
+                 "TBD"
+               else
+                 # No location info
+                 nil
                end
 
     course = meeting_time.course
