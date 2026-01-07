@@ -29,9 +29,9 @@ module CourseScheduleSyncable
         next unless start_time && end_time
 
         # Skip TBD/placeholder locations entirely - don't create events for them
-        if meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room)
-          next # Skip this meeting time completely
-        elsif meeting_time.room && tbd_room?(meeting_time.room) 
+        if (meeting_time.building && tbd_building?(meeting_time.building)) ||
+           (meeting_time.room && tbd_room?(meeting_time.room)) ||
+           (meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room))
           next # Skip this meeting time completely
         end
 
@@ -93,9 +93,9 @@ module CourseScheduleSyncable
         next unless start_time && end_time
 
         # Skip TBD/placeholder locations entirely - don't create events for them
-        if meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room)
-          next # Skip this meeting time completely
-        elsif meeting_time.room && tbd_room?(meeting_time.room) 
+        if (meeting_time.building && tbd_building?(meeting_time.building)) ||
+           (meeting_time.room && tbd_room?(meeting_time.room)) ||
+           (meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room))
           next # Skip this meeting time completely
         end
 
@@ -142,9 +142,9 @@ module CourseScheduleSyncable
     return unless start_time && end_time
 
     # Skip TBD/placeholder locations entirely - don't create events for them
-    if meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room)
-      return # Skip this meeting time completely
-    elsif meeting_time.room && tbd_room?(meeting_time.room) 
+    if (meeting_time.building && tbd_building?(meeting_time.building)) ||
+       (meeting_time.room && tbd_room?(meeting_time.room)) ||
+       (meeting_time.room && meeting_time.building && tbd_location?(meeting_time.building, meeting_time.room))
       return # Skip this meeting time completely
     end
 
