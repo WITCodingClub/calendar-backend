@@ -233,18 +233,10 @@ module Api
       preference_resolver = PreferenceResolver.new(current_user)
       template_renderer = CalendarTemplateRenderer.new
 
-      # Group meeting times by their common attributes (time, date range, location)
-      # Don't include mt.id in grouping to allow proper consolidation of days
-      grouped = meeting_times.group_by do |mt|
-        [mt.begin_time, mt.end_time, mt.start_date, mt.end_date, mt.room_id]
-      end
-
-      # Convert each group into a single meeting time object with day flags
-      grouped.map do |_key, mts|
-        # Use the first meeting time as the base
-        mt = mts.first
-
-        # Initialize all days to false
+      # Return each meeting time individually with its own ID
+      # This ensures each day can be edited independently in the extension
+      meeting_times.map do |mt|
+        # Initialize days object with only this meeting time's day set to true
         days = {
           monday: false,
           tuesday: false,
@@ -255,14 +247,9 @@ module Api
           sunday: false
         }
 
-        # Set true for each day that appears in the group
-        mts.each do |meeting_time|
-          day_symbol = meeting_time.day_of_week&.to_sym
-          next unless day_symbol
-
-          # Set boolean flag
-          days[day_symbol] = true
-        end
+        # Set only the current meeting time's day to true
+        day_symbol = mt.day_of_week&.to_sym
+        days[day_symbol] = true if day_symbol
 
         # Resolve preferences for this meeting time
         preferences = preference_resolver.resolve_for(mt)
@@ -451,6 +438,7 @@ module Api
             email: faculty.email,
             rmp_id: faculty.rmp_id
           } : nil,
+          # Note: We pass filtered_meeting_times (not grouped) to ensure each day has unique ID
           meeting_times: group_meeting_times(filtered_meeting_times)
         }
       end
