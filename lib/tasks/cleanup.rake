@@ -67,7 +67,7 @@ namespace :cleanup do
           is_tbd = (building && (building.name&.downcase&.include?("to be determined") || 
                                  building.name&.downcase&.include?("tbd") || 
                                  building.abbreviation&.downcase == "tbd")) ||
-                   (room && (room.number&.downcase == "tbd" || room.number == "000"))
+                   (room && room.number == 0)
           
           if is_tbd
             tbd_events << event

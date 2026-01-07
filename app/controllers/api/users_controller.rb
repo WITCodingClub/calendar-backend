@@ -416,10 +416,22 @@ module Api
         # Filter meeting times to prefer valid locations over TBD duplicates
         filtered_meeting_times = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
                                                      .map do |key, meeting_times_group|
+          # Log duplicate detection
+          if meeting_times_group.size > 1
+            Rails.logger.info "[API] Duplicate meeting times detected for course #{course.crn}: #{meeting_times_group.size} entries for #{key.inspect}"
+          end
+          
           # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
           non_tbd = meeting_times_group.reject { |mt| mt.building && current_user.send(:tbd_building?, mt.building) || mt.room && current_user.send(:tbd_room?, mt.room) }
-          non_tbd.any? ? non_tbd : meeting_times_group
-        end.flatten
+          # Take only the first valid one, or first TBD if no valid ones
+          selected = non_tbd.any? ? non_tbd.first : meeting_times_group.first
+          
+          if meeting_times_group.size > 1
+            Rails.logger.info "[API] Selected meeting time #{selected.id} with location: #{selected.building&.name} - #{selected.room&.number}"
+          end
+          
+          selected
+        end
 
         {
           title: course.title,

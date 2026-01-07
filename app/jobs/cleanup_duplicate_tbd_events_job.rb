@@ -112,7 +112,7 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
 
   def tbd_room?(room)
     return false unless room
-    room.number&.downcase == "tbd" ||
-      room.number == "000"
+    room.number == 0
+    # Note: Room number is integer, not string
   end
 end
