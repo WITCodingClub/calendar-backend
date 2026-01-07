@@ -22,7 +22,7 @@ namespace :calendar do
           # Get all events from Google Calendar
           gcal_events = gcal_service.list_events(
             calendar.google_calendar_id,
-            single_events: false,  # Get recurring events as single entries
+            single_events: true,  # Expand recurring events
             order_by: 'startTime',
             time_min: 3.months.ago.iso8601,
             time_max: 6.months.from_now.iso8601,
@@ -112,7 +112,7 @@ namespace :calendar do
           # Get events from Google Calendar
           gcal_events = gcal_service.list_events(
             calendar.google_calendar_id,
-            single_events: false,
+            single_events: true,
             order_by: 'startTime',
             time_min: 3.months.ago.iso8601,
             time_max: 6.months.from_now.iso8601,
