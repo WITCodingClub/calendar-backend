@@ -10,7 +10,7 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
       cleanup_for_user(User.find(user_id))
     else
       # Process all users with Google calendars
-      User.joins(google_credential: :google_calendar)
+      User.joins(:google_calendars).distinct
           .find_each { |user| cleanup_for_user(user) }
     end
   end

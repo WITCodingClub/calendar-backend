@@ -24,7 +24,7 @@ namespace :cleanup do
     users = if ENV['USER_ID'].present?
               [User.find(ENV['USER_ID'])]
             else
-              User.joins(google_credential: :google_calendar)
+              User.joins(:google_calendars).distinct
             end
     
     total_duplicates = 0
