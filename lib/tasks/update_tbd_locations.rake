@@ -44,7 +44,10 @@ namespace :courses do
         print "Processing CRN #{course.crn} (#{course.title})... "
         
         # Use LeopardWebService to fetch fresh course data
-        detailed_info = LeopardWebService.new.fetch_course_details(course.crn, course.term.uid)
+        detailed_info = LeopardWebService.get_class_details(
+          term: course.term.uid,
+          course_reference_number: course.crn
+        )
         
         if detailed_info.nil? || detailed_info[:meeting_times].blank?
           puts "⚠️  No updated data available"
