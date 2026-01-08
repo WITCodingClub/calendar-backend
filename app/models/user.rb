@@ -29,6 +29,11 @@ class User < ApplicationRecord
 
   set_public_id_prefix :usr
 
+  # Use hashid for URLs instead of regular ID (without usr_ prefix)
+  def to_param
+    hashid
+  end
+
   has_subscriptions
 
   has_many :enrollments, dependent: :destroy

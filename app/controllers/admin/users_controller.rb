@@ -14,7 +14,20 @@ module Admin
       @users = policy_scope(User).order(created_at: :desc)
 
       if params[:search].present?
-        @users = @users.where("email ILIKE ?", "%#{params[:search]}%")
+        search_term = params[:search].strip
+        
+        # Check if search term is numeric (for ID search)
+        if search_term.match?(/^\d+$/)
+          @users = @users.where(id: search_term.to_i)
+        else
+          # Search by email or concatenated first+last name
+          @users = @users.where(
+            "email ILIKE :search OR " \
+            "CONCAT(first_name, last_name) ILIKE :search OR " \
+            "CONCAT(first_name, ' ', last_name) ILIKE :search",
+            search: "%#{search_term}%"
+          )
+        end
       end
 
       @users = @users.page(params[:page]).per(5)
@@ -36,18 +49,11 @@ module Admin
                                   .order("terms.year DESC, terms.season DESC")
                                   .group_by(&:term)
 
-      # Eager load oauth credentials with calendar and event counts
+      # Eager load oauth credentials with calendar
       @oauth_credentials = @user.oauth_credentials
                                 .includes(:google_calendar)
-                                .left_joins(google_calendar: :google_calendar_events)
-                                .select("oauth_credentials.*, COUNT(google_calendar_events.id) as events_count")
-                                .group("oauth_credentials.id")
                                 .order(created_at: :desc)
 
-      # Load recent security events for this user
-      @security_events = @user.security_events
-                              .order(created_at: :desc)
-                              .limit(10)
     end
 
     def edit
@@ -161,7 +167,24 @@ module Admin
     private
 
     def set_user
-      @user = User.find(params[:id])
+      begin
+        # Try different formats: full public_id, hashid only, or integer ID
+        if params[:id].start_with?('usr_')
+          # Full public_id format
+          @user = User.find_by_public_id(params[:id])
+        elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
+          # Hashid only - construct full public_id
+          @user = User.find_by_public_id("usr_#{params[:id]}")
+        elsif params[:id].match?(/^\d+$/)
+          # Integer ID
+          @user = User.find(params[:id])
+        end
+        
+        raise ActiveRecord::RecordNotFound unless @user
+      rescue => e
+        Rails.logger.error "Error finding user with ID #{params[:id]}: #{e.message}"
+        raise ActiveRecord::RecordNotFound
+      end
     end
 
     def user_params
