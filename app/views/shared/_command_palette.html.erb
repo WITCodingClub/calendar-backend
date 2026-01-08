@@ -1,0 +1,200 @@
+<!-- Command Palette Modal -->
+<div data-controller="command-palette" 
+     data-command-palette-modal-target="modal"
+     data-action="click->command-palette#closeOnBackdrop"
+     class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-[20vh] z-50 hidden">
+  
+  <div data-action="click->command-palette#stopPropagation" class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+    <!-- Search Input -->
+    <div class="p-4 border-b border-gray-200">
+      <input data-command-palette-target="input"
+             data-action="input->command-palette#filter keydown->command-palette#navigate"
+             type="text"
+             placeholder="Search navigation..."
+             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#d13732] focus:border-transparent">
+    </div>
+    
+    <!-- Navigation Items -->
+    <div data-command-palette-target="results" class="max-h-80 overflow-y-auto">
+      
+      <!-- Dashboard -->
+      <div data-command-palette-target="item"
+           data-action="click->command-palette#clickItem"
+           class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+        <%= link_to admin_root_path, class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
+          <div class="w-8 h-8 bg-[#d13732] rounded-lg flex items-center justify-center">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5v20"></path>
+            </svg>
+          </div>
+          <div>
+            <div class="font-medium">Dashboard</div>
+            <div class="text-sm text-gray-500">Admin overview and quick actions</div>
+          </div>
+        <% end %>
+      </div>
+
+      <!-- Users -->
+      <% if current_user.admin_access? %>
+        <div data-command-palette-target="item"
+             data-action="click->command-palette#clickItem"
+             class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+          <%= link_to admin_users_path, class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
+            <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m3 5.197H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="font-medium">Users</div>
+              <div class="text-sm text-gray-500">Manage user accounts and permissions</div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Courses -->
+      <% if current_user.admin_access? %>
+        <div data-command-palette-target="item"
+             data-action="click->command-palette#clickItem"
+             class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+          <%= link_to admin_courses_path, class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
+            <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="font-medium">Courses</div>
+              <div class="text-sm text-gray-500">Manage course catalog and schedules</div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Terms -->
+      <% if current_user.admin_access? %>
+        <div data-command-palette-target="item"
+             data-action="click->command-palette#clickItem"
+             class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+          <%= link_to admin_terms_path, class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
+            <div class="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="font-medium">Terms</div>
+              <div class="text-sm text-gray-500">Manage academic terms and dates</div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Faculty -->
+      <% if current_user.admin_access? %>
+        <div data-command-palette-target="item"
+             data-action="click->command-palette#clickItem"
+             class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+          <%= link_to admin_faculties_path, class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
+            <div class="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="font-medium">Faculty</div>
+              <div class="text-sm text-gray-500">Manage instructors and ratings</div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Jobs -->
+      <% if current_user.admin_access? %>
+        <div data-command-palette-target="item"
+             data-action="click->command-palette#clickItem"
+             class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+          <%= link_to "/admin/jobs", class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
+            <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="font-medium">Background Jobs</div>
+              <div class="text-sm text-gray-500">Monitor queue and job status</div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- System Info -->
+      <% if current_user.super_admin? %>
+        <div data-command-palette-target="item"
+             data-action="click->command-palette#clickItem"
+             class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+          <%= link_to "/admin/pghero", class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
+            <div class="w-8 h-8 bg-gray-500 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="font-medium">Database Insights</div>
+              <div class="text-sm text-gray-500">PostgreSQL performance monitoring</div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Console Sessions -->
+      <% if current_user.super_admin? %>
+        <div data-command-palette-target="item"
+             data-action="click->command-palette#clickItem"
+             class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+          <%= link_to "/admin/console1984", class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
+            <div class="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="font-medium">Console Sessions</div>
+              <div class="text-sm text-gray-500">Audit Rails console access</div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <!-- Beta Testers -->
+      <% if current_user.super_admin? %>
+        <div data-command-palette-target="item"
+             data-action="click->command-palette#clickItem"
+             class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+          <%= link_to admin_beta_testers_path, class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
+            <div class="w-8 h-8 bg-pink-500 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="font-medium">Beta Testers</div>
+              <div class="text-sm text-gray-500">Manage feature flag access</div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+    </div>
+    
+    <!-- Footer -->
+    <div class="px-4 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
+      <div class="flex items-center justify-between">
+        <span>Use ↑↓ to navigate</span>
+        <span><kbd class="px-2 py-1 bg-white border border-gray-300 rounded text-xs">ESC</kbd> to close</span>
+      </div>
+    </div>
+  </div>
+</div>
