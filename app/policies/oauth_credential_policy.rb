@@ -26,6 +26,16 @@ class OauthCredentialPolicy < ApplicationPolicy
     owner_of_record? || can_perform_destructive_action?
   end
 
+  # Super_admins+ can refresh OAuth credentials
+  def refresh?
+    super_admin?
+  end
+
+  # Super_admins+ can revoke OAuth credentials  
+  def revoke?
+    super_admin?
+  end
+
   class Scope < ApplicationPolicy::Scope
     def resolve
       if user&.admin_access?
