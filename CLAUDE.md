@@ -194,3 +194,6 @@ A Rails 8 API backend that syncs college course schedules to Google Calendar wit
 - Google Calendar sync: `bundle exec rspec spec/services/google_calendar_service_spec.rb`
 - always make and follow pundit policies
 - thread blocking operations are ok, just not prefered where ever possible
+
+## Bug Fixing Guidelines
+- When bugfixing a calendar thing, make sure the bug is fixed both in the Google Calendar implementation, and the ICS URL implementation where applicable
