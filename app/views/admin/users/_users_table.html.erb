@@ -7,9 +7,11 @@
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
               Email
             </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-              Access Level
-            </th>
+            <% if policy(User).view_access_level? %>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                Access Level
+              </th>
+            <% end %>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
               Created
             </th>
@@ -26,11 +28,13 @@
                   <%= user.email %>
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-[#d13732]/10 text-[#d13732]">
-                  <%= user.access_level_text %>
-                </span>
-              </td>
+              <% if policy(User).view_access_level? %>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-[#d13732]/10 text-[#d13732]">
+                    <%= user.access_level_text %>
+                  </span>
+                </td>
+              <% end %>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                 <%= user.created_at.strftime("%b %d, %Y") %>
               </td>

@@ -17,12 +17,12 @@ module CourseScheduleSyncable
 
       # Filter meeting times to prefer valid locations over TBD duplicates
       filtered_meeting_times = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
-                                                   .map do |key, meeting_times|
-        # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
-        non_tbd = meeting_times.reject { |mt| mt.building && tbd_building?(mt.building) || mt.room && tbd_room?(mt.room) }
-        non_tbd.any? ? non_tbd.first : meeting_times.first
+                                     .map do |key, meeting_times|
+                                       # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
+                                       non_tbd = meeting_times.reject { |mt| (mt.building && tbd_building?(mt.building)) || (mt.room && tbd_room?(mt.room)) }
+                                       non_tbd.any? ? non_tbd.first : meeting_times.first
       end
-      
+
       filtered_meeting_times.each do |meeting_time|
         # Skip if day_of_week is not set
         next if meeting_time.day_of_week.blank?
@@ -37,7 +37,7 @@ module CourseScheduleSyncable
         next unless start_time && end_time
 
         # Build location string - handle TBD locations gracefully
-        location = if meeting_time.room && meeting_time.building && 
+        location = if meeting_time.room && meeting_time.building &&
                       !tbd_location?(meeting_time.building, meeting_time.room)
                      # Valid room and building
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
@@ -82,7 +82,7 @@ module CourseScheduleSyncable
     events.concat(university_events)
 
     result = service.update_calendar_events(events, force: force)
-    
+
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
       update_columns(
@@ -90,7 +90,7 @@ module CourseScheduleSyncable
         calendar_needs_sync: false
       )
     end
-    
+
     result
   end
 
@@ -113,7 +113,7 @@ module CourseScheduleSyncable
         next unless start_time && end_time
 
         # Build location string - handle TBD locations gracefully
-        location = if meeting_time.room && meeting_time.building && 
+        location = if meeting_time.room && meeting_time.building &&
                       !tbd_location?(meeting_time.building, meeting_time.room)
                      # Valid room and building
                      "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
@@ -147,7 +147,7 @@ module CourseScheduleSyncable
 
     # Only sync these specific events
     result = service.update_specific_events(events, force: force)
-    
+
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
       update_columns(
@@ -155,7 +155,7 @@ module CourseScheduleSyncable
         calendar_needs_sync: false
       )
     end
-    
+
     result
   end
 
@@ -174,7 +174,7 @@ module CourseScheduleSyncable
     return unless start_time && end_time
 
     # Build location string - handle TBD locations gracefully
-    location = if meeting_time.room && meeting_time.building && 
+    location = if meeting_time.room && meeting_time.building &&
                   !tbd_location?(meeting_time.building, meeting_time.room)
                  # Valid room and building
                  "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
@@ -207,12 +207,12 @@ module CourseScheduleSyncable
 
     # Sync just this one event
     result = service.update_specific_events([event], force: force)
-    
+
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
       update_column(:last_calendar_sync_at, Time.current)
     end
-    
+
     result
   end
 
@@ -450,18 +450,18 @@ module CourseScheduleSyncable
                .where(exam_date: Time.zone.today..)
                .includes(course: :faculties)
                .find_each do |final_exam|
-      next unless final_exam.start_datetime && final_exam.end_datetime
+                 next unless final_exam.start_datetime && final_exam.end_datetime
 
-      finals << {
-        summary: "Final Exam: #{final_exam.course_title}",
-        description: final_exam.course_code,
-        location: final_exam.location,
-        start_time: final_exam.start_datetime,
-        end_time: final_exam.end_datetime,
-        course_code: final_exam.course_code,
-        final_exam_id: final_exam.id,
-        recurrence: nil # Finals don't recur
-      }
+                 finals << {
+                   summary: "Final Exam: #{final_exam.course_title}",
+                   description: final_exam.course_code,
+                   location: final_exam.location,
+                   start_time: final_exam.start_datetime,
+                   end_time: final_exam.end_datetime,
+                   course_code: final_exam.course_code,
+                   final_exam_id: final_exam.id,
+                   recurrence: nil # Finals don't recur
+                 }
     end
 
     finals
@@ -486,12 +486,12 @@ module CourseScheduleSyncable
     }
 
     result = service.update_specific_events([event], force: force)
-    
+
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
       update_column(:last_calendar_sync_at, Time.current)
     end
-    
+
     result
   end
 
@@ -523,7 +523,7 @@ module CourseScheduleSyncable
   # Check if building is TBD/placeholder
   def tbd_building?(building)
     return false unless building
-    
+
     building.name&.downcase&.include?("to be determined") ||
       building.name&.downcase&.include?("tbd") ||
       building.abbreviation&.downcase == "tbd"
@@ -532,7 +532,7 @@ module CourseScheduleSyncable
   # Check if room is TBD/placeholder (room 0 or room name contains TBD)
   def tbd_room?(room)
     return false unless room
-    
+
     room.number == 0
     # Note: Room model in production only has 'number', not 'name'
     # If room.name is added later, uncomment these lines:

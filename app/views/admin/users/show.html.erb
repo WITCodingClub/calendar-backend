@@ -21,14 +21,16 @@
           <dd class="mt-1 text-sm text-gray-900"><%= @user.email %></dd>
         </div>
 
-        <div>
-          <dt class="text-sm font-medium text-gray-500">Access Level</dt>
-          <dd class="mt-1">
-            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-[#d13732]/10 text-[#d13732]">
-              <%= @user.access_level_text %>
-            </span>
-          </dd>
-        </div>
+        <% if policy(@user).view_access_level? %>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Access Level</dt>
+            <dd class="mt-1">
+              <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-[#d13732]/10 text-[#d13732]">
+                <%= @user.access_level_text %>
+              </span>
+            </dd>
+          </div>
+        <% end %>
 
         <div class="sm:col-span-2">
           <dt class="text-sm font-medium text-gray-500">ICS Calendar URL</dt>

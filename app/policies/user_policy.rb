@@ -48,29 +48,37 @@ class UserPolicy < ApplicationPolicy
   end
 
   # Component-level permissions for admin dashboard
-  
+
   def view_user_details?
     show?
   end
-  
+
   def manage_feature_flags?
     toggle_support_flag?
   end
-  
+
   def view_oauth_credentials?
     admin?
   end
-  
+
   def manage_oauth_credentials?
     super_admin?
   end
-  
+
   def view_enrollments?
     show?
   end
-  
+
   def view_calendar_sync_info?
     admin?
+  end
+
+  def view_access_level?
+    super_admin?
+  end
+
+  def edit_access_level?
+    super_admin?
   end
 
   class Scope < ApplicationPolicy::Scope

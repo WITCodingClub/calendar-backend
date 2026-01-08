@@ -591,7 +591,7 @@ class GoogleCalendarService
       # For timed events, use date_time format with timezone
       start_time_et = event_data[:start_time].in_time_zone("America/New_York")
       end_time_et = event_data[:end_time].in_time_zone("America/New_York")
-      
+
       google_event.start = {
         date_time: start_time_et.iso8601,
         time_zone: "America/New_York"
@@ -750,7 +750,7 @@ class GoogleCalendarService
       # For timed events, use date_time format with timezone
       start_time_et = event_data[:start_time].in_time_zone("America/New_York")
       end_time_et = event_data[:end_time].in_time_zone("America/New_York")
-      
+
       google_event.start = {
         date_time: start_time_et.iso8601,
         time_zone: "America/New_York"

@@ -15,7 +15,7 @@ module Admin
 
       if params[:search].present?
         search_term = params[:search].strip
-        
+
         # Check if search term is numeric (for ID search)
         if search_term.match?(/^\d+$/)
           @users = @users.where(id: search_term.to_i)
@@ -66,7 +66,7 @@ module Admin
       if @user.update(user_params)
         redirect_to admin_user_path(@user), notice: "User was successfully updated."
       else
-        render :edit, status: :unprocessable_entity
+        render :edit, status: :unprocessable_content
       end
     end
 
@@ -169,7 +169,7 @@ module Admin
     def set_user
       begin
         # Try different formats: full public_id, hashid only, or integer ID
-        if params[:id].start_with?('usr_')
+        if params[:id].start_with?("usr_")
           # Full public_id format
           @user = User.find_by_public_id(params[:id])
         elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
@@ -179,7 +179,7 @@ module Admin
           # Integer ID
           @user = User.find(params[:id])
         end
-        
+
         raise ActiveRecord::RecordNotFound unless @user
       rescue => e
         Rails.logger.error "Error finding user with ID #{params[:id]}: #{e.message}"
@@ -188,7 +188,9 @@ module Admin
     end
 
     def user_params
-      params.expect(user: [:email, :first_name, :last_name, :access_level])
+      permitted = [:email, :first_name, :last_name]
+      permitted << :access_level if policy(@user).edit_access_level?
+      params.expect(user: permitted)
     end
 
   end
