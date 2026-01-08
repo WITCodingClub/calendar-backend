@@ -79,13 +79,41 @@ class MeetingTime < ApplicationRecord
   def fmt_begin_time
     hours = begin_time / 100
     minutes = begin_time % 100
-    format("%02d:%02d", hours, minutes)
+    format_12_hour(hours, minutes)
   end
 
   def fmt_end_time
     hours = end_time / 100
     minutes = end_time % 100
-    format("%02d:%02d", hours, minutes)
+    format_12_hour(hours, minutes)
+  end
+
+  def formatted_time_range
+    "#{fmt_begin_time} - #{fmt_end_time}"
+  end
+
+  def building_room
+    return nil unless room&.building
+    
+    # Don't show TBD locations unless it's the only data we have
+    if room.building.abbreviation == "TBD" || room.building.name == "To Be Determined"
+      return nil
+    end
+    
+    # Format as "BUILDING ROOM" or just "BUILDING" if room is 0 or TBD
+    if room.number == 0 || room.number.to_s.upcase == "TBD"
+      room.building.abbreviation
+    else
+      "#{room.building.abbreviation} #{room.number}"
+    end
+  end
+
+  private
+
+  def format_12_hour(hours, minutes)
+    meridian = hours >= 12 ? "PM" : "AM"
+    display_hour = hours == 0 ? 12 : (hours > 12 ? hours - 12 : hours)
+    format("%d:%02d %s", display_hour, minutes, meridian)
   end
 
 end
