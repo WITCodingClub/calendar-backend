@@ -1,0 +1,181 @@
+<div class="glass-card shadow-lg rounded-lg overflow-hidden">
+  <div class="px-4 py-3">
+    <div class="flex justify-between items-center mb-3">
+      <button type="button" class="flex items-center gap-2 text-lg font-bold hover:text-[#d13732] transition-colors" data-action="click->schedule-collapse#toggle">
+        <span class="schedule-chevron transform transition-transform" style="transform: rotate(-90deg);">▼</span>
+        <span>Weekly Schedule</span>
+      </button>
+      <% if terms.size > 1 %>
+        <select id="calendar-term-select" class="px-3 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-white/80 text-[#d13732] border-[rgba(209,55,50,0.3)]">
+          <% terms.each_with_index do |term, index| %>
+            <option value="<%= term.id %>" <%= index == 0 ? 'selected' : '' %>><%= term.name %></option>
+          <% end %>
+        </select>
+      <% end %>
+    </div>
+
+    <div id="week-calendar-container" class="schedule-content" style="display: none;">
+      <% terms.each_with_index do |term, index| %>
+        <div class="term-schedule <%= index > 0 ? 'hidden' : '' %>" data-term-id="<%= term.id %>">
+          <% enrollments = enrollments_by_term[term] || [] %>
+          <% if enrollments.any? %>
+            <% 
+              # Build a schedule grid - more compact
+              days = %w[Sun Mon Tue Wed Thu Fri Sat]
+              time_slots = (8..20).map { |h| "#{h}:00" } # 8 AM to 8 PM
+              
+              # Organize meeting times by day and time
+              schedule = Hash.new { |h, k| h[k] = [] }
+              
+              enrollments.each do |enrollment|
+                next unless enrollment.course
+                enrollment.course.meeting_times.each do |mt|
+                  next unless mt.day_of_week.present?
+                  day_index = MeetingTime.day_of_weeks[mt.day_of_week]
+                  
+                  # Calculate time slot
+                  start_hour = mt.begin_time / 100
+                  end_hour = (mt.end_time / 100.0).ceil
+                  
+                  # Check if this is an active class (for half-semester courses)
+                  current_date = Date.current
+                  is_active = current_date >= mt.start_date.to_date && current_date <= mt.end_date.to_date
+                  
+                  schedule[day_index] << {
+                    meeting_time: mt,
+                    course: enrollment.course,
+                    start_hour: start_hour,
+                    end_hour: end_hour,
+                    duration: end_hour - start_hour,
+                    active: is_active
+                  }
+                end
+              end
+            %>
+            
+            <div class="overflow-x-auto">
+              <table class="min-w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th class="border border-gray-300 bg-gray-50 px-1 py-1 text-xs font-medium text-gray-700 w-12">Time</th>
+                    <% days.each do |day| %>
+                      <th class="border border-gray-300 bg-gray-50 px-1 py-1 text-xs font-medium text-gray-700 min-w-[100px]"><%= day %></th>
+                    <% end %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% time_slots.each_with_index do |time, slot_index| %>
+                    <tr>
+                      <td class="border border-gray-300 bg-gray-50 px-1 py-0.5 text-xs font-medium text-gray-700 whitespace-nowrap"><%= time %></td>
+                      <% days.each_with_index do |day, day_index| %>
+                        <td class="border border-gray-300 p-0 relative h-12">
+                          <% 
+                            # Find classes in this time slot - adjusted for 8 AM start
+                            current_hour = slot_index + 8
+                            day_schedule = schedule[day_index].select do |item|
+                              item[:start_hour] <= current_hour && current_hour < item[:end_hour]
+                            end
+                          %>
+                          <% day_schedule.each do |item| %>
+                            <% if item[:start_hour] == current_hour %>
+                              <% 
+                                # Style based on whether class is currently active
+                                bg_class = item[:active] ? "bg-[#d13732]/15 border-[#d13732]/40" : "bg-gray-100 border-gray-300"
+                                text_class = item[:active] ? "text-[#d13732]" : "text-gray-500"
+                              %>
+                              <div class="absolute inset-x-0 top-0 <%= bg_class %> border rounded p-0.5 m-0.5 overflow-hidden"
+                                   style="height: <%= item[:duration] * 100 %>%; z-index: 10;">
+                                <div class="text-xs font-semibold <%= text_class %> truncate">
+                                  <%= extract_subject_code(item[:course].subject) %> <%= item[:course].course_number %>
+                                </div>
+                                <% if item[:meeting_time].building_room.present? %>
+                                  <div class="text-xs text-gray-500 truncate">
+                                    <%= item[:meeting_time].building_room %>
+                                  </div>
+                                <% end %>
+                                <% if !item[:active] %>
+                                  <div class="text-xs text-gray-400 truncate">
+                                    <%= item[:meeting_time].start_date.strftime("%m/%d") %> - <%= item[:meeting_time].end_date.strftime("%m/%d") %>
+                                  </div>
+                                <% end %>
+                              </div>
+                            <% end %>
+                          <% end %>
+                        </td>
+                      <% end %>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="mt-4 text-sm text-gray-600">
+              <h3 class="font-semibold mb-2">Course Details:</h3>
+              <div class="space-y-2">
+                <% enrollments.each do |enrollment| %>
+                  <div class="border-l-4 border-[#d13732]/30 pl-3 py-1">
+                    <div class="font-medium text-gray-900">
+                      <%= extract_subject_code(enrollment.course.subject) %> <%= enrollment.course.course_number %>: <%= enrollment.course.title %>
+                    </div>
+                    <% if enrollment.course.faculties.any? %>
+                      <div class="text-xs text-gray-600">
+                        👨‍🏫 Instructor(s): <%= enrollment.course.faculties.map(&:display_name).join(", ") %>
+                      </div>
+                    <% end %>
+                    <% unique_locations = enrollment.course.meeting_times.map(&:building_room).compact.uniq %>
+                    <% if unique_locations.any? %>
+                      <div class="text-xs text-gray-600">
+                        📍 Location(s): <%= unique_locations.join(", ") %>
+                      </div>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% else %>
+            <p class="text-gray-600">No courses found for <%= term.name %>.</p>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const termSelect = document.getElementById('calendar-term-select');
+  if (termSelect) {
+    termSelect.addEventListener('change', function() {
+      const selectedTermId = this.value;
+      
+      // Hide all term schedules
+      document.querySelectorAll('.term-schedule').forEach(function(schedule) {
+        schedule.classList.add('hidden');
+      });
+      
+      // Show selected term schedule
+      const selectedSchedule = document.querySelector(`.term-schedule[data-term-id="${selectedTermId}"]`);
+      if (selectedSchedule) {
+        selectedSchedule.classList.remove('hidden');
+      }
+    });
+  }
+  
+  // Schedule collapse functionality
+  const collapseButton = document.querySelector('[data-action*="schedule-collapse#toggle"]');
+  const scheduleContent = document.querySelector('.schedule-content');
+  const chevron = document.querySelector('.schedule-chevron');
+  
+  if (collapseButton && scheduleContent && chevron) {
+    collapseButton.addEventListener('click', function() {
+      if (scheduleContent.style.display === 'none') {
+        scheduleContent.style.display = 'block';
+        chevron.style.transform = 'rotate(0deg)';
+      } else {
+        scheduleContent.style.display = 'none';
+        chevron.style.transform = 'rotate(-90deg)';
+      }
+    });
+  }
+});
+</script>
