@@ -22,7 +22,10 @@
       <%= link_to "Manage Users", admin_users_path, class: "quick-action-link" %>
       <%= link_to "Manage Calendars", admin_calendars_path, class: "quick-action-link" %>
       <%= link_to "Fill Missing RMP IDs#{" (#{@missing_rmp_ids_count})" if @missing_rmp_ids_count > 0}", missing_rmp_ids_admin_faculties_path, class: "quick-action-link" %>
-      <% if policy(:course_catalog).index? %>
+      <% if current_user.owner? %>
+        <%= link_to "Manage Service Account", admin_service_account_index_path, class: "quick-action-link" %>
+      <% end %>
+      <% if current_user.super_admin? %>
         <%= link_to "Fetch Course Catalog", admin_course_catalog_path, class: "quick-action-link" %>
       <% end %>
     </div>
