@@ -97,14 +97,27 @@ class CourseProcessorService < ApplicationService
           "endDate" => end_date,
           "beginTime" => begin_time,
           "endTime" => end_time,
-          "building" => "TBD",
-          "buildingDescription" => "To Be Determined",
-          "room" => "TBD"
+          # Extract location info from first meeting if available, fallback to TBD
+          "building" => meetings.first[:building] || meetings.first["building"] || "TBD",
+          "buildingDescription" => meetings.first[:buildingDescription] || meetings.first["buildingDescription"] || "To Be Determined",
+          "room" => meetings.first[:room] || meetings.first["room"] || "TBD"
         }.merge(days)
       end
       
-      # Faculty data will be fetched from LeopardWebService if needed
+      # Extract faculty data from the first meeting time
       faculty_data = []
+      first_meeting = course_meetings.first
+      if first_meeting[:instructor] || first_meeting["instructor"] || first_meeting[:faculty] || first_meeting["faculty"]
+        instructor_name = first_meeting[:instructor] || first_meeting["instructor"] || first_meeting[:faculty] || first_meeting["faculty"]
+        instructor_email = first_meeting[:instructorEmail] || first_meeting["instructorEmail"] || first_meeting[:facultyEmail] || first_meeting["facultyEmail"]
+        
+        if instructor_name.present? && instructor_name.to_s.strip != ""
+          faculty_data = [{
+            displayName: instructor_name.to_s.strip,
+            emailAddress: instructor_email.to_s.strip.presence || "#{instructor_name.to_s.strip.downcase.gsub(/\s+/, '.')}@wit.edu"
+          }]
+        end
+      end
 
       # Get course start/end dates from first meeting time (in MM/DD/YYYY format)
       start_date = nil
@@ -156,7 +169,7 @@ class CourseProcessorService < ApplicationService
       enrollment = Enrollment.find_or_create_by!(user: user, course: course, term: term)
 
       # Reload course to get associated meeting times with their associations
-      course = Course.includes(meeting_times: [:building, :room]).find(course.id)
+      course = Course.includes(:faculties, meeting_times: [:building, :room]).find(course.id)
 
       # Collect processed course data
       processed_courses << {
@@ -166,6 +179,14 @@ class CourseProcessorService < ApplicationService
         subject: course.subject,
         course_number: course.course_number,
         schedule_type: course.schedule_type,
+        instructors: course.faculties.map do |faculty|
+          {
+            name: faculty.display_name,
+            first_name: faculty.first_name,
+            last_name: faculty.last_name,
+            email: faculty.email
+          }
+        end,
         term: {
           uid: term.uid,
           season: term.season,
