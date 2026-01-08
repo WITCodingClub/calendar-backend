@@ -10,14 +10,18 @@ class GoogleCalendarService
   end
 
   def create_or_get_course_calendar
-    # Get or create the GoogleCalendar database record
-    google_calendar = user.google_credential&.google_calendar
+    # Check if ANY of the user's OAuth credentials already has a GoogleCalendar
+    google_calendar = GoogleCalendar.for_user(user).first
     newly_created = false
 
-    # Create calendar if it doesn't exist
+    # Create calendar if it doesn't exist for any OAuth credential
     if google_calendar.blank?
       google_api_calendar = create_calendar_with_service_account
-      google_calendar = user.google_credential.create_google_calendar!(
+      # Use the primary Google credential or first available to create the calendar
+      primary_credential = user.google_credential || user.google_credentials.first
+      raise "No Google OAuth credentials found for user" unless primary_credential
+
+      google_calendar = primary_credential.create_google_calendar!(
         google_calendar_id: google_api_calendar.id,
         summary: google_api_calendar.summary,
         description: google_api_calendar.description,
@@ -48,7 +52,7 @@ class GoogleCalendarService
   def update_calendar_events(events, force: false)
     # Use user's OAuth credentials so reminders are visible to the user
     service = user_calendar_service
-    google_calendar = user.google_credential&.google_calendar
+    google_calendar = GoogleCalendar.for_user(user).first
     return { created: 0, updated: 0, skipped: 0 } unless google_calendar
 
     calendar_id = google_calendar.google_calendar_id
@@ -180,7 +184,7 @@ class GoogleCalendarService
   def update_specific_events(events, force: false)
     # Use user's OAuth credentials so reminders are visible to the user
     service = user_calendar_service
-    google_calendar = user.google_credential&.google_calendar
+    google_calendar = GoogleCalendar.for_user(user).first
     unless google_calendar
       Rails.logger.warn({
         message: "Cannot update events - no Google Calendar found",

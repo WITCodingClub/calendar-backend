@@ -497,7 +497,7 @@ module CourseScheduleSyncable
 
   # Add a method to handle calendar deletion/cleanup
   def delete_course_calendar
-    google_calendar = google_credential&.google_calendar
+    google_calendar = GoogleCalendar.for_user(self).first
     return if google_calendar.blank?
 
     service = GoogleCalendarService.new(self)
