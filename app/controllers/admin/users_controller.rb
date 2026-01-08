@@ -20,13 +20,13 @@ module Admin
         if search_term.match?(/^\d+$/)
           @users = @users.where(id: search_term.to_i)
         else
-          # Search by email or concatenated first+last name
-          @users = @users.where(
-            "email ILIKE :search OR " \
-            "CONCAT(first_name, last_name) ILIKE :search OR " \
-            "CONCAT(first_name, ' ', last_name) ILIKE :search",
+          # Search by email (through emails table) or concatenated first+last name
+          @users = @users.joins(:emails).where(
+            "emails.email ILIKE :search OR " \
+            "CONCAT(users.first_name, users.last_name) ILIKE :search OR " \
+            "CONCAT(users.first_name, ' ', users.last_name) ILIKE :search",
             search: "%#{search_term}%"
-          )
+          ).distinct
         end
       end
 

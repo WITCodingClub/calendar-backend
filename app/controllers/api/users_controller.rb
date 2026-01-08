@@ -2,6 +2,7 @@
 
 module Api
   class UsersController < ApiController
+    include ApplicationHelper
     skip_before_action :authenticate_user_from_token!, only: [:onboard]
     skip_before_action :check_beta_access, only: [:onboard, :get_email]
 
@@ -261,7 +262,7 @@ module Api
         rendered_title = if preferences[:title_template].present?
                            template_renderer.render(preferences[:title_template], context)
                          else
-                           mt.course.title
+                           titleize_with_roman_numerals(mt.course.title)
                          end
 
         rendered_description = if preferences[:description_template].present?
@@ -277,8 +278,8 @@ module Api
 
         {
           id: mt.public_id,
-          begin_time: mt.fmt_begin_time,
-          end_time: mt.fmt_end_time,
+          begin_time: mt.fmt_begin_time_military,
+          end_time: mt.fmt_end_time_military,
           start_date: mt.start_date,
           end_date: mt.end_date,
           location: {
@@ -421,7 +422,7 @@ module Api
         end
 
         {
-          title: course.title,
+          title: titleize_with_roman_numerals(course.title),
           course_number: course.course_number,
           schedule_type: course.schedule_type,
           prefix: course.prefix,

@@ -88,6 +88,18 @@ class MeetingTime < ApplicationRecord
     format_12_hour(hours, minutes)
   end
 
+  def fmt_begin_time_military
+    hours = begin_time / 100
+    minutes = begin_time % 100
+    format_24_hour(hours, minutes)
+  end
+
+  def fmt_end_time_military
+    hours = end_time / 100
+    minutes = end_time % 100
+    format_24_hour(hours, minutes)
+  end
+
   def formatted_time_range
     "#{fmt_begin_time} - #{fmt_end_time}"
   end
@@ -114,6 +126,10 @@ class MeetingTime < ApplicationRecord
     meridian = hours >= 12 ? "PM" : "AM"
     display_hour = hours == 0 ? 12 : (hours > 12 ? hours - 12 : hours)
     format("%d:%02d %s", display_hour, minutes, meridian)
+  end
+
+  def format_24_hour(hours, minutes)
+    format("%02d:%02d", hours, minutes)
   end
 
 end
