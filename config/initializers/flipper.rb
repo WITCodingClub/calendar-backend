@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require Rails.root.join("app/lib/flipper_flags")
+
 Rails.application.configure do
   ## Memoization ensures that only one adapter call is made per feature per request.
   ## For more info, see https://www.flippercloud.io/docs/optimization#memoization
@@ -73,3 +75,7 @@ end
 Flipper.register(:owners) do |actor, _context|
   actor.is_a?(User) && actor.owner?
 end
+
+# Auto-create all declared feature flags if they don't exist
+# Run this manually with: rails flipper:ensure_flags
+# TODO: Auto-creation disabled due to initialization order issues

@@ -1,15 +1,17 @@
 # frozen_string_literal: true
 
+require Rails.root.join("app/lib/flipper_flags")
+
 # Configure Rack Attack for rate limiting
 class Rack::Attack
   # Use Redis for Rack Attack storage in production/staging, memory store in development/test
   Rack::Attack.cache.store = if Rails.env.production? || Rails.env.staging?
-                                ActiveSupport::Cache::RedisCacheStore.new(
-                                  url: ENV.fetch("REDIS_URL", "redis://localhost:6379/5")
-                                )
-                              else
-                                ActiveSupport::Cache::MemoryStore.new
-                              end
+                               ActiveSupport::Cache::RedisCacheStore.new(
+                                 url: ENV.fetch("REDIS_URL", "redis://localhost:6379/5")
+                               )
+                             else
+                               ActiveSupport::Cache::MemoryStore.new
+                             end
 
   # ============================================================================
   # SAFELISTS - Requests that bypass all rate limiting
@@ -29,6 +31,22 @@ class Rack::Attack
   # Allow health check endpoints (needed for monitoring/load balancers)
   safelist("allow-healthchecks") do |req|
     req.path.start_with?("/up", "/healthchecks", "/okcomputer")
+  end
+
+  # Whitelist admin users and users with bypass feature flag from most rate limits
+  safelist("allow-privileged-users") do |req|
+    # Skip for authentication endpoints (we still want to rate limit these for security)
+    next false if ["/users/sign_in", "/users/password"].include?(req.path)
+
+    # Check if this is an API request with privileged user
+    if req.path.start_with?("/api/")
+      user_id = extract_user_id_from_jwt(req)
+      user_has_admin_access?(user_id) || user_has_rate_limit_bypass?(user_id)
+    else
+      # For non-API requests (including admin area), we rely on more generous limits
+      # below instead of full whitelist since we can't easily check user from session
+      false
+    end
   end
 
   # ============================================================================
@@ -66,7 +84,7 @@ class Rack::Attack
   # ============================================================================
 
   # General IP-based throttle (exclude static assets and safelisted paths)
-  throttle("req/ip", limit: 300, period: 5.minutes) do |req|
+  throttle("req/ip", limit: 600, period: 5.minutes) do |req|
     req.ip unless req.path.start_with?("/assets", "/packs", "/rails/active_storage")
   end
 
@@ -131,6 +149,32 @@ class Rack::Attack
     end
   end
 
+  # Check if user has admin access (admin, super_admin, or owner)
+  def self.user_has_admin_access?(user_id)
+    return false unless user_id
+
+    begin
+      user = User.find_by(id: user_id)
+      user&.admin_access?
+    rescue
+      false
+    end
+  end
+
+  # Check if user has rate limit bypass feature flag enabled
+  def self.user_has_rate_limit_bypass?(user_id)
+    return false unless user_id
+
+    begin
+      user = User.find_by(id: user_id)
+      return false unless user
+
+      Flipper.enabled?(FlipperFlags::BYPASS_RATE_LIMITS, user)
+    rescue
+      false
+    end
+  end
+
   # API requests by authenticated user (generous limit for legitimate users)
   throttle("api/user", limit: 100, period: 1.minute) do |req|
     extract_user_id_from_jwt(req) if req.path.start_with?("/api/")
@@ -181,16 +225,16 @@ class Rack::Attack
   # ADMIN AREA THROTTLES
   # ============================================================================
 
-  # Admin area by user session (more generous than public API)
-  throttle("admin/session", limit: 200, period: 5.minutes) do |req|
+  # Admin area by user session (very generous limits for admin users)
+  throttle("admin/session", limit: 1000, period: 5.minutes) do |req|
     if req.path.start_with?("/admin")
       # Use session ID for admin rate limiting
       req.session[:session_id] || req.cookies["_session_id"]
     end
   end
 
-  # Admin destructive operations (delete, revoke, etc.)
-  throttle("admin/destructive", limit: 20, period: 1.minute) do |req|
+  # Admin destructive operations (delete, revoke, etc.) - generous but not unlimited for safety
+  throttle("admin/destructive", limit: 100, period: 1.minute) do |req|
     if req.path.start_with?("/admin") && (req.delete? || req.path.include?("revoke") || req.path.include?("destroy"))
       req.session[:session_id] || req.cookies["_session_id"]
     end

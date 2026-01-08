@@ -7,6 +7,7 @@ module FlipperFlags
   ENV_SWITCHER = :"env_switcher"
   DEBUG_MODE = :"debug_mode"
   FINALS_RETROACTIVE = :"finals_retroactive"
+  BYPASS_RATE_LIMITS = :"bypass_rate_limits"
   # rubocop:enable Lint/SymbolConversion, Style/SymbolLiteral
 
   MAP = {
@@ -15,6 +16,7 @@ module FlipperFlags
     envSwitcher: ENV_SWITCHER,
     debugMode: DEBUG_MODE,
     finalsRetroactive: FINALS_RETROACTIVE,
+    bypassRateLimits: BYPASS_RATE_LIMITS,
   }.freeze
 
   ALL_FLAGS = [
@@ -23,6 +25,7 @@ module FlipperFlags
     :envSwitcher,
     :debugMode,
     :finalsRetroactive,
+    :bypassRateLimits,
   ].freeze
 
 
