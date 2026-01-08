@@ -34,6 +34,14 @@
     <% end %>
     
     
+    <%# Console Audits - all admin levels %>
+    <% if current_user&.admin_access? %>
+      <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
+        <%= link_to "Console Audits", "/admin/audits",
+            class: "admin-nav-link #{request.path.start_with?('/admin/audits') ? 'active' : ''}" %>
+      </li>
+    <% end %>
+    
     <%# Super Admin Tools %>
     <% if current_user&.super_admin? || current_user&.owner? %>
       <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
@@ -43,10 +51,6 @@
       <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
         <%= link_to "Blazer", "/admin/blazer",
             class: "admin-nav-link #{request.path.start_with?('/admin/blazer') ? 'active' : ''}" %>
-      </li>
-      <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
-        <%= link_to "Console Audits", "/admin/audits",
-            class: "admin-nav-link #{request.path.start_with?('/admin/audits') ? 'active' : ''}" %>
       </li>
       <li class="m-0 border-r-[3px] border-[rgba(209,55,50,0.4)]">
         <%= link_to "Performance", "/admin/performance",

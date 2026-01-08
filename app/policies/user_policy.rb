@@ -21,10 +21,10 @@ class UserPolicy < ApplicationPolicy
     record == user || super_admin?
   end
 
-  # Users can delete their own account, super_admins+ can delete others
+  # Only super_admins+ can delete user accounts
   # (but super_admins cannot delete owners)
   def destroy?
-    record == user || can_perform_destructive_action?
+    can_perform_destructive_action?
   end
 
   # Super_admins+ can revoke OAuth credentials (admins cannot)

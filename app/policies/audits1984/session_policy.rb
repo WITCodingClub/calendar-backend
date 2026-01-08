@@ -3,11 +3,11 @@
 module Audits1984
   class SessionPolicy < ApplicationPolicy
     def index?
-      super_admin?
+      admin?
     end
 
     def show?
-      super_admin?
+      admin?
     end
 
     def create?
@@ -15,7 +15,7 @@ module Audits1984
     end
 
     def update?
-      super_admin?
+      admin?
     end
 
     def destroy?
@@ -24,7 +24,7 @@ module Audits1984
 
     class Scope < ApplicationPolicy::Scope
       def resolve
-        return scope.none unless user&.super_admin?
+        return scope.none unless user&.admin?
 
         scope.all
       end
