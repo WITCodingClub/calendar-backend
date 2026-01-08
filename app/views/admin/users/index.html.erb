@@ -7,7 +7,7 @@
     <%= form_with(url: admin_users_path, method: :get, data: { turbo_frame: "users_table", turbo_action: "advance", controller: "users-search" }, class: "flex gap-2") do |f| %>
       <%= f.text_field :search,
           value: params[:search],
-          placeholder: "Search by email...",
+          placeholder: "Search by ID, email, or name...",
           class: "glass-input flex-1 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50",
           data: { action: "input->users-search#search" } %>
       <% if params[:search].present? %>
