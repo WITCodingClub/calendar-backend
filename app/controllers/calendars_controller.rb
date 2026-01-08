@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class CalendarsController < ApplicationController
+  include ApplicationHelper
+  
   skip_before_action :verify_authenticity_token
 
   def show
@@ -104,7 +106,7 @@ class CalendarsController < ApplicationController
           if prefs[:title_template].present?
             e.summary = @template_renderer.render(prefs[:title_template], context)
           else
-            e.summary = course.title
+            e.summary = titleize_with_roman_numerals(course.title)
           end
 
           # Apply description template if set
@@ -192,7 +194,7 @@ class CalendarsController < ApplicationController
         e.dtstart = Icalendar::Values::DateTime.new(final_exam.start_datetime, tzid: "America/New_York")
         e.dtend = Icalendar::Values::DateTime.new(final_exam.end_datetime, tzid: "America/New_York")
 
-        e.summary = "Final Exam: #{final_exam.course_title}"
+        e.summary = "Final Exam: #{titleize_with_roman_numerals(final_exam.course_title)}"
         e.description = final_exam.course_code
         e.location = final_exam.location if final_exam.location.present?
 

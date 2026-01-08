@@ -30,11 +30,14 @@ module ApplicationHelper
   end
 
   def titleize_with_roman_numerals(title)
+    # First, remove spaces between digits and letters (e.g., "2 A" -> "2A")
+    cleaned = title.gsub(/(\d)\s+([A-Za-z])/, '\1\2')
+    
     # Capitalize first letter of each word while preserving punctuation
-    # Also capitalize letters that follow digits (e.g., "1B" in "Calculus 1B")
-    titleized = title.downcase
-                     .gsub(/(^|\s)(\w)/) { $1 + $2.upcase } # Capitalize after space or start
-                     .gsub(/(\d)([a-z])/) { $1 + $2.upcase } # Capitalize letters after digits
+    # Also capitalize letters that follow digits (e.g., "1b" in "Calculus 1b")
+    titleized = cleaned.downcase
+                       .gsub(/(^|\s)(\w)/) { $1 + $2.upcase } # Capitalize after space or start
+                       .gsub(/(\d)([a-z])/i) { $1 + $2.upcase } # Capitalize letters after digits
 
     # Then fix Roman numerals (I, II, III, IV, V, etc.)
     # Match Roman numerals as separate words
@@ -42,4 +45,12 @@ module ApplicationHelper
       match.upcase
     end
   end
+
+  def extract_subject_code(subject)
+    # Extract subject code from parentheses (e.g., "Mechanical (MECH)" -> "MECH")
+    # Or return the original subject if no parentheses found
+    match = subject.match(/\(([^)]+)\)/)
+    match ? match[1] : subject
+  end
+
 end
