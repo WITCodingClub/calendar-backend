@@ -1,7 +1,7 @@
 <div class="glass-card shadow-lg rounded-lg overflow-hidden">
   <div class="px-4 py-3">
     <div class="flex justify-between items-center mb-3">
-      <button type="button" class="flex items-center gap-2 text-lg font-bold hover:text-[#d13732] transition-colors" data-action="click->schedule-collapse#toggle">
+      <button type="button" id="schedule-toggle" class="flex items-center gap-2 text-lg font-bold hover:text-[#d13732] transition-colors">
         <span class="schedule-chevron transform transition-transform" style="transform: rotate(-90deg);">▼</span>
         <span>Weekly Schedule</span>
       </button>
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   // Schedule collapse functionality
-  const collapseButton = document.querySelector('[data-action*="schedule-collapse#toggle"]');
+  const collapseButton = document.getElementById('schedule-toggle');
   const scheduleContent = document.querySelector('.schedule-content');
   const chevron = document.querySelector('.schedule-chevron');
   

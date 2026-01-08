@@ -225,11 +225,20 @@
   <% if @enrollments_by_term.any? %>
     <div class="mt-8 glass-card shadow-lg rounded-lg overflow-hidden">
       <div class="px-6 py-5">
-        <h2 class="text-xl font-bold mb-4">Enrollments</h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">Enrollments</h2>
+          <% if @enrollments_by_term.size > 1 %>
+            <select id="enrollments-term-select" class="px-3 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-white/80 text-[#d13732] border-[rgba(209,55,50,0.3)]">
+              <% @enrollments_by_term.keys.each_with_index do |term, index| %>
+                <option value="<%= term.id %>" <%= index == 0 ? 'selected' : '' %>><%= term.name %></option>
+              <% end %>
+            </select>
+          <% end %>
+        </div>
         
-        <% @enrollments_by_term.each do |term, enrollments| %>
-          <div class="mb-6 last:mb-0">
-            <h3 class="text-lg font-semibold mb-3 text-[#d13732]"><%= term.name %></h3>
+        <div id="enrollments-container">
+          <% @enrollments_by_term.each_with_index do |(term, enrollments), index| %>
+            <div class="enrollment-term <%= index > 0 ? 'hidden' : '' %>" data-term-id="<%= term.id %>">
             
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
@@ -300,11 +309,34 @@
                 </tbody>
               </table>
             </div>
-          </div>
-        <% end %>
+            </div>
+          <% end %>
+        </div>
       </div>
     </div>
   <% end %>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const enrollmentsTermSelect = document.getElementById('enrollments-term-select');
+    if (enrollmentsTermSelect) {
+      enrollmentsTermSelect.addEventListener('change', function() {
+        const selectedTermId = this.value;
+        
+        // Hide all enrollment terms
+        document.querySelectorAll('.enrollment-term').forEach(function(term) {
+          term.classList.add('hidden');
+        });
+        
+        // Show selected enrollment term
+        const selectedTerm = document.querySelector(`.enrollment-term[data-term-id="${selectedTermId}"]`);
+        if (selectedTerm) {
+          selectedTerm.classList.remove('hidden');
+        }
+      });
+    }
+  });
+  </script>
 
   <!-- Week Calendar View -->
   <% if @enrollments_by_term.any? %>
