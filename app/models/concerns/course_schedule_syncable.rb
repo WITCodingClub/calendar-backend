@@ -81,7 +81,17 @@ module CourseScheduleSyncable
     university_events = build_university_events_for_sync
     events.concat(university_events)
 
-    service.update_calendar_events(events, force: force)
+    result = service.update_calendar_events(events, force: force)
+    
+    # Update last sync timestamp if sync was successful
+    if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
+      update_columns(
+        last_calendar_sync_at: Time.current,
+        calendar_needs_sync: false
+      )
+    end
+    
+    result
   end
 
   # Intelligent partial sync - only sync specific enrollments
@@ -136,7 +146,17 @@ module CourseScheduleSyncable
     end
 
     # Only sync these specific events
-    service.update_specific_events(events, force: force)
+    result = service.update_specific_events(events, force: force)
+    
+    # Update last sync timestamp if sync was successful
+    if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
+      update_columns(
+        last_calendar_sync_at: Time.current,
+        calendar_needs_sync: false
+      )
+    end
+    
+    result
   end
 
   # Sync a single meeting time immediately (for preference changes)
@@ -186,7 +206,14 @@ module CourseScheduleSyncable
     }
 
     # Sync just this one event
-    service.update_specific_events([event], force: force)
+    result = service.update_specific_events([event], force: force)
+    
+    # Update last sync timestamp if sync was successful
+    if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
+      update_column(:last_calendar_sync_at, Time.current)
+    end
+    
+    result
   end
 
   # Quick sync - only update stale events (not synced in last hour)
@@ -458,7 +485,14 @@ module CourseScheduleSyncable
       recurrence: nil
     }
 
-    service.update_specific_events([event], force: force)
+    result = service.update_specific_events([event], force: force)
+    
+    # Update last sync timestamp if sync was successful
+    if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
+      update_column(:last_calendar_sync_at, Time.current)
+    end
+    
+    result
   end
 
   # Add a method to handle calendar deletion/cleanup
