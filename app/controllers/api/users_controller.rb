@@ -3,6 +3,7 @@
 module Api
   class UsersController < ApiController
     include ApplicationHelper
+
     skip_before_action :authenticate_user_from_token!, only: [:onboard]
     skip_before_action :check_beta_access, only: [:onboard, :get_email]
 
@@ -368,6 +369,59 @@ module Api
       render json: { error: "Failed to disconnect OAuth credential" }, status: :internal_server_error
     end
 
+    # GET /api/user/notifications_status
+    # Returns the current notifications DND status
+    def notifications_status
+      authorize current_user, :show?
+
+      render json: {
+        notifications_disabled: current_user.notifications_disabled?,
+        notifications_disabled_until: current_user.notifications_disabled_until
+      }, status: :ok
+    end
+
+    # POST /api/user/notifications/disable
+    # Disables all notifications (DND mode)
+    # Optional params:
+    #   - duration: duration in seconds (nil for indefinite)
+    def disable_notifications
+      authorize current_user, :update?
+
+      duration_seconds = params[:duration]&.to_i
+
+      if duration_seconds.present? && duration_seconds > 0
+        current_user.disable_notifications!(duration: duration_seconds.seconds)
+      else
+        current_user.disable_notifications!
+      end
+
+      render json: {
+        message: "Notifications disabled",
+        notifications_disabled: true,
+        notifications_disabled_until: current_user.notifications_disabled_until
+      }, status: :ok
+    rescue => e
+      Rails.logger.error("Error disabling notifications for user #{current_user.id}: #{e.message}")
+      render json: { error: "Failed to disable notifications" }, status: :internal_server_error
+    end
+
+    # POST /api/user/notifications/enable
+    # Re-enables notifications (turns off DND mode)
+    def enable_notifications
+      authorize current_user, :update?
+
+      current_user.enable_notifications!
+
+      render json: {
+        message: "Notifications enabled",
+        notifications_disabled: false,
+        notifications_disabled_until: nil
+      }, status: :ok
+    rescue => e
+      Rails.logger.error("Error enabling notifications for user #{current_user.id}: #{e.message}")
+      render json: { error: "Failed to enable notifications" }, status: :internal_server_error
+    end
+
     def get_processed_events_by_term
       authorize current_user, :show?
 
@@ -400,25 +454,25 @@ module Api
       structured_data = enrollments.map do |enrollment|
         course = enrollment.course
         faculty = course.faculties.first # safer than [0]
-        
+
         # Filter meeting times to prefer valid locations over TBD duplicates
         filtered_meeting_times = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
-                                                     .map do |key, meeting_times_group|
-          # Log duplicate detection
-          if meeting_times_group.size > 1
-            Rails.logger.info "[API] Duplicate meeting times detected for course #{course.crn}: #{meeting_times_group.size} entries for #{key.inspect}"
-          end
-          
-          # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
-          non_tbd = meeting_times_group.reject { |mt| mt.building && current_user.send(:tbd_building?, mt.building) || mt.room && current_user.send(:tbd_room?, mt.room) }
-          # Take only the first valid one, or first TBD if no valid ones
-          selected = non_tbd.any? ? non_tbd.first : meeting_times_group.first
-          
-          if meeting_times_group.size > 1
-            Rails.logger.info "[API] Selected meeting time #{selected.id} with location: #{selected.building&.name} - #{selected.room&.number}"
-          end
-          
-          selected
+                                       .map do |key, meeting_times_group|
+                                         # Log duplicate detection
+                                         if meeting_times_group.size > 1
+                                           Rails.logger.info "[API] Duplicate meeting times detected for course #{course.crn}: #{meeting_times_group.size} entries for #{key.inspect}"
+                                         end
+
+                                         # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
+                                         non_tbd = meeting_times_group.reject { |mt| (mt.building && current_user.send(:tbd_building?, mt.building)) || (mt.room && current_user.send(:tbd_room?, mt.room)) }
+                                         # Take only the first valid one, or first TBD if no valid ones
+                                         selected = non_tbd.any? ? non_tbd.first : meeting_times_group.first
+
+                                         if meeting_times_group.size > 1
+                                           Rails.logger.info "[API] Selected meeting time #{selected.id} with location: #{selected.building&.name} - #{selected.room&.number}"
+                                         end
+
+                                         selected
         end
 
         {
@@ -432,13 +486,17 @@ module Api
             season: term.season,
             year: term.year
           },
-          professor: faculty ? {
-            pub_id: faculty.public_id,
-            first_name: faculty.first_name,
-            last_name: faculty.last_name,
-            email: faculty.email,
-            rmp_id: faculty.rmp_id
-          } : nil,
+          professor: if faculty
+                       {
+                         pub_id: faculty.public_id,
+                         first_name: faculty.first_name,
+                         last_name: faculty.last_name,
+                         email: faculty.email,
+                         rmp_id: faculty.rmp_id
+                       }
+                     else
+                       nil
+                     end,
           # Note: We pass filtered_meeting_times (not grouped) to ensure each day has unique ID
           meeting_times: group_meeting_times(filtered_meeting_times)
         }
