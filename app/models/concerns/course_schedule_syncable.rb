@@ -402,8 +402,14 @@ module CourseScheduleSyncable
 
     # Always include holidays (auto-sync for all users)
     UniversityCalendarEvent.holidays.upcoming.find_each do |event|
+      # Only append "No Classes" if the summary doesn't already contain it
+      holiday_summary = if event.summary.to_s.downcase.include?("no class")
+                          "🏫 #{event.summary}"
+                        else
+                          "🏫 #{event.summary} - No Classes"
+                        end
       events << {
-        summary: "🏫 #{event.summary} - No Classes",
+        summary: holiday_summary,
         description: event.description,
         location: event.location,
         start_time: event.start_time,

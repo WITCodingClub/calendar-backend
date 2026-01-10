@@ -243,7 +243,12 @@ class CalendarsController < ApplicationController
 
       # Add holiday prefix to make it clear in calendar apps
       if event.category == "holiday"
-        e.summary = "🏫 #{event.summary} - No Classes"
+        # Only append "No Classes" if the summary doesn't already contain it
+        if event.summary.to_s.downcase.include?("no class")
+          e.summary = "🏫 #{event.summary}"
+        else
+          e.summary = "🏫 #{event.summary} - No Classes"
+        end
       else
         e.summary = event.summary
       end
