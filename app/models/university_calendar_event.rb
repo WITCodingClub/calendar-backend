@@ -68,6 +68,8 @@ class UniversityCalendarEvent < ApplicationRecord
     where(start_time: start_date.beginning_of_day..end_date.end_of_day)
   }
   scope :by_categories, ->(categories) { where(category: categories) }
+  scope :with_location, -> { where.not(location: [nil, ""]) }
+  scope :without_location, -> { where(location: [nil, ""]) }
 
   # Get holidays within a date range (useful for schedule adjustments and EXDATE generation)
   # @param start_date [Date] The start of the date range

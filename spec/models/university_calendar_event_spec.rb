@@ -141,6 +141,32 @@ RSpec.describe UniversityCalendarEvent, type: :model do
         expect(result).not_to include(campus)
       end
     end
+
+    describe ".with_location" do
+      it "returns events that have a location" do
+        with_location = create(:university_calendar_event, location: "Room 101")
+        without_location = create(:university_calendar_event, location: nil)
+        empty_location = create(:university_calendar_event, location: "")
+
+        result = described_class.with_location
+
+        expect(result).to include(with_location)
+        expect(result).not_to include(without_location, empty_location)
+      end
+    end
+
+    describe ".without_location" do
+      it "returns events that have no location" do
+        with_location = create(:university_calendar_event, location: "Room 101")
+        without_location = create(:university_calendar_event, location: nil)
+        empty_location = create(:university_calendar_event, location: "")
+
+        result = described_class.without_location
+
+        expect(result).to include(without_location, empty_location)
+        expect(result).not_to include(with_location)
+      end
+    end
   end
 
   describe ".holidays_between" do
