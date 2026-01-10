@@ -4,8 +4,8 @@ require "rails_helper"
 
 RSpec.describe CleanupDuplicateTbdEventsJob, type: :job do
   let(:user) { create(:user) }
-  let(:google_credential) { create(:google_credential, :google, user: user) }
-  let(:google_calendar) { create(:google_calendar, oauth_credential: google_credential) }
+  let(:oauth_credential) { create(:oauth_credential, user: user) }
+  let(:google_calendar) { create(:google_calendar, oauth_credential: oauth_credential) }
   let(:course) { create(:course) }
   let(:enrollment) { create(:enrollment, user: user, course: course) }
   
@@ -13,26 +13,32 @@ RSpec.describe CleanupDuplicateTbdEventsJob, type: :job do
   let(:valid_building) { create(:building, name: "Watson Hall", abbreviation: "WAT") }
   let(:tbd_room) { create(:room, building: tbd_building, number: "000") }
   let(:valid_room) { create(:room, building: valid_building, number: "101") }
-  
+
+  # Shared dates for meeting times to be considered duplicates
+  let(:shared_start_date) { 3.days.from_now.beginning_of_day }
+  let(:shared_end_date) { 3.months.from_now.beginning_of_day }
+
   let(:meeting_time_tbd) do
-    create(:meeting_time, 
+    create(:meeting_time,
       course: course,
-      building: tbd_building,
       room: tbd_room,
       day_of_week: "monday",
       begin_time: 900,
-      end_time: 1050
+      end_time: 1050,
+      start_date: shared_start_date,
+      end_date: shared_end_date
     )
   end
-  
+
   let(:meeting_time_valid) do
     create(:meeting_time,
-      course: course, 
-      building: valid_building,
+      course: course,
       room: valid_room,
       day_of_week: "monday",
       begin_time: 900,
-      end_time: 1050
+      end_time: 1050,
+      start_date: shared_start_date,
+      end_date: shared_end_date
     )
   end
 
@@ -128,22 +134,27 @@ RSpec.describe CleanupDuplicateTbdEventsJob, type: :job do
 
     context "when processing all users" do
       let(:user2) { create(:user) }
-      let(:google_credential2) { create(:google_credential, :google, user: user2) }
-      let(:google_calendar2) { create(:google_calendar, oauth_credential: google_credential2) }
+      let(:oauth_credential2) { create(:oauth_credential, user: user2) }
+      let(:google_calendar2) { create(:google_calendar, oauth_credential: oauth_credential2) }
 
       before do
         enrollment
         google_event_tbd
         google_event_valid
-        
-        # Set up second user
+
+        # Set up second user with both TBD and valid events
         create(:enrollment, user: user2, course: course)
         create(:google_calendar_event,
           google_calendar: google_calendar2,
           meeting_time: meeting_time_tbd,
           google_event_id: "tbd_event_789"
         )
-        
+        create(:google_calendar_event,
+          google_calendar: google_calendar2,
+          meeting_time: meeting_time_valid,
+          google_event_id: "valid_event_790"
+        )
+
         allow(GoogleCalendarService).to receive(:new).with(user2).and_return(google_calendar_service)
         allow(api_service).to receive(:delete_event)
       end

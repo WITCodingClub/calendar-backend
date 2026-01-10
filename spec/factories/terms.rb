@@ -34,5 +34,15 @@ FactoryBot.define do
       start_date { Date.current.beginning_of_year }
       end_date { Date.current.end_of_year }
     end
+
+    trait :future do
+      start_date { 4.months.from_now.to_date }
+      end_date { 8.months.from_now.to_date }
+    end
+
+    trait :past do
+      start_date { 8.months.ago.to_date }
+      end_date { 4.months.ago.to_date }
+    end
   end
 end

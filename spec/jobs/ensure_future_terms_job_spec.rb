@@ -61,10 +61,25 @@ RSpec.describe EnsureFutureTermsJob do
       it "generates correct uids for new terms" do
         described_class.perform_now
 
-        next_year = current_year + 1
-        # Check next year's spring term has correct UID
-        next_spring = Term.find_by(year: next_year, season: :spring)
-        expect(next_spring.uid).to eq((next_year * 100) + 20)
+        # The job creates current + 2 terms ahead
+        # If current is spring (Jan-May), progression is: spring → summer → fall
+        # So for spring 2026, it creates summer 2026 and fall 2026
+
+        # Check that created terms have correct UIDs
+        today = Time.zone.today
+        if today.month >= 8
+          # Current is fall, next are spring+1 and summer+1
+          next_spring = Term.find_by(year: current_year + 1, season: :spring)
+          expect(next_spring.uid).to eq(((current_year + 1) * 100) + 20)
+        elsif today.month >= 6
+          # Current is summer, next are fall and spring+1
+          fall_term = Term.find_by(year: current_year, season: :fall)
+          expect(fall_term.uid).to eq(((current_year + 1) * 100) + 10)
+        else
+          # Current is spring, next are summer and fall (same year)
+          summer_term = Term.find_by(year: current_year, season: :summer)
+          expect(summer_term.uid).to eq((current_year * 100) + 30)
+        end
       end
 
       it "does not duplicate existing terms" do

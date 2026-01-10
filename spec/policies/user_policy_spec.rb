@@ -74,8 +74,9 @@ RSpec.describe UserPolicy, type: :policy do
   end
 
   permissions :destroy? do
-    it "allows users to delete their own account (record == user)" do
-      expect(subject).to permit(regular_user, regular_user)
+    it "denies regular users from deleting their own account" do
+      # Policy explicitly requires super_admin+ to delete user accounts
+      expect(subject).not_to permit(regular_user, regular_user)
     end
 
     it "allows super_admins to delete non-owner accounts" do

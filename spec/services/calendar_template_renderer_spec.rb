@@ -311,6 +311,8 @@ RSpec.describe CalendarTemplateRenderer do
         faculty faculty_email all_faculty
         start_time end_time day day_abbr
         term schedule_type schedule_type_short
+        exam_date exam_date_short exam_time_of_day duration
+        event_type is_final_exam combined_crns
       ]
 
       expect(CalendarTemplateRenderer::ALLOWED_VARIABLES).to match_array(expected_vars)

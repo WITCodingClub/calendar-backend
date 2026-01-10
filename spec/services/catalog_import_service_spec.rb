@@ -87,8 +87,8 @@ RSpec.describe CatalogImportService, type: :service do
             "meetingsFaculty" => [
               {
                 "meetingTime" => {
-                  "startDate" => "01/06/2026",
-                  "endDate" => "04/14/2026"
+                  "startDate" => "08/15/2025",
+                  "endDate" => "12/20/2025"
                 }
               }
             ]
@@ -101,8 +101,8 @@ RSpec.describe CatalogImportService, type: :service do
         expect(result[:failed]).to eq(0)
 
         course = Course.find_by(crn: 12347)
-        expect(course.start_date).to eq(Date.new(2026, 1, 6))
-        expect(course.end_date).to eq(Date.new(2026, 4, 14))
+        expect(course.start_date).to eq(Date.new(2025, 8, 15))
+        expect(course.end_date).to eq(Date.new(2025, 12, 20))
       end
 
       it "handles missing dates gracefully" do

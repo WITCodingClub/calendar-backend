@@ -62,7 +62,8 @@ RSpec.describe GoogleCalendarEvent do
 
       expect(hash1).to eq(hash2)
       expect(hash1).to be_a(String)
-      expect(hash1.length).to eq(16)
+      # SHA256 hexdigest produces 64 characters
+      expect(hash1.length).to eq(64)
     end
 
     it "generates different hashes when summary changes" do
@@ -132,7 +133,8 @@ RSpec.describe GoogleCalendarEvent do
 
         hash = described_class.generate_data_hash(data_with_nil_prefs)
         expect(hash).to be_a(String)
-        expect(hash.length).to eq(16)
+        # SHA256 hexdigest produces 64 characters
+        expect(hash.length).to eq(64)
       end
 
       it "treats missing and nil preference fields the same" do
