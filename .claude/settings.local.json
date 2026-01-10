@@ -3,7 +3,9 @@
     "allow": [
       "Bash(bundle exec rspec:*)",
       "Bash(RAILS_ENV=test bundle exec rails:*)",
-      "Bash(RAILS_ENV=production bundle exec rails runner \"puts Room.column_names\")"
+      "Bash(RAILS_ENV=production bundle exec rails runner \"puts Room.column_names\")",
+      "Bash(gh repo list:*)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "ask": []
