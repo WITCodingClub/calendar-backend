@@ -386,10 +386,12 @@ module Api
     def disable_notifications
       authorize current_user, :update?
 
-      duration_seconds = params[:duration]&.to_i
+      # Check if duration param was provided (using params.key? for explicit presence check)
+      duration_provided = params.key?(:duration) && params[:duration].present?
+      duration_seconds = params[:duration].to_i if duration_provided
 
       # Validate duration if provided
-      if duration_seconds.present?
+      if duration_provided
         if duration_seconds < 0
           render json: { error: "Duration cannot be negative" }, status: :bad_request
           return
@@ -403,7 +405,7 @@ module Api
         end
       end
 
-      if duration_seconds.present? && duration_seconds > 0
+      if duration_provided && duration_seconds > 0
         current_user.disable_notifications!(duration: duration_seconds.seconds)
       else
         current_user.disable_notifications!
