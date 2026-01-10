@@ -118,10 +118,26 @@ RSpec.describe CourseDataSyncJob, type: :job do
 
     it "handles missing attributes gracefully" do
       partial_data = { title: "Partial Update" }
-      
+
       expect do
         job.send(:update_course_from_fresh_data, course, partial_data, term.uid)
       end.to change { course.reload.title }.to("Partial Update")
+    end
+
+    it "preserves roman numerals in course titles" do
+      data_with_roman_numerals = { title: "CALCULUS II" }
+
+      job.send(:update_course_from_fresh_data, course, data_with_roman_numerals, term.uid)
+
+      expect(course.reload.title).to eq("Calculus II")
+    end
+
+    it "removes spaces between digits and letters in course titles" do
+      data_with_spaced_suffix = { title: "CALCULUS 2 A" }
+
+      job.send(:update_course_from_fresh_data, course, data_with_spaced_suffix, term.uid)
+
+      expect(course.reload.title).to eq("Calculus 2A")
     end
   end
 
