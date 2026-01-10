@@ -6,6 +6,7 @@
         <%= button_to "Sync Now", sync_directory_admin_faculties_path,
             method: :post,
             class: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm cursor-pointer",
+            form: { class: "inline-flex" },
             data: {
               turbo_confirm: "This will sync all 800+ faculty/staff from the WIT directory. Continue?"
             } %>

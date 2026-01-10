@@ -41,6 +41,7 @@
                 batch_auto_fill_admin_faculties_path,
                 method: :post,
                 class: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm cursor-pointer",
+                form: { class: "inline-flex" },
                 data: {
                   turbo_confirm: "This will queue background jobs to search Rate My Professor for all #{@faculties.total_count} faculty members. Continue?"
                 } %>
@@ -88,7 +89,8 @@
                       <%= button_to "Auto Search",
                           auto_fill_rmp_id_admin_faculty_path(faculty),
                           method: :post,
-                          class: "bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs cursor-pointer" %>
+                          class: "bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs cursor-pointer",
+                          form: { class: "inline-flex" } %>
                     <% end %>
                     <% if policy(faculty).search_rmp? %>
                       <%= link_to "Manual Search",
