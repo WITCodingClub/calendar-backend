@@ -46,7 +46,8 @@ class UniversityCalendarEvent < ApplicationRecord
   has_many :google_calendar_events, dependent: :nullify
 
   # Categories for event classification
-  CATEGORIES = %w[holiday academic campus_event meeting exhibit announcement other].freeze
+  # Note: "academic" was split into term_dates, registration, deadline, finals, graduation
+  CATEGORIES = %w[holiday term_dates registration deadline finals graduation campus_event meeting exhibit announcement other].freeze
 
   validates :ics_uid, presence: true, uniqueness: true
   validates :summary, presence: true
@@ -61,7 +62,11 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :upcoming, -> { where(start_time: Time.current.beginning_of_day..) }
   scope :past, -> { where(start_time: ...Time.current) }
   scope :holidays, -> { where(category: "holiday") }
-  scope :academic, -> { where(category: "academic") }
+  scope :term_dates, -> { where(category: "term_dates") }
+  scope :registration, -> { where(category: "registration") }
+  scope :deadlines, -> { where(category: "deadline") }
+  scope :finals, -> { where(category: "finals") }
+  scope :graduation, -> { where(category: "graduation") }
   scope :campus_events, -> { where(category: "campus_event") }
   scope :for_term, ->(term) { where(term: term) }
   scope :in_date_range, ->(start_date, end_date) {
@@ -86,20 +91,20 @@ class UniversityCalendarEvent < ApplicationRecord
     term_name = "#{season.to_s.capitalize} #{year}"
     term_name_alt = season.to_s.capitalize.to_s
 
-    # Find "Classes Begin" events
-    classes_begin = academic.where("summary ILIKE ?", "%classes begin%")
-                            .where("academic_term ILIKE ? OR summary ILIKE ?", "%#{term_name_alt}%", "%#{year}%")
-                            .where(start_time: Date.new(year - 1, 7, 1)..Date.new(year + 1, 2, 1))
-                            .order(:start_time)
-                            .first
+    # Find "Classes Begin" events (now in term_dates category)
+    classes_begin = term_dates.where("summary ILIKE ?", "%classes begin%")
+                              .where("academic_term ILIKE ? OR summary ILIKE ?", "%#{term_name_alt}%", "%#{year}%")
+                              .where(start_time: Date.new(year - 1, 7, 1)..Date.new(year + 1, 2, 1))
+                              .order(:start_time)
+                              .first
 
-    # Find term end indicators (finals, last day, etc.)
-    term_end = academic.where("summary ILIKE ? OR summary ILIKE ?",
-                              "%final exam%", "%classes end%")
-                       .where("academic_term ILIKE ? OR summary ILIKE ?", "%#{term_name_alt}%", "%#{year}%")
-                       .where(start_time: Date.new(year - 1, 7, 1)..Date.new(year + 1, 7, 1))
-                       .order(start_time: :desc)
-                       .first
+    # Find term end indicators - check both term_dates and finals categories
+    term_end = where(category: %w[term_dates finals])
+               .where("summary ILIKE ? OR summary ILIKE ?", "%final exam%", "%classes end%")
+               .where("academic_term ILIKE ? OR summary ILIKE ?", "%#{term_name_alt}%", "%#{year}%")
+               .where(start_time: Date.new(year - 1, 7, 1)..Date.new(year + 1, 7, 1))
+               .order(start_time: :desc)
+               .first
 
     {
       start_date: classes_begin&.start_time&.to_date,
@@ -115,7 +120,7 @@ class UniversityCalendarEvent < ApplicationRecord
     summary_lower = summary.to_s.downcase
     type_lower = event_type_raw.to_s.downcase
 
-    # Check for holidays - be more specific about "break" to avoid false matches
+    # 1. HOLIDAYS - highest priority
     if summary_lower.include?("holiday") ||
        (summary_lower.include?("break") && (summary_lower.include?("spring") || summary_lower.include?("winter") || summary_lower.include?("fall") || summary_lower.include?("summer"))) ||
        summary_lower.include?("offices closed") || summary_lower.include?("university closed") ||
@@ -126,17 +131,51 @@ class UniversityCalendarEvent < ApplicationRecord
        summary_lower.include?("juneteenth") || summary_lower.include?("july 4th") ||
        summary_lower.include?("wellbeing day")
       "holiday"
+
+    # 2. TERM DATES - classes begin/end
     elsif summary_lower.include?("classes begin") || summary_lower.include?("classes end") ||
-          summary_lower.include?("final") || summary_lower.include?("registration") ||
-          summary_lower.include?("commencement") || summary_lower.include?("graduation") ||
-          type_lower.include?("calendar announcement")
-      "academic"
+          summary_lower.include?("first day of classes") || summary_lower.include?("last day of classes") ||
+          summary_lower.include?("semester begins") || summary_lower.include?("semester ends") ||
+          summary_lower.include?("term begins") || summary_lower.include?("term ends")
+      "term_dates"
+
+    # 3. FINALS - exam schedules (check before registration to catch "final exam")
+    elsif summary_lower.include?("final exam") || summary_lower.include?("finals week") ||
+          summary_lower.include?("final week") || summary_lower.include?("exam period") ||
+          summary_lower.include?("examination period")
+      "finals"
+
+    # 4. GRADUATION - commencement ceremonies
+    elsif summary_lower.include?("commencement") || summary_lower.include?("graduation") ||
+          summary_lower.include?("convocation") || summary_lower.include?("conferral")
+      "graduation"
+
+    # 5. REGISTRATION - enrollment periods
+    elsif summary_lower.include?("registration") || summary_lower.include?("enrollment") ||
+          summary_lower.include?("add/drop") || summary_lower.include?("add drop") ||
+          summary_lower.include?("course selection")
+      "registration"
+
+    # 6. DEADLINES - cutoff dates
+    elsif summary_lower.include?("deadline") || summary_lower.include?("last day to") ||
+          summary_lower.include?("withdrawal") || summary_lower.include?("due date") ||
+          summary_lower.include?("tuition due") || summary_lower.include?("payment due") ||
+          summary_lower.include?("grade submission")
+      "deadline"
+
+    # 7. MEETING
     elsif type_lower.include?("meeting")
       "meeting"
+
+    # 8. EXHIBIT
     elsif type_lower.include?("exhibit") || type_lower.include?("showcase")
       "exhibit"
+
+    # 9. ANNOUNCEMENT
     elsif type_lower.include?("announcement")
       "announcement"
+
+    # 10. Default to campus_event
     else
       "campus_event"
     end
@@ -144,8 +183,7 @@ class UniversityCalendarEvent < ApplicationRecord
 
   # Check if this is a term boundary event (classes begin/end)
   def term_boundary_event?
-    category == "academic" &&
-      (summary.to_s.downcase.include?("classes begin") || summary.to_s.downcase.include?("classes end"))
+    category == "term_dates"
   end
 
   # Check if this is a holiday that should exclude class meetings

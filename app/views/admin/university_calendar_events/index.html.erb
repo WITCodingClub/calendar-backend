@@ -89,7 +89,11 @@
                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                   <%= case event.category
                       when 'holiday' then 'bg-red-100 text-red-800'
-                      when 'academic' then 'bg-blue-100 text-blue-800'
+                      when 'term_dates' then 'bg-blue-100 text-blue-800'
+                      when 'registration' then 'bg-indigo-100 text-indigo-800'
+                      when 'deadline' then 'bg-orange-100 text-orange-800'
+                      when 'finals' then 'bg-purple-100 text-purple-800'
+                      when 'graduation' then 'bg-pink-100 text-pink-800'
                       when 'campus_event' then 'bg-green-100 text-green-800'
                       when 'meeting' then 'bg-yellow-100 text-yellow-800'
                       else 'bg-gray-100 text-gray-800'

@@ -69,36 +69,63 @@ FactoryBot.define do
       end_time { Date.new(2025, 3, 14).end_of_day }
     end
 
-    trait :academic do
+    # Term dates category - semester start/end
+    trait :term_dates do
       summary { "Fall 2025 Classes Begin" }
-      category { "academic" }
+      category { "term_dates" }
       academic_term { "Fall" }
       all_day { true }
     end
 
     trait :classes_begin do
       summary { "Fall 2025 Classes Begin" }
-      category { "academic" }
+      category { "term_dates" }
       academic_term { "Fall" }
       all_day { true }
     end
 
     trait :classes_end do
       summary { "Fall 2025 Classes End" }
-      category { "academic" }
+      category { "term_dates" }
       academic_term { "Fall" }
       all_day { true }
     end
 
-    trait :finals do
-      summary { "Final Exams Begin" }
-      category { "academic" }
+    # Registration category
+    trait :registration do
+      summary { "Registration Opens" }
+      category { "registration" }
       all_day { true }
     end
 
+    # Deadline category
+    trait :deadline do
+      summary { "Last Day to Add/Drop" }
+      category { "deadline" }
+      all_day { true }
+    end
+
+    # Finals category
+    trait :finals do
+      summary { "Final Exams Begin" }
+      category { "finals" }
+      all_day { true }
+    end
+
+    # Graduation category
+    trait :graduation do
+      summary { "Commencement Ceremony" }
+      category { "graduation" }
+      all_day { false }
+      start_time { 1.month.from_now.change(hour: 10) }
+      end_time { 1.month.from_now.change(hour: 14) }
+      location { "Main Campus Quad" }
+    end
+
+    # Alias for backwards compatibility
     trait :commencement do
       summary { "Commencement Ceremony" }
-      category { "academic" }
+      category { "graduation" }
       all_day { false }
       start_time { 1.month.from_now.change(hour: 10) }
       end_time { 1.month.from_now.change(hour: 14) }
