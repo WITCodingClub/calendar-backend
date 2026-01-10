@@ -169,4 +169,16 @@ class UniversityCalendarEvent < ApplicationRecord
     ((end_time - start_time) / 1.hour).round(1)
   end
 
+  # Returns formatted summary for holiday events with school emoji prefix
+  # Only appends "No Classes" if the summary doesn't already contain it
+  # @return [String] The formatted holiday summary
+  def formatted_holiday_summary
+    # Use word boundary regex to avoid false positives like "classical" or "classroom"
+    if summary.to_s.match?(/\bno\s+class(es)?\b/i)
+      "🏫 #{summary}"
+    else
+      "🏫 #{summary} - No Classes"
+    end
+  end
+
 end
