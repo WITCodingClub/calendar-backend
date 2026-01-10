@@ -5,15 +5,16 @@
 # Table name: users
 # Database name: primary
 #
-#  id                    :bigint           not null, primary key
-#  access_level          :integer          default("user"), not null
-#  calendar_needs_sync   :boolean          default(FALSE), not null
-#  calendar_token        :string
-#  first_name            :string
-#  last_calendar_sync_at :datetime
-#  last_name             :string
-#  created_at            :datetime         not null
-#  updated_at            :datetime         not null
+#  id                           :bigint           not null, primary key
+#  access_level                 :integer          default("user"), not null
+#  calendar_needs_sync          :boolean          default(FALSE), not null
+#  calendar_token               :string
+#  first_name                   :string
+#  last_calendar_sync_at        :datetime
+#  last_name                    :string
+#  notifications_disabled_until :datetime
+#  created_at                   :datetime         not null
+#  updated_at                   :datetime         not null
 #
 # Indexes
 #
