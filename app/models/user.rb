@@ -123,7 +123,7 @@ class User < ApplicationRecord
     notifications_disabled_until.present? && notifications_disabled_until > Time.current
   end
 
-  # Enable DND mode - disable all notifications until the specified time
+  # Disable notifications (enable DND mode) until the specified time
   # Pass nil for duration to disable indefinitely
   def disable_notifications!(duration: nil)
     if duration.nil?
@@ -134,7 +134,7 @@ class User < ApplicationRecord
     end
   end
 
-  # Disable DND mode - re-enable notifications
+  # Re-enable notifications (disable DND mode)
   def enable_notifications!
     update!(notifications_disabled_until: nil)
   end

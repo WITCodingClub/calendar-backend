@@ -110,6 +110,38 @@ RSpec.describe "Api::Notifications DND", type: :request do
       end
     end
 
+    context "with negative duration" do
+      it "returns bad request error" do
+        post "/api/user/notifications/disable",
+             params: { duration: -3600 }.to_json,
+             headers: headers
+
+        expect(response).to have_http_status(:bad_request)
+        json = response.parsed_body
+        expect(json["error"]).to eq("Duration cannot be negative")
+
+        # Verify notifications were NOT disabled
+        user.reload
+        expect(user.notifications_disabled?).to be false
+      end
+    end
+
+    context "with excessively large duration" do
+      it "returns bad request error for duration over 100 years" do
+        post "/api/user/notifications/disable",
+             params: { duration: 101.years.to_i }.to_json,
+             headers: headers
+
+        expect(response).to have_http_status(:bad_request)
+        json = response.parsed_body
+        expect(json["error"]).to eq("Duration cannot exceed 100 years")
+
+        # Verify notifications were NOT disabled
+        user.reload
+        expect(user.notifications_disabled?).to be false
+      end
+    end
+
     context "without authentication" do
       it "returns unauthorized" do
         post "/api/user/notifications/disable"

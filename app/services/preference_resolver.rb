@@ -153,7 +153,6 @@ class PreferenceResolver
     when GoogleCalendarEvent
       # Check if it's a final exam event first
       return "final_exam" if event.final_exam_id.present?
-
       # If GoogleCalendarEvent has meeting_time, use its schedule_type
       event.meeting_time&.course&.schedule_type
     else

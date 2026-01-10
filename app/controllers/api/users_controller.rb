@@ -3,7 +3,6 @@
 module Api
   class UsersController < ApiController
     include ApplicationHelper
-
     skip_before_action :authenticate_user_from_token!, only: [:onboard]
     skip_before_action :check_beta_access, only: [:onboard, :get_email]
 
@@ -388,6 +387,21 @@ module Api
       authorize current_user, :update?
 
       duration_seconds = params[:duration]&.to_i
+
+      # Validate duration if provided
+      if duration_seconds.present?
+        if duration_seconds < 0
+          render json: { error: "Duration cannot be negative" }, status: :bad_request
+          return
+        end
+
+        # Cap at 100 years to prevent abuse/overflow issues
+        max_duration = 100.years.to_i
+        if duration_seconds > max_duration
+          render json: { error: "Duration cannot exceed 100 years" }, status: :bad_request
+          return
+        end
+      end
 
       if duration_seconds.present? && duration_seconds > 0
         current_user.disable_notifications!(duration: duration_seconds.seconds)
