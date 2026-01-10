@@ -4,7 +4,7 @@ require "rails_helper"
 
 RSpec.describe GoogleCalendarEvent, type: :model do
   describe "duplicate prevention" do
-    let(:user) { create(:user) }
+    let(:user) { create(:user, :with_google_credential) }
     let(:google_calendar) { create(:google_calendar, oauth_credential: user.oauth_credentials.first) }
     let(:course) { create(:course) }
     let(:meeting_time) { create(:meeting_time, course: course) }
@@ -48,7 +48,7 @@ RSpec.describe GoogleCalendarEvent, type: :model do
       end
       
       it "allows same event in different calendars" do
-        other_user = create(:user)
+        other_user = create(:user, :with_google_credential)
         other_calendar = create(:google_calendar, oauth_credential: other_user.oauth_credentials.first)
         
         create(:google_calendar_event, google_calendar: google_calendar, meeting_time: meeting_time)

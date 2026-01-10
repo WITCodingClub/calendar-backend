@@ -28,8 +28,12 @@
 FactoryBot.define do
   factory :enrollment do
     user
-    term
-    # Ensure the course belongs to the same term as the enrollment
+    # When course is provided, use its term; otherwise create a new term and course
+    transient do
+      provided_term { nil }
+    end
+
+    term { provided_term || (course&.term) || association(:term) }
     course { association :course, term: term }
   end
 end
