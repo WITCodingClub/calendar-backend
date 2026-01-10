@@ -324,4 +324,31 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(event.recurrence).to be_nil
     end
   end
+
+  describe "#formatted_holiday_summary" do
+    it "adds emoji prefix and 'No Classes' suffix for regular holidays" do
+      event = build(:university_calendar_event, :holiday, summary: "Labor Day")
+      expect(event.formatted_holiday_summary).to eq("🏫 Labor Day - No Classes")
+    end
+
+    it "adds only emoji prefix when summary already contains 'No Classes'" do
+      event = build(:university_calendar_event, :holiday, summary: "Thanksgiving Break - No Classes")
+      expect(event.formatted_holiday_summary).to eq("🏫 Thanksgiving Break - No Classes")
+    end
+
+    it "handles 'no class' (singular) in summary" do
+      event = build(:university_calendar_event, :holiday, summary: "Holiday - No Class")
+      expect(event.formatted_holiday_summary).to eq("🏫 Holiday - No Class")
+    end
+
+    it "uses word boundaries to avoid false positives like 'classical'" do
+      event = build(:university_calendar_event, :holiday, summary: "Classical Music Day")
+      expect(event.formatted_holiday_summary).to eq("🏫 Classical Music Day - No Classes")
+    end
+
+    it "is case insensitive when checking for 'no classes'" do
+      event = build(:university_calendar_event, :holiday, summary: "Holiday - NO CLASSES")
+      expect(event.formatted_holiday_summary).to eq("🏫 Holiday - NO CLASSES")
+    end
+  end
 end

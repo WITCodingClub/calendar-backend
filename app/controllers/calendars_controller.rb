@@ -243,7 +243,7 @@ class CalendarsController < ApplicationController
 
       # Add holiday prefix to make it clear in calendar apps
       if event.category == "holiday"
-        e.summary = "🏫 #{event.summary} - No Classes"
+        e.summary = event.formatted_holiday_summary
       else
         e.summary = event.summary
       end
