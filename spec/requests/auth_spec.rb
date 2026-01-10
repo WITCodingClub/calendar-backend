@@ -7,7 +7,8 @@ RSpec.describe "Admin OAuth Authentication", type: :request do
     # Enable OmniAuth test mode
     OmniAuth.config.test_mode = true
     # Clear Rack::Attack cache to prevent rate limiting between tests
-    Rack::Attack.cache.store.clear
+    # Use memory store for tests to avoid Redis dependency
+    Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
   end
 
   after :each do

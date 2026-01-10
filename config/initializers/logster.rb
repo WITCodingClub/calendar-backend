@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-if defined?(Logster)
+if defined?(Logster) && !Rails.env.test?
   Logster.config.application_version = ENV.fetch("GIT_SHA", nil)
 
   # Store logs in Redis for persistence across restarts

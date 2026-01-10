@@ -157,7 +157,7 @@ RSpec.describe Course do
   end
 
   describe "term date updates" do
-    let(:term) { create(:term, start_date: nil, end_date: nil) }
+    let(:term) { create(:term, year: 2025, start_date: nil, end_date: nil) }
 
     it "updates term dates when course is created with dates" do
       course = create(:course, term: term, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))

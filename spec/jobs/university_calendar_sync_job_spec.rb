@@ -73,13 +73,13 @@ RSpec.describe UniversityCalendarSyncJob, type: :job do
           errors: []
         })
 
-        perform_enqueued_jobs do
-          described_class.new.perform
-        end
+        # Run the job without performing enqueued jobs (which would make real HTTP calls)
+        described_class.new.perform
 
-        # Should have enqueued sync for opted-in user
-        # We can't easily verify which user was synced in this context
-        # but we verify the job runs without error
+        # Should have enqueued sync only for opted-in user (not opted-out user)
+        # This verifies the job correctly filters to opted-in users when holidays don't change
+        expect(GoogleCalendarSyncJob).to have_been_enqueued.with(opted_in_user, force: true)
+        expect(GoogleCalendarSyncJob).not_to have_been_enqueued.with(opted_out_user, force: true)
       end
     end
   end

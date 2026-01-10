@@ -1,7 +1,13 @@
 # frozen_string_literal: true
 
 if defined?(RailsPerformance)
-  RailsPerformance.setup do |config|
+  # Disable rails_performance in test environment (no Redis available)
+  if Rails.env.test?
+    RailsPerformance.setup do |config|
+      config.enabled = false
+    end
+  else
+    RailsPerformance.setup do |config|
     # Redis configuration
     config.redis = Redis.new(url: ENV["REDIS_URL"].presence || "redis://127.0.0.1:6379/0")
 
@@ -55,5 +61,6 @@ if defined?(RailsPerformance)
     # If enabled, the system monitor will be displayed on the dashboard
     # to enabled add required gems (see README)
     # config.system_monitor_duration = 24.hours
+    end
   end
 end

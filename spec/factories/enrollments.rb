@@ -28,12 +28,22 @@
 FactoryBot.define do
   factory :enrollment do
     user
-    # When course is provided, use its term; otherwise create a new term and course
+
+    # Allow course to be passed in, defaulting to a new course
     transient do
-      provided_term { nil }
+      provided_course { nil }
     end
 
-    term { provided_term || (course&.term) || association(:term) }
-    course { association :course, term: term }
+    # If a course is provided, use its term; otherwise create a fresh term and course
+    term { provided_course&.term || association(:term) }
+    course { provided_course || association(:course, term: term) }
+
+    # Override to handle explicit course assignment via attributes
+    after(:build) do |enrollment, evaluator|
+      # If course was set directly (not via transient), ensure term matches
+      if enrollment.course&.term && enrollment.term != enrollment.course.term
+        enrollment.term = enrollment.course.term
+      end
+    end
   end
 end

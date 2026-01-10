@@ -24,25 +24,25 @@ RSpec.describe GoogleCalendarEvent, type: :model do
       end
       
       it "prevents duplicate final exam events for the same calendar" do
-        create(:google_calendar_event, google_calendar: google_calendar, final_exam: final_exam)
-        
-        duplicate = build(:google_calendar_event, 
-                         google_calendar: google_calendar, 
+        create(:google_calendar_event, :with_final_exam, google_calendar: google_calendar, final_exam: final_exam)
+
+        duplicate = build(:google_calendar_event, :with_final_exam,
+                         google_calendar: google_calendar,
                          final_exam: final_exam)
-        
+
         expect(duplicate).not_to be_valid
         expect(duplicate.errors[:final_exam_id]).to include("has already been taken")
       end
-      
+
       it "prevents duplicate university events for the same calendar" do
-        create(:google_calendar_event, 
-               google_calendar: google_calendar, 
+        create(:google_calendar_event, :with_university_calendar_event,
+               google_calendar: google_calendar,
                university_calendar_event: university_event)
-        
-        duplicate = build(:google_calendar_event, 
-                         google_calendar: google_calendar, 
+
+        duplicate = build(:google_calendar_event, :with_university_calendar_event,
+                         google_calendar: google_calendar,
                          university_calendar_event: university_event)
-        
+
         expect(duplicate).not_to be_valid
         expect(duplicate.errors[:university_calendar_event_id]).to include("has already been taken")
       end
