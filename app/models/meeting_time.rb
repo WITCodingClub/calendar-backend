@@ -116,7 +116,7 @@ class MeetingTime < ApplicationRecord
     if room.number == 0 || room.number.to_s.upcase == "TBD"
       room.building.abbreviation
     else
-      "#{room.building.abbreviation} #{room.number}"
+      "#{room.building.abbreviation} #{room.formatted_number}"
     end
   end
 
