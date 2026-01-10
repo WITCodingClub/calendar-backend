@@ -5,7 +5,9 @@
       "Bash(RAILS_ENV=test bundle exec rails:*)",
       "Bash(RAILS_ENV=production bundle exec rails runner \"puts Room.column_names\")",
       "Bash(gh repo list:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)"
     ],
     "deny": [],
     "ask": []
