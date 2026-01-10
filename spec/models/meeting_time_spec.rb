@@ -74,4 +74,39 @@ RSpec.describe MeetingTime do
       end
     end
   end
+
+  describe "#building_room" do
+    let(:building) { create(:building, abbreviation: "SCI", name: "Science Building") }
+
+    it "formats single digit room numbers with 3 digits" do
+      room = create(:room, building: building, number: 6)
+      meeting_time = build(:meeting_time, room: room)
+      expect(meeting_time.building_room).to eq("SCI 006")
+    end
+
+    it "formats double digit room numbers with 3 digits" do
+      room = create(:room, building: building, number: 42)
+      meeting_time = build(:meeting_time, room: room)
+      expect(meeting_time.building_room).to eq("SCI 042")
+    end
+
+    it "formats triple digit room numbers as-is" do
+      room = create(:room, building: building, number: 123)
+      meeting_time = build(:meeting_time, room: room)
+      expect(meeting_time.building_room).to eq("SCI 123")
+    end
+
+    it "returns only building abbreviation when room number is 0 (TBD)" do
+      room = create(:room, building: building, number: 0)
+      meeting_time = build(:meeting_time, room: room)
+      expect(meeting_time.building_room).to eq("SCI")
+    end
+
+    it "returns nil when building is TBD" do
+      tbd_building = create(:building, abbreviation: "TBD", name: "To Be Determined")
+      room = create(:room, building: tbd_building, number: 100)
+      meeting_time = build(:meeting_time, room: room)
+      expect(meeting_time.building_room).to be_nil
+    end
+  end
 end

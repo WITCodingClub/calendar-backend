@@ -39,6 +39,11 @@ RSpec.describe Room do
       room = build(:room, building: building, number: 123)
       expect(room.formatted_number).to eq("123")
     end
+
+    it "formats room number 0 (TBD) as 000" do
+      room = build(:room, building: building, number: 0)
+      expect(room.formatted_number).to eq("000")
+    end
   end
 
   describe "#floor" do
