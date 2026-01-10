@@ -128,6 +128,7 @@
                   assign_rmp_id_admin_faculty_path(@faculty, rmp_id: teacher["id"]),
                   method: :post,
                   class: "bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm cursor-pointer whitespace-nowrap",
+                  form: { class: "inline-flex" },
                   data: {
                     turbo_confirm: "Assign RMP ID '#{teacher['id']}' to #{@faculty.full_name}?"
                   } %>
