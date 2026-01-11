@@ -145,6 +145,26 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       end
     end
 
+    describe ".deadlines" do
+      it "returns only deadline events" do
+        deadline = create(:university_calendar_event, :deadline)
+        holiday = create(:university_calendar_event, :holiday)
+
+        expect(described_class.deadlines).to include(deadline)
+        expect(described_class.deadlines).not_to include(holiday)
+      end
+    end
+
+    describe ".academic" do
+      it "returns only academic events" do
+        academic = create(:university_calendar_event, :academic)
+        holiday = create(:university_calendar_event, :holiday)
+
+        expect(described_class.academic).to include(academic)
+        expect(described_class.academic).not_to include(holiday)
+      end
+    end
+
     describe ".in_date_range" do
       it "returns events within the date range" do
         in_range = create(:university_calendar_event,
@@ -242,6 +262,10 @@ RSpec.describe UniversityCalendarEvent, type: :model do
 
     it "detects announcement events" do
       expect(described_class.infer_category("Important Notice", "Announcement")).to eq("announcement")
+    end
+
+    it "detects academic events from calendar announcement type" do
+      expect(described_class.infer_category("Some Academic Event", "Calendar Announcement")).to eq("academic")
     end
 
     it "defaults to campus_event for unknown types" do

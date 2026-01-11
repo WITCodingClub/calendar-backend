@@ -100,7 +100,7 @@ FactoryBot.define do
 
     # Deadline category
     trait :deadline do
-      summary { "Last Day to Add/Drop" }
+      summary { "Withdrawal Deadline" }
       category { "deadline" }
       all_day { true }
     end
@@ -130,6 +130,14 @@ FactoryBot.define do
       start_time { 1.month.from_now.change(hour: 10) }
       end_time { 1.month.from_now.change(hour: 14) }
       location { "Main Campus Quad" }
+    end
+
+    # Academic category - catch-all for misc academic events
+    trait :academic do
+      summary { "Academic Calendar Announcement" }
+      category { "academic" }
+      event_type_raw { "Calendar Announcement" }
+      all_day { true }
     end
 
     trait :campus_event do

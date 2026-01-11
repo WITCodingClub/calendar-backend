@@ -46,8 +46,8 @@ class UniversityCalendarEvent < ApplicationRecord
   has_many :google_calendar_events, dependent: :nullify
 
   # Categories for event classification
-  # Note: "academic" was split into term_dates, registration, deadline, finals, graduation
-  CATEGORIES = %w[holiday term_dates registration deadline finals graduation campus_event meeting exhibit announcement other].freeze
+  # "academic" is a catch-all for academic events that don't fit specific categories
+  CATEGORIES = %w[holiday term_dates registration deadline finals graduation academic campus_event meeting exhibit announcement other].freeze
 
   validates :ics_uid, presence: true, uniqueness: true
   validates :summary, presence: true
@@ -67,6 +67,7 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :deadlines, -> { where(category: "deadline") }
   scope :finals, -> { where(category: "finals") }
   scope :graduation, -> { where(category: "graduation") }
+  scope :academic, -> { where(category: "academic") }
   scope :campus_events, -> { where(category: "campus_event") }
   scope :for_term, ->(term) { where(term: term) }
   scope :in_date_range, ->(start_date, end_date) {
@@ -163,19 +164,23 @@ class UniversityCalendarEvent < ApplicationRecord
           summary_lower.include?("grade submission")
       "deadline"
 
-    # 7. MEETING
+    # 7. ACADEMIC - catch-all for academic events (calendar announcements, etc.)
+    elsif type_lower.include?("calendar announcement")
+      "academic"
+
+    # 8. MEETING
     elsif type_lower.include?("meeting")
       "meeting"
 
-    # 8. EXHIBIT
+    # 9. EXHIBIT
     elsif type_lower.include?("exhibit") || type_lower.include?("showcase")
       "exhibit"
 
-    # 9. ANNOUNCEMENT
+    # 10. ANNOUNCEMENT (non-academic announcements)
     elsif type_lower.include?("announcement")
       "announcement"
 
-    # 10. Default to campus_event
+    # 11. Default to campus_event
     else
       "campus_event"
     end

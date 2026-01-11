@@ -4,7 +4,7 @@ class SplitAcademicCategory < ActiveRecord::Migration[8.1]
   def up
     # Re-categorize existing "academic" events using the updated infer_category logic
     safety_assured do
-      execute <<-SQL
+      execute <<-SQL.squish
       UPDATE university_calendar_events
       SET category = CASE
         WHEN LOWER(summary) LIKE '%classes begin%' OR LOWER(summary) LIKE '%classes end%'
@@ -28,15 +28,16 @@ class SplitAcademicCategory < ActiveRecord::Migration[8.1]
           OR LOWER(summary) LIKE '%tuition due%' OR LOWER(summary) LIKE '%payment due%'
           OR LOWER(summary) LIKE '%grade submission%'
           THEN 'deadline'
-        ELSE 'campus_event'
+        ELSE 'academic'
       END
       WHERE category = 'academic'
       SQL
     end
 
-    # Migrate user preferences: replace "academic" with all 5 new categories
+    # Migrate user preferences: expand "academic" to include all new granular categories
     # This ensures users who had "academic" selected don't lose visibility
-    new_categories = %w[term_dates registration deadline finals graduation]
+    # Note: "academic" remains as a catch-all, so we add it back along with the specific categories
+    new_categories = %w[term_dates registration deadline finals graduation academic]
 
     UserExtensionConfig.where("university_event_categories @> ?", '["academic"]').find_each do |config|
       categories = config.university_event_categories || []
@@ -47,21 +48,24 @@ class SplitAcademicCategory < ActiveRecord::Migration[8.1]
 
   def down
     # Revert new categories back to "academic"
+    # Note: "academic" stays as "academic" since it's the catch-all
     new_categories = %w[term_dates registration deadline finals graduation]
 
     safety_assured do
-      execute <<-SQL
+      execute <<-SQL.squish
         UPDATE university_calendar_events
         SET category = 'academic'
         WHERE category IN ('term_dates', 'registration', 'deadline', 'finals', 'graduation')
       SQL
     end
 
-    # Revert user preferences
-    UserExtensionConfig.where("university_event_categories ?| array[:cats]", cats: new_categories).find_each do |config|
+    # Revert user preferences: consolidate granular categories back to just "academic"
+    all_granular = %w[term_dates registration deadline finals graduation academic]
+    UserExtensionConfig.where("university_event_categories ?| array[:cats]", cats: all_granular).find_each do |config|
       categories = config.university_event_categories || []
-      categories = (categories - new_categories + ["academic"]).uniq
+      categories = (categories - all_granular + ["academic"]).uniq
       config.update_column(:university_event_categories, categories)
     end
   end
+
 end
