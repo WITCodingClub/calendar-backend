@@ -30,11 +30,15 @@ module ApplicationHelper
   end
 
   def titleize_with_roman_numerals(title)
+    # Decode HTML entities first (LeopardWeb returns encoded HTML)
+    # e.g., "&amp;" -> "&", "&ndash;" -> "–"
+    result = HTMLEntities.new.decode(title.to_s)
+
     preserved = {}
     counter = 0
 
     # Preserve acronyms in parentheses (e.g., "(BIM)", "(GIS)")
-    result = title.gsub(/\(([A-Z]{2,})\)/) do |match|
+    result = result.gsub(/\(([A-Z]{2,})\)/) do |match|
       key = "zzpreserved#{counter}zz"
       preserved[key] = match
       counter += 1

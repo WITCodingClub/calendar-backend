@@ -39,6 +39,12 @@ RSpec.describe ApplicationHelper, type: :helper do
       expect(helper.titleize_with_roman_numerals('General Chemistry Ii   Lab')).to eq('General Chemistry II   Lab')
       expect(helper.titleize_with_roman_numerals('Engineering Physics Ii Lab')).to eq('Engineering Physics II Lab')
     end
+
+    it 'decodes HTML entities from LeopardWeb' do
+      expect(helper.titleize_with_roman_numerals('Energy &amp; Resources In Architecture')).to eq('Energy & Resources In Architecture')
+      expect(helper.titleize_with_roman_numerals('Cell &amp; Molecular Biology')).to eq('Cell & Molecular Biology')
+      expect(helper.titleize_with_roman_numerals('Study Abroad &ndash; Cm Program')).to eq('Study Abroad – Cm Program')
+    end
   end
 
   describe '#normalize_section_number' do
