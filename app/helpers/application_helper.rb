@@ -53,4 +53,12 @@ module ApplicationHelper
     match ? match[1] : subject
   end
 
+  # Normalize section number by removing spaces between digits and letters
+  # e.g., "1 A" -> "1A", "2 B" -> "2B"
+  def normalize_section_number(section)
+    return nil if section.blank?
+
+    section.strip.gsub(/(\d)\s+([A-Za-z])/, '\1\2').upcase
+  end
+
 end
