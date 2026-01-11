@@ -197,3 +197,7 @@ A Rails 8 API backend that syncs college course schedules to Google Calendar wit
 
 ## Bug Fixing Guidelines
 - When bugfixing a calendar thing, make sure the bug is fixed both in the Google Calendar implementation, and the ICS URL implementation where applicable
+
+
+# Debugging
+When debugging production enviornment issues, prompt the user to run production console commands rather than doing it yourself, as production runs on a different server.

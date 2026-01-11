@@ -74,6 +74,8 @@ class UniversityCalendarEvent < ApplicationRecord
     where(start_time: start_date.beginning_of_day..end_date.end_of_day)
   }
   scope :by_categories, ->(categories) { where(category: categories) }
+  scope :with_location, -> { where.not(location: [nil, ""]) }
+  scope :without_location, -> { where(location: [nil, ""]) }
 
   # Get holidays within a date range (useful for schedule adjustments and EXDATE generation)
   # @param start_date [Date] The start of the date range
@@ -210,6 +212,18 @@ class UniversityCalendarEvent < ApplicationRecord
     return nil if all_day
 
     ((end_time - start_time) / 1.hour).round(1)
+  end
+
+  # Returns formatted summary for holiday events with school emoji prefix
+  # Only appends "No Classes" if the summary doesn't already contain it
+  # @return [String] The formatted holiday summary
+  def formatted_holiday_summary
+    # Use word boundary regex to avoid false positives like "classical" or "classroom"
+    if summary.to_s.match?(/\bno\s+class(es)?\b/i)
+      "🏫 #{summary}"
+    else
+      "🏫 #{summary} - No Classes"
+    end
   end
 
 end

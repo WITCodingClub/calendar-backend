@@ -47,7 +47,8 @@ FactoryBot.define do
     # Note: Don't include 'user' here - it's a has_one :through association and cannot be set directly
     # Instead, set google_calendar which will provide the user through oauth_credential
     google_calendar
-    meeting_time { nil }
+    # Default to creating a meeting_time association (required by validation)
+    meeting_time
     sequence(:google_event_id) { |n| "event_#{n}_#{SecureRandom.hex(8)}" }
     summary { "Course Title" }
     location { "Building - Room 101" }
@@ -73,18 +74,19 @@ FactoryBot.define do
       last_synced_at { 2.hours.ago }
     end
 
+    # This trait is kept for backwards compatibility with tests that explicitly use it
     trait :with_meeting_time do
-      association :meeting_time
+      meeting_time
     end
 
     trait :with_final_exam do
-      association :final_exam
       meeting_time { nil }
+      final_exam
     end
 
     trait :with_university_calendar_event do
-      association :university_calendar_event
       meeting_time { nil }
+      university_calendar_event
     end
   end
 end

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class CourseDataSyncJob < ApplicationJob
+  include ApplicationHelper
+
   queue_as :low
 
   # Run with low concurrency to avoid overwhelming LeopardWeb API
@@ -96,7 +98,7 @@ class CourseDataSyncJob < ApplicationJob
 
   def course_data_changed?(course, fresh_data)
     # Parse fresh data and normalize for comparison
-    fresh_title = fresh_data[:title]&.strip&.titleize
+    fresh_title = fresh_data[:title].present? ? titleize_with_roman_numerals(fresh_data[:title].strip) : nil
     fresh_credit_hours = fresh_data[:credit_hours]
     fresh_grade_mode = fresh_data[:grade_mode]&.strip
     fresh_subject = fresh_data[:subject]&.strip
@@ -157,7 +159,7 @@ class CourseDataSyncJob < ApplicationJob
 
   def update_course_from_fresh_data(course, fresh_data, term_uid)
     # Parse and normalize fresh data
-    fresh_title = fresh_data[:title]&.strip&.titleize
+    fresh_title = fresh_data[:title].present? ? titleize_with_roman_numerals(fresh_data[:title].strip) : nil
     fresh_credit_hours = fresh_data[:credit_hours]
     fresh_grade_mode = fresh_data[:grade_mode]&.strip
     fresh_subject = fresh_data[:subject]&.strip

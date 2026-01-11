@@ -44,8 +44,12 @@
           ),
           {},
           class: "glass-input px-4 py-2 border border-gray-300 rounded-md" %>
+      <label class="flex items-center gap-2 text-sm text-gray-700">
+        <%= f.check_box :show_all, { checked: params[:show_all] == "1" }, "1", "0" %>
+        Show events without location
+      </label>
       <%= f.submit "Filter", class: "glass-button px-6 py-2 rounded cursor-pointer" %>
-      <% if params[:search].present? || params[:category].present? %>
+      <% if params[:search].present? || params[:category].present? || params[:show_all] == "1" %>
         <%= link_to "Clear", admin_university_calendar_events_path, class: "glass-button px-6 py-2 rounded" %>
       <% end %>
     <% end %>

@@ -26,5 +26,23 @@ FactoryBot.define do
     sequence(:uid) { |n| 202500 + n }
     sequence(:year) { |n| 2025 + (n / 3) }
     sequence(:season) { |n| [:spring, :summer, :fall][n % 3] }
+
+    trait :current do
+      uid { 202601 }
+      year { Date.current.year }
+      season { :spring }
+      start_date { Date.current.beginning_of_year }
+      end_date { Date.current.end_of_year }
+    end
+
+    trait :future do
+      start_date { 4.months.from_now.to_date }
+      end_date { 8.months.from_now.to_date }
+    end
+
+    trait :past do
+      start_date { 8.months.ago.to_date }
+      end_date { 4.months.ago.to_date }
+    end
   end
 end

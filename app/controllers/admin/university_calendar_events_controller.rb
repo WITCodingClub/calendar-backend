@@ -7,6 +7,9 @@ module Admin
                                     .includes(:term)
                                     .order(start_time: :desc)
 
+      # By default, hide events without a location (unless explicitly showing all)
+      @university_calendar_events = @university_calendar_events.with_location unless params[:show_all] == "1"
+
       # Search filter
       if params[:search].present?
         @university_calendar_events = @university_calendar_events

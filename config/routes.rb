@@ -24,6 +24,9 @@
 #                     api_user_is_processed POST   /api/user/is_processed(.:format)                                                                  api/users#is_processed
 #                 api_user_processed_events POST   /api/user/processed_events(.:format)                                                              api/users#get_processed_events_by_term
 #                     api_user_flag_enabled GET    /api/user/flag_enabled(.:format)                                                                  api/users#flag_is_enabled
+#             api_user_notifications_status GET    /api/user/notifications_status(.:format)                                                          api/users#notifications_status
+#            api_user_notifications_disable POST   /api/user/notifications/disable(.:format)                                                         api/users#disable_notifications
+#             api_user_notifications_enable POST   /api/user/notifications/enable(.:format)                                                          api/users#enable_notifications
 #                 api_user_extension_config GET    /api/user/extension_config(.:format)                                                              api/user_extension_config#get
 #                                           PUT    /api/user/extension_config(.:format)                                                              api/user_extension_config#set
 #                        api_faculty_by_rmp GET    /api/faculty/by_rmp(.:format)                                                                     api/faculty#get_info_by_rmp_id
@@ -70,6 +73,8 @@
 #                            admin_calendar DELETE /admin/calendars/:id(.:format)                                                                    admin/calendars#destroy
 #                           admin_buildings GET    /admin/buildings(.:format)                                                                        admin/buildings#index
 #                               admin_rooms GET    /admin/rooms(.:format)                                                                            admin/rooms#index
+#                  manual_add_admin_courses GET    /admin/courses/manual_add(.:format)                                                               admin/courses#manual_add
+#          process_manual_add_admin_courses POST   /admin/courses/process_manual_add(.:format)                                                       admin/courses#process_manual_add
 #                             admin_courses GET    /admin/courses(.:format)                                                                          admin/courses#index
 #           missing_rmp_ids_admin_faculties GET    /admin/faculties/missing_rmp_ids(.:format)                                                        admin/faculties#missing_rmp_ids
 #           batch_auto_fill_admin_faculties POST   /admin/faculties/batch_auto_fill(.:format)                                                        admin/faculties#batch_auto_fill
@@ -326,6 +331,11 @@ Rails.application.routes.draw do
     post "user/is_processed", to: "users#is_processed"
     post "user/processed_events", to: "users#get_processed_events_by_term"
     get "user/flag_enabled", to: "users#flag_is_enabled"
+
+    # Notifications DND (Do Not Disturb) mode
+    get "user/notifications_status", to: "users#notifications_status"
+    post "user/notifications/disable", to: "users#disable_notifications"
+    post "user/notifications/enable", to: "users#enable_notifications"
 
     get "user/extension_config", to: "user_extension_config#get"
     put "user/extension_config", to: "user_extension_config#set"

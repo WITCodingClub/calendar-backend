@@ -1,12 +1,12 @@
-<div class="glass-card shadow-lg rounded-lg overflow-hidden">
+<div class="glass-card shadow-lg rounded-lg overflow-hidden" data-controller="schedule-collapse">
   <div class="px-4 py-3">
     <div class="flex justify-between items-center mb-3">
-      <button type="button" id="schedule-toggle" class="flex items-center gap-2 text-lg font-bold hover:text-[#d13732] transition-colors">
-        <span class="schedule-chevron transform transition-transform" style="transform: rotate(-90deg);">▼</span>
+      <button type="button" class="flex items-center gap-2 text-lg font-bold hover:text-[#d13732] transition-colors" data-action="click->schedule-collapse#toggle">
+        <span data-schedule-collapse-target="chevron" class="transform transition-transform" style="transform: rotate(-90deg);">▼</span>
         <span>Weekly Schedule</span>
       </button>
       <% if terms.size > 1 %>
-        <select id="calendar-term-select" class="px-3 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-white/80 text-[#d13732] border-[rgba(209,55,50,0.3)]">
+        <select class="px-3 py-1 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-white/80 text-[#d13732] border-[rgba(209,55,50,0.3)]" data-action="change->schedule-collapse#switchTerm" data-schedule-collapse-target="termSelect">
           <% terms.each_with_index do |term, index| %>
             <option value="<%= term.id %>" <%= index == 0 ? 'selected' : '' %>><%= term.name %></option>
           <% end %>
@@ -14,9 +14,9 @@
       <% end %>
     </div>
 
-    <div id="week-calendar-container" class="schedule-content" style="display: none;">
+    <div data-schedule-collapse-target="content" style="display: none;">
       <% terms.each_with_index do |term, index| %>
-        <div class="term-schedule <%= index > 0 ? 'hidden' : '' %>" data-term-id="<%= term.id %>">
+        <div class="<%= index > 0 ? 'hidden' : '' %>" data-term-id="<%= term.id %>" data-schedule-collapse-target="termSchedule">
           <% enrollments = enrollments_by_term[term] || [] %>
           <% if enrollments.any? %>
             <% 
@@ -141,41 +141,3 @@
   </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const termSelect = document.getElementById('calendar-term-select');
-  if (termSelect) {
-    termSelect.addEventListener('change', function() {
-      const selectedTermId = this.value;
-      
-      // Hide all term schedules
-      document.querySelectorAll('.term-schedule').forEach(function(schedule) {
-        schedule.classList.add('hidden');
-      });
-      
-      // Show selected term schedule
-      const selectedSchedule = document.querySelector(`.term-schedule[data-term-id="${selectedTermId}"]`);
-      if (selectedSchedule) {
-        selectedSchedule.classList.remove('hidden');
-      }
-    });
-  }
-  
-  // Schedule collapse functionality
-  const collapseButton = document.getElementById('schedule-toggle');
-  const scheduleContent = document.querySelector('.schedule-content');
-  const chevron = document.querySelector('.schedule-chevron');
-  
-  if (collapseButton && scheduleContent && chevron) {
-    collapseButton.addEventListener('click', function() {
-      if (scheduleContent.style.display === 'none') {
-        scheduleContent.style.display = 'block';
-        chevron.style.transform = 'rotate(0deg)';
-      } else {
-        scheduleContent.style.display = 'none';
-        chevron.style.transform = 'rotate(-90deg)';
-      }
-    });
-  }
-});
-</script>

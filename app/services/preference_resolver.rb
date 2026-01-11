@@ -36,6 +36,7 @@ class PreferenceResolver
   def initialize(user)
     @user = user
     @cache = {}
+    @notifications_disabled = user.notifications_disabled?
     # Preload all preferences to avoid N+1 queries
     preload_preferences
   end
@@ -95,6 +96,12 @@ class PreferenceResolver
   end
 
   def resolve_field(event, field)
+    # If notifications are disabled (DND mode), always return empty reminder_settings
+    # This overrides all preference levels while preserving the original settings
+    if field == :reminder_settings && @notifications_disabled
+      return [[], "dnd_override"]
+    end
+
     # 1. Check for EventPreference record (use preloaded data)
     # This replaces the old event.event_preference check which would trigger a query
     event_pref = @event_preferences[[event.class.name, event.id]]

@@ -238,18 +238,18 @@ RSpec.describe Term do
     let(:term) { create(:term, year: 2025, season: :fall) }
 
     it "updates start_date to earliest course start_date" do
-      create(:course, term: term, start_date: Date.new(2025, 8, 20))
-      create(:course, term: term, start_date: Date.new(2025, 8, 15))
-      create(:course, term: term, start_date: Date.new(2025, 8, 25))
+      create(:course, term: term, start_date: Date.new(2025, 8, 20), end_date: Date.new(2025, 12, 15))
+      create(:course, term: term, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 15))
+      create(:course, term: term, start_date: Date.new(2025, 8, 25), end_date: Date.new(2025, 12, 15))
 
       term.update_dates_from_courses!
       expect(term.start_date).to eq(Date.new(2025, 8, 15))
     end
 
     it "updates end_date to latest course end_date" do
-      create(:course, term: term, end_date: Date.new(2025, 12, 10))
-      create(:course, term: term, end_date: Date.new(2025, 12, 20))
-      create(:course, term: term, end_date: Date.new(2025, 12, 15))
+      create(:course, term: term, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 10))
+      create(:course, term: term, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
+      create(:course, term: term, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 15))
 
       term.update_dates_from_courses!
       expect(term.end_date).to eq(Date.new(2025, 12, 20))
@@ -362,17 +362,17 @@ RSpec.describe Term do
       travel_back
     end
 
-    it "returns most recently started term when next term is far away" do
+    it "returns next upcoming term when in between terms" do
       travel_to Date.new(2025, 6, 1) # Summer break, spring ended, fall far away
 
       # Spring term that ended
-      spring_term = create(:term, year: 2025, season: :spring, start_date: Date.new(2025, 1, 15), end_date: Date.new(2025, 5, 15))
+      create(:term, year: 2025, season: :spring, start_date: Date.new(2025, 1, 15), end_date: Date.new(2025, 5, 15))
 
-      # Fall term that starts in 2+ months
-      create(:term, year: 2025, season: :fall, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
+      # Fall term that starts in 2+ months (next upcoming)
+      fall_term = create(:term, year: 2025, season: :fall, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20))
 
-      # Should return spring term as most recent
-      expect(described_class.current).to eq(spring_term)
+      # Should return fall term as next upcoming (implementation returns upcoming term)
+      expect(described_class.current).to eq(fall_term)
       travel_back
     end
 

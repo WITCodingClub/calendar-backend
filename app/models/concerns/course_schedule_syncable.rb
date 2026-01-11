@@ -403,7 +403,7 @@ module CourseScheduleSyncable
     # Always include holidays (auto-sync for all users)
     UniversityCalendarEvent.holidays.upcoming.find_each do |event|
       events << {
-        summary: "🏫 #{event.summary} - No Classes",
+        summary: event.formatted_holiday_summary,
         description: event.description,
         location: event.location,
         start_time: event.start_time,

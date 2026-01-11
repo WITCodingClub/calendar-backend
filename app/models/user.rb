@@ -5,15 +5,16 @@
 # Table name: users
 # Database name: primary
 #
-#  id                    :bigint           not null, primary key
-#  access_level          :integer          default("user"), not null
-#  calendar_needs_sync   :boolean          default(FALSE), not null
-#  calendar_token        :string
-#  first_name            :string
-#  last_calendar_sync_at :datetime
-#  last_name             :string
-#  created_at            :datetime         not null
-#  updated_at            :datetime         not null
+#  id                           :bigint           not null, primary key
+#  access_level                 :integer          default("user"), not null
+#  calendar_needs_sync          :boolean          default(FALSE), not null
+#  calendar_token               :string
+#  first_name                   :string
+#  last_calendar_sync_at        :datetime
+#  last_name                    :string
+#  notifications_disabled_until :datetime
+#  created_at                   :datetime         not null
+#  updated_at                   :datetime         not null
 #
 # Indexes
 #
@@ -115,6 +116,27 @@ class User < ApplicationRecord
 
   def flipper_id
     self.emails.find_by(primary: true)&.email
+  end
+
+  # Check if notifications are currently disabled (DND mode)
+  def notifications_disabled?
+    notifications_disabled_until.present? && notifications_disabled_until > Time.current
+  end
+
+  # Disable notifications (enable DND mode) until the specified time
+  # Pass nil for duration to disable indefinitely
+  def disable_notifications!(duration: nil)
+    if duration.nil?
+      # Indefinite - set to a far future date
+      update!(notifications_disabled_until: 100.years.from_now)
+    else
+      update!(notifications_disabled_until: duration.from_now)
+    end
+  end
+
+  # Re-enable notifications (disable DND mode)
+  def enable_notifications!
+    update!(notifications_disabled_until: nil)
   end
 
   private

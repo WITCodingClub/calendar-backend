@@ -690,6 +690,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_141448) do
     t.string "first_name"
     t.datetime "last_calendar_sync_at"
     t.string "last_name"
+    t.datetime "notifications_disabled_until"
     t.datetime "updated_at", null: false
     t.index ["calendar_needs_sync"], name: "index_users_on_calendar_needs_sync"
     t.index ["calendar_token"], name: "index_users_on_calendar_token", unique: true
