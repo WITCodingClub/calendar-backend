@@ -106,12 +106,16 @@ class MeetingTime < ApplicationRecord
 
   def building_room
     return nil unless room&.building
-    
-    # Don't show TBD locations unless it's the only data we have
-    if room.building.abbreviation == "TBD" || room.building.name == "To Be Determined"
+
+    # Don't show TBD/empty locations
+    # LeopardWeb sends null/empty for unassigned locations, not "TBD" placeholders
+    if room.building.abbreviation.blank? ||
+       room.building.name.blank? ||
+       room.building.abbreviation == "TBD" ||
+       room.building.name == "To Be Determined"
       return nil
     end
-    
+
     # Format as "BUILDING ROOM" or just "BUILDING" if room is 0 or TBD
     if room.number == 0 || room.number.to_s.upcase == "TBD"
       room.building.abbreviation

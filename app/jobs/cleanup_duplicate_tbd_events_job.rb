@@ -105,7 +105,10 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
 
   def tbd_building?(building)
     return false unless building
-    building.name&.downcase&.include?("to be determined") ||
+    # Empty/blank building means location not yet assigned (LeopardWeb sends null)
+    building.name.blank? ||
+      building.abbreviation.blank? ||
+      building.name&.downcase&.include?("to be determined") ||
       building.name&.downcase&.include?("tbd") ||
       building.abbreviation&.downcase == "tbd"
   end

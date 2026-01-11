@@ -2,15 +2,42 @@ require 'rails_helper'
 
 RSpec.describe ApplicationHelper, type: :helper do
   describe '#titleize_with_roman_numerals' do
-    it 'removes spaces between numbers and letters' do
+    it 'removes spaces between numbers and single standalone letters' do
       expect(helper.titleize_with_roman_numerals('Calculus 2 A')).to eq('Calculus 2A')
       expect(helper.titleize_with_roman_numerals('Physics 1 B')).to eq('Physics 1B')
       expect(helper.titleize_with_roman_numerals('chemistry 3 c')).to eq('Chemistry 3C')
     end
 
+    it 'preserves spaces before multi-letter words' do
+      expect(helper.titleize_with_roman_numerals('Studio 02   Lab')).to eq('Studio 02   Lab')
+      expect(helper.titleize_with_roman_numerals('Design 01 Lab')).to eq('Design 01 Lab')
+      expect(helper.titleize_with_roman_numerals('Industrial Design Studio 4 Lab')).to eq('Industrial Design Studio 4 Lab')
+    end
+
     it 'preserves Roman numerals' do
       expect(helper.titleize_with_roman_numerals('calculus ii')).to eq('Calculus II')
       expect(helper.titleize_with_roman_numerals('physics iv lab')).to eq('Physics IV Lab')
+      expect(helper.titleize_with_roman_numerals('English Ii')).to eq('English II')
+      expect(helper.titleize_with_roman_numerals('Interior Studio Vii')).to eq('Interior Studio VII')
+    end
+
+    it 'preserves acronyms in parentheses' do
+      expect(helper.titleize_with_roman_numerals('Introduction To Building Information Modeling (BIM)')).to eq('Introduction To Building Information Modeling (BIM)')
+      expect(helper.titleize_with_roman_numerals('Geographic Information Systems (GIS) For The Social Sciences')).to eq('Geographic Information Systems (GIS) For The Social Sciences')
+    end
+
+    it 'preserves abbreviations like M.S. and Ph.D.' do
+      expect(helper.titleize_with_roman_numerals('M.S. Project Management Capstone')).to eq('M.S. Project Management Capstone')
+    end
+
+    it 'preserves 3D and similar patterns' do
+      expect(helper.titleize_with_roman_numerals('3D Realization 2')).to eq('3D Realization 2')
+      expect(helper.titleize_with_roman_numerals('3 D Realization 2')).to eq('3D Realization 2')
+    end
+
+    it 'handles complex cases with Roman numerals and labs' do
+      expect(helper.titleize_with_roman_numerals('General Chemistry Ii   Lab')).to eq('General Chemistry II   Lab')
+      expect(helper.titleize_with_roman_numerals('Engineering Physics Ii Lab')).to eq('Engineering Physics II Lab')
     end
   end
 

@@ -12,7 +12,7 @@ namespace :calendar do
     User.find_each.with_index do |user, index|
       # Check if user has Google Calendar setup
       if user.google_credential&.google_calendar
-        puts "#{index + 1}/#{total_users}: Queuing sync for user #{user.id} (#{user.primary_email || 'no email'})"
+        puts "#{index + 1}/#{total_users}: Queuing sync for user #{user.id} (#{user.email || 'no email'})"
         GoogleCalendarSyncJob.perform_later(user, force: true)
         queued_count += 1
       else
@@ -43,7 +43,7 @@ namespace :calendar do
     end
 
     if user.google_credential&.google_calendar
-      puts "Queuing forced calendar sync for #{user.primary_email || user.id}..."
+      puts "Queuing forced calendar sync for #{user.email || user.id}..."
       GoogleCalendarSyncJob.perform_later(user, force: true)
       puts "✓ Sync job queued successfully"
     else
@@ -66,7 +66,7 @@ namespace :calendar do
     end
 
     if user.google_credential&.google_calendar
-      puts "Queuing forced calendar sync for user #{user.id} (#{user.primary_email || 'no email'})..."
+      puts "Queuing forced calendar sync for user #{user.id} (#{user.email || 'no email'})..."
       GoogleCalendarSyncJob.perform_later(user, force: true)
       puts "✓ Sync job queued successfully"
     else

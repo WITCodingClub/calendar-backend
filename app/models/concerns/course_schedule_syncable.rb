@@ -521,10 +521,14 @@ module CourseScheduleSyncable
   end
 
   # Check if building is TBD/placeholder
+  # LeopardWeb sends null/empty for unassigned locations, not "TBD" placeholders
   def tbd_building?(building)
     return false unless building
 
-    building.name&.downcase&.include?("to be determined") ||
+    # Empty/blank building means location not yet assigned
+    building.name.blank? ||
+      building.abbreviation.blank? ||
+      building.name&.downcase&.include?("to be determined") ||
       building.name&.downcase&.include?("tbd") ||
       building.abbreviation&.downcase == "tbd"
   end

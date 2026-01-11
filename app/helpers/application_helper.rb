@@ -30,20 +30,56 @@ module ApplicationHelper
   end
 
   def titleize_with_roman_numerals(title)
-    # First, remove spaces between digits and letters (e.g., "2 A" -> "2A")
-    cleaned = title.gsub(/(\d)\s+([A-Za-z])/, '\1\2')
-    
+    preserved = {}
+    counter = 0
+
+    # Preserve acronyms in parentheses (e.g., "(BIM)", "(GIS)")
+    result = title.gsub(/\(([A-Z]{2,})\)/) do |match|
+      key = "zzpreserved#{counter}zz"
+      preserved[key] = match
+      counter += 1
+      key
+    end
+
+    # Preserve abbreviations like "M.S." or "Ph.D."
+    result = result.gsub(/\b([A-Z]\.[A-Z]\.?)/) do |match|
+      key = "zzpreserved#{counter}zz"
+      preserved[key] = match
+      counter += 1
+      key
+    end
+
+    # Preserve "3D" and similar digit+letter combinations that are already correct
+    result = result.gsub(/\b(\d+[A-Z]+)\b/) do |match|
+      key = "zzpreserved#{counter}zz"
+      preserved[key] = match
+      counter += 1
+      key
+    end
+
+    # Remove spaces between digits and SINGLE standalone letters only (e.g., "2 A" -> "2A")
+    # Only match if the letter is followed by whitespace or end of string
+    result = result.gsub(/(\d)\s+([A-Za-z])(?=\s|$)/, '\1\2')
+
     # Capitalize first letter of each word while preserving punctuation
     # Also capitalize letters that follow digits (e.g., "1b" in "Calculus 1b")
-    titleized = cleaned.downcase
-                       .gsub(/(^|\s)(\w)/) { $1 + $2.upcase } # Capitalize after space or start
-                       .gsub(/(\d)([a-z])/i) { $1 + $2.upcase } # Capitalize letters after digits
+    result = result.downcase
+                   .gsub(/(^|\s)(\w)/) { $1 + $2.upcase } # Capitalize after space or start
+                   .gsub(/(\d)([a-z])/i) { $1 + $2.upcase } # Capitalize letters after digits
 
-    # Then fix Roman numerals (I, II, III, IV, V, etc.)
+    # Fix Roman numerals (I, II, III, IV, V, etc.)
     # Match Roman numerals as separate words
-    titleized.gsub(/\b(i{1,3}|iv|v|vi{1,3}|ix|x)\b/i) do |match|
+    result = result.gsub(/\b(i{1,3}|iv|v|vi{1,3}|ix|x)\b/i) do |match|
       match.upcase
     end
+
+    # Restore preserved patterns (keys are lowercase after downcasing)
+    preserved.each do |key, value|
+      # After titleize, key becomes "Zzpreserved0Zz" - match case-insensitively
+      result = result.gsub(/#{key}/i, value)
+    end
+
+    result
   end
 
   def extract_subject_code(subject)
