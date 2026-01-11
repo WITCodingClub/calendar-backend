@@ -39,7 +39,8 @@ module Api
         render json: {
           pub_id: config.public_id,
           error: "Failed to update user extension config",
-          details: config.errors.full_messages }, status: :unprocessable_entity
+          details: config.errors.full_messages
+        }, status: :unprocessable_content
       end
     rescue => e
       Rails.logger.error("Error updating user extension config for user #{current_user.id}: #{e.message}")
@@ -81,7 +82,8 @@ module Api
       Rails.logger.error("Error fetching user extension config for user #{current_user.id}: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
       render json: {
-        error: "Failed to fetch user extension config" }, status: :internal_server_error
+        error: "Failed to fetch user extension config"
+      }, status: :internal_server_error
     end
 
     private
@@ -90,8 +92,18 @@ module Api
       case category
       when "holiday"
         "Official university holidays and breaks (always synced)"
+      when "term_dates"
+        "Semester start and end dates (classes begin/end)"
+      when "registration"
+        "Registration periods and enrollment dates"
+      when "deadline"
+        "Academic deadlines (add/drop, withdrawal, payment due)"
+      when "finals"
+        "Final exam schedules and exam periods"
+      when "graduation"
+        "Commencement ceremonies and graduation events"
       when "academic"
-        "Academic deadlines, registration dates, and important academic events"
+        "Other academic events and calendar announcements"
       when "campus_event"
         "Campus activities, concerts, and student events"
       when "meeting"
@@ -104,5 +116,6 @@ module Api
         "Other university events"
       end
     end
+
   end
 end

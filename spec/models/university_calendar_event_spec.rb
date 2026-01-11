@@ -98,17 +98,67 @@ RSpec.describe UniversityCalendarEvent, type: :model do
     describe ".holidays" do
       it "returns only holiday events" do
         holiday = create(:university_calendar_event, :holiday)
-        academic = create(:university_calendar_event, :academic)
+        term_dates = create(:university_calendar_event, :term_dates)
 
         expect(described_class.holidays).to include(holiday)
-        expect(described_class.holidays).not_to include(academic)
+        expect(described_class.holidays).not_to include(term_dates)
+      end
+    end
+
+    describe ".term_dates" do
+      it "returns only term_dates events" do
+        holiday = create(:university_calendar_event, :holiday)
+        term_dates = create(:university_calendar_event, :term_dates)
+
+        expect(described_class.term_dates).to include(term_dates)
+        expect(described_class.term_dates).not_to include(holiday)
+      end
+    end
+
+    describe ".registration" do
+      it "returns only registration events" do
+        registration = create(:university_calendar_event, :registration)
+        holiday = create(:university_calendar_event, :holiday)
+
+        expect(described_class.registration).to include(registration)
+        expect(described_class.registration).not_to include(holiday)
+      end
+    end
+
+    describe ".finals" do
+      it "returns only finals events" do
+        finals = create(:university_calendar_event, :finals)
+        holiday = create(:university_calendar_event, :holiday)
+
+        expect(described_class.finals).to include(finals)
+        expect(described_class.finals).not_to include(holiday)
+      end
+    end
+
+    describe ".graduation" do
+      it "returns only graduation events" do
+        graduation = create(:university_calendar_event, :graduation)
+        holiday = create(:university_calendar_event, :holiday)
+
+        expect(described_class.graduation).to include(graduation)
+        expect(described_class.graduation).not_to include(holiday)
+      end
+    end
+
+    describe ".deadlines" do
+      it "returns only deadline events" do
+        deadline = create(:university_calendar_event, :deadline)
+        holiday = create(:university_calendar_event, :holiday)
+
+        expect(described_class.deadlines).to include(deadline)
+        expect(described_class.deadlines).not_to include(holiday)
       end
     end
 
     describe ".academic" do
       it "returns only academic events" do
-        holiday = create(:university_calendar_event, :holiday)
         academic = create(:university_calendar_event, :academic)
+        holiday = create(:university_calendar_event, :holiday)
 
         expect(described_class.academic).to include(academic)
         expect(described_class.academic).not_to include(holiday)
@@ -132,12 +182,12 @@ RSpec.describe UniversityCalendarEvent, type: :model do
     describe ".by_categories" do
       it "returns events matching specified categories" do
         holiday = create(:university_calendar_event, :holiday)
-        academic = create(:university_calendar_event, :academic)
+        term_dates = create(:university_calendar_event, :term_dates)
         campus = create(:university_calendar_event, :campus_event)
 
-        result = described_class.by_categories(%w[holiday academic])
+        result = described_class.by_categories(%w[holiday term_dates])
 
-        expect(result).to include(holiday, academic)
+        expect(result).to include(holiday, term_dates)
         expect(result).not_to include(campus)
       end
     end
@@ -177,13 +227,13 @@ RSpec.describe UniversityCalendarEvent, type: :model do
                         start_time: Date.new(2025, 3, 20).beginning_of_day)
       holiday3 = create(:university_calendar_event, :holiday,
                         start_time: Date.new(2025, 5, 1).beginning_of_day)
-      academic = create(:university_calendar_event, :academic,
-                        start_time: Date.new(2025, 3, 15).beginning_of_day)
+      term_dates = create(:university_calendar_event, :term_dates,
+                          start_time: Date.new(2025, 3, 15).beginning_of_day)
 
       result = described_class.holidays_between(Date.new(2025, 3, 1), Date.new(2025, 3, 31))
 
       expect(result).to eq([holiday1, holiday2])
-      expect(result).not_to include(holiday3, academic)
+      expect(result).not_to include(holiday3, term_dates)
     end
   end
 
@@ -196,12 +246,35 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(described_class.infer_category("Labor Day", nil)).to eq("holiday")
     end
 
-    it "detects academic events" do
-      expect(described_class.infer_category("Fall 2025 Classes Begin", nil)).to eq("academic")
-      expect(described_class.infer_category("Final Exams Week", nil)).to eq("academic")
-      expect(described_class.infer_category("Registration Opens", nil)).to eq("academic")
-      expect(described_class.infer_category("Commencement Ceremony", nil)).to eq("academic")
-      expect(described_class.infer_category("Some Event", "Calendar Announcement")).to eq("academic")
+    it "detects term_dates events" do
+      expect(described_class.infer_category("Fall 2025 Classes Begin", nil)).to eq("term_dates")
+      expect(described_class.infer_category("Classes End", nil)).to eq("term_dates")
+      expect(described_class.infer_category("First Day of Classes", nil)).to eq("term_dates")
+      expect(described_class.infer_category("Last Day of Classes", nil)).to eq("term_dates")
+    end
+
+    it "detects finals events" do
+      expect(described_class.infer_category("Final Exams Week", nil)).to eq("finals")
+      expect(described_class.infer_category("Finals Week", nil)).to eq("finals")
+      expect(described_class.infer_category("Examination Period", nil)).to eq("finals")
+    end
+
+    it "detects registration events" do
+      expect(described_class.infer_category("Registration Opens", nil)).to eq("registration")
+      expect(described_class.infer_category("Enrollment Period", nil)).to eq("registration")
+      expect(described_class.infer_category("Add/Drop Period", nil)).to eq("registration")
+    end
+
+    it "detects deadline events" do
+      expect(described_class.infer_category("Withdrawal Deadline", nil)).to eq("deadline")
+      expect(described_class.infer_category("Last Day to Drop", nil)).to eq("deadline")
+      expect(described_class.infer_category("Tuition Due", nil)).to eq("deadline")
+    end
+
+    it "detects graduation events" do
+      expect(described_class.infer_category("Commencement Ceremony", nil)).to eq("graduation")
+      expect(described_class.infer_category("Graduation 2025", nil)).to eq("graduation")
+      expect(described_class.infer_category("Convocation", nil)).to eq("graduation")
     end
 
     it "detects meeting events" do
@@ -217,6 +290,10 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(described_class.infer_category("Important Notice", "Announcement")).to eq("announcement")
     end
 
+    it "detects academic events from calendar announcement type" do
+      expect(described_class.infer_category("Some Academic Event", "Calendar Announcement")).to eq("academic")
+    end
+
     it "defaults to campus_event for unknown types" do
       expect(described_class.infer_category("Random Event", nil)).to eq("campus_event")
       expect(described_class.infer_category("Something Happening", "Other")).to eq("campus_event")
@@ -225,11 +302,11 @@ RSpec.describe UniversityCalendarEvent, type: :model do
 
   describe ".detect_term_dates" do
     it "finds classes begin and end events for a term" do
-      create(:university_calendar_event, :academic,
+      create(:university_calendar_event, :term_dates,
              summary: "Fall 2025 Classes Begin",
              academic_term: "Fall",
              start_time: Date.new(2025, 8, 25).beginning_of_day)
-      create(:university_calendar_event, :academic,
+      create(:university_calendar_event, :finals,
              summary: "Fall 2025 Final Exams",
              academic_term: "Fall",
              start_time: Date.new(2025, 12, 15).beginning_of_day,
@@ -260,13 +337,18 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(event.term_boundary_event?).to be true
     end
 
-    it "returns false for other academic events" do
-      event = build(:university_calendar_event, :academic, summary: "Registration Opens")
+    it "returns true for all term_dates category events" do
+      event = build(:university_calendar_event, :term_dates)
+      expect(event.term_boundary_event?).to be true
+    end
+
+    it "returns false for non-term_dates events" do
+      event = build(:university_calendar_event, :holiday)
       expect(event.term_boundary_event?).to be false
     end
 
-    it "returns false for non-academic events" do
-      event = build(:university_calendar_event, :holiday)
+    it "returns false for registration events" do
+      event = build(:university_calendar_event, :registration)
       expect(event.term_boundary_event?).to be false
     end
   end
@@ -278,7 +360,7 @@ RSpec.describe UniversityCalendarEvent, type: :model do
     end
 
     it "returns false for non-holiday events" do
-      event = build(:university_calendar_event, :academic)
+      event = build(:university_calendar_event, :term_dates)
       expect(event.excludes_classes?).to be false
     end
   end
