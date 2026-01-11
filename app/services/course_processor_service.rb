@@ -135,7 +135,7 @@ class CourseProcessorService < ApplicationService
         c.subject = detailed_course_info[:subject]
         c.course_number = course_data[:courseNumber]
         c.schedule_type = schedule_type_match ? schedule_type_match[1] : nil
-        c.section_number = detailed_course_info[:section_number]
+        c.section_number = normalize_section_number(detailed_course_info[:section_number])
 
         # LeopardWeb shows total course credit hours for all sections (lecture + lab)
         # Labs are typically 0-credit companion sections, so override for LAB schedule type

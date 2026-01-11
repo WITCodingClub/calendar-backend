@@ -143,6 +143,22 @@ RSpec.describe CourseDataSyncJob, type: :job do
 
       expect(course.reload.title).to eq("Calculus 2A")
     end
+
+    it "normalizes section numbers by removing spaces" do
+      data_with_spaced_section = { section_number: "1 A" }
+
+      job.send(:update_course_from_fresh_data, course, data_with_spaced_section, term.uid)
+
+      expect(course.reload.section_number).to eq("1A")
+    end
+
+    it "uppercases section number letters" do
+      data_with_lowercase_section = { section_number: "2b" }
+
+      job.send(:update_course_from_fresh_data, course, data_with_lowercase_section, term.uid)
+
+      expect(course.reload.section_number).to eq("2B")
+    end
   end
 
   describe "#meeting_times_changed?" do

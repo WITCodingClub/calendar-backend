@@ -123,7 +123,7 @@ class CatalogImportService < ApplicationService
       c.subject = course_data["subject"] || course_data["subjectCode"]
       c.course_number = course_data["courseNumber"]
       c.schedule_type = schedule_type_match ? schedule_type_match[1] : nil
-      c.section_number = course_data["sequenceNumber"] || course_data["sectionNumber"]
+      c.section_number = normalize_section_number(course_data["sequenceNumber"] || course_data["sectionNumber"])
 
       # LeopardWeb shows total course credit hours for all sections (lecture + lab)
       # Labs are typically 0-credit companion sections, so override for LAB schedule type

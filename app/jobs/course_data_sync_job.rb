@@ -102,7 +102,7 @@ class CourseDataSyncJob < ApplicationJob
     fresh_credit_hours = fresh_data[:credit_hours]
     fresh_grade_mode = fresh_data[:grade_mode]&.strip
     fresh_subject = fresh_data[:subject]&.strip
-    fresh_section_number = fresh_data[:section_number]&.strip
+    fresh_section_number = normalize_section_number(fresh_data[:section_number])
     
     # Extract schedule type from format like "Lecture (LEC)"
     fresh_schedule_type = nil
@@ -163,7 +163,7 @@ class CourseDataSyncJob < ApplicationJob
     fresh_credit_hours = fresh_data[:credit_hours]
     fresh_grade_mode = fresh_data[:grade_mode]&.strip
     fresh_subject = fresh_data[:subject]&.strip
-    fresh_section_number = fresh_data[:section_number]&.strip
+    fresh_section_number = normalize_section_number(fresh_data[:section_number])
     
     # Extract schedule type
     fresh_schedule_type = nil
