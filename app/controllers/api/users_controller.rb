@@ -325,7 +325,9 @@ module Api
           provider: credential.provider,
           has_calendar: credential.google_calendar.present?,
           calendar_id: credential.google_calendar&.google_calendar_id,
-          created_at: credential.created_at
+          created_at: credential.created_at,
+          needs_reauth: credential.needs_reauth?,
+          token_revoked: credential.token_revoked?
         }
       end
 
