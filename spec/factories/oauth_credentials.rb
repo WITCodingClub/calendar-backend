@@ -46,5 +46,13 @@ FactoryBot.define do
     trait :expired do
       token_expires_at { 1.hour.ago }
     end
+
+    trait :revoked do
+      metadata { { "token_revoked" => true } }
+    end
+
+    trait :without_refresh_token do
+      refresh_token { nil }
+    end
   end
 end

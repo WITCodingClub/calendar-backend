@@ -44,9 +44,59 @@ RSpec.describe "Api::OauthCredentials", type: :request do
           "email" => "user@example.com",
           "provider" => "google",
           "has_calendar" => false,
-          "calendar_id" => nil
+          "calendar_id" => nil,
+          "needs_reauth" => false,
+          "token_revoked" => false
         )
         expect(credentials[0]).to have_key("created_at")
+      end
+    end
+
+    context "when credential needs re-authentication" do
+      let!(:revoked_credential) do
+        create(:oauth_credential, :revoked,
+               user: user,
+               email: "revoked@example.com",
+               provider: "google")
+      end
+
+      it "returns needs_reauth true for revoked credential" do
+        get "/api/user/oauth_credentials", headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        credentials = json["oauth_credentials"]
+
+        expect(credentials.length).to eq(1)
+        expect(credentials[0]).to include(
+          "email" => "revoked@example.com",
+          "needs_reauth" => true,
+          "token_revoked" => true
+        )
+      end
+    end
+
+    context "when credential is missing refresh token" do
+      let!(:no_refresh_credential) do
+        create(:oauth_credential, :without_refresh_token,
+               user: user,
+               email: "norefresh@example.com",
+               provider: "google")
+      end
+
+      it "returns needs_reauth true when missing refresh token" do
+        get "/api/user/oauth_credentials", headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        credentials = json["oauth_credentials"]
+
+        expect(credentials.length).to eq(1)
+        expect(credentials[0]).to include(
+          "email" => "norefresh@example.com",
+          "needs_reauth" => true,
+          "token_revoked" => false
+        )
       end
     end
 
