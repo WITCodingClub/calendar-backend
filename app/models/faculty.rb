@@ -63,7 +63,7 @@ class Faculty < ApplicationRecord
   scope :staff_only, -> { where(employee_type: "staff") }
   scope :by_school, ->(school) { where(school: school) }
   scope :by_department, ->(department) { where(department: department) }
-  scope :needs_directory_sync, -> { where(directory_last_synced_at: nil).or(where("directory_last_synced_at < ?", 7.days.ago)) }
+  scope :needs_directory_sync, -> { where(directory_last_synced_at: nil).or(where(directory_last_synced_at: ...7.days.ago)) }
   scope :with_directory_data, -> { where.not(directory_last_synced_at: nil) }
   scope :with_courses, -> { joins(:courses).distinct }
   scope :without_courses, -> { where.missing(:courses) }

@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::OauthCredentials", type: :request do
+RSpec.describe "Api::OauthCredentials" do
   let(:user) { create(:user) }
   let(:jwt_token) { JsonWebTokenService.encode(user_id: user.id) }
   let(:headers) { { "Authorization" => "Bearer #{jwt_token}" } }
@@ -40,12 +40,12 @@ RSpec.describe "Api::OauthCredentials", type: :request do
 
         expect(credentials.length).to eq(1)
         expect(credentials[0]).to include(
-          "id" => credential.public_id,
-          "email" => "user@example.com",
-          "provider" => "google",
-          "has_calendar" => false,
-          "calendar_id" => nil,
-          "needs_reauth" => false,
+          "id"            => credential.public_id,
+          "email"         => "user@example.com",
+          "provider"      => "google",
+          "has_calendar"  => false,
+          "calendar_id"   => nil,
+          "needs_reauth"  => false,
           "token_revoked" => false
         )
         expect(credentials[0]).to have_key("created_at")
@@ -69,8 +69,8 @@ RSpec.describe "Api::OauthCredentials", type: :request do
 
         expect(credentials.length).to eq(1)
         expect(credentials[0]).to include(
-          "email" => "revoked@example.com",
-          "needs_reauth" => true,
+          "email"         => "revoked@example.com",
+          "needs_reauth"  => true,
           "token_revoked" => true
         )
       end
@@ -93,8 +93,8 @@ RSpec.describe "Api::OauthCredentials", type: :request do
 
         expect(credentials.length).to eq(1)
         expect(credentials[0]).to include(
-          "email" => "norefresh@example.com",
-          "needs_reauth" => true,
+          "email"         => "norefresh@example.com",
+          "needs_reauth"  => true,
           "token_revoked" => false
         )
       end
@@ -135,18 +135,18 @@ RSpec.describe "Api::OauthCredentials", type: :request do
 
         cred1 = credentials.find { |c| c["id"] == credential1.public_id }
         expect(cred1).to include(
-          "email" => "personal@example.com",
-          "provider" => "google",
+          "email"        => "personal@example.com",
+          "provider"     => "google",
           "has_calendar" => true,
-          "calendar_id" => "calendar1@google.com"
+          "calendar_id"  => "calendar1@google.com"
         )
 
         cred2 = credentials.find { |c| c["id"] == credential2.public_id }
         expect(cred2).to include(
-          "email" => "work@example.com",
-          "provider" => "google",
+          "email"        => "work@example.com",
+          "provider"     => "google",
           "has_calendar" => true,
-          "calendar_id" => "calendar2@google.com"
+          "calendar_id"  => "calendar2@google.com"
         )
       end
     end
@@ -215,7 +215,7 @@ RSpec.describe "Api::OauthCredentials", type: :request do
           delete "/api/user/oauth_credentials/#{credential.id}", headers: headers
         }.not_to change(OauthCredential, :count)
 
-        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to have_http_status(:unprocessable_content)
         json = response.parsed_body
         expect(json["error"]).to include("Cannot disconnect the last OAuth credential")
       end
@@ -293,7 +293,7 @@ RSpec.describe "Api::OauthCredentials", type: :request do
         expect {
           delete "/api/user/oauth_credentials/#{credential1.id}", headers: headers
         }.to change(OauthCredential, :count).by(-1)
-          .and change(GoogleCalendar, :count).by(-1)
+                                            .and change(GoogleCalendar, :count).by(-1)
 
         expect(response).to have_http_status(:ok)
         expect(OauthCredential.exists?(credential1.id)).to be false

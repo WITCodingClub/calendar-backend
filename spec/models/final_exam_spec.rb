@@ -31,20 +31,20 @@
 #
 require "rails_helper"
 
-RSpec.describe FinalExam, type: :model do
+RSpec.describe FinalExam do
   describe "associations" do
-    it { should belong_to(:course).optional }
-    it { should belong_to(:term) }
+    it { is_expected.to belong_to(:course).optional }
+    it { is_expected.to belong_to(:term) }
   end
 
   describe "validations" do
     subject { build(:final_exam) }
 
-    it { should validate_presence_of(:exam_date) }
-    it { should validate_presence_of(:start_time) }
-    it { should validate_presence_of(:end_time) }
+    it { is_expected.to validate_presence_of(:exam_date) }
+    it { is_expected.to validate_presence_of(:start_time) }
+    it { is_expected.to validate_presence_of(:end_time) }
 
-    it { should validate_presence_of(:crn) }
+    it { is_expected.to validate_presence_of(:crn) }
 
     it "validates uniqueness of crn scoped to term_id" do
       existing = create(:final_exam)
@@ -301,13 +301,13 @@ RSpec.describe FinalExam, type: :model do
       end
 
       it "orphan scope returns exams without courses" do
-        expect(FinalExam.orphan).to include(orphan_exam)
-        expect(FinalExam.orphan).not_to include(linked_exam)
+        expect(described_class.orphan).to include(orphan_exam)
+        expect(described_class.orphan).not_to include(linked_exam)
       end
 
       it "linked scope returns exams with courses" do
-        expect(FinalExam.linked).to include(linked_exam)
-        expect(FinalExam.linked).not_to include(orphan_exam)
+        expect(described_class.linked).to include(linked_exam)
+        expect(described_class.linked).not_to include(orphan_exam)
       end
     end
 
@@ -353,7 +353,7 @@ RSpec.describe FinalExam, type: :model do
         orphan2 = create(:final_exam, :orphan, crn: 22222, term: term)
         orphan3 = create(:final_exam, :orphan, crn: 33333, term: term)
 
-        linked_count = FinalExam.link_orphan_exams_to_courses(term: term)
+        linked_count = described_class.link_orphan_exams_to_courses(term: term)
 
         expect(linked_count).to eq(2)
         expect(orphan1.reload.course).to eq(course1)

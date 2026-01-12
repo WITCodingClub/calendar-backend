@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Admin::UniversityCalendarEvents", type: :request do
+RSpec.describe "Admin::UniversityCalendarEvents" do
   let(:admin_user) do
     user = create(:user, :admin)
     user.emails.create!(email_address: "admin@example.com", primary: true) if user.emails.empty?
@@ -42,7 +42,7 @@ RSpec.describe "Admin::UniversityCalendarEvents", type: :request do
         # Expected: 1 holiday (with location), 0 term_dates (both without location), 1 registration (with location)
         expect(response.body).to include("Holiday")
         expect(response.body).to include("Registration")
-        
+
         # The stats should show counts for events with locations only
         # This ensures the category counts match what will be shown when clicking them
       end

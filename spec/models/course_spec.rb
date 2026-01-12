@@ -199,7 +199,7 @@ RSpec.describe Course do
 
       expect {
         course.update!(title: "New Title")
-      }.not_to change { term.reload.updated_at }
+      }.not_to(change { term.reload.updated_at })
     end
   end
 end

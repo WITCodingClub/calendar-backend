@@ -49,5 +49,6 @@ module Admin
       UniversityCalendarSyncJob.perform_later
       redirect_to admin_university_calendar_events_path, notice: "University calendar sync queued successfully."
     end
+
   end
 end

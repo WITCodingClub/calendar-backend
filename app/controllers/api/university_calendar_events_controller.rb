@@ -32,7 +32,7 @@ module Api
 
       # Filter by term
       if params[:term_id].present?
-        @events = @events.for_term(Term.find_by_public_id(params[:term_id]))
+        @events = @events.for_term(Term.find_by(public_id: params[:term_id]))
       end
 
       # Pagination
@@ -75,7 +75,7 @@ module Api
 
       # Filter by term
       if params[:term_id].present?
-        term = Term.find_by_public_id(params[:term_id])
+        term = Term.find_by(public_id: params[:term_id])
         @holidays = @holidays.for_term(term) if term
       end
 
@@ -103,7 +103,7 @@ module Api
     private
 
     def set_event
-      @event = UniversityCalendarEvent.find_by_public_id!(params[:id])
+      @event = UniversityCalendarEvent.find_by!(public_id: params[:id])
     end
 
     def serialize_event(event)
@@ -134,5 +134,6 @@ module Api
         per_page: collection.limit_value
       }
     end
+
   end
 end

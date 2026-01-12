@@ -37,14 +37,15 @@
 class EnrollmentSnapshot < ApplicationRecord
   belongs_to :user
   belongs_to :term
-  
+
   validates :crn, presence: true
   validates :crn, uniqueness: { scope: [:user_id, :term_id] }
-  
+
   # JSONB columns don't need explicit serialization
-  
+
   # Scope to find snapshots for restoration
   scope :for_restoration, -> { where(snapshot_reason: "Pre-CRN-uniqueness-fix backup") }
   scope :for_term, ->(term) { where(term: term) }
   scope :for_user, ->(user) { where(user: user) }
+
 end

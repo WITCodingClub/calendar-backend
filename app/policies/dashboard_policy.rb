@@ -8,4 +8,5 @@ class DashboardPolicy < ApplicationPolicy
   def index?
     admin?
   end
+
 end

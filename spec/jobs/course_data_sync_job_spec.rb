@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe CourseDataSyncJob, type: :job do
+RSpec.describe CourseDataSyncJob do
   let(:term) { create(:term, :current) }
   let(:course) { create(:course, term: term, title: "Original Title", credit_hours: 3) }
   let(:fresh_data) do
@@ -17,25 +17,24 @@ RSpec.describe CourseDataSyncJob, type: :job do
   end
 
   before do
-    allow(Term).to receive(:current_uid).and_return(term.uid)
-    allow(Term).to receive(:next_uid).and_return(nil)
+    allow(Term).to receive_messages(current_uid: term.uid, next_uid: nil)
   end
 
   describe "#perform" do
     context "with default term UIDs" do
       it "syncs courses for current term" do
         allow(LeopardWebService).to receive(:get_class_details).and_return(fresh_data)
-        
+
         expect do
-          CourseDataSyncJob.new.perform
+          described_class.new.perform
         end.to change { course.reload.title }.from("Original Title").to("Updated Title")
-                                             .and change { course.credit_hours }.from(3).to(4)
+                                             .and change(course, :credit_hours).from(3).to(4)
       end
 
       it "handles LeopardWeb API errors gracefully" do
         allow(LeopardWebService).to receive(:get_class_details).and_raise(StandardError, "API Error")
 
-        expect { CourseDataSyncJob.new.perform }.not_to raise_error
+        expect { described_class.new.perform }.not_to raise_error
       end
     end
 
@@ -46,7 +45,7 @@ RSpec.describe CourseDataSyncJob, type: :job do
       it "syncs only specified terms" do
         allow(LeopardWebService).to receive(:get_class_details).and_return(fresh_data)
 
-        CourseDataSyncJob.new.perform(term_uids: [other_term.uid])
+        described_class.new.perform(term_uids: [other_term.uid])
 
         expect(LeopardWebService).to have_received(:get_class_details)
           .with(term: other_term.uid, course_reference_number: other_course.crn)
@@ -55,7 +54,7 @@ RSpec.describe CourseDataSyncJob, type: :job do
   end
 
   describe "#course_data_changed?" do
-    let(:job) { CourseDataSyncJob.new }
+    let(:job) { described_class.new }
 
     it "detects title changes" do
       result = job.send(:course_data_changed?, course, { title: "New Title" })
@@ -81,7 +80,7 @@ RSpec.describe CourseDataSyncJob, type: :job do
         section_number: course.section_number,
         schedule_type: course.schedule_type
       }
-      
+
       result = job.send(:course_data_changed?, course, unchanged_data)
       expect(result).to be false
     end
@@ -96,7 +95,7 @@ RSpec.describe CourseDataSyncJob, type: :job do
   end
 
   describe "#update_course_from_fresh_data" do
-    let(:job) { CourseDataSyncJob.new }
+    let(:job) { described_class.new }
 
     it "updates all changed course attributes" do
       job.send(:update_course_from_fresh_data, course, fresh_data, term.uid)
@@ -162,7 +161,7 @@ RSpec.describe CourseDataSyncJob, type: :job do
   end
 
   describe "#meeting_times_changed?" do
-    let(:job) { CourseDataSyncJob.new }
+    let(:job) { described_class.new }
     let!(:meeting_time) { create(:meeting_time, course: course) }
 
     it "detects when meeting times have TBD location data" do
@@ -170,7 +169,7 @@ RSpec.describe CourseDataSyncJob, type: :job do
       tbd_building = create(:building, abbreviation: "TBD")
       tbd_room.update!(building: tbd_building)
       meeting_time.update!(room: tbd_room)
-      
+
       result = job.send(:meeting_times_changed?, course, {})
       expect(result).to be true
     end
@@ -180,7 +179,7 @@ RSpec.describe CourseDataSyncJob, type: :job do
       proper_building = create(:building, abbreviation: "SCI")
       proper_room.update!(building: proper_building)
       meeting_time.update!(room: proper_room)
-      
+
       result = job.send(:meeting_times_changed?, course, {})
       expect(result).to be false
     end
@@ -194,15 +193,15 @@ RSpec.describe CourseDataSyncJob, type: :job do
       call_count = 0
       allow(LeopardWebService).to receive(:get_class_details) do |args|
         call_count += 1
-        if args[:course_reference_number] == 12345
-          raise StandardError, "API Error"
-        else
-          fresh_data
-        end
+        raise StandardError, "API Error" if args[:course_reference_number] == 12345
+
+
+        fresh_data
+
       end
 
       # Job should not raise error even when one course fails
-      expect { CourseDataSyncJob.new.perform(term_uids: [term.uid]) }.not_to raise_error
+      expect { described_class.new.perform(term_uids: [term.uid]) }.not_to raise_error
     end
 
     it "implements rate limiting with sleep between API calls" do
@@ -212,7 +211,7 @@ RSpec.describe CourseDataSyncJob, type: :job do
 
       # We can't easily spy on sleep for a job instance, so just verify the job runs without error
       # The actual sleep implementation is tested implicitly by the job running successfully
-      expect { CourseDataSyncJob.new.perform(term_uids: [term.uid]) }.not_to raise_error
+      expect { described_class.new.perform(term_uids: [term.uid]) }.not_to raise_error
     end
   end
 
@@ -220,7 +219,7 @@ RSpec.describe CourseDataSyncJob, type: :job do
     it "has proper concurrency settings" do
       # The job uses Solid Queue's limits_concurrency macro
       # Just verify the job class is configured correctly
-      expect(CourseDataSyncJob.queue_name).to eq("low")
+      expect(described_class.queue_name).to eq("low")
     end
   end
 end

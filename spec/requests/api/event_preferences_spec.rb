@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::EventPreferences", type: :request do
+RSpec.describe "Api::EventPreferences" do
   let(:user) { create(:user) }
   let!(:term) { create(:term) }
   let!(:building) { create(:building, name: "Wentworth Hall") }
@@ -102,8 +102,8 @@ RSpec.describe "Api::EventPreferences", type: :request do
       # Default system reminder uses "popup" internally but should be transformed to "notification"
       expect(reminder_settings).to be_an(Array)
       expect(reminder_settings.first).to include(
-        "time" => "30",
-        "type" => "minutes",
+        "time"   => "30",
+        "type"   => "minutes",
         "method" => "notification" # Should be "notification", not "popup"
       )
     end
@@ -131,13 +131,13 @@ RSpec.describe "Api::EventPreferences", type: :request do
       expect(reminder_settings).to be_an(Array)
       expect(reminder_settings.length).to eq(2)
       expect(reminder_settings[0]).to include(
-        "time" => "15",
-        "type" => "minutes",
+        "time"   => "15",
+        "type"   => "minutes",
         "method" => "notification"
       )
       expect(reminder_settings[1]).to include(
-        "time" => "1",
-        "type" => "hours",
+        "time"   => "1",
+        "type"   => "hours",
         "method" => "notification"
       )
     end

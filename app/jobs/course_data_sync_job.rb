@@ -11,7 +11,7 @@ class CourseDataSyncJob < ApplicationJob
   # Sync course data for current and next term by default
   def perform(term_uids: nil)
     term_uids ||= default_term_uids
-    
+
     return if term_uids.empty?
 
     Rails.logger.info "CourseDataSyncJob: Starting sync for terms: #{term_uids}"
@@ -33,7 +33,7 @@ class CourseDataSyncJob < ApplicationJob
   end
 
   def sync_term_courses(term_uid)
-    term = Term.find_by_uid(term_uid)
+    term = Term.find_by(uid: term_uid)
     unless term
       Rails.logger.warn "CourseDataSyncJob: Term not found for UID #{term_uid}"
       return
@@ -56,7 +56,7 @@ class CourseDataSyncJob < ApplicationJob
       rescue => e
         error_count += 1
         Rails.logger.error "CourseDataSyncJob: Failed to sync course #{course.crn}: #{e.message}"
-        
+
         # Continue with other courses even if one fails
         next
       end
@@ -103,7 +103,7 @@ class CourseDataSyncJob < ApplicationJob
     fresh_grade_mode = fresh_data[:grade_mode]&.strip
     fresh_subject = fresh_data[:subject]&.strip
     fresh_section_number = normalize_section_number(fresh_data[:section_number])
-    
+
     # Extract schedule type from format like "Lecture (LEC)"
     fresh_schedule_type = nil
     if fresh_data[:schedule_type]
@@ -113,27 +113,27 @@ class CourseDataSyncJob < ApplicationJob
 
     # Compare all course attributes that could change
     changes = []
-    
+
     if course.title != fresh_title
       changes << "title: '#{course.title}' -> '#{fresh_title}'"
     end
-    
+
     if course.credit_hours != fresh_credit_hours
       changes << "credit_hours: #{course.credit_hours} -> #{fresh_credit_hours}"
     end
-    
+
     if course.grade_mode != fresh_grade_mode
       changes << "grade_mode: '#{course.grade_mode}' -> '#{fresh_grade_mode}'"
     end
-    
+
     if course.subject != fresh_subject
       changes << "subject: '#{course.subject}' -> '#{fresh_subject}'"
     end
-    
+
     if course.section_number != fresh_section_number
       changes << "section_number: '#{course.section_number}' -> '#{fresh_section_number}'"
     end
-    
+
     if fresh_schedule_type && course.schedule_type != fresh_schedule_type
       changes << "schedule_type: '#{course.schedule_type}' -> '#{fresh_schedule_type}'"
     end
@@ -149,7 +149,7 @@ class CourseDataSyncJob < ApplicationJob
   def meeting_times_changed?(course, fresh_data)
     # This is a simplified check - in practice, you might want to compare
     # the full meeting times structure from LeopardWeb
-    
+
     # For now, we'll assume meeting times come from the course processor
     # and check if the course has any meeting times without proper location data
     course.meeting_times.any? do |mt|
@@ -164,7 +164,7 @@ class CourseDataSyncJob < ApplicationJob
     fresh_grade_mode = fresh_data[:grade_mode]&.strip
     fresh_subject = fresh_data[:subject]&.strip
     fresh_section_number = normalize_section_number(fresh_data[:section_number])
-    
+
     # Extract schedule type
     fresh_schedule_type = nil
     if fresh_data[:schedule_type]
@@ -174,7 +174,7 @@ class CourseDataSyncJob < ApplicationJob
 
     # Build update attributes hash
     update_attrs = {}
-    
+
     update_attrs[:title] = fresh_title if fresh_title
     update_attrs[:credit_hours] = fresh_credit_hours if fresh_credit_hours
     update_attrs[:grade_mode] = fresh_grade_mode if fresh_grade_mode
@@ -190,4 +190,5 @@ class CourseDataSyncJob < ApplicationJob
     # API calls to get full meeting time data from LeopardWeb, which is more complex
     # and may be better handled by triggering a full course reprocess for changed courses.
   end
+
 end

@@ -36,16 +36,16 @@
 #
 require "rails_helper"
 
-RSpec.describe SecurityEvent, type: :model do
+RSpec.describe SecurityEvent do
   describe "associations" do
-    it { should belong_to(:user).optional }
-    it { should belong_to(:oauth_credential).optional }
+    it { is_expected.to belong_to(:user).optional }
+    it { is_expected.to belong_to(:oauth_credential).optional }
   end
 
   describe "validations" do
-    it { should validate_presence_of(:jti) }
-    it { should validate_presence_of(:event_type) }
-    it { should validate_presence_of(:google_subject) }
+    it { is_expected.to validate_presence_of(:jti) }
+    it { is_expected.to validate_presence_of(:event_type) }
+    it { is_expected.to validate_presence_of(:google_subject) }
 
     it "validates uniqueness of jti" do
       create(:security_event, jti: "unique-jti-123")
@@ -65,29 +65,29 @@ RSpec.describe SecurityEvent, type: :model do
 
     describe ".unprocessed" do
       it "returns only unprocessed events" do
-        expect(SecurityEvent.unprocessed).to include(unprocessed_event)
-        expect(SecurityEvent.unprocessed).not_to include(processed_event)
+        expect(described_class.unprocessed).to include(unprocessed_event)
+        expect(described_class.unprocessed).not_to include(processed_event)
       end
     end
 
     describe ".processed" do
       it "returns only processed events" do
-        expect(SecurityEvent.processed).to include(processed_event)
-        expect(SecurityEvent.processed).not_to include(unprocessed_event)
+        expect(described_class.processed).to include(processed_event)
+        expect(described_class.processed).not_to include(unprocessed_event)
       end
     end
 
     describe ".expired" do
       it "returns only expired events" do
-        expect(SecurityEvent.expired).to include(expired_event)
-        expect(SecurityEvent.expired).not_to include(unprocessed_event)
+        expect(described_class.expired).to include(expired_event)
+        expect(described_class.expired).not_to include(unprocessed_event)
       end
     end
 
     describe ".for_user" do
       it "returns events for specific user" do
-        expect(SecurityEvent.for_user(user)).to include(user_event)
-        expect(SecurityEvent.for_user(user)).not_to include(unprocessed_event)
+        expect(described_class.for_user(user)).to include(user_event)
+        expect(described_class.for_user(user)).not_to include(unprocessed_event)
       end
     end
 
@@ -97,8 +97,8 @@ RSpec.describe SecurityEvent, type: :model do
       end
 
       it "returns events of specific type" do
-        expect(SecurityEvent.by_event_type(SecurityEvent::SESSIONS_REVOKED)).to include(sessions_revoked_event)
-        expect(SecurityEvent.by_event_type(SecurityEvent::SESSIONS_REVOKED)).not_to include(unprocessed_event)
+        expect(described_class.by_event_type(SecurityEvent::SESSIONS_REVOKED)).to include(sessions_revoked_event)
+        expect(described_class.by_event_type(SecurityEvent::SESSIONS_REVOKED)).not_to include(unprocessed_event)
       end
     end
   end
@@ -195,7 +195,7 @@ RSpec.describe SecurityEvent, type: :model do
       event = create(:security_event, raw_event_data: '{"sensitive": "data"}')
 
       # The raw database value should be encrypted (ciphertext)
-      raw_value = SecurityEvent.connection.select_value(
+      raw_value = described_class.connection.select_value(
         "SELECT raw_event_data FROM security_events WHERE id = #{event.id}"
       )
 

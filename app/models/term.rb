@@ -59,7 +59,8 @@ class Term < ApplicationRecord
     return if courses.empty?
 
     # Only consider courses with dates in a valid year range
-    valid_courses = courses.where.not(start_date: nil, end_date: nil)
+    valid_courses = courses.where.not(start_date: nil)
+                           .where.not(end_date: nil)
                            .where("EXTRACT(YEAR FROM start_date) >= ? AND EXTRACT(YEAR FROM start_date) <= ?", year - 1, year)
                            .where("EXTRACT(YEAR FROM end_date) >= ? AND EXTRACT(YEAR FROM end_date) <= ?", year, year + 1)
 
@@ -77,7 +78,7 @@ class Term < ApplicationRecord
     return false if start_date.nil? || end_date.nil?
 
     today = Time.zone.today
-    today >= start_date && today <= end_date
+    today.between?(start_date, end_date)
   end
 
   # Check if term is upcoming (starts in the future)
@@ -153,7 +154,7 @@ class Term < ApplicationRecord
     # Priority 3: Find the next upcoming term
     upcoming_term = where.not(start_date: nil)
                          .where("start_date > ?", today)
-                         .where("year >= ?", current_year)
+                         .where(year: current_year..)
                          .order(start_date: :asc)
                          .first
 

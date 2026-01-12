@@ -197,99 +197,102 @@ class CalendarTemplateRenderer
     }
   end
 
-  private
+  class << self
 
-  def self.format_datetime(datetime)
-    return "" if datetime.nil?
+    private
 
-    datetime.strftime("%-I:%M %p")
-  end
+    def format_datetime(datetime)
+      return "" if datetime.nil?
 
-  def self.check_for_disallowed_tags(parsed_template)
-    # Liquid's default tags (if, case, for, etc.) are allowed
-    # We need to ensure no custom tags that could be dangerous
-    # For now, we'll allow all standard Liquid tags since they're safe
-    true
-  end
+      datetime.strftime("%-I:%M %p")
+    end
 
-  def self.extract_variables(parsed_template)
-    variables = Set.new
-    extract_variables_from_node(parsed_template.root, variables)
-    variables.to_a
-  end
+    def check_for_disallowed_tags(parsed_template)
+      # Liquid's default tags (if, case, for, etc.) are allowed
+      # We need to ensure no custom tags that could be dangerous
+      # For now, we'll allow all standard Liquid tags since they're safe
+      true
+    end
 
-  def self.extract_variables_from_node(node, variables)
-    case node
-    when Liquid::Variable
-      # Extract variable name from the node
-      if node.name.is_a?(Liquid::VariableLookup)
-        variables << node.name.name
-      elsif node.name.is_a?(String)
-        variables << node.name
-      end
-    when Liquid::Block, Liquid::Document
-      node.nodelist.each { |child| extract_variables_from_node(child, variables) }
-    when Liquid::Tag
-      # Some tags have internal variables
-      if node.respond_to?(:nodelist)
+    def extract_variables(parsed_template)
+      variables = Set.new
+      extract_variables_from_node(parsed_template.root, variables)
+      variables.to_a
+    end
+
+    def extract_variables_from_node(node, variables)
+      case node
+      when Liquid::Variable
+        # Extract variable name from the node
+        if node.name.is_a?(Liquid::VariableLookup)
+          variables << node.name.name
+        elsif node.name.is_a?(String)
+          variables << node.name
+        end
+      when Liquid::Block, Liquid::Document
         node.nodelist.each { |child| extract_variables_from_node(child, variables) }
+      when Liquid::Tag
+        # Some tags have internal variables
+        if node.respond_to?(:nodelist)
+          node.nodelist.each { |child| extract_variables_from_node(child, variables) }
+        end
       end
     end
-  end
 
-  def self.build_location_string(building, room)
-    return "" if building.nil? && room.nil?
-    return room.formatted_number || room.name if building.nil?
-    return building.name if room.nil?
+    def build_location_string(building, room)
+      return "" if building.nil? && room.nil?
+      return room.formatted_number || room.name if building.nil?
+      return building.name if room.nil?
 
-    "#{building.name} - #{room.formatted_number || room.name}"
-  end
+      "#{building.name} - #{room.formatted_number || room.name}"
+    end
 
-  def self.primary_faculty_name(course)
-    faculty = course.faculties.first
-    return "" unless faculty
+    def primary_faculty_name(course)
+      faculty = course.faculties.first
+      return "" unless faculty
 
-    faculty.full_name
-  rescue
-    ""
-  end
+      faculty.full_name
+    rescue
+      ""
+    end
 
-  def self.primary_faculty_email(course)
-    faculty = course.faculties.first
-    return "" unless faculty
+    def primary_faculty_email(course)
+      faculty = course.faculties.first
+      return "" unless faculty
 
-    faculty.email || ""
-  rescue
-    ""
-  end
+      faculty.email || ""
+    rescue
+      ""
+    end
 
-  def self.all_faculty_names(course)
-    course.faculties.map(&:full_name).join(", ")
-  rescue
-    ""
-  end
+    def all_faculty_names(course)
+      course.faculties.map(&:full_name).join(", ")
+    rescue
+      ""
+    end
 
-  def self.format_time_with_ampm(time_integer)
-    return "" if time_integer.nil?
+    def format_time_with_ampm(time_integer)
+      return "" if time_integer.nil?
 
-    hours = time_integer / 100
-    minutes = time_integer % 100
+      hours = time_integer / 100
+      minutes = time_integer % 100
 
-    period = hours >= 12 ? "PM" : "AM"
-    display_hours = hours % 12
-    display_hours = 12 if display_hours.zero?
+      period = hours >= 12 ? "PM" : "AM"
+      display_hours = hours % 12
+      display_hours = 12 if display_hours.zero?
 
-    format("%d:%02d %s", display_hours, minutes, period)
-  end
+      format("%d:%02d %s", display_hours, minutes, period)
+    end
 
-  def self.shorthand_schedule_type(schedule_type)
-    return "" if schedule_type.nil?
+    def shorthand_schedule_type(schedule_type)
+      return "" if schedule_type.nil?
 
-    case schedule_type.downcase
-    when "laboratory"
-      "Lab"
-    else
-      schedule_type.capitalize
+      case schedule_type.downcase
+      when "laboratory"
+        "Lab"
+      else
+        schedule_type.capitalize
+      end
     end
   end
 

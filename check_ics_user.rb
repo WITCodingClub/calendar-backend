@@ -12,4 +12,3 @@ if user
 else
   puts "User not found"
 end
-EOF < /dev/null

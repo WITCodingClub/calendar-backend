@@ -36,4 +36,5 @@ class ProcessRiscEventJob < ApplicationJob
     Rails.logger.error(e.backtrace.join("\n"))
     raise # This will trigger retry logic
   end
+
 end

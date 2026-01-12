@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::CalendarPreferences", type: :request do
+RSpec.describe "Api::CalendarPreferences" do
   let(:user) { create(:user) }
   let(:jwt_token) { JsonWebTokenService.encode(user_id: user.id) }
   let(:headers) { { "Authorization" => "Bearer #{jwt_token}", "Content-Type" => "application/json" } }
@@ -201,6 +201,3 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
     end
   end
 end
-
-
-

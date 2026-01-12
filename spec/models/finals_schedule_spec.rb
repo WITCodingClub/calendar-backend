@@ -28,10 +28,10 @@
 #
 require "rails_helper"
 
-RSpec.describe FinalsSchedule, type: :model do
+RSpec.describe FinalsSchedule do
   describe "associations" do
-    it { should belong_to(:term) }
-    it { should belong_to(:uploaded_by).class_name("User") }
+    it { is_expected.to belong_to(:term) }
+    it { is_expected.to belong_to(:uploaded_by).class_name("User") }
   end
 
   describe "validations" do
@@ -62,11 +62,11 @@ RSpec.describe FinalsSchedule, type: :model do
   describe "enum status" do
     it "defines correct status values" do
       expect(described_class.statuses).to eq({
-        "pending" => 0,
-        "processing" => 1,
-        "completed" => 2,
-        "failed" => 3
-      })
+                                               "pending"    => 0,
+                                               "processing" => 1,
+                                               "completed"  => 2,
+                                               "failed"     => 3
+                                             })
     end
 
     it "defaults to pending" do
@@ -129,13 +129,13 @@ RSpec.describe FinalsSchedule, type: :model do
     it "updates stats on success" do
       schedule.process!
       expect(schedule.reload.stats).to eq({
-        "total" => 10,
-        "created" => 8,
-        "updated" => 1,
-        "linked" => 7,
-        "orphan" => 2,
-        "rooms_created" => 0
-      })
+                                            "total"         => 10,
+                                            "created"       => 8,
+                                            "updated"       => 1,
+                                            "linked"        => 7,
+                                            "orphan"        => 2,
+                                            "rooms_created" => 0
+                                          })
     end
 
     it "sets processed_at on success" do

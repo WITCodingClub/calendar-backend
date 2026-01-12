@@ -20,7 +20,7 @@ class CourseProcessorService < ApplicationService
     # Group courses by CRN and term to handle multiple meeting times per course
     grouped_courses = courses.group_by { |c| [c[:crn], c[:term]] }
 
-    grouped_courses.each do |(crn, term_uid), course_meetings|
+    grouped_courses.each_value do |course_meetings|
       # Use the first meeting for course details (they should all be the same course)
       course_data = course_meetings.first
       detailed_course_info = LeopardWebService.get_class_details(
@@ -48,69 +48,69 @@ class CourseProcessorService < ApplicationService
       time_groups = course_meetings.group_by do |meeting|
         start_value = meeting[:start] || meeting["start"]
         end_value = meeting[:end] || meeting["end"]
-        
+
         # Handle both datetime strings and Date objects
-        start_time = start_value.is_a?(String) ? Time.parse(start_value) : start_value.to_time
-        end_time = end_value.is_a?(String) ? Time.parse(end_value) : end_value.to_time
-        
+        start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
+        end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
+
         [start_time.strftime("%H:%M"), end_time.strftime("%H:%M")]
       end
-      
+
       meeting_times = time_groups.map do |time_key, meetings|
         # Collect all days this time slot occurs
         days = {
-          "sunday" => false,
-          "monday" => false,
-          "tuesday" => false,
+          "sunday"    => false,
+          "monday"    => false,
+          "tuesday"   => false,
           "wednesday" => false,
-          "thursday" => false,
-          "friday" => false,
-          "saturday" => false
+          "thursday"  => false,
+          "friday"    => false,
+          "saturday"  => false
         }
-        
+
         start_dates = []
         end_dates = []
-        
+
         meetings.each do |meeting|
           start_value = meeting[:start] || meeting["start"]
           end_value = meeting[:end] || meeting["end"]
-          
+
           # Handle both datetime strings and Date objects
-          start_time = start_value.is_a?(String) ? Time.parse(start_value) : start_value.to_time
-          end_time = end_value.is_a?(String) ? Time.parse(end_value) : end_value.to_time
-          
+          start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
+          end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
+
           day_of_week = start_time.wday
           day_names = %w[sunday monday tuesday wednesday thursday friday saturday]
           days[day_names[day_of_week]] = true
-          
+
           start_dates << start_time.strftime("%m/%d/%Y")
           end_dates << end_time.strftime("%m/%d/%Y")
         end
-        
+
         # Use the earliest start date and latest end date
         start_date = start_dates.min
         end_date = end_dates.max
         begin_time, end_time = time_key
-        
+
         {
-          "startDate" => start_date,
-          "endDate" => end_date,
-          "beginTime" => begin_time,
-          "endTime" => end_time,
+          "startDate"           => start_date,
+          "endDate"             => end_date,
+          "beginTime"           => begin_time,
+          "endTime"             => end_time,
           # Extract location info from first meeting if available, fallback to TBD
-          "building" => meetings.first[:building] || meetings.first["building"] || "TBD",
+          "building"            => meetings.first[:building] || meetings.first["building"] || "TBD",
           "buildingDescription" => meetings.first[:buildingDescription] || meetings.first["buildingDescription"] || "To Be Determined",
-          "room" => meetings.first[:room] || meetings.first["room"] || "TBD"
+          "room"                => meetings.first[:room] || meetings.first["room"] || "TBD"
         }.merge(days)
       end
-      
+
       # Extract faculty data from the first meeting time
       faculty_data = []
       first_meeting = course_meetings.first
       if first_meeting[:instructor] || first_meeting["instructor"] || first_meeting[:faculty] || first_meeting["faculty"]
         instructor_name = first_meeting[:instructor] || first_meeting["instructor"] || first_meeting[:faculty] || first_meeting["faculty"]
         instructor_email = first_meeting[:instructorEmail] || first_meeting["instructorEmail"] || first_meeting[:facultyEmail] || first_meeting["facultyEmail"]
-        
+
         if instructor_name.present? && instructor_name.to_s.strip != ""
           faculty_data = [{
             displayName: instructor_name.to_s.strip,

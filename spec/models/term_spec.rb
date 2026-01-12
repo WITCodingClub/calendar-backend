@@ -84,7 +84,6 @@ RSpec.describe Term do
         create(:term, uid: 202610, year: 2025, season: :fall)
       end
 
-      after { travel_back }
 
       it "returns the fall term" do
         expect(described_class.current.season).to eq("fall")
@@ -98,7 +97,6 @@ RSpec.describe Term do
         create(:term, uid: 202520, year: 2025, season: :spring)
       end
 
-      after { travel_back }
 
       it "returns the spring term" do
         expect(described_class.current.season).to eq("spring")
@@ -112,7 +110,6 @@ RSpec.describe Term do
         create(:term, uid: 202530, year: 2025, season: :summer)
       end
 
-      after { travel_back }
 
       it "returns the summer term" do
         expect(described_class.current.season).to eq("summer")
@@ -129,7 +126,6 @@ RSpec.describe Term do
         create(:term, uid: 202620, year: 2026, season: :spring)
       end
 
-      after { travel_back }
 
       it "returns spring of next year" do
         expect(described_class.next.season).to eq("spring")
@@ -144,7 +140,6 @@ RSpec.describe Term do
         create(:term, uid: 202530, year: 2025, season: :summer)
       end
 
-      after { travel_back }
 
       it "returns summer of same year" do
         expect(described_class.next.season).to eq("summer")
@@ -159,7 +154,6 @@ RSpec.describe Term do
         create(:term, uid: 202610, year: 2025, season: :fall)
       end
 
-      after { travel_back }
 
       it "returns fall of same year" do
         expect(described_class.next.season).to eq("fall")
@@ -174,7 +168,6 @@ RSpec.describe Term do
       create(:term, uid: 202610, year: 2025, season: :fall)
     end
 
-    after { travel_back }
 
     it "returns the uid of the current term" do
       expect(described_class.current_uid).to eq(202610)
@@ -193,7 +186,6 @@ RSpec.describe Term do
       create(:term, uid: 202620, year: 2026, season: :spring)
     end
 
-    after { travel_back }
 
     it "returns the uid of the next term" do
       expect(described_class.next_uid).to eq(202620)

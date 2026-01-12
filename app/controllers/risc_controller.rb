@@ -48,4 +48,5 @@ class RiscController < ApplicationController
       body
     end
   end
+
 end

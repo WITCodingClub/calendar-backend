@@ -335,14 +335,13 @@ RSpec.describe GoogleCalendarService do
       end
 
       before do
-        allow(service).to receive(:service_account_calendar_service).and_return(mock_service)
         allow(mock_service).to receive(:get_event).with(
           google_calendar.google_calendar_id,
           db_event.google_event_id
         ).and_return(gcal_event)
         allow(mock_service).to receive(:update_event).and_return(updated_gcal_event)
         # Stub apply_preferences_to_event to return course_event as-is (bypass template rendering for this test)
-        allow(service).to receive(:apply_preferences_to_event).and_return(course_event)
+        allow(service).to receive_messages(service_account_calendar_service: mock_service, apply_preferences_to_event: course_event)
       end
 
       it "updates Google Calendar with system changes" do
@@ -405,12 +404,11 @@ RSpec.describe GoogleCalendarService do
       end
 
       before do
-        allow(service).to receive(:service_account_calendar_service).and_return(mock_service)
         # Stub get_event so we can verify it's not called when force=true
         allow(mock_service).to receive(:get_event)
         allow(mock_service).to receive(:update_event).and_return(updated_gcal_event)
         # Stub apply_preferences_to_event to return course_event as-is (bypass template rendering for this test)
-        allow(service).to receive(:apply_preferences_to_event).and_return(course_event)
+        allow(service).to receive_messages(service_account_calendar_service: mock_service, apply_preferences_to_event: course_event)
       end
 
       it "skips user edit detection and updates the event" do

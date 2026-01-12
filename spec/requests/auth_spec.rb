@@ -2,8 +2,8 @@
 
 require "rails_helper"
 
-RSpec.describe "Admin OAuth Authentication", type: :request do
-  before :each do
+RSpec.describe "Admin OAuth Authentication" do
+  before do
     # Enable OmniAuth test mode
     OmniAuth.config.test_mode = true
     # Clear Rack::Attack cache to prevent rate limiting between tests
@@ -11,7 +11,7 @@ RSpec.describe "Admin OAuth Authentication", type: :request do
     Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
   end
 
-  after :each do
+  after do
     # Reset OmniAuth test mode
     OmniAuth.config.test_mode = false
     OmniAuth.config.mock_auth[:google_oauth2] = nil
@@ -21,19 +21,19 @@ RSpec.describe "Admin OAuth Authentication", type: :request do
     let(:oauth_email) { "admin@wit.edu" }
     let(:oauth_data) do
       OmniAuth::AuthHash.new({
-        provider: "google_oauth2",
-        uid: "123456789",
-        info: {
-          email: oauth_email,
-          first_name: "John",
-          last_name: "Admin"
-        },
-        credentials: {
-          token: "mock_access_token",
-          refresh_token: "mock_refresh_token",
-          expires_at: 1.hour.from_now.to_i
-        }
-      })
+                               provider: "google_oauth2",
+                               uid: "123456789",
+                               info: {
+                                 email: oauth_email,
+                                 first_name: "John",
+                                 last_name: "Admin"
+                               },
+                               credentials: {
+                                 token: "mock_access_token",
+                                 refresh_token: "mock_refresh_token",
+                                 expires_at: 1.hour.from_now.to_i
+                               }
+                             })
     end
 
     before do
@@ -77,7 +77,7 @@ RSpec.describe "Admin OAuth Authentication", type: :request do
 
         expect {
           get "/auth/google_oauth2/callback"
-        }.not_to change { admin_user.oauth_credentials.count }
+        }.not_to(change { admin_user.oauth_credentials.count })
 
         credential = admin_user.oauth_credentials.find_by(email: "admin@wit.edu")
         expect(credential.uid).to eq("123456789")
@@ -159,7 +159,7 @@ RSpec.describe "Admin OAuth Authentication", type: :request do
       it "does not create a new user" do
         expect {
           get "/auth/google_oauth2/callback"
-        }.not_to change { User.count }
+        }.not_to(change(User, :count))
       end
     end
 

@@ -27,4 +27,5 @@ class CatalogImportJob < ApplicationJob
 
     Rails.logger.info "[CatalogImportJob] Completed import for term #{term_uid}"
   end
+
 end

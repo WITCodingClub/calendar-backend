@@ -49,9 +49,7 @@ module ReminderSettingsNormalizable
       end
 
       # Validate time field
-      unless reminder.key?("time")
-        errors.add(:reminder_settings, "item #{index} must have 'time' field")
-      else
+      if reminder.key?("time")
         # Validate that time can be converted to a number
         begin
           time_value = Float(reminder["time"])
@@ -61,6 +59,8 @@ module ReminderSettingsNormalizable
         rescue ArgumentError, TypeError
           errors.add(:reminder_settings, "item #{index} 'time' must be a valid number")
         end
+      else
+        errors.add(:reminder_settings, "item #{index} must have 'time' field")
       end
 
       # Validate type field

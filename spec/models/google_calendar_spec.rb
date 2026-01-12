@@ -138,7 +138,7 @@ RSpec.describe GoogleCalendar do
       it "removes calendar from database when user is destroyed" do
         expect {
           user.destroy
-        }.to change { GoogleCalendar.count }.by(-1)
+        }.to change(described_class, :count).by(-1)
       end
     end
 
@@ -158,7 +158,7 @@ RSpec.describe GoogleCalendar do
       it "removes calendar from database when oauth_credential is destroyed" do
         expect {
           oauth_credential.destroy
-        }.to change { GoogleCalendar.count }.by(-1)
+        }.to change(described_class, :count).by(-1)
       end
     end
   end

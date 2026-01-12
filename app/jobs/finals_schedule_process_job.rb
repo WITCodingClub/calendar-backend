@@ -15,4 +15,5 @@ class FinalsScheduleProcessJob < ApplicationJob
     Rails.logger.error(e.backtrace.first(10).join("\n"))
     raise
   end
+
 end

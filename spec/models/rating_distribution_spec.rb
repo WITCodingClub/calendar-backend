@@ -59,9 +59,9 @@ RSpec.describe RatingDistribution do
 
     it "calculates percentage for a given rating level" do
       distribution = create(:rating_distribution,
-        faculty: faculty,
-        r1: 10, r2: 20, r3: 30, r4: 25, r5: 15,
-        total: 100)
+                            faculty: faculty,
+                            r1: 10, r2: 20, r3: 30, r4: 25, r5: 15,
+                            total: 100)
 
       expect(distribution.percentage(1)).to eq(10.0)
       expect(distribution.percentage(2)).to eq(20.0)
@@ -77,9 +77,9 @@ RSpec.describe RatingDistribution do
 
     it "rounds to two decimal places" do
       distribution = create(:rating_distribution,
-        faculty: faculty,
-        r1: 1, r2: 1, r3: 1, r4: 1, r5: 1,
-        total: 3)
+                            faculty: faculty,
+                            r1: 1, r2: 1, r3: 1, r4: 1, r5: 1,
+                            total: 3)
 
       expect(distribution.percentage(1)).to eq(33.33)
     end
@@ -90,32 +90,32 @@ RSpec.describe RatingDistribution do
 
     it "returns all percentages as a hash" do
       distribution = create(:rating_distribution,
-        faculty: faculty,
-        r1: 10, r2: 20, r3: 30, r4: 25, r5: 15,
-        total: 100)
+                            faculty: faculty,
+                            r1: 10, r2: 20, r3: 30, r4: 25, r5: 15,
+                            total: 100)
 
       expect(distribution.percentages).to eq({
-        r1: 10.0,
-        r2: 20.0,
-        r3: 30.0,
-        r4: 25.0,
-        r5: 15.0
-      })
+                                               r1: 10.0,
+                                               r2: 20.0,
+                                               r3: 30.0,
+                                               r4: 25.0,
+                                               r5: 15.0
+                                             })
     end
 
     it "returns all zeros when total is zero" do
       distribution = build(:rating_distribution,
-        faculty: faculty,
-        r1: 0, r2: 0, r3: 0, r4: 0, r5: 0,
-        total: 0)
+                           faculty: faculty,
+                           r1: 0, r2: 0, r3: 0, r4: 0, r5: 0,
+                           total: 0)
 
       expect(distribution.percentages).to eq({
-        r1: 0,
-        r2: 0,
-        r3: 0,
-        r4: 0,
-        r5: 0
-      })
+                                               r1: 0,
+                                               r2: 0,
+                                               r3: 0,
+                                               r4: 0,
+                                               r5: 0
+                                             })
     end
   end
 

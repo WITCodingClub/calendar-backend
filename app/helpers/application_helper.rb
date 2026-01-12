@@ -23,10 +23,10 @@ module ApplicationHelper
   #   <% admin_tool("inline-flex gap-2", "span") do %>
   #     <span>Admin badge</span>
   #   <% end %>
-  def admin_tool(class_name = "", element = "div", **options, &block)
+  def admin_tool(class_name = "", element = "div", **, &)
     return unless current_user&.admin_access?
 
-    concat content_tag(element, class: "admin-tools #{class_name}".strip, **options, &block)
+    concat content_tag(element, class: "admin-tools #{class_name}".strip, **, &)
   end
 
   def titleize_with_roman_numerals(title)

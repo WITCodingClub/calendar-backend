@@ -17,4 +17,5 @@ class CourseCatalogPolicy < ApplicationPolicy
     # Super_admins+ can process courses into the database (view-only admins cannot)
     super_admin?
   end
+
 end

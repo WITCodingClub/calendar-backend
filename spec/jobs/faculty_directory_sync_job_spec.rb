@@ -3,7 +3,7 @@
 require "rails_helper"
 require "webmock/rspec"
 
-RSpec.describe FacultyDirectorySyncJob, type: :job do
+RSpec.describe FacultyDirectorySyncJob do
   describe "queue assignment" do
     it "is assigned to the low queue" do
       expect(described_class.new.queue_name).to eq("low")

@@ -20,8 +20,7 @@ RSpec.describe GoogleCalendarService, "#update_specific_events with event prefer
     allow(user).to receive(:google_credential).and_return(oauth_credential)
 
     # Mock initial event creation
-    allow(mock_calendar_service).to receive(:insert_event).and_return(mock_google_event)
-    allow(mock_calendar_service).to receive(:update_event).and_return(mock_google_event)
+    allow(mock_calendar_service).to receive_messages(insert_event: mock_google_event, update_event: mock_google_event)
   end
 
   describe "updating event color via EventPreference" do
@@ -35,15 +34,15 @@ RSpec.describe GoogleCalendarService, "#update_specific_events with event prefer
              start_time: 1.day.from_now.change(hour: 9),
              end_time: 1.day.from_now.change(hour: 10),
              event_data_hash: GoogleCalendarEvent.generate_data_hash({
-               summary: course.title,
-               location: "Building - Room",
-               start_time: 1.day.from_now.change(hour: 9),
-               end_time: 1.day.from_now.change(hour: 10),
-               recurrence: nil,
-               reminder_settings: nil,
-               color_id: nil,
-               visibility: nil
-             }))
+                                                                       summary: course.title,
+                                                                       location: "Building - Room",
+                                                                       start_time: 1.day.from_now.change(hour: 9),
+                                                                       end_time: 1.day.from_now.change(hour: 10),
+                                                                       recurrence: nil,
+                                                                       reminder_settings: nil,
+                                                                       color_id: nil,
+                                                                       visibility: nil
+                                                                     }))
     end
 
     let(:event_data) do
@@ -104,15 +103,15 @@ RSpec.describe GoogleCalendarService, "#update_specific_events with event prefer
       before do
         # Update the existing event's hash to reflect the initial color
         existing_event.update_column(:event_data_hash, GoogleCalendarEvent.generate_data_hash({
-          summary: course.title,
-          location: "Building - Room",
-          start_time: 1.day.from_now.change(hour: 9),
-          end_time: 1.day.from_now.change(hour: 10),
-          recurrence: nil,
-          reminder_settings: [{ "time" => "30", "type" => "minutes", "method" => "popup" }],
-          color_id: 5,
-          visibility: "default"
-        }))
+                                                                                                summary: course.title,
+                                                                                                location: "Building - Room",
+                                                                                                start_time: 1.day.from_now.change(hour: 9),
+                                                                                                end_time: 1.day.from_now.change(hour: 10),
+                                                                                                recurrence: nil,
+                                                                                                reminder_settings: [{ "time" => "30", "type" => "minutes", "method" => "popup" }],
+                                                                                                color_id: 5,
+                                                                                                visibility: "default"
+                                                                                              }))
       end
 
       it "updates the Google Calendar event with the new color when preference is updated" do

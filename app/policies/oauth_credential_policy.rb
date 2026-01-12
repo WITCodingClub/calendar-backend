@@ -31,7 +31,7 @@ class OauthCredentialPolicy < ApplicationPolicy
     super_admin?
   end
 
-  # Super_admins+ can revoke OAuth credentials  
+  # Super_admins+ can revoke OAuth credentials
   def revoke?
     super_admin?
   end

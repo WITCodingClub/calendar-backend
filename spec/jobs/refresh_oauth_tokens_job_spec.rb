@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe RefreshOauthTokensJob, type: :job do
+RSpec.describe RefreshOauthTokensJob do
   include ActiveJob::TestHelper
 
   let(:user) { create(:user) }
@@ -11,26 +11,23 @@ RSpec.describe RefreshOauthTokensJob, type: :job do
     context "with credentials needing refresh" do
       let!(:old_credential) do
         create(:oauth_credential,
-          user: user,
-          refresh_token: "valid_refresh_token",
-          updated_at: 8.days.ago
-        )
+               user: user,
+               refresh_token: "valid_refresh_token",
+               updated_at: 8.days.ago)
       end
 
       let!(:recent_credential) do
         create(:oauth_credential,
-          user: create(:user),
-          refresh_token: "recent_refresh_token",
-          updated_at: 2.days.ago
-        )
+               user: create(:user),
+               refresh_token: "recent_refresh_token",
+               updated_at: 2.days.ago)
       end
 
       it "only refreshes credentials older than 7 days" do
         google_credentials = instance_double(Google::Auth::UserRefreshCredentials)
         allow(Google::Auth::UserRefreshCredentials).to receive(:new).and_return(google_credentials)
         allow(google_credentials).to receive(:refresh!)
-        allow(google_credentials).to receive(:access_token).and_return("new_access_token")
-        allow(google_credentials).to receive(:expires_in).and_return(3600)
+        allow(google_credentials).to receive_messages(access_token: "new_access_token", expires_in: 3600)
 
         expect(Google::Auth::UserRefreshCredentials).to receive(:new).once
 
@@ -41,8 +38,7 @@ RSpec.describe RefreshOauthTokensJob, type: :job do
         google_credentials = instance_double(Google::Auth::UserRefreshCredentials)
         allow(Google::Auth::UserRefreshCredentials).to receive(:new).and_return(google_credentials)
         allow(google_credentials).to receive(:refresh!)
-        allow(google_credentials).to receive(:access_token).and_return("refreshed_token")
-        allow(google_credentials).to receive(:expires_in).and_return(3600)
+        allow(google_credentials).to receive_messages(access_token: "refreshed_token", expires_in: 3600)
 
         described_class.new.perform
 
@@ -54,10 +50,9 @@ RSpec.describe RefreshOauthTokensJob, type: :job do
     context "with revoked token" do
       let!(:revoked_credential) do
         create(:oauth_credential,
-          user: user,
-          refresh_token: "revoked_token",
-          updated_at: 8.days.ago
-        )
+               user: user,
+               refresh_token: "revoked_token",
+               updated_at: 8.days.ago)
       end
 
       it "marks the credential as revoked in metadata" do
@@ -76,10 +71,9 @@ RSpec.describe RefreshOauthTokensJob, type: :job do
     context "with no refresh token" do
       let!(:no_refresh_credential) do
         create(:oauth_credential,
-          user: user,
-          refresh_token: nil,
-          updated_at: 8.days.ago
-        )
+               user: user,
+               refresh_token: nil,
+               updated_at: 8.days.ago)
       end
 
       it "skips credentials without refresh tokens" do

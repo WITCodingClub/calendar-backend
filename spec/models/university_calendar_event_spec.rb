@@ -39,20 +39,20 @@
 #
 require "rails_helper"
 
-RSpec.describe UniversityCalendarEvent, type: :model do
+RSpec.describe UniversityCalendarEvent do
   describe "associations" do
-    it { should belong_to(:term).optional }
-    it { should have_many(:google_calendar_events).dependent(:nullify) }
+    it { is_expected.to belong_to(:term).optional }
+    it { is_expected.to have_many(:google_calendar_events).dependent(:nullify) }
   end
 
   describe "validations" do
     subject { build(:university_calendar_event) }
 
-    it { should validate_presence_of(:ics_uid) }
-    it { should validate_uniqueness_of(:ics_uid) }
-    it { should validate_presence_of(:summary) }
-    it { should validate_presence_of(:start_time) }
-    it { should validate_presence_of(:end_time) }
+    it { is_expected.to validate_presence_of(:ics_uid) }
+    it { is_expected.to validate_uniqueness_of(:ics_uid) }
+    it { is_expected.to validate_presence_of(:summary) }
+    it { is_expected.to validate_presence_of(:start_time) }
+    it { is_expected.to validate_presence_of(:end_time) }
 
     it "validates category inclusion" do
       event = build(:university_calendar_event, category: "invalid_category")

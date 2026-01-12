@@ -46,13 +46,13 @@ class CatalogImportService < ApplicationService
     # Mark terms as imported
     term_uids.each do |term_uid|
       term = Term.find_by(uid: term_uid)
-      if term && processed_count > 0
-        term.update!(
-          catalog_imported: true,
-          catalog_imported_at: Time.current
-        )
-        Rails.logger.info("Marked term #{term_uid} (#{term.name}) as catalog_imported")
-      end
+      next unless term && processed_count > 0
+
+      term.update!(
+        catalog_imported: true,
+        catalog_imported_at: Time.current
+      )
+      Rails.logger.info("Marked term #{term_uid} (#{term.name}) as catalog_imported")
     end
 
     {
@@ -127,7 +127,7 @@ class CatalogImportService < ApplicationService
 
       # LeopardWeb shows total course credit hours for all sections (lecture + lab)
       # Labs are typically 0-credit companion sections, so override for LAB schedule type
-      c.credit_hours = (schedule_type_match && schedule_type_match[1] == "LAB") ? 0 : course_data["creditHours"]
+      c.credit_hours = schedule_type_match && schedule_type_match[1] == "LAB" ? 0 : course_data["creditHours"]
       c.grade_mode = nil # Not available in bulk catalog data
       c.start_date = start_date
       c.end_date = end_date
@@ -279,9 +279,10 @@ class CatalogImportService < ApplicationService
     term_year = term.year
 
     # Allow dates within 1 year of the term year (for fall terms that span years)
-    start_year_valid = start_date.year >= (term_year - 1) && start_date.year <= term_year
-    end_year_valid = end_date.year >= term_year && end_date.year <= (term_year + 1)
+    start_year_valid = start_date.year.between?(term_year - 1, term_year)
+    end_year_valid = end_date.year.between?(term_year, term_year + 1)
 
     start_year_valid && end_year_valid
   end
+
 end

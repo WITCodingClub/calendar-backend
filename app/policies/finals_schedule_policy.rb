@@ -43,5 +43,7 @@ class FinalsSchedulePolicy < ApplicationPolicy
         scope.none
       end
     end
+
   end
+
 end

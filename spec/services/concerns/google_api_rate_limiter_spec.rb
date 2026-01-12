@@ -134,9 +134,7 @@ RSpec.describe GoogleApiRateLimiter do
 
         # All delays should be capped at max_delay with jitter (5.0 * 1.25 = 6.25)
         # Jitter adds up to 25% randomness, so max possible is 1.25x the capped value
-        sleep_delays.each do |delay|
-          expect(delay).to be <= 6.25
-        end
+        expect(sleep_delays).to all(be <= 6.25)
       end
 
       it "gives up after max_retries" do
@@ -217,7 +215,7 @@ RSpec.describe GoogleApiRateLimiter do
       results = []
 
       instance.with_batch_throttling(items, delay: 0) do |item|
-        results << item * 2
+        results << (item * 2)
       end
 
       expect(results).to eq([2, 4, 6, 8, 10])
@@ -267,6 +265,7 @@ RSpec.describe GoogleApiRateLimiter do
         if call_counts[item] < 2
           raise Google::Apis::RateLimitError.new("Rate limit exceeded")
         end
+
         item * 2
       end
 

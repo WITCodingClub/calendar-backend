@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::Faculty", type: :request do
+RSpec.describe "Api::Faculty" do
   let(:user) { create(:user) }
   let(:jwt_token) { JsonWebTokenService.encode(user_id: user.id) }
   let(:headers) { { "Authorization" => "Bearer #{jwt_token}", "Content-Type" => "application/json" } }
@@ -49,15 +49,15 @@ RSpec.describe "Api::Faculty", type: :request do
       context "when faculty exists" do
         let(:faculty) do
           create(:faculty,
-            first_name: "John",
-            last_name: "Doe",
-            email: "john.doe@example.edu",
-            rmp_id: "existing_rmp_123",
-            rmp_raw_data: {
-              "all_ratings" => [
-                { "comment" => "Great teacher!", "clarityRating" => 5 }
-              ]
-            })
+                 first_name: "John",
+                 last_name: "Doe",
+                 email: "john.doe@example.edu",
+                 rmp_id: "existing_rmp_123",
+                 rmp_raw_data: {
+                   "all_ratings" => [
+                     { "comment" => "Great teacher!", "clarityRating" => 5 }
+                   ]
+                 })
         end
 
         it "returns faculty info" do
@@ -82,11 +82,11 @@ RSpec.describe "Api::Faculty", type: :request do
         context "with rating distribution" do
           before do
             create(:rating_distribution,
-              faculty: faculty,
-              avg_rating: 4.5,
-              avg_difficulty: 3.0,
-              num_ratings: 25,
-              would_take_again_percent: 88.5)
+                   faculty: faculty,
+                   avg_rating: 4.5,
+                   avg_difficulty: 3.0,
+                   num_ratings: 25,
+                   would_take_again_percent: 88.5)
           end
 
           it "returns stats from rating distribution" do

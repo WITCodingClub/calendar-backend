@@ -93,11 +93,10 @@ class FinalsScheduleParserService < ApplicationService
     # Fall 2025 has "EXAM-DATE" and "EXAM-TIME-OF-DAY" headers
     # Spring 2025/Fall 2024 has "FINAL DAY" and "FINAL TIME" headers
 
-    if text.match?(/EXAM-DATE.*EXAM-TIME/i)
+    case text
+    when /EXAM-DATE.*EXAM-TIME/i
       :fall_2025
-    elsif text.match?(/FINAL\s+DAY.*FINAL\s+TIME/i)
-      :spring_2025
-    elsif text.match?(/MULTI-SECTION\s+CRNS/i)
+    when /FINAL\s+DAY.*FINAL\s+TIME/i, /MULTI-SECTION\s+CRNS/i
       :spring_2025
     else
       :unknown
@@ -117,33 +116,33 @@ class FinalsScheduleParserService < ApplicationService
 
       # Look for lines with combined CRNs (dash-separated 5-digit numbers)
       # Pattern: multiple 5-digit numbers separated by dashes like "14572-14573-14574"
-      if line =~ /(\d{5}(?:-\d{5})*)/
-        combined_crns_str = $1
-        crns = combined_crns_str.split("-").map(&:to_i)
+      next unless line =~ /(\d{5}(?:-\d{5})*)/
 
-        # Parse date (e.g., "Monday, December 8, 2025")
-        date = extract_date(line)
+      combined_crns_str = $1
+      crns = combined_crns_str.split("-").map(&:to_i)
 
-        # Parse time range (e.g., "2:00PM-6:00PM" or "9:00AM - 1PM")
-        start_time, end_time = extract_time_range(line)
+      # Parse date (e.g., "Monday, December 8, 2025")
+      date = extract_date(line)
 
-        # Parse location (at end of line, after time)
-        location = extract_location(line)
+      # Parse time range (e.g., "2:00PM-6:00PM" or "9:00AM - 1PM")
+      start_time, end_time = extract_time_range(line)
 
-        # Skip lines without valid date/time (likely "SEE FACULTY FOR DETAILS")
-        next unless date && start_time && end_time
+      # Parse location (at end of line, after time)
+      location = extract_location(line)
 
-        # Create an entry for each CRN in the combined list
-        crns.each do |crn|
-          entries << {
-            crn: crn,
-            combined_crns: crns,
-            date: date,
-            start_time: start_time,
-            end_time: end_time,
-            location: location
-          }
-        end
+      # Skip lines without valid date/time (likely "SEE FACULTY FOR DETAILS")
+      next unless date && start_time && end_time
+
+      # Create an entry for each CRN in the combined list
+      crns.each do |crn|
+        entries << {
+          crn: crn,
+          combined_crns: crns,
+          date: date,
+          start_time: start_time,
+          end_time: end_time,
+          location: location
+        }
       end
     end
 
@@ -216,10 +215,10 @@ class FinalsScheduleParserService < ApplicationService
   def extract_date(line)
     # Try different date formats
     # Format 1: MM/DD/YYYY
-    if line =~ %r{(\d{1,2})/(\d{1,2})/(\d{4})}
+    if line =~ /(\d{1,2})\/(\d{1,2})\/(\d{4})/
       return Date.new($3.to_i, $1.to_i, $2.to_i)
     end
-    
+
     # Format 2: Month DD, YYYY
     if line =~ /(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})/i
       month_name = $1
@@ -228,7 +227,7 @@ class FinalsScheduleParserService < ApplicationService
       month = Date::MONTHNAMES.index(month_name.capitalize)
       return Date.new(year, month, day)
     end
-    
+
     # Format 3: Abbreviated month
     if line =~ /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),?\s+(\d{4})/i
       month_abbr = $1
@@ -237,7 +236,7 @@ class FinalsScheduleParserService < ApplicationService
       month = Date::ABBR_MONTHNAMES.index(month_abbr.capitalize)
       return Date.new(year, month, day)
     end
-    
+
     nil
   rescue ArgumentError => e
     Rails.logger.warn("Failed to parse date from line: #{line.strip} - #{e.message}")
@@ -292,7 +291,7 @@ class FinalsScheduleParserService < ApplicationService
   end
 
   def convert_to_24h(hour, meridian)
-    hour = hour % 12 if hour == 12
+    hour %= 12 if hour == 12
     hour += 12 if meridian == "PM"
     hour
   end
@@ -335,11 +334,11 @@ class FinalsScheduleParserService < ApplicationService
       rooms = $2
 
       # Expand slashes to show multiple rooms
-      if rooms.include?("/")
-        return expand_room_list(building, rooms)
-      else
-        return "#{building} #{rooms}"
-      end
+      return expand_room_list(building, rooms) if rooms.include?("/")
+
+
+      return "#{building} #{rooms}"
+
     end
 
     # Pattern 2: Building name + Auditorium/Hall (e.g., "WATSN Auditorium", "Sargent Hall")
@@ -415,23 +414,24 @@ class FinalsScheduleParserService < ApplicationService
 
     # Location format: "BLDG 123" or "BLDG 123 / BLDG 456"
     location.split(" / ").each do |loc|
-      if loc =~ /([A-Z]+)\s+(\d+)([A-Z])?/i
-        abbrev = $1
-        room_num = $2.to_i
-        suffix = $3 # Letter suffix like A, B (currently ignored for room creation)
+      next unless loc =~ /([A-Z]+)\s+(\d+)([A-Z])?/i
 
-        building = Building.find_by(abbreviation: abbrev)
-        next unless building
+      abbrev = $1
+      room_num = $2.to_i
+      suffix = $3 # Letter suffix like A, B (currently ignored for room creation)
 
-        # Check if room exists, create if not
-        unless building.rooms.exists?(number: room_num)
-          building.rooms.create!(number: room_num)
-          rooms_created += 1
-          Rails.logger.info("Created room #{room_num} in #{building.name}")
-        end
-      end
+      building = Building.find_by(abbreviation: abbrev)
+      next unless building
+
+      # Check if room exists, create if not
+      next if building.rooms.exists?(number: room_num)
+
+      building.rooms.create!(number: room_num)
+      rooms_created += 1
+      Rails.logger.info("Created room #{room_num} in #{building.name}")
     end
 
     rooms_created
   end
+
 end

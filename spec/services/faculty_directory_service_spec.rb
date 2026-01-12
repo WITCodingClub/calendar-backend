@@ -147,7 +147,7 @@ RSpec.describe FacultyDirectoryService, type: :service do
         expect(result[:success]).to be true
         expect(result[:total_count]).to eq(3)
         expect(result[:faculty].length).to eq(3)
-        expect(result[:faculty].map { |f| f[:email] }).to contain_exactly(
+        expect(result[:faculty].pluck(:email)).to contain_exactly(
           "smithj@wit.edu", "doej@wit.edu", "jonesb@wit.edu"
         )
       end

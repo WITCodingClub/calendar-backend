@@ -18,7 +18,7 @@ class RefreshOauthTokensJob < ApplicationJob
 
   def perform
     credentials_to_refresh = OauthCredential.google
-                                            .where("updated_at < ?", REFRESH_THRESHOLD.ago)
+                                            .where(updated_at: ...REFRESH_THRESHOLD.ago)
                                             .where.not(refresh_token: nil)
 
     total = credentials_to_refresh.count
@@ -44,10 +44,11 @@ class RefreshOauthTokensJob < ApplicationJob
     Rails.logger.info "[RefreshOauthTokensJob] Completed: #{success_count} refreshed, #{failure_count} failed, #{revoked_count} revoked"
 
     # Send alert if there are many failures
-    if failure_count > 5 || revoked_count > 5
-      Rails.logger.warn "[RefreshOauthTokensJob] High failure rate detected - #{failure_count} failures, #{revoked_count} revoked"
-      # Could add email notification here in the future
-    end
+    return unless failure_count > 5 || revoked_count > 5
+
+    Rails.logger.warn "[RefreshOauthTokensJob] High failure rate detected - #{failure_count} failures, #{revoked_count} revoked"
+    # Could add email notification here in the future
+
   end
 
   private
@@ -76,8 +77,8 @@ class RefreshOauthTokensJob < ApplicationJob
     # Mark the credential as needing re-authentication
     credential.update!(
       metadata: (credential.metadata || {}).merge(
-        "token_revoked" => true,
-        "token_revoked_at" => Time.current.iso8601,
+        "token_revoked"     => true,
+        "token_revoked_at"  => Time.current.iso8601,
         "revocation_reason" => e.message
       )
     )
@@ -87,4 +88,5 @@ class RefreshOauthTokensJob < ApplicationJob
     Rails.logger.error "[RefreshOauthTokensJob] Failed to refresh credential #{credential.id} (#{credential.email}): #{e.message}"
     :failure
   end
+
 end

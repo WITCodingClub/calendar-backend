@@ -148,4 +148,5 @@ class RiscValidationService
       client_ids.uniq
     end
   end
+
 end

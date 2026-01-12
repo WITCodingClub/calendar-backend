@@ -22,4 +22,5 @@ class Building < ApplicationRecord
   set_public_id_prefix :bld
 
   has_many :rooms, dependent: :restrict_with_exception
+
 end

@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::UniversityCalendarEvents", type: :request do
+RSpec.describe "Api::UniversityCalendarEvents" do
   let(:user) { create(:user) }
   let(:jwt_token) { JsonWebTokenService.encode(user_id: user.id) }
   let(:headers) { { "Authorization" => "Bearer #{jwt_token}" } }
@@ -41,8 +41,8 @@ RSpec.describe "Api::UniversityCalendarEvents", type: :request do
       json = response.parsed_body
 
       expect(json["events"].length).to eq(2)
-      expect(json["events"].map { |e| e["summary"] }).to include("Labor Day", "Spring Concert")
-      expect(json["events"].map { |e| e["summary"] }).not_to include("Past Event")
+      expect(json["events"].pluck("summary")).to include("Labor Day", "Spring Concert")
+      expect(json["events"].pluck("summary")).not_to include("Past Event")
     end
 
     it "filters by category" do
@@ -87,7 +87,7 @@ RSpec.describe "Api::UniversityCalendarEvents", type: :request do
 
       expect(json["meta"]).to include(
         "current_page" => 1,
-        "total_count" => 2
+        "total_count"  => 2
       )
     end
   end
@@ -135,7 +135,7 @@ RSpec.describe "Api::UniversityCalendarEvents", type: :request do
       json = response.parsed_body
 
       expect(json["categories"]).to be_an(Array)
-      expect(json["categories"].map { |c| c["id"] }).to include("holiday", "academic", "campus_event")
+      expect(json["categories"].pluck("id")).to include("holiday", "academic", "campus_event")
 
       holiday_cat = json["categories"].find { |c| c["id"] == "holiday" }
       expect(holiday_cat["count"]).to eq(2)
@@ -177,8 +177,8 @@ RSpec.describe "Api::UniversityCalendarEvents", type: :request do
       json = response.parsed_body
 
       expect(json["holidays"].length).to eq(2)
-      expect(json["holidays"].map { |h| h["summary"] }).to include("Labor Day", "Thanksgiving")
-      expect(json["holidays"].map { |h| h["summary"] }).not_to include("Concert")
+      expect(json["holidays"].pluck("summary")).to include("Labor Day", "Thanksgiving")
+      expect(json["holidays"].pluck("summary")).not_to include("Concert")
     end
 
     it "filters by term" do

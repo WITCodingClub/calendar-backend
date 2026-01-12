@@ -68,9 +68,9 @@ RSpec.describe RelatedProfessor do
       faculty = create(:faculty)
       related_faculty = create(:faculty)
       related = create(:related_professor,
-        faculty: faculty,
-        related_faculty: related_faculty,
-        rmp_id: "rmp123")
+                       faculty: faculty,
+                       related_faculty: related_faculty,
+                       rmp_id: "rmp123")
       expect(related.related_faculty).to eq(related_faculty)
     end
 
@@ -104,9 +104,9 @@ RSpec.describe RelatedProfessor do
       existing_related = create(:faculty)
       matched_faculty = create(:faculty, rmp_id: "match123")
       related = create(:related_professor,
-        faculty: faculty,
-        rmp_id: "match123",
-        related_faculty: existing_related)
+                       faculty: faculty,
+                       rmp_id: "match123",
+                       related_faculty: existing_related)
 
       related.try_match_faculty!
 
@@ -117,10 +117,10 @@ RSpec.describe RelatedProfessor do
   describe "#full_name" do
     it "combines first_name and last_name" do
       related = build(:related_professor,
-        faculty: create(:faculty),
-        first_name: "John",
-        last_name: "Smith",
-        rmp_id: "rmp123")
+                      faculty: create(:faculty),
+                      first_name: "John",
+                      last_name: "Smith",
+                      rmp_id: "rmp123")
       expect(related.full_name).to eq("John Smith")
     end
   end

@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Calendars", type: :request do
+RSpec.describe "Calendars" do
   describe "GET /calendar/:calendar_token.ics" do
     let(:user) do
       u = User.create!(calendar_token: "test-token-123")

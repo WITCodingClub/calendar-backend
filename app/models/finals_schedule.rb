@@ -95,4 +95,5 @@ class FinalsSchedule < ApplicationRecord
 
     errors.add(:pdf_file, "must be a PDF") unless pdf_file.content_type == "application/pdf"
   end
+
 end

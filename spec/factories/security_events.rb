@@ -98,12 +98,12 @@ FactoryBot.define do
     end
 
     trait :with_user do
-      association :user
+      user
       google_subject { user.oauth_credentials.first&.uid || "google-sub-#{rand(1000)}" }
     end
 
     trait :with_oauth_credential do
-      association :oauth_credential
+      oauth_credential
       user { oauth_credential.user }
       google_subject { oauth_credential.uid }
     end

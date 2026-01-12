@@ -49,9 +49,9 @@ class Course < ApplicationRecord
 
   validates :crn, uniqueness: { scope: :term_id, message: "has already been taken for this term" }, allow_nil: true
 
+  after_destroy :update_term_dates
   # Update term dates when course dates change
   after_save :update_term_dates, if: -> { saved_change_to_start_date? || saved_change_to_end_date? }
-  after_destroy :update_term_dates
 
   scope :with_embeddings, -> { where.not(embedding: nil) }
 

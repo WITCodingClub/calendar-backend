@@ -253,7 +253,7 @@ RSpec.describe CalendarPreference do
 
     describe ".uni_cal_categories_scope" do
       it "returns only university calendar category preferences" do
-        expect(described_class.uni_cal_categories_scope).to match_array([holiday_pref, deadline_pref])
+        expect(described_class.uni_cal_categories_scope).to contain_exactly(holiday_pref, deadline_pref)
       end
     end
   end

@@ -3,6 +3,7 @@
 module Api
   class UsersController < ApiController
     include ApplicationHelper
+
     skip_before_action :authenticate_user_from_token!, only: [:onboard]
     skip_before_action :check_beta_access, only: [:onboard, :get_email]
 
@@ -354,7 +355,7 @@ module Api
       authorize credential, :destroy?
 
       # Check if this is the last credential
-      if current_user.oauth_credentials.count == 1
+      if current_user.oauth_credentials.one?
         render json: {
           error: "Cannot disconnect the last OAuth credential. You must have at least one connected account."
         }, status: :unprocessable_content

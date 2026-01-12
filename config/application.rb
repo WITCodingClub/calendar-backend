@@ -42,5 +42,6 @@ module WitCalendarBackend
 
     # RateLimitHeadersMiddleware is added after Rack::Attack via initializer
     # (Rack::Attack is auto-inserted by its Railtie during initialization)
+
   end
 end

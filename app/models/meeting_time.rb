@@ -134,7 +134,11 @@ class MeetingTime < ApplicationRecord
 
   def format_12_hour(hours, minutes)
     meridian = hours >= 12 ? "PM" : "AM"
-    display_hour = hours == 0 ? 12 : (hours > 12 ? hours - 12 : hours)
+    display_hour = if hours == 0
+                     12
+                   else
+                     (hours > 12 ? hours - 12 : hours)
+                   end
     format("%d:%02d %s", display_hour, minutes, meridian)
   end
 

@@ -79,7 +79,7 @@ class OauthCredential < ApplicationRecord
   scope :for_provider, ->(provider) { where(provider: provider) }
   scope :google, -> { for_provider("google") }
   scope :revoked, -> { where("metadata->>'token_revoked' = 'true'") }
-  scope :needs_refresh, -> { where("updated_at < ?", 7.days.ago).where.not(refresh_token: nil) }
+  scope :needs_refresh, -> { where(updated_at: ...7.days.ago).where.not(refresh_token: nil) }
 
   private
 

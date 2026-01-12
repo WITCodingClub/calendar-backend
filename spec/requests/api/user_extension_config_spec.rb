@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::UserExtensionConfigs", type: :request do
+RSpec.describe "Api::UserExtensionConfigs" do
   let(:user) { create(:user) }
   let(:token) { JsonWebTokenService.encode(user_id: user.id) }
   let(:headers) { { "Authorization" => "Bearer #{token}" } }
@@ -29,7 +29,7 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
         get "/api/user/extension_config", headers: headers
 
         expect(response).to have_http_status(:ok)
-        json = JSON.parse(response.body)
+        json = response.parsed_body
 
         expect(json["military_time"]).to be true
         expect(json["advanced_editing"]).to be false
@@ -44,7 +44,7 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
         get "/api/user/extension_config", headers: headers
 
         expect(response).to have_http_status(:ok)
-        json = JSON.parse(response.body)
+        json = response.parsed_body
 
         expect(json["military_time"]).to be false
         expect(json["advanced_editing"]).to be false
@@ -217,7 +217,7 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
       get "/api/user/extension_config", headers: headers
 
       expect(response).to have_http_status(:ok)
-      json = JSON.parse(response.body)
+      json = response.parsed_body
 
       expect(json["sync_university_events"]).to be true
       expect(json["university_event_categories"]).to contain_exactly("campus_event", "academic")
@@ -227,7 +227,7 @@ RSpec.describe "Api::UserExtensionConfigs", type: :request do
       get "/api/user/extension_config", headers: headers
 
       expect(response).to have_http_status(:ok)
-      json = JSON.parse(response.body)
+      json = response.parsed_body
 
       expect(json["available_university_event_categories"]).to be_an(Array)
       expect(json["available_university_event_categories"].length).to eq(UniversityCalendarEvent::CATEGORIES.length)

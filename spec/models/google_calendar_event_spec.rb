@@ -252,7 +252,7 @@ RSpec.describe GoogleCalendarEvent do
     let(:event) { create(:google_calendar_event) }
 
     it "updates last_synced_at timestamp" do
-      expect { event.mark_synced! }.to change { event.reload.last_synced_at }
+      expect { event.mark_synced! }.to(change { event.reload.last_synced_at })
     end
   end
 

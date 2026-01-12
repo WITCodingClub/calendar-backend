@@ -14,12 +14,12 @@ RSpec.describe FinalsScheduleProcessJob do
 
     before do
       allow(FinalsScheduleParserService).to receive(:call).and_return({
-        total: 5,
-        created: 4,
-        updated: 1,
-        skipped: 0,
-        errors: []
-      })
+                                                                        total: 5,
+                                                                        created: 4,
+                                                                        updated: 1,
+                                                                        skipped: 0,
+                                                                        errors: []
+                                                                      })
     end
 
     it "calls process! on the finals schedule" do

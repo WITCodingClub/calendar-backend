@@ -94,7 +94,7 @@ module Admin
       authorize @user, :refresh_oauth_credential?
       credential = @user.oauth_credentials.find(params[:credential_id])
 
-      unless credential.refresh_token.present?
+      if credential.refresh_token.blank?
         redirect_to admin_user_path(@user), alert: "No refresh token available for #{credential.email}. User needs to re-authenticate."
         return
       end
@@ -171,10 +171,10 @@ module Admin
         # Try different formats: full public_id, hashid only, or integer ID
         if params[:id].start_with?("usr_")
           # Full public_id format
-          @user = User.find_by_public_id(params[:id])
+          @user = User.find_by(public_id: params[:id])
         elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
           # Hashid only - construct full public_id
-          @user = User.find_by_public_id("usr_#{params[:id]}")
+          @user = User.find_by(public_id: "usr_#{params[:id]}")
         elsif params[:id].match?(/^\d+$/)
           # Integer ID
           @user = User.find(params[:id])

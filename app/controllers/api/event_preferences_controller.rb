@@ -117,13 +117,13 @@ module Api
     end
 
     def event_preference_params
-      permitted = params.require(:event_preference).permit(
-        :title_template,
-        :description_template,
-        :location_template,
-        :color_id,
-        :visibility,
-        reminder_settings: []
+      permitted = params.expect(
+        event_preference: [:title_template,
+                           :description_template,
+                           :location_template,
+                           :color_id,
+                           :visibility,
+                           { reminder_settings: [] }]
       )
 
       # If reminder_settings is present, manually permit the nested attributes

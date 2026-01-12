@@ -29,7 +29,7 @@
 FactoryBot.define do
   factory :finals_schedule do
     term
-    association :uploaded_by, factory: :user, access_level: :super_admin
+    uploaded_by factory: %i[user], access_level: :super_admin
     status { :pending }
     processed_at { nil }
     error_message { nil }

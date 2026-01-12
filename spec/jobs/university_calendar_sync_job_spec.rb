@@ -3,7 +3,7 @@
 require "rails_helper"
 require "webmock/rspec"
 
-RSpec.describe UniversityCalendarSyncJob, type: :job do
+RSpec.describe UniversityCalendarSyncJob do
   include ActiveJob::TestHelper
 
   let(:ics_content) { Rails.root.join("spec/fixtures/files/university_calendar.ics").read }
@@ -67,11 +67,11 @@ RSpec.describe UniversityCalendarSyncJob, type: :job do
       it "only triggers sync for opted-in users when holidays dont change" do
         # Stub the service to report no holiday changes
         allow(UniversityCalendarIcsService).to receive(:call).and_return({
-          created: 1,
-          updated: 0,
-          unchanged: 5,
-          errors: []
-        })
+                                                                           created: 1,
+                                                                           updated: 0,
+                                                                           unchanged: 5,
+                                                                           errors: []
+                                                                         })
 
         # Run the job without performing enqueued jobs (which would make real HTTP calls)
         described_class.new.perform
@@ -102,11 +102,11 @@ RSpec.describe UniversityCalendarSyncJob, type: :job do
     it "updates term dates from university events" do
       # Stub the service to not change events
       allow(UniversityCalendarIcsService).to receive(:call).and_return({
-        created: 0,
-        updated: 0,
-        unchanged: 0,
-        errors: []
-      })
+                                                                         created: 0,
+                                                                         updated: 0,
+                                                                         unchanged: 0,
+                                                                         errors: []
+                                                                       })
 
       described_class.new.perform
 

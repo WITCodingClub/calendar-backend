@@ -10,19 +10,19 @@ RSpec.describe CatalogImportService, type: :service do
       it "sets lab courses to 0 credit hours" do
         catalog_courses = [
           {
-            "courseReferenceNumber" => 12345,
-            "term" => term.uid,
-            "courseTitle" => "Computer Science I - Lab",
-            "subject" => "CS",
-            "courseNumber" => 101,
+            "courseReferenceNumber"   => 12345,
+            "term"                    => term.uid,
+            "courseTitle"             => "Computer Science I - Lab",
+            "subject"                 => "CS",
+            "courseNumber"            => 101,
             "scheduleTypeDescription" => "Laboratory (LAB)",
-            "sequenceNumber" => "01",
-            "creditHours" => 4, # LeopardWeb incorrectly returns total course credits
-            "meetingsFaculty" => [
+            "sequenceNumber"          => "01",
+            "creditHours"             => 4, # LeopardWeb incorrectly returns total course credits
+            "meetingsFaculty"         => [
               {
                 "meetingTime" => {
                   "startDate" => Time.zone.today.to_s,
-                  "endDate" => (Time.zone.today + 90.days).to_s
+                  "endDate"   => (Time.zone.today + 90.days).to_s
                 }
               }
             ]
@@ -42,19 +42,19 @@ RSpec.describe CatalogImportService, type: :service do
       it "keeps lecture courses with original credit hours" do
         catalog_courses = [
           {
-            "courseReferenceNumber" => 12346,
-            "term" => term.uid,
-            "courseTitle" => "Computer Science I",
-            "subject" => "CS",
-            "courseNumber" => 101,
+            "courseReferenceNumber"   => 12346,
+            "term"                    => term.uid,
+            "courseTitle"             => "Computer Science I",
+            "subject"                 => "CS",
+            "courseNumber"            => 101,
             "scheduleTypeDescription" => "Lecture (LEC)",
-            "sequenceNumber" => "01",
-            "creditHours" => 4,
-            "meetingsFaculty" => [
+            "sequenceNumber"          => "01",
+            "creditHours"             => 4,
+            "meetingsFaculty"         => [
               {
                 "meetingTime" => {
                   "startDate" => Time.zone.today.to_s,
-                  "endDate" => (Time.zone.today + 90.days).to_s
+                  "endDate"   => (Time.zone.today + 90.days).to_s
                 }
               }
             ]
@@ -76,19 +76,19 @@ RSpec.describe CatalogImportService, type: :service do
       it "parses MM/DD/YYYY format dates correctly" do
         catalog_courses = [
           {
-            "courseReferenceNumber" => 12347,
-            "term" => term.uid,
-            "courseTitle" => "Test Course",
-            "subject" => "TEST",
-            "courseNumber" => 101,
+            "courseReferenceNumber"   => 12347,
+            "term"                    => term.uid,
+            "courseTitle"             => "Test Course",
+            "subject"                 => "TEST",
+            "courseNumber"            => 101,
             "scheduleTypeDescription" => "Lecture (LEC)",
-            "sequenceNumber" => "01",
-            "creditHours" => 3,
-            "meetingsFaculty" => [
+            "sequenceNumber"          => "01",
+            "creditHours"             => 3,
+            "meetingsFaculty"         => [
               {
                 "meetingTime" => {
                   "startDate" => "08/15/2025",
-                  "endDate" => "12/20/2025"
+                  "endDate"   => "12/20/2025"
                 }
               }
             ]
@@ -108,15 +108,15 @@ RSpec.describe CatalogImportService, type: :service do
       it "handles missing dates gracefully" do
         catalog_courses = [
           {
-            "courseReferenceNumber" => 12348,
-            "term" => term.uid,
-            "courseTitle" => "Test Course",
-            "subject" => "TEST",
-            "courseNumber" => 102,
+            "courseReferenceNumber"   => 12348,
+            "term"                    => term.uid,
+            "courseTitle"             => "Test Course",
+            "subject"                 => "TEST",
+            "courseNumber"            => 102,
             "scheduleTypeDescription" => "Lecture (LEC)",
-            "sequenceNumber" => "01",
-            "creditHours" => 3,
-            "meetingsFaculty" => [
+            "sequenceNumber"          => "01",
+            "creditHours"             => 3,
+            "meetingsFaculty"         => [
               {
                 "meetingTime" => {}
               }
@@ -137,19 +137,19 @@ RSpec.describe CatalogImportService, type: :service do
       it "updates term dates after importing courses" do
         catalog_courses = [
           {
-            "courseReferenceNumber" => 12349,
-            "term" => term.uid,
-            "courseTitle" => "Test Course",
-            "subject" => "TEST",
-            "courseNumber" => 103,
+            "courseReferenceNumber"   => 12349,
+            "term"                    => term.uid,
+            "courseTitle"             => "Test Course",
+            "subject"                 => "TEST",
+            "courseNumber"            => 103,
             "scheduleTypeDescription" => "Lecture (LEC)",
-            "sequenceNumber" => "01",
-            "creditHours" => 3,
-            "meetingsFaculty" => [
+            "sequenceNumber"          => "01",
+            "creditHours"             => 3,
+            "meetingsFaculty"         => [
               {
                 "meetingTime" => {
                   "startDate" => "08/15/2025",
-                  "endDate" => "12/20/2025"
+                  "endDate"   => "12/20/2025"
                 }
               }
             ]

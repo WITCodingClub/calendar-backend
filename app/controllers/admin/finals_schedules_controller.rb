@@ -42,7 +42,7 @@ module Admin
 
       unless @finals_schedule.save
         @terms = available_terms
-        render :new, status: :unprocessable_entity
+        render :new, status: :unprocessable_content
         return
       end
 
@@ -94,13 +94,13 @@ module Admin
     end
 
     def finals_schedule_params
-      params.require(:finals_schedule).permit(:term_id, :pdf_file)
+      params.expect(finals_schedule: [:term_id, :pdf_file])
     end
 
     # Attach PDF file with conventional filename: {term_uid}-finals-schedule-{timestamp}.pdf
     def attach_pdf_with_conventional_name(finals_schedule)
       uploaded_file = params.dig(:finals_schedule, :pdf_file)
-      return unless uploaded_file.present?
+      return if uploaded_file.blank?
 
       term = Term.find_by(id: finals_schedule.term_id)
 
@@ -129,5 +129,6 @@ module Admin
         Term.current_and_future
       end
     end
+
   end
 end

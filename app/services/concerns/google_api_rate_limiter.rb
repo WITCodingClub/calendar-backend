@@ -29,6 +29,7 @@ module GoogleApiRateLimiter
       @backoff_multiplier = 2.0
       @batch_throttle_delay = 0.1 # seconds between batch operations
     end
+
   end
 
   included do
@@ -84,7 +85,7 @@ module GoogleApiRateLimiter
     throttle_delay = delay || rate_limit_config.batch_throttle_delay
     results = []
 
-    return results if items.nil? || items.empty?
+    return results if items.blank?
 
     items.each_with_index do |item, index|
       result = with_rate_limit_handling do
@@ -138,8 +139,8 @@ module GoogleApiRateLimiter
 
     # Add jitter (±25% randomness) to prevent thundering herd
     jitter_factor = 0.75 + (rand * 0.5) # Random value between 0.75 and 1.25
-    delay_with_jitter = capped_delay * jitter_factor
+    capped_delay * jitter_factor
 
-    delay_with_jitter
+
   end
 end

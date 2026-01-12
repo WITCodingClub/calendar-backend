@@ -54,9 +54,9 @@ RSpec.describe UpdateFacultyRatingsJob do
                   "edges" => [
                     {
                       "node" => {
-                        "id" => "test_rmp_123",
+                        "id"        => "test_rmp_123",
                         "firstName" => faculty.first_name,
-                        "lastName" => faculty.last_name
+                        "lastName"  => faculty.last_name
                       }
                     }
                   ]
@@ -70,24 +70,22 @@ RSpec.describe UpdateFacultyRatingsJob do
           {
             "data" => {
               "node" => {
-                "avgRating" => 4.5,
-                "avgDifficulty" => 3.0,
-                "numRatings" => 10,
+                "avgRating"             => 4.5,
+                "avgDifficulty"         => 3.0,
+                "numRatings"            => 10,
                 "wouldTakeAgainPercent" => 85.0,
-                "ratingsDistribution" => {
+                "ratingsDistribution"   => {
                   "r1" => 0, "r2" => 1, "r3" => 2, "r4" => 3, "r5" => 4, "total" => 10
                 },
-                "teacherRatingTags" => [],
-                "relatedTeachers" => []
+                "teacherRatingTags"     => [],
+                "relatedTeachers"       => []
               }
             }
           }
         end
 
         before do
-          allow(service).to receive(:search_professors).and_return(search_result)
-          allow(service).to receive(:get_teacher_details).and_return(teacher_details)
-          allow(service).to receive(:get_all_ratings).and_return([])
+          allow(service).to receive_messages(search_professors: search_result, get_teacher_details: teacher_details, get_all_ratings: [])
         end
 
         it "searches for the faculty and updates rmp_id" do
@@ -137,17 +135,17 @@ RSpec.describe UpdateFacultyRatingsJob do
         {
           "data" => {
             "node" => {
-              "avgRating" => 4.5,
-              "avgDifficulty" => 3.0,
-              "numRatings" => 2,
+              "avgRating"             => 4.5,
+              "avgDifficulty"         => 3.0,
+              "numRatings"            => 2,
               "wouldTakeAgainPercent" => 100.0,
-              "ratingsDistribution" => {
+              "ratingsDistribution"   => {
                 "r1" => 0, "r2" => 0, "r3" => 0, "r4" => 1, "r5" => 1, "total" => 2
               },
-              "teacherRatingTags" => [
+              "teacherRatingTags"     => [
                 { "legacyId" => 1, "tagName" => "Helpful", "tagCount" => 5 }
               ],
-              "relatedTeachers" => [
+              "relatedTeachers"       => [
                 { "id" => "related_rmp_1", "firstName" => "Jane", "lastName" => "Doe", "avgRating" => 4.0 }
               ]
             }
@@ -158,29 +156,28 @@ RSpec.describe UpdateFacultyRatingsJob do
       let(:ratings_data) do
         [
           {
-            "legacyId" => 12345,
-            "clarityRating" => 5,
-            "difficultyRating" => 2,
-            "helpfulRating" => 5,
-            "class" => "CS 101",
-            "comment" => "Great professor!",
-            "date" => "2024-01-15",
-            "grade" => "A",
-            "wouldTakeAgain" => "Yes",
+            "legacyId"            => 12345,
+            "clarityRating"       => 5,
+            "difficultyRating"    => 2,
+            "helpfulRating"       => 5,
+            "class"               => "CS 101",
+            "comment"             => "Great professor!",
+            "date"                => "2024-01-15",
+            "grade"               => "A",
+            "wouldTakeAgain"      => "Yes",
             "attendanceMandatory" => "No",
-            "isForCredit" => true,
-            "isForOnlineClass" => false,
-            "ratingTags" => "Helpful,Clear",
-            "thumbsUpTotal" => 10,
-            "thumbsDownTotal" => 1
+            "isForCredit"         => true,
+            "isForOnlineClass"    => false,
+            "ratingTags"          => "Helpful,Clear",
+            "thumbsUpTotal"       => 10,
+            "thumbsDownTotal"     => 1
           }
         ]
       end
 
       before do
         faculty.courses << course
-        allow(service).to receive(:get_teacher_details).and_return(teacher_details)
-        allow(service).to receive(:get_all_ratings).and_return(ratings_data)
+        allow(service).to receive_messages(get_teacher_details: teacher_details, get_all_ratings: ratings_data)
       end
 
       it "does not search for faculty" do

@@ -4,7 +4,7 @@ require "rails_helper"
 
 # These tests require Redis to be running
 # Skip if Redis is not available
-RSpec.describe "Rack::Attack", type: :request do
+RSpec.describe "Rack::Attack" do
   def redis_available?
     Redis.new(url: "redis://localhost:6379").ping
     true

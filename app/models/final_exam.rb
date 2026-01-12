@@ -109,7 +109,7 @@ class FinalExam < ApplicationRecord
     end_h = end_time / 100
     end_m = end_time % 100
 
-    ((end_h * 60 + end_m) - (start_h * 60 + start_m)) / 60.0
+    (((end_h * 60) + end_m) - ((start_h * 60) + start_m)) / 60.0
   end
 
   # Time of day category (morning, afternoon, evening)
@@ -185,17 +185,17 @@ class FinalExam < ApplicationRecord
 
     # Location format: "BLDG 123" or "BLDG 123 / BLDG 456"
     location.split(" / ").each do |loc|
-      if loc =~ /([A-Z]+)\s+(\d+[A-Z]?)/i
-        abbrev = $1
-        room_num = $2
+      next unless loc =~ /([A-Z]+)\s+(\d+[A-Z]?)/i
 
-        building = Building.find_by(abbreviation: abbrev)
-        next unless building
+      abbrev = $1
+      room_num = $2
 
-        # Try to find room by number (strip leading zeros for comparison)
-        room = building.rooms.find_by(number: room_num.to_i)
-        rooms << room if room
-      end
+      building = Building.find_by(abbreviation: abbrev)
+      next unless building
+
+      # Try to find room by number (strip leading zeros for comparison)
+      room = building.rooms.find_by(number: room_num.to_i)
+      rooms << room if room
     end
 
     rooms
@@ -232,7 +232,7 @@ class FinalExam < ApplicationRecord
     hours = time_int / 100
     minutes = time_int % 100
     meridian = hours >= 12 ? "PM" : "AM"
-    hours = hours % 12
+    hours %= 12
     hours = 12 if hours == 0
     format("%d:%02d %s", hours, minutes, meridian)
   end
@@ -242,4 +242,5 @@ class FinalExam < ApplicationRecord
 
     errors.add(:end_time, "must be after start time") if end_time <= start_time
   end
+
 end

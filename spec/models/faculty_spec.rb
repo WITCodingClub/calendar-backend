@@ -188,9 +188,9 @@ RSpec.describe Faculty do
     it "returns forward and reverse name formats" do
       faculty = build(:faculty, first_name: "John", last_name: "Smith")
       expect(faculty.u_name).to eq({
-        fwd: "J. Smith",
-        rev: "Smith, J."
-      })
+                                     fwd: "J. Smith",
+                                     rev: "Smith, J."
+                                   })
     end
   end
 

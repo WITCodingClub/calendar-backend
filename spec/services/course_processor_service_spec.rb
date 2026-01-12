@@ -137,19 +137,18 @@ RSpec.describe CourseProcessorService, type: :service do
         ]
 
         # Mock LeopardWebService to return a LAB schedule type
-        allow(LeopardWebService).to receive(:get_class_details).and_return({
-          associated_term: "Fall 2025",
-          subject: "CS",
-          title: "Computer Science I - Lab",
-          schedule_type: "Laboratory (LAB)",
-          section_number: "01",
-          credit_hours: 4, # LeopardWeb incorrectly returns total course credits
-          grade_mode: "Normal"
-        })
 
-        allow(LeopardWebService).to receive(:get_faculty_meeting_times).and_return({
-          "fmt" => []
-        })
+        allow(LeopardWebService).to receive_messages(get_class_details: {
+                                                       associated_term: "Fall 2025",
+                                                       subject: "CS",
+                                                       title: "Computer Science I - Lab",
+                                                       schedule_type: "Laboratory (LAB)",
+                                                       section_number: "01",
+                                                       credit_hours: 4, # LeopardWeb incorrectly returns total course credits
+                                                       grade_mode: "Normal"
+                                                     }, get_faculty_meeting_times: {
+                                                       "fmt" => []
+                                                     })
 
         described_class.new(courses, user).call
 
@@ -164,19 +163,18 @@ RSpec.describe CourseProcessorService, type: :service do
         ]
 
         # Mock LeopardWebService to return a LEC schedule type
-        allow(LeopardWebService).to receive(:get_class_details).and_return({
-          associated_term: "Fall 2025",
-          subject: "CS",
-          title: "Computer Science I",
-          schedule_type: "Lecture (LEC)",
-          section_number: "01",
-          credit_hours: 4,
-          grade_mode: "Normal"
-        })
 
-        allow(LeopardWebService).to receive(:get_faculty_meeting_times).and_return({
-          "fmt" => []
-        })
+        allow(LeopardWebService).to receive_messages(get_class_details: {
+                                                       associated_term: "Fall 2025",
+                                                       subject: "CS",
+                                                       title: "Computer Science I",
+                                                       schedule_type: "Lecture (LEC)",
+                                                       section_number: "01",
+                                                       credit_hours: 4,
+                                                       grade_mode: "Normal"
+                                                     }, get_faculty_meeting_times: {
+                                                       "fmt" => []
+                                                     })
 
         described_class.new(courses, user).call
 
@@ -191,19 +189,18 @@ RSpec.describe CourseProcessorService, type: :service do
         ]
 
         # Mock LeopardWebService to return a HYB schedule type
-        allow(LeopardWebService).to receive(:get_class_details).and_return({
-          associated_term: "Fall 2025",
-          subject: "CS",
-          title: "Advanced Programming",
-          schedule_type: "Hybrid (HYB)",
-          section_number: "01",
-          credit_hours: 3,
-          grade_mode: "Normal"
-        })
 
-        allow(LeopardWebService).to receive(:get_faculty_meeting_times).and_return({
-          "fmt" => []
-        })
+        allow(LeopardWebService).to receive_messages(get_class_details: {
+                                                       associated_term: "Fall 2025",
+                                                       subject: "CS",
+                                                       title: "Advanced Programming",
+                                                       schedule_type: "Hybrid (HYB)",
+                                                       section_number: "01",
+                                                       credit_hours: 3,
+                                                       grade_mode: "Normal"
+                                                     }, get_faculty_meeting_times: {
+                                                       "fmt" => []
+                                                     })
 
         described_class.new(courses, user).call
 

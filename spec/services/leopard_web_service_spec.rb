@@ -18,7 +18,7 @@ RSpec.describe LeopardWebService, type: :service do
         catalog_response = double(
           success?: true,
           body: {
-            "data" => [
+            "data"       => [
               { "courseReferenceNumber" => "12345", "courseTitle" => "Test Course" }
             ],
             "totalCount" => 1
@@ -33,10 +33,9 @@ RSpec.describe LeopardWebService, type: :service do
 
         service = described_class.new(action: :get_course_catalog, term: term)
 
-        allow(service).to receive(:session_connection).and_return(mock_session_connection)
         # Set the session cookie manually since we're mocking
         service.instance_variable_set(:@session_cookie, "abc123")
-        allow(service).to receive(:catalog_connection).and_return(mock_catalog_connection)
+        allow(service).to receive_messages(session_connection: mock_session_connection, catalog_connection: mock_catalog_connection)
 
         result = service.call
 
@@ -56,7 +55,7 @@ RSpec.describe LeopardWebService, type: :service do
         first_response = double(
           success?: true,
           body: {
-            "data" => Array.new(500) { |i| { "courseReferenceNumber" => i.to_s } },
+            "data"       => Array.new(500) { |i| { "courseReferenceNumber" => i.to_s } },
             "totalCount" => 750
           }
         )
@@ -65,7 +64,7 @@ RSpec.describe LeopardWebService, type: :service do
         second_response = double(
           success?: true,
           body: {
-            "data" => Array.new(250) { |i| { "courseReferenceNumber" => (i + 500).to_s } },
+            "data"       => Array.new(250) { |i| { "courseReferenceNumber" => (i + 500).to_s } },
             "totalCount" => 750
           }
         )
@@ -78,9 +77,8 @@ RSpec.describe LeopardWebService, type: :service do
 
         service = described_class.new(action: :get_course_catalog, term: term)
 
-        allow(service).to receive(:session_connection).and_return(mock_session_connection)
         service.instance_variable_set(:@session_cookie, "abc123")
-        allow(service).to receive(:catalog_connection).and_return(mock_catalog_connection)
+        allow(service).to receive_messages(session_connection: mock_session_connection, catalog_connection: mock_catalog_connection)
 
         result = service.call
 
@@ -155,9 +153,8 @@ RSpec.describe LeopardWebService, type: :service do
 
         service = described_class.new(action: :get_course_catalog, term: term)
 
-        allow(service).to receive(:session_connection).and_return(mock_session_connection)
         service.instance_variable_set(:@session_cookie, "abc123")
-        allow(service).to receive(:catalog_connection).and_return(mock_catalog_connection)
+        allow(service).to receive_messages(session_connection: mock_session_connection, catalog_connection: mock_catalog_connection)
 
         result = service.call
 

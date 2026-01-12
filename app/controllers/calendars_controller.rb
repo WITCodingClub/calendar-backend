@@ -2,7 +2,7 @@
 
 class CalendarsController < ApplicationController
   include ApplicationHelper
-  
+
   skip_before_action :verify_authenticity_token
 
   def show
@@ -71,12 +71,12 @@ class CalendarsController < ApplicationController
     courses.each do |course|
       # Filter meeting times to prefer valid locations over TBD duplicates
       filtered_meeting_times = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
-                                                   .map do |key, meeting_times|
-        # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
-        non_tbd = meeting_times.reject { |mt| mt.building && @user.send(:tbd_building?, mt.building) || mt.room && @user.send(:tbd_room?, mt.room) }
-        non_tbd.any? ? non_tbd.first : meeting_times.first
+                                     .map do |key, meeting_times|
+                                       # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
+                                       non_tbd = meeting_times.reject { |mt| (mt.building && @user.send(:tbd_building?, mt.building)) || (mt.room && @user.send(:tbd_room?, mt.room)) }
+                                       non_tbd.any? ? non_tbd.first : meeting_times.first
       end
-      
+
       filtered_meeting_times.each do |meeting_time|
         # Skip if day_of_week is not set
         next if meeting_time.day_of_week.blank?
@@ -121,7 +121,7 @@ class CalendarsController < ApplicationController
           end
 
           # Location - handle TBD locations gracefully
-          if meeting_time.room && meeting_time.building && 
+          if meeting_time.room && meeting_time.building &&
              !@user.send(:tbd_location?, meeting_time.building, meeting_time.room)
             # Valid room and building
             e.location = "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"

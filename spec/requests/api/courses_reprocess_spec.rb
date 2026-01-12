@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::Courses#reprocess", type: :request do
+RSpec.describe "Api::Courses#reprocess" do
   let(:user) { create(:user) }
   let(:jwt_token) { JsonWebTokenService.encode(user_id: user.id) }
   let(:headers) { { "Authorization" => "Bearer #{jwt_token}", "Content-Type" => "application/json" } }

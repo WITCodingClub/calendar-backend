@@ -66,7 +66,7 @@ RSpec.describe Building do
 
     it "can be deleted when no rooms exist" do
       building = create(:building)
-      expect { building.destroy }.to change(Building, :count).by(-1)
+      expect { building.destroy }.to change(described_class, :count).by(-1)
     end
   end
 

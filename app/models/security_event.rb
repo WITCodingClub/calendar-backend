@@ -75,7 +75,7 @@ class SecurityEvent < ApplicationRecord
   scope :processed, -> { where(processed: true) }
   scope :by_event_type, ->(type) { where(event_type: type) }
   scope :for_user, ->(user) { where(user: user) }
-  scope :expired, -> { where("expires_at < ?", Time.current) }
+  scope :expired, -> { where(expires_at: ...Time.current) }
   scope :recent, -> { order(created_at: :desc) }
 
   # Set expiration date before creation
@@ -110,4 +110,5 @@ class SecurityEvent < ApplicationRecord
   def set_expiration
     self.expires_at ||= RETENTION_DAYS.days.from_now
   end
+
 end
