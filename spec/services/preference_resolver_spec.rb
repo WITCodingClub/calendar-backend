@@ -428,4 +428,100 @@ RSpec.describe PreferenceResolver do
       end
     end
   end
+
+  describe "university calendar events" do
+    let(:uni_cal_event) do
+      create(:university_calendar_event,
+             summary: "Spring Break",
+             category: "holiday",
+             start_time: Time.zone.local(2025, 3, 10),
+             end_time: Time.zone.local(2025, 3, 14))
+    end
+
+    context "with no preferences set" do
+      it "returns university calendar defaults" do
+        prefs = resolver.resolve_for(uni_cal_event)
+
+        expect(prefs[:title_template]).to eq("{{summary}}")
+        expect(prefs[:description_template]).to eq("{{description}}")
+        expect(prefs[:location_template]).to eq("{{location}}")
+        expect(prefs[:color_id]).to eq(8) # Graphite default
+        expect(prefs[:visibility]).to eq("default")
+      end
+    end
+
+    context "with uni_cal_category preference" do
+      let!(:holiday_pref) do
+        create(:calendar_preference,
+               user: user,
+               scope: :uni_cal_category,
+               event_type: "holiday",
+               color_id: 6,
+               title_template: "🎉 {{summary}}")
+      end
+
+      it "uses uni_cal_category preference" do
+        prefs = resolver.resolve_for(uni_cal_event)
+
+        expect(prefs[:color_id]).to eq(6)
+        expect(prefs[:title_template]).to eq("🎉 {{summary}}")
+      end
+
+      it "returns the correct source" do
+        result = resolver.resolve_with_sources(uni_cal_event)
+
+        expect(result[:sources][:color_id]).to eq("uni_cal_category:holiday")
+        expect(result[:sources][:title_template]).to eq("uni_cal_category:holiday")
+      end
+    end
+
+    context "with different categories" do
+      let(:deadline_event) do
+        create(:university_calendar_event,
+               summary: "Registration Deadline",
+               category: "deadline",
+               start_time: Time.zone.local(2025, 4, 1),
+               end_time: Time.zone.local(2025, 4, 1))
+      end
+
+      let!(:holiday_pref) do
+        create(:calendar_preference,
+               user: user,
+               scope: :uni_cal_category,
+               event_type: "holiday",
+               color_id: 6)
+      end
+
+      let!(:deadline_pref) do
+        create(:calendar_preference,
+               user: user,
+               scope: :uni_cal_category,
+               event_type: "deadline",
+               color_id: 11)
+      end
+
+      it "uses correct preference for each category" do
+        holiday_prefs = resolver.resolve_for(uni_cal_event)
+        deadline_prefs = resolver.resolve_for(deadline_event)
+
+        expect(holiday_prefs[:color_id]).to eq(6)
+        expect(deadline_prefs[:color_id]).to eq(11)
+      end
+    end
+
+    context "with global preference but no category preference" do
+      let!(:global_pref) do
+        create(:calendar_preference,
+               user: user,
+               scope: :global,
+               color_id: 3)
+      end
+
+      it "falls back to global preference" do
+        prefs = resolver.resolve_for(uni_cal_event)
+
+        expect(prefs[:color_id]).to eq(3)
+      end
+    end
+  end
 end

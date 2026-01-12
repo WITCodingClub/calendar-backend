@@ -9,22 +9,26 @@ module Api
       preferences = policy_scope(current_user.calendar_preferences)
       global_pref = preferences.find_by(scope: :global)
       event_type_prefs = preferences.where(scope: :event_type)
+      uni_cal_category_prefs = preferences.where(scope: :uni_cal_category)
 
       render json: {
         global: global_pref ? preference_json(global_pref) : nil,
-        event_types: event_type_prefs.index_by(&:event_type).transform_values { |p| preference_json(p) }
+        event_types: event_type_prefs.index_by(&:event_type).transform_values { |p| preference_json(p) },
+        uni_cal_categories: uni_cal_category_prefs.index_by(&:event_type).transform_values { |p| preference_json(p) }
       }
     end
 
     # GET /api/calendar_preferences/global
-    # GET /api/calendar_preferences/:event_type
+    # GET /api/calendar_preferences/:event_type (e.g., lecture, laboratory)
+    # GET /api/calendar_preferences/uni_cal:category (e.g., uni_cal:holiday, uni_cal:deadline)
     def show
       authorize @calendar_preference
       render json: preference_json(@calendar_preference)
     end
 
     # PUT /api/calendar_preferences/global
-    # PUT /api/calendar_preferences/:event_type
+    # PUT /api/calendar_preferences/:event_type (e.g., lecture, laboratory)
+    # PUT /api/calendar_preferences/uni_cal:category (e.g., uni_cal:holiday, uni_cal:deadline)
     def update
       authorize @calendar_preference
       if @calendar_preference.update(calendar_preference_params)
@@ -37,7 +41,8 @@ module Api
       end
     end
 
-    # DELETE /api/calendar_preferences/:event_type
+    # DELETE /api/calendar_preferences/:event_type (e.g., lecture, laboratory)
+    # DELETE /api/calendar_preferences/uni_cal:category (e.g., uni_cal:holiday, uni_cal:deadline)
     def destroy
       authorize @calendar_preference
       @calendar_preference.destroy
@@ -99,8 +104,15 @@ module Api
         @calendar_preference = current_user.calendar_preferences.find_or_initialize_by(
           scope: :global
         )
+      elsif scope_param.start_with?("uni_cal:")
+        # University calendar category preference (e.g., "uni_cal:holiday", "uni_cal:deadline")
+        category = scope_param.delete_prefix("uni_cal:")
+        @calendar_preference = current_user.calendar_preferences.find_or_initialize_by(
+          scope: :uni_cal_category,
+          event_type: category
+        )
       else
-        # Event type preference
+        # Event type preference (e.g., "lecture", "laboratory")
         @calendar_preference = current_user.calendar_preferences.find_or_initialize_by(
           scope: :event_type,
           event_type: scope_param

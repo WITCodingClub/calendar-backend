@@ -38,13 +38,18 @@ class CalendarPreference < ApplicationRecord
   # Enums
   enum :scope, {
     global: 0,
-    event_type: 1
+    event_type: 1,
+    uni_cal_category: 2
   }, prefix: true
+
+  # Valid university calendar categories (must match UniversityCalendarEvent::CATEGORIES)
+  UNI_CAL_CATEGORIES = %w[holiday term_dates registration deadline finals graduation academic campus_event meeting exhibit announcement other].freeze
 
   # Validations
   validates :scope, presence: true
-  validates :event_type, presence: true, if: :scope_event_type?
+  validates :event_type, presence: true, if: -> { scope_event_type? || scope_uni_cal_category? }
   validates :event_type, absence: true, if: :scope_global?
+  validates :event_type, inclusion: { in: UNI_CAL_CATEGORIES }, if: :scope_uni_cal_category?
   validates :title_template, length: { maximum: 500 }, allow_blank: true
   validates :description_template, length: { maximum: 2000 }, allow_blank: true
   validates :location_template, length: { maximum: 500 }, allow_blank: true
@@ -57,7 +62,9 @@ class CalendarPreference < ApplicationRecord
 
   # Scopes
   scope :for_event_type, ->(type) { where(scope: :event_type, event_type: type) }
+  scope :for_uni_cal_category, ->(category) { where(scope: :uni_cal_category, event_type: category) }
   scope :global_scope, -> { where(scope: :global) }
+  scope :uni_cal_categories_scope, -> { where(scope: :uni_cal_category) }
 
   private
 

@@ -303,6 +303,61 @@ RSpec.describe CalendarTemplateRenderer do
     end
   end
 
+  describe ".build_context_from_university_calendar_event" do
+    let(:event) do
+      create(:university_calendar_event,
+             summary: "Spring Break",
+             description: "No classes this week",
+             location: "Campus",
+             category: "holiday",
+             organization: "University",
+             academic_term: "Spring 2025",
+             start_time: Time.zone.local(2025, 3, 10, 0, 0, 0),
+             end_time: Time.zone.local(2025, 3, 14, 23, 59, 59),
+             all_day: true)
+    end
+
+    it "builds context with all expected fields" do
+      context = described_class.build_context_from_university_calendar_event(event)
+
+      expect(context[:summary]).to eq("Spring Break")
+      expect(context[:title]).to eq("Spring Break") # alias
+      expect(context[:description]).to eq("No classes this week")
+      expect(context[:location]).to eq("Campus")
+      expect(context[:category]).to eq("holiday")
+      expect(context[:organization]).to eq("University")
+      expect(context[:academic_term]).to eq("Spring 2025")
+      expect(context[:term]).to eq("Spring 2025") # alias
+      expect(context[:event_type]).to eq("university_calendar")
+    end
+
+    it "formats time fields correctly" do
+      context = described_class.build_context_from_university_calendar_event(event)
+
+      expect(context[:day]).to eq("Monday")
+      expect(context[:day_abbr]).to eq("Mon")
+    end
+
+    it "provides empty strings for course-related fields" do
+      context = described_class.build_context_from_university_calendar_event(event)
+
+      expect(context[:course_code]).to eq("")
+      expect(context[:subject]).to eq("")
+      expect(context[:faculty]).to eq("")
+      expect(context[:crn]).to eq("")
+      expect(context[:is_final_exam]).to be false
+    end
+
+    it "handles nil values gracefully" do
+      event.update!(description: nil, location: nil, organization: nil)
+      context = described_class.build_context_from_university_calendar_event(event)
+
+      expect(context[:description]).to eq("")
+      expect(context[:location]).to eq("")
+      expect(context[:organization]).to eq("")
+    end
+  end
+
   describe "ALLOWED_VARIABLES constant" do
     it "includes all expected variables" do
       expected_vars = %w[
@@ -313,6 +368,7 @@ RSpec.describe CalendarTemplateRenderer do
         term schedule_type schedule_type_short
         exam_date exam_date_short exam_time_of_day duration
         event_type is_final_exam combined_crns
+        summary description category organization academic_term
       ]
 
       expect(CalendarTemplateRenderer::ALLOWED_VARIABLES).to match_array(expected_vars)
