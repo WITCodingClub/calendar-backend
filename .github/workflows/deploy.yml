@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new jsp@"$SERVER_HOST" << 'EOF'
+            # Stop the server (send Ctrl+C to screen)
+            screen -S witcal-prod-server -p 0 -X stuff $'\003'
+            sleep 2
+
+            # Pull latest code, run migrations, and restart
+            screen -S witcal-prod-server -p 0 -X stuff 'cd /Users/jsp/server/calendar-backend && git pull && RAILS_ENV=production bundle exec rails db:migrate && RAILS_ENV=production rails server\n'
+          EOF
+
+      - name: Verify Deployment
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          sleep 5
+          ssh jsp@"$SERVER_HOST" "curl -sf http://localhost:3000/up || exit 1"
