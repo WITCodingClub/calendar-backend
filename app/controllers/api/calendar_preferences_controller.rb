@@ -20,7 +20,7 @@ module Api
 
     # GET /api/calendar_preferences/global
     # GET /api/calendar_preferences/:event_type (e.g., lecture, laboratory)
-    # GET /api/calendar_preferences/uni_cal::category (e.g., uni_cal:holiday, uni_cal:deadline)
+    # GET /api/calendar_preferences/uni_cal:category (e.g., uni_cal:holiday, uni_cal:deadline)
     def show
       authorize @calendar_preference
       render json: preference_json(@calendar_preference)
@@ -28,7 +28,7 @@ module Api
 
     # PUT /api/calendar_preferences/global
     # PUT /api/calendar_preferences/:event_type (e.g., lecture, laboratory)
-    # PUT /api/calendar_preferences/uni_cal::category (e.g., uni_cal:holiday, uni_cal:deadline)
+    # PUT /api/calendar_preferences/uni_cal:category (e.g., uni_cal:holiday, uni_cal:deadline)
     def update
       authorize @calendar_preference
       if @calendar_preference.update(calendar_preference_params)
@@ -42,7 +42,7 @@ module Api
     end
 
     # DELETE /api/calendar_preferences/:event_type (e.g., lecture, laboratory)
-    # DELETE /api/calendar_preferences/uni_cal::category (e.g., uni_cal:holiday, uni_cal:deadline)
+    # DELETE /api/calendar_preferences/uni_cal:category (e.g., uni_cal:holiday, uni_cal:deadline)
     def destroy
       authorize @calendar_preference
       @calendar_preference.destroy

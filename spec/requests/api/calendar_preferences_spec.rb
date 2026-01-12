@@ -95,4 +95,109 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
       expect(json["event_type"]).to eq("lecture")
     end
   end
+
+  describe "PUT /api/calendar_preferences/uni_cal:category" do
+    it "allows setting color_id for university calendar category" do
+      put "/api/calendar_preferences/uni_cal:holiday",
+          params: { calendar_preference: { color_id: 8 } }.to_json,
+          headers: headers
+
+      expect(response).to have_http_status(:ok)
+
+      json = response.parsed_body
+      expect(json["event_type"]).to eq("holiday")
+      expect(json["scope"]).to eq("uni_cal_category")
+    end
+
+    it "allows setting multiple fields for uni cal category" do
+      put "/api/calendar_preferences/uni_cal:deadline",
+          params: {
+            calendar_preference: {
+              color_id: 11,
+              title_template: "{{summary}}",
+              reminder_settings: [{ time: "1", type: "days", method: "popup" }]
+            }
+          }.to_json,
+          headers: headers
+
+      expect(response).to have_http_status(:ok)
+
+      json = response.parsed_body
+      expect(json["scope"]).to eq("uni_cal_category")
+      expect(json["event_type"]).to eq("deadline")
+      expect(json["title_template"]).to eq("{{summary}}")
+    end
+
+    it "allows empty reminder_settings for uni cal category" do
+      put "/api/calendar_preferences/uni_cal:term_dates",
+          params: { calendar_preference: { reminder_settings: [] } }.to_json,
+          headers: headers
+
+      expect(response).to have_http_status(:ok)
+
+      json = response.parsed_body
+      expect(json["reminder_settings"]).to eq([])
+    end
+  end
+
+  describe "GET /api/calendar_preferences/uni_cal:category" do
+    before do
+      user.calendar_preferences.create!(
+        scope: :uni_cal_category,
+        event_type: "holiday",
+        color_id: 5
+      )
+    end
+
+    it "returns the uni cal category preference" do
+      get "/api/calendar_preferences/uni_cal:holiday", headers: headers
+
+      expect(response).to have_http_status(:ok)
+
+      json = response.parsed_body
+      expect(json["scope"]).to eq("uni_cal_category")
+      expect(json["event_type"]).to eq("holiday")
+    end
+  end
+
+  describe "DELETE /api/calendar_preferences/uni_cal:category" do
+    before do
+      user.calendar_preferences.create!(
+        scope: :uni_cal_category,
+        event_type: "holiday",
+        color_id: 5
+      )
+    end
+
+    it "deletes the uni cal category preference" do
+      expect {
+        delete "/api/calendar_preferences/uni_cal:holiday", headers: headers
+      }.to change { user.calendar_preferences.count }.by(-1)
+
+      expect(response).to have_http_status(:no_content)
+    end
+  end
+
+  describe "GET /api/calendar_preferences (index)" do
+    before do
+      user.calendar_preferences.create!(scope: :global, color_id: 3)
+      user.calendar_preferences.create!(scope: :event_type, event_type: "lecture", color_id: 5)
+      user.calendar_preferences.create!(scope: :uni_cal_category, event_type: "holiday", color_id: 8)
+      user.calendar_preferences.create!(scope: :uni_cal_category, event_type: "deadline", color_id: 11)
+    end
+
+    it "returns all preference types including uni_cal_categories" do
+      get "/api/calendar_preferences", headers: headers
+
+      expect(response).to have_http_status(:ok)
+
+      json = response.parsed_body
+      expect(json["global"]).to be_present
+      expect(json["event_types"]).to be_present
+      expect(json["event_types"]["lecture"]).to be_present
+      expect(json["uni_cal_categories"]).to be_present
+      expect(json["uni_cal_categories"]["holiday"]).to be_present
+      expect(json["uni_cal_categories"]["deadline"]).to be_present
+    end
+  end
 end
