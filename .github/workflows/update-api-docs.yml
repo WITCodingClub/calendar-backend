@@ -79,10 +79,6 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
         run: bundle exec rspec spec/requests/api --format progress
 
-      - name: Merge API Docs
-        if: hashFiles('doc/openapi*.yaml') != ''
-        run: bundle exec ./bin/merge-api-docs.rb
-
       - name: Commit and push API Docs
         run: |
           git config --local user.email "action@github.com"
