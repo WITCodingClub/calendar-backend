@@ -76,8 +76,16 @@ class UniversityCalendarIcsService < ApplicationService
   def process_single_event(ics_event, stats)
     return if ics_event.dtstart.nil? # Skip events without start time
 
-    # Extract custom fields from X-TRUMBA-CUSTOMFIELD properties
-    custom_fields = extract_custom_fields(ics_event)
+    # Extract and decode custom fields from X-TRUMBA-CUSTOMFIELD properties
+    # Decode HTML entities early so decoded values are used consistently
+    raw_custom_fields = extract_custom_fields(ics_event)
+    organization = decode_html_entities(raw_custom_fields["Organization"])
+    academic_term = decode_html_entities(raw_custom_fields["Academic Term"])
+    event_type = decode_html_entities(raw_custom_fields["Event Type"])
+
+    # Decode summary and location
+    summary = decode_html_entities(ics_event.summary.to_s)
+    location = decode_html_entities(ics_event.location&.to_s)
 
     # Find or initialize by ICS UID
     event = UniversityCalendarEvent.find_or_initialize_by(ics_uid: ics_event.uid.to_s)
@@ -90,16 +98,13 @@ class UniversityCalendarIcsService < ApplicationService
     # Clean description (remove HTML tags)
     description = clean_description(ics_event.description&.to_s)
 
-    # Infer category
-    category = UniversityCalendarEvent.infer_category(
-      ics_event.summary.to_s,
-      custom_fields["Event Type"]
-    )
+    # Infer category using decoded values
+    category = UniversityCalendarEvent.infer_category(summary, event_type)
 
     # Determine if this should be an all-day event
     # Force holidays to be all-day regardless of ICS format
     is_all_day = category == "holiday" || all_day_event?(ics_event)
-    
+
     # For all-day events, normalize times to beginning and end of day
     # but preserve original date range for multi-day events
     if is_all_day
@@ -108,19 +113,19 @@ class UniversityCalendarIcsService < ApplicationService
       end_time = original_end_date.end_of_day
     end
 
-    # Assign attributes
+    # Assign attributes (already decoded above)
     event.assign_attributes(
-      summary: ics_event.summary.to_s,
+      summary: summary,
       description: description,
-      location: ics_event.location&.to_s,
+      location: location,
       start_time: start_time,
       end_time: end_time,
       all_day: is_all_day,
       recurrence: extract_recurrence(ics_event),
       category: category,
-      organization: custom_fields["Organization"],
-      academic_term: custom_fields["Academic Term"],
-      event_type_raw: custom_fields["Event Type"],
+      organization: organization,
+      academic_term: academic_term,
+      event_type_raw: event_type,
       last_fetched_at: Time.current,
       source_url: ics_url
     )
@@ -202,16 +207,24 @@ class UniversityCalendarIcsService < ApplicationService
     return nil if description.blank?
 
     # Remove HTML tags and decode entities
-    description
-      .gsub(/<br\s*\/?>/, "\n")
-      .gsub(/<[^>]+>/, "")
-      .gsub("&nbsp;", " ")
-      .gsub("&amp;", "&")
-      .gsub("&lt;", "<")
-      .gsub("&gt;", ">")
-      .gsub(/&#(\d+);/) { [::Regexp.last_match(1).to_i].pack("U") rescue ::Regexp.last_match(0) }
-      .strip
-      .presence
+    result = description
+             .gsub(/<br\s*\/?>/, "\n")
+             .gsub(/<[^>]+>/, "")
+
+    decode_html_entities(result)&.strip&.presence
+  end
+
+  # Decode HTML entities using HTMLEntities gem for robust handling
+  # Handles: &amp; -> &, &nbsp; -> space, &ndash; -> –, &#123; -> numeric entities, etc.
+  def decode_html_entities(text)
+    return nil if text.blank?
+
+    html_entities_decoder.decode(text.to_s)
+  end
+
+  # Memoized HTMLEntities instance for performance when processing many events
+  def html_entities_decoder
+    @html_entities_decoder ||= HTMLEntities.new
   end
 
   def find_term_from_academic_term(academic_term_str, event_date)
