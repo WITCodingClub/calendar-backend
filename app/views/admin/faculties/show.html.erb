@@ -120,7 +120,7 @@
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-bold">Rate My Professor</h2>
       <% if @faculty.rmp_id.present? %>
-        <a href="https://www.ratemyprofessors.com/professor/<%= @faculty.rmp_id %>" target="_blank" class="text-sm hover:underline" style="color: #d13732;">View on RMP</a>
+        <a href="https://www.ratemyprofessors.com/professor/<%= @faculty.rmp_numeric_id %>" target="_blank" class="text-sm hover:underline" style="color: #d13732;">View on RMP</a>
       <% end %>
     </div>
 
