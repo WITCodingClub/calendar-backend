@@ -247,4 +247,66 @@ RSpec.describe CourseScheduleSyncable do
       expect(result).to eq("EXDATE;TZID=#{timezone}:20241128T103000")
     end
   end
+
+  describe "all-day event handling (12:01pm-11:59pm)" do
+    let(:user) { create(:user) }
+    let(:term) { create(:term, year: 2024, season: :fall) }
+    let(:course) { create(:course, term: term, title: "All Day Workshop") }
+    let!(:enrollment) { create(:enrollment, user: user, course: course, term: term) }
+    let!(:all_day_meeting_time) do
+      create(:meeting_time,
+             course: course,
+             day_of_week: :monday,
+             begin_time: 1201,
+             end_time: 2359,
+             start_date: Date.new(2024, 8, 26),
+             end_date: Date.new(2024, 12, 13))
+    end
+    let!(:regular_meeting_time) do
+      create(:meeting_time,
+             course: course,
+             day_of_week: :wednesday,
+             begin_time: 900,
+             end_time: 1050,
+             start_date: Date.new(2024, 8, 28),
+             end_date: Date.new(2024, 12, 11))
+    end
+
+    it "sets all_day: true for meeting times spanning 12:01pm-11:59pm" do
+      expect(all_day_meeting_time.all_day?).to be true
+    end
+
+    it "sets all_day: false for regular timed meeting times" do
+      expect(regular_meeting_time.all_day?).to be false
+    end
+
+    describe "event hash generation" do
+      let(:google_calendar_service) { instance_double(GoogleCalendarService) }
+
+      before do
+        allow(GoogleCalendarService).to receive(:new).and_return(google_calendar_service)
+        allow(google_calendar_service).to receive(:update_calendar_events) do |events, **_opts|
+          @captured_events = events
+          { created: events.size, updated: 0, skipped: 0 }
+        end
+        user.update_columns(calendar_needs_sync: true)
+      end
+
+      it "passes all_day: true to GoogleCalendarService for all-day meeting times" do
+        user.sync_course_schedule
+
+        all_day_event = @captured_events.find { |e| e[:meeting_time_id] == all_day_meeting_time.id }
+        expect(all_day_event).to be_present
+        expect(all_day_event[:all_day]).to be true
+      end
+
+      it "passes all_day: false to GoogleCalendarService for regular meeting times" do
+        user.sync_course_schedule
+
+        regular_event = @captured_events.find { |e| e[:meeting_time_id] == regular_meeting_time.id }
+        expect(regular_event).to be_present
+        expect(regular_event[:all_day]).to be false
+      end
+    end
+  end
 end

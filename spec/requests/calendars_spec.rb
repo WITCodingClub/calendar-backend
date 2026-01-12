@@ -128,6 +128,57 @@ RSpec.describe "Calendars", type: :request do
       end
     end
 
+    context "with all-day meeting times (12:01pm-11:59pm)" do
+      let(:term) { create(:term, year: 2024, season: :fall) }
+      let(:course) { create(:course, term: term, title: "All Day Workshop") }
+      let!(:enrollment) { create(:enrollment, user: user, course: course, term: term) }
+      let!(:meeting_time) do
+        create(:meeting_time,
+               course: course,
+               day_of_week: :monday,
+               begin_time: 1201,
+               end_time: 2359,
+               start_date: Date.new(2024, 8, 26),
+               end_date: Date.new(2024, 12, 13))
+      end
+
+      it "generates all-day events with DATE format instead of DATETIME" do
+        get "/calendar/#{user.calendar_token}.ics"
+
+        expect(response).to have_http_status(:success)
+        ics_content = response.body
+
+        # All-day events use DTSTART;VALUE=DATE format (no time component)
+        # Regular events use DTSTART;TZID=America/New_York format
+        expect(ics_content).to include("All Day Workshop")
+
+        # Parse the ICS to find the event
+        calendar = Icalendar::Calendar.parse(ics_content).first
+        event = calendar.events.find { |e| e.summary.to_s.include?("All Day Workshop") }
+
+        expect(event).to be_present
+        # All-day events have Date values, not DateTime
+        expect(event.dtstart).to be_a(Icalendar::Values::Date)
+        expect(event.dtend).to be_a(Icalendar::Values::Date)
+      end
+
+      it "uses date-only UNTIL in recurrence rule for all-day events" do
+        get "/calendar/#{user.calendar_token}.ics"
+
+        ics_content = response.body
+        calendar = Icalendar::Calendar.parse(ics_content).first
+        event = calendar.events.find { |e| e.summary.to_s.include?("All Day Workshop") }
+
+        expect(event).to be_present
+        # RRULE UNTIL should be date-only (YYYYMMDD) not datetime (YYYYMMDDTHHMMSS)
+        rrule = event.rrule.first
+        expect(rrule).to be_present
+        # The parsed rrule has an 'until' attribute - for date-only it should be 8 chars
+        # Date-only format is YYYYMMDD, datetime format is YYYYMMDDTHHMMSS
+        expect(rrule.until.to_s.length).to eq(8) # YYYYMMDD format
+      end
+    end
+
     context "with holiday exclusions on meeting times" do
       let(:term) { create(:term, year: 2024, season: :fall) }
       let(:course) { create(:course, term: term) }

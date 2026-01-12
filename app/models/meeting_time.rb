@@ -104,6 +104,12 @@ class MeetingTime < ApplicationRecord
     "#{fmt_begin_time} - #{fmt_end_time}"
   end
 
+  # Events spanning 12:01pm-11:59pm are considered "all day" events
+  # This is how the university calendar represents all-day events
+  def all_day?
+    begin_time == 1201 && end_time == 2359
+  end
+
   def building_room
     return nil unless room&.building
 
