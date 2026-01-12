@@ -2,7 +2,9 @@
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold">Courses</h1>
     <div class="flex gap-3">
-      <%= link_to "Manual Add", manual_add_admin_courses_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block bg-indigo-600 text-white hover:bg-indigo-700" %>
+      <% if policy(Course).manual_add? %>
+        <%= link_to "Manual Add", manual_add_admin_courses_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block bg-indigo-600 text-white hover:bg-indigo-700" %>
+      <% end %>
       <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
     </div>
   </div>

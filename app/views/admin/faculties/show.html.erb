@@ -156,7 +156,9 @@
     <% else %>
       <div class="flex items-center gap-4">
         <p class="text-sm text-gray-500">Not linked to Rate My Professor.</p>
-        <%= link_to "Search RMP", search_rmp_admin_faculty_path(@faculty), class: "text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded" %>
+        <% if policy(@faculty).search_rmp? %>
+          <%= link_to "Search RMP", search_rmp_admin_faculty_path(@faculty), class: "text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded" %>
+        <% end %>
       </div>
     <% end %>
   </div>

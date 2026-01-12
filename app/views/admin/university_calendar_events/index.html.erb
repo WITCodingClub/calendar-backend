@@ -2,10 +2,12 @@
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold">University Calendar Events</h1>
     <div class="flex gap-2">
-      <%= button_to "Sync Now", sync_admin_university_calendar_events_path,
-          method: :post,
-          class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block",
-          data: { turbo_confirm: "This will sync events from the university calendar feed. Continue?" } %>
+      <% if policy(UniversityCalendarEvent).sync? %>
+        <%= button_to "Sync Now", sync_admin_university_calendar_events_path,
+            method: :post,
+            class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block",
+            data: { turbo_confirm: "This will sync events from the university calendar feed. Continue?" } %>
+      <% end %>
       <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
     </div>
   </div>
