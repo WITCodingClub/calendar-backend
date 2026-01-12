@@ -314,6 +314,31 @@ RSpec.describe Faculty do
     end
   end
 
+  describe "#rmp_numeric_id" do
+    it "extracts numeric ID from base64-encoded GraphQL ID" do
+      # "Teacher-2196214" encoded as base64
+      encoded_id = Base64.strict_encode64("Teacher-2196214")
+      faculty = build(:faculty, rmp_id: encoded_id)
+      expect(faculty.rmp_numeric_id).to eq("2196214")
+    end
+
+    it "returns nil when rmp_id is blank" do
+      faculty = build(:faculty, rmp_id: nil)
+      expect(faculty.rmp_numeric_id).to be_nil
+    end
+
+    it "returns nil when rmp_id is empty string" do
+      faculty = build(:faculty, rmp_id: "")
+      expect(faculty.rmp_numeric_id).to be_nil
+    end
+
+    it "handles non-base64 IDs gracefully" do
+      faculty = build(:faculty, rmp_id: "12345")
+      # Non-base64 strings decode to garbage, but we handle it
+      expect(faculty.rmp_numeric_id).not_to be_nil
+    end
+  end
+
   describe "public_id" do
     it "generates a public_id with fac prefix" do
       faculty = create(:faculty)
