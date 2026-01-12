@@ -332,10 +332,22 @@ RSpec.describe Faculty do
       expect(faculty.rmp_numeric_id).to be_nil
     end
 
-    it "handles non-base64 IDs gracefully" do
+    it "returns original ID when already numeric" do
       faculty = build(:faculty, rmp_id: "12345")
-      # Non-base64 strings decode to garbage, but we handle it
-      expect(faculty.rmp_numeric_id).not_to be_nil
+      expect(faculty.rmp_numeric_id).to eq("12345")
+    end
+
+    it "returns original ID when base64 decodes to unexpected format" do
+      # Valid base64 that doesn't decode to "Teacher-XXXXX" format
+      encoded_id = Base64.strict_encode64("InvalidFormat")
+      faculty = build(:faculty, rmp_id: encoded_id)
+      expect(faculty.rmp_numeric_id).to eq(encoded_id)
+    end
+
+    it "returns original ID when base64 decodes to non-numeric suffix" do
+      encoded_id = Base64.strict_encode64("Teacher-abc123")
+      faculty = build(:faculty, rmp_id: encoded_id)
+      expect(faculty.rmp_numeric_id).to eq(encoded_id)
     end
   end
 

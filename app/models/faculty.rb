@@ -142,10 +142,14 @@ class Faculty < ApplicationRecord
     return nil if rmp_id.blank?
 
     decoded = Base64.decode64(rmp_id)
-    # Format is "Teacher-12345" - extract the numeric part
-    decoded.split("-").last
-  rescue ArgumentError
-    # If decoding fails, return original (might already be numeric)
+
+    # Validate expected format "Teacher-12345" and extract numeric part
+    if decoded.start_with?("Teacher-")
+      numeric_part = decoded.split("-", 2).last
+      return numeric_part if numeric_part.match?(/\A\d+\z/)
+    end
+
+    # If format doesn't match, assume rmp_id is already numeric
     rmp_id
   end
 
