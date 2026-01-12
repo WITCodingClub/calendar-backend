@@ -109,4 +109,26 @@ RSpec.describe MeetingTime do
       expect(meeting_time.building_room).to be_nil
     end
   end
+
+  describe "#all_day?" do
+    it "returns true when event spans 12:01pm to 11:59pm" do
+      meeting_time = build(:meeting_time, begin_time: 1201, end_time: 2359)
+      expect(meeting_time.all_day?).to be true
+    end
+
+    it "returns false for regular timed events" do
+      meeting_time = build(:meeting_time, begin_time: 900, end_time: 1050)
+      expect(meeting_time.all_day?).to be false
+    end
+
+    it "returns false when only begin_time matches" do
+      meeting_time = build(:meeting_time, begin_time: 1201, end_time: 1400)
+      expect(meeting_time.all_day?).to be false
+    end
+
+    it "returns false when only end_time matches" do
+      meeting_time = build(:meeting_time, begin_time: 800, end_time: 2359)
+      expect(meeting_time.all_day?).to be false
+    end
+  end
 end

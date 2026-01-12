@@ -68,7 +68,8 @@ module CourseScheduleSyncable
           end_time: end_time,
           course_code: course_code,
           meeting_time_id: meeting_time.id,
-          recurrence: recurrence
+          recurrence: recurrence,
+          all_day: meeting_time.all_day?
         }
       end
     end
@@ -140,7 +141,8 @@ module CourseScheduleSyncable
           end_time: end_time,
           course_code: course_code,
           meeting_time_id: meeting_time.id,
-          recurrence: recurrence
+          recurrence: recurrence,
+          all_day: meeting_time.all_day?
         }
       end
     end
@@ -202,7 +204,8 @@ module CourseScheduleSyncable
       end_time: end_time,
       course_code: course_code,
       meeting_time_id: meeting_time.id,
-      recurrence: recurrence
+      recurrence: recurrence,
+      all_day: meeting_time.all_day?
     }
 
     # Sync just this one event

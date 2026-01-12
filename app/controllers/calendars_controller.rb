@@ -95,8 +95,14 @@ class CalendarsController < ApplicationController
           start_time = parse_time(first_meeting_date, meeting_time.begin_time)
           end_time = parse_time(first_meeting_date, meeting_time.end_time)
 
-          e.dtstart = Icalendar::Values::DateTime.new(start_time, tzid: "America/New_York")
-          e.dtend = Icalendar::Values::DateTime.new(end_time, tzid: "America/New_York")
+          # Check if this is an all-day event (12:01pm-11:59pm in university calendar)
+          if meeting_time.all_day?
+            e.dtstart = Icalendar::Values::Date.new(first_meeting_date)
+            e.dtend = Icalendar::Values::Date.new(first_meeting_date + 1.day) # ICS all-day end is exclusive
+          else
+            e.dtstart = Icalendar::Values::DateTime.new(start_time, tzid: "America/New_York")
+            e.dtend = Icalendar::Values::DateTime.new(end_time, tzid: "America/New_York")
+          end
 
           # Resolve user preferences for this meeting time
           prefs = @preference_resolver.resolve_for(meeting_time)
@@ -132,14 +138,24 @@ class CalendarsController < ApplicationController
 
           # Recurring rule for this specific day of the week
           # Each meeting_time now represents a single day
-          # Format UNTIL with timezone (235959 = end of day in Eastern Time)
-          until_datetime = Time.zone.local(meeting_time.end_date.year, meeting_time.end_date.month, meeting_time.end_date.day, 23, 59, 59)
-          e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_datetime.strftime('%Y%m%dT%H%M%S')}"
+          if meeting_time.all_day?
+            # For all-day events, use date format for UNTIL
+            until_date = meeting_time.end_date.to_date
+            e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_date.strftime('%Y%m%d')}"
+          else
+            # For timed events, use datetime format for UNTIL (235959 = end of day in Eastern Time)
+            until_datetime = Time.zone.local(meeting_time.end_date.year, meeting_time.end_date.month, meeting_time.end_date.day, 23, 59, 59)
+            e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_datetime.strftime('%Y%m%dT%H%M%S')}"
+          end
 
           # Add EXDATE entries for holidays to skip class on those days
           holiday_exdates = build_holiday_exdates_for_meeting_time(meeting_time, start_time)
           holiday_exdates.each do |exdate|
-            e.append_exdate(Icalendar::Values::DateTime.new(exdate, tzid: "America/New_York"))
+            if meeting_time.all_day?
+              e.append_exdate(Icalendar::Values::Date.new(exdate.to_date))
+            else
+              e.append_exdate(Icalendar::Values::DateTime.new(exdate, tzid: "America/New_York"))
+            end
           end
 
           # Stable UID for consistent event identity across refreshes
