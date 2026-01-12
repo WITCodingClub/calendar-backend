@@ -7,8 +7,11 @@ module Admin
                                     .includes(:term)
                                     .order(start_time: :desc)
 
+      # Determine if we should show events without location
+      @show_all = params[:show_all] == "1"
+
       # By default, hide events without a location (unless explicitly showing all)
-      @university_calendar_events = @university_calendar_events.with_location unless params[:show_all] == "1"
+      @university_calendar_events = @university_calendar_events.with_location unless @show_all
 
       # Search filter
       if params[:search].present?
@@ -22,12 +25,14 @@ module Admin
         @university_calendar_events = @university_calendar_events.where(category: params[:category])
       end
 
-      # Stats for dashboard
+      # Stats for dashboard - respect the same location filter as the main listing
+      base_scope = @show_all ? UniversityCalendarEvent.all : UniversityCalendarEvent.with_location
+
       @stats = {
-        total: UniversityCalendarEvent.count,
-        holidays: UniversityCalendarEvent.holidays.count,
-        upcoming: UniversityCalendarEvent.upcoming.count,
-        categories: UniversityCalendarEvent.group(:category).count
+        total: base_scope.count,
+        holidays: base_scope.holidays.count,
+        upcoming: base_scope.upcoming.count,
+        categories: base_scope.group(:category).count
       }
 
       @university_calendar_events = @university_calendar_events.page(params[:page]).per(25)

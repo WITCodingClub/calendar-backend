@@ -154,7 +154,7 @@
     <h2 class="text-lg font-semibold mb-3">Events by Category</h2>
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
       <% @stats[:categories].each do |category, count| %>
-        <%= link_to admin_university_calendar_events_path(category: category),
+        <%= link_to admin_university_calendar_events_path(category: category, show_all: params[:show_all]),
             class: "stat-card p-3 rounded-lg text-center hover:opacity-80 transition-opacity" do %>
           <div class="text-xl font-bold text-gray-800"><%= count %></div>
           <div class="text-xs text-gray-600"><%= category&.titleize || 'Unknown' %></div>
