@@ -53,6 +53,29 @@ RSpec.describe CalendarPreference do
       end
     end
 
+    context "when scope is uni_cal_category" do
+      subject { build(:calendar_preference, user: user, scope: :uni_cal_category, event_type: "holiday") }
+
+      it "requires event_type to be present" do
+        subject.event_type = nil
+        expect(subject).not_to be_valid
+        expect(subject.errors[:event_type]).to be_present
+      end
+
+      it "validates event_type is a valid university calendar category" do
+        CalendarPreference::UNI_CAL_CATEGORIES.each do |category|
+          subject.event_type = category
+          expect(subject).to be_valid, "Expected #{category} to be valid"
+        end
+      end
+
+      it "rejects invalid event_type values" do
+        subject.event_type = "invalid_category"
+        expect(subject).not_to be_valid
+        expect(subject.errors[:event_type]).to be_present
+      end
+    end
+
     context "color_id validation" do
       subject { build(:calendar_preference, user: user, scope: :global) }
 
@@ -207,6 +230,8 @@ RSpec.describe CalendarPreference do
     let!(:global_pref) { create(:calendar_preference, user: user, scope: :global) }
     let!(:lecture_pref) { create(:calendar_preference, user: user, scope: :event_type, event_type: "lecture") }
     let!(:lab_pref) { create(:calendar_preference, user: user, scope: :event_type, event_type: "laboratory") }
+    let!(:holiday_pref) { create(:calendar_preference, user: user, scope: :uni_cal_category, event_type: "holiday") }
+    let!(:deadline_pref) { create(:calendar_preference, user: user, scope: :uni_cal_category, event_type: "deadline") }
 
     describe ".global_scope" do
       it "returns only global preferences" do
@@ -219,11 +244,23 @@ RSpec.describe CalendarPreference do
         expect(described_class.for_event_type("lecture")).to eq([lecture_pref])
       end
     end
+
+    describe ".for_uni_cal_category" do
+      it "returns preferences for specific university calendar category" do
+        expect(described_class.for_uni_cal_category("holiday")).to eq([holiday_pref])
+      end
+    end
+
+    describe ".uni_cal_categories_scope" do
+      it "returns only university calendar category preferences" do
+        expect(described_class.uni_cal_categories_scope).to match_array([holiday_pref, deadline_pref])
+      end
+    end
   end
 
   describe "enums" do
     it "defines scope enum" do
-      expect(described_class.scopes).to eq({ "global" => 0, "event_type" => 1 })
+      expect(described_class.scopes).to eq({ "global" => 0, "event_type" => 1, "uni_cal_category" => 2 })
     end
   end
 end

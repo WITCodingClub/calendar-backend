@@ -956,19 +956,19 @@ class GoogleCalendarService
   def apply_preferences_to_event(syncable, course_event, preference_resolver: nil, template_renderer: nil)
     return course_event unless syncable
 
-    # University events don't have preferences applied
-    return course_event if syncable.is_a?(UniversityCalendarEvent)
-
     # Use provided instances or create new ones (for backward compatibility)
     resolver = preference_resolver || PreferenceResolver.new(user)
     renderer = template_renderer || CalendarTemplateRenderer.new
 
-    # Resolve preferences for this syncable (meeting_time or final_exam)
+    # Resolve preferences for this syncable (meeting_time, final_exam, or university_calendar_event)
     prefs = resolver.resolve_for(syncable)
 
     # Build template context based on syncable type
-    context = if syncable.is_a?(FinalExam)
+    context = case syncable
+              when FinalExam
                 CalendarTemplateRenderer.build_context_from_final_exam(syncable)
+              when UniversityCalendarEvent
+                CalendarTemplateRenderer.build_context_from_university_calendar_event(syncable)
               else
                 CalendarTemplateRenderer.build_context_from_meeting_time(syncable)
               end

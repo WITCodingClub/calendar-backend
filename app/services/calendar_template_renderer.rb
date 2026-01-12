@@ -12,6 +12,7 @@ class CalendarTemplateRenderer
     term schedule_type schedule_type_short
     exam_date exam_date_short exam_time_of_day duration
     event_type is_final_exam combined_crns
+    summary description category organization academic_term
   ].freeze
 
   def self.validate_template(template_string)
@@ -155,7 +156,54 @@ class CalendarTemplateRenderer
     }
   end
 
+  def self.build_context_from_university_calendar_event(event)
+    {
+      # Primary fields for university events
+      summary: event.summary || "",
+      title: event.summary || "", # Alias for consistency with course events
+      description: event.description || "",
+      location: event.location || "",
+      category: event.category || "",
+      organization: event.organization || "",
+      academic_term: event.academic_term || "",
+      term: event.academic_term || "", # Alias for consistency
+      event_type: "university_calendar",
+
+      # Time fields
+      start_time: format_datetime(event.start_time),
+      end_time: format_datetime(event.end_time),
+      day: event.start_time&.strftime("%A") || "",
+      day_abbr: event.start_time&.strftime("%a") || "",
+
+      # Empty course-related fields (for template compatibility)
+      course_code: "",
+      subject: "",
+      course_number: "",
+      section_number: "",
+      crn: "",
+      room: "",
+      building: "",
+      faculty: "",
+      faculty_email: "",
+      all_faculty: "",
+      schedule_type: event.category&.titleize || "",
+      schedule_type_short: event.category || "",
+      is_final_exam: false,
+      exam_date: "",
+      exam_date_short: "",
+      exam_time_of_day: "",
+      duration: "",
+      combined_crns: ""
+    }
+  end
+
   private
+
+  def self.format_datetime(datetime)
+    return "" if datetime.nil?
+
+    datetime.strftime("%-I:%M %p")
+  end
 
   def self.check_for_disallowed_tags(parsed_template)
     # Liquid's default tags (if, case, for, etc.) are allowed

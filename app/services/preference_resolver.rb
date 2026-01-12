@@ -33,6 +33,17 @@ class PreferenceResolver
     visibility: "default"
   }.freeze
 
+  # Default templates and settings for university calendar events
+  # Users can customize per-category if they want, but all events use the same default color
+  UNI_CAL_DEFAULTS = {
+    title_template: "{{summary}}",
+    description_template: "{{description}}",
+    location_template: "{{location}}",
+    reminder_settings: [{ "time" => "1", "type" => "days", "method" => "popup" }],
+    color_id: 8, # Graphite - neutral, distinct from course events
+    visibility: "default"
+  }.freeze
+
   def initialize(user)
     @user = user
     @cache = {}
@@ -114,8 +125,22 @@ class PreferenceResolver
       end
     end
 
-    # 3. Check event-type preference (use preloaded data)
+    # 3. Check event-type preference or uni_cal_category preference (use preloaded data)
     event_type = extract_event_type(event)
+    uni_cal_category = extract_uni_cal_category(event)
+
+    # Check uni_cal_category preference for university calendar events
+    if uni_cal_category.present?
+      cat_pref = @calendar_preferences[["uni_cal_category", uni_cal_category]]
+      if cat_pref.present?
+        value = cat_pref.public_send(field)
+        if field == :reminder_settings ? !value.nil? : value.present?
+          return [value, "uni_cal_category:#{uni_cal_category}"]
+        end
+      end
+    end
+
+    # Check event-type preference for course events
     if event_type.present?
       type_pref = @calendar_preferences[["event_type", event_type]]
       if type_pref.present?
@@ -140,7 +165,7 @@ class PreferenceResolver
     end
 
     # 5. Use system defaults
-    default_value = system_default_for(field, event, event_type)
+    default_value = system_default_for(field, event, event_type, uni_cal_category)
     [default_value, "system_default"]
   end
 
@@ -153,6 +178,7 @@ class PreferenceResolver
     when GoogleCalendarEvent
       # Check if it's a final exam event first
       return "final_exam" if event.final_exam_id.present?
+
       # If GoogleCalendarEvent has meeting_time, use its schedule_type
       event.meeting_time&.course&.schedule_type
     else
@@ -160,10 +186,27 @@ class PreferenceResolver
     end
   end
 
-  def system_default_for(field, event, event_type)
+  def extract_uni_cal_category(event)
+    case event
+    when UniversityCalendarEvent
+      event.category
+    when GoogleCalendarEvent
+      # If GoogleCalendarEvent has university_calendar_event, use its category
+      event.university_calendar_event&.category
+    else
+      nil
+    end
+  end
+
+  def system_default_for(field, event, event_type, uni_cal_category = nil)
     # Use final exam defaults for final exams
     if event_type == "final_exam"
       return FINAL_EXAM_DEFAULTS[field]
+    end
+
+    # Use university calendar event defaults
+    if uni_cal_category.present?
+      return UNI_CAL_DEFAULTS[field]
     end
 
     # Special handling for color_id: use user extension config, then meeting time's event color
