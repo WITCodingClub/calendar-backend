@@ -198,7 +198,6 @@ class CalendarTemplateRenderer
   end
 
   class << self
-
     private
 
     def format_datetime(datetime)
@@ -294,6 +293,7 @@ class CalendarTemplateRenderer
         schedule_type.capitalize
       end
     end
+
   end
 
 end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Find user by calendar token
 user = User.find_by(calendar_token: "3bAD51jA546jrRFE4Ex553oH5awdljzSrIm2bd8qk6o")
 if user
