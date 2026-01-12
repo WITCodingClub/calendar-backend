@@ -99,7 +99,7 @@ class UniversityCalendarIcsService < ApplicationService
     # Determine if this should be an all-day event
     # Force holidays to be all-day regardless of ICS format
     is_all_day = category == "holiday" || all_day_event?(ics_event)
-    
+
     # For all-day events, normalize times to beginning and end of day
     # but preserve original date range for multi-day events
     if is_all_day
@@ -108,19 +108,19 @@ class UniversityCalendarIcsService < ApplicationService
       end_time = original_end_date.end_of_day
     end
 
-    # Assign attributes
+    # Assign attributes (decode HTML entities from ICS feed)
     event.assign_attributes(
-      summary: ics_event.summary.to_s,
+      summary: decode_html_entities(ics_event.summary.to_s),
       description: description,
-      location: ics_event.location&.to_s,
+      location: decode_html_entities(ics_event.location&.to_s),
       start_time: start_time,
       end_time: end_time,
       all_day: is_all_day,
       recurrence: extract_recurrence(ics_event),
       category: category,
-      organization: custom_fields["Organization"],
-      academic_term: custom_fields["Academic Term"],
-      event_type_raw: custom_fields["Event Type"],
+      organization: decode_html_entities(custom_fields["Organization"]),
+      academic_term: decode_html_entities(custom_fields["Academic Term"]),
+      event_type_raw: decode_html_entities(custom_fields["Event Type"]),
       last_fetched_at: Time.current,
       source_url: ics_url
     )
@@ -202,16 +202,19 @@ class UniversityCalendarIcsService < ApplicationService
     return nil if description.blank?
 
     # Remove HTML tags and decode entities
-    description
-      .gsub(/<br\s*\/?>/, "\n")
-      .gsub(/<[^>]+>/, "")
-      .gsub("&nbsp;", " ")
-      .gsub("&amp;", "&")
-      .gsub("&lt;", "<")
-      .gsub("&gt;", ">")
-      .gsub(/&#(\d+);/) { [::Regexp.last_match(1).to_i].pack("U") rescue ::Regexp.last_match(0) }
-      .strip
-      .presence
+    result = description
+             .gsub(/<br\s*\/?>/, "\n")
+             .gsub(/<[^>]+>/, "")
+
+    decode_html_entities(result)&.strip&.presence
+  end
+
+  # Decode HTML entities using HTMLEntities gem for robust handling
+  # Handles: &amp; -> &, &nbsp; -> space, &ndash; -> –, &#123; -> numeric entities, etc.
+  def decode_html_entities(text)
+    return nil if text.blank?
+
+    HTMLEntities.new.decode(text.to_s)
   end
 
   def find_term_from_academic_term(academic_term_str, event_date)

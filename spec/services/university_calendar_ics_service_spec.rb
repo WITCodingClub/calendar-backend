@@ -205,4 +205,79 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
       expect(event.source_url).to eq(ics_url)
     end
   end
+
+  describe "HTML entity decoding" do
+    # Note: In ICS format, semicolons must be escaped with backslash
+    # Real ICS feeds from 25Live escape HTML entities this way
+    let(:ics_with_html_entities) do
+      <<~ICS
+        BEGIN:VCALENDAR
+        VERSION:2.0
+        PRODID:-//Test//Test//EN
+        BEGIN:VEVENT
+        DTSTART;VALUE=DATE:20251001
+        DTEND;VALUE=DATE:20251002
+        DTSTAMP:20251224T000000Z
+        UID:event-html-entities@university.edu
+        SUMMARY:Arts &amp\\; Sciences Festival
+        DESCRIPTION:Join us for an arts &amp\\; sciences event!<br/>Food &amp\\; drinks provided.
+        LOCATION:Building A &amp\\; B
+        X-TRUMBA-CUSTOMFIELD;NAME="Organization";ID=3;TYPE=SingleLine:Student Government &amp\\; Activities
+        X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Fall
+        X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Campus Event &ndash\\; General
+        END:VEVENT
+        BEGIN:VEVENT
+        DTSTART;VALUE=DATE:20251015
+        DTEND;VALUE=DATE:20251016
+        DTSTAMP:20251224T000000Z
+        UID:event-numeric-entities@university.edu
+        SUMMARY:Caf&#233\\; Night &#38\\; More
+        DESCRIPTION:Special caf&#233\\; event.
+        LOCATION:Room &#35\\;101
+        END:VEVENT
+        END:VCALENDAR
+      ICS
+    end
+
+    before do
+      stub_request(:get, ics_url)
+        .to_return(status: 200, body: ics_with_html_entities)
+      described_class.call
+    end
+
+    it "decodes &amp; in summary" do
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-html-entities@university.edu")
+      expect(event.summary).to eq("Arts & Sciences Festival")
+    end
+
+    it "decodes &amp; in location" do
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-html-entities@university.edu")
+      expect(event.location).to eq("Building A & B")
+    end
+
+    it "decodes &amp; and HTML tags in description" do
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-html-entities@university.edu")
+      expect(event.description).to eq("Join us for an arts & sciences event!\nFood & drinks provided.")
+    end
+
+    it "decodes &amp; in organization custom field" do
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-html-entities@university.edu")
+      expect(event.organization).to eq("Student Government & Activities")
+    end
+
+    it "decodes &ndash; in event_type_raw custom field" do
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-html-entities@university.edu")
+      expect(event.event_type_raw).to eq("Campus Event – General")
+    end
+
+    it "decodes numeric HTML entities like &#233; and &#38;" do
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-numeric-entities@university.edu")
+      expect(event.summary).to eq("Café Night & More")
+    end
+
+    it "decodes numeric HTML entities in location" do
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-numeric-entities@university.edu")
+      expect(event.location).to eq("Room #101")
+    end
+  end
 end
