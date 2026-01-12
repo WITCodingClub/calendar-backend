@@ -56,17 +56,10 @@ jobs:
         with:
           bundler-cache: true
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'npm'
-
       - name: Install dependencies
         run: |
           gem install bundler
           bundle install
-          npm install
 
       - name: Setup Database
         env:
