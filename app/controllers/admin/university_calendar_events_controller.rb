@@ -9,9 +9,13 @@ module Admin
 
       # Determine if we should show events without location
       @show_all = params[:show_all] == "1"
+      @category_filter = params[:category].presence
 
-      # By default, hide events without a location (unless explicitly showing all)
-      @university_calendar_events = @university_calendar_events.with_location unless @show_all
+      # When filtering by category, show all events in that category (bypass location filter)
+      # Otherwise, by default hide events without a location (unless explicitly showing all)
+      unless @show_all || @category_filter
+        @university_calendar_events = @university_calendar_events.with_location
+      end
 
       # Search filter
       if params[:search].present?
@@ -21,18 +25,19 @@ module Admin
       end
 
       # Category filter
-      if params[:category].present?
-        @university_calendar_events = @university_calendar_events.where(category: params[:category])
+      if @category_filter
+        @university_calendar_events = @university_calendar_events.where(category: @category_filter)
       end
 
-      # Stats for dashboard - respect the same location filter as the main listing
+      # Stats for dashboard - category counts show ALL events in each category (regardless of location)
+      # so clicking a category link shows all events that match that count
       base_scope = @show_all ? UniversityCalendarEvent.all : UniversityCalendarEvent.with_location
 
       @stats = {
         total: base_scope.count,
         holidays: base_scope.holidays.count,
         upcoming: base_scope.upcoming.count,
-        categories: base_scope.group(:category).count
+        categories: UniversityCalendarEvent.group(:category).count # Always show true category counts
       }
 
       @university_calendar_events = @university_calendar_events.page(params[:page]).per(25)

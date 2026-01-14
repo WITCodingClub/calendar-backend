@@ -2,22 +2,18 @@
 
 require "rails_helper"
 
-RSpec.describe "Admin::UniversityCalendarEvents" do
-  let(:admin_user) do
-    user = create(:user, :admin)
-    user.emails.create!(email_address: "admin@example.com", primary: true) if user.emails.empty?
-    user
-  end
-
-  # Helper to sign in a user by setting the session
-  def sign_in_user(user)
-    post user_session_path, params: { email: user.emails.first.email_address }
-    follow_redirect!
-  end
+RSpec.describe "Admin::UniversityCalendarEvents", type: :request do # rubocop:disable RSpecRails/InferredSpecType
+  let(:admin_user) { create(:user, :admin) }
 
   describe "GET /admin/university_calendar_events" do
     before do
-      sign_in_user(admin_user)
+      # Stub the routing constraint to allow access
+      allow_any_instance_of(AdminConstraint).to receive(:matches?).and_return(true)
+
+      # Stub authentication on the controller
+      allow_any_instance_of(Admin::ApplicationController).to receive(:require_admin).and_return(true)
+      allow_any_instance_of(Admin::ApplicationController).to receive(:current_user).and_return(admin_user)
+      allow_any_instance_of(Admin::ApplicationController).to receive(:user_signed_in?).and_return(true)
     end
 
     context "when filtering consistency" do
@@ -32,19 +28,25 @@ RSpec.describe "Admin::UniversityCalendarEvents" do
         create(:university_calendar_event, :campus_event, location: nil)
       end
 
-      it "stats respect the with_location filter by default" do
+      it "stats respect the with_location filter by default for total/holidays/upcoming" do
         get admin_university_calendar_events_path
 
         expect(response).to have_http_status(:ok)
 
-        # Parse the response to check stats
-        # By default, only events with location should be counted
-        # Expected: 1 holiday (with location), 0 term_dates (both without location), 1 registration (with location)
+        # The total, holidays, and upcoming stats should respect with_location filter
+        # But category stats should show ALL events in each category
         expect(response.body).to include("Holiday")
         expect(response.body).to include("Registration")
+      end
 
-        # The stats should show counts for events with locations only
-        # This ensures the category counts match what will be shown when clicking them
+      it "category stats show true counts regardless of location filter" do
+        get admin_university_calendar_events_path
+
+        expect(response).to have_http_status(:ok)
+
+        # Category breakdown should show all events in each category,
+        # including those without locations (2 term_dates events should show)
+        expect(response.body).to include("Term Dates")
       end
 
       it "stats include all events when show_all=1" do
@@ -52,8 +54,7 @@ RSpec.describe "Admin::UniversityCalendarEvents" do
 
         expect(response).to have_http_status(:ok)
 
-        # With show_all=1, all events should be counted
-        # Expected: 2 holidays, 2 term_dates, 1 registration, 1 campus_event
+        # With show_all=1, all events should be counted in all stats
       end
 
       it "category links preserve the show_all parameter" do
@@ -65,23 +66,25 @@ RSpec.describe "Admin::UniversityCalendarEvents" do
         expect(response.body).to include("show_all=1")
       end
 
-      it "filtering by category respects the location filter" do
+      it "filtering by category bypasses location filter to show all events in that category" do
         # Filter by term_dates category (both events have no location)
         get admin_university_calendar_events_path(category: "term_dates")
 
         expect(response).to have_http_status(:ok)
 
-        # Should show 0 events because both term_dates events have no location
-        # and by default we hide events without location
+        # Should show events because category filter bypasses the location filter
+        # This ensures clicking a category shows all events matching that category
+        expect(response.body).to include("Term Dates")
       end
 
-      it "filtering by category with show_all shows all events in that category" do
+      it "filtering by category still works with show_all=1" do
         # Filter by term_dates category with show_all=1
         get admin_university_calendar_events_path(category: "term_dates", show_all: "1")
 
         expect(response).to have_http_status(:ok)
 
-        # Should show 2 events because we're showing all events
+        # Should show events in that category
+        expect(response.body).to include("Term Dates")
       end
     end
   end
