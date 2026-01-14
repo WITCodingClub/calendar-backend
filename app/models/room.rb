@@ -27,13 +27,19 @@ class Room < ApplicationRecord
   belongs_to :building
 
   def floor
-    # get first digit of room number
-    number.to_s[0].to_i
+    # Extract first digit from the room number string
+    match = number.to_s.match(/\d/)
+    match ? match[0].to_i : 0
   end
 
   def formatted_number
-    # Pad room numbers to 3 digits (e.g., 6 becomes "006")
-    number.to_s.rjust(3, "0")
+    # If the room number is purely numeric, pad to 3 digits.
+    # Otherwise, return as is.
+    if number.to_s.match?(/\A\d+\z/)
+      number.to_s.rjust(3, "0")
+    else
+      number.to_s
+    end
   end
 
 end
