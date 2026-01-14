@@ -13,7 +13,7 @@
 #  recurrence                   :text
 #  start_time                   :datetime
 #  summary                      :string
-#  user_edited                  :boolean          default(FALSE), not null
+#  user_edited_fields           :text
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
 #  final_exam_id                :bigint
@@ -69,6 +69,9 @@ class GoogleCalendarEvent < ApplicationRecord
   # Serialize recurrence as an array
   serialize :recurrence, coder: JSON
 
+  # Serialize user_edited_fields as JSON array of field names
+  serialize :user_edited_fields, coder: JSON
+
   scope :for_user, ->(user) { where(user: user) }
   scope :for_calendar, ->(calendar) { where(google_calendar: calendar) }
   scope :for_meeting_time, ->(meeting_time_id) { where(meeting_time_id: meeting_time_id) }
@@ -79,8 +82,8 @@ class GoogleCalendarEvent < ApplicationRecord
   scope :courses_only, -> { where.not(meeting_time_id: nil) }
   scope :university_events_only, -> { where.not(university_calendar_event_id: nil) }
   scope :for_university_calendar_event, ->(event_id) { where(university_calendar_event_id: event_id) }
-  scope :user_edited, -> { where(user_edited: true) }
-  scope :not_user_edited, -> { where(user_edited: false) }
+  scope :user_edited, -> { where.not(user_edited_fields: nil) }
+  scope :not_user_edited, -> { where(user_edited_fields: nil) }
 
   # Returns true if this event is for a final exam
   def final_exam?
@@ -136,14 +139,35 @@ class GoogleCalendarEvent < ApplicationRecord
     update_columns(last_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
   end
 
-  # Mark as user-edited (preserves user's Google Calendar changes)
-  def mark_user_edited!
-    update_columns(user_edited: true) # rubocop:disable Rails/SkipsModelValidations
+  # Fields that can be tracked for user edits
+  TRACKABLE_FIELDS = %w[summary location description start_time end_time].freeze
+
+  # Check if user has edited any fields
+  def user_edited?
+    user_edited_fields.present? && user_edited_fields.any?
   end
 
-  # Clear user-edited flag (allows system updates again)
-  def clear_user_edited!
-    update_columns(user_edited: false) # rubocop:disable Rails/SkipsModelValidations
+  # Check if a specific field was edited by the user
+  def field_edited?(field)
+    user_edited_fields&.include?(field.to_s)
+  end
+
+  # Mark specific fields as user-edited
+  def mark_fields_edited!(fields)
+    current_fields = user_edited_fields || []
+    new_fields = (current_fields + Array(fields).map(&:to_s)).uniq & TRACKABLE_FIELDS
+    update_columns(user_edited_fields: new_fields) # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  # Clear specific user-edited fields (or all if none specified)
+  def clear_edited_fields!(fields = nil)
+    if fields.nil?
+      update_columns(user_edited_fields: nil) # rubocop:disable Rails/SkipsModelValidations
+    else
+      current_fields = user_edited_fields || []
+      remaining = current_fields - Array(fields).map(&:to_s)
+      update_columns(user_edited_fields: remaining.empty? ? nil : remaining) # rubocop:disable Rails/SkipsModelValidations
+    end
   end
 
   # Check if event needs syncing based on staleness

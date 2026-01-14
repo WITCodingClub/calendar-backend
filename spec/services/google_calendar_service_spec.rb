@@ -25,6 +25,7 @@ RSpec.describe GoogleCalendarService do
       double("Google::Apis::CalendarV3::Event",
              summary: "Original Course Title",
              location: "Room 101",
+             description: nil,
              start: double(date_time: "2025-01-15T09:00:00-05:00", date: nil),
              end: double(date_time: "2025-01-15T10:30:00-05:00", date: nil),
              recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"])
@@ -282,34 +283,40 @@ RSpec.describe GoogleCalendarService do
 
     let(:mock_service) { double("Google::Apis::CalendarV3::CalendarService") }
 
-    context "when user has edited the event in Google Calendar" do
+    context "when user has edited specific fields in Google Calendar" do
       let(:gcal_event) do
         double("Google::Apis::CalendarV3::Event",
                summary: "User Modified Title in GCal",
                location: "Room 999 - User Changed",
+               description: nil,
                start: double(date_time: "2025-01-15T09:00:00-05:00", date: nil),
                end: double(date_time: "2025-01-15T10:30:00-05:00", date: nil),
                recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"])
       end
 
+      let(:updated_gcal_event) do
+        double("Google::Apis::CalendarV3::Event", id: db_event.google_event_id)
+      end
+
       before do
-        allow(service).to receive(:service_account_calendar_service).and_return(mock_service)
         allow(mock_service).to receive(:get_event).with(
           google_calendar.google_calendar_id,
           db_event.google_event_id
         ).and_return(gcal_event)
-        # Stub update_event so we can verify it's not called
-        allow(mock_service).to receive(:update_event)
+        allow(mock_service).to receive(:update_event).and_return(updated_gcal_event)
+        # Stub apply_preferences_to_event to return course_event as-is
+        allow(service).to receive_messages(service_account_calendar_service: mock_service, apply_preferences_to_event: course_event)
       end
 
-      it "preserves user's Google Calendar edits and does not overwrite them" do
+      it "preserves user-edited fields while allowing system updates to other fields" do
         service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
 
         db_event.reload
-        # Should have user's edits, not the system's update
+        # User-edited fields should be preserved
         expect(db_event.summary).to eq("User Modified Title in GCal")
         expect(db_event.location).to eq("Room 999 - User Changed")
-        expect(mock_service).not_to have_received(:update_event)
+        # Google Calendar should be updated with merged data
+        expect(mock_service).to have_received(:update_event)
       end
 
       it "marks the event as synced" do
@@ -319,42 +326,50 @@ RSpec.describe GoogleCalendarService do
         expect(db_event.last_synced_at).to be_within(1.second).of(Time.current)
       end
 
-      it "sets the user_edited flag to persist the detection" do
+      it "tracks which fields were user-edited" do
         service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
 
         db_event.reload
-        expect(db_event.user_edited).to be true
+        expect(db_event.user_edited_fields).to include("summary", "location")
       end
     end
 
-    context "when event was previously marked as user_edited" do
+    context "when event has previously tracked user-edited fields" do
+      let(:gcal_event) do
+        double("Google::Apis::CalendarV3::Event",
+               summary: "User Modified Title in GCal",
+               location: "Room 101", # Same as DB - not newly edited
+               description: nil,
+               start: double(date_time: "2025-01-15T09:00:00-05:00", date: nil),
+               end: double(date_time: "2025-01-15T10:30:00-05:00", date: nil),
+               recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"])
+      end
+
+      let(:updated_gcal_event) do
+        double("Google::Apis::CalendarV3::Event", id: db_event.google_event_id)
+      end
+
       before do
-        db_event.update!(user_edited: true)
-        allow(service).to receive(:service_account_calendar_service).and_return(mock_service)
-        allow(mock_service).to receive(:get_event)
-        allow(mock_service).to receive(:update_event)
+        # Previously tracked that user edited location
+        db_event.update!(user_edited_fields: %w[location])
+        allow(mock_service).to receive_messages(get_event: gcal_event, update_event: updated_gcal_event)
+        allow(service).to receive_messages(service_account_calendar_service: mock_service, apply_preferences_to_event: course_event)
       end
 
-      it "skips the event without fetching from Google Calendar" do
-        result = service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
-
-        expect(result).to eq(:skipped_user_edit)
-        expect(mock_service).not_to have_received(:get_event)
-        expect(mock_service).not_to have_received(:update_event)
-      end
-
-      it "marks the event as synced" do
+      it "merges previously tracked fields with newly detected edits" do
         service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
 
         db_event.reload
-        expect(db_event.last_synced_at).to be_within(1.second).of(Time.current)
+        # Should track both previously tracked (location) and newly detected (summary)
+        expect(db_event.user_edited_fields).to include("summary", "location")
       end
 
-      it "preserves the user_edited flag" do
+      it "preserves all user-edited field values" do
         service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
 
         db_event.reload
-        expect(db_event.user_edited).to be true
+        # Summary was newly edited, location was previously tracked
+        expect(db_event.summary).to eq("User Modified Title in GCal")
       end
     end
 
@@ -363,6 +378,7 @@ RSpec.describe GoogleCalendarService do
         double("Google::Apis::CalendarV3::Event",
                summary: "Original Course Title",
                location: "Room 101",
+               description: nil,
                start: double(date_time: "2025-01-15T09:00:00-05:00", date: nil),
                end: double(date_time: "2025-01-15T10:30:00-05:00", date: nil),
                recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"])
@@ -468,22 +484,24 @@ RSpec.describe GoogleCalendarService do
         expect(db_event.location).to eq("Room 303")
       end
 
-      it "clears the user_edited flag after successful update" do
-        db_event.update!(user_edited: true)
+      it "clears the user_edited_fields after successful update" do
+        db_event.update!(user_edited_fields: %w[summary location])
 
         service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event, force: true)
 
         db_event.reload
-        expect(db_event.user_edited).to be false
+        expect(db_event.user_edited_fields).to be_nil
       end
 
-      it "bypasses the persistent user_edited flag check" do
-        db_event.update!(user_edited: true)
+      it "overwrites previously tracked user edits when force=true" do
+        db_event.update!(user_edited_fields: %w[summary location])
 
         result = service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event, force: true)
 
         expect(result).to eq(:updated)
         expect(mock_service).to have_received(:update_event)
+        db_event.reload
+        expect(db_event.summary).to eq("Updated Course Title from System")
       end
 
       context "with color preferences" do

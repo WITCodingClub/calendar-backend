@@ -13,7 +13,7 @@
 #  recurrence                   :text
 #  start_time                   :datetime
 #  summary                      :string
-#  user_edited                  :boolean          default(FALSE), not null
+#  user_edited_fields           :text
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
 #  final_exam_id                :bigint
@@ -274,25 +274,100 @@ RSpec.describe GoogleCalendarEvent do
     end
   end
 
-  describe "#mark_user_edited!" do
-    let(:event) { create(:google_calendar_event, user_edited: false) }
+  describe "#user_edited?" do
+    it "returns false when user_edited_fields is nil" do
+      event = build(:google_calendar_event, user_edited_fields: nil)
+      expect(event.user_edited?).to be false
+    end
 
-    it "sets user_edited to true" do
-      expect { event.mark_user_edited! }.to change { event.reload.user_edited }.from(false).to(true)
+    it "returns false when user_edited_fields is empty" do
+      event = build(:google_calendar_event, user_edited_fields: [])
+      expect(event.user_edited?).to be false
+    end
+
+    it "returns true when user_edited_fields has values" do
+      event = build(:google_calendar_event, user_edited_fields: %w[summary])
+      expect(event.user_edited?).to be true
     end
   end
 
-  describe "#clear_user_edited!" do
-    let(:event) { create(:google_calendar_event, user_edited: true) }
+  describe "#field_edited?" do
+    let(:event) { build(:google_calendar_event, user_edited_fields: %w[summary location]) }
 
-    it "sets user_edited to false" do
-      expect { event.clear_user_edited! }.to change { event.reload.user_edited }.from(true).to(false)
+    it "returns true for edited fields" do
+      expect(event.field_edited?(:summary)).to be true
+      expect(event.field_edited?("location")).to be true
+    end
+
+    it "returns false for non-edited fields" do
+      expect(event.field_edited?(:description)).to be false
+      expect(event.field_edited?("start_time")).to be false
+    end
+
+    it "returns false when user_edited_fields is nil" do
+      event = build(:google_calendar_event, user_edited_fields: nil)
+      expect(event).not_to be_field_edited(:summary)
+    end
+  end
+
+  describe "#mark_fields_edited!" do
+    let(:event) { create(:google_calendar_event, user_edited_fields: nil) }
+
+    it "marks a single field as edited" do
+      event.mark_fields_edited!(:summary)
+      expect(event.reload.user_edited_fields).to eq(%w[summary])
+    end
+
+    it "marks multiple fields as edited" do
+      event.mark_fields_edited!(%w[summary location])
+      expect(event.reload.user_edited_fields).to match_array(%w[summary location])
+    end
+
+    it "accumulates edited fields" do
+      event.mark_fields_edited!(:summary)
+      event.mark_fields_edited!(:location)
+      expect(event.reload.user_edited_fields).to match_array(%w[summary location])
+    end
+
+    it "does not duplicate fields" do
+      event.mark_fields_edited!(:summary)
+      event.mark_fields_edited!(:summary)
+      expect(event.reload.user_edited_fields).to eq(%w[summary])
+    end
+
+    it "only tracks valid fields" do
+      event.mark_fields_edited!(%w[summary invalid_field location])
+      expect(event.reload.user_edited_fields).to match_array(%w[summary location])
+    end
+  end
+
+  describe "#clear_edited_fields!" do
+    let(:event) { create(:google_calendar_event, user_edited_fields: %w[summary location description]) }
+
+    it "clears all fields when called without arguments" do
+      event.clear_edited_fields!
+      expect(event.reload.user_edited_fields).to be_nil
+    end
+
+    it "clears specific fields when called with arguments" do
+      event.clear_edited_fields!(:summary)
+      expect(event.reload.user_edited_fields).to match_array(%w[location description])
+    end
+
+    it "clears multiple specific fields" do
+      event.clear_edited_fields!(%w[summary location])
+      expect(event.reload.user_edited_fields).to eq(%w[description])
+    end
+
+    it "sets to nil when all fields are cleared" do
+      event.clear_edited_fields!(%w[summary location description])
+      expect(event.reload.user_edited_fields).to be_nil
     end
   end
 
   describe ".user_edited scope" do
-    let!(:edited_event) { create(:google_calendar_event, user_edited: true) }
-    let!(:unedited_event) { create(:google_calendar_event, user_edited: false) }
+    let!(:edited_event) { create(:google_calendar_event, user_edited_fields: %w[summary]) }
+    let!(:unedited_event) { create(:google_calendar_event, user_edited_fields: nil) }
 
     it "returns only user-edited events" do
       expect(described_class.user_edited).to contain_exactly(edited_event)
@@ -300,8 +375,8 @@ RSpec.describe GoogleCalendarEvent do
   end
 
   describe ".not_user_edited scope" do
-    let!(:edited_event) { create(:google_calendar_event, user_edited: true) }
-    let!(:unedited_event) { create(:google_calendar_event, user_edited: false) }
+    let!(:edited_event) { create(:google_calendar_event, user_edited_fields: %w[summary]) }
+    let!(:unedited_event) { create(:google_calendar_event, user_edited_fields: nil) }
 
     it "returns only non-user-edited events" do
       expect(described_class.not_user_edited).to contain_exactly(unedited_event)
