@@ -109,4 +109,43 @@ namespace :catalog do
 
     puts "\nCatalog refresh completed for term #{term.name}."
   end
+
+  desc "Refreshes the course catalog for ALL terms from LeopardWeb."
+  task :refresh_all => :environment do
+    puts "Starting catalog refresh for ALL terms..."
+
+    terms_to_refresh = Term.all
+
+    if terms_to_refresh.empty?
+      puts "No terms found in the database. Nothing to refresh."
+      next
+    end
+
+    puts "Found #{terms_to_refresh.count} terms to refresh: #{terms_to_refresh.map(&:name).join(', ')}"
+    puts "This will take a long time."
+    puts "Press CTRL-C to cancel."
+    5.downto(1) do |i|
+      print "Continuing in #{i}..."
+      sleep 1
+      print "\r"
+    end
+
+    terms_to_refresh.each do |term|
+      puts "\n" + "="*80
+      puts "Refreshing term: #{term.name} (#{term.uid})"
+      puts "="*80
+
+      begin
+        Rake::Task["catalog:refresh"].invoke(term.uid.to_s)
+        Rake::Task["catalog:refresh"].reenable
+      rescue => e
+        puts "ERROR: Failed to refresh term #{term.name} (#{term.uid}). Reason: #{e.message}"
+        puts "Skipping to next term."
+      end
+    end
+
+    puts "\n" + "="*80
+    puts "Completed refresh for all terms."
+  end
+end
 end
