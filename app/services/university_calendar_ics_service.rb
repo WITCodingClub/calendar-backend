@@ -143,7 +143,7 @@ class UniversityCalendarIcsService < ApplicationService
       was_new ? stats[:created] += 1 : stats[:updated] += 1
     else
       # Just update the last_fetched_at timestamp
-      event.update_column(:last_fetched_at, Time.current) if event.persisted?
+      event.update_column(:last_fetched_at, Time.current) if event.persisted? # rubocop:disable Rails/SkipsModelValidations
       stats[:unchanged] += 1
     end
   end

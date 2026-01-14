@@ -86,10 +86,12 @@ module CourseScheduleSyncable
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
+      # rubocop:disable Rails/SkipsModelValidations
       update_columns(
         last_calendar_sync_at: Time.current,
         calendar_needs_sync: false
       )
+      # rubocop:enable Rails/SkipsModelValidations
     end
 
     result
@@ -152,10 +154,12 @@ module CourseScheduleSyncable
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
+      # rubocop:disable Rails/SkipsModelValidations
       update_columns(
         last_calendar_sync_at: Time.current,
         calendar_needs_sync: false
       )
+      # rubocop:enable Rails/SkipsModelValidations
     end
 
     result
@@ -213,7 +217,7 @@ module CourseScheduleSyncable
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
-      update_column(:last_calendar_sync_at, Time.current)
+      update_column(:last_calendar_sync_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
     end
 
     result
@@ -492,7 +496,7 @@ module CourseScheduleSyncable
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
-      update_column(:last_calendar_sync_at, Time.current)
+      update_column(:last_calendar_sync_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
     end
 
     result
