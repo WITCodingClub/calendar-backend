@@ -52,6 +52,11 @@ class PreferenceResolver
     preload_preferences
   end
 
+  # Returns whether DND mode is currently active for this user
+  def notifications_disabled?
+    @notifications_disabled
+  end
+
   # Resolve preferences for a MeetingTime or GoogleCalendarEvent
   def resolve_for(event)
     cache_key = cache_key_for(event)
@@ -62,13 +67,29 @@ class PreferenceResolver
     resolved
   end
 
+  # Resolve preferences for API display purposes (ignoring DND override)
+  # Returns the ACTUAL configured preferences so the frontend can display them
+  # Use this for showing users what reminders they have configured
+  def resolve_actual_for(event)
+    preferences = {}
+
+    PREFERENCE_FIELDS.each do |field|
+      preferences[field] = resolve_field(event, field, ignore_dnd: true).first
+    end
+
+    preferences
+  end
+
   # Resolve and return source information for debugging/UI
+  # This returns the ACTUAL configured preferences (ignoring DND override)
+  # so the frontend can display what the user has configured
   def resolve_with_sources(event)
     preferences = {}
     sources = {}
 
     PREFERENCE_FIELDS.each do |field|
-      value, source = resolve_field(event, field)
+      # For API display, always ignore DND so we show actual configured reminders
+      value, source = resolve_field(event, field, ignore_dnd: true)
       preferences[field] = value
       sources[field] = source
     end
@@ -106,10 +127,11 @@ class PreferenceResolver
     preferences
   end
 
-  def resolve_field(event, field)
-    # If notifications are disabled (DND mode), always return empty reminder_settings
+  def resolve_field(event, field, ignore_dnd: false)
+    # If notifications are disabled (DND mode), return empty reminder_settings
     # This overrides all preference levels while preserving the original settings
-    if field == :reminder_settings && @notifications_disabled
+    # Set ignore_dnd: true to skip this check (e.g., for API display purposes)
+    if field == :reminder_settings && @notifications_disabled && !ignore_dnd
       return [[], "dnd_override"]
     end
 

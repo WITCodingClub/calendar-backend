@@ -33,7 +33,8 @@ module Api
         resolved: resolved_prefs,
         sources: resolved_data[:sources],
         preview: preview,
-        templates: context
+        templates: context,
+        notifications_disabled: resolver.notifications_disabled?
       }
     end
 
@@ -73,7 +74,8 @@ module Api
           resolved: resolved_prefs,
           sources: resolved_data[:sources],
           preview: preview,
-          templates: context
+          templates: context,
+          notifications_disabled: fresh_resolver.notifications_disabled?
         }
       else
         render json: { errors: preference.errors.full_messages }, status: :unprocessable_content

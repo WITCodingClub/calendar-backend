@@ -408,22 +408,74 @@ RSpec.describe PreferenceResolver do
 
         let(:dnd_resolver) { described_class.new(user) }
 
-        it "shows dnd_override as source for reminder_settings" do
+        it "returns actual reminder_settings for API display (ignores DND)" do
           result = dnd_resolver.resolve_with_sources(meeting_time)
 
-          expect(result[:preferences][:reminder_settings]).to eq([])
-          expect(result[:sources][:reminder_settings]).to eq("dnd_override")
+          # resolve_with_sources ignores DND so the API can display what the user configured
+          expect(result[:preferences][:reminder_settings]).to eq([{ "time" => "30", "type" => "minutes", "method" => "popup" }])
+          expect(result[:sources][:reminder_settings]).to eq("system_default")
         end
 
-        it "shows dnd_override even when other preferences are set" do
+        it "returns configured reminder_settings even when preferences are set" do
           create(:calendar_preference,
                  user: user,
                  scope: :global,
-                 reminder_settings: [{ "time" => "30", "type" => "minutes", "method" => "popup" }])
+                 reminder_settings: [{ "time" => "45", "type" => "minutes", "method" => "popup" }])
 
           result = dnd_resolver.resolve_with_sources(meeting_time)
 
-          expect(result[:sources][:reminder_settings]).to eq("dnd_override")
+          # Should show the actual configured reminders, not empty due to DND
+          expect(result[:preferences][:reminder_settings]).to eq([{ "time" => "45", "type" => "minutes", "method" => "popup" }])
+          expect(result[:sources][:reminder_settings]).to eq("global")
+        end
+      end
+    end
+
+    describe "#notifications_disabled?" do
+      it "returns false when notifications are enabled" do
+        expect(resolver.notifications_disabled?).to be false
+      end
+
+      it "returns true when notifications are disabled" do
+        user.disable_notifications!
+        dnd_resolver = described_class.new(user)
+
+        expect(dnd_resolver.notifications_disabled?).to be true
+      end
+    end
+
+    describe "#resolve_actual_for" do
+      context "when notifications are disabled" do
+        before do
+          user.disable_notifications!
+        end
+
+        let(:dnd_resolver) { described_class.new(user) }
+
+        it "returns actual reminder_settings ignoring DND" do
+          prefs = dnd_resolver.resolve_actual_for(meeting_time)
+
+          expect(prefs[:reminder_settings]).to eq([{ "time" => "30", "type" => "minutes", "method" => "popup" }])
+        end
+
+        it "returns configured preferences when they exist" do
+          create(:calendar_preference,
+                 user: user,
+                 scope: :global,
+                 reminder_settings: [{ "time" => "15", "type" => "minutes", "method" => "popup" }])
+
+          prefs = dnd_resolver.resolve_actual_for(meeting_time)
+
+          expect(prefs[:reminder_settings]).to eq([{ "time" => "15", "type" => "minutes", "method" => "popup" }])
+        end
+      end
+
+      context "when notifications are enabled" do
+        it "behaves the same as resolve_for" do
+          actual_prefs = resolver.resolve_actual_for(meeting_time)
+          sync_prefs = resolver.resolve_for(meeting_time)
+
+          expect(actual_prefs).to eq(sync_prefs)
         end
       end
     end
