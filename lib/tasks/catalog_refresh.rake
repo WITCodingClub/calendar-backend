@@ -107,6 +107,17 @@ namespace :catalog do
     snapshot_delete_count = snapshots_to_restore.delete_all
     puts "Deleted #{snapshot_delete_count} snapshots."
 
+    # == Step 6: Mark users with enrollments in this term as needing calendar sync ==
+    puts "\nStep 6: Marking users for calendar sync..."
+    users_with_enrollments = User.joins(:enrollments).where(enrollments: { term_id: term.id }).distinct
+    sync_count = users_with_enrollments.update_all(calendar_needs_sync: true)
+    puts "Marked #{sync_count} users for calendar sync."
+
+    # == Step 7: Clean up orphaned calendar events ==
+    puts "\nStep 7: Cleaning up orphaned calendar events..."
+    cleanup_result = CleanupOrphanedCalendarEventsJob.perform_now
+    puts "Cleaned up #{cleanup_result[:deleted]} orphaned events (#{cleanup_result[:errors]} errors)."
+
     puts "\nCatalog refresh completed for term #{term.name}."
   end
 
@@ -146,5 +157,29 @@ namespace :catalog do
 
     puts "\n" + "="*80
     puts "Completed refresh for all terms."
+  end
+
+  desc "Trigger immediate calendar syncs for all users enrolled in a term"
+  task :sync_calendars, [:term_uid] => :environment do |_, args|
+    term_uid = args[:term_uid]
+    raise "Usage: rake catalog:sync_calendars[term_uid]" unless term_uid
+
+    term = Term.find_by(uid: term_uid)
+    raise "Term with UID #{term_uid} not found." unless term
+
+    users_with_enrollments = User.joins(:enrollments)
+                                 .where(enrollments: { term_id: term.id })
+                                 .joins(:oauth_credentials)
+                                 .where.not(oauth_credentials: { id: nil })
+                                 .distinct
+
+    puts "Queueing calendar syncs for #{users_with_enrollments.count} users in term #{term.name}..."
+
+    users_with_enrollments.find_each do |user|
+      GoogleCalendarSyncJob.perform_later(user)
+      puts "  Queued sync for user #{user.id} (#{user.email})"
+    end
+
+    puts "Done! Syncs queued for processing."
   end
 end
