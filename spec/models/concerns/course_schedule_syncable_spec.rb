@@ -248,6 +248,100 @@ RSpec.describe CourseScheduleSyncable do
     end
   end
 
+  describe "#build_recurrence_rule" do
+    let(:term) { create(:term, year: 2026, season: :spring) }
+    let(:course) { create(:course, term: term) }
+    let(:meeting_time) do
+      create(:meeting_time,
+             course: course,
+             day_of_week: :wednesday,
+             start_date: Date.new(2026, 1, 7),
+             end_date: Date.new(2026, 5, 15),
+             begin_time: 1000,
+             end_time: 1145)
+    end
+
+    context "when course has no final exam" do
+      it "uses the meeting_time end_date as recurrence end" do
+        result = instance.build_recurrence_rule(meeting_time)
+        
+        # Should end on May 15, 2026 (meeting_time.end_date)
+        expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260515T235959Z")
+      end
+    end
+
+    context "when course has a final exam" do
+      let!(:final_exam) do
+        create(:final_exam,
+               course: course,
+               term: term,
+               exam_date: Date.new(2026, 5, 10),
+               start_time: 800,
+               end_time: 1000)
+      end
+
+      it "ends classes the day before the final exam" do
+        result = instance.build_recurrence_rule(meeting_time)
+        
+        # Should end on May 9, 2026 (day before final on May 10)
+        expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260509T235959Z")
+      end
+    end
+
+    context "when course has no final but other courses in term do" do
+      let(:other_course) { create(:course, term: term) }
+      let!(:other_final) do
+        create(:final_exam,
+               course: other_course,
+               term: term,
+               exam_date: Date.new(2026, 5, 10),
+               start_time: 800,
+               end_time: 1000)
+      end
+
+      it "does not adjust end date based on other course finals" do
+        result = instance.build_recurrence_rule(meeting_time)
+        
+        # Should still end on May 15, 2026 (meeting_time.end_date)
+        # NOT adjusted for other course's final on May 10
+        expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260515T235959Z")
+      end
+    end
+
+    context "when final exam is after meeting_time end_date" do
+      let!(:final_exam) do
+        create(:final_exam,
+               course: course,
+               term: term,
+               exam_date: Date.new(2026, 5, 20), # After May 15 end_date
+               start_time: 800,
+               end_time: 1000)
+      end
+
+      it "uses the meeting_time end_date (does not extend)" do
+        result = instance.build_recurrence_rule(meeting_time)
+        
+        # Should still end on May 15, 2026 (meeting_time.end_date)
+        expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260515T235959Z")
+      end
+    end
+
+    context "when meeting_time has no day_of_week" do
+      let(:meeting_time) do
+        create(:meeting_time,
+               course: course,
+               day_of_week: nil,
+               start_date: Date.new(2026, 1, 7),
+               end_date: Date.new(2026, 5, 15))
+      end
+
+      it "returns nil" do
+        result = instance.build_recurrence_rule(meeting_time)
+        expect(result).to be_nil
+      end
+    end
+  end
+
   describe "all-day event handling (12:01pm-11:59pm)" do
     let(:user) { create(:user) }
     let(:term) { create(:term, year: 2024, season: :fall) }
