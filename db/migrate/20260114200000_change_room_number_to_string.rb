@@ -2,6 +2,6 @@
 
 class ChangeRoomNumberToString < ActiveRecord::Migration[7.1]
   def change
-    change_column :rooms, :number, :string
+    safety_assured { change_column :rooms, :number, :string }
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_10_141448) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_14_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -244,12 +244,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_141448) do
     t.string "schedule_type", null: false
     t.string "section_number", null: false
     t.date "start_date"
+    t.string "status", default: "active", null: false
     t.string "subject"
     t.bigint "term_id", null: false
     t.string "title"
     t.datetime "updated_at", null: false
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
     t.index ["crn"], name: "index_courses_on_crn"
+    t.index ["status"], name: "index_courses_on_status"
     t.index ["term_id"], name: "index_courses_on_term_id"
   end
 
@@ -591,7 +593,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_141448) do
   create_table "rooms", force: :cascade do |t|
     t.bigint "building_id", null: false
     t.datetime "created_at", null: false
-    t.integer "number"
+    t.string "number"
     t.datetime "updated_at", null: false
     t.index ["building_id"], name: "index_rooms_on_building_id"
   end
