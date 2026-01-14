@@ -253,8 +253,8 @@ module Api
         day_symbol = mt.day_of_week&.to_sym
         days[day_symbol] = true if day_symbol
 
-        # Resolve preferences for this meeting time
-        preferences = preference_resolver.resolve_for(mt)
+        # Resolve preferences for this meeting time (ignore DND for display purposes)
+        preferences = preference_resolver.resolve_actual_for(mt)
 
         # Build template context
         context = CalendarTemplateRenderer.build_context_from_meeting_time(mt)
@@ -521,7 +521,10 @@ module Api
         }
       end
 
-      render json: { classes: structured_data }, status: :ok
+      render json: {
+        classes: structured_data,
+        notifications_disabled: current_user.notifications_disabled?
+      }, status: :ok
     end
 
 

@@ -206,7 +206,7 @@ RSpec.describe "Api::Notifications DND" do
              reminder_settings: [{ "time" => "30", "type" => "minutes", "method" => "popup" }])
     end
 
-    it "disabling notifications causes PreferenceResolver to return empty reminder_settings" do
+    it "disabling notifications causes resolve_for (sync) to return empty reminder_settings" do
       # Verify reminders exist before DND
       resolver_before = PreferenceResolver.new(user)
       prefs_before = resolver_before.resolve_for(meeting_time)
@@ -216,11 +216,25 @@ RSpec.describe "Api::Notifications DND" do
       post "/api/user/notifications/disable", headers: headers
       expect(response).to have_http_status(:ok)
 
-      # Verify reminders are now empty due to DND
+      # Verify resolve_for returns empty reminders for sync purposes
       user.reload
       resolver_after = PreferenceResolver.new(user)
       prefs_after = resolver_after.resolve_for(meeting_time)
       expect(prefs_after[:reminder_settings]).to eq([])
+    end
+
+    it "disabling notifications still allows resolve_actual_for to return configured reminders" do
+      # Disable notifications
+      user.disable_notifications!
+
+      # resolve_actual_for should return the actual configured reminders (for API display)
+      resolver = PreferenceResolver.new(user)
+      actual_prefs = resolver.resolve_actual_for(meeting_time)
+      expect(actual_prefs[:reminder_settings]).to eq([{ "time" => "30", "type" => "minutes", "method" => "popup" }])
+
+      # But resolve_for (for sync) should return empty
+      sync_prefs = resolver.resolve_for(meeting_time)
+      expect(sync_prefs[:reminder_settings]).to eq([])
     end
 
     it "re-enabling notifications restores normal PreferenceResolver behavior" do
@@ -241,6 +255,70 @@ RSpec.describe "Api::Notifications DND" do
       resolver_enabled = PreferenceResolver.new(user)
       prefs_enabled = resolver_enabled.resolve_for(meeting_time)
       expect(prefs_enabled[:reminder_settings]).to eq([{ "time" => "30", "type" => "minutes", "method" => "popup" }])
+    end
+  end
+
+  describe "integration: DND status in API responses" do
+    let(:term) { create(:term) }
+    let(:course) { create(:course, schedule_type: "lecture", term: term) }
+    let(:building) { create(:building) }
+    let(:room) { create(:room, building: building) }
+    let!(:meeting_time) { create(:meeting_time, course: course, room: room) }
+    let!(:enrollment) { create(:enrollment, user: user, course: course, term: term) }
+
+    before do
+      create(:calendar_preference,
+             user: user,
+             scope: :global,
+             reminder_settings: [{ "time" => "30", "type" => "minutes", "method" => "popup" }])
+    end
+
+    describe "GET /api/meeting_times/:id/preference" do
+      it "returns actual reminders and notifications_disabled: false when DND is off" do
+        get "/api/meeting_times/#{meeting_time.public_id}/preference", headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json["notifications_disabled"]).to be false
+        expect(json["resolved"]["reminder_settings"]).not_to be_empty
+      end
+
+      it "returns actual reminders and notifications_disabled: true when DND is on" do
+        user.disable_notifications!
+
+        get "/api/meeting_times/#{meeting_time.public_id}/preference", headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        # Should indicate DND is on
+        expect(json["notifications_disabled"]).to be true
+        # But still return the actual configured reminders for display
+        expect(json["resolved"]["reminder_settings"]).not_to be_empty
+      end
+    end
+
+    describe "GET /api/user/events/:term_uid" do
+      it "returns notifications_disabled in the response" do
+        get "/api/user/events/#{term.uid}", headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json).to have_key("notifications_disabled")
+        expect(json["notifications_disabled"]).to be false
+      end
+
+      it "returns notifications_disabled: true when DND is on" do
+        user.disable_notifications!
+
+        get "/api/user/events/#{term.uid}", headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json["notifications_disabled"]).to be true
+        # Should still return the actual reminder settings in the meeting times
+        meeting_time_data = json["classes"].first["meeting_times"].first
+        expect(meeting_time_data["calendar_config"]["reminder_settings"]).not_to be_empty
+      end
     end
   end
 end
