@@ -80,7 +80,7 @@ class LeopardWebService < ApplicationService
     cache_key = "leopard:class_details:#{term}:#{course_reference_number}"
     cache_duration = registration_period? ? 1.hour : 24.hours
 
-    Rails.cache.fetch(cache_key, expires_in: cache_duration) do
+    details = Rails.cache.fetch(cache_key, expires_in: cache_duration) do
       response = connection.get("getClassDetails", {
                                   term: term,
                                   courseReferenceNumber: course_reference_number
@@ -88,6 +88,42 @@ class LeopardWebService < ApplicationService
 
       handle_response(response, :class_details)
     end
+
+    return nil unless details
+
+    # Separately, get faculty meeting times. This method has its own cache.
+    meeting_times_data = get_faculty_meeting_times
+
+    # Parse and merge meeting times
+    if meeting_times_data.present? && meeting_times_data["fmt"].present?
+      details[:meeting_times] = meeting_times_data["fmt"].map do |mt_data|
+        mt = mt_data["meetingTime"]
+        next if mt.nil?
+
+        {
+          "building" => mt["building"],
+          "building_description" => mt["buildingDescription"],
+          "campus" => mt["campus"],
+          "campus_description" => mt["campusDescription"],
+          "room" => mt["room"],
+          "startDate" => mt["startDate"],
+          "endDate" => mt["endDate"],
+          "startTime" => mt["beginTime"],
+          "endTime" => mt["endTime"],
+          "days" => {
+            "monday" => mt["monday"],
+            "tuesday" => mt["tuesday"],
+            "wednesday" => mt["wednesday"],
+            "thursday" => mt["thursday"],
+            "friday" => mt["friday"],
+            "saturday" => mt["saturday"],
+            "sunday" => mt["sunday"]
+          }
+        }
+      end.compact
+    end
+
+    details
   end
 
   def get_enrollment_info
