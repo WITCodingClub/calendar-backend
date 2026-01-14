@@ -140,7 +140,7 @@ class GoogleCalendarEvent < ApplicationRecord
   end
 
   # Fields that can be tracked for user edits
-  TRACKABLE_FIELDS = %w[summary location description start_time end_time].freeze
+  TRACKABLE_FIELDS = %w[summary location start_time end_time].freeze
 
   # Check if user has edited any fields
   def user_edited?

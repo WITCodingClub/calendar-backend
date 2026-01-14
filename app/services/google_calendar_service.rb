@@ -752,8 +752,6 @@ class GoogleCalendarService
           merged_event_data[:summary] = current_gcal_event.summary
         when "location"
           merged_event_data[:location] = current_gcal_event.location
-        when "description"
-          merged_event_data[:description] = current_gcal_event.description
         when "start_time"
           merged_event_data[:start_time] = parse_gcal_time(current_gcal_event.start)
         when "end_time"
@@ -895,7 +893,6 @@ class GoogleCalendarService
     # Compare each field with our local DB state
     edited_fields << "summary" if gcal_summary != db_event.summary
     edited_fields << "location" if gcal_location != db_event.location
-    edited_fields << "description" if gcal_description.present? # Description is generated, any user value is an edit
 
     # Time comparison - handle nil cases properly
     start_changed = if gcal_start_time.nil? || db_event.start_time.nil?
@@ -917,17 +914,6 @@ class GoogleCalendarService
     end
 
     edited_fields
-  end
-
-  # Check if user edited any field including recurrence
-  # Note: recurrence edits are detected but not tracked in user_edited_fields
-  # since recurrence is determined by the course schedule
-  def user_edited_event?(db_event, gcal_event)
-    return true if detect_user_edited_fields(db_event, gcal_event).any?
-
-    # Also check recurrence (not tracked for field-level merging)
-    gcal_recurrence = gcal_event.recurrence
-    normalize_recurrence(gcal_recurrence) != normalize_recurrence(db_event.recurrence)
   end
 
   # Update local DB with user's edits from Google Calendar

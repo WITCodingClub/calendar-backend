@@ -8,92 +8,6 @@ RSpec.describe GoogleCalendarService do
   let(:google_calendar) { create(:google_calendar, oauth_credential: oauth_credential) }
   let(:service) { described_class.new(user) }
 
-  describe "#user_edited_event?" do
-    let(:db_event) do
-      create(:google_calendar_event, :with_meeting_time,
-             google_calendar: google_calendar,
-             google_event_id: "test_event_123",
-             summary: "Original Course Title",
-             location: "Room 101",
-             start_time: Time.zone.parse("2025-01-15 09:00:00"),
-             end_time: Time.zone.parse("2025-01-15 10:30:00"),
-             recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"],
-             event_data_hash: "original_hash")
-    end
-
-    let(:gcal_event) do
-      double("Google::Apis::CalendarV3::Event",
-             summary: "Original Course Title",
-             location: "Room 101",
-             description: nil,
-             start: double(date_time: "2025-01-15T09:00:00-05:00", date: nil),
-             end: double(date_time: "2025-01-15T10:30:00-05:00", date: nil),
-             recurrence: ["RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20250515T235959Z"])
-    end
-
-    context "when user has not edited the event" do
-      it "returns false" do
-        expect(service.send(:user_edited_event?, db_event, gcal_event)).to be false
-      end
-    end
-
-    context "when user edited the summary" do
-      before do
-        allow(gcal_event).to receive(:summary).and_return("User Modified Title")
-      end
-
-      it "returns true" do
-        expect(service.send(:user_edited_event?, db_event, gcal_event)).to be true
-      end
-    end
-
-    context "when user edited the location" do
-      before do
-        allow(gcal_event).to receive(:location).and_return("Room 202 - User Changed")
-      end
-
-      it "returns true" do
-        expect(service.send(:user_edited_event?, db_event, gcal_event)).to be true
-      end
-    end
-
-    context "when user edited the start time" do
-      before do
-        allow(gcal_event).to receive(:start).and_return(
-          double(date_time: "2025-01-15T10:00:00-05:00", date: nil)
-        )
-      end
-
-      it "returns true" do
-        expect(service.send(:user_edited_event?, db_event, gcal_event)).to be true
-      end
-    end
-
-    context "when user edited the end time" do
-      before do
-        allow(gcal_event).to receive(:end).and_return(
-          double(date_time: "2025-01-15T11:30:00-05:00", date: nil)
-        )
-      end
-
-      it "returns true" do
-        expect(service.send(:user_edited_event?, db_event, gcal_event)).to be true
-      end
-    end
-
-    context "when user edited the recurrence" do
-      before do
-        allow(gcal_event).to receive(:recurrence).and_return(
-          ["RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=20250515T235959Z"]
-        )
-      end
-
-      it "returns true" do
-        expect(service.send(:user_edited_event?, db_event, gcal_event)).to be true
-      end
-    end
-  end
-
   describe "#normalize_color_id" do
     it "returns numeric ID when given an integer" do
       expect(service.send(:normalize_color_id, 5)).to eq(5)
@@ -370,6 +284,8 @@ RSpec.describe GoogleCalendarService do
         db_event.reload
         # Summary was newly edited, location was previously tracked
         expect(db_event.summary).to eq("User Modified Title in GCal")
+        # Location should remain the user-edited value from GCal, not system value
+        expect(db_event.location).to eq("Room 101")
       end
     end
 
