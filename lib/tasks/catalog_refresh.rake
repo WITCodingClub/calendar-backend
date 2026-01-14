@@ -148,4 +148,3 @@ namespace :catalog do
     puts "Completed refresh for all terms."
   end
 end
-end
