@@ -15,6 +15,7 @@
 #  schedule_type  :string           not null
 #  section_number :string           not null
 #  start_date     :date
+#  status         :string           default("active"), not null
 #  subject        :string
 #  title          :string
 #  created_at     :datetime         not null
@@ -23,8 +24,10 @@
 #
 # Indexes
 #
-#  index_courses_on_crn      (crn) UNIQUE
-#  index_courses_on_term_id  (term_id)
+#  index_courses_on_crn              (crn)
+#  index_courses_on_crn_and_term_id  (crn,term_id) UNIQUE
+#  index_courses_on_status           (status)
+#  index_courses_on_term_id          (term_id)
 #
 # Foreign Keys
 #

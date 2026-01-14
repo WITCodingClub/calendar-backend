@@ -13,7 +13,6 @@
 #  recurrence                   :text
 #  start_time                   :datetime
 #  summary                      :string
-#  user_edited_fields           :text
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
 #  final_exam_id                :bigint

@@ -19,6 +19,7 @@
 #
 #  index_related_professors_on_faculty_id             (faculty_id)
 #  index_related_professors_on_faculty_id_and_rmp_id  (faculty_id,rmp_id) UNIQUE
+#  index_related_professors_on_related_faculty_id     (related_faculty_id)
 #
 # Foreign Keys
 #
