@@ -75,23 +75,16 @@ class LeopardWebService < ApplicationService
     raise ArgumentError, "term is required" unless term
     raise ArgumentError, "course_reference_number is required" unless course_reference_number
 
-    # Cache class details for 1 hour during registration period, 24 hours otherwise
-    # Course details change infrequently once classes are scheduled
-    cache_key = "leopard:class_details:#{term}:#{course_reference_number}"
-    cache_duration = registration_period? ? 1.hour : 24.hours
+    response = connection.get("getClassDetails", {
+                                term: term,
+                                courseReferenceNumber: course_reference_number
+                              })
 
-    details = Rails.cache.fetch(cache_key, expires_in: cache_duration) do
-      response = connection.get("getClassDetails", {
-                                  term: term,
-                                  courseReferenceNumber: course_reference_number
-                                })
-
-      handle_response(response, :class_details)
-    end
+    details = handle_response(response, :class_details)
 
     return nil unless details
 
-    # Separately, get faculty meeting times. This method has its own cache.
+    # Separately, get faculty meeting times.
     meeting_times_data = get_faculty_meeting_times
 
     # Parse and merge meeting times
@@ -127,31 +120,20 @@ class LeopardWebService < ApplicationService
   end
 
   def get_enrollment_info
-    # Cache enrollment info for 5 minutes since it can change frequently
-    cache_key = "leopard:enrollment:#{term}:#{course_reference_number}"
-
-    Rails.cache.fetch(cache_key, expires_in: 5.minutes) do
-      response = connection.get("getEnrollmentInfo")
-      handle_response(response, :enrollment_info)
-    end
+    response = connection.get("getEnrollmentInfo")
+    handle_response(response, :enrollment_info)
   end
 
   def get_faculty_meeting_times
     raise ArgumentError, "term is required" unless term
     raise ArgumentError, "course_reference_number is required" unless course_reference_number
 
-    # Cache meeting times for 1 hour during registration, 24 hours otherwise
-    cache_key = "leopard:meeting_times:#{term}:#{course_reference_number}"
-    cache_duration = registration_period? ? 1.hour : 24.hours
+    response = connection.get("getFacultyMeetingTimes", {
+                                term: term,
+                                courseReferenceNumber: course_reference_number
+                              })
 
-    Rails.cache.fetch(cache_key, expires_in: cache_duration) do
-      response = connection.get("getFacultyMeetingTimes", {
-                                  term: term,
-                                  courseReferenceNumber: course_reference_number
-                                })
-
-      handle_response(response, :json)
-    end
+    handle_response(response, :json)
   end
 
   def connection
@@ -263,88 +245,77 @@ class LeopardWebService < ApplicationService
   end
 
   def get_available_terms
-    # Cache available terms for 1 hour - they don't change often
-    cache_key = "leopard:available_terms"
+    response = terms_connection.get("classSearch/getTerms", {
+                                      searchTerm: "",
+                                      offset: 1,
+                                      max: 50
+                                    })
 
-    Rails.cache.fetch(cache_key, expires_in: 1.hour) do
-      response = terms_connection.get("classSearch/getTerms", {
-                                        searchTerm: "",
-                                        offset: 1,
-                                        max: 50
-                                      })
-
-      if response.success?
-        terms = parse_json_response(response.body)
-        {
-          success: true,
-          terms: terms.map do |t|
-            {
-              code: t["code"],
-              description: t["description"]
-            }
-          end
-        }
-      else
-        {
-          success: false,
-          error: "Failed to fetch terms: #{response.status}",
-          terms: []
-        }
-      end
+    if response.success?
+      terms = parse_json_response(response.body)
+      {
+        success: true,
+        terms: terms.map do |t|
+          {
+            code: t["code"],
+            description: t["description"]
+          }
+        end
+      }
+    else
+      {
+        success: false,
+        error: "Failed to fetch terms: #{response.status}",
+        terms: []
+      }
     end
   end
 
   def get_course_catalog
     raise ArgumentError, "term is required" unless term
 
-    # Cache entire course catalog for 7 days since it's relatively static per term
-    # This is a large payload but saves multiple paginated API requests
-    cache_key = "leopard:catalog:#{term}"
+    # Initialize a search session (no auth required!)
+    initialize_search_session!
 
-    Rails.cache.fetch(cache_key, expires_in: 7.days) do
-      # Initialize a search session (no auth required!)
-      initialize_search_session!
+    all_courses = []
+    offset = 0
+    total_count = nil
+    page_size = 500
+    first_response_data = nil
 
-      all_courses = []
-      offset = 0
-      total_count = nil
-      page_size = 500
-      first_response_data = nil
+    loop do
+      response = fetch_catalog_page(offset, page_size)
 
-      loop do
-        response = fetch_catalog_page(offset, page_size)
+      if response.success?
+        data = parse_json_response(response.body)
+        first_response_data ||= data # Save first response for debugging
+        courses = data["data"] || []
+        total_count ||= data["totalCount"] || 0
 
-        if response.success?
-          data = parse_json_response(response.body)
-          first_response_data ||= data # Save first response for debugging
-          courses = data["data"] || []
-          total_count ||= data["totalCount"] || 0
+        all_courses.concat(courses)
 
-          all_courses.concat(courses)
+        # Break if we've fetched all courses
+        break if all_courses.length >= total_count || courses.empty?
 
-          # Break if we've fetched all courses
-          break if all_courses.length >= total_count || courses.empty?
-
-          offset += page_size
-        else
-          handle_error(response)
-        end
+        offset += page_size
+      else
+        handle_error(response)
       end
-
-      {
-        success: true,
-        courses: all_courses,
-        total_count: total_count,
-        raw_response: first_response_data
-      }
-    rescue => e
-      {
-        success: false,
-        error: e.message,
-        courses: [],
-        total_count: 0
-      }
     end
+
+    {
+      success: true,
+      courses: all_courses,
+      total_count: total_count,
+      raw_response: first_response_data
+    }
+  rescue => e
+    {
+      success: false,
+      error: e.message,
+      courses: [],
+      total_count: 0
+    }
   end
 
   # Initialize a search session by POSTing term selection
@@ -425,13 +396,4 @@ class LeopardWebService < ApplicationService
       faraday.adapter Faraday.default_adapter
     end
   end
-
-  # Check if we're in a registration period (August-September, January-February)
-  # During these months, course data changes more frequently
-  def registration_period?
-    current_month = Time.current.month
-    # August-September (Fall registration) or January-February (Spring registration)
-    [1, 2, 8, 9].include?(current_month)
-  end
-
 end
