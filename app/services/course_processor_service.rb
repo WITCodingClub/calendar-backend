@@ -143,12 +143,19 @@ class CourseProcessorService < ApplicationService
         c.grade_mode = detailed_course_info[:grade_mode]
       end
 
-      # Update dates if course already exists
-      if course.persisted? && !course.new_record? && start_date.present? && end_date.present?
-        course.update!(
-          start_date: start_date,
-          end_date: end_date
-        )
+      # Update course if it already exists (title may have changed or need re-titleization)
+      if course.persisted? && !course.new_record?
+        update_attrs = {}
+        update_attrs[:start_date] = start_date if start_date.present?
+        update_attrs[:end_date] = end_date if end_date.present?
+
+        # Always re-apply titleization to ensure consistent formatting
+        if detailed_course_info[:title].present?
+          new_title = titleize_with_roman_numerals(detailed_course_info[:title])
+          update_attrs[:title] = new_title if course.title != new_title
+        end
+
+        course.update!(update_attrs) if update_attrs.any?
       end
 
       # Link orphan FinalExam records to this course (if finals schedule was uploaded before courses)
