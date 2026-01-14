@@ -82,7 +82,6 @@ RSpec.describe EmbeddingService do
       expect(service.generate_batch([])).to eq([])
     end
 
-    # rubocop:disable RSpec/ExampleLength, RSpec/MultipleExpectations
     it "handles array with some blank texts" do
       allow(client).to receive(:embeddings).and_return({
                                                          "data" => [
@@ -98,7 +97,6 @@ RSpec.describe EmbeddingService do
       expect(result[2]).to eq(fake_embedding)
       expect(result[3]).to be_nil
     end
-    # rubocop:enable RSpec/ExampleLength, RSpec/MultipleExpectations
   end
 
   describe "#embed_record" do
@@ -112,7 +110,6 @@ RSpec.describe EmbeddingService do
                                                        })
     end
 
-    # rubocop:disable RSpec/MultipleExpectations
     it "generates and saves embedding for a record" do
       expect(course.embedding).to be_nil
 
@@ -123,7 +120,6 @@ RSpec.describe EmbeddingService do
       expect(course.reload.embedding.length).to eq(fake_embedding.length)
       expect(course.reload.embedding).to be_present
     end
-    # rubocop:enable RSpec/MultipleExpectations
 
     it "returns false for record without embedding_text method" do
       record = instance_double("Record", id: 1) # rubocop:disable RSpec/VerifiedDoubleReference
