@@ -275,7 +275,7 @@ class Faculty < ApplicationRecord
       )
 
       # Update the URL to track what we downloaded
-      update_column(:photo_url, url) unless photo_url == url
+      update_column(:photo_url, url) unless photo_url == url # rubocop:disable Rails/SkipsModelValidations
 
       Rails.logger.info("[Faculty] Photo downloaded for #{email}")
       true

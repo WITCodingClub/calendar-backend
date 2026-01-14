@@ -157,7 +157,7 @@ class MeetingTimesIngestService < ApplicationService
   end
 
   # Banner often uses true/Y/1
-  def to_boolean(val) # rubocop:disable Naming/PredicateMethod
+  def to_boolean(val)
     case val
     when true, "true", "TRUE", "Y", "y", 1, "1"
       true

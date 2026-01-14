@@ -125,12 +125,12 @@ class GoogleCalendarEvent < ApplicationRecord
 
   # Update the event data hash
   def update_data_hash!(event_data)
-    update_column(:event_data_hash, self.class.generate_data_hash(event_data))
+    update_column(:event_data_hash, self.class.generate_data_hash(event_data)) # rubocop:disable Rails/SkipsModelValidations
   end
 
   # Mark as synced
   def mark_synced!
-    update_columns(last_synced_at: Time.current)
+    update_columns(last_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
   end
 
   # Check if event needs syncing based on staleness

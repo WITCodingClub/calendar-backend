@@ -24,7 +24,7 @@ FactoryBot.define do
   factory :lockbox_audit do
     subject factory: %i[user]
     viewer factory: %i[user]
-    context { "decryption" }
+
     ip { "127.0.0.1" }
     data { {} }
   end

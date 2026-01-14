@@ -44,7 +44,7 @@ class GoogleCalendar < ApplicationRecord
 
   # Mark calendar as synced
   def mark_synced!
-    update_columns(last_synced_at: Time.current)
+    update_columns(last_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
   end
 
   # Check if calendar needs syncing based on staleness

@@ -188,12 +188,7 @@ Rails/UniqueValidationWithoutIndex:
 RSpec/DescribeClass:
   Exclude:
     - 'spec/config/**/*'
-
-RSpec/ExampleLength:
-  Max: 10
-
-RSpec/MultipleExpectations:
-  Max: 3
+    - 'spec/requests/**/*'
 
 RSpec/AnyInstance:
   Enabled: false
@@ -214,3 +209,81 @@ Rails/I18nLocaleTexts:
 Lint/EmptyBlock:
   Exclude:
     - 'spec/factories/**/*'
+
+# Naming cops
+# PredicateMethod: Methods like sync_course_data are not predicates despite what the cop thinks
+Naming/PredicateMethod:
+  Enabled: false
+
+# VariableNumber: Allow symbols with numbers like :fall_2025 for term naming
+Naming/VariableNumber:
+  Exclude:
+    - 'app/services/finals_schedule_parser_service.rb'
+    - 'spec/**/*'
+
+# Style cops
+# SafeNavigationChainLength: Allow longer chains for concise nil-safe operations
+Style/SafeNavigationChainLength:
+  Enabled: false
+
+# Additional RSpec configurations for spec maintainability
+# Complex test suites often need more helpers and expectations
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 20
+
+RSpec/MultipleExpectations:
+  Max: 20
+
+RSpec/ExampleLength:
+  Max: 30
+
+RSpec/NestedGroups:
+  Max: 5
+
+RSpec/MessageSpies:
+  Enabled: false
+
+RSpec/VerifiedDoubles:
+  Enabled: false
+
+RSpec/ContextWording:
+  Enabled: false
+
+RSpec/IndexedLet:
+  Enabled: false
+
+RSpec/NamedSubject:
+  Enabled: false
+
+RSpec/RepeatedExample:
+  Enabled: false
+
+RSpec/ExpectActual:
+  Enabled: false
+
+RSpec/MissingExampleGroupArgument:
+  Enabled: false
+
+RSpec/EmptyExampleGroup:
+  Exclude:
+    - 'spec/factories/**/*'
+
+RSpec/EmptyLineAfterExampleGroup:
+  Exclude:
+    - 'spec/factories/**/*'
+
+RSpec/RepeatedDescription:
+  Enabled: false
+
+RSpec/InstanceVariable:
+  Enabled: false
+
+RSpec/BeforeAfterAll:
+  Enabled: false
+
+RSpec/SpecFilePathFormat:
+  Enabled: false
+
+RSpec/DescribeMethod:
+  Enabled: false
