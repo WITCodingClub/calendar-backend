@@ -76,11 +76,11 @@ class MeetingTimesIngestService < ApplicationService
                       nil
                     end
 
-    # Create a separate MeetingTime record for each active day
+    # Create or update a separate MeetingTime record for each active day
     active_days.each_value do |day_num|
-      attrs = {
+      # Lookup by core identifying attributes (without room_id so we can update it)
+      lookup_attrs = {
         course_id: course.id,
-        room_id: room.id,
         start_date: start_dt,
         end_date: end_dt,
         begin_time: begin_hhmm,
@@ -88,11 +88,17 @@ class MeetingTimesIngestService < ApplicationService
         day_of_week: day_num
       }
 
-      MeetingTime.find_or_create_by!(attrs) do |mt_record|
-        mt_record.meeting_schedule_type = meeting_schedule_type
-        mt_record.meeting_type = meeting_type
-        mt_record.hours_week = hours_per_day
-      end
+      # Attributes that should be updated if they change
+      update_attrs = {
+        room_id: room.id,
+        meeting_schedule_type: meeting_schedule_type,
+        meeting_type: meeting_type,
+        hours_week: hours_per_day
+      }
+
+      meeting_time = MeetingTime.find_or_initialize_by(lookup_attrs)
+      meeting_time.assign_attributes(update_attrs)
+      meeting_time.save!
     end
   end
 
@@ -166,15 +172,12 @@ class MeetingTimesIngestService < ApplicationService
     end
   end
 
-  # Extract numeric room; fallback to 0 if unknown (room_id is NOT NULL)
+  # Preserve full room number string (e.g., "M204", "101A")
+  # Falls back to "0" for TBD/unknown rooms
   def parse_room_number(room_str)
-    return 0 if room_str.blank?
+    return "0" if room_str.blank?
 
-    if room_str =~ /(\d+)/
-      Regexp.last_match(1).to_i
-    else
-      0
-    end
+    room_str.to_s.strip.presence || "0"
   end
 
   # Map schedule type string → integer; returns nil if unknown

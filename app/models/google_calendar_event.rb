@@ -13,7 +13,6 @@
 #  recurrence                   :text
 #  start_time                   :datetime
 #  summary                      :string
-#  user_edited_fields           :text
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
 #  final_exam_id                :bigint
@@ -84,6 +83,8 @@ class GoogleCalendarEvent < ApplicationRecord
   scope :for_university_calendar_event, ->(event_id) { where(university_calendar_event_id: event_id) }
   scope :user_edited, -> { where.not(user_edited_fields: nil) }
   scope :not_user_edited, -> { where(user_edited_fields: nil) }
+  # Orphaned events have no associated meeting_time, final_exam, or university_calendar_event
+  scope :orphaned, -> { where(meeting_time_id: nil, final_exam_id: nil, university_calendar_event_id: nil) }
 
   # Returns true if this event is for a final exam
   def final_exam?
@@ -98,6 +99,11 @@ class GoogleCalendarEvent < ApplicationRecord
   # Returns true if this event is for a university calendar event
   def university_event?
     university_calendar_event_id.present?
+  end
+
+  # Returns true if this event is orphaned (no associated syncable record)
+  def orphaned?
+    meeting_time_id.nil? && final_exam_id.nil? && university_calendar_event_id.nil?
   end
 
   # Get the syncable record (meeting_time, final_exam, or university_calendar_event)
