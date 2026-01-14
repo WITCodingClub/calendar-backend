@@ -56,18 +56,19 @@ class Course < ApplicationRecord
 
   enum status: { active: "active", cancelled: "cancelled" }
 
-  enum :schedule_type, {
-    hybrid: "HYB",
-    independent_study: "IND",
-    laboratory: "LAB",
-    lecture: "LEC",
-    online: "ONL",
-    online_sync_lab: "OLB",
-    online_sync_lecture: "OLC",
-    rotating_lab: "RLB",
-    rotating_lecture: "RLC",
-    study_abroad: "SAB"
-  }
+  enum schedule_type: {
+  hybrid: "HYB",
+  independent_study: "IND",
+  laboratory: "LAB",
+  lecture: "LEC",
+  online: "ONL",
+  online_sync_lab: "OLB",
+  online_sync_lecture: "OLC",
+  rotating_lab: "RLB",
+  rotating_lecture: "RLC",
+  study_abroad: "SAB"
+}
+
 
   # Generate the text representation for embedding
   # Combines title, subject, and schedule type for semantic search
