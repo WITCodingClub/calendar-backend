@@ -178,6 +178,7 @@ GEM
     erubi (1.13.1)
     et-orbi (1.4.0)
       tzinfo
+    event_stream_parser (1.0.0)
     factory_bot (6.5.6)
       activesupport (>= 6.1.0)
     factory_bot_rails (6.5.1)
@@ -191,6 +192,8 @@ GEM
       logger
     faraday-follow_redirects (0.5.0)
       faraday (>= 1, < 3)
+    faraday-multipart (1.2.0)
+      multipart-post (~> 2.0)
     faraday-net_http (3.4.2)
       net-http (~> 0.5)
     ffi (1.17.3-aarch64-linux-gnu)
@@ -382,6 +385,7 @@ GEM
     multi_json (1.19.1)
     multi_xml (0.8.1)
       bigdecimal (>= 3.1, < 5)
+    multipart-post (2.4.1)
     neighbor (0.6.0)
       activerecord (>= 7.1)
     net-http (0.9.1)
@@ -645,6 +649,10 @@ GEM
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
       rubocop-rspec (~> 3.5)
+    ruby-openai (7.4.0)
+      event_stream_parser (>= 0.3.0, < 2.0.0)
+      faraday (>= 1)
+      faraday-multipart (>= 1)
     ruby-progressbar (1.13.0)
     ruby-rc4 (0.1.5)
     rubyzip (3.2.2)
@@ -838,6 +846,7 @@ DEPENDENCIES
   rubocop-rails
   rubocop-rspec (~> 3.8)
   rubocop-rspec_rails (~> 2.32)
+  ruby-openai (~> 7.0)
   selenium-webdriver
   shoulda-matchers
   simplecov

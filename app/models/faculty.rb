@@ -39,6 +39,7 @@
 #
 class Faculty < ApplicationRecord
   include PublicIdentifiable
+  include Embeddable
 
   set_public_id_prefix :fac
 
@@ -58,7 +59,6 @@ class Faculty < ApplicationRecord
   after_create :enqueue_directory_lookup, if: :needs_directory_data?
 
   # Scopes
-  scope :with_embeddings, -> { where.not(embedding: nil) }
   scope :faculty_only, -> { where(employee_type: "faculty") }
   scope :staff_only, -> { where(employee_type: "staff") }
   scope :by_school, ->(school) { where(school: school) }
@@ -183,6 +183,25 @@ class Faculty < ApplicationRecord
     with_courses.find_each do |faculty|
       faculty.update_ratings!
     end
+  end
+
+  # Generate the text representation for embedding
+  # Combines faculty info with aggregated RMP rating comments for semantic search
+  def embedding_text
+    parts = [
+      full_name,
+      title,
+      department,
+      school
+    ]
+
+    # Add aggregated RMP comments for richer embedding
+    if rmp_ratings.any?
+      comments = rmp_ratings.where.not(comment: [nil, ""]).limit(20).pluck(:comment)
+      parts << comments.join(" ") if comments.any?
+    end
+
+    parts.compact.join(" ").squish.presence
   end
 
   # Find faculty with similar teaching profiles based on aggregated embedding

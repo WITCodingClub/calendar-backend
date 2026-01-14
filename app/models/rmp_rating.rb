@@ -37,6 +37,7 @@
 #
 class RmpRating < ApplicationRecord
   include PublicIdentifiable
+  include Embeddable
 
   set_public_id_prefix :rmp, min_hash_length: 12
 
@@ -49,7 +50,6 @@ class RmpRating < ApplicationRecord
   scope :recent, -> { order(rating_date: :desc) }
   scope :positive, -> { where(clarity_rating: 4..) }
   scope :negative, -> { where(clarity_rating: ..2) }
-  scope :with_embeddings, -> { where.not(embedding: nil) }
 
   def overall_sentiment
     return "neutral" if clarity_rating.blank?
@@ -61,6 +61,19 @@ class RmpRating < ApplicationRecord
     else
       "neutral"
     end
+  end
+
+  # Generate the text representation for embedding
+  # Combines comment with context like course name and tags
+  def embedding_text
+    parts = [
+      comment,
+      course_name.presence && "Course: #{course_name}",
+      grade.presence && "Grade: #{grade}",
+      rating_tags
+    ]
+
+    parts.compact.join(" ").squish.presence
   end
 
   # Find similar ratings based on comment embeddings
