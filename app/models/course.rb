@@ -54,20 +54,20 @@ class Course < ApplicationRecord
   # Update term dates when course dates change
   after_save :update_term_dates, if: -> { saved_change_to_start_date? || saved_change_to_end_date? }
 
-  enum status: { active: "active", cancelled: "cancelled" }
+  enum :status, { active: "active", cancelled: "cancelled" }
 
-  enum schedule_type: {
-  hybrid: "HYB",
-  independent_study: "IND",
-  laboratory: "LAB",
-  lecture: "LEC",
-  online: "ONL",
-  online_sync_lab: "OLB",
-  online_sync_lecture: "OLC",
-  rotating_lab: "RLB",
-  rotating_lecture: "RLC",
-  study_abroad: "SAB"
-}
+  enum :schedule_type, {
+    hybrid: "HYB",
+    independent_study: "IND",
+    laboratory: "LAB",
+    lecture: "LEC",
+    online: "ONL",
+    online_sync_lab: "OLB",
+    online_sync_lecture: "OLC",
+    rotating_lab: "RLB",
+    rotating_lecture: "RLC",
+    study_abroad: "SAB"
+  }
 
 
   # Generate the text representation for embedding
