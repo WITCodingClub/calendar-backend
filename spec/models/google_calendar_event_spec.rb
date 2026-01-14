@@ -13,6 +13,7 @@
 #  recurrence                   :text
 #  start_time                   :datetime
 #  summary                      :string
+#  user_edited                  :boolean          default(FALSE), not null
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
 #  final_exam_id                :bigint
@@ -270,6 +271,40 @@ RSpec.describe GoogleCalendarEvent do
     it "returns false when last_synced_at is within threshold" do
       event = build(:google_calendar_event, last_synced_at: 30.minutes.ago)
       expect(event.needs_sync?(1.hour)).to be false
+    end
+  end
+
+  describe "#mark_user_edited!" do
+    let(:event) { create(:google_calendar_event, user_edited: false) }
+
+    it "sets user_edited to true" do
+      expect { event.mark_user_edited! }.to change { event.reload.user_edited }.from(false).to(true)
+    end
+  end
+
+  describe "#clear_user_edited!" do
+    let(:event) { create(:google_calendar_event, user_edited: true) }
+
+    it "sets user_edited to false" do
+      expect { event.clear_user_edited! }.to change { event.reload.user_edited }.from(true).to(false)
+    end
+  end
+
+  describe ".user_edited scope" do
+    let!(:edited_event) { create(:google_calendar_event, user_edited: true) }
+    let!(:unedited_event) { create(:google_calendar_event, user_edited: false) }
+
+    it "returns only user-edited events" do
+      expect(described_class.user_edited).to contain_exactly(edited_event)
+    end
+  end
+
+  describe ".not_user_edited scope" do
+    let!(:edited_event) { create(:google_calendar_event, user_edited: true) }
+    let!(:unedited_event) { create(:google_calendar_event, user_edited: false) }
+
+    it "returns only non-user-edited events" do
+      expect(described_class.not_user_edited).to contain_exactly(unedited_event)
     end
   end
 end

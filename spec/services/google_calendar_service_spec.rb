@@ -318,6 +318,44 @@ RSpec.describe GoogleCalendarService do
         db_event.reload
         expect(db_event.last_synced_at).to be_within(1.second).of(Time.current)
       end
+
+      it "sets the user_edited flag to persist the detection" do
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
+
+        db_event.reload
+        expect(db_event.user_edited).to be true
+      end
+    end
+
+    context "when event was previously marked as user_edited" do
+      before do
+        db_event.update!(user_edited: true)
+        allow(service).to receive(:service_account_calendar_service).and_return(mock_service)
+        allow(mock_service).to receive(:get_event)
+        allow(mock_service).to receive(:update_event)
+      end
+
+      it "skips the event without fetching from Google Calendar" do
+        result = service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
+
+        expect(result).to eq(:skipped_user_edit)
+        expect(mock_service).not_to have_received(:get_event)
+        expect(mock_service).not_to have_received(:update_event)
+      end
+
+      it "marks the event as synced" do
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
+
+        db_event.reload
+        expect(db_event.last_synced_at).to be_within(1.second).of(Time.current)
+      end
+
+      it "preserves the user_edited flag" do
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event)
+
+        db_event.reload
+        expect(db_event.user_edited).to be true
+      end
     end
 
     context "when user has not edited the event" do
@@ -428,6 +466,24 @@ RSpec.describe GoogleCalendarService do
         db_event.reload
         expect(db_event.summary).to eq("Updated Course Title from System")
         expect(db_event.location).to eq("Room 303")
+      end
+
+      it "clears the user_edited flag after successful update" do
+        db_event.update!(user_edited: true)
+
+        service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event, force: true)
+
+        db_event.reload
+        expect(db_event.user_edited).to be false
+      end
+
+      it "bypasses the persistent user_edited flag check" do
+        db_event.update!(user_edited: true)
+
+        result = service.send(:update_event_in_calendar, mock_service, google_calendar, db_event, course_event, force: true)
+
+        expect(result).to eq(:updated)
+        expect(mock_service).to have_received(:update_event)
       end
 
       context "with color preferences" do

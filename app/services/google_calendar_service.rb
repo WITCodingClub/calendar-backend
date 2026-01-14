@@ -667,6 +667,20 @@ class GoogleCalendarService
   end
 
   def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, preference_resolver: nil, template_renderer: nil)
+    # Skip events that were previously marked as user-edited (unless force sync)
+    # This is the persistent check that survives across sync cycles
+    if db_event.user_edited? && !force
+      Rails.logger.info({
+        message: "Event skipped - previously marked as user-edited",
+        user_id: user.id,
+        google_event_id: db_event.google_event_id,
+        meeting_time_id: db_event.meeting_time_id,
+        reason: "user_edited_flag"
+      }.to_json)
+      db_event.mark_synced!
+      return :skipped_user_edit
+    end
+
     # Use hash-based change detection for efficiency (unless forced)
     unless force || db_event.data_changed?(course_event)
       db_event.mark_synced!
@@ -697,6 +711,9 @@ class GoogleCalendarService
           }.to_json)
 
           update_db_from_gcal_event(db_event, current_gcal_event)
+
+          # Persistently mark this event as user-edited so future syncs skip it
+          db_event.mark_user_edited!
 
           # Mark as synced since we just pulled the latest from Google Calendar
           db_event.mark_synced!
@@ -802,6 +819,7 @@ class GoogleCalendarService
     end
 
     # Update the database record with new data and hash
+    # Clear user_edited flag since we just applied system changes (either force=true or no user edit detected)
     db_event.update!(
       summary: event_data[:summary],
       location: event_data[:location],
@@ -809,7 +827,8 @@ class GoogleCalendarService
       end_time: event_data[:end_time],
       recurrence: event_data[:recurrence],
       event_data_hash: GoogleCalendarEvent.generate_data_hash(event_data),
-      last_synced_at: Time.current
+      last_synced_at: Time.current,
+      user_edited: false
     )
 
     # Log detailed update information (especially for color changes)

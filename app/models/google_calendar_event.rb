@@ -13,6 +13,7 @@
 #  recurrence                   :text
 #  start_time                   :datetime
 #  summary                      :string
+#  user_edited                  :boolean          default(FALSE), not null
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
 #  final_exam_id                :bigint
@@ -78,6 +79,8 @@ class GoogleCalendarEvent < ApplicationRecord
   scope :courses_only, -> { where.not(meeting_time_id: nil) }
   scope :university_events_only, -> { where.not(university_calendar_event_id: nil) }
   scope :for_university_calendar_event, ->(event_id) { where(university_calendar_event_id: event_id) }
+  scope :user_edited, -> { where(user_edited: true) }
+  scope :not_user_edited, -> { where(user_edited: false) }
 
   # Returns true if this event is for a final exam
   def final_exam?
@@ -125,12 +128,22 @@ class GoogleCalendarEvent < ApplicationRecord
 
   # Update the event data hash
   def update_data_hash!(event_data)
-    update_column(:event_data_hash, self.class.generate_data_hash(event_data))
+    update_column(:event_data_hash, self.class.generate_data_hash(event_data)) # rubocop:disable Rails/SkipsModelValidations
   end
 
   # Mark as synced
   def mark_synced!
-    update_columns(last_synced_at: Time.current)
+    update_columns(last_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  # Mark as user-edited (preserves user's Google Calendar changes)
+  def mark_user_edited!
+    update_columns(user_edited: true) # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  # Clear user-edited flag (allows system updates again)
+  def clear_user_edited!
+    update_columns(user_edited: false) # rubocop:disable Rails/SkipsModelValidations
   end
 
   # Check if event needs syncing based on staleness
