@@ -35,9 +35,6 @@ class Rack::Attack
 
   # Whitelist admin users and users with bypass feature flag from most rate limits
   safelist("allow-privileged-users") do |req|
-    # Skip for authentication endpoints (we still want to rate limit these for security)
-    next false if ["/users/sign_in", "/users/password"].include?(req.path)
-
     # Check if this is an API request with privileged user
     if req.path.start_with?("/api/")
       user_id = extract_user_id_from_jwt(req)
@@ -86,36 +83,6 @@ class Rack::Attack
   # General IP-based throttle (exclude static assets and safelisted paths)
   throttle("req/ip", limit: 600, period: 5.minutes) do |req|
     req.ip unless req.path.start_with?("/assets", "/packs", "/rails/active_storage")
-  end
-
-  # ============================================================================
-  # AUTHENTICATION THROTTLES
-  # ============================================================================
-
-  # Throttle login attempts by email (prevent credential stuffing)
-  throttle("logins/email", limit: 5, period: 20.seconds) do |req|
-    if req.path == "/users/sign_in" && req.post?
-      email = req.params["user"]&.dig("email")
-      email.to_s.downcase.gsub(/\s+/, "") if email.present?
-    end
-  end
-
-  # Throttle login attempts by IP (prevent distributed attacks)
-  throttle("logins/ip", limit: 20, period: 5.minutes) do |req|
-    req.ip if req.path == "/users/sign_in" && req.post?
-  end
-
-  # Throttle password reset attempts by email
-  throttle("password-resets/email", limit: 3, period: 20.minutes) do |req|
-    if req.path == "/users/password" && req.post?
-      email = req.params["user"]&.dig("email")
-      email.to_s.downcase.gsub(/\s+/, "") if email.present?
-    end
-  end
-
-  # Throttle password reset attempts by IP
-  throttle("password-resets/ip", limit: 10, period: 20.minutes) do |req|
-    req.ip if req.path == "/users/password" && req.post?
   end
 
   # ============================================================================

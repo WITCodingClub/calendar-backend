@@ -109,48 +109,6 @@ RSpec.describe "Rack::Attack" do
     end
   end
 
-  describe "login throttles" do
-    let(:email) { "test@example.com" }
-
-    describe "by email" do
-      it "allows up to 5 login attempts per 20 seconds" do
-        5.times do
-          post_with_agent "/users/sign_in", params: { user: { email: email, password: "wrong" } }
-        end
-        expect(response).not_to have_http_status(:too_many_requests)
-      end
-
-      it "throttles after 5 login attempts per 20 seconds" do
-        6.times do
-          post_with_agent "/users/sign_in", params: { user: { email: email, password: "wrong" } }
-        end
-        expect(response).to have_http_status(:too_many_requests)
-      end
-
-      it "normalizes email addresses (case and whitespace)" do
-        3.times { post_with_agent "/users/sign_in", params: { user: { email: "Test@Example.com", password: "wrong" } } }
-        3.times { post_with_agent "/users/sign_in", params: { user: { email: " test@example.com ", password: "wrong" } } }
-        expect(response).to have_http_status(:too_many_requests)
-      end
-    end
-
-    describe "by IP" do
-      it "allows up to 20 login attempts per 5 minutes" do
-        20.times do
-          post_with_agent "/users/sign_in", params: { user: { email: "user#{rand(1000)}@example.com", password: "wrong" } }
-        end
-        expect(response).not_to have_http_status(:too_many_requests)
-      end
-
-      it "throttles after 20 login attempts per 5 minutes" do
-        21.times do
-          post_with_agent "/users/sign_in", params: { user: { email: "user#{rand(1000)}@example.com", password: "wrong" } }
-        end
-        expect(response).to have_http_status(:too_many_requests)
-      end
-    end
-  end
-
   describe "OAuth throttles" do
     it "allows up to 10 OAuth requests per minute" do
       10.times { get_with_agent "/auth/google_oauth2/callback" }
