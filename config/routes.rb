@@ -110,8 +110,8 @@
 #                                                  /admin/flipper                                                                                    Flipper::UI
 #                   admin_rails_performance        /admin/performance                                                                                RailsPerformance::Engine
 #                          admin_audits1984        /admin/audits                                                                                     Audits1984::Engine
-#                            admin_rswag_ui        /admin/api-docs                                                                                   Rswag::Ui::Engine
-#                           admin_rswag_api        /admin/api-docs                                                                                   Rswag::Api::Engine
+#                                  rswag_ui        /api/docs                                                                                         Rswag::Ui::Engine
+#                                 rswag_api        /api/docs                                                                                         Rswag::Api::Engine
 #                             admin_pg_hero        /admin/pghero                                                                                     PgHero::Engine
 #                         admin_logster_web        /admin/logs                                                                                       Logster::Web
 #                                     admin GET    /admin(.:format)                                                                                  redirect(301, /users/sign_in)
@@ -317,6 +317,12 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
+  # API documentation (public, no auth required)
+  scope :api do
+    mount Rswag::Ui::Engine, at: "/docs"
+    mount Rswag::Api::Engine, at: "/docs"
+  end
+
   # API routes
   namespace :api do
     post "user/onboard", to: "users#onboard"
@@ -455,8 +461,6 @@ Rails.application.routes.draw do
       mount Flipper::UI.app(Flipper), at: "flipper"
       mount RailsPerformance::Engine, at: "performance"
       mount Audits1984::Engine, at: "audits"
-      mount Rswag::Ui::Engine, at: "api-docs"
-      mount Rswag::Api::Engine, at: "api-docs"
       mount PgHero::Engine, at: "pghero"
       mount Logster::Web, at: "logs"
     end
