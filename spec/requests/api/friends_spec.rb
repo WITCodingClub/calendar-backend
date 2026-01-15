@@ -19,7 +19,7 @@ RSpec.describe "Api::Friends" do
       create(:friendship, :accepted, requester: user, addressee: friend1)
       create(:friendship, :accepted, requester: friend2, addressee: user)
       # Pending request should not appear
-      create(:friendship, :pending, requester: user, addressee: create(:user))
+      create(:friendship, requester: user, addressee: create(:user))
     end
 
     it "returns accepted friends" do
@@ -38,8 +38,8 @@ RSpec.describe "Api::Friends" do
     let!(:outgoing_addressee) { create(:user, first_name: "Outgoing", last_name: "User") }
 
     before do
-      create(:friendship, :pending, requester: incoming_requester, addressee: user)
-      create(:friendship, :pending, requester: user, addressee: outgoing_addressee)
+      create(:friendship, requester: incoming_requester, addressee: user)
+      create(:friendship, requester: user, addressee: outgoing_addressee)
     end
 
     it "returns incoming and outgoing requests" do
@@ -92,7 +92,7 @@ RSpec.describe "Api::Friends" do
 
   describe "POST /api/friends/requests/:request_id/accept" do
     let(:requester) { create(:user, first_name: "Requester", last_name: "User") }
-    let!(:friendship) { create(:friendship, :pending, requester: requester, addressee: user) }
+    let!(:friendship) { create(:friendship, requester: requester, addressee: user) }
 
     it "accepts the friend request" do
       post "/api/friends/requests/#{friendship.public_id}/accept", headers: headers
@@ -121,7 +121,7 @@ RSpec.describe "Api::Friends" do
 
   describe "POST /api/friends/requests/:request_id/decline" do
     let(:requester) { create(:user) }
-    let!(:friendship) { create(:friendship, :pending, requester: requester, addressee: user) }
+    let!(:friendship) { create(:friendship, requester: requester, addressee: user) }
 
     it "declines and deletes the request" do
       post "/api/friends/requests/#{friendship.public_id}/decline", headers: headers
@@ -134,7 +134,7 @@ RSpec.describe "Api::Friends" do
 
   describe "DELETE /api/friends/requests/:request_id" do
     let(:addressee) { create(:user) }
-    let!(:friendship) { create(:friendship, :pending, requester: user, addressee: addressee) }
+    let!(:friendship) { create(:friendship, requester: user, addressee: addressee) }
 
     it "cancels outgoing request" do
       delete "/api/friends/requests/#{friendship.public_id}", headers: headers

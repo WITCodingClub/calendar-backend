@@ -31,10 +31,6 @@ FactoryBot.define do
     addressee factory: %i[user]
     status { :pending }
 
-    trait :pending do
-      status { :pending }
-    end
-
     trait :accepted do
       status { :accepted }
     end

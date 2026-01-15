@@ -61,7 +61,7 @@ RSpec.describe Friendship do
   end
 
   describe "scopes" do
-    let!(:pending_request) { create(:friendship, :pending, requester: user1, addressee: user2) }
+    let!(:pending_request) { create(:friendship, requester: user1, addressee: user2) }
     let(:user3) { create(:user) }
     let!(:accepted_friendship) { create(:friendship, :accepted, requester: user1, addressee: user3) }
 
