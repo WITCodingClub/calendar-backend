@@ -87,6 +87,9 @@ jobs:
           bundle exec rails db:create
           bundle exec rails db:schema:load
 
+      - name: Build Tailwind CSS
+        run: bundle exec rails tailwindcss:build
+
       - name: Run Tests
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
