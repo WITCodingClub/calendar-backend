@@ -198,6 +198,30 @@ class CalendarTemplateRenderer
   end
 
   class << self
+    def format_time_with_ampm(time_integer)
+      return "" if time_integer.nil?
+
+      hours = time_integer / 100
+      minutes = time_integer % 100
+
+      period = hours >= 12 ? "PM" : "AM"
+      display_hours = hours % 12
+      display_hours = 12 if display_hours.zero?
+
+      format("%d:%02d %s", display_hours, minutes, period)
+    end
+
+    def shorthand_schedule_type(schedule_type)
+      return "" if schedule_type.nil?
+
+      case schedule_type.downcase
+      when "laboratory"
+        "Lab"
+      else
+        schedule_type.capitalize
+      end
+    end
+
     private
 
     def format_datetime(datetime)
@@ -268,30 +292,6 @@ class CalendarTemplateRenderer
       course.faculties.map(&:full_name).join(", ")
     rescue
       ""
-    end
-
-    def format_time_with_ampm(time_integer)
-      return "" if time_integer.nil?
-
-      hours = time_integer / 100
-      minutes = time_integer % 100
-
-      period = hours >= 12 ? "PM" : "AM"
-      display_hours = hours % 12
-      display_hours = 12 if display_hours.zero?
-
-      format("%d:%02d %s", display_hours, minutes, period)
-    end
-
-    def shorthand_schedule_type(schedule_type)
-      return "" if schedule_type.nil?
-
-      case schedule_type.downcase
-      when "laboratory"
-        "Lab"
-      else
-        schedule_type.capitalize
-      end
     end
 
   end

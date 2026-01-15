@@ -103,7 +103,8 @@ module Api
     private
 
     def set_event
-      @event = UniversityCalendarEvent.find_by_public_id!(params[:id])
+      @event = UniversityCalendarEvent.find_by_public_id(params[:id])
+      raise ActiveRecord::RecordNotFound, "UniversityCalendarEvent not found" unless @event
     end
 
     def serialize_event(event)

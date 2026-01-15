@@ -13,6 +13,7 @@
 #  recurrence                   :text
 #  start_time                   :datetime
 #  summary                      :string
+#  user_edited_fields           :jsonb
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
 #  final_exam_id                :bigint
@@ -68,8 +69,7 @@ class GoogleCalendarEvent < ApplicationRecord
   # Serialize recurrence as an array
   serialize :recurrence, coder: JSON
 
-  # Serialize user_edited_fields as JSON array of field names
-  serialize :user_edited_fields, coder: JSON
+  # user_edited_fields is a jsonb column (natively serialized by PostgreSQL)
 
   scope :for_user, ->(user) { where(user: user) }
   scope :for_calendar, ->(calendar) { where(google_calendar: calendar) }

@@ -211,7 +211,7 @@ class Term < ApplicationRecord
     return nil unless date
 
     date = date.to_date if date.respond_to?(:to_date)
-    where.not(start_date: nil, end_date: nil)
+    where.not(start_date: nil).where.not(end_date: nil)
          .where("start_date <= ? AND end_date >= ?", date, date)
          .first
   end

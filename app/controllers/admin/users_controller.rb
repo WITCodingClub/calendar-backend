@@ -171,10 +171,10 @@ module Admin
         # Try different formats: full public_id, hashid only, or integer ID
         if params[:id].start_with?("usr_")
           # Full public_id format - use PublicIdentifiable concern method
-          @user = User.find_by_public_id(params[:id])
+          @user = User.find_by(public_id: params[:id])
         elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
           # Hashid only - construct full public_id and use concern method
-          @user = User.find_by_public_id("usr_#{params[:id]}")
+          @user = User.find_by(public_id: "usr_#{params[:id]}")
         elsif params[:id].match?(/^\d+$/)
           # Integer ID
           @user = User.find(params[:id])

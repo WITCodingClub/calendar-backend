@@ -24,7 +24,7 @@ module PublicIdLookupable
 
     # If it contains an underscore, it's likely a public_id (e.g., "usr_abc123")
     if id.to_s.include?("_")
-      model_class.find_by_public_id(id) # rubocop:disable Rails/DynamicFindBy -- custom method from PublicIdentifiable
+      model_class.find_by_public_id(id)
     else
       # Fall back to internal ID lookup
       model_class.find_by(id: id)

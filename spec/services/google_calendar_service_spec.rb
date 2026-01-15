@@ -296,7 +296,6 @@ RSpec.describe GoogleCalendarService do
       end
 
       before do
-        allow(service).to receive(:service_account_calendar_service).and_return(mock_service)
         allow(mock_service).to receive(:get_event).with(
           google_calendar.google_calendar_id,
           db_event.google_event_id
@@ -304,7 +303,7 @@ RSpec.describe GoogleCalendarService do
         # Stub update_event so we can verify behavior
         allow(mock_service).to receive(:update_event)
         # Stub apply_preferences_to_event to return course_event as-is
-        allow(service).to receive(:apply_preferences_to_event).and_return(course_event)
+        allow(service).to receive_messages(service_account_calendar_service: mock_service, apply_preferences_to_event: course_event)
       end
 
       it "preserves user's Google Calendar edits while still syncing other system fields" do

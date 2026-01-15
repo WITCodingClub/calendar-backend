@@ -13,14 +13,14 @@ RSpec.describe MeetingTimesIngestService do
       it "preserves the full room number including letters" do
         raw_meeting_times = [
           {
-            "startDate" => "01/06/2026",
-            "endDate" => "04/14/2026",
-            "beginTime" => "1000",
-            "endTime" => "1145",
-            "wednesday" => true,
-            "building" => "BEATT",
+            "startDate"           => "01/06/2026",
+            "endDate"             => "04/14/2026",
+            "beginTime"           => "1000",
+            "endTime"             => "1145",
+            "wednesday"           => true,
+            "building"            => "BEATT",
             "buildingDescription" => "Beatty Hall",
-            "room" => "M204"
+            "room"                => "M204"
           }
         ]
 
@@ -33,14 +33,14 @@ RSpec.describe MeetingTimesIngestService do
       it "handles room numbers with trailing letters" do
         raw_meeting_times = [
           {
-            "startDate" => "01/06/2026",
-            "endDate" => "04/14/2026",
-            "beginTime" => "1000",
-            "endTime" => "1145",
-            "monday" => true,
-            "building" => "TEST",
+            "startDate"           => "01/06/2026",
+            "endDate"             => "04/14/2026",
+            "beginTime"           => "1000",
+            "endTime"             => "1145",
+            "monday"              => true,
+            "building"            => "TEST",
             "buildingDescription" => "Test Building",
-            "room" => "101A"
+            "room"                => "101A"
           }
         ]
 
@@ -53,14 +53,14 @@ RSpec.describe MeetingTimesIngestService do
       it "defaults to '0' for blank room numbers" do
         raw_meeting_times = [
           {
-            "startDate" => "01/06/2026",
-            "endDate" => "04/14/2026",
-            "beginTime" => "1000",
-            "endTime" => "1145",
-            "monday" => true,
-            "building" => "TBD",
+            "startDate"           => "01/06/2026",
+            "endDate"             => "04/14/2026",
+            "beginTime"           => "1000",
+            "endTime"             => "1145",
+            "monday"              => true,
+            "building"            => "TBD",
             "buildingDescription" => "To Be Determined",
-            "room" => ""
+            "room"                => ""
           }
         ]
 
@@ -91,20 +91,20 @@ RSpec.describe MeetingTimesIngestService do
         # Now import with updated room data
         raw_meeting_times = [
           {
-            "startDate" => "01/06/2026",
-            "endDate" => "04/14/2026",
-            "beginTime" => "1000",
-            "endTime" => "1145",
-            "wednesday" => true,
-            "building" => "BEATT",
+            "startDate"           => "01/06/2026",
+            "endDate"             => "04/14/2026",
+            "beginTime"           => "1000",
+            "endTime"             => "1145",
+            "wednesday"           => true,
+            "building"            => "BEATT",
             "buildingDescription" => "Beatty Hall",
-            "room" => "M204"
+            "room"                => "M204"
           }
         ]
 
         expect {
           described_class.call(course: course, raw_meeting_times: raw_meeting_times)
-        }.not_to change { MeetingTime.count }
+        }.not_to(change(MeetingTime, :count))
 
         meeting_time.reload
         expect(meeting_time.room.number).to eq("M204")
@@ -128,20 +128,20 @@ RSpec.describe MeetingTimesIngestService do
 
         raw_meeting_times = [
           {
-            "startDate" => "01/06/2026",
-            "endDate" => "04/14/2026",
-            "beginTime" => "1000",
-            "endTime" => "1145",
-            "wednesday" => true,
-            "building" => "BEATT",
+            "startDate"           => "01/06/2026",
+            "endDate"             => "04/14/2026",
+            "beginTime"           => "1000",
+            "endTime"             => "1145",
+            "wednesday"           => true,
+            "building"            => "BEATT",
             "buildingDescription" => "Beatty Hall",
-            "room" => "M204"
+            "room"                => "M204"
           }
         ]
 
         expect {
           described_class.call(course: course, raw_meeting_times: raw_meeting_times)
-        }.not_to change { course.meeting_times.count }
+        }.not_to(change { course.meeting_times.count })
       end
     end
   end

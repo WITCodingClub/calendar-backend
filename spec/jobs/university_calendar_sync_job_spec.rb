@@ -88,11 +88,11 @@ RSpec.describe UniversityCalendarSyncJob do
     let!(:term) { create(:term, year: 2025, season: :fall, start_date: nil, end_date: nil) }
 
     before do
-      create(:university_calendar_event, :academic,
+      create(:university_calendar_event, :classes_begin,
              summary: "Fall 2025 Classes Begin",
              academic_term: "Fall",
              start_time: Date.new(2025, 8, 25).beginning_of_day)
-      create(:university_calendar_event, :academic,
+      create(:university_calendar_event, :finals,
              summary: "Fall 2025 Final Exams",
              academic_term: "Fall",
              start_time: Date.new(2025, 12, 15).beginning_of_day,

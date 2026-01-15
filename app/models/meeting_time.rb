@@ -123,7 +123,7 @@ class MeetingTime < ApplicationRecord
     end
 
     # Format as "BUILDING ROOM" or just "BUILDING" if room is 0 or TBD
-    if room.number == 0 || room.number.to_s.upcase == "TBD"
+    if room.number.to_i.zero? || room.number.to_s.upcase == "TBD"
       room.building.abbreviation
     else
       "#{room.building.abbreviation} #{room.formatted_number}"

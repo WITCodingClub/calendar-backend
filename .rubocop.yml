@@ -181,6 +181,13 @@ Rails/HasAndBelongsToMany:
 Rails/Validation:
   Enabled: false
 
+# Custom finder methods that are NOT Rails dynamic finders
+Rails/DynamicFindBy:
+  AllowedMethods:
+    - find_by_email      # User.find_by_email - custom method
+    - find_by_date       # Term.find_by_date - custom method
+    - find_by_public_id  # PublicIdentifiable concern method
+
 Rails/UniqueValidationWithoutIndex:
   Enabled: false
 

@@ -308,8 +308,8 @@ module CourseScheduleSyncable
   def final_exam_date_for_course(course_id)
     @course_final_dates ||= {}
     @course_final_dates[course_id] ||= ::FinalExam.where(course_id: course_id)
-                                                   .where.not(exam_date: nil)
-                                                   .minimum(:exam_date)
+                                                  .where.not(exam_date: nil)
+                                                  .minimum(:exam_date)
   end
 
   # Build recurrence array with RRULE and EXDATE entries for holidays

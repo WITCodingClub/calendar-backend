@@ -153,7 +153,7 @@ class CourseDataSyncJob < ApplicationJob
     # For now, we'll assume meeting times come from the course processor
     # and check if the course has any meeting times without proper location data
     course.meeting_times.any? do |mt|
-      mt.room.number.zero? || mt.building.abbreviation == "TBD"
+      mt.room.number.to_i.zero? || mt.building.abbreviation == "TBD"
     end
   end
 

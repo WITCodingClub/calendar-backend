@@ -94,23 +94,23 @@ class LeopardWebService < ApplicationService
         next if mt.nil?
 
         {
-          "building" => mt["building"],
+          "building"             => mt["building"],
           "building_description" => mt["buildingDescription"],
-          "campus" => mt["campus"],
-          "campus_description" => mt["campusDescription"],
-          "room" => mt["room"],
-          "startDate" => mt["startDate"],
-          "endDate" => mt["endDate"],
-          "startTime" => mt["beginTime"],
-          "endTime" => mt["endTime"],
-          "days" => {
-            "monday" => mt["monday"],
-            "tuesday" => mt["tuesday"],
+          "campus"               => mt["campus"],
+          "campus_description"   => mt["campusDescription"],
+          "room"                 => mt["room"],
+          "startDate"            => mt["startDate"],
+          "endDate"              => mt["endDate"],
+          "startTime"            => mt["beginTime"],
+          "endTime"              => mt["endTime"],
+          "days"                 => {
+            "monday"    => mt["monday"],
+            "tuesday"   => mt["tuesday"],
             "wednesday" => mt["wednesday"],
-            "thursday" => mt["thursday"],
-            "friday" => mt["friday"],
-            "saturday" => mt["saturday"],
-            "sunday" => mt["sunday"]
+            "thursday"  => mt["thursday"],
+            "friday"    => mt["friday"],
+            "saturday"  => mt["saturday"],
+            "sunday"    => mt["sunday"]
           }
         }
       end.compact
@@ -309,6 +309,8 @@ class LeopardWebService < ApplicationService
       total_count: total_count,
       raw_response: first_response_data
     }
+  rescue ArgumentError
+    raise
   rescue => e
     {
       success: false,
@@ -396,4 +398,5 @@ class LeopardWebService < ApplicationService
       faraday.adapter Faraday.default_adapter
     end
   end
+
 end

@@ -92,4 +92,5 @@ class CleanupOrphanedCalendarEventsJob < ApplicationJob
 
     credentials
   end
+
 end

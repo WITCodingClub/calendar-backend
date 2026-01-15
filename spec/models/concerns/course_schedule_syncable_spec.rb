@@ -264,7 +264,7 @@ RSpec.describe CourseScheduleSyncable do
     context "when course has no final exam" do
       it "uses the meeting_time end_date as recurrence end" do
         result = instance.build_recurrence_rule(meeting_time)
-        
+
         # Should end on May 15, 2026 (meeting_time.end_date)
         expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260515T235959Z")
       end
@@ -282,7 +282,7 @@ RSpec.describe CourseScheduleSyncable do
 
       it "ends classes the day before the final exam" do
         result = instance.build_recurrence_rule(meeting_time)
-        
+
         # Should end on May 9, 2026 (day before final on May 10)
         expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260509T235959Z")
       end
@@ -301,7 +301,7 @@ RSpec.describe CourseScheduleSyncable do
 
       it "does not adjust end date based on other course finals" do
         result = instance.build_recurrence_rule(meeting_time)
-        
+
         # Should still end on May 15, 2026 (meeting_time.end_date)
         # NOT adjusted for other course's final on May 10
         expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260515T235959Z")
@@ -320,7 +320,7 @@ RSpec.describe CourseScheduleSyncable do
 
       it "uses the meeting_time end_date (does not extend)" do
         result = instance.build_recurrence_rule(meeting_time)
-        
+
         # Should still end on May 15, 2026 (meeting_time.end_date)
         expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260515T235959Z")
       end
