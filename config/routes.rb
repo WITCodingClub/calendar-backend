@@ -75,6 +75,8 @@
 #       refresh_oauth_credential_admin_user POST   /admin/users/:id/oauth_credentials/:credential_id/refresh(.:format)                               admin/users#refresh_oauth_credential
 #            toggle_support_flag_admin_user POST   /admin/users/:id/support_flags/:flag/toggle(.:format)                                             admin/users#toggle_support_flag
 #            force_calendar_sync_admin_user POST   /admin/users/:id/force_calendar_sync(.:format)                                                    admin/users#force_calendar_sync
+#                     add_friend_admin_user POST   /admin/users/:id/add_friend(.:format)                                                             admin/users#add_friend
+#                  remove_friend_admin_user DELETE /admin/users/:id/remove_friend(.:format)                                                          admin/users#remove_friend
 #                               admin_users GET    /admin/users(.:format)                                                                            admin/users#index
 #                           edit_admin_user GET    /admin/users/:id/edit(.:format)                                                                   admin/users#edit
 #                                admin_user GET    /admin/users/:id(.:format)                                                                        admin/users#show
@@ -438,6 +440,8 @@ Rails.application.routes.draw do
           post "oauth_credentials/:credential_id/refresh", to: "users#refresh_oauth_credential", as: :refresh_oauth_credential
           post "support_flags/:flag/toggle", to: "users#toggle_support_flag", as: :toggle_support_flag
           post :force_calendar_sync, to: "users#force_calendar_sync"
+          post :add_friend, to: "users#add_friend"
+          delete :remove_friend, to: "users#remove_friend"
         end
       end
       resources :calendars, only: [:index, :destroy]
