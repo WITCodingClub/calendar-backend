@@ -61,62 +61,61 @@ class UniversityCalendarIcsService < ApplicationService
   end
 
   def process_events(ics_events)
-    stats = { created: 0, updated: 0, unchanged: 0, errors: [] }
+    stats = { created: 0, updated: 0, unchanged: 0, merged: 0, errors: [] }
 
+    # First, extract attributes from all ICS events
+    event_attrs_list = []
     ics_events.each do |ics_event|
-      process_single_event(ics_event, stats)
+      attrs = build_event_attributes(ics_event)
+      event_attrs_list << attrs if attrs
     rescue => e
       stats[:errors] << "Error processing event #{ics_event.uid}: #{e.message}"
       Rails.logger.error("Failed to process ICS event: #{e.message}")
     end
 
+    # Merge consecutive same-named events into multi-day events
+    merged_events = merge_consecutive_events(event_attrs_list)
+    stats[:merged] = event_attrs_list.size - merged_events.size if event_attrs_list.size > merged_events.size
+
+    # Save each (possibly merged) event
+    merged_events.each do |attrs|
+      save_event(attrs, stats)
+    rescue => e
+      stats[:errors] << "Error saving event #{attrs[:ics_uid]}: #{e.message}"
+      Rails.logger.error("Failed to save event: #{e.message}")
+    end
+
     stats
   end
 
-  def process_single_event(ics_event, stats)
-    return if ics_event.dtstart.nil? # Skip events without start time
+  # Build event attributes from an ICS event without saving
+  # @param ics_event [Icalendar::Event] The ICS event to parse
+  # @return [Hash, nil] Event attributes hash or nil if invalid
+  def build_event_attributes(ics_event)
+    return nil if ics_event.dtstart.nil?
 
-    # Extract and decode custom fields from X-TRUMBA-CUSTOMFIELD properties
-    # Decode HTML entities early so decoded values are used consistently
     raw_custom_fields = extract_custom_fields(ics_event)
     organization = decode_html_entities(raw_custom_fields["Organization"])
     academic_term = decode_html_entities(raw_custom_fields["Academic Term"])
     event_type = decode_html_entities(raw_custom_fields["Event Type"])
     event_name = decode_html_entities(raw_custom_fields["Event Name"])
 
-    # Prefer "Event Name" custom field over ICS summary when available
-    # The ICS summary often has formatting issues (e.g., "DayHoliday" instead of "Day Holiday")
     summary = event_name.presence || decode_html_entities(ics_event.summary.to_s)
     location = decode_html_entities(ics_event.location&.to_s)
-
-    # Find or initialize by ICS UID
-    event = UniversityCalendarEvent.find_or_initialize_by(ics_uid: ics_event.uid.to_s)
-    was_new = event.new_record?
-
-    # Parse times
     start_time = parse_ics_time(ics_event.dtstart)
     end_time = parse_ics_time(ics_event.dtend || ics_event.dtstart)
-
-    # Clean description (remove HTML tags)
     description = clean_description(ics_event.description&.to_s)
-
-    # Infer category using decoded values
     category = UniversityCalendarEvent.infer_category(summary, event_type)
-
-    # Determine if this should be an all-day event
-    # Force holidays to be all-day regardless of ICS format
     is_all_day = category == "holiday" || all_day_event?(ics_event)
 
-    # For all-day events, normalize times to beginning and end of day
-    # but preserve original date range for multi-day events
     if is_all_day
       original_end_date = end_time.to_date
       start_time = start_time.beginning_of_day
       end_time = original_end_date.end_of_day
     end
 
-    # Assign attributes (already decoded above)
-    event.assign_attributes(
+    {
+      ics_uid: ics_event.uid.to_s,
       summary: summary,
       description: description,
       location: location,
@@ -127,30 +126,172 @@ class UniversityCalendarIcsService < ApplicationService
       category: category,
       organization: organization,
       academic_term: academic_term,
-      event_type_raw: event_type,
+      event_type_raw: event_type
+    }
+  end
+
+  # Merge consecutive same-named events into multi-day events
+  # Events are considered consecutive if they have the same summary, category,
+  # and their dates are adjacent (within 1 day)
+  # @param event_attrs_list [Array<Hash>] List of event attribute hashes
+  # @return [Array<Hash>] List with consecutive events merged
+  def merge_consecutive_events(event_attrs_list)
+    return event_attrs_list if event_attrs_list.size <= 1
+
+    # Group events by a merge key (summary + category + academic_term)
+    # Only consider all-day events for merging
+    grouped = event_attrs_list.group_by do |attrs|
+      if attrs[:all_day]
+        [attrs[:summary]&.downcase&.strip, attrs[:category], attrs[:academic_term]]
+      else
+        # Non-all-day events get unique keys so they don't merge
+        [:no_merge, attrs[:ics_uid]]
+      end
+    end
+
+    merged_results = []
+
+    grouped.each do |key, events|
+      if key.first == :no_merge || events.size == 1
+        # Don't merge non-all-day events or single events
+        merged_results.concat(events)
+      else
+        # Sort by start_time and try to merge consecutive events
+        sorted = events.sort_by { |e| e[:start_time] }
+        merged_results.concat(merge_consecutive_group(sorted))
+      end
+    end
+
+    merged_results
+  end
+
+  # Merge a group of sorted events with the same summary into consecutive multi-day events
+  # @param sorted_events [Array<Hash>] Events sorted by start_time
+  # @return [Array<Hash>] Merged events
+  def merge_consecutive_group(sorted_events)
+    return sorted_events if sorted_events.empty?
+
+    result = []
+    current = sorted_events.first.dup
+    current[:merged_uids] = [current[:ics_uid]]
+
+    sorted_events[1..].each do |event|
+      # Check if this event is consecutive with current (within 1 day)
+      current_end_date = current[:end_time].to_date
+      event_start_date = event[:start_time].to_date
+      days_between = (event_start_date - current_end_date).to_i
+
+      if days_between <= 1
+        # Merge: extend current event's end_time and track merged UIDs
+        current[:end_time] = event[:end_time]
+        current[:merged_uids] << event[:ics_uid]
+        # Keep description from first event, but could concatenate if different
+        current[:description] ||= event[:description]
+      else
+        # Not consecutive, save current and start new
+        result << finalize_merged_event(current)
+        current = event.dup
+        current[:merged_uids] = [current[:ics_uid]]
+      end
+    end
+
+    # Don't forget the last event
+    result << finalize_merged_event(current)
+    result
+  end
+
+  # Finalize a merged event by setting the ics_uid appropriately
+  # @param event [Hash] Event attributes with :merged_uids
+  # @return [Hash] Event attributes with final :ics_uid
+  def finalize_merged_event(event)
+    merged_uids = event.delete(:merged_uids)
+    if merged_uids.size > 1
+      # Use a composite UID for merged events to track all source UIDs
+      # Format: merged:<first_uid>+<count>
+      event[:ics_uid] = "merged:#{merged_uids.first}+#{merged_uids.size}"
+      Rails.logger.info("Merged #{merged_uids.size} events into multi-day event: #{event[:summary]} (#{event[:start_time].to_date} - #{event[:end_time].to_date})")
+    end
+    event
+  end
+
+  # Save or update an event in the database
+  # @param attrs [Hash] Event attributes
+  # @param stats [Hash] Stats hash to update
+  def save_event(attrs, stats)
+    # For merged events, also check for existing events with the first original UID
+    # This handles the case where we previously imported single-day events
+    ics_uid = attrs[:ics_uid]
+
+    # Find existing event by ics_uid (handles both new merged UIDs and original single UIDs)
+    event = UniversityCalendarEvent.find_or_initialize_by(ics_uid: ics_uid)
+
+    # If this is a merged event and we didn't find it, check for old single-day events to clean up
+    if event.new_record? && ics_uid.start_with?("merged:")
+      # Extract the original first UID to migrate from
+      original_uid = ics_uid.sub(/^merged:/, "").sub(/\+\d+$/, "")
+      existing_single = UniversityCalendarEvent.find_by(ics_uid: original_uid)
+      if existing_single
+        # Update the existing single-day event to become the merged event
+        event = existing_single
+        # Clean up other single-day events that are now part of this merged event
+        cleanup_merged_single_day_events(attrs, original_uid)
+      end
+    end
+
+    was_new = event.new_record?
+
+    event.assign_attributes(
+      ics_uid: ics_uid,
+      summary: attrs[:summary],
+      description: attrs[:description],
+      location: attrs[:location],
+      start_time: attrs[:start_time],
+      end_time: attrs[:end_time],
+      all_day: attrs[:all_day],
+      recurrence: attrs[:recurrence],
+      category: attrs[:category],
+      organization: attrs[:organization],
+      academic_term: attrs[:academic_term],
+      event_type_raw: attrs[:event_type_raw],
       last_fetched_at: Time.current,
       source_url: ics_url
     )
 
-    # Link to term - try academic_term first, then fall back to date-based lookup
-    if start_time
+    # Link to term
+    if attrs[:start_time]
       event.term = if event.academic_term.present?
-                     find_term_from_academic_term(event.academic_term, start_time)
+                     find_term_from_academic_term(event.academic_term, attrs[:start_time])
                    end
-      # Fall back to finding term by date if no term found yet
-      event.term ||= Term.find_by_date(start_time)
+      event.term ||= Term.find_by_date(attrs[:start_time])
     end
 
-    # Check if any field other than last_fetched_at has changed
     content_changed = event.changed? && (event.changed - ["last_fetched_at"]).any?
 
     if was_new || content_changed
       event.save!
       was_new ? stats[:created] += 1 : stats[:updated] += 1
     else
-      # Just update the last_fetched_at timestamp
       event.update_column(:last_fetched_at, Time.current) if event.persisted? # rubocop:disable Rails/SkipsModelValidations
       stats[:unchanged] += 1
+    end
+  end
+
+  # Clean up single-day events that have been merged into a multi-day event
+  # Looks for events with the same summary within the merged date range
+  # @param merged_attrs [Hash] The merged event attributes
+  # @param excluded_uid [String] The UID to exclude (already being updated)
+  def cleanup_merged_single_day_events(merged_attrs, excluded_uid)
+    start_date = merged_attrs[:start_time].to_date
+    end_date = merged_attrs[:end_time].to_date
+
+    # Find other single-day events with same summary in the date range
+    UniversityCalendarEvent.where(summary: merged_attrs[:summary])
+                           .where.not(ics_uid: excluded_uid)
+                           .where(start_time: start_date.beginning_of_day..end_date.end_of_day)
+                           .where(category: merged_attrs[:category])
+                           .find_each do |old_event|
+                             Rails.logger.info("Removing single-day event merged into multi-day: #{old_event.ics_uid}")
+                             old_event.destroy
     end
   end
 

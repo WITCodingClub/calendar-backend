@@ -287,6 +287,7 @@ class CalendarsController < ApplicationController
   end
 
   # Build EXDATE times for holidays that fall on a meeting time's day
+  # Handles both single-day and multi-day holidays
   def build_holiday_exdates_for_meeting_time(meeting_time, start_time)
     return [] unless defined?(UniversityCalendarEvent)
 
@@ -300,15 +301,32 @@ class CalendarsController < ApplicationController
       meeting_time.end_date
     ).to_a
 
-    # Filter to holidays that fall on this day of week
-    holidays.select { |h| h.start_time.wday == target_wday }
-            .map do |h|
-              # Build datetime with the holiday's date but the meeting's time
-              Time.zone.local(
-                h.start_time.year, h.start_time.month, h.start_time.day,
-                start_time.hour, start_time.min, 0
-              )
-            end
+    exdates = []
+
+    holidays.each do |holiday|
+      # Check if this holiday is multi-day (different start and end dates)
+      is_multi_day = holiday.end_time && holiday.start_time.to_date != holiday.end_time.to_date
+
+      if is_multi_day
+        # Multi-day holiday: add EXDATE for each matching weekday in the range
+        (holiday.start_time.to_date..holiday.end_time.to_date).each do |date|
+          next unless date.wday == target_wday
+
+          exdates << Time.zone.local(
+            date.year, date.month, date.day,
+            start_time.hour, start_time.min, 0
+          )
+        end
+      elsif holiday.start_time.wday == target_wday
+        # Single-day holiday: check if it falls on this weekday
+        exdates << Time.zone.local(
+          holiday.start_time.year, holiday.start_time.month, holiday.start_time.day,
+          start_time.hour, start_time.min, 0
+        )
+      end
+    end
+
+    exdates
   end
 
   def get_day_code(meeting_time)

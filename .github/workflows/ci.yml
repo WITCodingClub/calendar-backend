@@ -5,6 +5,11 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   RAILS_ENV: test
@@ -18,7 +23,7 @@ jobs:
     name: Rubocop
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -32,7 +37,7 @@ jobs:
     name: Brakeman
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -73,7 +78,7 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -95,3 +100,116 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
           REDIS_URL: redis://localhost:6379/0
         run: bundle exec rspec --format progress
+
+  update-api-docs:
+    name: Update API Docs
+    runs-on: ubuntu-latest
+    needs: [lint, security, test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ssh-key: "${{ secrets.PUSH_KEY }}"
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Setup Database
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
+        run: |
+          bundle exec rails db:create
+          bundle exec rails db:schema:load
+
+      - name: Run API specs with OpenAPI generation
+        env:
+          OPENAPI: 1
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
+          REDIS_URL: redis://localhost:6379/0
+        run: bundle exec rspec spec/requests/api --format progress
+
+      - name: Commit and push API Docs
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add "doc/openapi.yaml"
+          git commit -m "docs: update API documentation [skip ci]" || echo "No changes to commit"
+          git push origin main || echo "No changes to push"
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [lint, security, test, update-api-docs]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    timeout-minutes: 10
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+
+    steps:
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes jsp@"$SERVER_HOST" << 'EOF'
+            # Stop the server (send Ctrl+C to screen)
+            screen -S witcal-prod-server -p 0 -X stuff $'\003'
+            sleep 2
+
+            # Pull latest code, run migrations, and restart
+            screen -S witcal-prod-server -p 0 -X stuff 'cd /Users/jsp/server/calendar-backend && git pull && RAILS_ENV=production bundle exec rails db:migrate && RAILS_ENV=production rails server\n'
+          EOF
+
+      - name: Verify Deployment
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          sleep 5
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes jsp@"$SERVER_HOST" "curl -sf http://localhost:3000/up || exit 1"
