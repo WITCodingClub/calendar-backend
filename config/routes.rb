@@ -110,8 +110,8 @@
 #                                                  /admin/flipper                                                                                    Flipper::UI
 #                   admin_rails_performance        /admin/performance                                                                                RailsPerformance::Engine
 #                          admin_audits1984        /admin/audits                                                                                     Audits1984::Engine
-#                            admin_rswag_ui        /admin/api-docs                                                                                   Rswag::Ui::Engine
-#                           admin_rswag_api        /admin/api-docs                                                                                   Rswag::Api::Engine
+#                                  rswag_ui        /api/docs                                                                                         Rswag::Ui::Engine
+#                                 rswag_api        /api/docs                                                                                         Rswag::Api::Engine
 #                             admin_pg_hero        /admin/pghero                                                                                     PgHero::Engine
 #                         admin_logster_web        /admin/logs                                                                                       Logster::Web
 #                                     admin GET    /admin(.:format)                                                                                  redirect(301, /users/sign_in)

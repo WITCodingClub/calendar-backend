@@ -27,7 +27,7 @@ This Rails 8 application is an API backend that syncs college course schedules t
 
 ### API Documentation
 - `OPENAPI=1 bundle exec rspec spec/requests/api` - Generate OpenAPI/Swagger documentation from request specs
-- Access docs at `/admin/api-docs` (requires admin login)
+- Access docs at `/api/docs` (no authentication required)
 - **Automatic generation**: GitHub Actions automatically updates docs when API specs change on `main` branch
 
 ## Key Architectural Patterns

@@ -181,13 +181,34 @@ RSpec.describe "Api::Users" do
     end
   end
 
-  describe "POST /api/user/gcal/add_email", openapi: false do
-    # NOTE: This endpoint requires complex Google Calendar API mocking.
-    # The error cases are tested here, success case requires integration test.
+  describe "POST /api/user/gcal/add_email" do
     let(:credential) { create(:oauth_credential, user: user, email: "main@example.com") }
     let!(:calendar) { create(:google_calendar, oauth_credential: credential, google_calendar_id: "calendar123@google.com") }
 
-    context "without OAuth credential" do
+    context "with valid email" do
+      let(:mock_service) { double("GoogleCalendarService") }
+
+      before do
+        allow(GoogleCalendarService).to receive(:new).and_return(mock_service)
+        allow(mock_service).to receive_messages(
+          create_or_get_course_calendar: "calendar123@google.com",
+          share_calendar_with_email: nil
+        )
+      end
+
+      it "shares calendar with the email" do
+        post "/api/user/gcal/add_email",
+             params: { email: "additional@example.com" }.to_json,
+             headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json["message"]).to eq("Calendar shared with email")
+        expect(json["calendar_id"]).to eq("calendar123@google.com")
+      end
+    end
+
+    context "without OAuth credential", openapi: false do
       it "returns unprocessable entity" do
         user_without_cred = create(:user)
         Flipper.enable(FlipperFlags::V1, user_without_cred)
@@ -203,7 +224,7 @@ RSpec.describe "Api::Users" do
       end
     end
 
-    context "with invalid parameters" do
+    context "with invalid parameters", openapi: false do
       it "returns bad request when email is missing" do
         post "/api/user/gcal/add_email",
              params: {}.to_json,
@@ -216,13 +237,31 @@ RSpec.describe "Api::Users" do
     end
   end
 
-  describe "DELETE /api/user/gcal/remove_email", openapi: false do
-    # NOTE: This endpoint requires complex Google Calendar API mocking.
-    # The error cases are tested here, success case requires integration test.
+  describe "DELETE /api/user/gcal/remove_email" do
     let(:credential) { create(:oauth_credential, user: user, email: "main@example.com") }
     let!(:calendar) { create(:google_calendar, oauth_credential: credential, google_calendar_id: "cal123@google.com") }
 
-    context "when email not found" do
+    context "with valid email" do
+      let!(:email_record) { create(:email, user: user, email: "shared@example.com", g_cal: true) }
+      let(:mock_service) { double("GoogleCalendarService") }
+
+      before do
+        allow(GoogleCalendarService).to receive(:new).and_return(mock_service)
+        allow(mock_service).to receive(:unshare_calendar_with_email).and_return(nil)
+      end
+
+      it "removes email from calendar sharing" do
+        delete "/api/user/gcal/remove_email",
+               params: { email: "shared@example.com" }.to_json,
+               headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json["message"]).to eq("Email removed from Google Calendar association")
+      end
+    end
+
+    context "when email not found", openapi: false do
       it "returns not found" do
         delete "/api/user/gcal/remove_email",
                params: { email: "nonexistent@example.com" }.to_json,
@@ -232,7 +271,7 @@ RSpec.describe "Api::Users" do
       end
     end
 
-    context "with invalid parameters" do
+    context "with invalid parameters", openapi: false do
       it "returns bad request when email is missing" do
         delete "/api/user/gcal/remove_email",
                params: {}.to_json,

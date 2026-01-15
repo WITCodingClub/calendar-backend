@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### API Documentation
 - `OPENAPI=1 bundle exec rspec spec/requests/api` - Generate OpenAPI/Swagger documentation from request specs
-- Access docs at `/admin/api-docs` (requires admin login)
+- Access docs at `/api/docs` (no authentication required)
 - **Automatic generation**: GitHub Actions automatically updates docs when API specs change on `main` branch
 - **Configuration files**:
   - `config/initializers/rspec_openapi.rb` - OpenAPI generation config
@@ -180,7 +180,7 @@ A Rails 8 API backend that syncs college course schedules to Google Calendar wit
 1. Create/update controller action in `app/controllers/api/`
 2. Add request spec in `spec/requests/api/` - this generates the API docs
 3. Test locally: `OPENAPI=1 bundle exec rspec spec/requests/api`
-4. Check generated docs at `/admin/api-docs` (requires admin login)
+4. Check generated docs at `/api/docs`
 5. Docs auto-update on `main` branch via GitHub Actions
 6. To exclude specs from docs, add `openapi: false` to the describe block
 7. See `docs/api_documentation.md` for more details

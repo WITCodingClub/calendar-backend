@@ -43,17 +43,14 @@ This will generate/update the `doc/openapi.yaml` file.
 ## Viewing Documentation
 
 ### Swagger UI
-The API documentation is accessible via Swagger UI at the `/admin/api-docs` route.
-
-**Important:** The documentation is protected by the admin authentication constraint. You must be logged in as an admin to access it.
+The API documentation is accessible via Swagger UI at the `/api/docs` route.
 
 ### Accessing the Documentation
 1. Start your Rails server: `bin/rails server`
-2. Log in to the admin area (you need admin access)
-3. Navigate to `http://localhost:3000/admin/api-docs`
-4. Browse the interactive API documentation
+2. Navigate to `http://localhost:3000/api/docs`
+3. Browse the interactive API documentation
 
-The documentation is protected using the same `AdminConstraint` that secures the rest of the admin area (config/routes.rb:322).
+The documentation is publicly accessible without authentication.
 
 ## Configuration
 
