@@ -4,7 +4,7 @@ require "webmock/rspec"
 
 # Stub GitHub API calls for VersionService to prevent real HTTP requests in tests
 RSpec.configure do |config|
-  config.before(:each) do
+  config.before do
     # Stub the releases endpoint
     stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar-backend/releases/latest")
       .to_return(
