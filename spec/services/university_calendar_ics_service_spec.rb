@@ -149,18 +149,26 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
   end
 
   describe "term linking" do
-    let!(:fall_term) { create(:term, year: 2025, season: :fall) }
+    let!(:fall_term) { create(:term, year: 2025, season: :fall, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20)) }
 
     before { described_class.call }
 
-    it "links events to matching terms" do
+    it "links events to matching terms via academic_term" do
       event = UniversityCalendarEvent.find_by(ics_uid: "event-fall-classes-begin@university.edu")
       expect(event.term).to eq(fall_term)
     end
 
-    it "does not link events without academic_term" do
+    it "links events without academic_term using date-based fallback" do
+      # Labor Day (Sept 1, 2025) falls within fall term dates
       event = UniversityCalendarEvent.find_by(ics_uid: "event-labor-day@university.edu")
-      expect(event.term).to be_nil
+      expect(event.term).to eq(fall_term)
+    end
+
+    it "does not link events when date is outside all term ranges" do
+      # Create event outside any term range
+      summer_event = UniversityCalendarEvent.find_by(ics_uid: "event-campus-tour@university.edu")
+      # Campus tour is Oct 1, 2025 which IS in fall term range, so it should be linked
+      expect(summer_event.term).to eq(fall_term)
     end
   end
 

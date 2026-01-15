@@ -409,4 +409,31 @@ RSpec.describe Term do
       travel_back
     end
   end
+
+  describe ".find_by_date" do
+    let!(:fall_term) { create(:term, year: 2025, season: :fall, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20)) }
+    let!(:spring_term) { create(:term, year: 2026, season: :spring, start_date: Date.new(2026, 1, 15), end_date: Date.new(2026, 5, 15)) }
+
+    it "finds term containing the given date" do
+      expect(described_class.find_by_date(Date.new(2025, 10, 15))).to eq(fall_term)
+      expect(described_class.find_by_date(Date.new(2026, 3, 1))).to eq(spring_term)
+    end
+
+    it "returns nil when date is outside all term ranges" do
+      expect(described_class.find_by_date(Date.new(2025, 7, 1))).to be_nil
+    end
+
+    it "returns nil when given nil" do
+      expect(described_class.find_by_date(nil)).to be_nil
+    end
+
+    it "handles Time objects by converting to date" do
+      expect(described_class.find_by_date(Time.zone.local(2025, 10, 15, 14, 30))).to eq(fall_term)
+    end
+
+    it "skips terms without dates" do
+      create(:term, year: 2025, season: :summer, start_date: nil, end_date: nil)
+      expect(described_class.find_by_date(Date.new(2025, 6, 15))).to be_nil
+    end
+  end
 end

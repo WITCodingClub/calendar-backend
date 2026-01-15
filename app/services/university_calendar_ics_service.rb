@@ -130,9 +130,13 @@ class UniversityCalendarIcsService < ApplicationService
       source_url: ics_url
     )
 
-    # Link to term if academic_term is specified
-    if event.academic_term.present? && start_time
-      event.term = find_term_from_academic_term(event.academic_term, start_time)
+    # Link to term - try academic_term first, then fall back to date-based lookup
+    if start_time
+      event.term = if event.academic_term.present?
+                     find_term_from_academic_term(event.academic_term, start_time)
+                   end
+      # Fall back to finding term by date if no term found yet
+      event.term ||= Term.find_by_date(start_time)
     end
 
     # Check if any field other than last_fetched_at has changed

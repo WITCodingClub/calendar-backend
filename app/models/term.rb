@@ -204,6 +204,18 @@ class Term < ApplicationRecord
     exists?(uid: uid)
   end
 
+  # Find a term that contains the given date
+  # @param date [Date, Time, DateTime] the date to look up
+  # @return [Term, nil] the term containing the date, or nil if none found
+  def self.find_by_date(date)
+    return nil unless date
+
+    date = date.to_date if date.respond_to?(:to_date)
+    where.not(start_date: nil, end_date: nil)
+         .where("start_date <= ? AND end_date >= ?", date, date)
+         .first
+  end
+
   private
 
   def uniqueness_of_year_and_semester
