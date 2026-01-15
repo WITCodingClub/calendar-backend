@@ -167,24 +167,19 @@ module Admin
     private
 
     def set_user
-      begin
-        # Try different formats: full public_id, hashid only, or integer ID
-        if params[:id].start_with?("usr_")
-          # Full public_id format - use PublicIdentifiable concern method
-          @user = User.find_by(public_id: params[:id])
-        elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
-          # Hashid only - construct full public_id and use concern method
-          @user = User.find_by(public_id: "usr_#{params[:id]}")
-        elsif params[:id].match?(/^\d+$/)
-          # Integer ID
-          @user = User.find(params[:id])
-        end
+      # Try different formats: full public_id, hashid only, or integer ID
+      @user = if params[:id].start_with?("usr_")
+                # Full public_id format
+                User.find_by_public_id(params[:id])
+              elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
+                # Hashid only (from to_param)
+                User.find_by_hashid(params[:id])
+              elsif params[:id].match?(/^\d+$/)
+                # Integer ID
+                User.find(params[:id])
+              end
 
-        raise ActiveRecord::RecordNotFound unless @user
-      rescue => e
-        Rails.logger.error "Error finding user with ID #{params[:id]}: #{e.message}"
-        raise ActiveRecord::RecordNotFound
-      end
+      raise ActiveRecord::RecordNotFound unless @user
     end
 
     def user_params

@@ -188,6 +188,7 @@ Rails/DynamicFindBy:
     - find_by_email      # User.find_by_email - custom method
     - find_by_date       # Term.find_by_date - custom method
     - find_by_public_id  # PublicIdentifiable concern method
+    - find_by_hashid     # hashid-rails gem method
 
 Rails/UniqueValidationWithoutIndex:
   Enabled: false
