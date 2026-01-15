@@ -229,6 +229,222 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
     end
   end
 
+  describe "multi-day event merging" do
+    let(:spring_break_ics) do
+      <<~ICS
+        BEGIN:VCALENDAR
+        VERSION:2.0
+        PRODID:-//Test//Test//EN
+        BEGIN:VEVENT
+        DTSTART;VALUE=DATE:20250310
+        DTEND;VALUE=DATE:20250311
+        DTSTAMP:20251224T000000Z
+        UID:event-spring-break-day1@university.edu
+        SUMMARY:Spring Break - No Classes
+        X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Spring
+        END:VEVENT
+        BEGIN:VEVENT
+        DTSTART;VALUE=DATE:20250311
+        DTEND;VALUE=DATE:20250312
+        DTSTAMP:20251224T000000Z
+        UID:event-spring-break-day2@university.edu
+        SUMMARY:Spring Break - No Classes
+        X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Spring
+        END:VEVENT
+        BEGIN:VEVENT
+        DTSTART;VALUE=DATE:20250312
+        DTEND;VALUE=DATE:20250313
+        DTSTAMP:20251224T000000Z
+        UID:event-spring-break-day3@university.edu
+        SUMMARY:Spring Break - No Classes
+        X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Spring
+        END:VEVENT
+        BEGIN:VEVENT
+        DTSTART;VALUE=DATE:20250313
+        DTEND;VALUE=DATE:20250314
+        DTSTAMP:20251224T000000Z
+        UID:event-spring-break-day4@university.edu
+        SUMMARY:Spring Break - No Classes
+        X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Spring
+        END:VEVENT
+        BEGIN:VEVENT
+        DTSTART;VALUE=DATE:20250314
+        DTEND;VALUE=DATE:20250315
+        DTSTAMP:20251224T000000Z
+        UID:event-spring-break-day5@university.edu
+        SUMMARY:Spring Break - No Classes
+        X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Spring
+        END:VEVENT
+        END:VCALENDAR
+      ICS
+    end
+
+    it "merges consecutive same-named all-day events into single multi-day event" do
+      stub_request(:get, ics_url)
+        .to_return(status: 200, body: spring_break_ics)
+
+      expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(1)
+
+      event = UniversityCalendarEvent.first
+      expect(event.summary).to eq("Spring Break - No Classes")
+      expect(event.start_time.to_date).to eq(Date.new(2025, 3, 10))
+      # ICS DTEND is preserved as-is; the last VEVENT has DTEND:20250315
+      expect(event.end_time.to_date).to eq(Date.new(2025, 3, 15))
+      expect(event.all_day).to be true
+      expect(event.ics_uid).to start_with("merged:")
+    end
+
+    it "returns merged count in stats" do
+      stub_request(:get, ics_url)
+        .to_return(status: 200, body: spring_break_ics)
+
+      result = described_class.call
+
+      expect(result[:merged]).to eq(4) # 5 events merged into 1, so 4 merged away
+      expect(result[:created]).to eq(1)
+    end
+
+    context "with non-consecutive events" do
+      let(:non_consecutive_ics) do
+        <<~ICS
+          BEGIN:VCALENDAR
+          VERSION:2.0
+          PRODID:-//Test//Test//EN
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20250310
+          DTEND;VALUE=DATE:20250311
+          DTSTAMP:20251224T000000Z
+          UID:event-break1@university.edu
+          SUMMARY:Study Break - No Classes
+          X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Spring
+          END:VEVENT
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20250315
+          DTEND;VALUE=DATE:20250316
+          DTSTAMP:20251224T000000Z
+          UID:event-break2@university.edu
+          SUMMARY:Study Break - No Classes
+          X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Spring
+          END:VEVENT
+          END:VCALENDAR
+        ICS
+      end
+
+      it "does not merge events with gaps between them" do
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: non_consecutive_ics)
+
+        expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(2)
+      end
+    end
+
+    context "with different event names on consecutive days" do
+      let(:different_names_ics) do
+        <<~ICS
+          BEGIN:VCALENDAR
+          VERSION:2.0
+          PRODID:-//Test//Test//EN
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20250310
+          DTEND;VALUE=DATE:20250311
+          DTSTAMP:20251224T000000Z
+          UID:event-spring-break@university.edu
+          SUMMARY:Spring Break - No Classes
+          END:VEVENT
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20250311
+          DTEND;VALUE=DATE:20250312
+          DTSTAMP:20251224T000000Z
+          UID:event-different-event@university.edu
+          SUMMARY:Different Event
+          END:VEVENT
+          END:VCALENDAR
+        ICS
+      end
+
+      it "does not merge events with different summaries" do
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: different_names_ics)
+
+        expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(2)
+      end
+    end
+
+    context "with non-all-day events" do
+      let(:timed_events_ics) do
+        <<~ICS
+          BEGIN:VCALENDAR
+          VERSION:2.0
+          PRODID:-//Test//Test//EN
+          BEGIN:VEVENT
+          DTSTART:20250310T140000
+          DTEND:20250310T160000
+          DTSTAMP:20251224T000000Z
+          UID:event-meeting1@university.edu
+          SUMMARY:Daily Standup
+          END:VEVENT
+          BEGIN:VEVENT
+          DTSTART:20250311T140000
+          DTEND:20250311T160000
+          DTSTAMP:20251224T000000Z
+          UID:event-meeting2@university.edu
+          SUMMARY:Daily Standup
+          END:VEVENT
+          END:VCALENDAR
+        ICS
+      end
+
+      it "does not merge non-all-day events" do
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: timed_events_ics)
+
+        expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(2)
+      end
+    end
+
+    context "when updating existing single-day events to merged" do
+      let(:spring_break_single_ics) do
+        <<~ICS
+          BEGIN:VCALENDAR
+          VERSION:2.0
+          PRODID:-//Test//Test//EN
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20250310
+          DTEND;VALUE=DATE:20250311
+          DTSTAMP:20251224T000000Z
+          UID:event-spring-break-day1@university.edu
+          SUMMARY:Spring Break - No Classes
+          END:VEVENT
+          END:VCALENDAR
+        ICS
+      end
+
+      it "cleans up old single-day events when merging" do
+        # First, create a single-day event
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: spring_break_single_ics)
+        described_class.call
+        expect(UniversityCalendarEvent.count).to eq(1)
+        original_event = UniversityCalendarEvent.first
+        expect(original_event.ics_uid).to eq("event-spring-break-day1@university.edu")
+
+        # Now feed comes with multiple consecutive days (simulating calendar update)
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: spring_break_ics)
+
+        described_class.call
+
+        # Should still have 1 event, but now multi-day
+        expect(UniversityCalendarEvent.count).to eq(1)
+        merged_event = UniversityCalendarEvent.first
+        expect(merged_event.start_time.to_date).to eq(Date.new(2025, 3, 10))
+        # ICS DTEND is preserved as-is; the last VEVENT has DTEND:20250315
+        expect(merged_event.end_time.to_date).to eq(Date.new(2025, 3, 15))
+        expect(merged_event.ics_uid).to start_with("merged:")
+      end
+    end
+  end
+
   describe "HTML entity decoding" do
     # Note: In ICS format, semicolons must be escaped with backslash
     # Real ICS feeds from 25Live escape HTML entities this way
