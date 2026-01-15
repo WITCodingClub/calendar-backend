@@ -419,19 +419,19 @@ paths:
               - crn: 33333
                 term: 202501
                 courseNumber: ENG101
-                start: '2026-01-12'
-                end: '2026-04-12'
+                start: '2026-01-15'
+                end: '2026-04-15'
               - crn: 22222
                 term: 202501
                 courseNumber: MATH102
-                start: '2026-01-12'
-                end: '2026-04-12'
+                start: '2026-01-15'
+                end: '2026-04-15'
               _json:
               - crn: 12345
                 term: 202501
                 courseNumber: ENG101
-                start: '2026-01-12'
-                end: '2026-04-12'
+                start: '2026-01-15'
+                end: '2026-04-15'
       responses:
         '200':
           description: handles section change scenario
@@ -548,7 +548,7 @@ paths:
                 - removed_courses
                 - processed_courses
               example:
-                ics_url: http://example.com/calendar/3w-WNESsS1t9o6ESg-aaXPpTSRzp9oDCEYKQm32ZvHM.ics
+                ics_url: http://example.com/calendar/NV4JvD18Yup7uSWDJalVuW_tyg5Kh1PZqcfAXilmThE.ics
                 removed_enrollments: 1
                 removed_courses:
                 - crn: 11111
@@ -569,16 +569,16 @@ paths:
                   meeting_times:
                   - begin_time: 12:00 AM
                     end_time: 12:00 AM
-                    start_date: '2026-01-12T00:00:00.000-05:00'
-                    end_date: '2026-04-12T23:59:59.000-04:00'
-                    day_of_week: monday
+                    start_date: '2026-01-15T00:00:00.000-05:00'
+                    end_date: '2026-04-15T23:59:59.000-04:00'
+                    day_of_week: thursday
                     location:
                       building:
                         name: To Be Determined
                         abbreviation: TBD
-                      room: '000'
+                      room: TBD
                 - id: 6
-                  title: Math Course
+                  title: English Composition
                   crn: 22222
                   subject: CS
                   course_number: 101
@@ -591,14 +591,14 @@ paths:
                   meeting_times:
                   - begin_time: 12:00 AM
                     end_time: 12:00 AM
-                    start_date: '2026-01-12T00:00:00.000-05:00'
-                    end_date: '2026-04-12T23:59:59.000-04:00'
-                    day_of_week: monday
+                    start_date: '2026-01-15T00:00:00.000-05:00'
+                    end_date: '2026-04-15T23:59:59.000-04:00'
+                    day_of_week: thursday
                     location:
                       building:
                         name: To Be Determined
                         abbreviation: TBD
-                      room: '000'
+                      room: TBD
         '400':
           description: returns bad request when term does not exist
           content:
@@ -764,12 +764,12 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
-        example: 10
+          type: string
+        example: mtt_6r3kgdwhwkxo
       responses:
         '200':
-          description: transforms 'popup' to 'notification' in custom event preference
-            reminder settings
+          description: 'returns actual reminders and notifications_disabled: true
+            when DND is on'
           content:
             application/json:
               schema:
@@ -963,6 +963,8 @@ paths:
                     - exam_time_of_day
                     - duration
                     - combined_crns
+                  notifications_disabled:
+                    type: boolean
                 required:
                 - individual_preference
                 - resolved
@@ -971,18 +973,6 @@ paths:
                 - templates
               example:
                 individual_preference:
-                  title_template:
-                  description_template:
-                  location_template:
-                  reminder_settings:
-                  - time: '15'
-                    type: minutes
-                    method: notification
-                  - time: '1'
-                    type: hours
-                    method: notification
-                  color_id:
-                  visibility:
                 resolved:
                   title_template: "{{title}}"
                   description_template: |-
@@ -990,54 +980,50 @@ paths:
                     {{faculty_email}}
                   location_template: "{{building}} {{room}}"
                   reminder_settings:
-                  - time: '15'
+                  - time: '30'
                     type: minutes
                     method: notification
-                  - time: '1'
-                    type: hours
-                    method: notification
-                  color_id: "#f6bf26"
+                  color_id: "#039be5"
                   visibility: default
                 sources:
                   title_template: system_default
                   description_template: system_default
                   location_template: system_default
-                  reminder_settings: individual
+                  reminder_settings: global
                   color_id: system_default
                   visibility: system_default
                 preview:
-                  title: Computer Science I
-                  description: |-
-                    Jane Smith
-                    jane.smith@witcc.edu
-                  location: Wentworth Hall 306
+                  title: Introduction to Computer Science
+                  description: "\n"
+                  location: Building 5 105
                 templates:
-                  title: Computer Science I
-                  course_code: COMP-101-01
-                  subject: COMP
+                  title: Introduction to Computer Science
+                  course_code: CS-101-01
+                  subject: CS
                   course_number: 101
                   section_number: '01'
-                  crn: 12345
-                  room: '306'
-                  building: Wentworth Hall
-                  location: Wentworth Hall - 306
-                  faculty: Jane Smith
-                  faculty_email: jane.smith@witcc.edu
-                  all_faculty: Jane Smith
-                  start_time: 9:00 AM
-                  end_time: 10:30 AM
+                  crn: 10005
+                  room: '105'
+                  building: Building 5
+                  location: Building 5 - 105
+                  faculty: ''
+                  faculty_email: ''
+                  all_faculty: ''
+                  start_time: 10:00 AM
+                  end_time: 11:50 AM
                   day: Monday
                   day_abbr: Mon
-                  term: Fall 2026
-                  schedule_type: Laboratory
-                  schedule_type_short: Lab
+                  term: Spring 2030
+                  schedule_type: Lecture
+                  schedule_type_short: Lecture
                   event_type: class
                   is_final_exam: false
                   exam_date: ''
                   exam_date_short: ''
                   exam_time_of_day: ''
                   duration: ''
-                  combined_crns: '12345'
+                  combined_crns: '10005'
+                notifications_disabled: true
     put:
       summary: update
       tags:
@@ -1254,6 +1240,8 @@ paths:
                     - exam_time_of_day
                     - duration
                     - combined_crns
+                  notifications_disabled:
+                    type: boolean
                 required:
                 - individual_preference
                 - resolved
@@ -1320,6 +1308,7 @@ paths:
                   exam_time_of_day: ''
                   duration: ''
                   combined_crns: '12345'
+                notifications_disabled: false
   "/api/university_calendar_events":
     get:
       summary: index
@@ -1409,32 +1398,32 @@ paths:
                   summary: Labor Day
                   description: A university calendar event
                   location:
-                  start_time: '2026-01-19T00:00:00-05:00'
-                  end_time: '2026-01-19T23:59:59-05:00'
+                  start_time: '2026-01-22T00:00:00-05:00'
+                  end_time: '2026-01-22T23:59:59-05:00'
                   all_day: true
                   category: holiday
                   organization:
                   academic_term:
                   term_id:
                   excludes_classes: true
-                  formatted_date: January 19, 2026
-                  created_at: '2026-01-12T10:14:49-05:00'
-                  updated_at: '2026-01-12T10:14:49-05:00'
+                  formatted_date: January 22, 2026
+                  created_at: '2026-01-15T14:48:19-05:00'
+                  updated_at: '2026-01-15T14:48:19-05:00'
                 - id: uce_ydpjvvwcpjk6
                   summary: Spring Concert
                   description: A university calendar event
                   location:
-                  start_time: '2026-01-26T00:00:00-05:00'
-                  end_time: '2026-01-26T23:59:59-05:00'
+                  start_time: '2026-01-29T00:00:00-05:00'
+                  end_time: '2026-01-29T23:59:59-05:00'
                   all_day: true
                   category: campus_event
                   organization:
                   academic_term:
                   term_id:
                   excludes_classes: false
-                  formatted_date: January 26, 2026
-                  created_at: '2026-01-12T10:14:49-05:00'
-                  updated_at: '2026-01-12T10:14:49-05:00'
+                  formatted_date: January 29, 2026
+                  created_at: '2026-01-15T14:48:19-05:00'
+                  updated_at: '2026-01-15T14:48:19-05:00'
                 meta:
                   current_page: 1
                   total_pages: 1
@@ -1458,13 +1447,13 @@ paths:
         required: false
         schema:
           type: string
-        example: '2026-01-19'
+        example: '2026-01-22'
       - name: start_date
         in: query
         required: false
         schema:
           type: string
-        example: '2026-01-19'
+        example: '2026-01-22'
   "/api/university_calendar_events/categories":
     get:
       summary: categories
@@ -1606,24 +1595,24 @@ paths:
                   summary: Thanksgiving
                   description: A university calendar event
                   location:
-                  start_time: '2026-01-26T00:00:00-05:00'
-                  end_time: '2026-01-26T23:59:59-05:00'
+                  start_time: '2026-01-29T00:00:00-05:00'
+                  end_time: '2026-01-29T23:59:59-05:00'
                   all_day: true
                   category: holiday
                   organization:
                   academic_term:
-                  term_id: trm_7njqzsl6
+                  term_id: trm_6qj3wslm
                   excludes_classes: true
-                  formatted_date: January 26, 2026
-                  created_at: '2026-01-12T10:14:49-05:00'
-                  updated_at: '2026-01-12T10:14:49-05:00'
+                  formatted_date: January 29, 2026
+                  created_at: '2026-01-15T14:48:20-05:00'
+                  updated_at: '2026-01-15T14:48:20-05:00'
       parameters:
       - name: term_id
         in: query
         required: false
         schema:
           type: string
-        example: trm_7njqzsl6
+        example: trm_6qj3wslm
   "/api/university_calendar_events/sync":
     post:
       summary: sync
@@ -1740,17 +1729,17 @@ paths:
                   summary: Test Event
                   description: A description
                   location: Main Campus
-                  start_time: '2026-01-19T00:00:00-05:00'
-                  end_time: '2026-01-19T23:59:59-05:00'
+                  start_time: '2026-01-22T00:00:00-05:00'
+                  end_time: '2026-01-22T23:59:59-05:00'
                   all_day: true
                   category: academic
                   organization:
                   academic_term:
                   term_id:
                   excludes_classes: false
-                  formatted_date: January 19, 2026
-                  created_at: '2026-01-12T10:14:49-05:00'
-                  updated_at: '2026-01-12T10:14:49-05:00'
+                  formatted_date: January 22, 2026
+                  created_at: '2026-01-15T14:48:19-05:00'
+                  updated_at: '2026-01-15T14:48:19-05:00'
         '404':
           description: returns 404 for non-existent event
           content:
@@ -1763,7 +1752,7 @@ paths:
                 required:
                 - error
               example:
-                error: ActiveRecord::RecordNotFound
+                error: UniversityCalendarEvent not found
   "/api/user/extension_config":
     get:
       summary: get
@@ -1818,7 +1807,7 @@ paths:
                 - university_event_categories
                 - available_university_event_categories
               example:
-                pub_id: uec_lxgqcypo
+                pub_id: uec_2kz7c3v2
                 military_time: false
                 default_color_lecture: "#039be5"
                 default_color_lab: "#f6bf26"
@@ -1912,7 +1901,7 @@ paths:
                 - pub_id
                 - message
               example:
-                pub_id: uec_m4d5c5dm
+                pub_id: uec_2j65cv7o
                 message: User extension config updated successfully
   "/api/user/notifications/disable":
     post:
@@ -1931,7 +1920,7 @@ paths:
               duration: 0
       responses:
         '200':
-          description: disabling notifications causes PreferenceResolver to return
+          description: disabling notifications causes resolve_for (sync) to return
             empty reminder_settings
           content:
             application/json:
@@ -1951,7 +1940,7 @@ paths:
               example:
                 message: Notifications disabled
                 notifications_disabled: true
-                notifications_disabled_until: '2126-01-12T10:14:48.617-05:00'
+                notifications_disabled_until: '2126-01-15T14:48:18.835-05:00'
         '400':
           description: returns bad request error for duration over 100 years
           content:
@@ -2049,7 +2038,7 @@ paths:
                 - notifications_disabled_until
               example:
                 notifications_disabled: false
-                notifications_disabled_until: '2026-01-12T09:14:48.398-05:00'
+                notifications_disabled_until: '2026-01-15T13:48:18.551-05:00'
         '401':
           description: returns unauthorized
           content:
@@ -2197,695 +2186,695 @@ paths:
                 class=\"traces\">\n      </code>\n    </div>\n    <div id=\"Framework-Trace-0\"
                 class=\"trace-container\" style=\"display: none;\">\n      <code class=\"traces\">\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"0\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"0\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/debug_exceptions.rb:35:in
                 &#39;ActionDispatch::DebugExceptions#call&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"1\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"1\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/show_exceptions.rb:32:in
                 &#39;ActionDispatch::ShowExceptions#call&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"2\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"2\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/railties-8.1.2/lib/rails/rack/logger.rb:41:in
                 &#39;Rails::Rack::Logger#call_app&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"3\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/railties-8.1.2/lib/rails/rack/logger.rb:29:in
                 &#39;Rails::Rack::Logger#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"4\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/ahoy_matey-5.4.1/lib/ahoy/engine.rb:22:in
                 &#39;Rails::Rack::Logger#call_with_quiet_ahoy&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"5\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"5\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/remote_ip.rb:98:in
                 &#39;ActionDispatch::RemoteIp#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"6\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/request_store-1.7.0/lib/request_store/middleware.rb:19:in
                 &#39;RequestStore::Middleware#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"7\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/request_id.rb:34:in
                 &#39;ActionDispatch::RequestId#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"8\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-3.2.4/lib/rack/method_override.rb:28:in
                 &#39;Rack::MethodOverride#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"9\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-3.2.4/lib/rack/runtime.rb:24:in
                 &#39;Rack::Runtime#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"10\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/activesupport-8.1.2/lib/active_support/cache/strategy/local_cache_middleware.rb:30:in
                 &#39;ActiveSupport::Cache::Strategy::LocalCache::Middleware#call&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"11\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"11\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/executor.rb:20:in
                 &#39;ActionDispatch::Executor#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"12\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/propshaft-1.3.1/lib/propshaft/server.rb:37:in
                 &#39;Propshaft::Server#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"13\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/static.rb:27:in
                 &#39;ActionDispatch::Static#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"14\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-3.2.4/lib/rack/sendfile.rb:131:in
                 &#39;Rack::Sendfile#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"15\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-cors-3.0.0/lib/rack/cors.rb:102:in
                 &#39;Rack::Cors#call&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"16\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"16\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/railties-8.1.2/lib/rails/engine.rb:534:in
                 &#39;Rails::Engine#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"17\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-test-2.2.0/lib/rack/test.rb:360:in
                 &#39;Rack::Test::Session#process_request&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"18\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"18\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-test-2.2.0/lib/rack/test.rb:153:in
                 &#39;Rack::Test::Session#request&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"19\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/testing/integration.rb:297:in
                 &#39;ActionDispatch::Integration::Session#process&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"20\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"20\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/testing/integration.rb:43:in
                 &#39;ActionDispatch::Integration::RequestHelpers#delete&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"21\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"21\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/testing/integration.rb:388:in
                 &#39;ActionDispatch::Integration::Runner#delete&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"22\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"22\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/spec/requests/api/oauth_credentials_spec.rb:226:in
                 &#39;block (4 levels) in &lt;main&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"23\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:263:in
                 &#39;BasicObject#instance_exec&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"24\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:263:in
                 &#39;block in RSpec::Core::Example#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"25\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:511:in
                 &#39;block in RSpec::Core::Example#with_around_and_singleton_context_hooks&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"26\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"26\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:468:in
                 &#39;block in RSpec::Core::Example#with_around_example_hooks&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"27\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"27\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:486:in
                 &#39;block in RSpec::Core::Hooks::HookCollections#run&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"28\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"28\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:626:in
                 &#39;block in RSpec::Core::Hooks::HookCollections#run_around_example_hooks_for&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"29\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"29\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:352:in
                 &#39;RSpec::Core::Example::Procsy#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"30\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-rails-7.1.1/lib/rspec/rails/adapters.rb:75:in
                 &#39;block (2 levels) in &lt;module:MinitestLifecycleAdapter&gt;&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"31\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"31\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:457:in
                 &#39;BasicObject#instance_exec&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"32\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:457:in
                 &#39;RSpec::Core::Example#instance_exec&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"33\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:390:in
                 &#39;RSpec::Core::Hooks::AroundHook#execute_with&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"34\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"34\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:628:in
                 &#39;block (2 levels) in RSpec::Core::Hooks::HookCollections#run_around_example_hooks_for&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"35\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"35\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:352:in
                 &#39;RSpec::Core::Example::Procsy#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"36\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:629:in
                 &#39;RSpec::Core::Hooks::HookCollections#run_around_example_hooks_for&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"37\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"37\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:486:in
                 &#39;RSpec::Core::Hooks::HookCollections#run&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"38\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"38\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:468:in
                 &#39;RSpec::Core::Example#with_around_example_hooks&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"39\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"39\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:511:in
                 &#39;RSpec::Core::Example#with_around_and_singleton_context_hooks&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"40\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"40\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:259:in
                 &#39;RSpec::Core::Example#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"41\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:653:in
                 &#39;block in RSpec::Core::ExampleGroup.run_examples&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"42\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"42\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:649:in
                 &#39;Array#map&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"43\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"43\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:649:in
                 &#39;RSpec::Core::ExampleGroup.run_examples&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"44\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"44\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:614:in
                 &#39;RSpec::Core::ExampleGroup.run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"45\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;block in RSpec::Core::ExampleGroup.run&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"46\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"46\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;Array#map&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"47\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"47\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;RSpec::Core::ExampleGroup.run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"48\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;block in RSpec::Core::ExampleGroup.run&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"49\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"49\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;Array#map&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"50\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"50\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;RSpec::Core::ExampleGroup.run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"51\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:121:in
                 &#39;block (3 levels) in RSpec::Core::Runner#run_specs&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"52\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"52\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:121:in
                 &#39;Array#map&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"53\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"53\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:121:in
                 &#39;block (2 levels) in RSpec::Core::Runner#run_specs&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"54\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"54\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/configuration.rb:2097:in
                 &#39;RSpec::Core::Configuration#with_suite_hooks&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"55\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"55\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:116:in
                 &#39;block in RSpec::Core::Runner#run_specs&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"56\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"56\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/reporter.rb:74:in
                 &#39;RSpec::Core::Reporter#report&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"57\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:115:in
                 &#39;RSpec::Core::Runner#run_specs&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"58\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:89:in
                 &#39;RSpec::Core::Runner#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"59\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:71:in
                 &#39;RSpec::Core::Runner.run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"60\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:45:in
                 &#39;RSpec::Core::Runner.invoke&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"61\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/exe/rspec:4:in
                 &#39;&lt;top (required)&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"62\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/bin/rspec:25:in
                 &#39;Kernel#load&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"63\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"63\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/bin/rspec:25:in
                 &#39;&lt;top (required)&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"64\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli/exec.rb:59:in
                 &#39;Kernel.load&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"65\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"65\"
                 href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli/exec.rb:59:in
                 &#39;Bundler::CLI::Exec#kernel_load&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"66\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli/exec.rb:23:in
                 &#39;Bundler::CLI::Exec#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"67\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli.rb:456:in
                 &#39;Bundler::CLI#exec&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"68\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/vendor/thor/lib/thor/command.rb:28:in
                 &#39;Bundler::Thor::Command#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"69\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/vendor/thor/lib/thor/invocation.rb:127:in
                 &#39;Bundler::Thor::Invocation#invoke_command&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"70\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"70\" href=\"#\">\n
                 \             /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/vendor/thor/lib/thor.rb:538:in
                 &#39;Bundler::Thor.dispatch&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"71\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli.rb:35:in
                 &#39;Bundler::CLI.dispatch&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"72\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/vendor/thor/lib/thor/base.rb:584:in
                 &#39;Bundler::Thor::Base::ClassMethods#start&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"73\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"73\" href=\"#\">\n
                 \             /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli.rb:29:in
                 &#39;Bundler::CLI.start&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"74\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/exe/bundle:28:in
                 &#39;block in &lt;top (required)&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"75\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/friendly_errors.rb:118:in
                 &#39;Bundler.with_friendly_errors&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"76\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/exe/bundle:20:in
                 &#39;&lt;top (required)&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"77\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/bin/bundle:25:in
                 &#39;Kernel#load&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"78\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"78\"
                 href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/bin/bundle:25:in
                 &#39;&lt;main&gt;&#39;\n            </a>\n            <br>\n          </div>\n
                 \     </code>\n    </div>\n    <div id=\"Full-Trace-0\" class=\"trace-container\"
                 style=\"display: none;\">\n      <code class=\"traces\">\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"0\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"0\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/debug_exceptions.rb:35:in
                 &#39;ActionDispatch::DebugExceptions#call&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"1\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"1\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/show_exceptions.rb:32:in
                 &#39;ActionDispatch::ShowExceptions#call&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"2\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"2\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/railties-8.1.2/lib/rails/rack/logger.rb:41:in
                 &#39;Rails::Rack::Logger#call_app&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"3\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/railties-8.1.2/lib/rails/rack/logger.rb:29:in
                 &#39;Rails::Rack::Logger#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"4\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/ahoy_matey-5.4.1/lib/ahoy/engine.rb:22:in
                 &#39;Rails::Rack::Logger#call_with_quiet_ahoy&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"5\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"5\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/remote_ip.rb:98:in
                 &#39;ActionDispatch::RemoteIp#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"6\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/request_store-1.7.0/lib/request_store/middleware.rb:19:in
                 &#39;RequestStore::Middleware#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"7\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/request_id.rb:34:in
                 &#39;ActionDispatch::RequestId#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"8\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-3.2.4/lib/rack/method_override.rb:28:in
                 &#39;Rack::MethodOverride#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"9\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-3.2.4/lib/rack/runtime.rb:24:in
                 &#39;Rack::Runtime#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"10\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/activesupport-8.1.2/lib/active_support/cache/strategy/local_cache_middleware.rb:30:in
                 &#39;ActiveSupport::Cache::Strategy::LocalCache::Middleware#call&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"11\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"11\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/executor.rb:20:in
                 &#39;ActionDispatch::Executor#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"12\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/propshaft-1.3.1/lib/propshaft/server.rb:37:in
                 &#39;Propshaft::Server#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"13\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/middleware/static.rb:27:in
                 &#39;ActionDispatch::Static#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"14\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-3.2.4/lib/rack/sendfile.rb:131:in
                 &#39;Rack::Sendfile#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"15\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-cors-3.0.0/lib/rack/cors.rb:102:in
                 &#39;Rack::Cors#call&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"16\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"16\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/railties-8.1.2/lib/rails/engine.rb:534:in
                 &#39;Rails::Engine#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"17\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-test-2.2.0/lib/rack/test.rb:360:in
                 &#39;Rack::Test::Session#process_request&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"18\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"18\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rack-test-2.2.0/lib/rack/test.rb:153:in
                 &#39;Rack::Test::Session#request&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"19\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/testing/integration.rb:297:in
                 &#39;ActionDispatch::Integration::Session#process&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"20\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"20\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/testing/integration.rb:43:in
                 &#39;ActionDispatch::Integration::RequestHelpers#delete&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"21\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"21\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/actionpack-8.1.2/lib/action_dispatch/testing/integration.rb:388:in
                 &#39;ActionDispatch::Integration::Runner#delete&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"22\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"22\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/spec/requests/api/oauth_credentials_spec.rb:226:in
                 &#39;block (4 levels) in &lt;main&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"23\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:263:in
                 &#39;BasicObject#instance_exec&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"24\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:263:in
                 &#39;block in RSpec::Core::Example#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"25\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:511:in
                 &#39;block in RSpec::Core::Example#with_around_and_singleton_context_hooks&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"26\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"26\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:468:in
                 &#39;block in RSpec::Core::Example#with_around_example_hooks&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"27\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"27\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:486:in
                 &#39;block in RSpec::Core::Hooks::HookCollections#run&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"28\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"28\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:626:in
                 &#39;block in RSpec::Core::Hooks::HookCollections#run_around_example_hooks_for&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"29\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"29\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:352:in
                 &#39;RSpec::Core::Example::Procsy#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"30\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-rails-7.1.1/lib/rspec/rails/adapters.rb:75:in
                 &#39;block (2 levels) in &lt;module:MinitestLifecycleAdapter&gt;&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"31\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"31\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:457:in
                 &#39;BasicObject#instance_exec&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"32\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:457:in
                 &#39;RSpec::Core::Example#instance_exec&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"33\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:390:in
                 &#39;RSpec::Core::Hooks::AroundHook#execute_with&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"34\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"34\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:628:in
                 &#39;block (2 levels) in RSpec::Core::Hooks::HookCollections#run_around_example_hooks_for&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"35\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"35\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:352:in
                 &#39;RSpec::Core::Example::Procsy#call&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"36\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:629:in
                 &#39;RSpec::Core::Hooks::HookCollections#run_around_example_hooks_for&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"37\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"37\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/hooks.rb:486:in
                 &#39;RSpec::Core::Hooks::HookCollections#run&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"38\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"38\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:468:in
                 &#39;RSpec::Core::Example#with_around_example_hooks&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"39\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"39\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:511:in
                 &#39;RSpec::Core::Example#with_around_and_singleton_context_hooks&#39;\n
                 \           </a>\n            <br>\n          </div>\n          <div
                 class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"40\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"40\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example.rb:259:in
                 &#39;RSpec::Core::Example#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"41\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:653:in
                 &#39;block in RSpec::Core::ExampleGroup.run_examples&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"42\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"42\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:649:in
                 &#39;Array#map&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"43\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"43\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:649:in
                 &#39;RSpec::Core::ExampleGroup.run_examples&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"44\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"44\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:614:in
                 &#39;RSpec::Core::ExampleGroup.run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"45\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;block in RSpec::Core::ExampleGroup.run&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"46\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"46\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;Array#map&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"47\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"47\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;RSpec::Core::ExampleGroup.run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"48\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;block in RSpec::Core::ExampleGroup.run&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"49\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"49\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;Array#map&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"50\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"50\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/example_group.rb:615:in
                 &#39;RSpec::Core::ExampleGroup.run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"51\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:121:in
                 &#39;block (3 levels) in RSpec::Core::Runner#run_specs&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"52\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"52\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:121:in
                 &#39;Array#map&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"53\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"53\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:121:in
                 &#39;block (2 levels) in RSpec::Core::Runner#run_specs&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"54\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"54\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/configuration.rb:2097:in
                 &#39;RSpec::Core::Configuration#with_suite_hooks&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"55\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"55\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:116:in
                 &#39;block in RSpec::Core::Runner#run_specs&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"56\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"56\" href=\"#\">\n
                 \             /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/reporter.rb:74:in
                 &#39;RSpec::Core::Reporter#report&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"57\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:115:in
                 &#39;RSpec::Core::Runner#run_specs&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"58\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:89:in
                 &#39;RSpec::Core::Runner#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"59\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:71:in
                 &#39;RSpec::Core::Runner.run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"60\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/lib/rspec/core/runner.rb:45:in
                 &#39;RSpec::Core::Runner.invoke&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"61\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/gems/rspec-core-3.13.6/exe/rspec:4:in
                 &#39;&lt;top (required)&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"62\" href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/bin/rspec:25:in
                 &#39;Kernel#load&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"63\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"63\"
                 href=\"#\">\n              /home/runner/work/calendar-backend/calendar-backend/vendor/bundle/ruby/3.4.0/bin/rspec:25:in
                 &#39;&lt;top (required)&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"64\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli/exec.rb:59:in
                 &#39;Kernel.load&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"65\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"65\"
                 href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli/exec.rb:59:in
                 &#39;Bundler::CLI::Exec#kernel_load&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"66\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli/exec.rb:23:in
                 &#39;Bundler::CLI::Exec#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"67\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli.rb:456:in
                 &#39;Bundler::CLI#exec&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"68\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/vendor/thor/lib/thor/command.rb:28:in
                 &#39;Bundler::Thor::Command#run&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"69\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/vendor/thor/lib/thor/invocation.rb:127:in
                 &#39;Bundler::Thor::Invocation#invoke_command&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"70\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"70\" href=\"#\">\n
                 \             /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/vendor/thor/lib/thor.rb:538:in
                 &#39;Bundler::Thor.dispatch&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"71\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli.rb:35:in
                 &#39;Bundler::CLI.dispatch&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"72\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/vendor/thor/lib/thor/base.rb:584:in
                 &#39;Bundler::Thor::Base::ClassMethods#start&#39;\n            </a>\n
                 \           <br>\n          </div>\n          <div class=\"trace\">\n
                 \           \n            <a class=\"trace-frames trace-frames-0\"
-                data-exception-object-id=\"41144\" data-frame-id=\"73\" href=\"#\">\n
+                data-exception-object-id=\"41832\" data-frame-id=\"73\" href=\"#\">\n
                 \             /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/cli.rb:29:in
                 &#39;Bundler::CLI.start&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"74\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/exe/bundle:28:in
                 &#39;block in &lt;top (required)&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"75\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/lib/bundler/friendly_errors.rb:118:in
                 &#39;Bundler.with_friendly_errors&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"76\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/lib/ruby/gems/3.4.0/gems/bundler-2.7.2/exe/bundle:20:in
                 &#39;&lt;top (required)&gt;&#39;\n            </a>\n            <br>\n
                 \         </div>\n          <div class=\"trace\">\n            \n
-                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41144\"
+                \           <a class=\"trace-frames trace-frames-0\" data-exception-object-id=\"41832\"
                 data-frame-id=\"77\" href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/bin/bundle:25:in
                 &#39;Kernel#load&#39;\n            </a>\n            <br>\n          </div>\n
                 \         <div class=\"trace\">\n            \n            <a class=\"trace-frames
-                trace-frames-0\" data-exception-object-id=\"41144\" data-frame-id=\"78\"
+                trace-frames-0\" data-exception-object-id=\"41832\" data-frame-id=\"78\"
                 href=\"#\">\n              /opt/hostedtoolcache/Ruby/3.4.7/x64/bin/bundle:25:in
                 &#39;&lt;main&gt;&#39;\n            </a>\n            <br>\n          </div>\n
                 \     </code>\n    </div>\n\n  <script>\n    (function() {\n      var
@@ -4244,20 +4233,20 @@ paths:
                 - oauth_credentials
               example:
                 oauth_credentials:
-                - id: oac_jdmy0cjd
+                - id: oac_epm90cn7
                   email: personal@example.com
                   provider: google
                   has_calendar: true
                   calendar_id: calendar1@google.com
-                  created_at: '2026-01-12T10:14:48.824-05:00'
+                  created_at: '2026-01-15T14:48:19.222-05:00'
                   needs_reauth: false
                   token_revoked: false
-                - id: oac_2dxz7cpw
+                - id: oac_gpx1wcj6
                   email: work@example.com
                   provider: google
                   has_calendar: true
                   calendar_id: calendar2@google.com
-                  created_at: '2026-01-12T10:14:48.841-05:00'
+                  created_at: '2026-01-15T14:48:19.237-05:00'
                   needs_reauth: false
                   token_revoked: false
         '401':
