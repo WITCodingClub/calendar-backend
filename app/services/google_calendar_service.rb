@@ -585,8 +585,10 @@ class GoogleCalendarService
     # Handle all-day events differently than timed events
     if event_data[:all_day]
       # For all-day events, use date format (not date_time)
+      # Google Calendar API uses exclusive end dates for all-day events
+      # (the end date is the day AFTER the last day of the event)
       google_event.start = { date: event_data[:start_time].to_date.to_s }
-      google_event.end = { date: event_data[:end_time].to_date.to_s }
+      google_event.end = { date: (event_data[:end_time].to_date + 1.day).to_s }
     else
       # For timed events, use date_time format with timezone
       start_time_et = event_data[:start_time].in_time_zone("America/New_York")
@@ -777,8 +779,10 @@ class GoogleCalendarService
     # Handle all-day events differently than timed events
     if merged_event_data[:all_day]
       # For all-day events, use date format (not date_time)
+      # Google Calendar API uses exclusive end dates for all-day events
+      # (the end date is the day AFTER the last day of the event)
       google_event.start = { date: merged_event_data[:start_time].to_date.to_s }
-      google_event.end = { date: merged_event_data[:end_time].to_date.to_s }
+      google_event.end = { date: (merged_event_data[:end_time].to_date + 1.day).to_s }
     else
       # For timed events, use date_time format with timezone
       start_time_et = merged_event_data[:start_time].in_time_zone("America/New_York")

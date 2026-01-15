@@ -63,12 +63,14 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
       expect(labor_day.category).to eq("holiday")
     end
 
-    it "categorizes academic events" do
+    it "categorizes term dates events" do
       classes_begin = UniversityCalendarEvent.find_by(ics_uid: "event-fall-classes-begin@university.edu")
-      finals = UniversityCalendarEvent.find_by(ics_uid: "event-fall-finals@university.edu")
+      expect(classes_begin.category).to eq("term_dates")
+    end
 
-      expect(classes_begin.category).to eq("academic")
-      expect(finals.category).to eq("academic")
+    it "categorizes finals events" do
+      finals = UniversityCalendarEvent.find_by(ics_uid: "event-fall-finals@university.edu")
+      expect(finals.category).to eq("finals")
     end
 
     it "categorizes meeting events" do

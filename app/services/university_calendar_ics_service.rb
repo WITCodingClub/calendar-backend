@@ -194,7 +194,27 @@ class UniversityCalendarIcsService < ApplicationService
     all_day_prop = ics_event.custom_properties["x_microsoft_cdo_alldayevent"]
     return true if all_day_prop&.first&.to_s&.upcase == "TRUE"
 
+    # Check for pseudo all-day pattern: 12:01pm - 11:59pm
+    # This is how some university calendar systems represent all-day events
+    start_time = parse_ics_time(ics_event.dtstart)
+    end_time = parse_ics_time(ics_event.dtend)
+    return true if pseudo_all_day_times?(start_time, end_time)
+
     false
+  end
+
+  # Detects events that span 12:01pm to 11:59pm which are effectively all-day
+  # Some university calendar systems use this pattern instead of true all-day events
+  def pseudo_all_day_times?(start_time, end_time)
+    return false unless start_time && end_time
+
+    # Check for 12:01 PM start (allowing some flexibility: 12:00-12:01)
+    start_is_noon = start_time.hour == 12 && start_time.min <= 1
+
+    # Check for 11:59 PM end (allowing flexibility: 11:58-11:59)
+    end_is_midnight = end_time.hour == 23 && end_time.min >= 58
+
+    start_is_noon && end_is_midnight
   end
 
   def extract_recurrence(ics_event)
