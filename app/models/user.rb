@@ -47,6 +47,12 @@ class User < ApplicationRecord
   has_many :event_preferences, dependent: :destroy
   has_one :user_extension_config, dependent: :destroy
   has_many :security_events, dependent: :destroy
+
+  # Friendships where this user is the requester
+  has_many :sent_friendships, class_name: "Friendship", foreign_key: :requester_id, dependent: :destroy, inverse_of: :requester
+  # Friendships where this user is the addressee
+  has_many :received_friendships, class_name: "Friendship", foreign_key: :addressee_id, dependent: :destroy, inverse_of: :addressee
+
   before_create :generate_calendar_token
   after_create :create_user_extension_config
 
@@ -137,6 +143,39 @@ class User < ApplicationRecord
   # Re-enable notifications (disable DND mode)
   def enable_notifications!
     update!(notifications_disabled_until: nil)
+  end
+
+  # Get all accepted friends (User objects)
+  def friends
+    friend_ids = Friendship.accepted
+                           .involving(self)
+                           .pluck(:requester_id, :addressee_id)
+                           .flatten
+                           .uniq
+                           .reject { |fid| fid == id }
+    User.where(id: friend_ids)
+  end
+
+  # Check if another user is an accepted friend
+  def friend_of?(other_user)
+    return false if other_user.nil? || other_user.id == id
+
+    Friendship.accepted.exists?(
+      [
+        "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
+        id, other_user.id, other_user.id, id
+      ]
+    )
+  end
+
+  # Get pending incoming friend requests
+  def incoming_friend_requests
+    Friendship.pending_for(self)
+  end
+
+  # Get pending outgoing friend requests
+  def outgoing_friend_requests
+    Friendship.outgoing_from(self)
   end
 
   private

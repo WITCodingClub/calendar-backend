@@ -32,6 +32,15 @@
 #             api_user_notifications_enable POST   /api/user/notifications/enable(.:format)                                                          api/users#enable_notifications
 #                 api_user_extension_config GET    /api/user/extension_config(.:format)                                                              api/user_extension_config#get
 #                                           PUT    /api/user/extension_config(.:format)                                                              api/user_extension_config#set
+#                               api_friends GET    /api/friends(.:format)                                                                            api/friends#index
+#                      api_friends_requests GET    /api/friends/requests(.:format)                                                                   api/friends#requests
+#                                           POST   /api/friends/requests(.:format)                                                                   api/friends#create_request
+#                                           POST   /api/friends/requests/:request_id/accept(.:format)                                                api/friends#accept
+#                                           POST   /api/friends/requests/:request_id/decline(.:format)                                               api/friends#decline
+#                                           DELETE /api/friends/requests/:request_id(.:format)                                                       api/friends#cancel_request
+#                                           DELETE /api/friends/:friend_id(.:format)                                                                 api/friends#unfriend
+#                                           POST   /api/friends/:friend_id/processed_events(.:format)                                                api/friends#processed_events
+#                                           POST   /api/friends/:friend_id/is_processed(.:format)                                                    api/friends#is_processed
 #                        api_faculty_by_rmp GET    /api/faculty/by_rmp(.:format)                                                                     api/faculty#get_info_by_rmp_id
 #                api_terms_current_and_next GET    /api/terms/current_and_next(.:format)                                                             api/misc#get_current_terms
 #                       api_process_courses POST   /api/process_courses(.:format)                                                                    api/courses#process_courses
@@ -353,6 +362,17 @@ Rails.application.routes.draw do
 
     get "user/extension_config", to: "user_extension_config#get"
     put "user/extension_config", to: "user_extension_config#set"
+
+    # Friends system
+    get "friends", to: "friends#index"
+    get "friends/requests", to: "friends#requests"
+    post "friends/requests", to: "friends#create_request"
+    post "friends/requests/:request_id/accept", to: "friends#accept"
+    post "friends/requests/:request_id/decline", to: "friends#decline"
+    delete "friends/requests/:request_id", to: "friends#cancel_request"
+    delete "friends/:friend_id", to: "friends#unfriend"
+    post "friends/:friend_id/processed_events", to: "friends#processed_events"
+    post "friends/:friend_id/is_processed", to: "friends#is_processed"
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
 
