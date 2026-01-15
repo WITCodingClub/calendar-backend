@@ -83,6 +83,9 @@ group :development, :test do
   # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
   gem "brakeman", require: false
 
+  # Git hooks manager
+  gem "lefthook", require: false
+
   gem "relaxed-rubocop", require: false
   gem "rubocop-rails", require: false
   gem "rubocop-factory_bot", require: false
