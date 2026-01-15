@@ -159,6 +159,78 @@ RSpec.describe Course do
     end
   end
 
+  describe "#filtered_meeting_times" do
+    let(:term) { create(:term) }
+    let(:course) { create(:course, term: term) }
+
+    context "with no duplicate meeting times" do
+      it "returns all meeting times" do
+        building = create(:building, name: "Watson Hall", abbreviation: "WATSN")
+        room = create(:room, building: building, number: "101")
+        mt = create(:meeting_time, course: course, room: room, day_of_week: :monday, begin_time: 930, end_time: 1040)
+
+        expect(course.filtered_meeting_times).to eq([mt])
+      end
+    end
+
+    context "with duplicate meeting times (same day/time)" do
+      let(:valid_building) { create(:building, name: "Watson Hall", abbreviation: "WATSN") }
+      let(:valid_room) { create(:room, building: valid_building, number: "101") }
+      let(:tbd_building) { create(:building, name: "To Be Determined", abbreviation: "TBD") }
+      let(:tbd_room) { create(:room, building: tbd_building, number: "0") }
+
+      it "prefers meeting time with valid location over TBD" do
+        tbd_mt = create(:meeting_time, course: course, room: tbd_room, day_of_week: :monday, begin_time: 930, end_time: 1040)
+        valid_mt = create(:meeting_time, course: course, room: valid_room, day_of_week: :monday, begin_time: 930, end_time: 1040)
+
+        result = course.filtered_meeting_times
+        expect(result.size).to eq(1)
+        expect(result.first).to eq(valid_mt)
+      end
+
+      it "returns TBD meeting time when no valid location exists" do
+        tbd_mt = create(:meeting_time, course: course, room: tbd_room, day_of_week: :monday, begin_time: 930, end_time: 1040)
+
+        result = course.filtered_meeting_times
+        expect(result.size).to eq(1)
+        expect(result.first).to eq(tbd_mt)
+      end
+
+      it "handles meeting times with room number 0 as TBD" do
+        room_zero = create(:room, building: valid_building, number: "0")
+
+        tbd_mt = create(:meeting_time, course: course, room: room_zero, day_of_week: :monday, begin_time: 930, end_time: 1040)
+        valid_mt = create(:meeting_time, course: course, room: valid_room, day_of_week: :monday, begin_time: 930, end_time: 1040)
+
+        result = course.filtered_meeting_times
+        expect(result.size).to eq(1)
+        expect(result.first).to eq(valid_mt)
+      end
+    end
+
+    context "with multiple different meeting times" do
+      it "returns one meeting time per unique day/time combination" do
+        valid_building = create(:building, name: "Watson Hall", abbreviation: "WATSN")
+        valid_room = create(:room, building: valid_building, number: "101")
+        tbd_building = create(:building, name: "To Be Determined", abbreviation: "TBD")
+        tbd_room = create(:room, building: tbd_building, number: "0")
+
+        # Monday 9:30-10:40 with TBD and valid
+        create(:meeting_time, course: course, room: tbd_room, day_of_week: :monday, begin_time: 930, end_time: 1040)
+        monday_valid = create(:meeting_time, course: course, room: valid_room, day_of_week: :monday, begin_time: 930, end_time: 1040)
+
+        # Wednesday 9:30-10:40 with TBD and valid
+        create(:meeting_time, course: course, room: tbd_room, day_of_week: :wednesday, begin_time: 930, end_time: 1040)
+        wednesday_valid = create(:meeting_time, course: course, room: valid_room, day_of_week: :wednesday, begin_time: 930, end_time: 1040)
+
+        result = course.filtered_meeting_times
+        expect(result.size).to eq(2)
+        expect(result).to include(monday_valid)
+        expect(result).to include(wednesday_valid)
+      end
+    end
+  end
+
   describe "term date updates" do
     let(:term) { create(:term, year: 2025, start_date: nil, end_date: nil) }
 

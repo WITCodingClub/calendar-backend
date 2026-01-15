@@ -127,7 +127,42 @@ class Course < ApplicationRecord
       .limit(limit)
   end
 
+  # Filter meeting times to deduplicate entries with same day/time
+  # Prefers meeting times with valid locations over TBD/placeholder ones
+  def filtered_meeting_times
+    meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+                 .map do |_key, meeting_times_group|
+                   next meeting_times_group.first if meeting_times_group.size == 1
+
+                   # Prefer non-TBD locations over TBD
+                   non_tbd = meeting_times_group.reject { |mt| tbd_location?(mt) }
+                   non_tbd.any? ? non_tbd.first : meeting_times_group.first
+                 end
+  end
+
   private
+
+  # Check if meeting time has a TBD/placeholder location
+  def tbd_location?(meeting_time)
+    building = meeting_time.building
+    room = meeting_time.room
+
+    return true if building.nil? || room.nil?
+
+    # Check building
+    if building.name.blank? ||
+       building.abbreviation.blank? ||
+       building.name&.downcase&.include?("to be determined") ||
+       building.name&.downcase == "tbd" ||
+       building.abbreviation&.downcase == "tbd"
+      return true
+    end
+
+    # Check room (room 0 or "0" indicates TBD)
+    return true if room.number.to_s == "0"
+
+    false
+  end
 
   # Update the term's start_date and end_date based on all courses
   def update_term_dates
