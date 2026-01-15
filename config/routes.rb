@@ -317,6 +317,12 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
+  # API documentation (public, no auth required)
+  scope :api do
+    mount Rswag::Ui::Engine, at: "/docs"
+    mount Rswag::Api::Engine, at: "/docs"
+  end
+
   # API routes
   namespace :api do
     post "user/onboard", to: "users#onboard"
@@ -455,8 +461,6 @@ Rails.application.routes.draw do
       mount Flipper::UI.app(Flipper), at: "flipper"
       mount RailsPerformance::Engine, at: "performance"
       mount Audits1984::Engine, at: "audits"
-      mount Rswag::Ui::Engine, at: "api-docs"
-      mount Rswag::Api::Engine, at: "api-docs"
       mount PgHero::Engine, at: "pghero"
       mount Logster::Web, at: "logs"
     end
