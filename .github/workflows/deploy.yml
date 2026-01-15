@@ -37,7 +37,7 @@ jobs:
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
-          ssh -o StrictHostKeyChecking=accept-new jsp@"$SERVER_HOST" << 'EOF'
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes jsp@"$SERVER_HOST" << 'EOF'
             # Stop the server (send Ctrl+C to screen)
             screen -S witcal-prod-server -p 0 -X stuff $'\003'
             sleep 2
@@ -51,4 +51,4 @@ jobs:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
           sleep 5
-          ssh jsp@"$SERVER_HOST" "curl -sf http://localhost:3000/up || exit 1"
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes jsp@"$SERVER_HOST" "curl -sf http://localhost:3000/up || exit 1"
