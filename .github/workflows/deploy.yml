@@ -20,11 +20,26 @@ jobs:
 
     steps:
       - name: Setup Tailscale
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
-          tags: tag:ci
+        env:
+          TAILSCALE_OAUTH_CLIENT_ID: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          TAILSCALE_OAUTH_SECRET: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+        run: |
+          # Install Tailscale
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+          # Start tailscaled
+          sudo tailscaled --state=mem: &
+          sleep 5
+
+          # Authenticate with OAuth - show full error output
+          sudo tailscale up --authkey="${TAILSCALE_OAUTH_CLIENT_ID}?preauthorized=true&ephemeral=true" --advertise-tags=tag:ci 2>&1 || {
+            echo "First auth attempt failed, trying with oauth-secret..."
+            sudo tailscale up --auth-key="tskey-client-${TAILSCALE_OAUTH_CLIENT_ID}-${TAILSCALE_OAUTH_SECRET}" --advertise-tags=tag:ci 2>&1 || {
+              echo "OAuth failed. Checking tailscale status..."
+              sudo tailscale status 2>&1 || true
+              exit 1
+            }
+          }
 
       - name: Setup SSH
         run: |
