@@ -2,8 +2,6 @@
 
 module Api
   class FriendsController < ApiController
-    include ApplicationHelper
-
     # GET /api/friends
     # Returns accepted friends: { friends: [{ id: string, name: string }] }
     def index
@@ -142,19 +140,10 @@ module Api
 
       authorize friendship, :view_schedule?
 
-      term_uid = params[:term_uid]
-      if term_uid.blank?
-        render json: { error: "term_uid is required" }, status: :bad_request
-        return
-      end
+      term = find_term_by_uid
+      return if performed?
 
-      term = Term.find_by(uid: term_uid)
-      if term.nil?
-        render json: { error: "Term not found" }, status: :not_found
-        return
-      end
-
-      result = build_processed_events_for_user(friend_user, term)
+      result = ProcessedEventsBuilder.new(friend_user, term).build
 
       render json: result, status: :ok
     end
@@ -174,17 +163,8 @@ module Api
 
       authorize friendship, :view_schedule?
 
-      term_uid = params[:term_uid]
-      if term_uid.blank?
-        render json: { error: "term_uid is required" }, status: :bad_request
-        return
-      end
-
-      term = Term.find_by(uid: term_uid)
-      if term.nil?
-        render json: { error: "Term not found" }, status: :not_found
-        return
-      end
+      term = find_term_by_uid
+      return if performed?
 
       processed = friend_user.enrollments.exists?(term_id: term.id)
 
@@ -200,133 +180,21 @@ module Api
                 .first
     end
 
-    def build_processed_events_for_user(user, term)
-      # Preload user's calendar preferences
-      user.calendar_preferences.load
-      user.event_preferences.load
+    def find_term_by_uid
+      term_uid = params[:term_uid]
 
-      enrollments = user
-                    .enrollments
-                    .where(term_id: term.id)
-                    .includes(course: [
-                                :faculties,
-                                { meeting_times: [:event_preference, { room: :building }, { course: :faculties }] }
-                              ])
-
-      structured_data = enrollments.map do |enrollment|
-        course = enrollment.course
-        faculty = course.faculties.first
-
-        # Filter meeting times to prefer valid locations over TBD duplicates
-        filtered_meeting_times = filter_meeting_times_for_user(user, course.meeting_times)
-
-        {
-          title: titleize_with_roman_numerals(course.title),
-          course_number: course.course_number,
-          schedule_type: course.schedule_type,
-          prefix: course.prefix,
-          term: {
-            pub_id: term.public_id,
-            uid: term.uid,
-            season: term.season,
-            year: term.year
-          },
-          professor: if faculty
-                       {
-                         pub_id: faculty.public_id,
-                         first_name: faculty.first_name,
-                         last_name: faculty.last_name,
-                         email: faculty.email,
-                         rmp_id: faculty.rmp_id
-                       }
-                     else
-                       nil
-                     end,
-          meeting_times: group_meeting_times_for_user(user, filtered_meeting_times)
-        }
+      if term_uid.blank?
+        render json: { error: "term_uid is required" }, status: :bad_request
+        return nil
       end
 
-      {
-        classes: structured_data,
-        notifications_disabled: user.notifications_disabled?
-      }
-    end
-
-    def filter_meeting_times_for_user(user, meeting_times)
-      meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
-                   .map do |_key, group|
-                     non_tbd = group.reject { |mt| tbd_location?(user, mt) }
-                     non_tbd.any? ? non_tbd.first : group.first
-                   end
-    end
-
-    def tbd_location?(user, meeting_time)
-      (meeting_time.building && user.send(:tbd_building?, meeting_time.building)) ||
-        (meeting_time.room && user.send(:tbd_room?, meeting_time.room))
-    end
-
-    def group_meeting_times_for_user(user, meeting_times)
-      preference_resolver = PreferenceResolver.new(user)
-      template_renderer = CalendarTemplateRenderer.new
-
-      meeting_times.map do |mt|
-        days = {
-          monday: false,
-          tuesday: false,
-          wednesday: false,
-          thursday: false,
-          friday: false,
-          saturday: false,
-          sunday: false
-        }
-
-        day_symbol = mt.day_of_week&.to_sym
-        days[day_symbol] = true if day_symbol
-
-        preferences = preference_resolver.resolve_actual_for(mt)
-        context = CalendarTemplateRenderer.build_context_from_meeting_time(mt)
-
-        rendered_title = if preferences[:title_template].present?
-                           template_renderer.render(preferences[:title_template], context)
-                         else
-                           titleize_with_roman_numerals(mt.course.title)
-                         end
-
-        rendered_description = if preferences[:description_template].present?
-                                 template_renderer.render(preferences[:description_template], context)
-                               end
-
-        color_value = preferences[:color_id] || mt.event_color
-        witcc_color = GoogleColors.to_witcc_hex(color_value)
-
-        {
-          id: mt.public_id,
-          begin_time: mt.fmt_begin_time_military,
-          end_time: mt.fmt_end_time_military,
-          start_date: mt.start_date,
-          end_date: mt.end_date,
-          location: {
-            building: if mt.building
-                        {
-                          pub_id: mt.building.public_id,
-                          name: mt.building.name,
-                          abbreviation: mt.building.abbreviation
-                        }
-                      else
-                        nil
-                      end,
-            room: mt.room&.formatted_number
-          },
-          **days,
-          calendar_config: {
-            title: rendered_title,
-            description: rendered_description,
-            color_id: witcc_color,
-            reminder_settings: preferences[:reminder_settings],
-            visibility: preferences[:visibility]
-          }
-        }
+      term = Term.find_by(uid: term_uid)
+      if term.nil?
+        render json: { error: "Term not found" }, status: :not_found
+        return nil
       end
+
+      term
     end
 
   end

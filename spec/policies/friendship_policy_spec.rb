@@ -23,12 +23,12 @@ RSpec.describe FriendshipPolicy, type: :policy do
 
   permissions :accept? do
     it "allows addressee to accept pending request" do
-      friendship = create(:friendship, :pending, requester: user1, addressee: user2)
+      friendship = create(:friendship, requester: user1, addressee: user2)
       expect(subject).to permit(user2, friendship)
     end
 
     it "denies requester from accepting" do
-      friendship = create(:friendship, :pending, requester: user1, addressee: user2)
+      friendship = create(:friendship, requester: user1, addressee: user2)
       expect(subject).not_to permit(user1, friendship)
     end
 
@@ -40,24 +40,24 @@ RSpec.describe FriendshipPolicy, type: :policy do
 
   permissions :decline? do
     it "allows addressee to decline pending request" do
-      friendship = create(:friendship, :pending, requester: user1, addressee: user2)
+      friendship = create(:friendship, requester: user1, addressee: user2)
       expect(subject).to permit(user2, friendship)
     end
 
     it "denies requester from declining" do
-      friendship = create(:friendship, :pending, requester: user1, addressee: user2)
+      friendship = create(:friendship, requester: user1, addressee: user2)
       expect(subject).not_to permit(user1, friendship)
     end
   end
 
   permissions :cancel? do
     it "allows requester to cancel pending request" do
-      friendship = create(:friendship, :pending, requester: user1, addressee: user2)
+      friendship = create(:friendship, requester: user1, addressee: user2)
       expect(subject).to permit(user1, friendship)
     end
 
     it "denies addressee from canceling" do
-      friendship = create(:friendship, :pending, requester: user1, addressee: user2)
+      friendship = create(:friendship, requester: user1, addressee: user2)
       expect(subject).not_to permit(user2, friendship)
     end
   end
@@ -83,7 +83,7 @@ RSpec.describe FriendshipPolicy, type: :policy do
     end
 
     it "denies for pending friendships" do
-      friendship = create(:friendship, :pending, requester: user1, addressee: user2)
+      friendship = create(:friendship, requester: user1, addressee: user2)
       expect(subject).not_to permit(user1, friendship)
       expect(subject).not_to permit(user2, friendship)
     end
