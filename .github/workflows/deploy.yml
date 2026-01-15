@@ -33,11 +33,6 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
-          # Debug: Check key format (first/last line only, no secrets)
-          echo "Key starts with: $(head -1 ~/.ssh/id_ed25519)"
-          echo "Key ends with: $(tail -1 ~/.ssh/id_ed25519)"
-          echo "Key line count: $(wc -l < ~/.ssh/id_ed25519)"
-
       - name: Deploy
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
