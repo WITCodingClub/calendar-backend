@@ -60,4 +60,16 @@ DESCRIPTION:Quarterly board meeting.
 LOCATION:Conference Room A
 X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Meeting
 END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20260119
+DTEND;VALUE=DATE:20260120
+DTSTAMP:20251224T000000Z
+UID:event-mlk-day@university.edu
+SUMMARY:Martin Luther King Jr. DayHoliday - No Classes
+DESCRIPTION:Event Name: Martin Luther King Jr. Day Holiday
+X-TRUMBA-CUSTOMFIELD;NAME="Event Name";ID=8561;TYPE=SingleLine:Martin Luther King Jr. Day Holiday
+X-TRUMBA-CUSTOMFIELD;NAME="Organization";ID=8547;TYPE=SingleLine:Registrar's Office
+X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=30436;TYPE=SingleLine:Spring
+X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=12;TYPE=number:Calendar Announcement
+END:VEVENT
 END:VCALENDAR

@@ -82,9 +82,11 @@ class UniversityCalendarIcsService < ApplicationService
     organization = decode_html_entities(raw_custom_fields["Organization"])
     academic_term = decode_html_entities(raw_custom_fields["Academic Term"])
     event_type = decode_html_entities(raw_custom_fields["Event Type"])
+    event_name = decode_html_entities(raw_custom_fields["Event Name"])
 
-    # Decode summary and location
-    summary = decode_html_entities(ics_event.summary.to_s)
+    # Prefer "Event Name" custom field over ICS summary when available
+    # The ICS summary often has formatting issues (e.g., "DayHoliday" instead of "Day Holiday")
+    summary = event_name.presence || decode_html_entities(ics_event.summary.to_s)
     location = decode_html_entities(ics_event.location&.to_s)
 
     # Find or initialize by ICS UID

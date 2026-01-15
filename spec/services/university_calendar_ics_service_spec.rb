@@ -14,13 +14,13 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
 
   describe "#call" do
     it "parses ICS events and creates records" do
-      expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(6)
+      expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(7)
     end
 
     it "returns statistics about the sync" do
       result = described_class.call
 
-      expect(result[:created]).to eq(6)
+      expect(result[:created]).to eq(7)
       expect(result[:updated]).to eq(0)
       expect(result[:unchanged]).to eq(0)
       expect(result[:errors]).to be_empty
@@ -29,12 +29,12 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
     it "updates existing events on subsequent runs" do
       # First run creates events
       described_class.call
-      expect(UniversityCalendarEvent.count).to eq(6)
+      expect(UniversityCalendarEvent.count).to eq(7)
 
       # Second run should find them unchanged
       result = described_class.call
       expect(result[:created]).to eq(0)
-      expect(result[:unchanged]).to eq(6)
+      expect(result[:unchanged]).to eq(7)
     end
 
     it "updates events when content changes" do
@@ -100,6 +100,19 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
     it "extracts Event Type" do
       event = UniversityCalendarEvent.find_by(ics_uid: "event-fall-classes-begin@university.edu")
       expect(event.event_type_raw).to eq("Calendar Announcement")
+    end
+
+    it "prefers Event Name custom field over ICS summary when available" do
+      # The ICS summary has "DayHoliday" without space, but Event Name custom field has correct spacing
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-mlk-day@university.edu")
+      expect(event.summary).to eq("Martin Luther King Jr. Day Holiday")
+      expect(event.summary).not_to include("DayHoliday")
+    end
+
+    it "falls back to ICS summary when Event Name custom field is not present" do
+      # Thanksgiving event has no Event Name custom field
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-thanksgiving@university.edu")
+      expect(event.summary).to eq("Thanksgiving Break - No Classes")
     end
   end
 
