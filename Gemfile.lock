@@ -650,7 +650,7 @@ GEM
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
       rubocop-rspec (~> 3.5)
-    ruby-openai (7.4.0)
+    ruby-openai (8.3.0)
       event_stream_parser (>= 0.3.0, < 2.0.0)
       faraday (>= 1)
       faraday-multipart (>= 1)
@@ -848,7 +848,7 @@ DEPENDENCIES
   rubocop-rails
   rubocop-rspec (~> 3.8)
   rubocop-rspec_rails (~> 2.32)
-  ruby-openai (~> 7.0)
+  ruby-openai (~> 8.3)
   selenium-webdriver
   shoulda-matchers
   simplecov

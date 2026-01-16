@@ -136,7 +136,7 @@ gem "omniauth-google-oauth2", "~> 1.2", ">= 1.2.1"
 
 gem "pgvector"
 gem "neighbor"
-gem "ruby-openai", "~> 7.0"
+gem "ruby-openai", "~> 8.3"
 gem "log_bench"
 
 gem "kaminari", "~> 1.2"
