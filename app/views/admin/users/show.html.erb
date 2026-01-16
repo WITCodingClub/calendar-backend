@@ -289,7 +289,7 @@
                       </td>
                       <td class="px-6 py-4 text-sm text-gray-900">
                         <% if enrollment.course&.meeting_times&.any? %>
-                          <% enrollment.course.meeting_times.each do |mt| %>
+                          <% enrollment.course.filtered_meeting_times.each do |mt| %>
                             <div class="mb-1 last:mb-0">
                               <% if mt.day_of_week.present? %>
                                 <span class="font-medium"><%= mt.day_of_week.capitalize %></span>

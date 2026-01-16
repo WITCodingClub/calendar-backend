@@ -89,13 +89,17 @@ class CatalogImportService < ApplicationService
     schedule_type_match = schedule_type_desc.to_s.match(/\(([^)]+)\)/)
 
     # Extract meeting times and faculty from bulk catalog data (if available)
-    meeting_times = []
+    raw_meeting_times = []
     if course_data["meetingsFaculty"].is_a?(Array)
       course_data["meetingsFaculty"].each do |session|
         meeting_time = session["meetingTime"]
-        meeting_times << meeting_time if meeting_time.present?
+        raw_meeting_times << meeting_time if meeting_time.present?
       end
     end
+
+    # Deduplicate meeting times - LeopardWeb sometimes returns multiple entries
+    # for the same time slot (one with location, one without). Prefer entries with location.
+    meeting_times = deduplicate_meeting_times(raw_meeting_times)
 
     # Get start/end dates from first meeting time, with validation
     start_date = nil
@@ -289,6 +293,57 @@ class CatalogImportService < ApplicationService
     end_year_valid = end_date.year.between?(term_year, term_year + 1)
 
     start_year_valid && end_year_valid
+  end
+
+  # Deduplicate raw meeting times from LeopardWeb API
+  # Groups by schedule key (days + times + dates) and prefers entries with location data
+  def deduplicate_meeting_times(raw_meeting_times)
+    return [] if raw_meeting_times.blank?
+
+    # Group by schedule identifying key
+    grouped = raw_meeting_times.group_by { |mt| meeting_time_schedule_key(mt) }
+
+    grouped.map do |_key, entries|
+      next entries.first if entries.size == 1
+
+      # Prefer entry with location data
+      with_location = entries.find { |mt| meeting_time_has_location?(mt) }
+      with_location || entries.first
+    end
+  end
+
+  # Generate a key for grouping meeting times by their schedule
+  def meeting_time_schedule_key(mt)
+    days = %w[sunday monday tuesday wednesday thursday friday saturday].map do |day|
+      mt[day] || mt[day.to_sym] ? 1 : 0
+    end.join
+
+    [
+      mt["startDate"] || mt[:startDate],
+      mt["endDate"] || mt[:endDate],
+      mt["beginTime"] || mt[:beginTime],
+      mt["endTime"] || mt[:endTime],
+      days
+    ]
+  end
+
+  # Check if meeting time has valid location data
+  def meeting_time_has_location?(mt)
+    building = (mt["building"] || mt[:building]).to_s.strip
+    room = (mt["room"] || mt[:room]).to_s.strip
+
+    # Has location if building is present and not TBD
+    return false if building.blank?
+    return false if building.downcase == "tbd"
+
+    # Room can be blank (some buildings don't have room numbers)
+    # but if present, shouldn't be 0 or TBD
+    if room.present?
+      return false if room == "0"
+      return false if room.downcase == "tbd"
+    end
+
+    true
   end
 
 end
