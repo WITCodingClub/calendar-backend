@@ -106,7 +106,7 @@ group :development do
   gem "web-console"
   gem "actual_db_schema"
   gem "annotaterb"
-  gem "listen", "~> 3.9"
+  gem "listen", "~> 3.10"
   gem "letter_opener_web"
   gem "foreman"
   gem "awesome_print"
