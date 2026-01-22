@@ -483,7 +483,7 @@ GEM
       net-smtp
       premailer (~> 1.7, >= 1.7.9)
     prettyprint (0.2.0)
-    prism (1.7.0)
+    prism (1.8.0)
     propshaft (1.3.1)
       actionpack (>= 7.0.0)
       activesupport (>= 7.0.0)
@@ -598,7 +598,7 @@ GEM
     rspec-mocks (3.13.7)
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
-    rspec-openapi (0.23.0)
+    rspec-openapi (0.24.0)
       actionpack (>= 5.2.0)
       rails-dom-testing
       rspec-core
@@ -839,7 +839,7 @@ DEPENDENCIES
   redis (~> 5.0)
   redis-session-store
   relaxed-rubocop
-  rspec-openapi (~> 0.23)
+  rspec-openapi (~> 0.24)
   rspec-rails (~> 7.1)
   rswag-api (~> 2.17.0)
   rswag-ui (~> 2.17.0)
