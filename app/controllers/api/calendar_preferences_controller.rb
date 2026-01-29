@@ -121,13 +121,13 @@ module Api
     end
 
     def calendar_preference_params
-      permitted = params.expect(
-        calendar_preference: [:title_template,
-                              :description_template,
-                              :location_template,
-                              :color_id,
-                              :visibility,
-                              { reminder_settings: [] }]
+      permitted = params.require(:calendar_preference).permit(
+        :title_template,
+        :description_template,
+        :location_template,
+        :color_id,
+        :visibility,
+        reminder_settings: []
       )
 
       # If reminder_settings is present, manually permit the nested attributes
