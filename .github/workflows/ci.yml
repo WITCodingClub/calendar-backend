@@ -103,13 +103,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-assets-
 
-      - name: Setup Database
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
-        run: |
-          bundle exec rails db:create
-          bundle exec rails db:schema:load
-
       - name: Setup Parallel Test Databases
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
