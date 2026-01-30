@@ -1038,8 +1038,8 @@ class GoogleCalendarService
       event_data[:location] = renderer.render(prefs[:location_template], context)
     end
 
-    # Apply reminder settings
-    event_data[:reminder_settings] = prefs[:reminder_settings] if prefs[:reminder_settings].present?
+    # Apply reminder settings (even if empty array - represents "no reminders")
+    event_data[:reminder_settings] = prefs[:reminder_settings] unless prefs[:reminder_settings].nil?
 
     # Apply color - convert hex codes to numeric IDs if needed
     if prefs[:color_id].present?
