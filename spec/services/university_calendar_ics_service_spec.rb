@@ -14,13 +14,13 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
 
   describe "#call" do
     it "parses ICS events and creates records" do
-      expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(7)
+      expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(8)
     end
 
     it "returns statistics about the sync" do
       result = described_class.call
 
-      expect(result[:created]).to eq(7)
+      expect(result[:created]).to eq(8)
       expect(result[:updated]).to eq(0)
       expect(result[:unchanged]).to eq(0)
       expect(result[:errors]).to be_empty
@@ -29,12 +29,12 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
     it "updates existing events on subsequent runs" do
       # First run creates events
       described_class.call
-      expect(UniversityCalendarEvent.count).to eq(7)
+      expect(UniversityCalendarEvent.count).to eq(8)
 
       # Second run should find them unchanged
       result = described_class.call
       expect(result[:created]).to eq(0)
-      expect(result[:unchanged]).to eq(7)
+      expect(result[:unchanged]).to eq(8)
     end
 
     it "updates events when content changes" do
@@ -182,6 +182,56 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
       summer_event = UniversityCalendarEvent.find_by(ics_uid: "event-campus-tour@university.edu")
       # Campus tour is Oct 1, 2025 which IS in fall term range, so it should be linked
       expect(summer_event.term).to eq(fall_term)
+    end
+  end
+
+  describe "term mismatch detection for term_dates events" do
+    let!(:spring_term) { create(:term, year: 2026, season: :spring, start_date: Date.new(2026, 1, 6), end_date: Date.new(2026, 5, 10)) }
+    let!(:summer_term) { create(:term, year: 2026, season: :summer, start_date: Date.new(2026, 6, 1), end_date: Date.new(2026, 7, 31)) }
+
+    before do
+      # Capture Rails logger output to verify warnings
+      allow(Rails.logger).to receive(:warn)
+      described_class.call
+    end
+
+    it "corrects term association when ICS academic_term is wrong for term_dates events" do
+      # The "Last Day of Classes" event is on May 5, 2026 (clearly Spring)
+      # but the ICS feed incorrectly labels it as "Summer"
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-spring-classes-end@university.edu")
+
+      # Should be linked to Spring 2026, NOT Summer 2026
+      expect(event.term).to eq(spring_term)
+      expect(event.term).not_to eq(summer_term)
+    end
+
+    it "logs a warning when term mismatch is detected" do
+      expect(Rails.logger).to have_received(:warn).with(
+        a_string_matching(/Term mismatch detected/)
+          .and(matching(/ICS claims 'Summer'/))
+          .and(matching(/suggests Spring 2026/))
+          .and(matching(/Last Day of Classes/))
+      )
+    end
+
+    it "stores the original academic_term value from ICS" do
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-spring-classes-end@university.edu")
+      # The academic_term field stores what the ICS feed said (for auditing)
+      expect(event.academic_term).to eq("Summer")
+    end
+
+    it "correctly infers Spring term for events in January-May" do
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-spring-classes-end@university.edu")
+      expect(event.start_time.month).to be_between(1, 5)
+      expect(event.term&.season).to eq("spring")
+    end
+
+    it "does not affect non-term_dates events" do
+      # Holiday events should still use the original logic
+      mlk_event = UniversityCalendarEvent.find_by(ics_uid: "event-mlk-day@university.edu")
+      expect(mlk_event.category).to eq("holiday")
+      # MLK Day is in January (Spring) and labeled as "Spring", so should match
+      expect(mlk_event.term).to eq(spring_term)
     end
   end
 
