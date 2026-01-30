@@ -58,8 +58,8 @@ namespace :university_calendar do
         .joins(oauth_credentials: :google_calendar)
         .distinct
         .find_each do |user|
-      GoogleCalendarSyncJob.perform_later(user, force: true)
-      count += 1
+          GoogleCalendarSyncJob.perform_later(user, force: true)
+          count += 1
     end
 
     puts "Queued sync for #{count} users"
@@ -78,5 +78,73 @@ namespace :university_calendar do
     end
     puts ""
     puts "  Last fetched: #{UniversityCalendarEvent.maximum(:last_fetched_at)}"
+  end
+
+  desc "Fix term associations for term_dates events using date-based inference"
+  task fix_term_associations: :environment do
+    puts "Fixing term associations for term_dates events..."
+    puts "This will correct events where the ICS academic_term field doesn't match the event date."
+    puts ""
+
+    fixed_count = 0
+    checked_count = 0
+    errors = []
+
+    # Only process term_dates events (Classes Begin/End)
+    UniversityCalendarEvent.term_dates.find_each do |event|
+      checked_count += 1
+
+      # Infer the correct term from the event date
+      inferred_season = case event.start_time.month
+                        when 1..5 then :spring
+                        when 6..7 then :summer
+                        when 8..12 then :fall
+                        end
+
+      year = event.start_time.year
+      correct_term = Term.find_by(year: year, season: inferred_season)
+
+      # Check if current term assignment is wrong
+      if event.term_id != correct_term&.id
+        old_term_name = event.term&.name || "nil"
+        new_term_name = correct_term&.name || "nil"
+
+        puts "  Fixing: '#{event.summary}' (#{event.start_time.to_date})"
+        puts "    Academic Term field: #{event.academic_term}"
+        puts "    Current term: #{old_term_name}"
+        puts "    Correct term: #{new_term_name}"
+        puts ""
+
+        event.update_column(:term_id, correct_term&.id) # rubocop:disable Rails/SkipsModelValidations
+        fixed_count += 1
+      end
+    rescue => e
+      errors << "Error processing event #{event.id}: #{e.message}"
+      puts "  Error: #{e.message}"
+    end
+
+    puts ""
+    puts "=" * 60
+    puts "Summary:"
+    puts "  Events checked: #{checked_count}"
+    puts "  Events fixed: #{fixed_count}"
+    puts "  Errors: #{errors.count}"
+    puts ""
+
+    if errors.any?
+      puts "Errors encountered:"
+      errors.each { |err| puts "  - #{err}" }
+      puts ""
+    end
+
+    if fixed_count > 0
+      puts "✓ Term associations have been corrected!"
+      puts ""
+      puts "Next steps:"
+      puts "  1. Run 'rake university_calendar:sync_user_calendars' to trigger calendar sync for all users"
+      puts "  2. This will update Google Calendar events with the correct term information"
+    else
+      puts "✓ No corrections needed - all term associations are correct!"
+    end
   end
 end

@@ -260,7 +260,7 @@ class UniversityCalendarIcsService < ApplicationService
     # Link to term
     if attrs[:start_time]
       event.term = if event.academic_term.present?
-                     find_term_from_academic_term(event.academic_term, attrs[:start_time])
+                     find_term_from_academic_term(event.academic_term, attrs[:start_time], attrs[:category], attrs[:summary])
                    end
       event.term ||= Term.find_by_date(attrs[:start_time])
     end
@@ -394,7 +394,13 @@ class UniversityCalendarIcsService < ApplicationService
     @html_entities_decoder ||= HTMLEntities.new
   end
 
-  def find_term_from_academic_term(academic_term_str, event_date)
+  def find_term_from_academic_term(academic_term_str, event_date, category = nil, summary = nil)
+    # For term boundary events (classes begin/end), infer term from date rather than
+    # blindly trusting the academic_term field, which may be incorrect in the source ICS feed
+    if category == "term_dates"
+      return infer_term_from_date_for_boundary_event(academic_term_str, event_date, summary)
+    end
+
     # Parse "Fall", "Spring", "Summer" and find matching term
     season = case academic_term_str.to_s.downcase
              when /fall/ then :fall
@@ -410,6 +416,42 @@ class UniversityCalendarIcsService < ApplicationService
     year -= 1 if season == :fall && event_date.month < 6
 
     Term.find_by(year: year, season: season)
+  end
+
+  # Infer the correct term for term boundary events (Classes Begin/End) based on date
+  # This prevents misclassification when the ICS feed has incorrect academic_term labels
+  # @param academic_term_str [String] The academic term string from ICS (may be incorrect)
+  # @param event_date [Time] The event date
+  # @param summary [String] The event summary for logging
+  # @return [Term, nil] The correct term based on date inference
+  def infer_term_from_date_for_boundary_event(academic_term_str, event_date, summary)
+    # Infer season from the event date using typical academic calendar patterns
+    inferred_season = case event_date.month
+                      when 1..5 then :spring    # Jan-May: Spring semester
+                      when 6..7 then :summer    # Jun-Jul: Summer semester
+                      when 8..12 then :fall     # Aug-Dec: Fall semester
+                      end
+
+    year = event_date.year
+
+    # Parse the claimed season from academic_term_str for validation
+    claimed_season = case academic_term_str.to_s.downcase
+                     when /fall/ then :fall
+                     when /spring/ then :spring
+                     when /summer/ then :summer
+                     end
+
+    # Log a warning if the claimed season doesn't match the date-inferred season
+    if claimed_season && claimed_season != inferred_season
+      Rails.logger.warn(
+        "Term mismatch detected for '#{summary}': " \
+        "ICS claims '#{academic_term_str}' but date #{event_date.to_date} suggests #{inferred_season.to_s.capitalize} #{year}. " \
+        "Using date-based inference."
+      )
+    end
+
+    # Use date-inferred season
+    Term.find_by(year: year, season: inferred_season)
   end
 
 end
