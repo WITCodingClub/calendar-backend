@@ -202,6 +202,48 @@ RSpec.describe "Api::UserExtensionConfigs" do
 
         expect(response).to have_http_status(:ok)
       end
+
+      it "clears university_event_categories when sync_university_events is disabled" do
+        # First enable sync and set categories
+        user.user_extension_config.update!(
+          sync_university_events: true,
+          university_event_categories: ["campus_event", "academic", "deadline"]
+        )
+
+        # Now disable sync via API
+        put "/api/user/extension_config", params: {
+          sync_university_events: false
+        }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+
+        # Verify categories were cleared
+        config = user.reload.user_extension_config
+        expect(config.sync_university_events).to be false
+        expect(config.university_event_categories).to eq([])
+      end
+
+      it "clears categories even if categories are specified when disabling sync" do
+        # First enable sync and set categories
+        user.user_extension_config.update!(
+          sync_university_events: true,
+          university_event_categories: ["campus_event", "academic"]
+        )
+
+        # Try to disable sync while also specifying categories
+        # The callback should clear them anyway
+        put "/api/user/extension_config", params: {
+          sync_university_events: false,
+          university_event_categories: ["deadline", "finals"]
+        }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+
+        # Categories should be cleared, not set to the new values
+        config = user.reload.user_extension_config
+        expect(config.sync_university_events).to be false
+        expect(config.university_event_categories).to eq([])
+      end
     end
   end
 

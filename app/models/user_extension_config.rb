@@ -31,10 +31,21 @@ class UserExtensionConfig < ApplicationRecord
 
   belongs_to :user
 
+  # Clear university event categories when sync is disabled
+  before_save :clear_categories_when_sync_disabled
+
   # Trigger calendar sync when settings change that affect calendar events
   after_update :sync_calendar_if_settings_changed
 
   private
+
+  def clear_categories_when_sync_disabled
+    # If toggling sync_university_events from true to false, clear all categories
+    # This ensures the UI state matches the backend and all events are properly removed
+    return unless will_save_change_to_sync_university_events? && !sync_university_events
+
+    self.university_event_categories = []
+  end
 
   def sync_calendar_if_settings_changed
     # Sync if colors or university event settings changed
