@@ -203,13 +203,13 @@ jobs:
             screen -S witcal-prod-server -X quit 2>/dev/null || true
             sleep 2
 
-            # Create a new detached screen session that pulls code, migrates, and starts server
-            screen -dmS witcal-prod-server bash -c 'cd /Users/jsp/server/calendar-backend && git pull && RAILS_ENV=production bundle exec rails db:migrate && exec RAILS_ENV=production rails server'
+            # Create a new detached screen session that pulls code, installs dependencies, migrates, and starts server
+            screen -dmS witcal-prod-server bash -c 'cd /Users/jsp/server/calendar-backend && git pull && bundle install && RAILS_ENV=production bundle exec rails db:migrate && exec RAILS_ENV=production rails server'
           EOF
 
       - name: Verify Deployment
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
-          sleep 5
+          sleep 15
           ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes jsp@"$SERVER_HOST" "curl -sf http://localhost:3000/up || exit 1"
