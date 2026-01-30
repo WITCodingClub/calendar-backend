@@ -106,7 +106,10 @@ jobs:
       - name: Setup Parallel Test Databases
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
-        run: bundle exec rake parallel:create parallel:load_schema
+        run: |
+          # Drop any existing test databases first
+          bundle exec rake parallel:drop || true
+          bundle exec rake parallel:create parallel:load_schema
 
       - name: Build Tailwind CSS
         run: bundle exec rails tailwindcss:build
