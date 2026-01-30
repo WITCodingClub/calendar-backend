@@ -119,14 +119,18 @@ module Api
     end
 
     def event_preference_params
-      permitted = params.expect(
-        event_preference: [:title_template,
-                           :description_template,
-                           :location_template,
-                           :color_id,
-                           :visibility,
-                           { reminder_settings: [] }]
+      # IMPORTANT: Use require/permit instead of expect due to Rails 8 bug
+      # params.expect rejects empty arrays (e.g., reminder_settings: [])
+      # See PR #294 and issues #290, #292 for details
+      permitted = params.require(:event_preference).permit(
+        :title_template,
+        :description_template,
+        :location_template,
+        :color_id,
+        :visibility,
+        reminder_settings: []
       )
+      # rubocop:enable Rails/StrongParametersExpect
 
       # If reminder_settings is present, manually permit the nested attributes
       if params[:event_preference][:reminder_settings].present?
