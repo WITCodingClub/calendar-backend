@@ -99,6 +99,7 @@ group :development, :test do
   gem "rubocop-rspec_rails", "~> 2.32"
   gem "query_count"
   gem "prosopite"
+  gem "parallel_tests"
 end
 
 group :development do
