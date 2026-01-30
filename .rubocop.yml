@@ -193,6 +193,12 @@ Rails/DynamicFindBy:
 Rails/UniqueValidationWithoutIndex:
   Enabled: false
 
+# Rails 8's params.expect has a bug with empty arrays (e.g., reminder_settings: [])
+# Keep using params.require().permit() until Rails fixes this issue
+# See PR #294 and issues #290, #292
+Rails/StrongParametersExpect:
+  Enabled: false
+
 # RSpec configuration
 RSpec/DescribeClass:
   Exclude:
