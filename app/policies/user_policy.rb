@@ -47,6 +47,11 @@ class UserPolicy < ApplicationPolicy
     super_admin?
   end
 
+  # Super_admins+ can manage friendships (add/remove friends)
+  def manage_friendships?
+    super_admin?
+  end
+
   # Component-level permissions for admin dashboard
 
   def view_user_details?
