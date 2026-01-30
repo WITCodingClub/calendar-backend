@@ -84,11 +84,11 @@
           <% @university_calendar_events.each do |event| %>
             <tr class="<%= event.start_time < Time.current ? 'opacity-50' : '' %>">
               <td class="px-6 py-4">
-                <div class="text-sm font-medium text-gray-900">
-                  <%= truncate(event.summary, length: 50) %>
+                <div class="text-sm font-medium text-gray-900" title="<%= event.summary %>">
+                  <%= truncate(event.summary, length: 80) %>
                 </div>
                 <% if event.location.present? %>
-                  <div class="text-xs text-gray-500"><%= truncate(event.location, length: 40) %></div>
+                  <div class="text-xs text-gray-500" title="<%= event.location %>"><%= truncate(event.location, length: 40) %></div>
                 <% end %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">

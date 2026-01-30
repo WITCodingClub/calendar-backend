@@ -495,6 +495,129 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
     end
   end
 
+  describe "duplicate event detection" do
+    # Test for non-all-day event duplicates (which won't be merged by consecutive event logic)
+    let(:duplicate_meeting_ics) do
+      <<~ICS
+        BEGIN:VCALENDAR
+        VERSION:2.0
+        PRODID:-//Test//Test//EN
+        BEGIN:VEVENT
+        DTSTART:20250310T140000
+        DTEND:20250310T160000
+        DTSTAMP:20251224T000000Z
+        UID:event-board-meeting-1@university.edu
+        SUMMARY:Board of Trustees Meeting
+        X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Meeting
+        END:VEVENT
+        BEGIN:VEVENT
+        DTSTART:20250310T140000
+        DTEND:20250310T160000
+        DTSTAMP:20251224T000000Z
+        UID:event-board-meeting-2@university.edu
+        SUMMARY:Board of Trustees Meeting
+        X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Meeting
+        END:VEVENT
+        END:VCALENDAR
+      ICS
+    end
+
+    it "skips duplicate non-all-day events with different UIDs but same content" do
+      stub_request(:get, ics_url)
+        .to_return(status: 200, body: duplicate_meeting_ics)
+
+      # Should only create 1 event, skipping the duplicate
+      expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(1)
+
+      event = UniversityCalendarEvent.first
+      expect(event.summary).to eq("Board of Trustees Meeting")
+      expect(event.category).to eq("meeting")
+    end
+
+    it "reports skipped duplicates in stats" do
+      stub_request(:get, ics_url)
+        .to_return(status: 200, body: duplicate_meeting_ics)
+
+      result = described_class.call
+
+      expect(result[:created]).to eq(1)
+      expect(result[:unchanged]).to eq(1) # Second event is skipped as duplicate
+    end
+
+    it "keeps existing event and skips new duplicate on subsequent syncs" do
+      # First sync with one event
+      single_event_ics = <<~ICS
+        BEGIN:VCALENDAR
+        VERSION:2.0
+        PRODID:-//Test//Test//EN
+        BEGIN:VEVENT
+        DTSTART:20250310T140000
+        DTEND:20250310T160000
+        DTSTAMP:20251224T000000Z
+        UID:event-meeting-original@university.edu
+        SUMMARY:Board of Trustees Meeting
+        X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Meeting
+        END:VEVENT
+        END:VCALENDAR
+      ICS
+
+      stub_request(:get, ics_url)
+        .to_return(status: 200, body: single_event_ics)
+      described_class.call
+
+      expect(UniversityCalendarEvent.count).to eq(1)
+      original_event = UniversityCalendarEvent.first
+      expect(original_event.ics_uid).to eq("event-meeting-original@university.edu")
+
+      # Second sync now includes a duplicate with different UID
+      stub_request(:get, ics_url)
+        .to_return(status: 200, body: duplicate_meeting_ics)
+
+      result = described_class.call
+
+      # Should still have 1 event (original is found unchanged, new duplicate is skipped)
+      expect(UniversityCalendarEvent.count).to eq(1)
+      expect(result[:unchanged]).to eq(2) # Original event unchanged + duplicate skipped
+    end
+
+    # Test that all-day duplicates on same date are handled by merge logic
+    it "handles all-day duplicate events via merge logic (not duplicate detection)" do
+      duplicate_holiday_ics = <<~ICS
+        BEGIN:VCALENDAR
+        VERSION:2.0
+        PRODID:-//Test//Test//EN
+        BEGIN:VEVENT
+        DTSTART;VALUE=DATE:20250310
+        DTEND;VALUE=DATE:20250311
+        DTSTAMP:20251224T000000Z
+        UID:event-wellbeing-1@university.edu
+        SUMMARY:Wellbeing Day - No Classes
+        END:VEVENT
+        BEGIN:VEVENT
+        DTSTART;VALUE=DATE:20250310
+        DTEND;VALUE=DATE:20250311
+        DTSTAMP:20251224T000000Z
+        UID:event-wellbeing-2@university.edu
+        SUMMARY:Wellbeing Day - No Classes
+        END:VEVENT
+        END:VCALENDAR
+      ICS
+
+      stub_request(:get, ics_url)
+        .to_return(status: 200, body: duplicate_holiday_ics)
+
+      result = described_class.call
+
+      # These get merged into one event
+      expect(UniversityCalendarEvent.count).to eq(1)
+      expect(result[:created]).to eq(1)
+      expect(result[:merged]).to eq(1) # 2 events -> 1 event = 1 merged
+
+      event = UniversityCalendarEvent.first
+      expect(event.ics_uid).to start_with("merged:")
+    end
+  end
+
   describe "HTML entity decoding" do
     # Note: In ICS format, semicolons must be escaped with backslash
     # Real ICS feeds from 25Live escape HTML entities this way

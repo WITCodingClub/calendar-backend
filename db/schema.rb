@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_15_162823) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -403,6 +403,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_162823) do
     t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
   end
 
+  create_table "friendships", force: :cascade do |t|
+    t.bigint "addressee_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "requester_id", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["addressee_id", "status"], name: "index_friendships_on_addressee_id_and_status"
+    t.index ["addressee_id"], name: "index_friendships_on_addressee_id"
+    t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
+    t.index ["requester_id", "status"], name: "index_friendships_on_requester_id_and_status"
+    t.index ["requester_id"], name: "index_friendships_on_requester_id"
+  end
+
   create_table "google_calendar_events", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "end_time"
@@ -661,7 +674,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_162823) do
     t.text "recurrence"
     t.string "source_url"
     t.datetime "start_time", null: false
-    t.string "summary", null: false
+    t.text "summary", null: false
     t.bigint "term_id"
     t.datetime "updated_at", null: false
     t.index ["academic_term"], name: "index_university_calendar_events_on_academic_term"
@@ -725,6 +738,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_15_162823) do
   add_foreign_key "final_exams", "terms"
   add_foreign_key "finals_schedules", "terms"
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
+  add_foreign_key "friendships", "users", column: "addressee_id"
+  add_foreign_key "friendships", "users", column: "requester_id"
   add_foreign_key "google_calendar_events", "final_exams"
   add_foreign_key "google_calendar_events", "google_calendars"
   add_foreign_key "google_calendar_events", "meeting_times"

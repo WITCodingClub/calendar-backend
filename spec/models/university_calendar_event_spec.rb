@@ -19,7 +19,7 @@
 #  recurrence      :text
 #  source_url      :string
 #  start_time      :datetime         not null
-#  summary         :string           not null
+#  summary         :text             not null
 #  created_at      :datetime         not null
 #  updated_at      :datetime         not null
 #  term_id         :bigint

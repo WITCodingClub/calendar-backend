@@ -238,6 +238,17 @@ class UniversityCalendarIcsService < ApplicationService
       end
     end
 
+    # Check for content-based duplicates (same event with different UID)
+    # This handles cases where the university feed has duplicate events
+    if event.new_record?
+      duplicate = find_duplicate_by_content(attrs)
+      if duplicate
+        Rails.logger.info("Skipping duplicate event: #{attrs[:summary]} (#{attrs[:ics_uid]}) - already exists as #{duplicate.ics_uid}")
+        stats[:unchanged] += 1
+        return
+      end
+    end
+
     was_new = event.new_record?
 
     event.assign_attributes(
@@ -274,6 +285,21 @@ class UniversityCalendarIcsService < ApplicationService
       event.update_column(:last_fetched_at, Time.current) if event.persisted? # rubocop:disable Rails/SkipsModelValidations
       stats[:unchanged] += 1
     end
+  end
+
+  # Find an existing event with matching content (but different UID)
+  # This detects duplicates in the university feed where the same event appears multiple times
+  # @param attrs [Hash] Event attributes to check
+  # @return [UniversityCalendarEvent, nil] Existing duplicate event or nil
+  def find_duplicate_by_content(attrs)
+    # Look for events with the same summary, start_time, end_time, and category
+    # This catches duplicates in the feed that have different UIDs
+    UniversityCalendarEvent.where(
+      summary: attrs[:summary],
+      start_time: attrs[:start_time],
+      end_time: attrs[:end_time],
+      category: attrs[:category]
+    ).where.not(ics_uid: attrs[:ics_uid]).first
   end
 
   # Clean up single-day events that have been merged into a multi-day event
