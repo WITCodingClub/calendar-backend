@@ -449,6 +449,8 @@ GEM
       activerecord (>= 7.1)
       request_store (~> 1.4)
     parallel (1.27.0)
+    parallel_tests (5.5.0)
+      parallel
     parser (3.3.10.0)
       ast (~> 2.4.1)
       racc
@@ -818,6 +820,7 @@ DEPENDENCIES
   omniauth (~> 2.1, >= 2.1.4)
   omniauth-google-oauth2 (~> 1.2, >= 1.2.1)
   paper_trail
+  parallel_tests
   pdf-reader
   pg (~> 1.6.3)
   pg_query (>= 2)
