@@ -30,8 +30,16 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Cache Rubocop
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rubocop_cache
+          key: ${{ runner.os }}-rubocop-${{ hashFiles('.rubocop.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-rubocop-
+
       - name: Run Rubocop
-        run: bundle exec rubocop
+        run: bundle exec rubocop --parallel
 
   security:
     name: Brakeman
@@ -84,6 +92,16 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
+
+      - name: Cache Assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            tmp/cache/assets
+            public/assets
+          key: ${{ runner.os }}-assets-${{ hashFiles('**/tailwind.config.js', 'app/assets/**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-assets-
 
       - name: Setup Database
         env:
