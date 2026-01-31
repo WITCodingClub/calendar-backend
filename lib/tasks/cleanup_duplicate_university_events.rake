@@ -56,8 +56,19 @@ namespace :university_calendar do
           similarity = UniversityCalendarEvent.similarity(keeper.summary, dup.summary)
           puts "  Removing: '#{dup.summary}' (#{dup.organization || 'No org'}, #{(similarity * 100).to_i}% similar, #{dup.ics_uid})"
 
-          # Transfer any GoogleCalendarEvent associations to the keeper
-          dup.google_calendar_events.update_all(university_calendar_event_id: keeper.id)
+          # Transfer GoogleCalendarEvent associations to the keeper
+          # Handle unique constraint by deleting conflicts instead of transferring
+          keeper_calendar_ids = keeper.google_calendar_events.pluck(:google_calendar_id)
+
+          dup.google_calendar_events.find_each do |gcal_event|
+            if keeper_calendar_ids.include?(gcal_event.google_calendar_id)
+              # Keeper already has an event for this calendar, delete the duplicate's
+              gcal_event.destroy
+            else
+              # No conflict, safe to transfer
+              gcal_event.update_column(:university_calendar_event_id, keeper.id) # rubocop:disable Rails/SkipsModelValidations
+            end
+          end
 
           # Delete the duplicate
           dup.destroy
