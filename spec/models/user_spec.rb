@@ -73,6 +73,7 @@ RSpec.describe User do
         expect(user.notifications_disabled_until).to be_nil
         expect(user.notifications_disabled?).to be false
       end
+
     end
   end
 end
