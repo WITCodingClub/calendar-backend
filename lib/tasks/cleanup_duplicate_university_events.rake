@@ -182,7 +182,7 @@ namespace :university_calendar do
 
       by_calendar.each do |calendar_id, events|
         calendar = GoogleCalendar.find_by(id: calendar_id)
-        user_email = calendar&.oauth_credential&.user&.primary_email&.email || "Unknown"
+        user_email = calendar&.oauth_credential&.user&.email || "Unknown"
 
         puts "Calendar ID #{calendar_id} (User: #{user_email}):"
         puts "  #{events.count} orphaned events"
@@ -216,53 +216,56 @@ namespace :university_calendar do
 
     total = orphaned.count
     puts "Found #{total} orphaned GoogleCalendarEvent records"
-    return if total.zero?
 
-    deleted_from_gcal = 0
-    deleted_from_db = 0
-    errors = 0
+    if total.zero?
+      puts "No orphaned events to clean up."
+    else
+      deleted_from_gcal = 0
+      deleted_from_db = 0
+      errors = 0
 
-    orphaned.find_each do |gce|
-      begin
-        calendar = gce.google_calendar
-        next unless calendar
-
-        # Delete from Google Calendar
-        service = GoogleCalendarService.new(calendar.oauth_credential)
+      orphaned.find_each do |gce|
         begin
-          service.delete_event(calendar.calendar_id, gce.google_event_id)
-          deleted_from_gcal += 1
-          puts "Deleted from Google Calendar: #{gce.google_event_id} (Calendar: #{calendar.id})"
-        rescue Google::Apis::ClientError => e
-          if e.status_code == 404 || e.status_code == 410
-            # Event already deleted from Google Calendar, just clean up DB
-            puts "Event already gone from Google Calendar: #{gce.google_event_id}"
-          else
-            raise
+          calendar = gce.google_calendar
+          next unless calendar
+
+          # Delete from Google Calendar
+          service = GoogleCalendarService.new(calendar.oauth_credential)
+          begin
+            service.delete_event(calendar.calendar_id, gce.google_event_id)
+            deleted_from_gcal += 1
+            puts "Deleted from Google Calendar: #{gce.google_event_id} (Calendar: #{calendar.id})"
+          rescue Google::Apis::ClientError => e
+            if e.status_code == 404 || e.status_code == 410
+              # Event already deleted from Google Calendar, just clean up DB
+              puts "Event already gone from Google Calendar: #{gce.google_event_id}"
+            else
+              raise
+            end
           end
+
+          # Delete from database
+          gce.destroy
+          deleted_from_db += 1
+        rescue => e
+          errors += 1
+          puts "Error processing GoogleCalendarEvent #{gce.id}: #{e.message}"
+          Rails.logger.error("Failed to cleanup orphaned GoogleCalendarEvent #{gce.id}: #{e.message}")
         end
-
-        # Delete from database
-        gce.destroy
-        deleted_from_db += 1
-      rescue => e
-        errors += 1
-        puts "Error processing GoogleCalendarEvent #{gce.id}: #{e.message}"
-        Rails.logger.error("Failed to cleanup orphaned GoogleCalendarEvent #{gce.id}: #{e.message}")
       end
-    end
 
-    puts "\n=== Cleanup Complete ==="
-    puts "Deleted from Google Calendar: #{deleted_from_gcal}"
-    puts "Deleted from database: #{deleted_from_db}"
-    puts "Errors: #{errors}"
+      puts "\n=== Cleanup Complete ==="
+      puts "Deleted from Google Calendar: #{deleted_from_gcal}"
+      puts "Deleted from database: #{deleted_from_db}"
+      puts "Errors: #{errors}"
 
-    if deleted_from_db > 0
-      puts "\nTriggering calendar sync for all users to ensure consistency..."
-      User.joins(oauth_credentials: :google_calendar).distinct.find_each do |user|
-        GoogleCalendarSyncJob.perform_later(user, force: true)
+      if deleted_from_db > 0
+        puts "\nTriggering calendar sync for all users to ensure consistency..."
+        User.joins(oauth_credentials: :google_calendar).distinct.find_each do |user|
+          GoogleCalendarSyncJob.perform_later(user, force: true)
+        end
+        puts "Calendar sync jobs queued."
       end
-      puts "Calendar sync jobs queued."
     end
   end
 
