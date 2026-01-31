@@ -384,3 +384,68 @@ namespace :university_calendar do
     end
   end
 end
+
+  desc "Rebuild all university calendar events (delete and re-sync)"
+  task rebuild_university_events: :environment do
+    puts "=== Rebuilding all university calendar events ==="
+    puts "This will delete all university events from Google Calendar and recreate them"
+    puts ""
+
+    deleted_from_gcal = 0
+    deleted_from_db = 0
+    errors = 0
+
+    # Find all GoogleCalendarEvents that are university events
+    university_gcal_events = GoogleCalendarEvent.where.not(university_calendar_event_id: nil)
+    total = university_gcal_events.count
+
+    puts "Found #{total} university calendar event records to delete"
+
+    university_gcal_events.find_each do |gce|
+      begin
+        calendar = gce.google_calendar
+        next unless calendar
+
+        user = calendar.oauth_credential&.user
+        next unless user
+
+        # Delete from Google Calendar
+        service = GoogleCalendarService.new(user)
+        gcal_service = service.send(:service_account_calendar_service)
+
+        begin
+          gcal_service.delete_event(calendar.google_calendar_id, gce.google_event_id)
+          deleted_from_gcal += 1
+          puts "Deleted from Google Calendar: #{gce.google_event_id}"
+        rescue Google::Apis::ClientError => e
+          if e.status_code == 404 || e.status_code == 410
+            puts "Event already gone from Google Calendar: #{gce.google_event_id}"
+          else
+            raise
+          end
+        end
+
+        # Delete from database
+        gce.destroy
+        deleted_from_db += 1
+      rescue => e
+        errors += 1
+        puts "Error processing GoogleCalendarEvent #{gce.id}: #{e.message}"
+        Rails.logger.error("Failed to delete university event #{gce.id}: #{e.message}")
+      end
+    end
+
+    puts "\n=== Deletion Complete ==="
+    puts "Deleted from Google Calendar: #{deleted_from_gcal}"
+    puts "Deleted from database: #{deleted_from_db}"
+    puts "Errors: #{errors}"
+
+    if deleted_from_db > 0
+      puts "\nTriggering calendar sync for all users to recreate university events..."
+      User.joins(oauth_credentials: :google_calendar).distinct.find_each do |user|
+        GoogleCalendarSyncJob.perform_later(user, force: true)
+      end
+      puts "Calendar sync jobs queued. University events will be recreated from database."
+    end
+  end
+end
