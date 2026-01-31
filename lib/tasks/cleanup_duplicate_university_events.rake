@@ -279,7 +279,7 @@ namespace :university_calendar do
     total_tracked_events = 0
 
     GoogleCalendar.find_each do |calendar|
-      user_email = calendar.oauth_credential&.user&.primary_email&.email || "Unknown"
+      user_email = calendar.oauth_credential&.user&.email || "Unknown"
       puts "\nChecking calendar #{calendar.id} (User: #{user_email})..."
 
       begin
@@ -336,7 +336,7 @@ namespace :university_calendar do
     total_errors = 0
 
     GoogleCalendar.find_each do |calendar|
-      user_email = calendar.oauth_credential&.user&.primary_email&.email || "Unknown"
+      user_email = calendar.oauth_credential&.user&.email || "Unknown"
       puts "\nProcessing calendar #{calendar.id} (User: #{user_email})..."
 
       begin
