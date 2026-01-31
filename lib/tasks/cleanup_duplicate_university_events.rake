@@ -1,57 +1,69 @@
 # frozen_string_literal: true
 
 namespace :university_calendar do
-  desc "Clean up duplicate university calendar events (same content, different UIDs)"
+  desc "Clean up duplicate university calendar events (including fuzzy matches)"
   task cleanup_duplicates: :environment do
     puts "=== Cleaning up duplicate university calendar events ==="
+    puts "Using fuzzy matching (#{(UniversityCalendarEvent::SIMILARITY_THRESHOLD * 100).to_i}% similarity threshold)"
+    puts "Organization priority: Registrar's Office > Academic Affairs > Student Affairs > Center for Wellness > Others"
+    puts ""
 
     removed_count = 0
     kept_count = 0
+    processed_ids = Set.new
 
-    # Group events by content signature (summary + start_time + end_time + category)
-    grouped_events = UniversityCalendarEvent.all.group_by do |event|
-      [
-        event.summary&.downcase&.strip,
-        event.start_time,
-        event.end_time,
-        event.category
-      ]
+    # Group events by date and category to reduce comparison scope
+    grouped_by_day = UniversityCalendarEvent.all.group_by do |event|
+      [event.start_time.to_date, event.end_time.to_date, event.category]
     end
 
-    # Process each group
-    grouped_events.each do |signature, events|
-      next if events.size == 1  # No duplicates in this group
+    # Process each day/category group
+    grouped_by_day.each do |key, events_in_group|
+      date_start, date_end, category = key
 
-      puts "\nFound #{events.size} events with signature:"
-      puts "  Summary: #{events.first.summary}"
-      puts "  Start: #{events.first.start_time}"
-      puts "  End: #{events.first.end_time}"
-      puts "  Category: #{events.first.category}"
+      # Find duplicate clusters within this group using fuzzy matching
+      events_to_process = events_in_group.reject { |e| processed_ids.include?(e.id) }
 
-      # Sort by various criteria to determine which one to keep
-      # Prefer: most recently fetched, then oldest created_at
-      events_sorted = events.sort_by do |e|
-        [
-          e.last_fetched_at || Time.at(0),  # Most recently fetched (descending)
-          -(e.created_at.to_i)               # Oldest created (ascending)
-        ]
-      end.reverse
+      events_to_process.each do |event|
+        next if processed_ids.include?(event.id)
 
-      keeper = events_sorted.first
-      duplicates = events_sorted[1..]
+        # Find all fuzzy duplicates for this event
+        duplicates = events_to_process.select do |other|
+          next false if event.id == other.id
+          next false if processed_ids.include?(other.id)
 
-      puts "  Keeping: #{keeper.ics_uid} (created #{keeper.created_at})"
-      kept_count += 1
+          event.fuzzy_duplicate_of?(other)
+        end
 
-      duplicates.each do |dup|
-        puts "  Removing: #{dup.ics_uid} (created #{dup.created_at})"
+        next if duplicates.empty?
 
-        # Transfer any GoogleCalendarEvent associations to the keeper
-        dup.google_calendar_events.update_all(university_calendar_event_id: keeper.id)
+        # Include the original event in the group
+        duplicate_group = [event] + duplicates
 
-        # Delete the duplicate
-        dup.destroy
-        removed_count += 1
+        puts "\nFound #{duplicate_group.size} similar events:"
+        puts "  Date: #{date_start}"
+        puts "  Category: #{category}"
+
+        # Use the preferred_event method to determine which to keep
+        keeper = UniversityCalendarEvent.preferred_event(duplicate_group)
+        to_remove = duplicate_group - [keeper]
+
+        puts "  Keeping: '#{keeper.summary}' (#{keeper.organization || 'No org'}, #{keeper.ics_uid})"
+        kept_count += 1
+        processed_ids << keeper.id
+
+        to_remove.each do |dup|
+          similarity = UniversityCalendarEvent.similarity(keeper.summary, dup.summary)
+          puts "  Removing: '#{dup.summary}' (#{dup.organization || 'No org'}, #{(similarity * 100).to_i}% similar, #{dup.ics_uid})"
+
+          # Transfer any GoogleCalendarEvent associations to the keeper
+          dup.google_calendar_events.update_all(university_calendar_event_id: keeper.id)
+
+          # Delete the duplicate
+          dup.destroy
+          removed_count += 1
+          processed_ids << dup.id
+        end
       end
     end
 
@@ -68,39 +80,62 @@ namespace :university_calendar do
     end
   end
 
-  desc "Check for duplicate university calendar events (dry run)"
+  desc "Check for duplicate university calendar events (dry run, including fuzzy matches)"
   task check_duplicates: :environment do
     puts "=== Checking for duplicate university calendar events ==="
+    puts "Using fuzzy matching (#{(UniversityCalendarEvent::SIMILARITY_THRESHOLD * 100).to_i}% similarity threshold)"
+    puts ""
 
     total_events = UniversityCalendarEvent.count
     duplicate_groups = 0
     duplicate_count = 0
+    processed_ids = Set.new
 
-    # Group events by content signature
-    grouped_events = UniversityCalendarEvent.all.group_by do |event|
-      [
-        event.summary&.downcase&.strip,
-        event.start_time,
-        event.end_time,
-        event.category
-      ]
+    # Group events by date and category
+    grouped_by_day = UniversityCalendarEvent.all.group_by do |event|
+      [event.start_time.to_date, event.end_time.to_date, event.category]
     end
 
-    # Find groups with duplicates
-    grouped_events.each do |signature, events|
-      next if events.size == 1
+    # Find duplicate clusters
+    grouped_by_day.each do |key, events_in_group|
+      date_start, date_end, category = key
+      events_to_process = events_in_group.reject { |e| processed_ids.include?(e.id) }
 
-      duplicate_groups += 1
-      duplicate_count += (events.size - 1)  # Count extras beyond the first
+      events_to_process.each do |event|
+        next if processed_ids.include?(event.id)
 
-      puts "\nDuplicate group (#{events.size} events):"
-      puts "  Summary: #{events.first.summary}"
-      puts "  Start: #{events.first.start_time.strftime('%Y-%m-%d %H:%M')}"
-      puts "  End: #{events.first.end_time.strftime('%Y-%m-%d %H:%M')}"
-      puts "  Category: #{events.first.category}"
-      puts "  UIDs:"
-      events.each do |e|
-        puts "    - #{e.ics_uid} (created #{e.created_at.strftime('%Y-%m-%d')})"
+        # Find all fuzzy duplicates
+        duplicates = events_to_process.select do |other|
+          next false if event.id == other.id
+          next false if processed_ids.include?(other.id)
+
+          event.fuzzy_duplicate_of?(other)
+        end
+
+        next if duplicates.empty?
+
+        duplicate_group = [event] + duplicates
+        duplicate_groups += 1
+        duplicate_count += (duplicate_group.size - 1)
+
+        puts "\nDuplicate group (#{duplicate_group.size} events):"
+        puts "  Date: #{date_start.strftime('%Y-%m-%d')}"
+        puts "  Category: #{category}"
+        puts "  Events:"
+
+        keeper = UniversityCalendarEvent.preferred_event(duplicate_group)
+        duplicate_group.each do |e|
+          is_keeper = (e.id == keeper.id)
+          similarity = if e.id == event.id
+                         100
+                       else
+                         (UniversityCalendarEvent.similarity(event.summary, e.summary) * 100).to_i
+                       end
+          status = is_keeper ? "[KEEP]" : "[REMOVE]"
+          puts "    #{status} '#{e.summary}' (#{e.organization || 'No org'}, #{similarity}% similar)"
+        end
+
+        duplicate_group.each { |e| processed_ids << e.id }
       end
     end
 

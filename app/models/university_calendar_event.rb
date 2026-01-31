@@ -39,6 +39,7 @@
 #
 class UniversityCalendarEvent < ApplicationRecord
   include PublicIdentifiable
+  include FuzzyDuplicateDetector
 
   set_public_id_prefix :uce, min_hash_length: 12
 

@@ -289,17 +289,33 @@ class UniversityCalendarIcsService < ApplicationService
 
   # Find an existing event with matching content (but different UID)
   # This detects duplicates in the university feed where the same event appears multiple times
+  # Uses both exact matching and fuzzy matching for similar event titles
   # @param attrs [Hash] Event attributes to check
   # @return [UniversityCalendarEvent, nil] Existing duplicate event or nil
   def find_duplicate_by_content(attrs)
-    # Look for events with the same summary, start_time, end_time, and category
-    # This catches duplicates in the feed that have different UIDs
-    UniversityCalendarEvent.where(
+    # First try exact match for performance
+    exact_match = UniversityCalendarEvent.where(
       summary: attrs[:summary],
       start_time: attrs[:start_time],
       end_time: attrs[:end_time],
       category: attrs[:category]
     ).where.not(ics_uid: attrs[:ics_uid]).first
+
+    return exact_match if exact_match
+
+    # Try fuzzy matching for similar titles on the same day
+    fuzzy_matches = UniversityCalendarEvent.find_fuzzy_duplicates(
+      summary: attrs[:summary],
+      start_time: attrs[:start_time],
+      end_time: attrs[:end_time],
+      category: attrs[:category],
+      exclude_uid: attrs[:ics_uid]
+    )
+
+    return nil if fuzzy_matches.empty?
+
+    # If we have fuzzy matches, return the preferred one based on organization priority
+    UniversityCalendarEvent.preferred_event(fuzzy_matches)
   end
 
   # Clean up single-day events that have been merged into a multi-day event
