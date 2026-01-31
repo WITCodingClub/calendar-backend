@@ -431,6 +431,12 @@ module Api
 
       current_user.enable_notifications!
 
+      # Trigger calendar sync to restore reminders
+      # The sync job will gracefully handle cases where user has no Google Calendar
+      current_user.update_column(:calendar_needs_sync, true) # rubocop:disable Rails/SkipsModelValidations
+      GoogleCalendarSyncJob.perform_later(current_user, force: true)
+
+
       render json: {
         message: "Notifications enabled",
         notifications_disabled: false,
