@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_31_234618) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -196,7 +196,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.bigint "user_id", null: false
     t.string "visibility"
     t.index ["user_id", "scope", "event_type"], name: "index_calendar_prefs_on_user_scope_type", unique: true
-    t.index ["user_id"], name: "index_calendar_preferences_on_user_id"
   end
 
   create_table "console1984_commands", force: :cascade do |t|
@@ -250,7 +249,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.string "title"
     t.datetime "updated_at", null: false
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
-    t.index ["crn"], name: "index_courses_on_crn"
     t.index ["status"], name: "index_courses_on_status"
     t.index ["term_id"], name: "index_courses_on_term_id"
   end
@@ -293,7 +291,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.index ["snapshot_created_at"], name: "index_enrollment_snapshots_on_snapshot_created_at"
     t.index ["term_id"], name: "index_enrollment_snapshots_on_term_id"
     t.index ["user_id", "term_id", "crn"], name: "idx_enrollment_snapshots_unique", unique: true
-    t.index ["user_id"], name: "index_enrollment_snapshots_on_user_id"
   end
 
   create_table "enrollments", force: :cascade do |t|
@@ -305,7 +302,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.index ["course_id"], name: "index_enrollments_on_course_id"
     t.index ["term_id"], name: "index_enrollments_on_term_id"
     t.index ["user_id", "course_id", "term_id"], name: "index_enrollments_on_user_class_term", unique: true
-    t.index ["user_id"], name: "index_enrollments_on_user_id"
   end
 
   create_table "event_preferences", force: :cascade do |t|
@@ -321,9 +317,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.bigint "user_id", null: false
     t.string "visibility"
     t.index ["preferenceable_type", "preferenceable_id"], name: "index_event_preferences_on_preferenceable"
-    t.index ["preferenceable_type", "preferenceable_id"], name: "index_event_prefs_on_preferenceable"
     t.index ["user_id", "preferenceable_type", "preferenceable_id"], name: "index_event_prefs_on_user_and_preferenceable", unique: true
-    t.index ["user_id"], name: "index_event_preferences_on_user_id"
   end
 
   create_table "faculties", force: :cascade do |t|
@@ -383,7 +377,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.datetime "updated_at", null: false
     t.bigint "uploaded_by_id", null: false
     t.index ["term_id", "created_at"], name: "index_finals_schedules_on_term_id_and_created_at"
-    t.index ["term_id"], name: "index_finals_schedules_on_term_id"
     t.index ["uploaded_by_id"], name: "index_finals_schedules_on_uploaded_by_id"
   end
 
@@ -438,7 +431,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.index ["google_calendar_id", "meeting_time_id"], name: "idx_on_google_calendar_id_meeting_time_id_6c9efabf50"
     t.index ["google_calendar_id", "university_calendar_event_id"], name: "idx_gcal_events_on_calendar_and_uni_event"
     t.index ["google_calendar_id", "university_calendar_event_id"], name: "idx_gcal_events_unique_university", unique: true, where: "(university_calendar_event_id IS NOT NULL)"
-    t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
     t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
     t.index ["last_synced_at"], name: "index_google_calendar_events_on_last_synced_at"
     t.index ["meeting_time_id"], name: "index_google_calendar_events_on_meeting_time_id"
@@ -517,7 +509,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.index ["provider", "uid"], name: "index_oauth_credentials_on_provider_and_uid", unique: true
     t.index ["token_expires_at"], name: "index_oauth_credentials_on_token_expires_at"
     t.index ["user_id", "provider", "email"], name: "index_oauth_credentials_on_user_provider_email", unique: true
-    t.index ["user_id"], name: "index_oauth_credentials_on_user_id"
   end
 
   create_table "pg_search_documents", force: :cascade do |t|
@@ -576,7 +567,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.string "rmp_id", null: false
     t.datetime "updated_at", null: false
     t.index ["faculty_id", "rmp_id"], name: "index_related_professors_on_faculty_id_and_rmp_id", unique: true
-    t.index ["faculty_id"], name: "index_related_professors_on_faculty_id"
     t.index ["related_faculty_id"], name: "index_related_professors_on_related_faculty_id"
   end
 
@@ -642,7 +632,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.string "tag_name", null: false
     t.datetime "updated_at", null: false
     t.index ["faculty_id", "rmp_legacy_id"], name: "index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id", unique: true
-    t.index ["faculty_id"], name: "index_teacher_rating_tags_on_faculty_id"
   end
 
   create_table "terms", force: :cascade do |t|
@@ -681,7 +670,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_30_162525) do
     t.index ["category"], name: "index_university_calendar_events_on_category"
     t.index ["ics_uid"], name: "index_university_calendar_events_on_ics_uid", unique: true
     t.index ["start_time", "end_time"], name: "index_university_calendar_events_on_start_time_and_end_time"
-    t.index ["start_time"], name: "index_university_calendar_events_on_start_time"
     t.index ["term_id"], name: "index_university_calendar_events_on_term_id"
   end
 
