@@ -77,7 +77,7 @@ DTSTART;VALUE=DATE:20260505
 DTEND;VALUE=DATE:20260506
 DTSTAMP:20251224T000000Z
 UID:event-spring-classes-end@university.edu
-SUMMARY:Last Day of Classes
+SUMMARY:Last Day of Classes for Summer 2026
 DESCRIPTION:Final day of Spring 2026 classes.
 X-TRUMBA-CUSTOMFIELD;NAME="Academic Term";ID=1;TYPE=SingleLine:Summer
 X-TRUMBA-CUSTOMFIELD;NAME="Event Type";ID=2;TYPE=SingleLine:Calendar Announcement
