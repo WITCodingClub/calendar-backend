@@ -348,6 +348,45 @@ RSpec.describe CalendarTemplateRenderer do
       expect(context[:is_final_exam]).to be false
     end
 
+    context "when event has a term association" do
+      let(:spring_term) { create(:term, year: 2026, season: :spring) }
+      let(:event_with_term) do
+        create(:university_calendar_event,
+               summary: "Last Day of Classes for Summer 2026",
+               academic_term: "Summer", # Wrong term from ICS
+               category: "term_dates",
+               term: spring_term, # Correct term from database
+               start_time: Time.zone.local(2026, 5, 5, 0, 0, 0),
+               end_time: Time.zone.local(2026, 5, 5, 23, 59, 59))
+      end
+
+      it "prefers database term over academic_term field" do
+        context = described_class.build_context_from_university_calendar_event(event_with_term)
+
+        # Should use the corrected term from database, not the raw ICS field
+        expect(context[:term]).to eq("Spring 2026")
+        expect(context[:academic_term]).to eq("Spring 2026")
+        expect(context[:term]).not_to eq("Summer")
+      end
+    end
+
+    context "when event has no term association" do
+      let(:event_without_term) do
+        create(:university_calendar_event,
+               summary: "Campus Event",
+               academic_term: "Fall",
+               term: nil,
+               start_time: Time.zone.local(2025, 9, 1, 0, 0, 0))
+      end
+
+      it "falls back to academic_term field" do
+        context = described_class.build_context_from_university_calendar_event(event_without_term)
+
+        expect(context[:term]).to eq("Fall")
+        expect(context[:academic_term]).to eq("Fall")
+      end
+    end
+
     it "handles nil values gracefully" do
       event.update!(description: nil, location: nil, organization: nil)
       context = described_class.build_context_from_university_calendar_event(event)

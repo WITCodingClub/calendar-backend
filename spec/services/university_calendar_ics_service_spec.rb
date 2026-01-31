@@ -233,6 +233,27 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
       # MLK Day is in January (Spring) and labeled as "Spring", so should match
       expect(mlk_event.term).to eq(spring_term)
     end
+
+    it "corrects summary text when ICS contains wrong term reference" do
+      # The ICS feed has "Last Day of Classes for Summer 2026" in the summary
+      # but the event is on May 5, 2026, which is Spring
+      event = UniversityCalendarEvent.find_by(ics_uid: "event-spring-classes-end@university.edu")
+
+      # Summary should be corrected to say "Spring 2026" instead of "Summer 2026"
+      expect(event.summary).to eq("Last Day of Classes for Spring 2026")
+      expect(event.summary).not_to include("Summer")
+    end
+
+    it "logs summary correction when term reference is fixed" do
+      allow(Rails.logger).to receive(:info)
+      described_class.call
+
+      expect(Rails.logger).to have_received(:info).with(
+        a_string_matching(/Corrected summary/)
+          .and(matching(/Last Day of Classes for Summer 2026/))
+          .and(matching(/Last Day of Classes for Spring 2026/))
+      )
+    end
   end
 
   describe "error handling" do
