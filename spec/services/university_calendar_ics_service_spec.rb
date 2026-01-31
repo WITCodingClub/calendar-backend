@@ -616,6 +616,123 @@ RSpec.describe UniversityCalendarIcsService, type: :service do
       event = UniversityCalendarEvent.first
       expect(event.ics_uid).to start_with("merged:")
     end
+
+    # Test fuzzy duplicate detection
+    context "with fuzzy matching" do
+      let(:fuzzy_duplicate_ics) do
+        <<~ICS
+          BEGIN:VCALENDAR
+          VERSION:2.0
+          PRODID:-//Test//Test//EN
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20260210
+          DTEND;VALUE=DATE:20260211
+          DTSTAMP:20251224T000000Z
+          UID:event-wellbeing-registrar@university.edu
+          SUMMARY:Wellbeing Day - No Classes
+          X-TRUMBA-CUSTOMFIELD;NAME="Organization";ID=1;TYPE=SingleLine:Registrar's Office
+          END:VEVENT
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20260210
+          DTEND;VALUE=DATE:20260211
+          DTSTAMP:20251224T000000Z
+          UID:event-wellbeing-wellness@university.edu
+          SUMMARY:Campus Wellbeing Day
+          X-TRUMBA-CUSTOMFIELD;NAME="Organization";ID=1;TYPE=SingleLine:Center for Wellness
+          END:VEVENT
+          END:VCALENDAR
+        ICS
+      end
+
+      it "detects fuzzy duplicates with similar titles on the same day" do
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: fuzzy_duplicate_ics)
+
+        # Should only create 1 event (the first one), skipping the fuzzy duplicate
+        expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(1)
+
+        event = UniversityCalendarEvent.first
+        # Should keep the Registrar's Office event (higher priority)
+        expect(event.summary).to eq("Wellbeing Day - No Classes")
+        expect(event.organization).to eq("Registrar's Office")
+      end
+
+      it "reports fuzzy duplicates as unchanged in stats" do
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: fuzzy_duplicate_ics)
+
+        result = described_class.call
+
+        expect(result[:created]).to eq(1)
+        expect(result[:unchanged]).to eq(1) # Second event skipped as fuzzy duplicate
+      end
+
+      it "keeps higher priority organization when fuzzy duplicates exist" do
+        # First sync with lower priority event
+        wellness_event_ics = <<~ICS
+          BEGIN:VCALENDAR
+          VERSION:2.0
+          PRODID:-//Test//Test//EN
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20260210
+          DTEND;VALUE=DATE:20260211
+          DTSTAMP:20251224T000000Z
+          UID:event-wellbeing-wellness@university.edu
+          SUMMARY:Campus Wellbeing Day
+          X-TRUMBA-CUSTOMFIELD;NAME="Organization";ID=1;TYPE=SingleLine:Center for Wellness
+          END:VEVENT
+          END:VCALENDAR
+        ICS
+
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: wellness_event_ics)
+        described_class.call
+
+        expect(UniversityCalendarEvent.count).to eq(1)
+        expect(UniversityCalendarEvent.first.organization).to eq("Center for Wellness")
+
+        # Second sync includes higher priority Registrar's Office event
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: fuzzy_duplicate_ics)
+
+        result = described_class.call
+
+        # Should still have 1 event, but now it's the Registrar's Office one
+        # The existing wellness event is found as unchanged, the registrar event
+        # is skipped as a fuzzy duplicate of lower priority
+        expect(UniversityCalendarEvent.count).to eq(1)
+        expect(result[:unchanged]).to eq(2)
+      end
+
+      it "does not match events with very different titles" do
+        different_events_ics = <<~ICS
+          BEGIN:VCALENDAR
+          VERSION:2.0
+          PRODID:-//Test//Test//EN
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20260210
+          DTEND;VALUE=DATE:20260211
+          DTSTAMP:20251224T000000Z
+          UID:event-holiday@university.edu
+          SUMMARY:Presidents Day
+          END:VEVENT
+          BEGIN:VEVENT
+          DTSTART;VALUE=DATE:20260210
+          DTEND;VALUE=DATE:20260211
+          DTSTAMP:20251224T000000Z
+          UID:event-meeting@university.edu
+          SUMMARY:Board Meeting
+          END:VEVENT
+          END:VCALENDAR
+        ICS
+
+        stub_request(:get, ics_url)
+          .to_return(status: 200, body: different_events_ics)
+
+        # Should create 2 events since they're not similar
+        expect { described_class.call }.to change(UniversityCalendarEvent, :count).by(2)
+      end
+    end
   end
 
   describe "HTML entity decoding" do
