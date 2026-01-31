@@ -227,10 +227,15 @@ namespace :university_calendar do
         calendar = gce.google_calendar
         next unless calendar
 
+        user = calendar.oauth_credential&.user
+        next unless user
+
         # Delete from Google Calendar
-        service = GoogleCalendarService.new(calendar.oauth_credential)
+        service = GoogleCalendarService.new(user)
+        gcal_service = service.send(:service_account_calendar_service)
+
         begin
-          service.delete_event(calendar.calendar_id, gce.google_event_id)
+          gcal_service.delete_event(calendar.google_calendar_id, gce.google_event_id)
           deleted_from_gcal += 1
           puts "Deleted from Google Calendar: #{gce.google_event_id} (Calendar: #{calendar.id})"
         rescue Google::Apis::ClientError => e
@@ -276,26 +281,34 @@ namespace :university_calendar do
     total_tracked_events = 0
 
     GoogleCalendar.find_each do |calendar|
-      user_email = calendar.oauth_credential&.user&.email || "Unknown"
+      user = calendar.oauth_credential&.user
+      next unless user
+
+      user_email = user.email || "Unknown"
       puts "\nChecking calendar #{calendar.id} (User: #{user_email})..."
 
       begin
-        service = GoogleCalendarService.new(calendar.oauth_credential)
+        service = GoogleCalendarService.new(user)
+        gcal_service = service.send(:service_account_calendar_service)
 
         # Fetch all university calendar events from Google Calendar
-        gcal_events = service.list_events(calendar.calendar_id)
+        gcal_events = gcal_service.list_events(
+          calendar.google_calendar_id,
+          single_events: true,
+          max_results: 2500
+        )
 
         # Get all tracked event IDs for this calendar
         tracked_event_ids = calendar.google_calendar_events.pluck(:google_event_id).to_set
 
         # Find events in GCal that aren't tracked in our DB
-        ghost_events = gcal_events.reject { |e| tracked_event_ids.include?(e.id) }
+        ghost_events = gcal_events.items.reject { |e| tracked_event_ids.include?(e.id) }
 
         total_tracked_events += tracked_event_ids.size
         total_ghost_events += ghost_events.size
 
         if ghost_events.any?
-          puts "  Found #{ghost_events.size} ghost events (out of #{gcal_events.size} total events)"
+          puts "  Found #{ghost_events.size} ghost events (out of #{gcal_events.items.size} total events)"
 
           # Show details of ghost events
           ghost_events.first(10).each do |event|
@@ -304,7 +317,7 @@ namespace :university_calendar do
 
           puts "    ... and #{ghost_events.size - 10} more" if ghost_events.size > 10
         else
-          puts "  No ghost events found (#{gcal_events.size} events, all tracked)"
+          puts "  No ghost events found (#{gcal_events.items.size} events, all tracked)"
         end
       rescue => e
         puts "  Error checking calendar: #{e.message}"
@@ -333,27 +346,35 @@ namespace :university_calendar do
     total_errors = 0
 
     GoogleCalendar.find_each do |calendar|
-      user_email = calendar.oauth_credential&.user&.email || "Unknown"
+      user = calendar.oauth_credential&.user
+      next unless user
+
+      user_email = user.email || "Unknown"
       puts "\nProcessing calendar #{calendar.id} (User: #{user_email})..."
 
       begin
-        service = GoogleCalendarService.new(calendar.oauth_credential)
+        service = GoogleCalendarService.new(user)
+        gcal_service = service.send(:service_account_calendar_service)
 
         # Fetch all university calendar events from Google Calendar
-        gcal_events = service.list_events(calendar.calendar_id)
+        gcal_events = gcal_service.list_events(
+          calendar.google_calendar_id,
+          single_events: true,
+          max_results: 2500
+        )
 
         # Get all tracked event IDs for this calendar
         tracked_event_ids = calendar.google_calendar_events.pluck(:google_event_id).to_set
 
         # Find events in GCal that aren't tracked in our DB
-        ghost_events = gcal_events.reject { |e| tracked_event_ids.include?(e.id) }
+        ghost_events = gcal_events.items.reject { |e| tracked_event_ids.include?(e.id) }
 
         if ghost_events.any?
           puts "  Deleting #{ghost_events.size} ghost events..."
 
           ghost_events.each do |event|
             begin
-              service.delete_event(calendar.calendar_id, event.id)
+              gcal_service.delete_event(calendar.google_calendar_id, event.id)
               total_deleted += 1
               puts "    Deleted: #{event.summary} [ID: #{event.id}]"
             rescue => e
