@@ -468,7 +468,6 @@ namespace :university_calendar do
       puts "Calendar sync jobs queued. University events will be recreated from database."
     end
   end
-end
 
   desc "Rebuild all university calendar events (delete and re-sync)"
   task rebuild_university_events: :environment do
