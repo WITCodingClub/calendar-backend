@@ -37,5 +37,10 @@
     <main class="container mx-auto mt-28 px-5 flex">
       <%= yield %>
     </main>
+
+    <%# Command Palette for admin users %>
+    <% if user_signed_in? && current_user.admin_access? %>
+      <%= render "shared/command_palette" %>
+    <% end %>
   </body>
 </html>
