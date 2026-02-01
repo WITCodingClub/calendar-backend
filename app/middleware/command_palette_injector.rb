@@ -31,14 +31,19 @@ class CommandPaletteInjector
     puts "✅ INJECTING SCRIPT!"
 
     # Inject the script
-    new_response = inject_script(response)
+    begin
+      new_response = inject_script(response)
+      puts "Script injected. Response size: #{new_response.bytesize}"
 
-    puts "Script injected. Response size: #{new_response.bytesize}"
+      # Update content length
+      headers.delete("Content-Length") # Remove old content length, let Rack recalculate
 
-    # Update content length
-    headers.delete("Content-Length") # Remove old content length, let Rack recalculate
-
-    [status, headers, [new_response]]
+      [status, headers, [new_response]]
+    rescue StandardError => e
+      puts "ERROR injecting script: #{e.message}"
+      puts e.backtrace.first(5).join("\n")
+      [status, headers, response]
+    end
   end
 
   private
