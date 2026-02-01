@@ -14,8 +14,6 @@ class CommandPaletteInjector
     puts "=== CommandPaletteInjector: Processing #{path} ==="
     puts "Content-Type: #{headers['Content-Type']}"
     puts "Is admin route: #{admin_route?(path)}"
-    puts "User: #{env['warden']&.user&.email}"
-    puts "Has admin access: #{env['warden']&.user&.admin_access?}"
 
     # Only inject for HTML responses
     unless html_response?(headers)
@@ -29,13 +27,7 @@ class CommandPaletteInjector
       return [status, headers, response]
     end
 
-    # Get the current user if available
-    user = env["warden"]&.user
-    unless user&.admin_access?
-      puts "SKIPPING: User not admin"
-      return [status, headers, response]
-    end
-
+    # Admin routes are already protected by AdminConstraint, so if we got here, user is admin
     puts "✅ INJECTING SCRIPT!"
 
     # Inject the script
