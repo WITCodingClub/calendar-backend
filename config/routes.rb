@@ -413,6 +413,9 @@ Rails.application.routes.draw do
       resources :buildings, only: [:index, :show]
       resources :rooms, only: [:index, :show]
       resources :courses, only: [:index]
+
+      # Navigation API for command palette injection
+      get "navigation", to: "navigation#index"
       resources :faculties, only: [:index, :show] do
         collection do
           get :missing_rmp_ids
