@@ -2,14 +2,14 @@
 
 module Admin
   class PublicIdLookupController < Admin::ApplicationController
-    # Maps public_id prefixes to model classes and their admin path helpers
+    # Maps public_id prefixes to model classes and their path helper method names
     MODEL_MAPPING = {
-      "bld" => { model: Building, path: ->(record) { admin_building_path(record) } },
-      "rom" => { model: Room, path: ->(record) { admin_room_path(record) } },
-      "trm" => { model: Term, path: ->(record) { admin_term_path(record) } },
-      "crs" => { model: Course, path: ->(record) { admin_course_path(record) } },
-      "fac" => { model: Faculty, path: ->(record) { admin_faculty_path(record) } },
-      "usr" => { model: User, path: ->(record) { admin_user_path(record) } }
+      "bld" => { model: Building, path_method: :admin_building_path },
+      "rom" => { model: Room, path_method: :admin_room_path },
+      "trm" => { model: Term, path_method: :admin_term_path },
+      "crs" => { model: Course, path_method: :admin_course_path },
+      "fac" => { model: Faculty, path_method: :admin_faculty_path },
+      "usr" => { model: User, path_method: :admin_user_path }
     }.freeze
 
     def lookup
@@ -50,8 +50,12 @@ module Admin
         public_id: record.public_id,
         type: mapping[:model].name,
         display_name: display_name,
-        path: mapping[:path].call(record)
+        path: send(mapping[:path_method], record)
       }
+    rescue => e
+      Rails.logger.error("PublicIdLookup error: #{e.class}: #{e.message}")
+      Rails.logger.error(e.backtrace.first(10).join("\n"))
+      render json: { error: "Internal error: #{e.message}" }, status: :internal_server_error
     end
 
     def redirect
@@ -77,7 +81,7 @@ module Admin
         return redirect_to admin_root_path
       end
 
-      redirect_to mapping[:path].call(record)
+      redirect_to send(mapping[:path_method], record)
     end
 
   end
