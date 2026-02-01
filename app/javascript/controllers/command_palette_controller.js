@@ -1,11 +1,12 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["modal", "input", "results", "item"]
+  static targets = ["modal", "input", "results", "item", "noResults", "recentsSection", "recentsContainer", "allItemsSection"]
 
   connect() {
     this.boundKeydown = this.keydown.bind(this)
-    this.selectedIndex = -1
+    this.selectedIndex = 0
+    this.recentItems = this.loadRecentItems()
     document.addEventListener("keydown", this.boundKeydown)
   }
 
@@ -19,9 +20,10 @@ export default class extends Controller {
       event.preventDefault()
       this.open()
     }
-    
+
     // Escape to close
-    if (event.key === "Escape") {
+    if (event.key === "Escape" && !this.modalTarget.classList.contains("hidden")) {
+      event.preventDefault()
       this.close()
     }
   }
@@ -30,102 +32,227 @@ export default class extends Controller {
     this.modalTarget.classList.remove("hidden")
     this.inputTarget.focus()
     this.inputTarget.value = ""
-    this.selectedIndex = -1
-    this.showAllItems()
+    this.selectedIndex = 0
+    this.showRecents()
   }
 
   close() {
     this.modalTarget.classList.add("hidden")
+    this.inputTarget.blur()
+  }
+
+  showRecents() {
+    if (this.recentItems.length > 0) {
+      this.renderRecents()
+      this.recentsSectionTarget.classList.remove("hidden")
+      this.allItemsSectionTarget.classList.add("hidden")
+    } else {
+      this.showAllItems()
+    }
+    this.updateSelection()
+  }
+
+  showAllItems() {
+    this.recentsSectionTarget.classList.add("hidden")
+    this.allItemsSectionTarget.classList.remove("hidden")
+    this.itemTargets.forEach(item => item.classList.remove("hidden"))
+    this.noResultsTarget.classList.add("hidden")
+    this.updateSelection()
+  }
+
+  renderRecents() {
+    // Clear container safely
+    while (this.recentsContainerTarget.firstChild) {
+      this.recentsContainerTarget.removeChild(this.recentsContainerTarget.firstChild)
+    }
+
+    this.recentItems.slice(0, 5).forEach(recent => {
+      const template = this.itemTargets.find(item =>
+        item.dataset.itemPath === recent.path
+      )
+
+      if (template) {
+        const clone = template.cloneNode(true)
+        clone.dataset.commandPaletteTarget = "item recentItem"
+        this.recentsContainerTarget.appendChild(clone)
+      }
+    })
   }
 
   filter(event) {
-    const query = event.target.value.toLowerCase()
-    
+    const query = event.target.value.toLowerCase().trim()
+
+    if (query === "") {
+      this.showRecents()
+      return
+    }
+
+    // Hide recents, show all items when searching
+    this.recentsSectionTarget.classList.add("hidden")
+    this.allItemsSectionTarget.classList.remove("hidden")
+
+    let visibleCount = 0
+
     this.itemTargets.forEach(item => {
-      const text = item.textContent.toLowerCase()
-      const shouldShow = text.includes(query)
-      
-      if (shouldShow) {
+      const searchData = JSON.parse(item.dataset.searchData || '{}')
+      const score = this.fuzzyMatch(query, searchData)
+
+      if (score > 0) {
         item.classList.remove("hidden")
+        item.dataset.score = score
+        visibleCount++
       } else {
         item.classList.add("hidden")
       }
     })
-    
-    // Reset selection when filtering
-    this.selectedIndex = -1
-    const visibleItems = this.itemTargets.filter(item => !item.classList.contains("hidden"))
-    this.updateSelection(visibleItems)
+
+    // Sort by score
+    const sortedItems = Array.from(this.itemTargets)
+      .filter(item => !item.classList.contains("hidden"))
+      .sort((a, b) => parseFloat(b.dataset.score || 0) - parseFloat(a.dataset.score || 0))
+
+    sortedItems.forEach(item => {
+      item.parentNode.appendChild(item)
+    })
+
+    // Show/hide no results
+    if (visibleCount === 0) {
+      this.noResultsTarget.classList.remove("hidden")
+    } else {
+      this.noResultsTarget.classList.add("hidden")
+    }
+
+    // Reset selection
+    this.selectedIndex = 0
+    this.updateSelection()
   }
 
-  showAllItems() {
-    this.itemTargets.forEach(item => {
-      item.classList.remove("hidden")
-    })
+  fuzzyMatch(query, searchData) {
+    const { title = "", description = "", keywords = "", category = "" } = searchData
+    const searchText = `${title} ${description} ${keywords} ${category}`.toLowerCase()
+
+    // Exact match gets highest score
+    if (searchText.includes(query)) {
+      return 100
+    }
+
+    // Fuzzy match - check if all characters appear in order
+    let score = 0
+    let lastIndex = -1
+
+    for (const char of query) {
+      const index = searchText.indexOf(char, lastIndex + 1)
+      if (index === -1) {
+        return 0 // Character not found
+      }
+      score += (100 - (index - lastIndex)) // Closer together = higher score
+      lastIndex = index
+    }
+
+    return score
   }
 
   navigate(event) {
-    const visibleItems = this.itemTargets.filter(item => !item.classList.contains("hidden"))
-    
+    const visibleItems = this.getVisibleItems()
+
     if (event.key === "ArrowDown") {
       event.preventDefault()
       this.selectedIndex = Math.min(this.selectedIndex + 1, visibleItems.length - 1)
-      this.updateSelection(visibleItems)
+      this.updateSelection()
     } else if (event.key === "ArrowUp") {
       event.preventDefault()
       this.selectedIndex = Math.max(this.selectedIndex - 1, 0)
-      this.updateSelection(visibleItems)
+      this.updateSelection()
     } else if (event.key === "Enter") {
       event.preventDefault()
-      if (this.selectedIndex >= 0 && visibleItems[this.selectedIndex]) {
-        const link = visibleItems[this.selectedIndex].querySelector("a")
-        if (link) {
-          window.location.href = link.href
-        }
-      } else if (visibleItems.length > 0) {
-        // If no selection, use first item
-        const link = visibleItems[0].querySelector("a")
-        if (link) {
-          window.location.href = link.href
-        }
+      const selected = visibleItems[this.selectedIndex]
+      if (selected) {
+        this.navigateToItem(selected)
       }
     }
   }
 
-  updateSelection(visibleItems) {
-    // Remove previous selection
+  getVisibleItems() {
+    // Get recents if showing, otherwise get all visible items
+    if (!this.recentsSectionTarget.classList.contains("hidden")) {
+      return Array.from(this.recentsContainerTarget.querySelectorAll('[data-command-palette-target~="item"]'))
+    } else {
+      return this.itemTargets.filter(item => !item.classList.contains("hidden"))
+    }
+  }
+
+  updateSelection() {
+    const visibleItems = this.getVisibleItems()
+
+    // Remove all selections
     this.itemTargets.forEach(item => {
-      item.classList.remove("bg-[#d13732]", "text-white")
-      item.classList.add("hover:bg-gray-50")
+      item.classList.remove("bg-red-50", "border-l-red-700")
+      item.classList.add("border-l-transparent")
+    })
+
+    // Also remove from recent items
+    this.recentsContainerTarget.querySelectorAll('[data-command-palette-target~="item"]').forEach(item => {
+      item.classList.remove("bg-red-50", "border-l-red-700")
+      item.classList.add("border-l-transparent")
     })
 
     // Add current selection
     if (this.selectedIndex >= 0 && visibleItems[this.selectedIndex]) {
       const selectedItem = visibleItems[this.selectedIndex]
-      selectedItem.classList.add("bg-[#d13732]", "text-white")
-      selectedItem.classList.remove("hover:bg-gray-50")
-      
-      // Update link text color too
-      const link = selectedItem.querySelector("a")
-      if (link) {
-        link.classList.add("text-white")
-        link.classList.remove("text-gray-900")
-      }
+      selectedItem.classList.add("bg-red-50", "border-l-red-700")
+      selectedItem.classList.remove("border-l-transparent")
+
+      // Scroll into view
+      selectedItem.scrollIntoView({ block: "nearest", behavior: "smooth" })
     }
   }
 
-  clickItem(event) {
-    // If clicking on the item but not the link, trigger the link
-    if (event.target.tagName !== "A") {
-      const link = event.currentTarget.querySelector("a")
-      if (link) {
-        window.location.href = link.href
-      }
+  selectItem(event) {
+    const item = event.currentTarget
+    this.navigateToItem(item)
+  }
+
+  navigateToItem(item) {
+    const path = item.dataset.itemPath
+    const title = item.dataset.itemTitle
+
+    if (path) {
+      // Save to recents
+      this.addToRecents({ path, title })
+
+      // Navigate
+      window.location.href = path
+    }
+  }
+
+  loadRecentItems() {
+    try {
+      const stored = localStorage.getItem("commandPaletteRecents")
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  }
+
+  addToRecents(item) {
+    // Remove if already exists
+    this.recentItems = this.recentItems.filter(r => r.path !== item.path)
+
+    // Add to front
+    this.recentItems.unshift(item)
+
+    // Keep only 10 most recent
+    this.recentItems = this.recentItems.slice(0, 10)
+
+    // Save to localStorage
+    try {
+      localStorage.setItem("commandPaletteRecents", JSON.stringify(this.recentItems))
+    } catch {
+      // Ignore storage errors
     }
   }
 
   closeOnBackdrop(event) {
-    // Only close if clicking on the backdrop, not the modal content
     if (event.target === event.currentTarget) {
       this.close()
     }

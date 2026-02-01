@@ -2,63 +2,121 @@
 <div data-controller="command-palette"
      data-command-palette-target="modal"
      data-action="click->command-palette#closeOnBackdrop"
-     class="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center pt-[20vh] z-50 hidden">
+     class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[15vh] z-50 hidden">
 
-  <div data-action="click->command-palette#stopPropagation" class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+  <div data-action="click->command-palette#stopPropagation"
+       class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden border border-gray-200">
+
     <!-- Search Input -->
-    <div class="p-4 border-b border-gray-200">
+    <div class="relative">
+      <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
       <input data-command-palette-target="input"
              data-action="input->command-palette#filter keydown->command-palette#navigate"
              type="text"
-             placeholder="Search navigation..."
-             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#d13732] focus:border-transparent">
+             placeholder="Search or jump to..."
+             class="w-full pl-12 pr-4 py-4 text-base border-0 border-b border-gray-200 focus:outline-none focus:ring-0 focus:border-gray-300">
     </div>
 
-    <!-- Navigation Items -->
-    <div data-command-palette-target="results" class="max-h-80 overflow-y-auto">
-      <% Admin::NavigationRegistry.categories_for(current_user).each do |category| %>
-        <% category[:items].each do |item| %>
-          <%
-            # Determine path
-            path = if item[:path].is_a?(Symbol)
-              begin
-                send(item[:path])
-              rescue StandardError
-                nil
+    <!-- Results -->
+    <div data-command-palette-target="results" class="max-h-96 overflow-y-auto">
+
+      <!-- Recent Items Section -->
+      <div data-command-palette-target="recentsSection" class="hidden">
+        <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
+          Recent
+        </div>
+        <div data-command-palette-target="recentsContainer"></div>
+      </div>
+
+      <!-- All Items Section -->
+      <div data-command-palette-target="allItemsSection">
+        <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
+          All Commands
+        </div>
+        <% Admin::NavigationRegistry.categories_for(current_user).each do |category| %>
+          <% category[:items].each do |item| %>
+            <%
+              # Determine path
+              path = if item[:path].is_a?(Symbol)
+                begin
+                  send(item[:path])
+                rescue StandardError
+                  nil
+                end
+              else
+                item[:path]
               end
-            else
-              item[:path]
-            end
 
-            next if path.nil?
-          %>
+              next if path.nil?
 
-          <div data-command-palette-target="item"
-               data-action="click->command-palette#clickItem"
-               class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
-            <%= link_to path, class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
-              <div class="flex-1">
-                <div class="flex items-center justify-between">
-                  <div class="font-medium"><%= item[:title] %></div>
-                  <% if category[:id] != :overview %>
-                    <div class="text-xs text-gray-400 uppercase ml-2"><%= category[:title] %></div>
+              # Build search data
+              search_data = {
+                title: item[:title],
+                description: item[:description],
+                keywords: (item[:keywords] || []).join(' '),
+                category: category[:title]
+              }.to_json
+            %>
+
+            <div data-command-palette-target="item"
+                 data-item-path="<%= path %>"
+                 data-item-title="<%= item[:title] %>"
+                 data-search-data="<%= search_data %>"
+                 data-action="click->command-palette#selectItem"
+                 class="px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition group border-l-2 border-transparent">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <div class="font-medium text-sm text-gray-900 truncate"><%= item[:title] %></div>
+                    <% if item[:read_only] %>
+                      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                        Read-only
+                      </span>
+                    <% end %>
+                  </div>
+                  <% if item[:description] %>
+                    <div class="text-xs text-gray-500 truncate mt-0.5"><%= item[:description] %></div>
                   <% end %>
                 </div>
-                <% if item[:description] %>
-                  <div class="text-sm text-gray-500"><%= item[:description] %></div>
-                <% end %>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <span class="text-xs text-gray-400 uppercase"><%= category[:title] %></span>
+                  <svg class="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </div>
-            <% end %>
-          </div>
+            </div>
+          <% end %>
         <% end %>
-      <% end %>
+      </div>
+
+      <!-- No Results -->
+      <div data-command-palette-target="noResults" class="hidden px-4 py-8 text-center text-sm text-gray-500">
+        No results found
+      </div>
     </div>
 
-    <!-- Footer -->
-    <div class="px-4 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
-      <div class="flex items-center justify-between">
-        <span>Use ↑↓ to navigate</span>
-        <span><kbd class="px-2 py-1 bg-white border border-gray-300 rounded text-xs">ESC</kbd> to close</span>
+    <!-- Footer with keyboard hints -->
+    <div class="px-4 py-3 bg-gray-50 border-t border-gray-200">
+      <div class="flex items-center justify-between text-xs text-gray-500">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1">
+            <kbd class="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium shadow-sm">↑↓</kbd>
+            <span>Navigate</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <kbd class="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium shadow-sm">↵</kbd>
+            <span>Select</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1">
+          <kbd class="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium shadow-sm">ESC</kbd>
+          <span>Close</span>
+        </div>
       </div>
     </div>
   </div>
