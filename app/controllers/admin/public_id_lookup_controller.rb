@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 module Admin
-  class PublicIdLookupController < ApplicationController
-    before_action :authenticate_user!
-
+  class PublicIdLookupController < Admin::ApplicationController
     # Maps public_id prefixes to model classes and their admin path helpers
     MODEL_MAPPING = {
       "bld" => { model: Building, path: ->(record) { admin_building_path(record) } },
