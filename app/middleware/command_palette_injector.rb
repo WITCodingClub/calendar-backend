@@ -9,7 +9,8 @@ class CommandPaletteInjector
   def call(env)
     status, headers, response = @app.call(env)
 
-    path = env["PATH_INFO"]
+    # Use REQUEST_PATH to get the full original path including mount points
+    path = env["REQUEST_PATH"] || env["PATH_INFO"]
     puts "=== CommandPaletteInjector: Processing #{path} ==="
     puts "Content-Type: #{headers['Content-Type']}"
     puts "Is admin route: #{admin_route?(path)}"
