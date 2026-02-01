@@ -108,7 +108,7 @@ class CommandPaletteInjector
             if (!paletteContainer) {
               await buildPalette();
             }
-            paletteContainer.classList.remove('hidden');
+            paletteContainer.style.display = 'flex';
             const input = paletteContainer.querySelector('input');
             if (input) {
               input.value = '';
@@ -119,7 +119,7 @@ class CommandPaletteInjector
 
           function closePalette() {
             if (paletteContainer) {
-              paletteContainer.classList.add('hidden');
+              paletteContainer.style.display = 'none';
             }
           }
 
@@ -138,8 +138,7 @@ class CommandPaletteInjector
             // Create container
             paletteContainer = document.createElement('div');
             paletteContainer.setAttribute('data-palette-injected', 'true');
-            paletteContainer.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[15vh] z-50 hidden';
-            paletteContainer.style.zIndex = '99999';
+            paletteContainer.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);display:none;align-items:flex-start;justify-content:center;padding-top:15vh;z-index:99999';
 
             // Click backdrop to close
             paletteContainer.addEventListener('click', function(e) {
@@ -150,7 +149,7 @@ class CommandPaletteInjector
 
             // Inner modal
             const modal = document.createElement('div');
-            modal.className = 'bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden border border-gray-200';
+            modal.style.cssText = 'background:white;border-radius:12px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);width:100%;max-width:42rem;margin:0 1rem;overflow:hidden;border:1px solid #e5e7eb';
             modal.addEventListener('click', function(e) {
               e.stopPropagation();
             });
@@ -162,7 +161,7 @@ class CommandPaletteInjector
             // Results container
             const resultsContainer = document.createElement('div');
             resultsContainer.id = 'palette-results';
-            resultsContainer.className = 'max-h-96 overflow-y-auto';
+            resultsContainer.style.cssText = 'max-height:24rem;overflow-y:auto';
             modal.appendChild(resultsContainer);
 
             // Footer
@@ -178,14 +177,15 @@ class CommandPaletteInjector
 
           function createSearchInput() {
             const container = document.createElement('div');
-            container.className = 'relative';
+            container.style.position = 'relative';
 
             const iconDiv = document.createElement('div');
-            iconDiv.className = 'absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none';
+            iconDiv.style.cssText = 'position:absolute;top:0;bottom:0;left:0;padding-left:1rem;display:flex;align-items:center;pointer-events:none';
             const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            icon.setAttribute('class', 'w-5 h-5 text-gray-400');
+            icon.setAttribute('width', '20');
+            icon.setAttribute('height', '20');
             icon.setAttribute('fill', 'none');
-            icon.setAttribute('stroke', 'currentColor');
+            icon.setAttribute('stroke', '#9ca3af');
             icon.setAttribute('viewBox', '0 0 24 24');
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             path.setAttribute('stroke-linecap', 'round');
@@ -198,7 +198,7 @@ class CommandPaletteInjector
             const input = document.createElement('input');
             input.type = 'text';
             input.placeholder = 'Search or jump to...';
-            input.className = 'w-full pl-12 pr-4 py-4 text-base border-0 border-b border-gray-200 focus:outline-none focus:ring-0';
+            input.style.cssText = 'width:100%;padding:1rem 1rem 1rem 3rem;font-size:1rem;border:0;border-bottom:1px solid #e5e7eb;outline:none';
 
             input.addEventListener('input', handleSearch);
             input.addEventListener('keydown', handleKeyboard);
@@ -210,10 +210,10 @@ class CommandPaletteInjector
 
           function createFooter() {
             const footer = document.createElement('div');
-            footer.className = 'px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500';
+            footer.style.cssText = 'padding:0.75rem 1rem;background:#f9fafb;border-top:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;font-size:0.75rem;color:#6b7280';
 
             const leftHints = document.createElement('div');
-            leftHints.className = 'flex items-center gap-3';
+            leftHints.style.cssText = 'display:flex;align-items:center;gap:0.75rem';
 
             const navHint = createKeyHint('↑↓', 'Navigate');
             const selectHint = createKeyHint('↵', 'Select');
@@ -229,10 +229,10 @@ class CommandPaletteInjector
 
           function createKeyHint(key, label) {
             const hint = document.createElement('div');
-            hint.className = 'flex items-center gap-1';
+            hint.style.cssText = 'display:flex;align-items:center;gap:0.25rem';
 
             const kbd = document.createElement('kbd');
-            kbd.className = 'px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium shadow-sm';
+            kbd.style.cssText = 'padding:0.25rem 0.5rem;background:white;border:1px solid #d1d5db;border-radius:0.25rem;font-size:0.75rem;font-weight:500;box-shadow:0 1px 2px 0 rgba(0,0,0,0.05)';
             kbd.textContent = key;
 
             const span = document.createElement('span');
@@ -287,7 +287,7 @@ class CommandPaletteInjector
 
             if (items.length === 0) {
               const noResults = document.createElement('div');
-              noResults.className = 'px-4 py-8 text-center text-sm text-gray-500';
+              noResults.style.cssText = 'padding:2rem 1rem;text-align:center;font-size:0.875rem;color:#6b7280';
               noResults.textContent = 'No results found';
               container.appendChild(noResults);
               return;
@@ -301,33 +301,39 @@ class CommandPaletteInjector
 
           function createItemElement(item, category, index) {
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'px-4 py-2.5 cursor-pointer transition border-l-2';
-            itemDiv.className += (index === selectedIndex) ? ' bg-red-50 border-l-red-700' : ' hover:bg-gray-50 border-l-transparent';
+            const isSelected = index === selectedIndex;
+            itemDiv.style.cssText = 'padding:0.625rem 1rem;cursor:pointer;border-left:2px solid ' + (isSelected ? '#b91c1c' : 'transparent') + ';background:' + (isSelected ? '#fef2f2' : 'white') + ';transition:background 0.15s';
 
+            itemDiv.addEventListener('mouseenter', function() {
+              if (!isSelected) itemDiv.style.background = '#f9fafb';
+            });
+            itemDiv.addEventListener('mouseleave', function() {
+              if (!isSelected) itemDiv.style.background = 'white';
+            });
             itemDiv.addEventListener('click', function() {
               window.location.href = item.path;
             });
 
             const wrapper = document.createElement('div');
-            wrapper.className = 'flex items-center justify-between gap-3';
+            wrapper.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:0.75rem';
 
             const left = document.createElement('div');
-            left.className = 'flex-1 min-w-0';
+            left.style.cssText = 'flex:1;min-width:0';
 
             const title = document.createElement('div');
-            title.className = 'font-medium text-sm text-gray-900 truncate';
+            title.style.cssText = 'font-weight:500;font-size:0.875rem;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
             title.textContent = item.title;
             left.appendChild(title);
 
             if (item.description) {
               const desc = document.createElement('div');
-              desc.className = 'text-xs text-gray-500 truncate mt-0.5';
+              desc.style.cssText = 'font-size:0.75rem;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:0.125rem';
               desc.textContent = item.description;
               left.appendChild(desc);
             }
 
             const right = document.createElement('span');
-            right.className = 'text-xs text-gray-400 uppercase';
+            right.style.cssText = 'font-size:0.75rem;color:#9ca3af;text-transform:uppercase;flex-shrink:0';
             right.textContent = category.title;
 
             wrapper.appendChild(left);
