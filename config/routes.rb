@@ -26,6 +26,7 @@
 #                     api_user_is_processed POST   /api/user/is_processed(.:format)                                                                  api/users#is_processed
 #                 api_user_processed_events POST   /api/user/processed_events(.:format)                                                              api/users#get_processed_events_by_term
 #                     api_user_flag_enabled GET    /api/user/flag_enabled(.:format)                                                                  api/users#flag_is_enabled
+#                    api_user_feature_flags GET    /api/user/feature_flags(.:format)                                                                 api/users#feature_flags
 #             api_user_notifications_status GET    /api/user/notifications_status(.:format)                                                          api/users#notifications_status
 #            api_user_notifications_disable POST   /api/user/notifications/disable(.:format)                                                         api/users#disable_notifications
 #             api_user_notifications_enable POST   /api/user/notifications/enable(.:format)                                                          api/users#enable_notifications
@@ -343,6 +344,7 @@ Rails.application.routes.draw do
     post "user/is_processed", to: "users#is_processed"
     post "user/processed_events", to: "users#get_processed_events_by_term"
     get "user/flag_enabled", to: "users#flag_is_enabled"
+    get "user/feature_flags", to: "users#feature_flags"
 
     # Notifications DND (Do Not Disturb) mode
     get "user/notifications_status", to: "users#notifications_status"

@@ -70,6 +70,20 @@ module Api
       render json: { feature_name: feature_name, is_enabled: is_enabled }, status: :ok
     end
 
+    def feature_flags
+      authorize current_user, :show?
+
+      flags = {}
+      FlipperFlags::ALL_FLAGS.each do |flag_name|
+        flipper_key = FlipperFlags::MAP[flag_name]
+        next if flipper_key.nil?
+
+        feature = Flipper[flipper_key]
+        flags[flag_name] = feature.enabled?(current_user)
+      end
+
+      render json: { feature_flags: flags }, status: :ok
+    end
 
     def is_processed
       authorize current_user, :show?

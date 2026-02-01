@@ -449,4 +449,55 @@ RSpec.describe "Api::Users" do
       end
     end
   end
+
+  describe "GET /api/user/feature_flags" do
+    context "when user has some flags enabled" do
+      before do
+        Flipper.enable(FlipperFlags::V2, user)
+        Flipper.enable(FlipperFlags::DEBUG_MODE, user)
+      end
+
+      it "returns all feature flags with their enabled status" do
+        get "/api/user/feature_flags", headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json).to have_key("feature_flags")
+
+        flags = json["feature_flags"]
+        expect(flags).to be_a(Hash)
+        expect(flags["v1"]).to be true
+        expect(flags["v2"]).to be true
+        expect(flags["debugMode"]).to be true
+        expect(flags["envSwitcher"]).to be false
+        expect(flags["finalsRetroactive"]).to be false
+        expect(flags["bypassRateLimits"]).to be false
+      end
+    end
+
+    context "when user has no additional flags enabled" do
+      it "returns flags with v1 enabled and others disabled" do
+        get "/api/user/feature_flags", headers: headers
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        flags = json["feature_flags"]
+
+        expect(flags["v1"]).to be true
+        expect(flags["v2"]).to be false
+        expect(flags["envSwitcher"]).to be false
+        expect(flags["debugMode"]).to be false
+        expect(flags["finalsRetroactive"]).to be false
+        expect(flags["bypassRateLimits"]).to be false
+      end
+    end
+
+    context "without authentication" do
+      it "returns unauthorized" do
+        get "/api/user/feature_flags"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
 end
