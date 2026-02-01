@@ -11,37 +11,24 @@ class CommandPaletteInjector
 
     # Use REQUEST_PATH to get the full original path including mount points
     path = env["REQUEST_PATH"] || env["PATH_INFO"]
-    puts "=== CommandPaletteInjector: Processing #{path} ==="
-    puts "Content-Type: #{headers['Content-Type']}"
-    puts "Is admin route: #{admin_route?(path)}"
 
     # Only inject for HTML responses
-    unless html_response?(headers)
-      puts "SKIPPING: Not HTML response"
-      return [status, headers, response]
-    end
+    return [status, headers, response] unless html_response?(headers)
 
     # Only inject for admin routes
-    unless admin_route?(path)
-      puts "SKIPPING: Not admin route"
-      return [status, headers, response]
-    end
+    return [status, headers, response] unless admin_route?(path)
 
     # Admin routes are already protected by AdminConstraint, so if we got here, user is admin
-    puts "✅ INJECTING SCRIPT!"
-
     # Inject the script
     begin
       new_response = inject_script(response)
-      puts "Script injected. Response size: #{new_response.bytesize}"
 
       # Update content length
       headers.delete("Content-Length") # Remove old content length, let Rack recalculate
 
       [status, headers, [new_response]]
-    rescue StandardError => e
-      puts "ERROR injecting script: #{e.message}"
-      puts e.backtrace.first(5).join("\n")
+    rescue => e
+      Rails.logger.error { "CommandPaletteInjector error: #{e.message}" }
       [status, headers, response]
     end
   end
@@ -76,8 +63,7 @@ class CommandPaletteInjector
   end
 
   def response_body(response)
-    parts = []
-    response.each { |part| parts << part }
+    parts = response.map { |part| part }
     response.close if response.respond_to?(:close)
     parts.join
   end

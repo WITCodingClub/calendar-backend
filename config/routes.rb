@@ -78,6 +78,10 @@
 #                               admin_rooms GET    /admin/rooms(.:format)                                                                            admin/rooms#index
 #                                admin_room GET    /admin/rooms/:id(.:format)                                                                        admin/rooms#show
 #                             admin_courses GET    /admin/courses(.:format)                                                                          admin/courses#index
+#                              admin_course GET    /admin/courses/:id(.:format)                                                                      admin/courses#show
+#                          admin_navigation GET    /admin/navigation(.:format)                                                                       admin/navigation#index
+#                    admin_lookup_public_id GET    /admin/lookup/:public_id(.:format)                                                                admin/public_id_lookup#lookup
+#                  admin_redirect_public_id GET    /admin/go/:public_id(.:format)                                                                    admin/public_id_lookup#redirect
 #           missing_rmp_ids_admin_faculties GET    /admin/faculties/missing_rmp_ids(.:format)                                                        admin/faculties#missing_rmp_ids
 #           batch_auto_fill_admin_faculties POST   /admin/faculties/batch_auto_fill(.:format)                                                        admin/faculties#batch_auto_fill
 #            sync_directory_admin_faculties POST   /admin/faculties/sync_directory(.:format)                                                         admin/faculties#sync_directory
@@ -412,10 +416,14 @@ Rails.application.routes.draw do
       resources :calendars, only: [:index, :destroy]
       resources :buildings, only: [:index, :show]
       resources :rooms, only: [:index, :show]
-      resources :courses, only: [:index]
+      resources :courses, only: [:index, :show]
 
       # Navigation API for command palette injection
       get "navigation", to: "navigation#index"
+
+      # Public ID lookup and redirect
+      get "lookup/:public_id", to: "public_id_lookup#lookup", as: :lookup_public_id
+      get "go/:public_id", to: "public_id_lookup#redirect", as: :redirect_public_id
       resources :faculties, only: [:index, :show] do
         collection do
           get :missing_rmp_ids
