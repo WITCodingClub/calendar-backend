@@ -37,20 +37,17 @@
                data-action="click->command-palette#clickItem"
                class="p-3 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
             <%= link_to path, class: "flex items-center space-x-3 text-gray-900 no-underline" do %>
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background-color: <%= item[:color] || '#6b7280' %>;">
-                <% if item[:icon] %>
-                  <%= raw(item[:icon]) %>
-                <% end %>
-              </div>
               <div class="flex-1">
-                <div class="font-medium"><%= item[:title] %></div>
+                <div class="flex items-center justify-between">
+                  <div class="font-medium"><%= item[:title] %></div>
+                  <% if category[:id] != :overview %>
+                    <div class="text-xs text-gray-400 uppercase ml-2"><%= category[:title] %></div>
+                  <% end %>
+                </div>
                 <% if item[:description] %>
                   <div class="text-sm text-gray-500"><%= item[:description] %></div>
                 <% end %>
               </div>
-              <% if category[:id] != :overview %>
-                <div class="text-xs text-gray-400 uppercase"><%= category[:title] %></div>
-              <% end %>
             <% end %>
           </div>
         <% end %>
