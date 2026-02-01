@@ -76,10 +76,10 @@ class CommandPaletteInjector
   end
 
   def response_body(response)
-    body = ""
-    response.each { |part| body << part }
+    parts = []
+    response.each { |part| parts << part }
     response.close if response.respond_to?(:close)
-    body
+    parts.join
   end
 
   def build_injection_script
