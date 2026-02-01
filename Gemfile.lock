@@ -274,6 +274,8 @@ GEM
     hashids (1.0.6)
     hashie (5.1.0)
       logger
+    heroicon (1.0.0)
+      rails (>= 5.2)
     htmlentities (4.4.2)
     i18n (1.14.8)
       concurrent-ruby (~> 1.0)
@@ -800,6 +802,7 @@ DEPENDENCIES
   google-apis-calendar_v3 (~> 0.51.0)
   googleauth (~> 1.16)
   hashid-rails
+  heroicon (~> 1.0)
   icalendar (~> 2.12, >= 2.12.1)
   importmap-rails
   invisible_captcha

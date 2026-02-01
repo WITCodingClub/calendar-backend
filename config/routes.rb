@@ -13,6 +13,8 @@
 #                          new_user_session GET    /users/sign_in(.:format)                                                                          sessions#new
 #                      destroy_user_session DELETE /users/sign_out(.:format)                                                                         sessions#destroy
 #                        rails_health_check GET    /up(.:format)                                                                                     rails/health#show
+#                                  rswag_ui        /api/docs                                                                                         Rswag::Ui::Engine
+#                                 rswag_api        /api/docs                                                                                         Rswag::Api::Engine
 #                          api_user_onboard POST   /api/user/onboard(.:format)                                                                       api/users#onboard
 #                             api_user_gcal POST   /api/user/gcal(.:format)                                                                          api/users#request_g_cal
 #                   api_user_gcal_add_email POST   /api/user/gcal/add_email(.:format)                                                                api/users#add_email_to_g_cal
@@ -72,9 +74,9 @@
 #                           admin_calendars GET    /admin/calendars(.:format)                                                                        admin/calendars#index
 #                            admin_calendar DELETE /admin/calendars/:id(.:format)                                                                    admin/calendars#destroy
 #                           admin_buildings GET    /admin/buildings(.:format)                                                                        admin/buildings#index
+#                            admin_building GET    /admin/buildings/:id(.:format)                                                                    admin/buildings#show
 #                               admin_rooms GET    /admin/rooms(.:format)                                                                            admin/rooms#index
-#                  manual_add_admin_courses GET    /admin/courses/manual_add(.:format)                                                               admin/courses#manual_add
-#          process_manual_add_admin_courses POST   /admin/courses/process_manual_add(.:format)                                                       admin/courses#process_manual_add
+#                                admin_room GET    /admin/rooms/:id(.:format)                                                                        admin/rooms#show
 #                             admin_courses GET    /admin/courses(.:format)                                                                          admin/courses#index
 #           missing_rmp_ids_admin_faculties GET    /admin/faculties/missing_rmp_ids(.:format)                                                        admin/faculties#missing_rmp_ids
 #           batch_auto_fill_admin_faculties POST   /admin/faculties/batch_auto_fill(.:format)                                                        admin/faculties#batch_auto_fill
@@ -86,6 +88,7 @@
 #                           admin_faculties GET    /admin/faculties(.:format)                                                                        admin/faculties#index
 #                             admin_faculty GET    /admin/faculties/:id(.:format)                                                                    admin/faculties#show
 #                               admin_terms GET    /admin/terms(.:format)                                                                            admin/terms#index
+#                                admin_term GET    /admin/terms/:id(.:format)                                                                        admin/terms#show
 #     confirm_replace_admin_finals_schedule GET    /admin/finals_schedules/:id/confirm_replace(.:format)                                             admin/finals_schedules#confirm_replace
 #    process_schedule_admin_finals_schedule POST   /admin/finals_schedules/:id/process_schedule(.:format)                                            admin/finals_schedules#process_schedule
 #                    admin_finals_schedules GET    /admin/finals_schedules(.:format)                                                                 admin/finals_schedules#index
@@ -110,8 +113,6 @@
 #                                                  /admin/flipper                                                                                    Flipper::UI
 #                   admin_rails_performance        /admin/performance                                                                                RailsPerformance::Engine
 #                          admin_audits1984        /admin/audits                                                                                     Audits1984::Engine
-#                                  rswag_ui        /api/docs                                                                                         Rswag::Ui::Engine
-#                                 rswag_api        /api/docs                                                                                         Rswag::Api::Engine
 #                             admin_pg_hero        /admin/pghero                                                                                     PgHero::Engine
 #                         admin_logster_web        /admin/logs                                                                                       Logster::Web
 #                                     admin GET    /admin(.:format)                                                                                  redirect(301, /users/sign_in)
@@ -119,6 +120,7 @@
 #                              unauthorized GET    /unauthorized(.:format)                                                                           errors#unauthorized
 #                                           GET    /404(.:format)                                                                                    errors#not_found
 #                         letter_opener_web        /letter_opener                                                                                    LetterOpenerWeb::Engine
+#                                 dev_login GET    /dev/login/:email(.:format)                                                                       dev#login {email: /[^\/]+/}
 #                               ok_computer        /healthchecks                                                                                     OkComputer::Engine
 #                                      root GET    /                                                                                                 sessions#new
 #                                  mailkick        /mailkick                                                                                         Mailkick::Engine
@@ -156,6 +158,12 @@
 #              root GET|OPTIONS /                 ok_computer/ok_computer#show {check: "default"}
 # okcomputer_checks GET|OPTIONS /all(.:format)    ok_computer/ok_computer#index
 #  okcomputer_check GET|OPTIONS /:check(.:format) ok_computer/ok_computer#show
+#
+# Routes for Rswag::Ui::Engine:
+# No routes defined.
+#
+# Routes for Rswag::Api::Engine:
+# No routes defined.
 #
 # Routes for MissionControl::Jobs::Engine:
 #                      Prefix Verb   URI Pattern                                                    Controller#Action
@@ -243,12 +251,6 @@
 # filtered_sessions PATCH /filtered_sessions(.:format)               audits1984/filtered_sessions#update
 #                   PUT   /filtered_sessions(.:format)               audits1984/filtered_sessions#update
 #              root GET   /                                          audits1984/sessions#index
-#
-# Routes for Rswag::Ui::Engine:
-# No routes defined.
-#
-# Routes for Rswag::Api::Engine:
-# No routes defined.
 #
 # Routes for PgHero::Engine:
 #                    Prefix Verb URI Pattern                                      Controller#Action
@@ -408,14 +410,9 @@ Rails.application.routes.draw do
         end
       end
       resources :calendars, only: [:index, :destroy]
-      resources :buildings, only: [:index]
-      resources :rooms, only: [:index]
-      resources :courses, only: [:index] do
-        collection do
-          get :manual_add
-          post :process_manual_add
-        end
-      end
+      resources :buildings, only: [:index, :show]
+      resources :rooms, only: [:index, :show]
+      resources :courses, only: [:index]
       resources :faculties, only: [:index, :show] do
         collection do
           get :missing_rmp_ids
@@ -429,7 +426,7 @@ Rails.application.routes.draw do
           post :auto_fill_rmp_id
         end
       end
-      resources :terms, only: [:index]
+      resources :terms, only: [:index, :show]
       resources :finals_schedules, only: [:index, :new, :create, :show, :destroy] do
         member do
           get :confirm_replace
@@ -476,6 +473,9 @@ Rails.application.routes.draw do
 
   if Rails.env.development?
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
+
+    # Dev-only login bypass (constraints allow dots in email)
+    get "/dev/login/:email", to: "dev#login", as: :dev_login, constraints: { email: /[^\/]+/ }
   end
 
   mount OkComputer::Engine, at: "/healthchecks"

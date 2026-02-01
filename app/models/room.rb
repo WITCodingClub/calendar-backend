@@ -25,6 +25,7 @@ class Room < ApplicationRecord
   set_public_id_prefix :rom
 
   belongs_to :building
+  has_many :meeting_times, dependent: :restrict_with_exception
 
   def floor
     # Extract first digit from the room number string
@@ -40,6 +41,10 @@ class Room < ApplicationRecord
     else
       number.to_s
     end
+  end
+
+  def to_param
+    public_id
   end
 
 end

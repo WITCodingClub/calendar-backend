@@ -216,6 +216,10 @@ class Term < ApplicationRecord
          .first
   end
 
+  def to_param
+    public_id
+  end
+
   private
 
   def uniqueness_of_year_and_semester

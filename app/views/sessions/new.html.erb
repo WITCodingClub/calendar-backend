@@ -24,6 +24,14 @@
         </p>
       </div>
       <p class="text-sm text-gray-600 mt-4">You must be pre-authorized to access the admin dashboard</p>
+
+      <% if Rails.env.development? %>
+        <div class="mt-6 pt-6 border-t border-gray-200">
+          <%= link_to dev_login_path(email: "mayonej@wit.edu"), class: "text-sm text-gray-500 hover:text-gray-700 underline" do %>
+            🔧 Dev Login Bypass
+          <% end %>
+        </div>
+      <% end %>
     </div>
   </div>
 </div>
