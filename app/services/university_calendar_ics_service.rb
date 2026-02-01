@@ -276,6 +276,22 @@ class UniversityCalendarIcsService < ApplicationService
       event.term ||= Term.find_by_date(attrs[:start_time])
     end
 
+    # Fix summary if the ICS academic_term doesn't match the inferred term
+    # This corrects cases like "Last day of classes for Summer 2026" -> "Last day of classes for Spring 2026"
+    if event.term && event.academic_term.present? && attrs[:category] == "term_dates"
+      # Check if the academic_term in the ICS feed matches the inferred term
+      ics_season = case event.academic_term.downcase
+                   when /fall/ then :fall
+                   when /spring/ then :spring
+                   when /summer/ then :summer
+                   end
+
+      if ics_season && ics_season != event.term.season
+        # Term mismatch detected - fix the summary
+        event.summary = fix_summary_term_reference(event.summary, event.academic_term, event.term)
+      end
+    end
+
     content_changed = event.changed? && (event.changed - ["last_fetched_at"]).any?
 
     if was_new || content_changed
@@ -494,6 +510,44 @@ class UniversityCalendarIcsService < ApplicationService
 
     # Use date-inferred season
     Term.find_by(year: year, season: inferred_season)
+  end
+
+  # Fix summary text when the ICS feed has incorrect term references
+  # Replaces term mentions (Fall/Spring/Summer YYYY) with the correct term
+  # @param summary [String] The original summary text
+  # @param incorrect_term [String] The incorrect term string from ICS (e.g., "Summer 2026")
+  # @param correct_term [Term] The correct term object from database
+  # @return [String] The corrected summary
+  def fix_summary_term_reference(summary, incorrect_term, correct_term)
+    return summary if incorrect_term.blank? || correct_term.nil?
+
+    # Extract the incorrect season and year from the academic_term string
+    # Handles formats like "Fall", "Spring 2026", "Summer 2026", etc.
+    incorrect_term_lower = incorrect_term.downcase
+    year_match = incorrect_term.match(/\d{4}/)
+
+    # Build the correct term string (e.g., "Spring 2026")
+    correct_term_str = "#{correct_term.season.to_s.capitalize} #{correct_term.year}"
+
+    # Try to replace specific patterns in the summary
+    corrected = summary.dup
+
+    # Pattern 1: "for Summer 2026" -> "for Spring 2026"
+    corrected = corrected.gsub(/for\s+(Fall|Spring|Summer)\s+\d{4}/i) do |match|
+      "for #{correct_term_str}"
+    end
+
+    # Pattern 2: "Summer 2026" anywhere in text -> "Spring 2026"
+    if year_match
+      corrected = corrected.gsub(/(Fall|Spring|Summer)\s+#{year_match[0]}/i, correct_term_str)
+    end
+
+    # Log the correction if the summary changed
+    if corrected != summary
+      Rails.logger.info("Corrected summary: '#{summary}' -> '#{corrected}'")
+    end
+
+    corrected
   end
 
 end
