@@ -149,3 +149,5 @@ gem "pg_query", ">= 2"
 
 gem "connection_pool", "~> 2.2", ">= 2.2.5"
 gem "pdf-reader"
+
+gem "heroicon", "~> 1.0"

@@ -23,4 +23,8 @@ class Building < ApplicationRecord
 
   has_many :rooms, dependent: :restrict_with_exception
 
+  def to_param
+    public_id
+  end
+
 end
