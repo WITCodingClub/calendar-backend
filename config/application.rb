@@ -43,5 +43,9 @@ module WitCalendarBackend
     # RateLimitHeadersMiddleware is added after Rack::Attack via initializer
     # (Rack::Attack is auto-inserted by its Railtie during initialization)
 
+    # Load and add command palette injector middleware
+    require_relative "../app/middleware/command_palette_injector"
+    config.middleware.use CommandPaletteInjector
+
   end
 end
