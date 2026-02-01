@@ -1,0 +1,152 @@
+<div class="container mx-auto px-2 pb-8">
+  <div class="flex justify-between items-center mb-6">
+    <div>
+      <h1 class="text-2xl font-bold"><%= @course.code %> - <%= @course.title %></h1>
+      <div class="flex gap-4 mt-1 text-sm text-gray-600">
+        <span>CRN: <%= @course.crn %></span>
+        <span>Term: <%= link_to @course.term.name, admin_term_path(@course.term), class: "text-red-700 hover:text-red-800" %></span>
+        <span>Credits: <%= @course.credits || "N/A" %></span>
+      </div>
+    </div>
+    <%= link_to "Back to Courses", admin_courses_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+  </div>
+
+  <!-- Course Details -->
+  <div class="mb-8">
+    <h2 class="text-xl font-semibold mb-4">Details</h2>
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden p-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+      <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <dt class="text-sm font-medium text-gray-500">Subject</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @course.subject %></dd>
+        </div>
+        <div>
+          <dt class="text-sm font-medium text-gray-500">Course Number</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @course.course_number %></dd>
+        </div>
+        <div>
+          <dt class="text-sm font-medium text-gray-500">Section</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @course.section %></dd>
+        </div>
+        <div>
+          <dt class="text-sm font-medium text-gray-500">Campus</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @course.campus || "N/A" %></dd>
+        </div>
+        <div class="md:col-span-2">
+          <dt class="text-sm font-medium text-gray-500">Instructors</dt>
+          <dd class="mt-1 text-sm text-gray-900">
+            <% if @course.faculties.any? %>
+              <%= @course.faculties.map { |f| link_to f.full_name, admin_faculty_path(f), class: "text-red-700 hover:text-red-800" }.join(", ").html_safe %>
+            <% else %>
+              TBA
+            <% end %>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- Meeting Times -->
+  <div class="mb-8">
+    <h2 class="text-xl font-semibold mb-4">Meeting Times (<%= @course.meeting_times.count %>)</h2>
+    <% if @course.meeting_times.any? %>
+      <div class="bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead style="background: rgba(255, 255, 255, 0.5);">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Type
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Days
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Time
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Location
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Dates
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200" style="background: rgba(255, 255, 255, 0.3);">
+              <% @course.meeting_times.each do |mt| %>
+                <tr class="hover:bg-white/50 transition">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <%= mt.meeting_type&.titleize || "Lecture" %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <%= mt.days || "TBA" %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <% if mt.start_time.present? && mt.end_time.present? %>
+                      <%= mt.start_time.strftime("%I:%M %p") %> - <%= mt.end_time.strftime("%I:%M %p") %>
+                    <% else %>
+                      TBA
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <% if mt.room %>
+                      <%= link_to "#{mt.room.building&.abbreviation} #{mt.room.number}", admin_room_path(mt.room), class: "text-red-700 hover:text-red-800" %>
+                    <% else %>
+                      TBA
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <% if mt.start_date.present? && mt.end_date.present? %>
+                      <%= mt.start_date.strftime("%m/%d") %> - <%= mt.end_date.strftime("%m/%d/%Y") %>
+                    <% else %>
+                      TBA
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% else %>
+      <p class="text-gray-600">No meeting times scheduled.</p>
+    <% end %>
+  </div>
+
+  <!-- Enrollments -->
+  <div>
+    <h2 class="text-xl font-semibold mb-4">Enrolled Students (<%= @course.enrollments.count %>)</h2>
+    <% if @course.enrollments.any? %>
+      <div class="bg-white shadow-lg rounded-lg overflow-hidden" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead style="background: rgba(255, 255, 255, 0.5);">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Student
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                  Email
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200" style="background: rgba(255, 255, 255, 0.3);">
+              <% @course.enrollments.includes(:user).each do |enrollment| %>
+                <tr class="hover:bg-white/50 transition">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <%= link_to enrollment.user.name || "User ##{enrollment.user.id}", admin_user_path(enrollment.user), class: "text-red-700 hover:text-red-800 font-medium" %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <%= enrollment.user.emails.where(primary: true).first&.email || enrollment.user.emails.first&.email || "N/A" %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% else %>
+      <p class="text-gray-600">No students enrolled.</p>
+    <% end %>
+  </div>
+</div>

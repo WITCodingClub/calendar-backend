@@ -1,12 +1,13 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["modal", "input", "results", "item", "noResults", "recentsSection", "recentsContainer", "allItemsSection"]
+  static targets = ["modal", "input", "results", "item", "noResults", "recentsSection", "recentsContainer", "allItemsSection", "publicIdSection", "publicIdContainer"]
 
   connect() {
     this.boundKeydown = this.keydown.bind(this)
     this.selectedIndex = 0
     this.recentItems = this.loadRecentItems()
+    this.publicIdLookupDebounce = null
     document.addEventListener("keydown", this.boundKeydown)
   }
 
@@ -42,6 +43,8 @@ export default class extends Controller {
   }
 
   showRecents() {
+    this.hidePublicIdSection()
+
     if (this.recentItems.length > 0) {
       this.renderRecents()
       this.recentsSectionTarget.classList.remove("hidden")
@@ -91,9 +94,17 @@ export default class extends Controller {
       return
     }
 
-    // Hide recents, show all items when searching
+    // Hide recents when searching
     this.recentsSectionTarget.classList.add("hidden")
     this.allItemsSectionTarget.classList.remove("hidden")
+
+    // Check if query looks like a public_id (prefix_hash format)
+    const publicIdPattern = /^[a-z]{3}_[a-z0-9]+$/i
+    if (publicIdPattern.test(query)) {
+      this.lookupPublicId(query)
+    } else {
+      this.hidePublicIdSection()
+    }
 
     let visibleCount = 0
 
@@ -177,8 +188,10 @@ export default class extends Controller {
   }
 
   getVisibleItems() {
-    // Get recents if showing, otherwise get all visible items
-    if (!this.recentsSectionTarget.classList.contains("hidden")) {
+    // Priority order: Public ID result > Recents > All items
+    if (this.hasPublicIdSectionTarget && !this.publicIdSectionTarget.classList.contains("hidden")) {
+      return Array.from(this.publicIdContainerTarget.querySelectorAll('[data-command-palette-target~="item"]'))
+    } else if (!this.recentsSectionTarget.classList.contains("hidden")) {
       return Array.from(this.recentsContainerTarget.querySelectorAll('[data-command-palette-target~="item"]'))
     } else {
       return this.itemTargets.filter(item => !item.classList.contains("hidden"))
@@ -199,6 +212,14 @@ export default class extends Controller {
       item.classList.remove("bg-red-50", "border-l-red-700")
       item.classList.add("border-l-transparent")
     })
+
+    // Also remove from public ID items
+    if (this.hasPublicIdContainerTarget) {
+      this.publicIdContainerTarget.querySelectorAll('[data-command-palette-target~="item"]').forEach(item => {
+        item.classList.remove("bg-red-50", "border-l-red-700")
+        item.classList.add("border-l-transparent")
+      })
+    }
 
     // Add current selection
     if (this.selectedIndex >= 0 && visibleItems[this.selectedIndex]) {
@@ -264,5 +285,86 @@ export default class extends Controller {
 
   stopPropagation(event) {
     event.stopPropagation()
+  }
+
+  lookupPublicId(publicId) {
+    // Debounce the lookup
+    clearTimeout(this.publicIdLookupDebounce)
+
+    this.publicIdLookupDebounce = setTimeout(async () => {
+      try {
+        const response = await fetch(`/admin/lookup/${encodeURIComponent(publicId)}`)
+
+        if (response.ok) {
+          const data = await response.json()
+          this.showPublicIdResult(data)
+        } else {
+          this.hidePublicIdSection()
+        }
+      } catch (error) {
+        console.error("Public ID lookup failed:", error)
+        this.hidePublicIdSection()
+      }
+    }, 300)
+  }
+
+  showPublicIdResult(data) {
+    if (!this.hasPublicIdSectionTarget) return
+
+    // Clear container
+    while (this.publicIdContainerTarget.firstChild) {
+      this.publicIdContainerTarget.removeChild(this.publicIdContainerTarget.firstChild)
+    }
+
+    // Create result item
+    const item = document.createElement('div')
+    item.dataset.commandPaletteTarget = "item publicIdItem"
+    item.dataset.itemPath = data.path
+    item.dataset.itemTitle = data.display_name
+    item.className = "flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-red-50 border-l-4 border-l-transparent transition-colors"
+
+    const icon = document.createElement('span')
+    icon.className = "text-2xl"
+    icon.textContent = this.getIconForType(data.type)
+
+    const content = document.createElement('div')
+    content.className = "flex-1"
+
+    const title = document.createElement('div')
+    title.className = "font-medium text-gray-900"
+    title.textContent = data.display_name
+
+    const subtitle = document.createElement('div')
+    subtitle.className = "text-sm text-gray-500"
+    subtitle.textContent = `${data.type} • ${data.public_id}`
+
+    content.appendChild(title)
+    content.appendChild(subtitle)
+
+    item.appendChild(icon)
+    item.appendChild(content)
+
+    item.addEventListener('click', () => this.navigateToItem(item))
+
+    this.publicIdContainerTarget.appendChild(item)
+    this.publicIdSectionTarget.classList.remove("hidden")
+  }
+
+  hidePublicIdSection() {
+    if (this.hasPublicIdSectionTarget) {
+      this.publicIdSectionTarget.classList.add("hidden")
+    }
+  }
+
+  getIconForType(type) {
+    const icons = {
+      'Building': '🏢',
+      'Room': '🚪',
+      'Term': '📅',
+      'Course': '📚',
+      'Faculty': '👨‍🏫',
+      'User': '👤'
+    }
+    return icons[type] || '📄'
   }
 }
