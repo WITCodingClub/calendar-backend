@@ -16,7 +16,7 @@
 
     <!-- Navigation Items -->
     <div data-command-palette-target="results" class="max-h-80 overflow-y-auto">
-      <% Admin::NavigationRegistry.categories_for_user(current_user).each do |category| %>
+      <% Admin::NavigationRegistry.categories_for(current_user).each do |category| %>
         <% category[:items].each do |item| %>
           <%
             # Determine path
