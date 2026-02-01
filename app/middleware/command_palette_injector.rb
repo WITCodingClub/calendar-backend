@@ -9,21 +9,35 @@ class CommandPaletteInjector
   def call(env)
     status, headers, response = @app.call(env)
 
+    path = env["PATH_INFO"]
+    Rails.logger.debug { "CommandPaletteInjector: Processing #{path}" }
+
     # Only inject for HTML responses
-    return [status, headers, response] unless html_response?(headers)
+    unless html_response?(headers)
+      Rails.logger.debug { "CommandPaletteInjector: Skipping - not HTML (#{headers['Content-Type']})" }
+      return [status, headers, response]
+    end
 
     # Only inject for admin routes
-    return [status, headers, response] unless admin_route?(env["PATH_INFO"])
+    unless admin_route?(path)
+      Rails.logger.debug "CommandPaletteInjector: Skipping - not admin route"
+      return [status, headers, response]
+    end
 
     # Get the current user if available
     user = env["warden"]&.user
-    return [status, headers, response] unless user&.admin_access?
+    unless user&.admin_access?
+      Rails.logger.debug { "CommandPaletteInjector: Skipping - user not admin (#{user.inspect})" }
+      return [status, headers, response]
+    end
+
+    Rails.logger.debug { "CommandPaletteInjector: Injecting script for #{path}" }
 
     # Inject the script
     new_response = inject_script(response)
 
     # Update content length
-    headers["Content-Length"] = new_response.bytesize.to_s if headers["Content-Length"]
+    headers.delete("Content-Length") # Remove old content length, let Rack recalculate
 
     [status, headers, [new_response]]
   end
@@ -60,6 +74,7 @@ class CommandPaletteInjector
   def response_body(response)
     body = ""
     response.each { |part| body << part }
+    response.close if response.respond_to?(:close)
     body
   end
 
