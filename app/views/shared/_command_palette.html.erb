@@ -43,13 +43,13 @@
                 <% end %>
               </div>
               <div class="flex-1">
-                <div class="font-medium"><%= item[:label] %></div>
+                <div class="font-medium"><%= item[:title] %></div>
                 <% if item[:description] %>
                   <div class="text-sm text-gray-500"><%= item[:description] %></div>
                 <% end %>
               </div>
               <% if category[:id] != :overview %>
-                <div class="text-xs text-gray-400 uppercase"><%= category[:label] %></div>
+                <div class="text-xs text-gray-400 uppercase"><%= category[:title] %></div>
               <% end %>
             <% end %>
           </div>
