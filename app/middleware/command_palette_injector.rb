@@ -10,31 +10,37 @@ class CommandPaletteInjector
     status, headers, response = @app.call(env)
 
     path = env["PATH_INFO"]
-    Rails.logger.debug { "CommandPaletteInjector: Processing #{path}" }
+    puts "=== CommandPaletteInjector: Processing #{path} ==="
+    puts "Content-Type: #{headers['Content-Type']}"
+    puts "Is admin route: #{admin_route?(path)}"
+    puts "User: #{env['warden']&.user&.email}"
+    puts "Has admin access: #{env['warden']&.user&.admin_access?}"
 
     # Only inject for HTML responses
     unless html_response?(headers)
-      Rails.logger.debug { "CommandPaletteInjector: Skipping - not HTML (#{headers['Content-Type']})" }
+      puts "SKIPPING: Not HTML response"
       return [status, headers, response]
     end
 
     # Only inject for admin routes
     unless admin_route?(path)
-      Rails.logger.debug "CommandPaletteInjector: Skipping - not admin route"
+      puts "SKIPPING: Not admin route"
       return [status, headers, response]
     end
 
     # Get the current user if available
     user = env["warden"]&.user
     unless user&.admin_access?
-      Rails.logger.debug { "CommandPaletteInjector: Skipping - user not admin (#{user.inspect})" }
+      puts "SKIPPING: User not admin"
       return [status, headers, response]
     end
 
-    Rails.logger.debug { "CommandPaletteInjector: Injecting script for #{path}" }
+    puts "✅ INJECTING SCRIPT!"
 
     # Inject the script
     new_response = inject_script(response)
+
+    puts "Script injected. Response size: #{new_response.bytesize}"
 
     # Update content length
     headers.delete("Content-Length") # Remove old content length, let Rack recalculate
