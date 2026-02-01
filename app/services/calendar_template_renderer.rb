@@ -165,8 +165,8 @@ class CalendarTemplateRenderer
       location: event.location || "",
       category: event.category || "",
       organization: event.organization || "",
-      academic_term: event.academic_term || "",
-      term: event.academic_term || "", # Alias for consistency
+      academic_term: event.term&.name || event.academic_term || "", # Prefer DB term over raw ICS field
+      term: event.term&.name || event.academic_term || "", # Prefer DB term over raw ICS field
       event_type: "university_calendar",
 
       # Time fields
