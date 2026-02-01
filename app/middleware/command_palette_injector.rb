@@ -296,6 +296,13 @@ class CommandPaletteInjector
             items.forEach(function(data, index) {
               const itemDiv = createItemElement(data.item, data.category, index);
               container.appendChild(itemDiv);
+
+              // Scroll selected item into view
+              if (index === selectedIndex) {
+                setTimeout(function() {
+                  itemDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 0);
+              }
             });
           }
 
