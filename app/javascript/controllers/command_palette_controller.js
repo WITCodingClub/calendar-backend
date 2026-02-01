@@ -45,10 +45,14 @@ export default class extends Controller {
     if (this.recentItems.length > 0) {
       this.renderRecents()
       this.recentsSectionTarget.classList.remove("hidden")
-      this.allItemsSectionTarget.classList.add("hidden")
     } else {
-      this.showAllItems()
+      this.recentsSectionTarget.classList.add("hidden")
     }
+
+    // Always show all items too
+    this.allItemsSectionTarget.classList.remove("hidden")
+    this.itemTargets.forEach(item => item.classList.remove("hidden"))
+    this.noResultsTarget.classList.add("hidden")
     this.updateSelection()
   }
 
