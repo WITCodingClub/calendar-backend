@@ -32,7 +32,7 @@ jobs:
           bundler-cache: true
 
       - name: Cache Rubocop
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/rubocop_cache
           key: ${{ runner.os }}-rubocop-${{ hashFiles('.rubocop.yml') }}
@@ -95,7 +95,7 @@ jobs:
           bundler-cache: true
 
       - name: Cache Assets
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             tmp/cache/assets
