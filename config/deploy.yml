@@ -2,32 +2,30 @@
 service: wit_calendar_backend
 
 # Name of the container image.
-image: your-user/wit_calendar_backend
+image: ghcr.io/witcodingclub/calendar-backend
 
 # Deploy to these servers.
 servers:
   web:
-    - 192.168.0.1
+    - alastor
   # job:
   #   hosts:
-  #     - 192.168.0.1
+  #     - alastor
   #   cmd: bin/jobs
 
-# Enable SSL auto certification via Let's Encrypt and allow for multiple apps on a single web server.
-# Remove this section when using multiple web servers and ensure you terminate SSL at your load balancer.
-#
-# Note: If using Cloudflare, set encryption mode in SSL/TLS setting to "Full" to enable CF-to-app encryption.
+# Traefik proxy configuration (since port 80 is taken by Caddy)
+# We'll expose on port 3002 and let Caddy handle SSL termination
 proxy:
-  ssl: true
-  host: server.calendar.witcc.dev
+  host: server-calendar.witcc.dev
+  ssl: false
+  app_port: 3002
 
-# Credentials for your image host.
+# Credentials for GitHub Container Registry
 registry:
-  # Specify the registry server, if you're not using Docker Hub
-  # server: registry.digitalocean.com / ghcr.io / ...
-  username: your-user
+  server: ghcr.io
+  username: jaspermayone
 
-  # Always use an access token rather than real password when possible.
+  # GitHub Personal Access Token with packages:write permission
   password:
     - KAMAL_REGISTRY_PASSWORD
 
