@@ -84,15 +84,12 @@ builder:
   # Build for ARM64 since alastor is ARM-based
   arch: arm64
 
+  # Pass git SHA to Docker build for version display
+  args:
+    GIT_SHA: <%= `git rev-parse --short HEAD`.strip %>
+
   # # Build image via remote server (useful for faster amd64 builds on arm64 computers)
   # remote: ssh://docker@docker-builder-server
-  #
-  # # Pass arguments and secrets to the Docker build process
-  # args:
-  #   RUBY_VERSION: ruby-3.4.7
-  # secrets:
-  #   - GITHUB_TOKEN
-  #   - RAILS_MASTER_KEY
 
 # Use jsp user instead of root
 ssh:

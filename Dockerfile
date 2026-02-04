@@ -42,6 +42,10 @@ RUN bundle install && \
 # Copy application code
 COPY . .
 
+# Create REVISION file with git SHA for version display
+ARG GIT_SHA
+RUN if [ -n "$GIT_SHA" ]; then echo "$GIT_SHA" > REVISION; else git rev-parse --short HEAD > REVISION 2>/dev/null || echo "unknown" > REVISION; fi
+
 # Precompile bootsnap code for faster boot times
 RUN bundle exec bootsnap precompile app/ lib/
 
