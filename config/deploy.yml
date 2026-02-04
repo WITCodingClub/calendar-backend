@@ -7,9 +7,9 @@ image: witcodingclub/calendar-backend
 # Proxy configuration - kamal-proxy handles zero-downtime deployments on port 3002
 proxy:
   host: 0.0.0.0
-  http:
-    port: 3002  # Caddy will proxy to this port
-  ssl: false  # Caddy handles SSL
+  ssl: false
+  env:
+    HTTP_PORT: 3002  # Caddy proxies to this port
 
 # Deploy to these servers.
 servers:
