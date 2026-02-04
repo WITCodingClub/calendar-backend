@@ -4,16 +4,17 @@ service: wit_calendar_backend
 # Name of the container image (without registry prefix - server is in registry config)
 image: witcodingclub/calendar-backend
 
-# Proxy configuration - kamal-proxy on port 3002, Caddy proxies to it
-proxy:
-  run:
-    http_port: 3002
-
 # Deploy to these servers.
 servers:
   web:
     hosts:
       - alastor
+    # Disable kamal-proxy since we're using Caddy for reverse proxying
+    proxy: false
+    options:
+      # Expose port 3002 on host (maps to Puma's default port 3000), Caddy will reverse proxy to it
+      publish:
+        - "3002:3000"
   # job:
   #   hosts:
   #     - alastor
