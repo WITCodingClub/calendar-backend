@@ -18,7 +18,8 @@ servers:
   #     - alastor
   #   cmd: bin/jobs
 
-# No proxy needed - Caddy handles SSL termination and reverse proxying
+# Explicitly disable Kamal proxy - Caddy handles SSL and reverse proxying
+proxy: false
 
 # Credentials for GitHub Container Registry
 registry:
