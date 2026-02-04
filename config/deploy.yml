@@ -1,24 +1,24 @@
 # Name of your application. Used to uniquely configure containers.
 service: wit_calendar_backend
 
-# Name of the container image.
-image: ghcr.io/witcodingclub/calendar-backend
+# Name of the container image (without registry prefix - server is in registry config)
+image: witcodingclub/calendar-backend
 
 # Deploy to these servers.
 servers:
   web:
-    - alastor
+    hosts:
+      - alastor
+    options:
+      # Expose port 3002 on host, Caddy will reverse proxy to it
+      publish:
+        - "3002:80"
   # job:
   #   hosts:
   #     - alastor
   #   cmd: bin/jobs
 
-# Traefik proxy configuration (since port 80 is taken by Caddy)
-# We'll expose on port 3002 and let Caddy handle SSL termination
-proxy:
-  host: server-calendar.witcc.dev
-  ssl: false
-  app_port: 3002
+# No proxy needed - Caddy handles SSL termination and reverse proxying
 
 # Credentials for GitHub Container Registry
 registry:
@@ -73,7 +73,8 @@ asset_path: /rails/public/assets
 
 # Configure the image builder.
 builder:
-  arch: amd64
+  # Build for ARM64 since alastor is ARM-based
+  arch: arm64
 
   # # Build image via remote server (useful for faster amd64 builds on arm64 computers)
   # remote: ssh://docker@docker-builder-server
@@ -85,9 +86,9 @@ builder:
   #   - GITHUB_TOKEN
   #   - RAILS_MASTER_KEY
 
-# Use a different ssh user than root
-# ssh:
-#   user: app
+# Use jsp user instead of root
+ssh:
+  user: jsp
 
 # Use accessory services (secrets come from .kamal/secrets).
 # accessories:
