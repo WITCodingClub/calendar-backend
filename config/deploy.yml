@@ -12,9 +12,9 @@ servers:
     # Disable kamal-proxy since we're using Caddy for reverse proxying
     proxy: false
     options:
-      # Expose port 3002 on host, Caddy will reverse proxy to it
+      # Expose port 3002 on host (maps to Puma's default port 3000), Caddy will reverse proxy to it
       publish:
-        - "3002:80"
+        - "3002:3000"
   # job:
   #   hosts:
   #     - alastor
@@ -38,9 +38,6 @@ env:
     # Run the Solid Queue Supervisor inside the web server's Puma process to do jobs.
     # When you start using multiple servers, you should split out job processing to a dedicated machine.
     SOLID_QUEUE_IN_PUMA: true
-
-    # Port for Puma to listen on (matches EXPOSE in Dockerfile)
-    PORT: 80
 
     # Database connection via Kamal Docker network
     # Kamal accessories are accessible by their accessory name on the kamal network
