@@ -4,11 +4,6 @@ service: wit_calendar_backend
 # Name of the container image (without registry prefix - server is in registry config)
 image: witcodingclub/calendar-backend
 
-# Proxy configuration for kamal-proxy
-proxy:
-  http_port: 3002  # Caddy proxies to this port
-  ssl: false  # Caddy handles SSL
-
 # Deploy to these servers.
 servers:
   web:
