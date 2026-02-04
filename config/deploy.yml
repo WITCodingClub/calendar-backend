@@ -9,6 +9,8 @@ servers:
   web:
     hosts:
       - alastor
+    # Disable kamal-proxy since we're using Caddy for reverse proxying
+    proxy: false
     options:
       # Expose port 3002 on host, Caddy will reverse proxy to it
       publish:
@@ -17,9 +19,6 @@ servers:
   #   hosts:
   #     - alastor
   #   cmd: bin/jobs
-
-# Explicitly disable Kamal proxy - Caddy handles SSL and reverse proxying
-proxy: false
 
 # Credentials for GitHub Container Registry
 registry:
@@ -34,20 +33,28 @@ registry:
 env:
   secret:
     - RAILS_MASTER_KEY
+    - DB_PASSWORD
   clear:
     # Run the Solid Queue Supervisor inside the web server's Puma process to do jobs.
     # When you start using multiple servers, you should split out job processing to a dedicated machine.
     SOLID_QUEUE_IN_PUMA: true
+
+    # Database connection via Kamal Docker network
+    # Kamal accessories are accessible by their accessory name on the kamal network
+    DB_HOST: wit_calendar_backend-db
+    DB_PORT: 5432
+    DB_NAME: wit_calendar_backend_production
+    DB_USERNAME: wit_calendar_backend
+    DB_NAME_QUEUE: wit_calendar_backend_production_queue
+
+    # Redis connection via Kamal Docker network
+    REDIS_URL: redis://wit_calendar_backend-redis:6379/0
 
     # Set number of processes dedicated to Solid Queue (default: 1)
     # JOB_CONCURRENCY: 3
 
     # Set number of cores available to the application on each server (default: 1).
     # WEB_CONCURRENCY: 2
-
-    # Match this to any external database server to configure Active Record correctly
-    # Use wit_calendar_backend-db for a db accessory server on same machine via local kamal docker network.
-    # DB_HOST: 192.168.0.2
 
     # Log everything from Rails
     # RAILS_LOG_LEVEL: debug
@@ -92,25 +99,24 @@ ssh:
   user: jsp
 
 # Use accessory services (secrets come from .kamal/secrets).
-# accessories:
-#   db:
-#     image: mysql:8.0
-#     host: 192.168.0.2
-#     # Change to 3306 to expose port to the world instead of just local network.
-#     port: "127.0.0.1:3306:3306"
-#     env:
-#       clear:
-#         MYSQL_ROOT_HOST: '%'
-#       secret:
-#         - MYSQL_ROOT_PASSWORD
-#     files:
-#       - config/mysql/production.cnf:/etc/mysql/my.cnf
-#       - db/production.sql:/docker-entrypoint-initdb.d/setup.sql
-#     directories:
-#       - data:/var/lib/mysql
-#   redis:
-#     image: redis:7.0
-#     host: 192.168.0.2
-#     port: 6379
-#     directories:
-#       - data:/data
+accessories:
+  db:
+    image: pgvector/pgvector:pg16
+    host: alastor
+    network: kamal
+    port: "127.0.0.1:5432:5432"
+    env:
+      clear:
+        POSTGRES_DB: wit_calendar_backend_production
+        POSTGRES_USER: wit_calendar_backend
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    host: alastor
+    network: kamal
+    port: "127.0.0.1:6379:6379"
+    directories:
+      - data:/data

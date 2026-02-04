@@ -2,7 +2,6 @@ default: &default
   adapter: postgresql
   encoding: unicode
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 7 } %>
-  url: <%= ENV['DATABASE_URL'] %>
 
 development:
   primary: &primary_development
@@ -35,11 +34,21 @@ staging:
 
 production:
   primary: &primary_production
-    <<: *default
-    database: wit_calendar_backend_production
-    username: wit_calendar_backend
-    password: <%= ENV["WIT_CALENDAR_BACKEND_DATABASE_PASSWORD"] %>
+    adapter: postgresql
+    encoding: unicode
+    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 7 } %>
+    host: <%= ENV.fetch("DB_HOST") { "wit_calendar_backend-db" } %>
+    port: <%= ENV.fetch("DB_PORT") { 5432 } %>
+    database: <%= ENV.fetch("DB_NAME") { "wit_calendar_backend_production" } %>
+    username: <%= ENV.fetch("DB_USERNAME") { "wit_calendar_backend" } %>
+    password: <%= ENV.fetch("DB_PASSWORD") %>
   queue:
-    <<: *primary_production
-    database: wit_calendar_backend_production_queue
+    adapter: postgresql
+    encoding: unicode
+    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 7 } %>
+    host: <%= ENV.fetch("DB_HOST") { "wit_calendar_backend-db" } %>
+    port: <%= ENV.fetch("DB_PORT") { 5432 } %>
+    database: <%= ENV.fetch("DB_NAME_QUEUE") { "wit_calendar_backend_production_queue" } %>
+    username: <%= ENV.fetch("DB_USERNAME") { "wit_calendar_backend" } %>
+    password: <%= ENV.fetch("DB_PASSWORD") %>
     migrations_paths: db/queue_migrate

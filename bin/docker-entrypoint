@@ -8,6 +8,13 @@ fi
 
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+  # Wait for database to be ready
+  echo "Waiting for database to be ready..."
+  until nc -z "${DB_HOST:-localhost}" "${DB_PORT:-5432}"; do
+    echo "Database is unavailable - sleeping"
+    sleep 1
+  done
+  echo "Database is up - executing db:prepare"
   ./bin/rails db:prepare
 fi
 
