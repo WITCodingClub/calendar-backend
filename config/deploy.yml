@@ -9,12 +9,10 @@ servers:
   web:
     hosts:
       - alastor
-    # Disable kamal-proxy since we're using Caddy for reverse proxying
-    proxy: false
-    options:
-      # Expose port 3002 on host (maps to Puma's default port 3000), Caddy will reverse proxy to it
-      publish:
-        - "3002:3000"
+    # Use kamal-proxy for zero-downtime deployments, Caddy proxies to kamal-proxy
+    proxy:
+      host: localhost
+      port: 3002
   # job:
   #   hosts:
   #     - alastor
