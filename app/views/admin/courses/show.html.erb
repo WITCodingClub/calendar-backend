@@ -36,7 +36,7 @@
           <dt class="text-sm font-medium text-gray-500">Instructors</dt>
           <dd class="mt-1 text-sm text-gray-900">
             <% if @course.faculties.any? %>
-              <%= @course.faculties.map { |f| link_to f.full_name, admin_faculty_path(f), class: "text-red-700 hover:text-red-800" }.join(", ").html_safe %>
+              <%= safe_join(@course.faculties.map { |f| link_to f.full_name, admin_faculty_path(f), class: "text-red-700 hover:text-red-800" }, ", ") %>
             <% else %>
               TBA
             <% end %>
