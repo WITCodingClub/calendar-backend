@@ -26,7 +26,7 @@ class User < ApplicationRecord
   include GoogleOauthable
   include CourseScheduleSyncable
   include CalendarTokenable
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :usr
 

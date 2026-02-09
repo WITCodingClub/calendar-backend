@@ -31,7 +31,7 @@
 #
 class EventPreference < ApplicationRecord
   include ReminderSettingsNormalizable
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :epf, min_hash_length: 12
 

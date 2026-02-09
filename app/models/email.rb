@@ -24,7 +24,7 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class Email < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :eml
 

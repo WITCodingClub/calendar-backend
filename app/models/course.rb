@@ -35,7 +35,7 @@
 #
 class Course < ApplicationRecord
   include CourseChangeTrackable
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
   include Embeddable
 
   set_public_id_prefix :crs

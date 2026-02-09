@@ -38,7 +38,7 @@
 #  fk_rails_...  (term_id => terms.id)
 #
 class UniversityCalendarEvent < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
   include FuzzyDuplicateDetector
 
   set_public_id_prefix :uce, min_hash_length: 12

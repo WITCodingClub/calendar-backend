@@ -29,7 +29,7 @@
 #  fk_rails_...  (faculty_id => faculties.id)
 #
 class RatingDistribution < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :rdi
 

@@ -23,7 +23,7 @@
 #  fk_rails_...  (faculty_id => faculties.id)
 #
 class TeacherRatingTag < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :trt
 

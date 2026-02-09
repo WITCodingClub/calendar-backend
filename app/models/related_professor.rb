@@ -27,7 +27,7 @@
 #  fk_rails_...  (related_faculty_id => faculties.id)
 #
 class RelatedProfessor < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :rpr
 

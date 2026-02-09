@@ -27,7 +27,7 @@
 #
 class Enrollment < ApplicationRecord
   include CalendarSyncable
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :enr, min_hash_length: 12
 

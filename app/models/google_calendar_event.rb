@@ -44,7 +44,7 @@
 #  fk_rails_...  (university_calendar_event_id => university_calendar_events.id)
 #
 class GoogleCalendarEvent < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :gce, min_hash_length: 12
 

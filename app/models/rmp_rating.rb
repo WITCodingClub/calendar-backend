@@ -36,7 +36,7 @@
 #  fk_rails_...  (faculty_id => faculties.id)
 #
 class RmpRating < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
   include Embeddable
 
   set_public_id_prefix :rmp, min_hash_length: 12

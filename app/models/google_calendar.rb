@@ -26,7 +26,7 @@
 #  fk_rails_...  (oauth_credential_id => oauth_credentials.id)
 #
 class GoogleCalendar < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :gcl
 

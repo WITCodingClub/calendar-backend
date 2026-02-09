@@ -25,7 +25,7 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class UserExtensionConfig < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :uec
 
