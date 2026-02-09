@@ -17,6 +17,11 @@ class Rack::Attack
   # SAFELISTS - Requests that bypass all rate limiting
   # ============================================================================
 
+  # Disable rate limiting when DISABLE_RACK_ATTACK env var is set (e.g., for API doc generation)
+  safelist("disable-rack-attack") do |_req|
+    ENV["DISABLE_RACK_ATTACK"] == "true"
+  end
+
   # Disable rate limiting entirely in test environment
   # NOTE: Commented out to allow rate limiting tests to run
   # safelist("allow-test-environment") do |req|

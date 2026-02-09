@@ -170,6 +170,7 @@ jobs:
         env:
           OPENAPI: 1
           REDIS_URL: redis://localhost:6379/0
+          DISABLE_RACK_ATTACK: true
         run: bundle exec rspec spec/requests/api --format progress
 
       - name: Commit and push API Docs
