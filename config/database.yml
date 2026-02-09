@@ -41,7 +41,7 @@ production:
     port: <%= ENV.fetch("DB_PORT") { 5432 } %>
     database: <%= ENV.fetch("DB_NAME") { "wit_calendar_backend_production" } %>
     username: <%= ENV.fetch("DB_USERNAME") { "wit_calendar_backend" } %>
-    password: <%= ENV.fetch("DB_PASSWORD") %>
+    password: <%= ENV.fetch("DB_PASSWORD") { "" } %>
   queue:
     adapter: postgresql
     encoding: unicode
@@ -50,5 +50,5 @@ production:
     port: <%= ENV.fetch("DB_PORT") { 5432 } %>
     database: <%= ENV.fetch("DB_NAME_QUEUE") { "wit_calendar_backend_production_queue" } %>
     username: <%= ENV.fetch("DB_USERNAME") { "wit_calendar_backend" } %>
-    password: <%= ENV.fetch("DB_PASSWORD") %>
+    password: <%= ENV.fetch("DB_PASSWORD") { "" } %>
     migrations_paths: db/queue_migrate
