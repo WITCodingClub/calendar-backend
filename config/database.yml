@@ -15,10 +15,12 @@ development:
 test:
     primary: &primary_test
         <<: *default
-        database: wit_calendar_backend_test
+        database: wit_calendar_backend_test<%= ENV['TEST_ENV_NUMBER'] %>
+        host: <%= ENV.fetch("DB_HOST") { "localhost" } %>
+        port: <%= ENV.fetch("DB_PORT") { 5432 } %>
     queue:
         <<: *primary_test
-        database: wit_calendar_backend_test_queue
+        database: wit_calendar_backend_test_queue<%= ENV['TEST_ENV_NUMBER'] %>
         migrations_paths: db/queue_migrate
 
 staging:
