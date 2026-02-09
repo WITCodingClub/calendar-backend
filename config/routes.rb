@@ -386,6 +386,11 @@ Rails.application.routes.draw do
         post :sync
       end
     end
+
+    # Degree audit sync and retrieval
+    post "users/me/degree_audit/sync", to: "degree_audits#sync"
+    get "users/me/degree_audit", to: "degree_audits#show"
+    get "users/me/degree_audit/history", to: "degree_audits#history"
   end
 
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
