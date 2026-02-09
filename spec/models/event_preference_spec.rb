@@ -21,8 +21,6 @@
 # Indexes
 #
 #  index_event_preferences_on_preferenceable     (preferenceable_type,preferenceable_id)
-#  index_event_preferences_on_user_id            (user_id)
-#  index_event_prefs_on_preferenceable           (preferenceable_type,preferenceable_id)
 #  index_event_prefs_on_user_and_preferenceable  (user_id,preferenceable_type,preferenceable_id) UNIQUE
 #
 # Foreign Keys

@@ -15,7 +15,6 @@
 #
 # Indexes
 #
-#  index_teacher_rating_tags_on_faculty_id                    (faculty_id)
 #  index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id  (faculty_id,rmp_legacy_id) UNIQUE
 #
 # Foreign Keys
