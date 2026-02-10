@@ -50,8 +50,8 @@ RSpec.describe UserDegreeProgram do
   end
 
   describe "enums" do
-    it { is_expected.to define_enum_for(:status).with_values(active: "active", completed: "completed", dropped: "dropped", suspended: "suspended").with_default(:active) }
-    it { is_expected.to define_enum_for(:program_type).with_values(major: "major", minor: "minor", certificate: "certificate", concentration: "concentration") }
+    it { is_expected.to define_enum_for(:status).with_values(active: "active", completed: "completed", dropped: "dropped", suspended: "suspended").backed_by_column_of_type(:string).with_default(:active) }
+    it { is_expected.to define_enum_for(:program_type).with_values(major: "major", minor: "minor", certificate: "certificate", concentration: "concentration").backed_by_column_of_type(:string) }
   end
 
   describe "scopes" do
