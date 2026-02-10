@@ -806,7 +806,6 @@ DEPENDENCIES
   foreman
   google-apis-calendar_v3 (~> 0.51.0)
   googleauth (~> 1.16)
-  hashid-rails
   heroicon (~> 1.0)
   icalendar (~> 2.12, >= 2.12.1)
   importmap-rails
