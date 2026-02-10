@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Malformed HTML</title>
+</head>
+<body>
+  <section aria-labelledby="degreeEvaluation">
+    <h1 id="degreeEvaluation">Degree Evaluation</h1>
+
+    <div class="program-info">
+      <!-- Intentionally malformed - missing closing tags -->
+      <span class="program-code">BCOS3
+      <span class="program-name">Computer Science
+    </div>
+
+    <div class="requirement-area">
+      <span class="area-name"></span>
+      <!-- Empty values -->
+      <span class="credits-required"></span>
+      <span class="credits-completed"></span>
+    </div>
+
+    <div class="course-completion">
+      <!-- Empty section -->
+    </div>
+
+    <div class="degree-summary">
+      <!-- Missing critical fields -->
+    </div>
+  </section>
+</body>
+</html>
