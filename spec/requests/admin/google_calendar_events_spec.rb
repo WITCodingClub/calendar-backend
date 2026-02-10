@@ -9,9 +9,11 @@ RSpec.describe "Admin::GoogleCalendarEvents" do
   let(:google_calendar) { create(:google_calendar, oauth_credential: oauth_credential) }
 
   before do
-    # Create some sample events
-    meeting_time = create(:meeting_time)
-    create_list(:google_calendar_event, 3, google_calendar: google_calendar, meeting_time: meeting_time)
+    # Create some sample events with different meeting times
+    3.times do
+      meeting_time = create(:meeting_time)
+      create(:google_calendar_event, google_calendar: google_calendar, meeting_time: meeting_time)
+    end
   end
 
   describe "GET /admin/google_calendar_events" do
