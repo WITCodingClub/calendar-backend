@@ -45,7 +45,7 @@ class CleanupOrphanedOauthCredentialsJob < ApplicationJob
     orphaned_ids = []
 
     # Find credentials where the email doesn't exist in the Emails table
-    orphaned_by_email_sql = <<-SQL.squish
+    orphaned_by_email_sql = <<~SQL.squish
       SELECT oauth_credentials.id
       FROM oauth_credentials
       LEFT OUTER JOIN emails ON emails.email = oauth_credentials.email
@@ -61,7 +61,7 @@ class CleanupOrphanedOauthCredentialsJob < ApplicationJob
     orphaned_ids.concat(orphaned_by_expired_token)
 
     # Find credentials whose user no longer exists
-    orphaned_by_user_sql = <<-SQL.squish
+    orphaned_by_user_sql = <<~SQL.squish
       SELECT oauth_credentials.id
       FROM oauth_credentials
       LEFT OUTER JOIN users ON users.id = oauth_credentials.user_id

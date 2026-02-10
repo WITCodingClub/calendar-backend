@@ -21,7 +21,6 @@
 #
 #  index_oauth_credentials_on_provider_and_uid     (provider,uid) UNIQUE
 #  index_oauth_credentials_on_token_expires_at     (token_expires_at)
-#  index_oauth_credentials_on_user_id              (user_id)
 #  index_oauth_credentials_on_user_provider_email  (user_id,provider,email) UNIQUE
 #
 # Foreign Keys
