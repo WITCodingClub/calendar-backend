@@ -56,7 +56,7 @@ RSpec.describe "Admin::GoogleCalendarEvents", type: :request do # rubocop:disabl
 
       it "redirects to unauthorized page" do
         get admin_google_calendar_events_path
-        expect(response).to redirect_to(admin_unauthorized_path)
+        expect(response).to redirect_to(unauthorized_path)
       end
     end
 
