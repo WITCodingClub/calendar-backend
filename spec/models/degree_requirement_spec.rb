@@ -17,7 +17,7 @@ RSpec.describe DegreeRequirement do
   end
 
   describe "enums" do
-    it { is_expected.to define_enum_for(:requirement_type).with_values(core: "core", major: "major", minor: "minor", elective: "elective", general_education: "general_education", concentration: "concentration") }
+    it { is_expected.to define_enum_for(:requirement_type).with_values(core: "core", major: "major", minor: "minor", elective: "elective", general_education: "general_education", concentration: "concentration").backed_by_column_of_type(:string) }
   end
 
   describe "scopes" do
