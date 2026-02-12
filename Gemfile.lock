@@ -100,7 +100,7 @@ GEM
       activesupport (>= 7.1)
       device_detector (>= 1)
       safely_block (>= 0.4)
-    annotaterb (4.21.0)
+    annotaterb (4.22.0)
       activerecord (>= 6.0.0)
       activesupport (>= 6.0.0)
     argon2-kdf (0.3.1)
@@ -806,7 +806,6 @@ DEPENDENCIES
   foreman
   google-apis-calendar_v3 (~> 0.51.0)
   googleauth (~> 1.16)
-  hashid-rails
   heroicon (~> 1.0)
   icalendar (~> 2.12, >= 2.12.1)
   importmap-rails
