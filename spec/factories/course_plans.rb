@@ -36,7 +36,7 @@ FactoryBot.define do
   factory :course_plan do
     user
     term
-    course { { optional: true } }
+    course { nil }
     planned_subject { "COMP" }
     planned_course_number { 2000 }
     planned_crn { nil }

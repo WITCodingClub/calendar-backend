@@ -44,8 +44,8 @@ FactoryBot.define do
   factory :requirement_completion do
     user
     degree_requirement
-    course { { optional: true } }
-    term { { optional: true } }
+    course { nil }
+    term { nil }
     subject { "COMP" }
     course_number { 1000 }
     course_title { "Introduction to Programming" }
