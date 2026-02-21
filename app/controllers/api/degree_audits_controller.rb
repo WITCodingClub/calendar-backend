@@ -21,8 +21,8 @@ module Api
         term_id: params[:term_id]
       )
 
-      # Authorize the created snapshot
-      authorize result[:snapshot]
+      # Authorize the created snapshot (use create? since we're creating/syncing)
+      authorize result[:snapshot], :create?
 
       success_response(
         data: {
@@ -72,7 +72,7 @@ module Api
                       .first
 
       if snapshot
-        authorize snapshot
+        authorize snapshot, :show?
         success_response(
           data: {
             id: snapshot.id,
