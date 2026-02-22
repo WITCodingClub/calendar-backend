@@ -80,6 +80,91 @@ namespace :university_calendar do
     puts "  Last fetched: #{UniversityCalendarEvent.maximum(:last_fetched_at)}"
   end
 
+  desc "Retroactively restore past university calendar events (holidays, etc.) that were incorrectly deleted from user GCals"
+  task restore_past_events: :environment do
+    puts "Restoring past university calendar events deleted due to bug #360..."
+    puts ""
+
+    # Collect all past holidays - these should be in every user's calendar
+    past_holidays = UniversityCalendarEvent.holidays.past.order(:start_time).to_a
+    puts "Found #{past_holidays.size} past holidays to check"
+
+    users_processed = 0
+    events_restored = 0
+    errors = []
+
+    User.joins(oauth_credentials: :google_calendar).distinct.find_each do |user|
+      google_calendar = GoogleCalendar.for_user(user).first
+      next unless google_calendar
+
+      begin
+        # Find which past holiday IDs already have a GCal event record for this user
+        existing_uni_event_ids = google_calendar.google_calendar_events
+                                                .where.not(university_calendar_event_id: nil)
+                                                .pluck(:university_calendar_event_id)
+
+        # Find past holidays missing from this user's calendar
+        missing_holidays = past_holidays.reject { |e| existing_uni_event_ids.include?(e.id) }
+
+        # Also check opted-in non-holiday categories
+        user_config = user.user_extension_config
+        if user_config&.sync_university_events
+          opted_categories = (user_config.university_event_categories || []) - ["holiday"]
+          unless opted_categories.empty?
+            past_opted_events = UniversityCalendarEvent.past
+                                                       .by_categories(opted_categories)
+                                                       .order(:start_time)
+                                                       .to_a
+            missing_opted = past_opted_events.reject { |e| existing_uni_event_ids.include?(e.id) }
+            missing_holidays += missing_opted
+          end
+        end
+
+        if missing_holidays.empty?
+          puts "  User #{user.id} (#{user.email}): nothing to restore"
+          users_processed += 1
+          next
+        end
+
+        puts "  User #{user.id} (#{user.email}): restoring #{missing_holidays.size} events"
+
+        events_to_add = missing_holidays.map do |event|
+          {
+            summary: event.category == "holiday" ? event.formatted_holiday_summary : event.summary,
+            description: event.description,
+            location: event.location,
+            start_time: event.start_time,
+            end_time: event.end_time,
+            university_calendar_event_id: event.id,
+            all_day: event.all_day || true,
+            recurrence: nil
+          }
+        end
+
+        service = GoogleCalendarService.new(user)
+        result = service.update_specific_events(events_to_add, force: false)
+
+        restored = result[:created] + result[:updated]
+        events_restored += restored
+        puts "    ✓ Restored #{restored} events (#{result[:created]} created, #{result[:updated]} updated, #{result[:skipped]} skipped)"
+        users_processed += 1
+      rescue => e
+        errors << "User #{user.id}: #{e.message}"
+        puts "    ✗ Error: #{e.message}"
+      end
+    end
+
+    puts ""
+    puts "=" * 60
+    puts "Summary:"
+    puts "  Users processed: #{users_processed}"
+    puts "  Events restored: #{events_restored}"
+    puts "  Errors: #{errors.size}"
+    errors.each { |err| puts "    - #{err}" } if errors.any?
+    puts ""
+    puts "✓ Done! Past university calendar events have been restored."
+  end
+
   desc "Fix term associations for term_dates events using date-based inference"
   task fix_term_associations: :environment do
     puts "Fixing term associations for term_dates events..."

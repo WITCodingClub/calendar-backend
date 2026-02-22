@@ -457,6 +457,76 @@ RSpec.describe GoogleCalendarService do
     end
   end
 
+  describe "#update_calendar_events - past university event preservation" do
+    let(:mock_calendar_service) { double("Google::Apis::CalendarV3::CalendarService") }
+
+    before do
+      allow(service).to receive(:user_calendar_service).and_return(mock_calendar_service)
+      allow(service).to receive(:with_rate_limit_handling).and_yield
+      allow(service).to receive(:with_batch_throttling) { |items, &block| items.each { |item| block.call(item) } }
+      allow(service).to receive(:apply_preferences_to_event) { |_syncable, event, **| event }
+    end
+
+    context "when a past university calendar event exists in the DB but is not in the sync list" do
+      let(:past_university_event) do
+        create(:university_calendar_event,
+               category: "holiday",
+               start_time: 2.weeks.ago.beginning_of_day,
+               end_time: 2.weeks.ago.end_of_day)
+      end
+
+      let!(:past_gcal_event) do
+        create(:google_calendar_event, :with_university_calendar_event,
+               google_calendar: google_calendar,
+               university_calendar_event: past_university_event,
+               google_event_id: "past_holiday_event_id",
+               start_time: 2.weeks.ago.beginning_of_day,
+               end_time: 2.weeks.ago.end_of_day)
+      end
+
+      it "does NOT delete the past university calendar event from Google Calendar" do
+        allow(mock_calendar_service).to receive(:delete_event)
+
+        # Sync with an empty events list (simulating no upcoming university events)
+        service.update_calendar_events([], force: false)
+
+        expect(mock_calendar_service).not_to have_received(:delete_event)
+      end
+
+      it "does NOT destroy the past university calendar event DB record" do
+        allow(mock_calendar_service).to receive(:delete_event)
+
+        service.update_calendar_events([], force: false)
+
+        expect(GoogleCalendarEvent.exists?(past_gcal_event.id)).to be true
+      end
+    end
+
+    context "when a past meeting time event is not in the sync list" do
+      let(:meeting_time) { create(:meeting_time) }
+
+      let!(:past_course_gcal_event) do
+        create(:google_calendar_event,
+               google_calendar: google_calendar,
+               meeting_time: meeting_time,
+               google_event_id: "past_course_event_id",
+               start_time: 3.months.ago,
+               end_time: 3.months.ago + 1.hour)
+      end
+
+      it "deletes the stale course event from Google Calendar" do
+        allow(mock_calendar_service).to receive(:delete_event)
+
+        service.update_calendar_events([], force: false)
+
+        expect(mock_calendar_service).to have_received(:delete_event).with(
+          google_calendar.google_calendar_id,
+          "past_course_event_id"
+        )
+      end
+    end
+  end
+
   describe "#add_calendar_to_user_list_for_email" do
     let(:calendar_id) { "test_calendar_id@group.calendar.google.com" }
     let(:email) { "test@example.com" }
