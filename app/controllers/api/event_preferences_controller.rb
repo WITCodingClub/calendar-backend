@@ -29,7 +29,7 @@ module Api
       resolved_prefs[:color_id] = normalize_color_to_witcc_hex(resolved_prefs[:color_id])
 
       render json: {
-        individual_preference: preference ? event_preference_json(preference) : nil,
+        individual_preference: preference ? EventPreferenceSerializer.new(preference).as_json : nil,
         resolved: resolved_prefs,
         sources: resolved_data[:sources],
         preview: preview,
@@ -70,7 +70,7 @@ module Api
         resolved_prefs[:color_id] = normalize_color_to_witcc_hex(resolved_prefs[:color_id])
 
         render json: {
-          individual_preference: event_preference_json(preference),
+          individual_preference: EventPreferenceSerializer.new(preference).as_json,
           resolved: resolved_prefs,
           sources: resolved_data[:sources],
           preview: preview,
@@ -148,17 +148,6 @@ module Api
       end
 
       permitted
-    end
-
-    def event_preference_json(preference)
-      {
-        title_template: preference.title_template,
-        description_template: preference.description_template,
-        location_template: preference.location_template,
-        reminder_settings: transform_reminder_settings(preference.reminder_settings),
-        color_id: normalize_color_to_witcc_hex(preference.color_id),
-        visibility: preference.visibility
-      }
     end
 
     def generate_preview(resolved_preferences, context)

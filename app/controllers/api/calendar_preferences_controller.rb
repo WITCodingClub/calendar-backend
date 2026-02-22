@@ -12,9 +12,9 @@ module Api
       uni_cal_category_prefs = preferences.where(scope: :uni_cal_category)
 
       render json: {
-        global: global_pref ? preference_json(global_pref) : nil,
-        event_types: event_type_prefs.index_by(&:event_type).transform_values { |p| preference_json(p) },
-        uni_cal_categories: uni_cal_category_prefs.index_by(&:event_type).transform_values { |p| preference_json(p) }
+        global: global_pref ? CalendarPreferenceSerializer.new(global_pref).as_json : nil,
+        event_types: event_type_prefs.index_by(&:event_type).transform_values { |p| CalendarPreferenceSerializer.new(p).as_json },
+        uni_cal_categories: uni_cal_category_prefs.index_by(&:event_type).transform_values { |p| CalendarPreferenceSerializer.new(p).as_json }
       }
     end
 
@@ -23,7 +23,7 @@ module Api
     # GET /api/calendar_preferences/uni_cal:category (e.g., uni_cal:holiday, uni_cal:deadline)
     def show
       authorize @calendar_preference
-      render json: preference_json(@calendar_preference)
+      render json: CalendarPreferenceSerializer.new(@calendar_preference).as_json
     end
 
     # PUT /api/calendar_preferences/global
@@ -35,7 +35,7 @@ module Api
         # Trigger immediate calendar sync in background
         GoogleCalendarSyncJob.perform_later(current_user, force: true)
 
-        render json: preference_json(@calendar_preference)
+        render json: CalendarPreferenceSerializer.new(@calendar_preference).as_json
       else
         render json: { errors: @calendar_preference.errors.full_messages }, status: :unprocessable_content
       end
@@ -150,19 +150,6 @@ module Api
       end
 
       permitted
-    end
-
-    def preference_json(preference)
-      {
-        scope: preference.scope,
-        event_type: preference.event_type,
-        title_template: preference.title_template,
-        description_template: preference.description_template,
-        location_template: preference.location_template,
-        reminder_settings: transform_reminder_settings(preference.reminder_settings),
-        color_id: normalize_color_to_witcc_hex(preference.color_id),
-        visibility: preference.visibility
-      }
     end
 
   end
