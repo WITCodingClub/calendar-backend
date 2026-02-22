@@ -47,6 +47,7 @@ class User < ApplicationRecord
   has_many :event_preferences, dependent: :destroy
   has_one :user_extension_config, dependent: :destroy
   has_many :security_events, dependent: :destroy
+  has_many :requirement_completions, dependent: :destroy
   before_create :generate_calendar_token
   after_create :create_user_extension_config
 
