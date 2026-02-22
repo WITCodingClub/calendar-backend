@@ -45,6 +45,7 @@ class User < ApplicationRecord
   has_many :google_calendar_events, through: :google_calendars
   has_many :calendar_preferences, dependent: :destroy
   has_many :event_preferences, dependent: :destroy
+  has_many :course_plans, dependent: :destroy
   has_one :user_extension_config, dependent: :destroy
   has_many :security_events, dependent: :destroy
   before_create :generate_calendar_token
