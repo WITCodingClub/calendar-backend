@@ -143,6 +143,14 @@ module Admin
         min_role: :admin,
         items: [
           {
+            id: :transfer_equivalencies,
+            title: "Transfer Equivalencies",
+            path: :admin_transfer_equivalencies_path,
+            icon: "arrows-right-left",
+            description: "View and sync transfer credit equivalencies",
+            keywords: ["transfer", "credits", "equivalency", "tes"]
+          },
+          {
             id: :course_catalog,
             title: "Course Catalog",
             path: :admin_course_catalog_path,
