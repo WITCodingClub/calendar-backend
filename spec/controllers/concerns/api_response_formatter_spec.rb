@@ -29,6 +29,18 @@ RSpec.describe ApiResponseFormatter do
     def not_found_test
       not_found_error("Resource not found")
     end
+
+    def success_created_test
+      success_response(data: { test: true }, status: :created)
+    end
+
+    def server_error_test
+      error_response(error: "Server error", code: ApiErrorCodes::SERVER_ERROR, status: :internal_server_error)
+    end
+
+    def auth_error_default_test
+      auth_error
+    end
   end
 
   before do
@@ -39,6 +51,9 @@ RSpec.describe ApiResponseFormatter do
       get "auth_error_test" => "anonymous#auth_error_test"
       get "validation_error_test" => "anonymous#validation_error_test"
       get "not_found_test" => "anonymous#not_found_test"
+      get "success_created_test" => "anonymous#success_created_test"
+      get "server_error_test" => "anonymous#server_error_test"
+      get "auth_error_default_test" => "anonymous#auth_error_default_test"
     }
   end
 
@@ -64,7 +79,7 @@ RSpec.describe ApiResponseFormatter do
     end
 
     it "allows custom status codes" do
-      controller.success_response(data: { test: true }, status: :created)
+      get :success_created_test
 
       expect(response).to have_http_status(:created)
     end
@@ -82,11 +97,7 @@ RSpec.describe ApiResponseFormatter do
     end
 
     it "allows custom status codes" do
-      controller.error_response(
-        error: "Server error",
-        code: ApiErrorCodes::SERVER_ERROR,
-        status: :internal_server_error
-      )
+      get :server_error_test
 
       expect(response).to have_http_status(:internal_server_error)
     end
@@ -104,7 +115,7 @@ RSpec.describe ApiResponseFormatter do
     end
 
     it "uses default message if none provided" do
-      controller.auth_error
+      get :auth_error_default_test
 
       json = response.parsed_body
       expect(json["error"]).to eq("Authentication required")

@@ -10,6 +10,8 @@ RSpec.describe "API::DegreeAudits", :openapi do
   let(:term) { create(:term) }
   let(:html_content) { Rails.root.join("spec/fixtures/leopard_web/degree_audit/valid_single_program.html").read }
 
+  before { Flipper.enable(FlipperFlags::V1, user) }
+
   describe "POST /api/users/me/degree_audit/sync" do
     let(:valid_params) do
       {
