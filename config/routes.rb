@@ -64,6 +64,12 @@
 #       sync_api_university_calendar_events POST   /api/university_calendar_events/sync(.:format)                                                    api/university_calendar_events#sync
 #            api_university_calendar_events GET    /api/university_calendar_events(.:format)                                                         api/university_calendar_events#index
 #             api_university_calendar_event GET    /api/university_calendar_events/:id(.:format)                                                     api/university_calendar_events#show
+#            api_users_me_degree_audit_sync POST   /api/users/me/degree_audit/sync(.:format)                                                         api/degree_audits#sync
+#                 api_users_me_degree_audit GET    /api/users/me/degree_audit(.:format)                                                              api/degree_audits#show
+#         api_users_me_degree_audit_history GET    /api/users/me/degree_audit/history(.:format)                                                      api/degree_audits#history
+#                     api_users_me_crn_list GET    /api/users/me/crn_list(.:format)                                                                  api/crn_list#index
+#             api_users_me_crn_list_courses POST   /api/users/me/crn_list/courses(.:format)                                                          api/crn_list#add_course
+#                                           DELETE /api/users/me/crn_list/courses/:id(.:format)                                                      api/crn_list#remove_course
 #                                  calendar GET    /calendar/:calendar_token(.:format)                                                               calendars#show {format: :ics}
 #                               risc_events POST   /risc/events(.:format)                                                                            risc#create
 #               auth_google_oauth2_callback GET    /auth/google_oauth2/callback(.:format)                                                            auth#google
@@ -421,6 +427,11 @@ Rails.application.routes.draw do
     post "users/me/degree_audit/sync", to: "degree_audits#sync"
     get "users/me/degree_audit", to: "degree_audits#show"
     get "users/me/degree_audit/history", to: "degree_audits#history"
+
+    # CRN List / Course Planning
+    get "users/me/crn_list", to: "crn_list#index"
+    post "users/me/crn_list/courses", to: "crn_list#add_course"
+    delete "users/me/crn_list/courses/:id", to: "crn_list#remove_course"
   end
 
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
