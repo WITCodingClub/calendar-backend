@@ -14,7 +14,7 @@ module Api
     rescue_from StandardError, with: :render_internal_server_error
     rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
     rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable_entity
-    rescue_from ActionController::ParameterMissing, with: :render_bad_request
+    rescue_from ActionController::BadRequest, ActionController::ParameterMissing, with: :render_bad_request
     rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
 
     private
@@ -32,7 +32,7 @@ module Api
     end
 
     def render_bad_request(exception)
-      render json: { error: exception.message }, status: :bad_request
+      render json: { success: false, error: exception.message, code: "VALIDATION_FAILED" }, status: :bad_request
     end
 
     def render_internal_server_error(exception)

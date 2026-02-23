@@ -36,6 +36,11 @@ rescue ActiveRecord::PendingMigrationError => e
   abort e.to_s.strip
 end
 RSpec.configure do |config|
+  # Reset Rack::Attack rate limit counters between tests to prevent parallel test interference
+  config.before do
+    Rack::Attack.cache.store.clear
+  end
+
   # Include FactoryBot methods
   config.include FactoryBot::Syntax::Methods
 

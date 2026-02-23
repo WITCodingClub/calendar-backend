@@ -39,15 +39,16 @@ class DegreeAuditSyncService < ApplicationService
   # Perform the degree audit sync with timeout and advisory lock
   def sync
     Timeout.timeout(SYNC_TIMEOUT) do
-      ActiveRecord::Base.with_advisory_lock("degree_audit_sync_#{user.id}", timeout_seconds: 0) do
+      result = ActiveRecord::Base.with_advisory_lock("degree_audit_sync_#{user.id}", timeout_seconds: 0) do
         perform_sync
       end
+      raise ConcurrentSyncError, "A degree audit sync is already in progress" if result.nil?
+
+      result
     end
   rescue Timeout::Error
     Rails.logger.warn("Degree audit sync timeout for user #{user.id}")
     raise ParseTimeout, "Sync took too long. Please try again."
-  rescue ActiveRecord::AdvisoryLockError
-    raise ConcurrentSyncError, "A degree audit sync is already in progress"
   end
 
   # Perform the actual sync logic
@@ -70,7 +71,7 @@ class DegreeAuditSyncService < ApplicationService
       return {
         snapshot: existing_snapshot,
         duplicate: true,
-        message: "Degree audit already synced (no changes detected)"
+        message: "Degree audit updated (no changes detected)"
       }
     end
 

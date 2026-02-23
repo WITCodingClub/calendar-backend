@@ -21,6 +21,18 @@
           <dd class="mt-1 text-sm text-gray-900"><%= @user.email %></dd>
         </div>
 
+        <div>
+          <dt class="text-sm font-medium text-gray-500">User ID</dt>
+          <dd class="mt-1 flex items-center gap-2">
+            <code class="text-sm bg-gray-100 px-2 py-1 rounded font-mono text-gray-700"><%= @user.public_id %></code>
+            <button type="button"
+                    onclick="navigator.clipboard.writeText('<%= @user.public_id %>'); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
+                    class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+              Copy
+            </button>
+          </dd>
+        </div>
+
         <% if policy(@user).view_access_level? %>
           <div>
             <dt class="text-sm font-medium text-gray-500">Access Level</dt>
@@ -142,6 +154,98 @@
     </div>
   </div>
   <% end %>
+
+  <!-- Friends Section -->
+  <div class="mt-8 glass-card shadow-lg rounded-lg overflow-hidden">
+    <div class="px-6 py-5">
+      <details class="group" open>
+        <summary class="flex justify-between items-center cursor-pointer list-none">
+          <h2 class="text-xl font-bold">Friends (<%= @user.friends.count %>)</h2>
+          <svg class="w-5 h-5 text-gray-500 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </summary>
+
+        <div class="mt-4">
+          <!-- Add Friend Form -->
+          <% if policy(@user).manage_friendships? %>
+            <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+              <h3 class="text-sm font-medium text-gray-700 mb-2">Add Friend</h3>
+              <%= form_with url: add_friend_admin_user_path(@user), method: :post, class: "flex gap-2 items-end" do |f| %>
+                <div class="flex-1">
+                  <label class="block text-xs text-gray-500 mb-1">Friend's User ID (usr_...)</label>
+                  <%= f.text_field :friend_id, placeholder: "usr_abc123", class: "w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#d13732] focus:ring-opacity-50" %>
+                </div>
+                <%= f.submit "Add Friend", class: "px-4 py-2 text-sm bg-[#d13732] text-white rounded-md hover:bg-[#b82e2a] cursor-pointer" %>
+              <% end %>
+            </div>
+          <% end %>
+
+          <!-- Friends List -->
+          <% friends = @user.friends %>
+          <% if friends.any? %>
+            <div class="space-y-2">
+              <% friends.each do |friend| %>
+                <div class="flex items-center justify-between py-2 px-3 bg-white rounded border border-gray-200">
+                  <div class="flex items-center gap-3">
+                    <div>
+                      <div class="font-medium text-gray-900"><%= friend.full_name %></div>
+                      <div class="text-xs text-gray-500"><%= friend.email %></div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-600"><%= friend.public_id %></code>
+                    <%= link_to "View", admin_user_path(friend), class: "text-xs text-blue-600 hover:text-blue-800" %>
+                    <% if policy(@user).manage_friendships? %>
+                      <%= button_to "Remove", remove_friend_admin_user_path(@user, friend_id: friend.public_id),
+                          method: :delete,
+                          data: { turbo_confirm: "Remove #{friend.full_name} as a friend?" },
+                          class: "text-xs text-red-600 hover:text-red-800" %>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <p class="text-sm text-gray-500">No friends yet.</p>
+          <% end %>
+
+          <!-- Pending Requests -->
+          <% incoming = @user.incoming_friend_requests.includes(:requester) %>
+          <% outgoing = @user.outgoing_friend_requests.includes(:addressee) %>
+          <% if incoming.any? || outgoing.any? %>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <h3 class="text-sm font-medium text-gray-700 mb-2">Pending Requests</h3>
+
+              <% if incoming.any? %>
+                <div class="mb-2">
+                  <span class="text-xs text-gray-500">Incoming:</span>
+                  <% incoming.each do |fr| %>
+                    <span class="ml-2 inline-flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-800 text-xs rounded">
+                      <%= fr.requester.full_name %>
+                      <code class="text-[10px] text-yellow-600"><%= fr.requester.public_id %></code>
+                    </span>
+                  <% end %>
+                </div>
+              <% end %>
+
+              <% if outgoing.any? %>
+                <div>
+                  <span class="text-xs text-gray-500">Outgoing:</span>
+                  <% outgoing.each do |fr| %>
+                    <span class="ml-2 inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-800 text-xs rounded">
+                      <%= fr.addressee.full_name %>
+                      <code class="text-[10px] text-blue-600"><%= fr.addressee.public_id %></code>
+                    </span>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </details>
+    </div>
+  </div>
 
   <!-- OAuth Credentials Section -->
   <% if policy(@user).view_oauth_credentials? && @oauth_credentials.any? %>

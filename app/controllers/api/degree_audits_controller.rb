@@ -5,7 +5,6 @@ module Api
   class DegreeAuditsController < ApiController
     include ApiResponseFormatter
 
-    before_action :authenticate_user!
     before_action :set_user
 
     # POST /api/users/me/degree_audit/sync
@@ -21,24 +20,15 @@ module Api
         term_id: params[:term_id]
       )
 
-      # Authorize the created snapshot
-      authorize result[:snapshot]
+      # Authorize the created snapshot (use create? since we're creating/syncing)
+      authorize result[:snapshot], :create?
 
+      snapshot = result[:snapshot]
       success_response(
-        data: {
-          snapshot_id: result[:snapshot].id,
-          duplicate: result[:duplicate],
-          evaluated_at: result[:snapshot].evaluated_at,
-          summary: {
-            total_credits_required: result[:snapshot].total_credits_required,
-            total_credits_completed: result[:snapshot].total_credits_completed,
-            overall_gpa: result[:snapshot].overall_gpa,
-            evaluation_met: result[:snapshot].evaluation_met
-          }
-        },
+        data: snapshot_data(snapshot),
         message: result[:message]
       )
-    rescue DegreeAuditParserService::StructureError => e
+    rescue DegreeAuditParserService::StructureError
       error_response(
         error: "Failed to parse degree audit HTML. The structure may have changed.",
         code: ApiErrorCodes::PARSE_ERROR,
@@ -56,8 +46,6 @@ module Api
         code: ApiErrorCodes::CONCURRENT_SYNC,
         status: :conflict
       )
-    rescue ActionController::ParameterMissing => e
-      validation_error("Missing required parameter: #{e.param}")
     end
 
     # GET /api/users/me/degree_audit
@@ -72,21 +60,8 @@ module Api
                       .first
 
       if snapshot
-        authorize snapshot
-        success_response(
-          data: {
-            id: snapshot.id,
-            degree_program_id: snapshot.degree_program_id,
-            evaluated_at: snapshot.evaluated_at,
-            parsed_data: snapshot.parsed_data,
-            summary: {
-              total_credits_required: snapshot.total_credits_required,
-              total_credits_completed: snapshot.total_credits_completed,
-              overall_gpa: snapshot.overall_gpa,
-              evaluation_met: snapshot.evaluation_met
-            }
-          }
-        )
+        authorize snapshot, :show?
+        success_response(data: snapshot_data(snapshot))
       else
         error_response(
           error: "No degree audit found for this program",
@@ -117,19 +92,7 @@ module Api
 
       success_response(
         data: {
-          snapshots: snapshots.map { |snapshot|
-            {
-              id: snapshot.id,
-              degree_program_id: snapshot.degree_program_id,
-              evaluated_at: snapshot.evaluated_at,
-              summary: {
-                total_credits_required: snapshot.total_credits_required,
-                total_credits_completed: snapshot.total_credits_completed,
-                overall_gpa: snapshot.overall_gpa,
-                evaluation_met: snapshot.evaluation_met
-              }
-            }
-          },
+          snapshots: snapshots.map { |s| snapshot_summary(s) },
           pagination: {
             current_page: snapshots.current_page,
             total_pages: snapshots.total_pages,
@@ -146,6 +109,47 @@ module Api
       @user = current_user
     end
 
+    def snapshot_data(snapshot)
+      {
+        id: snapshot.id,
+        degree_program_id: snapshot.degree_program_id,
+        evaluated_at: snapshot.evaluated_at,
+        gpa: snapshot.overall_gpa,
+        credits_earned: snapshot.total_credits_completed,
+        credits_remaining: compute_credits_remaining(snapshot),
+        percent_complete: compute_percent_complete(snapshot),
+        parsed_data: snapshot.parsed_data
+      }
+    end
+
+    def snapshot_summary(snapshot)
+      {
+        id: snapshot.id,
+        degree_program_id: snapshot.degree_program_id,
+        evaluated_at: snapshot.evaluated_at,
+        gpa: snapshot.overall_gpa,
+        credits_earned: snapshot.total_credits_completed,
+        credits_remaining: compute_credits_remaining(snapshot),
+        percent_complete: compute_percent_complete(snapshot)
+      }
+    end
+
+    def compute_credits_remaining(snapshot)
+      required = snapshot.total_credits_required
+      completed = snapshot.total_credits_completed
+      return nil unless required && completed
+
+      [required - completed, 0].max
+    end
+
+    def compute_percent_complete(snapshot)
+      required = snapshot.total_credits_required
+      completed = snapshot.total_credits_completed
+      return nil unless required&.positive? && completed
+
+      (completed / required * 100).round(1)
+    end
+
     # Validate sync parameters
     def validate_sync_params!
       params.require(:html)
@@ -153,19 +157,14 @@ module Api
       params.require(:term_id)
 
       # Validate HTML is not empty
-      if params[:html].blank?
-        raise ActionController::BadRequest, "HTML content cannot be empty"
-      end
+      raise ActionController::BadRequest, "HTML content cannot be empty" if params[:html].blank?
 
       # Validate IDs are positive integers
-      unless params[:degree_program_id].to_i.positive?
-        raise ActionController::BadRequest, "Invalid degree_program_id"
-      end
+      raise ActionController::BadRequest, "Invalid degree_program_id" unless params[:degree_program_id].to_i.positive?
 
       return if params[:term_id].to_i.positive?
 
       raise ActionController::BadRequest, "Invalid term_id"
-
     end
 
     # Validate program parameter
@@ -175,7 +174,6 @@ module Api
       return if params[:degree_program_id].to_i.positive?
 
       raise ActionController::BadRequest, "Invalid degree_program_id"
-
     end
 
   end

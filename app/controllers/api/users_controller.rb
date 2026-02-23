@@ -397,10 +397,6 @@ module Api
         return
       end
 
-      # Preload user's calendar preferences to avoid N+1 queries in PreferenceResolver
-      current_user.calendar_preferences.load
-      current_user.event_preferences.load
-
       # Preload course associations to prevent N+1 (meeting_times, faculties, buildings, rooms, event_preferences)
       enrollments = current_user
                     .enrollments

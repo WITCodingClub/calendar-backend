@@ -2,7 +2,7 @@
 
 module Admin
   class UsersController < Admin::ApplicationController
-    before_action :set_user, only: [:show, :edit, :update, :destroy, :revoke_oauth_credential, :refresh_oauth_credential, :toggle_support_flag, :force_calendar_sync]
+    before_action :set_user, only: [:show, :edit, :update, :destroy, :revoke_oauth_credential, :refresh_oauth_credential, :toggle_support_flag, :force_calendar_sync, :add_friend, :remove_friend]
 
     # Support tool flags that can be toggled via admin UI
     SUPPORT_FLAGS = {
@@ -162,6 +162,69 @@ module Admin
     rescue => e
       Rails.logger.error("Error queueing calendar sync: #{e.message}")
       redirect_to admin_user_path(@user), alert: "Failed to queue calendar sync: #{e.message}"
+    end
+
+    def add_friend
+      authorize @user, :manage_friendships?
+
+      friend_id = params[:friend_id]
+      if friend_id.blank?
+        redirect_to admin_user_path(@user), alert: "Friend ID is required."
+        return
+      end
+
+      friend = User.find_by_public_id(friend_id) || User.find_by_hashid(friend_id.delete_prefix("usr_"))
+      if friend.nil?
+        redirect_to admin_user_path(@user), alert: "User not found with ID: #{friend_id}"
+        return
+      end
+
+      if friend.id == @user.id
+        redirect_to admin_user_path(@user), alert: "Cannot add user as their own friend."
+        return
+      end
+
+      # Check if friendship already exists
+      existing = Friendship.where("(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
+                                  @user.id, friend.id, friend.id, @user.id).first
+      if existing
+        if existing.accepted?
+          redirect_to admin_user_path(@user), alert: "#{friend.full_name} is already a friend."
+        else
+          existing.accepted!
+          redirect_to admin_user_path(@user), notice: "Accepted existing friend request with #{friend.full_name}."
+        end
+        return
+      end
+
+      # Create accepted friendship directly
+      Friendship.create!(requester: @user, addressee: friend, status: :accepted)
+      redirect_to admin_user_path(@user), notice: "Added #{friend.full_name} as a friend."
+    rescue ActiveRecord::RecordInvalid => e
+      redirect_to admin_user_path(@user), alert: "Failed to add friend: #{e.message}"
+    end
+
+    def remove_friend
+      authorize @user, :manage_friendships?
+
+      friend_id = params[:friend_id]
+      friend = User.find_by_public_id(friend_id) || User.find_by_hashid(friend_id.delete_prefix("usr_"))
+
+      if friend.nil?
+        redirect_to admin_user_path(@user), alert: "User not found."
+        return
+      end
+
+      friendship = Friendship.where("(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
+                                    @user.id, friend.id, friend.id, @user.id).first
+
+      if friendship.nil?
+        redirect_to admin_user_path(@user), alert: "Friendship not found."
+        return
+      end
+
+      friendship.destroy!
+      redirect_to admin_user_path(@user), notice: "Removed #{friend.full_name} as a friend."
     end
 
     private

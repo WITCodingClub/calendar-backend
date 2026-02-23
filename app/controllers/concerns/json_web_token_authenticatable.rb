@@ -14,14 +14,14 @@ module JsonWebTokenAuthenticatable
     token = extract_token_from_header
 
     if token.blank?
-      render json: { error: "No token provided" }, status: :unauthorized
+      render json: { success: false, error: "Authentication required", code: "AUTH_MISSING" }, status: :unauthorized
       return
     end
 
     decoded = JsonWebTokenService.decode(token)
 
     if decoded.nil?
-      render json: { error: "Invalid or expired token" }, status: :unauthorized
+      render json: { success: false, error: "Authentication required", code: "AUTH_INVALID" }, status: :unauthorized
       return
     end
 
@@ -29,7 +29,7 @@ module JsonWebTokenAuthenticatable
 
     return unless @current_user.nil?
 
-    render json: { error: "User not found" }, status: :unauthorized
+    render json: { success: false, error: "Authentication required", code: "AUTH_INVALID" }, status: :unauthorized
 
   end
 
