@@ -44,7 +44,7 @@ RSpec.describe CoursePlan do
   end
 
   describe "enums" do
-    it { is_expected.to define_enum_for(:status).with_values(planned: "planned", enrolled: "enrolled", completed: "completed", dropped: "dropped", cancelled: "cancelled").backed_by_column_of_type(:string).with_default(:planned) }
+    it { is_expected.to define_enum_for(:status).backed_by_column_of_type(:string).with_values(planned: "planned", enrolled: "enrolled", completed: "completed", dropped: "dropped", cancelled: "cancelled").with_default(:planned) }
   end
 
   describe "scopes" do

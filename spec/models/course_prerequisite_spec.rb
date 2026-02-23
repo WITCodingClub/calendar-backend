@@ -13,7 +13,7 @@ RSpec.describe CoursePrerequisite do
   end
 
   describe "enums" do
-    it { is_expected.to define_enum_for(:prerequisite_type).with_values(prerequisite: "prerequisite", corequisite: "corequisite", recommended: "recommended").backed_by_column_of_type(:string) }
+    it { is_expected.to define_enum_for(:prerequisite_type).backed_by_column_of_type(:string).with_values(prerequisite: "prerequisite", corequisite: "corequisite", recommended: "recommended") }
   end
 
   describe "scopes" do

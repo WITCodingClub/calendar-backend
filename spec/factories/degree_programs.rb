@@ -52,6 +52,14 @@ FactoryBot.define do
       minimum_gpa { 3.0 }
     end
 
+    trait :business do
+      program_name { "Business Administration" }
+      degree_type { "Bachelor of Science" }
+      college { "School of Management" }
+      department { "Business" }
+      credit_hours_required { 120.0 }
+    end
+
     trait :with_requirements do
       after(:create) do |program|
         create_list(:degree_requirement, 3, degree_program: program)
