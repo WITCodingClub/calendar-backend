@@ -1,12 +1,24 @@
 # frozen_string_literal: true
 
 class CoursePlanPolicy < ApplicationPolicy
+  def index?
+    true
+  end
+
   def show?
     owner_of_record? || admin?
   end
 
   def create?
-    true # Any authenticated user can create course plans
+    true
+  end
+
+  def generate?
+    true
+  end
+
+  def validate?
+    true
   end
 
   def update?
