@@ -439,6 +439,16 @@ Rails.application.routes.draw do
 
     # Course Recommendations
     get "users/me/course_recommendations", to: "course_recommendations#index"
+
+    # Course Plans (multi-semester planning)
+    scope "users/me" do
+      resources :course_plans, only: [:index, :show, :create, :update, :destroy] do
+        collection do
+          post :generate
+          post :validate
+        end
+      end
+    end
   end
 
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
@@ -508,6 +518,12 @@ Rails.application.routes.draw do
         end
       end
       resources :rmp_ratings, only: [:index]
+
+      resources :transfer_equivalencies, only: [:index] do
+        collection do
+          post :sync
+        end
+      end
 
       # Course catalog importer (admin utility)
       get "course_catalog", to: "course_catalog#index", as: :course_catalog
