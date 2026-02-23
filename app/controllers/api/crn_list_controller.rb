@@ -2,8 +2,6 @@
 
 module Api
   class CrnListController < ApiController
-    before_action :authenticate_user!
-
     # GET /api/users/me/crn_list?term_uid=202430
     def index
       authorize current_user, :show?
