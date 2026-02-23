@@ -11,14 +11,14 @@ module Api
       plans = policy_scope(CoursePlan)
       plans = plans.by_term(Term.find_by!(uid: params[:term_uid])) if params[:term_uid].present?
 
-      render json: plans.includes(:term, :course).map { |plan| serialize_plan(plan) }
+      render json: plans.includes(:term, :course).map { |plan| CoursePlanSerializer.new(plan).as_json }
     end
 
     # GET /api/users/me/course_plans/:id
     def show
       authorize @plan
 
-      render json: serialize_plan(@plan)
+      render json: CoursePlanSerializer.new(@plan).as_json
     end
 
     # POST /api/users/me/course_plans
@@ -42,7 +42,7 @@ module Api
       authorize @plan
 
       @plan.save!
-      render json: serialize_plan(@plan), status: :created
+      render json: CoursePlanSerializer.new(@plan).as_json, status: :created
     end
 
     # PATCH /api/users/me/course_plans/:id
@@ -50,7 +50,7 @@ module Api
       authorize @plan
 
       @plan.update!(plan_update_params)
-      render json: serialize_plan(@plan)
+      render json: CoursePlanSerializer.new(@plan).as_json
     end
 
     # DELETE /api/users/me/course_plans/:id
@@ -75,7 +75,7 @@ module Api
 
       render json: {
         suggestions: suggestions.transform_keys { |term| term.uid.to_s }.transform_values do |courses|
-          courses.map { |c| serialize_suggestion(c) }
+          courses.map { |c| CourseSuggestionSerializer.new(c).as_json }
         end
       }
     end
@@ -103,34 +103,6 @@ module Api
 
     def plan_update_params
       params.permit(:status, :notes, :planned_crn)
-    end
-
-    def serialize_plan(plan)
-      {
-        id: plan.id,
-        term: TermSerializer.new(plan.term).as_json,
-        subject: plan.planned_subject,
-        course_number: plan.planned_course_number,
-        crn: plan.planned_crn,
-        course_identifier: plan.course_identifier,
-        status: plan.status,
-        notes: plan.notes,
-        course_id: plan.course_id,
-        created_at: plan.created_at,
-        updated_at: plan.updated_at
-      }
-    end
-
-    def serialize_suggestion(course)
-      {
-        id: course.id,
-        subject: course.subject,
-        course_number: course.course_number,
-        crn: course.crn,
-        title: course.title,
-        credit_hours: course.credit_hours,
-        schedule_type: course.schedule_type
-      }
     end
 
   end
