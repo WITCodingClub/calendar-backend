@@ -71,7 +71,7 @@ class DegreeAuditSyncService < ApplicationService
       return {
         snapshot: existing_snapshot,
         duplicate: true,
-        message: "Degree audit already synced (no changes detected)"
+        message: "Degree audit updated (no changes detected)"
       }
     end
 

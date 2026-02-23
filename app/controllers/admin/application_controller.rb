@@ -32,13 +32,13 @@ module Admin
 
       return if current_user.admin_access?
 
-      redirect_to admin_unauthorized_path
+      redirect_to unauthorized_path
 
     end
 
     def user_not_authorized
       flash[:alert] = "You are not authorized to perform this action."
-      redirect_to admin_unauthorized_path
+      redirect_to unauthorized_path
     end
 
   end
