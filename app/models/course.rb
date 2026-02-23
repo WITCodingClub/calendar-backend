@@ -5,22 +5,24 @@
 # Table name: courses
 # Database name: primary
 #
-#  id             :bigint           not null, primary key
-#  course_number  :integer
-#  credit_hours   :integer
-#  crn            :integer
-#  embedding      :vector(1536)
-#  end_date       :date
-#  grade_mode     :string
-#  schedule_type  :string           not null
-#  section_number :string           not null
-#  start_date     :date
-#  status         :string           default("active"), not null
-#  subject        :string
-#  title          :string
-#  created_at     :datetime         not null
-#  updated_at     :datetime         not null
-#  term_id        :bigint           not null
+#  id              :bigint           not null, primary key
+#  course_number   :integer
+#  credit_hours    :integer
+#  crn             :integer
+#  embedding       :vector(1536)
+#  end_date        :date
+#  grade_mode      :string
+#  schedule_type   :string           not null
+#  seats_available :integer
+#  seats_capacity  :integer
+#  section_number  :string           not null
+#  start_date      :date
+#  status          :string           default("active"), not null
+#  subject         :string
+#  title           :string
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  term_id         :bigint           not null
 #
 # Indexes
 #

@@ -66,7 +66,7 @@ class CourseDataSyncJob < ApplicationJob
   end
 
   def sync_course_data(course, term_uid)
-    # Fetch fresh data from LeopardWeb
+    # Fetch fresh data from LeopardWeb (enrollment/seat data is included)
     fresh_data = fetch_fresh_course_data(course.crn, term_uid)
     return false unless fresh_data
 
@@ -80,6 +80,21 @@ class CourseDataSyncJob < ApplicationJob
     if course_changed || meeting_times_changed
       update_course_from_fresh_data(course, fresh_data, term_uid)
       Rails.logger.info "CourseDataSyncJob: Updated course #{course.crn} due to changes"
+      return true
+    end
+
+    # Always update seat counts even when nothing else changed, since enrollment
+    # fluctuates frequently (students adding/dropping throughout the term).
+    update_enrollment_counts(course, fresh_data)
+  end
+
+  def update_enrollment_counts(course, fresh_data)
+    update_attrs = {}
+    update_attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
+    update_attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
+
+    if update_attrs.any?
+      course.update!(update_attrs)
       return true
     end
 
@@ -181,6 +196,10 @@ class CourseDataSyncJob < ApplicationJob
     update_attrs[:subject] = fresh_subject if fresh_subject
     update_attrs[:section_number] = fresh_section_number if fresh_section_number
     update_attrs[:schedule_type] = fresh_schedule_type if fresh_schedule_type
+
+    # Always include seat counts since enrollment changes frequently
+    update_attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
+    update_attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
 
     # Update course with changed attributes
     course.update!(update_attrs) if update_attrs.any?

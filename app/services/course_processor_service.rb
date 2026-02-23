@@ -141,9 +141,12 @@ class CourseProcessorService < ApplicationService
         # Labs are typically 0-credit companion sections, so override for LAB schedule type
         c.credit_hours = schedule_type_match && schedule_type_match[1] == "LAB" ? 0 : detailed_course_info[:credit_hours]
         c.grade_mode = detailed_course_info[:grade_mode]
+        c.seats_available = detailed_course_info[:seats_available]
+        c.seats_capacity  = detailed_course_info[:seats_capacity]
       end
 
       # Update course if it already exists (title may have changed or need re-titleization)
+      # Seats are always updated since enrollment changes frequently.
       if course.persisted? && !course.new_record?
         update_attrs = {}
         update_attrs[:start_date] = start_date if start_date.present?
@@ -154,6 +157,10 @@ class CourseProcessorService < ApplicationService
           new_title = titleize_with_roman_numerals(detailed_course_info[:title])
           update_attrs[:title] = new_title if course.title != new_title
         end
+
+        # Always update seat counts — enrollment data changes frequently
+        update_attrs[:seats_available] = detailed_course_info[:seats_available] unless detailed_course_info[:seats_available].nil?
+        update_attrs[:seats_capacity]  = detailed_course_info[:seats_capacity]  unless detailed_course_info[:seats_capacity].nil?
 
         course.update!(update_attrs) if update_attrs.any?
       end

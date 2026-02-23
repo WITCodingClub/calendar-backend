@@ -12,7 +12,9 @@ RSpec.describe CourseDataSyncJob do
       grade_mode: "Standard Letter",
       subject: "CS",
       section_number: "001",
-      schedule_type: "Lecture (LEC)"
+      schedule_type: "Lecture (LEC)",
+      seats_available: 5,
+      seats_capacity: 30
     }
   end
 
@@ -94,10 +96,55 @@ RSpec.describe CourseDataSyncJob do
     end
   end
 
+  describe "#update_enrollment_counts" do
+    let(:job) { described_class.new }
+
+    it "updates seats_available and seats_capacity" do
+      course.update!(seats_available: 20, seats_capacity: 30)
+
+      job.send(:update_enrollment_counts, course, { seats_available: 3, seats_capacity: 30 })
+
+      expect(course.reload.seats_available).to eq(3)
+    end
+
+    it "returns true when seats were updated" do
+      result = job.send(:update_enrollment_counts, course, { seats_available: 5, seats_capacity: 30 })
+      expect(result).to be true
+    end
+
+    it "returns false when no seat data is present" do
+      result = job.send(:update_enrollment_counts, course, { seats_available: nil, seats_capacity: nil })
+      expect(result).to be false
+    end
+  end
+
+  describe "#sync_course_data" do
+    let(:job) { described_class.new }
+
+    it "always updates seat counts even when nothing else changed" do
+      unchanged_data = {
+        title: course.title,
+        credit_hours: course.credit_hours,
+        grade_mode: course.grade_mode,
+        subject: course.subject,
+        section_number: course.section_number,
+        schedule_type: course.schedule_type,
+        seats_available: 2,
+        seats_capacity: 25
+      }
+
+      allow(job).to receive(:fetch_fresh_course_data).and_return(unchanged_data)
+
+      job.send(:sync_course_data, course, term.uid)
+
+      expect(course.reload.seats_available).to eq(2)
+    end
+  end
+
   describe "#update_course_from_fresh_data" do
     let(:job) { described_class.new }
 
-    it "updates all changed course attributes" do
+    it "updates all changed course attributes including seats" do
       job.send(:update_course_from_fresh_data, course, fresh_data, term.uid)
 
       course.reload
@@ -108,6 +155,8 @@ RSpec.describe CourseDataSyncJob do
       expect(course.section_number).to eq("001")
       # schedule_type is an enum, so "LEC" value maps to "lecture" key
       expect(course.schedule_type).to eq("lecture")
+      expect(course.seats_available).to eq(5)
+      expect(course.seats_capacity).to eq(30)
     end
 
     it "extracts schedule type from parentheses" do

@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 class AddContentHashToDegreeEvaluationSnapshots < ActiveRecord::Migration[8.1]
+  disable_ddl_transaction!
+
   def change
     add_column :degree_evaluation_snapshots, :content_hash, :string
-    add_index :degree_evaluation_snapshots, :content_hash
+    add_index :degree_evaluation_snapshots, :content_hash, algorithm: :concurrently
   end
-
 end
