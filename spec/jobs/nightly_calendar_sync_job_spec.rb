@@ -15,26 +15,23 @@ RSpec.describe NightlyCalendarSyncJob do
     let(:user_up_to_date) { create(:user, calendar_needs_sync: false, last_calendar_sync_at: 1.hour.ago) }
     let(:user_no_calendar) { create(:user, calendar_needs_sync: true) }
 
-    # Create OAuth credentials with course_calendar_id for users who should be synced
-    let!(:oauth_with_sync_needed) do
-      create(:oauth_credential,
-             user: user_with_sync_needed,
-             metadata: { "course_calendar_id" => "cal_123" })
+    # Create google_calendars (via oauth_credentials) for users who should be considered for sync
+    let!(:calendar_for_sync_needed) do
+      cred = create(:oauth_credential, user: user_with_sync_needed)
+      create(:google_calendar, oauth_credential: cred)
     end
 
-    let!(:oauth_never_synced) do
-      create(:oauth_credential,
-             user: user_never_synced,
-             metadata: { "course_calendar_id" => "cal_456" })
+    let!(:calendar_for_never_synced) do
+      cred = create(:oauth_credential, user: user_never_synced)
+      create(:google_calendar, oauth_credential: cred)
     end
 
-    let!(:oauth_up_to_date) do
-      create(:oauth_credential,
-             user: user_up_to_date,
-             metadata: { "course_calendar_id" => "cal_789" })
+    let!(:calendar_for_up_to_date) do
+      cred = create(:oauth_credential, user: user_up_to_date)
+      create(:google_calendar, oauth_credential: cred)
     end
 
-    # user_no_calendar has no OAuth credential with course_calendar_id
+    # user_no_calendar has no google_calendar record
 
     it "syncs calendars for users who need it" do
       # Stub sync_course_schedule to prevent actual sync

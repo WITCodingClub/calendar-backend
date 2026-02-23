@@ -8,6 +8,7 @@ module Api
     # List upcoming university calendar events
     # Optional filters: category, start_date, end_date, term_id
     def index
+      authorize UniversityCalendarEvent, :index?
       @events = policy_scope(UniversityCalendarEvent)
                 .upcoming
                 .order(:start_time)
@@ -25,8 +26,8 @@ module Api
 
       # Filter by date range
       if params[:start_date].present? && params[:end_date].present?
-        start_date = Date.parse(params[:start_date])
-        end_date = Date.parse(params[:end_date])
+        start_date = parse_date_param(:start_date)
+        end_date = parse_date_param(:end_date)
         @events = @events.in_date_range(start_date, end_date)
       end
 
@@ -81,8 +82,8 @@ module Api
 
       # Filter by date range
       if params[:start_date].present? && params[:end_date].present?
-        start_date = Date.parse(params[:start_date])
-        end_date = Date.parse(params[:end_date])
+        start_date = parse_date_param(:start_date)
+        end_date = parse_date_param(:end_date)
         @holidays = @holidays.in_date_range(start_date, end_date)
       end
 
@@ -105,6 +106,12 @@ module Api
     def set_event
       @event = UniversityCalendarEvent.find_by_public_id(params[:id])
       raise ActiveRecord::RecordNotFound, "UniversityCalendarEvent not found" unless @event
+    end
+
+    def parse_date_param(param_name)
+      Date.iso8601(params[param_name])
+    rescue ArgumentError
+      raise ActionController::BadRequest, "Invalid #{param_name}: use ISO 8601 format (YYYY-MM-DD)"
     end
 
     def pagination_meta(collection)

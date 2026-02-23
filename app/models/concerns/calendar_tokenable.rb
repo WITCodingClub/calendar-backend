@@ -25,12 +25,8 @@ module CalendarTokenable
     return if calendar_token.present?
 
     self.calendar_token = SecureRandom.urlsafe_base64(32)
-    # Ensure uniqueness
-    while User.exists?(calendar_token: calendar_token)
-      self.calendar_token = SecureRandom.urlsafe_base64(32)
-    end
     # Only save if the record is already persisted (not being created)
+    # The DB unique index handles the astronomically unlikely collision case
     save! if persisted?
-
   end
 end

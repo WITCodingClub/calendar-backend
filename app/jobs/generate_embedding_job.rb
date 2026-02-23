@@ -10,10 +10,17 @@ class GenerateEmbeddingJob < ApplicationJob
   # Don't retry on configuration errors
   discard_on EmbeddingService::ConfigurationError
 
+  ALLOWED_RECORD_TYPES = %w[Course Faculty RmpRating].freeze
+
   # Generate embedding for a single record
   # @param record_type [String] Class name of the record (e.g., "Course")
   # @param record_id [Integer] ID of the record
   def perform(record_type, record_id)
+    unless ALLOWED_RECORD_TYPES.include?(record_type)
+      Rails.logger.error("[GenerateEmbeddingJob] Rejected invalid record type: #{record_type}")
+      return
+    end
+
     record = record_type.constantize.find_by(id: record_id)
 
     unless record

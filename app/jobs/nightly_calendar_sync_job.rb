@@ -6,15 +6,11 @@ class NightlyCalendarSyncJob < ApplicationJob
   def perform
     # Find all users who need their calendar synced
     # This includes users with calendar_needs_sync=true or have never been synced
-    # Only sync users who have Google OAuth credentials with a course calendar ID set
-    users_to_sync = User.joins(:oauth_credentials)
-                        .where(oauth_credentials: { provider: "google" })
-                        .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
+    # Only sync users who have a google_calendars record (i.e., have set up calendar sync)
+    users_to_sync = User.joins(:google_calendars)
                         .where(calendar_needs_sync: true)
                         .or(
-                          User.joins(:oauth_credentials)
-                              .where(oauth_credentials: { provider: "google" })
-                              .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
+                          User.joins(:google_calendars)
                               .where(last_calendar_sync_at: nil)
                         )
                         .distinct

@@ -5,6 +5,7 @@ module Api
     # POST /api/process_courses
     # Initial course processing - creates enrollments and calendar events
     def process_courses
+      skip_authorization # User-self-service: always operates on current_user only
       courses = params[:courses] || params[:_json]
 
       if courses.blank?
@@ -37,6 +38,7 @@ module Api
     # Reprocesses courses for a term - removes old enrollments, adds new ones
     # Used when a user changes their schedule in LeopardWeb
     def reprocess
+      skip_authorization # User-self-service: always operates on current_user only
       courses = params[:courses] || params[:_json]
 
       if courses.blank?

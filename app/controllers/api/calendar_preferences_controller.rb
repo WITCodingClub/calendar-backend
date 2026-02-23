@@ -76,6 +76,12 @@ module Api
         return
       end
 
+      # Verify the current user is enrolled in the course for this meeting time (IDOR protection)
+      unless MeetingTime.joins(course: :enrollments).where(enrollments: { user_id: current_user.id }).exists?(id: meeting_time.id)
+        render json: { error: "Meeting time not found" }, status: :not_found
+        return
+      end
+
       # Validate and render template
       begin
         CalendarTemplateRenderer.validate_template(template)

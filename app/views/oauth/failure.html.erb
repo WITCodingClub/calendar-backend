@@ -65,7 +65,7 @@
     if (window.opener) {
       window.opener.postMessage({
         type: 'oauth-failure',
-        error: '<%= @error %>'
+        error: '<%= j @error %>'
       }, '*');
     }
   </script>

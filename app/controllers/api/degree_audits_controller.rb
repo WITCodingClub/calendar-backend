@@ -13,15 +13,15 @@ module Api
       # Validate required parameters
       validate_sync_params!
 
+      # Authorize before writing to DB
+      authorize DegreeEvaluationSnapshot, :create?
+
       result = DegreeAuditSyncService.sync(
         user: @user,
         html: params[:html],
         degree_program_id: params[:degree_program_id],
         term_id: params[:term_id]
       )
-
-      # Authorize the created snapshot (use create? since we're creating/syncing)
-      authorize result[:snapshot], :create?
 
       snapshot = result[:snapshot]
       success_response(
@@ -103,6 +103,8 @@ module Api
       )
     end
 
+    MAX_HTML_SIZE = 2.megabytes
+
     private
 
     def set_user
@@ -158,6 +160,9 @@ module Api
 
       # Validate HTML is not empty
       raise ActionController::BadRequest, "HTML content cannot be empty" if params[:html].blank?
+
+      # Enforce maximum HTML payload size
+      raise ActionController::BadRequest, "HTML content exceeds maximum size" if params[:html].bytesize > MAX_HTML_SIZE
 
       # Validate IDs are positive integers
       raise ActionController::BadRequest, "Invalid degree_program_id" unless params[:degree_program_id].to_i.positive?

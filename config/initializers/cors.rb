@@ -5,10 +5,14 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     # Allow localhost and ngrok for development/testing
     # For production, set CORS_ORIGINS environment variable to your frontend URL
-    origins "http://localhost:3001",
-            "https://localhost:3001",
-            "https://heron-selected-literally.ngrok-free.app",
-            /\Ahttps?:\/\/localhost:\d+\z/ # Allow any localhost port
+    origins_list = [
+      "http://localhost:3001",
+      "https://localhost:3001",
+      /\Ahttps?:\/\/localhost:\d+\z/ # Allow any localhost port
+    ]
+    origins_list << "https://heron-selected-literally.ngrok-free.app" if Rails.env.development?
+
+    origins(*origins_list)
 
     resource "/api/*",
              headers: :any,
