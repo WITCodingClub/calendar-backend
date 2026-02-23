@@ -4,7 +4,7 @@ class EnsureFutureTermsJob < ApplicationJob
   queue_as :default
 
   # Ensures current term and N terms ahead exist (default: 2 terms in the future)
-  def perform(terms_ahead: 2)
+  def perform(terms_ahead: 6)
     # Determine current term
     today = Time.zone.today
     current_year = today.year
