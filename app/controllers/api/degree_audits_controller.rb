@@ -46,8 +46,6 @@ module Api
         code: ApiErrorCodes::CONCURRENT_SYNC,
         status: :conflict
       )
-    rescue ActionController::ParameterMissing => e
-      validation_error("Missing required parameter: #{e.param}")
     end
 
     # GET /api/users/me/degree_audit
