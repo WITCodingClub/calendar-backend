@@ -47,6 +47,7 @@ class User < ApplicationRecord
   has_many :event_preferences, dependent: :destroy
   has_one :user_extension_config, dependent: :destroy
   has_many :security_events, dependent: :destroy
+  has_many :degree_evaluation_snapshots, dependent: :destroy
 
   # Friendships where this user is the requester
   has_many :sent_friendships, class_name: "Friendship", foreign_key: :requester_id, dependent: :destroy, inverse_of: :requester
