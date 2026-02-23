@@ -151,13 +151,17 @@ class PrerequisiteParserService < ApplicationService
     # Rebuild with OR structure
     has_or = and_groups.include?(:or_marker)
 
+    valid_segments = segments.compact
+
     if has_or
-      valid_segments = segments.compact
       return valid_segments.first if valid_segments.length == 1
 
       { type: "or", operands: valid_segments }
     else
-      segments.compact.first || { type: "special", description: "unknown" }
+      return { type: "special", description: "unknown" } if valid_segments.empty?
+      return valid_segments.first if valid_segments.length == 1
+
+      { type: "and", operands: valid_segments }
     end
   end
 
