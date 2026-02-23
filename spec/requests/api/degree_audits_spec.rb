@@ -8,7 +8,7 @@ RSpec.describe "API::DegreeAudits", :openapi do
   let(:auth_headers) { { "Authorization" => "Bearer #{jwt_token}" } }
   let(:degree_program) { create(:degree_program) }
   let(:term) { create(:term) }
-  let(:html_content) { Rails.root.join("spec/fixtures/leopard_web/degree_audit/valid_single_program.html").read }
+  let(:html_content) { file_fixture("leopard_web/degree_audit/valid_single_program.html").read }
 
   before { Flipper.enable(FlipperFlags::V1, user) }
 
