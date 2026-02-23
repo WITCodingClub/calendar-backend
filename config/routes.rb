@@ -45,6 +45,9 @@
 #                api_terms_current_and_next GET    /api/terms/current_and_next(.:format)                                                             api/misc#get_current_terms
 #                       api_process_courses POST   /api/process_courses(.:format)                                                                    api/courses#process_courses
 #                     api_courses_reprocess POST   /api/courses/reprocess(.:format)                                                                  api/courses#reprocess
+#                  prerequisites_api_course GET    /api/courses/:id/prerequisites(.:format)                                                          api/courses#prerequisites
+#              check_eligibility_api_course POST   /api/courses/:id/check_eligibility(.:format)                                                      api/courses#check_eligibility
+#                                api_course GET    /api/courses/:id(.:format)                                                                        api/courses#show
 #          preview_api_calendar_preferences POST   /api/calendar_preferences/preview(.:format)                                                       api/calendar_preferences#preview
 #                  api_calendar_preferences GET    /api/calendar_preferences(.:format)                                                               api/calendar_preferences#index
 #                   api_calendar_preference GET    /api/calendar_preferences/:id(.:format)                                                           api/calendar_preferences#show
@@ -70,6 +73,7 @@
 #                     api_users_me_crn_list GET    /api/users/me/crn_list(.:format)                                                                  api/crn_list#index
 #             api_users_me_crn_list_courses POST   /api/users/me/crn_list/courses(.:format)                                                          api/crn_list#add_course
 #                                           DELETE /api/users/me/crn_list/courses/:id(.:format)                                                      api/crn_list#remove_course
+#       api_users_me_course_recommendations GET    /api/users/me/course_recommendations(.:format)                                                    api/course_recommendations#index
 #                                  calendar GET    /calendar/:calendar_token(.:format)                                                               calendars#show {format: :ics}
 #                               risc_events POST   /risc/events(.:format)                                                                            risc#create
 #               auth_google_oauth2_callback GET    /auth/google_oauth2/callback(.:format)                                                            auth#google
@@ -432,6 +436,9 @@ Rails.application.routes.draw do
     get "users/me/crn_list", to: "crn_list#index"
     post "users/me/crn_list/courses", to: "crn_list#add_course"
     delete "users/me/crn_list/courses/:id", to: "crn_list#remove_course"
+
+    # Course Recommendations
+    get "users/me/course_recommendations", to: "course_recommendations#index"
 
     # Course Plans (multi-semester planning)
     scope "users/me" do
