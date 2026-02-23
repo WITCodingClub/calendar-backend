@@ -12,6 +12,9 @@
   <%= render "shared/stat_card", title: "Terms", count: @terms_count, path: admin_terms_path %>
   <%= render "shared/stat_card", title: "Google Calendars", count: @google_calendars_count, path: admin_calendars_path %>
   <%= render "shared/stat_card", title: "RMP Ratings", count: @rmp_ratings_count, path: admin_rmp_ratings_path %>
+  <%= render "shared/stat_card", title: "Finals", count: @finals_schedules_count, path: admin_finals_schedules_path %>
+  <%= render "shared/stat_card", title: "Uni Events", count: @university_events_count, path: admin_university_calendar_events_path %>
+  <%= render "shared/stat_card", title: "Transfer Equiv.", count: @transfer_equivalencies_count, path: admin_transfer_equivalencies_path %>
 </div>
 
 <!-- Quick Actions -->
@@ -27,6 +30,9 @@
       <% end %>
       <% if policy(:course_catalog).index? %>
         <%= link_to "Fetch Course Catalog", admin_course_catalog_path, class: "quick-action-link" %>
+      <% end %>
+      <% if policy(Transfer::Equivalency).index? %>
+        <%= link_to "Transfer Equivalencies", admin_transfer_equivalencies_path, class: "quick-action-link" %>
       <% end %>
     </div>
   </div>
