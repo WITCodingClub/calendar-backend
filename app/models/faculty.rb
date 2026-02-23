@@ -316,6 +316,12 @@ class Faculty < ApplicationRecord
   private
 
   def enqueue_directory_lookup
+    last_full_sync = Rails.cache.read("faculty_directory_last_full_sync_at")
+    if last_full_sync.present? && last_full_sync > 24.hours.ago
+      Rails.logger.info("[Faculty] Skipping individual directory lookup for #{email} — full sync ran at #{last_full_sync.iso8601}")
+      return
+    end
+
     FacultyDirectoryLookupJob.perform_later(id)
   end
 

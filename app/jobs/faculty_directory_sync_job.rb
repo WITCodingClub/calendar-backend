@@ -33,6 +33,8 @@ class FacultyDirectorySyncJob < ApplicationJob
       process_faculty(faculty_data, stats)
     end
 
+    Rails.cache.write("faculty_directory_last_full_sync_at", Time.current, expires_in: 2.days)
+
     Rails.logger.info({
       message: "FacultyDirectorySyncJob completed",
       job_id: job_id,
