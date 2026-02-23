@@ -174,7 +174,7 @@ GEM
     drb (2.2.3)
     ed25519 (1.4.0)
     email_reply_parser (0.5.11)
-    encoded_ids (1.0.0)
+    encoded_ids (1.1.0)
       hashid-rails (~> 1.0)
       rails (>= 6.1)
     erb (6.0.1)
@@ -398,7 +398,7 @@ GEM
       activerecord (>= 7.1)
     net-http (0.9.1)
       uri (>= 0.11.1)
-    net-imap (0.6.2)
+    net-imap (0.6.3)
       date
       net-protocol
     net-pop (0.1.2)
@@ -764,7 +764,7 @@ GEM
       zeitwerk (>= 2.7)
     xpath (3.2.0)
       nokogiri (~> 1.8)
-    zeitwerk (2.7.4)
+    zeitwerk (2.7.5)
 
 PLATFORMS
   aarch64-linux
