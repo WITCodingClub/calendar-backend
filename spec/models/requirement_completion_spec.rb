@@ -45,7 +45,7 @@ RSpec.describe RequirementCompletion do
   end
 
   describe "enums" do
-    it { is_expected.to define_enum_for(:source).with_values(wit: "wit", transfer: "transfer", ap: "ap", clep: "clep", ib: "ib") }
+    it { is_expected.to define_enum_for(:source).backed_by_column_of_type(:string).with_values(wit: "wit", transfer: "transfer", ap: "ap", clep: "clep", ib: "ib") }
   end
 
   describe "scopes" do

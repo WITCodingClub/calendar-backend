@@ -175,10 +175,8 @@ RSpec.describe DegreeAuditParserService, type: :service do
       let(:html) { "<<invalid html>>" }
       let(:service) { described_class.new(html: html) }
 
-      it "raises ParseError" do
-        # Nokogiri is very forgiving, but extremely broken HTML might cause issues
-        # This tests the rescue block for Nokogiri::SyntaxError
-        expect { service.parse }.not_to raise_error
+      it "raises StructureError (Nokogiri parses it, but required elements are missing)" do
+        expect { service.parse }.to raise_error(DegreeAuditParserService::StructureError)
       end
     end
   end
