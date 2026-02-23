@@ -611,10 +611,10 @@ GEM
       actionpack (>= 5.2.0)
       rails-dom-testing
       rspec-core
-    rspec-rails (7.1.1)
-      actionpack (>= 7.0)
-      activesupport (>= 7.0)
-      railties (>= 7.0)
+    rspec-rails (8.0.3)
+      actionpack (>= 7.2)
+      activesupport (>= 7.2)
+      railties (>= 7.2)
       rspec-core (~> 3.13)
       rspec-expectations (~> 3.13)
       rspec-mocks (~> 3.13)
@@ -854,7 +854,7 @@ DEPENDENCIES
   redis-session-store
   relaxed-rubocop
   rspec-openapi (~> 0.24)
-  rspec-rails (~> 7.1)
+  rspec-rails (~> 8.0)
   rswag-api (~> 2.17.0)
   rswag-ui (~> 2.17.0)
   rubocop-capybara (~> 2.22, >= 2.22.1)
