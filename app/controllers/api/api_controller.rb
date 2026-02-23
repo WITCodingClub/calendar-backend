@@ -14,7 +14,7 @@ module Api
     rescue_from StandardError, with: :render_internal_server_error
     rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
     rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable_entity
-    rescue_from ActionController::BadRequest, with: :render_bad_request
+    rescue_from ActionController::BadRequest, ActionController::ParameterMissing, with: :render_bad_request
     rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
 
     private
