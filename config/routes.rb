@@ -432,6 +432,16 @@ Rails.application.routes.draw do
     get "users/me/crn_list", to: "crn_list#index"
     post "users/me/crn_list/courses", to: "crn_list#add_course"
     delete "users/me/crn_list/courses/:id", to: "crn_list#remove_course"
+
+    # Course Plans (multi-semester planning)
+    scope "users/me" do
+      resources :course_plans, only: [:index, :show, :create, :update, :destroy] do
+        collection do
+          post :generate
+          post :validate
+        end
+      end
+    end
   end
 
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
