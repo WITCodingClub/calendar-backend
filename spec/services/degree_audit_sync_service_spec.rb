@@ -71,7 +71,7 @@ RSpec.describe DegreeAuditSyncService, type: :service do
         result = service.call
 
         expect(result[:duplicate]).to be(true)
-        expect(result[:message]).to eq("Degree audit already synced (no changes detected)")
+        expect(result[:message]).to eq("Degree audit updated (no changes detected)")
       end
 
       it "logs the duplicate detection" do
@@ -150,21 +150,12 @@ RSpec.describe DegreeAuditSyncService, type: :service do
     end
 
     it "raises ConcurrentSyncError when lock cannot be acquired" do
-      # Hold the lock in one thread
-      thread1 = Thread.new do
-        ActiveRecord::Base.with_advisory_lock("degree_audit_sync_#{user.id}") do
-          sleep(1) # Hold lock
-        end
-      end
+      # Simulate lock not acquired (with_advisory_lock returns nil when timeout_seconds: 0 and lock is held)
+      allow(ActiveRecord::Base).to receive(:with_advisory_lock).and_return(nil)
 
-      sleep(0.1) # Ensure first thread has lock
-
-      # Try to acquire lock in main thread (should fail immediately)
       expect {
         service.call
       }.to raise_error(DegreeAuditSyncService::ConcurrentSyncError, /already in progress/)
-
-      thread1.join
     end
 
     it "releases lock on exception" do

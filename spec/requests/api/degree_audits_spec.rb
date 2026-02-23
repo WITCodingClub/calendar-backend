@@ -8,7 +8,9 @@ RSpec.describe "API::DegreeAudits", :openapi do
   let(:auth_headers) { { "Authorization" => "Bearer #{jwt_token}" } }
   let(:degree_program) { create(:degree_program) }
   let(:term) { create(:term) }
-  let(:html_content) { Rails.root.join("spec/fixtures/leopard_web/degree_audit/valid_single_program.html").read }
+  let(:html_content) { file_fixture("leopard_web/degree_audit/valid_single_program.html").read }
+
+  before { Flipper.enable(FlipperFlags::V1, user) }
 
   describe "POST /api/users/me/degree_audit/sync" do
     let(:valid_params) do
@@ -172,10 +174,8 @@ RSpec.describe "API::DegreeAudits", :openapi do
 
     context "with concurrent sync attempt" do
       it "returns 409 conflict" do
-        # Mock advisory lock failure
-        allow(ActiveRecord::Base).to receive(:with_advisory_lock).and_raise(
-          DegreeAuditSyncService::ConcurrentSyncError.new("A degree audit sync is already in progress")
-        )
+        # Mock advisory lock returning nil (lock not acquired)
+        allow(ActiveRecord::Base).to receive(:with_advisory_lock).and_return(nil)
 
         post "/api/users/me/degree_audit/sync", params: valid_params, headers: auth_headers
 
