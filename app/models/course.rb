@@ -47,6 +47,7 @@ class Course < ApplicationRecord
   has_many :enrollments, dependent: :destroy
   has_many :users, through: :enrollments
   has_one :final_exam, dependent: :destroy
+  has_many :course_prerequisites, dependent: :destroy
 
   has_neighbors :embedding
 

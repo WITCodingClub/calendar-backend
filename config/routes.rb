@@ -384,6 +384,14 @@ Rails.application.routes.draw do
     post "process_courses", to: "courses#process_courses"
     post "courses/reprocess", to: "courses#reprocess"
 
+    # Course prerequisites and eligibility
+    resources :courses, only: [:show] do
+      member do
+        get :prerequisites
+        post :check_eligibility
+      end
+    end
+
     # Calendar preferences
     resources :calendar_preferences, only: [:index, :show, :update, :destroy] do
       collection do
