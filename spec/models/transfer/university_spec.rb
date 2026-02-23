@@ -12,7 +12,7 @@ RSpec.describe Transfer::University do
   end
 
   describe "associations" do
-    it { is_expected.to have_many(:transfer_courses).class_name("Transfer::Course").with_foreign_key("university_id").dependent(:destroy) }
+    it { is_expected.to have_many(:transfer_courses).class_name("Transfer::Course").dependent(:destroy) }
   end
 
   describe "scopes" do

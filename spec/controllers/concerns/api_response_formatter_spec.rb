@@ -4,7 +4,7 @@ require "rails_helper"
 
 RSpec.describe ApiResponseFormatter do
   controller(ActionController::Base) do
-    include described_class
+    include ApiResponseFormatter # rubocop:disable RSpec/DescribedClass
 
     def success_test
       success_response(data: { id: 1, name: "Test" }, message: "Operation successful")

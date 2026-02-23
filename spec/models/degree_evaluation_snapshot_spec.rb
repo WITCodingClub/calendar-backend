@@ -34,7 +34,7 @@ RSpec.describe DegreeEvaluationSnapshot do
     let(:program) { create(:degree_program) }
     let!(:recent_snapshot) { create(:degree_evaluation_snapshot, user: user, degree_program: program, evaluated_at: 1.day.ago) }
     let!(:old_snapshot) { create(:degree_evaluation_snapshot, user: user, evaluated_at: 1.month.ago) }
-    let!(:met_snapshot) { create(:degree_evaluation_snapshot, :completed) }
+    let!(:met_snapshot) { create(:degree_evaluation_snapshot, :completed, evaluated_at: 2.months.ago) }
 
     describe ".most_recent" do
       it "returns snapshots ordered by evaluated_at descending" do
