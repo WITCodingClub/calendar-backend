@@ -62,11 +62,13 @@ class Course < ApplicationRecord
   enum :status, { active: "active", cancelled: "cancelled" }
 
   enum :schedule_type, {
+    extension: "EXT",
     hybrid: "HYB",
     independent_study: "IND",
     laboratory: "LAB",
     lecture: "LEC",
     online: "ONL",
+    online_blended: "ONB",
     online_sync_lab: "OLB",
     online_sync_lecture: "OLC",
     rotating_lab: "RLB",
@@ -100,11 +102,13 @@ class Course < ApplicationRecord
     return nil unless schedule_type
 
     {
+      "extension"           => "extension",
       "hybrid"              => "hybrid in-person and online",
       "independent_study"   => "independent study",
       "laboratory"          => "laboratory hands-on",
       "lecture"             => "lecture",
       "online"              => "online asynchronous",
+      "online_blended"      => "online blended",
       "online_sync_lab"     => "online synchronous lab",
       "online_sync_lecture" => "online synchronous lecture",
       "rotating_lab"        => "rotating laboratory",

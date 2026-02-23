@@ -1,5 +1,42 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: degree_evaluation_snapshots
+# Database name: primary
+#
+#  id                      :bigint           not null, primary key
+#  content_hash            :string
+#  evaluated_at            :datetime         not null
+#  evaluation_met          :boolean          default(FALSE), not null
+#  minimum_gpa             :decimal(3, 2)
+#  overall_gpa             :decimal(3, 2)
+#  parsed_data             :jsonb
+#  raw_html                :text
+#  total_credits_completed :decimal(5, 2)
+#  total_credits_required  :decimal(5, 2)
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  degree_program_id       :bigint           not null
+#  evaluation_term_id      :bigint           not null
+#  user_id                 :bigint           not null
+#
+# Indexes
+#
+#  idx_degree_eval_snapshots_unique                               (user_id,degree_program_id,evaluation_term_id) UNIQUE
+#  index_degree_evaluation_snapshots_on_content_hash              (content_hash)
+#  index_degree_evaluation_snapshots_on_degree_program_id         (degree_program_id)
+#  index_degree_evaluation_snapshots_on_evaluated_at              (evaluated_at)
+#  index_degree_evaluation_snapshots_on_evaluation_term_id        (evaluation_term_id)
+#  index_degree_evaluation_snapshots_on_user_id                   (user_id)
+#  index_degree_evaluation_snapshots_on_user_id_and_evaluated_at  (user_id,evaluated_at)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (degree_program_id => degree_programs.id)
+#  fk_rails_...  (evaluation_term_id => terms.id)
+#  fk_rails_...  (user_id => users.id)
+#
 require "rails_helper"
 
 RSpec.describe DegreeEvaluationSnapshot do

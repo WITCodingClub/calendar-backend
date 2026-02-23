@@ -1,5 +1,25 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: transfer_universities
+# Database name: primary
+#
+#  id         :bigint           not null, primary key
+#  active     :boolean          default(TRUE), not null
+#  code       :string           not null
+#  country    :string
+#  name       :string           not null
+#  state      :string
+#  created_at :datetime         not null
+#  updated_at :datetime         not null
+#
+# Indexes
+#
+#  index_transfer_universities_on_active  (active)
+#  index_transfer_universities_on_code    (code) UNIQUE
+#  index_transfer_universities_on_name    (name)
+#
 require "rails_helper"
 
 RSpec.describe Transfer::University do

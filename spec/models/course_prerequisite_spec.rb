@@ -1,5 +1,30 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: course_prerequisites
+# Database name: primary
+#
+#  id                 :bigint           not null, primary key
+#  min_grade          :string
+#  prerequisite_logic :string
+#  prerequisite_rule  :text             not null
+#  prerequisite_type  :string           not null
+#  waivable           :boolean          default(FALSE), not null
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  course_id          :bigint           not null
+#
+# Indexes
+#
+#  index_course_prerequisites_on_course_id                        (course_id)
+#  index_course_prerequisites_on_course_id_and_prerequisite_type  (course_id,prerequisite_type)
+#  index_course_prerequisites_on_prerequisite_type                (prerequisite_type)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (course_id => courses.id)
+#
 require "rails_helper"
 
 RSpec.describe CoursePrerequisite do

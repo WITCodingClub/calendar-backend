@@ -14,7 +14,7 @@ module Embeddable
 
   included do
     # Automatically generate embedding when record is created or relevant fields change
-    after_commit :enqueue_embedding_generation, on: [:create, :update], if: :should_generate_embedding?
+    # after_commit :enqueue_embedding_generation, on: [:create, :update], if: :should_generate_embedding?
 
     scope :with_embeddings, -> { where.not(embedding: nil) }
     scope :without_embeddings, -> { where(embedding: nil) }

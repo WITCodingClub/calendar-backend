@@ -6,6 +6,7 @@
 # Database name: primary
 #
 #  id                      :bigint           not null, primary key
+#  content_hash            :string
 #  evaluated_at            :datetime         not null
 #  evaluation_met          :boolean          default(FALSE), not null
 #  minimum_gpa             :decimal(3, 2)
@@ -23,6 +24,7 @@
 # Indexes
 #
 #  idx_degree_eval_snapshots_unique                               (user_id,degree_program_id,evaluation_term_id) UNIQUE
+#  index_degree_evaluation_snapshots_on_content_hash              (content_hash)
 #  index_degree_evaluation_snapshots_on_degree_program_id         (degree_program_id)
 #  index_degree_evaluation_snapshots_on_evaluated_at              (evaluated_at)
 #  index_degree_evaluation_snapshots_on_evaluation_term_id        (evaluation_term_id)

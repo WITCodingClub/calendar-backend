@@ -1,5 +1,36 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: user_degree_programs
+# Database name: primary
+#
+#  id                    :bigint           not null, primary key
+#  catalog_year          :integer          not null
+#  completion_date       :date
+#  declared_at           :datetime
+#  primary               :boolean          default(FALSE), not null
+#  program_type          :string           not null
+#  status                :string           default("active"), not null
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  degree_program_id     :bigint           not null
+#  leopardweb_program_id :string
+#  user_id               :bigint           not null
+#
+# Indexes
+#
+#  index_user_degree_programs_on_degree_program_id              (degree_program_id)
+#  index_user_degree_programs_on_status                         (status)
+#  index_user_degree_programs_on_user_id                        (user_id)
+#  index_user_degree_programs_on_user_id_and_degree_program_id  (user_id,degree_program_id) UNIQUE
+#  index_user_degree_programs_on_user_id_and_primary            (user_id,primary) UNIQUE WHERE ("primary" = true)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (degree_program_id => degree_programs.id)
+#  fk_rails_...  (user_id => users.id)
+#
 require "rails_helper"
 
 RSpec.describe UserDegreeProgram do

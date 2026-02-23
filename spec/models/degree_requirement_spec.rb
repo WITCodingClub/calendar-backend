@@ -1,5 +1,37 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: degree_requirements
+# Database name: primary
+#
+#  id                    :bigint           not null, primary key
+#  area_name             :string           not null
+#  course_choice_logic   :string
+#  course_number         :integer
+#  courses_required      :integer
+#  credits_required      :decimal(5, 2)
+#  requirement_name      :string           not null
+#  requirement_type      :string           not null
+#  rule_text             :text
+#  subject               :string
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  degree_program_id     :bigint           not null
+#  parent_requirement_id :bigint
+#
+# Indexes
+#
+#  index_degree_requirements_on_degree_program_id                (degree_program_id)
+#  index_degree_requirements_on_degree_program_id_and_area_name  (degree_program_id,area_name)
+#  index_degree_requirements_on_parent_requirement_id            (parent_requirement_id)
+#  index_degree_requirements_on_requirement_type                 (requirement_type)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (degree_program_id => degree_programs.id)
+#  fk_rails_...  (parent_requirement_id => degree_requirements.id)
+#
 require "rails_helper"
 
 RSpec.describe DegreeRequirement do

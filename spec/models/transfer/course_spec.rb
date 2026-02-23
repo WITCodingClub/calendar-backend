@@ -1,5 +1,30 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: transfer_courses
+# Database name: primary
+#
+#  id            :bigint           not null, primary key
+#  active        :boolean          default(TRUE), not null
+#  course_code   :string           not null
+#  course_title  :string           not null
+#  credits       :decimal(5, 2)
+#  description   :text
+#  created_at    :datetime         not null
+#  updated_at    :datetime         not null
+#  university_id :bigint           not null
+#
+# Indexes
+#
+#  index_transfer_courses_on_active                         (active)
+#  index_transfer_courses_on_university_id                  (university_id)
+#  index_transfer_courses_on_university_id_and_course_code  (university_id,course_code) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (university_id => transfer_universities.id)
+#
 require "rails_helper"
 
 RSpec.describe Transfer::Course do

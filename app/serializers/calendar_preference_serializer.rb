@@ -1,5 +1,31 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: calendar_preferences
+# Database name: primary
+#
+#  id                   :bigint           not null, primary key
+#  description_template :text
+#  event_type           :string
+#  location_template    :text
+#  reminder_settings    :jsonb
+#  scope                :integer          not null
+#  title_template       :text
+#  visibility           :string
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  color_id             :integer
+#  user_id              :bigint           not null
+#
+# Indexes
+#
+#  index_calendar_prefs_on_user_scope_type  (user_id,scope,event_type) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
 class CalendarPreferenceSerializer
   include PreferenceSerializable
 
