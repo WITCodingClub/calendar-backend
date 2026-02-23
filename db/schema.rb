@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_09_221927) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_10_003917) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -294,6 +294,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_09_221927) do
   end
 
   create_table "degree_evaluation_snapshots", force: :cascade do |t|
+    t.string "content_hash"
     t.datetime "created_at", null: false
     t.bigint "degree_program_id", null: false
     t.datetime "evaluated_at", null: false
@@ -307,6 +308,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_09_221927) do
     t.decimal "total_credits_required", precision: 5, scale: 2
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["content_hash"], name: "index_degree_evaluation_snapshots_on_content_hash"
     t.index ["degree_program_id"], name: "index_degree_evaluation_snapshots_on_degree_program_id"
     t.index ["evaluated_at"], name: "index_degree_evaluation_snapshots_on_evaluated_at"
     t.index ["evaluation_term_id"], name: "index_degree_evaluation_snapshots_on_evaluation_term_id"
