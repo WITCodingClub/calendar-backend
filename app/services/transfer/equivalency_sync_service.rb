@@ -299,10 +299,11 @@ module Transfer
 
       # WIT courses store subject as full name with abbreviation in parens, e.g. "Computer Science (COMP)"
       # Match by the abbreviation in parens and course_number
-      Course.where(course_number: course_number)
-            .where("subject LIKE ?", "%(#{subject_prefix})%")
-            .order(created_at: :desc)
-            .first
+      # Use ::Course to avoid resolving to Transfer::Course within this namespace
+      ::Course.where(course_number: course_number)
+              .where("subject LIKE ?", "%(#{subject_prefix})%")
+              .order(created_at: :desc)
+              .first
     end
 
     def find_or_create_equivalency(transfer_course, wit_course, data)
