@@ -174,6 +174,90 @@ RSpec.describe LeopardWebService, type: :service do
     end
   end
 
+  describe ".get_class_details" do
+    let(:term) { "202620" }
+    let(:crn) { "12345" }
+
+    let(:class_details_html) do
+      <<~HTML
+        <section aria-labelledby="classDetails">
+          <span id="courseReferenceNumber">12345</span>
+          <span id="sectionNumber">01</span>
+          <span id="subject">CS</span>
+          <span id="courseNumber">101</span>
+          <span id="courseTitle">Introduction to Programming</span>
+          <span class="status-bold">Associated Term:</span> Fall 2026<br>
+          <span class="status-bold">Campus:</span> Main<br>
+          <span class="status-bold">Schedule Type:</span> Lecture (LEC)<br>
+          <span class="status-bold">Credit Hours:</span> 3<br>
+          <span class="status-bold">Grade Mode:</span> Normal<br>
+        </section>
+      HTML
+    end
+
+    let(:enrollment_html) do
+      <<~HTML
+        <section aria-labelledby="enrollmentInfo">
+          <span class="status-bold">Enrollment Actual:</span><span dir="ltr">18</span>
+          <span class="status-bold">Enrollment Maximum:</span><span dir="ltr">25</span>
+          <span class="status-bold">Enrollment Seats Available:</span><span dir="ltr">7</span>
+          <span class="status-bold">Waitlist Capacity:</span><span dir="ltr">10</span>
+          <span class="status-bold">Waitlist Actual:</span><span dir="ltr">0</span>
+          <span class="status-bold">Waitlist Seats Available:</span><span dir="ltr">10</span>
+        </section>
+      HTML
+    end
+
+    let(:meeting_times_response) { { "fmt" => [] } }
+
+    context "when enrollment info is available" do
+      it "includes seats_available and seats_capacity in the result" do
+        mock_connection = double
+
+        details_response = double(success?: true, body: class_details_html)
+        enrollment_response = double(success?: true, body: enrollment_html)
+        meeting_times_resp = double(success?: true, body: meeting_times_response)
+
+        allow(mock_connection).to receive(:get).with("getClassDetails", anything).and_return(details_response)
+        allow(mock_connection).to receive(:get).with("getEnrollmentInfo").and_return(enrollment_response)
+        allow(mock_connection).to receive(:get).with("getFacultyMeetingTimes", anything).and_return(meeting_times_resp)
+
+        service = described_class.new(action: :get_class_details, term: term, course_reference_number: crn)
+        allow(service).to receive(:connection).and_return(mock_connection)
+
+        result = service.call
+
+        expect(result[:seats_available]).to eq(7)
+        expect(result[:seats_capacity]).to eq(25)
+      end
+    end
+
+    context "when enrollment info fetch fails" do
+      it "returns class details without seats and logs a warning" do
+        mock_connection = double
+
+        details_response = double(success?: true, body: class_details_html)
+        meeting_times_resp = double(success?: true, body: meeting_times_response)
+
+        allow(mock_connection).to receive(:get).with("getClassDetails", anything).and_return(details_response)
+        allow(mock_connection).to receive(:get).with("getFacultyMeetingTimes", anything).and_return(meeting_times_resp)
+        allow(mock_connection).to receive(:get).with("getEnrollmentInfo").and_raise(StandardError, "timeout")
+
+        service = described_class.new(action: :get_class_details, term: term, course_reference_number: crn)
+        allow(service).to receive(:connection).and_return(mock_connection)
+
+        expect(Rails.logger).to receive(:warn).with(/Failed to fetch enrollment info/)
+
+        result = service.call
+
+        expect(result).not_to be_nil
+        expect(result[:crn]).to eq(crn)
+        expect(result[:seats_available]).to be_nil
+        expect(result[:seats_capacity]).to be_nil
+      end
+    end
+  end
+
   describe "#initialize_search_session!" do
     let(:term) { "202620" }
 

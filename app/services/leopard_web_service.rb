@@ -116,6 +116,18 @@ class LeopardWebService < ApplicationService
       end.compact
     end
 
+    # Fetch enrollment/seat counts on the same stateful connection (no params required
+    # because getEnrollmentInfo uses the session context set by getClassDetails above).
+    begin
+      enrollment_data = get_enrollment_info
+      if enrollment_data
+        details[:seats_available] = enrollment_data.dig(:enrollment, :seats_available)
+        details[:seats_capacity]  = enrollment_data.dig(:enrollment, :maximum)
+      end
+    rescue => e
+      Rails.logger.warn("LeopardWebService: Failed to fetch enrollment info for CRN #{course_reference_number}: #{e.message}")
+    end
+
     details
   end
 

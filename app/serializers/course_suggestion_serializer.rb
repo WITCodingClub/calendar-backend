@@ -13,7 +13,9 @@ class CourseSuggestionSerializer
       crn: @course.crn,
       title: @course.title,
       credit_hours: @course.credit_hours,
-      schedule_type: @course.schedule_type
+      schedule_type: @course.schedule_type,
+      seats_available: @course.seats_available,
+      seats_capacity: @course.seats_capacity
     }
   end
 

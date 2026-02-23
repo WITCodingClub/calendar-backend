@@ -6,6 +6,20 @@ RSpec.describe CourseProcessorService, type: :service do
   let(:user) { create(:user) }
   let(:term) { create(:term, uid: 202610, year: 2025, season: :fall) }
 
+  let(:base_class_details) do
+    {
+      associated_term: "Fall 2025",
+      subject: "CS",
+      title: "Intro to CS",
+      schedule_type: "Lecture (LEC)",
+      section_number: "01",
+      credit_hours: 3,
+      grade_mode: "Normal",
+      seats_available: 10,
+      seats_capacity: 25
+    }
+  end
+
   describe "#call" do
     context "validation" do
       it "raises error when courses is nil" do
@@ -79,19 +93,8 @@ RSpec.describe CourseProcessorService, type: :service do
           courseNumber: "CS101"
         }]
 
-        # Mock LeopardWebService responses
-
-        allow(LeopardWebService).to receive_messages(get_class_details: {
-                                                       associated_term: "Fall 2025",
-                                                       subject: "CS",
-                                                       title: "Intro to CS",
-                                                       schedule_type: "Lecture (LEC)",
-                                                       section_number: "01",
-                                                       credit_hours: 3,
-                                                       grade_mode: "Normal"
-                                                     }, get_faculty_meeting_times: {
-                                                       "fmt" => []
-                                                     })
+        allow(LeopardWebService).to receive_messages(get_class_details: base_class_details,
+                                                     get_faculty_meeting_times: { "fmt" => [] })
 
         expect {
           described_class.new(courses, user).call
@@ -101,18 +104,8 @@ RSpec.describe CourseProcessorService, type: :service do
 
     context "deduplication" do
       before do
-
-        allow(LeopardWebService).to receive_messages(get_class_details: {
-                                                       associated_term: "Fall 2025",
-                                                       subject: "CS",
-                                                       title: "Intro to CS",
-                                                       schedule_type: "Lecture (LEC)",
-                                                       section_number: "01",
-                                                       credit_hours: 3,
-                                                       grade_mode: "Normal"
-                                                     }, get_faculty_meeting_times: {
-                                                       "fmt" => []
-                                                     })
+        allow(LeopardWebService).to receive_messages(get_class_details: base_class_details,
+                                                     get_faculty_meeting_times: { "fmt" => [] })
       end
 
       it "deduplicates courses by CRN and term" do
@@ -136,19 +129,11 @@ RSpec.describe CourseProcessorService, type: :service do
           { crn: 12345, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" }
         ]
 
-        # Mock LeopardWebService to return a LAB schedule type
-
-        allow(LeopardWebService).to receive_messages(get_class_details: {
-                                                       associated_term: "Fall 2025",
-                                                       subject: "CS",
-                                                       title: "Computer Science I - Lab",
-                                                       schedule_type: "Laboratory (LAB)",
-                                                       section_number: "01",
-                                                       credit_hours: 4, # LeopardWeb incorrectly returns total course credits
-                                                       grade_mode: "Normal"
-                                                     }, get_faculty_meeting_times: {
-                                                       "fmt" => []
-                                                     })
+        allow(LeopardWebService).to receive_messages(get_class_details: base_class_details.merge(
+          title: "Computer Science I - Lab",
+          schedule_type: "Laboratory (LAB)",
+          credit_hours: 4 # LeopardWeb incorrectly returns total course credits
+        ), get_faculty_meeting_times: { "fmt" => [] })
 
         described_class.new(courses, user).call
 
@@ -162,19 +147,10 @@ RSpec.describe CourseProcessorService, type: :service do
           { crn: 12346, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" }
         ]
 
-        # Mock LeopardWebService to return a LEC schedule type
-
-        allow(LeopardWebService).to receive_messages(get_class_details: {
-                                                       associated_term: "Fall 2025",
-                                                       subject: "CS",
-                                                       title: "Computer Science I",
-                                                       schedule_type: "Lecture (LEC)",
-                                                       section_number: "01",
-                                                       credit_hours: 4,
-                                                       grade_mode: "Normal"
-                                                     }, get_faculty_meeting_times: {
-                                                       "fmt" => []
-                                                     })
+        allow(LeopardWebService).to receive_messages(get_class_details: base_class_details.merge(
+          title: "Computer Science I",
+          credit_hours: 4
+        ), get_faculty_meeting_times: { "fmt" => [] })
 
         described_class.new(courses, user).call
 
@@ -188,19 +164,11 @@ RSpec.describe CourseProcessorService, type: :service do
           { crn: 12347, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS201" }
         ]
 
-        # Mock LeopardWebService to return a HYB schedule type
-
-        allow(LeopardWebService).to receive_messages(get_class_details: {
-                                                       associated_term: "Fall 2025",
-                                                       subject: "CS",
-                                                       title: "Advanced Programming",
-                                                       schedule_type: "Hybrid (HYB)",
-                                                       section_number: "01",
-                                                       credit_hours: 3,
-                                                       grade_mode: "Normal"
-                                                     }, get_faculty_meeting_times: {
-                                                       "fmt" => []
-                                                     })
+        allow(LeopardWebService).to receive_messages(get_class_details: base_class_details.merge(
+          title: "Advanced Programming",
+          schedule_type: "Hybrid (HYB)",
+          credit_hours: 3
+        ), get_faculty_meeting_times: { "fmt" => [] })
 
         described_class.new(courses, user).call
 
@@ -210,19 +178,53 @@ RSpec.describe CourseProcessorService, type: :service do
       end
     end
 
+    context "seat counts" do
+      let(:courses) do
+        [{ crn: 12345, term: term.uid, start: Time.zone.today, end: Time.zone.today + 90.days, courseNumber: "CS101" }]
+      end
+
+      it "sets seats_available and seats_capacity on new courses" do
+        allow(LeopardWebService).to receive_messages(
+          get_class_details: base_class_details.merge(seats_available: 7, seats_capacity: 25),
+          get_faculty_meeting_times: { "fmt" => [] }
+        )
+
+        described_class.new(courses, user).call
+
+        course = Course.find_by(crn: 12345)
+        expect(course.seats_available).to eq(7)
+        expect(course.seats_capacity).to eq(25)
+      end
+
+      it "updates seats on an existing course (enrollment changes frequently)" do
+        existing_course = create(:course, crn: 12345, term: term, seats_available: 20, seats_capacity: 25)
+
+        allow(LeopardWebService).to receive_messages(
+          get_class_details: base_class_details.merge(seats_available: 3, seats_capacity: 25),
+          get_faculty_meeting_times: { "fmt" => [] }
+        )
+
+        described_class.new(courses, user).call
+
+        expect(existing_course.reload.seats_available).to eq(3)
+      end
+
+      it "handles nil seat data gracefully (enrollment info unavailable)" do
+        allow(LeopardWebService).to receive_messages(
+          get_class_details: base_class_details.merge(seats_available: nil, seats_capacity: nil),
+          get_faculty_meeting_times: { "fmt" => [] }
+        )
+
+        expect {
+          described_class.new(courses, user).call
+        }.not_to raise_error
+      end
+    end
+
     context "calendar sync" do
       before do
-        allow(LeopardWebService).to receive_messages(get_class_details: {
-                                                       associated_term: "Fall 2025",
-                                                       subject: "CS",
-                                                       title: "Intro to CS",
-                                                       schedule_type: "Lecture (LEC)",
-                                                       section_number: "01",
-                                                       credit_hours: 3,
-                                                       grade_mode: "Normal"
-                                                     }, get_faculty_meeting_times: {
-                                                       "fmt" => []
-                                                     })
+        allow(LeopardWebService).to receive_messages(get_class_details: base_class_details,
+                                                     get_faculty_meeting_times: { "fmt" => [] })
       end
 
       it "enqueues GoogleCalendarSyncJob when user has google calendar" do
