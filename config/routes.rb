@@ -502,6 +502,12 @@ Rails.application.routes.draw do
       end
       resources :rmp_ratings, only: [:index]
 
+      resources :transfer_equivalencies, only: [:index] do
+        collection do
+          post :sync
+        end
+      end
+
       # Course catalog importer (admin utility)
       get "course_catalog", to: "course_catalog#index", as: :course_catalog
       post "course_catalog/import/:term_uid", to: "course_catalog#import", as: :course_catalog_import
