@@ -70,5 +70,34 @@ module Api
       render json: { error: "Failed to reprocess courses" }, status: :internal_server_error
     end
 
+    # GET /api/courses/:id/prerequisites
+    # Returns all prerequisites for a given course.
+    def prerequisites
+      @course = find_by_any_id!(Course, params[:id])
+      authorize @course, :show?
+
+      prereqs = @course.course_prerequisites.map do |p|
+        {
+          type: p.prerequisite_type,
+          rule: p.prerequisite_rule,
+          min_grade: p.min_grade,
+          waivable: p.waivable
+        }
+      end
+
+      render json: { prerequisites: prereqs }, status: :ok
+    end
+
+    # POST /api/courses/:id/check_eligibility
+    # Checks whether the current user meets the prerequisites for a course.
+    def check_eligibility
+      @course = find_by_any_id!(Course, params[:id])
+      authorize @course, :show?
+
+      result = PrerequisiteValidationService.call(user: current_user, course: @course)
+
+      render json: result, status: :ok
+    end
+
   end
 end

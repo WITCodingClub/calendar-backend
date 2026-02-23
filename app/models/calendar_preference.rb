@@ -20,7 +20,6 @@
 #
 # Indexes
 #
-#  index_calendar_preferences_on_user_id    (user_id)
 #  index_calendar_prefs_on_user_scope_type  (user_id,scope,event_type) UNIQUE
 #
 # Foreign Keys
@@ -29,7 +28,7 @@
 #
 class CalendarPreference < ApplicationRecord
   include ReminderSettingsNormalizable
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :cpf, min_hash_length: 12
 

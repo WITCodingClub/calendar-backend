@@ -24,7 +24,6 @@
 #
 # Indexes
 #
-#  index_courses_on_crn              (crn)
 #  index_courses_on_crn_and_term_id  (crn,term_id) UNIQUE
 #  index_courses_on_status           (status)
 #  index_courses_on_term_id          (term_id)

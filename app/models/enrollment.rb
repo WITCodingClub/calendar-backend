@@ -17,7 +17,6 @@
 #  index_enrollments_on_course_id        (course_id)
 #  index_enrollments_on_term_id          (term_id)
 #  index_enrollments_on_user_class_term  (user_id,course_id,term_id) UNIQUE
-#  index_enrollments_on_user_id          (user_id)
 #
 # Foreign Keys
 #
@@ -27,7 +26,7 @@
 #
 class Enrollment < ApplicationRecord
   include CalendarSyncable
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :enr, min_hash_length: 12
 

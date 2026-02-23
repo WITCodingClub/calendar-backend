@@ -25,7 +25,7 @@ class CleanupOrphanedCalendarRecordsJob < ApplicationJob
     orphaned_calendar_ids.concat(orphaned_by_expired_token)
 
     # Find calendars whose oauth credential has no user
-    orphaned_by_user_sql = <<-SQL.squish
+    orphaned_by_user_sql = <<~SQL.squish
       SELECT google_calendars.id
       FROM google_calendars
       INNER JOIN oauth_credentials ON oauth_credentials.id = google_calendars.oauth_credential_id

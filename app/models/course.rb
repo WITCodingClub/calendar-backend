@@ -24,7 +24,6 @@
 #
 # Indexes
 #
-#  index_courses_on_crn              (crn)
 #  index_courses_on_crn_and_term_id  (crn,term_id) UNIQUE
 #  index_courses_on_status           (status)
 #  index_courses_on_term_id          (term_id)
@@ -35,7 +34,7 @@
 #
 class Course < ApplicationRecord
   include CourseChangeTrackable
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
   include Embeddable
 
   set_public_id_prefix :crs
@@ -48,6 +47,7 @@ class Course < ApplicationRecord
   has_many :enrollments, dependent: :destroy
   has_many :users, through: :enrollments
   has_one :final_exam, dependent: :destroy
+  has_many :course_prerequisites, dependent: :destroy
 
   has_neighbors :embedding
 

@@ -30,7 +30,6 @@
 #  idx_gcal_events_unique_university                             (google_calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
 #  idx_on_google_calendar_id_meeting_time_id_6c9efabf50          (google_calendar_id,meeting_time_id)
 #  index_google_calendar_events_on_final_exam_id                 (final_exam_id)
-#  index_google_calendar_events_on_google_calendar_id            (google_calendar_id)
 #  index_google_calendar_events_on_google_event_id               (google_event_id)
 #  index_google_calendar_events_on_last_synced_at                (last_synced_at)
 #  index_google_calendar_events_on_meeting_time_id               (meeting_time_id)
@@ -44,7 +43,7 @@
 #  fk_rails_...  (university_calendar_event_id => university_calendar_events.id)
 #
 class GoogleCalendarEvent < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :gce, min_hash_length: 12
 

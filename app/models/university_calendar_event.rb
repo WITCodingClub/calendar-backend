@@ -29,7 +29,6 @@
 #  index_university_calendar_events_on_academic_term            (academic_term)
 #  index_university_calendar_events_on_category                 (category)
 #  index_university_calendar_events_on_ics_uid                  (ics_uid) UNIQUE
-#  index_university_calendar_events_on_start_time               (start_time)
 #  index_university_calendar_events_on_start_time_and_end_time  (start_time,end_time)
 #  index_university_calendar_events_on_term_id                  (term_id)
 #
@@ -38,7 +37,7 @@
 #  fk_rails_...  (term_id => terms.id)
 #
 class UniversityCalendarEvent < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
   include FuzzyDuplicateDetector
 
   set_public_id_prefix :uce, min_hash_length: 12

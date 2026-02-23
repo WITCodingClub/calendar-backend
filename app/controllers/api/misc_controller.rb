@@ -10,23 +10,9 @@ module Api
       next_term = Term.next
 
       render json: {
-        current_term: term_json(current_term),
-        next_term: term_json(next_term)
+        current_term: TermSerializer.new(current_term).as_json,
+        next_term: TermSerializer.new(next_term).as_json
       }, status: :ok
-    end
-
-    private
-
-    def term_json(term)
-      return nil if term.nil?
-
-      {
-        name: term.name,
-        id: term.uid,
-        pub_id: term.public_id,
-        start_date: term.start_date,
-        end_date: term.end_date
-      }
     end
 
   end

@@ -35,7 +35,7 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class SecurityEvent < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :sev, min_hash_length: 12
 

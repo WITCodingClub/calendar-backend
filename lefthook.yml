@@ -6,5 +6,5 @@ pre-commit:
   commands:
     rubocop:
       glob: "*.rb"
-      run: bundle exec rubocop -a {staged_files} && git add {staged_files}
+      run: bundle exec rubocop -a --force-exclusion {staged_files} && git add {staged_files}
       stage_fixed: true

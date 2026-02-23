@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_31_234618) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_10_003917) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -232,6 +232,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_31_234618) do
     t.index ["username"], name: "index_console1984_users_on_username"
   end
 
+  create_table "course_plans", force: :cascade do |t|
+    t.bigint "course_id"
+    t.datetime "created_at", null: false
+    t.text "notes"
+    t.integer "planned_course_number", null: false
+    t.integer "planned_crn"
+    t.string "planned_subject", null: false
+    t.string "status", default: "planned", null: false
+    t.bigint "term_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["course_id"], name: "index_course_plans_on_course_id"
+    t.index ["status"], name: "index_course_plans_on_status"
+    t.index ["term_id"], name: "index_course_plans_on_term_id"
+    t.index ["user_id", "course_id"], name: "index_course_plans_on_user_id_and_course_id", unique: true, where: "(course_id IS NOT NULL)"
+    t.index ["user_id", "term_id"], name: "index_course_plans_on_user_id_and_term_id"
+    t.index ["user_id"], name: "index_course_plans_on_user_id"
+  end
+
+  create_table "course_prerequisites", force: :cascade do |t|
+    t.bigint "course_id", null: false
+    t.datetime "created_at", null: false
+    t.string "min_grade"
+    t.string "prerequisite_logic"
+    t.text "prerequisite_rule", null: false
+    t.string "prerequisite_type", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "waivable", default: false, null: false
+    t.index ["course_id", "prerequisite_type"], name: "index_course_prerequisites_on_course_id_and_prerequisite_type"
+    t.index ["course_id"], name: "index_course_prerequisites_on_course_id"
+    t.index ["prerequisite_type"], name: "index_course_prerequisites_on_prerequisite_type"
+  end
+
   create_table "courses", force: :cascade do |t|
     t.integer "course_number"
     t.datetime "created_at", null: false
@@ -258,6 +291,70 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_31_234618) do
     t.bigint "faculty_id", null: false
     t.index ["course_id", "faculty_id"], name: "index_courses_faculties_on_course_id_and_faculty_id"
     t.index ["faculty_id", "course_id"], name: "index_courses_faculties_on_faculty_id_and_course_id"
+  end
+
+  create_table "degree_evaluation_snapshots", force: :cascade do |t|
+    t.string "content_hash"
+    t.datetime "created_at", null: false
+    t.bigint "degree_program_id", null: false
+    t.datetime "evaluated_at", null: false
+    t.boolean "evaluation_met", default: false, null: false
+    t.bigint "evaluation_term_id", null: false
+    t.decimal "minimum_gpa", precision: 3, scale: 2
+    t.decimal "overall_gpa", precision: 3, scale: 2
+    t.jsonb "parsed_data", default: {}
+    t.text "raw_html"
+    t.decimal "total_credits_completed", precision: 5, scale: 2
+    t.decimal "total_credits_required", precision: 5, scale: 2
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["content_hash"], name: "index_degree_evaluation_snapshots_on_content_hash"
+    t.index ["degree_program_id"], name: "index_degree_evaluation_snapshots_on_degree_program_id"
+    t.index ["evaluated_at"], name: "index_degree_evaluation_snapshots_on_evaluated_at"
+    t.index ["evaluation_term_id"], name: "index_degree_evaluation_snapshots_on_evaluation_term_id"
+    t.index ["user_id", "degree_program_id", "evaluation_term_id"], name: "idx_degree_eval_snapshots_unique", unique: true
+    t.index ["user_id", "evaluated_at"], name: "index_degree_evaluation_snapshots_on_user_id_and_evaluated_at"
+    t.index ["user_id"], name: "index_degree_evaluation_snapshots_on_user_id"
+  end
+
+  create_table "degree_programs", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.integer "catalog_year", null: false
+    t.string "college"
+    t.datetime "created_at", null: false
+    t.decimal "credit_hours_required", precision: 5, scale: 2
+    t.string "degree_type", null: false
+    t.string "department"
+    t.string "leopardweb_code", null: false
+    t.string "level", null: false
+    t.decimal "minimum_gpa", precision: 3, scale: 2
+    t.string "program_code", null: false
+    t.string "program_name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_degree_programs_on_active"
+    t.index ["catalog_year", "program_code"], name: "index_degree_programs_on_catalog_year_and_program_code"
+    t.index ["leopardweb_code"], name: "index_degree_programs_on_leopardweb_code", unique: true
+    t.index ["program_code"], name: "index_degree_programs_on_program_code", unique: true
+  end
+
+  create_table "degree_requirements", force: :cascade do |t|
+    t.string "area_name", null: false
+    t.string "course_choice_logic"
+    t.integer "course_number"
+    t.integer "courses_required"
+    t.datetime "created_at", null: false
+    t.decimal "credits_required", precision: 5, scale: 2
+    t.bigint "degree_program_id", null: false
+    t.bigint "parent_requirement_id"
+    t.string "requirement_name", null: false
+    t.string "requirement_type", null: false
+    t.text "rule_text"
+    t.string "subject"
+    t.datetime "updated_at", null: false
+    t.index ["degree_program_id", "area_name"], name: "index_degree_requirements_on_degree_program_id_and_area_name"
+    t.index ["degree_program_id"], name: "index_degree_requirements_on_degree_program_id"
+    t.index ["parent_requirement_id"], name: "index_degree_requirements_on_parent_requirement_id"
+    t.index ["requirement_type"], name: "index_degree_requirements_on_requirement_type"
   end
 
   create_table "emails", force: :cascade do |t|
@@ -570,6 +667,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_31_234618) do
     t.index ["related_faculty_id"], name: "index_related_professors_on_related_faculty_id"
   end
 
+  create_table "requirement_completions", force: :cascade do |t|
+    t.datetime "completed_at"
+    t.bigint "course_id"
+    t.integer "course_number", null: false
+    t.string "course_title"
+    t.datetime "created_at", null: false
+    t.decimal "credits", precision: 5, scale: 2
+    t.bigint "degree_requirement_id", null: false
+    t.string "grade"
+    t.boolean "in_progress", default: false, null: false
+    t.boolean "met_requirement", default: false, null: false
+    t.string "source", null: false
+    t.string "subject", null: false
+    t.bigint "term_id"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["course_id"], name: "index_requirement_completions_on_course_id"
+    t.index ["degree_requirement_id"], name: "index_requirement_completions_on_degree_requirement_id"
+    t.index ["in_progress"], name: "index_requirement_completions_on_in_progress"
+    t.index ["source"], name: "index_requirement_completions_on_source"
+    t.index ["term_id"], name: "index_requirement_completions_on_term_id"
+    t.index ["user_id", "course_id"], name: "index_requirement_completions_on_user_id_and_course_id", unique: true, where: "(course_id IS NOT NULL)"
+    t.index ["user_id", "degree_requirement_id"], name: "idx_on_user_id_degree_requirement_id_f4a11da44b"
+    t.index ["user_id"], name: "index_requirement_completions_on_user_id"
+  end
+
   create_table "rmp_ratings", force: :cascade do |t|
     t.string "attendance_mandatory"
     t.integer "clarity_rating"
@@ -648,6 +771,48 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_31_234618) do
     t.index ["year", "season"], name: "index_terms_on_year_and_season", unique: true
   end
 
+  create_table "transfer_courses", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.string "course_code", null: false
+    t.string "course_title", null: false
+    t.datetime "created_at", null: false
+    t.decimal "credits", precision: 5, scale: 2
+    t.text "description"
+    t.bigint "university_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_transfer_courses_on_active"
+    t.index ["university_id", "course_code"], name: "index_transfer_courses_on_university_id_and_course_code", unique: true
+    t.index ["university_id"], name: "index_transfer_courses_on_university_id"
+  end
+
+  create_table "transfer_equivalencies", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "effective_date", null: false
+    t.date "expiration_date"
+    t.text "notes"
+    t.bigint "transfer_course_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "wit_course_id", null: false
+    t.index ["effective_date"], name: "index_transfer_equivalencies_on_effective_date"
+    t.index ["expiration_date"], name: "index_transfer_equivalencies_on_expiration_date"
+    t.index ["transfer_course_id", "wit_course_id"], name: "idx_transfer_equivalencies_unique", unique: true
+    t.index ["transfer_course_id"], name: "index_transfer_equivalencies_on_transfer_course_id"
+    t.index ["wit_course_id"], name: "index_transfer_equivalencies_on_wit_course_id"
+  end
+
+  create_table "transfer_universities", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.string "code", null: false
+    t.string "country"
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.string "state"
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_transfer_universities_on_active"
+    t.index ["code"], name: "index_transfer_universities_on_code", unique: true
+    t.index ["name"], name: "index_transfer_universities_on_name"
+  end
+
   create_table "university_calendar_events", force: :cascade do |t|
     t.string "academic_term"
     t.boolean "all_day", default: false, null: false
@@ -671,6 +836,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_31_234618) do
     t.index ["ics_uid"], name: "index_university_calendar_events_on_ics_uid", unique: true
     t.index ["start_time", "end_time"], name: "index_university_calendar_events_on_start_time_and_end_time"
     t.index ["term_id"], name: "index_university_calendar_events_on_term_id"
+  end
+
+  create_table "user_degree_programs", force: :cascade do |t|
+    t.integer "catalog_year", null: false
+    t.date "completion_date"
+    t.datetime "created_at", null: false
+    t.datetime "declared_at"
+    t.bigint "degree_program_id", null: false
+    t.string "leopardweb_program_id"
+    t.boolean "primary", default: false, null: false
+    t.string "program_type", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["degree_program_id"], name: "index_user_degree_programs_on_degree_program_id"
+    t.index ["status"], name: "index_user_degree_programs_on_status"
+    t.index ["user_id", "degree_program_id"], name: "index_user_degree_programs_on_user_id_and_degree_program_id", unique: true
+    t.index ["user_id", "primary"], name: "index_user_degree_programs_on_user_id_and_primary", unique: true, where: "(\"primary\" = true)"
+    t.index ["user_id"], name: "index_user_degree_programs_on_user_id"
   end
 
   create_table "user_extension_configs", force: :cascade do |t|
@@ -714,7 +898,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_31_234618) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_preferences", "users"
+  add_foreign_key "course_plans", "courses"
+  add_foreign_key "course_plans", "terms"
+  add_foreign_key "course_plans", "users"
+  add_foreign_key "course_prerequisites", "courses"
   add_foreign_key "courses", "terms"
+  add_foreign_key "degree_evaluation_snapshots", "degree_programs"
+  add_foreign_key "degree_evaluation_snapshots", "terms", column: "evaluation_term_id"
+  add_foreign_key "degree_evaluation_snapshots", "users"
+  add_foreign_key "degree_requirements", "degree_programs"
+  add_foreign_key "degree_requirements", "degree_requirements", column: "parent_requirement_id"
   add_foreign_key "emails", "users"
   add_foreign_key "enrollment_snapshots", "terms"
   add_foreign_key "enrollment_snapshots", "users"
@@ -739,11 +932,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_31_234618) do
   add_foreign_key "rating_distributions", "faculties"
   add_foreign_key "related_professors", "faculties"
   add_foreign_key "related_professors", "faculties", column: "related_faculty_id"
+  add_foreign_key "requirement_completions", "courses"
+  add_foreign_key "requirement_completions", "degree_requirements"
+  add_foreign_key "requirement_completions", "terms"
+  add_foreign_key "requirement_completions", "users"
   add_foreign_key "rmp_ratings", "faculties"
   add_foreign_key "rooms", "buildings"
   add_foreign_key "security_events", "oauth_credentials"
   add_foreign_key "security_events", "users"
   add_foreign_key "teacher_rating_tags", "faculties"
+  add_foreign_key "transfer_courses", "transfer_universities", column: "university_id"
+  add_foreign_key "transfer_equivalencies", "courses", column: "wit_course_id"
+  add_foreign_key "transfer_equivalencies", "transfer_courses"
   add_foreign_key "university_calendar_events", "terms"
+  add_foreign_key "user_degree_programs", "degree_programs"
+  add_foreign_key "user_degree_programs", "users"
   add_foreign_key "user_extension_configs", "users"
 end

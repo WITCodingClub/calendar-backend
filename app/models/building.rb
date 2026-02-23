@@ -17,7 +17,7 @@
 #  index_buildings_on_name          (name) UNIQUE
 #
 class Building < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :bld
 

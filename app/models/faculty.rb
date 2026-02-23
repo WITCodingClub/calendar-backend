@@ -38,7 +38,7 @@
 #  index_faculties_on_school                    (school)
 #
 class Faculty < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
   include Embeddable
 
   set_public_id_prefix :fac

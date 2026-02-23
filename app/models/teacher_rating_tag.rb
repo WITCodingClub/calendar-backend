@@ -15,7 +15,6 @@
 #
 # Indexes
 #
-#  index_teacher_rating_tags_on_faculty_id                    (faculty_id)
 #  index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id  (faculty_id,rmp_legacy_id) UNIQUE
 #
 # Foreign Keys
@@ -23,7 +22,7 @@
 #  fk_rails_...  (faculty_id => faculties.id)
 #
 class TeacherRatingTag < ApplicationRecord
-  include PublicIdentifiable
+  include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :trt
 

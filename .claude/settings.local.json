@@ -4,7 +4,10 @@
       "Bash(gh repo list:*)",
       "Bash(gh api:*)",
       "Bash(gh pr view:*)",
-      "Bash(gh pr diff:*)"
+      "Bash(gh pr diff:*)",
+      "mcp__plugin_github_github__issue_read",
+      "Bash(gh issue view:*)",
+      "Bash(bin/rails generate migration:*)"
     ],
     "deny": [],
     "ask": []

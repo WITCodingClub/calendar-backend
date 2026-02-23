@@ -2,8 +2,6 @@
 
 module Api
   class UsersController < ApiController
-    include ApplicationHelper
-
     skip_before_action :authenticate_user_from_token!, only: [:onboard]
     skip_before_action :check_beta_access, only: [:onboard, :get_email]
 
@@ -244,84 +242,6 @@ module Api
       render json: { error: "Failed to request Google Calendar" }, status: :internal_server_error
     end
 
-    def group_meeting_times(meeting_times)
-      # Create preference resolver for the user
-      preference_resolver = PreferenceResolver.new(current_user)
-      template_renderer = CalendarTemplateRenderer.new
-
-      # Return each meeting time individually with its own ID
-      # This ensures each day can be edited independently in the extension
-      meeting_times.map do |mt|
-        # Initialize days object with only this meeting time's day set to true
-        days = {
-          monday: false,
-          tuesday: false,
-          wednesday: false,
-          thursday: false,
-          friday: false,
-          saturday: false,
-          sunday: false
-        }
-
-        # Set only the current meeting time's day to true
-        day_symbol = mt.day_of_week&.to_sym
-        days[day_symbol] = true if day_symbol
-
-        # Resolve preferences for this meeting time (ignore DND for display purposes)
-        preferences = preference_resolver.resolve_actual_for(mt)
-
-        # Build template context
-        context = CalendarTemplateRenderer.build_context_from_meeting_time(mt)
-
-        # Render title and description from templates
-        rendered_title = if preferences[:title_template].present?
-                           template_renderer.render(preferences[:title_template], context)
-                         else
-                           titleize_with_roman_numerals(mt.course.title)
-                         end
-
-        rendered_description = if preferences[:description_template].present?
-                                 template_renderer.render(preferences[:description_template], context)
-                               else
-                                 nil
-                               end
-
-        # Convert color to WITCC hex format
-        # Use preference color if set, otherwise use meeting time's default color
-        color_value = preferences[:color_id] || mt.event_color
-        witcc_color = GoogleColors.to_witcc_hex(color_value)
-
-        {
-          id: mt.public_id,
-          begin_time: mt.fmt_begin_time_military,
-          end_time: mt.fmt_end_time_military,
-          start_date: mt.start_date,
-          end_date: mt.end_date,
-          location: {
-            building: if mt.building
-                        {
-                          pub_id: mt.building.public_id,
-                          name: mt.building.name,
-                          abbreviation: mt.building.abbreviation
-                        }
-                      else
-                        nil
-                      end,
-            room: mt.room&.formatted_number
-          },
-          **days,
-          # Preference-resolved calendar configuration
-          calendar_config: {
-            title: rendered_title,
-            description: rendered_description,
-            color_id: witcc_color,
-            reminder_settings: preferences[:reminder_settings],
-            visibility: preferences[:visibility]
-          }
-        }
-      end
-    end
-
     def get_ics_url
       authorize current_user, :show?
 
@@ -477,10 +397,6 @@ module Api
         return
       end
 
-      # Preload user's calendar preferences to avoid N+1 queries in PreferenceResolver
-      current_user.calendar_preferences.load
-      current_user.event_preferences.load
-
       # Preload course associations to prevent N+1 (meeting_times, faculties, buildings, rooms, event_preferences)
       enrollments = current_user
                     .enrollments
@@ -490,55 +406,16 @@ module Api
                                 { meeting_times: [:event_preference, { room: :building }, { course: :faculties }] }
                               ])
 
+      preference_resolver = PreferenceResolver.new(current_user)
+      template_renderer = CalendarTemplateRenderer.new
+
       structured_data = enrollments.map do |enrollment|
-        course = enrollment.course
-        faculty = course.faculties.first # safer than [0]
-
-        # Filter meeting times to prefer valid locations over TBD duplicates
-        filtered_meeting_times = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
-                                       .map do |key, meeting_times_group|
-                                         # Log duplicate detection
-                                         if meeting_times_group.size > 1
-                                           Rails.logger.info "[API] Duplicate meeting times detected for course #{course.crn}: #{meeting_times_group.size} entries for #{key.inspect}"
-                                         end
-
-                                         # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
-                                         non_tbd = meeting_times_group.reject { |mt| (mt.building && current_user.send(:tbd_building?, mt.building)) || (mt.room && current_user.send(:tbd_room?, mt.room)) }
-                                         # Take only the first valid one, or first TBD if no valid ones
-                                         selected = non_tbd.any? ? non_tbd.first : meeting_times_group.first
-
-                                         if meeting_times_group.size > 1
-                                           Rails.logger.info "[API] Selected meeting time #{selected.id} with location: #{selected.building&.name} - #{selected.room&.number}"
-                                         end
-
-                                         selected
-        end
-
-        {
-          title: titleize_with_roman_numerals(course.title),
-          course_number: course.course_number,
-          schedule_type: course.schedule_type,
-          prefix: course.prefix,
-          term: {
-            pub_id: term.public_id,
-            uid: term.uid,
-            season: term.season,
-            year: term.year
-          },
-          professor: if faculty
-                       {
-                         pub_id: faculty.public_id,
-                         first_name: faculty.first_name,
-                         last_name: faculty.last_name,
-                         email: faculty.email,
-                         rmp_id: faculty.rmp_id
-                       }
-                     else
-                       nil
-                     end,
-          # Note: We pass filtered_meeting_times (not grouped) to ensure each day has unique ID
-          meeting_times: group_meeting_times(filtered_meeting_times)
-        }
+        EnrolledCourseSerializer.new(
+          enrollment,
+          term: term,
+          preference_resolver: preference_resolver,
+          template_renderer: template_renderer
+        ).as_json
       end
 
       render json: {

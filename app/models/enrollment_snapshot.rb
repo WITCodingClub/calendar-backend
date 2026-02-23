@@ -27,7 +27,6 @@
 #  index_enrollment_snapshots_on_crn                  (crn)
 #  index_enrollment_snapshots_on_snapshot_created_at  (snapshot_created_at)
 #  index_enrollment_snapshots_on_term_id              (term_id)
-#  index_enrollment_snapshots_on_user_id              (user_id)
 #
 # Foreign Keys
 #
