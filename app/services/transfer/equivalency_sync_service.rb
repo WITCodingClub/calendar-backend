@@ -41,13 +41,13 @@ module Transfer
     private
 
     def fetch_tes_page
-      response = connection.get(TES_BASE_URL, rid: TES_RID)
+      @initial_response = connection.get(TES_BASE_URL, rid: TES_RID)
 
-      unless response.success?
-        raise "TES page returned HTTP #{response.status}"
+      unless @initial_response.success?
+        raise "TES page returned HTTP #{@initial_response.status}"
       end
 
-      response.body
+      @initial_response.body
     end
 
     # Parse the equivalency grid from the TES page HTML.
@@ -203,6 +203,14 @@ module Transfer
 
       response = connection.post("#{TES_BASE_URL}?rid=#{TES_RID}") do |req|
         req.headers["Content-Type"] = "application/x-www-form-urlencoded"
+        # Forward session cookies from the initial GET so ASP.NET can validate
+        # the __EVENTVALIDATION token (it's tied to the server-side session)
+        if @initial_response
+          session_cookies = Array(@initial_response.headers["set-cookie"])
+                            .map { |c| c.split(";").first.strip }
+                            .join("; ")
+          req.headers["Cookie"] = session_cookies if session_cookies.present?
+        end
         req.body = URI.encode_www_form(form_data)
       end
 
