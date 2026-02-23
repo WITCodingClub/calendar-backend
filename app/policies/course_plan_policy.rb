@@ -19,7 +19,7 @@ class CoursePlanPolicy < ApplicationPolicy
 
   class Scope < ApplicationPolicy::Scope
     def resolve
-      if admin?
+      if user&.admin_access?
         scope.all
       else
         scope.where(user: user)
