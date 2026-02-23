@@ -26,10 +26,6 @@
 #  fk_rails_...  (requester_id => users.id)
 #
 class Friendship < ApplicationRecord
-  include PublicIdentifiable
-
-  set_public_id_prefix :frn, min_hash_length: 10
-
   belongs_to :requester, class_name: "User"
   belongs_to :addressee, class_name: "User"
 
