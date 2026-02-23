@@ -2,7 +2,7 @@
 
 if defined?(RailsPerformance)
   # Disable rails_performance in test environment (no Redis available)
-  if Rails.env.test?
+  if Rails.env.test? || ENV["SECRET_KEY_BASE_DUMMY"].present?
     RailsPerformance.setup do |config|
       config.enabled = false
     end
