@@ -206,9 +206,13 @@ module Transfer
         # Forward session cookies from the initial GET so ASP.NET can validate
         # the __EVENTVALIDATION token (it's tied to the server-side session)
         if @initial_response
-          session_cookies = Array(@initial_response.headers["set-cookie"])
-                            .map { |c| c.split(";").first.strip }
-                            .join("; ")
+          # Faraday collapses multiple Set-Cookie headers into one comma-joined string.
+          # Split back into individual cookies by splitting at ", " followed by a letter
+          # (cookie names start with letters; date values like "Mon, 02" start with digits).
+          session_cookies = @initial_response.headers["set-cookie"].to_s
+                                             .split(/,\s*(?=[A-Za-z])/)
+                                             .map { |c| c.split(";").first.strip }
+                                             .join("; ")
           req.headers["Cookie"] = session_cookies if session_cookies.present?
         end
         req.body = URI.encode_www_form(form_data)
