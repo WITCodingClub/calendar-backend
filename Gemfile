@@ -134,7 +134,7 @@ gem "google-apis-calendar_v3", "~> 0.51.0"
 gem "googleauth", "~> 1.16"
 
 gem "omniauth", "~> 2.1", ">= 2.1.4"
-gem "omniauth-google-oauth2", "~> 1.2", ">= 1.2.1"
+gem "omniauth-google-oauth2", "~> 1.2"
 
 gem "pgvector"
 gem "neighbor"
