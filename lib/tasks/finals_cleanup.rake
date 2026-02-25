@@ -51,7 +51,7 @@ namespace :finals do
       puts "  #{label}: #{exam_count} exam(s), #{schedule_count} schedule upload(s)"
 
       unless dry_run
-        FinalExam.where(term: term).delete_all
+        FinalExam.where(term: term).destroy_all
         FinalsSchedule.where(term: term).destroy_all
       end
     end
