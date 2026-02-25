@@ -299,12 +299,12 @@ RSpec.describe CourseScheduleSyncable do
                end_time: 1000)
       end
 
-      it "does not adjust end date based on other course finals" do
+      it "stops at the term's earliest final so classes don't bleed into finals week" do
         result = instance.build_recurrence_rule(meeting_time)
 
-        # Should still end on May 15, 2026 (meeting_time.end_date)
-        # NOT adjusted for other course's final on May 10
-        expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260515T235959Z")
+        # Should end on May 9, 2026 (day before the term's earliest final on May 10)
+        # even though THIS course has no linked final exam
+        expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260509T235959Z")
       end
     end
 

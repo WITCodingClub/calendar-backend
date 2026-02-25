@@ -42,6 +42,9 @@ class CalendarsController < ApplicationController
 
     # Cache holidays for EXDATE generation
     @holidays_cache = {}
+    # Cache finals dates so we avoid N+1 queries in recurrence rule building
+    @ics_course_finals_cache = {}
+    @ics_term_finals_cache = {}
 
     cal = Icalendar::Calendar.new
     cal.prodid = "-//WITCC//Course Calendar//EN"
@@ -137,14 +140,13 @@ class CalendarsController < ApplicationController
           end
 
           # Recurring rule for this specific day of the week
-          # Each meeting_time now represents a single day
+          # Each meeting_time now represents a single day.
+          # Stop before finals week using the same logic as the Google Calendar sync.
+          recurrence_end = ics_recurrence_end_for(meeting_time, course)
           if meeting_time.all_day?
-            # For all-day events, use date format for UNTIL
-            until_date = meeting_time.end_date.to_date
-            e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_date.strftime('%Y%m%d')}"
+            e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{recurrence_end.strftime('%Y%m%d')}"
           else
-            # For timed events, use datetime format for UNTIL (235959 = end of day in Eastern Time)
-            until_datetime = Time.zone.local(meeting_time.end_date.year, meeting_time.end_date.month, meeting_time.end_date.day, 23, 59, 59)
+            until_datetime = Time.zone.local(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59)
             e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_datetime.strftime('%Y%m%dT%H%M%S')}"
           end
 
@@ -327,6 +329,40 @@ class CalendarsController < ApplicationController
     end
 
     exdates
+  end
+
+  # Returns the recurrence end date for a meeting time, stopping before finals week.
+  # Mirrors the logic in CourseScheduleSyncable#build_recurrence_rule.
+  def ics_recurrence_end_for(meeting_time, course)
+    recurrence_end = meeting_time.end_date.to_date
+
+    course_final = ics_final_exam_date_for_course(course.id)
+    if course_final && course_final < recurrence_end
+      return course_final - 1.day
+    end
+
+    term_finals_start = ics_earliest_final_for_term(course.term_id)
+    if term_finals_start && term_finals_start < recurrence_end
+      return term_finals_start - 1.day
+    end
+
+    recurrence_end
+  end
+
+  def ics_final_exam_date_for_course(course_id)
+    return @ics_course_finals_cache[course_id] if @ics_course_finals_cache.key?(course_id)
+
+    @ics_course_finals_cache[course_id] = FinalExam.where(course_id: course_id)
+                                                   .where.not(exam_date: nil)
+                                                   .minimum(:exam_date)
+  end
+
+  def ics_earliest_final_for_term(term_id)
+    return @ics_term_finals_cache[term_id] if @ics_term_finals_cache.key?(term_id)
+
+    @ics_term_finals_cache[term_id] = FinalExam.where(term_id: term_id)
+                                               .where.not(exam_date: nil)
+                                               .minimum(:exam_date)
   end
 
   def get_day_code(meeting_time)

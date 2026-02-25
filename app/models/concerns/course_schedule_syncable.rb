@@ -285,14 +285,19 @@ module CourseScheduleSyncable
     # Use meeting_time.end_date, but stop before finals week if THIS COURSE has a final
     recurrence_end = meeting_time.end_date.to_date
 
-    # Check if THIS SPECIFIC COURSE has a final exam - if so, end classes before finals start
-    # Only adjust if the course actually has a final exam scheduled
+    # Stop recurrence before finals week.
+    # Try course-specific final first; fall back to the term's earliest final so
+    # that courses with no linked exam still end at the start of finals week.
     course = meeting_time.course
     if course
       course_final = final_exam_date_for_course(course.id)
       if course_final && course_final < recurrence_end
-        # End classes the day before this course's final exam
         recurrence_end = course_final - 1.day
+      else
+        term_finals_start = earliest_final_exam_date_for_term(course.term_id)
+        if term_finals_start && term_finals_start < recurrence_end
+          recurrence_end = term_finals_start - 1.day
+        end
       end
     end
 
@@ -310,6 +315,18 @@ module CourseScheduleSyncable
     @course_final_dates[course_id] ||= ::FinalExam.where(course_id: course_id)
                                                   .where.not(exam_date: nil)
                                                   .minimum(:exam_date)
+  end
+
+  # Memoized lookup of the earliest final exam date across an entire term.
+  # Used as a fallback so courses without a linked final still stop recurring
+  # at the start of finals week rather than running through to term end_date.
+  def earliest_final_exam_date_for_term(term_id)
+    @term_finals_start_dates ||= {}
+    return @term_finals_start_dates[term_id] if @term_finals_start_dates.key?(term_id)
+
+    @term_finals_start_dates[term_id] = ::FinalExam.where(term_id: term_id)
+                                                   .where.not(exam_date: nil)
+                                                   .minimum(:exam_date)
   end
 
   # Build recurrence array with RRULE and EXDATE entries for holidays
