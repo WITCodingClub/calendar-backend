@@ -397,7 +397,7 @@ module CourseScheduleSyncable
     @holidays_cache ||= {}
     cache_key = [meeting_time.start_date, meeting_time.end_date]
 
-    @holidays_cache[cache_key] ||= UniversityCalendarEvent.holidays_between(
+    @holidays_cache[cache_key] ||= UniversityCalendarEvent.no_class_days_between(
       meeting_time.start_date,
       meeting_time.end_date
     ).to_a

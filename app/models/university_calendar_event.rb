@@ -85,6 +85,16 @@ class UniversityCalendarEvent < ApplicationRecord
     holidays.in_date_range(start_date, end_date).order(:start_time)
   end
 
+  # Get all no-class days (holidays + finals-period events like Study Day) in a date range.
+  # Used for EXDATE generation so that Study Day and similar days are excluded from
+  # recurring class events even when they fall within the RRULE UNTIL window.
+  # @param start_date [Date] The start of the date range
+  # @param end_date [Date] The end of the date range
+  # @return [ActiveRecord::Relation] Collection of no-class events in the range
+  def self.no_class_days_between(start_date, end_date)
+    where(category: %w[holiday finals]).in_date_range(start_date, end_date).order(:start_time)
+  end
+
   # Detect term dates from university calendar events
   # Looks for "Classes Begin" and "Classes End"/"Final Exam" patterns
   # @param year [Integer] The academic year
@@ -193,9 +203,9 @@ class UniversityCalendarEvent < ApplicationRecord
     category == "term_dates"
   end
 
-  # Check if this is a holiday that should exclude class meetings
+  # Check if this is a no-class day (holiday or finals-period event like Study Day)
   def excludes_classes?
-    category == "holiday"
+    %w[holiday finals].include?(category)
   end
 
   # Format for display

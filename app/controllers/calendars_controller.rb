@@ -298,7 +298,7 @@ class CalendarsController < ApplicationController
 
     # Get holidays for this date range (memoized)
     cache_key = [meeting_time.start_date, meeting_time.end_date]
-    holidays = @holidays_cache[cache_key] ||= UniversityCalendarEvent.holidays_between(
+    holidays = @holidays_cache[cache_key] ||= UniversityCalendarEvent.no_class_days_between(
       meeting_time.start_date,
       meeting_time.end_date
     ).to_a
