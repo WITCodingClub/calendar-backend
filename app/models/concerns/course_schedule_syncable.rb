@@ -299,6 +299,14 @@ module CourseScheduleSyncable
           recurrence_end = term_finals_start - 1.day
         end
       end
+
+      # Also stop the day before Study Day (earliest finals-period UCE for the term).
+      # Study Day is a university-designated no-class day preceding finals week,
+      # so regular class recurrences should end the day before it begins.
+      study_day = earliest_finals_period_event_for_term(course.term_id)
+      if study_day && (study_day - 1.day) < recurrence_end
+        recurrence_end = study_day - 1.day
+      end
     end
 
     # Format: RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20240515T235959Z
@@ -327,6 +335,19 @@ module CourseScheduleSyncable
     @term_finals_start_dates[term_id] = ::FinalExam.where(term_id: term_id)
                                                    .where.not(exam_date: nil)
                                                    .minimum(:exam_date)
+  end
+
+  # Memoized lookup of the earliest finals-period university calendar event for a term.
+  # Study Day and similar no-class days are imported from the university ICS feed with
+  # category "finals". Classes should end the day before Study Day begins.
+  def earliest_finals_period_event_for_term(term_id)
+    @term_finals_period_dates ||= {}
+    return @term_finals_period_dates[term_id] if @term_finals_period_dates.key?(term_id)
+
+    @term_finals_period_dates[term_id] = ::UniversityCalendarEvent
+                                         .where(term_id: term_id, category: "finals")
+                                         .minimum(:start_time)
+                                         &.to_date
   end
 
   # Build recurrence array with RRULE and EXDATE entries for holidays
