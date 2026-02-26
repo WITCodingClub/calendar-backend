@@ -33,6 +33,7 @@ class FinalExam < ApplicationRecord
   belongs_to :course, optional: true
   belongs_to :term
   has_many :google_calendar_events, dependent: :destroy
+  include EncodedIds::HashidIdentifiable
 
   validates :crn, presence: true
   validates :exam_date, :start_time, :end_time, presence: true

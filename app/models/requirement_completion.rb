@@ -41,6 +41,8 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class RequirementCompletion < ApplicationRecord
+  include EncodedIds::HashidIdentifiable
+
   belongs_to :user
   belongs_to :degree_requirement
   belongs_to :course, optional: true

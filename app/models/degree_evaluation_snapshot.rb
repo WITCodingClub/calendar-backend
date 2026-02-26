@@ -49,6 +49,7 @@ class DegreeEvaluationSnapshot < ApplicationRecord
   scope :by_user, ->(user) { where(user: user) }
   scope :by_program, ->(program) { where(degree_program: program) }
   scope :evaluation_met, -> { where(evaluation_met: true) }
+  include EncodedIds::HashidIdentifiable
 
   # Get the most recent snapshot for a user and program
   def self.latest_for_user_and_program(user, program)

@@ -39,6 +39,7 @@ class EnrollmentSnapshot < ApplicationRecord
 
   validates :crn, presence: true
   validates :crn, uniqueness: { scope: [:user_id, :term_id] }
+  include EncodedIds::HashidIdentifiable
 
   # JSONB columns don't need explicit serialization
 

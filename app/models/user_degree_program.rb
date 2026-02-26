@@ -40,6 +40,7 @@ class UserDegreeProgram < ApplicationRecord
   validates :status, presence: true
   validates :degree_program_id, uniqueness: { scope: :user_id }
   validate :only_one_primary_per_user
+  include EncodedIds::HashidIdentifiable
 
   enum :status, {
     active: "active",

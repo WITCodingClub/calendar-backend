@@ -27,6 +27,7 @@
 #
 class CoursePrerequisite < ApplicationRecord
   belongs_to :course
+  include EncodedIds::HashidIdentifiable
 
   validates :prerequisite_type, presence: true
   validates :prerequisite_rule, presence: true

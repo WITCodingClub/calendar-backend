@@ -41,6 +41,7 @@ class DegreeRequirement < ApplicationRecord
   validates :area_name, presence: true
   validates :requirement_name, presence: true
   validates :requirement_type, presence: true
+  include EncodedIds::HashidIdentifiable
 
   enum :requirement_type, {
     core: "core",

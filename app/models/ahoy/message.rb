@@ -25,6 +25,8 @@ module Ahoy
   class Message < ApplicationRecord
     self.table_name = "ahoy_messages"
 
+    include EncodedIds::HashidIdentifiable
+
     belongs_to :user, polymorphic: true, optional: true
 
     has_encrypted :to

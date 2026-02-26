@@ -22,6 +22,8 @@
 class Ahoy::Event < ApplicationRecord
   include Ahoy::QueryMethods
 
+  include EncodedIds::HashidIdentifiable
+
   self.table_name = "ahoy_events"
 
   belongs_to :visit

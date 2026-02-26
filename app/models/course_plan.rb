@@ -33,6 +33,8 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class CoursePlan < ApplicationRecord
+  include EncodedIds::HashidIdentifiable
+
   belongs_to :user
   belongs_to :term
   belongs_to :course, optional: true

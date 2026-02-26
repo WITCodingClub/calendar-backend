@@ -28,6 +28,7 @@
 class FinalsSchedule < ApplicationRecord
   belongs_to :term
   belongs_to :uploaded_by, class_name: "User"
+  include EncodedIds::HashidIdentifiable
 
   has_one_attached :pdf_file
 

@@ -31,6 +31,8 @@ module Transfer
   class Equivalency < ApplicationRecord
     self.table_name = "transfer_equivalencies"
 
+    include EncodedIds::HashidIdentifiable
+
     belongs_to :transfer_course, class_name: "Transfer::Course"
     belongs_to :wit_course, class_name: "Course"
 
