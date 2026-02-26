@@ -45,6 +45,7 @@ class CalendarsController < ApplicationController
     # Cache finals dates so we avoid N+1 queries in recurrence rule building
     @ics_course_finals_cache = {}
     @ics_term_finals_cache = {}
+    @ics_term_finals_period_cache = {}
 
     cal = Icalendar::Calendar.new
     cal.prodid = "-//WITCC//Course Calendar//EN"
@@ -338,12 +339,20 @@ class CalendarsController < ApplicationController
 
     course_final = ics_final_exam_date_for_course(course.id)
     if course_final && course_final < recurrence_end
-      return course_final - 1.day
+      recurrence_end = course_final - 1.day
+    else
+      term_finals_start = ics_earliest_final_for_term(course.term_id)
+      if term_finals_start && term_finals_start < recurrence_end
+        recurrence_end = term_finals_start - 1.day
+      end
     end
 
-    term_finals_start = ics_earliest_final_for_term(course.term_id)
-    if term_finals_start && term_finals_start < recurrence_end
-      return term_finals_start - 1.day
+    # Also stop the day before Study Day (earliest finals-period UCE for the term).
+    # Study Day is a university-designated no-class day preceding finals week,
+    # so regular class recurrences should end the day before it begins.
+    study_day = ics_earliest_finals_period_for_term(course.term_id)
+    if study_day && (study_day - 1.day) < recurrence_end
+      recurrence_end = study_day - 1.day
     end
 
     recurrence_end
@@ -363,6 +372,15 @@ class CalendarsController < ApplicationController
     @ics_term_finals_cache[term_id] = FinalExam.where(term_id: term_id)
                                                .where.not(exam_date: nil)
                                                .minimum(:exam_date)
+  end
+
+  def ics_earliest_finals_period_for_term(term_id)
+    return @ics_term_finals_period_cache[term_id] if @ics_term_finals_period_cache.key?(term_id)
+
+    @ics_term_finals_period_cache[term_id] = UniversityCalendarEvent
+                                             .where(term_id: term_id, category: "finals")
+                                             .minimum(:start_time)
+                                             &.to_date
   end
 
   def get_day_code(meeting_time)

@@ -308,6 +308,42 @@ RSpec.describe CourseScheduleSyncable do
       end
     end
 
+    context "when term has a Study Day (finals-category UCE)" do
+      let!(:study_day_event) do
+        create(:university_calendar_event, :finals,
+               term: term,
+               summary: "Study Day",
+               start_time: Time.zone.local(2026, 5, 8, 0, 0, 0),
+               end_time: Time.zone.local(2026, 5, 8, 23, 59, 59))
+      end
+
+      it "ends classes the day before Study Day" do
+        result = instance.build_recurrence_rule(meeting_time)
+
+        # Should end on May 7, 2026 (day before Study Day on May 8)
+        expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260507T235959Z")
+      end
+
+      context "when the course also has a final exam after Study Day" do
+        let!(:final_exam) do
+          create(:final_exam,
+                 course: course,
+                 term: term,
+                 exam_date: Date.new(2026, 5, 12),
+                 start_time: 800,
+                 end_time: 1000)
+        end
+
+        it "ends classes the day before Study Day (earlier boundary wins)" do
+          result = instance.build_recurrence_rule(meeting_time)
+
+          # Should end on May 7, 2026 (day before Study Day on May 8),
+          # not May 11 (day before final exam on May 12)
+          expect(result).to eq("RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260507T235959Z")
+        end
+      end
+    end
+
     context "when final exam is after meeting_time end_date" do
       let!(:final_exam) do
         create(:final_exam,
