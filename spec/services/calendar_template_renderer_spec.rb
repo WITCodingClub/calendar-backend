@@ -397,6 +397,41 @@ RSpec.describe CalendarTemplateRenderer do
     end
   end
 
+  describe ".build_context_from_final_exam" do
+    let(:building) { create(:building, abbreviation: "BEATH", name: "Beatty Hall") }
+    let(:room) { create(:room, building: building, number: "421") }
+    let(:final_exam) { create(:final_exam, location: "BEATH 421") }
+
+    before { room }
+
+    it "uses location_with_names for the location field" do
+      context = described_class.build_context_from_final_exam(final_exam)
+
+      expect(context[:location]).to eq("Beatty Hall 421")
+    end
+
+    it "falls back to raw location when building is not matched" do
+      final_exam.update!(location: "UNKNW 999")
+      context = described_class.build_context_from_final_exam(final_exam)
+
+      expect(context[:location]).to eq("UNKNW 999")
+    end
+
+    it "uses location_with_names for orphan finals" do
+      orphan = create(:final_exam, :orphan, location: "BEATH 421")
+      context = described_class.build_context_from_final_exam(orphan)
+
+      expect(context[:location]).to eq("Beatty Hall 421")
+    end
+
+    it "returns empty string when location is nil" do
+      final_exam.update!(location: nil)
+      context = described_class.build_context_from_final_exam(final_exam)
+
+      expect(context[:location]).to eq("")
+    end
+  end
+
   describe "ALLOWED_VARIABLES constant" do
     it "includes all expected variables" do
       expected_vars = %w[

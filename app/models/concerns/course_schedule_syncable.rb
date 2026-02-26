@@ -481,7 +481,7 @@ module CourseScheduleSyncable
                  finals << {
                    summary: "Final Exam: #{final_exam.course_title}",
                    description: final_exam.course_code,
-                   location: final_exam.location,
+                   location: final_exam.location_with_names,
                    start_time: final_exam.start_datetime,
                    end_time: final_exam.end_datetime,
                    course_code: final_exam.course_code,
