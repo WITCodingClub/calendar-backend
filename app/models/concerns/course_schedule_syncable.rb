@@ -338,14 +338,16 @@ module CourseScheduleSyncable
   end
 
   # Memoized lookup of the earliest finals-period university calendar event for a term.
-  # Study Day and similar no-class days are imported from the university ICS feed with
-  # category "finals". Classes should end the day before Study Day begins.
+  # Matches UCEs with category "finals" and a summary containing "Final Exam Period" or
+  # "Study Day" — deliberately excludes announcement events like "Final Exam Schedule Online"
+  # which share the same category but are not actual no-class days.
   def earliest_finals_period_event_for_term(term_id)
     @term_finals_period_dates ||= {}
     return @term_finals_period_dates[term_id] if @term_finals_period_dates.key?(term_id)
 
     @term_finals_period_dates[term_id] = ::UniversityCalendarEvent
                                          .where(term_id: term_id, category: "finals")
+                                         .where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%")
                                          .minimum(:start_time)
                                          &.to_date
   end
