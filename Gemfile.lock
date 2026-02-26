@@ -443,7 +443,7 @@ GEM
       logger
       rack (>= 2.2.3)
       rack-protection
-    omniauth-google-oauth2 (1.2.1)
+    omniauth-google-oauth2 (1.2.2)
       jwt (>= 2.9.2)
       oauth2 (~> 2.0)
       omniauth (~> 2.0)
@@ -829,7 +829,7 @@ DEPENDENCIES
   neighbor
   okcomputer
   omniauth (~> 2.1, >= 2.1.4)
-  omniauth-google-oauth2 (~> 1.2, >= 1.2.1)
+  omniauth-google-oauth2 (~> 1.2)
   paper_trail
   parallel_tests
   pdf-reader
