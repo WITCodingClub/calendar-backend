@@ -370,6 +370,66 @@ RSpec.describe FinalExam do
     end
   end
 
+  describe "#matched_rooms and #location_with_names" do
+    let(:building) { create(:building, abbreviation: "BEATH", name: "Beatty Hall") }
+    let(:room) { create(:room, building: building, number: "421") }
+
+    before { room } # ensure building/room exist
+
+    context "when location matches a building and room in the database" do
+      let(:exam) { build(:final_exam, location: "BEATH 421") }
+
+      it "returns matched rooms" do
+        expect(exam.matched_rooms).to eq([room])
+      end
+
+      it "returns full building name in location_with_names" do
+        expect(exam.location_with_names).to eq("Beatty Hall 421")
+      end
+    end
+
+    context "when location has multiple rooms" do
+      let(:building2) { create(:building, abbreviation: "WENTW", name: "Wentworth Hall") }
+      let(:exam) { build(:final_exam, location: "BEATH 421 / WENTW 306") }
+      let(:room2) { create(:room, building: building2, number: "306") }
+
+      before { room2 }
+
+
+      it "returns all matched rooms" do
+        expect(exam.matched_rooms).to contain_exactly(room, room2)
+      end
+
+      it "returns full building names joined with /" do
+        expect(exam.location_with_names).to eq("Beatty Hall 421 / Wentworth Hall 306")
+      end
+    end
+
+    context "when location does not match any building" do
+      let(:exam) { build(:final_exam, location: "UNKNW 999") }
+
+      it "returns empty matched_rooms" do
+        expect(exam.matched_rooms).to be_empty
+      end
+
+      it "falls back to raw location in location_with_names" do
+        expect(exam.location_with_names).to eq("UNKNW 999")
+      end
+    end
+
+    context "when location is blank" do
+      let(:exam) { build(:final_exam, location: nil) }
+
+      it "returns empty matched_rooms" do
+        expect(exam.matched_rooms).to be_empty
+      end
+
+      it "returns nil for location_with_names" do
+        expect(exam.location_with_names).to be_nil
+      end
+    end
+  end
+
   describe "combined_crns serialization" do
     it "stores array as JSON" do
       exam = create(:final_exam, combined_crns: [12345, 12346])
