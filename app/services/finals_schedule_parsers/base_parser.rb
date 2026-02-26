@@ -90,6 +90,11 @@ module FinalsScheduleParsers
     end
 
     def extract_location(line)
+      # Guard: season+year strings (e.g. "SPRING 2026", "FALL 2025") look like a
+      # valid building code + room number under the main regex below, but are page
+      # headers that pdftotext sometimes emits as standalone lines between columns.
+      return nil if line =~ /\A(?:SPRING|FALL|SUMMER|WINTER)\s+\d{4}\z/i
+
       # "ANXNO 201", "CEIS 414A/B", "WENTW 314"
       # Room number must start with a digit and be ≥3 chars to avoid false-
       # matching words ("SCHEDULE") or course suffixes like "01"/"02".

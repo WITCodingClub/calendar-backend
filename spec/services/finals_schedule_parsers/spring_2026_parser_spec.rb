@@ -269,6 +269,44 @@ RSpec.describe FinalsScheduleParsers::Spring2026Parser do
       end
     end
 
+    context "standalone season+year line in EXAM-ROOM section does not corrupt alignment" do
+      # pdftotext sometimes renders the page header as two separate lines:
+      # "SPRING 2026" and "FINAL EXAM SCHEDULE" instead of one combined line.
+      # "SPRING 2026" alone matches the building+room regex (SPRING=building,
+      # 2026=room), which previously inserted a phantom entry into all_rooms and
+      # shifted every subsequent CRN to the wrong location (fixes #377).
+      let(:text) do
+        <<~TEXT
+          CRN
+          29247
+          29250
+
+          INSTRUCTOR
+          Doe, Jane
+          Smith, Bob
+
+          EXAM-DATE
+          Monday, April 13, 2026
+          Monday, April 13, 2026
+
+          EXAM-TIME-OF-DAY
+          8:00 AM - 10:00 AM
+          12:45 PM - 2:45 PM
+
+          EXAM-ROOM
+          CEIS 101
+          SPRING 2026
+          FINAL EXAM SCHEDULE
+          WENTW 205
+        TEXT
+      end
+
+      it "assigns the correct room to each CRN" do
+        expect(entries.find { |e| e[:crn] == 29247 }[:location]).to eq("CEIS 101")
+        expect(entries.find { |e| e[:crn] == 29250 }[:location]).to eq("WENTW 205")
+      end
+    end
+
     context "duplicate CRN — first occurrence wins" do
       let(:text) do
         <<~TEXT

@@ -194,6 +194,28 @@ RSpec.describe FinalsScheduleParsers::BaseParser do
 
       it { is_expected.to be_nil }
     end
+
+    context "season+year page header (SPRING 2026)" do
+      let(:line) { "SPRING 2026" }
+
+      it "returns nil — not a real building code" do
+        expect(subject).to be_nil
+      end
+    end
+
+    context "season+year page header (FALL 2025)" do
+      let(:line) { "FALL 2025" }
+
+      it "returns nil — not a real building code" do
+        expect(subject).to be_nil
+      end
+    end
+
+    context "season+year with extra text does not false-positive" do
+      let(:line) { "SPRING 2026 FINAL EXAM SCHEDULE" }
+
+      it { is_expected.to be_nil }
+    end
   end
 
   # ---------------------------------------------------------------------------
