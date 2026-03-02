@@ -130,7 +130,7 @@ gem "faraday", "~> 2.14"
 gem "tailwindcss-ruby", "~> 4.2"
 gem "icalendar", "~> 2.12", ">= 2.12.1"
 
-gem "google-apis-calendar_v3", "~> 0.51.0"
+gem "google-apis-calendar_v3", "~> 0.52.0"
 gem "googleauth", "~> 1.16"
 
 gem "omniauth", "~> 2.1", ">= 2.1.4"
