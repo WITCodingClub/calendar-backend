@@ -88,7 +88,7 @@ GEM
       csv
       parser
       prism
-    addressable (2.8.8)
+    addressable (2.8.9)
       public_suffix (>= 2.0.2, < 8.0)
     afm (1.0.0)
     ahoy_email (3.0.0)
@@ -229,7 +229,7 @@ GEM
       raabro (~> 1.4)
     globalid (1.3.0)
       activesupport (>= 6.1)
-    google-apis-calendar_v3 (0.51.0)
+    google-apis-calendar_v3 (0.52.0)
       google-apis-core (>= 0.15.0, < 2.a)
     google-apis-core (1.0.2)
       addressable (~> 2.8, >= 2.8.7)
@@ -596,7 +596,7 @@ GEM
       uber (< 0.2.0)
     request_store (1.7.0)
       rack (>= 1.4)
-    retriable (3.1.2)
+    retriable (3.2.1)
     rexml (3.4.4)
     rinku (2.0.6)
     rouge (4.7.0)
@@ -807,7 +807,7 @@ DEPENDENCIES
   flipper-active_support_cache_store
   flipper-ui
   foreman
-  google-apis-calendar_v3 (~> 0.51.0)
+  google-apis-calendar_v3 (~> 0.52.0)
   googleauth (~> 1.16)
   heroicon (~> 1.0)
   icalendar (~> 2.12, >= 2.12.1)
