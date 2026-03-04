@@ -379,6 +379,7 @@ class CalendarsController < ApplicationController
 
     @ics_term_finals_period_cache[term_id] = UniversityCalendarEvent
                                              .where(term_id: term_id, category: "finals")
+                                             .where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%")
                                              .minimum(:start_time)
                                              &.to_date
   end
