@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<r25:events xmlns:r25="http://www.collegenet.com/r25" page_index="2" total_pages="2">
+  <r25:event>
+    <r25:event_id>222</r25:event_id>
+    <r25:event_locator>2026-PAGE2</r25:event_locator>
+    <r25:event_name>Page Two Event</r25:event_name>
+    <r25:start_date>2026-05-02</r25:start_date>
+    <r25:end_date>2026-05-02</r25:end_date>
+    <r25:event_type_id>10</r25:event_type_id>
+    <r25:event_type_name>Student Event</r25:event_type_name>
+    <r25:state>2</r25:state>
+    <r25:state_name>Confirmed</r25:state_name>
+    <r25:cabinet_id>50</r25:cabinet_id>
+    <r25:cabinet_name>Student Activities</r25:cabinet_name>
+  </r25:event>
+</r25:events>

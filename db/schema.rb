@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_23_052551) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_05_015822) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -815,6 +815,107 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_23_052551) do
     t.index ["name"], name: "index_transfer_universities_on_name"
   end
 
+  create_table "twenty_five_live_categories", force: :cascade do |t|
+    t.integer "category_id", null: false
+    t.string "category_name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category_id"], name: "index_twenty_five_live_categories_on_category_id", unique: true
+  end
+
+  create_table "twenty_five_live_event_categories", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "twenty_five_live_category_id", null: false
+    t.bigint "twenty_five_live_event_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["twenty_five_live_category_id"], name: "idx_on_twenty_five_live_category_id_c676dbdbc3"
+    t.index ["twenty_five_live_event_id", "twenty_five_live_category_id"], name: "index_tfl_event_cats_on_event_and_cat", unique: true
+    t.index ["twenty_five_live_event_id"], name: "idx_on_twenty_five_live_event_id_fbaea0ece2"
+  end
+
+  create_table "twenty_five_live_event_organizations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.boolean "primary", default: false, null: false
+    t.bigint "twenty_five_live_event_id", null: false
+    t.bigint "twenty_five_live_organization_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["twenty_five_live_event_id", "twenty_five_live_organization_id"], name: "index_tfl_event_orgs_on_event_and_org", unique: true
+    t.index ["twenty_five_live_event_id"], name: "idx_on_twenty_five_live_event_id_90d70194d5"
+    t.index ["twenty_five_live_organization_id"], name: "idx_on_twenty_five_live_organization_id_829b355159"
+  end
+
+  create_table "twenty_five_live_events", force: :cascade do |t|
+    t.integer "cabinet_id"
+    t.string "cabinet_name"
+    t.datetime "created_at", null: false
+    t.datetime "creation_dt"
+    t.text "description"
+    t.date "end_date"
+    t.integer "event_id", null: false
+    t.string "event_locator", null: false
+    t.string "event_name", null: false
+    t.string "event_title"
+    t.integer "event_type_id"
+    t.string "event_type_name"
+    t.datetime "last_mod_dt"
+    t.datetime "last_synced_at"
+    t.boolean "public_website", default: false, null: false
+    t.string "registration_url"
+    t.date "start_date"
+    t.integer "state"
+    t.string "state_name"
+    t.datetime "updated_at", null: false
+    t.index ["event_id"], name: "index_twenty_five_live_events_on_event_id", unique: true
+    t.index ["event_locator"], name: "index_twenty_five_live_events_on_event_locator", unique: true
+  end
+
+  create_table "twenty_five_live_organizations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "organization_id", null: false
+    t.string "organization_name"
+    t.string "organization_title"
+    t.integer "organization_type_id"
+    t.string "organization_type_name"
+    t.datetime "updated_at", null: false
+    t.index ["organization_id"], name: "index_twenty_five_live_organizations_on_organization_id", unique: true
+  end
+
+  create_table "twenty_five_live_reservations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "event_end_dt"
+    t.datetime "event_start_dt"
+    t.integer "expected_count"
+    t.integer "reservation_id", null: false
+    t.integer "reservation_state"
+    t.bigint "twenty_five_live_event_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reservation_id"], name: "index_twenty_five_live_reservations_on_reservation_id", unique: true
+    t.index ["twenty_five_live_event_id"], name: "idx_on_twenty_five_live_event_id_27330189d9"
+  end
+
+  create_table "twenty_five_live_space_reservations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "layout_id"
+    t.string "layout_name"
+    t.integer "selected_layout_capacity"
+    t.bigint "twenty_five_live_reservation_id", null: false
+    t.bigint "twenty_five_live_space_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["twenty_five_live_reservation_id"], name: "idx_on_twenty_five_live_reservation_id_36a801db84"
+    t.index ["twenty_five_live_space_id"], name: "idx_on_twenty_five_live_space_id_eb37f1572a"
+  end
+
+  create_table "twenty_five_live_spaces", force: :cascade do |t|
+    t.string "building_name"
+    t.datetime "created_at", null: false
+    t.string "formal_name"
+    t.integer "max_capacity"
+    t.integer "space_id", null: false
+    t.string "space_name"
+    t.datetime "updated_at", null: false
+    t.index ["space_id"], name: "index_twenty_five_live_spaces_on_space_id", unique: true
+  end
+
   create_table "university_calendar_events", force: :cascade do |t|
     t.string "academic_term"
     t.boolean "all_day", default: false, null: false
@@ -946,6 +1047,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_23_052551) do
   add_foreign_key "transfer_courses", "transfer_universities", column: "university_id"
   add_foreign_key "transfer_equivalencies", "courses", column: "wit_course_id"
   add_foreign_key "transfer_equivalencies", "transfer_courses"
+  add_foreign_key "twenty_five_live_event_categories", "twenty_five_live_categories"
+  add_foreign_key "twenty_five_live_event_categories", "twenty_five_live_events"
+  add_foreign_key "twenty_five_live_event_organizations", "twenty_five_live_events"
+  add_foreign_key "twenty_five_live_event_organizations", "twenty_five_live_organizations"
+  add_foreign_key "twenty_five_live_reservations", "twenty_five_live_events"
+  add_foreign_key "twenty_five_live_space_reservations", "twenty_five_live_reservations"
+  add_foreign_key "twenty_five_live_space_reservations", "twenty_five_live_spaces"
   add_foreign_key "university_calendar_events", "terms"
   add_foreign_key "user_degree_programs", "degree_programs"
   add_foreign_key "user_degree_programs", "users"

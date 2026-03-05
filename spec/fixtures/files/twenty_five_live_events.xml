@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<r25:events xmlns:r25="http://www.collegenet.com/r25" page_index="1" total_pages="1">
+
+  <r25:event>
+    <r25:event_id>123456</r25:event_id>
+    <r25:event_locator>2024-TACOS</r25:event_locator>
+    <r25:event_name>Time Out and Tacos</r25:event_name>
+    <r25:event_title>Taco Tuesday Event</r25:event_title>
+    <r25:start_date>2026-03-10</r25:start_date>
+    <r25:end_date>2026-03-10</r25:end_date>
+    <r25:event_type_id>10</r25:event_type_id>
+    <r25:event_type_name>Student Event</r25:event_type_name>
+    <r25:state>2</r25:state>
+    <r25:state_name>Confirmed</r25:state_name>
+    <r25:cabinet_id>50</r25:cabinet_id>
+    <r25:cabinet_name>Student Activities</r25:cabinet_name>
+    <r25:last_mod_dt>2026-02-15T10:30:00-05:00</r25:last_mod_dt>
+    <r25:creation_dt>2026-01-01T12:00:00-05:00</r25:creation_dt>
+    <r25:registration_url>https://example.com/register</r25:registration_url>
+    <r25:expected_count>50</r25:expected_count>
+
+    <r25:event_text>
+      <r25:text_type_id>1</r25:text_type_id>
+      <r25:text>&lt;p&gt;Join us for tacos!&lt;/p&gt;</r25:text>
+    </r25:event_text>
+    <r25:event_text>
+      <r25:text_type_id>2</r25:text_type_id>
+      <r25:text>Some other text type</r25:text>
+    </r25:event_text>
+
+    <r25:custom_attribute>
+      <r25:attribute_id>32</r25:attribute_id>
+      <r25:attribute_value>T</r25:attribute_value>
+    </r25:custom_attribute>
+    <r25:custom_attribute>
+      <r25:attribute_id>10</r25:attribute_id>
+      <r25:attribute_value>Some value</r25:attribute_value>
+    </r25:custom_attribute>
+    <r25:custom_attribute>
+      <r25:attribute_id>15</r25:attribute_id>
+      <r25:attribute_value>Another value</r25:attribute_value>
+    </r25:custom_attribute>
+    <r25:custom_attribute>
+      <r25:attribute_id>20</r25:attribute_id>
+      <r25:attribute_value>Third value</r25:attribute_value>
+    </r25:custom_attribute>
+    <r25:custom_attribute>
+      <r25:attribute_id>25</r25:attribute_id>
+      <r25:attribute_value>Fourth value</r25:attribute_value>
+    </r25:custom_attribute>
+    <r25:custom_attribute>
+      <r25:attribute_id>30</r25:attribute_id>
+      <r25:attribute_value>Fifth value</r25:attribute_value>
+    </r25:custom_attribute>
+
+    <r25:organization>
+      <r25:organization_id>100</r25:organization_id>
+      <r25:organization_name>Student Government</r25:organization_name>
+      <r25:organization_title>Student Government Association</r25:organization_title>
+      <r25:primary>T</r25:primary>
+      <r25:organization_details>
+        <r25:organization_type>
+          <r25:organization_type_id>5</r25:organization_type_id>
+          <r25:organization_type_name>Student Org</r25:organization_type_name>
+        </r25:organization_type>
+      </r25:organization_details>
+    </r25:organization>
+
+    <r25:category>
+      <r25:category_id>1</r25:category_id>
+      <r25:category_name>Student Life</r25:category_name>
+    </r25:category>
+    <r25:category>
+      <r25:category_id>2</r25:category_id>
+      <r25:category_name>Food</r25:category_name>
+    </r25:category>
+    <r25:category>
+      <r25:category_id>3</r25:category_id>
+      <r25:category_name>Social</r25:category_name>
+    </r25:category>
+
+    <r25:profile>
+      <r25:reservation>
+        <r25:reservation_id>789</r25:reservation_id>
+        <r25:event_start_dt>2026-03-10T12:00:00-05:00</r25:event_start_dt>
+        <r25:event_end_dt>2026-03-10T14:00:00-05:00</r25:event_end_dt>
+        <r25:reservation_state>2</r25:reservation_state>
+
+        <r25:space_reservation>
+          <r25:space_id>200</r25:space_id>
+          <r25:space>
+            <r25:space_name>Gordon Library 123</r25:space_name>
+            <r25:formal_name>Gordon Library Room 123</r25:formal_name>
+            <r25:building_name>Gordon Library</r25:building_name>
+            <r25:max_capacity>100</r25:max_capacity>
+          </r25:space>
+          <r25:layout_id>10</r25:layout_id>
+          <r25:layout_name>Classroom</r25:layout_name>
+          <r25:selected_layout_capacity>80</r25:selected_layout_capacity>
+        </r25:space_reservation>
+
+        <r25:space_reservation>
+          <r25:space_id>201</r25:space_id>
+          <r25:space>
+            <r25:space_name>Founders Hall 100</r25:space_name>
+            <r25:formal_name>Founders Hall Room 100</r25:formal_name>
+            <r25:building_name>Founders Hall</r25:building_name>
+            <r25:max_capacity>200</r25:max_capacity>
+          </r25:space>
+          <r25:layout_id>11</r25:layout_id>
+          <r25:layout_name>Theater</r25:layout_name>
+          <r25:selected_layout_capacity>150</r25:selected_layout_capacity>
+        </r25:space_reservation>
+      </r25:reservation>
+    </r25:profile>
+  </r25:event>
+
+  <r25:event>
+    <r25:event_id>999</r25:event_id>
+    <r25:event_locator>2026-MINIMAL</r25:event_locator>
+    <r25:event_name>Minimal Event</r25:event_name>
+    <r25:start_date>2026-04-01</r25:start_date>
+    <r25:end_date>2026-04-01</r25:end_date>
+    <r25:event_type_id>10</r25:event_type_id>
+    <r25:event_type_name>Student Event</r25:event_type_name>
+    <r25:state>2</r25:state>
+    <r25:state_name>Confirmed</r25:state_name>
+    <r25:cabinet_id>50</r25:cabinet_id>
+    <r25:cabinet_name>Student Activities</r25:cabinet_name>
+    <r25:custom_attribute>
+      <r25:attribute_id>32</r25:attribute_id>
+      <r25:attribute_value>F</r25:attribute_value>
+    </r25:custom_attribute>
+  </r25:event>
+
+</r25:events>
