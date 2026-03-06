@@ -388,7 +388,7 @@ Rails.application.routes.draw do
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
 
-    get "terms/current_and_next", to: "misc#get_current_terms"
+    get "terms/active", to: "misc#get_active_terms"
 
     # Course events
     post "process_courses", to: "courses#process_courses"

@@ -144,30 +144,35 @@ Term.next_uid
 
 ## API Changes
 
-### `/api/terms/current_and_next`
+### `/api/terms/active`
 
-The endpoint now returns `start_date` and `end_date` for both current and next terms:
+The endpoint returns all currently active terms (terms where today falls within their start_date and end_date):
 
 ```json
 {
-  "current_term": {
-    "name": "Fall 2025",
-    "id": 202510,
-    "pub_id": "trm_abc123",
-    "start_date": "2025-08-15",
-    "end_date": "2025-12-20"
-  },
-  "next_term": {
-    "name": "Spring 2026",
-    "id": 202620,
-    "pub_id": "trm_def456",
-    "start_date": "2026-01-15",
-    "end_date": "2026-05-15"
-  }
+  "active_terms": [
+    {
+      "name": "Fall 2025",
+      "id": 202510,
+      "pub_id": "trm_abc123",
+      "start_date": "2025-08-15",
+      "end_date": "2025-12-20"
+    },
+    {
+      "name": "Spring 2026",
+      "id": 202620,
+      "pub_id": "trm_def456",
+      "start_date": "2026-01-15",
+      "end_date": "2026-05-15"
+    }
+  ]
 }
 ```
 
-**Note**: `start_date` and `end_date` may be `null` if no courses exist for that term or if courses don't have date information.
+**Note**: 
+- Only terms with both `start_date` and `end_date` set are included
+- Returns an empty array if no terms are currently active
+- Multiple terms can be active simultaneously (e.g., overlapping schedules, mini-mesters)
 
 ## Migration
 
