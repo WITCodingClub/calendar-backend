@@ -267,20 +267,6 @@ module CourseScheduleSyncable
   def build_recurrence_rule(meeting_time)
     return nil if meeting_time.day_of_week.blank?
 
-    # Map day_of_week enum to RFC 5545 day codes
-    day_codes = {
-      "sunday"    => "SU",
-      "monday"    => "MO",
-      "tuesday"   => "TU",
-      "wednesday" => "WE",
-      "thursday"  => "TH",
-      "friday"    => "FR",
-      "saturday"  => "SA"
-    }
-
-    day_code = day_codes[meeting_time.day_of_week]
-    return nil unless day_code
-
     # Determine the end date for recurrence
     # Use meeting_time.end_date, but stop before finals week if THIS COURSE has a final
     recurrence_end = meeting_time.end_date.to_date
@@ -309,10 +295,11 @@ module CourseScheduleSyncable
       end
     end
 
-    # Format: RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20240515T235959Z
-    # Each meeting_time now represents a single day, so only one day code
-    until_date = recurrence_end.strftime("%Y%m%dT235959Z")
-    "RRULE:FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_date}"
+    # Build weekly recurrence rule using ice_cube and export to iCalendar format.
+    # UNTIL is set to end-of-day UTC so the last occurrence is fully included.
+    until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59)
+    rule = IceCube::Rule.weekly.day(meeting_time.day_of_week.to_sym).until(until_time)
+    "RRULE:#{rule.to_ical}"
   end
 
   # Memoized lookup of final exam date for a specific course

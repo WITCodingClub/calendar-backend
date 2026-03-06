@@ -811,6 +811,7 @@ DEPENDENCIES
   googleauth (~> 1.16)
   heroicon (~> 1.0)
   icalendar (~> 2.12, >= 2.12.1)
+  ice_cube (~> 0.16)
   importmap-rails
   invisible_captcha
   jbuilder

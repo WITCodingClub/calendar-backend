@@ -85,10 +85,6 @@ class CalendarsController < ApplicationController
         # Skip if day_of_week is not set
         next if meeting_time.day_of_week.blank?
 
-        # Get the day code for this meeting time
-        day_code = get_day_code(meeting_time)
-        next unless day_code
-
         # Create event for this meeting time
         cal.event do |e|
           # Find the first day that matches the meeting day
@@ -144,12 +140,15 @@ class CalendarsController < ApplicationController
           # Each meeting_time now represents a single day.
           # Stop before finals week using the same logic as the Google Calendar sync.
           recurrence_end = ics_recurrence_end_for(meeting_time, course)
+          day_sym = meeting_time.day_of_week.to_sym
           if meeting_time.all_day?
-            e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{recurrence_end.strftime('%Y%m%d')}"
+            # All-day ICS events use a DATE-type UNTIL (no time component)
+            rule = IceCube::Rule.weekly.day(day_sym).until(recurrence_end)
           else
-            until_datetime = Time.zone.local(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59)
-            e.rrule = "FREQ=WEEKLY;BYDAY=#{day_code};UNTIL=#{until_datetime.strftime('%Y%m%dT%H%M%S')}"
+            until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59)
+            rule = IceCube::Rule.weekly.day(day_sym).until(until_time)
           end
+          e.rrule = rule.to_ical
 
           # Add EXDATE entries for holidays to skip class on those days
           holiday_exdates = build_holiday_exdates_for_meeting_time(meeting_time, start_time)
@@ -382,23 +381,6 @@ class CalendarsController < ApplicationController
                                              .where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%")
                                              .minimum(:start_time)
                                              &.to_date
-  end
-
-  def get_day_code(meeting_time)
-    return nil if meeting_time.day_of_week.blank?
-
-    # Map day_of_week enum to RFC 5545 day codes
-    day_codes = {
-      "sunday"    => "SU",
-      "monday"    => "MO",
-      "tuesday"   => "TU",
-      "wednesday" => "WE",
-      "thursday"  => "TH",
-      "friday"    => "FR",
-      "saturday"  => "SA"
-    }
-
-    day_codes[meeting_time.day_of_week]
   end
 
   def parse_time(date, time_int)
