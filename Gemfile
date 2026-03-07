@@ -120,7 +120,7 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
-  gem "rspec-openapi", "~> 0.24"
+  gem "rspec-openapi", "~> 0.25"
   gem "simplecov", require: false
   gem "webmock"
 end
