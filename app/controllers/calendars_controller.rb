@@ -22,7 +22,7 @@ class CalendarsController < ApplicationController
         calendar = generate_ical(@courses, @final_exams)
 
         # Add cache control headers to suggest refresh intervals
-        response.headers["Cache-Control"] = "max-age=3600, must-revalidate" # 1 hour
+        response.headers["Cache-Control"] = "max-age=3600, private, must-revalidate" # 1 hour
         response.headers["X-Published-TTL"] = "PT1H" # iCalendar refresh hint (1 hour)
         response.headers["Refresh-Interval"] = "3600" # Alternative hint
 
@@ -39,6 +39,13 @@ class CalendarsController < ApplicationController
     # Initialize preference resolver and template renderer for this user
     @preference_resolver = PreferenceResolver.new(@user)
     @template_renderer = CalendarTemplateRenderer.new
+
+    # Determine date range from courses and finals for holiday fetching
+    @ics_date_range_start = courses.map { |c| c.meeting_times.map { |mt| mt.start_date&.to_date }.compact }.flatten.min
+    @ics_date_range_end = [
+      courses.map { |c| c.meeting_times.map { |mt| mt.end_date&.to_date }.compact }.flatten.max,
+      final_exams.map { |f| f.exam_date }.compact.max
+    ].compact.max
 
     # Cache holidays for EXDATE generation
     @holidays_cache = {}
@@ -226,10 +233,19 @@ class CalendarsController < ApplicationController
     end
   end
 
-  # Add university calendar events (holidays auto-sync, others based on user preference)
+  # Add university calendar events (holidays always, others based on user preference)
   def add_university_events(cal)
-    # Always include holidays (auto-sync for all users)
-    UniversityCalendarEvent.holidays.upcoming.find_each do |event|
+    # Always include holidays within the course date range
+    # This ensures holidays are included even if they've already passed relative to today
+    # (unlike Google Calendar which preserves past synced events)
+    if @ics_date_range_start && @ics_date_range_end
+      holidays = UniversityCalendarEvent.holidays.in_date_range(@ics_date_range_start, @ics_date_range_end)
+    else
+      # Fallback to upcoming holidays if date range cannot be determined
+      holidays = UniversityCalendarEvent.holidays.upcoming
+    end
+
+    holidays.find_each do |event|
       add_university_event_to_calendar(cal, event, force_all_day: true)
     end
 
@@ -240,7 +256,15 @@ class CalendarsController < ApplicationController
     categories = (user_config.university_event_categories || []) - ["holiday"]
     return if categories.empty?
 
-    UniversityCalendarEvent.upcoming.by_categories(categories).find_each do |event|
+    # For other event categories, also fetch within the course date range if available
+    if @ics_date_range_start && @ics_date_range_end
+      other_events = UniversityCalendarEvent.upcoming.by_categories(categories)
+                                             .in_date_range(@ics_date_range_start, @ics_date_range_end)
+    else
+      other_events = UniversityCalendarEvent.upcoming.by_categories(categories)
+    end
+
+    other_events.find_each do |event|
       add_university_event_to_calendar(cal, event)
     end
   end
