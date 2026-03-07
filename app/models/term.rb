@@ -38,6 +38,42 @@ class Term < ApplicationRecord
     summer: 3
   }
 
+  # Returns the registration start date for this term
+  # Looks up from university_calendar_events or falls back to start_date
+  # @return [Date, nil] the registration start date
+  def registration_start
+    # Find the earliest registration event for this term
+    registration_event = UniversityCalendarEvent.registration
+                                                  .for_term(self)
+                                                  .where("summary ILIKE ?", "%registration%open%")
+                                                  .order(:start_time)
+                                                  .first
+    
+    registration_event&.start_time&.to_date || start_date
+  end
+
+  # Scope for active terms (registration is open or classes have started)
+  # Returns up to 3 terms if 3 are active, otherwise returns 2
+  scope :active, -> {
+    today = Time.zone.today
+    
+    # Get all terms where registration has started and term hasn't ended
+    active_terms = all.select do |term|
+      next false if term.end_date.nil?
+      
+      reg_start = term.registration_start
+      next false if reg_start.nil?
+      
+      reg_start <= today && term.end_date >= today
+    end
+    
+    # Sort by year and season (desc) and limit to 2 or 3
+    sorted_terms = active_terms.sort_by { |t| [-t.year, -Term.seasons[t.season]] }
+    limit_count = sorted_terms.length >= 3 ? 3 : 2
+    
+    where(id: sorted_terms.take(limit_count).map(&:id)).order(year: :desc, season: :desc)
+  }
+
   # Scope for current and future terms (for finals schedule uploads)
   scope :current_and_future, -> {
     current_term = Term.current
