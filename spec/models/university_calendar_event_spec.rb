@@ -245,6 +245,23 @@ RSpec.describe UniversityCalendarEvent do
       expect(described_class.infer_category("Labor Day", nil)).to eq("holiday")
     end
 
+    it "detects recess periods as holidays" do
+      expect(described_class.infer_category("Winter Recess", nil)).to eq("holiday")
+      expect(described_class.infer_category("Spring Recess", nil)).to eq("holiday")
+      expect(described_class.infer_category("Winter Break/Recess - No Classes", nil)).to eq("holiday")
+      expect(described_class.infer_category("Summer Recess", nil)).to eq("holiday")
+    end
+
+    it "detects well-being day as holiday" do
+      expect(described_class.infer_category("Well-Being Day", nil)).to eq("holiday")
+      expect(described_class.infer_category("Wellbeing Day", nil)).to eq("holiday")
+    end
+
+    it "detects apostrophe variants of holidays" do
+      expect(described_class.infer_category("Patriots' Day", nil)).to eq("holiday")
+      expect(described_class.infer_category("Presidents' Day", nil)).to eq("holiday")
+    end
+
     it "detects term_dates events" do
       expect(described_class.infer_category("Fall 2025 Classes Begin", nil)).to eq("term_dates")
       expect(described_class.infer_category("Classes End", nil)).to eq("term_dates")
@@ -258,9 +275,9 @@ RSpec.describe UniversityCalendarEvent do
       expect(described_class.infer_category("Examination Period", nil)).to eq("finals")
     end
 
-    it "detects study day events" do
-      expect(described_class.infer_category("Study Day", nil)).to eq("study_day")
-      expect(described_class.infer_category("Spring Study Day", nil)).to eq("study_day")
+    it "detects study day events as finals category" do
+      expect(described_class.infer_category("Study Day", nil)).to eq("finals")
+      expect(described_class.infer_category("Spring Study Day", nil)).to eq("finals")
     end
 
     it "detects registration events" do
@@ -363,7 +380,12 @@ RSpec.describe UniversityCalendarEvent do
       expect(event.excludes_classes?).to be true
     end
 
-    it "returns false for non-holiday events" do
+    it "returns true for finals events (including Study Day)" do
+      event = build(:university_calendar_event, :finals)
+      expect(event.excludes_classes?).to be true
+    end
+
+    it "returns false for non-holiday/finals events" do
       event = build(:university_calendar_event, :term_dates)
       expect(event.excludes_classes?).to be false
     end
