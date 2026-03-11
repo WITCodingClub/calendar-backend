@@ -98,6 +98,8 @@ module Api
         "Registration periods and enrollment dates"
       when "deadline"
         "Academic deadlines (add/drop, withdrawal, payment due)"
+      when "study_day"
+        "Study days (no-class days before finals)"
       when "finals"
         "Final exam schedules and exam periods"
       when "graduation"

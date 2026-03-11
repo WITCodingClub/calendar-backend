@@ -152,7 +152,11 @@ class UniversityCalendarEvent < ApplicationRecord
           summary_lower.include?("term begins") || summary_lower.include?("term ends")
       "term_dates"
 
-    # 3. FINALS - exam schedules (check before registration to catch "final exam")
+    # 3. STUDY DAY - no-class days before finals
+    elsif summary_lower.include?("study day")
+      "study_day"
+
+    # 4. FINALS - exam schedules (check before registration to catch "final exam")
     elsif summary_lower.include?("final exam") || summary_lower.include?("finals week") ||
           summary_lower.include?("final week") || summary_lower.include?("exam period") ||
           summary_lower.include?("examination period")
@@ -203,9 +207,9 @@ class UniversityCalendarEvent < ApplicationRecord
     category == "term_dates"
   end
 
-  # Check if this is a no-class day (holiday or finals-period event like Study Day)
+  # Check if this is a no-class day (holiday, study day, or finals-period event)
   def excludes_classes?
-    %w[holiday finals].include?(category)
+    %w[holiday finals study_day].include?(category)
   end
 
   # Format for display

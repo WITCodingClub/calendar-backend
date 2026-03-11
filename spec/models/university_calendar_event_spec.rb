@@ -258,6 +258,11 @@ RSpec.describe UniversityCalendarEvent do
       expect(described_class.infer_category("Examination Period", nil)).to eq("finals")
     end
 
+    it "detects study day events" do
+      expect(described_class.infer_category("Study Day", nil)).to eq("study_day")
+      expect(described_class.infer_category("Spring Study Day", nil)).to eq("study_day")
+    end
+
     it "detects registration events" do
       expect(described_class.infer_category("Registration Opens", nil)).to eq("registration")
       expect(described_class.infer_category("Enrollment Period", nil)).to eq("registration")
