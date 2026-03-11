@@ -10,7 +10,7 @@ class CalendarsController < ApplicationController
 
     # Get all enrolled courses with meeting times
     @courses = @user.courses
-                    .includes(:meeting_times, :term, meeting_times: [:room, :building])
+                    .includes(:term, meeting_times: [:room, :building, { course: [:faculties, :term] }])
 
     # Get final exams for enrolled courses
     @final_exams = FinalExam.where(course_id: @courses.pluck(:id))
@@ -40,8 +40,8 @@ class CalendarsController < ApplicationController
     @preference_resolver = PreferenceResolver.new(@user)
     @template_renderer = CalendarTemplateRenderer.new
 
-    # Cache holidays for EXDATE generation
-    @holidays_cache = {}
+    # Pre-load holidays for EXDATE generation (single query across all meeting time ranges)
+    @holidays_cache = preload_holidays_cache(courses)
     # Cache finals dates so we avoid N+1 queries in recurrence rule building
     @ics_course_finals_cache = {}
     @ics_term_finals_cache = {}
@@ -284,6 +284,25 @@ class CalendarsController < ApplicationController
         e.append_custom_property("X-MICROSOFT-CDO-ALLDAYEVENT", "TRUE")
         e.append_custom_property("X-MICROSOFT-CDO-BUSYSTATUS", "FREE")
         e.transp = "TRANSPARENT" # Show as "free" time
+      end
+    end
+  end
+
+  # Pre-load all holiday/finals events covering every meeting time's date range in a single query.
+  # Returns a hash keyed by [start_date, end_date] → array of matching events.
+  def preload_holidays_cache(courses)
+    meeting_times = courses.flat_map { |c| c.meeting_times.to_a }
+    return {} if meeting_times.empty?
+
+    min_date = meeting_times.filter_map(&:start_date).min
+    max_date = meeting_times.filter_map(&:end_date).max
+    return {} unless min_date && max_date
+
+    all_no_class_days = UniversityCalendarEvent.no_class_days_between(min_date, max_date).to_a
+
+    meeting_times.map { |mt| [mt.start_date, mt.end_date] }.uniq.each_with_object({}) do |(start_date, end_date), cache|
+      cache[[start_date, end_date]] = all_no_class_days.select do |h|
+        h.start_time.to_date <= end_date && h.end_time.to_date >= start_date
       end
     end
   end
