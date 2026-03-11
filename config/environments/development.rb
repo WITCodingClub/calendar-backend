@@ -57,7 +57,9 @@ Rails.application.configure do
   config.action_controller.default_url_options = { host: "heron-selected-literally.ngrok-free.app", protocol: "https" }
 
   config.hosts << "heron-selected-literally.ngrok-free.app"
-  config.hosts << "orange-goggles-v679qv4v55vvcwpwr-3000.app.github.dev"
+  # Allow GitHub/Codespaces-style forwarded hosts, e.g. <name>-3000.app.github.dev
+  config.hosts << /.*\.app\.github\.dev/
+  config.hosts << /.*\.githubpreview\.dev/
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
