@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo "Running database migrations before boot..."
+kamal app exec --reuse --roles=web "bin/rails db:migrate"
