@@ -95,6 +95,12 @@ module FinalsScheduleParsers
       # headers that pdftotext sometimes emits as standalone lines between columns.
       return nil if line =~ /\A(?:SPRING|FALL|SUMMER|WINTER)\s+\d{4}\z/i
 
+      # Guard: course section codes like "COMP 3450" (exactly 4-digit course number)
+      # look identical to a building+room code but are cross-page noise in the
+      # EXAM-ROOM state. WIT room numbers are always ≤3 digits (optionally with a
+      # letter suffix), so a bare 4-digit number indicates a course, not a room.
+      return nil if line =~ /\A[A-Z]{2,6}\s+\d{4}\z/
+
       # "ANXNO 201", "CEIS 414A/B", "WENTW 314"
       # Room number must start with a digit and be ≥3 chars to avoid false-
       # matching words ("SCHEDULE") or course suffixes like "01"/"02".
@@ -104,19 +110,16 @@ module FinalsScheduleParsers
         return rooms.include?("/") ? expand_room_list(building, rooms) : "#{building} #{rooms}"
       end
 
-      # "WATSN Auditorium", "Sargent Hall"
-      if line =~ /([A-Z][A-Za-z]+\s+(?:Auditorium|Hall|Center|Room))\s*$/
+      # "WATSN Auditorium", "WATSN AUD", "Sargent Hall"
+      if line =~ /([A-Z][A-Za-z]+\s+(?:Auditorium|Hall|Center|Room|AUD))\s*$/
         return $1.strip
       end
 
       # Virtual / online
       return $1.upcase if line =~ /(ONLINE|TBA|VIRTUAL)/i
 
-      # Faculty-administered — check before bare building code to avoid partial match
+      # Faculty-administered
       return "SEE FACULTY" if line =~ /SEE FACULTY/i
-
-      # Bare building code occupying the whole line (last resort)
-      return $1 if line =~ /^([A-Z]{4,6})\s*$/
 
       nil
     end

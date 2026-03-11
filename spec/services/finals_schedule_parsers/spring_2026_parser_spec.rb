@@ -106,6 +106,45 @@ RSpec.describe FinalsScheduleParsers::Spring2026Parser do
       end
     end
 
+    context "WATSN AUD auditorium abbreviation in EXAM-ROOM" do
+      let(:text) do
+        <<~TEXT
+          CRN
+          29416
+          29417
+          29418
+
+          INSTRUCTOR
+          Kim, Lora
+          Page, Sarah
+          Angieri, Tristan
+
+          EXAM-DATE
+          Thursday, April 09, 2026
+          Thursday, April 09, 2026
+          Friday, April 10, 2026
+
+          EXAM-TIME-OF-DAY
+          9:00 AM - 1:00 PM
+          9:00 AM - 1:00 PM
+          10:15 AM - 12:15 PM
+
+          EXAM-ROOM
+          WATSN AUD
+          WATSN AUD
+          ANXNO 201
+        TEXT
+      end
+
+      it "recognizes WATSN AUD as a valid location" do
+        expect(entries.find { |e| e[:crn] == 29416 }[:location]).to eq("WATSN AUD")
+      end
+
+      it "does not corrupt alignment after WATSN AUD entries" do
+        expect(entries.find { |e| e[:crn] == 29418 }[:location]).to eq("ANXNO 201")
+      end
+    end
+
     context "ONLINE course mixed with regular courses" do
       let(:text) do
         <<~TEXT
@@ -344,6 +383,53 @@ RSpec.describe FinalsScheduleParsers::Spring2026Parser do
       it "assigns the correct room to each CRN" do
         expect(entries.find { |e| e[:crn] == 29247 }[:location]).to eq("CEIS 101")
         expect(entries.find { |e| e[:crn] == 29250 }[:location]).to eq("WENTW 205")
+      end
+    end
+
+    context "course section codes and titles in EXAM-ROOM section do not corrupt alignment" do
+      # pdftotext emits cross-page noise (course codes like "COMP 3450" and titles
+      # like "ETHICS") into the EXAM-ROOM state. These must not be treated as rooms.
+      let(:text) do
+        <<~TEXT
+          CRN
+          29246
+          29247
+          29249
+
+          INSTRUCTOR
+          Savalani, David
+          Ewenstein, Paul
+          Savalani, David
+
+          EXAM-DATE
+          Friday, April 10, 2026
+          Monday, April 13, 2026
+          Friday, April 10, 2026
+
+          EXAM-TIME-OF-DAY
+          12:45 PM - 2:45 PM
+          5:15 PM - 7:15 PM
+          3:00 PM - 5:00 PM
+
+          EXAM-ROOM
+          RBSTN 201
+          COMP 3450
+          ETHICS
+          WENTW 314
+          DOBBS 302
+        TEXT
+      end
+
+      it "ignores 4-digit course codes like COMP 3450" do
+        expect(entries.find { |e| e[:crn] == 29247 }[:location]).to eq("WENTW 314")
+      end
+
+      it "ignores all-caps course titles like ETHICS" do
+        expect(entries.find { |e| e[:crn] == 29249 }[:location]).to eq("DOBBS 302")
+      end
+
+      it "does not corrupt alignment for any entry" do
+        expect(entries.pluck(:location)).to eq(["RBSTN 201", "WENTW 314", "DOBBS 302"])
       end
     end
 
