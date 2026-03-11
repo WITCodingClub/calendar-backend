@@ -229,7 +229,7 @@ class CalendarsController < ApplicationController
   # Add university calendar events (holidays auto-sync, others based on user preference)
   def add_university_events(cal)
     # Always include holidays (auto-sync for all users)
-    UniversityCalendarEvent.holidays.upcoming.find_each do |event|
+    UniversityCalendarEvent.holidays.find_each do |event|
       add_university_event_to_calendar(cal, event, force_all_day: true)
     end
 
@@ -240,7 +240,7 @@ class CalendarsController < ApplicationController
     categories = (user_config.university_event_categories || []) - ["holiday"]
     return if categories.empty?
 
-    UniversityCalendarEvent.upcoming.by_categories(categories).find_each do |event|
+    UniversityCalendarEvent.by_categories(categories).find_each do |event|
       add_university_event_to_calendar(cal, event)
     end
   end
