@@ -155,7 +155,7 @@ class UniversityCalendarEvent < ApplicationRecord
     # 3. FINALS - exam schedules (check before registration to catch "final exam")
     elsif summary_lower.include?("final exam") || summary_lower.include?("finals week") ||
           summary_lower.include?("final week") || summary_lower.include?("exam period") ||
-          summary_lower.include?("examination period")
+          summary_lower.include?("examination period") || summary_lower.include?("study day")
       "finals"
 
     # 4. GRADUATION - commencement ceremonies
