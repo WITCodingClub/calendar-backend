@@ -101,17 +101,17 @@ module FinalsScheduleParsers
       # letter suffix), so a bare 4-digit number indicates a course, not a room.
       return nil if line =~ /\A[A-Z]{2,6}\s+\d{4}\z/
 
-      # "ANXNO 201", "CEIS 414A/B", "WENTW 314"
-      # Room number must start with a digit and be ≥3 chars to avoid false-
-      # matching words ("SCHEDULE") or course suffixes like "01"/"02".
-      if line =~ /([A-Z]{4,6})\s+(\d[\dA-Z]{2,}(?:\/[\dA-Z]+)*)\s*$/i
+      # "ANXNO 201", "CEIS 414A/B", "WENTW 314", "WATSN AUD"
+      # Room identifier either starts with a digit (≥3 chars) or is the special
+      # auditorium code "AUD", to avoid false-matching short suffixes like "01"/"02".
+      if line =~ /([A-Z]{4,6})\s+(AUD|\d[\dA-Z]{2,}(?:\/[\dA-Z]+)*)\s*$/i
         building = $1
         rooms    = $2
         return rooms.include?("/") ? expand_room_list(building, rooms) : "#{building} #{rooms}"
       end
 
-      # "WATSN Auditorium", "WATSN AUD", "Sargent Hall"
-      if line =~ /([A-Z][A-Za-z]+\s+(?:Auditorium|Hall|Center|Room|AUD))\s*$/
+      # "WATSN Auditorium", "Sargent Hall"
+      if line =~ /([A-Z][A-Za-z]+\s+(?:Auditorium|Hall|Center|Room))\s*$/
         return $1.strip
       end
 
