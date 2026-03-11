@@ -6,7 +6,7 @@ class CalendarsController < ApplicationController
   skip_before_action :verify_authenticity_token
 
   def show
-    @user = User.find_by!(calendar_token: params[:calendar_token])
+    @user = User.includes(:emails).find_by!(calendar_token: params[:calendar_token])
 
     # Get all enrolled courses with meeting times
     @courses = @user.courses
