@@ -106,7 +106,7 @@ class UniversityCalendarIcsService < ApplicationService
     end_time = parse_ics_time(ics_event.dtend || ics_event.dtstart)
     description = clean_description(ics_event.description&.to_s)
     category = UniversityCalendarEvent.infer_category(summary, event_type)
-    is_all_day = category == "holiday" || all_day_event?(ics_event)
+    is_all_day = category == "holiday" || category == "study_day" || all_day_event?(ics_event)
 
     if is_all_day
       original_end_date = end_time.to_date
