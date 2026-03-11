@@ -16,6 +16,7 @@ class RiscValidationService
 
   RISC_CONFIGURATION_URL = "https://accounts.google.com/.well-known/risc-configuration"
   CACHE_DURATION = 1.hour
+  STALE_BACKUP_DURATION = 7.days
 
   def initialize
     @risc_config = fetch_risc_configuration
@@ -85,7 +86,9 @@ class RiscValidationService
 
   private
 
-  # Fetch the RISC configuration from Google
+  # Fetch the RISC configuration from Google.
+  # Falls back to a long-lived stale backup if the live fetch fails, so transient
+  # Google outages don't break RISC token validation.
   def fetch_risc_configuration
     Rails.cache.fetch("risc_configuration", expires_in: CACHE_DURATION) do
       uri = URI.parse(RISC_CONFIGURATION_URL)
@@ -93,11 +96,21 @@ class RiscValidationService
 
       raise ValidationError, "Failed to fetch RISC configuration: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
-      JSON.parse(response.body)
+      result = JSON.parse(response.body)
+      Rails.cache.write("risc_configuration:stale", result, expires_in: STALE_BACKUP_DURATION)
+      result
     end
+  rescue => e
+    stale = Rails.cache.read("risc_configuration:stale")
+    if stale.present?
+      Rails.logger.warn("[RiscValidationService] Using stale RISC configuration due to fetch error: #{e.message}")
+      return stale
+    end
+    raise
   end
 
-  # Fetch the JSON Web Key Set (JWKS) from Google
+  # Fetch the JSON Web Key Set (JWKS) from Google.
+  # Falls back to a long-lived stale backup if the live fetch fails.
   def fetch_jwks
     jwks_uri = @risc_config["jwks_uri"]
     raise ValidationError, "JWKS URI not found in RISC configuration" if jwks_uri.blank?
@@ -108,8 +121,17 @@ class RiscValidationService
 
       raise ValidationError, "Failed to fetch JWKS: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
-      JSON.parse(response.body)
+      result = JSON.parse(response.body)
+      Rails.cache.write("risc_jwks:stale", result, expires_in: STALE_BACKUP_DURATION)
+      result
     end
+  rescue => e
+    stale = Rails.cache.read("risc_jwks:stale")
+    if stale.present?
+      Rails.logger.warn("[RiscValidationService] Using stale JWKS due to fetch error: #{e.message}")
+      return stale
+    end
+    raise
   end
 
   # Get the public key for a given key ID

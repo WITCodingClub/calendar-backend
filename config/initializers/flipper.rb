@@ -33,9 +33,10 @@ Rails.application.configure do
 end
 
 Flipper.configure do |config|
-  ## Configure other adapters that you want to use here:
-  ## See http://flippercloud.io/docs/adapters
-  # config.use Flipper::Adapters::ActiveSupportCacheStore, Rails.cache, expires_in: 5.minutes
+  ## Cache feature flag lookups in Rails.cache (Redis in production/staging) to avoid
+  ## hitting the DB on every request. Combined with memoize=true above, this means one
+  ## Redis read per feature per request instead of one DB query.
+  config.use Flipper::Adapters::ActiveSupportCacheStore, Rails.cache, 5.minutes
 end
 
 ## Register a group that can be used for enabling features.
