@@ -63,8 +63,10 @@ module FinalsScheduleParsers
           when :exam_room
             # extract_location filters out cross-page noise (page footers, course
             # section codes, titles, etc.) while collecting valid room strings.
+            # Exclude no-exam markers (ONLINE, SEE FACULTY, TBA) so all_rooms stays
+            # the same length as all_times (both M ≤ N), keeping time_room_idx aligned.
             loc = extract_location(line)
-            all_rooms << loc if loc
+            all_rooms << loc if loc && !no_exam_entry?(loc)
           end
         end
       end

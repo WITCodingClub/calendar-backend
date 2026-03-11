@@ -147,6 +147,46 @@ RSpec.describe FinalsScheduleParsers::Spring2026Parser do
       end
     end
 
+    context "ONLINE entry also appears in EXAM-ROOM column (does not corrupt alignment)" do
+      let(:text) do
+        <<~TEXT
+          CRN
+          29416
+          29452
+          29465
+
+          INSTRUCTOR
+          Kim, Lora
+          Peters, Troy
+          Crossley, Tatjana
+
+          EXAM-DATE
+          Friday, April 10, 2026
+          ONLINE
+          Monday, April 13, 2026
+
+          EXAM-TIME-OF-DAY
+          10:15 AM - 12:15 PM
+          12:45 PM - 2:45 PM
+
+          EXAM-ROOM
+          WENTW 205
+          ONLINE
+          RBSTN 201
+        TEXT
+      end
+
+      it "skips the ONLINE course" do
+        expect(entries.length).to eq(2)
+        expect(entries.pluck(:crn)).to contain_exactly(29416, 29465)
+      end
+
+      it "assigns the correct room to the post-ONLINE entry" do
+        post_online = entries.find { |e| e[:crn] == 29465 }
+        expect(post_online[:location]).to eq("RBSTN 201")
+      end
+    end
+
     context "SEE FACULTY course mixed with regular courses" do
       let(:text) do
         <<~TEXT
