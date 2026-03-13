@@ -33,6 +33,9 @@ class FacultyDirectorySyncJob < ApplicationJob
       process_faculty(faculty_data, stats)
     end
 
+    # Invalidate all cached directory pages — we just re-fetched the authoritative data,
+    # so any page cached before this sync is now stale.
+    Rails.cache.delete_matched("faculty_directory:page:*")
     Rails.cache.write("faculty_directory_last_full_sync_at", Time.current, expires_in: 2.days)
 
     Rails.logger.info({

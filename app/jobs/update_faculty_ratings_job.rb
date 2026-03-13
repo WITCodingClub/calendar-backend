@@ -78,6 +78,11 @@ class UpdateFacultyRatingsJob < ApplicationJob
   end
 
   def fetch_and_store_ratings(faculty, service)
+    # Invalidate cached RMP data before fetching so the job always gets fresh data
+    # from RMP rather than serving stale ratings.
+    Rails.cache.delete("rmp:teacher:#{faculty.rmp_id}")
+    Rails.cache.delete_matched("rmp:ratings:#{faculty.rmp_id}:*")
+
     teacher_data = service.get_teacher_details(faculty.rmp_id)
     teacher = teacher_data.dig("data", "node")
 

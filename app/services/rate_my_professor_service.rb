@@ -195,8 +195,9 @@ class RateMyProfessorService < ApplicationService
   GRAPHQL
 
   def search_professors(name, school_id: WENTWORTH_SCHOOL_ID, count: 10)
-    # Cache professor searches for 24 hours since professor lists change infrequently
-    cache_key = "rmp:search:#{school_id}:#{name.parameterize}:#{count}"
+    # Use a digest of the raw name to avoid parameterize collisions (e.g. accented chars,
+    # different capitalisation/punctuation mapping to the same slug).
+    cache_key = "rmp:search:#{school_id}:#{Digest::SHA256.hexdigest(name.downcase.strip)}:#{count}"
 
     Rails.cache.fetch(cache_key, expires_in: 24.hours) do
       response = make_request(

@@ -88,7 +88,7 @@ GEM
       csv
       parser
       prism
-    addressable (2.8.8)
+    addressable (2.8.9)
       public_suffix (>= 2.0.2, < 8.0)
     afm (1.0.0)
     ahoy_email (3.0.0)
@@ -128,7 +128,7 @@ GEM
       argon2-kdf (>= 0.2)
     bootsnap (1.23.0)
       msgpack (~> 1.2)
-    brakeman (8.0.2)
+    brakeman (8.0.4)
       racc
     browser (6.2.0)
     builder (3.3.0)
@@ -187,7 +187,7 @@ GEM
     factory_bot_rails (6.5.1)
       factory_bot (~> 6.5)
       railties (>= 6.1.0)
-    faker (3.6.0)
+    faker (3.6.1)
       i18n (>= 1.8.11, < 2)
     faraday (2.14.1)
       faraday-net_http (>= 2.0, < 3.5)
@@ -229,7 +229,7 @@ GEM
       raabro (~> 1.4)
     globalid (1.3.0)
       activesupport (>= 6.1)
-    google-apis-calendar_v3 (0.51.0)
+    google-apis-calendar_v3 (0.53.0)
       google-apis-core (>= 0.15.0, < 2.a)
     google-apis-core (1.0.2)
       addressable (~> 2.8, >= 2.8.7)
@@ -261,7 +261,7 @@ GEM
     google-protobuf (4.33.5-x86_64-linux-musl)
       bigdecimal
       rake (>= 13)
-    googleauth (1.16.1)
+    googleauth (1.16.2)
       faraday (>= 1.0, < 3.a)
       google-cloud-env (~> 2.2)
       google-logging-utils (~> 0.1)
@@ -303,7 +303,7 @@ GEM
     jbuilder (2.14.1)
       actionview (>= 7.0.0)
       activesupport (>= 7.0.0)
-    json (2.18.1)
+    json (2.19.1)
     jwt (3.1.2)
       base64
     kamal (2.10.1)
@@ -334,7 +334,7 @@ GEM
       addressable (~> 2.8)
       childprocess (~> 5.0)
       logger (~> 1.6)
-    lefthook (2.1.1)
+    lefthook (2.1.3)
     letter_opener (1.10.0)
       launchy (>= 2.2, < 4)
     letter_opener_web (3.0.0)
@@ -502,7 +502,7 @@ GEM
     psych (5.3.1)
       date
       stringio
-    public_suffix (7.0.2)
+    public_suffix (7.0.5)
     puma (7.2.0)
       nio4r (~> 2.0)
     pundit (2.5.2)
@@ -554,8 +554,8 @@ GEM
       activesupport (>= 5.0.0)
       minitest
       nokogiri (>= 1.6)
-    rails-html-sanitizer (1.6.2)
-      loofah (~> 2.21)
+    rails-html-sanitizer (1.7.0)
+      loofah (~> 2.25)
       nokogiri (>= 1.15.7, != 1.16.7, != 1.16.6, != 1.16.5, != 1.16.4, != 1.16.3, != 1.16.2, != 1.16.1, != 1.16.0.rc1, != 1.16.0)
     rails_performance (1.6.0)
       browser
@@ -596,7 +596,7 @@ GEM
       uber (< 0.2.0)
     request_store (1.7.0)
       rack (>= 1.4)
-    retriable (3.1.2)
+    retriable (3.3.0)
     rexml (3.4.4)
     rinku (2.0.6)
     rouge (4.7.0)
@@ -608,7 +608,7 @@ GEM
     rspec-mocks (3.13.7)
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
-    rspec-openapi (0.24.0)
+    rspec-openapi (0.25.0)
       actionpack (>= 5.2.0)
       rails-dom-testing
       rspec-core
@@ -725,10 +725,10 @@ GEM
     tailwindcss-ruby (4.2.0-x86_64-linux-gnu)
     tailwindcss-ruby (4.2.0-x86_64-linux-musl)
     thor (1.5.0)
-    thruster (0.1.18)
-    thruster (0.1.18-aarch64-linux)
-    thruster (0.1.18-arm64-darwin)
-    thruster (0.1.18-x86_64-linux)
+    thruster (0.1.19)
+    thruster (0.1.19-aarch64-linux)
+    thruster (0.1.19-arm64-darwin)
+    thruster (0.1.19-x86_64-linux)
     timeout (0.6.0)
     trailblazer-option (0.1.2)
     tsort (0.2.0)
@@ -807,7 +807,7 @@ DEPENDENCIES
   flipper-active_support_cache_store
   flipper-ui
   foreman
-  google-apis-calendar_v3 (~> 0.51.0)
+  google-apis-calendar_v3 (~> 0.53.0)
   googleauth (~> 1.16)
   heroicon (~> 1.0)
   icalendar (~> 2.12, >= 2.12.1)
@@ -854,7 +854,7 @@ DEPENDENCIES
   redis (~> 5.0)
   redis-session-store
   relaxed-rubocop
-  rspec-openapi (~> 0.24)
+  rspec-openapi (~> 0.25)
   rspec-rails (~> 8.0)
   rswag-api (~> 2.17.0)
   rswag-ui (~> 2.17.0)

@@ -95,10 +95,16 @@ module FinalsScheduleParsers
       # headers that pdftotext sometimes emits as standalone lines between columns.
       return nil if line =~ /\A(?:SPRING|FALL|SUMMER|WINTER)\s+\d{4}\z/i
 
-      # "ANXNO 201", "CEIS 414A/B", "WENTW 314"
-      # Room number must start with a digit and be ≥3 chars to avoid false-
-      # matching words ("SCHEDULE") or course suffixes like "01"/"02".
-      if line =~ /([A-Z]{4,6})\s+(\d[\dA-Z]{2,}(?:\/[\dA-Z]+)*)\s*$/i
+      # Guard: course section codes like "COMP 3450" (exactly 4-digit course number)
+      # look identical to a building+room code but are cross-page noise in the
+      # EXAM-ROOM state. WIT room numbers are always ≤3 digits (optionally with a
+      # letter suffix), so a bare 4-digit number indicates a course, not a room.
+      return nil if line =~ /\A[A-Z]{2,6}\s+\d{4}\z/
+
+      # "ANXNO 201", "CEIS 414A/B", "WENTW 314", "WATSN AUD"
+      # Room identifier either starts with a digit (≥3 chars) or is the special
+      # auditorium code "AUD", to avoid false-matching short suffixes like "01"/"02".
+      if line =~ /([A-Z]{4,6})\s+(AUD|\d[\dA-Z]{2,}(?:\/[\dA-Z]+)*)\s*$/i
         building = $1
         rooms    = $2
         return rooms.include?("/") ? expand_room_list(building, rooms) : "#{building} #{rooms}"
@@ -112,11 +118,8 @@ module FinalsScheduleParsers
       # Virtual / online
       return $1.upcase if line =~ /(ONLINE|TBA|VIRTUAL)/i
 
-      # Faculty-administered — check before bare building code to avoid partial match
+      # Faculty-administered
       return "SEE FACULTY" if line =~ /SEE FACULTY/i
-
-      # Bare building code occupying the whole line (last resort)
-      return $1 if line =~ /^([A-Z]{4,6})\s*$/
 
       nil
     end
