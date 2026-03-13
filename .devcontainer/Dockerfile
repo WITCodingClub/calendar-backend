@@ -1,47 +1,21 @@
-FROM ruby:3.4.7-slim
+FROM mcr.microsoft.com/devcontainers/ruby:3.4
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    git \
-    curl \
-    libpq-dev \
-    postgresql-client \
-    redis-tools \
-    libvips \
-    libjemalloc2 \
-    libsqlite3-dev \
-    vim \
-    nano \
-    less \
-    gnupg2 \
-    && rm -rf /var/lib/apt/lists/*
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g npm
 
-# Create a non-root user
-ARG USERNAME=vscode
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
+# Install additional dependencies
+RUN apt-get update -qq && apt-get install -y build-essential libpq-dev libxslt-dev libxml2-dev libxslt1-dev \
+    imagemagick ghostscript netcat-openbsd awscli postgresql-client libyaml-dev redis-server
 
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && apt-get update \
-    && apt-get install -y sudo \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME
+# Create and set the working directory
+WORKDIR /usr/src/app
 
-# Install bundler
-RUN gem install bundler
-
-# Set working directory
-WORKDIR /workspace
-
-# Switch to non-root user
-USER $USERNAME
-
-# Configure git for the container
-RUN git config --global --add safe.directory /workspace
-
-# Install Ruby LSP and debug gems globally for better IDE experience
-RUN gem install ruby-lsp rdbg
-
-CMD ["/bin/bash"]
+# Environment variables
+ENV RAILS_ENV=development
+ENV RACK_ENV=development
+ENV BUNDLE_PATH=/usr/local/bundle
+ENV GEM_HOME=/usr/local/bundle
+ENV BUNDLE_APP_CONFIG=/usr/local/bundle
+ENV NODE_ENV=development

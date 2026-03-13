@@ -214,7 +214,7 @@ class CalendarsController < ApplicationController
 
         e.summary = "Final Exam: #{titleize_with_roman_numerals(final_exam.course_title)}"
         e.description = final_exam.course_code
-        e.location = final_exam.location if final_exam.location.present?
+        e.location = final_exam.location_with_names if final_exam.location.present?
 
         # Stable UID for final exams
         e.uid = "final-exam-#{final_exam.id}@calendar-util.wit.edu"

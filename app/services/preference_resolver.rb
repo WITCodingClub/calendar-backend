@@ -22,7 +22,7 @@ class PreferenceResolver
   # Special defaults for final exams - more aggressive reminders, distinct color
   FINAL_EXAM_DEFAULTS = {
     title_template: "Final Exam: {{title}}",
-    description_template: "{{course_code}}\n{{faculty}}\n{{location}}",
+    description_template: "{{course_code}}\n{{faculty}}",
     location_template: "{{location}}",
     reminder_settings: [
       { "time" => "1", "type" => "days", "method" => "popup" },

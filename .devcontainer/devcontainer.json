@@ -1,95 +1,59 @@
 {
-  "name": "WIT Calendar Backend",
+  "name": "WITCAL - Backend",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
-  "workspaceFolder": "/workspaces/calendar-backend",
-
-  // Configure tool-specific properties.
+  "workspaceFolder": "/usr/src/app",
+  "forwardPorts": [
+    3000,
+    5432,
+    6379
+  ],
+  "postCreateCommand": "./.devcontainer/postCreateCommand.sh",
   "customizations": {
     "vscode": {
-      // Set *default* container specific settings.json values on container create.
+      "extensions": [
+        "shopify.ruby-lsp",
+        "castwide.solargraph",
+        "kaiwood.endwise",
+        "misogi.ruby-rubocop",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg"
+      ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "ruby.useBundler": true,
         "ruby.useLanguageServer": true,
         "ruby.lint": {
           "rubocop": true
         },
         "ruby.format": "rubocop",
         "[ruby]": {
-          "editor.defaultFormatter": "Shopify.ruby-lsp",
-          "editor.formatOnSave": true,
-          "editor.tabSize": 2,
-          "editor.insertSpaces": true,
-          "editor.semanticHighlighting.enabled": true,
-          "editor.formatOnType": true
+          "editor.defaultFormatter": "misogi.ruby-rubocop"
         },
-        "files.associations": {
-          "*.html.erb": "erb",
-          "*.jbuilder": "ruby"
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
         },
-        "emmet.includeLanguages": {
-          "erb": "html"
-        },
-        "files.trimTrailingWhitespace": true,
-        "files.insertFinalNewline": true,
-        "editor.rulers": [120]
-      },
-
-      // Add the IDs of extensions you want installed when the container is created.
-      "extensions": [
-        "Shopify.ruby-lsp",
-        "KoichiSasada.vscode-rdbg",
-        "bradlc.vscode-tailwindcss",
-        "eamodio.gitlens",
-        "GitHub.copilot",
-        "GitHub.copilot-chat",
-        "formulahendry.auto-rename-tag",
-        "naumovs.color-highlight",
-        "esbenp.prettier-vscode",
-        "dbaeumer.vscode-eslint",
-        "VisualStudioExptTeam.vscodeintellicode",
-        "manuelpuyol.erb-linter",
-        "aliariff.vscode-erb-beautify"
-      ]
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        }
+      }
     }
   },
-
-  // Features to add to the dev container. More info: https://containers.dev/features.
-  "features": {
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "lts"
-    }
+  "remoteUser": "vscode",
+  "remoteEnv": {
+    "DATABASE_URL": "postgresql://postgres:postgres@db:5432/app_development",
+    "DATABASE_HOST": "db",
+    "DATABASE_PORT": "5432",
+    "REDIS_URL": "redis://redis:6379/1"
   },
-
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  "forwardPorts": [3000, 5432, 6379],
   "portsAttributes": {
     "3000": {
-      "label": "Rails Server",
-      "onAutoForward": "notify"
-    },
-    "5432": {
-      "label": "PostgreSQL"
-    },
-    "6379": {
-      "label": "Redis"
+      "label": "Rails"
     }
-  },
-
-  // Use 'postCreateCommand' to run commands after the container is created.
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
-
-  // Use 'postStartCommand' to run commands after the container starts.
-  "postStartCommand": "bin/rails db:prepare",
-
-  // Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-  "remoteUser": "vscode",
-
-  // Environment variables
-  "remoteEnv": {
-    "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/wit_calendar_backend_development",
-    "REDIS_URL": "redis://redis:6379/2/session"
   }
 }
