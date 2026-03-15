@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "rails_helper"
-require "webmock/rspec"
 
 RSpec.describe UniversityCalendarIcsService, type: :service do
   let(:ics_content) { Rails.root.join("spec/fixtures/files/university_calendar.ics").read }
