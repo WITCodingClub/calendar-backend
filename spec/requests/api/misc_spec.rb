@@ -70,14 +70,10 @@ RSpec.describe "Api::Misc" do
 
         expect(json["active_terms"]).to be_an(Array)
         expect(json["active_terms"].length).to eq(3)
-        
-        json["active_terms"].each do |term|
-          expect(term).to have_key("name")
-          expect(term).to have_key("id")
-          expect(term).to have_key("pub_id")
-          expect(term).to have_key("start_date")
-          expect(term).to have_key("end_date")
-        end
+
+        expect(json["active_terms"]).to all(
+          include("name", "id", "pub_id", "start_date", "end_date")
+        )
       end
     end
 
@@ -135,8 +131,8 @@ RSpec.describe "Api::Misc" do
 
         expect(json["active_terms"]).to be_an(Array)
         expect(json["active_terms"].length).to eq(2)
-        
-        term_ids = json["active_terms"].map { |t| t["id"] }
+
+        term_ids = json["active_terms"].pluck("id")
         expect(term_ids).to contain_exactly(active_term1.uid, active_term2.uid)
       end
     end
