@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "webmock/rspec"
-
 # Stub GitHub API calls for VersionService to prevent real HTTP requests in tests
 RSpec.configure do |config|
   config.before do
