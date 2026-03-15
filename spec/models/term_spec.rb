@@ -410,6 +410,58 @@ RSpec.describe Term do
     end
   end
 
+  describe ".active" do
+    it "includes terms when registration open date is on or before today" do
+      travel_to Date.new(2026, 3, 13)
+
+      active_term = create(:term, year: 2026, season: :spring, start_date: Date.new(2026, 1, 15), end_date: Date.new(2026, 5, 15))
+      inactive_term = create(:term, year: 2026, season: :summer, start_date: Date.new(2026, 6, 1), end_date: Date.new(2026, 8, 1))
+
+      create(:university_calendar_event, :registration,
+             term: active_term,
+             summary: "Registration Opens for Spring",
+             start_time: Date.new(2025, 11, 1).beginning_of_day,
+             end_time: Date.new(2025, 11, 1).end_of_day)
+
+      create(:university_calendar_event, :registration,
+             term: inactive_term,
+             summary: "Registration Opens for Summer",
+             start_time: Date.new(2026, 4, 1).beginning_of_day,
+             end_time: Date.new(2026, 4, 1).end_of_day)
+
+      expect(described_class.active).to contain_exactly(active_term)
+      travel_back
+    end
+
+    it "falls back to start_date when no matching registration-open event exists" do
+      travel_to Date.new(2026, 3, 13)
+
+      term = create(:term, year: 2026, season: :spring, start_date: Date.new(2026, 1, 15), end_date: Date.new(2026, 5, 15))
+
+      create(:university_calendar_event, :registration,
+             term: term,
+             summary: "Priority Registration Begins",
+             start_time: Date.new(2026, 2, 1).beginning_of_day,
+             end_time: Date.new(2026, 2, 1).end_of_day)
+
+      expect(described_class.active).to include(term)
+      travel_back
+    end
+
+    it "returns at most three most recent active terms" do
+      travel_to Date.new(2026, 3, 13)
+
+      summer_2026 = create(:term, year: 2026, season: :summer, start_date: Date.new(2026, 1, 1), end_date: Date.new(2026, 8, 15))
+      fall_2026 = create(:term, year: 2026, season: :fall, start_date: Date.new(2026, 1, 1), end_date: Date.new(2026, 12, 20))
+      spring_2026 = create(:term, year: 2026, season: :spring, start_date: Date.new(2026, 1, 1), end_date: Date.new(2026, 5, 15))
+      fall_2025 = create(:term, year: 2025, season: :fall, start_date: Date.new(2025, 1, 1), end_date: Date.new(2026, 4, 1))
+
+      expect(described_class.active).to eq([summer_2026, fall_2026, spring_2026])
+      expect(described_class.active).not_to include(fall_2025)
+      travel_back
+    end
+  end
+
   describe ".find_by_date" do
     let!(:fall_term) { create(:term, year: 2025, season: :fall, start_date: Date.new(2025, 8, 15), end_date: Date.new(2025, 12, 20)) }
     let!(:spring_term) { create(:term, year: 2026, season: :spring, start_date: Date.new(2026, 1, 15), end_date: Date.new(2026, 5, 15)) }
