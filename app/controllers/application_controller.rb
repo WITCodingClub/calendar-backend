@@ -13,6 +13,18 @@ class ApplicationController < ActionController::Base
     current_user
   end
 
+  unless Rails.env.production?
+    around_action :n_plus_one_detection
+
+    def n_plus_one_detection
+      Prosopite.scan
+      yield
+    ensure
+      Prosopite.finish
+    end
+  end
+
+
   if Rails.env.local?
     around_action :n_plus_one_detection
 
