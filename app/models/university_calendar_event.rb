@@ -135,14 +135,17 @@ class UniversityCalendarEvent < ApplicationRecord
 
     # 1. HOLIDAYS - highest priority
     if summary_lower.include?("holiday") ||
-       (summary_lower.include?("break") && (summary_lower.include?("spring") || summary_lower.include?("winter") || summary_lower.include?("fall") || summary_lower.include?("summer"))) ||
+       ((summary_lower.include?("break") || summary_lower.include?("recess")) &&
+         (summary_lower.include?("spring") || summary_lower.include?("winter") ||
+          summary_lower.include?("fall") || summary_lower.include?("summer"))) ||
        summary_lower.include?("offices closed") || summary_lower.include?("university closed") ||
        summary_lower.include?("no class") || summary_lower.include?("thanksgiving") ||
        summary_lower.include?("memorial day") || summary_lower.include?("labor day") ||
        summary_lower.include?("independence day") || summary_lower.include?("martin luther king") ||
-       summary_lower.include?("presidents day") || summary_lower.include?("patriots day") ||
+       summary_lower.include?("presidents day") || summary_lower.include?("presidents' day") ||
+       summary_lower.include?("patriots day") || summary_lower.include?("patriots' day") ||
        summary_lower.include?("juneteenth") || summary_lower.include?("july 4th") ||
-       summary_lower.include?("wellbeing day")
+       summary_lower.include?("wellbeing day") || summary_lower.include?("well-being day")
       "holiday"
 
     # 2. TERM DATES - classes begin/end
@@ -152,8 +155,9 @@ class UniversityCalendarEvent < ApplicationRecord
           summary_lower.include?("term begins") || summary_lower.include?("term ends")
       "term_dates"
 
-    # 3. FINALS - exam schedules (check before registration to catch "final exam")
-    elsif summary_lower.include?("final exam") || summary_lower.include?("finals week") ||
+    # 3. FINALS - exam schedules and study days (stored as "finals" so EXDATE logic works)
+    elsif summary_lower.include?("study day") ||
+          summary_lower.include?("final exam") || summary_lower.include?("finals week") ||
           summary_lower.include?("final week") || summary_lower.include?("exam period") ||
           summary_lower.include?("examination period")
       "finals"
@@ -203,7 +207,7 @@ class UniversityCalendarEvent < ApplicationRecord
     category == "term_dates"
   end
 
-  # Check if this is a no-class day (holiday or finals-period event like Study Day)
+  # Check if this is a no-class day (holiday or finals-period event, including Study Day)
   def excludes_classes?
     %w[holiday finals].include?(category)
   end

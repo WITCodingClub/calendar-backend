@@ -120,7 +120,7 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
-  gem "rspec-openapi", "~> 0.24"
+  gem "rspec-openapi", "~> 0.25"
   gem "simplecov", require: false
   gem "webmock"
 end
@@ -131,7 +131,7 @@ gem "tailwindcss-ruby", "~> 4.2"
 gem "icalendar", "~> 2.12", ">= 2.12.1"
 gem "ice_cube", "~> 0.16"
 
-gem "google-apis-calendar_v3", "~> 0.51.0"
+gem "google-apis-calendar_v3", "~> 0.53.0"
 gem "googleauth", "~> 1.16"
 
 gem "omniauth", "~> 2.1", ">= 2.1.4"
