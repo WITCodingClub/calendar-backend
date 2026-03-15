@@ -44,11 +44,11 @@ class Term < ApplicationRecord
   def registration_start
     # Find the earliest registration event for this term
     registration_event = UniversityCalendarEvent.registration
-                                                  .for_term(self)
-                                                  .where("summary ILIKE ?", "%registration%open%")
-                                                  .order(:start_time)
-                                                  .first
-    
+                                                .for_term(self)
+                                                .where("summary ILIKE ?", "%registration%")
+                                                .order(:start_time)
+                                                .first
+
     registration_event&.start_time&.to_date || start_date
   end
 
@@ -56,22 +56,17 @@ class Term < ApplicationRecord
   # Returns up to 3 terms if 3 are active, otherwise returns 2
   scope :active, -> {
     today = Time.zone.today
-    
-    # Get all terms where registration has started and term hasn't ended
-    active_terms = all.select do |term|
-      next false if term.end_date.nil?
-      
-      reg_start = term.registration_start
-      next false if reg_start.nil?
-      
-      reg_start <= today && term.end_date >= today
-    end
-    
-    # Sort by year and season (desc) and limit to 2 or 3
-    sorted_terms = active_terms.sort_by { |t| [-t.year, -Term.seasons[t.season]] }
-    limit_count = sorted_terms.length >= 3 ? 3 : 2
-    
-    where(id: sorted_terms.take(limit_count).map(&:id)).order(year: :desc, season: :desc)
+
+    registration_start_subquery = UniversityCalendarEvent.registration
+                                                         .where("summary ILIKE ?", "%registration%")
+                                                         .where("university_calendar_events.term_id = terms.id")
+                                                         .select("MIN(university_calendar_events.start_time::date)")
+
+    where.not(end_date: nil)
+         .where("COALESCE((#{registration_start_subquery.to_sql}), terms.start_date) <= ?", today)
+         .where(terms: { end_date: today.. })
+         .order(year: :desc, season: :desc)
+         .limit(3)
   }
 
   # Scope for current and future terms (for finals schedule uploads)
