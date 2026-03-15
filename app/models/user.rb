@@ -98,7 +98,7 @@ class User < ApplicationRecord
 
   # Get the user's primary email address
   def email
-    emails.find_by(primary: true)&.email
+    (emails.loaded? ? emails.detect { |e| e.primary? } : emails.find_by(primary: true))&.email
   end
 
   # Set the user's primary email address

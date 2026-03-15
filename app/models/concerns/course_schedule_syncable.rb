@@ -436,8 +436,9 @@ module CourseScheduleSyncable
   def build_university_events_for_sync
     events = []
 
-    # Always include holidays (auto-sync for all users)
-    UniversityCalendarEvent.holidays.upcoming.find_each do |event|
+    # Always include holidays (auto-sync for all users) - include all, not just upcoming,
+    # to match ICS feed behavior and ensure past events are retroactively synced to GCal.
+    UniversityCalendarEvent.holidays.find_each do |event|
       events << {
         summary: event.formatted_holiday_summary,
         description: event.description,
@@ -455,7 +456,7 @@ module CourseScheduleSyncable
     if user_config&.sync_university_events
       categories = (user_config.university_event_categories || []) - ["holiday"]
       unless categories.empty?
-        UniversityCalendarEvent.upcoming.by_categories(categories).find_each do |event|
+        UniversityCalendarEvent.by_categories(categories).find_each do |event|
           events << {
             summary: event.summary,
             description: event.description,

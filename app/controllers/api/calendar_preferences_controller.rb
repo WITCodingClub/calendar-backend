@@ -68,9 +68,13 @@ module Api
         return
       end
 
-      # Accept both internal ID and public_id
-      meeting_time = find_by_any_id(MeetingTime, meeting_time_id)
-      meeting_time = MeetingTime.includes(course: :faculties).find_by(id: meeting_time&.id) if meeting_time
+      # Accept both internal ID and public_id, eager-load associations in one query
+      scope = MeetingTime.includes(course: :faculties)
+      meeting_time = if meeting_time_id.to_s.include?("_")
+                       scope.find_by_public_id(meeting_time_id)
+                     else
+                       scope.find_by(id: meeting_time_id)
+                     end
       unless meeting_time
         render json: { error: "Meeting time not found" }, status: :not_found
         return

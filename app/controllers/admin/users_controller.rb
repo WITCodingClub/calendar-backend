@@ -20,13 +20,15 @@ module Admin
         if search_term.match?(/^\d+$/)
           @users = @users.where(id: search_term.to_i)
         else
-          # Search by email (through emails table) or concatenated first+last name
-          @users = @users.joins(:emails).where(
-            "emails.email ILIKE :search OR " \
-            "CONCAT(users.first_name, users.last_name) ILIKE :search OR " \
-            "CONCAT(users.first_name, ' ', users.last_name) ILIKE :search",
-            search: "%#{search_term}%"
-          ).distinct
+          # Search by email (through emails table) or concatenated first+last name.
+          # Use a subquery for email matching to avoid JOIN + DISTINCT interfering with pagination counts.
+          name_search = "%#{search_term}%"
+          email_matched = @users.joins(:emails).where("emails.email ILIKE ?", name_search).select(:id)
+          name_matched = @users.where(
+            "CONCAT(users.first_name, users.last_name) ILIKE ? OR CONCAT(users.first_name, ' ', users.last_name) ILIKE ?",
+            name_search, name_search
+          )
+          @users = @users.where(id: email_matched).or(name_matched)
         end
       end
 

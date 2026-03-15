@@ -126,6 +126,57 @@ RSpec.describe "Calendars" do
           expect(ics_content).to include("university-#{campus_event.ics_uid}@calendar-util.wit.edu")
         end
       end
+
+      context "with past university events" do
+        let!(:past_holiday) do
+          create(:university_calendar_event,
+                 category: "holiday",
+                 summary: "Labor Day",
+                 start_time: 1.week.ago.beginning_of_day,
+                 end_time: 1.week.ago.end_of_day,
+                 all_day: true)
+        end
+
+        let!(:past_campus_event) do
+          create(:university_calendar_event,
+                 category: "campus_event",
+                 summary: "Fall Orientation",
+                 start_time: 2.weeks.ago.beginning_of_day,
+                 end_time: 2.weeks.ago.end_of_day,
+                 all_day: true)
+        end
+
+        it "includes past holidays in the calendar" do
+          get "/calendar/#{user.calendar_token}.ics"
+
+          expect(response).to have_http_status(:success)
+          ics_content = response.body
+
+          expect(ics_content).to include("Labor Day")
+          expect(ics_content).to include("university-#{past_holiday.ics_uid}@calendar-util.wit.edu")
+        end
+
+        context "when user has opted in to university events" do
+          before do
+            UserExtensionConfig.where(user: user).destroy_all
+            UserExtensionConfig.create!(
+              user: user,
+              sync_university_events: true,
+              university_event_categories: ["campus_event"]
+            )
+          end
+
+          it "includes past opted-in category events" do
+            get "/calendar/#{user.calendar_token}.ics"
+
+            expect(response).to have_http_status(:success)
+            ics_content = response.body
+
+            expect(ics_content).to include("Fall Orientation")
+            expect(ics_content).to include("university-#{past_campus_event.ics_uid}@calendar-util.wit.edu")
+          end
+        end
+      end
     end
 
     context "with all-day meeting times (12:01pm-11:59pm)" do

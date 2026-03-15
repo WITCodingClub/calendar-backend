@@ -106,13 +106,21 @@ module Api
 
     def set_preferenceable
       if params[:meeting_time_id]
-        # Accept both internal ID and public_id, use eager_load for associations
-        @preferenceable = find_by_any_id!(MeetingTime, params[:meeting_time_id])
-        @preferenceable = MeetingTime.eager_load(course: :faculties, room: :building).find(@preferenceable.id)
+        id = params[:meeting_time_id]
+        scope = MeetingTime.eager_load(course: :faculties, room: :building)
+        @preferenceable = if id.to_s.include?("_")
+                            scope.find_by_public_id!(id) # rubocop:disable Rails/DynamicFindBy
+                          else
+                            scope.find(id)
+                          end
       elsif params[:google_calendar_event_id]
-        # Accept both internal ID and public_id, use eager_load for associations
-        @preferenceable = find_by_any_id!(GoogleCalendarEvent, params[:google_calendar_event_id])
-        @preferenceable = GoogleCalendarEvent.eager_load(meeting_time: { course: :faculties, room: :building }).find(@preferenceable.id)
+        id = params[:google_calendar_event_id]
+        scope = GoogleCalendarEvent.eager_load(meeting_time: { course: :faculties, room: :building })
+        @preferenceable = if id.to_s.include?("_")
+                            scope.find_by_public_id!(id) # rubocop:disable Rails/DynamicFindBy
+                          else
+                            scope.find(id)
+                          end
       else
         render json: { error: "Preferenceable not specified" }, status: :bad_request
       end
