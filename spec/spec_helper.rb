@@ -46,11 +46,15 @@ RSpec.configure do |config|
   # triggering implicit auto-inclusion in groups with matching metadata.
   config.shared_context_metadata_behavior = :apply_to_host_groups
 
-  config.before do
+  # Scan each test for N+1 queries using Prosopite.
+  # WARNING: scan/finish must wrap individual tests, NOT the whole suite.
+  # Wrapping the whole suite would accumulate queries across all tests, making
+  # it impossible to identify which specific test causes the N+1 queries.
+  config.before(:each) do
     Prosopite.scan
   end
 
-  config.after do
+  config.after(:each) do
     Prosopite.finish
   end
 
