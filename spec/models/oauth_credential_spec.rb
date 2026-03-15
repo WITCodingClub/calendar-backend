@@ -70,10 +70,6 @@ RSpec.describe OauthCredential do
     end
   end
 
-  # NOTE: course_calendar_id and course_calendar_id= methods don't exist on OauthCredential
-  # These would need to be defined to access metadata["course_calendar_id"]
-  # Current code accesses it directly via metadata hash throughout the codebase
-
   describe "metadata course_calendar_id access" do
     let(:credential) { create(:oauth_credential) }
 
@@ -85,6 +81,30 @@ RSpec.describe OauthCredential do
     it "returns nil when course_calendar_id not in metadata" do
       credential.update!(metadata: {})
       expect(credential.metadata["course_calendar_id"]).to be_nil
+    end
+  end
+
+  describe "#course_calendar_id" do
+    it "returns the google_calendar_id from the associated GoogleCalendar" do
+      credential = create(:oauth_credential)
+      google_cal = create(:google_calendar, oauth_credential: credential, google_calendar_id: "cal_abc@group.calendar.google.com")
+
+      expect(credential.course_calendar_id).to eq(google_cal.google_calendar_id)
+    end
+
+    it "returns nil when no GoogleCalendar is associated" do
+      credential = create(:oauth_credential)
+      expect(credential.course_calendar_id).to be_nil
+    end
+  end
+
+  describe "#course_calendar_id=" do
+    it "logs a deprecation warning and does not raise" do
+      credential = create(:oauth_credential)
+      allow(Rails.logger).to receive(:warn)
+
+      expect { credential.course_calendar_id = "cal_xyz" }.not_to raise_error
+      expect(Rails.logger).to have_received(:warn).with(/deprecated/i)
     end
   end
 
