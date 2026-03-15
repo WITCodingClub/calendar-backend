@@ -322,7 +322,19 @@ RSpec.describe UniversityCalendarEvent do
   end
 
   describe ".detect_term_dates" do
-    it "finds classes begin and end events for a term" do
+    it "uses schedule-available date for start_date and finals period end for end_date" do
+      create(:university_calendar_event, :academic,
+             summary: "Fall 2025 Course Schedule Available",
+             academic_term: "Fall",
+             start_time: Date.new(2025, 3, 10).beginning_of_day,
+             end_time: Date.new(2025, 3, 10).end_of_day)
+
+      create(:university_calendar_event, :registration,
+             summary: "Fall 2025 Registration Begins",
+             academic_term: "Fall",
+             start_time: Date.new(2025, 3, 24).beginning_of_day,
+             end_time: Date.new(2025, 3, 24).end_of_day)
+
       create(:university_calendar_event, :term_dates,
              summary: "Fall 2025 Classes Begin",
              academic_term: "Fall",
@@ -335,7 +347,7 @@ RSpec.describe UniversityCalendarEvent do
 
       result = described_class.detect_term_dates(2025, :fall)
 
-      expect(result[:start_date]).to eq(Date.new(2025, 8, 25))
+      expect(result[:start_date]).to eq(Date.new(2025, 3, 10))
       expect(result[:end_date]).to eq(Date.new(2025, 12, 19))
     end
 
@@ -344,6 +356,129 @@ RSpec.describe UniversityCalendarEvent do
 
       expect(result[:start_date]).to be_nil
       expect(result[:end_date]).to be_nil
+    end
+
+    it "estimates schedule-available as 14 days before registration when schedule event is missing" do
+      Term.find_or_create_by!(year: 2026, season: :fall) do |term|
+        term.uid = 909610
+      end
+
+      create(:university_calendar_event, :registration,
+             summary: "Fall 2026 Registration Begins",
+             academic_term: "Spring",
+             start_time: Date.new(2026, 3, 23).beginning_of_day,
+             end_time: Date.new(2026, 3, 23).end_of_day)
+
+      create(:university_calendar_event, :term_dates,
+             summary: "Fall 2026 Classes Begin",
+             academic_term: "Fall",
+             start_time: Date.new(2026, 8, 31).beginning_of_day,
+             end_time: Date.new(2026, 8, 31).end_of_day)
+
+      create(:university_calendar_event, :finals,
+             summary: "Fall 2026 Final Exam Period",
+             academic_term: "Fall",
+             start_time: Date.new(2026, 12, 14).beginning_of_day,
+             end_time: Date.new(2026, 12, 18).end_of_day)
+
+      result = described_class.detect_term_dates(2026, :fall)
+
+      expect(result[:start_date]).to eq(Date.new(2026, 3, 9))
+      expect(result[:end_date]).to eq(Date.new(2026, 12, 18))
+    end
+
+    it "prefers explicit schedule-available event over registration-open date" do
+      Term.find_or_create_by!(year: 2028, season: :fall) do |term|
+        term.uid = 909611
+      end
+
+      create(:university_calendar_event, :academic,
+             summary: "Fall 2028 Course Schedule Available",
+             academic_term: "Fall",
+             start_time: Date.new(2028, 3, 9).beginning_of_day,
+             end_time: Date.new(2028, 3, 9).end_of_day)
+
+      create(:university_calendar_event, :registration,
+             summary: "Fall 2028 Registration Begins",
+             academic_term: "Fall",
+             start_time: Date.new(2028, 3, 23).beginning_of_day,
+             end_time: Date.new(2028, 3, 23).end_of_day)
+
+      result = described_class.detect_term_dates(2028, :fall)
+
+      expect(result[:start_date]).to eq(Date.new(2028, 3, 9))
+    end
+
+    it "uses finals period end date and ignores schedule available announcements" do
+      summer_term = Term.find_or_create_by!(year: 2026, season: :summer) do |term|
+        term.uid = 909620
+      end
+
+      create(:university_calendar_event, :finals,
+             term: summer_term,
+             summary: "Summer 2026 Final Exam Schedule Available",
+             academic_term: "Summer",
+             start_time: Date.new(2026, 6, 22).beginning_of_day,
+             end_time: Date.new(2026, 6, 22).end_of_day)
+
+      create(:university_calendar_event, :finals,
+             term: summer_term,
+             summary: "Summer 2026 Final Exam Period",
+             academic_term: "Summer",
+             start_time: Date.new(2026, 8, 6).beginning_of_day,
+             end_time: Date.new(2026, 8, 11).end_of_day)
+
+      result = described_class.detect_term_dates(2026, :summer)
+
+      expect(result[:end_date]).to eq(Date.new(2026, 8, 11))
+    end
+
+    it "does not leak events across terms by year-only matches" do
+      Term.find_or_create_by!(year: 2026, season: :fall) do |term|
+        term.uid = 909630
+      end
+
+      create(:university_calendar_event, :finals,
+             summary: "Summer 2026 Final Exam Schedule Available",
+             academic_term: "Summer",
+             start_time: Date.new(2026, 6, 22).beginning_of_day,
+             end_time: Date.new(2026, 6, 22).end_of_day)
+
+      create(:university_calendar_event, :finals,
+             summary: "Fall 2026 Final Exam Period",
+             academic_term: "Fall",
+             start_time: Date.new(2026, 12, 14).beginning_of_day,
+             end_time: Date.new(2026, 12, 19).end_of_day)
+
+      result = described_class.detect_term_dates(2026, :fall)
+
+      expect(result[:end_date]).to eq(Date.new(2026, 12, 19))
+    end
+
+    it "falls back to latest course end_date when finals period is unavailable" do
+      term = create(:term, year: 2096, season: :fall, uid: 909640)
+      create(:course, term: term, start_date: Date.new(2096, 9, 8), end_date: Date.new(2096, 12, 14))
+      create(:course, term: term, start_date: Date.new(2096, 9, 8), end_date: Date.new(2096, 12, 19))
+
+      result = described_class.detect_term_dates(2096, :fall)
+
+      expect(result[:end_date]).to eq(Date.new(2096, 12, 19))
+    end
+
+    it "prefers finals period end over course end_date fallback" do
+      term = create(:term, year: 2097, season: :fall, uid: 909650)
+      create(:course, term: term, start_date: Date.new(2097, 9, 8), end_date: Date.new(2097, 12, 10))
+
+      create(:university_calendar_event, :finals,
+             term: term,
+             summary: "Fall 2097 Final Exam Period",
+             academic_term: "Fall",
+             start_time: Date.new(2097, 12, 14).beginning_of_day,
+             end_time: Date.new(2097, 12, 18).end_of_day)
+
+      result = described_class.detect_term_dates(2097, :fall)
+
+      expect(result[:end_date]).to eq(Date.new(2097, 12, 18))
     end
   end
 
