@@ -81,13 +81,14 @@ class UniversityCalendarSyncJob < ApplicationJob
 
   # Attempt to update term dates from university calendar events
   def update_term_dates_from_events
-    # Only update terms that don't have dates set
-    Term.where(start_date: nil).or(Term.where(end_date: nil)).find_each do |term|
+    # Update terms when inferred dates are present and differ from stored values.
+    # This allows the sync to correct previously inferred bad dates.
+    Term.find_each do |term|
       dates = UniversityCalendarEvent.detect_term_dates(term.year, term.season)
 
       updates = {}
-      updates[:start_date] = dates[:start_date] if dates[:start_date] && term.start_date.nil?
-      updates[:end_date] = dates[:end_date] if dates[:end_date] && term.end_date.nil?
+      updates[:start_date] = dates[:start_date] if dates[:start_date] && term.start_date != dates[:start_date]
+      updates[:end_date] = dates[:end_date] if dates[:end_date] && term.end_date != dates[:end_date]
 
       if updates.any?
         term.update!(updates)

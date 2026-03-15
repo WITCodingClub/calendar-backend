@@ -16,6 +16,13 @@ Rails.application.configure do
   # Show full error reports.
   config.consider_all_requests_local = true
 
+  # Allow Web Console access from common local/container networks.
+  # Override with WEB_CONSOLE_PERMISSIONS (comma-separated IPs/CIDRs) when needed.
+  config.web_console.permissions = ENV.fetch(
+    "WEB_CONSOLE_PERMISSIONS",
+    "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,69.43.66.31"
+  ).split(",").map(&:strip)
+
   # Enable server timing.
   config.server_timing = true
 
@@ -50,6 +57,9 @@ Rails.application.configure do
   config.action_controller.default_url_options = { host: "heron-selected-literally.ngrok-free.app", protocol: "https" }
 
   config.hosts << "heron-selected-literally.ngrok-free.app"
+  # Allow GitHub/Codespaces-style forwarded hosts, e.g. <name>-3000.app.github.dev
+  config.hosts << /.*\.app\.github\.dev/
+  config.hosts << /.*\.githubpreview\.dev/
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
