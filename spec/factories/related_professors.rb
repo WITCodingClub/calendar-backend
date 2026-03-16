@@ -27,7 +27,7 @@
 #
 FactoryBot.define do
   factory :related_professor do
-    faculty { nil }
+    faculty
     rmp_id { "MyString" }
     first_name { "MyString" }
     last_name { "MyString" }

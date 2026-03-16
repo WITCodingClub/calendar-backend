@@ -22,6 +22,19 @@
 #  index_terms_on_year_and_season  (year,season) UNIQUE
 #
 class Term < ApplicationRecord
+  PENDING_DATE_UPDATES_KEY = :pending_term_date_updates
+
+  # Wrap bulk course-save operations to batch term date updates.
+  # Instead of updating dates after every course save, collect which terms need
+  # updating and run update_dates_from_courses! once per term at the end.
+  def self.with_deferred_date_updates
+    Thread.current[PENDING_DATE_UPDATES_KEY] = {}
+    yield
+  ensure
+    pending = Thread.current[PENDING_DATE_UPDATES_KEY] || {}
+    Thread.current[PENDING_DATE_UPDATES_KEY] = nil
+    pending.each_value(&:update_dates_from_courses!)
+  end
   include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :trm
@@ -56,18 +69,15 @@ class Term < ApplicationRecord
   # Update start_date and end_date from course data
   # Only applies dates that are valid for the term year
   def update_dates_from_courses!
-    return if courses.empty?
+    # Single query to get MIN(start_date) and MAX(end_date) for valid courses
+    new_start, new_end = courses
+                         .where.not(start_date: nil)
+                         .where.not(end_date: nil)
+                         .where("EXTRACT(YEAR FROM start_date) >= ? AND EXTRACT(YEAR FROM start_date) <= ?", year - 1, year)
+                         .where("EXTRACT(YEAR FROM end_date) >= ? AND EXTRACT(YEAR FROM end_date) <= ?", year, year + 1)
+                         .pick(Arel.sql("MIN(start_date)"), Arel.sql("MAX(end_date)"))
 
-    # Only consider courses with dates in a valid year range
-    valid_courses = courses.where.not(start_date: nil)
-                           .where.not(end_date: nil)
-                           .where("EXTRACT(YEAR FROM start_date) >= ? AND EXTRACT(YEAR FROM start_date) <= ?", year - 1, year)
-                           .where("EXTRACT(YEAR FROM end_date) >= ? AND EXTRACT(YEAR FROM end_date) <= ?", year, year + 1)
-
-    return if valid_courses.empty?
-
-    new_start = valid_courses.minimum(:start_date)
-    new_end = valid_courses.maximum(:end_date)
+    return unless new_start && new_end
 
     update!(start_date: new_start, end_date: new_end)
   end

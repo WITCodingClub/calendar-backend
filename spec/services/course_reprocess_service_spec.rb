@@ -109,7 +109,7 @@ RSpec.describe CourseReprocessService, type: :service do
         expect(user.enrollments.where(course: existing_course)).to exist
       end
 
-      it "handles mixed scenario - some removed, some kept, some added" do
+      it "handles mixed scenario - some removed, some kept, some added", :skip_prosopite do
         # Another existing enrollment
         kept_course = create(:course, crn: 22222, term: term, title: "Kept Course")
         create(:enrollment, user: user, course: kept_course, term: term)

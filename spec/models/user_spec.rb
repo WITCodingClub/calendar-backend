@@ -88,7 +88,7 @@ RSpec.describe User do
   describe ".find_by_email" do
     it "returns the user associated with the given email" do
       user = create(:user)
-      email = user.emails.find_by(primary: true)
+      email = create(:email, user: user, primary: true)
 
       expect(described_class.find_by_email(email.email)).to eq(user)
     end
@@ -102,7 +102,7 @@ RSpec.describe User do
     context "when a user with that email already exists" do
       it "returns the existing user" do
         user = create(:user)
-        email = user.emails.find_by(primary: true)
+        email = create(:email, user: user, primary: true)
 
         result = described_class.find_or_create_by_email(email.email, "New", "Name")
 
@@ -140,7 +140,7 @@ RSpec.describe User do
   describe "#email" do
     it "returns the primary email address" do
       user = create(:user)
-      primary = user.emails.find_by(primary: true)
+      primary = create(:email, user: user, primary: true)
       expect(user.email).to eq(primary.email)
     end
   end
@@ -153,7 +153,7 @@ RSpec.describe User do
 
     describe ".admins" do
       it "includes admins, super_admins, and owners" do
-        expect(described_class.admins).to include(admin_user, super_admin_user, owner_user)
+        expect(described_class.admins.to_a).to include(admin_user, super_admin_user, owner_user)
       end
 
       it "excludes regular users" do

@@ -56,12 +56,14 @@ module Api
     def categories
       authorize UniversityCalendarEvent, :index?
 
+      counts_by_category = UniversityCalendarEvent.group(:category).count
+
       render json: {
         categories: UniversityCalendarEvent::CATEGORIES.map do |category|
           {
             id: category,
             name: category.titleize,
-            count: UniversityCalendarEvent.where(category: category).count
+            count: counts_by_category[category] || 0
           }
         end
       }

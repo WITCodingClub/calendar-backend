@@ -81,8 +81,9 @@ RSpec.describe DegreeEvaluationSnapshot do
 
     describe ".by_user" do
       it "returns snapshots for the specified user" do
-        expect(described_class.by_user(user)).to include(recent_snapshot, old_snapshot)
-        expect(described_class.by_user(user)).not_to include(met_snapshot)
+        by_user = described_class.by_user(user).to_a
+        expect(by_user).to include(recent_snapshot, old_snapshot)
+        expect(by_user).not_to include(met_snapshot)
       end
     end
 

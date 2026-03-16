@@ -144,8 +144,9 @@ RSpec.describe Faculty do
         recently_synced = create(:faculty, directory_last_synced_at: 1.day.ago)
         stale_sync = create(:faculty, directory_last_synced_at: 8.days.ago)
 
-        expect(described_class.needs_directory_sync).to include(never_synced, stale_sync)
-        expect(described_class.needs_directory_sync).not_to include(recently_synced)
+        needs_sync = described_class.needs_directory_sync.to_a
+        expect(needs_sync).to include(never_synced, stale_sync)
+        expect(needs_sync).not_to include(recently_synced)
       end
     end
 

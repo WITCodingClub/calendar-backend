@@ -118,7 +118,7 @@ RSpec.describe UserExtensionConfigPolicy, type: :policy do
     end
 
     it "returns all configs for admins" do
-      scope = described_class::Scope.new(admin_user, UserExtensionConfig).resolve
+      scope = described_class::Scope.new(admin_user, UserExtensionConfig).resolve.to_a
       expect(scope).to include(own_config, others_config)
     end
   end

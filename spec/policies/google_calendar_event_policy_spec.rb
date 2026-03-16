@@ -127,7 +127,7 @@ RSpec.describe GoogleCalendarEventPolicy, type: :policy do
     end
 
     it "returns all events for admins" do
-      scope = described_class::Scope.new(admin_user, GoogleCalendarEvent).resolve
+      scope = described_class::Scope.new(admin_user, GoogleCalendarEvent).resolve.to_a
       expect(scope).to include(owned_cal_event, other_cal_event)
     end
   end

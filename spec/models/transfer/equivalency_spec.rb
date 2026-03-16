@@ -93,8 +93,9 @@ RSpec.describe Transfer::Equivalency do
 
     describe ".active" do
       it "returns only active equivalencies" do
-        expect(described_class.active).to include(active_equivalency, expiring_soon)
-        expect(described_class.active).not_to include(expired_equivalency)
+        active = described_class.active.to_a
+        expect(active).to include(active_equivalency, expiring_soon)
+        expect(active).not_to include(expired_equivalency)
       end
     end
 

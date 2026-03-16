@@ -62,12 +62,12 @@ RSpec.describe FinalsSchedulePolicy, type: :policy do
     let!(:schedule2) { create(:finals_schedule) }
 
     it "returns all schedules for admin users" do
-      scope = described_class::Scope.new(admin_user, FinalsSchedule.all).resolve
+      scope = described_class::Scope.new(admin_user, FinalsSchedule.all).resolve.to_a
       expect(scope).to include(schedule1, schedule2)
     end
 
     it "returns all schedules for super_admin users" do
-      scope = described_class::Scope.new(super_admin_user, FinalsSchedule.all).resolve
+      scope = described_class::Scope.new(super_admin_user, FinalsSchedule.all).resolve.to_a
       expect(scope).to include(schedule1, schedule2)
     end
 

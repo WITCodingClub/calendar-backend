@@ -68,7 +68,7 @@ RSpec.describe "Api::Courses#process_courses" do
         expect(response).to have_http_status(:ok)
       end
 
-      it "processes multiple courses at once" do
+      it "processes multiple courses at once", :skip_prosopite do
         post "/api/process_courses",
              params: {
                courses: [

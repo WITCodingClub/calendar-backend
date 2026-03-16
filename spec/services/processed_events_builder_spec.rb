@@ -4,6 +4,8 @@ require "rails_helper"
 
 RSpec.describe ProcessedEventsBuilder do
   # Shared setup for a basic enrolled user with one course and one meeting time
+  subject(:builder) { described_class.new(user, term) }
+
   let(:term) { create(:term, season: :fall, year: 2025) }
   let(:building) { create(:building, name: "Beatty Hall", abbreviation: "BE") }
   let(:room) { create(:room, building: building, number: "210") }
@@ -28,7 +30,6 @@ RSpec.describe ProcessedEventsBuilder do
   end
   let!(:enrollment) { create(:enrollment, user: user, course: course, term: term) }
 
-  subject(:builder) { described_class.new(user, term) }
 
   describe "#build" do
     subject(:result) { builder.build }
@@ -71,10 +72,10 @@ RSpec.describe ProcessedEventsBuilder do
         expect(course_data[:prefix]).to eq("CS")
       end
 
-      it "returns UNKNWN prefix when subject has no parenthesized code" do
+      it "returns the subject as prefix when subject has no parenthesized code" do
         course.update!(subject: "Computer Science")
         result = builder.build
-        expect(result[:classes].first[:prefix]).to eq("UNKNWN")
+        expect(result[:classes].first[:prefix]).to eq("Computer Science")
       end
 
       describe "term data" do
@@ -98,11 +99,12 @@ RSpec.describe ProcessedEventsBuilder do
 
     describe "professor data" do
       context "when the course has a faculty member" do
+        subject(:professor_data) { result[:classes].first[:professor] }
+
         let(:faculty) { create(:faculty, first_name: "Jane", last_name: "Smith", email: "jsmith@wit.edu", rmp_id: "abc123") }
 
         before { course.faculties << faculty }
 
-        subject(:professor_data) { result[:classes].first[:professor] }
 
         it "includes first and last name" do
           expect(professor_data[:first_name]).to eq("Jane")

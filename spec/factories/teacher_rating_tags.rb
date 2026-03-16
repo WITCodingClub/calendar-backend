@@ -23,7 +23,7 @@
 #
 FactoryBot.define do
   factory :teacher_rating_tag do
-    faculty { nil }
+    faculty
     rmp_legacy_id { 1 }
     tag_name { "MyString" }
     tag_count { 1 }
