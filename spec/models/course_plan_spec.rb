@@ -88,29 +88,33 @@ RSpec.describe CoursePlan do
 
     describe ".active" do
       it "returns only planned and enrolled plans" do
-        expect(described_class.active).to include(planned, enrolled)
-        expect(described_class.active).not_to include(completed)
+        active = described_class.active.to_a
+        expect(active).to include(planned, enrolled)
+        expect(active).not_to include(completed)
       end
     end
 
     describe ".by_user" do
       it "returns plans for the specified user" do
-        expect(described_class.by_user(user)).to include(planned, enrolled)
-        expect(described_class.by_user(user)).not_to include(completed)
+        by_user = described_class.by_user(user).to_a
+        expect(by_user).to include(planned, enrolled)
+        expect(by_user).not_to include(completed)
       end
     end
 
     describe ".by_term" do
       it "returns plans for the specified term" do
-        expect(described_class.by_term(term)).to include(planned, enrolled)
-        expect(described_class.by_term(term)).not_to include(completed)
+        by_term = described_class.by_term(term).to_a
+        expect(by_term).to include(planned, enrolled)
+        expect(by_term).not_to include(completed)
       end
     end
 
     describe ".by_status" do
       it "returns plans with the specified status" do
-        expect(described_class.by_status(:planned)).to include(planned)
-        expect(described_class.by_status(:planned)).not_to include(enrolled)
+        by_planned = described_class.by_status(:planned).to_a
+        expect(by_planned).to include(planned)
+        expect(by_planned).not_to include(enrolled)
       end
     end
   end

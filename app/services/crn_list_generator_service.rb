@@ -11,7 +11,7 @@ class CrnListGeneratorService < ApplicationService
     planned = @user.course_plans
                    .where(term: @term)
                    .where(status: %w[planned enrolled])
-                   .includes(course: [:meeting_times, :faculties])
+                   .includes(course: [:faculties, { meeting_times: [{ room: :building }] }])
 
     planned_entries = build_planned_entries(planned)
     planned_entries = detect_conflicts(planned_entries)

@@ -25,6 +25,150 @@
 require "rails_helper"
 
 RSpec.describe User do
+  describe "associations" do
+    let(:user) { create(:user) }
+
+    it "has many emails" do
+      expect(user).to respond_to(:emails)
+    end
+
+    it "has many oauth_credentials" do
+      expect(user).to respond_to(:oauth_credentials)
+    end
+
+    it "has many enrollments" do
+      expect(user).to respond_to(:enrollments)
+    end
+
+    it "has many calendar_preferences" do
+      expect(user).to respond_to(:calendar_preferences)
+    end
+  end
+
+  describe "access levels" do
+    it "defaults to user access level" do
+      user = create(:user)
+      expect(user.access_level).to eq("user")
+    end
+
+    it "supports admin access level" do
+      user = create(:user, access_level: :admin)
+      expect(user).to be_admin
+    end
+
+    it "supports super_admin access level" do
+      user = create(:user, access_level: :super_admin)
+      expect(user).to be_super_admin
+    end
+
+    it "supports owner access level" do
+      user = create(:user, access_level: :owner)
+      expect(user).to be_owner
+    end
+
+    describe "#admin_access?" do
+      it "returns false for regular users" do
+        expect(create(:user, access_level: :user).admin_access?).to be false
+      end
+
+      it "returns true for admins" do
+        expect(create(:user, access_level: :admin).admin_access?).to be true
+      end
+
+      it "returns true for super_admins" do
+        expect(create(:user, access_level: :super_admin).admin_access?).to be true
+      end
+
+      it "returns true for owners" do
+        expect(create(:user, access_level: :owner).admin_access?).to be true
+      end
+    end
+  end
+
+  describe ".find_by_email" do
+    it "returns the user associated with the given email" do
+      user = create(:user)
+      email = create(:email, user: user, primary: true)
+
+      expect(described_class.find_by_email(email.email)).to eq(user)
+    end
+
+    it "returns nil when no user has that email" do
+      expect(described_class.find_by_email("nobody@example.com")).to be_nil
+    end
+  end
+
+  describe ".find_or_create_by_email" do
+    context "when a user with that email already exists" do
+      it "returns the existing user" do
+        user = create(:user)
+        email = create(:email, user: user, primary: true)
+
+        result = described_class.find_or_create_by_email(email.email, "New", "Name")
+
+        expect(result).to eq(user)
+      end
+    end
+
+    context "when no user has that email" do
+      it "creates and returns a new user" do
+        expect {
+          described_class.find_or_create_by_email("newuser@example.com", "Jane", "Doe")
+        }.to change(described_class, :count).by(1)
+      end
+
+      it "sets first_name and last_name on the new user" do
+        user = described_class.find_or_create_by_email("newuser2@example.com", "Jane", "Doe")
+        expect(user.first_name).to eq("Jane")
+        expect(user.last_name).to eq("Doe")
+      end
+
+      it "creates a primary email record for the new user" do
+        user = described_class.find_or_create_by_email("newuser3@example.com", "Jane", "Doe")
+        expect(user.emails.find_by(primary: true)&.email).to eq("newuser3@example.com")
+      end
+    end
+  end
+
+  describe "#full_name" do
+    it "returns the combined first and last name" do
+      user = build(:user, first_name: "John", last_name: "Doe")
+      expect(user.full_name).to eq("John Doe")
+    end
+  end
+
+  describe "#email" do
+    it "returns the primary email address" do
+      user = create(:user)
+      primary = create(:email, user: user, primary: true)
+      expect(user.email).to eq(primary.email)
+    end
+  end
+
+  describe "scopes" do
+    let!(:regular_user) { create(:user, access_level: :user) }
+    let!(:admin_user) { create(:user, access_level: :admin) }
+    let!(:super_admin_user) { create(:user, access_level: :super_admin) }
+    let!(:owner_user) { create(:user, access_level: :owner) }
+
+    describe ".admins" do
+      it "includes admins, super_admins, and owners" do
+        expect(described_class.admins.to_a).to include(admin_user, super_admin_user, owner_user)
+      end
+
+      it "excludes regular users" do
+        expect(described_class.admins).not_to include(regular_user)
+      end
+    end
+
+    describe ".owners" do
+      it "includes only owner-level users" do
+        expect(described_class.owners).to include(owner_user)
+        expect(described_class.owners).not_to include(admin_user, super_admin_user, regular_user)
+      end
+    end
+  end
+
   describe "DND (Do Not Disturb) mode" do
     let(:user) { create(:user) }
 
@@ -73,7 +217,6 @@ RSpec.describe User do
         expect(user.notifications_disabled_until).to be_nil
         expect(user.notifications_disabled?).to be false
       end
-
     end
   end
 end

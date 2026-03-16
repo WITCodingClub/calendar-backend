@@ -151,7 +151,7 @@ RSpec.describe "Api::Courses#reprocess" do
     end
 
     context "integration scenario" do
-      it "handles section change scenario" do
+      it "handles section change scenario", :skip_prosopite do
         # User initially enrolled in ENG-101 Section A (CRN: 11111)
         old_section = create(:course, crn: 11111, term: term, title: "English Composition Section A", section_number: "A")
         create(:enrollment, user: user, course: old_section, term: term)

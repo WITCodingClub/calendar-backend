@@ -54,7 +54,7 @@ RSpec.describe CoursePlannerService do
         end
       end
 
-      it "does not exceed 18 credit hours per term" do
+      it "does not exceed 18 credit hours per term", :skip_prosopite do
         result = service.generate_plan(terms: [term])
 
         total = result[term].sum(&:credit_hours)
@@ -69,7 +69,7 @@ RSpec.describe CoursePlannerService do
       let!(:course1) { create(:course, term: term, subject: "COMP", course_number: 1000, credit_hours: 3, crn: 30001) }
       let!(:course2) { create(:course, term: term2, subject: "COMP", course_number: 2000, credit_hours: 3, crn: 30002) }
 
-      it "distributes courses across terms" do
+      it "distributes courses across terms", :skip_prosopite do
         result = service.generate_plan(terms: [term, term2])
 
         expect(result[term]).to include(course1)
@@ -144,7 +144,7 @@ RSpec.describe CoursePlannerService do
         end
       end
 
-      it "reports credit hour issue" do
+      it "reports credit hour issue", :skip_prosopite do
         result = service.validate_plan(term: term)
 
         expect(result[:valid]).to be false

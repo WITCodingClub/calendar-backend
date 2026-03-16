@@ -85,7 +85,7 @@
           <div class="faculty-item">
             <div class="faculty-name"><%= faculty.full_name %></div>
             <div class="faculty-email"><%= faculty.email %></div>
-            <div class="courses-count"><%= faculty.courses.count %> course<%= 's' if faculty.courses.count != 1 %></div>
+            <div class="courses-count"><%= faculty.courses.size %> course<%= 's' if faculty.courses.size != 1 %></div>
           </div>
         <% end %>
       </div>

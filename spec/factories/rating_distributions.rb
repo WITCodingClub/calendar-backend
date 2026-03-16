@@ -30,7 +30,7 @@
 #
 FactoryBot.define do
   factory :rating_distribution do
-    faculty { nil }
+    faculty
     r1 { 1 }
     r2 { 1 }
     r3 { 1 }

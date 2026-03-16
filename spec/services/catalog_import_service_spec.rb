@@ -220,7 +220,7 @@ RSpec.describe CatalogImportService, type: :service do
         expect(course.meeting_times.count).to eq(3)
 
         # All should have the valid building
-        course.meeting_times.each do |mt|
+        course.meeting_times.includes(:room, :building).find_each do |mt|
           expect(mt.building.abbreviation).to eq("WILLS")
           expect(mt.room.number).to eq("102")
         end
@@ -320,10 +320,11 @@ RSpec.describe CatalogImportService, type: :service do
         # Should have 2 meeting times: Monday morning + Wednesday afternoon
         expect(course.meeting_times.count).to eq(2)
 
-        monday_mt = course.meeting_times.find_by(day_of_week: :monday)
+        mts = course.meeting_times.includes(:room, :building).to_a
+        monday_mt = mts.find { |mt| mt.monday? }
         expect(monday_mt.building.abbreviation).to eq("DOBBS")
 
-        wednesday_mt = course.meeting_times.find_by(day_of_week: :wednesday)
+        wednesday_mt = mts.find { |mt| mt.wednesday? }
         expect(wednesday_mt.building.abbreviation).to eq("WENTW")
       end
     end

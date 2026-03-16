@@ -12,6 +12,11 @@ abort("The Rails environment is running in production mode!") if Rails.env.produ
 require "rspec/rails"
 # Add additional requires below this line. Rails is not loaded until this point!
 require "pundit/rspec"
+require "webmock/rspec"
+
+# Disable all real HTTP connections in tests to prevent flaky tests and unintended
+# external requests. Localhost is allowed for Rack::Test and similar tools.
+WebMock.disable_net_connect!(allow_localhost: true)
 
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are

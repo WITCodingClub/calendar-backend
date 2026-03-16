@@ -12,6 +12,10 @@ module CourseScheduleSyncable
 
     start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
+    # Preload all holidays once over the full date range of all enrolled meeting times
+    # to avoid N+1 queries in holidays_for_meeting_time (one query per unique date range)
+    preload_holidays_for_user!
+
     enrollments.includes(course: [meeting_times: [:room, :building]]).find_each do |enrollment|
       course = enrollment.course
 
@@ -307,9 +311,11 @@ module CourseScheduleSyncable
   # Returns nil if the course doesn't have a final exam
   def final_exam_date_for_course(course_id)
     @course_final_dates ||= {}
-    @course_final_dates[course_id] ||= ::FinalExam.where(course_id: course_id)
-                                                  .where.not(exam_date: nil)
-                                                  .minimum(:exam_date)
+    return @course_final_dates[course_id] if @course_final_dates.key?(course_id)
+
+    @course_final_dates[course_id] = ::FinalExam.where(course_id: course_id)
+                                                .where.not(exam_date: nil)
+                                                .minimum(:exam_date)
   end
 
   # Memoized lookup of the earliest final exam date across an entire term.
@@ -399,18 +405,49 @@ module CourseScheduleSyncable
     exdates
   end
 
-  # Get holidays that apply to a meeting time's date range
-  # Memoized to avoid repeated queries when processing multiple meeting times
+  # Get holidays that apply to a meeting time's date range.
+  # Filters from the preloaded set (populated by preload_holidays_for_user!) to avoid
+  # per-meeting-time DB queries when multiple meeting times have different date ranges.
   # @param meeting_time [MeetingTime] The meeting time to get holidays for
   # @return [Array<UniversityCalendarEvent>] Holiday events in the date range
   def holidays_for_meeting_time(meeting_time)
     @holidays_cache ||= {}
     cache_key = [meeting_time.start_date, meeting_time.end_date]
+    return @holidays_cache[cache_key] if @holidays_cache.key?(cache_key)
 
-    @holidays_cache[cache_key] ||= UniversityCalendarEvent.no_class_days_between(
-      meeting_time.start_date,
-      meeting_time.end_date
-    ).to_a
+    if @all_holidays_preloaded
+      # Filter from the preloaded set in memory — no additional DB query
+      mt_start = meeting_time.start_date
+      mt_end   = meeting_time.end_date
+      @holidays_cache[cache_key] = @all_holidays_preloaded.select do |h|
+        h_start = h.start_time.to_date
+        h_end   = (h.end_time || h.start_time).to_date
+        h_end >= mt_start && h_start <= mt_end
+      end
+    else
+      @holidays_cache[cache_key] = UniversityCalendarEvent.no_class_days_between(
+        meeting_time.start_date,
+        meeting_time.end_date
+      ).to_a
+    end
+  end
+
+  # Preload all holidays for the full date range of this user's enrolled meeting times.
+  # Stores in @all_holidays_preloaded so holidays_for_meeting_time can filter in memory.
+  def preload_holidays_for_user!
+    return unless defined?(UniversityCalendarEvent)
+
+    # Collect start/end dates from all enrolled meeting times without re-querying later
+    dates = enrollments.joins(course: :meeting_times)
+                       .pluck("meeting_times.start_date", "meeting_times.end_date")
+    min_start = dates.map(&:first).compact.min
+    max_end   = dates.map(&:last).compact.max
+
+    @all_holidays_preloaded = if min_start && max_end
+                                UniversityCalendarEvent.no_class_days_between(min_start, max_end).to_a
+                              else
+                                []
+                              end
   end
 
   # Format an EXDATE string for Google Calendar

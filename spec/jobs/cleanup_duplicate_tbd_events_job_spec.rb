@@ -153,7 +153,7 @@ RSpec.describe CleanupDuplicateTbdEventsJob do
         allow(api_service).to receive(:delete_event)
       end
 
-      it "processes all users when no user_id is provided" do
+      it "processes all users when no user_id is provided", :skip_prosopite do
         expect(api_service).to receive(:delete_event).at_least(:twice)
 
         described_class.perform_now

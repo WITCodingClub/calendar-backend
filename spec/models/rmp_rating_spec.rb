@@ -86,7 +86,7 @@ RSpec.describe RmpRating do
         neutral = create(:rmp_rating, faculty: faculty, clarity_rating: 3)
         negative = create(:rmp_rating, faculty: faculty, clarity_rating: 2)
 
-        result = described_class.positive
+        result = described_class.positive.to_a
         expect(result).to include(positive, very_positive)
         expect(result).not_to include(neutral, negative)
       end
@@ -100,7 +100,7 @@ RSpec.describe RmpRating do
         neutral = create(:rmp_rating, faculty: faculty, clarity_rating: 3)
         positive = create(:rmp_rating, faculty: faculty, clarity_rating: 4)
 
-        result = described_class.negative
+        result = described_class.negative.to_a
         expect(result).to include(very_negative, negative)
         expect(result).not_to include(neutral, positive)
       end

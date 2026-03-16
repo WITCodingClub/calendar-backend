@@ -93,7 +93,7 @@ class Course < ApplicationRecord
     if subject =~ /\(([^)]+)\)/
       $1
     else
-      "UNKNWN"
+      subject
     end
   end
 
@@ -136,7 +136,7 @@ class Course < ApplicationRecord
   # Filter meeting times to deduplicate entries with same day/time
   # Prefers meeting times with valid locations over TBD/placeholder ones
   def filtered_meeting_times
-    meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+    meeting_times.includes(room: :building).group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
                  .map do |_key, meeting_times_group|
                    next meeting_times_group.first if meeting_times_group.size == 1
 
@@ -150,8 +150,8 @@ class Course < ApplicationRecord
 
   # Check if meeting time has a TBD/placeholder location
   def tbd_location?(meeting_time)
-    building = meeting_time.building
     room = meeting_time.room
+    building = room&.building
 
     return true if building.nil? || room.nil?
 
@@ -170,9 +170,15 @@ class Course < ApplicationRecord
     false
   end
 
-  # Update the term's start_date and end_date based on all courses
+  # Update the term's start_date and end_date based on all courses.
+  # Within a Term.with_deferred_date_updates block, accumulates which terms need
+  # updating rather than running once per course save.
   def update_term_dates
-    term.update_dates_from_courses!
+    if (pending = Thread.current[Term::PENDING_DATE_UPDATES_KEY])
+      pending[term_id] ||= term
+    else
+      term.update_dates_from_courses!
+    end
   end
 
 end

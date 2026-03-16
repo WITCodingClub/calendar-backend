@@ -79,8 +79,9 @@ RSpec.describe UniversityCalendarEvent do
         future_event = create(:university_calendar_event, start_time: 1.day.from_now)
         today_event = create(:university_calendar_event, start_time: Time.current)
 
-        expect(described_class.upcoming).to include(future_event, today_event)
-        expect(described_class.upcoming).not_to include(past_event)
+        upcoming = described_class.upcoming.to_a
+        expect(upcoming).to include(future_event, today_event)
+        expect(upcoming).not_to include(past_event)
       end
     end
 
@@ -184,7 +185,7 @@ RSpec.describe UniversityCalendarEvent do
         term_dates = create(:university_calendar_event, :term_dates)
         campus = create(:university_calendar_event, :campus_event)
 
-        result = described_class.by_categories(%w[holiday term_dates])
+        result = described_class.by_categories(%w[holiday term_dates]).to_a
 
         expect(result).to include(holiday, term_dates)
         expect(result).not_to include(campus)
@@ -210,7 +211,7 @@ RSpec.describe UniversityCalendarEvent do
         without_location = create(:university_calendar_event, location: nil)
         empty_location = create(:university_calendar_event, location: "")
 
-        result = described_class.without_location
+        result = described_class.without_location.to_a
 
         expect(result).to include(without_location, empty_location)
         expect(result).not_to include(with_location)

@@ -20,6 +20,13 @@ class UniversityCalendarIcsService < ApplicationService
 
   def initialize(ics_url: ICS_FEED_URL)
     @ics_url = ics_url
+    # Preload all terms upfront to avoid per-event DB queries
+    all_terms = Term.all.to_a
+    @term_cache = all_terms.index_by do |term|
+      [term.year, term.season.to_sym]
+    end
+    @terms_with_dates = all_terms.select { |t| t.start_date && t.end_date }
+    @term_by_date_cache = {}
     super()
   end
 
@@ -77,6 +84,9 @@ class UniversityCalendarIcsService < ApplicationService
     merged_events = merge_consecutive_events(event_attrs_list)
     stats[:merged] = event_attrs_list.size - merged_events.size if event_attrs_list.size > merged_events.size
 
+    # Preload all existing events to avoid N+1 queries during save
+    preload_existing_events
+
     # Save each (possibly merged) event
     merged_events.each do |attrs|
       save_event(attrs, stats)
@@ -86,6 +96,14 @@ class UniversityCalendarIcsService < ApplicationService
     end
 
     stats
+  end
+
+  def preload_existing_events
+    all_events = UniversityCalendarEvent.all.to_a
+    @existing_events_by_uid = all_events.index_by(&:ics_uid)
+    @existing_events_by_content = all_events.group_by do |e|
+      [e.summary, e.start_time, e.end_time, e.category]
+    end
   end
 
   # Build event attributes from an ICS event without saving
@@ -222,14 +240,14 @@ class UniversityCalendarIcsService < ApplicationService
     # This handles the case where we previously imported single-day events
     ics_uid = attrs[:ics_uid]
 
-    # Find existing event by ics_uid (handles both new merged UIDs and original single UIDs)
-    event = UniversityCalendarEvent.find_or_initialize_by(ics_uid: ics_uid)
+    # Find existing event by ics_uid using preloaded cache
+    event = @existing_events_by_uid&.[](ics_uid) || UniversityCalendarEvent.new(ics_uid: ics_uid)
 
     # If this is a merged event and we didn't find it, check for old single-day events to clean up
     if event.new_record? && ics_uid.start_with?("merged:")
       # Extract the original first UID to migrate from
       original_uid = ics_uid.sub(/^merged:/, "").sub(/\+\d+$/, "")
-      existing_single = UniversityCalendarEvent.find_by(ics_uid: original_uid)
+      existing_single = @existing_events_by_uid&.[](original_uid)
       if existing_single
         # Update the existing single-day event to become the merged event
         event = existing_single
@@ -273,7 +291,7 @@ class UniversityCalendarIcsService < ApplicationService
       event.term = if event.academic_term.present?
                      find_term_from_academic_term(event.academic_term, attrs[:start_time], attrs[:category], attrs[:summary])
                    end
-      event.term ||= Term.find_by_date(attrs[:start_time])
+      event.term ||= find_term_by_date_cached(attrs[:start_time])
     end
 
     # Fix summary if the ICS academic_term doesn't match the inferred term
@@ -297,6 +315,8 @@ class UniversityCalendarIcsService < ApplicationService
     if was_new || content_changed
       event.save!
       was_new ? stats[:created] += 1 : stats[:updated] += 1
+      # Update in-memory cache so subsequent events can detect this as a duplicate
+      add_event_to_content_cache(event)
     else
       event.update_column(:last_fetched_at, Time.current) if event.persisted? # rubocop:disable Rails/SkipsModelValidations
       stats[:unchanged] += 1
@@ -309,29 +329,75 @@ class UniversityCalendarIcsService < ApplicationService
   # @param attrs [Hash] Event attributes to check
   # @return [UniversityCalendarEvent, nil] Existing duplicate event or nil
   def find_duplicate_by_content(attrs)
-    # First try exact match for performance
-    exact_match = UniversityCalendarEvent.where(
-      summary: attrs[:summary],
-      start_time: attrs[:start_time],
-      end_time: attrs[:end_time],
-      category: attrs[:category]
-    ).where.not(ics_uid: attrs[:ics_uid]).first
+    content_key = [attrs[:summary], attrs[:start_time], attrs[:end_time], attrs[:category]]
 
-    return exact_match if exact_match
+    # First try exact match using preloaded cache
+    if @existing_events_by_content
+      candidates = (@existing_events_by_content[content_key] || []).reject { |e| e.ics_uid == attrs[:ics_uid] }
+      return candidates.first if candidates.any?
+    else
+      exact_match = UniversityCalendarEvent.where(
+        summary: attrs[:summary],
+        start_time: attrs[:start_time],
+        end_time: attrs[:end_time],
+        category: attrs[:category]
+      ).where.not(ics_uid: attrs[:ics_uid]).first
+      return exact_match if exact_match
+    end
 
     # Try fuzzy matching for similar titles on the same day
-    fuzzy_matches = UniversityCalendarEvent.find_fuzzy_duplicates(
-      summary: attrs[:summary],
-      start_time: attrs[:start_time],
-      end_time: attrs[:end_time],
-      category: attrs[:category],
-      exclude_uid: attrs[:ics_uid]
-    )
+    # Use in-memory search against preloaded events to avoid per-event DB queries
+    fuzzy_matches = if @existing_events_by_content
+                      find_fuzzy_duplicates_in_memory(attrs)
+                    else
+                      UniversityCalendarEvent.find_fuzzy_duplicates(
+                        summary: attrs[:summary],
+                        start_time: attrs[:start_time],
+                        end_time: attrs[:end_time],
+                        category: attrs[:category],
+                        exclude_uid: attrs[:ics_uid]
+                      )
+                    end
 
     return nil if fuzzy_matches.empty?
 
     # If we have fuzzy matches, return the preferred one based on organization priority
     UniversityCalendarEvent.preferred_event(fuzzy_matches)
+  end
+
+  # Add a newly saved event to the in-memory content cache so subsequent duplicate checks find it
+  # @param event [UniversityCalendarEvent] The event to cache
+  def add_event_to_content_cache(event)
+    return unless @existing_events_by_content
+
+    content_key = [event.summary, event.start_time, event.end_time, event.category]
+    @existing_events_by_content[content_key] ||= []
+    @existing_events_by_content[content_key] << event
+    @existing_events_by_uid[event.ics_uid] = event if @existing_events_by_uid
+  end
+
+  # Find fuzzy duplicates using preloaded in-memory events (avoids per-event DB queries)
+  # @param attrs [Hash] Event attributes to match
+  # @return [Array<UniversityCalendarEvent>] Matching events
+  def find_fuzzy_duplicates_in_memory(attrs)
+    start_date = attrs[:start_time].to_date
+    end_date = attrs[:end_time].to_date
+    start_day_begin = start_date.beginning_of_day
+    start_day_end = start_date.end_of_day + 1.second
+    end_day_begin = end_date.beginning_of_day
+    end_day_end = end_date.end_of_day + 1.second
+
+    all_events = @existing_events_by_content.values.flatten
+    candidates = all_events.select do |e|
+      e.category == attrs[:category] &&
+        e.ics_uid != attrs[:ics_uid] &&
+        e.start_time >= start_day_begin && e.start_time < start_day_end &&
+        e.end_time >= end_day_begin && e.end_time < end_day_end
+    end
+
+    candidates.select do |event|
+      UniversityCalendarEvent.similarity(attrs[:summary], event.summary) >= UniversityCalendarEvent::SIMILARITY_THRESHOLD
+    end
   end
 
   # Clean up single-day events that have been merged into a multi-day event
@@ -473,7 +539,12 @@ class UniversityCalendarIcsService < ApplicationService
     # Fall semester events in early months might reference the previous fall term
     year -= 1 if season == :fall && event_date.month < 6
 
-    Term.find_by(year: year, season: season)
+    @term_cache[[year, season]]
+  end
+
+  def find_term_by_date_cached(date)
+    date_key = date.to_date
+    @term_by_date_cache[date_key] ||= @terms_with_dates.find { |t| date_key.between?(t.start_date, t.end_date) }
   end
 
   # Infer the correct term for term boundary events (Classes Begin/End) based on date
@@ -508,8 +579,8 @@ class UniversityCalendarIcsService < ApplicationService
       )
     end
 
-    # Use date-inferred season
-    Term.find_by(year: year, season: inferred_season)
+    # Use date-inferred season (cache was preloaded from Term.all at initialization)
+    @term_cache[[year, inferred_season]]
   end
 
   # Fix summary text when the ICS feed has incorrect term references

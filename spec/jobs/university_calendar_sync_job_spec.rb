@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "rails_helper"
-require "webmock/rspec"
 
 RSpec.describe UniversityCalendarSyncJob do
   include ActiveJob::TestHelper

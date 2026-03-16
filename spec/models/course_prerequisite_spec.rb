@@ -57,8 +57,9 @@ RSpec.describe CoursePrerequisite do
 
     describe ".required" do
       it "returns only required prerequisites and corequisites" do
-        expect(described_class.required).to include(prerequisite, corequisite)
-        expect(described_class.required).not_to include(recommended)
+        required = described_class.required.to_a
+        expect(required).to include(prerequisite, corequisite)
+        expect(required).not_to include(recommended)
       end
     end
 

@@ -57,13 +57,14 @@ RSpec.describe GoogleCalendar do
 
       it "returns calendars that haven't been synced in over an hour" do
         results = described_class.stale
-        expect(results).to include(stale_calendar, never_synced)
-        expect(results).not_to include(fresh_calendar)
+        results_arr = results.to_a
+        expect(results_arr).to include(stale_calendar, never_synced)
+        expect(results_arr).not_to include(fresh_calendar)
       end
 
       it "accepts custom staleness threshold" do
         results = described_class.stale(15.minutes)
-        expect(results).to include(fresh_calendar, stale_calendar, never_synced)
+        expect(results.to_a).to include(fresh_calendar, stale_calendar, never_synced)
       end
     end
   end

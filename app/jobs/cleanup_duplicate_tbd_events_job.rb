@@ -11,6 +11,7 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
     else
       # Process all users with Google calendars
       User.joins(:google_calendars).distinct
+          .includes(oauth_credentials: :google_calendar)
           .find_each { |user| cleanup_for_user(user) }
     end
   end
@@ -29,7 +30,7 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
     # Get all calendar events for this user
     google_events = google_calendar.google_calendar_events
                                    .where.not(meeting_time_id: nil)
-                                   .includes(meeting_time: [:building, :room])
+                                   .includes(:event_preference, meeting_time: [:building, :room])
 
     # Group events by meeting_time_id and recurrence pattern
     grouped_events = google_events.group_by do |event|

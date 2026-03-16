@@ -68,12 +68,12 @@ RSpec.describe UniversityCalendarEventPolicy, type: :policy do
     let!(:event2) { create(:university_calendar_event) }
 
     it "returns all events for any user" do
-      scope = described_class::Scope.new(user, UniversityCalendarEvent).resolve
+      scope = described_class::Scope.new(user, UniversityCalendarEvent).resolve.to_a
       expect(scope).to include(event1, event2)
     end
 
     it "returns all events for nil user" do
-      scope = described_class::Scope.new(nil, UniversityCalendarEvent).resolve
+      scope = described_class::Scope.new(nil, UniversityCalendarEvent).resolve.to_a
       expect(scope).to include(event1, event2)
     end
   end

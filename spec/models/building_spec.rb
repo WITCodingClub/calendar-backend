@@ -54,7 +54,7 @@ RSpec.describe Building do
       room1 = create(:room, building: building, number: "101")
       room2 = create(:room, building: building, number: "102")
 
-      expect(building.rooms).to include(room1, room2)
+      expect(building.rooms.to_a).to include(room1, room2)
     end
 
     it "prevents deletion when rooms exist" do

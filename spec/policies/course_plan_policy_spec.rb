@@ -77,7 +77,7 @@ RSpec.describe CoursePlanPolicy, type: :policy do
     it "returns all plans for admins" do
       owned_plan
       other_plan
-      scope = described_class.new(admin_user, CoursePlan).resolve
+      scope = described_class.new(admin_user, CoursePlan).resolve.to_a
       expect(scope).to include(owned_plan, other_plan)
     end
 

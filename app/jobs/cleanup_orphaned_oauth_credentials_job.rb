@@ -23,8 +23,11 @@ class CleanupOrphanedOauthCredentialsJob < ApplicationJob
         revoke_token_with_google(credential.access_token)
 
         # Delete from database (will also destroy associated google_calendar due to dependent: :destroy)
-        # The before_destroy callback will also revoke calendar access
-        credential.destroy!
+        # The before_destroy callback will also revoke calendar access.
+        # PaperTrail is disabled here because enforce_version_limit! always loads
+        # the item via belongs_to :item which causes an N+1 (one SELECT per credential).
+        # Deletions are already logged above via Rails.logger.info.
+        PaperTrail.request(enabled: false) { credential.destroy! }
         deleted_count += 1
       rescue => e
         error_count += 1
@@ -71,16 +74,27 @@ class CleanupOrphanedOauthCredentialsJob < ApplicationJob
     orphaned_ids.concat(orphaned_by_user)
 
     # Return unique credentials with eager loaded associations
-    OauthCredential.where(id: orphaned_ids.uniq)
-                   .includes(:user, :google_calendar)
+    credentials = OauthCredential.where(id: orphaned_ids.uniq).includes(:user, :google_calendar)
+
+    # Preload email existence to avoid N+1 in determine_orphan_reason
+    @existing_credential_emails = Email.where(email: credentials.map(&:email).compact)
+                                       .pluck(:email)
+                                       .to_set
+
+    credentials
   end
 
   def determine_orphan_reason(credential)
-    # Check if user exists
-    return "Missing user" unless credential.user_id.present? && User.exists?(credential.user_id)
+    # Check if user exists using the eager-loaded association
+    return "Missing user" if credential.user.blank?
 
-    # Check if email exists in emails table
-    return "Email not found in system" unless Email.exists?(email: credential.email)
+    # Check if email exists - use preloaded set if available, otherwise query
+    email_exists = if @existing_credential_emails
+                     @existing_credential_emails.include?(credential.email)
+                   else
+                     Email.exists?(email: credential.email)
+                   end
+    return "Email not found in system" unless email_exists
 
     # Check for expired token without refresh capability
     if credential.token_expires_at.present? &&

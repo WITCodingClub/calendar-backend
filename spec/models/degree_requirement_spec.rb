@@ -75,8 +75,9 @@ RSpec.describe DegreeRequirement do
 
     describe ".root_requirements" do
       it "returns only requirements without a parent" do
-        expect(described_class.root_requirements).to include(core_requirement, elective_requirement, parent_requirement)
-        expect(described_class.root_requirements).not_to include(child_requirement)
+        root_reqs = described_class.root_requirements.to_a
+        expect(root_reqs).to include(core_requirement, elective_requirement, parent_requirement)
+        expect(root_reqs).not_to include(child_requirement)
       end
     end
 

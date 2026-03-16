@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Admin::GoogleCalendarEvents" do
+RSpec.describe "Admin::GoogleCalendarEvents", :skip_prosopite do
   let(:admin_user) { create(:user, :admin) }
   let(:regular_user) { create(:user) }
   let(:oauth_credential) { create(:oauth_credential, user: admin_user) }

@@ -67,7 +67,7 @@ RSpec.describe Friendship do
 
     describe ".involving" do
       it "returns friendships where user is requester or addressee" do
-        expect(described_class.involving(user1)).to include(pending_request, accepted_friendship)
+        expect(described_class.involving(user1).to_a).to include(pending_request, accepted_friendship)
       end
     end
 

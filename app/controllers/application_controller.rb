@@ -13,7 +13,7 @@ class ApplicationController < ActionController::Base
     current_user
   end
 
-  if Rails.env.local?
+  unless Rails.env.production?
     around_action :n_plus_one_detection
 
     def n_plus_one_detection
