@@ -4,7 +4,7 @@ class AdminMailer < ApplicationMailer
   default from: "noreply@wit.edu"
 
   def missing_rmp_ids_summary(email:)
-    @faculties = Faculty.where(rmp_id: nil).order(:last_name, :first_name)
+    @faculties = Faculty.where(rmp_id: nil).order(:last_name, :first_name).includes(:courses)
     @count = @faculties.count
 
     # Only send if there are missing RMP IDs

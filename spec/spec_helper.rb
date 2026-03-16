@@ -50,12 +50,12 @@ RSpec.configure do |config|
   # WARNING: scan/finish must wrap individual tests, NOT the whole suite.
   # Wrapping the whole suite would accumulate queries across all tests, making
   # it impossible to identify which specific test causes the N+1 queries.
-  config.before(:each) do
-    Prosopite.scan
+  config.before do |example|
+    Prosopite.scan unless example.metadata[:skip_prosopite]
   end
 
-  config.after(:each) do
-    Prosopite.finish
+  config.after do |example|
+    Prosopite.finish unless example.metadata[:skip_prosopite]
   end
 
   # The settings below are suggested to provide a good initial experience

@@ -37,9 +37,13 @@ class EnsureFutureTermsJob < ApplicationJob
       end
     end
 
+    # Preload existing terms to avoid N+1 queries (season is an enum, load as AR objects)
+    existing_terms = Term.where(year: terms_to_ensure.map { |t| t[:year] })
+                         .each_with_object({}) { |t, h| h[[t.year, t.season.to_sym]] = true }
+
     # Create missing terms
     terms_to_ensure.each do |term_attrs|
-      next if Term.exists?(year: term_attrs[:year], season: term_attrs[:season])
+      next if existing_terms[[term_attrs[:year], term_attrs[:season].to_sym]]
 
       # Generate UID based on term pattern:
       # Fall [year] → [year+1]10

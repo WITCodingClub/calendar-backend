@@ -126,7 +126,9 @@ RSpec.describe "Rack::Attack" do
     end
   end
 
-  describe "API throttles" do
+  # Throttle tests make many repeated HTTP requests by design (testing rate limits).
+  # Each request legitimately queries the DB for auth — not an application N+1.
+  describe "API throttles", :skip_prosopite do
     let(:user) { create(:user) }
     let(:token) { JsonWebTokenService.encode(user_id: user.id) }
     let(:headers) { { "Authorization" => "Bearer #{token}" } }

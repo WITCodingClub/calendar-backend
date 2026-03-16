@@ -4,6 +4,8 @@ require "rails_helper"
 
 RSpec.describe MeetingTimeProcessor do
   describe ".process_meeting_time" do
+    subject(:result) { described_class.process_meeting_time(meeting_time) }
+
     let(:term) { create(:term) }
     let(:course) { create(:course, term: term, title: "Data Structures", course_number: 201, subject: "CS", crn: 99901) }
     let(:building) { create(:building, name: "Beatty Hall", abbreviation: "BE") }
@@ -14,7 +16,6 @@ RSpec.describe MeetingTimeProcessor do
              meeting_schedule_type: :lecture)
     end
 
-    subject(:result) { described_class.process_meeting_time(meeting_time) }
 
     it "returns a hash with a top-level :id key" do
       expect(result[:id]).to eq(meeting_time.id)

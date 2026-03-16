@@ -7,6 +7,8 @@ class ProcessRiscEventJob < ApplicationJob
 
   # Retry with exponential backoff for transient errors
   retry_on StandardError, wait: :exponentially_longer, attempts: 3
+  # Discard permanently invalid tokens — these can never succeed (checked before retry_on)
+  discard_on RiscValidationService::ValidationError
 
   def perform(token)
     # Validate and decode the token

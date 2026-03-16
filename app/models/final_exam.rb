@@ -49,8 +49,14 @@ class FinalExam < ApplicationRecord
   # Call this after courses are imported/scraped
   def self.link_orphan_exams_to_courses(term:)
     linked_count = 0
-    orphan.where(term: term).find_each do |final_exam|
-      course = Course.find_by(crn: final_exam.crn, term: term)
+    orphan_exams = orphan.where(term: term).to_a
+    crns = orphan_exams.map(&:crn).uniq
+
+    # Preload courses by CRN for this term to avoid per-exam DB queries
+    courses_by_crn = Course.where(crn: crns, term: term).index_by(&:crn)
+
+    orphan_exams.each do |final_exam|
+      course = courses_by_crn[final_exam.crn]
       if course
         final_exam.update!(course: course)
         linked_count += 1
@@ -183,24 +189,30 @@ class FinalExam < ApplicationRecord
   def matched_rooms
     return [] if location.blank?
 
-    rooms = []
-
-    # Location format: "BLDG 123" or "BLDG 123 / BLDG 456"
-    location.split(" / ").each do |loc|
+    parts = location.split(" / ").filter_map do |loc|
       next unless loc =~ /([A-Z]+)\s+(\d+[A-Z]?)/i
 
-      abbrev = $1
-      room_num = $2
+      { abbrev: $1, room_num: $2.to_i.to_s }
+    end
+    return [] if parts.empty?
 
-      building = Building.find_by(abbreviation: abbrev)
+    # Batch-load buildings by abbreviation
+    abbrevs = parts.pluck(:abbrev).uniq
+    buildings_by_abbrev = Building.where(abbreviation: abbrevs).index_by(&:abbreviation)
+
+    # Batch-load rooms for matched buildings
+    building_ids = buildings_by_abbrev.values.map(&:id)
+    room_numbers = parts.pluck(:room_num).uniq
+    rooms_by_building_and_number = Room.where(building_id: building_ids, number: room_numbers)
+                                       .includes(:building)
+                                       .index_by { |r| [r.building_id, r.number.to_s] }
+
+    parts.filter_map do |p|
+      building = buildings_by_abbrev[p[:abbrev]]
       next unless building
 
-      # Try to find room by number (strip leading zeros for comparison)
-      room = building.rooms.find_by(number: room_num.to_i)
-      rooms << room if room
+      rooms_by_building_and_number[[building.id, p[:room_num]]]
     end
-
-    rooms
   end
 
   # Check if we found matching rooms in the database

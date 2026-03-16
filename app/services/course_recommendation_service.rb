@@ -35,7 +35,7 @@ class CourseRecommendationService < ApplicationService
   # All active courses offered in this term
   def available_courses
     Course.where(term: @term, status: :active)
-          .includes(:faculties, :meeting_times, :course_prerequisites)
+          .includes({ faculties: :rating_distribution }, :meeting_times, :course_prerequisites)
   end
 
   # Exclude courses already in the user's plan for this term
@@ -83,7 +83,8 @@ class CourseRecommendationService < ApplicationService
         priority: priority,
         fulfills_requirement: requirement_match&.area_name,
         prerequisite_status: prereq_result[:eligible] ? "met" : "not_met",
-        schedule_conflicts: has_schedule_conflicts?(course)
+        schedule_conflicts: has_schedule_conflicts?(course),
+        _rmp_rating: course.faculties.first&.rating_distribution&.avg_rating&.to_f
       }
     end
   end
@@ -158,24 +159,10 @@ class CourseRecommendationService < ApplicationService
     recommendations.sort_by do |rec|
       priority_order = rec[:priority] == "required" ? 0 : 1
       conflict_order = rec[:schedule_conflicts] ? 1 : 0
-      rmp_rating = avg_rating_for_course(rec[:course][:id]) || 0
+      rmp_rating = rec.delete(:_rmp_rating) || 0
 
       [priority_order, conflict_order, -rmp_rating]
     end
-  end
-
-  # Get average RMP rating for the first faculty teaching this course
-  def avg_rating_for_course(course_id)
-    @rating_cache ||= {}
-    return @rating_cache[course_id] if @rating_cache.key?(course_id)
-
-    course = Course.find_by(id: course_id)
-    return @rating_cache[course_id] = nil unless course
-
-    faculty = course.faculties.first
-    return @rating_cache[course_id] = nil unless faculty
-
-    @rating_cache[course_id] = faculty.rating_distribution&.avg_rating&.to_f
   end
 
   def serialize_course(course)

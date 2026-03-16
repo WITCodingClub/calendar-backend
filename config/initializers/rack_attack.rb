@@ -43,7 +43,11 @@ class Rack::Attack
     # Check if this is an API request with privileged user
     if req.path.start_with?("/api/")
       user_id = extract_user_id_from_jwt(req)
-      user_has_admin_access?(user_id) || user_has_rate_limit_bypass?(user_id)
+      next false unless user_id
+
+      # Single user lookup shared between both checks
+      user = User.find_by(id: user_id)
+      user&.admin_access? || (user && Flipper.enabled?(FlipperFlags::BYPASS_RATE_LIMITS, user))
     else
       # For non-API requests (including admin area), we rely on more generous limits
       # below instead of full whitelist since we can't easily check user from session

@@ -142,13 +142,17 @@ class CalendarsController < ApplicationController
           recurrence_end = ics_recurrence_end_for(meeting_time, course)
           day_sym = meeting_time.day_of_week.to_sym
           if meeting_time.all_day?
-            # All-day ICS events use a DATE-type UNTIL (no time component)
-            rule = IceCube::Rule.weekly.day(day_sym).until(recurrence_end)
+            # All-day ICS events use a DATE-type UNTIL (no time component).
+            # IceCube 0.17.0 calls .utc on the until value and doesn't support Date directly,
+            # so we pass a UTC Time and strip the time component from the resulting ICAL string.
+            until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day)
+            rule = IceCube::Rule.weekly.day(day_sym).until(until_time)
+            e.rrule = rule.to_ical.gsub(/UNTIL=(\d{8})T\d{6}Z?/, 'UNTIL=\1')
           else
             until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59)
             rule = IceCube::Rule.weekly.day(day_sym).until(until_time)
+            e.rrule = rule.to_ical
           end
-          e.rrule = rule.to_ical
 
           # Add EXDATE entries for holidays to skip class on those days
           holiday_exdates = build_holiday_exdates_for_meeting_time(meeting_time, start_time)

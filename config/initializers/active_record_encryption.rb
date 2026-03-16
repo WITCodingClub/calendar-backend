@@ -10,6 +10,6 @@
 # disconnected from the Rails application config proxy.
 if ENV["ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY"].present?
   ActiveRecord::Encryption.config.primary_key = ENV["ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY"]
-  ActiveRecord::Encryption.config.deterministic_key = ENV["ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY"]
-  ActiveRecord::Encryption.config.key_derivation_salt = ENV["ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT"]
+  ActiveRecord::Encryption.config.deterministic_key = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY", nil)
+  ActiveRecord::Encryption.config.key_derivation_salt = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT", nil)
 end

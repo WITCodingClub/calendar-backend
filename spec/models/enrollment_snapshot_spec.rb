@@ -50,13 +50,13 @@ RSpec.describe EnrollmentSnapshot do
     let(:term) { create(:term) }
     let!(:restoration_snapshot) do
       described_class.create!(user: user, term: term, crn: 44444,
-        snapshot_created_at: Time.current,
-        snapshot_reason: "Pre-CRN-uniqueness-fix backup")
+                              snapshot_created_at: Time.current,
+                              snapshot_reason: "Pre-CRN-uniqueness-fix backup")
     end
     let!(:other_snapshot) do
       described_class.create!(user: user, term: create(:term), crn: 55555,
-        snapshot_created_at: Time.current,
-        snapshot_reason: "Other reason")
+                              snapshot_created_at: Time.current,
+                              snapshot_reason: "Other reason")
     end
 
     describe ".for_restoration" do

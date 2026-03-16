@@ -28,7 +28,7 @@ RSpec.describe GoogleCalendarDeleteJob do
         service_double = instance_double(GoogleCalendarService)
         allow(GoogleCalendarService).to receive(:new).and_return(service_double)
         allow(service_double).to receive(:delete_calendar).with(calendar_id)
-          .and_raise(Google::Apis::ClientError.new("notFound: Not Found", status_code: 404))
+                                                          .and_raise(Google::Apis::ClientError.new("notFound: Not Found", status_code: 404))
 
         expect { described_class.perform_now(calendar_id) }.not_to raise_error
       end
@@ -39,7 +39,7 @@ RSpec.describe GoogleCalendarDeleteJob do
         service_double = instance_double(GoogleCalendarService)
         allow(GoogleCalendarService).to receive(:new).and_return(service_double)
         allow(service_double).to receive(:delete_calendar).with(calendar_id)
-          .and_raise(Google::Apis::ClientError.new("forbidden: Forbidden", status_code: 403))
+                                                          .and_raise(Google::Apis::ClientError.new("forbidden: Forbidden", status_code: 403))
 
         expect { described_class.perform_now(calendar_id) }.to raise_error(Google::Apis::ClientError)
       end

@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe AdminMailer, type: :mailer do
+RSpec.describe AdminMailer do
   describe "#missing_rmp_ids_summary" do
     let(:recipient) { "admin@example.com" }
 
@@ -11,7 +11,7 @@ RSpec.describe AdminMailer, type: :mailer do
       let(:mail) { described_class.missing_rmp_ids_summary(email: recipient) }
 
       it "renders a mail object" do
-        expect(mail).to be_a(Mail::Message)
+        expect(mail).to be_a(ActionMailer::MessageDelivery)
       end
 
       it "sets the recipient correctly" do

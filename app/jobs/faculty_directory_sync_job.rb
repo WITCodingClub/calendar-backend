@@ -29,6 +29,10 @@ class FacultyDirectorySyncJob < ApplicationJob
 
     stats = { created: 0, updated: 0, skipped: 0, errors: [] }
 
+    # Preload existing faculty by email to avoid per-faculty DB queries in the loop
+    emails = result[:faculty].filter_map { |f| f[:email]&.downcase&.strip }.uniq
+    @faculty_cache = Faculty.where(email: emails).index_by(&:email)
+
     result[:faculty].each do |faculty_data|
       process_faculty(faculty_data, stats)
     end
@@ -63,7 +67,7 @@ class FacultyDirectorySyncJob < ApplicationJob
     # Parse name components
     name_parts = parse_name(faculty_data[:display_name])
 
-    faculty = Faculty.find_or_initialize_by(email: email)
+    faculty = @faculty_cache&.fetch(email, nil) || Faculty.new(email: email)
     was_new = faculty.new_record?
 
     # For new records, require first/last name

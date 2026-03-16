@@ -235,6 +235,16 @@ module Transfer
     end
 
     def process_equivalencies(equivalencies_data)
+      # Preload existing records into caches to avoid per-equivalency DB queries
+      @university_cache = Transfer::University.all.index_by(&:code)
+      @transfer_course_cache = Transfer::Course.all.index_by do |tc|
+        [tc.university_id, tc.course_code]
+      end
+      @equivalency_cache = Transfer::Equivalency.all.index_by do |eq|
+        [eq.transfer_course_id, eq.wit_course_id]
+      end
+      @wit_course_cache = preload_wit_courses(equivalencies_data)
+
       equivalencies_data.each do |data|
         process_single_equivalency(data)
       rescue => e
@@ -264,47 +274,53 @@ module Transfer
     def find_or_create_university(institution_name)
       code = generate_university_code(institution_name)
 
-      university = Transfer::University.find_or_initialize_by(code: code)
-      if university.new_record?
-        university.name = institution_name
-        university.active = true
+      return @university_cache[code] if @university_cache.key?(code)
+
+      begin
+        university = Transfer::University.new(code: code, name: institution_name, active: true)
         university.save!
+        @university_cache[code] = university
         @results[:universities_synced] += 1
         Rails.logger.info "[TransferEquivalencySync] Created university: #{institution_name} (#{code})"
+        university
+      rescue ActiveRecord::RecordInvalid => e
+        @results[:errors] << "Failed to create university #{institution_name}: #{e.message}"
+        nil
       end
-
-      university
-    rescue ActiveRecord::RecordInvalid => e
-      @results[:errors] << "Failed to create university #{institution_name}: #{e.message}"
-      nil
     end
 
     def find_or_create_transfer_course(university, data)
-      course = Transfer::Course.find_or_initialize_by(
-        university: university,
-        course_code: data[:sending_course_code]
-      )
+      cache_key = [university&.id, data[:sending_course_code]]
 
-      if course.new_record?
-        course.course_title = data[:sending_course_title] || data[:sending_course_code]
-        course.credits = data[:sending_credits]
-        course.active = true
+      return @transfer_course_cache[cache_key] if @transfer_course_cache.key?(cache_key)
+
+      begin
+        course = Transfer::Course.new(
+          university: university,
+          course_code: data[:sending_course_code],
+          course_title: data[:sending_course_title] || data[:sending_course_code],
+          credits: data[:sending_credits],
+          active: true
+        )
         course.save!
+        @transfer_course_cache[cache_key] = course
         @results[:courses_synced] += 1
+        course
+      rescue ActiveRecord::RecordInvalid => e
+        @results[:errors] << "Failed to create transfer course #{data[:sending_course_code]}: #{e.message}"
+        nil
       end
-
-      course
-    rescue ActiveRecord::RecordInvalid => e
-      @results[:errors] << "Failed to create transfer course #{data[:sending_course_code]}: #{e.message}"
-      nil
     end
 
     def find_wit_course(course_code)
       return nil if course_code.blank?
 
+      @wit_course_cache ||= {}
+      return @wit_course_cache[course_code] if @wit_course_cache.key?(course_code)
+
       # Parse subject and course number from code like "COMP 1000" or "COMP1000"
       match = course_code.match(/\A([A-Z]+)\s*(\d+)\z/)
-      return nil unless match
+      return @wit_course_cache[course_code] = nil unless match
 
       subject_prefix = match[1]
       course_number = match[2].to_i
@@ -312,24 +328,55 @@ module Transfer
       # WIT courses store subject as full name with abbreviation in parens, e.g. "Computer Science (COMP)"
       # Match by the abbreviation in parens and course_number
       # Use ::Course to avoid resolving to Transfer::Course within this namespace
-      ::Course.where(course_number: course_number)
-              .where("subject LIKE ?", "%(#{subject_prefix})%")
-              .order(created_at: :desc)
-              .first
+      @wit_course_cache[course_code] = ::Course.where(course_number: course_number)
+                                               .where("subject LIKE ?", "%(#{subject_prefix})%")
+                                               .order(created_at: :desc)
+                                               .first
+    end
+
+    # Preload WIT courses for all unique course codes in the equivalencies data
+    # Returns a cache hash keyed by course_code string
+    def preload_wit_courses(equivalencies_data)
+      cache = {}
+      parsed = equivalencies_data.filter_map do |data|
+        code = data[:wit_course_code]
+        next if code.blank?
+
+        match = code.match(/\A([A-Z]+)\s*(\d+)\z/)
+        next cache[code] = nil unless match
+
+        [code, match[1], match[2].to_i]
+      end
+
+      # Group by subject prefix to batch-load per subject
+      parsed.group_by { |_, prefix, _| prefix }.each do |prefix, entries|
+        course_numbers = entries.map { |_, _, num| num }.uniq
+        courses = ::Course.where(course_number: course_numbers)
+                          .where("subject LIKE ?", "%(#{prefix})%")
+                          .order(created_at: :desc)
+                          .to_a
+
+        entries.each do |code, _, number|
+          cache[code] = courses.find { |c| c.course_number == number }
+        end
+      end
+
+      cache
     end
 
     def find_or_create_equivalency(transfer_course, wit_course, data)
-      equivalency = Transfer::Equivalency.find_or_initialize_by(
-        transfer_course: transfer_course,
-        wit_course: wit_course
-      )
+      cache_key = [transfer_course.id, wit_course.id]
+      return @equivalency_cache[cache_key] if @equivalency_cache&.key?(cache_key)
 
-      if equivalency.new_record?
-        equivalency.effective_date = data[:effective_date] || Date.current
-        equivalency.expiration_date = data[:expiration_date]
-        equivalency.save!
-        @results[:equivalencies_synced] += 1
-      end
+      equivalency = Transfer::Equivalency.new(
+        transfer_course: transfer_course,
+        wit_course: wit_course,
+        effective_date: data[:effective_date] || Date.current,
+        expiration_date: data[:expiration_date]
+      )
+      equivalency.save!
+      @equivalency_cache[cache_key] = equivalency if @equivalency_cache
+      @results[:equivalencies_synced] += 1
 
       equivalency
     rescue ActiveRecord::RecordInvalid => e

@@ -59,10 +59,9 @@ RSpec.describe ProcessRiscEventJob do
           .and_raise(RiscValidationService::ValidationError.new("Invalid token signature"))
       end
 
-      it "re-raises the validation error (not retried)" do
-        expect {
-          described_class.perform_now(token)
-        }.to raise_error(RiscValidationService::ValidationError, "Invalid token signature")
+      it "discards the job without retrying (validation errors are permanent)" do
+        # ValidationError is handled by discard_on — the job silently discards
+        expect { described_class.perform_now(token) }.not_to raise_error
       end
     end
 
@@ -71,10 +70,9 @@ RSpec.describe ProcessRiscEventJob do
         allow(handler).to receive(:process).and_raise(StandardError.new("Unexpected failure"))
       end
 
-      it "re-raises the error to trigger retry logic" do
-        expect {
-          described_class.perform_now(token)
-        }.to raise_error(StandardError, "Unexpected failure")
+      it "raises an error to trigger retry logic" do
+        # retry_on StandardError intercepts and schedules retry; in test env this raises RuntimeError
+        expect { described_class.perform_now(token) }.to raise_error(StandardError)
       end
     end
   end

@@ -14,14 +14,14 @@ RSpec.describe EnsureFutureTermsJob do
     context "when no terms exist" do
       it "creates current term and 2 terms ahead (3 terms total)" do
         expect {
-          described_class.perform_now
+          described_class.perform_now(terms_ahead: 2)
         }.to change(Term, :count).by(3) # current + 2 ahead = 3 terms
       end
 
       it "assigns uids based on term pattern (fall: [year+1]10, spring: [year]20, summer: [year]30)" do
         # Since we only create current + 2 ahead, let's verify the UIDs are correct
         # for whatever terms are created based on current date
-        described_class.perform_now
+        described_class.perform_now(terms_ahead: 2)
 
         terms = Term.all
         terms.each do |term|
@@ -54,12 +54,12 @@ RSpec.describe EnsureFutureTermsJob do
 
       it "only creates missing future terms" do
         expect {
-          described_class.perform_now
+          described_class.perform_now(terms_ahead: 2)
         }.to change(Term, :count).by(2) # 2 future terms (current already exists)
       end
 
       it "generates correct uids for new terms" do
-        described_class.perform_now
+        described_class.perform_now(terms_ahead: 2)
 
         # The job creates current + 2 terms ahead
         # If current is spring (Jan-May), progression is: spring → summer → fall
@@ -84,7 +84,7 @@ RSpec.describe EnsureFutureTermsJob do
 
       it "does not duplicate existing terms" do
         initial_count = Term.count
-        described_class.perform_now
+        described_class.perform_now(terms_ahead: 2)
 
         # Should create exactly 2 more terms (the future terms)
         expect(Term.count).to eq(initial_count + 2)
