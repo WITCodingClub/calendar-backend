@@ -11,6 +11,8 @@ RSpec.describe UniversityCalendarSyncJob do
   before do
     stub_request(:get, ics_url)
       .to_return(status: 200, body: ics_content, headers: { "Content-Type" => "text/calendar" })
+
+    allow(LeopardWebService).to receive(:get_active_terms).and_return({ success: false, terms: [] })
   end
 
   describe "#perform" do
@@ -84,13 +86,16 @@ RSpec.describe UniversityCalendarSyncJob do
   end
 
   describe "term date extraction" do
-    let!(:term) { create(:term, year: 2025, season: :fall, start_date: nil, end_date: nil) }
+    let!(:term) { create(:term, year: 2025, season: :fall, uid: 202610, start_date: nil, end_date: nil) }
 
     before do
-      create(:university_calendar_event, :classes_begin,
-             summary: "Fall 2025 Classes Begin",
-             academic_term: "Fall",
-             start_time: Date.new(2025, 8, 25).beginning_of_day)
+      travel_to Date.new(2025, 3, 24)
+
+      allow(LeopardWebService).to receive(:get_active_terms).and_return({
+                                                                          success: true,
+                                                                          terms: [{ code: "202610", description: "Fall 2025" }]
+                                                                        })
+
       create(:university_calendar_event, :finals,
              summary: "Fall 2025 Final Exams",
              academic_term: "Fall",
@@ -98,7 +103,8 @@ RSpec.describe UniversityCalendarSyncJob do
              end_time: Date.new(2025, 12, 19).end_of_day)
     end
 
-    it "updates term dates from university events" do
+
+    it "updates term dates from LeopardWeb activity and university events" do
       # Stub the service to not change events
       allow(UniversityCalendarIcsService).to receive(:call).and_return({
                                                                          created: 0,
@@ -110,7 +116,7 @@ RSpec.describe UniversityCalendarSyncJob do
       described_class.new.perform
 
       term.reload
-      expect(term.start_date).to eq(Date.new(2025, 8, 25))
+      expect(term.start_date).to eq(Date.new(2025, 3, 24))
       expect(term.end_date).to eq(Date.new(2025, 12, 19))
     end
   end
