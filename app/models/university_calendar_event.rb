@@ -95,17 +95,16 @@ class UniversityCalendarEvent < ApplicationRecord
     where(category: %w[holiday finals]).in_date_range(start_date, end_date).order(:start_time)
   end
 
-  # Detect term dates from university calendar events
+  # Detect term dates for a term.
   #
   # Date rules:
-  # - start_date: First schedule-available event for the term.
-  #               If missing, estimate as 14 days before first registration-open event.
+  # - start_date: The day LeopardWeb reports registration open for the term.
+  #               Once captured, keep the stored past start_date stable across
+  #               later syncs.
   # - end_date:   Last day of finals period for the term.
   #               Falls back to latest imported course end_date for the term
   #               when finals period events are unavailable.
   #
-  # This intentionally avoids broad year-only matching so one term's events do not
-  # leak into another term's date inference.
   # @param year [Integer] The academic year
   # @param season [Symbol] The season (:fall, :spring, :summer)
   # @return [Hash] Hash with :start_date and :end_date keys
@@ -115,16 +114,14 @@ class UniversityCalendarEvent < ApplicationRecord
     candidate_events = where(start_time: Date.new(year - 1, 1, 1).beginning_of_day..Date.new(year + 1, 12, 31).end_of_day)
     matching_events = candidate_events.select { |event| event_matches_term_for_date_detection?(event, year, season, term) }
 
-    # Prefer explicit schedule-available events for term start.
+    leopard_web_start_date = leopard_web_registration_open_date(year, season, term)
+
+    # Prefer explicit schedule-available events when LeopardWeb does not expose
+    # the term as currently open for registration.
     schedule_available_event = matching_events
                                .select { |event| schedule_available_summary?(event.summary) }
                                .min_by(&:start_time)
 
-    # Registration-open is used only as a fallback signal when schedule-available
-    # event is missing from the feed snapshot.
-    registration_event = matching_events
-                         .select { |event| event.category == "registration" || registration_summary?(event.summary) }
-                         .min_by(&:start_time)
 
     estimated_schedule_available_date = registration_event&.start_time&.to_date&.-(14)
 
@@ -136,9 +133,41 @@ class UniversityCalendarEvent < ApplicationRecord
     course_end_fallback = fallback_end_date_from_courses(term)
 
     {
-      start_date: schedule_available_event&.start_time&.to_date || estimated_schedule_available_date,
+      start_date: leopard_web_start_date || schedule_available_event&.start_time&.to_date || estimated_schedule_available_date,
       end_date: finals_end_date || course_end_fallback
     }
+  end
+
+  def self.leopard_web_registration_open_date(year, season, term)
+    result = LeopardWebService.get_active_terms
+    return nil unless result[:success]
+
+    target_uid = term&.uid || generated_term_uid(year, season)
+    return nil unless target_uid
+
+    active_term_found = Array(result[:terms]).any? do |active_term|
+      (active_term[:code] || active_term["code"]).to_i == target_uid
+    end
+    return nil unless active_term_found
+
+    existing_start_date = term&.start_date
+    return existing_start_date if existing_start_date.present? && existing_start_date <= Time.zone.today
+
+    Time.zone.today
+  rescue => e
+    Rails.logger.warn("Failed to determine LeopardWeb registration-open date for #{season} #{year}: #{e.message}")
+    nil
+  end
+
+  def self.generated_term_uid(year, season)
+    case season.to_sym
+    when :fall
+      ((year + 1) * 100) + 10
+    when :spring
+      (year * 100) + 20
+    when :summer
+      (year * 100) + 30
+    end
   end
 
   # Returns true when an event can be considered part of the target term for

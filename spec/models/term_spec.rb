@@ -433,17 +433,13 @@ RSpec.describe Term do
       travel_back
     end
 
-    it "falls back to start_date when no matching registration-open event exists" do
+    it "includes terms where start_date has passed and end_date is in future, regardless of registration events" do
       travel_to Date.new(2026, 3, 13)
 
+      # Term with start_date in past and end_date in future
       term = create(:term, year: 2026, season: :spring, start_date: Date.new(2026, 1, 15), end_date: Date.new(2026, 5, 15))
 
-      create(:university_calendar_event, :registration,
-             term: term,
-             summary: "Priority Registration Begins",
-             start_time: Date.new(2026, 2, 1).beginning_of_day,
-             end_time: Date.new(2026, 2, 1).end_of_day)
-
+      # No registration event created - .active uses pure date-based filtering
       expect(described_class.active).to include(term)
       travel_back
     end
@@ -486,6 +482,53 @@ RSpec.describe Term do
     it "skips terms without dates" do
       create(:term, year: 2025, season: :summer, start_date: nil, end_date: nil)
       expect(described_class.find_by_date(Date.new(2025, 6, 15))).to be_nil
+    end
+  end
+
+  describe "#registration_start" do
+    let(:term) { create(:term, year: 2025, season: :fall, uid: 202610, start_date: Date.new(2025, 3, 10)) }
+
+    before do
+      allow(LeopardWebService).to receive(:get_active_terms).and_return({ success: false, terms: [] })
+    end
+
+    it "returns start_date when LeopardWeb lists term as active and start_date is in the past" do
+      travel_to Date.new(2025, 4, 1)
+      allow(LeopardWebService).to receive(:get_active_terms).and_return({
+                                                                          success: true,
+                                                                          terms: [{ code: "202710", description: "Fall 2025" }]
+                                                                        })
+
+      expect(term.registration_start).to eq(Date.new(2025, 3, 10))
+      travel_back
+    end
+
+    it "returns today when LeopardWeb lists term as active but start_date is not yet set" do
+      travel_to Date.new(2025, 3, 24)
+      term.update!(start_date: nil)
+      allow(LeopardWebService).to receive(:get_active_terms).and_return({
+                                                                          success: true,
+                                                                          terms: [{ code: "202710", description: "Fall 2025" }]
+                                                                        })
+
+      expect(term.registration_start).to eq(Date.new(2025, 3, 24))
+      travel_back
+    end
+
+    it "falls back to start_date when LeopardWeb does not list the term" do
+      expect(term.registration_start).to eq(Date.new(2025, 3, 10))
+    end
+
+    it "falls back to start_date when LeopardWeb call fails" do
+      allow(LeopardWebService).to receive(:get_active_terms).and_raise(StandardError, "network error")
+
+      expect(term.registration_start).to eq(Date.new(2025, 3, 10))
+    end
+
+    it "returns nil when LeopardWeb unavailable and start_date is nil" do
+      term.update!(start_date: nil)
+
+      expect(term.registration_start).to be_nil
     end
   end
 end

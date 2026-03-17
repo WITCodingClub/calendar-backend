@@ -323,7 +323,20 @@ RSpec.describe UniversityCalendarEvent do
   end
 
   describe ".detect_term_dates" do
-    it "uses schedule-available date for start_date and finals period end for end_date" do
+    before do
+      allow(LeopardWebService).to receive(:get_active_terms).and_return({ success: false, terms: [] })
+    end
+
+    it "uses the LeopardWeb active date for start_date and finals period end for end_date" do
+      travel_to Date.new(2025, 3, 24)
+
+      create(:term, year: 2025, season: :fall, uid: 202610)
+
+      allow(LeopardWebService).to receive(:get_active_terms).and_return({
+                                                                          success: true,
+                                                                          terms: [{ code: "202610", description: "Fall 2025" }]
+                                                                        })
+
       create(:university_calendar_event, :academic,
              summary: "Fall 2025 Course Schedule Available",
              academic_term: "Fall",
@@ -336,10 +349,6 @@ RSpec.describe UniversityCalendarEvent do
              start_time: Date.new(2025, 3, 24).beginning_of_day,
              end_time: Date.new(2025, 3, 24).end_of_day)
 
-      create(:university_calendar_event, :term_dates,
-             summary: "Fall 2025 Classes Begin",
-             academic_term: "Fall",
-             start_time: Date.new(2025, 8, 25).beginning_of_day)
       create(:university_calendar_event, :finals,
              summary: "Fall 2025 Final Exams",
              academic_term: "Fall",
@@ -348,18 +357,53 @@ RSpec.describe UniversityCalendarEvent do
 
       result = described_class.detect_term_dates(2025, :fall)
 
-      expect(result[:start_date]).to eq(Date.new(2025, 3, 10))
+      expect(result[:start_date]).to eq(Date.new(2025, 3, 24))
       expect(result[:end_date]).to eq(Date.new(2025, 12, 19))
+      travel_back
     end
 
-    it "returns nil dates when no matching events found" do
+    it "keeps an existing past start_date stable after LeopardWeb detects registration open" do
+      travel_to Date.new(2036, 3, 20)
+
+      create(:term, year: 2036, season: :fall, uid: 203710, start_date: Date.new(2036, 3, 13))
+
+      allow(LeopardWebService).to receive(:get_active_terms).and_return({
+                                                                          success: true,
+                                                                          terms: [{ code: "203710", description: "Fall 2036" }]
+                                                                        })
+
+      result = described_class.detect_term_dates(2036, :fall)
+
+      expect(result[:start_date]).to eq(Date.new(2036, 3, 13))
+      travel_back
+    end
+
+    it "returns nil dates when no matching signals found" do
       result = described_class.detect_term_dates(2030, :spring)
 
       expect(result[:start_date]).to be_nil
       expect(result[:end_date]).to be_nil
     end
 
-    it "estimates schedule-available as 14 days before registration when schedule event is missing" do
+    it "falls back to schedule-available date when LeopardWeb does not list the term" do
+      create(:university_calendar_event, :academic,
+             summary: "Fall 2028 Course Schedule Available",
+             academic_term: "Fall",
+             start_time: Date.new(2028, 3, 9).beginning_of_day,
+             end_time: Date.new(2028, 3, 9).end_of_day)
+
+      create(:university_calendar_event, :registration,
+             summary: "Fall 2028 Registration Begins",
+             academic_term: "Fall",
+             start_time: Date.new(2028, 3, 23).beginning_of_day,
+             end_time: Date.new(2028, 3, 23).end_of_day)
+
+      result = described_class.detect_term_dates(2028, :fall)
+
+      expect(result[:start_date]).to eq(Date.new(2028, 3, 9))
+    end
+
+    it "estimates start_date as 14 days before registration when LeopardWeb and schedule event are missing" do
       Term.find_or_create_by!(year: 2026, season: :fall) do |term|
         term.uid = 909610
       end
@@ -386,28 +430,6 @@ RSpec.describe UniversityCalendarEvent do
 
       expect(result[:start_date]).to eq(Date.new(2026, 3, 9))
       expect(result[:end_date]).to eq(Date.new(2026, 12, 18))
-    end
-
-    it "prefers explicit schedule-available event over registration-open date" do
-      Term.find_or_create_by!(year: 2028, season: :fall) do |term|
-        term.uid = 909611
-      end
-
-      create(:university_calendar_event, :academic,
-             summary: "Fall 2028 Course Schedule Available",
-             academic_term: "Fall",
-             start_time: Date.new(2028, 3, 9).beginning_of_day,
-             end_time: Date.new(2028, 3, 9).end_of_day)
-
-      create(:university_calendar_event, :registration,
-             summary: "Fall 2028 Registration Begins",
-             academic_term: "Fall",
-             start_time: Date.new(2028, 3, 23).beginning_of_day,
-             end_time: Date.new(2028, 3, 23).end_of_day)
-
-      result = described_class.detect_term_dates(2028, :fall)
-
-      expect(result[:start_date]).to eq(Date.new(2028, 3, 9))
     end
 
     it "uses finals period end date and ignores schedule available announcements" do

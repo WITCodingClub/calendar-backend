@@ -8,7 +8,7 @@ class CourseDataSyncJob < ApplicationJob
   # Run with low concurrency to avoid overwhelming LeopardWeb API
   limits_concurrency to: 1, key: -> { "course_data_sync" }
 
-  # Sync course data for current and next term by default
+  # Sync course data for all active terms by default
   def perform(term_uids: nil)
     term_uids ||= default_term_uids
 
@@ -26,10 +26,7 @@ class CourseDataSyncJob < ApplicationJob
   private
 
   def default_term_uids
-    uids = []
-    uids << Term.current_uid if Term.current_uid
-    uids << Term.next_uid if Term.next_uid
-    uids.compact.uniq
+    Term.active_uids.uniq
   end
 
   def sync_term_courses(term_uid)

@@ -51,35 +51,45 @@ class Term < ApplicationRecord
     summer: 3
   }
 
-  # Returns the registration start date for this term
-  # Looks up from university_calendar_events or falls back to start_date
-  # @return [Date, nil] the registration start date
-  def registration_start
-    # Find the earliest registration event for this term
-    registration_event = UniversityCalendarEvent.registration
-                                                .for_term(self)
-                                                .where("summary ILIKE ?", "%registration%")
-                                                .order(:start_time)
-                                                .first
+  # Returns active term UIDs from LeopardWeb
+  # @return [Array<Integer>] UIDs of terms LeopardWeb considers active, empty array on failure
+  def self.active_uids
+    result = LeopardWebService.get_active_terms
+    return [] unless result[:success]
 
-    registration_event&.start_time&.to_date || start_date
+    result[:terms].map { |t| t[:code].to_i }
   end
 
-  # Scope for active terms (registration is open or classes have started)
+  # Returns the registration start date for this term.
+  # Queries LeopardWeb to determine if registration is open for this term.
+  # Once the term first appears as active, that date is considered the open date.
+  # Falls back to start_date when LeopardWeb is unavailable or does not list the term.
+  # @return [Date, nil] the registration start date
+  def registration_start
+    result = LeopardWebService.get_active_terms
+    if result[:success]
+      active_codes = result[:terms].map { |t| (t[:code] || t["code"]).to_i }
+      if active_codes.include?(uid)
+        return start_date if start_date.present? && start_date <= Time.zone.today
+
+        return Time.zone.today
+      end
+    end
+
+    start_date
+  rescue => e
+    Rails.logger.warn("LeopardWebService unavailable for registration_start on #{name}: #{e.message}")
+    start_date
+  end
+
+  # Scope for active terms (classes have started and term hasn't ended)
   # Returns up to 3 terms if 3 are active, otherwise returns 2
   scope :active, -> {
     today = Time.zone.today
 
-    registration_start_subquery = UniversityCalendarEvent.registration
-                                                         .where("summary ILIKE ?", "%registration%")
-                                                         .where("university_calendar_events.term_id = terms.id")
-                                                         .select("MIN(university_calendar_events.start_time::date)")
-
-    where.not(end_date: nil)
-         .where("COALESCE((#{registration_start_subquery.to_sql}), terms.start_date) <= ?", today)
-         .where(terms: { end_date: today.. })
-         .order(year: :desc, season: :desc)
-         .limit(3)
+    where(start_date: ..today)
+      .where(end_date: today..)
+      .order(year: :desc, season: :desc)
   }
 
   # Scope for current and future terms (for finals schedule uploads)
