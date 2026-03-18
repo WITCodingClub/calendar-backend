@@ -10,7 +10,10 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
       "https://localhost:3001",
       /\Ahttps?:\/\/localhost:\d+\z/ # Allow any localhost port
     ]
-    origins_list << "https://heron-selected-literally.ngrok-free.app" if Rails.env.development?
+    if Rails.env.development?
+      origins_list << "https://heron-selected-literally.ngrok-free.app"
+      origins_list << /\Achrome-extension:\/\/.+\z/ # Allow any Chrome extension in development
+    end
 
     origins(*origins_list)
 
