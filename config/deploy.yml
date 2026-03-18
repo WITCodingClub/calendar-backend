@@ -101,7 +101,7 @@ accessories:
     image: pgvector/pgvector:pg17
     host: alastor
     network: kamal
-    port: "127.0.0.1:5432:5432"
+    port: "127.0.0.1:5435:5432"
     env:
       clear:
         POSTGRES_DB: wit_calendar_backend_production
