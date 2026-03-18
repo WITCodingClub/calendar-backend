@@ -2,7 +2,7 @@
 
 data_sources:
   main:
-    url: <%= ENV["BLAZER_DATABASE_URL"] %>
+    url: <%= ENV["BLAZER_DATABASE_URL"] || "postgres://#{ENV.fetch("DB_USERNAME", "wit_calendar_backend")}:#{URI.encode_www_form_component(ENV.fetch("DB_PASSWORD", ""))}@#{ENV.fetch("DB_HOST", "wit_calendar_backend-db")}:#{ENV.fetch("DB_PORT", 5432)}/#{ENV.fetch("DB_NAME", "wit_calendar_backend_production")}" %>
 
     # statement timeout, in seconds
     # none by default
