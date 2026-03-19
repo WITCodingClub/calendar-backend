@@ -51,6 +51,47 @@ class Term < ApplicationRecord
     summer: 3
   }
 
+  # Returns active term UIDs from LeopardWeb
+  # @return [Array<Integer>] UIDs of terms LeopardWeb considers active, empty array on failure
+  def self.active_uids
+    result = LeopardWebService.get_active_terms
+    return [] unless result[:success]
+
+    result[:terms].map { |t| t[:code].to_i }
+  end
+
+  # Returns the registration start date for this term.
+  # Queries LeopardWeb to determine if registration is open for this term.
+  # Once the term first appears as active, that date is considered the open date.
+  # Falls back to start_date when LeopardWeb is unavailable or does not list the term.
+  # @return [Date, nil] the registration start date
+  def registration_start
+    result = LeopardWebService.get_active_terms
+    if result[:success]
+      active_codes = result[:terms].map { |t| (t[:code] || t["code"]).to_i }
+      if active_codes.include?(uid)
+        return start_date if start_date.present? && start_date <= Time.zone.today
+
+        return Time.zone.today
+      end
+    end
+
+    start_date
+  rescue => e
+    Rails.logger.warn("LeopardWebService unavailable for registration_start on #{name}: #{e.message}")
+    start_date
+  end
+
+  # Scope for active terms (classes have started and term hasn't ended)
+  # Returns up to 3 terms if 3 are active, otherwise returns 2
+  scope :active, -> {
+    today = Time.zone.today
+
+    where(start_date: ..today)
+      .where(end_date: today..)
+      .order(year: :desc, season: :desc)
+  }
+
   # Scope for current and future terms (for finals schedule uploads)
   scope :current_and_future, -> {
     current_term = Term.current

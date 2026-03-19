@@ -95,34 +95,172 @@ class UniversityCalendarEvent < ApplicationRecord
     where(category: %w[holiday finals]).in_date_range(start_date, end_date).order(:start_time)
   end
 
-  # Detect term dates from university calendar events
-  # Looks for "Classes Begin" and "Classes End"/"Final Exam" patterns
+  # Detect term dates for a term.
+  #
+  # Date rules:
+  # - start_date: The day LeopardWeb reports registration open for the term.
+  #               Once captured, keep the stored past start_date stable across
+  #               later syncs.
+  # - end_date:   Last day of finals period for the term.
+  #               Falls back to latest imported course end_date for the term
+  #               when finals period events are unavailable.
+  #
   # @param year [Integer] The academic year
   # @param season [Symbol] The season (:fall, :spring, :summer)
   # @return [Hash] Hash with :start_date and :end_date keys
   def self.detect_term_dates(year, season)
-    term_name = "#{season.to_s.capitalize} #{year}"
-    term_name_alt = season.to_s.capitalize.to_s
+    term = Term.find_by(year: year, season: season)
 
-    # Find "Classes Begin" events (now in term_dates category)
-    classes_begin = term_dates.where("summary ILIKE ?", "%classes begin%")
-                              .where("academic_term ILIKE ? OR summary ILIKE ?", "%#{term_name_alt}%", "%#{year}%")
-                              .where(start_time: Date.new(year - 1, 7, 1)..Date.new(year + 1, 2, 1))
-                              .order(:start_time)
-                              .first
+    candidate_events = where(start_time: Date.new(year - 1, 1, 1).beginning_of_day..Date.new(year + 1, 12, 31).end_of_day)
+    matching_events = candidate_events.select { |event| event_matches_term_for_date_detection?(event, year, season, term) }
 
-    # Find term end indicators - check both term_dates and finals categories
-    term_end = where(category: %w[term_dates finals])
-               .where("summary ILIKE ? OR summary ILIKE ?", "%final exam%", "%classes end%")
-               .where("academic_term ILIKE ? OR summary ILIKE ?", "%#{term_name_alt}%", "%#{year}%")
-               .where(start_time: Date.new(year - 1, 7, 1)..Date.new(year + 1, 7, 1))
-               .order(start_time: :desc)
-               .first
+    leopard_web_start_date = leopard_web_registration_open_date(year, season, term)
+
+    # Prefer explicit schedule-available events when LeopardWeb does not expose
+    # the term as currently open for registration.
+    schedule_available_event = matching_events
+                               .select { |event| schedule_available_summary?(event.summary) }
+                               .min_by(&:start_time)
+
+
+    estimated_schedule_available_date = registration_event&.start_time&.to_date&.-(14)
+
+    finals_period_event = matching_events
+                          .select { |event| event.category == "finals" && finals_period_summary?(event.summary) }
+                          .max_by { |event| event.end_time || event.start_time }
+
+    finals_end_date = finals_period_event&.end_time&.to_date || finals_period_event&.start_time&.to_date
+    course_end_fallback = fallback_end_date_from_courses(term)
 
     {
-      start_date: classes_begin&.start_time&.to_date,
-      end_date: term_end&.end_time&.to_date || term_end&.start_time&.to_date
+      start_date: leopard_web_start_date || schedule_available_event&.start_time&.to_date || estimated_schedule_available_date,
+      end_date: finals_end_date || course_end_fallback
     }
+  end
+
+  def self.leopard_web_registration_open_date(year, season, term)
+    result = LeopardWebService.get_active_terms
+    return nil unless result[:success]
+
+    target_uid = term&.uid || generated_term_uid(year, season)
+    return nil unless target_uid
+
+    active_term_found = Array(result[:terms]).any? do |active_term|
+      (active_term[:code] || active_term["code"]).to_i == target_uid
+    end
+    return nil unless active_term_found
+
+    existing_start_date = term&.start_date
+    return existing_start_date if existing_start_date.present? && existing_start_date <= Time.zone.today
+
+    Time.zone.today
+  rescue => e
+    Rails.logger.warn("Failed to determine LeopardWeb registration-open date for #{season} #{year}: #{e.message}")
+    nil
+  end
+
+  def self.generated_term_uid(year, season)
+    case season.to_sym
+    when :fall
+      ((year + 1) * 100) + 10
+    when :spring
+      (year * 100) + 20
+    when :summer
+      (year * 100) + 30
+    end
+  end
+
+  # Returns true when an event can be considered part of the target term for
+  # date detection purposes.
+  def self.event_matches_term_for_date_detection?(event, year, season, term)
+    season_name = season.to_s.capitalize
+    summary = event.summary.to_s
+    academic_term = event.academic_term.to_s
+
+    # If summary explicitly names a term, trust that first.
+    explicit_summary_term = extract_explicit_term_from_summary(summary)
+    if explicit_summary_term
+      return explicit_summary_term[:season] == season.to_sym && explicit_summary_term[:year] == year
+    end
+
+    # Strongest signal: explicit DB term linkage from sync processing.
+    return true if term && event.term_id == term.id
+
+    # Next strongest signal: summary explicitly mentions season + year.
+    return true if summary.match?(/\b#{Regexp.escape(season_name)}\b/i) && summary.match?(/\b#{year}\b/)
+
+    # Weak signal: academic term only. Restrict with season-specific date windows
+    # to avoid cross-year contamination.
+    return false unless academic_term.match?(/\b#{Regexp.escape(season_name)}\b/i)
+
+    event_date = event.start_time&.to_date
+    return false unless event_date
+
+    event_date.in?(term_detection_date_window(year, season))
+  end
+
+  # Extract explicit term mention like "Fall 2026" from summary text.
+  # Returns nil when no explicit term/year is present.
+  def self.extract_explicit_term_from_summary(summary)
+    match = summary.to_s.match(/\b(Fall|Spring|Summer)\s+(\d{4})\b/i)
+    return nil unless match
+
+    season = case match[1].downcase
+             when "fall" then :fall
+             when "spring" then :spring
+             when "summer" then :summer
+             end
+
+    return nil unless season
+
+    { season: season, year: match[2].to_i }
+  end
+
+  # Date windows tuned for academic term event timing (including preregistration).
+  def self.term_detection_date_window(year, season)
+    case season.to_sym
+    when :spring
+      Date.new(year - 1, 8, 1)..Date.new(year, 6, 30)
+    when :summer
+      Date.new(year, 1, 1)..Date.new(year, 8, 31)
+    when :fall
+      Date.new(year, 1, 1)..Date.new(year, 12, 31)
+    else
+      Date.new(year - 1, 1, 1)..Date.new(year + 1, 12, 31)
+    end
+  end
+
+  def self.schedule_available_summary?(summary)
+    normalized = summary.to_s
+    return false if registration_summary?(normalized)
+
+    normalized.match?(/course\s+schedule/i) ||
+      normalized.match?(/schedule\s+(available|release|released|posted|opens|open|begins|begin)/i)
+  end
+
+  def self.registration_summary?(summary)
+    summary.to_s.match?(/registration\s+(opens|open|begins|begin)|registration/i)
+  end
+
+  # Finals period events should represent actual exam days, not announcement-only
+  # "schedule available" events.
+  def self.finals_period_summary?(summary)
+    normalized = summary.to_s
+    return false if normalized.match?(/schedule\s+(available|online|release|released|posted)/i)
+
+    normalized.match?(/final\s+exam\s+period|final\s+exams?|finals\s+week|examination\s+period|study\s+day/i)
+  end
+
+  # Fallback end date from imported course data for the same term.
+  # This is used only when finals period events are not available yet.
+  def self.fallback_end_date_from_courses(term)
+    return nil unless term
+
+    term.courses.where.not(start_date: nil)
+        .where.not(end_date: nil)
+        .where("EXTRACT(YEAR FROM start_date) >= ? AND EXTRACT(YEAR FROM start_date) <= ?", term.year - 1, term.year)
+        .where("EXTRACT(YEAR FROM end_date) >= ? AND EXTRACT(YEAR FROM end_date) <= ?", term.year, term.year + 1)
+        .maximum(:end_date)
   end
 
   # Infer category from event summary and raw event type
