@@ -8,7 +8,11 @@ services:
     volumes:
       - ..:/usr/src/app:cached
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/app_development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/wit_calendar_backend_development
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
       - DATABASE_HOST=db
       - DATABASE_PORT=5432
       - REDIS_URL=redis://redis:6379/1
@@ -19,14 +23,14 @@ services:
       - redis
 
   db:
-    image: postgres:14
+    image: pgvector/pgvector:pg14
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
-      POSTGRES_DB: app_development
+      POSTGRES_DB: wit_calendar_backend_development
     ports:
       - "5432:5432"
 
