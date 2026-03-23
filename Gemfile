@@ -128,7 +128,7 @@ end
 gem "faraday", "~> 2.14"
 
 gem "tailwindcss-ruby", "~> 4.2"
-gem "icalendar", "~> 2.12", ">= 2.12.1"
+gem "icalendar", "~> 2.12"
 gem "ice_cube", "~> 0.16"
 
 gem "google-apis-calendar_v3", "~> 0.53.0"
