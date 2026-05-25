@@ -30,6 +30,18 @@
 
 /public/assets
 
+# Svelte build output
+public/_app/
+public/index.html
+public/about.html
+public/contact.html
+public/privacy.html
+public/tos.html
+public/*.webp
+
+# Unignore things you explicitly add
+!public/.keep
+
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 

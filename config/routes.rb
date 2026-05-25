@@ -1,7 +1,9 @@
 Rails.application.routes.draw do
+  scope "/app" do
+
   devise_for :users,
              controllers: {
-               sessions: 'users/sessions'
+               registrations: "users/registrations",
              }
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
@@ -17,5 +19,10 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   # root "posts#index"
 
+  end
+
+  get '/robots.txt', to: 'robots#show', format: false
+
   mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development?
+
 end
