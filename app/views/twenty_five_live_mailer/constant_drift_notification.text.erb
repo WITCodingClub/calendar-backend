@@ -1,0 +1,31 @@
+The following 25Live reference data no longer matches the hardcoded constants in app/lib/twenty_five_live/.
+These constants are treated as "rarely change" — please review whether the constants need updating.
+
+<% @drifts.each do |drift| %>
+========================================
+<%= drift[:entity] %>
+========================================
+<% if drift[:added].any? %>
+ADDED (present in 25Live, missing from constants):
+<% drift[:added].each do |item| %>
+  - id=<%= item[:id] %> "<%= item[:name] %>"
+<% end %>
+<% end %>
+<% if drift[:removed].any? %>
+REMOVED (in constants, no longer in 25Live):
+<% drift[:removed].each do |item| %>
+  - id=<%= item[:id] %> "<%= item[:name] %>"
+<% end %>
+<% end %>
+<% if drift[:changed].any? %>
+CHANGED (same id, different fields):
+<% drift[:changed].each do |item| %>
+  - id=<%= item[:id] %> "<%= item[:name] %>"
+    was:  <%= item[:was].inspect %>
+    now:  <%= item[:now].inspect %>
+<% end %>
+<% end %>
+<% end %>
+
+--
+WIT Calendar sync job

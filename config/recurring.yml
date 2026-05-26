@@ -1,0 +1,13 @@
+# Solid Queue recurring task schedule.
+# Syntax: https://github.com/rails/solid_queue?tab=readme-ov-file#recurring-tasks
+# Schedules use either `schedule: "every day at 3am"` (fugit natural language)
+# or `cron: "0 3 * * *"` (standard cron expression).
+
+production: &production
+  twenty_five_live_sync:
+    class: TwentyFiveLiveSyncJob
+    schedule: "every day at 3am"
+    queue: default
+
+development:
+  <<: *production

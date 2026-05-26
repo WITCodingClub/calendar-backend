@@ -1,0 +1,29 @@
+class Room < ApplicationRecord
+  include EncodedIds::HashidIdentifiable
+
+  set_public_id_prefix :rom
+
+  belongs_to :building
+  has_many :meeting_times, class_name: "Course::MeetingTime", dependent: :restrict_with_exception
+
+  def floor
+    # Extract first digit from the room number string
+    match = number.to_s.match(/\d/)
+    match ? match[0].to_i : 0
+  end
+
+  def formatted_number
+    # If the room number is purely numeric, pad to 3 digits.
+    # Otherwise, return as is.
+    if number.to_s.match?(/\A\d+\z/)
+      number.to_s.rjust(3, "0")
+    else
+      number.to_s
+    end
+  end
+
+  def to_param
+    public_id
+  end
+
+end
