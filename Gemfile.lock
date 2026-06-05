@@ -481,7 +481,7 @@ GEM
       activesupport (>= 6.1)
     pghero (3.7.0)
       activerecord (>= 7.1)
-    pgvector (0.3.2)
+    pgvector (0.3.3)
     pp (0.6.3)
       prettyprint
     premailer (1.27.0)
