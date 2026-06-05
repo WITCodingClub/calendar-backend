@@ -26,8 +26,8 @@ class LeopardWebService < ApplicationService
       get_faculty_meeting_times
     when :get_course_catalog
       get_course_catalog
-    when :get_available_terms
-      get_available_terms
+    when :get_active_terms
+      get_active_terms
     else
       raise ArgumentError, "Unknown action: #{action}"
     end
@@ -65,8 +65,8 @@ class LeopardWebService < ApplicationService
     ).call
   end
 
-  def self.get_available_terms
-    new(action: :get_available_terms).call
+  def self.get_active_terms
+    new(action: :get_active_terms).call
   end
 
   private
@@ -256,11 +256,11 @@ class LeopardWebService < ApplicationService
     raise "Request failed with status #{response.status}: #{response.body}"
   end
 
-  def get_available_terms
-    response = terms_connection.get("classSearch/getTerms", {
+  def get_active_terms
+    response = terms_connection.get("classRegistration/getTerms", {
                                       searchTerm: "",
                                       offset: 1,
-                                      max: 50
+                                      max: 10
                                     })
 
     if response.success?
