@@ -131,7 +131,7 @@ gem "tailwindcss-ruby", "~> 4.2"
 gem "icalendar", "~> 2.12"
 gem "ice_cube", "~> 0.16"
 
-gem "google-apis-calendar_v3", "~> 0.53.0"
+gem "google-apis-calendar_v3", "~> 0.54.0"
 gem "googleauth", "~> 1.16"
 
 gem "omniauth", "~> 2.1", ">= 2.1.4"
