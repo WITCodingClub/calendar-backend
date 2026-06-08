@@ -1,0 +1,26 @@
+<h2>Faculty Missing RMP IDs — Weekly Summary</h2>
+
+<p>There <%= @count == 1 ? "is" : "are" %> <strong><%= @count %></strong> faculty member<%= @count == 1 ? "" : "s" %> with courses who are missing Rate My Professor IDs.</p>
+
+<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+  <thead>
+    <tr style="background: #f3f4f6;">
+      <th style="text-align: left;">Name</th>
+      <th style="text-align: left;">Email</th>
+      <th style="text-align: left;">Courses</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @faculties.each do |faculty| %>
+      <tr>
+        <td><%= faculty.full_name %></td>
+        <td><%= faculty.email || "—" %></td>
+        <td><%= faculty.courses.count %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<p style="margin-top: 16px;">
+  <a href="<%= missing_rmp_ids_admin_faculties_url %>">View in Admin</a>
+</p>

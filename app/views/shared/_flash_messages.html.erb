@@ -1,0 +1,24 @@
+<div id="flash-messages" class="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full pointer-events-none">
+  <% flash.each do |type, message| %>
+    <%
+      bg_class = case type.to_s
+      when "notice", "success" then "bg-green-50 border-green-300 text-green-800"
+      when "alert", "error", "danger" then "bg-red-50 border-red-300 text-red-800"
+      when "warning" then "bg-yellow-50 border-yellow-300 text-yellow-800"
+      else "bg-blue-50 border-blue-300 text-blue-800"
+      end
+    %>
+    <div class="pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm <%= bg_class %>"
+         data-controller="flash-message"
+         data-flash-message-timeout-value="5000">
+      <p class="text-sm flex-1"><%= message %></p>
+      <button type="button"
+              class="flex-shrink-0 text-current opacity-60 hover:opacity-100"
+              data-action="click->flash-message#dismiss">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  <% end %>
+</div>

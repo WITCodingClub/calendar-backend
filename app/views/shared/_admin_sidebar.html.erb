@@ -1,0 +1,83 @@
+<% categories = Admin::NavigationRegistry.categories_for(current_user) %>
+
+<!-- Desktop sidebar (fixed) -->
+<aside class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 z-30 border-r border-gray-200/60"
+       style="background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);"
+       data-controller="admin-sidebar">
+
+  <!-- Logo -->
+  <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-200/60">
+    <div class="w-8 h-8 rounded-lg bg-[#d13732]/10 flex items-center justify-center">
+      <svg class="w-5 h-5 text-[#d13732]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+    </div>
+    <div>
+      <p class="text-sm font-bold text-gray-900">WIT Calendar</p>
+      <p class="text-xs text-gray-500">Admin</p>
+    </div>
+  </div>
+
+  <!-- Dashboard link -->
+  <div class="px-3 pt-3">
+    <%= link_to admin_root_path,
+        class: "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium #{request.path == admin_root_path ? 'bg-[#d13732]/10 text-[#d13732]' : 'text-gray-700 hover:bg-gray-100'}" do %>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      Dashboard
+    <% end %>
+  </div>
+
+  <!-- Nav categories -->
+  <nav class="flex-1 overflow-y-auto px-3 pb-4 space-y-1 mt-1">
+    <% categories.each do |category| %>
+      <div data-controller="sidebar-category">
+        <button type="button"
+                class="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 cursor-pointer"
+                data-action="click->sidebar-category#toggle">
+          <span><%= category[:name] %></span>
+          <svg class="w-3.5 h-3.5 transition-transform" data-sidebar-category-target="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div data-sidebar-category-target="items">
+          <% category[:items].each do |item| %>
+            <%= link_to item[:label],
+                (item[:path] rescue admin_root_path),
+                class: "flex items-center gap-2 px-3 py-2 rounded-lg text-sm #{request.path.start_with?((item[:path] rescue '/')) ? 'bg-[#d13732]/10 text-[#d13732] font-medium' : 'text-gray-700 hover:bg-gray-100'}" %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </nav>
+</aside>
+
+<!-- Mobile sidebar overlay -->
+<div class="lg:hidden fixed inset-0 z-40 hidden"
+     data-admin-sidebar-target="overlay"
+     data-action="click->admin-sidebar#close">
+  <div class="absolute inset-0 bg-black/40"></div>
+  <aside class="relative w-64 h-full flex flex-col border-r border-gray-200/60"
+         style="background: rgba(255,255,255,0.95);">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200/60">
+      <p class="text-sm font-bold text-gray-900">WIT Calendar Admin</p>
+      <button type="button" data-action="click->admin-sidebar#close" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+      <%= link_to "Dashboard", admin_root_path, class: "block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100" %>
+      <% categories.each do |category| %>
+        <div class="pt-2">
+          <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1"><%= category[:name] %></p>
+          <% category[:items].each do |item| %>
+            <%= link_to item[:label], (item[:path] rescue admin_root_path), class: "block px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100" %>
+          <% end %>
+        </div>
+      <% end %>
+    </nav>
+  </aside>
+</div>

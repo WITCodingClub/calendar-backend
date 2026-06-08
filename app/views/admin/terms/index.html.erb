@@ -1,0 +1,42 @@
+<div class="container mx-auto px-2 pb-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Terms</h1>
+    <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+  </div>
+
+  <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-white/50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Term</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Year</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Season</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">UID</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Created</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white/30">
+          <% @terms.each do |term| %>
+            <tr class="hover:bg-white/50 cursor-pointer transition" onclick="window.location='<%= admin_term_path(term) %>'">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium">
+                  <%= link_to term.name, admin_term_path(term), class: "text-[#d13732] hover:underline" %>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= term.year %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= term.season&.capitalize %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= term.uid %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= term.created_at.strftime("%b %d, %Y") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <% if @terms.respond_to?(:total_pages) %>
+      <div class="px-6 py-4 border-t border-gray-200 bg-white/40">
+        <%= paginate @terms %>
+      </div>
+    <% end %>
+  </div>
+</div>
