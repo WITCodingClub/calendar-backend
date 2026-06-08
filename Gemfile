@@ -58,6 +58,9 @@ gem "faraday"
 # JWT for OAuth state signing and RISC webhook validation
 gem "jwt"
 
+# Pagination
+gem "kaminari"
+
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
   gem "bundler-audit", require: false
