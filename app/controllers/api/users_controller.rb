@@ -33,7 +33,7 @@ module Api
 
       token = JsonWebTokenService.encode({ user_id: user.id }, nil)
 
-      render json: { pub_id: user.public_id, jwt: token }, status: :ok
+      render json: { pub_id: user.public_id.delete_prefix("usr_"), jwt: token }, status: :ok
     rescue => e
       Rails.logger.error("Error in onboarding user: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
@@ -128,6 +128,12 @@ module Api
     rescue => e
       Rails.logger.error("Error removing email from Google Calendar for user #{current_user.id}: #{e.message}")
       render json: { error: "Failed to remove email from Google Calendar" }, status: :internal_server_error
+    end
+
+    # GET /api/user/id
+    def get_id
+      authorize current_user, :show?
+      render json: { pub_id: current_user.public_id }, status: :ok
     end
 
     # GET /api/user/email
