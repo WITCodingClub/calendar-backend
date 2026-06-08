@@ -46,6 +46,18 @@ gem "encoded_ids"
 # Rate limiting
 gem "rack-attack"
 
+# Liquid templating for calendar event title/description customization
+gem "liquid"
+
+# HTML entity decoding (for ICS feed content and course titles)
+gem "htmlentities"
+
+# HTTP client (for LeopardWeb, RMP, faculty directory scraping)
+gem "faraday"
+
+# JWT for OAuth state signing and RISC webhook validation
+gem "jwt"
+
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
   gem "bundler-audit", require: false
