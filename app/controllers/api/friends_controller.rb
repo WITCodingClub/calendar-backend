@@ -35,8 +35,10 @@ module Api
     end
 
     def create_request
-      friend_user = find_by_any_id!(User, params[:friend_id])
-      friendship  = Friendship.new(requester: current_user, addressee: friend_user)
+      friend_user = resolve_friend_user
+      return if performed?
+
+      friendship = Friendship.new(requester: current_user, addressee: friend_user)
 
       authorize friendship, :create?
       friendship.save!
@@ -53,7 +55,7 @@ module Api
 
       render json: {
         friendship_id: friendship.public_id,
-        friend:        { id: friend.public_id, name: friend.full_name }
+        friend:        { id: friend.public_id.delete_prefix("usr_"), name: friend.full_name }
       }, status: :ok
     end
 
@@ -126,6 +128,31 @@ module Api
     end
 
     private
+
+    def resolve_friend_user
+      has_id    = params[:friend_id].present?
+      has_email = params[:friend_email].present?
+
+      if has_id && has_email
+        render json: { error: "Provide either friend_id or friend_email, not both" }, status: :bad_request
+        return
+      end
+
+      unless has_id || has_email
+        render json: { error: "friend_id or friend_email is required" }, status: :bad_request
+        return
+      end
+
+      if has_email
+        user = User.find_by(email: params[:friend_email].downcase.strip)
+        if user.nil?
+          raise ActiveRecord::RecordNotFound.new(nil, User.name)
+        end
+        user
+      else
+        find_by_any_id!(User, params[:friend_id])
+      end
+    end
 
     def find_friendship_with(friend_user)
       Friendship.accepted

@@ -1,3 +1,4 @@
 [submodule "frontend"]
-	path = frontend
+	path = marketing
 	url = https://github.com/WITCodingClub/calendar-home
+	name = marketing
