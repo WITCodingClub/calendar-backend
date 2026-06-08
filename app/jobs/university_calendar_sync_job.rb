@@ -19,16 +19,15 @@ class UniversityCalendarSyncJob < ApplicationJob
       Rails.logger.warn("25Live reference data sync failed (non-fatal): #{e.message}")
     end
 
-    holiday_count_before = UniversityCalendarEvent.holidays.count
-
     result = UniversityCalendarIcsService.call
 
     Rails.logger.info("University calendar ICS sync complete: #{result}")
 
-    holiday_count_after = UniversityCalendarEvent.holidays.count
-    holidays_changed = holiday_count_before != holiday_count_after || result[:updated].positive?
+    any_changes = result[:created].positive? || result[:updated].positive? || result[:cancelled].positive?
 
-    if result[:created].positive? || result[:updated].positive?
+    if any_changes
+      changed = Array(result[:changed_categories])
+      holidays_changed = (changed & %w[holiday study_day]).any?
       trigger_user_calendar_syncs(holidays_changed: holidays_changed)
     end
 

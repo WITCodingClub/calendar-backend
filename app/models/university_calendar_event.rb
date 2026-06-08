@@ -9,7 +9,7 @@ class UniversityCalendarEvent < ApplicationRecord
   belongs_to :term, optional: true
   has_many :google_calendar_events, dependent: :nullify
 
-  CATEGORIES = %w[holiday term_dates registration deadline finals graduation academic campus_event meeting exhibit announcement other].freeze
+  CATEGORIES = %w[holiday term_dates registration deadline study_day finals graduation academic campus_event meeting exhibit announcement other].freeze
 
   validates :ics_uid, presence: true, uniqueness: true
   validates :summary, presence: true
@@ -24,6 +24,7 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :term_dates,    -> { where(category: "term_dates") }
   scope :registration,  -> { where(category: "registration") }
   scope :deadlines,     -> { where(category: "deadline") }
+  scope :study_days,    -> { where(category: "study_day") }
   scope :finals,        -> { where(category: "finals") }
   scope :graduation,    -> { where(category: "graduation") }
   scope :academic,      -> { where(category: "academic") }
@@ -38,7 +39,7 @@ class UniversityCalendarEvent < ApplicationRecord
   end
 
   def self.no_class_days_between(start_date, end_date)
-    where(category: %w[holiday finals]).in_date_range(start_date, end_date).order(:start_time)
+    where(category: %w[holiday study_day finals]).in_date_range(start_date, end_date).order(:start_time)
   end
 
   def self.detect_term_dates(year, season)
@@ -68,20 +69,29 @@ class UniversityCalendarEvent < ApplicationRecord
 
     if s.include?("holiday") ||
        s.match?(/\b(spring|winter|fall|summer)\s+(break|recess)\b/) ||
+       s.include?("thanksgiving") ||
        s.include?("offices closed") || s.include?("university closed") ||
-       s.include?("no class") || s.include?("thanksgiving") ||
+       s.include?("no class") ||
        s.include?("memorial day") || s.include?("labor day") ||
-       s.include?("independence day") || s.include?("martin luther king") ||
-       s.include?("presidents") || s.include?("patriots day") ||
-       s.include?("juneteenth") || s.include?("july 4th") ||
+       s.include?("independence day") || s.include?("july 4th") || s.include?("july 4") ||
+       s.match?(/martin luther king|mlk day/i) ||
+       s.include?("presidents' day") || s.include?("presidents day") ||
+       s.include?("patriots' day") || s.include?("patriots day") ||
+       s.include?("veterans day") || s.include?("veteran's day") ||
+       s.include?("indigenous peoples") || s.include?("columbus day") ||
+       s.include?("election day") ||
+       s.include?("juneteenth") ||
        s.include?("wellbeing day") || s.include?("well-being day")
       "holiday"
     elsif s.include?("classes begin") || s.include?("classes end") ||
           s.include?("first day of classes") || s.include?("last day of classes") ||
           s.include?("semester begins") || s.include?("semester ends")
       "term_dates"
-    elsif s.include?("study day") || s.include?("final exam") ||
-          s.include?("finals week") || s.include?("exam period")
+    elsif s.include?("study day") || s.include?("study period") ||
+          s.include?("reading day") || s.include?("reading period")
+      "study_day"
+    elsif s.include?("final exam") || s.include?("finals week") ||
+          s.include?("exam period") || s.include?("final examinations")
       "finals"
     elsif s.include?("commencement") || s.include?("graduation") || s.include?("convocation")
       "graduation"
@@ -89,7 +99,9 @@ class UniversityCalendarEvent < ApplicationRecord
           s.include?("add/drop") || s.include?("course selection")
       "registration"
     elsif s.include?("deadline") || s.include?("last day to") ||
-          s.include?("withdrawal") || s.include?("tuition due") || s.include?("grade submission")
+          s.include?("withdrawal") || s.include?("tuition due") ||
+          s.include?("grade submission") || s.include?("incomplete grade") ||
+          s.include?("pass/fail") || s.include?("grade change")
       "deadline"
     elsif t.include?("calendar announcement") then "academic"
     elsif t.include?("meeting") then "meeting"
@@ -100,7 +112,7 @@ class UniversityCalendarEvent < ApplicationRecord
   end
 
   def term_boundary_event? = category == "term_dates"
-  def excludes_classes?    = %w[holiday finals].include?(category)
+  def excludes_classes?    = %w[holiday study_day finals].include?(category)
 
   def formatted_date
     all_day ? start_time.strftime("%B %d, %Y") : start_time.strftime("%B %d, %Y at %l:%M %p").squish

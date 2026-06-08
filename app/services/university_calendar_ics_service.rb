@@ -52,10 +52,17 @@ class UniversityCalendarIcsService < ApplicationService
   end
 
   def process_events(ics_events)
-    stats = { created: 0, updated: 0, unchanged: 0, merged: 0, errors: [] }
+    stats = { created: 0, updated: 0, unchanged: 0, merged: 0, cancelled: 0, errors: [], changed_categories: Set.new }
 
     event_attrs_list = []
+    cancelled_uids   = []
+
     ics_events.each do |ics_event|
+      if ics_event.status&.to_s&.upcase == "CANCELLED"
+        cancelled_uids << ics_event.uid.to_s
+        next
+      end
+
       attrs = build_event_attributes(ics_event)
       event_attrs_list << attrs if attrs
     rescue => e
@@ -63,10 +70,12 @@ class UniversityCalendarIcsService < ApplicationService
       Rails.logger.error("Failed to process ICS event: #{e.message}")
     end
 
+    preload_existing_events
+
+    cancel_events(cancelled_uids, stats)
+
     merged_events = merge_consecutive_events(event_attrs_list)
     stats[:merged] = event_attrs_list.size - merged_events.size if event_attrs_list.size > merged_events.size
-
-    preload_existing_events
 
     merged_events.each do |attrs|
       save_event(attrs, stats)
@@ -75,6 +84,7 @@ class UniversityCalendarIcsService < ApplicationService
       Rails.logger.error("Failed to save event: #{e.message}")
     end
 
+    stats[:changed_categories] = stats[:changed_categories].to_a
     stats
   end
 
@@ -83,6 +93,21 @@ class UniversityCalendarIcsService < ApplicationService
     @existing_events_by_uid = all_events.index_by(&:ics_uid)
     @existing_events_by_content = all_events.group_by do |e|
       [e.summary, e.start_time, e.end_time, e.category]
+    end
+  end
+
+  def cancel_events(uids, stats)
+    return if uids.empty?
+
+    uids.each do |uid|
+      event = @existing_events_by_uid&.[](uid)
+      next unless event
+
+      Rails.logger.info("Removing CANCELLED ICS event: #{event.summary} (#{uid})")
+      stats[:changed_categories] << event.category if event.category.present?
+      event.destroy
+      @existing_events_by_uid.delete(uid)
+      stats[:cancelled] += 1
     end
   end
 
@@ -101,7 +126,7 @@ class UniversityCalendarIcsService < ApplicationService
     end_time    = parse_ics_time(ics_event.dtend || ics_event.dtstart)
     description = clean_description(ics_event.description&.to_s)
     category    = UniversityCalendarEvent.infer_category(summary, event_type)
-    is_all_day  = category == "holiday" || category == "study_day" || all_day_event?(ics_event)
+    is_all_day  = %w[holiday study_day].include?(category) || all_day_event?(ics_event)
 
     if is_all_day
       original_end_date = end_time.to_date
@@ -250,6 +275,7 @@ class UniversityCalendarIcsService < ApplicationService
 
     if was_new || content_changed
       event.save!
+      stats[:changed_categories] << event.category if event.category.present?
       was_new ? stats[:created] += 1 : stats[:updated] += 1
       add_event_to_content_cache(event)
     else
