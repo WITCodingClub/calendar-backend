@@ -25,7 +25,7 @@ class Course::ScheduleType
   def code                 = type[:code]
   def readable_description = type[:readable_description]
 
-  def self.valid?(key)
-    TYPES.key?(key.to_sym)
-  end
+  def self.valid?(key) = TYPES.key?(key.to_sym)
+  def self.codes       = TYPES.values.map { |v| v[:code] }
+  def self.all         = TYPES.keys.map { |k| new(k) }
 end

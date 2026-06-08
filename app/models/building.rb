@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Building < ApplicationRecord
   include EncodedIds::HashidIdentifiable
 
@@ -8,5 +10,4 @@ class Building < ApplicationRecord
   def to_param
     public_id
   end
-
 end
