@@ -1,0 +1,63 @@
+<% content_for :title, "Friend Requests" %>
+
+<div class="max-w-2xl mx-auto space-y-6">
+  <div class="flex items-center gap-3">
+    <%= link_to dashboard_friends_path, class: "text-on-surface-variant hover:text-on-surface" do %>
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    <% end %>
+    <h1 class="text-2xl font-bold text-on-surface">Friend Requests</h1>
+  </div>
+
+  <!-- Incoming -->
+  <div class="m3-card overflow-hidden">
+    <div class="px-5 py-3 border-b border-outline-variant">
+      <h2 class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider">Incoming</h2>
+    </div>
+    <% if @incoming.empty? %>
+      <p class="px-5 py-4 text-sm text-on-surface-variant">No incoming requests.</p>
+    <% else %>
+      <div class="divide-y divide-outline-variant">
+        <% @incoming.each do |fr| %>
+          <div class="px-5 py-3 flex items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-medium text-on-surface"><%= fr.requester.full_name %></p>
+              <p class="text-xs text-on-surface-variant"><%= fr.requester.email %></p>
+            </div>
+            <div class="flex gap-2">
+              <%= button_to "Accept",
+                  accept_dashboard_friend_path(fr.id),
+                  method: :post,
+                  class: "m3-btn-filled text-xs px-4 py-2" %>
+              <%= button_to "Decline",
+                  decline_dashboard_friend_path(fr.id),
+                  method: :post,
+                  class: "m3-btn-outlined text-xs px-4 py-2" %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Outgoing -->
+  <div class="m3-card overflow-hidden">
+    <div class="px-5 py-3 border-b border-outline-variant">
+      <h2 class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider">Outgoing</h2>
+    </div>
+    <% if @outgoing.empty? %>
+      <p class="px-5 py-4 text-sm text-on-surface-variant">No outgoing requests.</p>
+    <% else %>
+      <div class="divide-y divide-outline-variant">
+        <% @outgoing.each do |fr| %>
+          <div class="px-5 py-3 flex items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-medium text-on-surface"><%= fr.addressee.full_name %></p>
+              <p class="text-xs text-on-surface-variant"><%= fr.addressee.email %></p>
+            </div>
+            <span class="text-xs text-on-surface-variant">Pending</span>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -54,7 +54,8 @@ Rails.application.routes.draw do
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
-    get "terms/current_and_next", to: "misc#get_current_terms"
+    get "terms/active",          to: "misc#get_active_terms"
+    get "terms/current_and_next", to: "misc#get_current_and_next_terms"
 
     # Course processing
     post "process_courses",    to: "courses#process_courses"
@@ -82,6 +83,26 @@ Rails.application.routes.draw do
       end
     end
   end
+
+  # User dashboard (session-authenticated, any signed-in user)
+  authenticate :user do
+    namespace :dashboard do
+      root to: "overview#index"
+      resource  :schedule,             only: [:show]
+      resources :calendar_preferences, only: [:index, :update]
+      resources :connected_accounts,   only: [:index, :destroy]
+      resource  :ics_feed,             only: [:show]
+      resource  :notifications,        only: [:show, :update]
+      resources :friends, only: [:index, :create, :destroy] do
+        member     { post :accept; post :decline }
+        collection { get :requests }
+      end
+      resource :settings, only: [:show]
+    end
+  end
+
+  # Service account OAuth callback (outside namespace so path is /admin/oauth/callback)
+  get "/admin/oauth/callback", to: "admin/service_account#callback"
 
   # Admin area (session-authenticated, AdminConstraint gating)
   constraints AdminConstraint.new do
@@ -130,18 +151,42 @@ Rails.application.routes.draw do
       end
 
       resources :university_calendar_events, only: [:index, :show] do
-        collection { post :sync }
+        collection do
+          post :sync
+          post :backfill
+        end
       end
 
       resources :rmp_ratings, only: [:index]
+      resources :rooms,       only: [:index, :show]
 
       get  "course_catalog",                      to: "course_catalog#index",    as: :course_catalog
       post "course_catalog/import/:term_uid",     to: "course_catalog#import",   as: :course_catalog_import
       post "course_catalog/provision/:term_uid",  to: "course_catalog#provision", as: :course_catalog_provision
 
+      resources :buildings, only: [:index] do
+        collection do
+          post :sync
+          post :apply_all
+        end
+        member do
+          post :apply_formal_name
+        end
+      end
+
       get "navigation",        to: "navigation#index"
       get "lookup/:public_id", to: "public_id_lookup#lookup",   as: :lookup_public_id
       get "go/:public_id",     to: "public_id_lookup#redirect", as: :redirect_public_id
+
+      get  "service_account",           to: "service_account#index",     as: :service_account_index
+      get  "service_account/authorize", to: "service_account#authorize", as: :service_account_authorize
+      post "service_account/revoke",    to: "service_account#revoke",    as: :service_account_revoke
+
+      mount MissionControl::Jobs::Engine, at: "jobs"
+      mount Flipper::UI.app(Flipper),     at: "flipper"
+      mount Blazer::Engine,               at: "blazer"
+      mount PgHero::Engine,               at: "pghero"
+      mount Audits1984::Engine,           at: "audits"
     end
   end
 

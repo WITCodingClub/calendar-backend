@@ -1,0 +1,76 @@
+<% content_for :title, "Overview" %>
+
+<div class="max-w-3xl mx-auto space-y-6">
+  <h1 class="text-2xl font-bold text-on-surface">Overview</h1>
+
+  <!-- Status cards -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+    <% if @current_term %>
+      <div class="m3-card p-4">
+        <p class="m3-label">Current Term</p>
+        <p class="text-lg font-semibold text-on-surface"><%= @current_term.name %></p>
+        <% if @enrollment_count %>
+          <p class="text-sm text-on-surface-variant mt-1"><%= @enrollment_count %> course<%= @enrollment_count == 1 ? "" : "s" %></p>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if @next_term %>
+      <div class="m3-card p-4">
+        <p class="m3-label">Next Term</p>
+        <p class="text-lg font-semibold text-on-surface"><%= @next_term.name %></p>
+      </div>
+    <% end %>
+
+    <div class="m3-card p-4">
+      <p class="m3-label">Google Calendar</p>
+      <% if @has_calendar %>
+        <p class="text-sm font-medium text-on-tertiary-container bg-tertiary-container inline-flex items-center gap-1 px-2 py-0.5 rounded-full mt-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          Connected
+        </p>
+      <% else %>
+        <p class="text-sm text-on-surface-variant mt-1">Not connected</p>
+        <%= link_to dashboard_connected_accounts_path, class: "text-xs text-primary mt-1 inline-block" do %>
+          Connect →
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Quick nav -->
+  <div class="m3-card divide-y divide-outline-variant">
+    <%= link_to dashboard_schedule_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
+      <div>
+        <p class="text-sm font-medium text-on-surface">My Schedule</p>
+        <p class="text-xs text-on-surface-variant">View courses and meeting times</p>
+      </div>
+      <svg class="w-5 h-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    <% end %>
+    <%= link_to dashboard_calendar_preferences_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
+      <div>
+        <p class="text-sm font-medium text-on-surface">Calendar Preferences</p>
+        <p class="text-xs text-on-surface-variant">Customize event titles, colors, and reminders</p>
+      </div>
+      <svg class="w-5 h-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    <% end %>
+    <%= link_to dashboard_ics_feed_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
+      <div>
+        <p class="text-sm font-medium text-on-surface">ICS Feed</p>
+        <p class="text-xs text-on-surface-variant">Subscribe in Apple Calendar, Outlook, etc.</p>
+      </div>
+      <svg class="w-5 h-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    <% end %>
+    <%= link_to dashboard_notifications_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
+      <div>
+        <p class="text-sm font-medium text-on-surface">Notifications</p>
+        <% if @notifications_disabled %>
+          <p class="text-xs text-on-surface-variant">Currently <span class="text-error">disabled</span></p>
+        <% else %>
+          <p class="text-xs text-on-surface-variant">Currently enabled</p>
+        <% end %>
+      </div>
+      <svg class="w-5 h-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    <% end %>
+  </div>
+</div>

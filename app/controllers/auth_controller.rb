@@ -10,7 +10,7 @@ class AuthController < ApplicationController
     if calendar_oauth_flow?
       handle_calendar_oauth(auth)
     else
-      handle_admin_login(auth)
+      handle_user_login(auth)
     end
   rescue => e
     Rails.logger.error("Google OAuth error: #{e.message}")
@@ -59,7 +59,7 @@ class AuthController < ApplicationController
     redirect_to "/oauth/success?email=#{CGI.escape(target_email)}&calendar_id=#{calendar_id}"
   end
 
-  def handle_admin_login(auth)
+  def handle_user_login(auth)
     email = auth.info.email
 
     unless email&.match?(/@wit\.edu\z/i)
@@ -67,26 +67,36 @@ class AuthController < ApplicationController
       return
     end
 
-    user = User.find_by(email: email)
+    user = User.find_or_initialize_by(email: email)
 
-    unless user&.admin_access?
-      redirect_to new_user_session_path, alert: "Sign-in is restricted to administrators only."
-      return
+    if user.new_record?
+      user.first_name = auth.info.first_name.presence || email.split("@").first
+      user.last_name  = auth.info.last_name.presence || ""
+      user.password   = SecureRandom.hex(24)
+      user.skip_confirmation!
+      user.save!
+    else
+      user.first_name ||= auth.info.first_name
+      user.last_name  ||= auth.info.last_name
+      user.skip_confirmation! unless user.confirmed?
+      user.save! if user.changed?
     end
 
-    user.first_name ||= auth.info.first_name
-    user.last_name  ||= auth.info.last_name
-    user.save! if user.changed?
-
-    credential = user.oauth_credentials.find_or_initialize_by(provider: "google", email: email)
-    credential.uid             = auth.uid
-    credential.access_token    = auth.credentials.token
-    credential.refresh_token   = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
-    credential.token_expires_at = Time.zone.at(auth.credentials.expires_at) if auth.credentials.expires_at
-    credential.save!
+    # Only persist the Google credential when calendar scopes were granted
+    # (minimal-scope logins omit refresh_token and have no calendar scope).
+    granted_scopes = auth.credentials&.token && auth.extra&.raw_info&.fetch("granted_scopes", "")
+    if granted_scopes.to_s.include?("calendar")
+      credential = user.oauth_credentials.find_or_initialize_by(provider: "google", email: email)
+      credential.uid              = auth.uid
+      credential.access_token     = auth.credentials.token
+      credential.refresh_token    = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
+      credential.token_expires_at = Time.zone.at(auth.credentials.expires_at) if auth.credentials.expires_at
+      credential.save!
+    end
 
     sign_in(:user, user)
 
-    redirect_to admin_root_path, notice: "Successfully signed in with Google."
+    redirect_to user.admin_access? ? admin_root_path : dashboard_root_path,
+                notice: "Welcome, #{user.first_name}!"
   end
 end

@@ -1,39 +1,39 @@
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
     <div>
-      <h1 class="text-2xl font-bold"><%= @course.subject %> <%= @course.course_number %> - <%= @course.title %></h1>
-      <div class="flex gap-4 mt-1 text-sm text-gray-600">
+      <h1 class="text-2xl font-bold text-on-surface"><%= @course.subject %> <%= @course.course_number %> - <%= @course.title %></h1>
+      <div class="flex gap-4 mt-1 text-sm text-on-surface-variant">
         <span>CRN: <%= @course.crn %></span>
-        <span>Term: <%= link_to @course.term.name, admin_term_path(@course.term), class: "text-[#d13732] hover:underline" %></span>
+        <span>Term: <%= link_to @course.term.name, admin_term_path(@course.term), class: "text-primary hover:underline" %></span>
         <% if @course.credit_hours %>
           <span>Credits: <%= @course.credit_hours %></span>
         <% end %>
       </div>
     </div>
-    <%= link_to "Back to Courses", admin_courses_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    <%= link_to "Back to Courses", admin_courses_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
   </div>
 
   <div class="mb-8">
-    <h2 class="text-xl font-semibold mb-4">Details</h2>
-    <div class="glass-card shadow-lg rounded-lg overflow-hidden p-6">
+    <h2 class="text-xl font-semibold mb-4 text-on-surface">Details</h2>
+    <div class="m3-card shadow-sm rounded-xl overflow-hidden p-6">
       <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <dt class="text-sm font-medium text-gray-500">Subject</dt>
-          <dd class="mt-1 text-sm text-gray-900"><%= @course.subject %></dd>
+          <dt class="text-sm font-medium text-on-surface-variant">Subject</dt>
+          <dd class="mt-1 text-sm text-on-surface"><%= @course.subject %></dd>
         </div>
         <div>
-          <dt class="text-sm font-medium text-gray-500">Course Number</dt>
-          <dd class="mt-1 text-sm text-gray-900"><%= @course.course_number %></dd>
+          <dt class="text-sm font-medium text-on-surface-variant">Course Number</dt>
+          <dd class="mt-1 text-sm text-on-surface"><%= @course.course_number %></dd>
         </div>
         <div>
-          <dt class="text-sm font-medium text-gray-500">Section</dt>
-          <dd class="mt-1 text-sm text-gray-900"><%= @course.section_number.presence || "N/A" %></dd>
+          <dt class="text-sm font-medium text-on-surface-variant">Section</dt>
+          <dd class="mt-1 text-sm text-on-surface"><%= @course.section_number.presence || "N/A" %></dd>
         </div>
         <div class="md:col-span-2">
-          <dt class="text-sm font-medium text-gray-500">Instructors</dt>
-          <dd class="mt-1 text-sm text-gray-900">
+          <dt class="text-sm font-medium text-on-surface-variant">Instructors</dt>
+          <dd class="mt-1 text-sm text-on-surface">
             <% if @course.faculties.any? %>
-              <%= safe_join(@course.faculties.map { |f| link_to f.full_name, admin_faculty_path(f), class: "text-[#d13732] hover:underline" }, ", ") %>
+              <%= safe_join(@course.faculties.map { |f| link_to f.full_name, admin_faculty_path(f), class: "text-primary hover:underline" }, ", ") %>
             <% else %>
               TBA
             <% end %>
@@ -44,36 +44,36 @@
   </div>
 
   <div class="mb-8">
-    <h2 class="text-xl font-semibold mb-4">Meeting Times (<%= @course.meeting_times.count %>)</h2>
+    <h2 class="text-xl font-semibold mb-4 text-on-surface">Meeting Times (<%= @course.meeting_times.count %>)</h2>
     <% if @course.meeting_times.any? %>
-      <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+      <div class="m3-card shadow-sm rounded-xl overflow-hidden">
         <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-white/50">
+          <table class="min-w-full divide-y divide-outline-variant">
+            <thead class="bg-surface-container-high">
               <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Day</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Time</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Location</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Dates</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Day</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Time</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Location</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Dates</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 bg-white/30">
+            <tbody class="divide-y divide-outline-variant">
               <% @course.meeting_times.each do |mt| %>
                 <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">
                     <%= mt.day_of_week&.capitalize || "TBA" %>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
                     <% if mt.begin_time && mt.end_time %>
                       <%= mt.formatted_time_range %>
                     <% else %>
                       TBA
                     <% end %>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
                     <%= mt.building_room.presence || "TBA" %>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
                     <% if mt.start_date && mt.end_date %>
                       <%= mt.start_date.strftime("%m/%d") %> – <%= mt.end_date.strftime("%m/%d/%Y") %>
                     <% else %>
@@ -87,29 +87,29 @@
         </div>
       </div>
     <% else %>
-      <p class="text-gray-600">No meeting times scheduled.</p>
+      <p class="text-on-surface-variant">No meeting times scheduled.</p>
     <% end %>
   </div>
 
   <div>
-    <h2 class="text-xl font-semibold mb-4">Enrolled Students (<%= @course.enrollments.count %>)</h2>
+    <h2 class="text-xl font-semibold mb-4 text-on-surface">Enrolled Students (<%= @course.enrollments.count %>)</h2>
     <% if @course.enrollments.any? %>
-      <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+      <div class="m3-card shadow-sm rounded-xl overflow-hidden">
         <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-white/50">
+          <table class="min-w-full divide-y divide-outline-variant">
+            <thead class="bg-surface-container-high">
               <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Student</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Student</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Email</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 bg-white/30">
+            <tbody class="divide-y divide-outline-variant">
               <% @course.enrollments.includes(:user).each do |enrollment| %>
                 <tr>
                   <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    <%= link_to enrollment.user.full_name || "User ##{enrollment.user.id}", admin_user_path(enrollment.user), class: "text-[#d13732] hover:underline font-medium" %>
+                    <%= link_to enrollment.user.full_name || "User ##{enrollment.user.id}", admin_user_path(enrollment.user), class: "text-primary hover:underline font-medium" %>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
                     <%= enrollment.user.email %>
                   </td>
                 </tr>
@@ -119,7 +119,7 @@
         </div>
       </div>
     <% else %>
-      <p class="text-gray-600">No students enrolled.</p>
+      <p class="text-on-surface-variant">No students enrolled.</p>
     <% end %>
   </div>
 </div>

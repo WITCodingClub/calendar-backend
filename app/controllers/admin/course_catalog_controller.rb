@@ -5,7 +5,7 @@ module Admin
     def index
       authorize :course_catalog
 
-      api_result = LeopardWebService.get_available_terms
+      api_result = LeopardWebService.get_active_terms
       @api_terms = api_result[:success] ? api_result[:terms] : []
       @db_terms  = Term.order(year: :desc, season: :desc).index_by(&:uid)
 
@@ -24,7 +24,8 @@ module Admin
         return
       end
 
-      CatalogImportJob.perform_later(term.uid)
+      job = CatalogImportJob.perform_later(term.uid)
+      term.update!(catalog_importing: true, catalog_import_failed: false, catalog_import_job_id: job.job_id)
       flash[:notice] = "Started importing courses for #{term.name} in the background."
       redirect_to admin_course_catalog_path
     end
@@ -55,9 +56,14 @@ module Admin
 
     private
 
+    MIN_TERM_YEAR = 2012
+
     def build_combined_terms_list
-      combined = @api_terms.map do |api_term|
-        uid     = api_term[:code].to_i
+      combined = @api_terms.filter_map do |api_term|
+        uid    = api_term[:code].to_i
+        parsed = parse_term_uid(uid)
+        next unless parsed && parsed[:year] >= MIN_TERM_YEAR
+
         db_term = @db_terms[uid]
         { uid: uid, description: api_term[:description], in_database: db_term.present?, db_term: db_term, from_api: true }
       end

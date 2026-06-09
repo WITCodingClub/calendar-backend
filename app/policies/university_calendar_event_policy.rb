@@ -3,7 +3,8 @@
 class UniversityCalendarEventPolicy < ApplicationPolicy
   def index?   = true
   def show?    = true
-  def sync?    = admin?
+  def sync?     = admin?
+  def backfill? = admin?
   def create?  = admin?
   def update?  = admin?
   def destroy? = super_admin?

@@ -1,9 +1,9 @@
-.PHONY: frontend build dev
+.PHONY: marketing build dev
 
-frontend:
-	cd frontend && npm ci && npm run build
+marketing:
+	cd marketing && npm ci && npm run build
 
-build: frontend
+build: marketing
 	bundle exec rails assets:precompile
 
 dev:

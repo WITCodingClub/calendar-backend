@@ -1,39 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Calendar Connected</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
-    .card { background: white; border-radius: 12px; padding: 2rem; text-align: center; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-    .icon { font-size: 3rem; margin-bottom: 1rem; }
-    h1 { color: #1a1a1a; margin: 0 0 0.5rem; font-size: 1.5rem; }
-    p { color: #666; margin: 0.25rem 0; font-size: 0.95rem; }
-    .email { color: #d13732; font-weight: 600; }
-    .closing { margin-top: 1.5rem; color: #999; font-size: 0.85rem; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="icon">✅</div>
-    <h1>Calendar Connected</h1>
-    <p>Successfully connected <span class="email"><%= @email %></span></p>
-    <% if @calendar_id.present? %>
-      <p>Calendar: <code><%= @calendar_id %></code></p>
-    <% end %>
-    <p class="closing">This window will close automatically...</p>
+<div class="m3-card p-8 w-full max-w-sm text-center">
+  <div class="flex items-center justify-center mb-5">
+    <div class="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center">
+      <svg class="w-8 h-8 text-on-primary-container" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
   </div>
 
-  <script>
-    if (window.opener) {
-      window.opener.postMessage({
-        type: 'oauth-success',
-        email: '<%= j @email %>',
-        calendarId: '<%= j @calendar_id.to_s %>'
-      }, '*');
+  <h1 class="text-xl font-semibold text-on-surface mb-1">Calendar Connected</h1>
+
+  <p class="text-sm text-on-surface-variant">
+    Successfully connected <span class="text-primary font-medium"><%= @email %></span>
+  </p>
+
+  <% if @calendar_id.present? %>
+    <p class="text-xs text-on-surface-variant mt-3">
+      <span class="font-medium">Calendar</span><br>
+      <code class="text-xs bg-surface-container-high rounded px-1.5 py-0.5 break-all inline-block mt-1"><%= @calendar_id %></code>
+    </p>
+  <% end %>
+
+  <p class="mt-6 text-xs text-on-surface-variant/60">
+    Closing in <span id="countdown">3</span>s&hellip;
+  </p>
+</div>
+
+<script>
+  if (window.opener) {
+    window.opener.postMessage({
+      type: 'oauth-success',
+      email: '<%= j @email %>',
+      calendarId: '<%= j @calendar_id.to_s %>'
+    }, '*');
+  }
+
+  var remaining = 3;
+  var countdownEl = document.getElementById('countdown');
+  var interval = setInterval(function() {
+    remaining -= 1;
+    if (countdownEl) countdownEl.textContent = remaining;
+    if (remaining <= 0) {
+      clearInterval(interval);
+      window.close();
+      setTimeout(function() {
+        window.location.href = '/dashboard';
+      }, 500);
     }
-    setTimeout(function() { window.close(); }, 3000);
-  </script>
-</body>
-</html>
+  }, 1000);
+</script>

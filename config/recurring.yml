@@ -1,79 +1,15 @@
-# Solid Queue recurring task schedule.
-# Syntax: https://github.com/rails/solid_queue?tab=readme-ov-file#recurring-tasks
-# All times are in the application's configured timezone (Eastern).
+# examples:
+#   periodic_cleanup:
+#     class: CleanSoftDeletedRecordsJob
+#     queue: background
+#     args: [ 1000, { batch_size: 500 } ]
+#     schedule: every hour
+#   periodic_cleanup_with_command:
+#     command: "SoftDeletedRecord.due.delete_all"
+#     priority: 2
+#     schedule: at 5am every day
 
-production: &production
-  # ---------------------------------------------------------------------------
-  # HOURLY
-  # ---------------------------------------------------------------------------
+production:
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
-    schedule: "every hour at minute 12"
-    queue: low
-
-  # ---------------------------------------------------------------------------
-  # NIGHTLY (3am–8am window, staggered 30 min apart)
-  # ---------------------------------------------------------------------------
-  nightly_calendar_sync:
-    class: NightlyCalendarSyncJob
-    schedule: "every day at 3am"
-    queue: low
-
-  twenty_five_live_sync:
-    class: TwentyFiveLiveSyncJob
-    schedule: "every day at 3:30am"
-    queue: default
-
-  cleanup_orphaned_calendar_records:
-    class: CleanupOrphanedCalendarRecordsJob
-    schedule: "every day at 4am"
-    queue: low
-
-  cleanup_orphaned_google_calendars:
-    class: CleanupOrphanedGoogleCalendarsJob
-    schedule: "every day at 4:30am"
-    queue: low
-
-  cleanup_orphaned_oauth_credentials:
-    class: CleanupOrphanedOauthCredentialsJob
-    schedule: "every day at 5am"
-    queue: low
-
-  course_data_sync:
-    class: CourseDataSyncJob
-    schedule: "every day at 5:30am"
-    queue: low
-
-  # ---------------------------------------------------------------------------
-  # WEEKLY
-  # ---------------------------------------------------------------------------
-  refresh_oauth_tokens:
-    class: RefreshOauthTokensJob
-    schedule: "every wednesday at 2am"
-    queue: low
-
-  university_calendar_sync:
-    class: UniversityCalendarSyncJob
-    schedule: "every saturday at 2am"
-    queue: low
-
-  fill_missing_rmp_ids:
-    class: FillMissingRmpIdsJob
-    schedule: "every sunday at 2am"
-    queue: low
-
-  update_faculty_rmp_ratings:
-    command: "Faculty.update_all_ratings!"
-    schedule: "every sunday at 3am"
-    queue: low
-
-  # ---------------------------------------------------------------------------
-  # MONTHLY
-  # ---------------------------------------------------------------------------
-  ensure_future_terms:
-    class: EnsureFutureTermsJob
-    schedule: "every month on the 1st at 2am"
-    queue: low
-
-development:
-  <<: *production
+    schedule: every hour at minute 12

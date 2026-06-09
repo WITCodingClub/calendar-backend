@@ -36,6 +36,11 @@ class CourseProcessorService < ApplicationService
           course_reference_number: course_data[:crn]
         )
 
+        unless detailed_course_info
+          Rails.logger.warn("[CourseProcessorService] No class details returned for CRN #{course_data[:crn]} in term #{course_data[:term]}, skipping")
+          next
+        end
+
         term = term_cache[course_data[:term].to_s]
 
         unless term

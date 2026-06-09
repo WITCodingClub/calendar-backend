@@ -6,6 +6,20 @@ class LeopardWebService < ApplicationService
 
   BASE_URL = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/searchResults/"
 
+  class RequestError < StandardError
+    attr_reader :status
+    def initialize(msg, status: nil)
+      @status = status
+      super(msg)
+    end
+  end
+
+  class SessionError < StandardError; end
+  class ParseError < StandardError; end
+
+  OPEN_TIMEOUT = 10
+  READ_TIMEOUT = 30
+
   attr_reader :term, :course_reference_number, :action
 
   def initialize(action:, term: nil, course_reference_number: nil)
@@ -25,8 +39,8 @@ class LeopardWebService < ApplicationService
       get_faculty_meeting_times
     when :get_course_catalog
       get_course_catalog
-    when :get_available_terms
-      get_available_terms
+    when :get_active_terms
+      get_active_terms
     else
       raise ArgumentError, "Unknown action: #{action}"
     end
@@ -63,8 +77,8 @@ class LeopardWebService < ApplicationService
     ).call
   end
 
-  def self.get_available_terms
-    new(action: :get_available_terms).call
+  def self.get_active_terms
+    new(action: :get_active_terms).call
   end
 
   private
@@ -143,6 +157,11 @@ class LeopardWebService < ApplicationService
 
   def connection
     @connection ||= Faraday.new(url: BASE_URL) do |faraday|
+      faraday.options.open_timeout = OPEN_TIMEOUT
+      faraday.options.timeout = READ_TIMEOUT
+      faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
+                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
+                      retry_statuses: [502, 503, 504]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -182,13 +201,13 @@ class LeopardWebService < ApplicationService
 
     {
       associated_term: extract_labeled_value(section, "Associated Term:"),
-      crn: section.at_css("#courseReferenceNumber").text.strip,
+      crn: section.at_css("#courseReferenceNumber")&.text&.strip,
       campus: extract_labeled_value(section, "Campus:"),
       schedule_type: extract_labeled_value(section, "Schedule Type:"),
-      section_number: section.at_css("#sectionNumber").text.strip,
-      subject: section.at_css("#subject").text.strip,
-      course_number: section.at_css("#courseNumber").text.strip,
-      title: section.at_css("#courseTitle").text.strip,
+      section_number: section.at_css("#sectionNumber")&.text&.strip,
+      subject: section.at_css("#subject")&.text&.strip,
+      course_number: section.at_css("#courseNumber")&.text&.strip,
+      title: section.at_css("#courseTitle")&.text&.strip,
       credit_hours: extract_labeled_value(section, "Credit Hours:")&.to_i,
       grade_mode: extract_labeled_value(section, "Grade Mode:")
     }
@@ -240,14 +259,17 @@ class LeopardWebService < ApplicationService
   end
 
   def handle_error(response)
-    raise "Request failed with status #{response.status}: #{response.body}"
+    raise RequestError.new(
+      "LeopardWeb request failed with status #{response.status}: #{response.body}",
+      status: response.status
+    )
   end
 
-  def get_available_terms
-    response = terms_connection.get("classSearch/getTerms", {
+  def get_active_terms
+    response = terms_connection.get("courseSearch/getTerms", {
                                       searchTerm: "",
                                       offset: 1,
-                                      max: 50
+                                      max: 100
                                     })
 
     if response.success?
@@ -323,9 +345,7 @@ class LeopardWebService < ApplicationService
       req.body = "term=#{term}"
     end
 
-    unless response.success?
-      raise "Failed to initialize search session: #{response.status}"
-    end
+    raise SessionError, "Failed to initialize search session: #{response.status}" unless response.success?
 
     set_cookie = response.headers["set-cookie"]
     if set_cookie
@@ -333,13 +353,13 @@ class LeopardWebService < ApplicationService
       @session_cookie = match[1] if match
     end
 
-    raise "Failed to obtain session cookie" unless @session_cookie
+    raise SessionError, "Failed to obtain session cookie" unless @session_cookie
 
     @session_cookie
   end
 
   def fetch_catalog_page(offset, page_size)
-    unique_session_id = "sess#{Time.now.to_i}#{rand(1000..9999)}"
+    unique_session_id = "sess#{SecureRandom.hex(8)}"
 
     catalog_connection.get("searchResults/searchResults", {
                              txt_term: term,
@@ -355,6 +375,11 @@ class LeopardWebService < ApplicationService
 
   def terms_connection
     @terms_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
+      faraday.options.open_timeout = OPEN_TIMEOUT
+      faraday.options.timeout = READ_TIMEOUT
+      faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
+                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
+                      retry_statuses: [502, 503, 504]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -363,6 +388,11 @@ class LeopardWebService < ApplicationService
 
   def session_connection
     @session_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
+      faraday.options.open_timeout = OPEN_TIMEOUT
+      faraday.options.timeout = READ_TIMEOUT
+      faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
+                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
+                      retry_statuses: [502, 503, 504]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -370,15 +400,23 @@ class LeopardWebService < ApplicationService
   end
 
   def catalog_connection
-    raise "Session not initialized - call initialize_search_session! first" unless @session_cookie
+    raise SessionError, "Session not initialized - call initialize_search_session! first" unless @session_cookie
 
-    @catalog_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
+    return @catalog_connection if @catalog_connection_cookie == @session_cookie
+
+    @catalog_connection_cookie = @session_cookie
+    @catalog_connection = Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
       faraday.headers["Accept"] = "application/json, text/javascript, */*; q=0.01"
       faraday.headers["Accept-Language"] = "en-US,en;q=0.9"
       faraday.headers["X-Requested-With"] = "XMLHttpRequest"
       faraday.headers["Referer"] = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/courseSearch/courseSearch"
       faraday.headers["Cookie"] = "JSESSIONID=#{@session_cookie}"
 
+      faraday.options.open_timeout = OPEN_TIMEOUT
+      faraday.options.timeout = READ_TIMEOUT
+      faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
+                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
+                      retry_statuses: [502, 503, 504]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter

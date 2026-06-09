@@ -47,5 +47,23 @@ module Admin
       UniversityCalendarSyncJob.perform_later
       redirect_to admin_university_calendar_events_path, notice: "University calendar sync queued successfully."
     end
+
+    def backfill
+      authorize UniversityCalendarEvent
+
+      start_date = Date.parse(params[:start_date])
+      end_date   = Date.parse(params[:end_date])
+
+      if end_date < start_date
+        redirect_to admin_university_calendar_events_path, alert: "End date must be on or after start date."
+        return
+      end
+
+      UniversityCalendarBackfillJob.perform_later(start_date.to_s, end_date.to_s)
+      redirect_to admin_university_calendar_events_path,
+                  notice: "Backfill queued for #{start_date.strftime('%b %d, %Y')} – #{end_date.strftime('%b %d, %Y')}."
+    rescue Date::Error
+      redirect_to admin_university_calendar_events_path, alert: "Invalid date format."
+    end
   end
 end

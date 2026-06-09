@@ -1,6 +1,6 @@
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Directory Sync Status</h1>
+    <h1 class="text-2xl font-bold text-on-surface">Directory Sync Status</h1>
     <div class="flex gap-2">
       <% if policy(Faculty).sync_directory? %>
         <%= button_to "Sync Now", sync_directory_admin_faculties_path,
@@ -9,56 +9,56 @@
             form: { class: "inline-flex" },
             data: { turbo_confirm: "This will sync all 800+ faculty/staff from the WIT directory. Continue?" } %>
       <% end %>
-      <%= link_to "All Faculty", admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-      <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "All Faculty", admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
     </div>
   </div>
 
   <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-    <div class="glass-card p-4 text-center rounded-lg">
-      <p class="text-2xl font-bold text-[#d13732]"><%= @total_count %></p>
-      <p class="text-xs text-gray-600 uppercase">Total Records</p>
+    <div class="m3-card p-4 text-center rounded-xl">
+      <p class="text-2xl font-bold text-primary"><%= @total_count %></p>
+      <p class="text-xs text-on-surface-variant uppercase">Total Records</p>
     </div>
-    <div class="glass-card p-4 text-center rounded-lg">
-      <p class="text-2xl font-bold text-green-600"><%= @synced_count %></p>
-      <p class="text-xs text-gray-600 uppercase">Synced</p>
+    <div class="m3-card p-4 text-center rounded-xl">
+      <p class="text-2xl font-bold text-on-tertiary-container"><%= @synced_count %></p>
+      <p class="text-xs text-on-surface-variant uppercase">Synced</p>
     </div>
-    <div class="glass-card p-4 text-center rounded-lg">
-      <p class="text-2xl font-bold text-yellow-600"><%= @unsynced_count %></p>
-      <p class="text-xs text-gray-600 uppercase">Not Synced</p>
+    <div class="m3-card p-4 text-center rounded-xl">
+      <p class="text-2xl font-bold text-on-secondary-container"><%= @unsynced_count %></p>
+      <p class="text-xs text-on-surface-variant uppercase">Not Synced</p>
     </div>
-    <div class="glass-card p-4 text-center rounded-lg">
-      <p class="text-2xl font-bold text-blue-600"><%= @faculty_count %></p>
-      <p class="text-xs text-gray-600 uppercase">Faculty</p>
+    <div class="m3-card p-4 text-center rounded-xl">
+      <p class="text-2xl font-bold text-primary"><%= @faculty_count %></p>
+      <p class="text-xs text-on-surface-variant uppercase">Faculty</p>
     </div>
-    <div class="glass-card p-4 text-center rounded-lg">
-      <p class="text-2xl font-bold text-gray-600"><%= @staff_count %></p>
-      <p class="text-xs text-gray-600 uppercase">Staff</p>
+    <div class="m3-card p-4 text-center rounded-xl">
+      <p class="text-2xl font-bold text-on-surface-variant"><%= @staff_count %></p>
+      <p class="text-xs text-on-surface-variant uppercase">Staff</p>
     </div>
-    <div class="glass-card p-4 text-center rounded-lg">
-      <p class="text-2xl font-bold text-[#d13732]"><%= @total_count > 0 ? number_to_percentage((@synced_count.to_f / @total_count) * 100, precision: 0) : "0%" %></p>
-      <p class="text-xs text-gray-600 uppercase">Coverage</p>
+    <div class="m3-card p-4 text-center rounded-xl">
+      <p class="text-2xl font-bold text-primary"><%= @total_count > 0 ? number_to_percentage((@synced_count.to_f / @total_count) * 100, precision: 0) : "0%" %></p>
+      <p class="text-xs text-on-surface-variant uppercase">Coverage</p>
     </div>
   </div>
 
-  <div class="glass-card shadow-lg rounded-lg p-6 mb-6">
-    <h2 class="text-xl font-bold mb-4">Sync Information</h2>
+  <div class="m3-card shadow-sm rounded-xl p-6 mb-6">
+    <h2 class="text-xl font-bold text-on-surface mb-4">Sync Information</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Last Directory Sync</h3>
-        <p class="mt-1 text-sm text-gray-900">
+        <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Last Directory Sync</h3>
+        <p class="mt-1 text-sm text-on-surface">
           <% if @last_sync %>
             <%= @last_sync.strftime("%B %d, %Y at %I:%M %p") %>
-            <span class="text-gray-500">(<%= time_ago_in_words(@last_sync) %> ago)</span>
+            <span class="text-on-surface-variant">(<%= time_ago_in_words(@last_sync) %> ago)</span>
           <% else %>
-            <span class="text-yellow-600">Never synced</span>
+            <span class="text-on-secondary-container">Never synced</span>
           <% end %>
         </p>
       </div>
       <div>
-        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Source</h3>
+        <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Source</h3>
         <p class="mt-1 text-sm">
-          <a href="https://wit.edu/faculty-staff-directory" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+          <a href="https://wit.edu/faculty-staff-directory" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">
             wit.edu/faculty-staff-directory
           </a>
         </p>
@@ -66,9 +66,9 @@
     </div>
   </div>
 
-  <div class="glass-card shadow-lg rounded-lg p-6">
-    <h2 class="text-xl font-bold mb-4">About Directory Sync</h2>
-    <div class="prose prose-sm text-gray-700">
+  <div class="m3-card shadow-sm rounded-xl p-6">
+    <h2 class="text-xl font-bold text-on-surface mb-4">About Directory Sync</h2>
+    <div class="prose prose-sm text-on-surface-variant">
       <p>The directory sync pulls faculty and staff information from the WIT Faculty Directory, including:</p>
       <ul class="list-disc list-inside mt-2 space-y-1">
         <li>Full name (including middle names)</li>

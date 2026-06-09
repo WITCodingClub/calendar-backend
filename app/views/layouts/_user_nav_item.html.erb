@@ -1,0 +1,8 @@
+<%# Renders a desktop navigation rail item. Locals: path, label, icon %>
+<% active = request.path == path || request.path.start_with?(path + "/") %>
+<%= link_to path,
+    title: label,
+    class: "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm transition-colors #{active ? 'bg-secondary-container text-on-secondary-container font-medium' : 'text-on-surface-variant hover:bg-surface-container-high'}" do %>
+  <%= render "layouts/user_icon", name: icon, active: active %>
+  <span class="hidden xl:block"><%= label %></span>
+<% end %>

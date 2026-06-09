@@ -27,7 +27,9 @@ module Admin
           { id: :faculty, title: "Faculty", path: :admin_faculties_path,
             description: "Manage faculty and RMP ratings", keywords: ["professors", "instructors"] },
           { id: :terms, title: "Terms", path: :admin_terms_path,
-            description: "View academic terms", keywords: ["semester", "fall", "spring", "summer"], read_only: true }
+            description: "View academic terms", keywords: ["semester", "fall", "spring", "summer"], read_only: true },
+          { id: :rooms, title: "Rooms", path: :admin_rooms_path,
+            description: "Browse rooms and their scheduled courses", keywords: ["rooms", "classrooms", "locations"], read_only: true }
         ]
       },
       {
@@ -46,8 +48,27 @@ module Admin
         items: [
           { id: :course_catalog, title: "Course Catalog", path: :admin_course_catalog_path,
             description: "Import courses from LeopardWeb", keywords: ["import", "leopardweb", "catalog"], min_role: :super_admin },
+          { id: :buildings, title: "Buildings", path: :admin_buildings_path,
+            description: "Compare and reconcile LeopardWeb vs 25Live building names", keywords: ["buildings", "rooms", "location", "25live"] },
           { id: :rmp_ratings, title: "RMP Ratings", path: :admin_rmp_ratings_path,
             description: "View Rate My Professor ratings", keywords: ["rate my professor"], read_only: true }
+        ]
+      },
+      {
+        id: :system_tools, title: "System Tools", min_role: :super_admin,
+        items: [
+          { id: :jobs, title: "Background Jobs", path: :admin_mission_control_jobs_path,
+            description: "Monitor and manage background jobs", keywords: ["jobs", "queues", "workers", "solid_queue"], min_role: :super_admin },
+          { id: :feature_flags, title: "Feature Flags", path: "/admin/flipper",
+            description: "Toggle feature flags with Flipper", keywords: ["flipper", "flags", "features"], min_role: :super_admin },
+          { id: :sql, title: "SQL Queries", path: :admin_blazer_path,
+            description: "Run ad-hoc SQL queries with Blazer", keywords: ["blazer", "sql", "queries", "database"], min_role: :super_admin },
+          { id: :database, title: "Database", path: :admin_pg_hero_path,
+            description: "PostgreSQL insights and performance via PgHero", keywords: ["postgres", "pghero", "database", "queries"], min_role: :super_admin },
+          { id: :console_audits, title: "Console Audits", path: :admin_audits1984_path,
+            description: "Audit trail of Rails console sessions", keywords: ["audits", "console", "security"], min_role: :owner },
+          { id: :service_account, title: "Service Account", path: :admin_service_account_index_path,
+            description: "Manage Google service account OAuth", keywords: ["service account", "oauth", "google"], min_role: :owner }
         ]
       }
     ].freeze

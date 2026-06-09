@@ -28,4 +28,5 @@ class Course::ScheduleType
   def self.valid?(key) = TYPES.key?(key.to_sym)
   def self.codes       = TYPES.values.map { |v| v[:code] }
   def self.all         = TYPES.keys.map { |k| new(k) }
+  def self.key_for_code(code) = TYPES.find { |_k, v| v[:code] == code.to_s.upcase }&.first&.to_s
 end

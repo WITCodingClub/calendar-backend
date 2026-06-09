@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class OauthController < ApplicationController
+  layout "sessions"
+
   skip_before_action :verify_authenticity_token
 
   def success

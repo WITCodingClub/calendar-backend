@@ -78,7 +78,7 @@ class GoogleCalendarService
     current_event_keys = events.map { |e| build_event_key_from_hash(e) }.compact
 
     events_to_delete = existing_events.except(*current_event_keys).reject do |_key, cal_event|
-      cal_event.university_calendar_event_id.present? && cal_event.end_time&.past?
+      cal_event.end_time&.past?
     end
     with_batch_throttling(events_to_delete.values) do |cal_event|
       delete_event_from_calendar(service, google_calendar, cal_event)

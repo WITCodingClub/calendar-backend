@@ -49,6 +49,10 @@ class User < ApplicationRecord
     admin? || super_admin? || owner?
   end
 
+  def access_level_text
+    access_level.to_s.humanize
+  end
+
   def full_name
     [ first_name, last_name ].compact_blank.join(" ").presence || email
   end

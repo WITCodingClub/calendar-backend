@@ -30,13 +30,15 @@ module ApplicationHelper
 
     result = result.gsub(/(\d)\s+([A-Za-z])(?=\s|$)/, '\1\2')
 
+    result = result.gsub(/(\w)-(\w)/, '\1 - \2')
+
     result = result.downcase
-                   .gsub(/(^|\s)(\w)/) { $1 + $2.upcase }
+                   .gsub(/(^|\s|-)(\w)/) { $1 + $2.upcase }
                    .gsub(/(\d)([a-z])/i) { $1 + $2.upcase }
 
     result = result.gsub(/\b(i{1,3}|iv|v|vi{1,3}|ix|x)\b/i) { |m| m.upcase }
 
-    preserved.each { |key, val| result = result.gsub(key, val) }
+    preserved.each { |key, val| result = result.gsub(/#{Regexp.escape(key)}/i, val) }
 
     result
   end

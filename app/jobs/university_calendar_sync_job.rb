@@ -69,7 +69,9 @@ class UniversityCalendarSyncJob < ApplicationJob
   end
 
   def update_term_dates_from_events
-    Term.where(start_date: nil).or(Term.where(end_date: nil)).find_each do |term|
+    current_year = Time.zone.today.year
+
+    Term.where(year: (current_year - 1)..).find_each do |term|
       dates = UniversityCalendarEvent.detect_term_dates(term.year, term.season)
 
       updates = {}

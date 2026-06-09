@@ -1,0 +1,49 @@
+<div class="container mx-auto px-2 pb-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-on-surface">OAuth Authorization Successful</h1>
+  </div>
+
+  <div class="m3-card rounded-xl border-l-4 border-tertiary p-4 mb-6">
+    <p class="text-sm text-on-surface">Successfully obtained OAuth tokens from Google.</p>
+  </div>
+
+  <div class="m3-card shadow-sm rounded-xl mb-6 p-6">
+    <h2 class="text-base font-semibold mb-4 text-on-surface-variant uppercase tracking-wider">Your Refresh Token</h2>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-on-surface-variant mb-2">Refresh Token (copy this):</label>
+      <div class="relative">
+        <input type="text" readonly id="refresh-token-input" value="<%= @refresh_token %>"
+               class="m3-input w-full px-3 py-2 border border-outline-variant rounded-md font-mono text-sm pr-20 bg-surface-container text-on-surface">
+        <button onclick="copyToken()" class="m3-btn-outlined absolute right-2 top-1.5 px-3 py-1 text-xs rounded">Copy</button>
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-on-surface-variant mb-2">Access Token (reference only):</label>
+      <input type="text" readonly value="<%= @access_token&.first(50) %>..."
+             class="m3-input w-full px-3 py-2 border border-outline-variant rounded-md font-mono text-sm bg-surface-container text-on-surface">
+    </div>
+  </div>
+
+  <div class="m3-card rounded-xl border-l-4 border-primary p-4 mb-6">
+    <h3 class="text-sm font-semibold text-on-surface mb-2">Next Steps</h3>
+    <ol class="list-decimal list-inside space-y-1 text-sm text-on-surface-variant">
+      <li>Copy the refresh token above</li>
+      <li>Edit credentials: <code class="px-1 rounded bg-surface-container-high font-mono">EDITOR=nano rails credentials:edit</code></li>
+      <li>Add: <code class="px-1 rounded bg-surface-container-high font-mono">google: service_account_oauth_refresh_token: "…"</code></li>
+      <li>Save, exit, and restart the server</li>
+    </ol>
+  </div>
+
+  <%= link_to "← Back to Service Account", admin_service_account_index_path, class: "m3-btn-outlined inline-flex items-center px-4 py-2 text-sm font-medium rounded-md" %>
+</div>
+
+<script>
+function copyToken() {
+  const input = document.getElementById("refresh-token-input");
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = event.target;
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = "Copy", 2000);
+  });
+}
+</script>

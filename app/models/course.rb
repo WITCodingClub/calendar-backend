@@ -6,6 +6,10 @@ class Course < ApplicationRecord
 
   set_public_id_prefix :crs
 
+  def to_param
+    public_id
+  end
+
   belongs_to :term
 
   has_and_belongs_to_many :faculties

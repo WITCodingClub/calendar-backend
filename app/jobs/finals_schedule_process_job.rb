@@ -1,34 +1,37 @@
 # frozen_string_literal: true
 
-# Processes an uploaded finals schedule PDF for a given term.
-# Accepts raw PDF binary content rather than a FinalsSchedule model record,
-# since this app does not have a FinalsSchedule model.
 class FinalsScheduleProcessJob < ApplicationJob
   queue_as :default
 
-  limits_concurrency to: 1, key: ->(term_uid, _pdf_content) { "finals_schedule_process_#{term_uid}" }
+  limits_concurrency to: 1, key: ->(finals_schedule) { "finals_schedule_process_#{finals_schedule.term_id}" }
 
-  def perform(term_uid, pdf_content)
-    term = Term.find_by(uid: term_uid)
+  def perform(finals_schedule)
+    finals_schedule.update!(status: :processing)
 
-    unless term
-      Rails.logger.error("FinalsScheduleProcessJob: term #{term_uid} not found")
-      return
-    end
+    pdf_content = finals_schedule.pdf_file.download
+    result = FinalsScheduleParserService.call(pdf_content: pdf_content, term: finals_schedule.term)
 
-    result = FinalsScheduleParserService.call(pdf_content: pdf_content, term: term)
+    finals_schedule.update!(
+      status:       :completed,
+      processed_at: Time.current,
+      stats:        result.slice(:total, :created, :updated, :linked, :orphan, :rooms_created),
+      error_message: result[:errors].any? ? result[:errors].join("\n") : nil
+    )
+
+    finals_schedule.trigger_calendar_resyncs_for_term
 
     Rails.logger.info({
-      message: "FinalsScheduleProcessJob completed",
-      term_uid: term_uid,
-      term_name: term.name,
-      result: result
+      message:  "FinalsScheduleProcessJob completed",
+      term_uid: finals_schedule.term.uid,
+      result:   result
     }.to_json)
-
-    result
   rescue => e
-    Rails.logger.error("Failed to process finals schedule for term #{term_uid}: #{e.message}")
-    Rails.logger.error(e.backtrace.first(10).join("\n"))
+    finals_schedule.update!(
+      status:        :failed,
+      processed_at:  Time.current,
+      error_message: e.message
+    )
+    Rails.logger.error("FinalsScheduleProcessJob failed for term #{finals_schedule.term_id}: #{e.message}")
     raise
   end
 end

@@ -3,6 +3,10 @@
 class UniversityCalendarIcsService < ApplicationService
   ICS_FEED_URL = "https://25livepub.collegenet.com/calendars/wit-main-events-calendar.ics"
 
+  def self.backfill_url(start_date, end_date)
+    "#{ICS_FEED_URL}?startdt=#{start_date.to_date}&enddt=#{end_date.to_date}"
+  end
+
   attr_reader :ics_url
 
   def initialize(ics_url: ICS_FEED_URL)

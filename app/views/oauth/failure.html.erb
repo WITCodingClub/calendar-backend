@@ -1,37 +1,29 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Connection Failed</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); }
-    .card { background: white; border-radius: 12px; padding: 2rem; text-align: center; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-    .icon { font-size: 3rem; margin-bottom: 1rem; }
-    h1 { color: #1a1a1a; margin: 0 0 0.5rem; font-size: 1.5rem; }
-    p { color: #666; margin: 0.25rem 0; font-size: 0.95rem; }
-    .error { color: #d13732; font-size: 0.85rem; margin-top: 0.5rem; }
-    .closing { margin-top: 1.5rem; color: #999; font-size: 0.85rem; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="icon">❌</div>
-    <h1>Connection Failed</h1>
-    <p>Could not connect your Google Calendar.</p>
-    <% if @error.present? %>
-      <p class="error"><%= @error %></p>
-    <% end %>
-    <p class="closing">Please close this window and try again.</p>
+<div class="m3-card p-8 w-full max-w-sm text-center">
+  <div class="flex items-center justify-center mb-5">
+    <div class="w-16 h-16 rounded-full bg-error-container flex items-center justify-center">
+      <svg class="w-8 h-8 text-on-error-container" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </div>
   </div>
 
-  <script>
-    if (window.opener) {
-      window.opener.postMessage({
-        type: 'oauth-failure',
-        error: '<%= j @error.to_s %>'
-      }, '*');
-    }
-  </script>
-</body>
-</html>
+  <h1 class="text-xl font-semibold text-on-surface mb-1">Connection Failed</h1>
+
+  <p class="text-sm text-on-surface-variant">Could not connect your Google Calendar.</p>
+
+  <% if @error.present? %>
+    <p class="text-xs text-error mt-3 break-words"><%= @error %></p>
+  <% end %>
+
+  <p class="mt-6 text-xs text-on-surface-variant/60">Please close this window and try again.</p>
+</div>
+
+<script>
+  if (window.opener) {
+    window.opener.postMessage({
+      type: 'oauth-failure',
+      error: '<%= j @error.to_s %>'
+    }, '*');
+  }
+</script>

@@ -1,70 +1,70 @@
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-3xl font-bold"><%= @faculty.full_name %></h1>
+    <h1 class="text-3xl font-bold text-on-surface"><%= @faculty.full_name %></h1>
     <div class="flex gap-2">
-      <%= link_to "All Faculty", admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-      <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "All Faculty", admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
     </div>
   </div>
 
-  <div class="glass-card shadow-lg rounded-lg p-6 mb-6">
+  <div class="m3-card shadow-sm rounded-xl p-6 mb-6">
     <div class="flex flex-col md:flex-row gap-6">
       <div class="flex-shrink-0">
         <% if @faculty.photo_url.present? %>
-          <img src="<%= @faculty.photo_url %>" alt="<%= @faculty.full_name %>" class="h-32 w-32 rounded-lg object-cover shadow">
+          <img src="<%= @faculty.photo_url %>" alt="<%= @faculty.full_name %>" class="h-32 w-32 rounded-xl object-cover shadow">
         <% else %>
-          <div class="h-32 w-32 rounded-lg bg-gray-300 flex items-center justify-center shadow">
-            <span class="text-gray-600 text-3xl font-bold"><%= @faculty.initials %></span>
+          <div class="h-32 w-32 rounded-xl bg-surface-container-high flex items-center justify-center shadow">
+            <span class="text-on-surface-variant text-3xl font-bold"><%= @faculty.initials %></span>
           </div>
         <% end %>
       </div>
       <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Title</h3>
-          <p class="mt-1 text-sm text-gray-900"><%= @faculty.title || "Not available" %></p>
+          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Title</h3>
+          <p class="mt-1 text-sm text-on-surface"><%= @faculty.title || "Not available" %></p>
         </div>
         <div>
-          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Email</h3>
-          <p class="mt-1 text-sm text-gray-900">
-            <%= mail_to @faculty.email, @faculty.email, class: "hover:underline text-blue-600" if @faculty.email %>
+          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Email</h3>
+          <p class="mt-1 text-sm text-on-surface">
+            <%= mail_to @faculty.email, @faculty.email, class: "hover:underline text-primary" if @faculty.email %>
           </p>
         </div>
         <div>
-          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Phone</h3>
-          <p class="mt-1 text-sm text-gray-900"><%= @faculty.phone || "Not available" %></p>
+          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Phone</h3>
+          <p class="mt-1 text-sm text-on-surface"><%= @faculty.phone || "Not available" %></p>
         </div>
         <div>
-          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Office</h3>
-          <p class="mt-1 text-sm text-gray-900"><%= @faculty.office_location || "Not available" %></p>
+          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Office</h3>
+          <p class="mt-1 text-sm text-on-surface"><%= @faculty.office_location || "Not available" %></p>
         </div>
         <div>
-          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Department</h3>
-          <p class="mt-1 text-sm text-gray-900"><%= @faculty.department || "Not available" %></p>
+          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Department</h3>
+          <p class="mt-1 text-sm text-on-surface"><%= @faculty.department || "Not available" %></p>
         </div>
         <div>
-          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">School</h3>
-          <p class="mt-1 text-sm text-gray-900"><%= @faculty.school || "Not available" %></p>
+          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">School</h3>
+          <p class="mt-1 text-sm text-on-surface"><%= @faculty.school || "Not available" %></p>
         </div>
         <div>
-          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Type</h3>
+          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Type</h3>
           <p class="mt-1">
             <% case @faculty.employee_type %>
             <% when "faculty" %>
-              <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">Faculty</span>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-tertiary-container text-on-tertiary-container">Faculty</span>
             <% when "staff" %>
-              <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">Staff</span>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-surface-container-high text-on-surface">Staff</span>
             <% else %>
-              <span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">Unknown</span>
+              <span class="px-2 py-1 text-xs font-medium rounded-full bg-secondary-container text-on-secondary-container">Unknown</span>
             <% end %>
           </p>
         </div>
         <div>
-          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Directory Sync</h3>
-          <p class="mt-1 text-sm text-gray-900">
+          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Directory Sync</h3>
+          <p class="mt-1 text-sm text-on-surface">
             <% if @faculty.directory_last_synced_at %>
-              <span class="text-green-600">Synced <%= time_ago_in_words(@faculty.directory_last_synced_at) %> ago</span>
+              <span class="text-on-tertiary-container">Synced <%= time_ago_in_words(@faculty.directory_last_synced_at) %> ago</span>
             <% else %>
-              <span class="text-yellow-600">Not synced</span>
+              <span class="text-on-secondary-container">Not synced</span>
             <% end %>
           </p>
         </div>
@@ -73,32 +73,32 @@
   </div>
 
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-    <div class="glass-card p-4 text-center rounded-lg">
-      <p class="text-2xl font-bold text-[#d13732]"><%= @faculty.courses.count %></p>
-      <p class="text-xs text-gray-600 uppercase">Courses</p>
+    <div class="m3-card p-4 text-center rounded-xl">
+      <p class="text-2xl font-bold text-primary"><%= @faculty.courses.count %></p>
+      <p class="text-xs text-on-surface-variant uppercase">Courses</p>
     </div>
     <% if @rmp_ratings.present? %>
-      <div class="glass-card p-4 text-center rounded-lg">
-        <p class="text-2xl font-bold text-[#d13732]"><%= @rmp_ratings.count %></p>
-        <p class="text-xs text-gray-600 uppercase">RMP Ratings</p>
+      <div class="m3-card p-4 text-center rounded-xl">
+        <p class="text-2xl font-bold text-primary"><%= @rmp_ratings.count %></p>
+        <p class="text-xs text-on-surface-variant uppercase">RMP Ratings</p>
       </div>
-      <div class="glass-card p-4 text-center rounded-lg">
+      <div class="m3-card p-4 text-center rounded-xl">
         <% avg_rating = @rmp_ratings.average(:clarity_rating) %>
-        <p class="text-2xl font-bold text-[#d13732]"><%= avg_rating ? number_with_precision(avg_rating, precision: 1) : "N/A" %></p>
-        <p class="text-xs text-gray-600 uppercase">Avg Rating</p>
+        <p class="text-2xl font-bold text-primary"><%= avg_rating ? number_with_precision(avg_rating, precision: 1) : "N/A" %></p>
+        <p class="text-xs text-on-surface-variant uppercase">Avg Rating</p>
       </div>
-      <div class="glass-card p-4 text-center rounded-lg">
+      <div class="m3-card p-4 text-center rounded-xl">
         <% avg_difficulty = @rmp_ratings.average(:difficulty_rating) %>
-        <p class="text-2xl font-bold text-[#d13732]"><%= avg_difficulty ? number_with_precision(avg_difficulty, precision: 1) : "N/A" %></p>
-        <p class="text-xs text-gray-600 uppercase">Avg Difficulty</p>
+        <p class="text-2xl font-bold text-primary"><%= avg_difficulty ? number_with_precision(avg_difficulty, precision: 1) : "N/A" %></p>
+        <p class="text-xs text-on-surface-variant uppercase">Avg Difficulty</p>
       </div>
     <% end %>
   </div>
 
   <% if @faculty.rmp_id.present? || policy(@faculty).search_rmp? %>
-    <div class="glass-card shadow-lg rounded-lg p-6 mb-6">
+    <div class="m3-card shadow-sm rounded-xl p-6 mb-6">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold">Rate My Professor</h2>
+        <h2 class="text-xl font-bold text-on-surface">Rate My Professor</h2>
         <% if @faculty.rmp_id.present? %>
           <%= link_to "Search RMP", search_rmp_admin_faculty_path(@faculty), class: "text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded" if policy(@faculty).search_rmp? %>
         <% else %>
@@ -109,59 +109,59 @@
                   form: { class: "inline-flex" } %>
             <% end %>
             <% if policy(@faculty).search_rmp? %>
-              <%= link_to "Manual Search", search_rmp_admin_faculty_path(@faculty), class: "text-sm px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded inline-block" %>
+              <%= link_to "Manual Search", search_rmp_admin_faculty_path(@faculty), class: "m3-btn-outlined text-sm px-4 py-2 rounded inline-block" %>
             <% end %>
           </div>
         <% end %>
       </div>
       <% if @faculty.rmp_id.present? %>
-        <p class="text-sm text-gray-600">RMP ID: <span class="font-mono"><%= @faculty.rmp_id %></span></p>
+        <p class="text-sm text-on-surface-variant">RMP ID: <span class="font-mono"><%= @faculty.rmp_id %></span></p>
       <% else %>
-        <p class="text-sm text-gray-500">Not linked to Rate My Professor.</p>
+        <p class="text-sm text-on-surface-variant">Not linked to Rate My Professor.</p>
       <% end %>
     </div>
   <% end %>
 
   <div class="space-y-6">
-    <h2 class="text-2xl font-bold">Courses by Semester</h2>
+    <h2 class="text-2xl font-bold text-on-surface">Courses by Semester</h2>
     <% if @courses_by_term.empty? %>
-      <p class="text-gray-600">No courses found.</p>
+      <p class="text-on-surface-variant">No courses found.</p>
     <% else %>
       <% @courses_by_term.each do |term, courses| %>
-        <div class="glass-card shadow-lg rounded-lg overflow-hidden">
-          <div class="px-6 py-4 bg-white/50">
-            <h3 class="text-lg font-bold"><%= term.name %></h3>
-            <p class="text-sm text-gray-600"><%= courses.count %> course(s)</p>
+        <div class="m3-card shadow-sm rounded-xl overflow-hidden">
+          <div class="px-6 py-4 bg-surface-container-high">
+            <h3 class="text-lg font-bold text-on-surface"><%= term.name %></h3>
+            <p class="text-sm text-on-surface-variant"><%= courses.count %> course(s)</p>
           </div>
           <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-white/30">
+            <table class="min-w-full divide-y divide-outline-variant">
+              <thead class="bg-surface-container">
                 <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Course</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Name</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Section</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Meeting Times</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Credits</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Course</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Name</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Section</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Meeting Times</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Credits</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-200 bg-white/20">
+              <tbody class="divide-y divide-outline-variant">
                 <% courses.each do |course| %>
                   <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">
                       <%= course.subject %> <%= course.course_number %>
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-700"><%= course.title %></td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= course.section_number || "N/A" %></td>
-                    <td class="px-6 py-4 text-sm text-gray-700">
+                    <td class="px-6 py-4 text-sm text-on-surface"><%= course.title %></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= course.section_number || "N/A" %></td>
+                    <td class="px-6 py-4 text-sm text-on-surface">
                       <% if course.meeting_times.any? %>
                         <% course.meeting_times.each do |mt| %>
                           <div><%= mt.day_of_week&.capitalize %> <%= mt.formatted_time_range %> <%= mt.building_room.presence && "(#{mt.building_room})" %></div>
                         <% end %>
                       <% else %>
-                        <span class="text-gray-500">No meeting times</span>
+                        <span class="text-on-surface-variant">No meeting times</span>
                       <% end %>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= course.credit_hours || "N/A" %></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= course.credit_hours || "N/A" %></td>
                   </tr>
                 <% end %>
               </tbody>

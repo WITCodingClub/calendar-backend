@@ -17,7 +17,7 @@ class NightlyCalendarSyncJob < ApplicationJob
     users_to_sync.find_each do |user|
       Rails.logger.info "Syncing calendar for user #{user.id}"
 
-      user.sync_course_schedule
+      user.sync_course_schedule(backfill_historical: true)
 
       user.update!(
         calendar_needs_sync: false,

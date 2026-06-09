@@ -24,5 +24,10 @@ class CatalogImportJob < ApplicationJob
     CatalogImportService.new(courses).call!
 
     Rails.logger.info "[CatalogImportJob] Completed import for term #{term_uid}"
+  rescue => e
+    Term.where(uid: term_uid).update_all(catalog_import_failed: true)
+    raise
+  ensure
+    Term.where(uid: term_uid).update_all(catalog_importing: false)
   end
 end

@@ -165,6 +165,7 @@
     <orderEntry type="library" scope="PROVIDED" name="websocket-extensions (v0.1.5, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="xpath (v3.2.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="zeitwerk (v2.8.2, mise: 4.0.1) [gem]" level="application" />
+    <orderEntry type="module" module-name="" />
   </component>
   <component name="RModuleSettingsStorage">
     <LOAD_PATH number="0" />

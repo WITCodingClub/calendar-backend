@@ -6,6 +6,18 @@ module External
 
     BASE_URL = "https://webservices.collegenet.com/r25ws/wrd/wit/run/"
 
+    class RequestError < StandardError
+      attr_reader :status
+      def initialize(msg, status: nil)
+        @status = status
+        super(msg)
+      end
+    end
+
+    OPEN_TIMEOUT = 10
+    READ_TIMEOUT = 30
+    MAX_RETRIES  = 3
+
     def call
       call!
     rescue => e
@@ -18,6 +30,7 @@ module External
       sync_event_categories
       sync_event_custom_attributes
       sync_resources
+      sync_spaces
       check_constant_drift
       true
     end
@@ -29,9 +42,24 @@ module External
       req = Net::HTTP::Get.new(uri)
       creds = Rails.application.credentials.dig(:TwentyFiveLive)
       req.basic_auth(creds[:username], creds[:password]) if creds
-      res = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |h| h.request(req) }
-      raise "25Live API returned #{res.code} for #{endpoint}" unless res.is_a?(Net::HTTPSuccess)
-      JSON.parse(res.body)
+
+      attempts = 0
+      begin
+        attempts += 1
+        res = Net::HTTP.start(uri.host, uri.port, use_ssl: true,
+                              open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) { |h| h.request(req) }
+
+        unless res.is_a?(Net::HTTPSuccess)
+          raise RequestError.new("25Live API returned #{res.code} for #{endpoint}", status: res.code.to_i)
+        end
+
+        JSON.parse(res.body)
+      rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, Errno::ECONNREFUSED => e
+        retry if attempts < MAX_RETRIES
+        raise
+      rescue JSON::ParserError => e
+        raise RequestError.new("25Live API returned non-JSON for #{endpoint}: #{e.message}")
+      end
     end
 
     # ---------------------------------------------------------------------------
@@ -134,28 +162,67 @@ module External
       end
     end
 
+    def sync_spaces
+      data   = fetch("spaces")
+      spaces = Array.wrap(data.dig("spaces", "space") ||
+                          data.dig("r25:spaces", "r25:space"))
+
+      buildings_by_abbr = Building.all.index_by { |b| b.abbreviation.upcase }
+
+      spaces.each do |raw|
+        space_id    = (raw["space_id"]    || raw["r25:space_id"])&.to_i
+        formal_name = (raw["formal_name"] || raw["r25:formal_name"])&.strip
+        space_name  = (raw["space_name"]  || raw["r25:space_name"])&.strip
+        bldg_25_id  = (raw["building_id"] || raw["r25:building_id"])&.to_i
+        bldg_formal = (raw["building_name"] || raw["r25:building_name"])&.strip
+
+        next unless space_id && space_name.present?
+
+        # space_name encodes "ABBREV ROOM_NUMBER" (e.g. "WENTW 310")
+        abbrev, room_number = space_name.split(" ", 2)
+        next unless room_number.present?
+
+        building = buildings_by_abbr[abbrev.upcase]
+        next unless building
+        next if LocationHelper.tbd_building?(building)
+
+        if bldg_25_id&.positive?
+          attrs = {}
+          attrs[:twenty_five_live_id] = bldg_25_id if building.twenty_five_live_id.nil?
+          attrs[:formal_name]         = bldg_formal if bldg_formal.present? && building.formal_name.nil?
+          building.update!(attrs) if attrs.any?
+        end
+
+        room = building.rooms.find_by(number: room_number)
+        next unless room
+        next if LocationHelper.tbd_room?(room)
+
+        attrs = {}
+        attrs[:twenty_five_live_id] = space_id    if room.twenty_five_live_id.nil?
+        attrs[:formal_name]         = formal_name if formal_name.present? && room.formal_name.nil?
+        room.update!(attrs) if attrs.any?
+      end
+    end
+
     # ---------------------------------------------------------------------------
     # Constant drift detection
     # ---------------------------------------------------------------------------
 
     def check_constant_drift
-      drifts = [
-        diff_cabinets,
-        diff_event_roles,
-        diff_event_requirements,
-        diff_event_types,
-        diff_organization_categories,
-        diff_organization_roles,
-        diff_organization_custom_attributes,
-        diff_organization_ratings,
-        diff_organization_types,
-        diff_resource_categories,
-        diff_resource_custom_attributes,
-        diff_space_categories,
-        diff_space_custom_attributes,
-        diff_space_features,
-        diff_space_layouts,
-      ].compact
+      diff_methods = %i[
+        diff_cabinets diff_event_roles diff_event_requirements diff_event_types
+        diff_organization_categories diff_organization_roles diff_organization_custom_attributes
+        diff_organization_ratings diff_organization_types diff_resource_categories
+        diff_resource_custom_attributes diff_space_categories diff_space_custom_attributes
+        diff_space_features diff_space_layouts
+      ]
+
+      drifts = diff_methods.filter_map do |method|
+        send(method)
+      rescue RequestError => e
+        Rails.logger.warn("[TwentyFiveLiveService] Skipping #{method} (#{e.message})")
+        nil
+      end
 
       TwentyFiveLiveMailer.constant_drift_notification(drifts).deliver_later if drifts.any?
     end
@@ -201,7 +268,7 @@ module External
           stock_count: raw["stock_count"]&.to_i, allow_comment: raw["allow_comment"]&.to_i }
       end
 
-      const_rows = TwentyFiveLive::EVENT_REQUIREMENTS.map do |r|
+      const_rows = TwentyFiveLive::EventRequirement::EVENT_REQUIREMENTS.map do |r|
         { id: r[:requirement_id], name: r[:requirement_name], sort_order: r[:sort_order],
           defn_state: r[:defn_state], stock_count: r[:stock_count], allow_comment: r[:allow_comment] }
       end

@@ -1,0 +1,52 @@
+<div class="container mx-auto px-2 pb-8">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-on-surface">Service Account OAuth</h1>
+  </div>
+
+  <div class="m3-card shadow-sm rounded-xl mb-6 p-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="md:border-r md:border-outline-variant md:pr-6">
+        <h2 class="text-base font-semibold mb-4 text-on-surface-variant uppercase tracking-wider">Current Status</h2>
+        <dl class="space-y-3">
+          <div>
+            <dt class="text-sm font-medium text-on-surface-variant">Service Account Email</dt>
+            <dd class="mt-1 text-sm font-semibold text-on-surface"><%= @service_account_email || "Not configured" %></dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-on-surface-variant">OAuth Refresh Token</dt>
+            <dd class="mt-1">
+              <% if @has_oauth_token %>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-tertiary-container text-on-tertiary-container">✓ Configured</span>
+              <% else %>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-error-container text-on-error-container">✗ Not configured</span>
+              <% end %>
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="md:pl-6">
+        <h2 class="text-base font-semibold mb-4 text-on-surface-variant uppercase tracking-wider">Actions</h2>
+        <div class="space-y-3">
+          <%= link_to admin_service_account_authorize_path, class: "m3-btn-outlined inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md w-full" do %>
+            Authorize with Google
+          <% end %>
+          <%= button_to "Revoke Access", admin_service_account_revoke_path, method: :post,
+              class: "m3-btn-outlined inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md w-full" %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="m3-card rounded-xl border-l-4 border-primary p-4">
+    <h3 class="text-sm font-semibold text-on-surface mb-2">Before you start</h3>
+    <p class="text-sm text-on-surface-variant mb-2">Add this redirect URI to your Google Cloud Console OAuth client:</p>
+    <code class="block px-2 py-1 rounded bg-surface-container-high font-mono text-sm text-on-surface mb-3"><%= "#{request.base_url}/admin/oauth/callback" %></code>
+    <ol class="list-decimal list-inside space-y-1 text-sm text-on-surface-variant">
+      <li>Add the redirect URI above in Google Cloud Console</li>
+      <li>Click "Authorize with Google" and sign in as the service account</li>
+      <li>Copy the refresh token shown after authorization</li>
+      <li>Add it to credentials: <code class="px-1 rounded bg-surface-container-high font-mono">rails credentials:edit</code></li>
+    </ol>
+  </div>
+</div>

@@ -1,40 +1,40 @@
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Terms</h1>
-    <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+    <h1 class="text-2xl font-bold text-on-surface">Terms</h1>
+    <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
   </div>
 
-  <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+  <div class="m3-card shadow-sm rounded-xl overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-white/50">
+      <table class="min-w-full divide-y divide-outline-variant">
+        <thead class="bg-surface-container-high">
           <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Term</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Year</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Season</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">UID</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Created</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Term</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Year</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Season</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">UID</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Created</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200 bg-white/30">
+        <tbody class="divide-y divide-outline-variant">
           <% @terms.each do |term| %>
-            <tr class="hover:bg-white/50 cursor-pointer transition" onclick="window.location='<%= admin_term_path(term) %>'">
+            <tr class="hover:bg-surface-container cursor-pointer transition" onclick="window.location='<%= admin_term_path(term) %>'">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium">
-                  <%= link_to term.name, admin_term_path(term), class: "text-[#d13732] hover:underline" %>
+                  <%= link_to term.name, admin_term_path(term), class: "text-primary hover:underline" %>
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= term.year %></td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= term.season&.capitalize %></td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= term.uid %></td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><%= term.created_at.strftime("%b %d, %Y") %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= term.year %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= term.season&.capitalize %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= term.uid %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= term.created_at.strftime("%b %d, %Y") %></td>
             </tr>
           <% end %>
         </tbody>
       </table>
     </div>
     <% if @terms.respond_to?(:total_pages) %>
-      <div class="px-6 py-4 border-t border-gray-200 bg-white/40">
+      <div class="px-6 py-4 border-t border-outline-variant bg-surface-container-low">
         <%= paginate @terms %>
       </div>
     <% end %>

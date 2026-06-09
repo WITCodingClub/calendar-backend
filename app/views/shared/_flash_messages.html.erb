@@ -2,13 +2,13 @@
   <% flash.each do |type, message| %>
     <%
       bg_class = case type.to_s
-      when "notice", "success" then "bg-green-50 border-green-300 text-green-800"
-      when "alert", "error", "danger" then "bg-red-50 border-red-300 text-red-800"
-      when "warning" then "bg-yellow-50 border-yellow-300 text-yellow-800"
-      else "bg-blue-50 border-blue-300 text-blue-800"
+      when "notice", "success" then "bg-primary-container border-primary text-on-primary-container"
+      when "alert", "error", "danger" then "bg-error-container border-error text-on-error-container"
+      when "warning" then "bg-secondary-container border-secondary text-on-secondary-container"
+      else "bg-tertiary-container border-tertiary text-on-tertiary-container"
       end
     %>
-    <div class="pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm <%= bg_class %>"
+    <div class="pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg <%= bg_class %>"
          data-controller="flash-message"
          data-flash-message-timeout-value="5000">
       <p class="text-sm flex-1"><%= message %></p>

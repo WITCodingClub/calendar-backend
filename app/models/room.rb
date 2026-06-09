@@ -8,10 +8,11 @@ class Room < ApplicationRecord
   belongs_to :building
   has_many :meeting_times, class_name: "Course::MeetingTime", dependent: :restrict_with_exception
 
+  before_save :set_floor
+
   def floor
-    # Extract first digit from the room number string
-    match = number.to_s.match(/\d/)
-    match ? match[0].to_i : 0
+    first_char = number.to_s[0].to_s
+    first_char.match?(/\d/) ? first_char.to_i : 0
   end
 
   def formatted_number
@@ -28,4 +29,9 @@ class Room < ApplicationRecord
     public_id
   end
 
+  private
+
+  def set_floor
+    self[:floor] = floor
+  end
 end

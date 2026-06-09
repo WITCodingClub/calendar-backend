@@ -1,18 +1,18 @@
 <div class="container mx-auto px-4 py-8">
   <div class="mb-6">
-    <%= link_to "← Back to Finals Schedules", admin_finals_schedules_path, class: "text-sm font-medium text-[#d13732] hover:underline" %>
+    <%= link_to "← Back to Finals Schedules", admin_finals_schedules_path, class: "text-sm font-medium text-primary hover:underline" %>
   </div>
 
   <div class="max-w-2xl">
-    <h1 class="text-2xl font-bold mb-6">Upload Finals Schedule</h1>
+    <h1 class="text-2xl font-bold mb-6 text-on-surface">Upload Finals Schedule</h1>
 
-    <div class="glass-card shadow-lg rounded-lg overflow-hidden">
+    <div class="m3-card shadow-sm rounded-xl overflow-hidden">
       <div class="px-6 py-6">
         <%= form_with model: [:admin, @finals_schedule], class: "space-y-6" do |f| %>
           <% if @finals_schedule.errors.any? %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-              <h3 class="text-sm font-semibold text-red-900 mb-2">Please fix the following errors:</h3>
-              <ul class="list-disc list-inside text-sm text-red-800">
+            <div class="bg-error-container border border-error rounded-xl p-4">
+              <h3 class="text-sm font-semibold text-on-error-container mb-2">Please fix the following errors:</h3>
+              <ul class="list-disc list-inside text-sm text-on-error-container">
                 <% @finals_schedule.errors.full_messages.each do |message| %>
                   <li><%= message %></li>
                 <% end %>
@@ -21,19 +21,19 @@
           <% end %>
 
           <div data-controller="term-filter">
-            <%= f.label :term_id, "Term", class: "block text-sm font-medium text-gray-700 mb-2" %>
+            <%= f.label :term_id, "Term", class: "block text-sm font-medium text-on-surface-variant mb-2" %>
 
             <input type="text"
                    placeholder="Type to filter terms..."
                    data-term-filter-target="search"
                    data-action="input->term-filter#filter"
-                   class="w-full px-4 py-2 mb-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-white/80">
+                   class="w-full px-4 py-2 mb-2 border border-outline-variant rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-surface">
 
-            <div class="border border-gray-300 rounded-md max-h-64 overflow-y-auto bg-white/80">
+            <div class="border border-outline-variant rounded-md max-h-64 overflow-y-auto bg-surface">
               <%= f.hidden_field :term_id, data: { term_filter_target: "input" } %>
 
               <% @terms.each do |term| %>
-                <label class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                <label class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-surface-container border-b border-outline-variant last:border-b-0"
                        data-term-filter-target="option"
                        data-term-name="<%= term.name.downcase %>">
                   <div class="flex items-center gap-2">
@@ -41,48 +41,48 @@
                            name="finals_schedule[term_id]"
                            value="<%= term.id %>"
                            data-action="change->term-filter#select"
-                           class="h-4 w-4 border-gray-300 focus:ring-2 focus:ring-opacity-50"
-                           style="accent-color: #d13732;">
-                    <span class="text-sm font-medium text-gray-900"><%= term.name %></span>
+                           class="h-4 w-4 border-outline-variant focus:ring-2 focus:ring-opacity-50"
+                           style="accent-color: var(--color-primary, #6750a4);">
+                    <span class="text-sm font-medium text-on-surface"><%= term.name %></span>
                   </div>
                   <% if term.past? %>
-                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-800">Retroactive</span>
+                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-secondary-container text-on-secondary-container">Retroactive</span>
                   <% elsif term.active? %>
-                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">Current</span>
+                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-tertiary-container text-on-tertiary-container">Current</span>
                   <% elsif term.upcoming? %>
-                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">Upcoming</span>
+                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-tertiary-container text-on-tertiary-container">Upcoming</span>
                   <% end %>
                 </label>
               <% end %>
 
               <% if @terms.empty? %>
-                <div class="px-4 py-3 text-sm text-gray-500">No terms available.</div>
+                <div class="px-4 py-3 text-sm text-on-surface-variant">No terms available.</div>
               <% end %>
 
-              <div class="px-4 py-3 text-sm text-gray-500 hidden" data-term-filter-target="noResults">
+              <div class="px-4 py-3 text-sm text-on-surface-variant hidden" data-term-filter-target="noResults">
                 No matching terms found.
               </div>
             </div>
 
-            <p class="mt-2 text-sm text-gray-600">Select the term this finals schedule is for.</p>
+            <p class="mt-2 text-sm text-on-surface-variant">Select the term this finals schedule is for.</p>
           </div>
 
           <div>
-            <%= f.label :pdf_file, "PDF File", class: "block text-sm font-medium text-gray-700 mb-2" %>
+            <%= f.label :pdf_file, "PDF File", class: "block text-sm font-medium text-on-surface-variant mb-2" %>
             <%= f.file_field :pdf_file,
                 accept: "application/pdf",
                 required: true,
-                class: "w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-white/80" %>
-            <p class="mt-2 text-sm text-gray-600">
+                class: "w-full px-4 py-2 border border-outline-variant rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-surface" %>
+            <p class="mt-2 text-sm text-on-surface-variant">
               Upload the finals schedule PDF. The system will parse it to extract exam dates, times, and locations.
             </p>
           </div>
 
           <div class="flex gap-3">
-            <%= f.button type: "submit", class: "glass-button px-6 py-2 rounded inline-flex items-center" do %>
+            <%= f.button type: "submit", class: "m3-btn-outlined px-6 py-2 rounded inline-flex items-center" do %>
               Upload and Process
             <% end %>
-            <%= link_to "Cancel", admin_finals_schedules_path, class: "px-6 py-2 rounded inline-flex items-center text-gray-700 hover:text-gray-900" %>
+            <%= link_to "Cancel", admin_finals_schedules_path, class: "px-6 py-2 rounded inline-flex items-center text-on-surface-variant hover:text-on-surface" %>
           </div>
         <% end %>
       </div>

@@ -1,0 +1,54 @@
+<% content_for :title, "Accounts" %>
+
+<div class="max-w-2xl mx-auto space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-on-surface">Connected Accounts</h1>
+    <%= link_to @add_account_url, class: "m3-btn-tonal" do %>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Add account
+    <% end %>
+  </div>
+
+  <% if @credentials.empty? %>
+    <div class="m3-card p-8 text-center text-on-surface-variant">
+      No Google accounts connected yet.
+    </div>
+  <% else %>
+    <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+      <% @credentials.each do |cred| %>
+        <div class="px-5 py-4 flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <p class="text-sm font-medium text-on-surface truncate"><%= cred.email %></p>
+              <% if cred.token_revoked? || cred.needs_reauth? %>
+                <span class="m3-badge-error">Needs re-auth</span>
+              <% elsif cred.google_calendar.present? %>
+                <span class="m3-badge-secondary">Calendar connected</span>
+              <% end %>
+            </div>
+            <p class="text-xs text-on-surface-variant mt-0.5">Added <%= cred.created_at.strftime("%b %d, %Y") %></p>
+            <% if cred.token_expires_at %>
+              <p class="text-xs text-on-surface-variant">
+                Token expires <%= cred.token_expires_at.strftime("%b %d, %Y") %>
+                <% if cred.token_expires_at < Time.current %>
+                  <span class="text-error">(expired)</span>
+                <% end %>
+              </p>
+            <% end %>
+          </div>
+          <% if @credentials.size > 1 %>
+            <%= button_to "Disconnect",
+                dashboard_connected_account_path(cred),
+                method: :delete,
+                data: { turbo_confirm: "Disconnect #{cred.email}?" },
+                class: "m3-btn-danger text-xs px-4 py-2 flex-shrink-0" %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="m3-card p-4 text-sm text-on-surface-variant">
+    <p><strong class="text-on-surface">Add another account</strong> to sync multiple Google Calendars — useful if you use separate work and personal Google accounts.</p>
+  </div>
+</div>

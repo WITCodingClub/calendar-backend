@@ -2,6 +2,8 @@
 
 module Api
   class CalendarPreferencesController < ApiController
+    include PreferenceParams
+
     before_action :set_calendar_preference, only: [:show, :update, :destroy]
 
     def index
@@ -104,25 +106,5 @@ module Api
                               end
     end
 
-    def calendar_preference_params
-      permitted = params.require(:calendar_preference).permit(
-        :title_template, :description_template, :location_template,
-        :color_id, :visibility, reminder_settings: []
-      )
-
-      if params[:calendar_preference][:reminder_settings].present?
-        permitted[:reminder_settings] = params[:calendar_preference][:reminder_settings].map do |reminder|
-          reminder.permit(:time, :method, :type)
-        end
-      elsif params[:calendar_preference].key?(:reminder_settings)
-        permitted[:reminder_settings] = []
-      end
-
-      if permitted[:color_id].is_a?(String) && permitted[:color_id].start_with?("#")
-        permitted[:color_id] = GoogleColors.witcc_to_color_id(permitted[:color_id])
-      end
-
-      permitted
-    end
   end
 end

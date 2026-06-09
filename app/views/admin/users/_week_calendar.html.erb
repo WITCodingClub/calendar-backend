@@ -1,12 +1,12 @@
-<div class="glass-card shadow-lg rounded-lg overflow-hidden" data-controller="schedule-collapse">
+<div class="m3-card shadow-sm rounded-xl overflow-hidden" data-controller="schedule-collapse">
   <div class="px-4 py-3">
     <div class="flex justify-between items-center mb-3">
-      <button type="button" class="flex items-center gap-2 text-lg font-bold hover:text-[#d13732] transition-colors" data-action="click->schedule-collapse#toggle">
+      <button type="button" class="flex items-center gap-2 text-lg font-bold hover:text-primary transition-colors" data-action="click->schedule-collapse#toggle">
         <span data-schedule-collapse-target="chevron" class="transform transition-transform" style="transform: rotate(-90deg);">▼</span>
         <span>Weekly Schedule</span>
       </button>
       <% if terms.size > 1 %>
-        <select class="px-3 py-1 text-sm border border-gray-300 rounded-md shadow-sm bg-white/80 text-[#d13732] border-[rgba(209,55,50,0.3)]"
+        <select class="px-3 py-1 text-sm border border-outline-variant rounded-md shadow-sm bg-surface text-primary"
                 data-action="change->schedule-collapse#switchTerm"
                 data-schedule-collapse-target="termSelect">
           <% terms.each_with_index do |term, index| %>
@@ -50,18 +50,18 @@
               <table class="min-w-full border-collapse">
                 <thead>
                   <tr>
-                    <th class="border border-gray-300 bg-gray-50 px-1 py-1 text-xs font-medium text-gray-700 w-12">Time</th>
+                    <th class="border border-outline-variant bg-surface-container px-1 py-1 text-xs font-medium text-on-surface-variant w-12">Time</th>
                     <% days.each do |day| %>
-                      <th class="border border-gray-300 bg-gray-50 px-1 py-1 text-xs font-medium text-gray-700 min-w-[100px]"><%= day %></th>
+                      <th class="border border-outline-variant bg-surface-container px-1 py-1 text-xs font-medium text-on-surface-variant min-w-[100px]"><%= day %></th>
                     <% end %>
                   </tr>
                 </thead>
                 <tbody>
                   <% time_slots.each_with_index do |time, slot_index| %>
                     <tr>
-                      <td class="border border-gray-300 bg-gray-50 px-1 py-0.5 text-xs font-medium text-gray-700 whitespace-nowrap"><%= time %></td>
+                      <td class="border border-outline-variant bg-surface-container px-1 py-0.5 text-xs font-medium text-on-surface-variant whitespace-nowrap"><%= time %></td>
                       <% days.each_with_index do |day, day_index| %>
-                        <td class="border border-gray-300 p-0 relative h-12">
+                        <td class="border border-outline-variant p-0 relative h-12">
                           <%
                             current_hour = slot_index + 8
                             day_schedule = schedule[day_index].select { |item| item[:start_hour] <= current_hour && current_hour < item[:end_hour] }
@@ -69,8 +69,8 @@
                           <% day_schedule.each do |item| %>
                             <% if item[:start_hour] == current_hour %>
                               <%
-                                bg_class   = item[:active] ? "bg-[#d13732]/15 border-[#d13732]/40" : "bg-gray-100 border-gray-300"
-                                text_class = item[:active] ? "text-[#d13732]" : "text-gray-500"
+                                bg_class   = item[:active] ? "bg-primary-container border-primary" : "bg-surface-container-high border-outline-variant"
+                                text_class = item[:active] ? "text-primary" : "text-on-surface-variant"
                               %>
                               <div class="absolute inset-x-0 top-0 <%= bg_class %> border rounded p-0.5 m-0.5 overflow-hidden"
                                    style="height: <%= item[:duration] * 100 %>%; z-index: 10;">
@@ -78,7 +78,7 @@
                                   <%= item[:course].subject %> <%= item[:course].course_number %>
                                 </div>
                                 <% if item[:meeting_time].building_room.present? %>
-                                  <div class="text-xs text-gray-500 truncate"><%= item[:meeting_time].building_room %></div>
+                                  <div class="text-xs text-on-surface-variant truncate"><%= item[:meeting_time].building_room %></div>
                                 <% end %>
                               </div>
                             <% end %>
@@ -91,27 +91,27 @@
               </table>
             </div>
 
-            <div class="mt-4 text-sm text-gray-600">
+            <div class="mt-4 text-sm text-on-surface-variant">
               <h3 class="font-semibold mb-2">Course Details:</h3>
               <div class="space-y-2">
                 <% enrollments.each do |enrollment| %>
-                  <div class="border-l-4 border-[#d13732]/30 pl-3 py-1">
-                    <div class="font-medium text-gray-900">
+                  <div class="border-l-4 border-primary pl-3 py-1">
+                    <div class="font-medium text-on-surface">
                       <%= enrollment.course.subject %> <%= enrollment.course.course_number %>: <%= enrollment.course.title %>
                     </div>
                     <% if enrollment.course.faculties.any? %>
-                      <div class="text-xs text-gray-600">Instructor(s): <%= enrollment.course.faculties.map(&:display_name).join(", ") %></div>
+                      <div class="text-xs text-on-surface-variant">Instructor(s): <%= enrollment.course.faculties.map(&:display_name).join(", ") %></div>
                     <% end %>
                     <% unique_locations = enrollment.course.meeting_times.map(&:building_room).compact.uniq %>
                     <% if unique_locations.any? %>
-                      <div class="text-xs text-gray-600">Location(s): <%= unique_locations.join(", ") %></div>
+                      <div class="text-xs text-on-surface-variant">Location(s): <%= unique_locations.join(", ") %></div>
                     <% end %>
                   </div>
                 <% end %>
               </div>
             </div>
           <% else %>
-            <p class="text-gray-600">No courses found for <%= term.name %>.</p>
+            <p class="text-on-surface-variant">No courses found for <%= term.name %>.</p>
           <% end %>
         </div>
       <% end %>

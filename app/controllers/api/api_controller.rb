@@ -4,14 +4,18 @@ module Api
   class ApiController < ActionController::API
     include Pundit::Authorization
     include JsonWebTokenAuthenticatable
+    include FeatureFlagGated
     include PublicIdLookupable
+    include PreferenceSerializable
 
-    rescue_from StandardError,                  with: :render_internal_server_error
-    rescue_from ActiveRecord::RecordNotFound,   with: :render_not_found
-    rescue_from ActiveRecord::RecordInvalid,    with: :render_unprocessable_entity
-    rescue_from ActionController::BadRequest,
-                ActionController::ParameterMissing, with: :render_bad_request
-    rescue_from Pundit::NotAuthorizedError,     with: :render_forbidden
+    self.gated_feature_key = :v1
+
+    # Ensure all responses are JSON
+    rescue_from StandardError, with: :render_internal_server_error
+    rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
+    rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable_entity
+    rescue_from ActionController::BadRequest, ActionController::ParameterMissing, with: :render_bad_request
+    rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
 
     private
 
@@ -41,5 +45,6 @@ module Api
         render json: { error: "Internal server error" }, status: :internal_server_error
       end
     end
+
   end
 end

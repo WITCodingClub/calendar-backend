@@ -20,6 +20,11 @@ class CatalogImportService < ApplicationService
 
     term_uids = unique_courses.map { |c| c["term"] || c["termEffective"] }.compact.uniq
 
+    missing = term_uids.reject { |uid| Term.exists?(uid: uid) }
+    if missing.any?
+      raise ArgumentError, "Terms not found in database: #{missing.join(', ')}. Create them before importing."
+    end
+
     unique_courses.each_with_index do |course_data, index|
       begin
         process_course(course_data)
@@ -77,6 +82,10 @@ class CatalogImportService < ApplicationService
 
     schedule_type_desc = course_data["scheduleTypeDescription"] || course_data["scheduleType"]
     schedule_type_match = schedule_type_desc.to_s.match(/\(([^)]+)\)/)
+    raw_code = schedule_type_match ? schedule_type_match[1] : nil
+    schedule_type_key = raw_code ? Course::ScheduleType.key_for_code(raw_code) : nil
+
+    raise "Unknown or missing schedule type '#{schedule_type_desc}' (extracted code: #{raw_code.inspect}) for CRN #{crn}" unless schedule_type_key
 
     raw_meeting_times = []
     if course_data["meetingsFaculty"].is_a?(Array)
@@ -103,15 +112,23 @@ class CatalogImportService < ApplicationService
         start_date = term.start_date
         end_date = term.end_date
       end
+    else
+      start_date = term.start_date
+      end_date = term.end_date
+    end
+
+    if start_date.nil? || end_date.nil?
+      raise "Cannot determine dates for CRN #{crn}: no meeting times and term #{term.uid} (#{term.name}) has no dates set"
     end
 
     course = Course.find_or_create_by!(crn: crn, term: term) do |c|
       c.title = titleize_with_roman_numerals(course_data["courseTitle"] || "Untitled Course")
       c.subject = course_data["subject"] || course_data["subjectCode"]
       c.course_number = course_data["courseNumber"]
-      c.schedule_type = schedule_type_match ? schedule_type_match[1] : nil
+      c.schedule_type = schedule_type_key
       c.section_number = normalize_section_number(course_data["sequenceNumber"] || course_data["sectionNumber"])
-      c.credit_hours = schedule_type_match && schedule_type_match[1] == "LAB" ? 0 : course_data["creditHours"]
+      raw_hours = raw_code == "LAB" ? nil : course_data["creditHours"]
+      c.credit_hours = raw_hours.to_i.positive? ? raw_hours : nil
       c.grade_mode = nil
       c.start_date = start_date
       c.end_date = end_date

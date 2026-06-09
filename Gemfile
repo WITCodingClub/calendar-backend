@@ -4,7 +4,8 @@ gem "rails", "~> 8.1.3"
 gem "propshaft"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
-gem "jsbundling-rails"
+gem "importmap-rails"
+gem "tailwindcss-rails"
 gem "turbo-rails"
 gem "stimulus-rails"
 gem "jbuilder"
@@ -15,6 +16,17 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 gem "solid_cache"
 gem "solid_queue"
 gem "solid_cable"
+gem "mission_control-jobs"
+
+# Admin tooling
+gem "flipper"
+gem "flipper-active_record"
+gem "flipper-ui"
+gem "flipper-active_support_cache_store"
+gem "blazer"
+gem "pghero"
+gem "audits1984"
+gem "console1984"
 
 gem "bootsnap", require: false
 gem "kamal", require: false
@@ -54,6 +66,7 @@ gem "htmlentities"
 
 # HTTP client (for LeopardWeb, RMP, faculty directory scraping)
 gem "faraday"
+gem "faraday-retry"
 
 # JWT for OAuth state signing and RISC webhook validation
 gem "jwt"

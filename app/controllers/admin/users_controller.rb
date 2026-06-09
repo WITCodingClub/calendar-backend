@@ -32,10 +32,10 @@ module Admin
       authorize @user
 
       @enrollments_by_term = @user.enrollments
-                                  .includes({ course: :faculties }, :term)
-                                  .joins(:term)
+                                  .includes({ course: [ :faculties, :term ] })
+                                  .joins(course: :term)
                                   .order("terms.year DESC, terms.season DESC")
-                                  .group_by(&:term)
+                                  .group_by { |e| e.course.term }
 
       @oauth_credentials = @user.oauth_credentials
                                 .includes(:google_calendar)

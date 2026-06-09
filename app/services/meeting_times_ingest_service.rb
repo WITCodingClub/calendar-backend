@@ -21,10 +21,17 @@ class MeetingTimesIngestService < ApplicationService
 
   private
 
+  ONLINE_SCHEDULE_TYPES = %w[online online_blended online_sync_lab online_sync_lecture].freeze
+
   def preload_buildings_and_rooms
-    building_data = @raw_meeting_times.map { |mt|
-      [(mt["building"] || mt[:building]).to_s.strip,
-       (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip]
+    building_data = @raw_meeting_times.filter_map { |mt|
+      abbr = (mt["building"] || mt[:building]).to_s.strip
+      desc = (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip
+      next if abbr.blank? && online_course?
+
+      abbr = "TBD" if abbr.blank?
+      desc = "To Be Determined" if abbr == "TBD" && desc.blank?
+      [abbr, desc]
     }.uniq { |abbr, _| abbr }
     abbrs = building_data.map(&:first).uniq
 
@@ -33,13 +40,20 @@ class MeetingTimesIngestService < ApplicationService
     building_data.each do |abbr, name|
       next if @building_cache.key?(abbr)
 
-      @building_cache[abbr] = Building.create!(abbreviation: abbr, name: name.presence || abbr)
+      @building_cache[abbr] = Building.find_or_create_by!(abbreviation: abbr) do |b|
+        b.name = name.presence || abbr
+      end
     end
 
     return if @building_cache.empty?
 
     needed_rooms = @raw_meeting_times.filter_map { |mt|
-      abbr = (mt["building"] || mt[:building]).to_s.strip
+      raw_abbr = (mt["building"] || mt[:building]).to_s.strip
+      abbr = if raw_abbr.blank?
+               online_course? ? next : "TBD"
+             else
+               raw_abbr
+             end
       building = @building_cache[abbr]
       next unless building
 
@@ -96,6 +110,13 @@ class MeetingTimesIngestService < ApplicationService
 
     building_abbr = (mt["building"] || mt[:building]).to_s.strip
     building_name = (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip
+
+    if building_abbr.blank?
+      return if online_course?
+      building_abbr = "TBD"
+      building_name = "To Be Determined"
+    end
+
     building = @building_cache[building_abbr] ||= Building.find_or_create_by!(abbreviation: building_abbr) do |b|
       b.name = building_name.presence || building_abbr
     end
@@ -211,24 +232,18 @@ class MeetingTimesIngestService < ApplicationService
   end
 
   def map_schedule_type(val)
-    return nil if val.nil?
-
     case val.to_s.strip.upcase
-    when "LEC"   then 1
-    when "LAB"   then 2
-    else
-      nil
+    when "LAB" then 2
+    else 1
     end
   end
 
-  def map_meeting_type(val)
-    return nil if val.nil?
+  def map_meeting_type(_val)
+    1
+  end
 
-    case val.to_s.strip.upcase
-    when "CLAS" then 1
-    else
-      nil
-    end
+  def online_course?
+    ONLINE_SCHEDULE_TYPES.include?(course.schedule_type.to_s)
   end
 
   def compute_hours_per_day(begin_hhmm, end_hhmm)

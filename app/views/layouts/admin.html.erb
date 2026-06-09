@@ -7,63 +7,10 @@
   <title><%= content_for(:title) { "Admin" } %> — WIT Calendar</title>
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
-  <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+  <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
   <%= javascript_importmap_tags %>
-  <style>
-    .glass-card {
-      background: rgba(255,255,255,0.6);
-      backdrop-filter: blur(5px);
-      -webkit-backdrop-filter: blur(5px);
-      border: 1px solid rgba(209,55,50,0.3);
-    }
-    .glass-button {
-      background: rgba(255,255,255,0.7);
-      border: 1px solid rgba(209,55,50,0.3);
-      color: #d13732;
-      transition: all 0.15s;
-    }
-    .glass-button:hover {
-      background: rgba(209,55,50,0.1);
-      border-color: #d13732;
-    }
-    .glass-input {
-      background: rgba(255,255,255,0.8);
-      border-color: rgba(209,55,50,0.3);
-    }
-    .glass-input:focus {
-      outline: none;
-      border-color: #d13732;
-      box-shadow: 0 0 0 3px rgba(209,55,50,0.15);
-    }
-    .stat-card {
-      background: rgba(255,255,255,0.6);
-      backdrop-filter: blur(5px);
-      -webkit-backdrop-filter: blur(5px);
-      border: 1px solid rgba(209,55,50,0.2);
-      border-radius: 0.5rem;
-      transition: all 0.15s;
-    }
-    .stat-card:hover {
-      background: rgba(255,255,255,0.8);
-      border-color: rgba(209,55,50,0.4);
-    }
-    .quick-action-link {
-      display: block;
-      padding: 0.5rem 1rem;
-      color: #d13732;
-      border-radius: 0.375rem;
-      transition: background 0.15s;
-    }
-    .quick-action-link:hover {
-      background: rgba(209,55,50,0.08);
-    }
-    body {
-      background: linear-gradient(135deg, #f5f7fa 0%, #e8edf5 50%, #f0e8e8 100%);
-      min-height: 100vh;
-    }
-  </style>
 </head>
-<body class="h-full" data-controller="admin-layout">
+<body class="h-full bg-surface text-on-surface" data-controller="admin-layout">
   <%= render "shared/flash_messages" %>
   <%= render "shared/command_palette" %>
 
@@ -73,10 +20,10 @@
     <!-- Main content -->
     <div class="flex-1 flex flex-col min-w-0 lg:ml-64">
       <!-- Top bar -->
-      <header class="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-gray-200/60 px-4 py-3 flex items-center justify-between">
+      <header class="sticky top-0 z-20 bg-surface-container border-b border-outline-variant px-4 py-3 flex items-center justify-between">
         <!-- Mobile menu button -->
         <button type="button"
-                class="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                class="lg:hidden p-2 rounded-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
                 data-action="click->admin-sidebar#open">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
@@ -85,27 +32,27 @@
 
         <!-- Command palette trigger -->
         <button type="button"
-                class="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                class="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-on-surface-variant border border-outline-variant rounded-lg hover:bg-surface-container-high transition"
                 data-action="click->command-palette#open">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
           <span>Search...</span>
-          <kbd class="text-xs bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">⌘K</kbd>
+          <kbd class="text-xs bg-surface-container-high px-1.5 py-0.5 rounded border border-outline-variant">⌘K</kbd>
         </button>
 
         <!-- User info + sign out -->
         <div class="flex items-center gap-3">
-          <span class="text-sm text-gray-700 font-medium"><%= current_user&.full_name %></span>
+          <span class="text-sm text-on-surface font-medium"><%= current_user&.full_name %></span>
           <%= link_to "Sign out",
               destroy_user_session_path,
               data: { turbo_method: :delete },
-              class: "text-sm text-gray-500 hover:text-[#d13732] transition" %>
+              class: "text-sm text-on-surface-variant hover:text-primary transition" %>
         </div>
       </header>
 
       <!-- Page content -->
-      <main class="flex-1 p-6">
+      <main class="flex-1 p-6 overflow-x-auto">
         <%= yield %>
       </main>
 

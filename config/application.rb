@@ -15,12 +15,13 @@ module Calendar
 
     config.active_job.queue_adapter = :solid_queue
 
+    config.mission_control.jobs.base_controller_class = "Admin::ApplicationController"
+    config.mission_control.jobs.http_basic_auth_enabled = false
+
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
-
-    config.relative_url_root = '/app'
 
     # Configuration for the application, engines, and railties goes here.
     #
