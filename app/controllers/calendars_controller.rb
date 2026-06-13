@@ -179,7 +179,10 @@ class CalendarsController < ApplicationController
   end
 
   def add_university_events(cal)
-    UniversityCalendarEvent.holidays.find_each do |event|
+    enrolled_term_ids = @courses.map(&:term_id).compact.uniq
+    return if enrolled_term_ids.empty?
+
+    UniversityCalendarEvent.holidays.where(term_id: enrolled_term_ids).find_each do |event|
       add_university_event_to_calendar(cal, event, force_all_day: true)
     end
 
@@ -189,7 +192,7 @@ class CalendarsController < ApplicationController
     categories = (user_config.university_event_categories || []) - ["holiday"]
     return if categories.empty?
 
-    UniversityCalendarEvent.by_categories(categories).find_each do |event|
+    UniversityCalendarEvent.by_categories(categories).where(term_id: enrolled_term_ids).find_each do |event|
       add_university_event_to_calendar(cal, event)
     end
   end
