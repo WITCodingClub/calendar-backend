@@ -3,7 +3,14 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/.iml" filepath="$PROJECT_DIR$/.idea/modules/.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/calendar.iml" filepath="$PROJECT_DIR$/.idea/calendar.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/backend.iml" filepath="$PROJECT_DIR$/.idea/backend.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/feat-course-seats-355.iml" filepath="$PROJECT_DIR$/.idea/modules/feat-course-seats-355.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/feature-course-recommendations-340.iml" filepath="$PROJECT_DIR$/.idea/modules/feature-course-recommendations-340.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/feature-multi-semester-planning-341.iml" filepath="$PROJECT_DIR$/.idea/modules/feature-multi-semester-planning-341.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/feature-transfer-credit-342.iml" filepath="$PROJECT_DIR$/.idea/modules/feature-transfer-credit-342.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/fix-admin-quick-actions-237.iml" filepath="$PROJECT_DIR$/.idea/modules/fix-admin-quick-actions-237.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/fix-finals-room-alignment-415.iml" filepath="$PROJECT_DIR$/.idea/modules/fix-finals-room-alignment-415.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/fix-watsn-aud-room-path.iml" filepath="$PROJECT_DIR$/.idea/modules/fix-watsn-aud-room-path.iml" />
     </modules>
   </component>
 </project>

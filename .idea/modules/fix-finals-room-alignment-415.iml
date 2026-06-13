@@ -1,12 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="RUBY_MODULE" version="4">
+  <component name="FacetManager">
+    <facet type="RailsFacetType" name="Ruby on Rails">
+      <configuration>
+        <RAILS_FACET_CONFIG_ID NAME="RAILS_FACET_SUPPORT_REMOVED" VALUE="false" />
+        <RAILS_FACET_CONFIG_ID NAME="RAILS_TESTS_SOURCES_PATCHED" VALUE="true" />
+        <RAILS_FACET_CONFIG_ID NAME="RAILS_FACET_APPLICATION_ROOT" VALUE="$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415" />
+      </configuration>
+    </facet>
+  </component>
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$/../../.ruby-lsp">
-      <sourceFolder url="file://$MODULE_DIR$/../../.ruby-lsp/features" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/../../.ruby-lsp/spec" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/../../.ruby-lsp/test" isTestSource="true" />
+    <content url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415">
+      <sourceFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/features" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/spec" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/test" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/.bundle" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/components" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/log" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/public/packs" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/public/system" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/vendor/bundle" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/vendor/cache" />
     </content>
-    <orderEntry type="jdk" jdkName="mise: 4.0.1" jdkType="RUBY_SDK" />
+    <orderEntry type="jdk" jdkName="mise: 3.4.7" jdkType="RUBY_SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" scope="PROVIDED" name="Ascii85 (v2.0.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="aasm (v5.5.2, mise: 4.0.1) [gem]" level="application" />
@@ -154,7 +171,6 @@
     <orderEntry type="library" scope="PROVIDED" name="rainbow (v3.1.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rb-fsevent (v0.11.2, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rb-inotify (v0.11.1, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="rbs (v4.0.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rdoc (v7.2.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="redis (v5.4.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="redis-session-store (v0.11.6, mise: 4.0.1) [gem]" level="application" />
@@ -175,8 +191,6 @@
     <orderEntry type="library" scope="PROVIDED" name="rubocop-rails (v2.34.3, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rubocop-rspec (v3.9.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rubocop-rspec_rails (v2.32.0, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="ruby-lsp (v0.26.8, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="ruby-lsp-rails (v0.4.8, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ruby-openai (v8.3.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ruby-progressbar (v1.13.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ruby-rc4 (v0.1.5, mise: 4.0.1) [gem]" level="application" />
@@ -215,6 +229,104 @@
     <orderEntry type="library" scope="PROVIDED" name="with_advisory_lock (v7.5.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="xpath (v3.2.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="zeitwerk (v2.7.5, mise: 4.0.1) [gem]" level="application" />
+  </component>
+  <component name="RailsPaths" isManagedAutomatically="true">
+    <entry key="app">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/app</value>
+    </entry>
+    <entry key="app/assets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/app/assets</value>
+    </entry>
+    <entry key="app/channels">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/app/channels</value>
+    </entry>
+    <entry key="app/controllers">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/app/controllers</value>
+    </entry>
+    <entry key="app/helpers">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/app/helpers</value>
+    </entry>
+    <entry key="app/mailers">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/app/mailers</value>
+    </entry>
+    <entry key="app/models">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/app/models</value>
+    </entry>
+    <entry key="app/views">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/app/views</value>
+    </entry>
+    <entry key="config">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config</value>
+    </entry>
+    <entry key="config/cable">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config/cable.yml</value>
+    </entry>
+    <entry key="config/database">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config/database.yml</value>
+    </entry>
+    <entry key="config/environment">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config/environment.rb</value>
+    </entry>
+    <entry key="config/environments">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config/environments</value>
+    </entry>
+    <entry key="config/initializers">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config/initializers</value>
+    </entry>
+    <entry key="config/locales">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config/locales</value>
+    </entry>
+    <entry key="config/routes">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config/routes</value>
+    </entry>
+    <entry key="config/routes.rb">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config/routes.rb</value>
+    </entry>
+    <entry key="config/secrets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/config</value>
+    </entry>
+    <entry key="db">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/db</value>
+    </entry>
+    <entry key="db/migrate">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/db/migrate</value>
+    </entry>
+    <entry key="db/seeds.rb">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/db/seeds.rb</value>
+    </entry>
+    <entry key="lib">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/lib</value>
+    </entry>
+    <entry key="lib/assets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/lib/assets</value>
+    </entry>
+    <entry key="lib/tasks">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/lib/tasks</value>
+    </entry>
+    <entry key="lib/templates">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/lib/templates</value>
+    </entry>
+    <entry key="log">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/log/development.log</value>
+    </entry>
+    <entry key="public">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/public</value>
+    </entry>
+    <entry key="public/javascripts">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/public/javascripts</value>
+    </entry>
+    <entry key="public/stylesheets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/public/stylesheets</value>
+    </entry>
+    <entry key="tmp">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/tmp</value>
+    </entry>
+    <entry key="vendor">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/vendor</value>
+    </entry>
+    <entry key="vendor/assets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-finals-room-alignment-415/vendor/assets</value>
+    </entry>
   </component>
   <component name="RubyModuleProperties">
     <option name="autoCreated" value="true" />

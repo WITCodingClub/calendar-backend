@@ -1,17 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="RUBY_MODULE" version="4">
+  <component name="FacetManager">
+    <facet type="RailsFacetType" name="Ruby on Rails">
+      <configuration>
+        <RAILS_FACET_CONFIG_ID NAME="RAILS_FACET_SUPPORT_REMOVED" VALUE="false" />
+        <RAILS_FACET_CONFIG_ID NAME="RAILS_TESTS_SOURCES_PATCHED" VALUE="true" />
+        <RAILS_FACET_CONFIG_ID NAME="RAILS_FACET_APPLICATION_ROOT" VALUE="$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237" />
+      </configuration>
+    </facet>
+  </component>
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$/../../.ruby-lsp">
-      <sourceFolder url="file://$MODULE_DIR$/../../.ruby-lsp/features" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/../../.ruby-lsp/spec" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/../../.ruby-lsp/test" isTestSource="true" />
+    <content url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237">
+      <sourceFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/features" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/spec" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/test" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/.bundle" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/components" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/log" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/public/packs" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/public/system" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/vendor/bundle" />
+      <excludeFolder url="file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/vendor/cache" />
     </content>
-    <orderEntry type="jdk" jdkName="mise: 4.0.1" jdkType="RUBY_SDK" />
+    <orderEntry type="jdk" jdkName="mise: 3.4.7" jdkType="RUBY_SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" scope="PROVIDED" name="Ascii85 (v2.0.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="aasm (v5.5.2, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="acts_as_paranoid (v0.11.0, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="actual_db_schema (v0.9.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="afm (v1.0.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ahoy_email (v3.0.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="annotaterb (v4.22.0, mise: 4.0.1) [gem]" level="application" />
@@ -25,7 +41,6 @@
     <orderEntry type="library" scope="PROVIDED" name="bindex (v0.8.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="blazer (v3.3.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="bootsnap (v1.23.0, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="brakeman (v8.0.4, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="browser (v6.2.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="builder (v3.3.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="bundler (v2.7.2, mise: 4.0.1) [gem]" level="application" />
@@ -50,7 +65,7 @@
     <orderEntry type="library" scope="PROVIDED" name="ed25519 (v1.4.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="email_reply_parser (v0.5.11, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="encoded_ids (v1.1.0, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="erb (v6.0.2, mise: 4.0.1) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="erb (v6.0.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="erubi (v1.13.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="et-orbi (v1.4.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="event_stream_parser (v1.0.0, mise: 4.0.1) [gem]" level="application" />
@@ -64,11 +79,9 @@
     <orderEntry type="library" scope="PROVIDED" name="foreman (v0.90.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="fugit (v1.12.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="globalid (v1.3.0, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="google-apis-calendar_v3 (v0.53.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="google-apis-core (v1.0.2, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="google-cloud-env (v2.3.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="google-logging-utils (v0.2.0, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="googleauth (v1.16.2, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="hashdiff (v1.2.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="hashery (v2.1.2, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="hashid-rails (v1.4.1, mise: 4.0.1) [gem]" level="application" />
@@ -120,7 +133,6 @@
     <orderEntry type="library" scope="PROVIDED" name="oauth2 (v2.0.18, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="okcomputer (v1.19.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="omniauth (v2.1.4, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="omniauth-google-oauth2 (v1.2.2, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="omniauth-oauth2 (v1.9.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="os (v1.1.4, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ostruct (v0.6.3, mise: 4.0.1) [gem]" level="application" />
@@ -136,7 +148,6 @@
     <orderEntry type="library" scope="PROVIDED" name="prettyprint (v0.2.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="prism (v1.9.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="psych (v5.3.1, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="public_suffix (v7.0.5, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="pundit (v2.5.2, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="pundit-matchers (v4.0.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="query_count (v1.1.1, mise: 4.0.1) [gem]" level="application" />
@@ -149,12 +160,10 @@
     <orderEntry type="library" scope="PROVIDED" name="rack-test (v2.2.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rackup (v2.3.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rails-dom-testing (v2.3.0, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="rails-html-sanitizer (v1.7.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rails_performance (v1.6.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rainbow (v3.1.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rb-fsevent (v0.11.2, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rb-inotify (v0.11.1, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="rbs (v4.0.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rdoc (v7.2.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="redis (v5.4.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="redis-session-store (v0.11.6, mise: 4.0.1) [gem]" level="application" />
@@ -175,8 +184,6 @@
     <orderEntry type="library" scope="PROVIDED" name="rubocop-rails (v2.34.3, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rubocop-rspec (v3.9.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="rubocop-rspec_rails (v2.32.0, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="ruby-lsp (v0.26.8, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="ruby-lsp-rails (v0.4.8, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ruby-openai (v8.3.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ruby-progressbar (v1.13.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="ruby-rc4 (v0.1.5, mise: 4.0.1) [gem]" level="application" />
@@ -208,13 +215,110 @@
     <orderEntry type="library" scope="PROVIDED" name="uri (v1.1.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="useragent (v0.16.11, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="version_gem (v1.1.9, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="web-console (v4.3.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="websocket (v1.2.11, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="websocket-driver (v0.8.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="websocket-extensions (v0.1.5, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="with_advisory_lock (v7.5.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="xpath (v3.2.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="zeitwerk (v2.7.5, mise: 4.0.1) [gem]" level="application" />
+  </component>
+  <component name="RailsPaths" isManagedAutomatically="true">
+    <entry key="app">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/app</value>
+    </entry>
+    <entry key="app/assets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/app/assets</value>
+    </entry>
+    <entry key="app/channels">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/app/channels</value>
+    </entry>
+    <entry key="app/controllers">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/app/controllers</value>
+    </entry>
+    <entry key="app/helpers">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/app/helpers</value>
+    </entry>
+    <entry key="app/mailers">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/app/mailers</value>
+    </entry>
+    <entry key="app/models">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/app/models</value>
+    </entry>
+    <entry key="app/views">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/app/views</value>
+    </entry>
+    <entry key="config">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config</value>
+    </entry>
+    <entry key="config/cable">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config/cable.yml</value>
+    </entry>
+    <entry key="config/database">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config/database.yml</value>
+    </entry>
+    <entry key="config/environment">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config/environment.rb</value>
+    </entry>
+    <entry key="config/environments">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config/environments</value>
+    </entry>
+    <entry key="config/initializers">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config/initializers</value>
+    </entry>
+    <entry key="config/locales">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config/locales</value>
+    </entry>
+    <entry key="config/routes">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config/routes</value>
+    </entry>
+    <entry key="config/routes.rb">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config/routes.rb</value>
+    </entry>
+    <entry key="config/secrets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/config</value>
+    </entry>
+    <entry key="db">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/db</value>
+    </entry>
+    <entry key="db/migrate">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/db/migrate</value>
+    </entry>
+    <entry key="db/seeds.rb">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/db/seeds.rb</value>
+    </entry>
+    <entry key="lib">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/lib</value>
+    </entry>
+    <entry key="lib/assets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/lib/assets</value>
+    </entry>
+    <entry key="lib/tasks">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/lib/tasks</value>
+    </entry>
+    <entry key="lib/templates">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/lib/templates</value>
+    </entry>
+    <entry key="log">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/log/development.log</value>
+    </entry>
+    <entry key="public">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/public</value>
+    </entry>
+    <entry key="public/javascripts">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/public/javascripts</value>
+    </entry>
+    <entry key="public/stylesheets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/public/stylesheets</value>
+    </entry>
+    <entry key="tmp">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/tmp</value>
+    </entry>
+    <entry key="vendor">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/vendor</value>
+    </entry>
+    <entry key="vendor/assets">
+      <value>file://$MODULE_DIR$/../../.worktrees/fix-admin-quick-actions-237/vendor/assets</value>
+    </entry>
   </component>
   <component name="RubyModuleProperties">
     <option name="autoCreated" value="true" />
