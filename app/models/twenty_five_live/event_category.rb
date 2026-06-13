@@ -1,5 +1,21 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: twenty_five_live_event_categories
+#
+#  id                  :bigint           not null, primary key
+#  defn_state          :integer          default(1), not null
+#  name                :string           not null
+#  sort_order          :integer
+#  created_at          :datetime         not null
+#  updated_at          :datetime         not null
+#  twenty_five_live_id :integer          not null
+#
+# Indexes
+#
+#  index_twenty_five_live_event_categories_on_twenty_five_live_id  (twenty_five_live_id) UNIQUE
+#
 module TwentyFiveLive
   class EventCategory < ApplicationRecord
     self.table_name = "twenty_five_live_event_categories"

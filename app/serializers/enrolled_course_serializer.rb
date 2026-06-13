@@ -16,15 +16,23 @@ class EnrolledCourseSerializer
     filtered_meeting_times = deduplicate_meeting_times(course.meeting_times)
 
     {
-      title:         titleize_with_roman_numerals(course.title),
-      course_number: course.course_number,
-      schedule_type: course.schedule_type,
-      prefix:        course.prefix,
-      term:          TermSerializer.new(@term).as_json,
-      professor:     FacultySerializer.new(faculty).as_json,
-      meeting_times: filtered_meeting_times.map do |mt|
-        MeetingTimeSerializer.new(mt, preference_resolver: @preference_resolver, template_renderer: @template_renderer).as_json
-      end
+      title:          titleize_with_roman_numerals(course.title),
+      subject:        course.prefix,
+      course_number:  course.course_number,
+      section_number: course.section_number,
+      credit_hours:   course.credit_hours,
+      schedule_type:  course.schedule_type,
+      prefix:         course.prefix,
+      instructors:    course.faculties.map { |f| [ f.first_name, f.last_name ].compact.join(" ").presence }.compact,
+      term:           TermSerializer.new(@term).as_json,
+      professor:      FacultySerializer.new(faculty).as_json,
+      meeting_times:  filtered_meeting_times.map do |mt|
+                        MeetingTimeSerializer.new(
+                          mt,
+                          preference_resolver: @preference_resolver,
+                          template_renderer:   @template_renderer
+                        ).as_json
+                      end
     }
   end
 

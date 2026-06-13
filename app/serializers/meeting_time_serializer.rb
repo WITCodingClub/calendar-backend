@@ -27,11 +27,15 @@ class MeetingTimeSerializer
     witcc_color = GoogleColors.to_witcc_hex(color_value)
 
     {
-      id:         @mt.public_id,
-      begin_time: @mt.fmt_begin_time_military,
-      end_time:   @mt.fmt_end_time_military,
-      start_date: @mt.start_date,
-      end_date:   @mt.end_date,
+      id:                  @mt.public_id,
+      day_of_week:         @mt.day_of_week,
+      begin_time:          @mt.begin_time ? @mt.fmt_begin_time_military : nil,
+      end_time:            @mt.end_time ? @mt.fmt_end_time_military : nil,
+      begin_time_display:  @mt.begin_time ? @mt.fmt_begin_time : nil,
+      end_time_display:    @mt.end_time ? @mt.fmt_end_time : nil,
+      building_room:       @mt.building_room,
+      start_date:          @mt.start_date,
+      end_date:            @mt.end_date,
       location: {
         building: building_json,
         rooms:    @mt.rooms.map(&:formatted_number)

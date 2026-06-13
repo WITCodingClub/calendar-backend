@@ -1,5 +1,30 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: user_extension_configs
+#
+#  id                          :bigint           not null, primary key
+#  advanced_editing            :boolean          default(FALSE), not null
+#  default_color_lab           :string           default("#f6bf26"), not null
+#  default_color_lecture       :string           default("#039be5"), not null
+#  enrolled_terms              :jsonb            not null
+#  military_time               :boolean          default(FALSE), not null
+#  show_historic_terms         :boolean          default(FALSE), not null
+#  sync_university_events      :boolean          default(FALSE), not null
+#  university_event_categories :jsonb
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  user_id                     :bigint           not null
+#
+# Indexes
+#
+#  index_user_extension_configs_on_user_id  (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
 class UserExtensionConfig < ApplicationRecord
   include EncodedIds::HashidIdentifiable
 
