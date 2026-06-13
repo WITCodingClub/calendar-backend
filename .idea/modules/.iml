@@ -59,7 +59,6 @@
     <orderEntry type="library" scope="PROVIDED" name="jbuilder (v2.15.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="jsbundling-rails (v1.3.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="json (v2.19.5, mise: 4.0.1) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="kamal (v2.11.0, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="language_server-protocol (v3.17.0.5, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="launchy (v3.1.1, mise: 4.0.1) [gem]" level="application" />
     <orderEntry type="library" scope="PROVIDED" name="letter_opener (v1.10.0, mise: 4.0.1) [gem]" level="application" />

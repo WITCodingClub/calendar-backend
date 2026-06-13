@@ -29,7 +29,6 @@ gem "audits1984"
 gem "console1984"
 
 gem "bootsnap", require: false
-gem "kamal", require: false
 gem "thruster", require: false
 gem "image_processing", "~> 1.2"
 
