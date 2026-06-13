@@ -38,6 +38,9 @@ Rails.application.routes.draw do
     post "user/is_processed",      to: "users#is_processed"
     post "user/processed_events",  to: "users#get_processed_events_by_term"
 
+    get "user/extension_config",           to: "user_extension_config#get"
+    put "user/extension_config",           to: "user_extension_config#set"
+
     get  "user/notifications_status",     to: "users#notifications_status"
     post "user/notifications/disable",    to: "users#disable_notifications"
     post "user/notifications/enable",     to: "users#enable_notifications"

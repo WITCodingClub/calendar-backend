@@ -39,13 +39,14 @@ class Course < ApplicationRecord
 
   # Returns deduplicated meeting times, preferring non-TBD locations when there are duplicates.
   def filtered_meeting_times
-    meeting_times.includes(room: :building).group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
-                 .map do |_key, group|
-                   next group.first if group.size == 1
+    mts = meeting_times.loaded? ? meeting_times : meeting_times.includes(room: :building)
+    mts.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
+       .map do |_key, group|
+         next group.first if group.size == 1
 
-                   non_tbd = group.reject { |mt| tbd_location?(mt) }
-                   non_tbd.any? ? non_tbd.first : group.first
-                 end
+         non_tbd = group.reject { |mt| tbd_location?(mt) }
+         non_tbd.any? ? non_tbd.first : group.first
+       end
   end
 
   private

@@ -1,15 +1,100 @@
-# examples:
-#   periodic_cleanup:
-#     class: CleanSoftDeletedRecordsJob
-#     queue: background
-#     args: [ 1000, { batch_size: 500 } ]
-#     schedule: every hour
-#   periodic_cleanup_with_command:
-#     command: "SoftDeletedRecord.due.delete_all"
-#     priority: 2
-#     schedule: at 5am every day
+# All times are in the application's configured timezone (EST).
+# Jobs run on the 'low' queue unless otherwise noted.
 
 production:
+  # ---------------------------------------------------------------------------
+  # FREQUENT
+  # ---------------------------------------------------------------------------
+
+  pghero_capture_query_stats:
+    class: PgheroCaptureQueryStatsJob
+    queue: low
+    schedule: every 5 minutes
+
+  # ---------------------------------------------------------------------------
+  # HOURLY
+  # ---------------------------------------------------------------------------
+
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
+    queue: low
     schedule: every hour at minute 12
+
+  # ---------------------------------------------------------------------------
+  # EVERY 6 HOURS
+  # ---------------------------------------------------------------------------
+
+  nightly_calendar_sync:
+    class: NightlyCalendarSyncJob
+    queue: low
+    schedule: every 6 hours
+
+  # ---------------------------------------------------------------------------
+  # NIGHTLY (3:30am–8am window, staggered 30 min apart)
+  # ---------------------------------------------------------------------------
+
+  cleanup_orphaned_calendar_records:
+    class: CleanupOrphanedCalendarRecordsJob
+    queue: low
+    schedule: every day at 3:30am
+
+  cleanup_orphaned_google_calendars:
+    class: CleanupOrphanedGoogleCalendarsJob
+    queue: low
+    schedule: every day at 4am
+
+  course_data_sync:
+    class: CourseDataSyncJob
+    queue: low
+    schedule: every day at 4am
+
+  cleanup_orphaned_oauth_credentials:
+    class: CleanupOrphanedOauthCredentialsJob
+    queue: low
+    schedule: every day at 4:30am
+
+  cleanup_orphaned_calendar_events:
+    class: CleanupOrphanedCalendarEventsJob
+    queue: low
+    schedule: every day at 5am
+
+  pghero_space_stats:
+    class: PgheroCaptureSpaceStatsJob
+    queue: low
+    schedule: every day at 5:30am
+
+  # ---------------------------------------------------------------------------
+  # WEEKLY
+  # ---------------------------------------------------------------------------
+
+  # Wednesday: OAuth maintenance
+  refresh_oauth_tokens:
+    class: RefreshOauthTokensJob
+    queue: low
+    schedule: every wednesday at 2am
+
+  # Saturday: University data sync
+  university_calendar_sync:
+    class: UniversityCalendarSyncJob
+    queue: low
+    schedule: every saturday at 2am
+
+  # Sunday: RateMyProfessor maintenance (fill IDs first, then update ratings)
+  fill_missing_rmp_ids:
+    class: FillMissingRmpIdsJob
+    queue: low
+    schedule: every sunday at 2am
+
+  update_faculty_rmp_ratings:
+    command: "Faculty.update_all_ratings!"
+    queue: low
+    schedule: every sunday at 3am
+
+  # ---------------------------------------------------------------------------
+  # MONTHLY
+  # ---------------------------------------------------------------------------
+
+  ensure_future_terms:
+    class: EnsureFutureTermsJob
+    queue: low
+    schedule: every month on the 1st at 2am

@@ -52,58 +52,82 @@ class CourseProcessorService < ApplicationService
 
         schedule_type_match = detailed_course_info[:schedule_type].to_s.match(/\(([^)]+)\)/)
 
-        time_groups = course_meetings.group_by do |meeting|
-          start_value = meeting[:start] || meeting["start"]
-          end_value = meeting[:end] || meeting["end"]
-
-          start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
-          end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
-
-          [start_time.strftime("%H:%M"), end_time.strftime("%H:%M")]
-        end
-
-        meeting_times = time_groups.map do |time_key, meetings|
-          days = {
-            "sunday"    => false,
-            "monday"    => false,
-            "tuesday"   => false,
-            "wednesday" => false,
-            "thursday"  => false,
-            "friday"    => false,
-            "saturday"  => false
-          }
-
-          start_dates = []
-          end_dates = []
-
-          meetings.each do |meeting|
+        # Prefer structured meeting times from getFacultyMeetingTimes — correct room/time data
+        # with no timezone ambiguity. Fall back to parsing raw Banner calendar timestamps only
+        # if structured data is unavailable.
+        meeting_times = if detailed_course_info[:meeting_times].present?
+          detailed_course_info[:meeting_times].map do |lw_mt|
+            {
+              "startDate"           => lw_mt["startDate"],
+              "endDate"             => lw_mt["endDate"],
+              "beginTime"           => lw_mt["startTime"],
+              "endTime"             => lw_mt["endTime"],
+              "building"            => lw_mt["building"],
+              "buildingDescription" => lw_mt["building_description"],
+              "room"                => lw_mt["room"],
+              "monday"              => lw_mt.dig("days", "monday"),
+              "tuesday"             => lw_mt.dig("days", "tuesday"),
+              "wednesday"           => lw_mt.dig("days", "wednesday"),
+              "thursday"            => lw_mt.dig("days", "thursday"),
+              "friday"              => lw_mt.dig("days", "friday"),
+              "saturday"            => lw_mt.dig("days", "saturday"),
+              "sunday"              => lw_mt.dig("days", "sunday")
+            }
+          end
+        else
+          time_groups = course_meetings.group_by do |meeting|
             start_value = meeting[:start] || meeting["start"]
             end_value = meeting[:end] || meeting["end"]
 
             start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
             end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
 
-            day_of_week = start_time.wday
-            day_names = %w[sunday monday tuesday wednesday thursday friday saturday]
-            days[day_names[day_of_week]] = true
-
-            start_dates << start_time.strftime("%m/%d/%Y")
-            end_dates << end_time.strftime("%m/%d/%Y")
+            [start_time.strftime("%H:%M"), end_time.strftime("%H:%M")]
           end
 
-          start_date = start_dates.min
-          end_date = end_dates.max
-          begin_time, end_time = time_key
+          time_groups.map do |time_key, meetings|
+            days = {
+              "sunday"    => false,
+              "monday"    => false,
+              "tuesday"   => false,
+              "wednesday" => false,
+              "thursday"  => false,
+              "friday"    => false,
+              "saturday"  => false
+            }
 
-          {
-            "startDate"           => start_date,
-            "endDate"             => end_date,
-            "beginTime"           => begin_time,
-            "endTime"             => end_time,
-            "building"            => meetings.first[:building] || meetings.first["building"] || "TBD",
-            "buildingDescription" => meetings.first[:buildingDescription] || meetings.first["buildingDescription"] || "To Be Determined",
-            "room"                => meetings.first[:room] || meetings.first["room"] || "TBD"
-          }.merge(days)
+            start_dates = []
+            end_dates = []
+
+            meetings.each do |meeting|
+              start_value = meeting[:start] || meeting["start"]
+              end_value = meeting[:end] || meeting["end"]
+
+              start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
+              end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
+
+              day_of_week = start_time.wday
+              day_names = %w[sunday monday tuesday wednesday thursday friday saturday]
+              days[day_names[day_of_week]] = true
+
+              start_dates << start_time.strftime("%m/%d/%Y")
+              end_dates << end_time.strftime("%m/%d/%Y")
+            end
+
+            start_date = start_dates.min
+            end_date = end_dates.max
+            begin_time, end_time = time_key
+
+            {
+              "startDate"           => start_date,
+              "endDate"             => end_date,
+              "beginTime"           => begin_time,
+              "endTime"             => end_time,
+              "building"            => meetings.first[:building] || meetings.first["building"] || "TBD",
+              "buildingDescription" => meetings.first[:buildingDescription] || meetings.first["buildingDescription"] || "To Be Determined",
+              "room"                => meetings.first[:room] || meetings.first["room"] || "TBD"
+            }.merge(days)
+          end
         end
 
         faculty_data = []
@@ -138,7 +162,7 @@ class CourseProcessorService < ApplicationService
           course.course_number  = course_data[:courseNumber]
           course.schedule_type  = schedule_type_match ? schedule_type_match[1] : nil
           course.section_number = normalize_section_number(detailed_course_info[:section_number])
-          course.credit_hours   = schedule_type_match && schedule_type_match[1] == "LAB" ? 0 : detailed_course_info[:credit_hours]
+          course.credit_hours   = schedule_type_match && schedule_type_match[1] == "LAB" ? nil : detailed_course_info[:credit_hours]
           course.grade_mode     = detailed_course_info[:grade_mode]
           course.seats_available = detailed_course_info[:seats_available]
           course.seats_capacity  = detailed_course_info[:seats_capacity]
@@ -166,6 +190,8 @@ class CourseProcessorService < ApplicationService
           orphan_exam.update!(course: course)
           Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
         end
+
+        course.meeting_times.destroy_all
 
         MeetingTimesIngestService.call(
           course: course,
@@ -222,7 +248,7 @@ class CourseProcessorService < ApplicationService
       end
     end
 
-    if user.google_course_calendar_id.present?
+    if GoogleCalendar.for_user(user).exists?
       GoogleCalendarSyncJob.perform_later(user, force: false)
     end
 

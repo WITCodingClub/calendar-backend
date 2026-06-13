@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_09_031447) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_13_204438) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -173,12 +173,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_031447) do
     t.index ["status"], name: "index_courses_on_status"
     t.index ["term_id"], name: "index_courses_on_term_id"
     t.check_constraint "credit_hours IS NULL OR credit_hours > 0", name: "courses_credit_hours_positive"
-    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying::text, 'HYB'::character varying::text, 'IND'::character varying::text, 'LAB'::character varying::text, 'LEC'::character varying::text, 'ONL'::character varying::text, 'ONB'::character varying::text, 'OLB'::character varying::text, 'OLC'::character varying::text, 'RLB'::character varying::text, 'RLC'::character varying::text, 'SAB'::character varying::text])", name: "courses_schedule_type_valid"
+    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying, 'HYB'::character varying, 'IND'::character varying, 'LAB'::character varying, 'LEC'::character varying, 'ONL'::character varying, 'ONB'::character varying, 'OLB'::character varying, 'OLC'::character varying, 'RLB'::character varying, 'RLC'::character varying, 'SAB'::character varying]::text[])", name: "courses_schedule_type_valid"
     t.check_constraint "seats_available IS NULL OR seats_available >= 0", name: "courses_seats_available_non_negative"
     t.check_constraint "seats_available IS NULL OR seats_capacity IS NULL OR seats_available <= seats_capacity", name: "courses_seats_available_le_capacity"
     t.check_constraint "seats_capacity IS NULL OR seats_capacity >= 0", name: "courses_seats_capacity_non_negative"
     t.check_constraint "start_date IS NULL OR end_date IS NULL OR end_date >= start_date", name: "courses_end_date_on_or_after_start_date"
-    t.check_constraint "status::text = ANY (ARRAY['active'::character varying::text, 'cancelled'::character varying::text])", name: "courses_status_valid"
+    t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'cancelled'::character varying]::text[])", name: "courses_status_valid"
   end
 
   create_table "courses_faculties", id: false, force: :cascade do |t|
@@ -214,10 +214,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_031447) do
   create_table "enrollments", force: :cascade do |t|
     t.bigint "course_id", null: false
     t.datetime "created_at", null: false
+    t.bigint "term_id", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["course_id"], name: "index_enrollments_on_course_id"
-    t.index ["user_id", "course_id"], name: "index_enrollments_on_user_id_and_course_id", unique: true
+    t.index ["term_id"], name: "index_enrollments_on_term_id"
+    t.index ["user_id", "course_id", "term_id"], name: "index_enrollments_on_user_class_term", unique: true
     t.index ["user_id"], name: "index_enrollments_on_user_id"
   end
 
@@ -705,6 +707,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_031447) do
     t.string "default_color_lab", default: "#f6bf26", null: false
     t.string "default_color_lecture", default: "#039be5", null: false
     t.boolean "military_time", default: false, null: false
+    t.boolean "show_historic_terms", default: false, null: false
     t.boolean "sync_university_events", default: false, null: false
     t.jsonb "university_event_categories"
     t.datetime "updated_at", null: false
@@ -757,6 +760,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_09_031447) do
   add_foreign_key "enrollment_snapshots", "terms"
   add_foreign_key "enrollment_snapshots", "users"
   add_foreign_key "enrollments", "courses"
+  add_foreign_key "enrollments", "terms"
   add_foreign_key "enrollments", "users"
   add_foreign_key "event_preferences", "users"
   add_foreign_key "final_exams", "courses"

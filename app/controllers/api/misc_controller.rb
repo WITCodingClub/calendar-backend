@@ -24,8 +24,8 @@ module Api
       return nil unless term
 
       {
-        id:         term.id,
-        uid:        term.uid,
+        id:         term.uid,
+        pub_id:     term.public_id,
         name:       term.name,
         year:       term.year,
         season:     term.season,

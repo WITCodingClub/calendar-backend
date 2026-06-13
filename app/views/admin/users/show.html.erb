@@ -79,7 +79,7 @@
       <% if policy(@user).edit? %>
         <%= link_to "Edit User", edit_admin_user_path(@user), class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
       <% end %>
-      <% if policy(@user).force_calendar_sync? && @user.google_credential&.google_calendar %>
+      <% if policy(@user).force_calendar_sync? && GoogleCalendar.for_user(@user).exists? %>
         <%= button_to "Force Calendar Sync", force_calendar_sync_admin_user_path(@user),
             method: :post,
             data: { turbo_confirm: "Force sync calendar for #{@user.email}? This will update all events regardless of changes." },
@@ -100,7 +100,7 @@
   <div class="px-6 py-5">
     <details class="group" open>
       <summary class="flex justify-between items-center cursor-pointer list-none">
-        <h2 class="text-xl font-bold text-on-surface">Friends (<%= @user.friends.count %>)</h2>
+        <h2 class="text-xl font-bold text-on-surface">Friends (<%= @friends.size %>)</h2>
         <svg class="w-5 h-5 text-on-surface-variant transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
         </svg>
@@ -119,10 +119,9 @@
           </div>
         <% end %>
 
-        <% friends = @user.friends %>
-        <% if friends.any? %>
+        <% if @friends.any? %>
           <div class="space-y-2">
-            <% friends.each do |friend| %>
+            <% @friends.each do |friend| %>
               <div class="flex items-center justify-between py-2 px-3 bg-surface rounded border border-outline-variant">
                 <div>
                   <div class="font-medium text-on-surface"><%= friend.full_name %></div>
@@ -145,15 +144,13 @@
           <p class="text-sm text-on-surface-variant">No friends yet.</p>
         <% end %>
 
-        <% incoming = @user.incoming_friend_requests.includes(:requester) %>
-        <% outgoing = @user.outgoing_friend_requests.includes(:addressee) %>
-        <% if incoming.any? || outgoing.any? %>
+        <% if @incoming_requests.any? || @outgoing_requests.any? %>
           <div class="mt-4 pt-4 border-t border-outline-variant">
             <h3 class="text-sm font-medium text-on-surface-variant mb-2">Pending Requests</h3>
-            <% if incoming.any? %>
+            <% if @incoming_requests.any? %>
               <div class="mb-2">
                 <span class="text-xs text-on-surface-variant">Incoming:</span>
-                <% incoming.each do |fr| %>
+                <% @incoming_requests.each do |fr| %>
                   <span class="ml-2 inline-flex items-center gap-1 px-2 py-1 bg-secondary-container text-on-secondary-container text-xs rounded">
                     <%= fr.requester.full_name %>
                     <code class="text-[10px] text-on-secondary-container"><%= fr.requester.public_id %></code>
@@ -161,10 +158,10 @@
                 <% end %>
               </div>
             <% end %>
-            <% if outgoing.any? %>
+            <% if @outgoing_requests.any? %>
               <div>
                 <span class="text-xs text-on-surface-variant">Outgoing:</span>
-                <% outgoing.each do |fr| %>
+                <% @outgoing_requests.each do |fr| %>
                   <span class="ml-2 inline-flex items-center gap-1 px-2 py-1 bg-tertiary-container text-on-tertiary-container text-xs rounded">
                     <%= fr.addressee.full_name %>
                     <code class="text-[10px] text-on-tertiary-container"><%= fr.addressee.public_id %></code>
@@ -254,7 +251,7 @@
 <% end %>
 
 <!-- Enrollments Section -->
-<% if @enrollments_by_term.any? %>
+<% if policy(@user).view_enrollments? && @enrollments_by_term.any? %>
   <div class="mt-8 m3-card shadow-sm rounded-xl overflow-hidden">
     <div class="px-6 py-5">
       <div class="flex justify-between items-center mb-4">

@@ -44,6 +44,14 @@ class Course::MeetingTime < ApplicationRecord
     begin_time == 1201 && end_time == 2359
   end
 
+  def event_color
+    case meeting_schedule_type
+    when "lecture"    then GoogleColors::EVENT_MAP[5]
+    when "laboratory" then GoogleColors::EVENT_MAP[11]
+    else                   GoogleColors::EVENT_MAP[8]
+    end
+  end
+
   def building_room
     return nil unless room&.building
 

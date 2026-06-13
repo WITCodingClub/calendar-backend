@@ -5,7 +5,7 @@ module FinalsScheduleParsers
     SECTION_HEADERS = %w[CRN INSTRUCTOR EXAM-DATE EXAM-TIME-OF-DAY EXAM-ROOM].freeze
 
     def self.matches?(text)
-      text.match?(/^INSTRUCTOR$/m) && text.match?(/^EXAM-DATE$/m)
+      text.match?(/^CRN$/m) && text.match?(/^EXAM-TIME-OF-DAY$/m) && !text.match?(/COMBINED\s+CRNs/i)
     end
 
     def parse(text)

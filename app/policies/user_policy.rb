@@ -15,7 +15,7 @@ class UserPolicy < ApplicationPolicy
   def view_user_details?         = show?
   def view_oauth_credentials?    = admin?
   def manage_oauth_credentials?  = super_admin?
-  def view_enrollments?          = show?
+  def view_enrollments?          = super_admin?
   def view_calendar_sync_info?   = admin?
   def view_access_level?         = super_admin?
   def edit_access_level?         = super_admin?

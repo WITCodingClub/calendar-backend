@@ -55,8 +55,9 @@ gem "icalendar"
 # Encoded/hashid public IDs
 gem "encoded_ids"
 
-# Rate limiting
+# Rate limiting / CORS
 gem "rack-attack"
+gem "rack-cors"
 
 # Liquid templating for calendar event title/description customization
 gem "liquid"

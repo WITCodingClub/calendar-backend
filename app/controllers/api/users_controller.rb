@@ -10,12 +10,12 @@ module Api
       preferred_name = params[:preferred_name]
 
       if email.blank?
-        render json: { error: "Email is required" }, status: :bad_request
+        render json: { error: "email is required" }, status: :bad_request
         return
       end
 
       if preferred_name.blank?
-        render json: { error: "Preferred name is required" }, status: :bad_request
+        render json: { error: "preferred_name is required" }, status: :bad_request
         return
       end
 
@@ -45,7 +45,7 @@ module Api
       email = params[:email].to_s.strip
 
       if email.blank?
-        render json: { error: "Email is required" }, status: :bad_request
+        render json: { error: "email is required" }, status: :bad_request
         return
       end
 
@@ -53,7 +53,7 @@ module Api
         service     = GoogleCalendarService.new(current_user)
         calendar_id = service.create_or_get_course_calendar
 
-        render json: { message: "Email already connected", calendar_id: calendar_id }, status: :ok
+        render json: { message: "email already connected", calendar_id: calendar_id }, status: :ok
       else
         state     = GoogleOauthStateService.generate_state(user_id: current_user.id, email: email)
         oauth_url = "#{request.base_url}/auth/google_oauth2?state=#{CGI.escape(state)}"
@@ -70,7 +70,7 @@ module Api
       email = params[:email].to_s.strip
 
       if email.blank?
-        render json: { error: "Email is required" }, status: :bad_request
+        render json: { error: "email is required" }, status: :bad_request
         return
       end
 
@@ -102,14 +102,14 @@ module Api
       email = params[:email].to_s.strip
 
       if email.blank?
-        render json: { error: "Email is required" }, status: :bad_request
+        render json: { error: "email is required" }, status: :bad_request
         return
       end
 
       credential = current_user.oauth_credentials.find_by(email: email, provider: "google")
 
       if credential.nil?
-        render json: { error: "Email not found or not associated with Google Calendar" }, status: :not_found
+        render json: { error: "email not found or not associated with Google Calendar" }, status: :not_found
         return
       end
 
@@ -124,7 +124,7 @@ module Api
 
       credential.destroy!
 
-      render json: { message: "Email removed from Google Calendar association" }, status: :ok
+      render json: { message: "email removed from Google Calendar association" }, status: :ok
     rescue => e
       Rails.logger.error("Error removing email from Google Calendar for user #{current_user.id}: #{e.message}")
       render json: { error: "Failed to remove email from Google Calendar" }, status: :internal_server_error

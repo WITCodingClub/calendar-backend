@@ -139,8 +139,7 @@ module FinalsScheduleParsers
     end
 
     def header_line?(line)
-      line.match?(%r{COURSE SECTION|COMBINED CRNs|EXAM-DATE|EXAM-TIME|EXAM-ROOM|
-                   FALL \d{4} FINAL|Page \d+}xi)
+      line.match?(/COURSE SECTION|COMBINED CRNs|EXAM-DATE|EXAM-TIME|EXAM-ROOM|FALL \d{4} FINAL|Page \d+/i)
     end
   end
 end

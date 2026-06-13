@@ -32,7 +32,7 @@ module Admin
       authorize @user
 
       @enrollments_by_term = @user.enrollments
-                                  .includes({ course: [ :faculties, :term ] })
+                                  .includes({ course: [ :faculties, :term, meeting_times: { room: :building } ] })
                                   .joins(course: :term)
                                   .order("terms.year DESC, terms.season DESC")
                                   .group_by { |e| e.course.term }
@@ -40,6 +40,10 @@ module Admin
       @oauth_credentials = @user.oauth_credentials
                                 .includes(:google_calendar)
                                 .order(created_at: :desc)
+
+      @friends = @user.friends.to_a
+      @incoming_requests = @user.incoming_friend_requests.includes(:requester).to_a
+      @outgoing_requests = @user.outgoing_friend_requests.includes(:addressee).to_a
     end
 
     def edit
@@ -106,7 +110,7 @@ module Admin
     def force_calendar_sync
       authorize @user, :force_calendar_sync?
 
-      unless @user.google_credential&.google_calendar
+      unless GoogleCalendar.for_user(@user).exists?
         redirect_to admin_user_path(@user), alert: "User does not have a Google Calendar set up."
         return
       end

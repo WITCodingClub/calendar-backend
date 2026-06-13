@@ -204,7 +204,8 @@ class MeetingTimesIngestService < ApplicationService
       return nil if h > 23 || m > 59
 
       (h * 100) + m
-    when /\A(\d{2})(\d{2})\z/
+    when /\A\d{3,4}\z/
+      # Banner returns beginTime/endTime as bare integers (e.g. 800, 1315, 0800)
       hhmm = str.to_i
       h = hhmm / 100
       m = hhmm % 100
