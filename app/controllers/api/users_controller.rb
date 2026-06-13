@@ -261,6 +261,42 @@ module Api
       }, status: :ok
     end
 
+    # GET /api/user/flag_enabled
+    def flag_is_enabled
+      feature_name = params[:flag_name]
+      if feature_name.blank?
+        render json: { error: "flag_name is required" }, status: :bad_request
+        return
+      end
+
+      feature_sym = feature_name.to_sym
+      unless FlipperFlags::ALL_FLAGS.include?(feature_sym)
+        render json: { error: "Unknown feature flag", feature_name: feature_name }, status: :not_found
+        return
+      end
+
+      flipper_key = FlipperFlags::MAP[feature_sym]
+      if flipper_key.nil?
+        render json: { error: "Invalid flag mapping", feature_name: feature_name }, status: :unprocessable_content
+        return
+      end
+
+      feature = Flipper[flipper_key]
+      render json: { feature_name: feature_name, is_enabled: feature.enabled?(current_user) }, status: :ok
+    end
+
+    # GET /api/user/feature_flags
+    def feature_flags
+      authorize current_user, :show?
+      flags = {}
+      FlipperFlags::ALL_FLAGS.each do |flag_name|
+        flipper_key = FlipperFlags::MAP[flag_name]
+        next if flipper_key.nil?
+        flags[flag_name] = Flipper[flipper_key].enabled?(current_user)
+      end
+      render json: { feature_flags: flags }, status: :ok
+    end
+
     # GET /api/user/notifications_status
     def notifications_status
       authorize current_user, :show?

@@ -8,6 +8,8 @@ Rails.application.routes.draw do
 
   get "up" => "rails/health#show", as: :rails_health_check
 
+  get "/session/status", to: "auth_status#show"
+
   get "/robots.txt", to: "robots#show", format: false
 
   # Google OAuth2 callback (handles both admin login and calendar OAuth)
@@ -40,6 +42,9 @@ Rails.application.routes.draw do
 
     get "user/extension_config",           to: "user_extension_config#get"
     put "user/extension_config",           to: "user_extension_config#set"
+
+    get "user/flag_enabled",              to: "users#flag_is_enabled"
+    get "user/feature_flags",             to: "users#feature_flags"
 
     get  "user/notifications_status",     to: "users#notifications_status"
     post "user/notifications/disable",    to: "users#disable_notifications"
