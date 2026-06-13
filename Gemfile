@@ -30,7 +30,7 @@ gem "console1984"
 
 gem "bootsnap", require: false
 gem "thruster", require: false
-gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 2.0"
 
 # Authentication
 gem "devise", "~> 5.0"
