@@ -189,13 +189,14 @@ module CourseScheduleSyncable
     return unless start_time && end_time
 
     # Build location string - handle TBD locations gracefully
-    location = if meeting_time.room && meeting_time.building &&
-                  !tbd_location?(meeting_time.building, meeting_time.room)
-                 # Valid room and building
-                 "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-               elsif meeting_time.room && !tbd_room?(meeting_time.room)
-                 # Valid room, no building or invalid building
-                 meeting_time.room.formatted_number
+    non_tbd_rooms = meeting_time.rooms.reject { |r| tbd_room?(r) }
+    location = if non_tbd_rooms.any? && meeting_time.building &&
+                  !tbd_building?(meeting_time.building)
+                 # Valid rooms and building
+                 "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
+               elsif non_tbd_rooms.any?
+                 # Valid rooms, no building or invalid building
+                 non_tbd_rooms.map(&:formatted_number).join(" / ")
                elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
                  # TBD location - show "TBD" instead of ugly "To Be Determined 000"
                  "TBD"

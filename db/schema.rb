@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_13_204438) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_13_210001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -127,6 +127,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_204438) do
     t.index ["user_id"], name: "index_calendar_preferences_on_user_id"
   end
 
+  create_table "course_meeting_time_rooms", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "meeting_time_id", null: false
+    t.bigint "room_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["meeting_time_id", "room_id"], name: "index_course_meeting_time_rooms_on_meeting_time_id_and_room_id", unique: true
+    t.index ["room_id"], name: "index_course_meeting_time_rooms_on_room_id"
+  end
+
   create_table "course_meeting_times", force: :cascade do |t|
     t.integer "begin_time", null: false
     t.bigint "course_id", null: false
@@ -137,12 +146,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_204438) do
     t.integer "hours_week"
     t.integer "meeting_schedule_type", null: false
     t.integer "meeting_type", null: false
-    t.bigint "room_id", null: false
     t.datetime "start_date", null: false
     t.datetime "updated_at", null: false
     t.index ["course_id"], name: "index_course_meeting_times_on_course_id"
     t.index ["day_of_week"], name: "index_course_meeting_times_on_day_of_week"
-    t.index ["room_id"], name: "index_course_meeting_times_on_room_id"
     t.check_constraint "begin_time >= 0 AND begin_time <= 2359", name: "course_meeting_times_begin_time_range"
     t.check_constraint "day_of_week >= 0 AND day_of_week <= 6", name: "course_meeting_times_day_of_week_range"
     t.check_constraint "end_date >= start_date", name: "course_meeting_times_end_date_on_or_after_start_date"
@@ -754,8 +761,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_204438) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_preferences", "users"
+  add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
+  add_foreign_key "course_meeting_time_rooms", "rooms"
   add_foreign_key "course_meeting_times", "courses"
-  add_foreign_key "course_meeting_times", "rooms"
   add_foreign_key "courses", "terms"
   add_foreign_key "enrollment_snapshots", "terms"
   add_foreign_key "enrollment_snapshots", "users"

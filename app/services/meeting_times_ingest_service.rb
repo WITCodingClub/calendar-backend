@@ -77,6 +77,7 @@ class MeetingTimesIngestService < ApplicationService
     end
 
     @meeting_time_cache = Course::MeetingTime.where(course_id: course.id)
+                                             .includes(:meeting_time_rooms)
                                              .index_by { |mt| [mt.start_date, mt.end_date, mt.begin_time, mt.end_time, mt.day_of_week_before_type_cast] }
   end
 
