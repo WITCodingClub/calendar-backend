@@ -52,3 +52,5 @@ public/*.webp
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+config/credentials/
