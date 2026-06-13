@@ -1,0 +1,44 @@
+<% content_for :title, "ICS Feed" %>
+
+<div class="max-w-xl mx-auto space-y-6">
+  <h1 class="text-2xl font-bold text-on-surface">ICS Calendar Feed</h1>
+
+  <div class="m3-card p-5 space-y-4">
+    <p class="text-sm text-on-surface">
+      Subscribe to your WIT Calendar in Apple Calendar, Google Calendar, Outlook, or any app that supports ICS feeds.
+    </p>
+
+    <% if @ics_url.present? %>
+      <div>
+        <label class="m3-label">Your personal ICS URL</label>
+        <div class="flex gap-2">
+          <input type="text"
+                 value="<%= @ics_url %>"
+                 readonly
+                 class="m3-input font-mono text-xs flex-1"
+                 id="ics-url-field"
+                 onclick="this.select()">
+          <button type="button"
+                  class="m3-btn-tonal text-sm"
+                  onclick="navigator.clipboard.writeText(document.getElementById('ics-url-field').value); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);">
+            Copy
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2 pt-1">
+        <%= link_to "webcal://#{URI.parse(@ics_url).host}#{URI.parse(@ics_url).path}?#{URI.parse(@ics_url).query}",
+            class: "m3-btn-outlined text-sm" do %>
+          Open in Calendar app
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-sm text-on-surface-variant">No ICS token generated yet. Contact support.</p>
+    <% end %>
+  </div>
+
+  <div class="m3-card p-4 text-sm text-on-surface-variant space-y-1">
+    <p><strong class="text-on-surface">Keep this URL private</strong> — it grants read access to your full schedule without a password.</p>
+    <p>Events update automatically every time you sync via the Chrome extension.</p>
+  </div>
+</div>

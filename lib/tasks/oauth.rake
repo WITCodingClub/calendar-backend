@@ -4,14 +4,12 @@ namespace :oauth do
   desc "Revoke and delete OAuth credential by email"
   task :revoke, [:email] => :environment do |_t, args|
     email = args[:email]
-
     if email.blank?
       puts "Usage: rake oauth:revoke[user@example.com]"
       exit 1
     end
 
     credential = OauthCredential.find_by(email: email)
-
     if credential.nil?
       puts "No credential found for #{email}"
       exit 1
@@ -21,7 +19,6 @@ namespace :oauth do
     puts "Provider: #{credential.provider}"
     puts "Created: #{credential.created_at}"
 
-    # Use the job to revoke (synchronously for rake tasks)
     RevokeOauthCredentialJob.perform_now(credential.id)
     puts "✓ Revoked and deleted credential for #{email}"
   end
@@ -29,30 +26,25 @@ namespace :oauth do
   desc "Revoke and delete all OAuth credentials for a user"
   task :revoke_user, [:user_email] => :environment do |_t, args|
     user_email = args[:user_email]
-
     if user_email.blank?
       puts "Usage: rake oauth:revoke_user[user@example.com]"
       exit 1
     end
 
     user = User.find_by(email: user_email)
-
     if user.nil?
       puts "No user found with email #{user_email}"
       exit 1
     end
 
     credentials = user.oauth_credentials
-
     if credentials.empty?
       puts "User #{user_email} has no OAuth credentials"
       exit 0
     end
 
     puts "Found #{credentials.count} credential(s) for user #{user_email}:"
-    credentials.each do |cred|
-      puts "  - #{cred.email} (#{cred.provider})"
-    end
+    credentials.each { |c| puts "  - #{c.email} (#{c.provider})" }
 
     credentials.each do |credential|
       puts "\nRevoking #{credential.email}..."
@@ -66,7 +58,6 @@ namespace :oauth do
   desc "List all OAuth credentials"
   task list: :environment do
     credentials = OauthCredential.includes(:user).order(created_at: :desc)
-
     if credentials.empty?
       puts "No OAuth credentials found"
       exit 0
@@ -89,14 +80,12 @@ namespace :oauth do
   desc "Revoke a specific OAuth credential by ID"
   task :revoke_by_id, [:id] => :environment do |_t, args|
     id = args[:id]
-
     if id.blank?
       puts "Usage: rake oauth:revoke_by_id[123]"
       exit 1
     end
 
     credential = OauthCredential.find_by(id: id)
-
     if credential.nil?
       puts "No credential found with ID #{id}"
       exit 1
@@ -115,14 +104,12 @@ namespace :oauth do
   desc "Check token status for an OAuth credential"
   task :check, [:email] => :environment do |_t, args|
     email = args[:email]
-
     if email.blank?
       puts "Usage: rake oauth:check[user@example.com]"
       exit 1
     end
 
     credential = OauthCredential.find_by(email: email)
-
     if credential.nil?
       puts "No credential found for #{email}"
       exit 1

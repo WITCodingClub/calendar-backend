@@ -1,9 +1,4 @@
-# frozen_string_literal: true
-
 class ApplicationMailer < ActionMailer::Base
-  has_history
-  utm_params
-  default from: "from@example.com"
+  default from: "WIT Calendar <noreply@wit.edu>"
   layout "mailer"
-
 end

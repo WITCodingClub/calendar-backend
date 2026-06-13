@@ -1,50 +1,39 @@
 # frozen_string_literal: true
 
-# Job to automatically search for and fill in missing RateMyProfessor IDs
-# This runs before the nightly RMP ratings update job so that newly approved
-# professors on RMP can have their ratings fetched immediately
+# Searches for and fills missing RateMyProfessor IDs for faculty who teach courses.
+# Runs before UpdateFacultyRatingsJob so newly-approved professors get ratings immediately.
 class FillMissingRmpIdsJob < ApplicationJob
   queue_as :low
 
   def perform
-    # Only look for RMP IDs for faculty who actually teach courses
-    # Staff and faculty without courses don't need RMP data
     missing = Faculty.with_courses.where(rmp_id: nil)
 
     return if missing.empty?
 
-    Rails.logger.info "FillMissingRmpIdsJob: Processing #{missing.count} faculty members (with courses) without RMP IDs"
+    Rails.logger.info "[FillMissingRmpIdsJob] Processing #{missing.count} faculty members without RMP IDs"
 
-    success_count = 0
+    success_count   = 0
     not_found_count = 0
-    error_count = 0
+    error_count     = 0
 
     missing.find_each do |faculty|
-      begin
-        # Use the existing UpdateFacultyRatingsJob which includes search logic
-        # Run synchronously to control rate limiting
-        UpdateFacultyRatingsJob.perform_now(faculty.id)
+      UpdateFacultyRatingsJob.perform_now(faculty.id)
+      faculty.reload
 
-        # Reload to check if rmp_id was found
-        faculty.reload
-
-        if faculty.rmp_id.present?
-          Rails.logger.info "FillMissingRmpIdsJob: Found RMP ID for #{faculty.full_name} (#{faculty.rmp_id})"
-          success_count += 1
-        else
-          Rails.logger.debug { "FillMissingRmpIdsJob: No RMP ID found for #{faculty.full_name}" }
-          not_found_count += 1
-        end
-      rescue => e
-        Rails.logger.error "FillMissingRmpIdsJob: Error processing #{faculty.full_name}: #{e.message}"
-        error_count += 1
+      if faculty.rmp_id.present?
+        Rails.logger.info "[FillMissingRmpIdsJob] Found RMP ID for #{faculty.full_name} (#{faculty.rmp_id})"
+        success_count += 1
+      else
+        Rails.logger.debug { "[FillMissingRmpIdsJob] No RMP ID found for #{faculty.full_name}" }
+        not_found_count += 1
       end
 
-      # Small delay to avoid rate limiting
       sleep 0.5
+    rescue => e
+      Rails.logger.error "[FillMissingRmpIdsJob] Error processing #{faculty.full_name}: #{e.message}"
+      error_count += 1
     end
 
-    Rails.logger.info "FillMissingRmpIdsJob: Complete - Success: #{success_count}, Not Found: #{not_found_count}, Errors: #{error_count}"
+    Rails.logger.info "[FillMissingRmpIdsJob] Complete — success: #{success_count}, not_found: #{not_found_count}, errors: #{error_count}"
   end
-
 end

@@ -9,8 +9,6 @@
 
 # Ignore all environment files.
 /.env*
-# except the example file
-!.env.example
 
 # Ignore all logfiles and tempfiles.
 /log/*
@@ -32,15 +30,25 @@
 
 /public/assets
 
-# Ignore master key for decrypting credentials and more.
-/config/master.key
+# Svelte build output
+public/_app/
+public/index.html
+public/about.html
+public/contact.html
+public/privacy.html
+public/tos.html
+public/*.webp
+
+# Unignore things you explicitly add
+!public/.keep
+
+# Ignore key files for decrypting credentials and more.
+/config/*.key
+
+
+# Ignore key files for decrypting credentials and more.
+/config/credentials/*.key
+
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
-
-.idea/
-# Ignore key files for decrypting credentials and more.
-/config/credentials/*.key
-/config/credentials/postgres_password
-
-coverage

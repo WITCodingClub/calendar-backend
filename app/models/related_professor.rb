@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: related_professors
-# Database name: primary
 #
 #  id                 :bigint           not null, primary key
 #  avg_rating         :decimal(3, 2)
@@ -17,6 +16,7 @@
 #
 # Indexes
 #
+#  index_related_professors_on_faculty_id             (faculty_id)
 #  index_related_professors_on_faculty_id_and_rmp_id  (faculty_id,rmp_id) UNIQUE
 #  index_related_professors_on_related_faculty_id     (related_faculty_id)
 #
@@ -35,7 +35,6 @@ class RelatedProfessor < ApplicationRecord
 
   validates :rmp_id, presence: true, uniqueness: { scope: :faculty_id }
 
-  # Attempt to match this related professor to an existing faculty record
   def try_match_faculty!
     return if related_faculty.present?
 
@@ -46,5 +45,4 @@ class RelatedProfessor < ApplicationRecord
   def full_name
     "#{first_name} #{last_name}"
   end
-
 end

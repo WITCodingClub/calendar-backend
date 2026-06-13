@@ -1,0 +1,7 @@
+<%# Renders a mobile bottom navigation item. Locals: path, label, icon %>
+<% active = request.path == path || (path.split("/").length > 2 && request.path.start_with?(path + "/")) %>
+<%= link_to path,
+    class: "flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors #{active ? 'text-on-secondary-container' : 'text-on-surface-variant'}" do %>
+  <%= render "layouts/user_icon", name: icon, active: active %>
+  <%= label %>
+<% end %>

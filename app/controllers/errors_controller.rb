@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
 class ErrorsController < ApplicationController
+  skip_before_action :authenticate_user!
+
   def unauthorized
-    render :unauthorized, status: :forbidden
+    render status: :forbidden
   end
 
   def not_found
-    render :not_found, status: :not_found
+    render status: :not_found
   end
-
 end

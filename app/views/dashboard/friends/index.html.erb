@@ -1,0 +1,45 @@
+<% content_for :title, "Friends" %>
+
+<div class="max-w-2xl mx-auto space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-on-surface">Friends</h1>
+    <%= link_to requests_dashboard_friends_path, class: "m3-btn-text text-sm" do %>
+      Requests
+      <% pending = @incoming.size %>
+      <% if pending > 0 %>
+        <span class="ml-1 w-5 h-5 rounded-full bg-error text-on-error text-xs flex items-center justify-center"><%= pending %></span>
+      <% end %>
+    <% end %>
+  </div>
+
+  <!-- Add friend -->
+  <%= form_with url: dashboard_friends_path, method: :post, class: "m3-card p-4 flex gap-2" do |f| %>
+    <%= f.text_field :friend_id,
+        placeholder: "Friend's user ID (usr_...)",
+        class: "m3-input flex-1" %>
+    <%= f.submit "Send request", class: "m3-btn-tonal" %>
+  <% end %>
+
+  <!-- Current friends -->
+  <% if @friends.empty? %>
+    <div class="m3-card p-8 text-center text-on-surface-variant">No friends yet.</div>
+  <% else %>
+    <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+      <% @friends.each do |friend| %>
+        <div class="px-5 py-3 flex items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-medium text-on-surface"><%= friend.full_name %></p>
+            <p class="text-xs text-on-surface-variant"><%= friend.email %></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <%= button_to "Remove",
+                dashboard_friend_path(friend.public_id),
+                method: :delete,
+                data: { turbo_confirm: "Remove #{friend.first_name}?" },
+                class: "text-xs text-on-surface-variant hover:text-error transition-colors" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

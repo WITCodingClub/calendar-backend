@@ -40,10 +40,6 @@ module CourseChangeTrackable
                       end
     return unless has_enrollments
 
-    # Mark all users enrolled in this course as needing a calendar sync
-    # Only mark users who have Google OAuth credentials with a course calendar ID set
-    # Using update_all for performance with bulk updates
-    # First get distinct user IDs, then update them (Rails 8.2 compatibility)
     user_ids = User.joins(:enrollments)
                    .joins(:oauth_credentials)
                    .where(enrollments: { course_id: id })

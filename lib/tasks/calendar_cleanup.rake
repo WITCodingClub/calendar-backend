@@ -1,81 +1,23 @@
 # frozen_string_literal: true
 
 namespace :calendar do
-  desc "Delete all old calendars from Google using PaperTrail history"
-  task cleanup_deleted_calendars: :environment do
-    puts "Finding deleted calendars from PaperTrail..."
-
-    deleted_versions = PaperTrail::Version.where(
-      item_type: "GoogleCalendar",
-      event: "destroy"
-    )
-
-    puts "Found #{deleted_versions.count} deleted calendars"
-
-    deleted_versions.each do |version|
-      begin
-        # Parse the deleted calendar data
-        calendar_data = YAML.unsafe_load(version.object)
-        calendar_id = calendar_data["google_calendar_id"]
-
-        puts "\nProcessing calendar: #{calendar_id}"
-
-        # Try to delete from Google
-        service = GoogleCalendarService.new
-        service.delete_calendar(calendar_id)
-
-        puts "  ✓ Successfully deleted from Google"
-      rescue Google::Apis::ClientError => e
-        if e.status_code == 404
-          puts "  ⓘ Calendar not found in Google (already deleted)"
-        else
-          puts "  ✗ Failed to delete: #{e.message}"
-        end
-      rescue => e
-        puts "  ✗ Error: #{e.message}"
-      end
-    end
-
-    puts "\n✓ Cleanup complete!"
-  end
-
-  desc "List all deleted calendars from PaperTrail"
-  task list_deleted_calendars: :environment do
-    puts "Deleted calendars in PaperTrail:\n\n"
-
-    PaperTrail::Version.where(
-      item_type: "GoogleCalendar",
-      event: "destroy"
-    ).each do |version|
-      calendar_data = YAML.unsafe_load(version.object)
-      puts "  ID: #{calendar_data['google_calendar_id']}"
-      puts "  Summary: #{calendar_data['summary']}"
-      puts "  Deleted at: #{version.created_at}"
-      puts "  ---"
-    end
-  end
-
   desc "List all orphaned calendars (exist in Google but not in database)"
   task list_orphaned_calendars: :environment do
     puts "Finding orphaned calendars...\n"
 
-    service = GoogleCalendarService.new
+    service         = GoogleCalendarService.new
     google_calendars = service.list_calendars
-
-    # Get all calendar IDs from database
     db_calendar_ids = GoogleCalendar.pluck(:google_calendar_id)
 
-    puts "Calendars in Google: #{google_calendars.items.count}"
-    puts "Calendars in database: #{db_calendar_ids.count}\n\n"
+    puts "Calendars in Google:    #{google_calendars.items.count}"
+    puts "Calendars in database:  #{db_calendar_ids.count}\n\n"
 
-    orphaned = []
-    google_calendars.items.each do |cal|
-      unless db_calendar_ids.include?(cal.id)
-        orphaned << cal
-        puts "  📅 #{cal.summary}"
-        puts "     ID: #{cal.id}"
-        puts "     ---"
-      end
+    orphaned = google_calendars.items.reject { |cal| db_calendar_ids.include?(cal.id) }
+
+    orphaned.each do |cal|
+      puts "  #{cal.summary}"
+      puts "     ID: #{cal.id}"
+      puts "     ---"
     end
 
     puts "\n#{orphaned.count} orphaned calendar(s) found"
@@ -85,35 +27,27 @@ namespace :calendar do
   task cleanup_orphaned_calendars: :environment do
     puts "Finding orphaned calendars...\n"
 
-    service = GoogleCalendarService.new
+    service         = GoogleCalendarService.new
     google_calendars = service.list_calendars
-
-    # Get all calendar IDs from database
     db_calendar_ids = GoogleCalendar.pluck(:google_calendar_id)
 
-    orphaned = []
-    google_calendars.items.each do |cal|
-      orphaned << cal unless db_calendar_ids.include?(cal.id)
-    end
-
+    orphaned = google_calendars.items.reject { |cal| db_calendar_ids.include?(cal.id) }
     puts "Found #{orphaned.count} orphaned calendar(s)\n\n"
 
     orphaned.each do |cal|
-      puts "Deleting: #{cal.summary}"
-      puts "  ID: #{cal.id}"
-
+      puts "Deleting: #{cal.summary} (ID: #{cal.id})"
       begin
         service.delete_calendar(cal.id)
-        puts "  ✓ Successfully deleted"
+        puts "  Successfully deleted"
       rescue Google::Apis::ClientError => e
-        puts "  ✗ Failed to delete: #{e.message}"
+        puts "  Failed to delete: #{e.message}"
       rescue => e
-        puts "  ✗ Error: #{e.message}"
+        puts "  Error: #{e.message}"
       end
       puts ""
     end
 
-    puts "✓ Cleanup complete!"
+    puts "Cleanup complete!"
   end
 
   desc "Sync finals for a specific term to all users' calendars (retroactive)"
@@ -124,7 +58,7 @@ namespace :calendar do
       exit 1
     end
 
-    year = args[:year].to_i
+    year   = args[:year].to_i
     season = args[:season].to_sym
 
     term = Term.find_by(year: year, season: season)
@@ -134,21 +68,18 @@ namespace :calendar do
     end
 
     puts "Syncing finals for #{term.name}..."
-    puts ""
 
     users_with_calendars = User.joins(oauth_credentials: :google_calendar)
                                .where(oauth_credentials: { provider: "google" })
                                .distinct
 
-    puts "Found #{users_with_calendars.count} users with calendars"
-    puts ""
+    puts "Found #{users_with_calendars.count} users with calendars\n\n"
 
-    synced_count = 0
+    synced_count  = 0
     skipped_count = 0
-    error_count = 0
+    error_count   = 0
 
     users_with_calendars.find_each do |user|
-      # Build finals for this specific term
       enrolled_course_ids = user.enrollments.joins(:course)
                                 .where(courses: { term_id: term.id })
                                 .pluck(:course_id)
@@ -162,15 +93,16 @@ namespace :calendar do
                                .includes(course: :faculties)
                                .filter_map do |final_exam|
         next unless final_exam.start_datetime && final_exam.end_datetime
+
         {
-          summary: "Final Exam: #{final_exam.course_title}",
-          description: final_exam.course_code,
-          location: final_exam.location,
-          start_time: final_exam.start_datetime,
-          end_time: final_exam.end_datetime,
-          course_code: final_exam.course_code,
+          summary:       "Final Exam: #{final_exam.course_title}",
+          description:   final_exam.course_code,
+          location:      final_exam.location,
+          start_time:    final_exam.start_datetime,
+          end_time:      final_exam.end_datetime,
+          course_code:   final_exam.course_code,
           final_exam_id: final_exam.id,
-          recurrence: nil
+          recurrence:    nil
         }
       end
 
@@ -181,43 +113,38 @@ namespace :calendar do
 
       begin
         puts "  Processing #{finals_events.count} finals for User #{user.id}..."
-
         service = GoogleCalendarService.new(user)
         service.update_specific_events(finals_events, force: true)
-
         puts "✓ User #{user.id} (#{user.email}): Synced #{finals_events.count} finals"
         synced_count += 1
-      rescue Signet::AuthorizationError => e
-        puts "⚠ User #{user.id} (#{user.email}): OAuth expired - user needs to re-authenticate"
+      rescue Signet::AuthorizationError
+        puts "  User #{user.id} (#{user.email}): OAuth expired — user needs to re-authenticate"
         error_count += 1
       rescue => e
         puts "✗ User #{user.id} (#{user.email}): #{e.class.name} - #{e.message}"
-        puts "  Backtrace: #{e.backtrace.first(5).join("\n            ")}"
         error_count += 1
       end
     end
 
     puts ""
     puts "Sync complete!"
-    puts "  Synced: #{synced_count} users"
+    puts "  Synced:  #{synced_count} users"
     puts "  Skipped: #{skipped_count} users (no enrollments or finals)"
-    puts "  Errors: #{error_count} users"
+    puts "  Errors:  #{error_count} users"
   end
 
   desc "Force sync all calendars for all users"
   task force_sync_all: :environment do
     puts "Force syncing all user calendars..."
-    puts ""
 
     users_with_calendars = User.joins(oauth_credentials: :google_calendar)
                                .where(oauth_credentials: { provider: "google" })
                                .distinct
 
-    puts "Found #{users_with_calendars.count} users with calendars"
-    puts ""
+    puts "Found #{users_with_calendars.count} users with calendars\n\n"
 
     synced_count = 0
-    error_count = 0
+    error_count  = 0
 
     users_with_calendars.find_each do |user|
       begin

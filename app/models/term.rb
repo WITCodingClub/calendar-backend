@@ -3,18 +3,20 @@
 # == Schema Information
 #
 # Table name: terms
-# Database name: primary
 #
-#  id                  :bigint           not null, primary key
-#  catalog_imported    :boolean          default(FALSE), not null
-#  catalog_imported_at :datetime
-#  end_date            :date
-#  season              :integer
-#  start_date          :date
-#  uid                 :integer          not null
-#  year                :integer
-#  created_at          :datetime         not null
-#  updated_at          :datetime         not null
+#  id                    :bigint           not null, primary key
+#  catalog_import_failed :boolean          default(FALSE), not null
+#  catalog_imported      :boolean          default(FALSE), not null
+#  catalog_imported_at   :datetime
+#  catalog_importing     :boolean          default(FALSE), not null
+#  end_date              :date
+#  season                :integer          not null
+#  start_date            :date
+#  uid                   :integer          not null
+#  year                  :integer          not null
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  catalog_import_job_id :string
 #
 # Indexes
 #
@@ -24,24 +26,14 @@
 class Term < ApplicationRecord
   PENDING_DATE_UPDATES_KEY = :pending_term_date_updates
 
-  # Wrap bulk course-save operations to batch term date updates.
-  # Instead of updating dates after every course save, collect which terms need
-  # updating and run update_dates_from_courses! once per term at the end.
-  def self.with_deferred_date_updates
-    Thread.current[PENDING_DATE_UPDATES_KEY] = {}
-    yield
-  ensure
-    pending = Thread.current[PENDING_DATE_UPDATES_KEY] || {}
-    Thread.current[PENDING_DATE_UPDATES_KEY] = nil
-    pending.each_value(&:update_dates_from_courses!)
-  end
   include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :trm
 
   has_many :courses, dependent: :destroy
-  has_many :enrollments, dependent: :destroy
+  has_many :enrollments, through: :courses
   has_many :final_exams, dependent: :destroy
+  has_many :university_calendar_events, dependent: :nullify
 
   validates :uid, presence: true, uniqueness: true
 
@@ -92,25 +84,31 @@ class Term < ApplicationRecord
       .order(year: :desc, season: :desc)
   }
 
-  # Scope for current and future terms (for finals schedule uploads)
   scope :current_and_future, -> {
     current_term = Term.current
     return none unless current_term
 
-    # Include current term and any terms after it
     where("(year > ?) OR (year = ? AND season >= ?)",
           current_term.year, current_term.year, seasons[current_term.season])
       .order(year: :desc, season: :desc)
   }
 
+  # Wrap bulk course-save operations to batch term date updates.
+  def self.with_deferred_date_updates
+    Thread.current[PENDING_DATE_UPDATES_KEY] = {}
+    yield
+  ensure
+    pending = Thread.current[PENDING_DATE_UPDATES_KEY] || {}
+    Thread.current[PENDING_DATE_UPDATES_KEY] = nil
+    pending.each_value(&:update_dates_from_courses!)
+  end
+
   def name
     "#{season.to_s.capitalize} #{year}"
   end
 
-  # Update start_date and end_date from course data
-  # Only applies dates that are valid for the term year
+  # Update start_date and end_date from course data. Only considers dates in the expected year range.
   def update_dates_from_courses!
-    # Single query to get MIN(start_date) and MAX(end_date) for valid courses
     new_start, new_end = courses
                          .where.not(start_date: nil)
                          .where.not(end_date: nil)
@@ -123,141 +121,77 @@ class Term < ApplicationRecord
     update!(start_date: new_start, end_date: new_end)
   end
 
-  # Check if term is currently active based on dates
-  # @return [Boolean] true if today is within term dates
   def active?
     return false if start_date.nil? || end_date.nil?
 
-    today = Time.zone.today
-    today.between?(start_date, end_date)
+    Time.zone.today.between?(start_date, end_date)
   end
 
-  # Check if term is upcoming (starts in the future)
-  # @return [Boolean] true if term starts after today
   def upcoming?
     return false if start_date.nil?
 
     Time.zone.today < start_date
   end
 
-  # Check if term has ended (is in the past)
-  # @return [Boolean] true if term ended before today
   def past?
     return false if end_date.nil?
 
     Time.zone.today > end_date
   end
 
-  # Check if term is current or future (not retroactive)
-  # @return [Boolean] true if term is not in the past
   def current_or_future?
     !past?
   end
 
-  # Find a term by its UID
-  # @param uid [Integer] the term UID
-  # @return [Term, nil] the term if found, nil otherwise
-  def self.find_by_uid(uid)
-    find_by(uid: uid)
-  end
-
-  # Find a term by its UID, raises if not found
-  # @param uid [Integer] the term UID
-  # @return [Term] the term
-  # @raise [ActiveRecord::RecordNotFound] if term not found
-  def self.find_by_uid!(uid)
-    find_by!(uid: uid)
-  end
-
-  # Returns the current academic term based on today's date
-  # Uses year/season-based logic as primary, with date validation
-  # @return [Term, nil] the current term, or nil if none found
   def self.current
     today = Time.zone.today
-    current_year = today.year
 
-    # Determine expected season based on month
-    # Aug-Dec: Fall semester
-    # Jan-May: Spring semester
-    # Jun-Jul: Summer semester
     expected_season = case today.month
                       when 1..5 then :spring
                       when 6..7 then :summer
                       when 8..12 then :fall
                       end
 
-    # For late December (after Fall ends), look ahead to Spring of next year
     if today.month == 12 && today.day >= 15
-      spring_next_year = find_by(year: current_year + 1, season: :spring)
+      spring_next_year = find_by(year: today.year + 1, season: :spring)
       return spring_next_year if spring_next_year
     end
 
-    # Priority 1: Look for expected term in current year
-    expected_term = find_by(year: current_year, season: expected_season)
+    expected_term = find_by(year: today.year, season: expected_season)
     return expected_term if expected_term
 
-    # Priority 2: If we're in spring months but no spring term, check if fall is still active
     if expected_season == :spring
-      fall_term = find_by(year: current_year - 1, season: :fall)
+      fall_term = find_by(year: today.year - 1, season: :fall)
       return fall_term if fall_term&.active?
     end
 
-    # Priority 3: Find the next upcoming term
     upcoming_term = where.not(start_date: nil)
                          .where("start_date > ?", today)
-                         .where(year: current_year..)
+                         .where(year: today.year..)
                          .order(start_date: :asc)
                          .first
-
     return upcoming_term if upcoming_term
 
-    # Priority 4: Fall back to most recent term by year/season
     order(year: :desc, season: :desc).first
   end
 
-  # Returns the next academic term after the current term
-  # Uses season progression logic to determine the next term
-  # @return [Term, nil] the next term, or nil if none found
   def self.next
     current_term = current
     return nil unless current_term
 
-    # Determine next term based on season progression:
-    # Fall -> Spring (next year)
-    # Spring -> Summer (same year)
-    # Summer -> Fall (same year)
     case current_term.season.to_sym
-    when :fall
-      find_by(year: current_term.year + 1, season: :spring)
-    when :spring
-      find_by(year: current_term.year, season: :summer)
-    when :summer
-      find_by(year: current_term.year, season: :fall)
+    when :fall   then find_by(year: current_term.year + 1, season: :spring)
+    when :spring then find_by(year: current_term.year, season: :summer)
+    when :summer then find_by(year: current_term.year, season: :fall)
     end
   end
 
-  # Convenience method to get current term UID
-  # @return [Integer, nil] the UID of the current term
-  def self.current_uid
-    current&.uid
-  end
+  def self.current_uid  = current&.uid
+  def self.next_uid     = self.next&.uid
+  def self.find_by_uid(uid)  = find_by(uid: uid)
+  def self.find_by_uid!(uid) = find_by!(uid: uid)
+  def self.exists_by_uid?(uid) = exists?(uid: uid)
 
-  # Convenience method to get next term UID
-  # @return [Integer, nil] the UID of the next term
-  def self.next_uid
-    self.next&.uid
-  end
-
-  # Check if a term exists by UID
-  # @param uid [Integer] the term UID
-  # @return [Boolean] true if term exists
-  def self.exists_by_uid?(uid)
-    exists?(uid: uid)
-  end
-
-  # Find a term that contains the given date
-  # @param date [Date, Time, DateTime] the date to look up
-  # @return [Term, nil] the term containing the date, or nil if none found
   def self.find_by_date(date)
     return nil unless date
 
@@ -270,15 +204,4 @@ class Term < ApplicationRecord
   def to_param
     public_id
   end
-
-  private
-
-  def uniqueness_of_year_and_semester
-    return unless Term.exists?(year: year, semester: semester)
-
-    errors.add(:base, "Term with year #{year} and semester #{semester} already exists")
-
-  end
-
-
 end

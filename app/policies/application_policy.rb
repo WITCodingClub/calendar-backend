@@ -8,63 +8,35 @@ class ApplicationPolicy
     @record = record
   end
 
-  def index?
-    false
-  end
-
-  def show?
-    false
-  end
-
-  def create?
-    false
-  end
-
-  def new?
-    create?
-  end
-
-  def update?
-    false
-  end
-
-  def edit?
-    update?
-  end
-
-  def destroy?
-    false
-  end
+  def index?   = false
+  def show?    = false
+  def create?  = false
+  def new?     = create?
+  def update?  = false
+  def edit?    = update?
+  def destroy? = false
 
   private
 
-  # Helper methods for access level checks
-
-  # Any admin level access (admin, super_admin, owner)
   def admin?
     user&.admin_access?
   end
 
-  # Super admin or owner
   def super_admin?
     user&.super_admin? || user&.owner?
   end
 
-  # Owner only
   def owner?
     user&.owner?
   end
 
-  # Check if user owns the record directly
   def owner_of_record?
     return false unless user
 
-    # Check user_id first (more efficient)
     if record.respond_to?(:user_id) && record.user_id.present?
       return record.user_id == user.id
     end
 
-    # Fall back to checking user association (for unsaved records)
     if record.respond_to?(:user) && record.user.present?
       return record.user.id == user.id
     end
@@ -72,7 +44,6 @@ class ApplicationPolicy
     false
   end
 
-  # Check if user owns the record through an association
   def owner_of_record_through?(association)
     return false unless user && record.respond_to?(association)
 
@@ -82,36 +53,25 @@ class ApplicationPolicy
     associated.user_id == user.id
   end
 
-  # Check if user can perform destructive actions on this record
-  # Super admins CANNOT delete owners or owner-owned resources
   def can_perform_destructive_action?
     return false unless user
 
-    # Determine the target user
     target_user = if record.is_a?(User)
                     record
                   elsif record.respond_to?(:user)
                     record.user
                   elsif record.respond_to?(:oauth_credential) && record.oauth_credential.respond_to?(:user)
                     record.oauth_credential.user
-                  else
-                    nil
                   end
 
-    # If no target user, use super_admin? check
     return super_admin? unless target_user
 
-    # If target is an owner, only an owner can perform destructive action
-    if target_user.owner?
-      owner?
-    else
-      super_admin?
-    end
+    target_user.owner? ? owner? : super_admin?
   end
 
   class Scope
     def initialize(user, scope)
-      @user = user
+      @user  = user
       @scope = scope
     end
 
@@ -122,7 +82,5 @@ class ApplicationPolicy
     private
 
     attr_reader :user, :scope
-
   end
-
 end

@@ -7,37 +7,30 @@ module Admin
                                     .includes(:term)
                                     .order(start_time: :desc)
 
-      # Determine if we should show events without location
-      @show_all = params[:show_all] == "1"
+      @show_all        = params[:show_all] == "1"
       @category_filter = params[:category].presence
 
-      # When filtering by category, show all events in that category (bypass location filter)
-      # Otherwise, by default hide events without a location (unless explicitly showing all)
       unless @show_all || @category_filter
         @university_calendar_events = @university_calendar_events.with_location
       end
 
-      # Search filter
       if params[:search].present?
         @university_calendar_events = @university_calendar_events
                                       .where("summary ILIKE ? OR description ILIKE ?",
                                              "%#{params[:search]}%", "%#{params[:search]}%")
       end
 
-      # Category filter
       if @category_filter
         @university_calendar_events = @university_calendar_events.where(category: @category_filter)
       end
 
-      # Stats for dashboard - category counts show ALL events in each category (regardless of location)
-      # so clicking a category link shows all events that match that count
       base_scope = @show_all ? UniversityCalendarEvent.all : UniversityCalendarEvent.with_location
 
       @stats = {
-        total: base_scope.count,
-        holidays: base_scope.holidays.count,
-        upcoming: base_scope.upcoming.count,
-        categories: UniversityCalendarEvent.group(:category).count # Always show true category counts
+        total:      base_scope.count,
+        holidays:   base_scope.holidays.count,
+        upcoming:   base_scope.upcoming.count,
+        categories: UniversityCalendarEvent.group(:category).count
       }
 
       @university_calendar_events = @university_calendar_events.page(params[:page]).per(25)
@@ -55,5 +48,22 @@ module Admin
       redirect_to admin_university_calendar_events_path, notice: "University calendar sync queued successfully."
     end
 
+    def backfill
+      authorize UniversityCalendarEvent
+
+      start_date = Date.parse(params[:start_date])
+      end_date   = Date.parse(params[:end_date])
+
+      if end_date < start_date
+        redirect_to admin_university_calendar_events_path, alert: "End date must be on or after start date."
+        return
+      end
+
+      UniversityCalendarBackfillJob.perform_later(start_date.to_s, end_date.to_s)
+      redirect_to admin_university_calendar_events_path,
+                  notice: "Backfill queued for #{start_date.strftime('%b %d, %Y')} – #{end_date.strftime('%b %d, %Y')}."
+    rescue Date::Error
+      redirect_to admin_university_calendar_events_path, alert: "Invalid date format."
+    end
   end
 end

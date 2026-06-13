@@ -3,28 +3,15 @@
 require "open3"
 require "tempfile"
 
-# Orchestrates finals schedule PDF parsing: extracts text via pdftotext,
-# selects the appropriate format-specific parser, and persists results.
-#
-# Format-specific parsing is handled by dedicated classes under
-# app/services/finals_schedule_parsers/, each responsible for one WIT PDF
-# template. Add new parsers there; register them in PARSERS below.
-#
-# Current parsers (checked in order):
-#   Spring2026Parser  — Spring 2026+   (named column headers, INSTRUCTOR column)
-#   Fall2025Parser    — Fall 2025       (column blocks, COMBINED CRNs column)
-#   SpringFallParser  — Fall 2024 / Spring & Summer 2025 (column-per-line)
 class FinalsScheduleParserService < ApplicationService
   PARSERS = [
     FinalsScheduleParsers::Spring2026Parser,
     FinalsScheduleParsers::Fall2025Parser,
-    FinalsScheduleParsers::SpringFallParser,
+    FinalsScheduleParsers::SpringFallParser
   ].freeze
 
   attr_reader :pdf_content, :term
 
-  # @param pdf_content [String] Raw PDF binary string
-  # @param term [Term]         The academic term this schedule belongs to
   def initialize(pdf_content:, term:)
     @pdf_content = pdf_content
     @term        = term
@@ -34,21 +21,21 @@ class FinalsScheduleParserService < ApplicationService
   def call
     validate!
 
-    text    = extract_pdf_text
-    parser  = detect_parser(text)
+    text   = extract_pdf_text
+    parser = detect_parser(text)
     Rails.logger.info("Finals schedule parser: #{parser.class.name}")
 
     entries = parser.parse(text)
     results = process_exam_entries(entries)
 
     {
-      total: entries.count,
-      created: results[:created],
-      updated: results[:updated],
-      linked: results[:linked],
-      orphan: results[:orphan],
+      total:         entries.count,
+      created:       results[:created],
+      updated:       results[:updated],
+      linked:        results[:linked],
+      orphan:        results[:orphan],
       rooms_created: results[:rooms_created],
-      errors: results[:errors]
+      errors:        results[:errors]
     }
   end
 
@@ -76,14 +63,11 @@ class FinalsScheduleParserService < ApplicationService
     end
   end
 
-  # Returns the first parser whose .matches? returns true, or falls back to
-  # whichever parser produces the most entries for unknown formats.
   def detect_parser(text)
     PARSERS.each do |klass|
       return klass.new if klass.matches?(text)
     end
 
-    # Unknown format — try all parsers and use whichever yields the most entries
     ranked = PARSERS.map { |klass| { parser: klass.new, count: 0 } }
     ranked.each { |r| r[:count] = r[:parser].parse(text).count }
     best = ranked.max_by { |r| r[:count] }
@@ -94,10 +78,6 @@ class FinalsScheduleParserService < ApplicationService
     )
     best[:parser]
   end
-
-  # ===========================================================================
-  # Database persistence
-  # ===========================================================================
 
   def process_exam_entries(entries)
     created = updated = linked = orphan = rooms_created = 0
@@ -111,11 +91,11 @@ class FinalsScheduleParserService < ApplicationService
       course     = Course.find_by(crn: entry[:crn], term: term)
 
       final_exam.assign_attributes(
-        course: course,
-        exam_date: entry[:date],
-        start_time: entry[:start_time],
-        end_time: entry[:end_time],
-        location: entry[:location],
+        course:        course,
+        exam_date:     entry[:date],
+        start_time:    entry[:start_time],
+        end_time:      entry[:end_time],
+        location:      entry[:location],
         combined_crns: entry[:combined_crns]
       )
 
@@ -130,11 +110,9 @@ class FinalsScheduleParserService < ApplicationService
     end
 
     { created: created, updated: updated, linked: linked, orphan: orphan,
-      rooms_created: rooms_created, errors: errors
-}
+      rooms_created: rooms_created, errors: errors }
   end
 
-  # Creates Room records for any building/room combos that don't exist yet.
   def ensure_rooms_exist(location)
     return 0 if location.blank?
 
@@ -154,5 +132,4 @@ class FinalsScheduleParserService < ApplicationService
 
     rooms_created
   end
-
 end

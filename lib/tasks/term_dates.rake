@@ -7,12 +7,9 @@ namespace :terms do
 
     Term.find_each do |term|
       dates = case term.season.to_sym
-              when :spring
-                { start_date: Date.new(term.year, 1, 6), end_date: Date.new(term.year, 4, 20) }
-              when :summer
-                { start_date: Date.new(term.year, 5, 4), end_date: Date.new(term.year, 8, 15) }
-              when :fall
-                { start_date: Date.new(term.year, 8, 25), end_date: Date.new(term.year, 12, 15) }
+              when :spring then { start_date: Date.new(term.year, 1, 6),  end_date: Date.new(term.year, 4, 20) }
+              when :summer then { start_date: Date.new(term.year, 5, 4),  end_date: Date.new(term.year, 8, 15) }
+              when :fall   then { start_date: Date.new(term.year, 8, 25), end_date: Date.new(term.year, 12, 15) }
               end
 
       term.update!(dates)
@@ -28,7 +25,7 @@ namespace :terms do
 
     Term.find_each do |term|
       old_start = term.start_date
-      old_end = term.end_date
+      old_end   = term.end_date
 
       term.update_dates_from_courses!
       term.reload
@@ -51,7 +48,7 @@ namespace :terms do
 
       term = course.term
       start_valid = course.start_date&.year&.between?(term.year - 1, term.year)
-      end_valid = course.end_date&.year&.between?(term.year, term.year + 1)
+      end_valid   = course.end_date&.year&.between?(term.year, term.year + 1)
 
       unless start_valid && end_valid
         course.update_columns(start_date: term.start_date, end_date: term.end_date)
@@ -65,17 +62,12 @@ namespace :terms do
   desc "Full date reset: reset terms, fix courses, then refine from valid courses"
   task full_reset: :environment do
     puts "=== Full Date Reset ==="
-    puts ""
-
     Rake::Task["terms:reset_dates"].invoke
     puts ""
-
     Rake::Task["terms:fix_course_dates"].invoke
     puts ""
-
     Rake::Task["terms:update_from_courses"].invoke
     puts ""
-
     puts "=== Complete ==="
   end
 end

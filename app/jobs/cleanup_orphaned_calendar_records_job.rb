@@ -4,13 +4,11 @@ class CleanupOrphanedCalendarRecordsJob < ApplicationJob
   queue_as :low
 
   def perform
-    Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Starting orphaned calendar cleanup"
+    Rails.logger.info "[CleanupOrphanedCalendarRecordsJob] Starting orphaned calendar cleanup"
 
     deleted_count = 0
     error_count = 0
 
-    # Find all calendars and check their status
-    all_calendar_ids = GoogleCalendar.pluck(:id)
     orphaned_calendar_ids = []
 
     # Find calendars with missing oauth credentials
@@ -35,29 +33,24 @@ class CleanupOrphanedCalendarRecordsJob < ApplicationJob
     orphaned_by_user = ActiveRecord::Base.connection.execute(orphaned_by_user_sql).to_a.pluck("id")
     orphaned_calendar_ids.concat(orphaned_by_user)
 
-    # Get unique calendar objects with eager loaded associations
     orphaned_calendars = GoogleCalendar.where(id: orphaned_calendar_ids.uniq)
                                        .includes(:oauth_credential)
 
-    Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Found #{orphaned_calendars.size} orphaned calendars"
+    Rails.logger.info "[CleanupOrphanedCalendarRecordsJob] Found #{orphaned_calendars.size} orphaned calendars"
 
     orphaned_calendars.each do |calendar|
-      begin
-        reason = determine_orphan_reason(calendar)
-        Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Deleting calendar #{calendar.id} " \
-                          "(google_calendar_id: #{calendar.google_calendar_id}) - Reason: #{reason}"
+      reason = determine_orphan_reason(calendar)
+      Rails.logger.info "[CleanupOrphanedCalendarRecordsJob] Deleting calendar #{calendar.id} " \
+                        "(google_calendar_id: #{calendar.google_calendar_id}) - Reason: #{reason}"
 
-        calendar.destroy!
-        deleted_count += 1
-      rescue => e
-        error_count += 1
-        Rails.logger.error "[DeleteOrphanedGoogleCalendarsJob] Failed to delete calendar #{calendar.id}: #{e.message}"
-        Rails.logger.error e.backtrace.join("\n")
-      end
+      calendar.destroy!
+      deleted_count += 1
+    rescue => e
+      error_count += 1
+      Rails.logger.error "[CleanupOrphanedCalendarRecordsJob] Failed to delete calendar #{calendar.id}: #{e.message}"
     end
 
-    Rails.logger.info "[DeleteOrphanedGoogleCalendarsJob] Completed: " \
-                      "#{deleted_count} deleted, #{error_count} errors"
+    Rails.logger.info "[CleanupOrphanedCalendarRecordsJob] Completed: #{deleted_count} deleted, #{error_count} errors"
 
     { deleted: deleted_count, errors: error_count }
   end
@@ -79,5 +72,4 @@ class CleanupOrphanedCalendarRecordsJob < ApplicationJob
 
     "Unknown reason"
   end
-
 end

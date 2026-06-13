@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: google_calendar_events
-# Database name: primary
 #
 #  id                           :bigint           not null, primary key
 #  end_time                     :datetime
@@ -24,12 +23,12 @@
 #
 # Indexes
 #
-#  idx_gcal_events_on_calendar_and_uni_event                     (google_calendar_id,university_calendar_event_id)
 #  idx_gcal_events_unique_final_exam                             (google_calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
 #  idx_gcal_events_unique_meeting_time                           (google_calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
 #  idx_gcal_events_unique_university                             (google_calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
-#  idx_on_google_calendar_id_meeting_time_id_6c9efabf50          (google_calendar_id,meeting_time_id)
+#  idx_on_google_calendar_id_meeting_time_id                     (google_calendar_id,meeting_time_id)
 #  index_google_calendar_events_on_final_exam_id                 (final_exam_id)
+#  index_google_calendar_events_on_google_calendar_id            (google_calendar_id)
 #  index_google_calendar_events_on_google_event_id               (google_event_id)
 #  index_google_calendar_events_on_last_synced_at                (last_synced_at)
 #  index_google_calendar_events_on_meeting_time_id               (meeting_time_id)
@@ -37,10 +36,8 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (final_exam_id => final_exams.id)
 #  fk_rails_...  (google_calendar_id => google_calendars.id)
-#  fk_rails_...  (meeting_time_id => meeting_times.id)
-#  fk_rails_...  (university_calendar_event_id => university_calendar_events.id)
+#  fk_rails_...  (meeting_time_id => course_meeting_times.id)
 #
 class GoogleCalendarEvent < ApplicationRecord
   include EncodedIds::HashidIdentifiable
@@ -48,7 +45,7 @@ class GoogleCalendarEvent < ApplicationRecord
   set_public_id_prefix :gce, min_hash_length: 12
 
   belongs_to :google_calendar
-  belongs_to :meeting_time, optional: true
+  belongs_to :meeting_time, class_name: "Course::MeetingTime", optional: true
   belongs_to :final_exam, optional: true
   belongs_to :university_calendar_event, optional: true
   has_one :event_preference, as: :preferenceable, dependent: :destroy
@@ -56,62 +53,36 @@ class GoogleCalendarEvent < ApplicationRecord
   has_one :user, through: :oauth_credential
 
   validates :google_event_id, presence: true
-
-  # Ensure only one type of event is associated
   validate :only_one_event_type_associated
-
-  # Ensure no duplicates for the same calendar and event
   validates :meeting_time_id, uniqueness: { scope: :google_calendar_id }, if: :meeting_time_id?
   validates :final_exam_id, uniqueness: { scope: :google_calendar_id }, if: :final_exam?
   validates :university_calendar_event_id, uniqueness: { scope: :google_calendar_id }, if: :university_event?
 
-  # Serialize recurrence as an array
   serialize :recurrence, coder: JSON
 
-  # user_edited_fields is a jsonb column (natively serialized by PostgreSQL)
+  TRACKABLE_FIELDS = %w[summary location description start_time end_time].freeze
 
-  scope :for_user, ->(user) { where(user: user) }
-  scope :for_calendar, ->(calendar) { where(google_calendar: calendar) }
-  scope :for_meeting_time, ->(meeting_time_id) { where(meeting_time_id: meeting_time_id) }
-  scope :for_final_exam, ->(final_exam_id) { where(final_exam_id: final_exam_id) }
-  scope :stale, ->(time_ago = 1.hour) { where("last_synced_at IS NULL OR last_synced_at < ?", time_ago.ago) }
-  scope :recently_synced, -> { where("last_synced_at > ?", 5.minutes.ago) }
-  scope :finals_only, -> { where.not(final_exam_id: nil) }
-  scope :courses_only, -> { where.not(meeting_time_id: nil) }
-  scope :university_events_only, -> { where.not(university_calendar_event_id: nil) }
-  scope :for_university_calendar_event, ->(event_id) { where(university_calendar_event_id: event_id) }
-  scope :user_edited, -> { where.not(user_edited_fields: nil) }
-  scope :not_user_edited, -> { where(user_edited_fields: nil) }
-  # Orphaned events have no associated meeting_time, final_exam, or university_calendar_event
-  scope :orphaned, -> { where(meeting_time_id: nil, final_exam_id: nil, university_calendar_event_id: nil) }
+  scope :for_meeting_time,           ->(id) { where(meeting_time_id: id) }
+  scope :for_final_exam,             ->(id) { where(final_exam_id: id) }
+  scope :for_university_event,       ->(id) { where(university_calendar_event_id: id) }
+  scope :stale,                      ->(t = 1.hour) { where("last_synced_at IS NULL OR last_synced_at < ?", t.ago) }
+  scope :recently_synced,            -> { where("last_synced_at > ?", 5.minutes.ago) }
+  scope :finals_only,                -> { where.not(final_exam_id: nil) }
+  scope :courses_only,               -> { where.not(meeting_time_id: nil) }
+  scope :university_events_only,     -> { where.not(university_calendar_event_id: nil) }
+  scope :user_edited,                -> { where.not(user_edited_fields: nil) }
+  scope :not_user_edited,            -> { where(user_edited_fields: nil) }
+  scope :orphaned,                   -> { where(meeting_time_id: nil, final_exam_id: nil, university_calendar_event_id: nil) }
 
-  # Returns true if this event is for a final exam
-  def final_exam?
-    final_exam_id.present?
-  end
+  def final_exam?     = final_exam_id.present?
+  def meeting_time?   = meeting_time_id.present?
+  def university_event? = university_calendar_event_id.present?
+  def orphaned?       = meeting_time_id.nil? && final_exam_id.nil? && university_calendar_event_id.nil?
 
-  # Returns true if this event is for a regular class meeting
-  def meeting_time?
-    meeting_time_id.present?
-  end
-
-  # Returns true if this event is for a university calendar event
-  def university_event?
-    university_calendar_event_id.present?
-  end
-
-  # Returns true if this event is orphaned (no associated syncable record)
-  def orphaned?
-    meeting_time_id.nil? && final_exam_id.nil? && university_calendar_event_id.nil?
-  end
-
-  # Get the syncable record (meeting_time, final_exam, or university_calendar_event)
   def syncable
     meeting_time || final_exam || university_calendar_event
   end
 
-  # Generate a hash of the event data to detect changes
-  # Includes all preference-controlled fields to ensure events update when preferences change
   def self.generate_data_hash(event_data)
     hash_input = [
       event_data[:summary],
@@ -128,67 +99,51 @@ class GoogleCalendarEvent < ApplicationRecord
     Digest::SHA256.hexdigest(hash_input)
   end
 
-  # Check if this event's data has changed
   def data_changed?(new_event_data)
-    new_hash = self.class.generate_data_hash(new_event_data)
-    event_data_hash != new_hash
+    event_data_hash != self.class.generate_data_hash(new_event_data)
   end
 
-  # Update the event data hash
   def update_data_hash!(event_data)
     update_column(:event_data_hash, self.class.generate_data_hash(event_data)) # rubocop:disable Rails/SkipsModelValidations
   end
 
-  # Mark as synced
   def mark_synced!
     update_columns(last_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
   end
 
-  # Fields that can be tracked for user edits
-  TRACKABLE_FIELDS = %w[summary location description start_time end_time].freeze
+  def needs_sync?(threshold = 1.hour)
+    last_synced_at.nil? || last_synced_at < threshold.ago
+  end
 
-  # Check if user has edited any fields
   def user_edited?
     user_edited_fields.present? && user_edited_fields.any?
   end
 
-  # Check if a specific field was edited by the user
   def field_edited?(field)
     user_edited_fields&.include?(field.to_s)
   end
 
-  # Mark specific fields as user-edited
   def mark_fields_edited!(fields)
     current_fields = user_edited_fields || []
     new_fields = (current_fields + Array(fields).map(&:to_s)).uniq & TRACKABLE_FIELDS
     update_columns(user_edited_fields: new_fields) # rubocop:disable Rails/SkipsModelValidations
   end
 
-  # Clear specific user-edited fields (or all if none specified)
   def clear_edited_fields!(fields = nil)
     if fields.nil?
       update_columns(user_edited_fields: nil) # rubocop:disable Rails/SkipsModelValidations
     else
-      current_fields = user_edited_fields || []
-      remaining = current_fields - Array(fields).map(&:to_s)
+      remaining = (user_edited_fields || []) - Array(fields).map(&:to_s)
       update_columns(user_edited_fields: remaining.empty? ? nil : remaining) # rubocop:disable Rails/SkipsModelValidations
     end
   end
 
-  # Check if event needs syncing based on staleness
-  def needs_sync?(threshold = 1.hour)
-    last_synced_at.nil? || last_synced_at < threshold.ago
-  end
-
   private
 
-  # Ensure only one event type is associated at a time
   def only_one_event_type_associated
-    event_types = [meeting_time_id, final_exam_id, university_calendar_event_id].compact
+    event_types = [ meeting_time_id, final_exam_id, university_calendar_event_id ].compact
     return unless event_types.size != 1
 
     errors.add(:base, "Must be associated with exactly one of: meeting_time, final_exam, or university_calendar_event")
-
   end
-
 end

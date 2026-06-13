@@ -4,24 +4,18 @@ class ApplicationController < ActionController::Base
   include Pundit::Authorization
   include Authentication
 
-  # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
-  before_action :set_paper_trail_whodunnit
 
-  # Required by Audits1984 gem for audit logging
-  def find_current_auditor
-    current_user
+  rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
+
+  def after_sign_in_path_for(resource)
+    current_user.admin_access? ? admin_root_path : dashboard_root_path
   end
 
-  unless Rails.env.production?
-    around_action :n_plus_one_detection
+  private
 
-    def n_plus_one_detection
-      Prosopite.scan
-      yield
-    ensure
-      Prosopite.finish
-    end
+  def user_not_authorized
+    flash[:alert] = "You are not authorized to perform this action."
+    redirect_back_or_to unauthorized_path
   end
-
 end

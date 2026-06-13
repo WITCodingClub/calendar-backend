@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: friendships
-# Database name: primary
 #
 #  id           :bigint           not null, primary key
 #  status       :integer          default("pending"), not null
@@ -39,33 +38,22 @@ class Friendship < ApplicationRecord
   validate :cannot_friend_self
   validate :no_reverse_friendship_exists, on: :create
 
-  # Scopes
-  scope :involving, ->(user) { where(requester: user).or(where(addressee: user)) }
-  scope :pending_for, ->(user) { pending.where(addressee: user) }
-  scope :outgoing_from, ->(user) { pending.where(requester: user) }
-  scope :accepted_for, ->(user) { accepted.involving(user) }
+  scope :involving,      ->(user) { where(requester: user).or(where(addressee: user)) }
+  scope :pending_for,    ->(user) { pending.where(addressee: user) }
+  scope :outgoing_from,  ->(user) { pending.where(requester: user) }
+  scope :accepted_for,   ->(user) { accepted.involving(user) }
 
-  # Get the friend (the other user in the friendship)
   def friend_for(user)
     requester_id == user.id ? addressee : requester
   end
 
-  # Check if user is the requester (can cancel)
-  def requester?(user)
-    requester_id == user.id
-  end
-
-  # Check if user is the addressee (can accept/decline)
-  def addressee?(user)
-    addressee_id == user.id
-  end
+  def requester?(user) = requester_id == user.id
+  def addressee?(user) = addressee_id == user.id
 
   private
 
   def cannot_friend_self
-    return unless requester_id == addressee_id
-
-    errors.add(:addressee, "cannot be yourself")
+    errors.add(:addressee, "cannot be yourself") if requester_id == addressee_id
   end
 
   def no_reverse_friendship_exists
@@ -73,5 +61,4 @@ class Friendship < ApplicationRecord
 
     errors.add(:base, "A friendship request already exists between these users")
   end
-
 end

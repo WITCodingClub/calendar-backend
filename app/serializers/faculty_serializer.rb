@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: faculties
-# Database name: primary
 #
 #  id                       :bigint           not null, primary key
 #  department               :string
@@ -11,7 +10,6 @@
 #  directory_raw_data       :jsonb
 #  display_name             :string
 #  email                    :string           not null
-#  embedding                :vector(1536)
 #  employee_type            :string
 #  first_name               :string           not null
 #  last_name                :string           not null
@@ -46,12 +44,11 @@ class FacultySerializer
     return nil if @faculty.nil?
 
     {
-      pub_id: @faculty.public_id,
+      pub_id:     @faculty.public_id,
       first_name: @faculty.first_name,
-      last_name: @faculty.last_name,
-      email: @faculty.email,
-      rmp_id: @faculty.rmp_id
+      last_name:  @faculty.last_name,
+      email:      @faculty.email,
+      rmp_id:     @faculty.rmp_id
     }
   end
-
 end

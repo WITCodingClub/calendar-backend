@@ -6,7 +6,6 @@ class CatalogImportJob < ApplicationJob
   def perform(term_uid)
     Rails.logger.info "[CatalogImportJob] Starting import for term #{term_uid}"
 
-    # Fetch courses from LeopardWeb (no auth required)
     result = LeopardWebService.get_course_catalog(term: term_uid)
 
     unless result[:success]
@@ -22,10 +21,13 @@ class CatalogImportJob < ApplicationJob
       return
     end
 
-    # Import the courses (use call! to fail loudly on errors like unknown schedule_type)
     CatalogImportService.new(courses).call!
 
     Rails.logger.info "[CatalogImportJob] Completed import for term #{term_uid}"
+  rescue => e
+    Term.where(uid: term_uid).update_all(catalog_import_failed: true)
+    raise
+  ensure
+    Term.where(uid: term_uid).update_all(catalog_importing: false)
   end
-
 end

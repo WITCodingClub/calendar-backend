@@ -30,14 +30,12 @@ module JsonWebTokenAuthenticatable
     return unless @current_user.nil?
 
     render json: { success: false, error: "Authentication required", code: "AUTH_INVALID" }, status: :unauthorized
-
   end
 
   def extract_token_from_header
     auth_header = request.headers["Authorization"]
     return nil unless auth_header
 
-    # Support both "Bearer TOKEN" and "TOKEN" formats
     auth_header.gsub(/^Bearer\s+/, "")
   end
 end

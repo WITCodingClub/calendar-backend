@@ -16,17 +16,15 @@ module FlipperFlags
     envSwitcher: ENV_SWITCHER,
     debugMode: DEBUG_MODE,
     finalsRetroactive: FINALS_RETROACTIVE,
-    bypassRateLimits: BYPASS_RATE_LIMITS,
+    bypassRateLimits: BYPASS_RATE_LIMITS
   }.freeze
 
-  ALL_FLAGS = [
-    :v1,
-    :v2,
-    :envSwitcher,
-    :debugMode,
-    :finalsRetroactive,
-    :bypassRateLimits,
+  ALL_FLAGS = %i[
+    v1
+    v2
+    envSwitcher
+    debugMode
+    finalsRetroactive
+    bypassRateLimits
   ].freeze
-
-
 end

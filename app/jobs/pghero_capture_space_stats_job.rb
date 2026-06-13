@@ -8,5 +8,4 @@ class PgheroCaptureSpaceStatsJob < ApplicationJob
   rescue PgHero::NotEnabled => e
     Rails.logger.info("PgHero space stats not enabled: #{e.message}")
   end
-
 end

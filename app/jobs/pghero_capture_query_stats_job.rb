@@ -8,5 +8,4 @@ class PgheroCaptureQueryStatsJob < ApplicationJob
   rescue PgHero::NotEnabled => e
     Rails.logger.info("PgHero query stats not enabled: #{e.message}")
   end
-
 end

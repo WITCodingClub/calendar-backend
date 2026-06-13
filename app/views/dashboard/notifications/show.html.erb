@@ -1,0 +1,43 @@
+<% content_for :title, "Notifications" %>
+
+<div class="max-w-xl mx-auto space-y-6">
+  <h1 class="text-2xl font-bold text-on-surface">Notifications</h1>
+
+  <div class="m3-card p-5 space-y-4">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-sm font-medium text-on-surface">Google Calendar notifications</p>
+        <p class="text-xs text-on-surface-variant mt-0.5">
+          <% if current_user.notifications_disabled? %>
+            Currently <span class="text-error font-medium">disabled</span>.
+            <% if current_user.notifications_disabled_until %>
+              Re-enables <%= current_user.notifications_disabled_until.strftime("%b %d, %Y") %>.
+            <% end %>
+          <% else %>
+            Currently <span class="text-on-tertiary-container font-medium">enabled</span>.
+          <% end %>
+        </p>
+      </div>
+
+      <% if current_user.notifications_disabled? %>
+        <%= button_to dashboard_notifications_path,
+            method: :patch,
+            params: { disable: "false" },
+            class: "m3-btn-filled flex-shrink-0" do %>
+          Enable
+        <% end %>
+      <% else %>
+        <%= button_to dashboard_notifications_path,
+            method: :patch,
+            params: { disable: "true" },
+            class: "m3-btn-outlined flex-shrink-0" do %>
+          Disable
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="m3-card p-4 text-sm text-on-surface-variant">
+    Disabling notifications removes Google Calendar event reminders during your next sync. You can re-enable at any time.
+  </div>
+</div>

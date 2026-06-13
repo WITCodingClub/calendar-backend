@@ -195,8 +195,6 @@ class RateMyProfessorService < ApplicationService
   GRAPHQL
 
   def search_professors(name, school_id: WENTWORTH_SCHOOL_ID, count: 10)
-    # Use a digest of the raw name to avoid parameterize collisions (e.g. accented chars,
-    # different capitalisation/punctuation mapping to the same slug).
     cache_key = "rmp:search:#{school_id}:#{Digest::SHA256.hexdigest(name.downcase.strip)}:#{count}"
 
     Rails.cache.fetch(cache_key, expires_in: 24.hours) do
@@ -217,7 +215,6 @@ class RateMyProfessorService < ApplicationService
   end
 
   def get_teacher_details(teacher_id)
-    # Cache teacher details for 12 hours since basic info changes infrequently
     cache_key = "rmp:teacher:#{teacher_id}"
 
     Rails.cache.fetch(cache_key, expires_in: 12.hours) do
@@ -232,8 +229,6 @@ class RateMyProfessorService < ApplicationService
   end
 
   def get_ratings(teacher_id, count: 100, cursor: nil)
-    # Cache individual rating pages for 6 hours
-    # Note: get_all_ratings() will use this cached data
     cache_key = "rmp:ratings:#{teacher_id}:#{count}:#{cursor || 'start'}"
 
     Rails.cache.fetch(cache_key, expires_in: 6.hours) do
@@ -273,13 +268,10 @@ class RateMyProfessorService < ApplicationService
     all_ratings
   end
 
-  # Generate URL to add a professor to RMP
-  # Note: RMP requires reCAPTCHA, so automated submission via GraphQL is not possible
   def add_professor_url(first_name: nil, last_name: nil, school_id: WENTWORTH_SCHOOL_ID)
     "https://www.ratemyprofessors.com/add/professor"
   end
 
-  # Generate WIT faculty directory URL for a professor
   def faculty_directory_url(first_name:, last_name:)
     "https://wit.edu/faculty-staff-directory?search=#{URI.encode_www_form_component(first_name)}+#{URI.encode_www_form_component(last_name)}&dept=&school=&employee_type=All"
   end
@@ -288,7 +280,6 @@ class RateMyProfessorService < ApplicationService
 
   def make_request(query:, operation_name:, variables:)
     connection = Faraday.new(url: BASE_URL) do |faraday|
-      # Statsd removed
       faraday.request :json
       faraday.response :json
       faraday.adapter Faraday.default_adapter
@@ -308,5 +299,4 @@ class RateMyProfessorService < ApplicationService
       }
     end
   end
-
 end

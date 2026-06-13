@@ -13,8 +13,8 @@ Rails.application.config.middleware.use OmniAuth::Builder do
         "https://www.googleapis.com/auth/calendar.calendars",
         "https://www.googleapis.com/auth/calendar.app.created"
       ].join(" "),
-      access_type: "offline",        # get refresh_token
-      prompt: "consent",             # force refresh_token on first grant
+      access_type: "offline",
+      prompt: "consent",
       include_granted_scopes: true
     }
   )

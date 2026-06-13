@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: enrollment_snapshots
-# Database name: primary
 #
 #  id                  :bigint           not null, primary key
 #  course_number       :integer
@@ -27,6 +26,7 @@
 #  index_enrollment_snapshots_on_crn                  (crn)
 #  index_enrollment_snapshots_on_snapshot_created_at  (snapshot_created_at)
 #  index_enrollment_snapshots_on_term_id              (term_id)
+#  index_enrollment_snapshots_on_user_id              (user_id)
 #
 # Foreign Keys
 #
@@ -38,14 +38,8 @@ class EnrollmentSnapshot < ApplicationRecord
   belongs_to :term
 
   validates :crn, presence: true
-  validates :crn, uniqueness: { scope: [:user_id, :term_id] }
-  include EncodedIds::HashidIdentifiable
 
-  # JSONB columns don't need explicit serialization
-
-  # Scope to find snapshots for restoration
-  scope :for_restoration, -> { where(snapshot_reason: "Pre-CRN-uniqueness-fix backup") }
-  scope :for_term, ->(term) { where(term: term) }
-  scope :for_user, ->(user) { where(user: user) }
-
+  scope :for_term,   ->(term) { where(term: term) }
+  scope :for_user,   ->(user) { where(user: user) }
+  scope :recent,     -> { order(snapshot_created_at: :desc) }
 end

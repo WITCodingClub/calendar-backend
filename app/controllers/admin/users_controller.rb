@@ -2,13 +2,11 @@
 
 module Admin
   class UsersController < Admin::ApplicationController
-    before_action :set_user, only: [:show, :edit, :update, :destroy, :revoke_oauth_credential, :refresh_oauth_credential, :toggle_support_flag, :force_calendar_sync, :add_friend, :remove_friend]
-
-    # Support tool flags that can be toggled via admin UI
-    SUPPORT_FLAGS = {
-      env_switcher: FlipperFlags::ENV_SWITCHER,
-      debug_mode: FlipperFlags::DEBUG_MODE
-    }.freeze
+    before_action :set_user, only: [
+      :show, :edit, :update, :destroy,
+      :revoke_oauth_credential, :refresh_oauth_credential,
+      :force_calendar_sync, :add_friend, :remove_friend
+    ]
 
     def index
       @users = policy_scope(User).order(created_at: :desc)
@@ -16,46 +14,36 @@ module Admin
       if params[:search].present?
         search_term = params[:search].strip
 
-        # Check if search term is numeric (for ID search)
         if search_term.match?(/^\d+$/)
           @users = @users.where(id: search_term.to_i)
         else
-          # Search by email (through emails table) or concatenated first+last name.
-          # Use a subquery for email matching to avoid JOIN + DISTINCT interfering with pagination counts.
           name_search = "%#{search_term}%"
-          email_matched = @users.joins(:emails).where("emails.email ILIKE ?", name_search).select(:id)
-          name_matched = @users.where(
-            "CONCAT(users.first_name, users.last_name) ILIKE ? OR CONCAT(users.first_name, ' ', users.last_name) ILIKE ?",
-            name_search, name_search
+          @users = @users.where(
+            "users.email ILIKE ? OR CONCAT(users.first_name, users.last_name) ILIKE ? OR CONCAT(users.first_name, ' ', users.last_name) ILIKE ?",
+            name_search, name_search, name_search
           )
-          @users = @users.where(id: email_matched).or(name_matched)
         end
       end
 
-      @users = @users.page(params[:page]).per(5)
-
-      # For Turbo Frame requests, only render the frame
-      return unless turbo_frame_request?
-
-      render partial: "users_table"
-
+      @users = @users.page(params[:page]).per(25)
     end
 
     def show
       authorize @user
 
-      # Eager load enrollments with their associations for the view
       @enrollments_by_term = @user.enrollments
-                                  .includes({ course: :faculties }, :term)
-                                  .joins(:term)
+                                  .includes({ course: [ :faculties, :term, meeting_times: { rooms: :building } ] })
+                                  .joins(course: :term)
                                   .order("terms.year DESC, terms.season DESC")
-                                  .group_by(&:term)
+                                  .group_by { |e| e.course.term }
 
-      # Eager load oauth credentials with calendar
       @oauth_credentials = @user.oauth_credentials
                                 .includes(:google_calendar)
                                 .order(created_at: :desc)
 
+      @friends = @user.friends.to_a
+      @incoming_requests = @user.incoming_friend_requests.includes(:requester).to_a
+      @outgoing_requests = @user.outgoing_friend_requests.includes(:addressee).to_a
     end
 
     def edit
@@ -74,7 +62,6 @@ module Admin
 
     def destroy
       authorize @user
-
       @user.destroy
       redirect_to admin_users_path, notice: "User was successfully deleted."
     end
@@ -82,12 +69,9 @@ module Admin
     def revoke_oauth_credential
       authorize @user, :revoke_oauth_credential?
       credential = @user.oauth_credentials.find(params[:credential_id])
-      credential_email = credential.email
 
-      # Queue the revocation job
       RevokeOauthCredentialJob.perform_later(credential.id)
-
-      redirect_to admin_user_path(@user), notice: "OAuth credential for #{credential_email} is being revoked."
+      redirect_to admin_user_path(@user), notice: "OAuth credential for #{credential.email} is being revoked."
     rescue ActiveRecord::RecordNotFound
       redirect_to admin_user_path(@user), alert: "OAuth credential not found."
     end
@@ -101,18 +85,16 @@ module Admin
         return
       end
 
-      # Build Google credentials and refresh
       credentials = Google::Auth::UserRefreshCredentials.new(
-        client_id: Rails.application.credentials.dig(:google, :client_id),
+        client_id:     Rails.application.credentials.dig(:google, :client_id),
         client_secret: Rails.application.credentials.dig(:google, :client_secret),
         refresh_token: credential.refresh_token,
-        scope: ["https://www.googleapis.com/auth/calendar"]
+        scope:         ["https://www.googleapis.com/auth/calendar"]
       )
-
       credentials.refresh!
 
       credential.update!(
-        access_token: credentials.access_token,
+        access_token:     credentials.access_token,
         token_expires_at: Time.current + credentials.expires_in.seconds
       )
 
@@ -120,41 +102,15 @@ module Admin
     rescue ActiveRecord::RecordNotFound
       redirect_to admin_user_path(@user), alert: "OAuth credential not found."
     rescue Signet::AuthorizationError => e
-      Rails.logger.error("Error refreshing OAuth token: #{e.message}")
-      redirect_to admin_user_path(@user), alert: "Failed to refresh token for #{credential.email}. User may need to re-authenticate."
+      redirect_to admin_user_path(@user), alert: "Failed to refresh token for #{credential.email}: #{e.message}"
     rescue => e
-      Rails.logger.error("Error refreshing OAuth token: #{e.message}")
       redirect_to admin_user_path(@user), alert: "Failed to refresh token: #{e.message}"
-    end
-
-    def toggle_support_flag
-      authorize @user, :toggle_support_flag?
-
-      flag_key = params[:flag]&.to_sym
-      unless SUPPORT_FLAGS.key?(flag_key)
-        redirect_to admin_user_path(@user), alert: "Unknown support flag: #{params[:flag]}"
-        return
-      end
-
-      flipper_flag = SUPPORT_FLAGS[flag_key]
-      flag_name = flag_key.to_s.titleize
-
-      if Flipper.enabled?(flipper_flag, @user)
-        Flipper.disable_actor(flipper_flag, @user)
-        redirect_to admin_user_path(@user), notice: "#{flag_name} disabled for #{@user.email}."
-      else
-        Flipper.enable_actor(flipper_flag, @user)
-        redirect_to admin_user_path(@user), notice: "#{flag_name} enabled for #{@user.email}."
-      end
-    rescue => e
-      Rails.logger.error("Error toggling support flag: #{e.message}")
-      redirect_to admin_user_path(@user), alert: "Failed to toggle #{flag_name}: #{e.message}"
     end
 
     def force_calendar_sync
       authorize @user, :force_calendar_sync?
 
-      unless @user.google_credential&.google_calendar
+      unless GoogleCalendar.for_user(@user).exists?
         redirect_to admin_user_path(@user), alert: "User does not have a Google Calendar set up."
         return
       end
@@ -162,7 +118,6 @@ module Admin
       GoogleCalendarSyncJob.perform_later(@user, force: true)
       redirect_to admin_user_path(@user), notice: "Calendar sync queued for #{@user.email}."
     rescue => e
-      Rails.logger.error("Error queueing calendar sync: #{e.message}")
       redirect_to admin_user_path(@user), alert: "Failed to queue calendar sync: #{e.message}"
     end
 
@@ -175,7 +130,7 @@ module Admin
         return
       end
 
-      friend = User.find_by_public_id(friend_id) || User.find_by_hashid(friend_id.delete_prefix("usr_"))
+      friend = User.find_by_public_id(friend_id)
       if friend.nil?
         redirect_to admin_user_path(@user), alert: "User not found with ID: #{friend_id}"
         return
@@ -186,9 +141,11 @@ module Admin
         return
       end
 
-      # Check if friendship already exists
-      existing = Friendship.where("(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
-                                  @user.id, friend.id, friend.id, @user.id).first
+      existing = Friendship.where(
+        "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
+        @user.id, friend.id, friend.id, @user.id
+      ).first
+
       if existing
         if existing.accepted?
           redirect_to admin_user_path(@user), alert: "#{friend.full_name} is already a friend."
@@ -199,7 +156,6 @@ module Admin
         return
       end
 
-      # Create accepted friendship directly
       Friendship.create!(requester: @user, addressee: friend, status: :accepted)
       redirect_to admin_user_path(@user), notice: "Added #{friend.full_name} as a friend."
     rescue ActiveRecord::RecordInvalid => e
@@ -209,16 +165,17 @@ module Admin
     def remove_friend
       authorize @user, :manage_friendships?
 
-      friend_id = params[:friend_id]
-      friend = User.find_by_public_id(friend_id) || User.find_by_hashid(friend_id.delete_prefix("usr_"))
+      friend = User.find_by_public_id(params[:friend_id])
 
       if friend.nil?
         redirect_to admin_user_path(@user), alert: "User not found."
         return
       end
 
-      friendship = Friendship.where("(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
-                                    @user.id, friend.id, friend.id, @user.id).first
+      friendship = Friendship.where(
+        "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
+        @user.id, friend.id, friend.id, @user.id
+      ).first
 
       if friendship.nil?
         redirect_to admin_user_path(@user), alert: "Friendship not found."
@@ -232,15 +189,11 @@ module Admin
     private
 
     def set_user
-      # Try different formats: full public_id, hashid only, or integer ID
       @user = if params[:id].start_with?("usr_")
-                # Full public_id format
                 User.find_by_public_id(params[:id])
               elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
-                # Hashid only (from to_param)
                 User.find_by_hashid(params[:id])
-              elsif params[:id].match?(/^\d+$/)
-                # Integer ID
+              else
                 User.find(params[:id])
               end
 
@@ -248,10 +201,9 @@ module Admin
     end
 
     def user_params
-      permitted = [:email, :first_name, :last_name]
+      permitted = [:first_name, :last_name]
       permitted << :access_level if policy(@user).edit_access_level?
       params.expect(user: permitted)
     end
-
   end
 end

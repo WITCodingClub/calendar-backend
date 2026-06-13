@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: rating_distributions
-# Database name: primary
 #
 #  id                       :bigint           not null, primary key
 #  avg_difficulty           :decimal(3, 2)
@@ -37,22 +36,13 @@ class RatingDistribution < ApplicationRecord
 
   validates :faculty_id, uniqueness: true
 
-  # Get percentage for each rating level
   def percentage(level)
     return 0 if total.zero?
 
     ((send("r#{level}").to_f / total) * 100).round(2)
   end
 
-  # Get all percentages as a hash
   def percentages
-    {
-      r1: percentage(1),
-      r2: percentage(2),
-      r3: percentage(3),
-      r4: percentage(4),
-      r5: percentage(5)
-    }
+    (1..5).to_h { |i| [ "r#{i}".to_sym, percentage(i) ] }
   end
-
 end

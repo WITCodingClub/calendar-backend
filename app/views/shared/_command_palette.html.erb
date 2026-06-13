@@ -1,130 +1,54 @@
-<!-- Command Palette Modal -->
 <div data-controller="command-palette"
-     data-command-palette-target="modal"
-     data-action="click->command-palette#closeOnBackdrop"
-     class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[15vh] z-50 hidden">
+     data-command-palette-open-class="opacity-100 pointer-events-auto"
+     data-command-palette-closed-class="opacity-0 pointer-events-none">
 
-  <div data-action="click->command-palette#stopPropagation"
-       class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden border border-gray-200">
+  <!-- Backdrop -->
+  <div class="fixed inset-0 z-40 bg-scrim/40 opacity-0 pointer-events-none transition-opacity duration-150"
+       data-command-palette-target="backdrop"
+       data-action="click->command-palette#close">
+  </div>
 
-    <!-- Search Input -->
-    <div class="relative">
-      <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  <!-- Panel -->
+  <div class="fixed inset-x-0 top-20 z-50 mx-auto max-w-xl px-4 opacity-0 pointer-events-none transition-all duration-150"
+       data-command-palette-target="panel">
+    <div class="m3-card rounded-xl overflow-hidden shadow-2xl">
+      <!-- Search input -->
+      <div class="flex items-center gap-3 px-4 py-3 border-b border-outline-variant">
+        <svg class="w-5 h-5 text-on-surface-variant flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
         </svg>
-      </div>
-      <input data-command-palette-target="input"
-             data-action="input->command-palette#filter keydown->command-palette#navigate"
-             type="text"
-             placeholder="Search or jump to..."
-             class="w-full pl-12 pr-4 py-4 text-base border-0 border-b border-gray-200 focus:outline-none focus:ring-0 focus:border-gray-300">
-    </div>
-
-    <!-- Results -->
-    <div data-command-palette-target="results" class="max-h-96 overflow-y-auto">
-
-      <!-- Recent Items Section -->
-      <div data-command-palette-target="recentsSection" class="hidden">
-        <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
-          Recent
-        </div>
-        <div data-command-palette-target="recentsContainer"></div>
+        <input type="text"
+               placeholder="Search admin..."
+               class="flex-1 bg-transparent text-on-surface placeholder-on-surface-variant outline-none text-sm"
+               data-command-palette-target="input"
+               data-action="input->command-palette#filter keydown->command-palette#keydown">
+        <kbd class="text-xs text-on-surface-variant bg-surface-container-high px-1.5 py-0.5 rounded border border-outline-variant">ESC</kbd>
       </div>
 
-      <!-- Public ID Section -->
-      <div data-command-palette-target="publicIdSection" class="hidden">
-        <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
-          Go to Public ID
-        </div>
-        <div data-command-palette-target="publicIdContainer"></div>
-      </div>
-
-      <!-- All Items Section -->
-      <div data-command-palette-target="allItemsSection">
-        <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
-          All Commands
-        </div>
-        <% Admin::NavigationRegistry.categories_for(current_user).each do |category| %>
-          <% category[:items].each do |item| %>
-            <%
-              # Determine path
-              path = if item[:path].is_a?(Symbol)
-                begin
-                  send(item[:path])
-                rescue StandardError
-                  nil
-                end
-              else
-                item[:path]
-              end
-
-              next if path.nil?
-
-              # Build search data
-              search_data = {
-                title: item[:title],
-                description: item[:description],
-                keywords: (item[:keywords] || []).join(' '),
-                category: category[:title]
-              }.to_json
-            %>
-
-            <div data-command-palette-target="item"
-                 data-item-path="<%= path %>"
-                 data-item-title="<%= item[:title] %>"
-                 data-search-data="<%= search_data %>"
-                 data-action="click->command-palette#selectItem"
-                 class="px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition group border-l-2 border-transparent">
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <div class="font-medium text-sm text-gray-900 truncate"><%= item[:title] %></div>
-                    <% if item[:read_only] %>
-                      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                        Read-only
-                      </span>
-                    <% end %>
-                  </div>
-                  <% if item[:description] %>
-                    <div class="text-xs text-gray-500 truncate mt-0.5"><%= item[:description] %></div>
-                  <% end %>
-                </div>
-                <div class="flex items-center gap-2 flex-shrink-0">
-                  <span class="text-xs text-gray-400 uppercase"><%= category[:title] %></span>
-                  <svg class="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
+      <!-- Results -->
+      <div class="max-h-80 overflow-y-auto py-2" data-command-palette-target="results">
+        <% Admin::NavigationRegistry.items_for_user(current_user).each do |item| %>
+          <% item_path = item[:path].is_a?(Symbol) ? send(item[:path]) : item[:path] rescue '#' %>
+          <a href="<%= item_path %>"
+             class="command-palette-item flex items-center gap-3 px-4 py-2.5 hover:bg-surface-container-high cursor-pointer transition-colors"
+             data-label="<%= item[:title].downcase %>">
+            <div class="w-7 h-7 flex items-center justify-center rounded-md bg-primary-container text-on-primary-container text-xs font-bold flex-shrink-0">
+              <%= item[:title][0] %>
             </div>
-          <% end %>
+            <div>
+              <div class="text-sm font-medium text-on-surface"><%= item[:title] %></div>
+              <% if item[:description] %>
+                <div class="text-xs text-on-surface-variant"><%= item[:description] %></div>
+              <% end %>
+            </div>
+          </a>
         <% end %>
       </div>
 
-      <!-- No Results -->
-      <div data-command-palette-target="noResults" class="hidden px-4 py-8 text-center text-sm text-gray-500">
-        No results found
-      </div>
-    </div>
-
-    <!-- Footer with keyboard hints -->
-    <div class="px-4 py-3 bg-gray-50 border-t border-gray-200">
-      <div class="flex items-center justify-between text-xs text-gray-500">
-        <div class="flex items-center gap-3">
-          <div class="flex items-center gap-1">
-            <kbd class="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium shadow-sm">↑↓</kbd>
-            <span>Navigate</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <kbd class="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium shadow-sm">↵</kbd>
-            <span>Select</span>
-          </div>
-        </div>
-        <div class="flex items-center gap-1">
-          <kbd class="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium shadow-sm">ESC</kbd>
-          <span>Close</span>
-        </div>
+      <div class="px-4 py-2 border-t border-outline-variant flex items-center gap-4 text-xs text-on-surface-variant">
+        <span><kbd class="bg-surface-container-high px-1 rounded border border-outline-variant">↑↓</kbd> Navigate</span>
+        <span><kbd class="bg-surface-container-high px-1 rounded border border-outline-variant">↵</kbd> Open</span>
+        <span><kbd class="bg-surface-container-high px-1 rounded border border-outline-variant">ESC</kbd> Close</span>
       </div>
     </div>
   </div>

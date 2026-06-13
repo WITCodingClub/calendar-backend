@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<%= form_authenticity_token %>">
+  <title><%= content_for(:title) { "Dashboard" } %> — WIT Calendar</title>
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+  <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
+  <%= javascript_importmap_tags %>
+</head>
+<body class="h-full bg-background text-on-background">
+  <%= render "shared/flash_messages" %>
+
+  <div class="flex h-full min-h-screen">
+
+    <!-- Desktop navigation rail -->
+    <nav class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-20 xl:w-64 z-30 bg-surface-container border-r border-outline-variant">
+      <!-- Logo -->
+      <div class="flex items-center gap-3 px-4 xl:px-5 py-4 border-b border-outline-variant">
+        <div class="w-9 h-9 flex-shrink-0 rounded-xl bg-primary-container flex items-center justify-center">
+          <svg class="w-5 h-5 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <span class="hidden xl:block text-sm font-bold text-on-surface">WIT Calendar</span>
+      </div>
+
+      <!-- Nav items -->
+      <div class="flex-1 overflow-y-auto py-3 px-2 xl:px-3 space-y-1">
+        <%= render "layouts/user_nav_item", path: dashboard_root_path, label: "Overview", icon: "home" %>
+        <%= render "layouts/user_nav_item", path: dashboard_schedule_path, label: "Schedule", icon: "calendar" %>
+        <%= render "layouts/user_nav_item", path: dashboard_calendar_preferences_path, label: "Preferences", icon: "adjustments" %>
+        <%= render "layouts/user_nav_item", path: dashboard_connected_accounts_path, label: "Accounts", icon: "link" %>
+        <%= render "layouts/user_nav_item", path: dashboard_ics_feed_path, label: "ICS Feed", icon: "rss" %>
+        <%= render "layouts/user_nav_item", path: dashboard_notifications_path, label: "Notifications", icon: "bell" %>
+        <%= render "layouts/user_nav_item", path: dashboard_friends_path, label: "Friends", icon: "users" %>
+      </div>
+
+      <!-- Bottom: user + sign out -->
+      <div class="border-t border-outline-variant p-2 xl:p-3 space-y-1">
+        <% if current_user.admin_access? %>
+          <%= render "layouts/user_nav_item", path: admin_root_path, label: "Admin", icon: "shield" %>
+        <% end %>
+        <div class="hidden xl:flex items-center gap-2 px-3 py-2 rounded-2xl">
+          <div class="w-7 h-7 rounded-full bg-secondary-container flex items-center justify-center text-xs font-bold text-on-secondary-container flex-shrink-0">
+            <%= current_user.first_name[0].upcase %>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-medium text-on-surface truncate"><%= current_user.full_name %></p>
+            <p class="text-[10px] text-on-surface-variant truncate"><%= current_user.email %></p>
+          </div>
+        </div>
+        <%= link_to destroy_user_session_path,
+            data: { turbo_method: :delete },
+            title: "Sign out",
+            class: "flex items-center gap-3 px-3 py-2 rounded-2xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          <span class="hidden xl:block">Sign out</span>
+        <% end %>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="flex-1 flex flex-col min-w-0 lg:ml-20 xl:ml-64">
+
+      <!-- Mobile top bar -->
+      <header class="lg:hidden sticky top-0 z-20 bg-surface-container border-b border-outline-variant px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
+            <svg class="w-4 h-4 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <span class="text-sm font-bold text-on-surface"><%= content_for(:title) { "Dashboard" } %></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-on-surface-variant"><%= current_user.first_name %></span>
+          <%= link_to destroy_user_session_path,
+              data: { turbo_method: :delete },
+              class: "text-xs text-on-surface-variant hover:text-primary" do %>
+            Sign out
+          <% end %>
+        </div>
+      </header>
+
+      <!-- Mobile bottom nav -->
+      <nav class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-surface-container border-t border-outline-variant flex">
+        <%= render "layouts/user_bottom_nav_item", path: dashboard_root_path, label: "Home", icon: "home" %>
+        <%= render "layouts/user_bottom_nav_item", path: dashboard_schedule_path, label: "Schedule", icon: "calendar" %>
+        <%= render "layouts/user_bottom_nav_item", path: dashboard_calendar_preferences_path, label: "Prefs", icon: "adjustments" %>
+        <%= render "layouts/user_bottom_nav_item", path: dashboard_connected_accounts_path, label: "Accounts", icon: "link" %>
+        <%= render "layouts/user_bottom_nav_item", path: dashboard_friends_path, label: "Friends", icon: "users" %>
+        <% if current_user.admin_access? %>
+          <%= render "layouts/user_bottom_nav_item", path: admin_root_path, label: "Admin", icon: "shield" %>
+        <% end %>
+      </nav>
+
+      <!-- Page content -->
+      <main class="flex-1 p-4 lg:p-6 pb-20 lg:pb-6 overflow-x-auto">
+        <%= yield %>
+      </main>
+    </div>
+
+  </div>
+</body>
+</html>

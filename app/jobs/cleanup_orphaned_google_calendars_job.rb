@@ -9,7 +9,6 @@ class CleanupOrphanedGoogleCalendarsJob < ApplicationJob
     service = GoogleCalendarService.new
     google_calendars = service.list_calendars
 
-    # Get all calendar IDs from database
     db_calendar_ids = GoogleCalendar.pluck(:google_calendar_id)
 
     deleted_count = 0
@@ -19,23 +18,20 @@ class CleanupOrphanedGoogleCalendarsJob < ApplicationJob
     google_calendars.items.each do |cal|
       next if db_calendar_ids.include?(cal.id)
 
-      begin
-        Rails.logger.info "[CleanupOrphanedGoogleCalendarsJob] Deleting orphaned calendar: #{cal.id} - #{cal.summary}"
-        service.delete_calendar(cal.id)
-        deleted_count += 1
-      rescue Google::Apis::ClientError => e
-        if e.status_code == 404
-          Rails.logger.warn "[CleanupOrphanedGoogleCalendarsJob] Calendar not found (already deleted): #{cal.id}"
-          skipped_count += 1
-        else
-          Rails.logger.error "[CleanupOrphanedGoogleCalendarsJob] Failed to delete calendar #{cal.id}: #{e.message}"
-          error_count += 1
-        end
-      rescue => e
-        Rails.logger.error "[CleanupOrphanedGoogleCalendarsJob] Error deleting calendar #{cal.id}: #{e.message}"
-        Rails.logger.error e.backtrace.join("\n")
+      Rails.logger.info "[CleanupOrphanedGoogleCalendarsJob] Deleting orphaned calendar: #{cal.id} - #{cal.summary}"
+      service.delete_calendar(cal.id)
+      deleted_count += 1
+    rescue Google::Apis::ClientError => e
+      if e.status_code == 404
+        Rails.logger.warn "[CleanupOrphanedGoogleCalendarsJob] Calendar not found (already deleted): #{cal.id}"
+        skipped_count += 1
+      else
+        Rails.logger.error "[CleanupOrphanedGoogleCalendarsJob] Failed to delete calendar #{cal.id}: #{e.message}"
         error_count += 1
       end
+    rescue => e
+      Rails.logger.error "[CleanupOrphanedGoogleCalendarsJob] Error deleting calendar #{cal.id}: #{e.message}"
+      error_count += 1
     end
 
     Rails.logger.info "[CleanupOrphanedGoogleCalendarsJob] Completed: " \
@@ -43,5 +39,4 @@ class CleanupOrphanedGoogleCalendarsJob < ApplicationJob
 
     { deleted: deleted_count, skipped: skipped_count, errors: error_count }
   end
-
 end

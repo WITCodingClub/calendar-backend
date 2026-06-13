@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: teacher_rating_tags
-# Database name: primary
 #
 #  id            :bigint           not null, primary key
 #  tag_count     :integer          default(0)
@@ -15,6 +14,7 @@
 #
 # Indexes
 #
+#  index_teacher_rating_tags_on_faculty_id                    (faculty_id)
 #  index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id  (faculty_id,rmp_legacy_id) UNIQUE
 #
 # Foreign Keys
@@ -33,6 +33,5 @@ class TeacherRatingTag < ApplicationRecord
   validates :tag_count, numericality: { greater_than_or_equal_to: 0 }
 
   scope :ordered_by_count, -> { order(tag_count: :desc) }
-  scope :top_tags, ->(limit = 5) { ordered_by_count.limit(limit) }
-
+  scope :top_tags,         ->(limit = 5) { ordered_by_count.limit(limit) }
 end

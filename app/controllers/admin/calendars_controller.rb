@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
 module Admin
-  class CalendarsController < Admin::BaseController
+  class CalendarsController < Admin::ApplicationController
     def index
-      # Get calendars from the database with associations
       @calendars = policy_scope(GoogleCalendar)
                    .includes(:oauth_credential, :user)
                    .left_joins(:google_calendar_events)
@@ -17,14 +16,11 @@ module Admin
       calendar = GoogleCalendar.find(params[:id])
       authorize calendar
 
-      # Enqueue job to delete calendar from Google
       GoogleCalendarDeleteJob.perform_later(calendar.google_calendar_id)
-      # Delete the database record
       calendar.destroy
       redirect_to admin_calendars_path, notice: "Calendar deleted successfully."
     rescue => e
       redirect_to admin_calendars_path, alert: "Failed to delete calendar: #{e.message}"
     end
-
   end
 end

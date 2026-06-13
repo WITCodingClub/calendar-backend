@@ -1,0 +1,353 @@
+<% content_for :title, "Schedule" %>
+
+<% px_per_hour    = 64 %>
+<% grid_start_hr  = 7 %>
+<% grid_end_hr    = 22 %>
+<% grid_total_px  = (grid_end_hr - grid_start_hr) * px_per_hour %>
+<% week_days_arr  = (0..4).map { |i| @week_start + i.days } %>
+<% fallback_color = "#3f51b5" %>
+
+<div class="mx-auto space-y-4">
+
+  <%# ── Header ─────────────────────────────────────────────────────────────── %>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-2xl font-bold text-on-surface">My Schedule</h1>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <%# Term selector %>
+      <% if @terms.any? %>
+        <form method="get" action="<%= dashboard_schedule_path %>" class="flex items-center">
+          <input type="hidden" name="view" value="<%= @view_mode %>">
+          <% if @view_mode == "week" %>
+            <input type="hidden" name="week_start" value="<%= @week_start.iso8601 %>">
+          <% elsif @view_mode == "month" %>
+            <input type="hidden" name="month" value="<%= @month_date.strftime("%Y-%m") %>">
+          <% end %>
+          <select name="term_uid" onchange="this.form.submit()" class="m3-select w-auto">
+            <% @terms.each do |term| %>
+              <option value="<%= term.uid %>" <%= "selected" if @selected_term&.id == term.id %>><%= term.name %></option>
+            <% end %>
+          </select>
+        </form>
+      <% end %>
+
+      <%# View toggle %>
+      <% if @selected_term %>
+        <div class="flex rounded-xl overflow-hidden border border-outline-variant text-sm">
+          <% [["list", "List"], ["week", "Week"], ["month", "Month"]].each do |mode, label| %>
+            <%= link_to dashboard_schedule_path(view: mode, term_uid: @selected_term.uid),
+                class: "px-3 py-1.5 font-medium transition-colors #{@view_mode == mode ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:bg-surface-container-high'}" do %>
+              <%= label %>
+            <% end %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <% unless @selected_term %>
+    <div class="m3-card p-8 text-center text-on-surface-variant">No term data available.</div>
+
+  <%# ── List view ───────────────────────────────────────────────────────────── %>
+  <% elsif @view_mode == "list" %>
+    <% if @courses.empty? %>
+      <div class="m3-card p-8 text-center">
+        <p class="text-on-surface-variant">No courses found for <%= @selected_term.name %>.</p>
+        <p class="text-sm text-on-surface-variant mt-1">Import your schedule using the WIT Calendar Chrome extension.</p>
+      </div>
+    <% else %>
+      <div class="space-y-4">
+        <% @courses.each do |course| %>
+          <div class="m3-card overflow-hidden">
+            <div class="px-5 py-4 border-b border-outline-variant flex items-start justify-between gap-3">
+              <div>
+                <p class="text-base font-semibold text-on-surface">
+                  <%= course[:subject] %> <%= course[:course_number] %>
+                  <% if course[:section_number].present? %>
+                    <span class="text-sm font-normal text-on-surface-variant">§<%= course[:section_number] %></span>
+                  <% end %>
+                </p>
+                <p class="text-sm text-on-surface-variant"><%= course[:title] %></p>
+                <% if course[:instructors]&.any? %>
+                  <p class="text-xs text-on-surface-variant mt-0.5"><%= course[:instructors].join(", ") %></p>
+                <% end %>
+              </div>
+              <% if course[:credit_hours] %>
+                <span class="m3-badge-secondary flex-shrink-0"><%= course[:credit_hours] %> cr</span>
+              <% end %>
+            </div>
+            <% if course[:meeting_times]&.any? %>
+              <div class="divide-y divide-outline-variant">
+                <% course[:meeting_times].each do |mt| %>
+                  <div class="px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                    <div class="flex items-center gap-3">
+                      <span class="w-9 text-xs font-semibold text-primary uppercase">
+                        <%= mt[:day_of_week]&.to_s&.capitalize&.first(3) %>
+                      </span>
+                      <span class="text-on-surface">
+                        <% if mt[:begin_time_display] && mt[:end_time_display] %>
+                          <%= mt[:begin_time_display] %> – <%= mt[:end_time_display] %>
+                        <% else %>
+                          TBA
+                        <% end %>
+                      </span>
+                    </div>
+                    <% if mt[:building_room].present? %>
+                      <span class="text-xs text-on-surface-variant"><%= mt[:building_room] %></span>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
+  <%# ── Week view ───────────────────────────────────────────────────────────── %>
+  <% elsif @view_mode == "week" %>
+    <% prev_week     = @week_start - 7 %>
+    <% next_week     = @week_start + 7 %>
+    <% week_end_fri  = @week_start + 4 %>
+    <% this_week_start = @today.beginning_of_week(:monday) %>
+
+    <%# Navigation %>
+    <div class="flex items-center justify-between">
+      <%= link_to dashboard_schedule_path(view: "week", term_uid: @selected_term.uid, week_start: prev_week.iso8601),
+          class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Prev
+      <% end %>
+
+      <div class="text-center">
+        <span class="font-semibold text-on-surface">
+          <%= @week_start.strftime("%b %-d") %> – <%= week_end_fri.strftime("%b %-d, %Y") %>
+        </span>
+        <% if @week_start == this_week_start %>
+          <span class="ml-2 text-xs bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full">This week</span>
+        <% end %>
+      </div>
+
+      <%= link_to dashboard_schedule_path(view: "week", term_uid: @selected_term.uid, week_start: next_week.iso8601),
+          class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+        Next
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <% end %>
+    </div>
+
+    <% if @courses.empty? %>
+      <div class="m3-card p-8 text-center">
+        <p class="text-on-surface-variant">No courses found for <%= @selected_term.name %>.</p>
+        <p class="text-sm text-on-surface-variant mt-1">Import your schedule using the WIT Calendar Chrome extension.</p>
+      </div>
+    <% else %>
+      <div class="m3-card overflow-hidden">
+        <div class="overflow-x-auto">
+          <div style="min-width: 560px">
+
+            <%# Day header row %>
+            <div class="flex border-b border-outline-variant bg-surface-container-low">
+              <div class="flex-shrink-0 border-r border-outline-variant" style="width: 52px"></div>
+              <% week_days_arr.each do |day| %>
+                <% is_today = day == @today %>
+                <div class="flex-1 text-center py-2.5 border-l border-outline-variant first:border-l-0">
+                  <div class="text-xs text-on-surface-variant"><%= day.strftime("%a") %></div>
+                  <div class="mt-0.5 flex items-center justify-center">
+                    <% if is_today %>
+                      <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary text-on-primary text-sm font-bold">
+                        <%= day.strftime("%-d") %>
+                      </span>
+                    <% else %>
+                      <span class="text-sm font-medium text-on-surface"><%= day.strftime("%-d") %></span>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+
+            <%# Time grid %>
+            <div class="overflow-y-auto" style="max-height: 560px">
+              <div class="flex">
+
+                <%# Hour labels %>
+                <div class="flex-shrink-0 relative bg-surface-container-low border-r border-outline-variant" style="width: 52px; height: <%= grid_total_px %>px">
+                  <% (grid_start_hr...grid_end_hr).each do |hour| %>
+                    <div class="absolute right-2 text-[10px] text-on-surface-variant leading-none select-none"
+                         style="top: <%= (hour - grid_start_hr) * px_per_hour - 5 %>px">
+                      <%= hour == 12 ? "12p" : (hour > 12 ? "#{hour - 12}p" : "#{hour}a") %>
+                    </div>
+                  <% end %>
+                </div>
+
+                <%# Day columns %>
+                <% week_days_arr.each do |day| %>
+                  <% day_name  = day.strftime("%A").downcase %>
+                  <% is_today  = day == @today %>
+                  <% no_class  = @no_class_dates.include?(day) %>
+                  <% sessions  = @schedule_by_day[day_name].select do |entry|
+                       mt = entry[:meeting_time]
+                       mt_s = mt[:start_date].present? ? mt[:start_date].to_date : (@selected_term.start_date || Date.new(1900, 1, 1))
+                       mt_e = mt[:end_date].present?   ? mt[:end_date].to_date   : (@selected_term.end_date   || Date.new(2100, 12, 31))
+                       day >= mt_s && day <= mt_e
+                     end.sort_by { |e| e[:meeting_time][:begin_time] || "99:99" } %>
+
+                  <div class="flex-1 relative border-l border-outline-variant <%= is_today ? 'bg-primary/[0.03]' : '' %>"
+                       style="height: <%= grid_total_px %>px; min-width: 90px">
+
+                    <%# Hour lines %>
+                    <% (grid_start_hr..grid_end_hr).each do |hour| %>
+                      <div class="absolute inset-x-0 border-t border-outline-variant/40 pointer-events-none"
+                           style="top: <%= (hour - grid_start_hr) * px_per_hour %>px"></div>
+                    <% end %>
+                    <%# Half-hour lines %>
+                    <% (grid_start_hr...grid_end_hr).each do |hour| %>
+                      <div class="absolute inset-x-0 pointer-events-none"
+                           style="top: <%= (hour - grid_start_hr) * px_per_hour + px_per_hour / 2 %>px; border-top: 1px dashed rgba(0,0,0,0.08)"></div>
+                    <% end %>
+
+                    <%# No-class overlay %>
+                    <% if no_class %>
+                      <div class="absolute inset-0 bg-surface-container/40 pointer-events-none flex items-center justify-center">
+                        <span class="text-[10px] text-on-surface-variant/60 select-none"
+                              style="writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg)">No Classes</span>
+                      </div>
+                    <% end %>
+
+                    <%# Course blocks %>
+                    <% sessions.each do |entry| %>
+                      <% course = entry[:course] %>
+                      <% mt    = entry[:meeting_time] %>
+                      <% next unless mt[:begin_time].present? && mt[:end_time].present? %>
+                      <% bh, bm = mt[:begin_time].split(":").map(&:to_i) %>
+                      <% eh, em = mt[:end_time].split(":").map(&:to_i) %>
+                      <% b_min  = bh * 60 + bm %>
+                      <% e_min  = eh * 60 + em %>
+                      <% next if b_min < grid_start_hr * 60 || e_min > grid_end_hr * 60 %>
+                      <% top_v  = (b_min - grid_start_hr * 60) * px_per_hour / 60 %>
+                      <% ht_v   = [(e_min - b_min) * px_per_hour / 60, 20].max %>
+                      <% color  = mt.dig(:calendar_config, :color_id) || fallback_color %>
+
+                      <div class="absolute rounded overflow-hidden text-xs select-none"
+                           style="top: <%= top_v %>px; height: <%= ht_v %>px; left: 4px; right: 4px; background-color: <%= color %>1a; border-left: 3px solid <%= color %>">
+                        <div class="px-1.5 py-0.5 h-full overflow-hidden" style="color: <%= color %>">
+                          <div class="font-semibold leading-tight truncate"><%= course[:subject] %> <%= course[:course_number] %></div>
+                          <% if ht_v > 32 %>
+                            <div class="leading-tight truncate opacity-80" style="font-size: 10px"><%= course[:title] %></div>
+                          <% end %>
+                          <% if ht_v > 50 && mt[:building_room].present? %>
+                            <div class="leading-tight truncate opacity-70" style="font-size: 10px"><%= mt[:building_room] %></div>
+                          <% end %>
+                          <% if ht_v > 66 && mt[:begin_time_display] %>
+                            <div class="leading-tight opacity-60" style="font-size: 10px"><%= mt[:begin_time_display] %> – <%= mt[:end_time_display] %></div>
+                          <% end %>
+                        </div>
+                      </div>
+                    <% end %>
+                  </div>
+                <% end %>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+  <%# ── Month view ──────────────────────────────────────────────────────────── %>
+  <% elsif @view_mode == "month" %>
+    <% prev_month    = @month_date << 1 %>
+    <% next_month    = @month_date >> 1 %>
+    <% grid_first    = @month_date.beginning_of_month.beginning_of_week(:monday) %>
+    <% grid_last     = @month_date.end_of_month.end_of_week(:monday) %>
+    <% cal_weeks     = (grid_first..grid_last).each_slice(7).to_a %>
+
+    <%# Navigation %>
+    <div class="flex items-center justify-between">
+      <%= link_to dashboard_schedule_path(view: "month", term_uid: @selected_term.uid, month: prev_month.strftime("%Y-%m")),
+          class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Prev
+      <% end %>
+
+      <div class="text-center">
+        <span class="font-semibold text-on-surface"><%= @month_date.strftime("%B %Y") %></span>
+        <% if @month_date == @today.beginning_of_month %>
+          <span class="ml-2 text-xs bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full">This month</span>
+        <% end %>
+      </div>
+
+      <%= link_to dashboard_schedule_path(view: "month", term_uid: @selected_term.uid, month: next_month.strftime("%Y-%m")),
+          class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+        Next
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      <% end %>
+    </div>
+
+    <div class="m3-card overflow-hidden">
+      <%# Weekday headers %>
+      <div class="grid grid-cols-7 border-b border-outline-variant bg-surface-container-low">
+        <% %w[Mon Tue Wed Thu Fri Sat Sun].each do |lbl| %>
+          <div class="text-center text-xs font-medium text-on-surface-variant py-2"><%= lbl %></div>
+        <% end %>
+      </div>
+
+      <%# Calendar rows %>
+      <div class="divide-y divide-outline-variant">
+        <% cal_weeks.each do |week| %>
+          <div class="grid grid-cols-7 divide-x divide-outline-variant">
+            <% week.each do |day| %>
+              <% in_month = day.month == @month_date.month %>
+              <% is_today = day == @today %>
+              <% day_name = day.strftime("%A").downcase %>
+              <% no_class = @no_class_dates.include?(day) %>
+              <% sessions = @schedule_by_day[day_name].select do |entry|
+                   mt = entry[:meeting_time]
+                   mt_s = mt[:start_date].present? ? mt[:start_date].to_date : (@selected_term.start_date || Date.new(1900, 1, 1))
+                   mt_e = mt[:end_date].present?   ? mt[:end_date].to_date   : (@selected_term.end_date   || Date.new(2100, 12, 31))
+                   day >= mt_s && day <= mt_e
+                 end %>
+
+              <div class="min-h-20 p-1.5 <%= in_month ? '' : 'bg-surface-container/30' %>">
+                <div class="mb-1 flex items-center">
+                  <% if is_today %>
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold">
+                      <%= day.strftime("%-d") %>
+                    </span>
+                  <% else %>
+                    <span class="text-xs <%= in_month ? 'text-on-surface' : 'text-on-surface-variant/40' %>">
+                      <%= day.strftime("%-d") %>
+                    </span>
+                  <% end %>
+                </div>
+
+                <% if no_class && in_month %>
+                  <div class="text-[9px] text-on-surface-variant bg-surface-container rounded px-1 py-0.5 mb-0.5 truncate leading-tight">
+                    No class
+                  </div>
+                <% end %>
+
+                <% sessions.each do |entry| %>
+                  <% course = entry[:course] %>
+                  <% mt    = entry[:meeting_time] %>
+                  <% color = mt.dig(:calendar_config, :color_id) || fallback_color %>
+                  <div class="text-[10px] rounded truncate px-1 py-0.5 mb-0.5 leading-tight"
+                       style="background-color: <%= color %>1a; color: <%= color %>; border-left: 2px solid <%= color %>">
+                    <%= course[:subject] %> <%= course[:course_number] %>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <% if @courses.empty? %>
+      <div class="m3-card p-6 text-center mt-4">
+        <p class="text-on-surface-variant">No courses found for <%= @selected_term.name %>.</p>
+        <p class="text-sm text-on-surface-variant mt-1">Import your schedule using the WIT Calendar Chrome extension.</p>
+      </div>
+    <% end %>
+
+  <% end %>
+</div>

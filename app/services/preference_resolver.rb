@@ -15,11 +15,10 @@ class PreferenceResolver
     description_template: "{{faculty}}\n{{faculty_email}}",
     location_template: "{{building}} {{room}}",
     reminder_settings: [{ "time" => "30", "type" => "minutes", "method" => "popup" }],
-    color_id: nil, # Will use MeetingTime#event_color if not set
+    color_id: nil,
     visibility: "default"
   }.freeze
 
-  # Special defaults for final exams - more aggressive reminders, distinct color
   FINAL_EXAM_DEFAULTS = {
     title_template: "Final Exam: {{title}}",
     description_template: "{{course_code}}\n{{faculty}}",
@@ -29,18 +28,16 @@ class PreferenceResolver
       { "time" => "1", "type" => "hours", "method" => "popup" },
       { "time" => "15", "type" => "minutes", "method" => "popup" }
     ],
-    color_id: 11, # Tomato red - stands out for finals
+    color_id: 11,
     visibility: "default"
   }.freeze
 
-  # Default templates and settings for university calendar events
-  # Users can customize per-category if they want, but all events use the same default color
   UNI_CAL_DEFAULTS = {
     title_template: "{{summary}}",
     description_template: "{{description}}",
     location_template: "{{location}}",
     reminder_settings: [{ "time" => "1", "type" => "days", "method" => "popup" }],
-    color_id: 8, # Graphite - neutral, distinct from course events
+    color_id: 8,
     visibility: "default"
   }.freeze
 
@@ -48,16 +45,13 @@ class PreferenceResolver
     @user = user
     @cache = {}
     @notifications_disabled = user.notifications_disabled?
-    # Preload all preferences to avoid N+1 queries
     preload_preferences
   end
 
-  # Returns whether DND mode is currently active for this user
   def notifications_disabled?
     @notifications_disabled
   end
 
-  # Resolve preferences for a MeetingTime or GoogleCalendarEvent
   def resolve_for(event)
     cache_key = cache_key_for(event)
     return @cache[cache_key] if @cache.key?(cache_key)
@@ -67,9 +61,6 @@ class PreferenceResolver
     resolved
   end
 
-  # Resolve preferences for API display purposes (ignoring DND override)
-  # Returns the ACTUAL configured preferences so the frontend can display them
-  # Use this for showing users what reminders they have configured
   def resolve_actual_for(event)
     preferences = {}
 
@@ -80,15 +71,11 @@ class PreferenceResolver
     preferences
   end
 
-  # Resolve and return source information for debugging/UI
-  # This returns the ACTUAL configured preferences (ignoring DND override)
-  # so the frontend can display what the user has configured
   def resolve_with_sources(event)
     preferences = {}
     sources = {}
 
     PREFERENCE_FIELDS.each do |field|
-      # For API display, always ignore DND so we show actual configured reminders
       value, source = resolve_field(event, field, ignore_dnd: true)
       preferences[field] = value
       sources[field] = source
@@ -97,7 +84,6 @@ class PreferenceResolver
     { preferences: preferences, sources: sources }
   end
 
-  # Get a specific EventPreference from preloaded data
   def get_event_preference(event)
     @event_preferences[[event.class.name, event.id]]
   end
@@ -105,15 +91,12 @@ class PreferenceResolver
   private
 
   def preload_preferences
-    # Load all EventPreferences for this user, indexed by preferenceable_type and preferenceable_id
     @event_preferences = EventPreference.where(user: @user)
                                         .index_by { |ep| [ep.preferenceable_type, ep.preferenceable_id] }
 
-    # Load all CalendarPreferences for this user, indexed by scope and event_type
     @calendar_preferences = CalendarPreference.where(user: @user)
                                               .index_by { |cp| [cp.scope, cp.event_type] }
 
-    # Preload user_extension_config to avoid N+1 queries when checking default colors
     @user.user_extension_config if @user.association(:user_extension_config).loaded? == false
   end
 
@@ -128,30 +111,21 @@ class PreferenceResolver
   end
 
   def resolve_field(event, field, ignore_dnd: false)
-    # If notifications are disabled (DND mode), return empty reminder_settings
-    # This overrides all preference levels while preserving the original settings
-    # Set ignore_dnd: true to skip this check (e.g., for API display purposes)
     if field == :reminder_settings && @notifications_disabled && !ignore_dnd
       return [[], "dnd_override"]
     end
 
-    # 1. Check for EventPreference record (use preloaded data)
-    # This replaces the old event.event_preference check which would trigger a query
     event_pref = @event_preferences[[event.class.name, event.id]]
     if event_pref.present?
       value = event_pref.public_send(field)
-      # For reminder_settings, treat empty array as a valid preference (no notifications)
-      # For other fields, use .present? to check if value is set
       if field == :reminder_settings ? !value.nil? : value.present?
         return [value, "individual"]
       end
     end
 
-    # 3. Check event-type preference or uni_cal_category preference (use preloaded data)
     event_type = extract_event_type(event)
     uni_cal_category = extract_uni_cal_category(event)
 
-    # Check uni_cal_category preference for university calendar events
     if uni_cal_category.present?
       cat_pref = @calendar_preferences[["uni_cal_category", uni_cal_category]]
       if cat_pref.present?
@@ -162,31 +136,24 @@ class PreferenceResolver
       end
     end
 
-    # Check event-type preference for course events
     if event_type.present?
       type_pref = @calendar_preferences[["event_type", event_type]]
       if type_pref.present?
         value = type_pref.public_send(field)
-        # For reminder_settings, treat empty array as a valid preference (no notifications)
-        # For other fields, use .present? to check if value is set
         if field == :reminder_settings ? !value.nil? : value.present?
           return [value, "event_type:#{event_type}"]
         end
       end
     end
 
-    # 4. Check global user preference (use preloaded data)
     global_pref = @calendar_preferences[["global", nil]]
     if global_pref.present?
       value = global_pref.public_send(field)
-      # For reminder_settings, treat empty array as a valid preference (no notifications)
-      # For other fields, use .present? to check if value is set
       if field == :reminder_settings ? !value.nil? : value.present?
         return [value, "global"]
       end
     end
 
-    # 5. Use system defaults
     default_value = system_default_for(field, event, event_type, uni_cal_category)
     [default_value, "system_default"]
   end
@@ -195,16 +162,12 @@ class PreferenceResolver
     case event
     when FinalExam
       "final_exam"
-    when MeetingTime
+    when Course::MeetingTime
       event.course&.schedule_type
     when GoogleCalendarEvent
-      # Check if it's a final exam event first
       return "final_exam" if event.final_exam_id.present?
 
-      # If GoogleCalendarEvent has meeting_time, use its schedule_type
       event.meeting_time&.course&.schedule_type
-    else
-      nil
     end
   end
 
@@ -213,29 +176,18 @@ class PreferenceResolver
     when UniversityCalendarEvent
       event.category
     when GoogleCalendarEvent
-      # If GoogleCalendarEvent has university_calendar_event, use its category
       event.university_calendar_event&.category
-    else
-      nil
     end
   end
 
   def system_default_for(field, event, event_type, uni_cal_category = nil)
-    # Use final exam defaults for final exams
-    if event_type == "final_exam"
-      return FINAL_EXAM_DEFAULTS[field]
-    end
+    return FINAL_EXAM_DEFAULTS[field] if event_type == "final_exam"
 
-    # Use university calendar event defaults
-    if uni_cal_category.present?
-      return UNI_CAL_DEFAULTS[field]
-    end
+    return UNI_CAL_DEFAULTS[field] if uni_cal_category.present?
 
-    # Special handling for color_id: use user extension config, then meeting time's event color
     if field == :color_id
-      meeting_time = event.is_a?(MeetingTime) ? event : event.meeting_time
+      meeting_time = event.is_a?(Course::MeetingTime) ? event : event.meeting_time
 
-      # First check UserExtensionConfig for user's default colors
       if @user.user_extension_config.present? && event_type.present?
         color = case event_type
                 when "lecture"
@@ -246,7 +198,6 @@ class PreferenceResolver
         return color if color.present?
       end
 
-      # Fall back to meeting time's hardcoded event color
       return meeting_time&.event_color
     end
 
@@ -256,5 +207,4 @@ class PreferenceResolver
   def cache_key_for(event)
     "#{event.class.name}:#{event.id}"
   end
-
 end

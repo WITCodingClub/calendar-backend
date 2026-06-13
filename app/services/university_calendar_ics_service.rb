@@ -1,26 +1,16 @@
 # frozen_string_literal: true
 
-# Service to fetch and parse university calendar events from an ICS feed.
-#
-# This service:
-# 1. Fetches the ICS feed from the configured URL
-# 2. Parses the ICS events using the icalendar gem
-# 3. Extracts custom fields (Organization, Academic Term, Event Type)
-# 4. Creates or updates UniversityCalendarEvent records
-# 5. Infers categories based on event content
-#
-# @example
-#   result = UniversityCalendarIcsService.call
-#   # => { created: 5, updated: 2, unchanged: 10, errors: [] }
-#
 class UniversityCalendarIcsService < ApplicationService
   ICS_FEED_URL = "https://25livepub.collegenet.com/calendars/wit-main-events-calendar.ics"
+
+  def self.backfill_url(start_date, end_date)
+    "#{ICS_FEED_URL}?startdt=#{start_date.to_date}&enddt=#{end_date.to_date}"
+  end
 
   attr_reader :ics_url
 
   def initialize(ics_url: ICS_FEED_URL)
     @ics_url = ics_url
-    # Preload all terms upfront to avoid per-event DB queries
     all_terms = Term.all.to_a
     @term_cache = all_terms.index_by do |term|
       [term.year, term.season.to_sym]
@@ -44,7 +34,6 @@ class UniversityCalendarIcsService < ApplicationService
   private
 
   def fetch_ics_content
-    # Convert webcal:// to https://
     url = ics_url.gsub(/^webcal:\/\//, "https://")
 
     response = Faraday.get(url) do |req|
@@ -63,16 +52,21 @@ class UniversityCalendarIcsService < ApplicationService
     calendars = Icalendar::Calendar.parse(ics_content)
     return [] if calendars.empty?
 
-    calendar = calendars.first
-    calendar.events
+    calendars.first.events
   end
 
   def process_events(ics_events)
-    stats = { created: 0, updated: 0, unchanged: 0, merged: 0, errors: [] }
+    stats = { created: 0, updated: 0, unchanged: 0, merged: 0, cancelled: 0, errors: [], changed_categories: Set.new }
 
-    # First, extract attributes from all ICS events
     event_attrs_list = []
+    cancelled_uids   = []
+
     ics_events.each do |ics_event|
+      if ics_event.status&.to_s&.upcase == "CANCELLED"
+        cancelled_uids << ics_event.uid.to_s
+        next
+      end
+
       attrs = build_event_attributes(ics_event)
       event_attrs_list << attrs if attrs
     rescue => e
@@ -80,14 +74,13 @@ class UniversityCalendarIcsService < ApplicationService
       Rails.logger.error("Failed to process ICS event: #{e.message}")
     end
 
-    # Merge consecutive same-named events into multi-day events
+    preload_existing_events
+
+    cancel_events(cancelled_uids, stats)
+
     merged_events = merge_consecutive_events(event_attrs_list)
     stats[:merged] = event_attrs_list.size - merged_events.size if event_attrs_list.size > merged_events.size
 
-    # Preload all existing events to avoid N+1 queries during save
-    preload_existing_events
-
-    # Save each (possibly merged) event
     merged_events.each do |attrs|
       save_event(attrs, stats)
     rescue => e
@@ -95,6 +88,7 @@ class UniversityCalendarIcsService < ApplicationService
       Rails.logger.error("Failed to save event: #{e.message}")
     end
 
+    stats[:changed_categories] = stats[:changed_categories].to_a
     stats
   end
 
@@ -106,63 +100,67 @@ class UniversityCalendarIcsService < ApplicationService
     end
   end
 
-  # Build event attributes from an ICS event without saving
-  # @param ics_event [Icalendar::Event] The ICS event to parse
-  # @return [Hash, nil] Event attributes hash or nil if invalid
+  def cancel_events(uids, stats)
+    return if uids.empty?
+
+    uids.each do |uid|
+      event = @existing_events_by_uid&.[](uid)
+      next unless event
+
+      Rails.logger.info("Removing CANCELLED ICS event: #{event.summary} (#{uid})")
+      stats[:changed_categories] << event.category if event.category.present?
+      event.destroy
+      @existing_events_by_uid.delete(uid)
+      stats[:cancelled] += 1
+    end
+  end
+
   def build_event_attributes(ics_event)
     return nil if ics_event.dtstart.nil?
 
     raw_custom_fields = extract_custom_fields(ics_event)
-    organization = decode_html_entities(raw_custom_fields["Organization"])
+    organization  = decode_html_entities(raw_custom_fields["Organization"])
     academic_term = decode_html_entities(raw_custom_fields["Academic Term"])
-    event_type = decode_html_entities(raw_custom_fields["Event Type"])
-    event_name = decode_html_entities(raw_custom_fields["Event Name"])
+    event_type    = decode_html_entities(raw_custom_fields["Event Type"])
+    event_name    = decode_html_entities(raw_custom_fields["Event Name"])
 
-    summary = event_name.presence || decode_html_entities(ics_event.summary.to_s)
-    location = decode_html_entities(ics_event.location&.to_s)
-    start_time = parse_ics_time(ics_event.dtstart)
-    end_time = parse_ics_time(ics_event.dtend || ics_event.dtstart)
+    summary     = event_name.presence || decode_html_entities(ics_event.summary.to_s)
+    location    = decode_html_entities(ics_event.location&.to_s)
+    start_time  = parse_ics_time(ics_event.dtstart)
+    end_time    = parse_ics_time(ics_event.dtend || ics_event.dtstart)
     description = clean_description(ics_event.description&.to_s)
-    category = UniversityCalendarEvent.infer_category(summary, event_type)
-    is_all_day = category == "holiday" || category == "study_day" || all_day_event?(ics_event)
+    category    = UniversityCalendarEvent.infer_category(summary, event_type)
+    is_all_day  = %w[holiday study_day].include?(category) || all_day_event?(ics_event)
 
     if is_all_day
       original_end_date = end_time.to_date
       start_time = start_time.beginning_of_day
-      end_time = original_end_date.end_of_day
+      end_time   = original_end_date.end_of_day
     end
 
     {
-      ics_uid: ics_event.uid.to_s,
-      summary: summary,
-      description: description,
-      location: location,
-      start_time: start_time,
-      end_time: end_time,
-      all_day: is_all_day,
-      recurrence: extract_recurrence(ics_event),
-      category: category,
-      organization: organization,
-      academic_term: academic_term,
+      ics_uid:        ics_event.uid.to_s,
+      summary:        summary,
+      description:    description,
+      location:       location,
+      start_time:     start_time,
+      end_time:       end_time,
+      all_day:        is_all_day,
+      recurrence:     extract_recurrence(ics_event),
+      category:       category,
+      organization:   organization,
+      academic_term:  academic_term,
       event_type_raw: event_type
     }
   end
 
-  # Merge consecutive same-named events into multi-day events
-  # Events are considered consecutive if they have the same summary, category,
-  # and their dates are adjacent (within 1 day)
-  # @param event_attrs_list [Array<Hash>] List of event attribute hashes
-  # @return [Array<Hash>] List with consecutive events merged
   def merge_consecutive_events(event_attrs_list)
     return event_attrs_list if event_attrs_list.size <= 1
 
-    # Group events by a merge key (summary + category + academic_term)
-    # Only consider all-day events for merging
     grouped = event_attrs_list.group_by do |attrs|
       if attrs[:all_day]
         [attrs[:summary]&.downcase&.strip, attrs[:category], attrs[:academic_term]]
       else
-        # Non-all-day events get unique keys so they don't merge
         [:no_merge, attrs[:ics_uid]]
       end
     end
@@ -171,10 +169,8 @@ class UniversityCalendarIcsService < ApplicationService
 
     grouped.each do |key, events|
       if key.first == :no_merge || events.size == 1
-        # Don't merge non-all-day events or single events
         merged_results.concat(events)
       else
-        # Sort by start_time and try to merge consecutive events
         sorted = events.sort_by { |e| e[:start_time] }
         merged_results.concat(merge_consecutive_group(sorted))
       end
@@ -183,81 +179,55 @@ class UniversityCalendarIcsService < ApplicationService
     merged_results
   end
 
-  # Merge a group of sorted events with the same summary into consecutive multi-day events
-  # @param sorted_events [Array<Hash>] Events sorted by start_time
-  # @return [Array<Hash>] Merged events
   def merge_consecutive_group(sorted_events)
     return sorted_events if sorted_events.empty?
 
-    result = []
+    result  = []
     current = sorted_events.first.dup
     current[:merged_uids] = [current[:ics_uid]]
 
     sorted_events[1..].each do |event|
-      # Check if this event is consecutive with current (within 1 day)
-      current_end_date = current[:end_time].to_date
-      event_start_date = event[:start_time].to_date
-      days_between = (event_start_date - current_end_date).to_i
+      current_end_date  = current[:end_time].to_date
+      event_start_date  = event[:start_time].to_date
+      days_between      = (event_start_date - current_end_date).to_i
 
       if days_between <= 1
-        # Merge: extend current event's end_time and track merged UIDs
         current[:end_time] = event[:end_time]
         current[:merged_uids] << event[:ics_uid]
-        # Keep description from first event, but could concatenate if different
         current[:description] ||= event[:description]
       else
-        # Not consecutive, save current and start new
         result << finalize_merged_event(current)
         current = event.dup
         current[:merged_uids] = [current[:ics_uid]]
       end
     end
 
-    # Don't forget the last event
     result << finalize_merged_event(current)
     result
   end
 
-  # Finalize a merged event by setting the ics_uid appropriately
-  # @param event [Hash] Event attributes with :merged_uids
-  # @return [Hash] Event attributes with final :ics_uid
   def finalize_merged_event(event)
     merged_uids = event.delete(:merged_uids)
     if merged_uids.size > 1
-      # Use a composite UID for merged events to track all source UIDs
-      # Format: merged:<first_uid>+<count>
       event[:ics_uid] = "merged:#{merged_uids.first}+#{merged_uids.size}"
       Rails.logger.info("Merged #{merged_uids.size} events into multi-day event: #{event[:summary]} (#{event[:start_time].to_date} - #{event[:end_time].to_date})")
     end
     event
   end
 
-  # Save or update an event in the database
-  # @param attrs [Hash] Event attributes
-  # @param stats [Hash] Stats hash to update
   def save_event(attrs, stats)
-    # For merged events, also check for existing events with the first original UID
-    # This handles the case where we previously imported single-day events
     ics_uid = attrs[:ics_uid]
+    event   = @existing_events_by_uid&.[](ics_uid) || UniversityCalendarEvent.new(ics_uid: ics_uid)
 
-    # Find existing event by ics_uid using preloaded cache
-    event = @existing_events_by_uid&.[](ics_uid) || UniversityCalendarEvent.new(ics_uid: ics_uid)
-
-    # If this is a merged event and we didn't find it, check for old single-day events to clean up
     if event.new_record? && ics_uid.start_with?("merged:")
-      # Extract the original first UID to migrate from
-      original_uid = ics_uid.sub(/^merged:/, "").sub(/\+\d+$/, "")
+      original_uid    = ics_uid.sub(/^merged:/, "").sub(/\+\d+$/, "")
       existing_single = @existing_events_by_uid&.[](original_uid)
       if existing_single
-        # Update the existing single-day event to become the merged event
         event = existing_single
-        # Clean up other single-day events that are now part of this merged event
         cleanup_merged_single_day_events(attrs, original_uid)
       end
     end
 
-    # Check for content-based duplicates (same event with different UID)
-    # This handles cases where the university feed has duplicate events
     if event.new_record?
       duplicate = find_duplicate_by_content(attrs)
       if duplicate
@@ -270,23 +240,22 @@ class UniversityCalendarIcsService < ApplicationService
     was_new = event.new_record?
 
     event.assign_attributes(
-      ics_uid: ics_uid,
-      summary: attrs[:summary],
-      description: attrs[:description],
-      location: attrs[:location],
-      start_time: attrs[:start_time],
-      end_time: attrs[:end_time],
-      all_day: attrs[:all_day],
-      recurrence: attrs[:recurrence],
-      category: attrs[:category],
-      organization: attrs[:organization],
-      academic_term: attrs[:academic_term],
+      ics_uid:        ics_uid,
+      summary:        attrs[:summary],
+      description:    attrs[:description],
+      location:       attrs[:location],
+      start_time:     attrs[:start_time],
+      end_time:       attrs[:end_time],
+      all_day:        attrs[:all_day],
+      recurrence:     attrs[:recurrence],
+      category:       attrs[:category],
+      organization:   attrs[:organization],
+      academic_term:  attrs[:academic_term],
       event_type_raw: attrs[:event_type_raw],
       last_fetched_at: Time.current,
-      source_url: ics_url
+      source_url:     ics_url
     )
 
-    # Link to term
     if attrs[:start_time]
       event.term = if event.academic_term.present?
                      find_term_from_academic_term(event.academic_term, attrs[:start_time], attrs[:category], attrs[:summary])
@@ -294,18 +263,14 @@ class UniversityCalendarIcsService < ApplicationService
       event.term ||= find_term_by_date_cached(attrs[:start_time])
     end
 
-    # Fix summary if the ICS academic_term doesn't match the inferred term
-    # This corrects cases like "Last day of classes for Summer 2026" -> "Last day of classes for Spring 2026"
     if event.term && event.academic_term.present? && attrs[:category] == "term_dates"
-      # Check if the academic_term in the ICS feed matches the inferred term
       ics_season = case event.academic_term.downcase
-                   when /fall/ then :fall
+                   when /fall/   then :fall
                    when /spring/ then :spring
                    when /summer/ then :summer
                    end
 
       if ics_season && ics_season != event.term.season
-        # Term mismatch detected - fix the summary
         event.summary = fix_summary_term_reference(event.summary, event.academic_term, event.term)
       end
     end
@@ -314,8 +279,8 @@ class UniversityCalendarIcsService < ApplicationService
 
     if was_new || content_changed
       event.save!
+      stats[:changed_categories] << event.category if event.category.present?
       was_new ? stats[:created] += 1 : stats[:updated] += 1
-      # Update in-memory cache so subsequent events can detect this as a duplicate
       add_event_to_content_cache(event)
     else
       event.update_column(:last_fetched_at, Time.current) if event.persisted? # rubocop:disable Rails/SkipsModelValidations
@@ -323,50 +288,39 @@ class UniversityCalendarIcsService < ApplicationService
     end
   end
 
-  # Find an existing event with matching content (but different UID)
-  # This detects duplicates in the university feed where the same event appears multiple times
-  # Uses both exact matching and fuzzy matching for similar event titles
-  # @param attrs [Hash] Event attributes to check
-  # @return [UniversityCalendarEvent, nil] Existing duplicate event or nil
   def find_duplicate_by_content(attrs)
     content_key = [attrs[:summary], attrs[:start_time], attrs[:end_time], attrs[:category]]
 
-    # First try exact match using preloaded cache
     if @existing_events_by_content
       candidates = (@existing_events_by_content[content_key] || []).reject { |e| e.ics_uid == attrs[:ics_uid] }
       return candidates.first if candidates.any?
     else
       exact_match = UniversityCalendarEvent.where(
-        summary: attrs[:summary],
+        summary:    attrs[:summary],
         start_time: attrs[:start_time],
-        end_time: attrs[:end_time],
-        category: attrs[:category]
+        end_time:   attrs[:end_time],
+        category:   attrs[:category]
       ).where.not(ics_uid: attrs[:ics_uid]).first
       return exact_match if exact_match
     end
 
-    # Try fuzzy matching for similar titles on the same day
-    # Use in-memory search against preloaded events to avoid per-event DB queries
     fuzzy_matches = if @existing_events_by_content
                       find_fuzzy_duplicates_in_memory(attrs)
                     else
                       UniversityCalendarEvent.find_fuzzy_duplicates(
-                        summary: attrs[:summary],
-                        start_time: attrs[:start_time],
-                        end_time: attrs[:end_time],
-                        category: attrs[:category],
+                        summary:     attrs[:summary],
+                        start_time:  attrs[:start_time],
+                        end_time:    attrs[:end_time],
+                        category:    attrs[:category],
                         exclude_uid: attrs[:ics_uid]
                       )
                     end
 
     return nil if fuzzy_matches.empty?
 
-    # If we have fuzzy matches, return the preferred one based on organization priority
     UniversityCalendarEvent.preferred_event(fuzzy_matches)
   end
 
-  # Add a newly saved event to the in-memory content cache so subsequent duplicate checks find it
-  # @param event [UniversityCalendarEvent] The event to cache
   def add_event_to_content_cache(event)
     return unless @existing_events_by_content
 
@@ -376,23 +330,20 @@ class UniversityCalendarIcsService < ApplicationService
     @existing_events_by_uid[event.ics_uid] = event if @existing_events_by_uid
   end
 
-  # Find fuzzy duplicates using preloaded in-memory events (avoids per-event DB queries)
-  # @param attrs [Hash] Event attributes to match
-  # @return [Array<UniversityCalendarEvent>] Matching events
   def find_fuzzy_duplicates_in_memory(attrs)
-    start_date = attrs[:start_time].to_date
-    end_date = attrs[:end_time].to_date
+    start_date      = attrs[:start_time].to_date
+    end_date        = attrs[:end_time].to_date
     start_day_begin = start_date.beginning_of_day
-    start_day_end = start_date.end_of_day + 1.second
-    end_day_begin = end_date.beginning_of_day
-    end_day_end = end_date.end_of_day + 1.second
+    start_day_end   = start_date.end_of_day + 1.second
+    end_day_begin   = end_date.beginning_of_day
+    end_day_end     = end_date.end_of_day + 1.second
 
     all_events = @existing_events_by_content.values.flatten
     candidates = all_events.select do |e|
-      e.category == attrs[:category] &&
+      e.category  == attrs[:category] &&
         e.ics_uid != attrs[:ics_uid] &&
         e.start_time >= start_day_begin && e.start_time < start_day_end &&
-        e.end_time >= end_day_begin && e.end_time < end_day_end
+        e.end_time   >= end_day_begin   && e.end_time   < end_day_end
     end
 
     candidates.select do |event|
@@ -400,15 +351,10 @@ class UniversityCalendarIcsService < ApplicationService
     end
   end
 
-  # Clean up single-day events that have been merged into a multi-day event
-  # Looks for events with the same summary within the merged date range
-  # @param merged_attrs [Hash] The merged event attributes
-  # @param excluded_uid [String] The UID to exclude (already being updated)
   def cleanup_merged_single_day_events(merged_attrs, excluded_uid)
     start_date = merged_attrs[:start_time].to_date
-    end_date = merged_attrs[:end_time].to_date
+    end_date   = merged_attrs[:end_time].to_date
 
-    # Find other single-day events with same summary in the date range
     UniversityCalendarEvent.where(summary: merged_attrs[:summary])
                            .where.not(ics_uid: excluded_uid)
                            .where(start_time: start_date.beginning_of_day..end_date.end_of_day)
@@ -416,23 +362,19 @@ class UniversityCalendarIcsService < ApplicationService
                            .find_each do |old_event|
                              Rails.logger.info("Removing single-day event merged into multi-day: #{old_event.ics_uid}")
                              old_event.destroy
-    end
+                           end
   end
 
   def extract_custom_fields(ics_event)
     fields = {}
 
-    # icalendar gem stores custom properties with underscores replacing hyphens
-    # and in lowercase. We need to handle X-TRUMBA-CUSTOMFIELD properties
     ics_event.custom_properties.each do |key, values|
       next unless key.to_s.start_with?("x_trumba_customfield")
 
       values.each do |value|
-        # The icalendar gem stores parameters in ical_params
-        # The field name is in the "name" parameter, and the value is the property value itself
         next unless value.respond_to?(:ical_params) && value.ical_params["name"].present?
 
-        field_name = value.ical_params["name"].first
+        field_name  = value.ical_params["name"].first
         field_value = value.to_s.strip
         fields[field_name] = field_value
       end
@@ -444,7 +386,6 @@ class UniversityCalendarIcsService < ApplicationService
   def parse_ics_time(ics_time)
     return nil unless ics_time
 
-    # Handle Icalendar::Values::Date (all-day events)
     if ics_time.is_a?(Icalendar::Values::Date) || (ics_time.respond_to?(:value) && ics_time.value.is_a?(Date) && !ics_time.value.is_a?(DateTime))
       date = ics_time.respond_to?(:value) ? ics_time.value : ics_time
       Time.zone.local(date.year, date.month, date.day, 0, 0, 0)
@@ -456,33 +397,24 @@ class UniversityCalendarIcsService < ApplicationService
   end
 
   def all_day_event?(ics_event)
-    # Check if dtstart is a Date (not DateTime)
     dtstart = ics_event.dtstart
     return true if dtstart.is_a?(Icalendar::Values::Date)
     return true if dtstart.respond_to?(:value) && dtstart.value.is_a?(Date) && !dtstart.value.is_a?(DateTime)
 
-    # Check Microsoft all-day property
     all_day_prop = ics_event.custom_properties["x_microsoft_cdo_alldayevent"]
     return true if all_day_prop&.first&.to_s&.upcase == "TRUE"
 
-    # Check for pseudo all-day pattern: 12:01pm - 11:59pm
-    # This is how some university calendar systems represent all-day events
     start_time = parse_ics_time(ics_event.dtstart)
-    end_time = parse_ics_time(ics_event.dtend)
+    end_time   = parse_ics_time(ics_event.dtend)
     return true if pseudo_all_day_times?(start_time, end_time)
 
     false
   end
 
-  # Detects events that span 12:01pm to 11:59pm which are effectively all-day
-  # Some university calendar systems use this pattern instead of true all-day events
   def pseudo_all_day_times?(start_time, end_time)
     return false unless start_time && end_time
 
-    # Check for 12:01 PM start (allowing some flexibility: 12:00-12:01)
-    start_is_noon = start_time.hour == 12 && start_time.min <= 1
-
-    # Check for 11:59 PM end (allowing flexibility: 11:58-11:59)
+    start_is_noon   = start_time.hour == 12 && start_time.min <= 1
     end_is_midnight = end_time.hour == 23 && end_time.min >= 58
 
     start_is_noon && end_is_midnight
@@ -497,7 +429,6 @@ class UniversityCalendarIcsService < ApplicationService
   def clean_description(description)
     return nil if description.blank?
 
-    # Remove HTML tags and decode entities
     result = description
              .gsub(/<br\s*\/?>/, "\n")
              .gsub(/<[^>]+>/, "")
@@ -505,38 +436,30 @@ class UniversityCalendarIcsService < ApplicationService
     decode_html_entities(result)&.strip&.presence
   end
 
-  # Decode HTML entities using HTMLEntities gem for robust handling
-  # Handles: &amp; -> &, &nbsp; -> space, &ndash; -> –, &#123; -> numeric entities, etc.
   def decode_html_entities(text)
     return nil if text.blank?
 
     html_entities_decoder.decode(text.to_s)
   end
 
-  # Memoized HTMLEntities instance for performance when processing many events
   def html_entities_decoder
     @html_entities_decoder ||= HTMLEntities.new
   end
 
   def find_term_from_academic_term(academic_term_str, event_date, category = nil, summary = nil)
-    # For term boundary events (classes begin/end), infer term from date rather than
-    # blindly trusting the academic_term field, which may be incorrect in the source ICS feed
     if category == "term_dates"
       return infer_term_from_date_for_boundary_event(academic_term_str, event_date, summary)
     end
 
-    # Parse "Fall", "Spring", "Summer" and find matching term
     season = case academic_term_str.to_s.downcase
-             when /fall/ then :fall
+             when /fall/   then :fall
              when /spring/ then :spring
              when /summer/ then :summer
              end
 
     return nil unless season
 
-    # Determine year from event date
     year = event_date.year
-    # Fall semester events in early months might reference the previous fall term
     year -= 1 if season == :fall && event_date.month < 6
 
     @term_cache[[year, season]]
@@ -547,30 +470,21 @@ class UniversityCalendarIcsService < ApplicationService
     @term_by_date_cache[date_key] ||= @terms_with_dates.find { |t| date_key.between?(t.start_date, t.end_date) }
   end
 
-  # Infer the correct term for term boundary events (Classes Begin/End) based on date
-  # This prevents misclassification when the ICS feed has incorrect academic_term labels
-  # @param academic_term_str [String] The academic term string from ICS (may be incorrect)
-  # @param event_date [Time] The event date
-  # @param summary [String] The event summary for logging
-  # @return [Term, nil] The correct term based on date inference
   def infer_term_from_date_for_boundary_event(academic_term_str, event_date, summary)
-    # Infer season from the event date using typical academic calendar patterns
     inferred_season = case event_date.month
-                      when 1..5 then :spring    # Jan-May: Spring semester
-                      when 6..7 then :summer    # Jun-Jul: Summer semester
-                      when 8..12 then :fall     # Aug-Dec: Fall semester
+                      when 1..5  then :spring
+                      when 6..7  then :summer
+                      when 8..12 then :fall
                       end
 
     year = event_date.year
 
-    # Parse the claimed season from academic_term_str for validation
     claimed_season = case academic_term_str.to_s.downcase
-                     when /fall/ then :fall
+                     when /fall/   then :fall
                      when /spring/ then :spring
                      when /summer/ then :summer
                      end
 
-    # Log a warning if the claimed season doesn't match the date-inferred season
     if claimed_season && claimed_season != inferred_season
       Rails.logger.warn(
         "Term mismatch detected for '#{summary}': " \
@@ -579,46 +493,24 @@ class UniversityCalendarIcsService < ApplicationService
       )
     end
 
-    # Use date-inferred season (cache was preloaded from Term.all at initialization)
     @term_cache[[year, inferred_season]]
   end
 
-  # Fix summary text when the ICS feed has incorrect term references
-  # Replaces term mentions (Fall/Spring/Summer YYYY) with the correct term
-  # @param summary [String] The original summary text
-  # @param incorrect_term [String] The incorrect term string from ICS (e.g., "Summer 2026")
-  # @param correct_term [Term] The correct term object from database
-  # @return [String] The corrected summary
   def fix_summary_term_reference(summary, incorrect_term, correct_term)
     return summary if incorrect_term.blank? || correct_term.nil?
 
-    # Extract the incorrect season and year from the academic_term string
-    # Handles formats like "Fall", "Spring 2026", "Summer 2026", etc.
-    incorrect_term_lower = incorrect_term.downcase
-    year_match = incorrect_term.match(/\d{4}/)
-
-    # Build the correct term string (e.g., "Spring 2026")
+    year_match       = incorrect_term.match(/\d{4}/)
     correct_term_str = "#{correct_term.season.to_s.capitalize} #{correct_term.year}"
 
-    # Try to replace specific patterns in the summary
     corrected = summary.dup
+    corrected = corrected.gsub(/for\s+(Fall|Spring|Summer)\s+\d{4}/i) { "for #{correct_term_str}" }
 
-    # Pattern 1: "for Summer 2026" -> "for Spring 2026"
-    corrected = corrected.gsub(/for\s+(Fall|Spring|Summer)\s+\d{4}/i) do |match|
-      "for #{correct_term_str}"
-    end
-
-    # Pattern 2: "Summer 2026" anywhere in text -> "Spring 2026"
     if year_match
       corrected = corrected.gsub(/(Fall|Spring|Summer)\s+#{year_match[0]}/i, correct_term_str)
     end
 
-    # Log the correction if the summary changed
-    if corrected != summary
-      Rails.logger.info("Corrected summary: '#{summary}' -> '#{corrected}'")
-    end
+    Rails.logger.info("Corrected summary: '#{summary}' -> '#{corrected}'") if corrected != summary
 
     corrected
   end
-
 end

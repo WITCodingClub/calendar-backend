@@ -2,64 +2,36 @@
 
 require Rails.root.join("app/lib/flipper_flags")
 
+# Canonical list of every Flipper flag used in the app. Add a flag here before
+# calling Flipper.enabled? anywhere — this ensures it appears in the Flipper UI
+# even before it's been toggled, making it easy to discover and enable without
+# manually creating it in the dashboard.
+#
+# Keys are the actual Flipper flag identifiers (matching FlipperFlags constants).
+# Flags are created disabled by default; Flipper.add is idempotent and never
+# resets an already-enabled flag.
+FLIPPER_FLAGS = {
+  FlipperFlags::V1               => "API access gate: v1 (launched 2025-10-04)",
+  FlipperFlags::V2               => "API access gate: v2 (launched 2025-11-12)",
+  FlipperFlags::ENV_SWITCHER     => "Allows switching between dev/staging/production environments",
+  FlipperFlags::DEBUG_MODE       => "Enables verbose debug logging and diagnostic output",
+  FlipperFlags::FINALS_RETROACTIVE => "Enables retroactive finals schedule processing for past terms",
+  FlipperFlags::BYPASS_RATE_LIMITS => "Bypasses rate limiting for trusted users and admins",
+}.freeze
+
 Rails.application.configure do
-  ## Memoization ensures that only one adapter call is made per feature per request.
-  ## For more info, see https://www.flippercloud.io/docs/optimization#memoization
   config.flipper.memoize = true
-
-  ## Flipper preloads all features before each request, which is recommended if:
-  ##   * you have a limited number of features (< 100?)
-  ##   * most of your requests depend on most of your features
-  ##   * you have limited gate data combined across all features (< 1k enabled gates, like individual actors, across all features)
-  ##
-  ## For more info, see https://www.flippercloud.io/docs/optimization#preloading
-  # config.flipper.preload = true
-
-  ## Warn or raise an error if an unknown feature is checked
-  ## Can be set to `:warn`, `:raise`, or `false`
-  # config.flipper.strict = Rails.env.development? && :warn
-
-  ## Show Flipper checks in logs
-  # config.flipper.log = true
-
-  ## Reconfigure Flipper to use the Memory adapter and disable Cloud in tests
-  # config.flipper.test_help = true
-
-  ## The path that Flipper Cloud will use to sync features
-  # config.flipper.cloud_path = "_flipper"
-
-  ## The instrumenter that Flipper will use. Defaults to ActiveSupport::Notifications.
-  # config.flipper.instrumenter = ActiveSupport::Notifications
 end
 
 Flipper.configure do |config|
-  ## Cache feature flag lookups in Rails.cache (Redis in production/staging) to avoid
-  ## hitting the DB on every request. Combined with memoize=true above, this means one
-  ## Redis read per feature per request instead of one DB query.
   config.use Flipper::Adapters::ActiveSupportCacheStore, Rails.cache, 5.minutes
 end
 
-## Register a group that can be used for enabling features.
-##
-##   Flipper.enable_group :my_feature, :admins
-##
-## See https://www.flippercloud.io/docs/features#enablement-group
-#
-# Flipper.register(:admins) do |actor|
-#  actor.respond_to?(:admin?) && actor.admin?
-# end
-
 Flipper::UI.configure do |config|
   config.actor_names_source = ->(actor_ids) {
-    # Lookup actor_ids and return hash with user ID => primary email
-    User.where(id: actor_ids)
-        .joins(:emails)
-        .where(emails: { primary: true })
-        .pluck(:id, "emails.email")
-        .to_h
+    User.where(id: actor_ids).pluck(:id, :email).to_h
   }
 end
-
 
 Flipper.register(:users) do |actor, _context|
   actor.is_a?(User)
@@ -77,6 +49,22 @@ Flipper.register(:owners) do |actor, _context|
   actor.is_a?(User) && actor.owner?
 end
 
-# Auto-create all declared feature flags if they don't exist
-# Run this manually with: rails flipper:ensure_flags
-# TODO: Auto-creation disabled due to initialization order issues
+# Ensure every flag in FLIPPER_FLAGS exists in the store so the Flipper UI
+# always shows the full list, even in fresh environments.
+#
+# Guard on the table existing: this hook fires on every boot, including the
+# environment load at the start of `rails db:migrate` (db:migrate =>
+# db:load_config => environment). On a fresh, not-yet-migrated DB (preview
+# envs, CI, first-time setup) flipper_features doesn't exist yet, and an
+# unconditional Flipper.add would crash the migrate with PG::UndefinedTable.
+# Flags register on the next boot, once the table exists.
+Rails.application.config.after_initialize do
+  if ActiveRecord::Base.connection.data_source_exists?("flipper_features")
+    FLIPPER_FLAGS.each_key { |flag| Flipper.add(flag) }
+  end
+rescue ActiveRecord::ConnectionNotEstablished,
+       ActiveRecord::NoDatabaseError,
+       ActiveRecord::StatementInvalid
+  # DB not reachable / not yet created / pre-migrate — skip registration.
+  # Flags re-register on the next boot once the schema is loaded.
+end

@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: final_exams
-# Database name: primary
 #
 #  id            :bigint           not null, primary key
 #  combined_crns :text
@@ -30,162 +29,105 @@
 #  fk_rails_...  (term_id => terms.id)
 #
 class FinalExam < ApplicationRecord
-  belongs_to :course, optional: true
-  belongs_to :term
-  has_many :google_calendar_events, dependent: :destroy
   include EncodedIds::HashidIdentifiable
+
+  set_public_id_prefix :fex
+
+  belongs_to :term
+  belongs_to :course, optional: true
+  has_many :google_calendar_events, dependent: :destroy
 
   validates :crn, presence: true
   validates :exam_date, :start_time, :end_time, presence: true
   validates :crn, uniqueness: { scope: :term_id, message: "can only have one final exam per CRN per term" }
   validate :end_time_after_start_time
 
-  # Scopes for finding orphan vs linked exams
-  scope :orphan, -> { where(course_id: nil) }
-  scope :linked, -> { where.not(course_id: nil) }
-  scope :for_crn, ->(crn) { where(crn: crn) }
+  serialize :combined_crns, coder: JSON
 
-  # Link orphan FinalExams to courses for a specific term
-  # Call this after courses are imported/scraped
+  delegate :title, :subject, :course_number, :section_number, :schedule_type,
+           to: :course, prefix: true, allow_nil: true
+
+  scope :orphan,   -> { where(course_id: nil) }
+  scope :linked,   -> { where.not(course_id: nil) }
+  scope :for_crn,  ->(crn) { where(crn: crn) }
+  scope :upcoming, -> { where(exam_date: Time.zone.today..) }
+
   def self.link_orphan_exams_to_courses(term:)
     linked_count = 0
     orphan_exams = orphan.where(term: term).to_a
-    crns = orphan_exams.map(&:crn).uniq
+    courses_by_crn = Course.where(crn: orphan_exams.map(&:crn).uniq, term: term).index_by(&:crn)
 
-    # Preload courses by CRN for this term to avoid per-exam DB queries
-    courses_by_crn = Course.where(crn: crns, term: term).index_by(&:crn)
-
-    orphan_exams.each do |final_exam|
-      course = courses_by_crn[final_exam.crn]
-      if course
-        final_exam.update!(course: course)
+    orphan_exams.each do |exam|
+      if (course = courses_by_crn[exam.crn])
+        exam.update!(course: course)
         linked_count += 1
       end
     end
     linked_count
   end
 
-  # Link this specific exam to its course
   def link_to_course!
-    return if course.present? # Already linked
+    return if course.present?
 
     found_course = Course.find_by(crn: crn, term: term)
     update!(course: found_course) if found_course
     found_course
   end
 
-  # Check if this exam is linked to a course
-  def linked?
-    course.present?
-  end
+  def linked?   = course.present?
+  def orphan?   = course.blank?
 
-  # Check if this exam is orphaned (no course link)
-  def orphan?
-    course.blank?
-  end
+  def formatted_start_time      = format_time(start_time)
+  def formatted_end_time        = format_time(end_time)
+  def formatted_start_time_ampm = format_time_ampm(start_time)
+  def formatted_end_time_ampm   = format_time_ampm(end_time)
 
-  # Serialize combined_crns as JSON array
-  serialize :combined_crns, coder: JSON
-
-  # Delegate course attributes for easy template access (only when course is present)
-  delegate :title, :subject, :course_number, :section_number, :schedule_type, to: :course, prefix: true, allow_nil: true
-
-  # Format time as HH:MM (e.g., 800 -> "08:00", 1530 -> "15:30")
-  def formatted_start_time
-    format_time(start_time)
-  end
-
-  def formatted_end_time
-    format_time(end_time)
-  end
-
-  # Format with AM/PM (e.g., "8:00 AM")
-  def formatted_start_time_ampm
-    format_time_ampm(start_time)
-  end
-
-  def formatted_end_time_ampm
-    format_time_ampm(end_time)
-  end
-
-  # Duration in hours
   def duration_hours
     return 0 unless start_time && end_time
 
-    start_h = start_time / 100
-    start_m = start_time % 100
-    end_h = end_time / 100
-    end_m = end_time % 100
-
-    (((end_h * 60) + end_m) - ((start_h * 60) + start_m)) / 60.0
+    (((end_time / 100 * 60) + (end_time % 100)) - ((start_time / 100 * 60) + (start_time % 100))) / 60.0
   end
 
-  # Time of day category (morning, afternoon, evening)
   def time_of_day
     return nil unless start_time
 
-    hour = start_time / 100
-    case hour
-    when 0..11 then "morning"
+    case start_time / 100
+    when 0..11  then "morning"
     when 12..16 then "afternoon"
-    else "evening"
+    else             "evening"
     end
   end
 
-  # Get course code for display (e.g., "COMP-1000-01")
   def course_code
     return "CRN #{crn}" unless course
 
     "#{course.subject}-#{course.course_number}-#{course.section_number}"
   end
 
-  # Get primary instructor name
   def primary_instructor
-    return "TBA" unless course
-
-    course.faculties.first&.full_name || "TBA"
+    course&.faculties&.first&.full_name || "TBA"
   end
 
-  # Get all instructor names
   def all_instructors
-    return "TBA" unless course
-
-    course.faculties.map(&:full_name).join(", ").presence || "TBA"
+    course&.faculties&.map(&:full_name)&.join(", ").presence || "TBA"
   end
 
-  # Get all combined CRNs as formatted string
   def combined_crns_display
-    (combined_crns || [crn]).join(", ")
+    (combined_crns || [ crn ]).join(", ")
   end
 
-  # Build datetime for start of exam
   def start_datetime
     return nil unless exam_date && start_time
 
-    Time.zone.local(
-      exam_date.year,
-      exam_date.month,
-      exam_date.day,
-      start_time / 100,
-      start_time % 100
-    )
+    Time.zone.local(exam_date.year, exam_date.month, exam_date.day, start_time / 100, start_time % 100)
   end
 
-  # Build datetime for end of exam
   def end_datetime
     return nil unless exam_date && end_time
 
-    Time.zone.local(
-      exam_date.year,
-      exam_date.month,
-      exam_date.day,
-      end_time / 100,
-      end_time % 100
-    )
+    Time.zone.local(exam_date.year, exam_date.month, exam_date.day, end_time / 100, end_time % 100)
   end
 
-  # Try to find matching Room records from the location string
-  # Returns array of Room objects (may be empty if no matches found)
   def matched_rooms
     return [] if location.blank?
 
@@ -196,31 +138,24 @@ class FinalExam < ApplicationRecord
     end
     return [] if parts.empty?
 
-    # Batch-load buildings by abbreviation
     abbrevs = parts.pluck(:abbrev).uniq
     buildings_by_abbrev = Building.where(abbreviation: abbrevs).index_by(&:abbreviation)
-
-    # Batch-load rooms for matched buildings
     building_ids = buildings_by_abbrev.values.map(&:id)
     room_numbers = parts.pluck(:room_num).uniq
-    rooms_by_building_and_number = Room.where(building_id: building_ids, number: room_numbers)
-                                       .includes(:building)
-                                       .index_by { |r| [r.building_id, r.number.to_s] }
+    rooms_by_key = Room.where(building_id: building_ids, number: room_numbers)
+                       .includes(:building)
+                       .index_by { |r| [ r.building_id, r.number.to_s ] }
 
     parts.filter_map do |p|
       building = buildings_by_abbrev[p[:abbrev]]
       next unless building
 
-      rooms_by_building_and_number[[building.id, p[:room_num]]]
+      rooms_by_key[[ building.id, p[:room_num] ]]
     end
   end
 
-  # Check if we found matching rooms in the database
-  def rooms_matched?
-    matched_rooms.any?
-  end
+  def rooms_matched? = matched_rooms.any?
 
-  # Get formatted location with building names (if matched)
   def location_with_names
     return location if location.blank?
 
@@ -235,9 +170,7 @@ class FinalExam < ApplicationRecord
   def format_time(time_int)
     return nil unless time_int
 
-    hours = time_int / 100
-    minutes = time_int % 100
-    format("%02d:%02d", hours, minutes)
+    format("%02d:%02d", time_int / 100, time_int % 100)
   end
 
   def format_time_ampm(time_int)
@@ -246,7 +179,7 @@ class FinalExam < ApplicationRecord
     hours = time_int / 100
     minutes = time_int % 100
     meridian = hours >= 12 ? "PM" : "AM"
-    hours %= 12
+    hours = hours % 12
     hours = 12 if hours == 0
     format("%d:%02d %s", hours, minutes, meridian)
   end
@@ -256,5 +189,4 @@ class FinalExam < ApplicationRecord
 
     errors.add(:end_time, "must be after start time") if end_time <= start_time
   end
-
 end

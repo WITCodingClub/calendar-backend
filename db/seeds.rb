@@ -1,25 +1,39 @@
 # frozen_string_literal: true
 
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
-#
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+# Organizations are DB-backed and populated from the 25Live API via the sync service.
+# EventCategories and EventCustomAttributes are also DB-backed; they fall back to
+# the constants below if the live sync fails (e.g. no credentials in CI).
 
-# Load degree programs and transfer universities seed data
-# Only run in development/test environments to avoid polluting production
-if Rails.env.local?
-  Rails.logger.debug "Loading seed data..."
+puts "Seeding 25Live data from API..."
+begin
+  External::TwentyFiveLiveService.call!
+  puts "  Sync complete — #{TwentyFiveLive::Organization.count} orgs, #{TwentyFiveLive::EventCategory.count} categories, #{TwentyFiveLive::EventCustomAttribute.count} custom attributes"
+rescue => e
+  puts "  API sync failed (#{e.message}), falling back to constants for categories and custom attributes"
 
-  # Load degree programs
-  load(Rails.root.join("db/seeds/degree_programs.rb")) if Rails.root.join("db/seeds/degree_programs.rb").exist?
+  puts "  Seeding event categories from constants..."
+  TwentyFiveLive::EventCategory::EVENT_CATEGORIES.each do |attrs|
+    cat = TwentyFiveLive::EventCategory.find_or_initialize_by(twenty_five_live_id: attrs[:category_id])
+    next unless cat.new_record?
 
-  # Load transfer universities
-  load(Rails.root.join("db/seeds/transfer_universities.rb")) if Rails.root.join("db/seeds/transfer_universities.rb").exist?
+    cat.assign_attributes(name: attrs[:category_name], sort_order: attrs[:sort_order], defn_state: attrs[:defn_state])
+    cat.save!
+  rescue ActiveRecord::RecordInvalid => e
+    puts "    SKIP id=#{attrs[:category_id]}: #{e.message}"
+  end
 
-  Rails.logger.debug "Seed data loaded successfully!"
+  puts "  Seeding event custom attributes from constants..."
+  TwentyFiveLive::EventCustomAttribute::EVENT_CUSTOM_ATTRIBUTES.each do |attrs|
+    eca = TwentyFiveLive::EventCustomAttribute.find_or_initialize_by(twenty_five_live_id: attrs[:attribute_id])
+    next unless eca.new_record?
+
+    eca.assign_attributes(
+      name: attrs[:attribute_name], attribute_type: attrs[:attribute_type],
+      attribute_type_name: attrs[:attribute_type_name], multi_val: attrs[:multi_val],
+      sort_order: attrs[:sort_order], defn_state: attrs[:defn_state]
+    )
+    eca.save!
+  rescue ActiveRecord::RecordInvalid => e
+    puts "    SKIP id=#{attrs[:attribute_id]}: #{e.message}"
+  end
 end

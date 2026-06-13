@@ -1,191 +1,288 @@
 @import "tailwindcss";
 
-/* WIT Calendar Custom Theme */
-@layer theme {
+/* ─────────────────────────────────────────────────────────────────────────────
+   WIT Calendar — Material Design 3 design tokens
+   Ported from extension/client/src/app.css + main.css
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Roboto Flex variable font — self-hosted */
+@font-face {
+  font-family: "Roboto Flex";
+  src: url("/assets/RobotoFlex-Regular.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Color scheme tokens ── */
+
+@media (prefers-color-scheme: dark) {
   :root {
-    /* WIT Brand Colors */
-    --color-wit-red: #d13732;
-    --color-wit-red-hover: #b02d29;
-    --color-wit-red-light: #f26961;
+    color-scheme: dark;
+    --m3-scheme-primary: 227 195 108;
+    --m3-scheme-surface-tint: 227 195 108;
+    --m3-scheme-on-primary: 61 47 0;
+    --m3-scheme-primary-container: 88 68 0;
+    --m3-scheme-on-primary-container: 255 224 141;
+    --m3-scheme-secondary: 213 197 161;
+    --m3-scheme-on-secondary: 57 47 21;
+    --m3-scheme-secondary-container: 80 70 42;
+    --m3-scheme-on-secondary-container: 242 225 187;
+    --m3-scheme-tertiary: 191 194 255;
+    --m3-scheme-on-tertiary: 39 43 96;
+    --m3-scheme-tertiary-container: 62 66 120;
+    --m3-scheme-on-tertiary-container: 224 224 255;
+    --m3-scheme-error: 255 180 171;
+    --m3-scheme-on-error: 105 0 5;
+    --m3-scheme-error-container: 147 0 10;
+    --m3-scheme-on-error-container: 255 218 214;
+    --m3-scheme-background: 22 19 11;
+    --m3-scheme-on-background: 234 225 212;
+    --m3-scheme-surface: 22 19 11;
+    --m3-scheme-on-surface: 234 225 212;
+    --m3-scheme-surface-variant: 76 70 57;
+    --m3-scheme-on-surface-variant: 207 197 180;
+    --m3-scheme-outline: 152 144 128;
+    --m3-scheme-outline-variant: 76 70 57;
+    --m3-scheme-shadow: 0 0 0;
+    --m3-scheme-scrim: 0 0 0;
+    --m3-scheme-inverse-surface: 234 225 212;
+    --m3-scheme-inverse-on-surface: 52 48 39;
+    --m3-scheme-inverse-primary: 115 91 12;
+    --m3-scheme-primary-fixed: 255 224 141;
+    --m3-scheme-on-primary-fixed: 36 26 0;
+    --m3-scheme-primary-fixed-dim: 227 195 108;
+    --m3-scheme-on-primary-fixed-variant: 88 68 0;
+    --m3-scheme-secondary-fixed: 242 225 187;
+    --m3-scheme-on-secondary-fixed: 35 27 4;
+    --m3-scheme-secondary-fixed-dim: 213 197 161;
+    --m3-scheme-on-secondary-fixed-variant: 80 70 42;
+    --m3-scheme-tertiary-fixed: 224 224 255;
+    --m3-scheme-on-tertiary-fixed: 17 20 75;
+    --m3-scheme-tertiary-fixed-dim: 191 194 255;
+    --m3-scheme-on-tertiary-fixed-variant: 62 66 120;
+    --m3-scheme-surface-dim: 22 19 11;
+    --m3-scheme-surface-bright: 61 57 47;
+    --m3-scheme-surface-container-lowest: 17 14 7;
+    --m3-scheme-surface-container-low: 31 27 19;
+    --m3-scheme-surface-container: 35 31 23;
+    --m3-scheme-surface-container-high: 45 42 33;
+    --m3-scheme-surface-container-highest: 57 52 43;
   }
 }
 
-/* Custom Component Classes */
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --m3-scheme-primary: 115 91 12;
+    --m3-scheme-surface-tint: 115 91 12;
+    --m3-scheme-on-primary: 255 255 255;
+    --m3-scheme-primary-container: 255 224 141;
+    --m3-scheme-on-primary-container: 88 68 0;
+    --m3-scheme-secondary: 105 93 63;
+    --m3-scheme-on-secondary: 255 255 255;
+    --m3-scheme-secondary-container: 242 225 187;
+    --m3-scheme-on-secondary-container: 80 70 42;
+    --m3-scheme-tertiary: 86 89 146;
+    --m3-scheme-on-tertiary: 255 255 255;
+    --m3-scheme-tertiary-container: 224 224 255;
+    --m3-scheme-on-tertiary-container: 62 66 120;
+    --m3-scheme-error: 186 26 26;
+    --m3-scheme-on-error: 255 255 255;
+    --m3-scheme-error-container: 255 218 214;
+    --m3-scheme-on-error-container: 147 0 10;
+    --m3-scheme-background: 255 248 241;
+    --m3-scheme-on-background: 31 27 19;
+    --m3-scheme-surface: 255 248 241;
+    --m3-scheme-on-surface: 31 27 19;
+    --m3-scheme-surface-variant: 235 225 207;
+    --m3-scheme-on-surface-variant: 76 70 57;
+    --m3-scheme-outline: 126 118 103;
+    --m3-scheme-outline-variant: 207 197 180;
+    --m3-scheme-shadow: 0 0 0;
+    --m3-scheme-scrim: 0 0 0;
+    --m3-scheme-inverse-surface: 52 48 39;
+    --m3-scheme-inverse-on-surface: 248 240 226;
+    --m3-scheme-inverse-primary: 227 195 108;
+    --m3-scheme-primary-fixed: 255 224 141;
+    --m3-scheme-on-primary-fixed: 36 26 0;
+    --m3-scheme-primary-fixed-dim: 227 195 108;
+    --m3-scheme-on-primary-fixed-variant: 88 68 0;
+    --m3-scheme-secondary-fixed: 242 225 187;
+    --m3-scheme-on-secondary-fixed: 35 27 4;
+    --m3-scheme-secondary-fixed-dim: 213 197 161;
+    --m3-scheme-on-secondary-fixed-variant: 80 70 42;
+    --m3-scheme-tertiary-fixed: 224 224 255;
+    --m3-scheme-on-tertiary-fixed: 17 20 75;
+    --m3-scheme-tertiary-fixed-dim: 191 194 255;
+    --m3-scheme-on-tertiary-fixed-variant: 62 66 120;
+    --m3-scheme-surface-dim: 225 217 204;
+    --m3-scheme-surface-bright: 255 248 241;
+    --m3-scheme-surface-container-lowest: 255 255 255;
+    --m3-scheme-surface-container-low: 251 243 229;
+    --m3-scheme-surface-container: 245 237 223;
+    --m3-scheme-surface-container-high: 240 231 217;
+    --m3-scheme-surface-container-highest: 234 225 212;
+  }
+}
+
+/* ── Tailwind v4 @theme — map utility color names to m3 tokens ── */
+/* (mirrors extension/client/src/main.css exactly) */
+
+@theme {
+  --color-primary: rgb(var(--m3-scheme-primary));
+  --color-on-primary: rgb(var(--m3-scheme-on-primary));
+  --color-primary-container: rgb(var(--m3-scheme-primary-container));
+  --color-on-primary-container: rgb(var(--m3-scheme-on-primary-container));
+  --color-secondary: rgb(var(--m3-scheme-secondary));
+  --color-on-secondary: rgb(var(--m3-scheme-on-secondary));
+  --color-secondary-container: rgb(var(--m3-scheme-secondary-container));
+  --color-on-secondary-container: rgb(var(--m3-scheme-on-secondary-container));
+  --color-tertiary: rgb(var(--m3-scheme-tertiary));
+  --color-on-tertiary: rgb(var(--m3-scheme-on-tertiary));
+  --color-tertiary-container: rgb(var(--m3-scheme-tertiary-container));
+  --color-on-tertiary-container: rgb(var(--m3-scheme-on-tertiary-container));
+  --color-error: rgb(var(--m3-scheme-error));
+  --color-on-error: rgb(var(--m3-scheme-on-error));
+  --color-error-container: rgb(var(--m3-scheme-error-container));
+  --color-on-error-container: rgb(var(--m3-scheme-on-error-container));
+  --color-background: rgb(var(--m3-scheme-background));
+  --color-on-background: rgb(var(--m3-scheme-on-background));
+  --color-surface: rgb(var(--m3-scheme-surface));
+  --color-on-surface: rgb(var(--m3-scheme-on-surface));
+  --color-surface-variant: rgb(var(--m3-scheme-surface-variant));
+  --color-on-surface-variant: rgb(var(--m3-scheme-on-surface-variant));
+  --color-outline: rgb(var(--m3-scheme-outline));
+  --color-outline-variant: rgb(var(--m3-scheme-outline-variant));
+  --color-shadow: rgb(var(--m3-scheme-shadow));
+  --color-scrim: rgb(var(--m3-scheme-scrim));
+  --color-inverse-surface: rgb(var(--m3-scheme-inverse-surface));
+  --color-inverse-on-surface: rgb(var(--m3-scheme-inverse-on-surface));
+  --color-inverse-primary: rgb(var(--m3-scheme-inverse-primary));
+  --color-surface-bright: rgb(var(--m3-scheme-surface-bright));
+  --color-surface-container: rgb(var(--m3-scheme-surface-container));
+  --color-surface-container-high: rgb(var(--m3-scheme-surface-container-high));
+  --color-surface-container-highest: rgb(var(--m3-scheme-surface-container-highest));
+  --color-surface-container-low: rgb(var(--m3-scheme-surface-container-low));
+  --color-surface-container-lowest: rgb(var(--m3-scheme-surface-container-lowest));
+  --color-surface-dim: rgb(var(--m3-scheme-surface-dim));
+  --color-surface-tint: rgb(var(--m3-scheme-surface-tint));
+
+  --font-sans: "Roboto Flex", sans-serif;
+}
+
+/* ── Base ── */
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: rgb(var(--m3-scheme-background));
+  color: rgb(var(--m3-scheme-on-background));
+  font-family: "Roboto Flex", sans-serif;
+  font-optical-sizing: auto;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* ── Reusable M3 component classes ── */
+
 @layer components {
-  /* Glass Morphism Effects */
-  .glass-card {
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    border: 1px solid rgba(209, 55, 50, 0.3);
+  /* Cards */
+  .m3-card {
+    @apply bg-surface-container rounded-xl border border-outline-variant shadow-sm;
+  }
+  .m3-card-low {
+    @apply bg-surface-container-low rounded-xl border border-outline-variant;
+  }
+  .m3-card-high {
+    @apply bg-surface-container-high rounded-xl border border-outline-variant;
   }
 
-  .glass-card-light {
-    background: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 2px solid rgba(209, 55, 50, 0.6);
+  /* Buttons */
+  .m3-btn-filled {
+    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-primary text-on-primary text-sm font-medium transition-opacity hover:opacity-90 active:opacity-80;
+  }
+  .m3-btn-tonal {
+    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-secondary-container text-on-secondary-container text-sm font-medium transition-opacity hover:opacity-90 active:opacity-80;
+  }
+  .m3-btn-outlined {
+    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-outline text-on-surface text-sm font-medium bg-transparent transition-colors hover:bg-surface-container;
+  }
+  .m3-btn-text {
+    @apply inline-flex items-center gap-2 px-3 py-2.5 rounded-full text-primary text-sm font-medium bg-transparent transition-colors hover:bg-primary/8;
+  }
+  .m3-btn-danger {
+    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-error-container text-on-error-container text-sm font-medium transition-opacity hover:opacity-90;
   }
 
-  .glass-header {
-    background: linear-gradient(135deg, rgba(209, 55, 50, 0.15) 0%, rgba(255, 255, 255, 0.5) 100%);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    border-bottom: 2px solid rgba(209, 55, 50, 0.5);
+  /* Inputs / selects */
+  .m3-input {
+    @apply block w-full rounded-lg border border-outline-variant bg-surface-container-highest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary;
+  }
+  .m3-select {
+    @apply block w-full rounded-lg border border-outline-variant bg-surface-container-highest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer;
+  }
+  .m3-label {
+    @apply block text-xs font-medium text-on-surface-variant mb-1;
   }
 
-  .glass-nav {
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    border-bottom: 2px solid rgba(209, 55, 50, 0.5);
+  /* List / nav items */
+  .m3-list-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-2xl text-sm text-on-surface-variant hover:bg-surface-container transition-colors;
+  }
+  .m3-list-item-active {
+    @apply flex items-center gap-3 px-4 py-3 rounded-2xl text-sm bg-secondary-container text-on-secondary-container font-medium;
   }
 
-  .glass-content {
-    background: rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
+  /* Tables */
+  .m3-table {
+    @apply w-full text-sm text-left;
+  }
+  .m3-table thead tr {
+    @apply bg-surface-container-high text-on-surface-variant text-xs font-semibold uppercase tracking-wider;
+  }
+  .m3-table thead th {
+    @apply px-4 py-3;
+  }
+  .m3-table tbody tr {
+    @apply border-t border-outline-variant hover:bg-surface-container transition-colors;
+  }
+  .m3-table tbody td {
+    @apply px-4 py-3 text-on-surface;
   }
 
-  .glass-input {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
+  /* Badges */
+  .m3-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .m3-badge-primary {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-container text-on-primary-container;
+  }
+  .m3-badge-secondary {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-container text-on-secondary-container;
+  }
+  .m3-badge-error {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-error-container text-on-error-container;
   }
 
-  /* Glass Button */
-  .glass-button {
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    border: 2px solid var(--color-wit-red);
-    color: #2C3440;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7);
-    transition: all 0.3s ease;
-    font-weight: 600;
-
-    &:hover {
-      @media (hover: hover) {
-        background: linear-gradient(135deg, var(--color-wit-red) 0%, var(--color-wit-red-hover) 100%);
-        border-color: var(--color-wit-red-light);
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(209, 55, 50, 0.3);
-        color: #FFFFFF;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-      }
-    }
+  /* Flash / alert banners */
+  .m3-alert-notice {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl bg-primary-container text-on-primary-container text-sm;
+  }
+  .m3-alert-error {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl bg-error-container text-on-error-container text-sm;
   }
 
-  /* Admin Navigation */
-  .admin-nav-link {
-    display: block;
-    padding: 12px 24px;
-    color: #2C3440;
-    text-decoration: none;
-    border-bottom: 3px solid transparent;
-    transition: all 0.3s ease;
-    font-weight: 500;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.2);
-    position: relative;
-
-    &::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      top: 10%;
-      height: 80%;
-      transition: all 0.3s ease;
-    }
-
-    &:hover,
-    &.active {
-      color: #2C3440;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(209, 55, 50, 0.1) 100%);
-      border-bottom-color: var(--color-wit-red);
-      box-shadow: 0 2px 8px rgba(209, 55, 50, 0.2);
-    }
-
-    &:hover::after,
-    &.active::after {
-      background: rgba(209, 55, 50, 0.5);
-      box-shadow: 0 0 4px rgba(209, 55, 50, 0.3);
-    }
+  /* Dividers */
+  .m3-divider {
+    @apply border-t border-outline-variant;
   }
 
-  /* Stat Card */
-  .stat-card {
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    border: 1px solid rgba(209, 55, 50, 0.3);
-    overflow: hidden;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    border-radius: 0.5rem;
-  }
-
-  /* Quick Action Link */
-  .quick-action-link {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    font-weight: 500;
-    border-radius: 0.25rem;
-    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
-    color: var(--color-wit-red);
-    background: rgba(209, 55, 50, 0.05);
-    border: 1px solid rgba(209, 55, 50, 0.2);
-
-    &:hover {
-      @media (hover: hover) {
-        background: rgba(209, 55, 50, 0.1);
-      }
-    }
-  }
-
-  /* Background Overlay */
-  .gradient-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-  }
-
-  /* Admin Container */
-  .admin-container {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
-    padding: 0.625rem;
-    position: relative;
-  }
-
-  .admin-card {
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 2px solid rgba(209, 55, 50, 0.6);
-    border-radius: 25px;
-    width: 100%;
-    max-width: 80rem;
-    margin-top: 1.25rem;
-    overflow: hidden;
-    box-shadow: 0 8px 32px rgba(209, 55, 50, 0.15);
-  }
-
-  /* Text Shadows for Glass Effect */
-  .text-shadow-light {
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
-  }
-
-  .text-shadow-white {
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7);
+  /* Section headers (admin sidebar categories) */
+  .m3-nav-section {
+    @apply px-4 pt-4 pb-1 text-xs font-semibold text-on-surface-variant uppercase tracking-wider;
   }
 }

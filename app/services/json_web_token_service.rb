@@ -11,10 +11,8 @@ class JsonWebTokenService
   end
 
   def self.decode(token)
-    # Decode without verifying expiration first to check if exp claim exists
     decoded = JWT.decode(token, SECRET_KEY, true, { verify_expiration: false, algorithm: "HS256" })[0]
 
-    # If exp claim exists, verify it manually (this will raise if expired)
     if decoded["exp"]
       decoded = JWT.decode(token, SECRET_KEY, true, { algorithm: "HS256" })[0]
     end
@@ -23,5 +21,4 @@ class JsonWebTokenService
   rescue JWT::DecodeError, JWT::ExpiredSignature
     nil
   end
-
 end

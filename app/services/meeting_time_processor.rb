@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class MeetingTimeProcessor
-  # Process a single meeting time into a format suitable for API responses
   def self.process_meeting_time(meeting_time)
     {
       id: meeting_time.id,
@@ -20,7 +19,7 @@ class MeetingTimeProcessor
                   else
                     nil
                   end,
-        room: meeting_time.room&.formatted_number
+        rooms: meeting_time.rooms.map(&:formatted_number)
       },
       course: {
         id: meeting_time.course.id,
@@ -31,5 +30,4 @@ class MeetingTimeProcessor
       }
     }
   end
-
 end

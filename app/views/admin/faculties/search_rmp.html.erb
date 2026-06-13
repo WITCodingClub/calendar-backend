@@ -1,52 +1,42 @@
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Search Rate My Professor</h1>
+    <h1 class="text-2xl font-bold text-on-surface">Search Rate My Professor</h1>
     <div class="flex gap-2">
-      <%= link_to "Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-      <%= link_to "Back to Dashboard", admin_root_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+      <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
     </div>
   </div>
 
-  <div class="bg-white shadow-lg rounded-lg mb-4 p-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-    <h2 class="text-xl font-semibold mb-2">Searching for: <%= @faculty.full_name %></h2>
-    <p class="text-gray-600 mb-1"><strong>Email:</strong> <%= @faculty.email || "N/A" %></p>
-    <p class="text-gray-600"><strong>Courses:</strong> <%= @faculty.courses.count %></p>
+  <div class="m3-card shadow-sm rounded-xl mb-4 p-6">
+    <h2 class="text-xl font-semibold mb-2 text-on-surface">Searching for: <%= @faculty.full_name %></h2>
+    <p class="text-on-surface-variant mb-1"><strong>Email:</strong> <%= @faculty.email || "N/A" %></p>
+    <p class="text-on-surface-variant"><strong>Courses:</strong> <%= @faculty.courses.count %></p>
   </div>
 
   <% if @teachers.empty? %>
-    <div class="bg-white shadow-lg rounded-lg p-8" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <div class="text-yellow-600 text-lg font-semibold mb-2 text-center">
-        No Results Found
-      </div>
-      <p class="text-gray-600 mb-4 text-center">No matching professors found on Rate My Professor for "<%= @faculty.full_name %>".</p>
+    <div class="m3-card shadow-sm rounded-xl p-8">
+      <div class="text-on-secondary-container text-lg font-semibold mb-2 text-center">No Results Found</div>
+      <p class="text-on-surface-variant mb-4 text-center">No matching professors found on Rate My Professor for "<%= @faculty.full_name %>".</p>
 
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-4">
-        <h3 class="font-semibold text-gray-800 mb-3">Submit this professor to RMP:</h3>
+      <div class="bg-tertiary-container border border-outline-variant rounded-xl p-6 mb-4">
+        <h3 class="font-semibold text-on-surface mb-3">Submit this professor to RMP:</h3>
         <div class="space-y-3">
-          <div class="bg-white rounded p-3 border border-gray-200">
-            <p class="text-sm text-gray-600 mb-2"><strong>Step 1:</strong> Open the WIT Faculty Directory</p>
+          <div class="bg-surface rounded p-3 border border-outline-variant">
+            <p class="text-sm text-on-surface-variant mb-2"><strong>Step 1:</strong> Open the WIT Faculty Directory</p>
             <% service = RateMyProfessorService.new %>
             <% directory_url = service.faculty_directory_url(first_name: @faculty.first_name, last_name: @faculty.last_name) %>
-            <%= link_to directory_url,
-                target: "_blank",
-                rel: "noopener noreferrer",
-                class: "text-blue-600 hover:text-blue-700 underline text-sm break-all" do %>
-              <%= directory_url %>
-            <% end %>
+            <%= link_to directory_url, directory_url, target: "_blank", rel: "noopener noreferrer",
+                class: "text-primary hover:text-primary underline text-sm break-all" %>
           </div>
-          <div class="bg-white rounded p-3 border border-gray-200">
-            <p class="text-sm text-gray-600 mb-2"><strong>Step 2:</strong> Open RMP Add Professor Form</p>
+          <div class="bg-surface rounded p-3 border border-outline-variant">
+            <p class="text-sm text-on-surface-variant mb-2"><strong>Step 2:</strong> Open RMP Add Professor Form</p>
             <% rmp_url = service.add_professor_url %>
-            <%= link_to rmp_url,
-                target: "_blank",
-                rel: "noopener noreferrer",
-                class: "text-blue-600 hover:text-blue-700 underline text-sm break-all" do %>
-              <%= rmp_url %>
-            <% end %>
+            <%= link_to rmp_url, rmp_url, target: "_blank", rel: "noopener noreferrer",
+                class: "text-primary hover:text-primary underline text-sm break-all" %>
           </div>
-          <div class="bg-white rounded p-3 border border-gray-200">
-            <p class="text-sm text-gray-600"><strong>Step 3:</strong> Copy information from the directory page to the RMP form</p>
-            <ul class="list-disc list-inside text-sm text-gray-600 mt-2 ml-2">
+          <div class="bg-surface rounded p-3 border border-outline-variant">
+            <p class="text-sm text-on-surface-variant"><strong>Step 3:</strong> Copy information from the directory page to the RMP form</p>
+            <ul class="list-disc list-inside text-sm text-on-surface-variant mt-2 ml-2">
               <li>Name: <strong><%= @faculty.full_name %></strong></li>
               <li>School: Wentworth Institute of Technology</li>
               <li>Copy the directory URL from Step 1</li>
@@ -56,14 +46,12 @@
       </div>
 
       <div class="text-center">
-        <%= link_to "Back to Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+        <%= link_to "Back to Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
       </div>
     </div>
   <% else %>
-    <div class="bg-white shadow-lg rounded-lg mb-4 p-4" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-      <p class="text-gray-700">
-        Found <span class="font-bold"><%= @teachers.count %></span> result(s) on Rate My Professor
-      </p>
+    <div class="m3-card shadow-sm rounded-xl mb-4 p-4">
+      <p class="text-on-surface">Found <span class="font-bold"><%= @teachers.count %></span> result(s) on Rate My Professor</p>
     </div>
 
     <div class="space-y-4">
@@ -74,64 +62,52 @@
         <% is_exact_match = teacher["firstName"]&.downcase&.strip == @faculty.first_name&.downcase&.strip &&
                             teacher["lastName"]&.downcase&.strip == @faculty.last_name&.downcase&.strip %>
 
-        <div class="bg-white shadow-lg rounded-lg p-6 <%= is_exact_match ? 'border-2 border-green-500' : '' %>" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
+        <div class="m3-card shadow-sm rounded-xl p-6 <%= 'ring-2 ring-primary' if is_exact_match %>">
           <% if is_exact_match %>
             <div class="mb-2">
-              <span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">
-                ✓ Exact Name Match
-              </span>
+              <span class="inline-block bg-tertiary-container text-on-tertiary-container text-xs font-semibold px-2 py-1 rounded">Exact Name Match</span>
             </div>
           <% end %>
 
           <div class="flex justify-between items-start">
             <div class="flex-1">
-              <h3 class="text-xl font-semibold mb-2">
-                <%= teacher["firstName"] %> <%= teacher["lastName"] %>
-              </h3>
-
+              <h3 class="text-xl font-semibold mb-2 text-on-surface"><%= teacher["firstName"] %> <%= teacher["lastName"] %></h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                 <div>
-                  <p class="text-sm text-gray-600"><strong>School:</strong> <%= school %></p>
-                  <p class="text-sm text-gray-600"><strong>Department:</strong> <%= department %></p>
-                  <p class="text-sm text-gray-600 mt-2">
+                  <p class="text-sm text-on-surface-variant"><strong>School:</strong> <%= school %></p>
+                  <p class="text-sm text-on-surface-variant"><strong>Department:</strong> <%= department %></p>
+                  <p class="text-sm text-on-surface-variant mt-2">
                     <strong>RMP ID:</strong>
-                    <code class="bg-gray-100 px-2 py-1 rounded text-xs"><%= teacher["id"] %></code>
+                    <code class="bg-surface-container-high px-2 py-1 rounded text-xs"><%= teacher["id"] %></code>
                   </p>
                 </div>
-
                 <div>
                   <% if teacher["avgRating"] %>
-                    <p class="text-sm text-gray-600">
+                    <p class="text-sm text-on-surface-variant">
                       <strong>Rating:</strong>
-                      <span class="font-semibold <%= teacher["avgRating"] >= 4.0 ? 'text-green-600' : teacher["avgRating"] >= 3.0 ? 'text-yellow-600' : 'text-red-600' %>">
+                      <span class="font-semibold <%= teacher["avgRating"] >= 4.0 ? 'text-on-tertiary-container' : teacher["avgRating"] >= 3.0 ? 'text-on-secondary-container' : 'text-on-error-container' %>">
                         <%= teacher["avgRating"] %> / 5.0
                       </span>
                       (<%= teacher["numRatings"] || 0 %> ratings)
                     </p>
                   <% else %>
-                    <p class="text-sm text-gray-600"><strong>Rating:</strong> N/A</p>
+                    <p class="text-sm text-on-surface-variant"><strong>Rating:</strong> N/A</p>
                   <% end %>
-
                   <% if teacher["avgDifficulty"] %>
-                    <p class="text-sm text-gray-600">
-                      <strong>Difficulty:</strong> <%= teacher["avgDifficulty"] %> / 5.0
-                    </p>
+                    <p class="text-sm text-on-surface-variant"><strong>Difficulty:</strong> <%= teacher["avgDifficulty"] %> / 5.0</p>
                   <% else %>
-                    <p class="text-sm text-gray-600"><strong>Difficulty:</strong> N/A</p>
+                    <p class="text-sm text-on-surface-variant"><strong>Difficulty:</strong> N/A</p>
                   <% end %>
                 </div>
               </div>
             </div>
-
             <div class="ml-4">
               <%= button_to "Assign This ID",
                   assign_rmp_id_admin_faculty_path(@faculty, rmp_id: teacher["id"]),
                   method: :post,
                   class: "bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm cursor-pointer whitespace-nowrap",
                   form: { class: "inline-flex" },
-                  data: {
-                    turbo_confirm: "Assign RMP ID '#{teacher['id']}' to #{@faculty.full_name}?"
-                  } %>
+                  data: { turbo_confirm: "Assign RMP ID '#{teacher['id']}' to #{@faculty.full_name}?" } %>
             </div>
           </div>
         </div>
@@ -139,40 +115,32 @@
     </div>
 
     <div class="mt-6">
-      <div class="bg-white shadow-lg rounded-lg p-6" style="background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(209, 55, 50, 0.3);">
-        <p class="text-gray-700 mb-4 font-semibold text-center">None of these results match?</p>
-
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <h3 class="font-semibold text-gray-800 mb-3 text-sm">Submit this professor to RMP:</h3>
+      <div class="m3-card shadow-sm rounded-xl p-6">
+        <p class="text-on-surface mb-4 font-semibold text-center">None of these results match?</p>
+        <div class="bg-tertiary-container border border-outline-variant rounded-xl p-4 mb-4">
+          <h3 class="font-semibold text-on-surface mb-3 text-sm">Submit this professor to RMP:</h3>
           <div class="space-y-2">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-gray-600 w-16">Step 1:</span>
+              <span class="text-xs font-semibold text-on-surface-variant w-16">Step 1:</span>
               <% service = RateMyProfessorService.new %>
               <% directory_url = service.faculty_directory_url(first_name: @faculty.first_name, last_name: @faculty.last_name) %>
-              <%= link_to "Open WIT Directory →",
-                  directory_url,
-                  target: "_blank",
-                  rel: "noopener noreferrer",
-                  class: "text-blue-600 hover:text-blue-700 underline text-sm" %>
+              <%= link_to "Open WIT Directory →", directory_url, target: "_blank", rel: "noopener noreferrer",
+                  class: "text-primary hover:text-primary underline text-sm" %>
             </div>
             <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-gray-600 w-16">Step 2:</span>
+              <span class="text-xs font-semibold text-on-surface-variant w-16">Step 2:</span>
               <% rmp_url = service.add_professor_url %>
-              <%= link_to "Open RMP Form →",
-                  rmp_url,
-                  target: "_blank",
-                  rel: "noopener noreferrer",
-                  class: "text-blue-600 hover:text-blue-700 underline text-sm" %>
+              <%= link_to "Open RMP Form →", rmp_url, target: "_blank", rel: "noopener noreferrer",
+                  class: "text-primary hover:text-primary underline text-sm" %>
             </div>
             <div class="flex items-start gap-2">
-              <span class="text-xs font-semibold text-gray-600 w-16">Step 3:</span>
-              <span class="text-xs text-gray-600">Copy info: <strong><%= @faculty.full_name %></strong>, Wentworth, and directory URL</span>
+              <span class="text-xs font-semibold text-on-surface-variant w-16">Step 3:</span>
+              <span class="text-xs text-on-surface-variant">Copy info: <strong><%= @faculty.full_name %></strong>, Wentworth, and directory URL</span>
             </div>
           </div>
         </div>
-
         <div class="text-center">
-          <%= link_to "Back to Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "glass-button px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
+          <%= link_to "Back to Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
         </div>
       </div>
     </div>

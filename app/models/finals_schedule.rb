@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: finals_schedules
-# Database name: primary
 #
 #  id             :bigint           not null, primary key
 #  error_message  :text
@@ -17,6 +16,7 @@
 #
 # Indexes
 #
+#  index_finals_schedules_on_term_id                 (term_id)
 #  index_finals_schedules_on_term_id_and_created_at  (term_id,created_at)
 #  index_finals_schedules_on_uploaded_by_id          (uploaded_by_id)
 #
@@ -26,74 +26,47 @@
 #  fk_rails_...  (uploaded_by_id => users.id)
 #
 class FinalsSchedule < ApplicationRecord
+  include EncodedIds::HashidIdentifiable
+
   belongs_to :term
   belongs_to :uploaded_by, class_name: "User"
-  include EncodedIds::HashidIdentifiable
 
   has_one_attached :pdf_file
 
   enum :status, {
-    pending: 0,
+    pending:    0,
     processing: 1,
-    completed: 2,
-    failed: 3
-  }
+    completed:  2,
+    failed:     3
+  }, default: :pending
 
-  validates :pdf_file, presence: true
-  validate :pdf_file_is_pdf
+  validates :term,        presence: true
+  validates :uploaded_by, presence: true
+  validate  :pdf_file_is_pdf, if: -> { pdf_file.attached? }
 
-  scope :recent, -> { order(created_at: :desc) }
-  scope :for_term, ->(term) { where(term: term) }
+  scope :recent,    -> { order(created_at: :desc) }
+  scope :for_term,  ->(term) { where(term: term) }
 
-  # Process the uploaded PDF and create FinalExam records
-  def process!
-    update!(status: :processing)
-
-    result = FinalsScheduleParserService.call(
-      pdf_content: pdf_file.download,
-      term: term
-    )
-
-    update!(
-      status: :completed,
-      processed_at: Time.current,
-      stats: result.slice(:total, :created, :updated, :linked, :orphan, :rooms_created),
-      error_message: (result[:errors].join("\n") if result[:errors].any?)
-    )
-
-    # Trigger calendar re-sync for all users enrolled in this term's courses
-    # This updates class recurrence rules to end before finals week
-    trigger_calendar_resyncs_for_term
-  rescue => e
-    update!(
-      status: :failed,
-      processed_at: Time.current,
-      error_message: e.message
-    )
-    raise
-  end
-
-  # Queue calendar re-syncs for all users with calendars who are enrolled in this term
   def trigger_calendar_resyncs_for_term
-    users_to_sync = User.joins(oauth_credentials: :google_calendar)
-                        .joins(:enrollments)
-                        .where(enrollments: { term_id: term_id })
-                        .where(oauth_credentials: { provider: "google" })
-                        .distinct
+    users_to_sync = User
+      .joins(oauth_credentials: :google_calendar)
+      .joins(:enrollments => :course)
+      .where(courses: { term_id: term_id })
+      .where(oauth_credentials: { provider: "google" })
+      .distinct
 
-    users_to_sync.find_each do |user|
-      GoogleCalendarSyncJob.perform_later(user, force: true)
-    end
+    users_to_sync.find_each { |user| GoogleCalendarSyncJob.perform_later(user, force: true) }
 
-    Rails.logger.info("Queued calendar re-sync for #{users_to_sync.count} users after finals schedule import for #{term.name}")
+    Rails.logger.info({
+      message:   "Queued calendar re-sync after finals schedule import",
+      term:      term.uid,
+      user_count: users_to_sync.count
+    }.to_json)
   end
 
   private
 
   def pdf_file_is_pdf
-    return unless pdf_file.attached?
-
     errors.add(:pdf_file, "must be a PDF") unless pdf_file.content_type == "application/pdf"
   end
-
 end

@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: rmp_ratings
-# Database name: primary
 #
 #  id                   :bigint           not null, primary key
 #  attendance_mandatory :string
@@ -11,13 +10,12 @@
 #  comment              :text
 #  course_name          :string
 #  difficulty_rating    :integer
-#  embedding            :vector(1536)
 #  grade                :string
 #  helpful_rating       :integer
 #  is_for_credit        :boolean
 #  is_for_online_class  :boolean
 #  rating_date          :datetime
-#  rating_tags          :text
+#  rating_tags          :string
 #  thumbs_down_total    :integer          default(0)
 #  thumbs_up_total      :integer          default(0)
 #  would_take_again     :boolean
@@ -37,61 +35,23 @@
 #
 class RmpRating < ApplicationRecord
   include EncodedIds::HashidIdentifiable
-  include Embeddable
 
   set_public_id_prefix :rmp, min_hash_length: 12
 
   belongs_to :faculty
 
-  has_neighbors :embedding
-
   validates :rmp_id, presence: true, uniqueness: true
 
-  scope :recent, -> { order(rating_date: :desc) }
+  scope :recent,   -> { order(rating_date: :desc) }
   scope :positive, -> { where(clarity_rating: 4..) }
   scope :negative, -> { where(clarity_rating: ..2) }
 
   def overall_sentiment
     return "neutral" if clarity_rating.blank?
 
-    if clarity_rating >= 4
-      "positive"
-    elsif clarity_rating <= 2
-      "negative"
-    else
-      "neutral"
+    if clarity_rating >= 4     then "positive"
+    elsif clarity_rating <= 2  then "negative"
+    else                            "neutral"
     end
   end
-
-  # Generate the text representation for embedding
-  # Combines comment with context like course name and tags
-  def embedding_text
-    parts = [
-      comment,
-      course_name.presence && "Course: #{course_name}",
-      grade.presence && "Grade: #{grade}",
-      rating_tags
-    ]
-
-    parts.compact.join(" ").squish.presence
-  end
-
-  # Find similar ratings based on comment embeddings
-  def similar_ratings(limit: 10, distance: "cosine")
-    return self.class.none if embedding.nil?
-
-    self.class.nearest_neighbors(:embedding, embedding, distance: distance)
-        .where.not(id: id)
-        .limit(limit)
-  end
-
-  # Find similar comments from other faculties
-  def similar_comments_other_faculties(limit: 10)
-    return self.class.none if embedding.nil?
-
-    self.class.nearest_neighbors(:embedding, embedding, distance: "cosine")
-        .where.not(faculty_id: faculty_id)
-        .limit(limit)
-  end
-
 end

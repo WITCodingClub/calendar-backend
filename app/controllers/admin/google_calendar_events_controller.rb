@@ -10,6 +10,5 @@ module Admin
                                 .page(params[:page])
                                 .per(25)
     end
-
   end
 end

@@ -1,41 +1,36 @@
 # frozen_string_literal: true
 
-# Job to sync university calendar events from the ICS feed.
-#
-# This job:
-# 1. Fetches and parses the ICS feed via UniversityCalendarIcsService
-# 2. Triggers GoogleCalendarSyncJob for ALL users when holidays change (auto-sync)
-# 3. Triggers sync only for opted-in users when other events change
-# 4. Attempts to update Term dates from newly detected events
-#
-# Scheduled to run daily at 3am via Solid Queue recurring configuration.
-#
+# Syncs university calendar events from the 25Live ICS feed and also refreshes
+# 25Live reference data (organizations, event categories, resources) via
+# External::TwentyFiveLiveService. Scheduled to run daily at 3am via Solid Queue.
 class UniversityCalendarSyncJob < ApplicationJob
   queue_as :low
 
-  # Prevent concurrent runs
   limits_concurrency to: 1, key: -> { "university_calendar_sync" }
 
   def perform
     Rails.logger.info("Starting university calendar sync")
 
-    # Capture before/after holiday count to detect changes
-    holiday_count_before = UniversityCalendarEvent.holidays.count
+    # Refresh 25Live reference data (organizations, categories, resources)
+    begin
+      External::TwentyFiveLiveService.call
+      Rails.logger.info("25Live reference data sync complete")
+    rescue => e
+      Rails.logger.warn("25Live reference data sync failed (non-fatal): #{e.message}")
+    end
 
     result = UniversityCalendarIcsService.call
 
-    Rails.logger.info("University calendar sync complete: #{result}")
+    Rails.logger.info("University calendar ICS sync complete: #{result}")
 
-    # Check if holidays changed
-    holiday_count_after = UniversityCalendarEvent.holidays.count
-    holidays_changed = holiday_count_before != holiday_count_after || result[:updated].positive?
+    any_changes = result[:created].positive? || result[:updated].positive? || result[:cancelled].positive?
 
-    # If events changed, trigger calendar re-sync for affected users
-    if result[:created].positive? || result[:updated].positive?
+    if any_changes
+      changed = Array(result[:changed_categories])
+      holidays_changed = (changed & %w[holiday study_day]).any?
       trigger_user_calendar_syncs(holidays_changed: holidays_changed)
     end
 
-    # Attempt to update term dates from new data
     update_term_dates_from_events
 
     result
@@ -43,19 +38,14 @@ class UniversityCalendarSyncJob < ApplicationJob
 
   private
 
-  # Trigger calendar syncs for users based on what changed
-  # @param holidays_changed [Boolean] whether holidays were added/updated
   def trigger_user_calendar_syncs(holidays_changed:)
     if holidays_changed
-      # Holidays affect ALL users - trigger sync for everyone with a calendar
       trigger_sync_for_all_users
     else
-      # Only trigger sync for users who opted in to non-holiday events
       trigger_sync_for_opted_in_users
     end
   end
 
-  # Trigger sync for all users with a Google Calendar
   def trigger_sync_for_all_users
     Rails.logger.info("Holiday changes detected - syncing all users")
 
@@ -63,10 +53,9 @@ class UniversityCalendarSyncJob < ApplicationJob
         .distinct
         .find_each do |user|
           GoogleCalendarSyncJob.perform_later(user, force: true)
-    end
+        end
   end
 
-  # Trigger sync only for users who have opted in to university events
   def trigger_sync_for_opted_in_users
     Rails.logger.info("Non-holiday changes detected - syncing opted-in users only")
 
@@ -76,14 +65,10 @@ class UniversityCalendarSyncJob < ApplicationJob
         .distinct
         .find_each do |user|
           GoogleCalendarSyncJob.perform_later(user, force: true)
-    end
+        end
   end
 
-  # Attempt to update term dates from university calendar events
   def update_term_dates_from_events
-    # Only check recent and future terms — no need to re-evaluate historical terms
-    # from years ago. Include the prior year in case we're early in the calendar
-    # year and a recently ended term needs a correction.
     current_year = Time.zone.today.year
 
     Term.where(year: (current_year - 1)..).find_each do |term|
@@ -91,15 +76,12 @@ class UniversityCalendarSyncJob < ApplicationJob
 
       updates = {}
       updates[:start_date] = dates[:start_date] if dates[:start_date] && term.start_date.nil?
-      updates[:end_date] = dates[:end_date] if dates[:end_date] && term.end_date.nil?
+      updates[:end_date]   = dates[:end_date]   if dates[:end_date]   && term.end_date.nil?
 
-      if updates.any?
-        term.update!(updates)
-        Rails.logger.info("Updated term #{term.name} with dates: #{updates}")
-      end
+      term.update!(updates) if updates.any?
+      Rails.logger.info("Updated term #{term.name} with dates: #{updates}") if updates.any?
     rescue => e
       Rails.logger.warn("Failed to extract dates for #{term.name}: #{e.message}")
     end
   end
-
 end

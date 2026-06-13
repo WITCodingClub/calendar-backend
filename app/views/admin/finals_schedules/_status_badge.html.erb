@@ -1,15 +1,10 @@
 <%
   badge_classes = case status
-                  when "pending"
-                    "bg-yellow-100 text-yellow-800"
-                  when "processing"
-                    "bg-blue-100 text-blue-800"
-                  when "completed"
-                    "bg-green-100 text-green-800"
-                  when "failed"
-                    "bg-red-100 text-red-800"
-                  else
-                    "bg-gray-100 text-gray-800"
+                  when "pending"    then "bg-secondary-container text-on-secondary-container"
+                  when "processing" then "bg-tertiary-container text-on-tertiary-container"
+                  when "completed"  then "bg-tertiary-container text-on-tertiary-container"
+                  when "failed"     then "bg-error-container text-on-error-container"
+                  else                   "bg-surface-container-high text-on-surface"
                   end
 %>
 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full <%= badge_classes %>">

@@ -1,11 +1,24 @@
 # frozen_string_literal: true
 
-# app/services/leopard_web_service.rb
 class LeopardWebService < ApplicationService
   require "faraday"
   require "nokogiri"
 
   BASE_URL = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/searchResults/"
+
+  class RequestError < StandardError
+    attr_reader :status
+    def initialize(msg, status: nil)
+      @status = status
+      super(msg)
+    end
+  end
+
+  class SessionError < StandardError; end
+  class ParseError < StandardError; end
+
+  OPEN_TIMEOUT = 10
+  READ_TIMEOUT = 30
 
   attr_reader :term, :course_reference_number, :action
 
@@ -37,7 +50,6 @@ class LeopardWebService < ApplicationService
     call
   end
 
-  # Class method convenience wrappers
   def self.get_class_details(term:, course_reference_number:)
     new(
       action: :get_class_details,
@@ -81,13 +93,10 @@ class LeopardWebService < ApplicationService
                               })
 
     details = handle_response(response, :class_details)
-
     return nil unless details
 
-    # Separately, get faculty meeting times.
     meeting_times_data = get_faculty_meeting_times
 
-    # Parse and merge meeting times
     if meeting_times_data.present? && meeting_times_data["fmt"].present?
       details[:meeting_times] = meeting_times_data["fmt"].map do |mt_data|
         mt = mt_data["meetingTime"]
@@ -116,8 +125,6 @@ class LeopardWebService < ApplicationService
       end.compact
     end
 
-    # Fetch enrollment/seat counts on the same stateful connection (no params required
-    # because getEnrollmentInfo uses the session context set by getClassDetails above).
     begin
       enrollment_data = get_enrollment_info
       if enrollment_data
@@ -150,6 +157,11 @@ class LeopardWebService < ApplicationService
 
   def connection
     @connection ||= Faraday.new(url: BASE_URL) do |faraday|
+      faraday.options.open_timeout = OPEN_TIMEOUT
+      faraday.options.timeout = READ_TIMEOUT
+      faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
+                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
+                      retry_statuses: [502, 503, 504]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -178,8 +190,6 @@ class LeopardWebService < ApplicationService
   end
 
   def parse_json_response(body)
-    # If Faraday has already parsed it, return as-is
-    # Otherwise, parse it
     body.is_a?(String) ? JSON.parse(body) : body
   end
 
@@ -191,13 +201,13 @@ class LeopardWebService < ApplicationService
 
     {
       associated_term: extract_labeled_value(section, "Associated Term:"),
-      crn: section.at_css("#courseReferenceNumber").text.strip,
+      crn: section.at_css("#courseReferenceNumber")&.text&.strip,
       campus: extract_labeled_value(section, "Campus:"),
       schedule_type: extract_labeled_value(section, "Schedule Type:"),
-      section_number: section.at_css("#sectionNumber").text.strip,
-      subject: section.at_css("#subject").text.strip,
-      course_number: section.at_css("#courseNumber").text.strip,
-      title: section.at_css("#courseTitle").text.strip,
+      section_number: section.at_css("#sectionNumber")&.text&.strip,
+      subject: section.at_css("#subject")&.text&.strip,
+      course_number: section.at_css("#courseNumber")&.text&.strip,
+      title: section.at_css("#courseTitle")&.text&.strip,
       credit_hours: extract_labeled_value(section, "Credit Hours:")&.to_i,
       grade_mode: extract_labeled_value(section, "Grade Mode:")
     }
@@ -224,11 +234,9 @@ class LeopardWebService < ApplicationService
   end
 
   def extract_labeled_value(section, label)
-    # Find the span with the label text
     label_span = section.xpath(".//span[@class='status-bold'][contains(text(), '#{label}')]").first
     return nil unless label_span
 
-    # Get the text that comes after the label span and before the next <br> or <span>
     next_node = label_span.next_sibling
     value = ""
 
@@ -241,11 +249,9 @@ class LeopardWebService < ApplicationService
   end
 
   def extract_span_value(section, label)
-    # Find the bold label span
     label_span = section.xpath(".//span[@class='status-bold'][contains(text(), '#{label}')]").first
     return nil unless label_span
 
-    # Find the next span with dir="ltr" which contains the value
     value_span = label_span.xpath("following-sibling::span[@dir='ltr'][1]").first
     return nil unless value_span
 
@@ -253,14 +259,17 @@ class LeopardWebService < ApplicationService
   end
 
   def handle_error(response)
-    raise "Request failed with status #{response.status}: #{response.body}"
+    raise RequestError.new(
+      "LeopardWeb request failed with status #{response.status}: #{response.body}",
+      status: response.status
+    )
   end
 
   def get_active_terms
-    response = terms_connection.get("classRegistration/getTerms", {
+    response = terms_connection.get("courseSearch/getTerms", {
                                       searchTerm: "",
                                       offset: 1,
-                                      max: 10
+                                      max: 100
                                     })
 
     if response.success?
@@ -286,7 +295,6 @@ class LeopardWebService < ApplicationService
   def get_course_catalog
     raise ArgumentError, "term is required" unless term
 
-    # Initialize a search session (no auth required!)
     initialize_search_session!
 
     all_courses = []
@@ -300,13 +308,12 @@ class LeopardWebService < ApplicationService
 
       if response.success?
         data = parse_json_response(response.body)
-        first_response_data ||= data # Save first response for debugging
+        first_response_data ||= data
         courses = data["data"] || []
         total_count ||= data["totalCount"] || 0
 
         all_courses.concat(courses)
 
-        # Break if we've fetched all courses
         break if all_courses.length >= total_count || courses.empty?
 
         offset += page_size
@@ -332,33 +339,27 @@ class LeopardWebService < ApplicationService
     }
   end
 
-  # Initialize a search session by POSTing term selection
-  # This creates a JSESSIONID cookie that allows subsequent searches without user auth
   def initialize_search_session!
     response = session_connection.post("term/search") do |req|
       req.params["mode"] = "search"
       req.body = "term=#{term}"
     end
 
-    unless response.success?
-      raise "Failed to initialize search session: #{response.status}"
-    end
+    raise SessionError, "Failed to initialize search session: #{response.status}" unless response.success?
 
-    # Extract JSESSIONID from response cookies
     set_cookie = response.headers["set-cookie"]
     if set_cookie
       match = set_cookie.match(/JSESSIONID=([^;]+)/)
       @session_cookie = match[1] if match
     end
 
-    raise "Failed to obtain session cookie" unless @session_cookie
+    raise SessionError, "Failed to obtain session cookie" unless @session_cookie
 
     @session_cookie
   end
 
   def fetch_catalog_page(offset, page_size)
-    # Generate a unique session ID for this request (mimics browser behavior)
-    unique_session_id = "sess#{Time.now.to_i}#{rand(1000..9999)}"
+    unique_session_id = "sess#{SecureRandom.hex(8)}"
 
     catalog_connection.get("searchResults/searchResults", {
                              txt_term: term,
@@ -372,43 +373,53 @@ class LeopardWebService < ApplicationService
                            })
   end
 
-  # Connection for fetching available terms (no session required)
   def terms_connection
     @terms_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-      # Statsd removed
+      faraday.options.open_timeout = OPEN_TIMEOUT
+      faraday.options.timeout = READ_TIMEOUT
+      faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
+                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
+                      retry_statuses: [502, 503, 504]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
     end
   end
 
-  # Connection for initializing the search session
   def session_connection
     @session_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-      # Statsd removed
+      faraday.options.open_timeout = OPEN_TIMEOUT
+      faraday.options.timeout = READ_TIMEOUT
+      faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
+                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
+                      retry_statuses: [502, 503, 504]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
     end
   end
 
-  # Connection for fetching catalog pages using the self-created session
   def catalog_connection
-    raise "Session not initialized - call initialize_search_session! first" unless @session_cookie
+    raise SessionError, "Session not initialized - call initialize_search_session! first" unless @session_cookie
 
-    @catalog_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-      # Statsd removed
+    return @catalog_connection if @catalog_connection_cookie == @session_cookie
 
+    @catalog_connection_cookie = @session_cookie
+    @catalog_connection = Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
       faraday.headers["Accept"] = "application/json, text/javascript, */*; q=0.01"
       faraday.headers["Accept-Language"] = "en-US,en;q=0.9"
       faraday.headers["X-Requested-With"] = "XMLHttpRequest"
       faraday.headers["Referer"] = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/courseSearch/courseSearch"
       faraday.headers["Cookie"] = "JSESSIONID=#{@session_cookie}"
 
+      faraday.options.open_timeout = OPEN_TIMEOUT
+      faraday.options.timeout = READ_TIMEOUT
+      faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
+                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
+                      retry_statuses: [502, 503, 504]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
     end
   end
-
 end

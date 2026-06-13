@@ -6,13 +6,11 @@ class CalendarsController < ApplicationController
   skip_before_action :verify_authenticity_token
 
   def show
-    @user = User.includes(:emails).find_by!(calendar_token: params[:calendar_token])
+    @user = User.find_by!(calendar_token: params[:calendar_token])
 
-    # Get all enrolled courses with meeting times
     @courses = @user.courses
-                    .includes(:term, meeting_times: [:room, :building, { course: [:faculties, :term] }])
+                    .includes(:term, meeting_times: [{ rooms: :building }, { course: [:faculties, :term] }])
 
-    # Get final exams for enrolled courses
     @final_exams = FinalExam.where(course_id: @courses.pluck(:id))
                             .where(exam_date: Time.zone.today..)
                             .includes(:course)
@@ -21,10 +19,9 @@ class CalendarsController < ApplicationController
       format.ics do
         calendar = generate_ical(@courses, @final_exams)
 
-        # Add cache control headers to suggest refresh intervals
-        response.headers["Cache-Control"] = "max-age=3600, must-revalidate" # 1 hour
-        response.headers["X-Published-TTL"] = "PT1H" # iCalendar refresh hint (1 hour)
-        response.headers["Refresh-Interval"] = "3600" # Alternative hint
+        response.headers["Cache-Control"]      = "max-age=3600, must-revalidate"
+        response.headers["X-Published-TTL"]    = "PT1H"
+        response.headers["Refresh-Interval"]   = "3600"
 
         render plain: calendar.to_ical, content_type: "text/calendar"
       end
@@ -36,25 +33,20 @@ class CalendarsController < ApplicationController
   def generate_ical(courses, final_exams)
     require "icalendar"
 
-    # Initialize preference resolver and template renderer for this user
-    @preference_resolver = PreferenceResolver.new(@user)
-    @template_renderer = CalendarTemplateRenderer.new
-
-    # Pre-load holidays for EXDATE generation (single query across all meeting time ranges)
-    @holidays_cache = preload_holidays_cache(courses)
-    # Cache finals dates so we avoid N+1 queries in recurrence rule building
-    @ics_course_finals_cache = {}
-    @ics_term_finals_cache = {}
-    @ics_term_finals_period_cache = {}
+    @preference_resolver   = PreferenceResolver.new(@user)
+    @template_renderer     = CalendarTemplateRenderer.new
+    @holidays_cache        = preload_holidays_cache(courses)
+    @ics_course_finals_cache       = {}
+    @ics_term_finals_cache         = {}
+    @ics_term_finals_period_cache  = {}
 
     cal = Icalendar::Calendar.new
     cal.prodid = "-//WITCC//Course Calendar//EN"
     cal.append_custom_property("X-WR-CALNAME", "WIT Course Schedule")
-    cal.append_custom_property("X-WR-CALDESC", "WIT Course Schedule Calendar for #{@user.email}")
+    cal.append_custom_property("X-WR-CALDESC", "WIT Course Schedule Calendar for #{@user.full_name}")
 
     cal.timezone do |t|
       t.tzid = "America/New_York"
-
       t.daylight do |d|
         d.tzoffsetfrom = "-0500"
         d.tzoffsetto   = "-0400"
@@ -62,7 +54,6 @@ class CalendarsController < ApplicationController
         d.dtstart      = "19700308T020000"
         d.rrule        = "FREQ=YEARLY;BYMONTH=3;BYDAY=2SU"
       end
-
       t.standard do |s|
         s.tzoffsetfrom = "-0400"
         s.tzoffsetto   = "-0500"
@@ -73,90 +64,66 @@ class CalendarsController < ApplicationController
     end
 
     courses.each do |course|
-      # Filter meeting times to prefer valid locations over TBD duplicates
-      filtered_meeting_times = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
-                                     .map do |key, meeting_times|
-                                       # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
-                                       non_tbd = meeting_times.reject { |mt| (mt.building && @user.send(:tbd_building?, mt.building)) || (mt.room && @user.send(:tbd_room?, mt.room)) }
-                                       non_tbd.any? ? non_tbd.first : meeting_times.first
-      end
+      filtered_meeting_times = course.meeting_times
+                                     .group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+                                     .map do |_key, group|
+                                       non_tbd = group.reject { |mt| LocationHelper.tbd_building?(mt.building) || mt.rooms.all? { |r| LocationHelper.tbd_room?(r) } }
+                                       non_tbd.any? ? non_tbd.first : group.first
+                                     end
 
       filtered_meeting_times.each do |meeting_time|
-        # Skip if day_of_week is not set
         next if meeting_time.day_of_week.blank?
 
-        # Create event for this meeting time
         cal.event do |e|
-          # Find the first day that matches the meeting day
           first_meeting_date = find_first_meeting_date(meeting_time)
           next unless first_meeting_date
 
-          # Convert integer times (e.g., 900 = 9:00 AM) to Time objects
           start_time = parse_time(first_meeting_date, meeting_time.begin_time)
-          end_time = parse_time(first_meeting_date, meeting_time.end_time)
+          end_time   = parse_time(first_meeting_date, meeting_time.end_time)
 
-          # Check if this is an all-day event (12:01pm-11:59pm in university calendar)
           if meeting_time.all_day?
             e.dtstart = Icalendar::Values::Date.new(first_meeting_date)
-            e.dtend = Icalendar::Values::Date.new(first_meeting_date + 1.day) # ICS all-day end is exclusive
+            e.dtend   = Icalendar::Values::Date.new(first_meeting_date + 1.day)
           else
             e.dtstart = Icalendar::Values::DateTime.new(start_time, tzid: "America/New_York")
-            e.dtend = Icalendar::Values::DateTime.new(end_time, tzid: "America/New_York")
+            e.dtend   = Icalendar::Values::DateTime.new(end_time,   tzid: "America/New_York")
           end
 
-          # Resolve user preferences for this meeting time
-          prefs = @preference_resolver.resolve_for(meeting_time)
+          prefs   = @preference_resolver.resolve_for(meeting_time)
           context = CalendarTemplateRenderer.build_context_from_meeting_time(meeting_time)
 
-          # Apply title template (or fallback to course title)
-          if prefs[:title_template].present?
-            e.summary = @template_renderer.render(prefs[:title_template], context)
-          else
-            e.summary = titleize_with_roman_numerals(course.title)
-          end
+          e.summary = if prefs[:title_template].present?
+                        @template_renderer.render(prefs[:title_template], context)
+                      else
+                        titleize_with_roman_numerals(course.title)
+                      end
 
-          # Apply description template if set
-          if prefs[:description_template].present?
-            e.description = @template_renderer.render(prefs[:description_template], context)
-          end
+          e.description = @template_renderer.render(prefs[:description_template], context) if prefs[:description_template].present?
 
-          # Location - handle TBD locations gracefully
-          if meeting_time.room && meeting_time.building &&
-             !@user.send(:tbd_location?, meeting_time.building, meeting_time.room)
-            # Valid room and building
-            e.location = "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-          elsif meeting_time.room && !@user.send(:tbd_room?, meeting_time.room)
-            # Valid room, no building or invalid building
-            e.location = meeting_time.room.formatted_number
-          elsif @user.send(:tbd_building?, meeting_time.building) || @user.send(:tbd_room?, meeting_time.room)
-            # TBD location - show "TBD" instead of ugly "To Be Determined 000"
+          non_tbd_rooms = meeting_time.rooms.reject { |r| LocationHelper.tbd_room?(r) }
+          if non_tbd_rooms.any? && meeting_time.building &&
+             !LocationHelper.tbd_building?(meeting_time.building)
+            e.location = "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
+          elsif non_tbd_rooms.any?
+            e.location = non_tbd_rooms.map(&:formatted_number).join(" / ")
+          elsif LocationHelper.tbd_building?(meeting_time.building) || LocationHelper.tbd_room?(meeting_time.room)
             e.location = "TBD"
-          else
-            # No location info
-            e.location = nil
           end
 
-          # Recurring rule for this specific day of the week
-          # Each meeting_time now represents a single day.
-          # Stop before finals week using the same logic as the Google Calendar sync.
           recurrence_end = ics_recurrence_end_for(meeting_time, course)
-          day_sym = meeting_time.day_of_week.to_sym
+          day_sym        = meeting_time.day_of_week.to_sym
+
           if meeting_time.all_day?
-            # All-day ICS events use a DATE-type UNTIL (no time component).
-            # IceCube 0.17.0 calls .utc on the until value and doesn't support Date directly,
-            # so we pass a UTC Time and strip the time component from the resulting ICAL string.
             until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day)
-            rule = IceCube::Rule.weekly.day(day_sym).until(until_time)
-            e.rrule = rule.to_ical.gsub(/UNTIL=(\d{8})T\d{6}Z?/, 'UNTIL=\1')
+            rule        = IceCube::Rule.weekly.day(day_sym).until(until_time)
+            e.rrule     = rule.to_ical.gsub(/UNTIL=(\d{8})T\d{6}Z?/, 'UNTIL=\1')
           else
             until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59)
-            rule = IceCube::Rule.weekly.day(day_sym).until(until_time)
-            e.rrule = rule.to_ical
+            rule        = IceCube::Rule.weekly.day(day_sym).until(until_time)
+            e.rrule     = rule.to_ical
           end
 
-          # Add EXDATE entries for holidays to skip class on those days
-          holiday_exdates = build_holiday_exdates_for_meeting_time(meeting_time, start_time)
-          holiday_exdates.each do |exdate|
+          build_holiday_exdates_for_meeting_time(meeting_time, start_time).each do |exdate|
             if meeting_time.all_day?
               e.append_exdate(Icalendar::Values::Date.new(exdate.to_date))
             else
@@ -164,10 +131,8 @@ class CalendarsController < ApplicationController
             end
           end
 
-          # Stable UID for consistent event identity across refreshes
           e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
 
-          # Use preference color if set, otherwise use meeting_time default
           color_hex = if prefs[:color_id].present?
                         get_google_color_hex(prefs[:color_id])
                       elsif meeting_time.event_color.present?
@@ -176,124 +141,91 @@ class CalendarsController < ApplicationController
 
           if color_hex
             e.color = "##{color_hex}"
-          end
-
-          # Timestamps for change detection
-          e.dtstamp = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
-
-          if color_hex
             e.append_custom_property("X-APPLE-CALENDAR-COLOR", "##{color_hex}")
             e.append_custom_property("COLOR", color_hex.to_s)
           end
 
-          # Use the most recent update time between course and meeting_time
-          last_modified = [course.updated_at, meeting_time.updated_at].max
+          e.dtstamp = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
+
+          last_modified = [ course.updated_at, meeting_time.updated_at ].max
           e.last_modified = Icalendar::Values::DateTime.new(last_modified, tzid: "America/New_York")
-
-          # Sequence number based on update timestamps (helps clients detect changes)
-          # Using seconds since epoch divided by 60 to get a stable incrementing number
-          e.sequence = (last_modified.to_i / 60)
-
+          e.sequence      = (last_modified.to_i / 60)
         end
       end
     end
 
-    # Add final exam events
     add_final_exam_events(cal, final_exams)
-
-    # Add university calendar events (holidays always, others if opted in)
     add_university_events(cal)
 
     cal
   end
 
-  # Add final exam events to the calendar
   def add_final_exam_events(cal, final_exams)
     final_exams.each do |final_exam|
       next unless final_exam.start_datetime && final_exam.end_datetime
 
       cal.event do |e|
-        e.dtstart = Icalendar::Values::DateTime.new(final_exam.start_datetime, tzid: "America/New_York")
-        e.dtend = Icalendar::Values::DateTime.new(final_exam.end_datetime, tzid: "America/New_York")
-
-        e.summary = "Final Exam: #{titleize_with_roman_numerals(final_exam.course_title)}"
+        e.dtstart     = Icalendar::Values::DateTime.new(final_exam.start_datetime, tzid: "America/New_York")
+        e.dtend       = Icalendar::Values::DateTime.new(final_exam.end_datetime,   tzid: "America/New_York")
+        e.summary     = "Final Exam: #{titleize_with_roman_numerals(final_exam.course_title)}"
         e.description = final_exam.course_code
-        e.location = final_exam.location_with_names if final_exam.location.present?
-
-        # Stable UID for final exams
-        e.uid = "final-exam-#{final_exam.id}@calendar-util.wit.edu"
-
-        e.dtstamp = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
+        e.location    = final_exam.location_with_names if final_exam.location.present?
+        e.uid         = "final-exam-#{final_exam.id}@calendar-util.wit.edu"
+        e.dtstamp     = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
         e.last_modified = Icalendar::Values::DateTime.new(final_exam.updated_at, tzid: "America/New_York")
-        e.sequence = (final_exam.updated_at.to_i / 60)
+        e.sequence    = (final_exam.updated_at.to_i / 60)
       end
     end
   end
 
-  # Add university calendar events (holidays auto-sync, others based on user preference)
   def add_university_events(cal)
-    # Always include holidays (auto-sync for all users)
-    UniversityCalendarEvent.holidays.find_each do |event|
+    enrolled_term_ids = @courses.map(&:term_id).compact.uniq
+    return if enrolled_term_ids.empty?
+
+    UniversityCalendarEvent.holidays.where(term_id: enrolled_term_ids).find_each do |event|
       add_university_event_to_calendar(cal, event, force_all_day: true)
     end
 
-    # Include other categories only if user opted in
     user_config = @user.user_extension_config
     return unless user_config&.sync_university_events
 
     categories = (user_config.university_event_categories || []) - ["holiday"]
     return if categories.empty?
 
-    UniversityCalendarEvent.by_categories(categories).find_each do |event|
+    UniversityCalendarEvent.by_categories(categories).where(term_id: enrolled_term_ids).find_each do |event|
       add_university_event_to_calendar(cal, event)
     end
   end
 
-  # Add a single university event to the calendar
   def add_university_event_to_calendar(cal, event, force_all_day: false)
     cal.event do |e|
-      # Force holidays to be all-day events regardless of database value
       is_all_day = force_all_day || event.all_day || event.category == "holiday"
 
       if is_all_day
         e.dtstart = Icalendar::Values::Date.new(event.start_time.to_date)
-        e.dtend = Icalendar::Values::Date.new(event.end_time.to_date + 1.day) # ICS all-day is exclusive
+        e.dtend   = Icalendar::Values::Date.new(event.end_time.to_date + 1.day)
       else
         e.dtstart = Icalendar::Values::DateTime.new(event.start_time, tzid: "America/New_York")
-        e.dtend = Icalendar::Values::DateTime.new(event.end_time, tzid: "America/New_York")
+        e.dtend   = Icalendar::Values::DateTime.new(event.end_time,   tzid: "America/New_York")
       end
 
-      # Add holiday prefix to make it clear in calendar apps
-      if event.category == "holiday"
-        e.summary = event.formatted_holiday_summary
-      else
-        e.summary = event.summary
-      end
-
+      e.summary     = event.category == "holiday" ? event.formatted_holiday_summary : event.summary
       e.description = event.description if event.description.present?
-      e.location = event.location if event.location.present?
-
-      # Stable UID based on ICS UID from source
-      e.uid = "university-#{event.ics_uid}@calendar-util.wit.edu"
-
-      e.dtstamp = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
+      e.location    = event.location    if event.location.present?
+      e.uid         = "university-#{event.ics_uid}@calendar-util.wit.edu"
+      e.dtstamp     = Icalendar::Values::DateTime.new(Time.current,    tzid: "America/New_York")
       e.last_modified = Icalendar::Values::DateTime.new(event.updated_at, tzid: "America/New_York")
-      e.sequence = (event.updated_at.to_i / 60)
+      e.sequence    = (event.updated_at.to_i / 60)
+      e.categories  = [event.category.titleize] if event.category.present?
 
-      # Add category as custom property
-      e.categories = [event.category.titleize] if event.category.present?
-
-      # Add custom properties to help calendar apps identify holidays
       if event.category == "holiday"
         e.append_custom_property("X-MICROSOFT-CDO-ALLDAYEVENT", "TRUE")
         e.append_custom_property("X-MICROSOFT-CDO-BUSYSTATUS", "FREE")
-        e.transp = "TRANSPARENT" # Show as "free" time
+        e.transp = "TRANSPARENT"
       end
     end
   end
 
-  # Pre-load all holiday/finals events covering every meeting time's date range in a single query.
-  # Returns a hash keyed by [start_date, end_date] → array of matching events.
   def preload_holidays_cache(courses)
     meeting_times = courses.flat_map { |c| c.meeting_times.to_a }
     return {} if meeting_times.empty?
@@ -311,17 +243,12 @@ class CalendarsController < ApplicationController
     end
   end
 
-  # Build EXDATE times for holidays that fall on a meeting time's day
-  # Handles both single-day and multi-day holidays
   def build_holiday_exdates_for_meeting_time(meeting_time, start_time)
-    return [] unless defined?(UniversityCalendarEvent)
-
-    target_wday = MeetingTime.day_of_weeks[meeting_time.day_of_week]
+    target_wday = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
     return [] if target_wday.nil?
 
-    # Get holidays for this date range (memoized)
     cache_key = [meeting_time.start_date, meeting_time.end_date]
-    holidays = @holidays_cache[cache_key] ||= UniversityCalendarEvent.no_class_days_between(
+    holidays  = @holidays_cache[cache_key] ||= UniversityCalendarEvent.no_class_days_between(
       meeting_time.start_date,
       meeting_time.end_date
     ).to_a
@@ -329,21 +256,15 @@ class CalendarsController < ApplicationController
     exdates = []
 
     holidays.each do |holiday|
-      # Check if this holiday is multi-day (different start and end dates)
       is_multi_day = holiday.end_time && holiday.start_time.to_date != holiday.end_time.to_date
 
       if is_multi_day
-        # Multi-day holiday: add EXDATE for each matching weekday in the range
         (holiday.start_time.to_date..holiday.end_time.to_date).each do |date|
           next unless date.wday == target_wday
 
-          exdates << Time.zone.local(
-            date.year, date.month, date.day,
-            start_time.hour, start_time.min, 0
-          )
+          exdates << Time.zone.local(date.year, date.month, date.day, start_time.hour, start_time.min, 0)
         end
       elsif holiday.start_time.wday == target_wday
-        # Single-day holiday: check if it falls on this weekday
         exdates << Time.zone.local(
           holiday.start_time.year, holiday.start_time.month, holiday.start_time.day,
           start_time.hour, start_time.min, 0
@@ -354,8 +275,6 @@ class CalendarsController < ApplicationController
     exdates
   end
 
-  # Returns the recurrence end date for a meeting time, stopping before finals week.
-  # Mirrors the logic in CourseScheduleSyncable#build_recurrence_rule.
   def ics_recurrence_end_for(meeting_time, course)
     recurrence_end = meeting_time.end_date.to_date
 
@@ -369,9 +288,6 @@ class CalendarsController < ApplicationController
       end
     end
 
-    # Also stop the day before Study Day (earliest finals-period UCE for the term).
-    # Study Day is a university-designated no-class day preceding finals week,
-    # so regular class recurrences should end the day before it begins.
     study_day = ics_earliest_finals_period_for_term(course.term_id)
     if study_day && (study_day - 1.day) < recurrence_end
       recurrence_end = study_day - 1.day
@@ -409,23 +325,17 @@ class CalendarsController < ApplicationController
   def parse_time(date, time_int)
     return nil unless date && time_int
 
-    # Convert integer time (e.g., 900 = 9:00 AM, 1330 = 1:30 PM)
-    hours = time_int / 100
+    hours   = time_int / 100
     minutes = time_int % 100
-
     Time.zone.local(date.year, date.month, date.day, hours, minutes)
   end
 
   def find_first_meeting_date(meeting_time)
     return nil if meeting_time.day_of_week.blank?
 
-    # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
-    target_wday = MeetingTime.day_of_weeks[meeting_time.day_of_week]
-
-    # Start from the meeting start_date
+    target_wday  = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
     current_date = meeting_time.start_date.to_date
 
-    # Find the first day that matches the meeting day (max 7 days search)
     7.times do
       return current_date if current_date.wday == target_wday
 
@@ -436,23 +346,10 @@ class CalendarsController < ApplicationController
   end
 
   def get_google_color_hex(color_id)
-    # Map Google Calendar color IDs (1-11) to hex colors
-    # These match the Google Calendar color palette
-    color_map = {
-      1  => "A4BDFC",  # Lavender
-      2  => "7AE7BF",  # Sage
-      3  => "DBADFF",  # Grape
-      4  => "FF887C",  # Flamingo
-      5  => "FBD75B",  # Banana
-      6  => "FFB878",  # Tangerine
-      7  => "46D6DB",  # Peacock
-      8  => "E1E1E1",  # Graphite
-      9  => "5484ED",  # Blueberry
-      10 => "51B749", # Basil
-      11 => "DC2127"  # Tomato
-    }
-
-    color_map[color_id]
+    {
+      1 => "A4BDFC", 2 => "7AE7BF", 3 => "DBADFF", 4 => "FF887C",
+      5 => "FBD75B", 6 => "FFB878", 7 => "46D6DB", 8 => "E1E1E1",
+      9 => "5484ED", 10 => "51B749", 11 => "DC2127"
+    }[color_id]
   end
-
 end

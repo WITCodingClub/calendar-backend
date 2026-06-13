@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require_relative "boot"
 
 require "rails/all"
@@ -8,44 +6,29 @@ require "rails/all"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
-module WitCalendarBackend
+module Calendar
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
-    config.load_defaults 8.0
+    config.load_defaults 8.1
+
+    config.hashid_salt = Rails.application.credentials.dig(:hashid, :salt)
+
+    config.active_job.queue_adapter = :solid_queue
+
+    config.mission_control.jobs.base_controller_class = "Admin::ApplicationController"
+    config.mission_control.jobs.http_basic_auth_enabled = false
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
 
-    # Add constraints directory to autoload paths
-    config.autoload_paths << Rails.root.join("app/constraints")
-
-    # Exclude app/middleware from autoloading - middleware classes must be
-    # required explicitly before Rails is fully initialized
-    Rails.autoloaders.main.ignore(Rails.root.join("app/middleware"))
-
-    config.active_job.queue_adapter = :solid_queue
-
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
-
-    config.mission_control.jobs.base_controller_class = "Admin::BaseController"
-    config.mission_control.jobs.http_basic_auth_enabled = false
-
+    #
     config.time_zone = "Eastern Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
-    config.autoload_paths << Rails.root.join("app/lib")
-    config.eager_load_paths << Rails.root.join("app/lib")
-
-    # RateLimitHeadersMiddleware is added after Rack::Attack via initializer
-    # (Rack::Attack is auto-inserted by its Railtie during initialization)
-
-    # Load and add command palette injector middleware
-    require_relative "../app/middleware/command_palette_injector"
-    config.middleware.use CommandPaletteInjector
-
   end
 end

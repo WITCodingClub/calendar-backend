@@ -10,11 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_13_214810) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
-  enable_extension "pg_stat_statements"
-  enable_extension "vector"
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -42,80 +40,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
-  end
-
-  create_table "ahoy_clicks", force: :cascade do |t|
-    t.string "campaign"
-    t.string "token"
-    t.index ["campaign"], name: "index_ahoy_clicks_on_campaign"
-  end
-
-  create_table "ahoy_events", force: :cascade do |t|
-    t.string "name"
-    t.jsonb "properties"
-    t.datetime "time"
-    t.bigint "user_id"
-    t.bigint "visit_id"
-    t.index ["name", "time"], name: "index_ahoy_events_on_name_and_time"
-    t.index ["properties"], name: "index_ahoy_events_on_properties", opclass: :jsonb_path_ops, using: :gin
-    t.index ["user_id"], name: "index_ahoy_events_on_user_id"
-    t.index ["visit_id"], name: "index_ahoy_events_on_visit_id"
-  end
-
-  create_table "ahoy_messages", force: :cascade do |t|
-    t.string "campaign"
-    t.string "mailer"
-    t.datetime "sent_at"
-    t.text "subject"
-    t.string "to_bidx"
-    t.text "to_ciphertext"
-    t.bigint "user_id"
-    t.string "user_type"
-    t.index ["campaign"], name: "index_ahoy_messages_on_campaign"
-    t.index ["to_bidx"], name: "index_ahoy_messages_on_to_bidx"
-    t.index ["user_type", "user_id"], name: "index_ahoy_messages_on_user"
-  end
-
-  create_table "ahoy_visits", force: :cascade do |t|
-    t.string "app_version"
-    t.string "browser"
-    t.string "city"
-    t.string "country"
-    t.string "device_type"
-    t.string "ip"
-    t.text "landing_page"
-    t.float "latitude"
-    t.float "longitude"
-    t.string "os"
-    t.string "os_version"
-    t.string "platform"
-    t.text "referrer"
-    t.string "referring_domain"
-    t.string "region"
-    t.datetime "started_at"
-    t.text "user_agent"
-    t.bigint "user_id"
-    t.string "utm_campaign"
-    t.string "utm_content"
-    t.string "utm_medium"
-    t.string "utm_source"
-    t.string "utm_term"
-    t.string "visit_token"
-    t.string "visitor_token"
-    t.index ["user_id"], name: "index_ahoy_visits_on_user_id"
-    t.index ["visit_token"], name: "index_ahoy_visits_on_visit_token", unique: true
-    t.index ["visitor_token", "started_at"], name: "index_ahoy_visits_on_visitor_token_and_started_at"
-  end
-
-  create_table "audits1984_audits", force: :cascade do |t|
-    t.bigint "auditor_id", null: false
-    t.datetime "created_at", null: false
-    t.text "notes"
-    t.bigint "session_id", null: false
-    t.integer "status", default: 0, null: false
-    t.datetime "updated_at", null: false
-    t.index ["auditor_id"], name: "index_audits1984_audits_on_auditor_id"
-    t.index ["session_id"], name: "index_audits1984_audits_on_session_id"
   end
 
   create_table "blazer_audits", force: :cascade do |t|
@@ -177,10 +101,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
   create_table "buildings", force: :cascade do |t|
     t.string "abbreviation", null: false
     t.datetime "created_at", null: false
+    t.string "formal_name"
     t.string "name", null: false
+    t.integer "twenty_five_live_id"
     t.datetime "updated_at", null: false
     t.index ["abbreviation"], name: "index_buildings_on_abbreviation", unique: true
     t.index ["name"], name: "index_buildings_on_name", unique: true
+    t.index ["twenty_five_live_id"], name: "index_buildings_on_twenty_five_live_id", unique: true
+    t.check_constraint "length(TRIM(BOTH FROM abbreviation)) > 0 AND length(TRIM(BOTH FROM name)) > 0", name: "buildings_abbreviation_and_name_not_blank"
   end
 
   create_table "calendar_preferences", force: :cascade do |t|
@@ -189,186 +117,83 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.text "description_template"
     t.string "event_type"
     t.text "location_template"
-    t.jsonb "reminder_settings", default: []
+    t.jsonb "reminder_settings"
     t.integer "scope", null: false
     t.text "title_template"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.string "visibility"
     t.index ["user_id", "scope", "event_type"], name: "index_calendar_prefs_on_user_scope_type", unique: true
+    t.index ["user_id"], name: "index_calendar_preferences_on_user_id"
   end
 
-  create_table "console1984_commands", force: :cascade do |t|
+  create_table "course_meeting_time_rooms", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.bigint "sensitive_access_id"
-    t.bigint "session_id", null: false
-    t.text "statements"
+    t.bigint "meeting_time_id", null: false
+    t.bigint "room_id", null: false
     t.datetime "updated_at", null: false
-    t.index ["sensitive_access_id"], name: "index_console1984_commands_on_sensitive_access_id"
-    t.index ["session_id", "created_at", "sensitive_access_id"], name: "on_session_and_sensitive_chronologically"
+    t.index ["meeting_time_id", "room_id"], name: "index_course_meeting_time_rooms_on_meeting_time_id_and_room_id", unique: true
+    t.index ["room_id"], name: "index_course_meeting_time_rooms_on_room_id"
   end
 
-  create_table "console1984_sensitive_accesses", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.text "justification"
-    t.bigint "session_id", null: false
-    t.datetime "updated_at", null: false
-    t.index ["session_id"], name: "index_console1984_sensitive_accesses_on_session_id"
-  end
-
-  create_table "console1984_sessions", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.text "reason"
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["created_at"], name: "index_console1984_sessions_on_created_at"
-    t.index ["user_id", "created_at"], name: "index_console1984_sessions_on_user_id_and_created_at"
-  end
-
-  create_table "console1984_users", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.string "username", null: false
-    t.index ["username"], name: "index_console1984_users_on_username"
-  end
-
-  create_table "course_plans", force: :cascade do |t|
-    t.bigint "course_id"
-    t.datetime "created_at", null: false
-    t.text "notes"
-    t.integer "planned_course_number", null: false
-    t.integer "planned_crn"
-    t.string "planned_subject", null: false
-    t.string "status", default: "planned", null: false
-    t.bigint "term_id", null: false
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["course_id"], name: "index_course_plans_on_course_id"
-    t.index ["status"], name: "index_course_plans_on_status"
-    t.index ["term_id"], name: "index_course_plans_on_term_id"
-    t.index ["user_id", "course_id"], name: "index_course_plans_on_user_id_and_course_id", unique: true, where: "(course_id IS NOT NULL)"
-    t.index ["user_id", "term_id"], name: "index_course_plans_on_user_id_and_term_id"
-    t.index ["user_id"], name: "index_course_plans_on_user_id"
-  end
-
-  create_table "course_prerequisites", force: :cascade do |t|
+  create_table "course_meeting_times", force: :cascade do |t|
+    t.integer "begin_time", null: false
     t.bigint "course_id", null: false
     t.datetime "created_at", null: false
-    t.string "min_grade"
-    t.string "prerequisite_logic"
-    t.text "prerequisite_rule", null: false
-    t.string "prerequisite_type", null: false
+    t.integer "day_of_week", null: false
+    t.datetime "end_date", null: false
+    t.integer "end_time", null: false
+    t.integer "hours_week"
+    t.integer "meeting_schedule_type", null: false
+    t.integer "meeting_type", null: false
+    t.datetime "start_date", null: false
     t.datetime "updated_at", null: false
-    t.boolean "waivable", default: false, null: false
-    t.index ["course_id", "prerequisite_type"], name: "index_course_prerequisites_on_course_id_and_prerequisite_type"
-    t.index ["course_id"], name: "index_course_prerequisites_on_course_id"
-    t.index ["prerequisite_type"], name: "index_course_prerequisites_on_prerequisite_type"
+    t.index ["course_id"], name: "index_course_meeting_times_on_course_id"
+    t.index ["day_of_week"], name: "index_course_meeting_times_on_day_of_week"
+    t.check_constraint "begin_time >= 0 AND begin_time <= 2359", name: "course_meeting_times_begin_time_range"
+    t.check_constraint "day_of_week >= 0 AND day_of_week <= 6", name: "course_meeting_times_day_of_week_range"
+    t.check_constraint "end_date >= start_date", name: "course_meeting_times_end_date_on_or_after_start_date"
+    t.check_constraint "end_time >= 0 AND end_time <= 2359", name: "course_meeting_times_end_time_range"
+    t.check_constraint "end_time >= begin_time", name: "course_meeting_times_end_after_begin"
+    t.check_constraint "meeting_schedule_type = ANY (ARRAY[1, 2])", name: "course_meeting_times_schedule_type_valid"
+    t.check_constraint "meeting_type = 1", name: "course_meeting_times_meeting_type_valid"
   end
 
   create_table "courses", force: :cascade do |t|
-    t.integer "course_number"
+    t.integer "course_number", null: false
     t.datetime "created_at", null: false
     t.integer "credit_hours"
-    t.integer "crn"
-    t.vector "embedding", limit: 1536
-    t.date "end_date"
+    t.integer "crn", null: false
+    t.date "end_date", null: false
     t.string "grade_mode"
     t.string "schedule_type", null: false
     t.integer "seats_available"
     t.integer "seats_capacity"
     t.string "section_number", null: false
-    t.date "start_date"
+    t.date "start_date", null: false
     t.string "status", default: "active", null: false
-    t.string "subject"
+    t.string "subject", null: false
     t.bigint "term_id", null: false
-    t.string "title"
+    t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
     t.index ["status"], name: "index_courses_on_status"
     t.index ["term_id"], name: "index_courses_on_term_id"
+    t.check_constraint "credit_hours IS NULL OR credit_hours > 0", name: "courses_credit_hours_positive"
+    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying, 'HYB'::character varying, 'IND'::character varying, 'LAB'::character varying, 'LEC'::character varying, 'ONL'::character varying, 'ONB'::character varying, 'OLB'::character varying, 'OLC'::character varying, 'RLB'::character varying, 'RLC'::character varying, 'SAB'::character varying]::text[])", name: "courses_schedule_type_valid"
+    t.check_constraint "seats_available IS NULL OR seats_available >= 0", name: "courses_seats_available_non_negative"
+    t.check_constraint "seats_available IS NULL OR seats_capacity IS NULL OR seats_available <= seats_capacity", name: "courses_seats_available_le_capacity"
+    t.check_constraint "seats_capacity IS NULL OR seats_capacity >= 0", name: "courses_seats_capacity_non_negative"
+    t.check_constraint "start_date IS NULL OR end_date IS NULL OR end_date >= start_date", name: "courses_end_date_on_or_after_start_date"
+    t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'cancelled'::character varying]::text[])", name: "courses_status_valid"
   end
 
   create_table "courses_faculties", id: false, force: :cascade do |t|
     t.bigint "course_id", null: false
     t.bigint "faculty_id", null: false
-    t.index ["course_id", "faculty_id"], name: "index_courses_faculties_on_course_id_and_faculty_id"
-    t.index ["faculty_id", "course_id"], name: "index_courses_faculties_on_faculty_id_and_course_id"
-  end
-
-  create_table "degree_evaluation_snapshots", force: :cascade do |t|
-    t.string "content_hash"
-    t.datetime "created_at", null: false
-    t.bigint "degree_program_id", null: false
-    t.datetime "evaluated_at", null: false
-    t.boolean "evaluation_met", default: false, null: false
-    t.bigint "evaluation_term_id", null: false
-    t.decimal "minimum_gpa", precision: 3, scale: 2
-    t.decimal "overall_gpa", precision: 3, scale: 2
-    t.jsonb "parsed_data", default: {}
-    t.text "raw_html"
-    t.decimal "total_credits_completed", precision: 5, scale: 2
-    t.decimal "total_credits_required", precision: 5, scale: 2
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["content_hash"], name: "index_degree_evaluation_snapshots_on_content_hash"
-    t.index ["degree_program_id"], name: "index_degree_evaluation_snapshots_on_degree_program_id"
-    t.index ["evaluated_at"], name: "index_degree_evaluation_snapshots_on_evaluated_at"
-    t.index ["evaluation_term_id"], name: "index_degree_evaluation_snapshots_on_evaluation_term_id"
-    t.index ["user_id", "degree_program_id", "evaluation_term_id"], name: "idx_degree_eval_snapshots_unique", unique: true
-    t.index ["user_id", "evaluated_at"], name: "index_degree_evaluation_snapshots_on_user_id_and_evaluated_at"
-    t.index ["user_id"], name: "index_degree_evaluation_snapshots_on_user_id"
-  end
-
-  create_table "degree_programs", force: :cascade do |t|
-    t.boolean "active", default: true, null: false
-    t.integer "catalog_year", null: false
-    t.string "college"
-    t.datetime "created_at", null: false
-    t.decimal "credit_hours_required", precision: 5, scale: 2
-    t.string "degree_type", null: false
-    t.string "department"
-    t.string "leopardweb_code", null: false
-    t.string "level", null: false
-    t.decimal "minimum_gpa", precision: 3, scale: 2
-    t.string "program_code", null: false
-    t.string "program_name", null: false
-    t.datetime "updated_at", null: false
-    t.index ["active"], name: "index_degree_programs_on_active"
-    t.index ["catalog_year", "program_code"], name: "index_degree_programs_on_catalog_year_and_program_code"
-    t.index ["leopardweb_code"], name: "index_degree_programs_on_leopardweb_code", unique: true
-    t.index ["program_code"], name: "index_degree_programs_on_program_code", unique: true
-  end
-
-  create_table "degree_requirements", force: :cascade do |t|
-    t.string "area_name", null: false
-    t.string "course_choice_logic"
-    t.integer "course_number"
-    t.integer "courses_required"
-    t.datetime "created_at", null: false
-    t.decimal "credits_required", precision: 5, scale: 2
-    t.bigint "degree_program_id", null: false
-    t.bigint "parent_requirement_id"
-    t.string "requirement_name", null: false
-    t.string "requirement_type", null: false
-    t.text "rule_text"
-    t.string "subject"
-    t.datetime "updated_at", null: false
-    t.index ["degree_program_id", "area_name"], name: "index_degree_requirements_on_degree_program_id_and_area_name"
-    t.index ["degree_program_id"], name: "index_degree_requirements_on_degree_program_id"
-    t.index ["parent_requirement_id"], name: "index_degree_requirements_on_parent_requirement_id"
-    t.index ["requirement_type"], name: "index_degree_requirements_on_requirement_type"
-  end
-
-  create_table "emails", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "email", null: false
-    t.boolean "g_cal", default: false, null: false
-    t.boolean "primary", default: false
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["email"], name: "index_emails_on_email", unique: true
-    t.index ["user_id", "primary"], name: "index_emails_on_user_id_and_primary", unique: true, where: "(\"primary\" = true)"
-    t.index ["user_id"], name: "index_emails_on_user_id"
+    t.index ["course_id", "faculty_id"], name: "index_courses_faculties_on_course_id_and_faculty_id", unique: true
+    t.index ["course_id"], name: "index_courses_faculties_on_course_id"
+    t.index ["faculty_id"], name: "index_courses_faculties_on_faculty_id"
   end
 
   create_table "enrollment_snapshots", force: :cascade do |t|
@@ -390,6 +215,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.index ["snapshot_created_at"], name: "index_enrollment_snapshots_on_snapshot_created_at"
     t.index ["term_id"], name: "index_enrollment_snapshots_on_term_id"
     t.index ["user_id", "term_id", "crn"], name: "idx_enrollment_snapshots_unique", unique: true
+    t.index ["user_id"], name: "index_enrollment_snapshots_on_user_id"
   end
 
   create_table "enrollments", force: :cascade do |t|
@@ -401,6 +227,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.index ["course_id"], name: "index_enrollments_on_course_id"
     t.index ["term_id"], name: "index_enrollments_on_term_id"
     t.index ["user_id", "course_id", "term_id"], name: "index_enrollments_on_user_class_term", unique: true
+    t.index ["user_id"], name: "index_enrollments_on_user_id"
   end
 
   create_table "event_preferences", force: :cascade do |t|
@@ -417,16 +244,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.string "visibility"
     t.index ["preferenceable_type", "preferenceable_id"], name: "index_event_preferences_on_preferenceable"
     t.index ["user_id", "preferenceable_type", "preferenceable_id"], name: "index_event_prefs_on_user_and_preferenceable", unique: true
+    t.index ["user_id"], name: "index_event_preferences_on_user_id"
   end
 
   create_table "faculties", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "department"
     t.datetime "directory_last_synced_at"
-    t.jsonb "directory_raw_data", default: {}
+    t.jsonb "directory_raw_data"
     t.string "display_name"
     t.string "email", null: false
-    t.vector "embedding", limit: 1536
     t.string "employee_type"
     t.string "first_name", null: false
     t.string "last_name", null: false
@@ -435,7 +262,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.string "phone"
     t.string "photo_url"
     t.string "rmp_id"
-    t.jsonb "rmp_raw_data", default: {}
+    t.jsonb "rmp_raw_data"
     t.string "school"
     t.string "title"
     t.datetime "updated_at", null: false
@@ -476,6 +303,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.datetime "updated_at", null: false
     t.bigint "uploaded_by_id", null: false
     t.index ["term_id", "created_at"], name: "index_finals_schedules_on_term_id_and_created_at"
+    t.index ["term_id"], name: "index_finals_schedules_on_term_id"
     t.index ["uploaded_by_id"], name: "index_finals_schedules_on_uploaded_by_id"
   end
 
@@ -501,7 +329,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.bigint "requester_id", null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
-    t.index ["addressee_id", "requester_id"], name: "index_friendships_on_addressee_id_and_requester_id"
     t.index ["addressee_id", "status"], name: "index_friendships_on_addressee_id_and_status"
     t.index ["addressee_id"], name: "index_friendships_on_addressee_id"
     t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
@@ -528,9 +355,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.index ["final_exam_id"], name: "index_google_calendar_events_on_final_exam_id"
     t.index ["google_calendar_id", "final_exam_id"], name: "idx_gcal_events_unique_final_exam", unique: true, where: "(final_exam_id IS NOT NULL)"
     t.index ["google_calendar_id", "meeting_time_id"], name: "idx_gcal_events_unique_meeting_time", unique: true, where: "(meeting_time_id IS NOT NULL)"
-    t.index ["google_calendar_id", "meeting_time_id"], name: "idx_on_google_calendar_id_meeting_time_id_6c9efabf50"
-    t.index ["google_calendar_id", "university_calendar_event_id"], name: "idx_gcal_events_on_calendar_and_uni_event"
+    t.index ["google_calendar_id", "meeting_time_id"], name: "idx_on_google_calendar_id_meeting_time_id"
     t.index ["google_calendar_id", "university_calendar_event_id"], name: "idx_gcal_events_unique_university", unique: true, where: "(university_calendar_event_id IS NOT NULL)"
+    t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
     t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
     t.index ["last_synced_at"], name: "index_google_calendar_events_on_last_synced_at"
     t.index ["meeting_time_id"], name: "index_google_calendar_events_on_meeting_time_id"
@@ -551,55 +378,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.index ["oauth_credential_id"], name: "index_google_calendars_on_oauth_credential_id"
   end
 
-  create_table "lab_credit_hours_backup", primary_key: "course_id", id: :bigint, default: nil, force: :cascade do |t|
-    t.integer "original_credit_hours"
-  end
-
-  create_table "lockbox_audits", force: :cascade do |t|
-    t.string "context"
-    t.datetime "created_at"
-    t.jsonb "data"
-    t.string "ip"
-    t.bigint "subject_id"
-    t.string "subject_type"
-    t.bigint "viewer_id"
-    t.string "viewer_type"
-    t.index ["subject_type", "subject_id"], name: "index_lockbox_audits_on_subject"
-    t.index ["viewer_type", "viewer_id"], name: "index_lockbox_audits_on_viewer"
-  end
-
-  create_table "mailkick_subscriptions", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "list"
-    t.bigint "subscriber_id"
-    t.string "subscriber_type"
-    t.datetime "updated_at", null: false
-    t.index ["subscriber_type", "subscriber_id", "list"], name: "index_mailkick_subscriptions_on_subscriber_and_list", unique: true
-  end
-
-  create_table "meeting_times", force: :cascade do |t|
-    t.integer "begin_time", null: false
-    t.bigint "course_id", null: false
-    t.datetime "created_at", null: false
-    t.integer "day_of_week"
-    t.datetime "end_date", null: false
-    t.integer "end_time", null: false
-    t.integer "hours_week"
-    t.integer "meeting_schedule_type"
-    t.integer "meeting_type"
-    t.bigint "room_id", null: false
-    t.datetime "start_date", null: false
-    t.datetime "updated_at", null: false
-    t.index ["course_id"], name: "index_meeting_times_on_course_id"
-    t.index ["day_of_week"], name: "index_meeting_times_on_day_of_week"
-    t.index ["room_id"], name: "index_meeting_times_on_room_id"
-  end
-
   create_table "oauth_credentials", force: :cascade do |t|
     t.string "access_token", null: false
     t.datetime "created_at", null: false
     t.string "email"
-    t.jsonb "metadata", default: {}
+    t.jsonb "metadata"
     t.string "provider", null: false
     t.string "refresh_token"
     t.datetime "token_expires_at"
@@ -609,35 +392,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.index ["provider", "uid"], name: "index_oauth_credentials_on_provider_and_uid", unique: true
     t.index ["token_expires_at"], name: "index_oauth_credentials_on_token_expires_at"
     t.index ["user_id", "provider", "email"], name: "index_oauth_credentials_on_user_provider_email", unique: true
-  end
-
-  create_table "pg_search_documents", force: :cascade do |t|
-    t.text "content"
-    t.datetime "created_at", null: false
-    t.bigint "searchable_id"
-    t.string "searchable_type"
-    t.datetime "updated_at", null: false
-    t.index ["searchable_type", "searchable_id"], name: "index_pg_search_documents_on_searchable"
-  end
-
-  create_table "pghero_query_stats", force: :cascade do |t|
-    t.bigint "calls"
-    t.datetime "captured_at", precision: nil
-    t.text "database"
-    t.text "query"
-    t.bigint "query_hash"
-    t.float "total_time"
-    t.text "user"
-    t.index ["database", "captured_at"], name: "index_pghero_query_stats_on_database_and_captured_at"
-  end
-
-  create_table "pghero_space_stats", force: :cascade do |t|
-    t.datetime "captured_at", precision: nil
-    t.text "database"
-    t.text "relation"
-    t.text "schema"
-    t.bigint "size"
-    t.index ["database", "captured_at"], name: "index_pghero_space_stats_on_database_and_captured_at"
+    t.index ["user_id"], name: "index_oauth_credentials_on_user_id"
   end
 
   create_table "rating_distributions", force: :cascade do |t|
@@ -667,33 +422,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.string "rmp_id", null: false
     t.datetime "updated_at", null: false
     t.index ["faculty_id", "rmp_id"], name: "index_related_professors_on_faculty_id_and_rmp_id", unique: true
+    t.index ["faculty_id"], name: "index_related_professors_on_faculty_id"
     t.index ["related_faculty_id"], name: "index_related_professors_on_related_faculty_id"
-  end
-
-  create_table "requirement_completions", force: :cascade do |t|
-    t.datetime "completed_at"
-    t.bigint "course_id"
-    t.integer "course_number", null: false
-    t.string "course_title"
-    t.datetime "created_at", null: false
-    t.decimal "credits", precision: 5, scale: 2
-    t.bigint "degree_requirement_id", null: false
-    t.string "grade"
-    t.boolean "in_progress", default: false, null: false
-    t.boolean "met_requirement", default: false, null: false
-    t.string "source", null: false
-    t.string "subject", null: false
-    t.bigint "term_id"
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["course_id"], name: "index_requirement_completions_on_course_id"
-    t.index ["degree_requirement_id"], name: "index_requirement_completions_on_degree_requirement_id"
-    t.index ["in_progress"], name: "index_requirement_completions_on_in_progress"
-    t.index ["source"], name: "index_requirement_completions_on_source"
-    t.index ["term_id"], name: "index_requirement_completions_on_term_id"
-    t.index ["user_id", "course_id"], name: "index_requirement_completions_on_user_id_and_course_id", unique: true, where: "(course_id IS NOT NULL)"
-    t.index ["user_id", "degree_requirement_id"], name: "idx_on_user_id_degree_requirement_id_f4a11da44b"
-    t.index ["user_id"], name: "index_requirement_completions_on_user_id"
   end
 
   create_table "rmp_ratings", force: :cascade do |t|
@@ -703,14 +433,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.string "course_name"
     t.datetime "created_at", null: false
     t.integer "difficulty_rating"
-    t.vector "embedding", limit: 1536
     t.bigint "faculty_id", null: false
     t.string "grade"
     t.integer "helpful_rating"
     t.boolean "is_for_credit"
     t.boolean "is_for_online_class"
     t.datetime "rating_date"
-    t.text "rating_tags"
+    t.string "rating_tags"
     t.string "rmp_id", null: false
     t.integer "thumbs_down_total", default: 0
     t.integer "thumbs_up_total", default: 0
@@ -723,9 +452,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
   create_table "rooms", force: :cascade do |t|
     t.bigint "building_id", null: false
     t.datetime "created_at", null: false
-    t.string "number"
+    t.integer "floor", null: false
+    t.string "formal_name"
+    t.string "number", null: false
+    t.integer "twenty_five_live_id"
     t.datetime "updated_at", null: false
+    t.index ["building_id", "number"], name: "index_rooms_on_building_id_and_number", unique: true
     t.index ["building_id"], name: "index_rooms_on_building_id"
+    t.index ["twenty_five_live_id"], name: "index_rooms_on_twenty_five_live_id", unique: true
+    t.check_constraint "SUBSTRING(number FROM 1 FOR 1) !~ '^[0-9]$'::text OR SUBSTRING(number FROM 1 FOR 1) = floor::text", name: "rooms_floor_matches_number_prefix"
+    t.check_constraint "floor >= 0", name: "rooms_floor_non_negative"
   end
 
   create_table "security_events", force: :cascade do |t|
@@ -750,6 +486,127 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.index ["user_id"], name: "index_security_events_on_user_id"
   end
 
+  create_table "solid_queue_blocked_executions", force: :cascade do |t|
+    t.string "concurrency_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.bigint "job_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.index ["concurrency_key", "priority", "job_id"], name: "index_solid_queue_blocked_executions_for_release"
+    t.index ["expires_at", "concurrency_key"], name: "index_solid_queue_blocked_executions_for_maintenance"
+    t.index ["job_id"], name: "index_solid_queue_blocked_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_claimed_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.bigint "process_id"
+    t.index ["job_id"], name: "index_solid_queue_claimed_executions_on_job_id", unique: true
+    t.index ["process_id", "job_id"], name: "index_solid_queue_claimed_executions_on_process_id_and_job_id"
+  end
+
+  create_table "solid_queue_failed_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error"
+    t.bigint "job_id", null: false
+    t.index ["job_id"], name: "index_solid_queue_failed_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_jobs", force: :cascade do |t|
+    t.string "active_job_id"
+    t.text "arguments"
+    t.string "class_name", null: false
+    t.string "concurrency_key"
+    t.datetime "created_at", null: false
+    t.datetime "finished_at"
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.datetime "scheduled_at"
+    t.datetime "updated_at", null: false
+    t.index ["active_job_id"], name: "index_solid_queue_jobs_on_active_job_id"
+    t.index ["class_name"], name: "index_solid_queue_jobs_on_class_name"
+    t.index ["finished_at"], name: "index_solid_queue_jobs_on_finished_at"
+    t.index ["queue_name", "finished_at"], name: "index_solid_queue_jobs_for_filtering"
+    t.index ["scheduled_at", "finished_at"], name: "index_solid_queue_jobs_for_alerting"
+  end
+
+  create_table "solid_queue_pauses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "queue_name", null: false
+    t.index ["queue_name"], name: "index_solid_queue_pauses_on_queue_name", unique: true
+  end
+
+  create_table "solid_queue_processes", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "hostname"
+    t.string "kind", null: false
+    t.datetime "last_heartbeat_at", null: false
+    t.text "metadata"
+    t.string "name", null: false
+    t.integer "pid", null: false
+    t.bigint "supervisor_id"
+    t.index ["last_heartbeat_at"], name: "index_solid_queue_processes_on_last_heartbeat_at"
+    t.index ["name", "supervisor_id"], name: "index_solid_queue_processes_on_name_and_supervisor_id", unique: true
+    t.index ["supervisor_id"], name: "index_solid_queue_processes_on_supervisor_id"
+  end
+
+  create_table "solid_queue_ready_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.index ["job_id"], name: "index_solid_queue_ready_executions_on_job_id", unique: true
+    t.index ["priority", "job_id"], name: "index_solid_queue_poll_all"
+    t.index ["queue_name", "priority", "job_id"], name: "index_solid_queue_poll_by_queue"
+  end
+
+  create_table "solid_queue_recurring_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.datetime "run_at", null: false
+    t.string "task_key", null: false
+    t.index ["job_id"], name: "index_solid_queue_recurring_executions_on_job_id", unique: true
+    t.index ["task_key", "run_at"], name: "index_solid_queue_recurring_executions_on_task_key_and_run_at", unique: true
+  end
+
+  create_table "solid_queue_recurring_tasks", force: :cascade do |t|
+    t.text "arguments"
+    t.string "class_name"
+    t.string "command", limit: 2048
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "key", null: false
+    t.integer "priority", default: 0
+    t.string "queue_name"
+    t.string "schedule", null: false
+    t.boolean "static", default: true, null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_solid_queue_recurring_tasks_on_key", unique: true
+    t.index ["static"], name: "index_solid_queue_recurring_tasks_on_static"
+  end
+
+  create_table "solid_queue_scheduled_executions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "queue_name", null: false
+    t.datetime "scheduled_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_scheduled_executions_on_job_id", unique: true
+    t.index ["scheduled_at", "priority", "job_id"], name: "index_solid_queue_dispatch_all"
+  end
+
+  create_table "solid_queue_semaphores", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.string "key", null: false
+    t.datetime "updated_at", null: false
+    t.integer "value", default: 1, null: false
+    t.index ["expires_at"], name: "index_solid_queue_semaphores_on_expires_at"
+    t.index ["key", "value"], name: "index_solid_queue_semaphores_on_key_and_value"
+    t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
+  end
+
   create_table "teacher_rating_tags", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "faculty_id", null: false
@@ -758,62 +615,72 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.string "tag_name", null: false
     t.datetime "updated_at", null: false
     t.index ["faculty_id", "rmp_legacy_id"], name: "index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id", unique: true
+    t.index ["faculty_id"], name: "index_teacher_rating_tags_on_faculty_id"
   end
 
   create_table "terms", force: :cascade do |t|
+    t.boolean "catalog_import_failed", default: false, null: false
+    t.string "catalog_import_job_id"
     t.boolean "catalog_imported", default: false, null: false
     t.datetime "catalog_imported_at"
+    t.boolean "catalog_importing", default: false, null: false
     t.datetime "created_at", null: false
     t.date "end_date"
-    t.integer "season"
+    t.integer "season", null: false
     t.date "start_date"
     t.integer "uid", null: false
     t.datetime "updated_at", null: false
-    t.integer "year"
+    t.integer "year", null: false
     t.index ["uid"], name: "index_terms_on_uid", unique: true
     t.index ["year", "season"], name: "index_terms_on_year_and_season", unique: true
+    t.check_constraint "season = ANY (ARRAY[1, 2, 3])", name: "terms_season_valid"
+    t.check_constraint "year >= 2012", name: "terms_year_not_before_first_term"
   end
 
-  create_table "transfer_courses", force: :cascade do |t|
-    t.boolean "active", default: true, null: false
-    t.string "course_code", null: false
-    t.string "course_title", null: false
+  create_table "twenty_five_live_event_categories", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.decimal "credits", precision: 5, scale: 2
-    t.text "description"
-    t.bigint "university_id", null: false
+    t.integer "defn_state", default: 1, null: false
+    t.string "name", null: false
+    t.integer "sort_order"
+    t.integer "twenty_five_live_id", null: false
     t.datetime "updated_at", null: false
-    t.index ["active"], name: "index_transfer_courses_on_active"
-    t.index ["university_id", "course_code"], name: "index_transfer_courses_on_university_id_and_course_code", unique: true
-    t.index ["university_id"], name: "index_transfer_courses_on_university_id"
+    t.index ["twenty_five_live_id"], name: "index_twenty_five_live_event_categories_on_twenty_five_live_id", unique: true
   end
 
-  create_table "transfer_equivalencies", force: :cascade do |t|
+  create_table "twenty_five_live_event_custom_attributes", force: :cascade do |t|
+    t.string "attribute_type"
+    t.string "attribute_type_name"
     t.datetime "created_at", null: false
-    t.date "effective_date", null: false
-    t.date "expiration_date"
-    t.text "notes"
-    t.bigint "transfer_course_id", null: false
+    t.integer "defn_state", default: 1, null: false
+    t.string "multi_val"
+    t.string "name", null: false
+    t.integer "sort_order"
+    t.integer "twenty_five_live_id", null: false
     t.datetime "updated_at", null: false
-    t.bigint "wit_course_id", null: false
-    t.index ["effective_date"], name: "index_transfer_equivalencies_on_effective_date"
-    t.index ["expiration_date"], name: "index_transfer_equivalencies_on_expiration_date"
-    t.index ["transfer_course_id", "wit_course_id"], name: "idx_transfer_equivalencies_unique", unique: true
-    t.index ["transfer_course_id"], name: "index_transfer_equivalencies_on_transfer_course_id"
-    t.index ["wit_course_id"], name: "index_transfer_equivalencies_on_wit_course_id"
+    t.index ["twenty_five_live_id"], name: "idx_on_twenty_five_live_id_bd51b01498", unique: true
   end
 
-  create_table "transfer_universities", force: :cascade do |t|
-    t.boolean "active", default: true, null: false
-    t.string "code", null: false
-    t.string "country"
+  create_table "twenty_five_live_organizations", force: :cascade do |t|
+    t.string "code"
     t.datetime "created_at", null: false
     t.string "name", null: false
-    t.string "state"
+    t.string "organization_type_name"
+    t.integer "twenty_five_live_id", null: false
     t.datetime "updated_at", null: false
-    t.index ["active"], name: "index_transfer_universities_on_active"
-    t.index ["code"], name: "index_transfer_universities_on_code", unique: true
-    t.index ["name"], name: "index_transfer_universities_on_name"
+    t.index ["twenty_five_live_id"], name: "index_twenty_five_live_organizations_on_twenty_five_live_id", unique: true
+    t.check_constraint "length(TRIM(BOTH FROM name)) > 0", name: "twenty_five_live_organizations_name_not_blank"
+  end
+
+  create_table "twenty_five_live_resources", force: :cascade do |t|
+    t.string "assign_perm"
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.string "schedule_perm"
+    t.integer "stock_level"
+    t.integer "twenty_five_live_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["twenty_five_live_id"], name: "index_twenty_five_live_resources_on_twenty_five_live_id", unique: true
+    t.check_constraint "length(TRIM(BOTH FROM name)) > 0", name: "twenty_five_live_resources_name_not_blank"
   end
 
   create_table "university_calendar_events", force: :cascade do |t|
@@ -841,33 +708,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.index ["term_id"], name: "index_university_calendar_events_on_term_id"
   end
 
-  create_table "user_degree_programs", force: :cascade do |t|
-    t.integer "catalog_year", null: false
-    t.date "completion_date"
-    t.datetime "created_at", null: false
-    t.datetime "declared_at"
-    t.bigint "degree_program_id", null: false
-    t.string "leopardweb_program_id"
-    t.boolean "primary", default: false, null: false
-    t.string "program_type", null: false
-    t.string "status", default: "active", null: false
-    t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
-    t.index ["degree_program_id"], name: "index_user_degree_programs_on_degree_program_id"
-    t.index ["status"], name: "index_user_degree_programs_on_status"
-    t.index ["user_id", "degree_program_id"], name: "index_user_degree_programs_on_user_id_and_degree_program_id", unique: true
-    t.index ["user_id", "primary"], name: "index_user_degree_programs_on_user_id_and_primary", unique: true, where: "(\"primary\" = true)"
-    t.index ["user_id"], name: "index_user_degree_programs_on_user_id"
-  end
-
   create_table "user_extension_configs", force: :cascade do |t|
     t.boolean "advanced_editing", default: false, null: false
     t.datetime "created_at", null: false
     t.string "default_color_lab", default: "#f6bf26", null: false
     t.string "default_color_lecture", default: "#039be5", null: false
+    t.jsonb "enrolled_terms", default: [], null: false
     t.boolean "military_time", default: false, null: false
+    t.boolean "show_historic_terms", default: false, null: false
     t.boolean "sync_university_events", default: false, null: false
-    t.jsonb "university_event_categories", default: []
+    t.jsonb "university_event_categories"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["user_id"], name: "index_user_extension_configs_on_user_id"
@@ -877,41 +727,45 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
     t.integer "access_level", default: 0, null: false
     t.boolean "calendar_needs_sync", default: false, null: false
     t.string "calendar_token"
+    t.datetime "confirmation_sent_at"
+    t.string "confirmation_token"
+    t.datetime "confirmed_at"
     t.datetime "created_at", null: false
+    t.datetime "current_sign_in_at"
+    t.string "current_sign_in_ip"
+    t.string "email", default: "", null: false
+    t.string "encrypted_password", default: "", null: false
+    t.integer "failed_attempts", default: 0, null: false
     t.string "first_name"
     t.datetime "last_calendar_sync_at"
     t.string "last_name"
+    t.datetime "last_sign_in_at"
+    t.string "last_sign_in_ip"
+    t.datetime "locked_at"
     t.datetime "notifications_disabled_until"
+    t.datetime "remember_created_at"
+    t.datetime "reset_password_sent_at"
+    t.string "reset_password_token"
+    t.integer "sign_in_count", default: 0, null: false
+    t.string "unconfirmed_email"
+    t.string "unlock_token"
     t.datetime "updated_at", null: false
+    t.index ["access_level"], name: "index_users_on_access_level"
     t.index ["calendar_needs_sync"], name: "index_users_on_calendar_needs_sync"
     t.index ["calendar_token"], name: "index_users_on_calendar_token", unique: true
+    t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
+    t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["last_calendar_sync_at"], name: "index_users_on_last_calendar_sync_at"
-  end
-
-  create_table "versions", force: :cascade do |t|
-    t.datetime "created_at"
-    t.string "event", null: false
-    t.bigint "item_id", null: false
-    t.string "item_type", null: false
-    t.text "object"
-    t.string "whodunnit"
-    t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
+    t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_preferences", "users"
-  add_foreign_key "course_plans", "courses"
-  add_foreign_key "course_plans", "terms"
-  add_foreign_key "course_plans", "users"
-  add_foreign_key "course_prerequisites", "courses"
+  add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
+  add_foreign_key "course_meeting_time_rooms", "rooms"
+  add_foreign_key "course_meeting_times", "courses"
   add_foreign_key "courses", "terms"
-  add_foreign_key "degree_evaluation_snapshots", "degree_programs"
-  add_foreign_key "degree_evaluation_snapshots", "terms", column: "evaluation_term_id"
-  add_foreign_key "degree_evaluation_snapshots", "users"
-  add_foreign_key "degree_requirements", "degree_programs"
-  add_foreign_key "degree_requirements", "degree_requirements", column: "parent_requirement_id"
-  add_foreign_key "emails", "users"
   add_foreign_key "enrollment_snapshots", "terms"
   add_foreign_key "enrollment_snapshots", "users"
   add_foreign_key "enrollments", "courses"
@@ -924,31 +778,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_11_145117) do
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
   add_foreign_key "friendships", "users", column: "addressee_id"
   add_foreign_key "friendships", "users", column: "requester_id"
-  add_foreign_key "google_calendar_events", "final_exams"
+  add_foreign_key "google_calendar_events", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "google_calendar_events", "google_calendars"
-  add_foreign_key "google_calendar_events", "meeting_times"
-  add_foreign_key "google_calendar_events", "university_calendar_events"
   add_foreign_key "google_calendars", "oauth_credentials"
-  add_foreign_key "meeting_times", "courses"
-  add_foreign_key "meeting_times", "rooms"
   add_foreign_key "oauth_credentials", "users"
   add_foreign_key "rating_distributions", "faculties"
   add_foreign_key "related_professors", "faculties"
   add_foreign_key "related_professors", "faculties", column: "related_faculty_id"
-  add_foreign_key "requirement_completions", "courses"
-  add_foreign_key "requirement_completions", "degree_requirements"
-  add_foreign_key "requirement_completions", "terms"
-  add_foreign_key "requirement_completions", "users"
   add_foreign_key "rmp_ratings", "faculties"
   add_foreign_key "rooms", "buildings"
   add_foreign_key "security_events", "oauth_credentials"
   add_foreign_key "security_events", "users"
+  add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
-  add_foreign_key "transfer_courses", "transfer_universities", column: "university_id"
-  add_foreign_key "transfer_equivalencies", "courses", column: "wit_course_id"
-  add_foreign_key "transfer_equivalencies", "transfer_courses"
   add_foreign_key "university_calendar_events", "terms"
-  add_foreign_key "user_degree_programs", "degree_programs"
-  add_foreign_key "user_degree_programs", "users"
   add_foreign_key "user_extension_configs", "users"
 end

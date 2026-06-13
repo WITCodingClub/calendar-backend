@@ -1,125 +1,100 @@
-# =============================================================================
-# RECURRING JOBS SCHEDULE
-# =============================================================================
-# All times are in the application's configured timezone (EST)
-# Jobs run on the 'low' queue to not block critical operations
-# =============================================================================
+# All times are in the application's configured timezone (EST).
+# Jobs run on the 'low' queue unless otherwise noted.
 
-# -----------------------------------------------------------------------------
-# FREQUENT MONITORING
-# -----------------------------------------------------------------------------
+production:
+  # ---------------------------------------------------------------------------
+  # FREQUENT
+  # ---------------------------------------------------------------------------
 
-blazer_run_checks_5_minutes:
-  command: "Blazer.run_checks(schedule: '5 minutes')"
-  queue: low
-  schedule: every 5 minutes
+  pghero_capture_query_stats:
+    class: PgheroCaptureQueryStatsJob
+    queue: low
+    schedule: every 5 minutes
 
-pghero_capture_query_stats:
-  class: PgheroCaptureQueryStatsJob
-  queue: low
-  schedule: every 5 minutes
+  # ---------------------------------------------------------------------------
+  # HOURLY
+  # ---------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
-# HOURLY
-# -----------------------------------------------------------------------------
+  clear_solid_queue_finished_jobs:
+    command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
+    queue: low
+    schedule: every hour at minute 12
 
-blazer_run_checks_1_hour:
-  command: "Blazer.run_checks(schedule: '1 hour')"
-  queue: low
-  schedule: every hour
+  # ---------------------------------------------------------------------------
+  # EVERY 6 HOURS
+  # ---------------------------------------------------------------------------
 
-clear_solid_queue_finished_jobs:
-  command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
-  queue: low
-  schedule: every hour at minute 12
+  nightly_calendar_sync:
+    class: NightlyCalendarSyncJob
+    queue: low
+    schedule: every 6 hours
 
-# -----------------------------------------------------------------------------
-# NIGHTLY (3am - 8am window, staggered 30 min apart)
-# -----------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # NIGHTLY (3:30am–8am window, staggered 30 min apart)
+  # ---------------------------------------------------------------------------
 
-nightly_calendar_sync:
-  class: NightlyCalendarSyncJob
-  queue: low
-  schedule: every day at 3am
+  cleanup_orphaned_calendar_records:
+    class: CleanupOrphanedCalendarRecordsJob
+    queue: low
+    schedule: every day at 3:30am
 
-cleanup_orphaned_calendar_records:
-  class: CleanupOrphanedCalendarRecordsJob
-  queue: low
-  schedule: every day at 3:30am
+  cleanup_orphaned_google_calendars:
+    class: CleanupOrphanedGoogleCalendarsJob
+    queue: low
+    schedule: every day at 4am
 
-cleanup_orphaned_google_calendars:
-  class: CleanupOrphanedGoogleCalendarsJob
-  queue: low
-  schedule: every day at 4am
+  course_data_sync:
+    class: CourseDataSyncJob
+    queue: low
+    schedule: every day at 4am
 
-cleanup_orphaned_oauth_credentials:
-  class: CleanupOrphanedOauthCredentialsJob
-  queue: low
-  schedule: every day at 4:30am
+  cleanup_orphaned_oauth_credentials:
+    class: CleanupOrphanedOauthCredentialsJob
+    queue: low
+    schedule: every day at 4:30am
 
-pghero_space_stats:
-  class: PgheroCaptureSpaceStatsJob
-  queue: low
-  schedule: every day at 5am
+  cleanup_orphaned_calendar_events:
+    class: CleanupOrphanedCalendarEventsJob
+    queue: low
+    schedule: every day at 5am
 
-blazer_run_checks_1_day:
-  command: "Blazer.run_checks(schedule: '1 day')"
-  queue: low
-  schedule: every day at 7:30am
+  pghero_space_stats:
+    class: PgheroCaptureSpaceStatsJob
+    queue: low
+    schedule: every day at 5:30am
 
-# -----------------------------------------------------------------------------
-# WEEKLY (spread across different days to balance load)
-# -----------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # WEEKLY
+  # ---------------------------------------------------------------------------
 
-# Wednesday: OAuth maintenance
-refresh_oauth_tokens:
-  class: RefreshOauthTokensJob
-  queue: low
-  schedule: every wednesday at 2am
+  # Wednesday: OAuth maintenance
+  refresh_oauth_tokens:
+    class: RefreshOauthTokensJob
+    queue: low
+    schedule: every wednesday at 2am
 
-# Saturday: University data sync
-university_calendar_sync:
-  class: UniversityCalendarSyncJob
-  queue: low
-  schedule: every saturday at 2am
+  # Saturday: University data sync
+  university_calendar_sync:
+    class: UniversityCalendarSyncJob
+    queue: low
+    schedule: every saturday at 2am
 
-# Course data synchronization - check for changes daily
-course_data_sync:
-  class: CourseDataSyncJob
-  queue: low
-  schedule: every day at 4am
+  # Sunday: RateMyProfessor maintenance (fill IDs first, then update ratings)
+  fill_missing_rmp_ids:
+    class: FillMissingRmpIdsJob
+    queue: low
+    schedule: every sunday at 2am
 
-# Sunday: RateMyProfessor maintenance (in order: fill IDs, then update ratings)
-fill_missing_rmp_ids:
-  class: FillMissingRmpIdsJob
-  queue: low
-  schedule: every sunday at 2am
+  update_faculty_rmp_ratings:
+    command: "Faculty.update_all_ratings!"
+    queue: low
+    schedule: every sunday at 3am
 
-update_faculty_rmp_ratings:
-  command: "Faculty.update_all_ratings!"
-  queue: low
-  schedule: every sunday at 3am
+  # ---------------------------------------------------------------------------
+  # MONTHLY
+  # ---------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
-# MONTHLY
-# -----------------------------------------------------------------------------
-
-ensure_future_terms:
-  class: EnsureFutureTermsJob
-  queue: low
-  schedule: every month on the 1st at 2am
-
-# -----------------------------------------------------------------------------
-# DISABLED (email not configured)
-# Uncomment when email is set up
-# -----------------------------------------------------------------------------
-
-# blazer_send_failing_checks:
-#   command: "Blazer.send_failing_checks"
-#   queue: low
-#   schedule: every day at 8am
-
-# send_missing_rmp_ids_summary:
-#   class: SendMissingRmpIdsSummaryJob
-#   queue: low
-#   schedule: every sunday at 4am
+  ensure_future_terms:
+    class: EnsureFutureTermsJob
+    queue: low
+    schedule: every month on the 1st at 2am

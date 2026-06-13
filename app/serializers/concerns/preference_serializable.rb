@@ -1,12 +1,8 @@
 # frozen_string_literal: true
 
-# Shared serialization helpers for preference-related serializers and controllers.
-# Handles reminder method aliasing ("popup" -> "notification") and color normalization.
 module PreferenceSerializable
   private
 
-  # Transform reminder settings to use "notification" instead of "popup"
-  # Google Calendar uses "popup", but we alias it to "notification" in our API
   def transform_reminder_settings(reminder_settings)
     return nil if reminder_settings.nil?
     return [] if reminder_settings.empty?
@@ -20,10 +16,6 @@ module PreferenceSerializable
     end
   end
 
-  # Normalize color to WITCC hex format for API responses
-  # Handles: integers (1-11), WITCC hex (already correct), Google event hex (convert to WITCC)
-  # @param color_id_or_hex [Integer, String, nil] Color ID or hex string
-  # @return [String, nil] WITCC hex color or nil
   def normalize_color_to_witcc_hex(color_id_or_hex)
     return nil if color_id_or_hex.blank?
 

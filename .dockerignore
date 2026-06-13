@@ -1,7 +1,7 @@
 # See https://docs.docker.com/engine/reference/builder/#dockerignore-file for more about ignoring files.
 
-# Keep .git directory for version detection in production
-# /.git/ - COMMENTED OUT to allow version detection via git describe
+# Ignore git directory.
+/.git/
 /.gitignore
 
 # Ignore bundler config.
@@ -38,10 +38,6 @@
 
 # Ignore CI service files.
 /.github
-
-# Ignore Kamal files.
-/config/deploy*.yml
-/.kamal
 
 # Ignore development files
 /.devcontainer

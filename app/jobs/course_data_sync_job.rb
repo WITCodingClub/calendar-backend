@@ -5,206 +5,121 @@ class CourseDataSyncJob < ApplicationJob
 
   queue_as :low
 
-  # Run with low concurrency to avoid overwhelming LeopardWeb API
   limits_concurrency to: 1, key: -> { "course_data_sync" }
 
-  # Sync course data for all active terms by default
   def perform(term_uids: nil)
-    term_uids ||= default_term_uids
+    term_uids ||= Term.active_uids.uniq
 
     return if term_uids.empty?
 
-    Rails.logger.info "CourseDataSyncJob: Starting sync for terms: #{term_uids}"
+    Rails.logger.info "[CourseDataSyncJob] Starting sync for terms: #{term_uids}"
 
-    term_uids.each do |term_uid|
-      sync_term_courses(term_uid)
-    end
+    term_uids.each { |uid| sync_term_courses(uid) }
 
-    Rails.logger.info "CourseDataSyncJob: Completed sync for #{term_uids.length} terms"
+    Rails.logger.info "[CourseDataSyncJob] Completed sync for #{term_uids.length} terms"
   end
 
   private
 
-  def default_term_uids
-    Term.active_uids.uniq
-  end
-
   def sync_term_courses(term_uid)
     term = Term.find_by(uid: term_uid)
     unless term
-      Rails.logger.warn "CourseDataSyncJob: Term not found for UID #{term_uid}"
+      Rails.logger.warn "[CourseDataSyncJob] Term not found for UID #{term_uid}"
       return
     end
 
-    Rails.logger.info "CourseDataSyncJob: Syncing courses for term #{term.name} (#{term_uid})"
+    Rails.logger.info "[CourseDataSyncJob] Syncing courses for term #{term.name} (#{term_uid})"
 
-    courses = term.courses.includes(:meeting_times, meeting_times: [:room, :building])
     synced_count = 0
-    error_count = 0
+    error_count  = 0
 
-    courses.find_each(batch_size: 50) do |course|
-      begin
-        if sync_course_data(course, term_uid)
-          synced_count += 1
-        end
-
-        # Rate limiting - small delay between API calls
-        sleep(0.1)
-      rescue => e
-        error_count += 1
-        Rails.logger.error "CourseDataSyncJob: Failed to sync course #{course.crn}: #{e.message}"
-
-        # Continue with other courses even if one fails
-        next
+    term.courses.includes(:meeting_times, meeting_times: { rooms: :building }).find_each(batch_size: 50) do |course|
+      if sync_course_data(course, term_uid)
+        synced_count += 1
       end
+      sleep 0.1
+    rescue => e
+      error_count += 1
+      Rails.logger.error "[CourseDataSyncJob] Failed to sync course #{course.crn}: #{e.message}"
     end
 
-    Rails.logger.info "CourseDataSyncJob: Term #{term.name} sync complete - #{synced_count} courses synced, #{error_count} errors"
+    Rails.logger.info "[CourseDataSyncJob] Term #{term.name} complete — #{synced_count} synced, #{error_count} errors"
   end
 
   def sync_course_data(course, term_uid)
-    # Fetch fresh data from LeopardWeb (enrollment/seat data is included)
     fresh_data = fetch_fresh_course_data(course.crn, term_uid)
     return false unless fresh_data
 
-    # Check if course-level data changed
-    course_changed = course_data_changed?(course, fresh_data)
-
-    # Check if meeting times/locations changed
-    meeting_times_changed = meeting_times_changed?(course, fresh_data)
-
-    # Update course if any changes detected
-    if course_changed || meeting_times_changed
-      update_course_from_fresh_data(course, fresh_data, term_uid)
-      Rails.logger.info "CourseDataSyncJob: Updated course #{course.crn} due to changes"
+    if course_data_changed?(course, fresh_data) || meeting_times_need_update?(course)
+      update_course_from_fresh_data(course, fresh_data)
+      Rails.logger.info "[CourseDataSyncJob] Updated course #{course.crn}"
       return true
     end
 
-    # Always update seat counts even when nothing else changed, since enrollment
-    # fluctuates frequently (students adding/dropping throughout the term).
     update_enrollment_counts(course, fresh_data)
   end
 
-  def update_enrollment_counts(course, fresh_data)
-    update_attrs = {}
-    update_attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
-    update_attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
-
-    if update_attrs.any?
-      course.update!(update_attrs)
-      return true
-    end
-
-    false
-  end
-
   def fetch_fresh_course_data(crn, term_uid)
-    LeopardWebService.get_class_details(
-      term: term_uid,
-      course_reference_number: crn
-    )
+    LeopardWebService.get_class_details(term: term_uid, course_reference_number: crn)
   rescue => e
-    Rails.logger.error "CourseDataSyncJob: Failed to fetch data for CRN #{crn}: #{e.message}"
+    Rails.logger.error "[CourseDataSyncJob] Failed to fetch data for CRN #{crn}: #{e.message}"
     nil
   end
 
   def course_data_changed?(course, fresh_data)
-    # Parse fresh data and normalize for comparison
-    fresh_title = fresh_data[:title].present? ? titleize_with_roman_numerals(fresh_data[:title].strip) : nil
-    fresh_credit_hours = fresh_data[:credit_hours]
-    fresh_grade_mode = fresh_data[:grade_mode]&.strip
-    fresh_subject = fresh_data[:subject]&.strip
-    fresh_section_number = normalize_section_number(fresh_data[:section_number])
+    fresh_title           = fresh_data[:title].present? ? titleize_with_roman_numerals(fresh_data[:title].strip) : nil
+    fresh_credit_hours    = fresh_data[:credit_hours]
+    fresh_grade_mode      = fresh_data[:grade_mode]&.strip
+    fresh_subject         = fresh_data[:subject]&.strip
+    fresh_section_number  = normalize_section_number(fresh_data[:section_number])
+    fresh_schedule_type   = extract_schedule_type(fresh_data[:schedule_type])
 
-    # Extract schedule type from format like "Lecture (LEC)"
-    fresh_schedule_type = nil
-    if fresh_data[:schedule_type]
-      schedule_match = fresh_data[:schedule_type].to_s.match(/\(([^)]+)\)/)
-      fresh_schedule_type = schedule_match ? schedule_match[1].strip : fresh_data[:schedule_type]&.strip
-    end
-
-    # Compare all course attributes that could change
-    changes = []
-
-    if course.title != fresh_title
-      changes << "title: '#{course.title}' -> '#{fresh_title}'"
-    end
-
-    if course.credit_hours != fresh_credit_hours
-      changes << "credit_hours: #{course.credit_hours} -> #{fresh_credit_hours}"
-    end
-
-    if course.grade_mode != fresh_grade_mode
-      changes << "grade_mode: '#{course.grade_mode}' -> '#{fresh_grade_mode}'"
-    end
-
-    if course.subject != fresh_subject
-      changes << "subject: '#{course.subject}' -> '#{fresh_subject}'"
-    end
-
-    if course.section_number != fresh_section_number
-      changes << "section_number: '#{course.section_number}' -> '#{fresh_section_number}'"
-    end
-
-    if fresh_schedule_type && course.schedule_type != fresh_schedule_type
-      changes << "schedule_type: '#{course.schedule_type}' -> '#{fresh_schedule_type}'"
-    end
-
-    if changes.any?
-      Rails.logger.info "CourseDataSyncJob: Course #{course.crn} changes detected: #{changes.join(', ')}"
-      true
-    else
-      false
-    end
+    [
+      course.title          != fresh_title,
+      course.credit_hours   != fresh_credit_hours,
+      course.grade_mode     != fresh_grade_mode,
+      course.subject        != fresh_subject,
+      course.section_number != fresh_section_number,
+      fresh_schedule_type && course.schedule_type != fresh_schedule_type
+    ].any?
   end
 
-  def meeting_times_changed?(course, fresh_data)
-    # This is a simplified check - in practice, you might want to compare
-    # the full meeting times structure from LeopardWeb
-
-    # For now, we'll assume meeting times come from the course processor
-    # and check if the course has any meeting times without proper location data
+  def meeting_times_need_update?(course)
     course.meeting_times.any? do |mt|
-      mt.room.number.to_i.zero? || mt.building.abbreviation == "TBD"
+      mt.room&.number.to_i.zero? || mt.room&.building&.abbreviation == "TBD"
     end
   end
 
-  def update_course_from_fresh_data(course, fresh_data, term_uid)
-    # Parse and normalize fresh data
-    fresh_title = fresh_data[:title].present? ? titleize_with_roman_numerals(fresh_data[:title].strip) : nil
-    fresh_credit_hours = fresh_data[:credit_hours]
-    fresh_grade_mode = fresh_data[:grade_mode]&.strip
-    fresh_subject = fresh_data[:subject]&.strip
-    fresh_section_number = normalize_section_number(fresh_data[:section_number])
+  def update_course_from_fresh_data(course, fresh_data)
+    attrs = {}
+    attrs[:title]          = titleize_with_roman_numerals(fresh_data[:title].strip) if fresh_data[:title].present?
+    attrs[:credit_hours]   = fresh_data[:credit_hours]   if fresh_data[:credit_hours]
+    attrs[:grade_mode]     = fresh_data[:grade_mode]&.strip if fresh_data[:grade_mode]
+    attrs[:subject]        = fresh_data[:subject]&.strip    if fresh_data[:subject]
+    attrs[:section_number] = normalize_section_number(fresh_data[:section_number]) if fresh_data[:section_number]
 
-    # Extract schedule type
-    fresh_schedule_type = nil
-    if fresh_data[:schedule_type]
-      schedule_match = fresh_data[:schedule_type].to_s.match(/\(([^)]+)\)/)
-      fresh_schedule_type = schedule_match ? schedule_match[1].strip : fresh_data[:schedule_type]&.strip
-    end
+    schedule_type = extract_schedule_type(fresh_data[:schedule_type])
+    attrs[:schedule_type] = schedule_type if schedule_type
 
-    # Build update attributes hash
-    update_attrs = {}
+    attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
+    attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
 
-    update_attrs[:title] = fresh_title if fresh_title
-    update_attrs[:credit_hours] = fresh_credit_hours if fresh_credit_hours
-    update_attrs[:grade_mode] = fresh_grade_mode if fresh_grade_mode
-    update_attrs[:subject] = fresh_subject if fresh_subject
-    update_attrs[:section_number] = fresh_section_number if fresh_section_number
-    update_attrs[:schedule_type] = fresh_schedule_type if fresh_schedule_type
-
-    # Always include seat counts since enrollment changes frequently
-    update_attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
-    update_attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
-
-    # Update course with changed attributes
-    course.update!(update_attrs) if update_attrs.any?
-
-    # Note: For meeting time/location updates, we'd need to implement logic similar to
-    # CourseProcessorService or MeetingTimesIngestService. This would require additional
-    # API calls to get full meeting time data from LeopardWeb, which is more complex
-    # and may be better handled by triggering a full course reprocess for changed courses.
+    course.update!(attrs) if attrs.any?
   end
 
+  def update_enrollment_counts(course, fresh_data)
+    attrs = {}
+    attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
+    attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
+
+    course.update!(attrs) if attrs.any?
+    attrs.any?
+  end
+
+  def extract_schedule_type(raw)
+    return nil if raw.blank?
+
+    match = raw.to_s.match(/\(([^)]+)\)/)
+    match ? match[1].strip : raw.strip
+  end
 end

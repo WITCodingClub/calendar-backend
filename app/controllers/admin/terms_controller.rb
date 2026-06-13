@@ -7,14 +7,11 @@ module Admin
     end
 
     def show
-      # rubocop:disable Rails/DynamicFindBy
-      @term = Term.find_by_public_id!(params[:id])
-      # rubocop:enable Rails/DynamicFindBy
+      @term = Term.find_by_public_id!(params[:id]) # rubocop:disable Rails/DynamicFindBy
       @courses = @term.courses
-                      .includes(:faculties, meeting_times: [:room, :building])
+                      .includes(:faculties, meeting_times: [rooms: :building])
                       .order(:title)
                       .page(params[:page]).per(20)
     end
-
   end
 end

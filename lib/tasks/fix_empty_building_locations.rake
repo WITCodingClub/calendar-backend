@@ -1,24 +1,14 @@
 # frozen_string_literal: true
 
-# One-time cleanup task to fix location display issues caused by TBD/empty building records.
-# This task should be run after deploying the tbd_building? fix to clean up existing data.
-#
-# TBD locations can appear as:
-# - Empty/null building name or abbreviation
-# - Building name containing "to be determined" or "tbd"
-# - Building abbreviation == "TBD"
-# - Room number == 0
-
 namespace :cleanup do
-  # Helper to check if a building is TBD (matches CourseScheduleSyncable#tbd_building?)
   def tbd_building?(building)
     return false unless building
 
     building.name.blank? ||
       building.abbreviation.blank? ||
-      building.name&.downcase&.include?("to be determined") ||
-      building.name&.downcase&.include?("tbd") ||
-      building.abbreviation&.downcase == "tbd"
+      building.name.downcase.include?("to be determined") ||
+      building.name.downcase.include?("tbd") ||
+      building.abbreviation.downcase == "tbd"
   end
 
   def tbd_room?(room)
@@ -27,24 +17,22 @@ namespace :cleanup do
   end
 
   def tbd_location?(mt)
-    tbd_building?(mt.building) || tbd_room?(mt.room)
+    tbd_building?(mt.room&.building) || tbd_room?(mt.room)
   end
 
-  desc "Diagnose TBD building issues - show what would be cleaned up (dry run)"
+  desc "Diagnose TBD building issues (dry run)"
   task diagnose_tbd_duplicates: :environment do
     puts "Diagnosing TBD location duplicates..."
     puts "=" * 60
 
-    # Find all TBD buildings
     tbd_buildings = Building.all.select { |b| tbd_building?(b) }
     puts "\nTBD buildings found: #{tbd_buildings.count}"
     tbd_buildings.each do |b|
-      meeting_time_count = MeetingTime.joins(:room).where(rooms: { building_id: b.id }).count
-      puts "  Building ID #{b.id}: name='#{b.name}' abbr='#{b.abbreviation}' - #{meeting_time_count} meeting times"
+      count = Course::MeetingTime.joins(:room).where(rooms: { building_id: b.id }).count
+      puts "  Building #{b.id}: name='#{b.name}' abbr='#{b.abbreviation}' — #{count} meeting times"
     end
 
-    # Find courses that have both TBD and valid location meeting times
-    puts "\nCourses with both TBD and valid locations (duplicates to clean):"
+    puts "\nCourses with both TBD and valid locations:"
 
     duplicates_found = 0
     Course.includes(meeting_times: { room: :building }).find_each do |course|
@@ -53,33 +41,27 @@ namespace :cleanup do
       grouped.each do |(day, begin_t, end_t), mts|
         next if mts.size <= 1
 
-        tbd_mts = mts.select { |mt| tbd_location?(mt) }
+        tbd_mts   = mts.select { |mt| tbd_location?(mt) }
         valid_mts = mts.reject { |mt| tbd_location?(mt) }
 
         if tbd_mts.any? && valid_mts.any?
           duplicates_found += 1
-          puts "  Course: #{course.crn} - #{course.title}"
+          puts "  Course #{course.crn} - #{course.title}"
           puts "    Day: #{day}, Time: #{begin_t}-#{end_t}"
           puts "    TBD MeetingTimes: #{tbd_mts.map(&:id).join(', ')}"
-          tbd_mts.each do |mt|
-            puts "      -> '#{mt.building&.name}'/#{mt.building&.abbreviation}' Room=#{mt.room&.number}"
-          end
+          tbd_mts.each { |mt| puts "      -> '#{mt.room&.building&.name}' Room=#{mt.room&.number}" }
           puts "    Valid MeetingTimes: #{valid_mts.map(&:id).join(', ')}"
-          valid_mts.each do |mt|
-            puts "      -> #{mt.building.abbreviation} #{mt.room.number}"
-          end
+          valid_mts.each { |mt| puts "      -> #{mt.room&.building&.abbreviation} #{mt.room&.number}" }
         end
       end
     end
 
     puts "\nTotal duplicate groups found: #{duplicates_found}"
-    puts "\n" + "=" * 60
-    puts "Run 'rails cleanup:fix_tbd_duplicates' to remove duplicate TBD MeetingTimes"
+    puts "\nRun 'rails cleanup:fix_tbd_duplicates' to remove duplicate TBD MeetingTimes"
     puts "Then run 'rails cleanup:sync_affected_users' to update their calendars"
   end
 
-  # Keep old task name as alias
-  desc "Diagnose empty building issues (alias for diagnose_tbd_duplicates)"
+  desc "Diagnose empty building issues (alias)"
   task diagnose_empty_buildings: :diagnose_tbd_duplicates
 
   desc "Remove duplicate MeetingTimes where valid location exists alongside TBD version"
@@ -92,19 +74,16 @@ namespace :cleanup do
     Course.includes(meeting_times: { room: :building }).find_each do |course|
       grouped = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
 
-      grouped.each do |(day, begin_t, end_t), mts|
+      grouped.each do |_, mts|
         next if mts.size <= 1
 
-        tbd_mts = mts.select { |mt| tbd_location?(mt) }
+        tbd_mts   = mts.select { |mt| tbd_location?(mt) }
         valid_mts = mts.reject { |mt| tbd_location?(mt) }
 
-        # Only delete TBD MTs if we have a valid one to keep
         if tbd_mts.any? && valid_mts.any?
           tbd_mts.each do |mt|
-            # Count associated calendar events that will be deleted
             events_deleted += mt.google_calendar_events.count
-
-            puts "  Deleting MeetingTime #{mt.id} for course #{course.crn} (TBD location, valid location exists)"
+            puts "  Deleting MeetingTime #{mt.id} for course #{course.crn} (TBD, valid location exists)"
             mt.destroy!
             deleted_count += 1
           end
@@ -113,39 +92,32 @@ namespace :cleanup do
     end
 
     puts "\nDeleted #{deleted_count} duplicate TBD MeetingTimes"
-    puts "Deleted #{events_deleted} associated GoogleCalendarEvents (they'll be recreated on next sync)"
+    puts "Deleted #{events_deleted} associated GoogleCalendarEvents (recreated on next sync)"
     puts "\nRun 'rails cleanup:sync_affected_users' to update affected user calendars"
   end
 
-  # Keep old task name as alias
-  desc "Remove duplicate MeetingTimes (alias for fix_tbd_duplicates)"
+  desc "Remove duplicate MeetingTimes (alias)"
   task fix_empty_building_duplicates: :fix_tbd_duplicates
 
-  desc "Trigger calendar sync for all users (will apply fixed TBD detection)"
+  desc "Trigger calendar sync for all users with Google Calendars"
   task sync_affected_users: :environment do
     puts "Queueing calendar syncs for all users with Google Calendars..."
 
-    users = User.joins(:google_calendars).distinct
     count = 0
-
-    users.find_each do |user|
+    User.joins(:google_calendars).distinct.find_each do |user|
       GoogleCalendarSyncJob.perform_later(user, force: true)
       count += 1
       print "." if count % 10 == 0
     end
 
     puts "\nQueued #{count} calendar syncs"
-    puts "Monitor job queue to see progress"
   end
 
   desc "Run CleanupDuplicateTbdEventsJob to remove TBD duplicates from Google Calendars"
   task cleanup_tbd_calendar_events: :environment do
     puts "Running CleanupDuplicateTbdEventsJob for all users..."
-    puts "This will now correctly detect empty-building events as TBD and remove duplicates."
-
     CleanupDuplicateTbdEventsJob.perform_now
-
-    puts "Done. Check logs for details on deleted events."
+    puts "Done. Check logs for details."
   end
 
   desc "Full cleanup: diagnose, fix duplicates, and sync (interactive)"
@@ -153,6 +125,7 @@ namespace :cleanup do
     puts "=" * 60
     puts "FULL EMPTY BUILDING CLEANUP"
     puts "=" * 60
+
     puts "\nStep 1: Diagnosing issues..."
     Rake::Task["cleanup:diagnose_empty_buildings"].invoke
 

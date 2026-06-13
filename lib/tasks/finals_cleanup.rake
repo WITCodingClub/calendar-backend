@@ -1,16 +1,12 @@
 # frozen_string_literal: true
 
 namespace :finals do
-  # Terms whose data should never be touched by this task.
   KEEP_TERMS = [
     { season: :summer, year: 2025 },
-    { season: :fall,   year: 2025 },
+    { season: :fall,   year: 2025 }
   ].freeze
 
-  desc <<~DESC
-    Delete all FinalExam and FinalsSchedule records except Summer 2025 and Fall 2025.
-    Pass DRY_RUN=1 to preview without deleting.
-  DESC
+  desc "Delete all FinalExam and FinalsSchedule records except Summer 2025 and Fall 2025. Pass DRY_RUN=1 to preview."
   task reset: :environment do
     dry_run = ENV["DRY_RUN"].present?
     puts dry_run ? "DRY RUN — no changes will be made." : "Deleting finals data..."
@@ -21,15 +17,15 @@ namespace :finals do
       if term
         puts "  Keeping: #{term.season.capitalize} #{term.year} (id=#{term.id})"
       else
-        puts "  Warning: #{t[:season].to_s.capitalize} #{t[:year]} not found in DB — nothing to protect"
+        puts "  Warning: #{t[:season].to_s.capitalize} #{t[:year]} not found — nothing to protect"
       end
       term
     end
     puts
 
-    all_terms          = Term.all
-    terms_to_wipe      = all_terms.reject { |t| protected_terms.map(&:id).include?(t.id) }
-    terms_with_data    = terms_to_wipe.select do |t|
+    protected_ids  = protected_terms.map(&:id)
+    terms_to_wipe  = Term.all.reject { |t| protected_ids.include?(t.id) }
+    terms_with_data = terms_to_wipe.select do |t|
       FinalExam.where(term: t).exists? || FinalsSchedule.where(term: t).exists?
     end
 

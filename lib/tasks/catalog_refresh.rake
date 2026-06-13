@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 namespace :catalog do
-  desc "Refreshes the course catalog for a given term from LeopardWeb, preserving user enrollments."
+  desc "Refresh the course catalog for a given term from LeopardWeb, preserving user enrollments."
   task :refresh, [:term_uid] => :environment do |_, args|
     term_uid = args[:term_uid]
     raise "Usage: rake catalog:refresh[term_uid]" unless term_uid
@@ -13,35 +13,31 @@ namespace :catalog do
     puts "WARNING: This will delete all existing courses for this term and re-import them."
     puts "User enrollments will be backed up and restored."
     puts "Press CTRL-C to cancel."
-    5.downto(1) do |i|
-      print "Continuing in #{i}..."
-      sleep 1
-      print "\r"
-    end
+    5.downto(1) { |i| print "Continuing in #{i}...\r"; sleep 1 }
 
-    # == Step 1: Backup enrollments for the term ==
+    # Step 1: Backup enrollments
     puts "\n\nStep 1: Backing up enrollments for term #{term.name}..."
-    backup_count = 0
-    error_count = 0
-    snapshot_reason = "Catalog refresh for term #{term.name} on #{Time.current.to_date}"
-    enrollments_to_backup = Enrollment.includes(:user, :course, course: [:term, :faculties]).where(term_id: term.id)
+    backup_count     = 0
+    error_count      = 0
+    snapshot_reason  = "Catalog refresh for term #{term.name} on #{Time.current.to_date}"
+    enrollments      = Enrollment.includes(:user, :course, course: [:term, :faculties]).where(term_id: term.id)
 
-    enrollments_to_backup.find_each do |enrollment|
+    enrollments.find_each do |enrollment|
       begin
         course = enrollment.course
-        next unless course # Skip if enrollment is already orphaned
+        next unless course
 
         EnrollmentSnapshot.create!(
-          user_id: enrollment.user_id,
-          term_id: enrollment.term_id,
-          crn: course.crn,
-          subject: course.subject,
+          user_id:       enrollment.user_id,
+          term_id:       enrollment.term_id,
+          crn:           course.crn,
+          subject:       course.subject,
           course_number: course.course_number,
-          title: course.title,
+          title:         course.title,
           section_number: course.section_number,
           schedule_type: course.schedule_type,
-          credit_hours: course.credit_hours,
-          faculty_data: course.faculties.map { |f| { first_name: f.first_name, last_name: f.last_name, email: f.email } },
+          credit_hours:  course.credit_hours,
+          faculty_data:  course.faculties.map { |f| { first_name: f.first_name, last_name: f.last_name, email: f.email } },
           snapshot_reason: snapshot_reason
         )
         backup_count += 1
@@ -52,41 +48,40 @@ namespace :catalog do
     end
     puts "Backed up #{backup_count} enrollments with #{error_count} errors."
 
-    # == Step 2: Delete course data for the term ==
+    # Step 2: Delete course data
     puts "\nStep 2: Deleting course data for term #{term.name}..."
-    courses_for_term = Course.where(term: term)
+    courses_for_term   = Course.where(term: term)
     course_ids_for_term = courses_for_term.pluck(:id)
 
     puts "Orphaning Google Calendar events..."
-    meeting_time_ids = MeetingTime.where(course_id: course_ids_for_term).pluck(:id)
+    meeting_time_ids = Course::MeetingTime.where(course_id: course_ids_for_term).pluck(:id)
     GoogleCalendarEvent.where(meeting_time_id: meeting_time_ids).update_all(meeting_time_id: nil)
 
     puts "Deleting meeting times..."
-    MeetingTime.where(course_id: course_ids_for_term).delete_all
+    Course::MeetingTime.where(course_id: course_ids_for_term).delete_all
 
     puts "Deleting enrollments..."
     Enrollment.where(term_id: term.id).delete_all
 
     puts "Deleting course-faculty associations..."
-    # Use destroy_all to trigger callbacks if any, or just clear associations
     courses_for_term.each { |c| c.faculties.clear }
 
     puts "Deleting courses..."
     delete_count = courses_for_term.delete_all
     puts "Deleted #{delete_count} courses."
 
-    # == Step 3: Re-import the catalog for the term ==
+    # Step 3: Re-import
     puts "\nStep 3: Importing fresh catalog data from LeopardWeb..."
     CatalogImportJob.perform_now(term_uid)
 
-    # == Step 4: Restore enrollments for the term ==
+    # Step 4: Restore enrollments
     puts "\nStep 4: Restoring enrollments for term #{term.name}..."
-    restored_count = 0
+    restored_count      = 0
     restore_error_count = 0
-    not_found_count = 0
-    snapshots_to_restore = EnrollmentSnapshot.where(term_id: term.id, snapshot_reason: snapshot_reason)
+    not_found_count     = 0
+    snapshots           = EnrollmentSnapshot.where(term_id: term.id, snapshot_reason: snapshot_reason)
 
-    snapshots_to_restore.includes(:user, :term).find_each do |snapshot|
+    snapshots.includes(:user, :term).find_each do |snapshot|
       begin
         course = Course.find_by(crn: snapshot.crn, term_id: snapshot.term_id)
         if course
@@ -102,49 +97,41 @@ namespace :catalog do
     end
     puts "Restored #{restored_count} enrollments. #{not_found_count} courses not found. #{restore_error_count} errors."
 
-    # == Step 5: Clean up snapshots for the term ==
+    # Step 5: Clean up snapshots
     puts "\nStep 5: Cleaning up backup snapshots..."
-    snapshot_delete_count = snapshots_to_restore.delete_all
-    puts "Deleted #{snapshot_delete_count} snapshots."
+    puts "Deleted #{snapshots.delete_all} snapshots."
 
-    # == Step 6: Mark users with enrollments in this term as needing calendar sync ==
+    # Step 6: Mark users for calendar sync
     puts "\nStep 6: Marking users for calendar sync..."
-    users_with_enrollments = User.joins(:enrollments).where(enrollments: { term_id: term.id }).distinct
-    sync_count = users_with_enrollments.update_all(calendar_needs_sync: true)
+    sync_count = User.joins(:enrollments).where(enrollments: { term_id: term.id }).distinct.update_all(calendar_needs_sync: true)
     puts "Marked #{sync_count} users for calendar sync."
 
-    # == Step 7: Clean up orphaned calendar events ==
+    # Step 7: Clean up orphaned calendar events
     puts "\nStep 7: Cleaning up orphaned calendar events..."
-    cleanup_result = CleanupOrphanedCalendarEventsJob.perform_now
-    puts "Cleaned up #{cleanup_result[:deleted]} orphaned events (#{cleanup_result[:errors]} errors)."
+    result = CleanupOrphanedCalendarEventsJob.perform_now
+    puts "Cleaned up #{result[:deleted]} orphaned events (#{result[:errors]} errors)."
 
     puts "\nCatalog refresh completed for term #{term.name}."
   end
 
-  desc "Refreshes the course catalog for ALL terms from LeopardWeb."
-  task :refresh_all => :environment do
+  desc "Refresh the course catalog for ALL terms from LeopardWeb."
+  task refresh_all: :environment do
     puts "Starting catalog refresh for ALL terms..."
 
-    terms_to_refresh = Term.all
-
-    if terms_to_refresh.empty?
+    terms = Term.all
+    if terms.empty?
       puts "No terms found in the database. Nothing to refresh."
       next
     end
 
-    puts "Found #{terms_to_refresh.count} terms to refresh: #{terms_to_refresh.map(&:name).join(', ')}"
-    puts "This will take a long time."
+    puts "Found #{terms.count} terms to refresh: #{terms.map(&:name).join(', ')}"
     puts "Press CTRL-C to cancel."
-    5.downto(1) do |i|
-      print "Continuing in #{i}..."
-      sleep 1
-      print "\r"
-    end
+    5.downto(1) { |i| print "Continuing in #{i}...\r"; sleep 1 }
 
-    terms_to_refresh.each do |term|
-      puts "\n" + "="*80
+    terms.each do |term|
+      puts "\n" + "=" * 80
       puts "Refreshing term: #{term.name} (#{term.uid})"
-      puts "="*80
+      puts "=" * 80
 
       begin
         Rake::Task["catalog:refresh"].invoke(term.uid.to_s)
@@ -155,7 +142,7 @@ namespace :catalog do
       end
     end
 
-    puts "\n" + "="*80
+    puts "\n" + "=" * 80
     puts "Completed refresh for all terms."
   end
 
@@ -167,15 +154,15 @@ namespace :catalog do
     term = Term.find_by(uid: term_uid)
     raise "Term with UID #{term_uid} not found." unless term
 
-    users_with_enrollments = User.joins(:enrollments)
-                                 .where(enrollments: { term_id: term.id })
-                                 .joins(:oauth_credentials)
-                                 .where.not(oauth_credentials: { id: nil })
-                                 .distinct
+    users = User.joins(:enrollments)
+                .where(enrollments: { term_id: term.id })
+                .joins(:oauth_credentials)
+                .where.not(oauth_credentials: { id: nil })
+                .distinct
 
-    puts "Queueing calendar syncs for #{users_with_enrollments.count} users in term #{term.name}..."
+    puts "Queueing calendar syncs for #{users.count} users in term #{term.name}..."
 
-    users_with_enrollments.find_each do |user|
+    users.find_each do |user|
       GoogleCalendarSyncJob.perform_later(user)
       puts "  Queued sync for user #{user.id} (#{user.email})"
     end

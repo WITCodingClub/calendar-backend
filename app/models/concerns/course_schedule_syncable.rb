@@ -3,7 +3,7 @@
 module CourseScheduleSyncable
   extend ActiveSupport::Concern
 
-  def sync_course_schedule(force: false)
+  def sync_course_schedule(force: false, backfill_historical: force)
     service = GoogleCalendarService.new(self)
 
     # Build events from enrollments - each course can have multiple meeting times
@@ -16,7 +16,7 @@ module CourseScheduleSyncable
     # to avoid N+1 queries in holidays_for_meeting_time (one query per unique date range)
     preload_holidays_for_user!
 
-    enrollments.includes(course: [meeting_times: [:room, :building]]).find_each do |enrollment|
+    enrollments.includes(course: [meeting_times: [rooms: :building]]).find_each do |enrollment|
       course = enrollment.course
 
       # Filter meeting times to prefer valid locations over TBD duplicates
@@ -41,13 +41,14 @@ module CourseScheduleSyncable
         next unless start_time && end_time
 
         # Build location string - handle TBD locations gracefully
-        location = if meeting_time.room && meeting_time.building &&
-                      !tbd_location?(meeting_time.building, meeting_time.room)
-                     # Valid room and building
-                     "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
-                     # Valid room, no building or invalid building
-                     meeting_time.room.formatted_number
+        non_tbd_rooms = meeting_time.rooms.reject { |r| tbd_room?(r) }
+        location = if non_tbd_rooms.any? && meeting_time.building &&
+                      !tbd_building?(meeting_time.building)
+                     # Valid rooms and building
+                     "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
+                   elsif non_tbd_rooms.any?
+                     # Valid rooms, no building or invalid building
+                     non_tbd_rooms.map(&:formatted_number).join(" / ")
                    elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
                      # TBD location - show "TBD" instead of ugly "To Be Determined 000"
                      "TBD"
@@ -78,12 +79,12 @@ module CourseScheduleSyncable
       end
     end
 
-    # Add final exams for enrolled courses
-    finals = build_finals_events_for_sync
+    # Add final exams and university events — future/current only so the fast
+    # path completes quickly. Past events are deferred to GoogleCalendarHistoricalSyncJob.
+    finals = build_finals_events_for_sync(time_scope: :future)
     events.concat(finals)
 
-    # Add university calendar events (holidays and other categories based on user preferences)
-    university_events = build_university_events_for_sync
+    university_events = build_university_events_for_sync(time_scope: :future)
     events.concat(university_events)
 
     result = service.update_calendar_events(events, force: force)
@@ -98,6 +99,9 @@ module CourseScheduleSyncable
       # rubocop:enable Rails/SkipsModelValidations
     end
 
+    # Backfill past events on force/nightly syncs (not routine quick_syncs).
+    GoogleCalendarHistoricalSyncJob.perform_later(self, force: force) if backfill_historical && result
+
     result
   end
 
@@ -106,7 +110,7 @@ module CourseScheduleSyncable
     service = GoogleCalendarService.new(self)
     events = []
 
-    enrollments.where(id: enrollment_ids).includes(course: [meeting_times: [:room, :building]]).find_each do |enrollment|
+    enrollments.where(id: enrollment_ids).includes(course: [meeting_times: [rooms: :building]]).find_each do |enrollment|
       course = enrollment.course
 
       course.meeting_times.each do |meeting_time|
@@ -120,13 +124,14 @@ module CourseScheduleSyncable
         next unless start_time && end_time
 
         # Build location string - handle TBD locations gracefully
-        location = if meeting_time.room && meeting_time.building &&
-                      !tbd_location?(meeting_time.building, meeting_time.room)
-                     # Valid room and building
-                     "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
-                     # Valid room, no building or invalid building
-                     meeting_time.room.formatted_number
+        non_tbd_rooms = meeting_time.rooms.reject { |r| tbd_room?(r) }
+        location = if non_tbd_rooms.any? && meeting_time.building &&
+                      !tbd_building?(meeting_time.building)
+                     # Valid rooms and building
+                     "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
+                   elsif non_tbd_rooms.any?
+                     # Valid rooms, no building or invalid building
+                     non_tbd_rooms.map(&:formatted_number).join(" / ")
                    elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
                      # TBD location - show "TBD" instead of ugly "To Be Determined 000"
                      "TBD"
@@ -172,7 +177,7 @@ module CourseScheduleSyncable
   # Sync a single meeting time immediately (for preference changes)
   def sync_meeting_time(meeting_time_id, force: true)
     service = GoogleCalendarService.new(self)
-    meeting_time = MeetingTime.includes(course: [:faculties], room: :building).find_by(id: meeting_time_id)
+    meeting_time = Course::MeetingTime.includes(course: [:faculties], rooms: :building).find_by(id: meeting_time_id)
     return unless meeting_time
     return if meeting_time.day_of_week.blank?
 
@@ -184,13 +189,14 @@ module CourseScheduleSyncable
     return unless start_time && end_time
 
     # Build location string - handle TBD locations gracefully
-    location = if meeting_time.room && meeting_time.building &&
-                  !tbd_location?(meeting_time.building, meeting_time.room)
-                 # Valid room and building
-                 "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-               elsif meeting_time.room && !tbd_room?(meeting_time.room)
-                 # Valid room, no building or invalid building
-                 meeting_time.room.formatted_number
+    non_tbd_rooms = meeting_time.rooms.reject { |r| tbd_room?(r) }
+    location = if non_tbd_rooms.any? && meeting_time.building &&
+                  !tbd_building?(meeting_time.building)
+                 # Valid rooms and building
+                 "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
+               elsif non_tbd_rooms.any?
+                 # Valid rooms, no building or invalid building
+                 non_tbd_rooms.map(&:formatted_number).join(" / ")
                elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
                  # TBD location - show "TBD" instead of ugly "To Be Determined 000"
                  "TBD"
@@ -242,7 +248,7 @@ module CourseScheduleSyncable
 
     # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
     # The enum value is already stored as the integer wday value
-    target_wday = MeetingTime.day_of_weeks[meeting_time.day_of_week]
+    target_wday = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
 
     # Start from the meeting start_date
     current_date = meeting_time.start_date.to_date
@@ -370,7 +376,7 @@ module CourseScheduleSyncable
     return [] unless defined?(UniversityCalendarEvent)
 
     # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
-    target_wday = MeetingTime.day_of_weeks[meeting_time.day_of_week]
+    target_wday = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
     return [] if target_wday.nil?
 
     # Get all holidays during the course date range
@@ -439,7 +445,7 @@ module CourseScheduleSyncable
 
     # Collect start/end dates from all enrolled meeting times without re-querying later
     dates = enrollments.joins(course: :meeting_times)
-                       .pluck("meeting_times.start_date", "meeting_times.end_date")
+                       .pluck("course_meeting_times.start_date", "course_meeting_times.end_date")
     min_start = dates.map(&:first).compact.min
     max_end   = dates.map(&:last).compact.max
 
@@ -469,13 +475,14 @@ module CourseScheduleSyncable
     "EXDATE;TZID=#{timezone}:#{formatted_time}"
   end
 
-  # Build university calendar events for sync (holidays always, others based on preferences)
-  def build_university_events_for_sync
+  # Build university calendar events for sync.
+  # time_scope: :future (default) — upcoming/current events only (fast path)
+  #             :past             — events whose end_time is past (historical backfill)
+  #             :all              — no date filter
+  def build_university_events_for_sync(time_scope: :future)
     events = []
 
-    # Always include holidays (auto-sync for all users) - include all, not just upcoming,
-    # to match ICS feed behavior and ensure past events are retroactively synced to GCal.
-    UniversityCalendarEvent.holidays.find_each do |event|
+    UniversityCalendarEvent.holidays.merge(university_event_scope(time_scope)).find_each do |event|
       events << {
         summary: event.formatted_holiday_summary,
         description: event.description,
@@ -488,12 +495,11 @@ module CourseScheduleSyncable
       }
     end
 
-    # Include other categories only if user opted in
     user_config = user_extension_config
     if user_config&.sync_university_events
       categories = (user_config.university_event_categories || []) - ["holiday"]
       unless categories.empty?
-        UniversityCalendarEvent.by_categories(categories).find_each do |event|
+        UniversityCalendarEvent.by_categories(categories).merge(university_event_scope(time_scope)).find_each do |event|
           events << {
             summary: event.summary,
             description: event.description,
@@ -511,17 +517,18 @@ module CourseScheduleSyncable
     events
   end
 
-  # Build events for final exams of enrolled courses
-  # Only includes upcoming finals (today or future) - use sync_finals_for_term rake task for historical
-  def build_finals_events_for_sync
+  # Build events for final exams of enrolled courses.
+  # time_scope: :future (default) — exams today or later (fast path)
+  #             :past             — exams before today (historical backfill)
+  #             :all              — no date filter
+  def build_finals_events_for_sync(time_scope: :future)
     finals = []
 
     enrolled_course_ids = enrollments.pluck(:course_id)
     return finals if enrolled_course_ids.empty?
 
-    # Only include finals that haven't happened yet (or are today)
     ::FinalExam.where(course_id: enrolled_course_ids)
-               .where(exam_date: Time.zone.today..)
+               .merge(final_exam_scope(time_scope))
                .includes(course: :faculties)
                .find_each do |final_exam|
                  next unless final_exam.start_datetime && final_exam.end_datetime
@@ -534,11 +541,22 @@ module CourseScheduleSyncable
                    end_time: final_exam.end_datetime,
                    course_code: final_exam.course_code,
                    final_exam_id: final_exam.id,
-                   recurrence: nil # Finals don't recur
+                   recurrence: nil
                  }
     end
 
     finals
+  end
+
+  # Backfill past finals and university events — called by GoogleCalendarHistoricalSyncJob.
+  # Uses update_specific_events (upsert only, no deletions) since past events are stable.
+  def sync_historical_events(force: false)
+    service = GoogleCalendarService.new(self)
+    events  = build_finals_events_for_sync(time_scope: :past)
+    events.concat(build_university_events_for_sync(time_scope: :past))
+    return if events.empty?
+
+    service.update_specific_events(events, force: force)
   end
 
   # Sync a single final exam immediately (for preference changes)
@@ -605,6 +623,22 @@ module CourseScheduleSyncable
       building.name&.downcase&.include?("to be determined") ||
       building.name&.downcase&.include?("tbd") ||
       building.abbreviation&.downcase == "tbd"
+  end
+
+  def final_exam_scope(time_scope)
+    case time_scope
+    when :future then FinalExam.where(exam_date: Time.zone.today..)
+    when :past   then FinalExam.where(exam_date: ...Time.zone.today)
+    else              FinalExam.all
+    end
+  end
+
+  def university_event_scope(time_scope)
+    case time_scope
+    when :future then UniversityCalendarEvent.where("end_time IS NULL OR end_time >= ?", Time.current)
+    when :past   then UniversityCalendarEvent.where("end_time < ?", Time.current)
+    else              UniversityCalendarEvent.all
+    end
   end
 
   # Check if room is TBD/placeholder (room 0 or room name contains TBD)

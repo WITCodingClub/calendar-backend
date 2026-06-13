@@ -3,7 +3,6 @@
 # == Schema Information
 #
 # Table name: calendar_preferences
-# Database name: primary
 #
 #  id                   :bigint           not null, primary key
 #  description_template :text
@@ -20,6 +19,7 @@
 #
 # Indexes
 #
+#  index_calendar_preferences_on_user_id    (user_id)
 #  index_calendar_prefs_on_user_scope_type  (user_id,scope,event_type) UNIQUE
 #
 # Foreign Keys
@@ -34,17 +34,10 @@ class CalendarPreference < ApplicationRecord
 
   belongs_to :user
 
-  # Enums
-  enum :scope, {
-    global: 0,
-    event_type: 1,
-    uni_cal_category: 2
-  }, prefix: true
+  UNI_CAL_CATEGORIES = UniversityCalendarEvent::CATEGORIES
 
-  # Valid university calendar categories (must match UniversityCalendarEvent::CATEGORIES)
-  UNI_CAL_CATEGORIES = %w[holiday term_dates registration deadline finals graduation academic campus_event meeting exhibit announcement other].freeze
+  enum :scope, { global: 0, event_type: 1, uni_cal_category: 2 }, prefix: true
 
-  # Validations
   validates :scope, presence: true
   validates :event_type, presence: true, if: -> { scope_event_type? || scope_uni_cal_category? }
   validates :event_type, absence: true, if: :scope_global?
@@ -56,54 +49,30 @@ class CalendarPreference < ApplicationRecord
   validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
   validate :validate_template_syntax
 
-  # Trigger calendar sync when preferences change that affect event appearance
   after_update :sync_calendar_if_preferences_changed
 
-  # Scopes
-  scope :for_event_type, ->(type) { where(scope: :event_type, event_type: type) }
-  scope :for_uni_cal_category, ->(category) { where(scope: :uni_cal_category, event_type: category) }
-  scope :global_scope, -> { where(scope: :global) }
-  scope :uni_cal_categories_scope, -> { where(scope: :uni_cal_category) }
+  scope :for_event_type,       ->(type) { where(scope: :event_type, event_type: type) }
+  scope :for_uni_cal_category, ->(cat) { where(scope: :uni_cal_category, event_type: cat) }
+  scope :global_scope,         -> { where(scope: :global) }
 
   private
 
   def validate_template_syntax
-    if title_template.present?
-      begin
-        CalendarTemplateRenderer.validate_template(title_template)
-      rescue CalendarTemplateRenderer::InvalidTemplateError => e
-        errors.add(:title_template, "invalid syntax: #{e.message}")
-      end
-    end
+    [ :title_template, :description_template, :location_template ].each do |field|
+      value = send(field)
+      next if value.blank?
 
-    if description_template.present?
-      begin
-        CalendarTemplateRenderer.validate_template(description_template)
-      rescue CalendarTemplateRenderer::InvalidTemplateError => e
-        errors.add(:description_template, "invalid syntax: #{e.message}")
-      end
-    end
-
-    return if location_template.blank?
-
-    begin
-      CalendarTemplateRenderer.validate_template(location_template)
+      CalendarTemplateRenderer.validate_template(value)
     rescue CalendarTemplateRenderer::InvalidTemplateError => e
-      errors.add(:location_template, "invalid syntax: #{e.message}")
+      errors.add(field, "invalid syntax: #{e.message}")
     end
   end
 
   def sync_calendar_if_preferences_changed
-    # Trigger forced sync if any template or display preferences changed
-    if saved_change_to_title_template? ||
-       saved_change_to_description_template? ||
-       saved_change_to_location_template? ||
-       saved_change_to_color_id? ||
-       saved_change_to_visibility? ||
-       saved_change_to_reminder_settings?
-      # Force sync to update all existing events with new preferences
-      GoogleCalendarSyncJob.perform_later(user, force: true)
-    end
-  end
+    return unless saved_change_to_title_template? || saved_change_to_description_template? ||
+                  saved_change_to_location_template? || saved_change_to_color_id? ||
+                  saved_change_to_visibility? || saved_change_to_reminder_settings?
 
+    GoogleCalendarSyncJob.perform_later(user, force: true)
+  end
 end

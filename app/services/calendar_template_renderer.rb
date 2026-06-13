@@ -3,7 +3,6 @@
 class CalendarTemplateRenderer
   class InvalidTemplateError < StandardError; end
 
-  # Whitelist of allowed variables in templates
   ALLOWED_VARIABLES = %w[
     title course_code subject course_number section_number crn
     room building location
@@ -20,11 +19,8 @@ class CalendarTemplateRenderer
 
     begin
       parsed = Liquid::Template.parse(template_string)
-
-      # Check for disallowed tags or filters
       check_for_disallowed_tags(parsed)
 
-      # Extract variables and check they're whitelisted
       variables = extract_variables(parsed)
       disallowed = variables - ALLOWED_VARIABLES
       if disallowed.any?
@@ -40,25 +36,22 @@ class CalendarTemplateRenderer
   def render(template_string, context)
     return "" if template_string.blank?
 
-    # Validate before rendering
     self.class.validate_template(template_string)
 
-    # Filter context to only allowed variables
     filtered_context = context.slice(*ALLOWED_VARIABLES.map(&:to_sym))
                               .transform_keys(&:to_s)
 
-    # Parse and render
     template = Liquid::Template.parse(template_string)
     template.render(filtered_context)
   rescue Liquid::Error, InvalidTemplateError => e
     Rails.logger.error("Liquid template rendering error: #{e.message}")
-    # Return a safe fallback
     context[:title] || "Event"
   end
 
   def self.build_context_from_meeting_time(meeting_time)
     course = meeting_time.course
-    room = meeting_time.room
+    rooms = meeting_time.rooms.to_a
+    room = rooms.first
     building = room&.building
 
     {
@@ -68,9 +61,9 @@ class CalendarTemplateRenderer
       course_number: course.course_number,
       section_number: course.section_number,
       crn: course.crn,
-      room: room&.formatted_number || room&.name || "",
+      room: rooms.map { |r| r.formatted_number || r.name }.compact.join(" / "),
       building: building&.name || "",
-      location: build_location_string(building, room),
+      location: build_location_string(building, rooms),
       faculty: primary_faculty_name(course),
       faculty_email: primary_faculty_email(course),
       all_faculty: all_faculty_names(course),
@@ -94,7 +87,6 @@ class CalendarTemplateRenderer
   def self.build_context_from_final_exam(final_exam)
     course = final_exam.course
 
-    # Handle orphan finals (no course linked yet)
     if course.nil?
       return {
         title: "CRN #{final_exam.crn}",
@@ -158,24 +150,19 @@ class CalendarTemplateRenderer
 
   def self.build_context_from_university_calendar_event(event)
     {
-      # Primary fields for university events
       summary: event.summary || "",
-      title: event.summary || "", # Alias for consistency with course events
+      title: event.summary || "",
       description: event.description || "",
       location: event.location || "",
       category: event.category || "",
       organization: event.organization || "",
-      academic_term: event.term&.name || event.academic_term || "", # Prefer DB term over raw ICS field
-      term: event.term&.name || event.academic_term || "", # Prefer DB term over raw ICS field
+      academic_term: event.term&.name || event.academic_term || "",
+      term: event.term&.name || event.academic_term || "",
       event_type: "university_calendar",
-
-      # Time fields
       start_time: format_datetime(event.start_time),
       end_time: format_datetime(event.end_time),
       day: event.start_time&.strftime("%A") || "",
       day_abbr: event.start_time&.strftime("%a") || "",
-
-      # Empty course-related fields (for template compatibility)
       course_code: "",
       subject: "",
       course_number: "",
@@ -230,10 +217,7 @@ class CalendarTemplateRenderer
       datetime.strftime("%-I:%M %p")
     end
 
-    def check_for_disallowed_tags(parsed_template)
-      # Liquid's default tags (if, case, for, etc.) are allowed
-      # We need to ensure no custom tags that could be dangerous
-      # For now, we'll allow all standard Liquid tags since they're safe
+    def check_for_disallowed_tags(_parsed_template)
       true
     end
 
@@ -246,7 +230,6 @@ class CalendarTemplateRenderer
     def extract_variables_from_node(node, variables)
       case node
       when Liquid::Variable
-        # Extract variable name from the node
         if node.name.is_a?(Liquid::VariableLookup)
           variables << node.name.name
         elsif node.name.is_a?(String)
@@ -255,19 +238,20 @@ class CalendarTemplateRenderer
       when Liquid::Block, Liquid::Document
         node.nodelist.each { |child| extract_variables_from_node(child, variables) }
       when Liquid::Tag
-        # Some tags have internal variables
         if node.respond_to?(:nodelist)
           node.nodelist.each { |child| extract_variables_from_node(child, variables) }
         end
       end
     end
 
-    def build_location_string(building, room)
-      return "" if building.nil? && room.nil?
-      return room.formatted_number || room.name if building.nil?
-      return building.name if room.nil?
+    def build_location_string(building, rooms)
+      rooms = Array(rooms).compact
+      room_display = rooms.map { |r| r.formatted_number || r.name }.compact.join(" / ")
+      return "" if building.nil? && room_display.empty?
+      return room_display if building.nil?
+      return building.name if room_display.empty?
 
-      "#{building.name} - #{room.formatted_number || room.name}"
+      "#{building.name} - #{room_display}"
     end
 
     def primary_faculty_name(course)
@@ -293,7 +277,5 @@ class CalendarTemplateRenderer
     rescue
       ""
     end
-
   end
-
 end

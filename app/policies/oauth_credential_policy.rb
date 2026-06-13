@@ -1,50 +1,17 @@
 # frozen_string_literal: true
 
 class OauthCredentialPolicy < ApplicationPolicy
-  # Admins can list OAuth credentials for support
-  def index?
-    admin?
-  end
-
-  # Users can view their own credentials, admins+ can view all for support
-  def show?
-    owner_of_record? || admin?
-  end
-
-  # Users can create their own credentials, super_admins+ can create for others
-  def create?
-    owner_of_record? || super_admin?
-  end
-
-  # Users can update their own credentials, super_admins+ can update others
-  def update?
-    owner_of_record? || super_admin?
-  end
-
-  # Users can delete their own credentials, but super_admins cannot delete owners' credentials
-  def destroy?
-    owner_of_record? || can_perform_destructive_action?
-  end
-
-  # Super_admins+ can refresh OAuth credentials
-  def refresh?
-    super_admin?
-  end
-
-  # Super_admins+ can revoke OAuth credentials
-  def revoke?
-    super_admin?
-  end
+  def index?   = admin?
+  def show?    = owner_of_record? || admin?
+  def create?  = owner_of_record? || super_admin?
+  def update?  = owner_of_record? || super_admin?
+  def destroy? = owner_of_record? || can_perform_destructive_action?
+  def refresh? = super_admin?
+  def revoke?  = super_admin?
 
   class Scope < ApplicationPolicy::Scope
     def resolve
-      if user&.admin_access?
-        scope.all
-      else
-        scope.where(user_id: user&.id)
-      end
+      user&.admin_access? ? scope.all : scope.where(user_id: user&.id)
     end
-
   end
-
 end

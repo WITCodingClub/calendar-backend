@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# Service to build processed events data for a user's schedule.
-# Used by both UsersController and FriendsController to avoid duplication.
 class ProcessedEventsBuilder
   include ApplicationHelper
 
@@ -13,7 +11,6 @@ class ProcessedEventsBuilder
   end
 
   def build
-    # Preload user's calendar preferences to avoid N+1 queries
     @user.calendar_preferences.load
     @user.event_preferences.load
 
@@ -22,7 +19,7 @@ class ProcessedEventsBuilder
                   .where(term_id: @term.id)
                   .includes(course: [
                               :faculties,
-                              { meeting_times: [:event_preference, { room: :building }, { course: [:faculties, :term] }] }
+                              { meeting_times: [:event_preference, { rooms: :building }, { course: [:faculties, :term] }] }
                             ])
 
     structured_data = enrollments.map do |enrollment|
@@ -41,7 +38,6 @@ class ProcessedEventsBuilder
     course = enrollment.course
     faculty = course.faculties.first
 
-    # Filter meeting times to prefer valid locations over TBD duplicates
     filtered_meeting_times = filter_meeting_times(course.meeting_times)
 
     {
@@ -75,14 +71,14 @@ class ProcessedEventsBuilder
   def filter_meeting_times(meeting_times)
     meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
                  .map do |_key, group|
-                   # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
                    non_tbd = group.reject { |mt| tbd_location?(mt) }
                    non_tbd.any? ? non_tbd.first : group.first
                  end
   end
 
   def tbd_location?(meeting_time)
-    LocationHelper.tbd_location?(meeting_time.room&.building, meeting_time.room)
+    LocationHelper.tbd_building?(meeting_time.building) ||
+      meeting_time.rooms.all? { |r| LocationHelper.tbd_room?(r) }
   end
 
   def build_meeting_times_data(meeting_times)
@@ -133,7 +129,7 @@ class ProcessedEventsBuilder
   end
 
   def build_location_data(meeting_time)
-    building = meeting_time.room&.building
+    building = meeting_time.building
     {
       building: if building
                   {
@@ -144,7 +140,7 @@ class ProcessedEventsBuilder
                 else
                   nil
                 end,
-      room: meeting_time.room&.formatted_number
+      rooms: meeting_time.rooms.map(&:formatted_number)
     }
   end
 
@@ -161,5 +157,4 @@ class ProcessedEventsBuilder
 
     @template_renderer.render(preferences[:description_template], context)
   end
-
 end

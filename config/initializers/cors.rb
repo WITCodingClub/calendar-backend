@@ -1,19 +1,13 @@
 # frozen_string_literal: true
 
-# config/initializers/cors.rb
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    # Allow localhost and ngrok for development/testing
-    # For production, set CORS_ORIGINS environment variable to your frontend URL
     origins_list = [
       "http://localhost:3001",
       "https://localhost:3001",
-      /\Ahttps?:\/\/localhost:\d+\z/ # Allow any localhost port
+      /\Ahttps?:\/\/localhost:\d+\z/
     ]
-    if Rails.env.development?
-      origins_list << "https://heron-selected-literally.ngrok-free.app"
-      origins_list << /\Achrome-extension:\/\/.+\z/ # Allow any Chrome extension in development
-    end
+    origins_list << /\Achrome-extension:\/\/.+\z/ if Rails.env.development?
 
     origins(*origins_list)
 

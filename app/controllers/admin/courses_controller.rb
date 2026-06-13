@@ -16,6 +16,5 @@ module Admin
       @course = Course.find_by_public_id!(params[:id]) # rubocop:disable Rails/DynamicFindBy
       authorize @course
     end
-
   end
 end

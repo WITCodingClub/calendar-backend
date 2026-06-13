@@ -3,18 +3,20 @@
 # == Schema Information
 #
 # Table name: terms
-# Database name: primary
 #
-#  id                  :bigint           not null, primary key
-#  catalog_imported    :boolean          default(FALSE), not null
-#  catalog_imported_at :datetime
-#  end_date            :date
-#  season              :integer
-#  start_date          :date
-#  uid                 :integer          not null
-#  year                :integer
-#  created_at          :datetime         not null
-#  updated_at          :datetime         not null
+#  id                    :bigint           not null, primary key
+#  catalog_import_failed :boolean          default(FALSE), not null
+#  catalog_imported      :boolean          default(FALSE), not null
+#  catalog_imported_at   :datetime
+#  catalog_importing     :boolean          default(FALSE), not null
+#  end_date              :date
+#  season                :integer          not null
+#  start_date            :date
+#  uid                   :integer          not null
+#  year                  :integer          not null
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  catalog_import_job_id :string
 #
 # Indexes
 #
@@ -30,12 +32,11 @@ class TermSerializer
     return nil if @term.nil?
 
     {
-      name: @term.name,
-      id: @term.uid,
-      pub_id: @term.public_id,
+      name:       @term.name,
+      id:         @term.uid,
+      pub_id:     @term.public_id,
       start_date: @term.start_date,
-      end_date: @term.end_date
+      end_date:   @term.end_date
     }
   end
-
 end
