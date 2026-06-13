@@ -202,7 +202,7 @@ class CourseProcessorService < ApplicationService
 
         Enrollment.find_or_create_by!(user: user, course: course, term: term)
 
-        course = Course.includes(:faculties, meeting_times: [:room]).find(course.id)
+        course = Course.includes(:faculties, meeting_times: [rooms: :building]).find(course.id)
 
         processed_courses << {
           id: course.id,
@@ -232,15 +232,15 @@ class CourseProcessorService < ApplicationService
               end_date: mt.end_date,
               day_of_week: mt.day_of_week,
               location: {
-                building: if mt.room&.building
+                building: if mt.building
                               {
-                                name: mt.room.building.name,
-                                abbreviation: mt.room.building.abbreviation
+                                name: mt.building.name,
+                                abbreviation: mt.building.abbreviation
                               }
                             else
                               nil
                             end,
-                room: mt.room&.formatted_number
+                rooms: mt.rooms.map(&:formatted_number)
               }
             }
           end

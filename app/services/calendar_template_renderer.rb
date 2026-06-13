@@ -50,7 +50,8 @@ class CalendarTemplateRenderer
 
   def self.build_context_from_meeting_time(meeting_time)
     course = meeting_time.course
-    room = meeting_time.room
+    rooms = meeting_time.rooms.to_a
+    room = rooms.first
     building = room&.building
 
     {
@@ -60,9 +61,9 @@ class CalendarTemplateRenderer
       course_number: course.course_number,
       section_number: course.section_number,
       crn: course.crn,
-      room: room&.formatted_number || room&.name || "",
+      room: rooms.map { |r| r.formatted_number || r.name }.compact.join(" / "),
       building: building&.name || "",
-      location: build_location_string(building, room),
+      location: build_location_string(building, rooms),
       faculty: primary_faculty_name(course),
       faculty_email: primary_faculty_email(course),
       all_faculty: all_faculty_names(course),
@@ -243,12 +244,14 @@ class CalendarTemplateRenderer
       end
     end
 
-    def build_location_string(building, room)
-      return "" if building.nil? && room.nil?
-      return room.formatted_number || room.name if building.nil?
-      return building.name if room.nil?
+    def build_location_string(building, rooms)
+      rooms = Array(rooms).compact
+      room_display = rooms.map { |r| r.formatted_number || r.name }.compact.join(" / ")
+      return "" if building.nil? && room_display.empty?
+      return room_display if building.nil?
+      return building.name if room_display.empty?
 
-      "#{building.name} - #{room.formatted_number || room.name}"
+      "#{building.name} - #{room_display}"
     end
 
     def primary_faculty_name(course)

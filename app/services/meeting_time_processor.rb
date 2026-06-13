@@ -11,15 +11,15 @@ class MeetingTimeProcessor
       day_of_week: meeting_time.day_of_week,
       meeting_schedule_type: meeting_time.meeting_schedule_type,
       location: {
-        building: if meeting_time.room&.building
+        building: if meeting_time.building
                     {
-                      name: meeting_time.room.building.name,
-                      abbreviation: meeting_time.room.building.abbreviation
+                      name: meeting_time.building.name,
+                      abbreviation: meeting_time.building.abbreviation
                     }
                   else
                     nil
                   end,
-        room: meeting_time.room&.formatted_number
+        rooms: meeting_time.rooms.map(&:formatted_number)
       },
       course: {
         id: meeting_time.course.id,

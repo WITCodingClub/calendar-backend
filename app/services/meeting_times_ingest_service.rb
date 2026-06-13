@@ -47,7 +47,7 @@ class MeetingTimesIngestService < ApplicationService
 
     return if @building_cache.empty?
 
-    needed_rooms = @raw_meeting_times.filter_map { |mt|
+    needed_rooms = @raw_meeting_times.each_with_object([]) { |mt, acc|
       raw_abbr = (mt["building"] || mt[:building]).to_s.strip
       abbr = if raw_abbr.blank?
                online_course? ? next : "TBD"
@@ -57,8 +57,9 @@ class MeetingTimesIngestService < ApplicationService
       building = @building_cache[abbr]
       next unless building
 
-      room_num = parse_room_number((mt["room"] || mt[:room]).to_s.strip)
-      [room_num, building.id, building]
+      parse_room_numbers((mt["room"] || mt[:room]).to_s.strip).each do |room_num|
+        acc << [room_num, building.id, building]
+      end
     }.uniq { |room_num, building_id, _| [room_num, building_id] }
 
     building_ids = needed_rooms.map { |_, bid, _| bid }.uniq
@@ -122,9 +123,10 @@ class MeetingTimesIngestService < ApplicationService
     end
 
     room_str = (mt["room"] || mt[:room]).to_s.strip
-    room_number = parse_room_number(room_str)
-    room_cache_key = [room_number, building.id]
-    room = @room_cache[room_cache_key] ||= Room.find_or_create_by!(number: room_number, building: building)
+    rooms_for_mt = parse_room_numbers(room_str).map { |room_num|
+      cache_key = [room_num, building.id]
+      @room_cache[cache_key] ||= Room.find_or_create_by!(number: room_num, building: building)
+    }
 
     meeting_schedule_type = map_schedule_type(mt["meetingScheduleType"] || mt[:meetingScheduleType] || mt["scheduleType"] || mt[:scheduleType])
     meeting_type          = map_meeting_type(mt["meetingType"] || mt[:meetingType])
@@ -146,7 +148,6 @@ class MeetingTimesIngestService < ApplicationService
       }
 
       update_attrs = {
-        room: room,
         meeting_schedule_type: meeting_schedule_type,
         meeting_type: meeting_type,
         hours_week: hours_per_day
@@ -156,6 +157,17 @@ class MeetingTimesIngestService < ApplicationService
       meeting_time = @meeting_time_cache&.[](cache_key) || Course::MeetingTime.new(lookup_attrs)
       meeting_time.assign_attributes(update_attrs)
       meeting_time.save!
+
+      desired_room_ids = rooms_for_mt.map(&:id).to_set
+      existing_room_ids = meeting_time.meeting_time_rooms.map(&:room_id).to_set
+
+      (existing_room_ids - desired_room_ids).each do |rid|
+        meeting_time.meeting_time_rooms.find_by(room_id: rid)&.destroy
+      end
+      (desired_room_ids - existing_room_ids).each do |rid|
+        meeting_time.meeting_time_rooms.create!(room_id: rid)
+      end
+
       @meeting_time_cache[cache_key] = meeting_time if @meeting_time_cache
     end
   end
@@ -226,10 +238,11 @@ class MeetingTimesIngestService < ApplicationService
     end
   end
 
-  def parse_room_number(room_str)
-    return "0" if room_str.blank?
+  def parse_room_numbers(room_str)
+    return ["0"] if room_str.blank?
 
-    room_str.to_s.strip.presence || "0"
+    parts = room_str.to_s.strip.split("/").map(&:strip).reject(&:blank?)
+    parts.empty? ? ["0"] : parts
   end
 
   def map_schedule_type(val)

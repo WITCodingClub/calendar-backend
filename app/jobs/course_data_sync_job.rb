@@ -33,7 +33,7 @@ class CourseDataSyncJob < ApplicationJob
     synced_count = 0
     error_count  = 0
 
-    term.courses.includes(:meeting_times, meeting_times: { room: :building }).find_each(batch_size: 50) do |course|
+    term.courses.includes(:meeting_times, meeting_times: { rooms: :building }).find_each(batch_size: 50) do |course|
       if sync_course_data(course, term_uid)
         synced_count += 1
       end

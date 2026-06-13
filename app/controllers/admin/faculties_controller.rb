@@ -21,7 +21,7 @@ module Admin
       authorize @faculty
 
       @courses_by_term = @faculty.courses
-                                 .includes(:term, meeting_times: { room: :building })
+                                 .includes(:term, meeting_times: { rooms: :building })
                                  .joins(:term)
                                  .order("terms.year DESC, terms.season DESC")
                                  .group_by(&:term)

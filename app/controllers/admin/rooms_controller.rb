@@ -13,7 +13,7 @@ module Admin
 
       courses = @room.meeting_times
                      .joins(:course)
-                     .includes(course: [:term, :faculties])
+                     .includes(:rooms, course: [:term, :faculties])
                      .map(&:course)
                      .uniq
                      .sort_by { |c| [-c.term.year, -(Term.seasons[c.term.season] || 0), c.title || ""] }

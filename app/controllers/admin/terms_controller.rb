@@ -9,7 +9,7 @@ module Admin
     def show
       @term = Term.find_by_public_id!(params[:id]) # rubocop:disable Rails/DynamicFindBy
       @courses = @term.courses
-                      .includes(:faculties, meeting_times: [:room, :building])
+                      .includes(:faculties, meeting_times: [rooms: :building])
                       .order(:title)
                       .page(params[:page]).per(20)
     end

@@ -14,7 +14,8 @@ class Course < ApplicationRecord
 
   has_and_belongs_to_many :faculties
   has_many :meeting_times, class_name: "Course::MeetingTime", dependent: :destroy
-  has_many :rooms, through: :meeting_times
+  has_many :meeting_time_rooms, class_name: "Course::MeetingTimeRoom", through: :meeting_times
+  has_many :rooms, through: :meeting_time_rooms
   has_many :enrollments, dependent: :destroy
   has_many :users, through: :enrollments
   has_one :final_exam, dependent: :destroy
@@ -39,7 +40,7 @@ class Course < ApplicationRecord
 
   # Returns deduplicated meeting times, preferring non-TBD locations when there are duplicates.
   def filtered_meeting_times
-    mts = meeting_times.loaded? ? meeting_times : meeting_times.includes(room: :building)
+    mts = meeting_times.loaded? ? meeting_times : meeting_times.includes(rooms: :building)
     mts.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
        .map do |_key, group|
          next group.first if group.size == 1

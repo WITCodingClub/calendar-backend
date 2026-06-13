@@ -9,10 +9,19 @@ class Course::MeetingTime < ApplicationRecord
   set_public_id_prefix :mtt, min_hash_length: 12
 
   belongs_to :course
-  belongs_to :room
-  has_one :building, through: :room
+  has_many :meeting_time_rooms, class_name: "Course::MeetingTimeRoom",
+                                foreign_key: :meeting_time_id, dependent: :destroy, inverse_of: :meeting_time
+  has_many :rooms, through: :meeting_time_rooms
   has_many :google_calendar_events, dependent: :destroy
   has_one :event_preference, as: :preferenceable, dependent: :destroy
+
+  def room
+    rooms.first
+  end
+
+  def building
+    room&.building
+  end
 
   enum :meeting_schedule_type, { lecture: 1, laboratory: 2 }
   enum :meeting_type,          { class_meeting: 1 }
@@ -53,16 +62,16 @@ class Course::MeetingTime < ApplicationRecord
   end
 
   def building_room
-    return nil unless room&.building
-
-    b = room.building
+    b = building
+    return nil unless b
     return nil if b.abbreviation.blank? || b.name.blank? ||
                   b.abbreviation == "TBD" || b.name == "To Be Determined"
 
-    if room.number.to_i.zero? || room.number.to_s.upcase == "TBD"
+    valid_rooms = rooms.reject { |r| r.number.to_i.zero? || r.number.to_s.upcase == "TBD" }
+    if valid_rooms.empty?
       b.abbreviation
     else
-      "#{b.abbreviation} #{room.formatted_number}"
+      "#{b.abbreviation} #{valid_rooms.map(&:formatted_number).join(' / ')}"
     end
   end
 

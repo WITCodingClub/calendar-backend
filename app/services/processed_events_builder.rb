@@ -19,7 +19,7 @@ class ProcessedEventsBuilder
                   .where(term_id: @term.id)
                   .includes(course: [
                               :faculties,
-                              { meeting_times: [:event_preference, { room: :building }, { course: [:faculties, :term] }] }
+                              { meeting_times: [:event_preference, { rooms: :building }, { course: [:faculties, :term] }] }
                             ])
 
     structured_data = enrollments.map do |enrollment|
@@ -77,7 +77,8 @@ class ProcessedEventsBuilder
   end
 
   def tbd_location?(meeting_time)
-    LocationHelper.tbd_location?(meeting_time.room&.building, meeting_time.room)
+    LocationHelper.tbd_building?(meeting_time.building) ||
+      meeting_time.rooms.all? { |r| LocationHelper.tbd_room?(r) }
   end
 
   def build_meeting_times_data(meeting_times)
@@ -128,7 +129,7 @@ class ProcessedEventsBuilder
   end
 
   def build_location_data(meeting_time)
-    building = meeting_time.room&.building
+    building = meeting_time.building
     {
       building: if building
                   {
@@ -139,7 +140,7 @@ class ProcessedEventsBuilder
                 else
                   nil
                 end,
-      room: meeting_time.room&.formatted_number
+      rooms: meeting_time.rooms.map(&:formatted_number)
     }
   end
 

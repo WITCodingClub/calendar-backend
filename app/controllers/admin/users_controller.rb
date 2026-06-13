@@ -32,7 +32,7 @@ module Admin
       authorize @user
 
       @enrollments_by_term = @user.enrollments
-                                  .includes({ course: [ :faculties, :term, meeting_times: { room: :building } ] })
+                                  .includes({ course: [ :faculties, :term, meeting_times: { rooms: :building } ] })
                                   .joins(course: :term)
                                   .order("terms.year DESC, terms.season DESC")
                                   .group_by { |e| e.course.term }

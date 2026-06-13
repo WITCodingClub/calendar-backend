@@ -32,7 +32,7 @@
                       <%= course.faculties.map(&:full_name).join(", ").presence || "TBA" %>
                     </td>
                     <td class="px-6 py-4 text-sm text-on-surface-variant">
-                      <% course.meeting_times.select { |mt| mt.room_id == @room.id }.each do |mt| %>
+                      <% course.meeting_times.select { |mt| mt.rooms.any? { |r| r.id == @room.id } }.each do |mt| %>
                         <div class="text-xs"><%= mt.day_of_week&.capitalize %>: <%= mt.formatted_time_range %></div>
                       <% end %>
                     </td>

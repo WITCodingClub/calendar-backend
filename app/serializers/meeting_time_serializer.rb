@@ -34,7 +34,7 @@ class MeetingTimeSerializer
       end_date:   @mt.end_date,
       location: {
         building: building_json,
-        room:     @mt.room&.formatted_number
+        rooms:    @mt.rooms.map(&:formatted_number)
       },
       **days,
       calendar_config: {

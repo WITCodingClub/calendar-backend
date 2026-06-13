@@ -16,7 +16,7 @@ module CourseScheduleSyncable
     # to avoid N+1 queries in holidays_for_meeting_time (one query per unique date range)
     preload_holidays_for_user!
 
-    enrollments.includes(course: [meeting_times: [:room, :building]]).find_each do |enrollment|
+    enrollments.includes(course: [meeting_times: [rooms: :building]]).find_each do |enrollment|
       course = enrollment.course
 
       # Filter meeting times to prefer valid locations over TBD duplicates
@@ -41,13 +41,14 @@ module CourseScheduleSyncable
         next unless start_time && end_time
 
         # Build location string - handle TBD locations gracefully
-        location = if meeting_time.room && meeting_time.building &&
-                      !tbd_location?(meeting_time.building, meeting_time.room)
-                     # Valid room and building
-                     "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
-                     # Valid room, no building or invalid building
-                     meeting_time.room.formatted_number
+        non_tbd_rooms = meeting_time.rooms.reject { |r| tbd_room?(r) }
+        location = if non_tbd_rooms.any? && meeting_time.building &&
+                      !tbd_building?(meeting_time.building)
+                     # Valid rooms and building
+                     "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
+                   elsif non_tbd_rooms.any?
+                     # Valid rooms, no building or invalid building
+                     non_tbd_rooms.map(&:formatted_number).join(" / ")
                    elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
                      # TBD location - show "TBD" instead of ugly "To Be Determined 000"
                      "TBD"
@@ -109,7 +110,7 @@ module CourseScheduleSyncable
     service = GoogleCalendarService.new(self)
     events = []
 
-    enrollments.where(id: enrollment_ids).includes(course: [meeting_times: [:room, :building]]).find_each do |enrollment|
+    enrollments.where(id: enrollment_ids).includes(course: [meeting_times: [rooms: :building]]).find_each do |enrollment|
       course = enrollment.course
 
       course.meeting_times.each do |meeting_time|
@@ -123,13 +124,14 @@ module CourseScheduleSyncable
         next unless start_time && end_time
 
         # Build location string - handle TBD locations gracefully
-        location = if meeting_time.room && meeting_time.building &&
-                      !tbd_location?(meeting_time.building, meeting_time.room)
-                     # Valid room and building
-                     "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-                   elsif meeting_time.room && !tbd_room?(meeting_time.room)
-                     # Valid room, no building or invalid building
-                     meeting_time.room.formatted_number
+        non_tbd_rooms = meeting_time.rooms.reject { |r| tbd_room?(r) }
+        location = if non_tbd_rooms.any? && meeting_time.building &&
+                      !tbd_building?(meeting_time.building)
+                     # Valid rooms and building
+                     "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
+                   elsif non_tbd_rooms.any?
+                     # Valid rooms, no building or invalid building
+                     non_tbd_rooms.map(&:formatted_number).join(" / ")
                    elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
                      # TBD location - show "TBD" instead of ugly "To Be Determined 000"
                      "TBD"
@@ -175,7 +177,7 @@ module CourseScheduleSyncable
   # Sync a single meeting time immediately (for preference changes)
   def sync_meeting_time(meeting_time_id, force: true)
     service = GoogleCalendarService.new(self)
-    meeting_time = Course::MeetingTime.includes(course: [:faculties], room: :building).find_by(id: meeting_time_id)
+    meeting_time = Course::MeetingTime.includes(course: [:faculties], rooms: :building).find_by(id: meeting_time_id)
     return unless meeting_time
     return if meeting_time.day_of_week.blank?
 

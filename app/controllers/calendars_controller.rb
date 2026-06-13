@@ -9,7 +9,7 @@ class CalendarsController < ApplicationController
     @user = User.find_by!(calendar_token: params[:calendar_token])
 
     @courses = @user.courses
-                    .includes(:term, meeting_times: [:room, :building, { course: [:faculties, :term] }])
+                    .includes(:term, meeting_times: [{ rooms: :building }, { course: [:faculties, :term] }])
 
     @final_exams = FinalExam.where(course_id: @courses.pluck(:id))
                             .where(exam_date: Time.zone.today..)
@@ -43,7 +43,7 @@ class CalendarsController < ApplicationController
     cal = Icalendar::Calendar.new
     cal.prodid = "-//WITCC//Course Calendar//EN"
     cal.append_custom_property("X-WR-CALNAME", "WIT Course Schedule")
-    cal.append_custom_property("X-WR-CALDESC", "WIT Course Schedule Calendar for #{@user.email}")
+    cal.append_custom_property("X-WR-CALDESC", "WIT Course Schedule Calendar for #{@user.full_name}")
 
     cal.timezone do |t|
       t.tzid = "America/New_York"
@@ -67,7 +67,7 @@ class CalendarsController < ApplicationController
       filtered_meeting_times = course.meeting_times
                                      .group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
                                      .map do |_key, group|
-                                       non_tbd = group.reject { |mt| LocationHelper.tbd_building?(mt.building) || LocationHelper.tbd_room?(mt.room) }
+                                       non_tbd = group.reject { |mt| LocationHelper.tbd_building?(mt.building) || mt.rooms.all? { |r| LocationHelper.tbd_room?(r) } }
                                        non_tbd.any? ? non_tbd.first : group.first
                                      end
 
@@ -100,11 +100,12 @@ class CalendarsController < ApplicationController
 
           e.description = @template_renderer.render(prefs[:description_template], context) if prefs[:description_template].present?
 
-          if meeting_time.room && meeting_time.building &&
-             !LocationHelper.tbd_location?(meeting_time.building, meeting_time.room)
-            e.location = "#{meeting_time.building.name} - #{meeting_time.room.formatted_number}"
-          elsif meeting_time.room && !LocationHelper.tbd_room?(meeting_time.room)
-            e.location = meeting_time.room.formatted_number
+          non_tbd_rooms = meeting_time.rooms.reject { |r| LocationHelper.tbd_room?(r) }
+          if non_tbd_rooms.any? && meeting_time.building &&
+             !LocationHelper.tbd_building?(meeting_time.building)
+            e.location = "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
+          elsif non_tbd_rooms.any?
+            e.location = non_tbd_rooms.map(&:formatted_number).join(" / ")
           elsif LocationHelper.tbd_building?(meeting_time.building) || LocationHelper.tbd_room?(meeting_time.room)
             e.location = "TBD"
           end

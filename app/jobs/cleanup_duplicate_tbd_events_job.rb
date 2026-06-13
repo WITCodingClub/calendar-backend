@@ -28,7 +28,7 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
 
     google_events = google_calendar.google_calendar_events
                                    .where.not(meeting_time_id: nil)
-                                   .includes(meeting_time: { room: :building })
+                                   .includes(meeting_time: { rooms: :building })
 
     grouped_events = google_events.group_by do |event|
       mt = event.meeting_time
@@ -73,10 +73,8 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
   def tbd_location?(meeting_time)
     return false unless meeting_time
 
-    building = meeting_time.room&.building
-    room     = meeting_time.room
-
-    tbd_building?(building) || tbd_room?(room)
+    tbd_building?(meeting_time.building) ||
+      meeting_time.rooms.all? { |r| tbd_room?(r) }
   end
 
   def tbd_building?(building)

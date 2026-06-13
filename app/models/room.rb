@@ -6,7 +6,8 @@ class Room < ApplicationRecord
   set_public_id_prefix :rom
 
   belongs_to :building
-  has_many :meeting_times, class_name: "Course::MeetingTime", dependent: :restrict_with_exception
+  has_many :meeting_time_rooms, class_name: "Course::MeetingTimeRoom", dependent: :destroy
+  has_many :meeting_times, through: :meeting_time_rooms, class_name: "Course::MeetingTime"
 
   before_save :set_floor
 
