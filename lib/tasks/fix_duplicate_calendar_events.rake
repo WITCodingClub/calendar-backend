@@ -22,11 +22,11 @@ namespace :calendar do
         all_events.each do |e|
           key = if e.meeting_time_id
                   "mt_#{e.meeting_time_id}"
-                elsif e.final_exam_id
+          elsif e.final_exam_id
                   "fe_#{e.final_exam_id}"
-                else
+          else
                   "ue_#{e.university_calendar_event_id}"
-                end
+          end
 
           if existing_events[key]
             if e.created_at > existing_events[key].created_at

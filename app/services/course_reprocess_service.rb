@@ -103,7 +103,7 @@ class CourseReprocessService < ApplicationService
     credentials = Google::Auth::UserRefreshCredentials.new(
       client_id:     Rails.application.credentials.dig(:google, :client_id),
       client_secret: Rails.application.credentials.dig(:google, :client_secret),
-      scope:         ["https://www.googleapis.com/auth/calendar"],
+      scope:         [ "https://www.googleapis.com/auth/calendar" ],
       access_token:  user.google_access_token,
       refresh_token: user.google_refresh_token,
       expires_at:    user.google_token_expires_at

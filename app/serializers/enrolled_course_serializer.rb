@@ -39,7 +39,7 @@ class EnrolledCourseSerializer
   private
 
   def deduplicate_meeting_times(meeting_times)
-    meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+    meeting_times.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
                  .map do |_key, group|
                    if group.size > 1
                      Rails.logger.info "[EnrolledCourseSerializer] Duplicate meeting times: #{group.size} for course #{group.first.course_id}"

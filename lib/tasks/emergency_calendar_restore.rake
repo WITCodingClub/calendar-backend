@@ -2,7 +2,7 @@
 
 namespace :calendar do
   desc "Emergency: Force resync calendar for a specific user or all users"
-  task :emergency_resync, [:user_id] => :environment do |_t, args|
+  task :emergency_resync, [ :user_id ] => :environment do |_t, args|
     if args[:user_id]
       user = User.find(args[:user_id])
       puts "Emergency resync for user #{user.id} (#{user.email})..."

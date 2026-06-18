@@ -4,7 +4,7 @@ module Api
   class CalendarPreferencesController < ApiController
     include PreferenceParams
 
-    before_action :set_calendar_preference, only: [:show, :update, :destroy]
+    before_action :set_calendar_preference, only: [ :show, :update, :destroy ]
 
     def index
       preferences        = policy_scope(current_user.calendar_preferences)
@@ -60,9 +60,9 @@ module Api
       scope = Course::MeetingTime.includes(course: :faculties)
       meeting_time = if meeting_time_id.to_s.include?("_")
                        scope.find_by_public_id(meeting_time_id)
-                     else
+      else
                        scope.find_by(id: meeting_time_id)
-                     end
+      end
 
       unless meeting_time
         render json: { error: "Meeting time not found" }, status: :not_found
@@ -94,17 +94,16 @@ module Api
 
       @calendar_preference = if scope_param == "global"
                                 current_user.calendar_preferences.find_or_initialize_by(scope: :global)
-                              elsif scope_param.start_with?("uni_cal:")
+      elsif scope_param.start_with?("uni_cal:")
                                 category = scope_param.delete_prefix("uni_cal:")
                                 current_user.calendar_preferences.find_or_initialize_by(
                                   scope: :uni_cal_category, event_type: category
                                 )
-                              else
+      else
                                 current_user.calendar_preferences.find_or_initialize_by(
                                   scope: :event_type, event_type: scope_param
                                 )
-                              end
+      end
     end
-
   end
 end

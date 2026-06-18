@@ -86,9 +86,9 @@ module GoogleColors
 
     google_event_hex = if color_id_or_hex.is_a?(Integer)
                          EVENT_MAP[color_id_or_hex]
-                       elsif color_id_or_hex.is_a?(String) && color_id_or_hex.start_with?("#")
+    elsif color_id_or_hex.is_a?(String) && color_id_or_hex.start_with?("#")
                          color_id_or_hex.downcase
-                       end
+    end
 
     return nil unless google_event_hex
 

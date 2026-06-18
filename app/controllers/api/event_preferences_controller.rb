@@ -94,9 +94,9 @@ module Api
 
     def sync_updated_event
       meeting_time = case @preferenceable
-                     when Course::MeetingTime   then @preferenceable
-                     when GoogleCalendarEvent   then @preferenceable.meeting_time
-                     end
+      when Course::MeetingTime   then @preferenceable
+      when GoogleCalendarEvent   then @preferenceable.meeting_time
+      end
 
       return unless meeting_time
       return unless current_user.google_credential

@@ -35,9 +35,9 @@ module CourseChangeTrackable
     cache = Thread.current[ENROLLMENT_CACHE_KEY]
     has_enrollments = if cache
                         cache.key?(id) ? cache[id] : (cache[id] = Enrollment.exists?(course_id: id))
-                      else
+    else
                         Enrollment.exists?(course_id: id)
-                      end
+    end
     return unless has_enrollments
 
     user_ids = User.joins(:enrollments)

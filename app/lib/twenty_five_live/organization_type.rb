@@ -34,7 +34,7 @@ module TwentyFiveLive
       { type_id:  5, type_name: "External (Non-Profit)",  sort_order: 6, defn_state: 1, rate_group_id: 4, rate_group_name: "Non-Profit" },
       { type_id:  6, type_name: "Government / Community", sort_order: 7, defn_state: 1, rate_group_id: 4, rate_group_name: "Non-Profit" },
       { type_id:  7, type_name: "Student Groups",         sort_order: 8, defn_state: 1, rate_group_id: 2, rate_group_name: "Internal"   },
-      { type_id:  8, type_name: "Subject Code",           sort_order: 9, defn_state: 1, rate_group_id: nil, rate_group_name: nil         },
+      { type_id:  8, type_name: "Subject Code",           sort_order: 9, defn_state: 1, rate_group_id: nil, rate_group_name: nil         }
     ].freeze
 
     def self.find_by_id(id)

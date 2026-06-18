@@ -9,9 +9,9 @@ class Dashboard::SchedulesController < Dashboard::ApplicationController
 
     @selected_term = if params[:term_uid].present?
                        Term.find_by(uid: params[:term_uid])
-                     else
+    else
                        Term.current || @terms.first
-                     end
+    end
 
     @view_mode = params[:view].presence_in(%w[list week month]) || "week"
     @today     = Time.zone.today
@@ -22,9 +22,9 @@ class Dashboard::SchedulesController < Dashboard::ApplicationController
                     rescue ArgumentError, TypeError
                       @today.beginning_of_week(:monday)
                     end
-                  else
+    else
                     @today.beginning_of_week(:monday)
-                  end
+    end
 
     @month_date = if params[:month].present?
                     begin
@@ -32,9 +32,9 @@ class Dashboard::SchedulesController < Dashboard::ApplicationController
                     rescue ArgumentError, TypeError
                       @today.beginning_of_month
                     end
-                  else
+    else
                     @today.beginning_of_month
-                  end
+    end
 
     return unless @selected_term
 
@@ -43,7 +43,7 @@ class Dashboard::SchedulesController < Dashboard::ApplicationController
                   .where(term_id: @selected_term.id)
                   .includes(course: [
                     :faculties,
-                    { meeting_times: [:event_preference, { course: :faculties }] }
+                    { meeting_times: [ :event_preference, { course: :faculties } ] }
                   ])
 
     preference_resolver = PreferenceResolver.new(current_user)
@@ -70,7 +70,7 @@ class Dashboard::SchedulesController < Dashboard::ApplicationController
     @no_class_dates = []
     UniversityCalendarEvent
       .where(category: %w[holiday study_day finals])
-      .where(term_id: [@selected_term.id, nil])
+      .where(term_id: [ @selected_term.id, nil ])
       .find_each do |event|
         s = event.start_time.to_date
         e = event.end_time&.to_date || s

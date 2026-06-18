@@ -2,7 +2,7 @@
 
 namespace :catalog do
   desc "Refresh the course catalog for a given term from LeopardWeb, preserving user enrollments."
-  task :refresh, [:term_uid] => :environment do |_, args|
+  task :refresh, [ :term_uid ] => :environment do |_, args|
     term_uid = args[:term_uid]
     raise "Usage: rake catalog:refresh[term_uid]" unless term_uid
 
@@ -20,7 +20,7 @@ namespace :catalog do
     backup_count     = 0
     error_count      = 0
     snapshot_reason  = "Catalog refresh for term #{term.name} on #{Time.current.to_date}"
-    enrollments      = Enrollment.includes(:user, :course, course: [:term, :faculties]).where(term_id: term.id)
+    enrollments      = Enrollment.includes(:user, :course, course: [ :term, :faculties ]).where(term_id: term.id)
 
     enrollments.find_each do |enrollment|
       begin
@@ -147,7 +147,7 @@ namespace :catalog do
   end
 
   desc "Trigger immediate calendar syncs for all users enrolled in a term"
-  task :sync_calendars, [:term_uid] => :environment do |_, args|
+  task :sync_calendars, [ :term_uid ] => :environment do |_, args|
     term_uid = args[:term_uid]
     raise "Usage: rake catalog:sync_calendars[term_uid]" unless term_uid
 

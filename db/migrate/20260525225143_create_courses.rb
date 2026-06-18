@@ -21,7 +21,7 @@ class CreateCourses < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :courses, [:crn, :term_id], unique: true
+    add_index :courses, [ :crn, :term_id ], unique: true
 
     add_index :courses, :status
 
@@ -59,6 +59,5 @@ class CreateCourses < ActiveRecord::Migration[8.0]
     add_check_constraint :courses,
                          "schedule_type IN ('EXT','HYB','IND','LAB','LEC','ONL','ONB','OLB','OLC','RLB','RLC','SAB')",
                          name: "courses_schedule_type_valid"
-
   end
 end

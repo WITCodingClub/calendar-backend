@@ -24,22 +24,22 @@ class RiscEventHandlerService
     end
 
     result = case event_data[:event_type]
-             when SecurityEvent::SESSIONS_REVOKED
+    when SecurityEvent::SESSIONS_REVOKED
                handle_sessions_revoked(user)
-             when SecurityEvent::TOKENS_REVOKED
+    when SecurityEvent::TOKENS_REVOKED
                handle_tokens_revoked(user)
-             when SecurityEvent::TOKEN_REVOKED
+    when SecurityEvent::TOKEN_REVOKED
                handle_token_revoked(user)
-             when SecurityEvent::ACCOUNT_DISABLED
+    when SecurityEvent::ACCOUNT_DISABLED
                handle_account_disabled(user)
-             when SecurityEvent::ACCOUNT_ENABLED
+    when SecurityEvent::ACCOUNT_ENABLED
                handle_account_enabled(user)
-             when SecurityEvent::ACCOUNT_CREDENTIAL_CHANGE_REQUIRED
+    when SecurityEvent::ACCOUNT_CREDENTIAL_CHANGE_REQUIRED
                handle_credential_change_required(user)
-             else
+    else
                Rails.logger.warn("Unknown RISC event type: #{event_data[:event_type]}")
                { action: "unknown_event_type" }
-             end
+    end
 
     @security_event.mark_processed!
 

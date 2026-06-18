@@ -70,20 +70,20 @@ Rails.application.routes.draw do
     post "courses/reprocess",  to: "courses#reprocess"
 
     # Calendar preferences (global + per event-type + per university calendar category)
-    resources :calendar_preferences, only: [:index, :show, :update, :destroy] do
+    resources :calendar_preferences, only: [ :index, :show, :update, :destroy ] do
       collection { post :preview }
     end
 
     # Per-event preferences (meeting time or calendar event)
     resources :meeting_times, only: [] do
-      resource :preference, controller: "event_preferences", only: [:show, :update, :destroy]
+      resource :preference, controller: "event_preferences", only: [ :show, :update, :destroy ]
     end
     resources :google_calendar_events, only: [] do
-      resource :preference, controller: "event_preferences", only: [:show, :update, :destroy]
+      resource :preference, controller: "event_preferences", only: [ :show, :update, :destroy ]
     end
 
     # University calendar events
-    resources :university_calendar_events, only: [:index, :show] do
+    resources :university_calendar_events, only: [ :index, :show ] do
       collection do
         get  :categories
         get  :holidays
@@ -98,16 +98,16 @@ Rails.application.routes.draw do
   authenticate :user do
     namespace :dashboard do
       root to: "overview#index"
-      resource  :schedule,             only: [:show]
-      resources :calendar_preferences, only: [:index, :update]
-      resources :connected_accounts,   only: [:index, :destroy]
-      resource  :ics_feed,             only: [:show]
-      resource  :notifications,        only: [:show, :update]
-      resources :friends, only: [:index, :create, :destroy] do
+      resource  :schedule,             only: [ :show ]
+      resources :calendar_preferences, only: [ :index, :update ]
+      resources :connected_accounts,   only: [ :index, :destroy ]
+      resource  :ics_feed,             only: [ :show ]
+      resource  :notifications,        only: [ :show, :update ]
+      resources :friends, only: [ :index, :create, :destroy ] do
         member     { post :accept; post :decline }
         collection { get :requests }
       end
-      resource :settings, only: [:show]
+      resource :settings, only: [ :show ]
     end
   end
 
@@ -119,7 +119,7 @@ Rails.application.routes.draw do
     namespace :admin do
       root to: "application#index"
 
-      resources :users, only: [:index, :show, :edit, :update, :destroy] do
+      resources :users, only: [ :index, :show, :edit, :update, :destroy ] do
         member do
           delete "oauth_credentials/:credential_id",
                  to: "users#revoke_oauth_credential",
@@ -133,11 +133,11 @@ Rails.application.routes.draw do
         end
       end
 
-      resources :calendars,                   only: [:index, :destroy]
-      resources :courses,                     only: [:index, :show]
-      resources :google_calendar_events,      only: [:index]
+      resources :calendars,                   only: [ :index, :destroy ]
+      resources :courses,                     only: [ :index, :show ]
+      resources :google_calendar_events,      only: [ :index ]
 
-      resources :faculties, only: [:index, :show] do
+      resources :faculties, only: [ :index, :show ] do
         collection do
           get  :missing_rmp_ids
           post :batch_auto_fill
@@ -151,30 +151,30 @@ Rails.application.routes.draw do
         end
       end
 
-      resources :terms, only: [:index, :show]
+      resources :terms, only: [ :index, :show ]
 
-      resources :finals_schedules, only: [:index, :new, :create, :show, :destroy] do
+      resources :finals_schedules, only: [ :index, :new, :create, :show, :destroy ] do
         member do
           get  :confirm_replace
           post :process_schedule
         end
       end
 
-      resources :university_calendar_events, only: [:index, :show] do
+      resources :university_calendar_events, only: [ :index, :show ] do
         collection do
           post :sync
           post :backfill
         end
       end
 
-      resources :rmp_ratings, only: [:index]
-      resources :rooms,       only: [:index, :show]
+      resources :rmp_ratings, only: [ :index ]
+      resources :rooms,       only: [ :index, :show ]
 
       get  "course_catalog",                      to: "course_catalog#index",    as: :course_catalog
       post "course_catalog/import/:term_uid",     to: "course_catalog#import",   as: :course_catalog_import
       post "course_catalog/provision/:term_uid",  to: "course_catalog#provision", as: :course_catalog_provision
 
-      resources :buildings, only: [:index] do
+      resources :buildings, only: [ :index ] do
         collection do
           post :sync
           post :apply_all

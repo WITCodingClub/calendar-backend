@@ -17,7 +17,7 @@ module FinalsScheduleParsers
 
         if line.match?(/^\d{5}$/)
           crn           = line.to_i
-          combined_crns = [crn]
+          combined_crns = [ crn ]
           j             = i + 1
 
           if j < lines.size && lines[j].match?(/^\d{5}(-\d{5})+$/)

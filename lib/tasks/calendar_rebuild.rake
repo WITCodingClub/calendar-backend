@@ -58,7 +58,7 @@ namespace :calendars do
   task recreate_all: :environment do
     puts "Starting calendar recreation process..."
 
-    credentials  = OauthCredential.where(provider: "google").joins(:user).where.not(access_token: [nil, ""])
+    credentials  = OauthCredential.where(provider: "google").joins(:user).where.not(access_token: [ nil, "" ])
     total        = credentials.count
 
     if total.zero?

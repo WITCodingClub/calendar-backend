@@ -89,7 +89,7 @@ module Admin
         client_id:     Rails.application.credentials.dig(:google, :client_id),
         client_secret: Rails.application.credentials.dig(:google, :client_secret),
         refresh_token: credential.refresh_token,
-        scope:         ["https://www.googleapis.com/auth/calendar"]
+        scope:         [ "https://www.googleapis.com/auth/calendar" ]
       )
       credentials.refresh!
 
@@ -191,17 +191,17 @@ module Admin
     def set_user
       @user = if params[:id].start_with?("usr_")
                 User.find_by_public_id(params[:id])
-              elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
+      elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
                 User.find_by_hashid(params[:id])
-              else
+      else
                 User.find(params[:id])
-              end
+      end
 
       raise ActiveRecord::RecordNotFound unless @user
     end
 
     def user_params
-      permitted = [:first_name, :last_name]
+      permitted = [ :first_name, :last_name ]
       permitted << :access_level if policy(@user).edit_access_level?
       params.expect(user: permitted)
     end

@@ -110,11 +110,11 @@ module FinalsScheduleParsers
           current_block[:end_idx] = idx
 
           data = case type
-                 when :crn      then parse_crn_line(item[:line])
-                 when :date     then extract_date(item[:line])
-                 when :time     then extract_time_range(item[:line])
-                 when :location then extract_location(item[:line])
-                 end
+          when :crn      then parse_crn_line(item[:line])
+          when :date     then extract_date(item[:line])
+          when :time     then extract_time_range(item[:line])
+          when :location then extract_location(item[:line])
+          end
           current_block[:data] << data
         else
           blocks << current_block if current_block

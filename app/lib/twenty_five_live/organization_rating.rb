@@ -23,7 +23,7 @@ module TwentyFiveLive
       { rating_id: 2, rating_name: "Do Not Allow Bookings", sort_order: 1, defn_state: 1 },
       { rating_id: 3, rating_name: "Inactive or Frozen",    sort_order: 2, defn_state: 1 },
       { rating_id: 4, rating_name: "On Probation",          sort_order: 3, defn_state: 1 },
-      { rating_id: 5, rating_name: "Pay In Advance",        sort_order: 4, defn_state: 1 },
+      { rating_id: 5, rating_name: "Pay In Advance",        sort_order: 4, defn_state: 1 }
     ].freeze
 
     def self.find_by_id(id)

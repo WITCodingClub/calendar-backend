@@ -3,7 +3,7 @@
 module Admin
   class ServiceAccountController < Admin::ApplicationController
     skip_before_action :require_admin
-    before_action :require_owner!, except: [:callback]
+    before_action :require_owner!, except: [ :callback ]
 
     def index
       @service_account_email = Rails.application.credentials.dig(:google, :service_account_email)
@@ -24,7 +24,7 @@ module Admin
         client_secret: Rails.application.credentials.dig(:google, :client_secret),
         authorization_uri: "https://accounts.google.com/o/oauth2/auth",
         token_credential_uri: "https://oauth2.googleapis.com/token",
-        scope: [Google::Apis::CalendarV3::AUTH_CALENDAR],
+        scope: [ Google::Apis::CalendarV3::AUTH_CALENDAR ],
         redirect_uri: callback_url,
         state: session[:oauth_state],
         additional_parameters: {

@@ -2,7 +2,7 @@
 
 module Api
   class UniversityCalendarEventsController < ApiController
-    before_action :set_event, only: [:show]
+    before_action :set_event, only: [ :show ]
 
     def index
       authorize UniversityCalendarEvent, :index?

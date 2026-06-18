@@ -244,9 +244,9 @@ class GoogleCalendarService
 
     credentials_json = if service_account_config.is_a?(String)
                          service_account_config
-                       else
+    else
                          service_account_config.to_json
-                       end
+    end
 
     Google::Auth::ServiceAccountCredentials.make_creds(
       json_key_io: StringIO.new(credentials_json),
@@ -267,7 +267,7 @@ class GoogleCalendarService
     credentials = Google::Auth::UserRefreshCredentials.new(
       client_id:     Rails.application.credentials.dig(:google, :client_id),
       client_secret: Rails.application.credentials.dig(:google, :client_secret),
-      scope:         ["https://www.googleapis.com/auth/calendar"],
+      scope:         [ "https://www.googleapis.com/auth/calendar" ],
       access_token:  user.google_access_token,
       refresh_token: user.google_refresh_token,
       expires_at:    user.google_token_expires_at
@@ -386,7 +386,7 @@ class GoogleCalendarService
     credentials = Google::Auth::UserRefreshCredentials.new(
       client_id:     Rails.application.credentials.dig(:google, :client_id),
       client_secret: Rails.application.credentials.dig(:google, :client_secret),
-      scope:         ["https://www.googleapis.com/auth/calendar"],
+      scope:         [ "https://www.googleapis.com/auth/calendar" ],
       access_token:  credential.access_token,
       refresh_token: credential.refresh_token,
       expires_at:    credential.token_expires_at
@@ -533,16 +533,16 @@ class GoogleCalendarService
 
     start_changed = if gcal_start_time.nil? || db_event.start_time.nil?
                       gcal_start_time != db_event.start_time
-                    else
+    else
                       gcal_start_time.to_i != db_event.start_time.to_i
-                    end
+    end
     edited_fields << "start_time" if start_changed
 
     end_changed = if gcal_end_time.nil? || db_event.end_time.nil?
                     gcal_end_time != db_event.end_time
-                  else
+    else
                     gcal_end_time.to_i != db_event.end_time.to_i
-                  end
+    end
     edited_fields << "end_time" if end_changed
 
     Rails.logger.info "User edit detected - Fields: #{edited_fields.join(', ')}" if edited_fields.any?
@@ -610,13 +610,13 @@ class GoogleCalendarService
     prefs = resolver.resolve_for(syncable)
 
     context = case syncable
-              when FinalExam
+    when FinalExam
                 CalendarTemplateRenderer.build_context_from_final_exam(syncable)
-              when UniversityCalendarEvent
+    when UniversityCalendarEvent
                 CalendarTemplateRenderer.build_context_from_university_calendar_event(syncable)
-              else
+    else
                 CalendarTemplateRenderer.build_context_from_meeting_time(syncable)
-              end
+    end
 
     event_data = course_event.dup
 
@@ -695,7 +695,7 @@ class GoogleCalendarService
           reminder["method"].present? &&
           reminder["time"].present? &&
           reminder["type"].present? &&
-          ["email", "popup", "notification"].include?(reminder["method"])
+          [ "email", "popup", "notification" ].include?(reminder["method"])
       end
 
       if valid_reminders.any?

@@ -16,17 +16,17 @@ class CourseProcessorService < ApplicationService
 
     processed_courses = []
 
-    grouped_courses = courses.group_by { |c| [c[:crn], c[:term]] }
+    grouped_courses = courses.group_by { |c| [ c[:crn], c[:term] ] }
 
     term_uids = grouped_courses.keys.map { |_, term_uid| term_uid }.uniq
     term_cache = Term.where(uid: term_uids).index_by { |t| t.uid.to_s }
 
     crns = grouped_courses.keys.map { |crn, _| crn }
     term_ids = term_cache.values.map(&:id)
-    course_cache = Course.where(crn: crns, term_id: term_ids).index_by { |c| [c.crn.to_s, c.term_id] }
+    course_cache = Course.where(crn: crns, term_id: term_ids).index_by { |c| [ c.crn.to_s, c.term_id ] }
 
     orphan_exam_cache = FinalExam.orphan.where(crn: crns, term_id: term_ids)
-                                 .index_by { |e| [e.crn.to_s, e.term_id] }
+                                 .index_by { |e| [ e.crn.to_s, e.term_id ] }
 
     Term.with_deferred_date_updates do
       grouped_courses.each_value do |course_meetings|
@@ -82,7 +82,7 @@ class CourseProcessorService < ApplicationService
             start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
             end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
 
-            [start_time.strftime("%H:%M"), end_time.strftime("%H:%M")]
+            [ start_time.strftime("%H:%M"), end_time.strftime("%H:%M") ]
           end
 
           time_groups.map do |time_key, meetings|
@@ -137,10 +137,10 @@ class CourseProcessorService < ApplicationService
           instructor_email = first_meeting[:instructorEmail] || first_meeting["instructorEmail"] || first_meeting[:facultyEmail] || first_meeting["facultyEmail"]
 
           if instructor_name.present? && instructor_name.to_s.strip != ""
-            faculty_data = [{
+            faculty_data = [ {
               displayName: instructor_name.to_s.strip,
               emailAddress: instructor_email.to_s.strip.presence || "#{instructor_name.to_s.strip.downcase.gsub(/\s+/, '.')}@wit.edu"
-            }]
+            } ]
           end
         end
 
@@ -152,7 +152,7 @@ class CourseProcessorService < ApplicationService
           end_date = parse_date(first_mt["endDate"])
         end
 
-        course = course_cache[[course_data[:crn].to_s, term.id]]
+        course = course_cache[[ course_data[:crn].to_s, term.id ]]
         if course.nil?
           course = Course.new(crn: course_data[:crn], term: term)
           course.title          = titleize_with_roman_numerals(detailed_course_info[:title])
@@ -185,7 +185,7 @@ class CourseProcessorService < ApplicationService
           course.update!(update_attrs) if update_attrs.any?
         end
 
-        orphan_exam = orphan_exam_cache[[course.crn.to_s, term.id]]
+        orphan_exam = orphan_exam_cache[[ course.crn.to_s, term.id ]]
         if orphan_exam
           orphan_exam.update!(course: course)
           Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
@@ -202,7 +202,7 @@ class CourseProcessorService < ApplicationService
 
         Enrollment.find_or_create_by!(user: user, course: course, term: term)
 
-        course = Course.includes(:faculties, meeting_times: [rooms: :building]).find(course.id)
+        course = Course.includes(:faculties, meeting_times: [ rooms: :building ]).find(course.id)
 
         processed_courses << {
           id: course.id,
@@ -237,9 +237,9 @@ class CourseProcessorService < ApplicationService
                                 name: mt.building.name,
                                 abbreviation: mt.building.abbreviation
                               }
-                            else
+                          else
                               nil
-                            end,
+                          end,
                 rooms: mt.rooms.map(&:formatted_number)
               }
             }
@@ -309,20 +309,20 @@ class CourseProcessorService < ApplicationService
   end
 
   def parse_faculty_name(display_name)
-    return [nil, nil] if display_name.blank?
+    return [ nil, nil ] if display_name.blank?
 
     if display_name.include?(",")
       parts = display_name.split(",").map(&:strip)
       last_name = parts[0]
       first_name_parts = parts[1]&.split(/\s+/) || []
       first_name = first_name_parts[0]
-      [first_name, last_name]
+      [ first_name, last_name ]
     else
       parts = display_name.split(/\s+/)
       if parts.length >= 2
-        [parts[0], parts[-1]]
+        [ parts[0], parts[-1] ]
       else
-        [display_name, display_name]
+        [ display_name, display_name ]
       end
     end
   end

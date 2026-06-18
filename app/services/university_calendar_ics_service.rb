@@ -13,7 +13,7 @@ class UniversityCalendarIcsService < ApplicationService
     @ics_url = ics_url
     all_terms = Term.all.to_a
     @term_cache = all_terms.index_by do |term|
-      [term.year, term.season.to_sym]
+      [ term.year, term.season.to_sym ]
     end
     @terms_with_dates = all_terms.select { |t| t.start_date && t.end_date }
     @term_by_date_cache = {}
@@ -96,7 +96,7 @@ class UniversityCalendarIcsService < ApplicationService
     all_events = UniversityCalendarEvent.all.to_a
     @existing_events_by_uid = all_events.index_by(&:ics_uid)
     @existing_events_by_content = all_events.group_by do |e|
-      [e.summary, e.start_time, e.end_time, e.category]
+      [ e.summary, e.start_time, e.end_time, e.category ]
     end
   end
 
@@ -159,9 +159,9 @@ class UniversityCalendarIcsService < ApplicationService
 
     grouped = event_attrs_list.group_by do |attrs|
       if attrs[:all_day]
-        [attrs[:summary]&.downcase&.strip, attrs[:category], attrs[:academic_term]]
+        [ attrs[:summary]&.downcase&.strip, attrs[:category], attrs[:academic_term] ]
       else
-        [:no_merge, attrs[:ics_uid]]
+        [ :no_merge, attrs[:ics_uid] ]
       end
     end
 
@@ -184,7 +184,7 @@ class UniversityCalendarIcsService < ApplicationService
 
     result  = []
     current = sorted_events.first.dup
-    current[:merged_uids] = [current[:ics_uid]]
+    current[:merged_uids] = [ current[:ics_uid] ]
 
     sorted_events[1..].each do |event|
       current_end_date  = current[:end_time].to_date
@@ -198,7 +198,7 @@ class UniversityCalendarIcsService < ApplicationService
       else
         result << finalize_merged_event(current)
         current = event.dup
-        current[:merged_uids] = [current[:ics_uid]]
+        current[:merged_uids] = [ current[:ics_uid] ]
       end
     end
 
@@ -259,23 +259,23 @@ class UniversityCalendarIcsService < ApplicationService
     if attrs[:start_time]
       event.term = if event.academic_term.present?
                      find_term_from_academic_term(event.academic_term, attrs[:start_time], attrs[:category], attrs[:summary])
-                   end
+      end
       event.term ||= find_term_by_date_cached(attrs[:start_time])
     end
 
     if event.term && event.academic_term.present? && attrs[:category] == "term_dates"
       ics_season = case event.academic_term.downcase
-                   when /fall/   then :fall
-                   when /spring/ then :spring
-                   when /summer/ then :summer
-                   end
+      when /fall/   then :fall
+      when /spring/ then :spring
+      when /summer/ then :summer
+      end
 
       if ics_season && ics_season != event.term.season
         event.summary = fix_summary_term_reference(event.summary, event.academic_term, event.term)
       end
     end
 
-    content_changed = event.changed? && (event.changed - ["last_fetched_at"]).any?
+    content_changed = event.changed? && (event.changed - [ "last_fetched_at" ]).any?
 
     if was_new || content_changed
       event.save!
@@ -289,7 +289,7 @@ class UniversityCalendarIcsService < ApplicationService
   end
 
   def find_duplicate_by_content(attrs)
-    content_key = [attrs[:summary], attrs[:start_time], attrs[:end_time], attrs[:category]]
+    content_key = [ attrs[:summary], attrs[:start_time], attrs[:end_time], attrs[:category] ]
 
     if @existing_events_by_content
       candidates = (@existing_events_by_content[content_key] || []).reject { |e| e.ics_uid == attrs[:ics_uid] }
@@ -306,7 +306,7 @@ class UniversityCalendarIcsService < ApplicationService
 
     fuzzy_matches = if @existing_events_by_content
                       find_fuzzy_duplicates_in_memory(attrs)
-                    else
+    else
                       UniversityCalendarEvent.find_fuzzy_duplicates(
                         summary:     attrs[:summary],
                         start_time:  attrs[:start_time],
@@ -314,7 +314,7 @@ class UniversityCalendarIcsService < ApplicationService
                         category:    attrs[:category],
                         exclude_uid: attrs[:ics_uid]
                       )
-                    end
+    end
 
     return nil if fuzzy_matches.empty?
 
@@ -324,7 +324,7 @@ class UniversityCalendarIcsService < ApplicationService
   def add_event_to_content_cache(event)
     return unless @existing_events_by_content
 
-    content_key = [event.summary, event.start_time, event.end_time, event.category]
+    content_key = [ event.summary, event.start_time, event.end_time, event.category ]
     @existing_events_by_content[content_key] ||= []
     @existing_events_by_content[content_key] << event
     @existing_events_by_uid[event.ics_uid] = event if @existing_events_by_uid
@@ -452,17 +452,17 @@ class UniversityCalendarIcsService < ApplicationService
     end
 
     season = case academic_term_str.to_s.downcase
-             when /fall/   then :fall
-             when /spring/ then :spring
-             when /summer/ then :summer
-             end
+    when /fall/   then :fall
+    when /spring/ then :spring
+    when /summer/ then :summer
+    end
 
     return nil unless season
 
     year = event_date.year
     year -= 1 if season == :fall && event_date.month < 6
 
-    @term_cache[[year, season]]
+    @term_cache[[ year, season ]]
   end
 
   def find_term_by_date_cached(date)
@@ -472,18 +472,18 @@ class UniversityCalendarIcsService < ApplicationService
 
   def infer_term_from_date_for_boundary_event(academic_term_str, event_date, summary)
     inferred_season = case event_date.month
-                      when 1..5  then :spring
-                      when 6..7  then :summer
-                      when 8..12 then :fall
-                      end
+    when 1..5  then :spring
+    when 6..7  then :summer
+    when 8..12 then :fall
+    end
 
     year = event_date.year
 
     claimed_season = case academic_term_str.to_s.downcase
-                     when /fall/   then :fall
-                     when /spring/ then :spring
-                     when /summer/ then :summer
-                     end
+    when /fall/   then :fall
+    when /spring/ then :spring
+    when /summer/ then :summer
+    end
 
     if claimed_season && claimed_season != inferred_season
       Rails.logger.warn(
@@ -493,7 +493,7 @@ class UniversityCalendarIcsService < ApplicationService
       )
     end
 
-    @term_cache[[year, inferred_season]]
+    @term_cache[[ year, inferred_season ]]
   end
 
   def fix_summary_term_reference(summary, incorrect_term, correct_term)

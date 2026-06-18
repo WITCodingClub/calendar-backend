@@ -2,8 +2,8 @@
 
 module Api
   class MiscController < ApiController
-    skip_before_action :authenticate_user_from_token!, only: [:get_active_terms, :get_current_and_next_terms]
-    skip_before_action :check_beta_access,             only: [:get_active_terms, :get_current_and_next_terms]
+    skip_before_action :authenticate_user_from_token!, only: [ :get_active_terms, :get_current_and_next_terms ]
+    skip_before_action :check_beta_access,             only: [ :get_active_terms, :get_current_and_next_terms ]
 
     def get_current_and_next_terms
       render json: {

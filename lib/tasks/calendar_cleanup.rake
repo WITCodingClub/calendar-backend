@@ -51,7 +51,7 @@ namespace :calendar do
   end
 
   desc "Sync finals for a specific term to all users' calendars (retroactive)"
-  task :sync_finals_for_term, [:year, :season] => :environment do |_t, args|
+  task :sync_finals_for_term, [ :year, :season ] => :environment do |_t, args|
     unless args[:year] && args[:season]
       puts "Usage: rails calendar:sync_finals_for_term[2025,fall]"
       puts "Seasons: spring, summer, fall"

@@ -9,7 +9,7 @@ class CalendarsController < ApplicationController
     @user = User.find_by!(calendar_token: params[:calendar_token])
 
     @courses = @user.courses
-                    .includes(:term, meeting_times: [{ rooms: :building }, { course: [:faculties, :term] }])
+                    .includes(:term, meeting_times: [ { rooms: :building }, { course: [ :faculties, :term ] } ])
 
     @final_exams = FinalExam.where(course_id: @courses.pluck(:id))
                             .where(exam_date: Time.zone.today..)
@@ -65,7 +65,7 @@ class CalendarsController < ApplicationController
 
     courses.each do |course|
       filtered_meeting_times = course.meeting_times
-                                     .group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+                                     .group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
                                      .map do |_key, group|
                                        non_tbd = group.reject { |mt| LocationHelper.tbd_building?(mt.building) || mt.rooms.all? { |r| LocationHelper.tbd_room?(r) } }
                                        non_tbd.any? ? non_tbd.first : group.first
@@ -94,9 +94,9 @@ class CalendarsController < ApplicationController
 
           e.summary = if prefs[:title_template].present?
                         @template_renderer.render(prefs[:title_template], context)
-                      else
+          else
                         titleize_with_roman_numerals(course.title)
-                      end
+          end
 
           e.description = @template_renderer.render(prefs[:description_template], context) if prefs[:description_template].present?
 
@@ -135,9 +135,9 @@ class CalendarsController < ApplicationController
 
           color_hex = if prefs[:color_id].present?
                         get_google_color_hex(prefs[:color_id])
-                      elsif meeting_time.event_color.present?
+          elsif meeting_time.event_color.present?
                         meeting_time.event_color
-                      end
+          end
 
           if color_hex
             e.color = "##{color_hex}"
@@ -189,7 +189,7 @@ class CalendarsController < ApplicationController
     user_config = @user.user_extension_config
     return unless user_config&.sync_university_events
 
-    categories = (user_config.university_event_categories || []) - ["holiday"]
+    categories = (user_config.university_event_categories || []) - [ "holiday" ]
     return if categories.empty?
 
     UniversityCalendarEvent.by_categories(categories).where(term_id: enrolled_term_ids).find_each do |event|
@@ -216,7 +216,7 @@ class CalendarsController < ApplicationController
       e.dtstamp     = Icalendar::Values::DateTime.new(Time.current,    tzid: "America/New_York")
       e.last_modified = Icalendar::Values::DateTime.new(event.updated_at, tzid: "America/New_York")
       e.sequence    = (event.updated_at.to_i / 60)
-      e.categories  = [event.category.titleize] if event.category.present?
+      e.categories  = [ event.category.titleize ] if event.category.present?
 
       if event.category == "holiday"
         e.append_custom_property("X-MICROSOFT-CDO-ALLDAYEVENT", "TRUE")
@@ -236,8 +236,8 @@ class CalendarsController < ApplicationController
 
     all_no_class_days = UniversityCalendarEvent.no_class_days_between(min_date, max_date).to_a
 
-    meeting_times.map { |mt| [mt.start_date, mt.end_date] }.uniq.each_with_object({}) do |(start_date, end_date), cache|
-      cache[[start_date, end_date]] = all_no_class_days.select do |h|
+    meeting_times.map { |mt| [ mt.start_date, mt.end_date ] }.uniq.each_with_object({}) do |(start_date, end_date), cache|
+      cache[[ start_date, end_date ]] = all_no_class_days.select do |h|
         h.start_time.to_date <= end_date && h.end_time.to_date >= start_date
       end
     end
@@ -247,7 +247,7 @@ class CalendarsController < ApplicationController
     target_wday = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
     return [] if target_wday.nil?
 
-    cache_key = [meeting_time.start_date, meeting_time.end_date]
+    cache_key = [ meeting_time.start_date, meeting_time.end_date ]
     holidays  = @holidays_cache[cache_key] ||= UniversityCalendarEvent.no_class_days_between(
       meeting_time.start_date,
       meeting_time.end_date

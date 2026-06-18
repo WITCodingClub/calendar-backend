@@ -7,10 +7,10 @@ namespace :terms do
 
     Term.find_each do |term|
       dates = case term.season.to_sym
-              when :spring then { start_date: Date.new(term.year, 1, 6),  end_date: Date.new(term.year, 4, 20) }
-              when :summer then { start_date: Date.new(term.year, 5, 4),  end_date: Date.new(term.year, 8, 15) }
-              when :fall   then { start_date: Date.new(term.year, 8, 25), end_date: Date.new(term.year, 12, 15) }
-              end
+      when :spring then { start_date: Date.new(term.year, 1, 6),  end_date: Date.new(term.year, 4, 20) }
+      when :summer then { start_date: Date.new(term.year, 5, 4),  end_date: Date.new(term.year, 8, 15) }
+      when :fall   then { start_date: Date.new(term.year, 8, 25), end_date: Date.new(term.year, 12, 15) }
+      end
 
       term.update!(dates)
       puts "  #{term.name}: #{dates[:start_date]} to #{dates[:end_date]}"

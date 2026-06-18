@@ -45,6 +45,5 @@ module Api
         render json: { error: "Internal server error" }, status: :internal_server_error
       end
     end
-
   end
 end

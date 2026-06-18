@@ -24,7 +24,7 @@ module TwentyFiveLive
       { role_id:  3, role_name: "Athletics Coach",           sort_order: 2, defn_state: 1 },
       { role_id: -1, role_name: "Billing Contact",           sort_order: 3, defn_state: 1 },
       { role_id:  2, role_name: "Scheduling Contact",        sort_order: 4, defn_state: 1 },
-      { role_id: -2, role_name: "No Role",                   sort_order: 5, defn_state: 1 },
+      { role_id: -2, role_name: "No Role",                   sort_order: 5, defn_state: 1 }
     ].freeze
 
     def self.find_by_id(id)

@@ -29,7 +29,7 @@ namespace :calendar do
   end
 
   desc "Force sync calendar for a specific user by email"
-  task :force_sync_user, [:email] => :environment do |_t, args|
+  task :force_sync_user, [ :email ] => :environment do |_t, args|
     if args[:email].blank?
       puts "Usage: rails calendar:force_sync_user[user@example.com]"
       exit 1
@@ -52,7 +52,7 @@ namespace :calendar do
   end
 
   desc "Force sync calendar for a specific user by ID"
-  task :force_sync_user_id, [:user_id] => :environment do |_t, args|
+  task :force_sync_user_id, [ :user_id ] => :environment do |_t, args|
     if args[:user_id].blank?
       puts "Usage: rails calendar:force_sync_user_id[123]"
       exit 1

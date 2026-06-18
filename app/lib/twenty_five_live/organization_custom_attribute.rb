@@ -25,7 +25,7 @@ module TwentyFiveLive
       { attribute_id:  5, attribute_name: "Email Address",          attribute_type: "S", attribute_type_name: "String",       sort_order: 1, defn_state: 1 },
       { attribute_id:  6, attribute_name: "Engage Organization ID", attribute_type: "S", attribute_type_name: "String",       sort_order: 2, defn_state: 1 },
       { attribute_id: -11, attribute_name: "X25 CIP Code",          attribute_type: "S", attribute_type_name: "String",       sort_order: 3, defn_state: 0 },
-      { attribute_id: -8,  attribute_name: "X25 College",           attribute_type: "2", attribute_type_name: "Organization", sort_order: 4, defn_state: 0 },
+      { attribute_id: -8,  attribute_name: "X25 College",           attribute_type: "2", attribute_type_name: "Organization", sort_order: 4, defn_state: 0 }
     ].freeze
 
     def self.find_by_id(id)

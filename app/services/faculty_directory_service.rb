@@ -128,7 +128,7 @@ class FacultyDirectoryService < ApplicationService
   end
 
   def extract_total_count(doc)
-    selectors = [".result-count", ".pager-summary", ".view-header", "h2", "h3"]
+    selectors = [ ".result-count", ".pager-summary", ".view-header", "h2", "h3" ]
 
     selectors.each do |selector|
       doc.css(selector).each do |element|
@@ -185,7 +185,7 @@ class FacultyDirectoryService < ApplicationService
       end
     end
 
-    selectors = [".field--name-field-job-titles", ".field--name-field-job-title", ".title", ".position", ".job-title"]
+    selectors = [ ".field--name-field-job-titles", ".field--name-field-job-title", ".title", ".position", ".job-title" ]
     selectors.each do |selector|
       node = card.at_css(selector)
       next unless node
@@ -208,7 +208,7 @@ class FacultyDirectoryService < ApplicationService
   end
 
   def extract_phone(card)
-    selectors = [".phone", ".telephone", ".field--name-field-phone", "[class*='phone']"]
+    selectors = [ ".phone", ".telephone", ".field--name-field-phone", "[class*='phone']" ]
 
     selectors.each do |selector|
       node = card.at_css(selector)
@@ -237,7 +237,7 @@ class FacultyDirectoryService < ApplicationService
       end
     end
 
-    buildings = ["Beatty", "Dobbs", "Williston", "Annex", "Nelson", "Ira Allen", "Wentworth", "Tansey", "Hall", "Gym", "Center"]
+    buildings = [ "Beatty", "Dobbs", "Williston", "Annex", "Nelson", "Ira Allen", "Wentworth", "Tansey", "Hall", "Gym", "Center" ]
     card.css("p").each do |p|
       text = p.text.strip
       next if text.include?("@") || looks_like_phone?(text)
@@ -263,14 +263,14 @@ class FacultyDirectoryService < ApplicationService
   end
 
   def extract_department(card)
-    selectors = [".field--name-field-department", ".department", "[class*='department']"]
+    selectors = [ ".field--name-field-department", ".department", "[class*='department']" ]
 
     selectors.each do |selector|
       node = card.at_css(selector)
       return node.text.strip if node && node.text.strip.present?
     end
 
-    dept_keywords = ["Department", "Sciences", "Engineering", "Computing", "Management", "Architecture", "CEIS"]
+    dept_keywords = [ "Department", "Sciences", "Engineering", "Computing", "Management", "Architecture", "CEIS" ]
     card.css("p").each do |p|
       text = p.text.strip
       next if text.include?("@") || looks_like_phone?(text)
@@ -286,7 +286,7 @@ class FacultyDirectoryService < ApplicationService
   end
 
   def extract_school(card)
-    selectors = [".field--name-field-school", ".school", ".college", "[class*='school']"]
+    selectors = [ ".field--name-field-school", ".school", ".college", "[class*='school']" ]
 
     selectors.each do |selector|
       node = card.at_css(selector)

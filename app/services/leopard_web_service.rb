@@ -160,8 +160,8 @@ class LeopardWebService < ApplicationService
       faraday.options.open_timeout = OPEN_TIMEOUT
       faraday.options.timeout = READ_TIMEOUT
       faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
-                      retry_statuses: [502, 503, 504]
+                      exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
+                      retry_statuses: [ 502, 503, 504 ]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -378,8 +378,8 @@ class LeopardWebService < ApplicationService
       faraday.options.open_timeout = OPEN_TIMEOUT
       faraday.options.timeout = READ_TIMEOUT
       faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
-                      retry_statuses: [502, 503, 504]
+                      exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
+                      retry_statuses: [ 502, 503, 504 ]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -391,8 +391,8 @@ class LeopardWebService < ApplicationService
       faraday.options.open_timeout = OPEN_TIMEOUT
       faraday.options.timeout = READ_TIMEOUT
       faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
-                      retry_statuses: [502, 503, 504]
+                      exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
+                      retry_statuses: [ 502, 503, 504 ]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter
@@ -415,8 +415,8 @@ class LeopardWebService < ApplicationService
       faraday.options.open_timeout = OPEN_TIMEOUT
       faraday.options.timeout = READ_TIMEOUT
       faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                      exceptions: [Faraday::ConnectionFailed, Faraday::TimeoutError],
-                      retry_statuses: [502, 503, 504]
+                      exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
+                      retry_statuses: [ 502, 503, 504 ]
       faraday.request :url_encoded
       faraday.response :json, content_type: /\bjson$/
       faraday.adapter Faraday.default_adapter

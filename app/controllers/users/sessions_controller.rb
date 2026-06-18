@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 class Users::SessionsController < Devise::SessionsController
-  layout "sessions", only: [:new]
+  layout "sessions", only: [ :new ]
 
-  before_action :redirect_if_authenticated, only: [:new]
+  before_action :redirect_if_authenticated, only: [ :new ]
 
   def new
     # Renders sign-in page with Google OAuth button

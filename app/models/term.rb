@@ -147,10 +147,10 @@ class Term < ApplicationRecord
     today = Time.zone.today
 
     expected_season = case today.month
-                      when 1..5 then :spring
-                      when 6..7 then :summer
-                      when 8..12 then :fall
-                      end
+    when 1..5 then :spring
+    when 6..7 then :summer
+    when 8..12 then :fall
+    end
 
     if today.month == 12 && today.day >= 15
       spring_next_year = find_by(year: today.year + 1, season: :spring)

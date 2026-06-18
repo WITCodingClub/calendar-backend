@@ -15,13 +15,13 @@ class MeetingTimeSerializer
 
     rendered_title = if preferences[:title_template].present?
                        @template_renderer.render(preferences[:title_template], context)
-                     else
+    else
                        titleize_with_roman_numerals(@mt.course.title)
-                     end
+    end
 
     rendered_description = if preferences[:description_template].present?
                               @template_renderer.render(preferences[:description_template], context)
-                            end
+    end
 
     color_value = preferences[:color_id] || @mt.event_color
     witcc_color = GoogleColors.to_witcc_hex(color_value)

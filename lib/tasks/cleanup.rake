@@ -22,10 +22,10 @@ namespace :cleanup do
     puts "DRY RUN: Checking for duplicate TBD events..."
 
     users = if ENV["USER_ID"].present?
-              [User.find(ENV["USER_ID"])]
-            else
+              [ User.find(ENV["USER_ID"]) ]
+    else
               User.joins(:google_calendars).distinct
-            end
+    end
 
     total_duplicates = 0
 
@@ -40,7 +40,7 @@ namespace :cleanup do
       grouped_events = google_events.group_by do |event|
         mt = event.meeting_time
         next unless mt
-        [mt.course_id, mt.day_of_week, mt.begin_time, mt.end_time, mt.start_date, mt.end_date]
+        [ mt.course_id, mt.day_of_week, mt.begin_time, mt.end_time, mt.start_date, mt.end_date ]
       end
 
       user_duplicates = 0

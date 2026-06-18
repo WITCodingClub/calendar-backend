@@ -33,7 +33,7 @@ module FinalsScheduleParsers
 
           when :exam_time
             st, et = extract_time_range(line)
-            all_times << [st, et] if st
+            all_times << [ st, et ] if st
 
           when :exam_room
             loc = extract_location(line)
@@ -59,13 +59,13 @@ module FinalsScheduleParsers
         date = extract_date(date_line)
         next unless date
 
-        st, et   = all_times[time_room_idx] || [nil, nil]
+        st, et   = all_times[time_room_idx] || [ nil, nil ]
         location = all_rooms[time_room_idx]
         time_room_idx += 1
 
         entries << {
           crn:           crn,
-          combined_crns: [crn],
+          combined_crns: [ crn ],
           date:          date,
           start_time:    st,
           end_time:      et,

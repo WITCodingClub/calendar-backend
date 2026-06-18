@@ -15,8 +15,8 @@ class AddTermIdToEnrollments < ActiveRecord::Migration[8.1]
 
     change_column_null :enrollments, :term_id, false
 
-    remove_index :enrollments, [:user_id, :course_id], if_exists: true
-    add_index :enrollments, [:user_id, :course_id, :term_id],
+    remove_index :enrollments, [ :user_id, :course_id ], if_exists: true
+    add_index :enrollments, [ :user_id, :course_id, :term_id ],
               name: "index_enrollments_on_user_class_term", unique: true
   end
 end

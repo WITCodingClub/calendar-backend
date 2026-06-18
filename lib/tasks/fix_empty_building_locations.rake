@@ -36,7 +36,7 @@ namespace :cleanup do
 
     duplicates_found = 0
     Course.includes(meeting_times: { room: :building }).find_each do |course|
-      grouped = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+      grouped = course.meeting_times.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
 
       grouped.each do |(day, begin_t, end_t), mts|
         next if mts.size <= 1
@@ -72,7 +72,7 @@ namespace :cleanup do
     events_deleted = 0
 
     Course.includes(meeting_times: { room: :building }).find_each do |course|
-      grouped = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+      grouped = course.meeting_times.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
 
       grouped.each do |_, mts|
         next if mts.size <= 1

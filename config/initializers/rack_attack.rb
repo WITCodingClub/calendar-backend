@@ -11,7 +11,7 @@ class Rack::Attack
   safelist("disable-rack-attack") { |_req| ENV["DISABLE_RACK_ATTACK"] == "true" }
 
   safelist("allow-localhost") do |req|
-    ["127.0.0.1", "::1"].include?(req.ip) if Rails.env.development?
+    [ "127.0.0.1", "::1" ].include?(req.ip) if Rails.env.development?
   end
 
   safelist("allow-healthchecks") do |req|
@@ -141,11 +141,11 @@ class Rack::Attack
 
     body = { error: "Rate limit exceeded", message: "Too many requests. Please try again later.", retry_after: match_data[:period] }.to_json
 
-    [429, headers, [body]]
+    [ 429, headers, [ body ] ]
   end
 
   self.blocklisted_responder = lambda do |_request|
-    [403, { "Content-Type" => "application/json" }, [{ error: "Forbidden", message: "Request blocked" }.to_json]]
+    [ 403, { "Content-Type" => "application/json" }, [ { error: "Forbidden", message: "Request blocked" }.to_json ] ]
   end
 
   # ===========================================================================

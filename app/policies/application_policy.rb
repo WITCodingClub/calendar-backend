@@ -58,11 +58,11 @@ class ApplicationPolicy
 
     target_user = if record.is_a?(User)
                     record
-                  elsif record.respond_to?(:user)
+    elsif record.respond_to?(:user)
                     record.user
-                  elsif record.respond_to?(:oauth_credential) && record.oauth_credential.respond_to?(:user)
+    elsif record.respond_to?(:oauth_credential) && record.oauth_credential.respond_to?(:user)
                     record.oauth_credential.user
-                  end
+    end
 
     return super_admin? unless target_user
 

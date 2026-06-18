@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class AuthController < ApplicationController
-  skip_before_action :verify_authenticity_token, only: [:google]
+  skip_before_action :verify_authenticity_token, only: [ :google ]
 
   def google
     auth = request.env["omniauth.auth"]

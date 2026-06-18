@@ -3,7 +3,7 @@
 class Dashboard::CalendarPreferencesController < Dashboard::ApplicationController
   include PreferenceParams
 
-  before_action :set_calendar_preference, only: [:update]
+  before_action :set_calendar_preference, only: [ :update ]
 
   def index
     authorize current_user, :show?
@@ -34,15 +34,15 @@ class Dashboard::CalendarPreferencesController < Dashboard::ApplicationControlle
 
     @calendar_preference = if scope_param == "global"
                               current_user.calendar_preferences.find_or_initialize_by(scope: :global)
-                            elsif scope_param.to_s.start_with?("uni_cal:")
+    elsif scope_param.to_s.start_with?("uni_cal:")
                               category = scope_param.delete_prefix("uni_cal:")
                               current_user.calendar_preferences.find_or_initialize_by(
                                 scope: :uni_cal_category, event_type: category
                               )
-                            else
+    else
                               current_user.calendar_preferences.find_or_initialize_by(
                                 scope: :event_type, event_type: scope_param
                               )
-                            end
+    end
   end
 end

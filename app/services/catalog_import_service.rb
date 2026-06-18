@@ -16,7 +16,7 @@ class CatalogImportService < ApplicationService
     processed_count = 0
     failed_courses = []
 
-    unique_courses = catalog_courses.uniq { |c| [c["courseReferenceNumber"], c["term"]] }
+    unique_courses = catalog_courses.uniq { |c| [ c["courseReferenceNumber"], c["term"] ] }
 
     term_uids = unique_courses.map { |c| c["term"] || c["termEffective"] }.compact.uniq
 
@@ -227,20 +227,20 @@ class CatalogImportService < ApplicationService
   end
 
   def parse_faculty_name(display_name)
-    return [nil, nil] if display_name.blank?
+    return [ nil, nil ] if display_name.blank?
 
     if display_name.include?(",")
       parts = display_name.split(",").map(&:strip)
       last_name = parts[0]
       first_name_parts = parts[1]&.split(/\s+/) || []
       first_name = first_name_parts[0]
-      [first_name, last_name]
+      [ first_name, last_name ]
     else
       parts = display_name.split(/\s+/)
       if parts.length >= 2
-        [parts[0], parts[-1]]
+        [ parts[0], parts[-1] ]
       else
-        [display_name, display_name]
+        [ display_name, display_name ]
       end
     end
   end

@@ -79,7 +79,7 @@ namespace :faculty do
   end
 
   desc "Search for a specific faculty member on Rate My Professor by name"
-  task :search, [:name] => :environment do |_t, args|
+  task :search, [ :name ] => :environment do |_t, args|
     if args[:name].blank?
       puts "Usage: rake faculty:search['John Doe']"
       next
@@ -119,7 +119,7 @@ namespace :faculty do
   end
 
   desc "Manually assign RMP ID to a faculty member"
-  task :assign_rmp_id, [:faculty_id, :rmp_id] => :environment do |_t, args|
+  task :assign_rmp_id, [ :faculty_id, :rmp_id ] => :environment do |_t, args|
     if args[:faculty_id].blank? || args[:rmp_id].blank?
       puts "Usage: rake faculty:assign_rmp_id[faculty_id,rmp_id]"
       next

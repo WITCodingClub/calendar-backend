@@ -16,7 +16,7 @@ FLIPPER_FLAGS = {
   FlipperFlags::ENV_SWITCHER     => "Allows switching between dev/staging/production environments",
   FlipperFlags::DEBUG_MODE       => "Enables verbose debug logging and diagnostic output",
   FlipperFlags::FINALS_RETROACTIVE => "Enables retroactive finals schedule processing for past terms",
-  FlipperFlags::BYPASS_RATE_LIMITS => "Bypasses rate limiting for trusted users and admins",
+  FlipperFlags::BYPASS_RATE_LIMITS => "Bypasses rate limiting for trusted users and admins"
 }.freeze
 
 Rails.application.configure do

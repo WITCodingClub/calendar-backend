@@ -31,7 +31,7 @@ class MeetingTimesIngestService < ApplicationService
 
       abbr = "TBD" if abbr.blank?
       desc = "To Be Determined" if abbr == "TBD" && desc.blank?
-      [abbr, desc]
+      [ abbr, desc ]
     }.uniq { |abbr, _| abbr }
     abbrs = building_data.map(&:first).uniq
 
@@ -51,34 +51,34 @@ class MeetingTimesIngestService < ApplicationService
       raw_abbr = (mt["building"] || mt[:building]).to_s.strip
       abbr = if raw_abbr.blank?
                online_course? ? next : "TBD"
-             else
+      else
                raw_abbr
-             end
+      end
       building = @building_cache[abbr]
       next unless building
 
       parse_room_numbers((mt["room"] || mt[:room]).to_s.strip).each do |room_num|
-        acc << [room_num, building.id, building]
+        acc << [ room_num, building.id, building ]
       end
-    }.uniq { |room_num, building_id, _| [room_num, building_id] }
+    }.uniq { |room_num, building_id, _| [ room_num, building_id ] }
 
     building_ids = needed_rooms.map { |_, bid, _| bid }.uniq
     room_numbers = needed_rooms.map { |rnum, _, _| rnum }.uniq
 
     @room_cache = Room.where(building_id: building_ids, number: room_numbers)
                       .includes(:building)
-                      .index_by { |r| [r.number, r.building_id] }
+                      .index_by { |r| [ r.number, r.building_id ] }
 
     needed_rooms.each do |room_num, building_id, building|
-      next if @room_cache.key?([room_num, building_id])
+      next if @room_cache.key?([ room_num, building_id ])
 
       room = Room.create!(number: room_num, building: building)
-      @room_cache[[room_num, building_id]] = room
+      @room_cache[[ room_num, building_id ]] = room
     end
 
     @meeting_time_cache = Course::MeetingTime.where(course_id: course.id)
                                              .includes(:meeting_time_rooms)
-                                             .index_by { |mt| [mt.start_date, mt.end_date, mt.begin_time, mt.end_time, mt.day_of_week_before_type_cast] }
+                                             .index_by { |mt| [ mt.start_date, mt.end_date, mt.begin_time, mt.end_time, mt.day_of_week_before_type_cast ] }
   end
 
   def ingest_one(mt)
@@ -125,7 +125,7 @@ class MeetingTimesIngestService < ApplicationService
 
     room_str = (mt["room"] || mt[:room]).to_s.strip
     rooms_for_mt = parse_room_numbers(room_str).map { |room_num|
-      cache_key = [room_num, building.id]
+      cache_key = [ room_num, building.id ]
       @room_cache[cache_key] ||= Room.find_or_create_by!(number: room_num, building: building)
     }
 
@@ -134,9 +134,9 @@ class MeetingTimesIngestService < ApplicationService
 
     hours_per_day = if @compute_hours_week
                       compute_hours_per_day(begin_hhmm, end_hhmm)
-                    else
+    else
                       nil
-                    end
+    end
 
     active_days.each_value do |day_num|
       lookup_attrs = {
@@ -154,7 +154,7 @@ class MeetingTimesIngestService < ApplicationService
         hours_week: hours_per_day
       }
 
-      cache_key = [start_dt, end_dt, begin_hhmm, end_hhmm, day_num]
+      cache_key = [ start_dt, end_dt, begin_hhmm, end_hhmm, day_num ]
       meeting_time = @meeting_time_cache&.[](cache_key) || Course::MeetingTime.new(lookup_attrs)
       meeting_time.assign_attributes(update_attrs)
       meeting_time.save!
@@ -240,10 +240,10 @@ class MeetingTimesIngestService < ApplicationService
   end
 
   def parse_room_numbers(room_str)
-    return ["0"] if room_str.blank?
+    return [ "0" ] if room_str.blank?
 
     parts = room_str.to_s.strip.split("/").map(&:strip).reject(&:blank?)
-    parts.empty? ? ["0"] : parts
+    parts.empty? ? [ "0" ] : parts
   end
 
   def map_schedule_type(val)
@@ -270,6 +270,6 @@ class MeetingTimesIngestService < ApplicationService
     end_m = end_hhmm % 100
     end_decimal = end_h + (end_m / 60.0)
 
-    [end_decimal - begin_decimal, 0].max.round
+    [ end_decimal - begin_decimal, 0 ].max.round
   end
 end

@@ -2,7 +2,7 @@
 
 namespace :courses do
   desc "Refresh course titles from LeopardWeb (re-applies titleize_with_roman_numerals)"
-  task :refresh_titles, [:term_uid] => :environment do |_t, args|
+  task :refresh_titles, [ :term_uid ] => :environment do |_t, args|
     include ApplicationHelper
 
     term_uid = args[:term_uid]
@@ -10,10 +10,10 @@ namespace :courses do
     if term_uid.blank?
       current_term = Term.current
       next_term    = Term.next
-      term_uids    = [current_term&.uid, next_term&.uid].compact
+      term_uids    = [ current_term&.uid, next_term&.uid ].compact
       puts "No term specified, using current (#{current_term&.uid}) and next (#{next_term&.uid}) terms"
     else
-      term_uids = [term_uid]
+      term_uids = [ term_uid ]
     end
 
     if term_uids.empty?

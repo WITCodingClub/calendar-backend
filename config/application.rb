@@ -11,7 +11,13 @@ module Calendar
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
 
-    config.hashid_salt = Rails.application.credentials.dig(:hashid, :salt)
+    # config/credentials/test.key exists without a matching test.yml.enc, so Rails
+    # would try to decrypt credentials.yml.enc (master.key) with the wrong key. Fix
+    # the path before credentials are first accessed.
+    config.credentials.key_path = Rails.root.join("config", "master.key") if Rails.env.test?
+
+    # Falls back to HASHID_SALT env var so CI can run without a master.key.
+    config.hashid_salt = ENV.fetch("HASHID_SALT") { Rails.application.credentials.dig(:hashid, :salt) }
 
     config.active_job.queue_adapter = :solid_queue
 
@@ -32,5 +38,10 @@ module Calendar
     # config.eager_load_paths << Rails.root.join("extras")
 
     config.exceptions_app = self.routes
+
+    config.generators do |g|
+      g.test_framework :rspec, fixtures: true, view_specs: false, helper_specs: false, routing_specs: false
+      g.fixture_replacement :factory_bot, dir: "spec/factories"
+    end
   end
 end

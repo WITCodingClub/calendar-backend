@@ -80,7 +80,7 @@ module FuzzyDuplicateDetector
 
       # Also calculate character-level similarity for additional matching
       distance = levenshtein_distance(s1, s2)
-      max_length = [s1.length, s2.length].max
+      max_length = [ s1.length, s2.length ].max
       char_similarity = max_length.zero? ? 0.0 : 1.0 - (distance.to_f / max_length)
 
       # Weight token similarity more heavily (70%) than character similarity (30%)

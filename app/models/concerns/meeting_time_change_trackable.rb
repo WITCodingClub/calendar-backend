@@ -35,9 +35,9 @@ module MeetingTimeChangeTrackable
     cache = Thread.current[ENROLLMENT_CACHE_KEY]
     has_enrollments = if cache
                         cache.key?(course_id) ? cache[course_id] : (cache[course_id] = Enrollment.exists?(course_id: course_id))
-                      else
+    else
                         Enrollment.exists?(course_id: course_id)
-                      end
+    end
     return unless has_enrollments
 
     # Mark all users enrolled in this course as needing a calendar sync

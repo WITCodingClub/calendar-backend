@@ -82,11 +82,11 @@ module GoogleApiRateLimiter
   def calculate_backoff_delay(attempt, error = nil)
     if error.respond_to?(:header) && error.header&.[]("retry-after")
       retry_after = error.header["retry-after"].to_i
-      return [retry_after, rate_limit_config.max_delay].min if retry_after.positive?
+      return [ retry_after, rate_limit_config.max_delay ].min if retry_after.positive?
     end
 
     base_delay    = rate_limit_config.initial_delay * (rate_limit_config.backoff_multiplier**(attempt - 1))
-    capped_delay  = [base_delay, rate_limit_config.max_delay].min
+    capped_delay  = [ base_delay, rate_limit_config.max_delay ].min
     jitter_factor = 0.75 + (rand * 0.5)
     capped_delay * jitter_factor
   end

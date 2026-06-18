@@ -30,12 +30,12 @@ module Admin
       end
 
       display_name = case record
-                     when Term    then record.name
-                     when Faculty then record.full_name
-                     when Course  then "#{record.code} - #{record.title}"
-                     when User    then record.email || "User ##{record.id}"
-                     else record.to_s
-                     end
+      when Term    then record.name
+      when Faculty then record.full_name
+      when Course  then "#{record.code} - #{record.title}"
+      when User    then record.email || "User ##{record.id}"
+      else record.to_s
+      end
 
       render json: {
         public_id:    record.public_id,

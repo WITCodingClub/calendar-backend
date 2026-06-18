@@ -2,7 +2,7 @@
 
 namespace :oauth do
   desc "Revoke and delete OAuth credential by email"
-  task :revoke, [:email] => :environment do |_t, args|
+  task :revoke, [ :email ] => :environment do |_t, args|
     email = args[:email]
     if email.blank?
       puts "Usage: rake oauth:revoke[user@example.com]"
@@ -24,7 +24,7 @@ namespace :oauth do
   end
 
   desc "Revoke and delete all OAuth credentials for a user"
-  task :revoke_user, [:user_email] => :environment do |_t, args|
+  task :revoke_user, [ :user_email ] => :environment do |_t, args|
     user_email = args[:user_email]
     if user_email.blank?
       puts "Usage: rake oauth:revoke_user[user@example.com]"
@@ -64,7 +64,7 @@ namespace :oauth do
     end
 
     puts "Total OAuth credentials: #{credentials.count}\n"
-    puts "%-40s %-30s %-10s %s" % ["OAuth Email", "User Email", "Provider", "Created"]
+    puts "%-40s %-30s %-10s %s" % [ "OAuth Email", "User Email", "Provider", "Created" ]
     puts "-" * 100
 
     credentials.each do |cred|
@@ -78,7 +78,7 @@ namespace :oauth do
   end
 
   desc "Revoke a specific OAuth credential by ID"
-  task :revoke_by_id, [:id] => :environment do |_t, args|
+  task :revoke_by_id, [ :id ] => :environment do |_t, args|
     id = args[:id]
     if id.blank?
       puts "Usage: rake oauth:revoke_by_id[123]"
@@ -102,7 +102,7 @@ namespace :oauth do
   end
 
   desc "Check token status for an OAuth credential"
-  task :check, [:email] => :environment do |_t, args|
+  task :check, [ :email ] => :environment do |_t, args|
     email = args[:email]
     if email.blank?
       puts "Usage: rake oauth:check[user@example.com]"

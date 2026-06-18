@@ -48,7 +48,7 @@ class FinalsScheduleParserService < ApplicationService
   end
 
   def extract_pdf_text
-    Tempfile.create(["finals_schedule", ".pdf"], binmode: true) do |tmp|
+    Tempfile.create([ "finals_schedule", ".pdf" ], binmode: true) do |tmp|
       tmp.write(pdf_content)
       tmp.flush
 

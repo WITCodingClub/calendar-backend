@@ -19,7 +19,7 @@ class ProcessedEventsBuilder
                   .where(term_id: @term.id)
                   .includes(course: [
                               :faculties,
-                              { meeting_times: [:event_preference, { rooms: :building }, { course: [:faculties, :term] }] }
+                              { meeting_times: [ :event_preference, { rooms: :building }, { course: [ :faculties, :term ] } ] }
                             ])
 
     structured_data = enrollments.map do |enrollment|
@@ -69,7 +69,7 @@ class ProcessedEventsBuilder
   end
 
   def filter_meeting_times(meeting_times)
-    meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+    meeting_times.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
                  .map do |_key, group|
                    non_tbd = group.reject { |mt| tbd_location?(mt) }
                    non_tbd.any? ? non_tbd.first : group.first

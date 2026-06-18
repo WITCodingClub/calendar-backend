@@ -39,7 +39,7 @@ class RefreshOauthTokensJob < ApplicationJob
       client_id:     Rails.application.credentials.dig(:google, :client_id),
       client_secret: Rails.application.credentials.dig(:google, :client_secret),
       refresh_token: credential.refresh_token,
-      scope:         ["https://www.googleapis.com/auth/calendar"]
+      scope:         [ "https://www.googleapis.com/auth/calendar" ]
     )
 
     google_credentials.refresh!

@@ -140,7 +140,7 @@ namespace :risc do
     end
 
     puts "Recent security events (#{events.count}):\n"
-    puts "%-25s %-40s %-15s %-10s %s" % ["Created", "Event Type", "Reason", "Processed", "User"]
+    puts "%-25s %-40s %-15s %-10s %s" % [ "Created", "Event Type", "Reason", "Processed", "User" ]
     puts "-" * 120
 
     events.each do |event|

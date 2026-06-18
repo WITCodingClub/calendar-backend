@@ -11,7 +11,7 @@ class CreateTerms < ActiveRecord::Migration[8.1]
     end
 
     # Each (year, season) is a single term
-    add_index :terms, [:year, :season], unique: true
+    add_index :terms, [ :year, :season ], unique: true
 
     # Each uid points to exactly one term
     add_index :terms, :uid, unique: true

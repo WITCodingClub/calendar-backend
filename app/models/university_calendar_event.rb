@@ -175,10 +175,10 @@ class UniversityCalendarEvent < ApplicationRecord
     return nil unless match
 
     season = case match[1].downcase
-             when "fall" then :fall
-             when "spring" then :spring
-             when "summer" then :summer
-             end
+    when "fall" then :fall
+    when "spring" then :spring
+    when "summer" then :summer
+    end
 
     return nil unless season
 

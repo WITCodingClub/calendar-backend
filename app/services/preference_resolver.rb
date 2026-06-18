@@ -14,7 +14,7 @@ class PreferenceResolver
     title_template: "{{title}}",
     description_template: "{{faculty}}\n{{faculty_email}}",
     location_template: "{{building}} {{room}}",
-    reminder_settings: [{ "time" => "30", "type" => "minutes", "method" => "popup" }],
+    reminder_settings: [ { "time" => "30", "type" => "minutes", "method" => "popup" } ],
     color_id: nil,
     visibility: "default"
   }.freeze
@@ -36,7 +36,7 @@ class PreferenceResolver
     title_template: "{{summary}}",
     description_template: "{{description}}",
     location_template: "{{location}}",
-    reminder_settings: [{ "time" => "1", "type" => "days", "method" => "popup" }],
+    reminder_settings: [ { "time" => "1", "type" => "days", "method" => "popup" } ],
     color_id: 8,
     visibility: "default"
   }.freeze
@@ -85,17 +85,17 @@ class PreferenceResolver
   end
 
   def get_event_preference(event)
-    @event_preferences[[event.class.name, event.id]]
+    @event_preferences[[ event.class.name, event.id ]]
   end
 
   private
 
   def preload_preferences
     @event_preferences = EventPreference.where(user: @user)
-                                        .index_by { |ep| [ep.preferenceable_type, ep.preferenceable_id] }
+                                        .index_by { |ep| [ ep.preferenceable_type, ep.preferenceable_id ] }
 
     @calendar_preferences = CalendarPreference.where(user: @user)
-                                              .index_by { |cp| [cp.scope, cp.event_type] }
+                                              .index_by { |cp| [ cp.scope, cp.event_type ] }
 
     @user.user_extension_config if @user.association(:user_extension_config).loaded? == false
   end
@@ -112,14 +112,14 @@ class PreferenceResolver
 
   def resolve_field(event, field, ignore_dnd: false)
     if field == :reminder_settings && @notifications_disabled && !ignore_dnd
-      return [[], "dnd_override"]
+      return [ [], "dnd_override" ]
     end
 
-    event_pref = @event_preferences[[event.class.name, event.id]]
+    event_pref = @event_preferences[[ event.class.name, event.id ]]
     if event_pref.present?
       value = event_pref.public_send(field)
       if field == :reminder_settings ? !value.nil? : value.present?
-        return [value, "individual"]
+        return [ value, "individual" ]
       end
     end
 
@@ -127,35 +127,35 @@ class PreferenceResolver
     uni_cal_category = extract_uni_cal_category(event)
 
     if uni_cal_category.present?
-      cat_pref = @calendar_preferences[["uni_cal_category", uni_cal_category]]
+      cat_pref = @calendar_preferences[[ "uni_cal_category", uni_cal_category ]]
       if cat_pref.present?
         value = cat_pref.public_send(field)
         if field == :reminder_settings ? !value.nil? : value.present?
-          return [value, "uni_cal_category:#{uni_cal_category}"]
+          return [ value, "uni_cal_category:#{uni_cal_category}" ]
         end
       end
     end
 
     if event_type.present?
-      type_pref = @calendar_preferences[["event_type", event_type]]
+      type_pref = @calendar_preferences[[ "event_type", event_type ]]
       if type_pref.present?
         value = type_pref.public_send(field)
         if field == :reminder_settings ? !value.nil? : value.present?
-          return [value, "event_type:#{event_type}"]
+          return [ value, "event_type:#{event_type}" ]
         end
       end
     end
 
-    global_pref = @calendar_preferences[["global", nil]]
+    global_pref = @calendar_preferences[[ "global", nil ]]
     if global_pref.present?
       value = global_pref.public_send(field)
       if field == :reminder_settings ? !value.nil? : value.present?
-        return [value, "global"]
+        return [ value, "global" ]
       end
     end
 
     default_value = system_default_for(field, event, event_type, uni_cal_category)
-    [default_value, "system_default"]
+    [ default_value, "system_default" ]
   end
 
   def extract_event_type(event)
@@ -190,11 +190,11 @@ class PreferenceResolver
 
       if @user.user_extension_config.present? && event_type.present?
         color = case event_type
-                when "lecture"
+        when "lecture"
                   @user.user_extension_config.default_color_lecture
-                when "laboratory"
+        when "laboratory"
                   @user.user_extension_config.default_color_lab
-                end
+        end
         return color if color.present?
       end
 

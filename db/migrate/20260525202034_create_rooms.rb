@@ -12,7 +12,7 @@ class CreateRooms < ActiveRecord::Migration[8.1]
 
     # Room identifier is unique within a building
     add_index :rooms,
-              [:building_id, :number],
+              [ :building_id, :number ],
               unique: true,
               name: "index_rooms_on_building_id_and_number"
 

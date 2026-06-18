@@ -43,7 +43,7 @@ module TwentyFiveLive
       { category_id: 54, category_name: "Study Abroad",                                               sort_order: 21, defn_state: 1 },
       { category_id: 55, category_name: "Transformational Learning and Partnership (TLP)",             sort_order: 22, defn_state: 1 },
       { category_id: 93, category_name: "WIT Graduate",                                               sort_order: 23, defn_state: 1 },
-      { category_id: 94, category_name: "WIT Undergraduate Day",                                      sort_order: 24, defn_state: 1 },
+      { category_id: 94, category_name: "WIT Undergraduate Day",                                      sort_order: 24, defn_state: 1 }
     ].freeze
 
     def self.find_by_id(id)

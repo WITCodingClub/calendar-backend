@@ -47,20 +47,20 @@ module FinalsScheduleParsers
       if line =~ /(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i
         st = (convert_to_24h($1.to_i, $3.upcase) * 100) + $2.to_i
         et = (convert_to_24h($4.to_i, $6.upcase) * 100) + $5.to_i
-        return [st, et]
+        return [ st, et ]
       end
 
       if line =~ /(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2})\s*(AM|PM)/i
         st = (convert_to_24h($1.to_i, $3.upcase) * 100) + $2.to_i
         et = convert_to_24h($4.to_i, $5.upcase) * 100
-        return [st, et]
+        return [ st, et ]
       end
 
       if line =~ /\b(\d{4})\s*-\s*(\d{4})\b/
-        return [$1.to_i, $2.to_i]
+        return [ $1.to_i, $2.to_i ]
       end
 
-      [nil, nil]
+      [ nil, nil ]
     end
 
     def convert_to_24h(hour, meridian)

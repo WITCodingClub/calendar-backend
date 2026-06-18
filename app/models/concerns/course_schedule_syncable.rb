@@ -16,11 +16,11 @@ module CourseScheduleSyncable
     # to avoid N+1 queries in holidays_for_meeting_time (one query per unique date range)
     preload_holidays_for_user!
 
-    enrollments.includes(course: [meeting_times: [rooms: :building]]).find_each do |enrollment|
+    enrollments.includes(course: [ meeting_times: [ rooms: :building ] ]).find_each do |enrollment|
       course = enrollment.course
 
       # Filter meeting times to prefer valid locations over TBD duplicates
-      filtered_meeting_times = course.meeting_times.group_by { |mt| [mt.day_of_week, mt.begin_time, mt.end_time] }
+      filtered_meeting_times = course.meeting_times.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
                                      .map do |key, meeting_times|
                                        # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
                                        non_tbd = meeting_times.reject { |mt| (mt.building && tbd_building?(mt.building)) || (mt.room && tbd_room?(mt.room)) }
@@ -46,19 +46,19 @@ module CourseScheduleSyncable
                       !tbd_building?(meeting_time.building)
                      # Valid rooms and building
                      "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
-                   elsif non_tbd_rooms.any?
+        elsif non_tbd_rooms.any?
                      # Valid rooms, no building or invalid building
                      non_tbd_rooms.map(&:formatted_number).join(" / ")
-                   elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
+        elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
                      # TBD location - show "TBD" instead of ugly "To Be Determined 000"
                      "TBD"
-                   else
+        else
                      # No location info
                      nil
-                   end
+        end
 
         # Build course code from subject-number-section
-        course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
+        course_code = [ course.subject, course.course_number, course.section_number ].compact.join("-")
 
         # Build recurrence rule for weekly repeating events
         recurrence_rule = build_recurrence_rule(meeting_time)
@@ -110,7 +110,7 @@ module CourseScheduleSyncable
     service = GoogleCalendarService.new(self)
     events = []
 
-    enrollments.where(id: enrollment_ids).includes(course: [meeting_times: [rooms: :building]]).find_each do |enrollment|
+    enrollments.where(id: enrollment_ids).includes(course: [ meeting_times: [ rooms: :building ] ]).find_each do |enrollment|
       course = enrollment.course
 
       course.meeting_times.each do |meeting_time|
@@ -129,18 +129,18 @@ module CourseScheduleSyncable
                       !tbd_building?(meeting_time.building)
                      # Valid rooms and building
                      "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
-                   elsif non_tbd_rooms.any?
+        elsif non_tbd_rooms.any?
                      # Valid rooms, no building or invalid building
                      non_tbd_rooms.map(&:formatted_number).join(" / ")
-                   elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
+        elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
                      # TBD location - show "TBD" instead of ugly "To Be Determined 000"
                      "TBD"
-                   else
+        else
                      # No location info
                      nil
-                   end
+        end
 
-        course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
+        course_code = [ course.subject, course.course_number, course.section_number ].compact.join("-")
         recurrence_rule = build_recurrence_rule(meeting_time)
         recurrence = build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
 
@@ -177,7 +177,7 @@ module CourseScheduleSyncable
   # Sync a single meeting time immediately (for preference changes)
   def sync_meeting_time(meeting_time_id, force: true)
     service = GoogleCalendarService.new(self)
-    meeting_time = Course::MeetingTime.includes(course: [:faculties], rooms: :building).find_by(id: meeting_time_id)
+    meeting_time = Course::MeetingTime.includes(course: [ :faculties ], rooms: :building).find_by(id: meeting_time_id)
     return unless meeting_time
     return if meeting_time.day_of_week.blank?
 
@@ -194,19 +194,19 @@ module CourseScheduleSyncable
                   !tbd_building?(meeting_time.building)
                  # Valid rooms and building
                  "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
-               elsif non_tbd_rooms.any?
+    elsif non_tbd_rooms.any?
                  # Valid rooms, no building or invalid building
                  non_tbd_rooms.map(&:formatted_number).join(" / ")
-               elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
+    elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
                  # TBD location - show "TBD" instead of ugly "To Be Determined 000"
                  "TBD"
-               else
+    else
                  # No location info
                  nil
-               end
+    end
 
     course = meeting_time.course
-    course_code = [course.subject, course.course_number, course.section_number].compact.join("-")
+    course_code = [ course.subject, course.course_number, course.section_number ].compact.join("-")
     recurrence_rule = build_recurrence_rule(meeting_time)
     recurrence = build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
 
@@ -223,7 +223,7 @@ module CourseScheduleSyncable
     }
 
     # Sync just this one event
-    result = service.update_specific_events([event], force: force)
+    result = service.update_specific_events([ event ], force: force)
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
@@ -359,7 +359,7 @@ module CourseScheduleSyncable
   def build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
     return nil unless recurrence_rule
 
-    recurrence = [recurrence_rule]
+    recurrence = [ recurrence_rule ]
 
     # Get holiday dates that should be excluded from this meeting time
     exdates = build_holiday_exdates(meeting_time, start_time)
@@ -418,7 +418,7 @@ module CourseScheduleSyncable
   # @return [Array<UniversityCalendarEvent>] Holiday events in the date range
   def holidays_for_meeting_time(meeting_time)
     @holidays_cache ||= {}
-    cache_key = [meeting_time.start_date, meeting_time.end_date]
+    cache_key = [ meeting_time.start_date, meeting_time.end_date ]
     return @holidays_cache[cache_key] if @holidays_cache.key?(cache_key)
 
     if @all_holidays_preloaded
@@ -451,9 +451,9 @@ module CourseScheduleSyncable
 
     @all_holidays_preloaded = if min_start && max_end
                                 UniversityCalendarEvent.no_class_days_between(min_start, max_end).to_a
-                              else
+    else
                                 []
-                              end
+    end
   end
 
   # Format an EXDATE string for Google Calendar
@@ -497,7 +497,7 @@ module CourseScheduleSyncable
 
     user_config = user_extension_config
     if user_config&.sync_university_events
-      categories = (user_config.university_event_categories || []) - ["holiday"]
+      categories = (user_config.university_event_categories || []) - [ "holiday" ]
       unless categories.empty?
         UniversityCalendarEvent.by_categories(categories).merge(university_event_scope(time_scope)).find_each do |event|
           events << {
@@ -577,7 +577,7 @@ module CourseScheduleSyncable
       recurrence: nil
     }
 
-    result = service.update_specific_events([event], force: force)
+    result = service.update_specific_events([ event ], force: force)
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)

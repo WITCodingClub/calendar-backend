@@ -2,7 +2,7 @@
 
 module Admin
   class FinalsSchedulesController < Admin::ApplicationController
-    before_action :set_finals_schedule, only: [:show, :destroy, :confirm_replace, :process_schedule]
+    before_action :set_finals_schedule, only: [ :show, :destroy, :confirm_replace, :process_schedule ]
 
     def index
       @finals_schedules = policy_scope(FinalsSchedule)

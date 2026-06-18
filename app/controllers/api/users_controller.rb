@@ -2,7 +2,7 @@
 
 module Api
   class UsersController < ApiController
-    skip_before_action :authenticate_user_from_token!, only: [:onboard]
+    skip_before_action :authenticate_user_from_token!, only: [ :onboard ]
 
     # POST /api/user/onboard
     def onboard
@@ -240,7 +240,7 @@ module Api
                     .where(term_id: term.id)
                     .includes(course: [
                       :faculties,
-                      { meeting_times: [:event_preference, { course: :faculties }] }
+                      { meeting_times: [ :event_preference, { course: :faculties } ] }
                     ])
 
       preference_resolver = PreferenceResolver.new(current_user)
