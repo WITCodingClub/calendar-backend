@@ -47,6 +47,7 @@ jobs:
       - name: Deploy to alastor
         env:
           DEPLOY_KEY: ${{ secrets.WIT_CALENDAR_DEPLOY_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
           IMAGE: ghcr.io/witcodingclub/calendar-backend:${{ github.sha }}
         run: |
           mkdir -p ~/.ssh
@@ -56,6 +57,6 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=10 \
-            wit-calendar-deploy@alastor \
+            wit-calendar-deploy@"$SERVER_HOST" \
             "echo '$IMAGE' > /var/lib/wit-calendar/image-ref && \
              sudo systemctl restart wit-calendar-web"
