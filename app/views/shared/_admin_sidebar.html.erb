@@ -44,7 +44,7 @@
           <% category[:items].each do |item| %>
             <% resolved_path = item[:path].is_a?(Symbol) ? send(item[:path]) : item[:path] %>
             <%= link_to item[:title], resolved_path,
-                class: "flex items-center gap-2 px-3 py-2 rounded-2xl text-sm #{request.path.start_with?(resolved_path.to_s) ? 'bg-secondary-container text-on-secondary-container font-medium' : 'text-on-surface-variant hover:bg-surface-container-high'}" %>
+                class: "flex items-center gap-2 px-3 py-2 rounded-2xl text-sm #{request.path.start_with?(resolved_path.to_s) ? 'bg-primary-container text-on-primary-container font-semibold' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors'}" %>
           <% end %>
         </div>
       </div>

@@ -1,9 +1,5 @@
 <%# Usage: render "shared/stat_card", title: "Users", count: @users_count, path: admin_users_path %>
-<div class="m3-card">
-  <div class="p-3">
-    <%= link_to title, path, class: "text-base font-medium text-on-surface hover:underline" %>
-    <div class="mt-1 text-3xl font-semibold text-primary">
-      <%= count %>
-    </div>
-  </div>
-</div>
+<%= link_to path, class: "m3-card block p-4 hover:bg-surface-container-high transition-colors group" do %>
+  <p class="text-xs font-medium text-on-surface-variant uppercase tracking-wide mb-2"><%= title %></p>
+  <p class="text-2xl font-bold text-primary group-hover:text-on-primary-container transition-colors"><%= count %></p>
+<% end %>
