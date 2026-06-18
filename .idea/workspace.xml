@@ -1,16 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="fa6a213c-3b5b-4830-992c-c7913825bf10" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/calendar.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/db-forest-config.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/mise.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules/.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/sqldialects.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/models/degree_evaluation_snapshot.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/models/degree_evaluation_snapshot.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/calendar_preference_serializer.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/calendar_preference_serializer.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/course_plan_serializer.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/course_plan_serializer.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/event_preference_serializer.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/event_preference_serializer.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/faculty_serializer.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/faculty_serializer.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/meeting_time_serializer.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/meeting_time_serializer.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/term_serializer.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/term_serializer.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/university_calendar_event_serializer.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/app/serializers/university_calendar_event_serializer.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/factories/degree_evaluation_snapshots.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/factories/degree_evaluation_snapshots.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/course_plan_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/course_plan_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/course_prerequisite_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/course_prerequisite_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/degree_evaluation_snapshot_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/degree_evaluation_snapshot_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/degree_program_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/degree_program_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/degree_requirement_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/degree_requirement_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/requirement_completion_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/requirement_completion_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/transfer/course_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/transfer/course_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/transfer/equivalency_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/transfer/equivalency_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/transfer/university_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/transfer/university_spec.rb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/user_degree_program_spec.rb" beforeDir="false" afterPath="$PROJECT_DIR$/.worktrees/feat-course-seats-355/spec/models/user_degree_program_spec.rb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,6 +34,10 @@
     <persistenceIdMap>
       <entry key="_/Users/jsp/dev/school/witcc/calendar/backend" value="3F6Iw1Mcpn0wqwrBBFowI0gttRV" />
     </persistenceIdMap>
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="46919" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -62,8 +79,14 @@
     "RunOnceActivity.ruby.rubocop.migration.global.runOnSaveToExternalFormatter": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.lang.ruby.rbs.tools.collection.workspace.sync.RbsCollectionUpdateProjectActivity#LAST_UPDATE_TIMESTAMP": "1781389386618",
     "git-widget-placeholder": "main",
     "last_opened_file_path": "/Users/jsp/dev/school/witcc/calendar/backend",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
     "settings.editor.selected.configurable": "org.jetbrains.plugins.ruby.settings.RubyIdeSdkConfigurableProvider",
     "vue.rearranger.settings.migration": "true"
   }
@@ -709,9 +732,12 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1781389326603</updated>
-      <workItem from="1781389327897" duration="11000" />
+      <workItem from="1781389327897" duration="659000" />
     </task>
     <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CHECK_NEW_TODO" value="false" />
