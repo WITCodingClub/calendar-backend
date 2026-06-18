@@ -70,7 +70,7 @@ class OauthCredential < ApplicationRecord
     return if google_calendar&.google_calendar_id.blank?
 
     service = GoogleCalendarService.new(user)
-    service.unshare_calendar_with_email(google_calendar.google_calendar_id, email)
+    service.remove_calendar_from_user_list_for_email(google_calendar.google_calendar_id, email)
   rescue => e
     Rails.logger.error("Failed to revoke calendar access for #{email}: #{e.message}")
   end
