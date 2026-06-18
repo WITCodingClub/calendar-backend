@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class ErrorsController < ApplicationController
+  layout false
+
   def unauthorized
     render status: :forbidden
   end

@@ -30,6 +30,7 @@ module Admin
     end
 
     def missing_rmp_ids
+      authorize Faculty, :missing_rmp_ids?
       @faculties = policy_scope(Faculty).with_courses.where(rmp_id: nil).order(:last_name, :first_name)
 
       if params[:search].present?

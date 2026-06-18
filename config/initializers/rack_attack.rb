@@ -112,14 +112,12 @@ class Rack::Attack
   # ===========================================================================
 
   throttle("admin/session", limit: 1000, period: 5.minutes) do |req|
-    if req.path.start_with?("/admin")
-      req.session[:session_id] || req.cookies["_session_id"]
-    end
+    req.cookies["_calendar_session"] if req.path.start_with?("/admin")
   end
 
   throttle("admin/destructive", limit: 100, period: 1.minute) do |req|
     if req.path.start_with?("/admin") && (req.delete? || req.path.include?("revoke") || req.path.include?("destroy"))
-      req.session[:session_id] || req.cookies["_session_id"]
+      req.cookies["_calendar_session"]
     end
   end
 
