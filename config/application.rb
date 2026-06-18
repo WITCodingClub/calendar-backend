@@ -30,5 +30,7 @@ module Calendar
     #
     config.time_zone = "Eastern Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    config.exceptions_app = self.routes
   end
 end
