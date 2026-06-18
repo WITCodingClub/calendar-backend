@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_18_025841) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -749,7 +749,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_025841) do
     t.string "default_color_lecture", default: "#039be5", null: false
     t.jsonb "enrolled_terms", default: [], null: false
     t.boolean "military_time", default: false, null: false
-    t.boolean "show_historic_terms", default: false, null: false
+    t.boolean "show_historic_terms", default: true, null: false
     t.boolean "sync_university_events", default: false, null: false
     t.jsonb "university_event_categories"
     t.datetime "updated_at", null: false

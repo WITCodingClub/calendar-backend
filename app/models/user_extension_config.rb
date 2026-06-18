@@ -10,7 +10,7 @@
 #  default_color_lecture       :string           default("#039be5"), not null
 #  enrolled_terms              :jsonb            not null
 #  military_time               :boolean          default(FALSE), not null
-#  show_historic_terms         :boolean          default(FALSE), not null
+#  show_historic_terms         :boolean          default(TRUE), not null
 #  sync_university_events      :boolean          default(FALSE), not null
 #  university_event_categories :jsonb
 #  created_at                  :datetime         not null
