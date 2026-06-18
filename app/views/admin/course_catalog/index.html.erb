@@ -66,7 +66,7 @@
                 <% end %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <% if term_data[:in_database] %>
+                <% if term_data[:in_database] && term_data[:from_api] %>
                   <% importing = term_data[:db_term]&.catalog_importing? %>
                   <%= button_to importing ? "Importing…" : (term_data[:db_term]&.catalog_imported? ? "Re-import" : "Import"),
                       admin_course_catalog_import_path(term_uid: term_data[:uid]),
