@@ -409,7 +409,8 @@ class ImportFromBackendService
       end
 
       new_user_id = resolve_user_id(row["user_id"])
-      enrollment = Enrollment.find_or_initialize_by(user_id: new_user_id, course_id: new_course_id)
+      new_term_id = Course.find(new_course_id).term_id
+      enrollment = Enrollment.find_or_initialize_by(user_id: new_user_id, course_id: new_course_id, term_id: new_term_id)
       if enrollment.new_record?
         if enrollment.save
           @stats[:enrollments_created] += 1
