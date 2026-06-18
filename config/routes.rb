@@ -213,5 +213,5 @@ Rails.application.routes.draw do
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
   end
 
-  root to: "users/sessions#new"
+  root to: redirect("/users/sign_in")
 end
