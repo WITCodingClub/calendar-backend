@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 Rails.application.config.middleware.use OmniAuth::Builder do
+  base_url = if (host = ENV["APPLICATION_HOST"])
+    "https://#{host}"
+  end
+
   provider(
     :google_oauth2,
     Rails.application.credentials.dig(:google, :client_id),
@@ -15,8 +19,9 @@ Rails.application.config.middleware.use OmniAuth::Builder do
       ].join(" "),
       access_type: "offline",
       prompt: "consent",
-      include_granted_scopes: true
-    }
+      include_granted_scopes: true,
+      redirect_uri: base_url ? "#{base_url}/auth/google_oauth2/callback" : nil
+    }.compact
   )
 end
 
