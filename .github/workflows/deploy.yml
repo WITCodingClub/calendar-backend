@@ -12,14 +12,11 @@ permissions:
 jobs:
   deploy:
     name: Build & deploy to alastor
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Set up QEMU (for arm64 cross-build)
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -31,12 +28,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image (arm64)
+      - name: Build and push image
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/arm64
           push: true
           tags: |
             ghcr.io/witcodingclub/calendar-backend:main
