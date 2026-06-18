@@ -16,7 +16,7 @@ module Admin
       session[:oauth_state] = SecureRandom.hex(32)
       session[:oauth_initiator_user_id] = current_user.id
 
-      callback_url = "#{request.base_url}/admin/oauth/callback"
+      callback_url = "#{app_base_url}/admin/oauth/callback"
 
       client = Signet::OAuth2::Client.new(
         client_id: Rails.application.credentials.dig(:google, :client_id),
@@ -55,7 +55,7 @@ module Admin
 
       require "signet/oauth_2/client"
 
-      callback_url = "#{request.base_url}/admin/oauth/callback"
+      callback_url = "#{app_base_url}/admin/oauth/callback"
 
       client = Signet::OAuth2::Client.new(
         client_id: Rails.application.credentials.dig(:google, :client_id),
@@ -87,6 +87,14 @@ module Admin
     end
 
     private
+
+    def app_base_url
+      if (host = ENV["APPLICATION_HOST"])
+        "#{request.protocol}#{host}"
+      else
+        request.base_url
+      end
+    end
 
     def require_owner!
       return if current_user&.owner?
