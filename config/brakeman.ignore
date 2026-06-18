@@ -1,0 +1,28 @@
+{
+  "ignored_warnings": [
+    {
+      "fingerprint": "1b2279d03b9b94373997ba8243d8de4470cc1a3a12a2ac54e568fed93e524d10",
+      "note": "False positive: conn.escape_literal() is the correct PG escape function for this raw connection pattern"
+    },
+    {
+      "fingerprint": "6f07b051075d8619fdebb4b27f341b82d5e03abc02134d644974f4daa43a3fb1",
+      "note": "False positive: conn.escape_literal() is the correct PG escape function for this raw connection pattern"
+    },
+    {
+      "fingerprint": "1da7c19b950e02ee2c4a7adfc77a93456ef70c99cef3cf5b4c977d150c3a4aee",
+      "note": "False positive: conn.escape_literal() is the correct PG escape function for this raw connection pattern"
+    },
+    {
+      "fingerprint": "2a4546425a35ab7621cdc1dbfbae72ea109b1ec7a9f166c869f4c67cd4c8689c",
+      "note": "False positive: conn.escape_literal() is the correct PG escape function for this raw connection pattern"
+    },
+    {
+      "fingerprint": "b67c1943b570cd06b5784465ad7356590a401dd311ec3e6fb8edff34bae06574",
+      "note": "False positive: dashboard_id_map/query_id_map values are integer-mapped IDs, not user input"
+    },
+    {
+      "fingerprint": "6eca622abc5db39bd6a3f96c38fce924bc54269ae943901462eb3022fd3cc617",
+      "note": "False positive: conn.escape_literal() is the correct PG escape function for this raw connection pattern"
+    }
+  ]
+}
