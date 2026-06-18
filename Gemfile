@@ -31,6 +31,7 @@ gem "console1984"
 gem "bootsnap", require: false
 gem "thruster", require: false
 gem "image_processing", "~> 2.0"
+gem "ruby-vips"
 
 # Authentication
 gem "devise", "~> 5.0"
