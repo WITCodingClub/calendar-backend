@@ -2,7 +2,6 @@
 
 module Admin
   class ServiceAccountController < Admin::ApplicationController
-    skip_before_action :require_admin, raise: false
     before_action :require_owner!, except: [ :callback ]
 
     def index
