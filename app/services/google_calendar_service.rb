@@ -78,7 +78,7 @@ class GoogleCalendarService
     current_event_keys = events.map { |e| build_event_key_from_hash(e) }.compact
 
     events_to_delete = existing_events.except(*current_event_keys).reject do |_key, cal_event|
-      cal_event.end_time&.past?
+      event_fully_past?(cal_event)
     end
     with_batch_throttling(events_to_delete.values) do |cal_event|
       delete_event_from_calendar(service, google_calendar, cal_event)
@@ -713,5 +713,18 @@ class GoogleCalendarService
     google_event.visibility = event_data[:visibility] if event_data[:visibility].present?
 
     google_event
+  end
+
+  # Returns true only when the event (including its full recurrence) is entirely in the past.
+  # end_time stores the *first* occurrence, so it's past for any ongoing recurring event.
+  # Instead, parse the UNTIL date from the RRULE when present.
+  def event_fully_past?(cal_event)
+    rrule = Array(cal_event.recurrence).find { |r| r.start_with?("RRULE:") }
+    if rrule
+      until_match = rrule.match(/UNTIL=(\d{8}T\d{6}Z)/)
+      return until_match ? Time.parse(until_match[1]).past? : false
+    end
+
+    cal_event.end_time&.past?
   end
 end
