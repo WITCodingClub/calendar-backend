@@ -13,7 +13,7 @@ class UserPolicy < ApplicationPolicy
   def manage_friendships?        = super_admin?
 
   def view_user_details?         = show?
-  def view_oauth_credentials?    = admin?
+  def view_oauth_credentials?    = super_admin?
   def manage_oauth_credentials?  = super_admin?
   def view_enrollments?          = super_admin?
   def view_calendar_sync_info?   = admin?

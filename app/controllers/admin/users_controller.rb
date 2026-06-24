@@ -31,15 +31,23 @@ module Admin
     def show
       authorize @user
 
-      @enrollments_by_term = @user.enrollments
-                                  .includes({ course: [ :faculties, :term, meeting_times: { rooms: :building } ] })
-                                  .joins(course: :term)
-                                  .order("terms.year DESC, terms.season DESC")
-                                  .group_by { |e| e.course.term }
+      @enrollments_by_term = if policy(@user).view_enrollments?
+                               @user.enrollments
+                                    .includes({ course: [ :faculties, :term, meeting_times: { rooms: :building } ] })
+                                    .joins(course: :term)
+                                    .order("terms.year DESC, terms.season DESC")
+                                    .group_by { |e| e.course.term }
+                             else
+                               {}
+                             end
 
-      @oauth_credentials = @user.oauth_credentials
-                                .includes(:google_calendar)
-                                .order(created_at: :desc)
+      @oauth_credentials = if policy(@user).view_oauth_credentials?
+                             @user.oauth_credentials
+                                  .includes(:google_calendar)
+                                  .order(created_at: :desc)
+                           else
+                             []
+                           end
 
       @friends = @user.friends.to_a
       @incoming_requests = @user.incoming_friend_requests.includes(:requester).to_a
