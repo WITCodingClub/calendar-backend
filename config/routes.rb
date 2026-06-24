@@ -201,8 +201,8 @@ Rails.application.routes.draw do
   end
 
   # Fallback if AdminConstraint fails
-  get "admin",       to: redirect("/users/sign_in")
-  get "admin/*path", to: redirect("/users/sign_in")
+  get "admin",       to: "application#admin_unauthorized"
+  get "admin/*path", to: "application#admin_unauthorized"
 
   get "unauthorized", to: "errors#unauthorized"
   get "404",          to: "errors#not_found"

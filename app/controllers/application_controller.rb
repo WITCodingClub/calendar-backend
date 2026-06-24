@@ -12,6 +12,14 @@ class ApplicationController < ActionController::Base
     current_user.admin_access? ? admin_root_path : dashboard_root_path
   end
 
+  def admin_unauthorized
+    if user_signed_in?
+      redirect_to dashboard_root_path, alert: "You don't have permission to access that page."
+    else
+      redirect_to new_user_session_path
+    end
+  end
+
   private
 
   def user_not_authorized
