@@ -182,8 +182,13 @@ class CalendarsController < ApplicationController
     enrolled_term_ids = @courses.map(&:term_id).compact.uniq
     return if enrolled_term_ids.empty?
 
-    UniversityCalendarEvent.holidays.where(term_id: enrolled_term_ids).find_each do |event|
-      add_university_event_to_calendar(cal, event, force_all_day: true)
+    terms = Term.where(id: enrolled_term_ids).where.not(start_date: nil).where.not(end_date: nil)
+    if terms.any?
+      min_date = terms.minimum(:start_date)
+      max_date = terms.maximum(:end_date)
+      UniversityCalendarEvent.holidays.in_date_range(min_date, max_date).find_each do |event|
+        add_university_event_to_calendar(cal, event, force_all_day: true)
+      end
     end
 
     user_config = @user.user_extension_config
