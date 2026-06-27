@@ -1,30 +1,84 @@
-<p align="center">
-    <img src="https://raw.githubusercontent.com/WITCodingClub/calendar/refs/heads/main/resources/W-Calendar-outlined-back-only.png" width="128" alt="WIT-calendar Icon"/>
-</p>
+## Getting Started
 
-<h3 align="center">
-    <strong>WIT-Calendar</strong>
-</h3>
+This guide will walk you through setting up the application for development.
 
-<p align="center">
-    <a href="https://calendar.witcc.dev">website</a> · <a href="https://chromewebstore.google.com/detail/wit-calendar/aceelinogfcceklkpacakdeddnaakicj">install</a> · <a href="https://stats.uptimerobot.com/QS76oPqfzz">status page</a>
-    <br>
-    (middle-click or ctrl/cmd+click to open in a new tab)
-</p>
+### Prerequisites
 
-## Description
-WIT-Calendar is a Chrome extension that makes adding your classes to your calendar easy & quick!
-It supports all major calendars, including Google Calendar, Microsoft Outlook, and Apple Calendar.
-In the future, you will also be able to find "best times" to meet with fellow students, easily register for classes, and more!
+Make sure you have the following installed on your system:
 
-## How does it work?
-The Chrome extension gets your schedule, processes it, and then provides you with a calendar link. You can also optionally connect your Google account for automatic updates to your Google Calendar.
+*   **Ruby:** Version `4.0.1` (as specified in the `Dockerfile`). We recommend using a version manager like [`rbenv`](https://github.com/rbenv/rbenv) or [`rvm`](https://rvm.io/). Project owner, @jsp, uses and recommends [`mise`](https://mise.jdx.dev/).
+*   **Bundler:** `gem install bundler`
+*   **PostgreSQL:** Version 15 is recommended.
+*   **Redis:** A running Redis server.
 
-You can also manage event alerts, colors, and titles from within the extension.
+**Alternative: Use GitHub Codespaces** (Recommended for quick setup)
 
-## Development
-- See instructions for developing the extension [here](https://github.com/WITCodingClub/calendar-extension/blob/main/client/README.md).
+1.  Create a new branch OR fork this repository
+	
+    **If you create a new branch, make sure it is named properly.**
 
-- See instructions for developing the backend **(this repo)** [here](https://github.com/WITCodingClub/calendar-backend/blob/main/README.md).
+2.  Click the green "Code" button towards the right of the screen
 
-- See instructions for developing our landing/marketing page [here](https://github.com/WITCodingClub/calendar-website/blob/main/README.md)
+3.  Click the "Codespaces" tab at the top of the pop-up
+
+4.  Click "Create codespace on `your-branch-name`"
+
+Then follow the instructions below, starting from Step 2.
+
+### Setup
+
+1.  **Clone the repository:**
+
+    ```bash
+    git clone https://github.com/WITCodingClub/calendar-backend.git
+    cd calendar-backend
+    ```
+
+2.  **Install dependencies:**
+
+    ```bash
+    bundle install
+    ```
+
+3.  **Set up environment variables:**
+
+    This project uses a `.env.example` file to define required environment variables. Copy it to `.env` and fill in the values for your local setup.
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Then, edit the `.env` file with your local configuration.
+
+4.  **Set up Rails credentials:**
+
+    This project uses Rails encrypted credentials for storing sensitive configuration like Google OAuth credentials and Active Record encryption keys.
+
+    *   Uses `config/credentials/development.yml.enc`
+    *   Request `config/credentials/development.key` from @jsp
+
+    The credentials file should include:
+    - Google OAuth client ID and secret (for admin authentication)
+    - Active Record encryption keys (for encrypting OAuth tokens)
+    - Rate My Professor API credentials
+    - Any other third-party service credentials
+
+    Ask @jsp for the master key file to decrypt the credentials.
+
+5.  **Create and seed the database:**
+
+    ```bash
+    rails db:create
+    rails db:migrate
+    rails db:seed
+    ```
+
+6.  **Run the application:**
+
+    ```bash
+    bin/dev
+    ```
+
+    This will start the web server, the background job worker, and the CSS watcher. You can access the application at `http://127.0.0.1:3000`.
+
+    **Note:** Make sure you have the credentials master key file at `config/credentials/development.key` to access encrypted credentials for Google OAuth and other services.
