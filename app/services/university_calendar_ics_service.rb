@@ -105,12 +105,21 @@ class UniversityCalendarIcsService < ApplicationService
 
     uids.each do |uid|
       event = @existing_events_by_uid&.[](uid)
+
+      # If no direct match, check whether this UID is the root of a merged record
+      # (stored as "merged:<uid>+<count>"). Non-root constituent UIDs of a merged
+      # event are not stored, so only the root cancellation triggers cleanup here.
+      if event.nil? && @existing_events_by_uid
+        merged_prefix = "merged:#{uid}+"
+        _key, event = @existing_events_by_uid.find { |k, _v| k.start_with?(merged_prefix) }
+      end
+
       next unless event
 
-      Rails.logger.info("Removing CANCELLED ICS event: #{event.summary} (#{uid})")
+      Rails.logger.info("Removing CANCELLED ICS event: #{event.summary} (#{uid} -> #{event.ics_uid})")
       stats[:changed_categories] << event.category if event.category.present?
       event.destroy
-      @existing_events_by_uid.delete(uid)
+      @existing_events_by_uid.delete(event.ics_uid)
       stats[:cancelled] += 1
     end
   end

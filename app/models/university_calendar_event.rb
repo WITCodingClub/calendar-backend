@@ -102,6 +102,9 @@ class UniversityCalendarEvent < ApplicationRecord
                                .select { |event| schedule_available_summary?(event.summary) }
                                .min_by(&:start_time)
 
+    registration_event = matching_events
+                         .select { |event| registration_summary?(event.summary) }
+                         .min_by(&:start_time)
     estimated_schedule_available_date = registration_event&.start_time&.to_date&.-(14)
 
     finals_period_event = matching_events

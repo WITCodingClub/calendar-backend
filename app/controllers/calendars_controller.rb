@@ -182,10 +182,8 @@ class CalendarsController < ApplicationController
     enrolled_term_ids = @courses.map(&:term_id).compact.uniq
     return if enrolled_term_ids.empty?
 
-    terms = Term.where(id: enrolled_term_ids).where.not(start_date: nil).where.not(end_date: nil)
-    if terms.any?
-      min_date = terms.minimum(:start_date)
-      max_date = terms.maximum(:end_date)
+    min_date, max_date = holiday_date_range_for_terms(enrolled_term_ids)
+    if min_date && max_date
       UniversityCalendarEvent.holidays.in_date_range(min_date, max_date).find_each do |event|
         add_university_event_to_calendar(cal, event, force_all_day: true)
       end
@@ -197,9 +195,26 @@ class CalendarsController < ApplicationController
     categories = (user_config.university_event_categories || []) - [ "holiday" ]
     return if categories.empty?
 
-    UniversityCalendarEvent.by_categories(categories).where(term_id: enrolled_term_ids).find_each do |event|
-      add_university_event_to_calendar(cal, event)
+    if min_date && max_date
+      UniversityCalendarEvent.by_categories(categories).in_date_range(min_date, max_date).find_each do |event|
+        add_university_event_to_calendar(cal, event)
+      end
     end
+  end
+
+  # Returns [min_date, max_date] for the holiday query range.
+  # Prefers term start/end dates; falls back to meeting time dates when terms
+  # lack end_date (e.g. Fall 2026 before finals are scheduled).
+  def holiday_date_range_for_terms(enrolled_term_ids)
+    terms = Term.where(id: enrolled_term_ids).where.not(start_date: nil).where.not(end_date: nil)
+    if terms.any?
+      return [ terms.minimum(:start_date), terms.maximum(:end_date) ]
+    end
+
+    meeting_times = @courses.flat_map { |c| c.meeting_times.to_a }
+    min = meeting_times.filter_map(&:start_date).min
+    max = meeting_times.filter_map(&:end_date).max
+    [ min, max ]
   end
 
   def add_university_event_to_calendar(cal, event, force_all_day: false)
