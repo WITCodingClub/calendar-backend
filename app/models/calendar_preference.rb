@@ -19,8 +19,9 @@
 #
 # Indexes
 #
-#  index_calendar_preferences_on_user_id    (user_id)
-#  index_calendar_prefs_on_user_scope_type  (user_id,scope,event_type) UNIQUE
+#  index_calendar_preferences_on_user_id     (user_id)
+#  index_calendar_prefs_on_user_scope_type   (user_id,scope,event_type) UNIQUE
+#  index_calendar_prefs_one_global_per_user  (user_id) UNIQUE WHERE (scope = 0)
 #
 # Foreign Keys
 #
@@ -41,6 +42,10 @@ class CalendarPreference < ApplicationRecord
   validates :scope, presence: true
   validates :event_type, presence: true, if: -> { scope_event_type? || scope_uni_cal_category? }
   validates :event_type, absence: true, if: :scope_global?
+  # Exactly one global preference per user. The DB unique index on
+  # (user_id, scope, event_type) can't enforce this because event_type is NULL
+  # for global rows and Postgres treats NULLs as distinct.
+  validate :only_one_global_preference, if: :scope_global?
   validates :event_type, inclusion: { in: UNI_CAL_CATEGORIES }, if: :scope_uni_cal_category?
   validates :title_template, length: { maximum: 500 }, allow_blank: true
   validates :description_template, length: { maximum: 2000 }, allow_blank: true
@@ -56,6 +61,12 @@ class CalendarPreference < ApplicationRecord
   scope :global_scope,         -> { where(scope: :global) }
 
   private
+
+  def only_one_global_preference
+    existing = CalendarPreference.where(user_id: user_id, scope: :global)
+    existing = existing.where.not(id: id) if persisted?
+    errors.add(:base, "a global preference already exists for this user") if existing.exists?
+  end
 
   def validate_template_syntax
     [ :title_template, :description_template, :location_template ].each do |field|

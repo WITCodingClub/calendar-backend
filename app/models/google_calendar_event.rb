@@ -60,6 +60,13 @@ class GoogleCalendarEvent < ApplicationRecord
 
   serialize :recurrence, coder: JSON
 
+  # Set by the sync service when it has already deleted the remote event itself,
+  # so destroying the DB row doesn't enqueue a redundant deletion.
+  attr_accessor :skip_remote_deletion
+
+  before_destroy :capture_remote_event_ref
+  after_commit :enqueue_remote_event_deletion, on: :destroy
+
   TRACKABLE_FIELDS = %w[summary location description start_time end_time].freeze
 
   scope :for_meeting_time,           ->(id) { where(meeting_time_id: id) }
@@ -139,6 +146,26 @@ class GoogleCalendarEvent < ApplicationRecord
   end
 
   private
+
+  # Records the (calendar, event) pair before the row is destroyed so we can
+  # delete the live Google event after the transaction commits. Skipped when the
+  # sync service already handled the remote delete, or when the whole calendar is
+  # being torn down (delete_calendar cleans up its events server-side).
+  def capture_remote_event_ref
+    return if skip_remote_deletion
+    return if destroyed_by_association&.foreign_key.to_s == "google_calendar_id"
+
+    @remote_event_ref = [ google_calendar&.google_calendar_id, google_event_id ]
+  end
+
+  def enqueue_remote_event_deletion
+    return if @remote_event_ref.blank?
+
+    calendar_id, event_id = @remote_event_ref
+    return if calendar_id.blank? || event_id.blank?
+
+    GoogleCalendarEventDeleteJob.perform_later(calendar_id, event_id)
+  end
 
   def only_one_event_type_associated
     event_types = [ meeting_time_id, final_exam_id, university_calendar_event_id ].compact

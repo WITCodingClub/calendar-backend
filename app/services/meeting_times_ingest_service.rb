@@ -9,14 +9,20 @@ class MeetingTimesIngestService < ApplicationService
     @compute_hours_week = options.fetch(:compute_hours_week, true)
     @building_cache = {}
     @room_cache = {}
+    @kept_meeting_time_ids = []
     super()
   end
 
+  # Upserts meeting times by content key (never destroys) and returns the ids of
+  # the meeting times it created or updated. Callers use this to reconcile —
+  # deleting only the stale rows the ingest didn't touch — instead of a blanket
+  # destroy_all, which would orphan every enrolled student's calendar events.
   def call
     preload_buildings_and_rooms
     raw_meeting_times.each do |mt|
       ingest_one(mt)
     end
+    @kept_meeting_time_ids.uniq
   end
 
   private
@@ -158,6 +164,7 @@ class MeetingTimesIngestService < ApplicationService
       meeting_time = @meeting_time_cache&.[](cache_key) || Course::MeetingTime.new(lookup_attrs)
       meeting_time.assign_attributes(update_attrs)
       meeting_time.save!
+      @kept_meeting_time_ids << meeting_time.id
 
       desired_room_ids = rooms_for_mt.map(&:id).to_set
       existing_room_ids = meeting_time.meeting_time_rooms.map(&:room_id).to_set

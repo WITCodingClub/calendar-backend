@@ -155,9 +155,11 @@ class Rack::Attack
     return nil unless auth_header&.start_with?("Bearer ")
 
     token = auth_header.split.last
-    payload = JWT.decode(token, nil, false).first
-    payload["user_id"]
-  rescue JWT::DecodeError, StandardError
+    # Verify signature and expiration. A forged/unsigned token must not be able
+    # to grant the admin throttle safelist or a controlled throttle-bucket key.
+    payload = JsonWebTokenService.decode(token)
+    payload && payload[:user_id]
+  rescue StandardError
     nil
   end
 end

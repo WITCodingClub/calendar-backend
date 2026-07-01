@@ -48,7 +48,10 @@ class User < ApplicationRecord
   include CalendarTokenable
   include EncodedIds::HashidIdentifiable
 
-  devise :database_authenticatable, :registerable,
+  # No :registerable — accounts are provisioned only via Google OAuth
+  # (see AuthController#handle_user_login, which enforces the @wit.edu gate).
+  # Self-service password signup would bypass that domain restriction.
+  devise :database_authenticatable,
          :recoverable, :rememberable, :validatable, :confirmable, :trackable, :timeoutable, :lockable
 
   set_public_id_prefix :usr

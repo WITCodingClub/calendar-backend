@@ -25,4 +25,15 @@ class Course::MeetingTimeRoom < ApplicationRecord
 
   belongs_to :meeting_time, class_name: "Course::MeetingTime"
   belongs_to :room
+
+  # A room being added or removed changes the calendar event location, so flag
+  # the meeting time's enrolled users for resync (the meeting_time row itself
+  # doesn't change, so its own callbacks won't fire).
+  after_commit :resync_enrolled_users, on: [ :create, :destroy ]
+
+  private
+
+  def resync_enrolled_users
+    meeting_time&.resync_enrolled_users!
+  end
 end

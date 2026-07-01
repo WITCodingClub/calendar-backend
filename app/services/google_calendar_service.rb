@@ -183,6 +183,19 @@ class GoogleCalendarService
     with_rate_limit_handling { service.list_calendar_lists }
   end
 
+  # Deletes a single event from a calendar using the service account (which owns
+  # all app-created calendars). Used when a GoogleCalendarEvent row is destroyed
+  # so the live Google event doesn't linger as an orphan. Treats a missing event
+  # as success.
+  def delete_calendar_event(calendar_id, google_event_id)
+    service = service_account_calendar_service
+    with_rate_limit_handling { service.delete_event(calendar_id, google_event_id) }
+  rescue Google::Apis::ClientError => e
+    raise unless e.status_code == 404
+
+    Rails.logger.info("Event #{google_event_id} already absent from calendar #{calendar_id}")
+  end
+
   def delete_calendar(calendar_id)
     google_calendar = GoogleCalendar.find_by(google_calendar_id: calendar_id)
 
@@ -432,6 +445,14 @@ class GoogleCalendarService
     end
 
     google_calendar.google_calendar_events.create!(event_attributes)
+  rescue ActiveRecord::RecordNotUnique
+    # A concurrent sync already created the tracking row for this event, so the
+    # insert_event above produced a duplicate remote event. Remove the duplicate
+    # we just created rather than leaving it orphaned on the calendar.
+    Rails.logger.warn({ message: "Duplicate event race — removing redundant remote event",
+                        user_id: user&.id, calendar_id: calendar_id, google_event_id: created_event&.id }.to_json)
+    with_rate_limit_handling { service.delete_event(calendar_id, created_event.id) } if created_event&.id
+    nil
   end
 
   def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, preference_resolver: nil, template_renderer: nil)
@@ -512,12 +533,14 @@ class GoogleCalendarService
   def delete_event_from_calendar(service, google_calendar, db_event)
     calendar_id = google_calendar.google_calendar_id
     with_rate_limit_handling { service.delete_event(calendar_id, db_event.google_event_id) }
+    db_event.skip_remote_deletion = true
     db_event.destroy
   rescue Google::Apis::ClientError => e
     raise unless e.status_code == 404
 
     Rails.logger.warn({ message: "Event not found in Google Calendar, removing from database",
                         user_id: user.id, google_event_id: db_event.google_event_id }.to_json)
+    db_event.skip_remote_deletion = true
     db_event.destroy
   end
 
