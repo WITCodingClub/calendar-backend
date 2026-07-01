@@ -29,6 +29,7 @@
 #  sign_in_count                :integer          default(0), not null
 #  unconfirmed_email            :string
 #  unlock_token                 :string
+#  wit_email                    :string
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
 #
@@ -41,6 +42,7 @@
 #  index_users_on_email                  (email) UNIQUE
 #  index_users_on_last_calendar_sync_at  (last_calendar_sync_at)
 #  index_users_on_reset_password_token   (reset_password_token) UNIQUE
+#  index_users_on_wit_email              (wit_email)
 #
 class User < ApplicationRecord
   include GoogleOauthable

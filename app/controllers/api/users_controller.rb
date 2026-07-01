@@ -28,7 +28,7 @@ module Api
       end
 
       google_email = verification.email
-      user         = find_or_create_onboarding_user(google_email, preferred_name)
+      user         = find_or_create_onboarding_user(google_email, preferred_name, params[:wit_email])
 
       token = JsonWebTokenService.encode({ user_id: user.id })
 
@@ -370,15 +370,26 @@ module Api
     # value isn't verified, so trusting it would let a caller attach their token
     # to someone else's existing account. Legacy accounts that never connected a
     # Google account can't be auto-linked safely and start fresh.
-    def find_or_create_onboarding_user(google_email, preferred_name)
+    def find_or_create_onboarding_user(google_email, preferred_name, wit_email = nil)
+      wit_email = wit_email.to_s.strip.downcase.presence
+
       existing = User.find_by(email: google_email) ||
                  User.joins(:oauth_credentials)
                      .find_by(oauth_credentials: { email: google_email, provider: "google" })
-      return existing if existing
+      if existing
+        # Record the WIT email as metadata on the caller's OWN account (resolved
+        # from the verified token). It's never used to decide which account this
+        # is, so a forged value can only mislabel the caller's own record.
+        if wit_email && existing.wit_email != wit_email
+          existing.update_column(:wit_email, wit_email) # rubocop:disable Rails/SkipsModelValidations
+        end
+        return existing
+      end
 
       first_name, last_name = preferred_name.to_s.strip.split(" ", 2)
       User.create!(
         email:      google_email,
+        wit_email:  wit_email,
         first_name: first_name,
         last_name:  last_name,
         password:   SecureRandom.hex(24)

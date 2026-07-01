@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_01_200457) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_01_205227) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -786,6 +786,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_200457) do
     t.string "unconfirmed_email"
     t.string "unlock_token"
     t.datetime "updated_at", null: false
+    t.string "wit_email"
     t.index ["access_level"], name: "index_users_on_access_level"
     t.index ["calendar_needs_sync"], name: "index_users_on_calendar_needs_sync"
     t.index ["calendar_token"], name: "index_users_on_calendar_token", unique: true
@@ -793,6 +794,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_01_200457) do
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["last_calendar_sync_at"], name: "index_users_on_last_calendar_sync_at"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["wit_email"], name: "index_users_on_wit_email"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
