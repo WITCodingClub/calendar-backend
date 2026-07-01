@@ -6,10 +6,11 @@ module Api
 
     # POST /api/user/onboard
     #
-    # The extension sends a Google OAuth access token (obtained for the signed-in
-    # Google user). We verify it with Google and derive the email from the
-    # verified token rather than trusting a client-supplied email — otherwise
-    # anyone could mint a token for any account. See GoogleTokenVerifier.
+    # The extension sends a Google OAuth access token for the user's (personal)
+    # Google account — the same account they sync calendars to. We verify it with
+    # Google and key the account to that verified email, so a caller can only ever
+    # reach the account tied to a Google identity they actually control (no
+    # domain restriction — personal accounts are the norm). See GoogleTokenVerifier.
     def onboard
       access_token   = params[:google_access_token] || params[:access_token]
       preferred_name = params[:preferred_name]
@@ -26,24 +27,8 @@ module Api
         return
       end
 
-      email = verification.email
-
-      unless email.match?(/@wit\.edu\z/i)
-        render json: { error: "Only @wit.edu accounts are allowed" }, status: :forbidden
-        return
-      end
-
-      name_parts = preferred_name.to_s.strip.split(" ", 2)
-      first_name = name_parts[0]
-      last_name  = name_parts[1]
-
-      user = User.find_by(email: email) ||
-             User.create!(
-               email:      email,
-               first_name: first_name,
-               last_name:  last_name,
-               password:   SecureRandom.hex(24)
-             )
+      google_email = verification.email
+      user         = find_or_create_onboarding_user(google_email, preferred_name)
 
       token = JsonWebTokenService.encode({ user_id: user.id })
 
@@ -371,6 +356,33 @@ module Api
     rescue => e
       Rails.logger.error("Error enabling notifications for user #{current_user.id}: #{e.message}")
       render json: { error: "Failed to enable notifications" }, status: :internal_server_error
+    end
+
+    private
+
+    # Resolves the account for a verified Google email, in this order:
+    #   1. a user already keyed to that Google email
+    #   2. a user who has connected that Google account for calendar sync
+    #      (oauth_credentials are OAuth-verified, so this link is trustworthy)
+    #   3. otherwise, a fresh account keyed to the Google email
+    #
+    # Note: we deliberately do NOT link by a client-supplied WIT email — that
+    # value isn't verified, so trusting it would let a caller attach their token
+    # to someone else's existing account. Legacy accounts that never connected a
+    # Google account can't be auto-linked safely and start fresh.
+    def find_or_create_onboarding_user(google_email, preferred_name)
+      existing = User.find_by(email: google_email) ||
+                 User.joins(:oauth_credentials)
+                     .find_by(oauth_credentials: { email: google_email, provider: "google" })
+      return existing if existing
+
+      first_name, last_name = preferred_name.to_s.strip.split(" ", 2)
+      User.create!(
+        email:      google_email,
+        first_name: first_name,
+        last_name:  last_name,
+        password:   SecureRandom.hex(24)
+      )
     end
   end
 end
