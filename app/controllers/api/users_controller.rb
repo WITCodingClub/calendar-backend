@@ -5,33 +5,47 @@ module Api
     skip_before_action :authenticate_user_from_token!, only: [ :onboard ]
 
     # POST /api/user/onboard
+    #
+    # The extension sends a Google OAuth access token (obtained for the signed-in
+    # Google user). We verify it with Google and derive the email from the
+    # verified token rather than trusting a client-supplied email — otherwise
+    # anyone could mint a token for any account. See GoogleTokenVerifier.
     def onboard
-      email          = params[:email]
+      access_token   = params[:google_access_token] || params[:access_token]
       preferred_name = params[:preferred_name]
 
-      if email.blank?
-        render json: { error: "email is required" }, status: :bad_request
+      if access_token.blank?
+        render json: { error: "google_access_token is required" }, status: :bad_request
         return
       end
 
-      if preferred_name.blank?
-        render json: { error: "preferred_name is required" }, status: :bad_request
+      verification = GoogleTokenVerifier.verify_access_token(access_token)
+      unless verification.success?
+        Rails.logger.warn("Onboard token verification failed: #{verification.error}")
+        render json: { error: "Invalid Google token" }, status: :unauthorized
         return
       end
 
-      name_parts = preferred_name.strip.split(" ", 2)
+      email = verification.email
+
+      unless email.match?(/@wit\.edu\z/i)
+        render json: { error: "Only @wit.edu accounts are allowed" }, status: :forbidden
+        return
+      end
+
+      name_parts = preferred_name.to_s.strip.split(" ", 2)
       first_name = name_parts[0]
       last_name  = name_parts[1]
 
-      user = User.find_by(email: email.to_s.strip.downcase) ||
+      user = User.find_by(email: email) ||
              User.create!(
-               email:      email.to_s.strip.downcase,
+               email:      email,
                first_name: first_name,
                last_name:  last_name,
                password:   SecureRandom.hex(24)
              )
 
-      token = JsonWebTokenService.encode({ user_id: user.id }, nil)
+      token = JsonWebTokenService.encode({ user_id: user.id })
 
       render json: { pub_id: user.public_id.delete_prefix("usr_"), jwt: token }, status: :ok
     rescue => e
@@ -240,7 +254,7 @@ module Api
                     .where(term_id: term.id)
                     .includes(course: [
                       :faculties,
-                      { meeting_times: [ :event_preference, { course: :faculties } ] }
+                      { meeting_times: [ :event_preference, { rooms: :building }, { course: :faculties } ] }
                     ])
 
       preference_resolver = PreferenceResolver.new(current_user)

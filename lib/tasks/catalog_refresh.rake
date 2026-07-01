@@ -48,51 +48,70 @@ namespace :catalog do
     end
     puts "Backed up #{backup_count} enrollments with #{error_count} errors."
 
-    # Step 2: Delete course data
-    puts "\nStep 2: Deleting course data for term #{term.name}..."
-    courses_for_term   = Course.where(term: term)
-    course_ids_for_term = courses_for_term.pluck(:id)
+    # Step 2: Pre-flight fetch — get the fresh catalog BEFORE deleting anything.
+    # If the scrape fails or returns no courses (e.g. LeopardWeb markup changed),
+    # abort now so we never wipe a term's data with nothing to replace it.
+    puts "\nStep 2: Fetching fresh catalog data from LeopardWeb (pre-flight)..."
+    result = LeopardWebService.get_course_catalog(term: term_uid)
+    unless result[:success]
+      raise "Aborting: failed to fetch catalog for term #{term.name}: #{result[:error]}. No data was deleted."
+    end
 
-    puts "Orphaning Google Calendar events..."
-    meeting_time_ids = Course::MeetingTime.where(course_id: course_ids_for_term).pluck(:id)
-    GoogleCalendarEvent.where(meeting_time_id: meeting_time_ids).update_all(meeting_time_id: nil)
+    fresh_courses = result[:courses] || []
+    if fresh_courses.empty?
+      raise "Aborting: LeopardWeb returned 0 courses for term #{term.name}. No data was deleted."
+    end
+    puts "Fetched #{fresh_courses.count} courses. Proceeding with refresh."
 
-    puts "Deleting meeting times..."
-    Course::MeetingTime.where(course_id: course_ids_for_term).delete_all
-
-    puts "Deleting enrollments..."
-    Enrollment.where(term_id: term.id).delete_all
-
-    puts "Deleting course-faculty associations..."
-    courses_for_term.each { |c| c.faculties.clear }
-
-    puts "Deleting courses..."
-    delete_count = courses_for_term.delete_all
-    puts "Deleted #{delete_count} courses."
-
-    # Step 3: Re-import
-    puts "\nStep 3: Importing fresh catalog data from LeopardWeb..."
-    CatalogImportJob.perform_now(term_uid)
-
-    # Step 4: Restore enrollments
-    puts "\nStep 4: Restoring enrollments for term #{term.name}..."
+    # Steps 3–4 run in a single transaction so any failure during delete/import
+    # rolls back the deletions, leaving the existing catalog intact.
     restored_count      = 0
     restore_error_count = 0
     not_found_count     = 0
     snapshots           = EnrollmentSnapshot.where(term_id: term.id, snapshot_reason: snapshot_reason)
 
-    snapshots.includes(:user, :term).find_each do |snapshot|
-      begin
-        course = Course.find_by(crn: snapshot.crn, term_id: snapshot.term_id)
-        if course
-          Enrollment.find_or_create_by!(user_id: snapshot.user_id, course_id: course.id, term_id: snapshot.term_id)
-          restored_count += 1
-        else
-          not_found_count += 1
+    ActiveRecord::Base.transaction do
+      # Step 3: Delete course data
+      puts "\nStep 3: Deleting course data for term #{term.name}..."
+      courses_for_term    = Course.where(term: term)
+      course_ids_for_term = courses_for_term.pluck(:id)
+
+      puts "Orphaning Google Calendar events..."
+      meeting_time_ids = Course::MeetingTime.where(course_id: course_ids_for_term).pluck(:id)
+      GoogleCalendarEvent.where(meeting_time_id: meeting_time_ids).update_all(meeting_time_id: nil)
+
+      puts "Deleting meeting times..."
+      Course::MeetingTime.where(course_id: course_ids_for_term).delete_all
+
+      puts "Deleting enrollments..."
+      Enrollment.where(term_id: term.id).delete_all
+
+      puts "Deleting course-faculty associations..."
+      courses_for_term.each { |c| c.faculties.clear }
+
+      puts "Deleting courses..."
+      delete_count = courses_for_term.delete_all
+      puts "Deleted #{delete_count} courses."
+
+      # Re-import using the already-fetched data (no second HTTP call).
+      puts "\nImporting fresh catalog data..."
+      CatalogImportService.new(fresh_courses).call!
+
+      # Step 4: Restore enrollments
+      puts "\nStep 4: Restoring enrollments for term #{term.name}..."
+      snapshots.includes(:user, :term).find_each do |snapshot|
+        begin
+          course = Course.find_by(crn: snapshot.crn, term_id: snapshot.term_id)
+          if course
+            Enrollment.find_or_create_by!(user_id: snapshot.user_id, course_id: course.id, term_id: snapshot.term_id)
+            restored_count += 1
+          else
+            not_found_count += 1
+          end
+        rescue => e
+          puts "\nError restoring enrollment for user #{snapshot.user_id}, CRN #{snapshot.crn}: #{e.message}"
+          restore_error_count += 1
         end
-      rescue => e
-        puts "\nError restoring enrollment for user #{snapshot.user_id}, CRN #{snapshot.crn}: #{e.message}"
-        restore_error_count += 1
       end
     end
     puts "Restored #{restored_count} enrollments. #{not_found_count} courses not found. #{restore_error_count} errors."

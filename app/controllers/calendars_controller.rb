@@ -118,7 +118,9 @@ class CalendarsController < ApplicationController
             rule        = IceCube::Rule.weekly.day(day_sym).until(until_time)
             e.rrule     = rule.to_ical.gsub(/UNTIL=(\d{8})T\d{6}Z?/, 'UNTIL=\1')
           else
-            until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59)
+            # End-of-day in local (Eastern) zone as UTC, so evening classes keep
+            # their final occurrence instead of it falling past a bare-UTC UNTIL.
+            until_time = Time.zone.local(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59).utc
             rule        = IceCube::Rule.weekly.day(day_sym).until(until_time)
             e.rrule     = rule.to_ical
           end

@@ -32,6 +32,9 @@ class UserExtensionConfig < ApplicationRecord
 
   belongs_to :user
 
+  # One config per user (the app treats this as a has_one).
+  validates :user_id, uniqueness: true
+
   after_update :sync_calendar_if_settings_changed
 
   private
