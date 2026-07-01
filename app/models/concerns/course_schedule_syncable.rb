@@ -306,8 +306,10 @@ module CourseScheduleSyncable
     end
 
     # Build weekly recurrence rule using ice_cube and export to iCalendar format.
-    # UNTIL is set to end-of-day UTC so the last occurrence is fully included.
-    until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59)
+    # UNTIL must be end-of-day in the *local* zone expressed as UTC. Using bare
+    # Time.utc(...,23,59,59) drops the final occurrence of evening (Eastern)
+    # classes, whose start instant falls after midnight UTC.
+    until_time = Time.zone.local(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59).utc
     rule = IceCube::Rule.weekly.day(meeting_time.day_of_week.to_sym).until(until_time)
     "RRULE:#{rule.to_ical}"
   end
@@ -645,7 +647,8 @@ module CourseScheduleSyncable
   def tbd_room?(room)
     return false unless room
 
-    room.number == 0
+    # Room#number is a string column, so compare against the string "0".
+    room.number.to_s == "0"
     # Note: Room model in production only has 'number', not 'name'
     # If room.name is added later, uncomment these lines:
     # room.name&.downcase&.include?("tbd") ||

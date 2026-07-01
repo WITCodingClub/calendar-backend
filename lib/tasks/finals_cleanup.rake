@@ -1,25 +1,33 @@
 # frozen_string_literal: true
 
 namespace :finals do
-  KEEP_TERMS = [
-    { season: :summer, year: 2025 },
-    { season: :fall,   year: 2025 }
-  ].freeze
-
-  desc "Delete all FinalExam and FinalsSchedule records except Summer 2025 and Fall 2025. Pass DRY_RUN=1 to preview."
+  desc "Delete FinalExam/FinalsSchedule records for PAST terms only. " \
+       "Current and future terms are always protected. Safe by default (dry run); " \
+       "pass CONFIRM=1 to apply. Optionally keep extra past terms with KEEP=\"season-year,...\"."
   task reset: :environment do
-    dry_run = ENV["DRY_RUN"].present?
-    puts dry_run ? "DRY RUN — no changes will be made." : "Deleting finals data..."
+    # Default to a dry run — only an explicit CONFIRM=1 actually deletes.
+    dry_run = ENV["CONFIRM"] != "1"
+    puts dry_run ? "DRY RUN — no changes will be made (pass CONFIRM=1 to apply)." : "Deleting finals data..."
     puts
 
-    protected_terms = KEEP_TERMS.filter_map do |t|
-      term = Term.find_by(season: t[:season], year: t[:year])
+    # Always protect current and future terms so this never wipes live finals,
+    # regardless of when the task is run.
+    protected_terms = Term.current_and_future.to_a
+
+    # Optionally protect additional past terms, e.g. KEEP="summer-2025,fall-2025".
+    ENV["KEEP"].to_s.split(",").map(&:strip).reject(&:blank?).each do |token|
+      season, year = token.split("-", 2)
+      term = Term.find_by(season: season&.downcase, year: year.to_i)
       if term
-        puts "  Keeping: #{term.season.capitalize} #{term.year} (id=#{term.id})"
+        protected_terms << term
       else
-        puts "  Warning: #{t[:season].to_s.capitalize} #{t[:year]} not found — nothing to protect"
+        puts "  Warning: KEEP term '#{token}' not found — nothing to protect"
       end
-      term
+    end
+
+    protected_terms.uniq!
+    protected_terms.each do |term|
+      puts "  Keeping: #{term.season.to_s.capitalize} #{term.year} (id=#{term.id})"
     end
     puts
 
@@ -55,7 +63,7 @@ namespace :finals do
     puts
     if dry_run
       puts "Would delete: #{total_exams} FinalExam(s) and #{total_schedules} FinalsSchedule(s) across #{terms_with_data.size} term(s)."
-      puts "Run without DRY_RUN=1 to apply."
+      puts "Run with CONFIRM=1 to apply."
     else
       puts "Deleted #{total_exams} FinalExam(s) and #{total_schedules} FinalsSchedule(s) across #{terms_with_data.size} term(s)."
     end

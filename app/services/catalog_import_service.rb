@@ -154,10 +154,15 @@ class CatalogImportService < ApplicationService
     end
 
     if meeting_times.any?
-      MeetingTimesIngestService.call(
+      kept_ids = MeetingTimesIngestService.call(
         course: course,
         raw_meeting_times: meeting_times
       )
+
+      # Remove meeting times that no longer exist upstream (e.g. Banner changed a
+      # section's day/time), but only when the ingest produced rows — never wipe
+      # the course from an empty result. Preserves untouched rows and their events.
+      course.meeting_times.where.not(id: kept_ids).destroy_all if kept_ids.any?
     else
       Rails.logger.warn("No meeting times found for course CRN #{crn}")
     end

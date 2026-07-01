@@ -87,6 +87,9 @@ module Api
         id    = params[:google_calendar_event_id]
         scope = GoogleCalendarEvent.eager_load(meeting_time: { course: :faculties })
         @preferenceable = id.to_s.include?("_") ? scope.find_by_public_id!(id) : scope.find(id)
+        # A GoogleCalendarEvent belongs to a specific user's calendar; enforce
+        # ownership here so another user's event id can't leak preference data.
+        authorize @preferenceable, :show?
       else
         render json: { error: "Preferenceable not specified" }, status: :bad_request
       end

@@ -19,7 +19,7 @@
 #
 # Indexes
 #
-#  index_user_extension_configs_on_user_id  (user_id)
+#  index_user_extension_configs_on_user_id_unique  (user_id) UNIQUE
 #
 # Foreign Keys
 #
@@ -31,6 +31,9 @@ class UserExtensionConfig < ApplicationRecord
   set_public_id_prefix :uec
 
   belongs_to :user
+
+  # One config per user (the app treats this as a has_one).
+  validates :user_id, uniqueness: true
 
   before_save :clear_categories_when_sync_disabled
   after_update :sync_calendar_if_settings_changed

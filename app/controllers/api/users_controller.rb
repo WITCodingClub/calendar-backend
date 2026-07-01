@@ -5,33 +5,32 @@ module Api
     skip_before_action :authenticate_user_from_token!, only: [ :onboard ]
 
     # POST /api/user/onboard
+    #
+    # The extension sends a Google OAuth access token for the user's (personal)
+    # Google account — the same account they sync calendars to. We verify it with
+    # Google and key the account to that verified email, so a caller can only ever
+    # reach the account tied to a Google identity they actually control (no
+    # domain restriction — personal accounts are the norm). See GoogleTokenVerifier.
     def onboard
-      email          = params[:email]
+      access_token   = params[:google_access_token] || params[:access_token]
       preferred_name = params[:preferred_name]
 
-      if email.blank?
-        render json: { error: "email is required" }, status: :bad_request
+      if access_token.blank?
+        render json: { error: "google_access_token is required" }, status: :bad_request
         return
       end
 
-      if preferred_name.blank?
-        render json: { error: "preferred_name is required" }, status: :bad_request
+      verification = GoogleTokenVerifier.verify_access_token(access_token)
+      unless verification.success?
+        Rails.logger.warn("Onboard token verification failed: #{verification.error}")
+        render json: { error: "Invalid Google token" }, status: :unauthorized
         return
       end
 
-      name_parts = preferred_name.strip.split(" ", 2)
-      first_name = name_parts[0]
-      last_name  = name_parts[1]
+      google_email = verification.email
+      user         = find_or_create_onboarding_user(google_email, preferred_name, params[:wit_email])
 
-      user = User.find_by(email: email.to_s.strip.downcase) ||
-             User.create!(
-               email:      email.to_s.strip.downcase,
-               first_name: first_name,
-               last_name:  last_name,
-               password:   SecureRandom.hex(24)
-             )
-
-      token = JsonWebTokenService.encode({ user_id: user.id }, nil)
+      token = JsonWebTokenService.encode({ user_id: user.id })
 
       render json: { pub_id: user.public_id.delete_prefix("usr_"), jwt: token }, status: :ok
     rescue => e
@@ -240,7 +239,7 @@ module Api
                     .where(term_id: term.id)
                     .includes(course: [
                       :faculties,
-                      { meeting_times: [ :event_preference, { course: :faculties } ] }
+                      { meeting_times: [ :event_preference, { rooms: :building }, { course: :faculties } ] }
                     ])
 
       preference_resolver = PreferenceResolver.new(current_user)
@@ -357,6 +356,44 @@ module Api
     rescue => e
       Rails.logger.error("Error enabling notifications for user #{current_user.id}: #{e.message}")
       render json: { error: "Failed to enable notifications" }, status: :internal_server_error
+    end
+
+    private
+
+    # Resolves the account for a verified Google email, in this order:
+    #   1. a user already keyed to that Google email
+    #   2. a user who has connected that Google account for calendar sync
+    #      (oauth_credentials are OAuth-verified, so this link is trustworthy)
+    #   3. otherwise, a fresh account keyed to the Google email
+    #
+    # Note: we deliberately do NOT link by a client-supplied WIT email — that
+    # value isn't verified, so trusting it would let a caller attach their token
+    # to someone else's existing account. Legacy accounts that never connected a
+    # Google account can't be auto-linked safely and start fresh.
+    def find_or_create_onboarding_user(google_email, preferred_name, wit_email = nil)
+      wit_email = wit_email.to_s.strip.downcase.presence
+
+      existing = User.find_by(email: google_email) ||
+                 User.joins(:oauth_credentials)
+                     .find_by(oauth_credentials: { email: google_email, provider: "google" })
+      if existing
+        # Record the WIT email as metadata on the caller's OWN account (resolved
+        # from the verified token). It's never used to decide which account this
+        # is, so a forged value can only mislabel the caller's own record.
+        if wit_email && existing.wit_email != wit_email
+          existing.update_column(:wit_email, wit_email) # rubocop:disable Rails/SkipsModelValidations
+        end
+        return existing
+      end
+
+      first_name, last_name = preferred_name.to_s.strip.split(" ", 2)
+      User.create!(
+        email:      google_email,
+        wit_email:  wit_email,
+        first_name: first_name,
+        last_name:  last_name,
+        password:   SecureRandom.hex(24)
+      )
     end
   end
 end

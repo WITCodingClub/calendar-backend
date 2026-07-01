@@ -191,12 +191,17 @@ class CourseProcessorService < ApplicationService
           Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
         end
 
-        course.meeting_times.destroy_all
-
-        MeetingTimesIngestService.call(
+        # Reconcile rather than destroy_all: the Course/MeetingTime graph is
+        # shared across every student in the CRN, and destroying it would orphan
+        # all their Google Calendar events. Upsert by content key, then remove
+        # only rows the ingest didn't touch — and only when the scrape actually
+        # produced meeting times, so a partial/empty scrape can't wipe the course.
+        kept_ids = MeetingTimesIngestService.call(
           course: course,
           raw_meeting_times: meeting_times
         )
+
+        course.meeting_times.where.not(id: kept_ids).destroy_all if kept_ids.any?
 
         process_faculty(course, faculty_data)
 

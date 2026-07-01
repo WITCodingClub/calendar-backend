@@ -20,11 +20,19 @@ module MeetingTimeChangeTrackable
     after_destroy :mark_enrolled_users_for_sync
   end
 
+  # Public entry point for related records (e.g. the room join table) to flag
+  # this meeting time's enrolled users for a calendar resync.
+  def resync_enrolled_users!
+    mark_enrolled_users_for_sync
+  end
+
   private
 
   def saved_change_to_relevant_attributes?
-    # Track changes to any attributes that affect calendar display
-    relevant_attrs = %w[begin_time end_time day_of_week start_date end_date room_id]
+    # Track changes to any attributes that affect calendar display.
+    # NOTE: rooms live in the course_meeting_time_rooms join table, not a
+    # room_id column here — room changes are flagged from that model instead.
+    relevant_attrs = %w[begin_time end_time day_of_week start_date end_date]
     relevant_attrs.any? { |attr| saved_change_to_attribute?(attr) }
   end
 

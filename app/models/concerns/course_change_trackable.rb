@@ -17,10 +17,27 @@ module CourseChangeTrackable
   included do
     # Mark all enrolled users' calendars as needing sync when course details change
     after_save :mark_enrolled_users_for_sync, if: :saved_change_to_relevant_attributes?
-    after_destroy :mark_enrolled_users_for_sync
+
+    # On destroy, the enrollments are removed by a dependent-destroy cascade
+    # (a before_destroy callback), so by the time an after_destroy hook runs the
+    # enrollment query returns nobody. Capture the affected users BEFORE the
+    # cascade (prepend), then flag them once the destroy commits.
+    before_destroy :capture_enrolled_users_for_sync, prepend: true
+    after_commit :flag_captured_enrolled_users, on: :destroy
   end
 
   private
+
+  def capture_enrolled_users_for_sync
+    @captured_enrolled_user_ids = enrolled_google_user_ids
+  end
+
+  def flag_captured_enrolled_users
+    ids = @captured_enrolled_user_ids
+    return if ids.blank?
+
+    User.where(id: ids).update_all(calendar_needs_sync: true) # rubocop:disable Rails/SkipsModelValidations
+  end
 
   def saved_change_to_relevant_attributes?
     # Track changes to any attributes that affect calendar display
@@ -40,14 +57,17 @@ module CourseChangeTrackable
     end
     return unless has_enrollments
 
-    user_ids = User.joins(:enrollments)
-                   .joins(:oauth_credentials)
-                   .where(enrollments: { course_id: id })
-                   .where(oauth_credentials: { provider: "google" })
-                   .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
-                   .distinct
-                   .pluck(:id)
-
+    user_ids = enrolled_google_user_ids
     User.where(id: user_ids).update_all(calendar_needs_sync: true) if user_ids.any? # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  def enrolled_google_user_ids
+    User.joins(:enrollments)
+        .joins(:oauth_credentials)
+        .where(enrollments: { course_id: id })
+        .where(oauth_credentials: { provider: "google" })
+        .where("oauth_credentials.metadata->>'course_calendar_id' IS NOT NULL")
+        .distinct
+        .pluck(:id)
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_01_205227) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -125,6 +125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
     t.string "visibility"
     t.index ["user_id", "scope", "event_type"], name: "index_calendar_prefs_on_user_scope_type", unique: true
     t.index ["user_id"], name: "index_calendar_preferences_on_user_id"
+    t.index ["user_id"], name: "index_calendar_prefs_one_global_per_user", unique: true, where: "(scope = 0)"
   end
 
   create_table "console1984_commands", force: :cascade do |t|
@@ -363,6 +364,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
     t.bigint "requester_id", null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
+    t.index "LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)", name: "index_friendships_on_unordered_pair", unique: true
     t.index ["addressee_id", "status"], name: "index_friendships_on_addressee_id_and_status"
     t.index ["addressee_id"], name: "index_friendships_on_addressee_id"
     t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
@@ -409,7 +411,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
     t.datetime "updated_at", null: false
     t.index ["google_calendar_id"], name: "index_google_calendars_on_google_calendar_id", unique: true
     t.index ["last_synced_at"], name: "index_google_calendars_on_last_synced_at"
-    t.index ["oauth_credential_id"], name: "index_google_calendars_on_oauth_credential_id"
+    t.index ["oauth_credential_id"], name: "index_google_calendars_on_oauth_credential_id_unique", unique: true
   end
 
   create_table "oauth_credentials", force: :cascade do |t|
@@ -754,7 +756,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
     t.jsonb "university_event_categories"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_user_extension_configs_on_user_id"
+    t.index ["user_id"], name: "index_user_extension_configs_on_user_id_unique", unique: true
   end
 
   create_table "users", force: :cascade do |t|
@@ -784,6 +786,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
     t.string "unconfirmed_email"
     t.string "unlock_token"
     t.datetime "updated_at", null: false
+    t.string "wit_email"
     t.index ["access_level"], name: "index_users_on_access_level"
     t.index ["calendar_needs_sync"], name: "index_users_on_calendar_needs_sync"
     t.index ["calendar_token"], name: "index_users_on_calendar_token", unique: true
@@ -791,6 +794,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["last_calendar_sync_at"], name: "index_users_on_last_calendar_sync_at"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["wit_email"], name: "index_users_on_wit_email"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
