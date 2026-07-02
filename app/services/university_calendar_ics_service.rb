@@ -131,9 +131,10 @@ class UniversityCalendarIcsService < ApplicationService
     organization  = decode_html_entities(raw_custom_fields["Organization"])
     academic_term = decode_html_entities(raw_custom_fields["Academic Term"])
     event_type    = decode_html_entities(raw_custom_fields["Event Type"])
+    event_title   = decode_html_entities(raw_custom_fields["Event Title"])
     event_name    = decode_html_entities(raw_custom_fields["Event Name"])
 
-    summary     = event_name.presence || decode_html_entities(ics_event.summary.to_s)
+    summary     = event_title.presence || title_from_25live_event_name(event_name).presence || event_name.presence || decode_html_entities(ics_event.summary.to_s)
     location    = decode_html_entities(ics_event.location&.to_s)
     start_time  = parse_ics_time(ics_event.dtstart)
     end_time    = parse_ics_time(ics_event.dtend || ics_event.dtstart)
@@ -453,6 +454,28 @@ class UniversityCalendarIcsService < ApplicationService
 
   def html_entities_decoder
     @html_entities_decoder ||= HTMLEntities.new
+  end
+
+  def title_from_25live_event_name(event_name)
+    return nil if event_name.blank?
+
+    title_by_name = twenty_five_live_title_by_name
+    title_by_name[event_name]
+  end
+
+  def twenty_five_live_title_by_name
+    @twenty_five_live_title_by_name ||= begin
+      rows = TwentyFiveLive::Event
+             .where.not(event_name: [ nil, "" ])
+             .where.not(event_title: [ nil, "" ])
+             .order(updated_at: :desc)
+             .pluck(:event_name, :event_title)
+
+      rows.each_with_object({}) do |(name, title), map|
+        # Keep the most recently synced title for duplicate event names.
+        map[name] ||= title
+      end
+    end
   end
 
   def find_term_from_academic_term(academic_term_str, event_date, category = nil, summary = nil)
