@@ -1,17 +1,8 @@
-## Getting Started
+# Getting Started
 
 This guide will walk you through setting up the application for development.
 
-### Prerequisites
-
-Make sure you have the following installed on your system:
-
-*   **Ruby:** Version `4.0.1` (as specified in the `Dockerfile`). We recommend using a version manager like [`rbenv`](https://github.com/rbenv/rbenv) or [`rvm`](https://rvm.io/). Project owner, @jsp, uses and recommends [`mise`](https://mise.jdx.dev/).
-*   **Bundler:** `gem install bundler`
-*   **PostgreSQL:** Version 15 is recommended.
-*   **Redis:** A running Redis server.
-
-**Alternative: Use GitHub Codespaces** (Recommended for quick setup)
+## Use GitHub Codespaces
 
 1.  Create a new branch OR fork this repository
 	
@@ -23,39 +14,19 @@ Make sure you have the following installed on your system:
 
 4.  Click "Create codespace on `your-branch-name`"
 
-Then follow the instructions below, starting from Step 2.
-
-### Setup
-
-1.  **Clone the repository:**
-
-    ```bash
-    git clone https://github.com/WITCodingClub/calendar-backend.git
-    cd calendar-backend
-    ```
-
-2.  **Install dependencies:**
+5.  **Install dependencies:**
 
     ```bash
     bundle install
     ```
 
-3.  **Set up environment variables:**
-
-    This project uses a `.env.example` file to define required environment variables. Copy it to `.env` and fill in the values for your local setup.
-
-    ```bash
-    cp .env.example .env
-    ```
-
-    Then, edit the `.env` file with your local configuration.
-
-4.  **Set up Rails credentials:**
+6.  **Set up Rails credentials:**
 
     This project uses Rails encrypted credentials for storing sensitive configuration like Google OAuth credentials and Active Record encryption keys.
 
     *   Uses `config/credentials/development.yml.enc`
-    *   Request `config/credentials/development.key` from @jsp
+    *   Email @jasper [mayonej@wit.edu] for the development key to decrypt the credentials.
+    	*   Paste the key into `config/credentials/development.key`
 
     The credentials file should include:
     - Google OAuth client ID and secret (for admin authentication)
@@ -63,17 +34,15 @@ Then follow the instructions below, starting from Step 2.
     - Rate My Professor API credentials
     - Any other third-party service credentials
 
-    Ask @jsp for the master key file to decrypt the credentials.
-
-5.  **Create and seed the database:**
+7.  **Create and seed the database:**
 
     ```bash
-    rails db:create
-    rails db:migrate
-    rails db:seed
+    bin/rails db:create
+    bin/rails db:migrate
+    bin/rails db:seed
     ```
 
-6.  **Run the application:**
+8.  **Run the application:**
 
     ```bash
     bin/dev
