@@ -1,30 +1,53 @@
-<p align="center">
-    <img src="https://raw.githubusercontent.com/WITCodingClub/calendar/refs/heads/main/resources/W-Calendar-outlined-back-only.png" width="128" alt="WIT-calendar Icon"/>
-</p>
+# Getting Started
 
-<h3 align="center">
-    <strong>WIT-Calendar</strong>
-</h3>
+This guide will walk you through setting up the application for development.
 
-<p align="center">
-    <a href="https://calendar.witcc.dev">website</a> · <a href="https://chromewebstore.google.com/detail/wit-calendar/aceelinogfcceklkpacakdeddnaakicj">install</a> · <a href="https://stats.uptimerobot.com/QS76oPqfzz">status page</a>
-    <br>
-    (middle-click or ctrl/cmd+click to open in a new tab)
-</p>
+## Use GitHub Codespaces
 
-## Description
-WIT-Calendar is a Chrome extension that makes adding your classes to your calendar easy & quick!
-It supports all major calendars, including Google Calendar, Microsoft Outlook, and Apple Calendar.
-In the future, you will also be able to find "best times" to meet with fellow students, easily register for classes, and more!
+1.  Create a new branch OR fork this repository
+	
+    **If you create a new branch, make sure it is named properly.**
 
-## How does it work?
-The Chrome extension gets your schedule, processes it, and then provides you with a calendar link. You can also optionally connect your Google account for automatic updates to your Google Calendar.
+2.  Click the green "Code" button towards the right of the screen
 
-You can also manage event alerts, colors, and titles from within the extension.
+3.  Click the "Codespaces" tab at the top of the pop-up
 
-## Development
-- See instructions for developing the extension [here](https://github.com/WITCodingClub/calendar-extension/blob/main/client/README.md).
+4.  Click "Create codespace on `your-branch-name`"
 
-- See instructions for developing the backend **(this repo)** [here](https://github.com/WITCodingClub/calendar-backend/blob/main/README.md).
+5.  **Install dependencies:**
 
-- See instructions for developing our landing/marketing page [here](https://github.com/WITCodingClub/calendar-website/blob/main/README.md)
+    ```bash
+    bundle install
+    ```
+
+6.  **Set up Rails credentials:**
+
+    This project uses Rails encrypted credentials for storing sensitive configuration like Google OAuth credentials and Active Record encryption keys.
+
+    *   Uses `config/credentials/development.yml.enc`
+    *   Email @jasper [mayonej@wit.edu] for the development key to decrypt the credentials.
+    	*   Paste the key into `config/credentials/development.key`
+
+    The credentials file should include:
+    - Google OAuth client ID and secret (for admin authentication)
+    - Active Record encryption keys (for encrypting OAuth tokens)
+    - Rate My Professor API credentials
+    - Any other third-party service credentials
+
+7.  **Create and seed the database:**
+
+    ```bash
+    bin/rails db:create
+    bin/rails db:migrate
+    bin/rails db:seed
+    ```
+
+8.  **Run the application:**
+
+    ```bash
+    bin/dev
+    ```
+
+    This will start the web server, the background job worker, and the CSS watcher. You can access the application at `http://127.0.0.1:3000`.
+
+    **Note:** Make sure you have the credentials master key file at `config/credentials/development.key` to access encrypted credentials for Google OAuth and other services.
