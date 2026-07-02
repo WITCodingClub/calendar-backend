@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "rails_helper"
+require "webmock/rspec"
 
 RSpec.describe External::TwentyFiveLiveService, type: :service do
   fixtures :buildings, :rooms
@@ -25,6 +26,65 @@ RSpec.describe External::TwentyFiveLiveService, type: :service do
 
   def spaces_payload(spaces)
     { "spaces" => { "space" => spaces } }
+  end
+
+  describe "#sync_events" do
+    let(:events_xml) { Rails.root.join("spec/fixtures/files/twenty_five_live_events.xml").read }
+
+    def stub_events(body: events_xml, status: 200)
+      stub_request(:get, /webservices\.collegenet\.com.*events\.xml/)
+        .to_return(status: status, body: body, headers: { "Content-Type" => "text/xml" })
+    end
+
+    describe "event syncing" do
+      subject(:service) { described_class.new }
+
+      before { stub_events }
+
+      it "returns a result hash with created/updated/unchanged/errors keys" do
+        result = service.sync_events
+
+        expect(result.keys).to match_array(%i[created updated unchanged errors])
+      end
+
+      context "event field parsing" do
+        before { service.sync_events }
+
+        let(:event) { TwentyFiveLive::Event.find_by(event_id: 123_456) }
+
+        it "parses event_title" do
+          expect(event.event_title).to eq("Taco Tuesday Event")
+        end
+
+        it "prefers event_title for display_name" do
+          expect(event.display_name).to eq("Taco Tuesday Event")
+        end
+
+        it "parses event_name" do
+          expect(event.event_name).to eq("Time Out and Tacos")
+        end
+      end
+
+      context "minimal event (no title)" do
+        before { service.sync_events }
+
+        let(:event) { TwentyFiveLive::Event.find_by(event_id: 999) }
+
+        it "falls back to event_name for display_name" do
+          expect(event.display_name).to eq("Minimal Event")
+        end
+      end
+
+      context "result counts" do
+        it "reports created count on first sync" do
+          result = service.sync_events
+
+          expect(result[:created]).to eq(2)
+          expect(result[:updated]).to eq(0)
+          expect(result[:unchanged]).to eq(0)
+        end
+      end
+    end
   end
 
   describe "#sync_spaces" do

@@ -3,8 +3,13 @@
 module External
   class TwentyFiveLiveService < ApplicationService
     require "net/http"
+    require "cgi"
+    require "faraday"
+    require "nokogiri"
 
     BASE_URL = "https://webservices.collegenet.com/r25ws/wrd/wit/run/"
+    EVENT_BASE_URL = BASE_URL
+    NS = { "r25" => "http://www.collegenet.com/r25" }.freeze
 
     class RequestError < StandardError
       attr_reader :status
@@ -35,6 +40,44 @@ module External
       true
     end
 
+    def self.sync_events
+      new.sync_events
+    end
+
+    def sync_events
+      start_dt = Time.zone.today.strftime("%Y%m%d")
+      end_dt   = (Time.zone.today + 1.year).strftime("%Y%m%d")
+
+      result       = { created: 0, updated: 0, unchanged: 0, errors: [] }
+      current_page = 1
+      total_pages  = nil
+
+      loop do
+        doc, page_index, total_pages_from_doc = fetch_events_page_xml(
+          start_dt: start_dt,
+          end_dt: end_dt,
+          page: current_page
+        )
+
+        total_pages ||= total_pages_from_doc || current_page
+
+        Rails.logger.info("[TwentyFiveLiveService] events.xml page #{page_index}/#{total_pages}")
+
+        doc.xpath("//r25:event", NS).each do |node|
+          upsert_event(node, result)
+        rescue => e
+          result[:errors] << { page: current_page, error: e.message }
+          Rails.logger.error("[TwentyFiveLiveService] Error parsing event: #{e.message}")
+        end
+
+        break if current_page >= total_pages
+
+        current_page += 1
+      end
+
+      result
+    end
+
     private
 
     def fetch(endpoint)
@@ -62,9 +105,95 @@ module External
       end
     end
 
+    def fetch_events_page_xml(start_dt:, end_dt:, page:, page_size: 100)
+      params = {
+        scope: "extended",
+        include: "reservations",
+        start_dt: start_dt,
+        end_dt: end_dt,
+        paginate: nil,
+        page: page,
+        page_size: page_size,
+        node_type: "E"
+      }
+
+      response = event_connection.get("events.xml", params.compact)
+
+      Rails.logger.info("[TwentyFiveLiveService] events.xml page=#{page} status=#{response.status}")
+
+      raise "HTTP #{response.status} fetching events.xml" unless response.status == 200
+
+      body = response.body
+      raise "Empty events.xml body" if body.nil? || body.strip.empty?
+
+      doc  = Nokogiri::XML(body)
+      root = doc.root
+
+      page_index  = (root["page_index"] || root["pageIndex"] || page).to_i
+      total_pages = (root["total_pages"] || root["totalPages"]).to_i
+      total_pages = 1 if total_pages.zero?
+
+      [ doc, page_index, total_pages ]
+    end
+
+    def event_connection
+      username = Rails.application.credentials.dig(:TwentyFiveLive, :username)
+      password = Rails.application.credentials.dig(:TwentyFiveLive, :password)
+
+      @event_connection ||= Faraday.new(url: EVENT_BASE_URL) do |faraday|
+        faraday.request :authorization, :basic, username, password
+        faraday.adapter Faraday.default_adapter
+      end
+    end
+
+    def upsert_event(node, result)
+      attrs = parse_event_attrs(node)
+      event = TwentyFiveLive::Event.find_or_initialize_by(event_id: attrs[:event_id])
+
+      event.assign_attributes(attrs)
+      if event.new_record?
+        event.save!
+        result[:created] += 1
+      elsif event.changed?
+        event.save!
+        result[:updated] += 1
+      else
+        result[:unchanged] += 1
+      end
+
+      event.update!(last_synced_at: Time.current)
+    end
+
+    def parse_event_attrs(node)
+      description_node = node.at_xpath("r25:event_text[r25:text_type_id[text()='1']]/r25:text", NS)
+      raw_description = description_node&.text
+      description = raw_description ? CGI.unescapeHTML(raw_description) : nil
+
+      public_attr = node.at_xpath("r25:custom_attribute[r25:attribute_id[text()='32']]/r25:attribute_value", NS)
+
+      {
+        event_id: node.at_xpath("r25:event_id", NS)&.text&.to_i,
+        event_locator: node.at_xpath("r25:event_locator", NS)&.text,
+        event_name: node.at_xpath("r25:event_name", NS)&.text,
+        event_title: node.at_xpath("r25:event_title", NS)&.text.presence,
+        start_date: node.at_xpath("r25:start_date", NS)&.text,
+        end_date: node.at_xpath("r25:end_date", NS)&.text,
+        event_type_id: node.at_xpath("r25:event_type_id", NS)&.text&.to_i,
+        event_type_name: node.at_xpath("r25:event_type_name", NS)&.text,
+        state: node.at_xpath("r25:state", NS)&.text&.to_i,
+        state_name: node.at_xpath("r25:state_name", NS)&.text,
+        cabinet_id: node.at_xpath("r25:cabinet_id", NS)&.text&.to_i,
+        cabinet_name: node.at_xpath("r25:cabinet_name", NS)&.text,
+        description: description,
+        registration_url: node.at_xpath("r25:registration_url", NS)&.text.presence,
+        public_website: public_attr&.text == "T",
+        last_mod_dt: node.at_xpath("r25:last_mod_dt", NS)&.text,
+        creation_dt: node.at_xpath("r25:creation_dt", NS)&.text
+      }
+    end
+
     # ---------------------------------------------------------------------------
     # DB-backed syncs
-    # ---------------------------------------------------------------------------
 
     def sync_organizations
       data = fetch("organizations")
@@ -93,6 +222,93 @@ module External
       data = fetch("evcat")
       cats = Array.wrap(data.dig("categories", "category") ||
                         data.dig("r25:categories", "r25:category"))
+
+        def fetch_events_page_xml(start_dt:, end_dt:, page:, page_size: 100)
+          params = {
+            scope: "extended",
+            include: "reservations",
+            start_dt: start_dt,
+            end_dt: end_dt,
+            paginate: nil,
+            page: page,
+            page_size: page_size,
+            node_type: "E"
+          }
+
+          response = event_connection.get("events.xml", params.compact)
+
+          Rails.logger.info("[TwentyFiveLiveService] events.xml page=#{page} status=#{response.status}")
+
+          raise "HTTP #{response.status} fetching events.xml" unless response.status == 200
+
+          body = response.body
+          raise "Empty events.xml body" if body.nil? || body.strip.empty?
+
+          doc  = Nokogiri::XML(body)
+          root = doc.root
+
+          page_index  = (root["page_index"] || root["pageIndex"] || page).to_i
+          total_pages = (root["total_pages"] || root["totalPages"]).to_i
+          total_pages = 1 if total_pages.zero?
+
+          [ doc, page_index, total_pages ]
+        end
+
+        def event_connection
+          username = Rails.application.credentials.dig(:TwentyFiveLive, :username)
+          password = Rails.application.credentials.dig(:TwentyFiveLive, :password)
+
+          @event_connection ||= Faraday.new(url: EVENT_BASE_URL) do |faraday|
+            faraday.request :authorization, :basic, username, password
+            faraday.adapter Faraday.default_adapter
+          end
+        end
+
+        def upsert_event(node, result)
+          attrs = parse_event_attrs(node)
+          event = TwentyFiveLive::Event.find_or_initialize_by(event_id: attrs[:event_id])
+
+          event.assign_attributes(attrs)
+          if event.new_record?
+            event.save!
+            result[:created] += 1
+          elsif event.changed?
+            event.save!
+            result[:updated] += 1
+          else
+            result[:unchanged] += 1
+          end
+
+          event.update!(last_synced_at: Time.current)
+        end
+
+        def parse_event_attrs(node)
+          description_node = node.at_xpath("r25:event_text[r25:text_type_id[text()='1']]/r25:text", NS)
+          raw_description = description_node&.text
+          description = raw_description ? CGI.unescapeHTML(raw_description) : nil
+
+          public_attr = node.at_xpath("r25:custom_attribute[r25:attribute_id[text()='32']]/r25:attribute_value", NS)
+
+          {
+            event_id: node.at_xpath("r25:event_id", NS)&.text&.to_i,
+            event_locator: node.at_xpath("r25:event_locator", NS)&.text,
+            # event_name: node.at_xpath("r25:event_name", NS)&.text,
+            event_title: node.at_xpath("r25:event_title", NS)&.text.presence,
+            start_date: node.at_xpath("r25:start_date", NS)&.text,
+            end_date: node.at_xpath("r25:end_date", NS)&.text,
+            event_type_id: node.at_xpath("r25:event_type_id", NS)&.text&.to_i,
+            event_type_name: node.at_xpath("r25:event_type_name", NS)&.text,
+            state: node.at_xpath("r25:state", NS)&.text&.to_i,
+            state_name: node.at_xpath("r25:state_name", NS)&.text,
+            cabinet_id: node.at_xpath("r25:cabinet_id", NS)&.text&.to_i,
+            cabinet_name: node.at_xpath("r25:cabinet_name", NS)&.text,
+            description: description,
+            registration_url: node.at_xpath("r25:registration_url", NS)&.text.presence,
+            public_website: public_attr&.text == "T",
+            last_mod_dt: node.at_xpath("r25:last_mod_dt", NS)&.text,
+            creation_dt: node.at_xpath("r25:creation_dt", NS)&.text
+          }
+        end
 
       cats.each do |raw|
         id   = (raw["category_id"] || raw["r25:category_id"])&.to_i
