@@ -47,17 +47,7 @@ This guide will walk you through setting up the application for development usin
     bin/rails db:seed
     ```
 
-9.  **Run the application:**
-
-    ```bash
-    bin/dev
-    ```
-
-    This will start the web server, the background job worker, and the CSS watcher. You can access the application at `http://127.0.0.1:3000/users/sign_in`.
-
-    **Note:** Make sure you have the credentials master key file at `config/credentials/development.key` to access encrypted credentials for Google OAuth and other services (see step 7).
-
-10. **Set up Google OAuth:**
+9. **Set up Google OAuth:**
 
 	You will need to provide @jasper [mayonej@wit.edu] your Codespace URL to be added to the development project on Google Cloud.
 
@@ -69,6 +59,17 @@ This guide will walk you through setting up the application for development usin
 	
 	c. Right click the "Forwarded Address" for port 3000 and click "Copy Local Address" as shown below:
 	<img width="1451" height="815" alt="image" src="https://github.com/user-attachments/assets/ad953767-609e-4e74-a8d8-583648f7b060" />
+
+
+10. **Run the application:**
+
+    ```bash
+    bin/dev
+    ```
+
+    This will start the web server, the background job worker, and the CSS watcher. You can access the application at `http://127.0.0.1:3000/users/sign_in` or `your-codespace-URL/users/sign_in` (see the previous step for instructions for getting your Codespace URL).
+
+    **Note:** If you click the "Open in Browser" on the notification that comes up within the Codespace after starting the server, you will be redirected to the root page of the server, which doesn't exist. You must manually append `/users/sign_in` to the end of the URL.
 
 ## Troubleshooting
 
