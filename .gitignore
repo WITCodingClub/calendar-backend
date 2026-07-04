@@ -56,3 +56,4 @@ public/*.webp
 
 config/credentials/
 /.postgres-data
+/.postgres-socket
