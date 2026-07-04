@@ -39,7 +39,7 @@ This guide will walk you through setting up the application for development usin
 
          	**Note: You'll need to create the `development.key` file. Ensure it is created in the correct directory (`config/credentials`).**
 
-8.  **Create and seed the database:**
+8.  **Set up the database:**
 
     ```bash
     bin/rails db:create
