@@ -26,7 +26,7 @@ This guide will walk you through setting up the application for development usin
     Run the following command in the terminal:
 
 	```bash
- 	./bin/codespace-setup
+ 	bash bin/codespace-setup
  	```
 
 7.  **Set up Rails credentials:**
