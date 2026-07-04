@@ -55,3 +55,4 @@ public/*.webp
 !/app/assets/builds/.keep
 
 config/credentials/
+/.postgres-data
