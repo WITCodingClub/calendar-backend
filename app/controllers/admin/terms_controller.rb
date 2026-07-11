@@ -3,7 +3,7 @@
 module Admin
   class TermsController < Admin::ApplicationController
     def index
-      @terms = Term.order(year: :desc, season: :desc).page(params[:page]).per(10)
+      @terms = Term.reverse_chronological.page(params[:page]).per(10)
     end
 
     def show

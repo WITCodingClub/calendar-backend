@@ -4,13 +4,14 @@ class Dashboard::SchedulesController < Dashboard::ApplicationController
   def show
     authorize current_user, :show?
 
-    @terms = Term.current_and_future.order(year: :desc, season: :asc)
-    @terms = Term.order(year: :desc, season: :asc).limit(6) if @terms.empty?
+    enrolled_terms = Term.enrolled_for(current_user)
+    @terms = enrolled_terms.current_and_future
+    @terms = enrolled_terms.reverse_chronological.limit(6) if @terms.empty?
 
     @selected_term = if params[:term_uid].present?
-                       Term.find_by(uid: params[:term_uid])
+                       @terms.find_by(uid: params[:term_uid])
     else
-                       Term.current || @terms.first
+                       @terms.find_by(id: Term.current&.id) || @terms.first
     end
 
     @view_mode = params[:view].presence_in(%w[list week month]) || "week"
