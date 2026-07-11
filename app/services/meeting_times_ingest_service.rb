@@ -12,11 +12,15 @@ class MeetingTimesIngestService < ApplicationService
     super()
   end
 
+  # Upserts meeting times in place and returns the IDs of every row that was
+  # created or updated, so callers can prune stale rows without touching the rest.
   def call
     preload_buildings_and_rooms
+    @touched_meeting_time_ids = []
     raw_meeting_times.each do |mt|
       ingest_one(mt)
     end
+    @touched_meeting_time_ids
   end
 
   private
@@ -170,6 +174,7 @@ class MeetingTimesIngestService < ApplicationService
       end
 
       @meeting_time_cache[cache_key] = meeting_time if @meeting_time_cache
+      @touched_meeting_time_ids << meeting_time.id
     end
   end
 
