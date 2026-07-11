@@ -191,12 +191,16 @@ class CourseProcessorService < ApplicationService
           Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
         end
 
-        course.meeting_times.destroy_all
-
-        MeetingTimesIngestService.call(
+        # Upsert in place so meeting time IDs stay stable — destroying them
+        # cascades to google_calendar_events tracking rows, which strands the
+        # real events in Google Calendar and duplicates them on the next sync.
+        # Only rows absent from the upload are removed; their calendar events
+        # are nullified and cleaned up by CleanupOrphanedCalendarEventsJob.
+        touched_meeting_time_ids = MeetingTimesIngestService.call(
           course: course,
           raw_meeting_times: meeting_times
         )
+        course.meeting_times.where.not(id: touched_meeting_time_ids).destroy_all
 
         process_faculty(course, faculty_data)
 

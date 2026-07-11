@@ -38,7 +38,10 @@ class Course::MeetingTime < ApplicationRecord
   has_many :meeting_time_rooms, class_name: "Course::MeetingTimeRoom",
                                 foreign_key: :meeting_time_id, dependent: :destroy, inverse_of: :meeting_time
   has_many :rooms, through: :meeting_time_rooms
-  has_many :google_calendar_events, dependent: :destroy
+  # Nullify, never destroy: the tracking row is the only pointer to the real
+  # event in Google Calendar. CleanupOrphanedCalendarEventsJob deletes orphans
+  # from Google before removing the row.
+  has_many :google_calendar_events, dependent: :nullify
   has_one :event_preference, as: :preferenceable, dependent: :destroy
 
   def room

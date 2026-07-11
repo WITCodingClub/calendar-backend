@@ -35,7 +35,9 @@ class FinalExam < ApplicationRecord
 
   belongs_to :term
   belongs_to :course, optional: true
-  has_many :google_calendar_events, dependent: :destroy
+  # Nullify, never destroy: see Course::MeetingTime — destroying tracking rows
+  # strands the real events in Google Calendar.
+  has_many :google_calendar_events, dependent: :nullify
 
   validates :crn, presence: true
   validates :exam_date, :start_time, :end_time, presence: true
