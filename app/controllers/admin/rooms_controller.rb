@@ -16,7 +16,7 @@ module Admin
                      .includes(:rooms, course: [ :term, :faculties ])
                      .map(&:course)
                      .uniq
-                     .sort_by { |c| [ -c.term.year, -(Term.seasons[c.term.season] || 0), c.title || "" ] }
+                     .sort_by { |c| [ -c.term.year, -Term.season_position(c.term.season), c.title || "" ] }
 
       @courses_by_term = courses.group_by(&:term)
     end

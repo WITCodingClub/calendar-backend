@@ -7,7 +7,7 @@ module Admin
 
       api_result = LeopardWebService.get_active_terms
       @api_terms = api_result[:success] ? api_result[:terms] : []
-      @db_terms  = Term.order(year: :desc, season: :desc).index_by(&:uid)
+      @db_terms  = Term.reverse_chronological.index_by(&:uid)
 
       @combined_terms = build_combined_terms_list
     end

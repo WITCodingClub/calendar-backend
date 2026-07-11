@@ -43,6 +43,24 @@ class Term < ApplicationRecord
     summer: 3
   }
 
+  # Stored enum values are not chronological (fall=2 sorts before summer=3),
+  # so ordering or comparing on the raw season column misorders terms within a year.
+  SEASON_CHRONOLOGICAL_POSITIONS = { "spring" => 1, "summer" => 2, "fall" => 3 }.freeze
+
+  def self.season_position(season_name)
+    SEASON_CHRONOLOGICAL_POSITIONS.fetch(season_name.to_s)
+  end
+
+  def self.season_position_sql
+    whens = seasons.map { |name, value| "WHEN #{value} THEN #{season_position(name)}" }
+    "CASE terms.season #{whens.join(' ')} END"
+  end
+
+  scope :chronological, -> { order(:year).order(Arel.sql("#{season_position_sql} ASC")) }
+  scope :reverse_chronological, -> { order(year: :desc).order(Arel.sql("#{season_position_sql} DESC")) }
+
+  scope :enrolled_for, ->(user) { where(id: Enrollment.where(user: user).select(:term_id)) }
+
   # Returns active term UIDs from LeopardWeb
   # @return [Array<Integer>] UIDs of terms LeopardWeb considers active, empty array on failure
   def self.active_uids
@@ -81,16 +99,16 @@ class Term < ApplicationRecord
 
     where(start_date: ..today)
       .where(end_date: today..)
-      .order(year: :desc, season: :desc)
+      .reverse_chronological
   }
 
   scope :current_and_future, -> {
     current_term = Term.current
     return none unless current_term
 
-    where("(year > ?) OR (year = ? AND season >= ?)",
-          current_term.year, current_term.year, seasons[current_term.season])
-      .order(year: :desc, season: :desc)
+    where("(year > ?) OR (year = ? AND #{season_position_sql} >= ?)",
+          current_term.year, current_term.year, season_position(current_term.season))
+      .reverse_chronological
   }
 
   # Wrap bulk course-save operations to batch term date updates.
@@ -172,7 +190,7 @@ class Term < ApplicationRecord
                          .first
     return upcoming_term if upcoming_term
 
-    order(year: :desc, season: :desc).first
+    reverse_chronological.first
   end
 
   def self.next

@@ -99,7 +99,7 @@ module Admin
     end
 
     def available_terms
-      Term.order(year: :desc, season: :desc)
+      Term.reverse_chronological
     end
   end
 end
