@@ -132,15 +132,20 @@ module Admin
     def add_friend
       authorize @user, :manage_friendships?
 
-      friend_id = params[:friend_id]
-      if friend_id.blank?
-        redirect_to admin_user_path(@user), alert: "Friend ID is required."
+      friend_ref = params[:friend_id].to_s.strip
+      if friend_ref.blank?
+        redirect_to admin_user_path(@user), alert: "Friend email or user ID is required."
         return
       end
 
-      friend = User.find_by_public_id(friend_id)
+      friend = if friend_ref.include?("@")
+                 User.find_by(email: friend_ref.downcase)
+      else
+                 User.find_by_public_id(friend_ref)
+      end
+
       if friend.nil?
-        redirect_to admin_user_path(@user), alert: "User not found with ID: #{friend_id}"
+        redirect_to admin_user_path(@user), alert: "User not found: #{friend_ref}"
         return
       end
 

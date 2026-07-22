@@ -111,8 +111,8 @@
             <h3 class="text-sm font-medium text-on-surface-variant mb-2">Add Friend</h3>
             <%= form_with url: add_friend_admin_user_path(@user), method: :post, class: "flex gap-2 items-end" do |f| %>
               <div class="flex-1">
-                <label class="block text-xs text-on-surface-variant mb-1">Friend's User ID (usr_...)</label>
-                <%= f.text_field :friend_id, placeholder: "usr_abc123", class: "w-full px-3 py-2 text-sm border border-outline-variant rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50" %>
+                <label class="block text-xs text-on-surface-variant mb-1">Email or user ID</label>
+                <%= f.text_field :friend_id, placeholder: "email@wit.edu or usr_abc123", class: "w-full px-3 py-2 text-sm border border-outline-variant rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50" %>
               </div>
               <%= f.submit "Add Friend", class: "px-4 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90 cursor-pointer" %>
             <% end %>
