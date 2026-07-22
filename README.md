@@ -1,30 +1,77 @@
-<p align="center">
-    <img src="https://raw.githubusercontent.com/WITCodingClub/calendar/refs/heads/main/resources/W-Calendar-outlined-back-only.png" width="128" alt="WIT-calendar Icon"/>
-</p>
+# Getting Started
 
-<h3 align="center">
-    <strong>WIT-Calendar</strong>
-</h3>
+This guide will walk you through setting up the application for development using GitHub Codespaces.
 
-<p align="center">
-    <a href="https://calendar.witcc.dev">website</a> · <a href="https://chromewebstore.google.com/detail/wit-calendar/aceelinogfcceklkpacakdeddnaakicj">install</a> · <a href="https://stats.uptimerobot.com/QS76oPqfzz">status page</a>
-    <br>
-    (middle-click or ctrl/cmd+click to open in a new tab)
-</p>
+## Setup
 
-## Description
-WIT-Calendar is a Chrome extension that makes adding your classes to your calendar easy & quick!
-It supports all major calendars, including Google Calendar, Microsoft Outlook, and Apple Calendar.
-In the future, you will also be able to find "best times" to meet with fellow students, easily register for classes, and more!
+1.  Create a new branch OR fork this repository
+	
+    **If you create a new branch, make sure it is named properly.**
 
-## How does it work?
-The Chrome extension gets your schedule, processes it, and then provides you with a calendar link. You can also optionally connect your Google account for automatic updates to your Google Calendar.
+2.  Click the green "Code" button towards the right of the screen
 
-You can also manage event alerts, colors, and titles from within the extension.
+3.  Click the "Codespaces" tab at the top of the pop-up
 
-## Development
-- See instructions for developing the extension [here](https://github.com/WITCodingClub/calendar-extension/blob/main/client/README.md).
+4.  Click "Create codespace on `your-branch-name`"
 
-- See instructions for developing the backend **(this repo)** [here](https://github.com/WITCodingClub/calendar-backend/blob/main/README.md).
+5.  **Install dependencies:**
 
-- See instructions for developing our landing/marketing page [here](https://github.com/WITCodingClub/calendar-website/blob/main/README.md)
+	Run in a new terminal window:
+    ```bash
+    bundle install
+    ```
+
+6.  **Set up Codespace:**
+
+    Run the following command in the terminal:
+
+	```bash
+ 	bash bin/codespace-setup
+ 	```
+
+7.  **Set up Rails credentials:**
+
+    This project uses Rails encrypted credentials for storing sensitive configuration like Google OAuth credentials and Active Record encryption keys.
+
+    *   Uses `config/credentials/development.yml.enc`
+    *   Email @jasper [mayonej@wit.edu] for the development key to decrypt the credentials.
+    	*   Paste the key into `config/credentials/development.key`
+
+         	**Note: You'll need to create the `development.key` file. Ensure it is created in the correct directory (`config/credentials`).**
+
+8.  **Set up the database:**
+
+    ```bash
+    bin/rails db:create
+    bin/rails db:migrate
+    bin/rails db:seed
+    ```
+
+9. **Set up Google OAuth:**
+
+	You will need to provide @jasper [mayonej@wit.edu] your Codespace URL to be added to the development project on Google Cloud.
+
+	a. In the bottom panel of your Codespace, click the Ports tab as shown below:
+	<img width="739" height="418" alt="image" src="https://github.com/user-attachments/assets/c0c3daf6-0ce6-4384-8d4b-5d055f809f3a" />
+	
+	b. Right click port 3000 and set the port visibility to "Public" as shown below:
+	<img width="638" height="400" alt="image" src="https://github.com/user-attachments/assets/f71b9183-47e5-4b5c-98cb-6651b5e5f269" />
+	
+	c. Right click the "Forwarded Address" for port 3000 and click "Copy Local Address" as shown below:
+	<img width="1451" height="815" alt="image" src="https://github.com/user-attachments/assets/ad953767-609e-4e74-a8d8-583648f7b060" />
+
+
+10. **Run the application:**
+
+    ```bash
+    bin/dev
+    ```
+
+    This will start the web server, the background job worker, and the CSS watcher. You can access the application at `http://127.0.0.1:3000/users/sign_in` or `your-codespace-URL/users/sign_in` (see the previous step for instructions for getting your Codespace URL).
+
+    **Note:** If you click the "Open in Browser" on the notification that comes up within the Codespace after starting the server, you will be redirected to the root page of the server, which doesn't exist. You must manually append `/users/sign_in` to the end of the URL.
+
+## Troubleshooting
+
+If you run into any errors in the terminal you don't recogize, feel free to run them by @jasper [mayonej@wit.edu].
+
