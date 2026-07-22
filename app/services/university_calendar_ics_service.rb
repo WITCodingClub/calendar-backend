@@ -133,11 +133,18 @@ class UniversityCalendarIcsService < ApplicationService
     event_type    = decode_html_entities(raw_custom_fields["Event Type"])
     event_name    = decode_html_entities(raw_custom_fields["Event Name"])
 
-    summary     = event_name.presence || decode_html_entities(ics_event.summary.to_s)
+    # The ICS SUMMARY carries the full event title; the "Event Name" custom field
+    # is a truncated SingleLine value, so prefer SUMMARY and fall back to it.
+    summary     = decode_html_entities(ics_event.summary.to_s).presence || event_name.presence
     location    = decode_html_entities(ics_event.location&.to_s)
     start_time  = parse_ics_time(ics_event.dtstart)
     end_time    = parse_ics_time(ics_event.dtend || ics_event.dtstart)
     description = clean_description(ics_event.description&.to_s)
+    # The feed builds "Event Name:" from the truncated custom field; rewrite that
+    # line with the full SUMMARY so the description shows the complete title too.
+    if description.present? && summary.present?
+      description = description.sub(/\AEvent Name:.*/, "Event Name: #{summary}")
+    end
     category    = UniversityCalendarEvent.infer_category(summary, event_type)
     is_all_day  = %w[holiday study_day].include?(category) || all_day_event?(ics_event)
 
