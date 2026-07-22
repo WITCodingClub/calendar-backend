@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+cp .env.example .env
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+PG_BIN_DIR="/usr/lib/postgresql/16/bin"
+export PATH="$PG_BIN_DIR:$PATH"
+
+export POSTGRES_HOST="127.0.0.1"
+export POSTGRES_PORT="5432"
+export POSTGRES_USER="postgres"
+export POSTGRES_PASSWORD="postgres"
+export POSTGRES_DATABASE="calendar_development"
+export POSTGRES_TEST_DATABASE="calendar_test"
+
+if ! command -v initdb >/dev/null 2>&1 || ! command -v pg_ctl >/dev/null 2>&1 || ! command -v psql >/dev/null 2>&1; then
+  sudo apt-get update
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql postgresql-contrib
+fi
+
+PGDATA="$PWD/.postgres-data"
+PGSOCKET="$PWD/.postgres-socket"
+PGPORT="$POSTGRES_PORT"
+
+mkdir -p "$PGSOCKET"
+
+sudo service postgresql stop >/dev/null 2>&1 || true
+
+if [[ ! -f "$PGDATA/PG_VERSION" ]]; then
+  rm -rf "$PGDATA"
+  initdb -D "$PGDATA" --auth-local=trust --auth-host=trust >/dev/null
+fi
+
+pg_ctl -D "$PGDATA" stop >/dev/null 2>&1 || true
+pg_ctl -D "$PGDATA" -l "$PGDATA/logfile" -o "-k $PGSOCKET -p $PGPORT -c listen_addresses='$POSTGRES_HOST'" start >/dev/null
+
+export PGHOST="$PGSOCKET"
+export PGPORT="$PGPORT"
+
+if ! psql -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname = 'postgres'" | grep -q 1; then
+  createuser --superuser --login --createdb postgres
+fi
+
+psql -d postgres -tAc "ALTER ROLE postgres WITH SUPERUSER CREATEDB LOGIN PASSWORD 'postgres'" >/dev/null 2>&1 || true
+
+psql -d postgres -tAc "ALTER DATABASE calendar_development OWNER TO postgres" >/dev/null 2>&1 || true
+psql -d postgres -tAc "ALTER DATABASE calendar_test OWNER TO postgres" >/dev/null 2>&1 || true
+
+bundle check || bundle install
+
+createdb -O postgres calendar_development 2>/dev/null || true
+createdb -O postgres calendar_test 2>/dev/null || true
+
+bin/rails db:prepare
+bin/rails log:clear tmp:clear

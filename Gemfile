@@ -30,8 +30,8 @@ gem "console1984"
 
 gem "bootsnap", require: false
 gem "thruster", require: false
-gem "image_processing", "~> 2.0"
-gem "ruby-vips"
+# gem "image_processing", "~> 2.0"
+# gem "ruby-vips"
 
 # Authentication
 gem "devise", "~> 5.0"
@@ -83,6 +83,7 @@ group :development, :test do
   gem "rspec-rails"
   gem "factory_bot_rails"
   gem "faker"
+  gem "dotenv-rails"
 end
 
 group :development do
