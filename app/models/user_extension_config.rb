@@ -32,16 +32,9 @@ class UserExtensionConfig < ApplicationRecord
 
   belongs_to :user
 
-  before_save :clear_categories_when_sync_disabled
   after_update :sync_calendar_if_settings_changed
 
   private
-
-  def clear_categories_when_sync_disabled
-    return unless will_save_change_to_sync_university_events? && !sync_university_events
-
-    self.university_event_categories = []
-  end
 
   def sync_calendar_if_settings_changed
     return unless saved_change_to_default_color_lecture? || saved_change_to_default_color_lab? ||
