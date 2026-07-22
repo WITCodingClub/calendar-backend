@@ -213,5 +213,7 @@ Rails.application.routes.draw do
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
   end
 
+  mount OkComputer::Engine, at: "/healthchecks"
+
   root to: "home#index"
 end

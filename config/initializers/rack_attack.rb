@@ -15,7 +15,7 @@ class Rack::Attack
   end
 
   safelist("allow-healthchecks") do |req|
-    req.path.start_with?("/up", "/healthchecks")
+    req.path.start_with?("/up", "/healthchecks", "/okcomputer")
   end
 
   # Admins and users with the bypass flag skip per-user API limits
