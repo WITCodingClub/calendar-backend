@@ -90,6 +90,7 @@ GEM
       version_gem (~> 1.1, >= 1.1.10)
     base64 (0.3.0)
     bcrypt (3.1.22)
+    benchmark (0.5.0)
     bigdecimal (4.1.2)
     bindex (0.8.1)
     blazer (3.4.0)
@@ -334,6 +335,8 @@ GEM
       rack (>= 1.2, < 4)
       snaky_hash (~> 2.0, >= 2.0.5)
       version_gem (~> 1.1, >= 1.1.11)
+    okcomputer (1.19.2)
+      benchmark
     omniauth (2.1.4)
       hashie (>= 3.4.6)
       logger
@@ -630,6 +633,7 @@ DEPENDENCIES
   liquid
   mission_control-jobs
   multi_json
+  okcomputer
   omniauth-google-oauth2
   omniauth-rails_csrf_protection
   pg (~> 1.1)
@@ -674,6 +678,7 @@ CHECKSUMS
   auth-sanitizer (0.2.1) sha256=917dcf01f7589b06c26726afe90568cf2fb29d37a1f94facfc664f11967cc577
   base64 (0.3.0) sha256=27337aeabad6ffae05c265c450490628ef3ebd4b67be58257393227588f5a97b
   bcrypt (3.1.22) sha256=1f0072e88c2d705d94aff7f2c5cb02eb3f1ec4b8368671e19112527489f29032
+  benchmark (0.5.0) sha256=465df122341aedcb81a2a24b4d3bd19b6c67c1530713fd533f3ff034e419236c
   bigdecimal (4.1.2) sha256=53d217666027eab4280346fba98e7d5b66baaae1b9c3c1c0ffe89d48188a3fbd
   bindex (0.8.1) sha256=7b1ecc9dc539ed8bccfc8cb4d2732046227b09d6f37582ff12e50a5047ceb17e
   blazer (3.4.0) sha256=ff8d4e32013857f3614772ccd74018955ae126005460065dbc9036cc5ed9cc7d
@@ -767,6 +772,7 @@ CHECKSUMS
   nokogiri (1.19.3-x86_64-linux-gnu) sha256=2f5078620fe12e83669b5b17311b32532a8153d02eee7ad06948b926d6080976
   nokogiri (1.19.3-x86_64-linux-musl) sha256=248c906d2166eca5efb56d52fdee5f9a1f51d69a72e2b64fdac647b4ce39ea3f
   oauth2 (2.0.22) sha256=8f4669f0c8de69f6db7ed786bda20996eaf0003966b886f1c519efb1a5682fa6
+  okcomputer (1.19.2) sha256=d069aedf1e31b8ebe7e1fdf9e327dee158ea49b9fbdebebc2f1bed4690cb7a6d
   omniauth (2.1.4) sha256=42a05b0496f0d22e1dd85d42aaf602f064e36bb47a6826a27ab55e5ba608763c
   omniauth-google-oauth2 (1.2.2) sha256=74c3f3d0221c048f938846092fb15a1f15237526f50a7c93d9793f9a4ff1be11
   omniauth-oauth2 (1.9.0) sha256=ed15f6d9d20991807ce114cc5b9c1453bce3645b64e51c68c90cff5ff153fee8
