@@ -1,0 +1,94 @@
+name: Lockfile Guard
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+
+      - name: Check Gemfile.lock is in sync with Gemfile
+        id: lockcheck
+        continue-on-error: true
+        run: |
+          ruby -rbundler -e '
+            definition = Bundler::Definition.build(Pathname.new("Gemfile"), Pathname.new("Gemfile.lock"), nil)
+            if definition.nothing_changed?
+              puts "Gemfile.lock is in sync with Gemfile"
+            else
+              abort "Gemfile.lock is out of sync with Gemfile"
+            end
+          '
+
+      # Fork PRs get a read-only token, so review management only runs for
+      # branches in this repo. The failing job status still covers forks.
+      - name: Leave blocking review
+        if: steps.lockcheck.outcome == 'failure' && !github.event.pull_request.head.repo.fork
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = "<!-- lockfile-guard -->";
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const alreadyBlocking = reviews.some(
+              (r) => r.state === "CHANGES_REQUESTED" && r.body.includes(marker)
+            );
+            if (!alreadyBlocking) {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                event: "REQUEST_CHANGES",
+                body: [
+                  marker,
+                  "**`Gemfile.lock` is out of sync with `Gemfile`.**",
+                  "",
+                  "The production Docker build runs `bundle install` in frozen mode, so merging this will break every deploy (see #519).",
+                  "",
+                  "To fix, run `bundle install` locally and commit the updated `Gemfile.lock`. This review will be dismissed automatically once the lockfile is back in sync.",
+                ].join("\n"),
+              });
+            }
+
+      - name: Dismiss stale blocking review
+        if: steps.lockcheck.outcome == 'success' && !github.event.pull_request.head.repo.fork
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = "<!-- lockfile-guard -->";
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            for (const review of reviews) {
+              if (review.state === "CHANGES_REQUESTED" && review.body.includes(marker)) {
+                await github.rest.pulls.dismissReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  review_id: review.id,
+                  message: "Gemfile.lock is back in sync with Gemfile.",
+                });
+              }
+            }
+
+      - name: Fail job when lockfile is out of sync
+        if: steps.lockcheck.outcome == 'failure'
+        run: |
+          echo "Gemfile.lock is out of sync with Gemfile. Run 'bundle install' and commit Gemfile.lock."
+          exit 1
