@@ -634,6 +634,7 @@ DEPENDENCIES
   okcomputer
   omniauth-google-oauth2
   omniauth-rails_csrf_protection
+  ostruct
   pg (~> 1.1)
   pghero
   propshaft
