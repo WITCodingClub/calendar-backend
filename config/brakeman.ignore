@@ -23,6 +23,18 @@
     {
       "fingerprint": "6eca622abc5db39bd6a3f96c38fce924bc54269ae943901462eb3022fd3cc617",
       "note": "False positive: conn.escape_literal() is the correct PG escape function for this raw connection pattern"
+    },
+    {
+      "fingerprint": "ae6522feb94357c78ceb5bab2144622301b5f3553fc1a567b86727ac2af23cbb",
+      "note": "False positive: season_position_sql is built from the frozen season enum and SEASON_CHRONOLOGICAL_POSITIONS constant, no user input"
+    },
+    {
+      "fingerprint": "9f5c8d5b7763e030f7c7bd00b5f195e5277e41cf9791c3d7e50426fe2785c2fc",
+      "note": "False positive: season_position_sql is built from the frozen season enum and SEASON_CHRONOLOGICAL_POSITIONS constant, no user input"
+    },
+    {
+      "fingerprint": "d2c44914abf14541c920a450742a47158da4818af92939e1db936e1a886cd217",
+      "note": "False positive: season_position_sql is built from the frozen season enum and SEASON_CHRONOLOGICAL_POSITIONS constant, no user input"
     }
   ]
 }

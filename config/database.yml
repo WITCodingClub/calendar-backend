@@ -22,17 +22,17 @@ default: &default
 development:
   <<: *default
   database: <%= ENV.fetch("POSTGRES_DATABASE", "calendar_development") %>
-  host: <%= ENV.fetch("POSTGRES_HOST") %>
-  port: <%= ENV.fetch("POSTGRES_PORT") %>
+  host: <%= ENV.fetch("POSTGRES_HOST", "localhost") %>
+  port: <%= ENV.fetch("POSTGRES_PORT", 5432) %>
 
   # The specified database role being used to connect to PostgreSQL.
   # To create additional roles in PostgreSQL see `$ createuser --help`.
   # When left blank, PostgreSQL will use the default role. This is
   # the same name as the operating system user running Rails.
-  username: <%= ENV.fetch("POSTGRES_USER") %>
+  username: <%= ENV.fetch("POSTGRES_USER", nil) %>
 
   # The password associated with the PostgreSQL role (username).
-  password: <%= ENV.fetch("POSTGRES_PASSWORD") %>
+  password: <%= ENV.fetch("POSTGRES_PASSWORD", nil) %>
 
   # Connect on a TCP socket. Omitted by default since the client uses a
   # domain socket that doesn't need configuration. Windows does not have
@@ -58,10 +58,10 @@ development:
 test:
   <<: *default
   database: <%= ENV.fetch("POSTGRES_TEST_DATABASE", "calendar_test") %>
-  host: <%= ENV.fetch("POSTGRES_HOST") %>
-  port: <%= ENV.fetch("POSTGRES_PORT") %>
-  username: <%= ENV.fetch("POSTGRES_USER") %>
-  password: <%= ENV.fetch("POSTGRES_PASSWORD") %>
+  host: <%= ENV.fetch("POSTGRES_HOST", "localhost") %>
+  port: <%= ENV.fetch("POSTGRES_PORT", 5432) %>
+  username: <%= ENV.fetch("POSTGRES_USER", nil) %>
+  password: <%= ENV.fetch("POSTGRES_PASSWORD", nil) %>
 
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
