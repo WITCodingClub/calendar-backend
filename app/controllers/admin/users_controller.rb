@@ -37,17 +37,17 @@ module Admin
                                     .joins(course: :term)
                                     .order("terms.year DESC, terms.season DESC")
                                     .group_by { |e| e.course.term }
-                             else
+      else
                                {}
-                             end
+      end
 
       @oauth_credentials = if policy(@user).view_oauth_credentials?
                              @user.oauth_credentials
                                   .includes(:google_calendar)
                                   .order(created_at: :desc)
-                           else
+      else
                              []
-                           end
+      end
 
       @friends = @user.friends.to_a
       @incoming_requests = @user.incoming_friend_requests.includes(:requester).to_a
