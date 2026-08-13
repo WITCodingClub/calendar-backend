@@ -88,6 +88,14 @@ RSpec.describe "Reports", type: :request do
       expect(csv.length).to eq(0)
     end
 
+    it "serves non-browser clients such as Power BI and curl" do
+      get "/reports/meeting_times", headers: { "User-Agent" => "curl/8.7.1" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/csv")
+      expect(CSV.parse(response.body, headers: true).length).to eq(2)
+    end
+
     it "sets public cache headers" do
       get "/reports/meeting_times"
 
