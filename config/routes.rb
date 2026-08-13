@@ -22,6 +22,9 @@ Rails.application.routes.draw do
   # ICS calendar feed (public, token-gated)
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
 
+  # Public CSV exports for BI tools (Power BI Web connector)
+  get "/reports/meeting_times", to: "reports#meeting_times", as: :meeting_times_report, defaults: { format: :csv }
+
   # Google RISC cross-account protection webhook
   post "/risc/events", to: "risc#create", as: :risc_events
 
