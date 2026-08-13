@@ -18,7 +18,10 @@ class ReportsController < ActionController::Base
     scope = Course::MeetingTime.joins(course: :term)
     scope = scope.where(terms: { uid: params[:term_uid] }) if params[:term_uid].present?
 
+    # DISTINCT: a concurrent-ingest race can leave identical meeting time rows
+    # (e.g. CRN 17294 in 202710 has 5 copies); the feed must not repeat them.
     rows = scope
+           .distinct
            .order(Arel.sql("terms.uid, courses.crn, course_meeting_times.day_of_week, course_meeting_times.begin_time"))
            .pluck(
              "terms.uid", "terms.season", "terms.year",
