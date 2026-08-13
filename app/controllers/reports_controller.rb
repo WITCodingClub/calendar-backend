@@ -4,9 +4,10 @@ require "csv"
 
 # Public read-only CSV exports for BI tools (Power BI Web connector, Excel).
 # Course schedule data only — never expose user data through these reports.
-class ReportsController < ApplicationController
-  skip_before_action :verify_authenticity_token
-
+#
+# Inherits ActionController::Base, not ApplicationController: consumers are
+# data tools (Power BI, curl), so the allow_browser check must not run here.
+class ReportsController < ActionController::Base
   MEETING_TIMES_HEADERS = %w[
     term_uid term crn subject course_number section_number title
     schedule_type status seats_capacity seats_available
