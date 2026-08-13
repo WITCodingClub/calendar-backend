@@ -80,6 +80,19 @@ RSpec.describe "Reports", type: :request do
       expect(csv.first["begin_time"]).to eq("13:50")
     end
 
+    it "collapses duplicate meeting time rows into one" do
+      fall_course.meeting_times.create!(
+        begin_time: 900, end_time: 1050, day_of_week: :monday,
+        meeting_schedule_type: :lecture, meeting_type: :class_meeting,
+        start_date: fall_course.start_date, end_date: fall_course.end_date
+      )
+
+      get "/reports/meeting_times", params: { term_uid: 202710 }
+
+      csv = CSV.parse(response.body, headers: true)
+      expect(csv.length).to eq(1)
+    end
+
     it "returns only headers when the term has no data" do
       get "/reports/meeting_times", params: { term_uid: 999999 }
 
