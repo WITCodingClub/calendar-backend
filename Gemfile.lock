@@ -624,7 +624,7 @@ DEPENDENCIES
   flipper-ui
   google-apis-calendar_v3
   googleauth
-  graphql
+  graphql (~> 2.6)
   htmlentities
   icalendar
   ice_cube
