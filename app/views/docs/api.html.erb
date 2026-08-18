@@ -1,0 +1,20 @@
+<% content_for :title, "Course Catalog API — WIT Calendar" %>
+
+<% content_for :head do %>
+  <meta name="description" content="Public read-only REST and GraphQL API for the Wentworth course catalog.">
+<% end %>
+
+<div class="docs">
+  <nav class="docs-toc" aria-label="On this page">
+    <p class="docs-toc-title">On this page</p>
+    <ul>
+      <% @headings.each do |heading| %>
+        <li><a href="#<%= heading[:id] %>"><%= heading[:text] %></a></li>
+      <% end %>
+    </ul>
+  </nav>
+
+  <article class="docs-body">
+    <%= raw @body %>
+  </article>
+</div>

@@ -9,6 +9,9 @@ gem "tailwindcss-rails"
 gem "turbo-rails"
 gem "stimulus-rails"
 gem "jbuilder"
+
+# Renders the public API reference from the markdown file in docs/
+gem "redcarpet"
 gem "bcrypt", "~> 3.1.7"
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
