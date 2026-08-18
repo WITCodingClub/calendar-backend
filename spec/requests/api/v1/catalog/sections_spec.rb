@@ -41,6 +41,25 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       expect(section["pub_id"]).to be_present
     end
 
+    it "reports a section that stands alone as unlinked" do
+      get "/api/v1/catalog/sections", params: { crn: 10_001 }
+
+      expect(json["data"].first["linked"]).to eq(
+        "required" => false, "identifier" => nil, "crns" => []
+      )
+    end
+
+    it "names the sections Banner pairs with this one" do
+      comp2000.update!(link_identifier: "A1", is_section_linked: true)
+      comp2000b.update!(link_identifier: "B1", is_section_linked: true)
+
+      get "/api/v1/catalog/sections", params: { crn: 10_002 }
+
+      expect(json["data"].first["linked"]).to eq(
+        "required" => true, "identifier" => "A1", "crns" => [ 10_003 ]
+      )
+    end
+
     it "serializes meeting times in day then time order" do
       get "/api/v1/catalog/sections", params: { crn: 10_001 }
 

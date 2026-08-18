@@ -21,6 +21,7 @@ module Types
     field :grade_mode, String, null: true
     field :status, String, null: false
     field :seats, SeatsType, null: false
+    field :linked, LinkedSectionsType, null: false
     field :start_date, GraphQL::Types::ISO8601Date, null: false
     field :end_date, GraphQL::Types::ISO8601Date, null: false
     field :instructors, [ InstructorType ], null: false, method: :faculties
@@ -37,6 +38,14 @@ module Types
 
     def seats
       { capacity: object.seats_capacity, available: object.seats_available }
+    end
+
+    def linked
+      {
+        required:   object.is_section_linked,
+        identifier: object.link_identifier,
+        crns:       object.linked_sections.pluck(:crn)
+      }
     end
 
     # filtered_meeting_times drops the duplicate rows a concurrent ingest can

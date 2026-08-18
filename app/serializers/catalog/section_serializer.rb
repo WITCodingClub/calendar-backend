@@ -26,6 +26,7 @@ module Catalog
         grade_mode:         @course.grade_mode,
         status:             @course.status,
         seats:              seats,
+        linked:             linked,
         start_date:         @course.start_date,
         end_date:           @course.end_date,
         instructors:        @course.faculties.map { |f| InstructorSerializer.new(f).as_json },
@@ -54,6 +55,17 @@ module Catalog
     # seat count. Null when Banner did not return enrollment data for the CRN.
     def seats
       { capacity: @course.seats_capacity, available: @course.seats_available }
+    end
+
+    # Banner marks the sections a student has to register together, most often a
+    # lecture and its lab. `crns` names the partners in the same term, so a
+    # client does not have to guess the pairing from the section number.
+    def linked
+      {
+        required:   @course.is_section_linked,
+        identifier: @course.link_identifier,
+        crns:       @course.linked_sections.pluck(:crn)
+      }
     end
 
     def meeting_times

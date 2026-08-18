@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -200,6 +200,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
     t.integer "crn", null: false
     t.date "end_date", null: false
     t.string "grade_mode"
+    t.boolean "is_section_linked", default: false, null: false
+    t.string "link_identifier"
     t.string "schedule_type", null: false
     t.integer "seats_available"
     t.integer "seats_capacity"
@@ -212,6 +214,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_18_033320) do
     t.datetime "updated_at", null: false
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
     t.index ["status"], name: "index_courses_on_status"
+    t.index ["term_id", "subject", "course_number", "link_identifier"], name: "index_courses_on_course_and_link_identifier"
     t.index ["term_id"], name: "index_courses_on_term_id"
     t.check_constraint "credit_hours IS NULL OR credit_hours > 0", name: "courses_credit_hours_positive"
     t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying, 'HYB'::character varying, 'IND'::character varying, 'LAB'::character varying, 'LEC'::character varying, 'ONL'::character varying, 'ONB'::character varying, 'OLB'::character varying, 'OLC'::character varying, 'RLB'::character varying, 'RLC'::character varying, 'SAB'::character varying]::text[])", name: "courses_schedule_type_valid"

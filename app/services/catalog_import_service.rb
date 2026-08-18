@@ -121,6 +121,12 @@ class CatalogImportService < ApplicationService
       raise "Cannot determine dates for CRN #{crn}: no meeting times and term #{term.uid} (#{term.name}) has no dates set"
     end
 
+    # Banner says which sections must be taken together. Keep it: inferring the
+    # pairing from the sequence number works most of the time, but this is the
+    # registrar's own answer.
+    link_identifier   = course_data["linkIdentifier"].presence
+    is_section_linked = ActiveModel::Type::Boolean.new.cast(course_data["isSectionLinked"]) || false
+
     course = Course.find_or_create_by!(crn: crn, term: term) do |c|
       c.title = titleize_with_roman_numerals(course_data["courseTitle"] || "Untitled Course")
       c.subject = course_data["subject"] || course_data["subjectCode"]
@@ -133,6 +139,8 @@ class CatalogImportService < ApplicationService
       c.start_date = start_date
       c.end_date = end_date
       c.term = term
+      c.link_identifier = link_identifier
+      c.is_section_linked = is_section_linked
     end
 
     if course.persisted? && !course.new_record?
@@ -143,6 +151,11 @@ class CatalogImportService < ApplicationService
       raw_title = course_data["courseTitle"] || "Untitled Course"
       new_title = titleize_with_roman_numerals(raw_title)
       update_attrs[:title] = new_title if course.title != new_title
+
+      # Re-importing a term is how existing rows learn their link identifier,
+      # so these have to be written on update and not only on create.
+      update_attrs[:link_identifier]   = link_identifier   if course.link_identifier != link_identifier
+      update_attrs[:is_section_linked] = is_section_linked if course.is_section_linked != is_section_linked
 
       course.update!(update_attrs) if update_attrs.any?
     end

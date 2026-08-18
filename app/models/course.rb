@@ -4,29 +4,32 @@
 #
 # Table name: courses
 #
-#  id              :bigint           not null, primary key
-#  course_number   :integer          not null
-#  credit_hours    :integer
-#  crn             :integer          not null
-#  end_date        :date             not null
-#  grade_mode      :string
-#  schedule_type   :string           not null
-#  seats_available :integer
-#  seats_capacity  :integer
-#  section_number  :string           not null
-#  start_date      :date             not null
-#  status          :string           default("active"), not null
-#  subject         :string           not null
-#  title           :string           not null
-#  created_at      :datetime         not null
-#  updated_at      :datetime         not null
-#  term_id         :bigint           not null
+#  id                :bigint           not null, primary key
+#  course_number     :integer          not null
+#  credit_hours      :integer
+#  crn               :integer          not null
+#  end_date          :date             not null
+#  grade_mode        :string
+#  is_section_linked :boolean          default(FALSE), not null
+#  link_identifier   :string
+#  schedule_type     :string           not null
+#  seats_available   :integer
+#  seats_capacity    :integer
+#  section_number    :string           not null
+#  start_date        :date             not null
+#  status            :string           default("active"), not null
+#  subject           :string           not null
+#  title             :string           not null
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#  term_id           :bigint           not null
 #
 # Indexes
 #
-#  index_courses_on_crn_and_term_id  (crn,term_id) UNIQUE
-#  index_courses_on_status           (status)
-#  index_courses_on_term_id          (term_id)
+#  index_courses_on_course_and_link_identifier  (term_id,subject,course_number,link_identifier)
+#  index_courses_on_crn_and_term_id             (crn,term_id) UNIQUE
+#  index_courses_on_status                      (status)
+#  index_courses_on_term_id                     (term_id)
 #
 # Foreign Keys
 #
@@ -68,6 +71,31 @@ class Course < ApplicationRecord
 
   def prefix
     subject =~ /\(([^)]+)\)/ ? $1 : subject
+  end
+
+  # Banner writes linked sections as <slot><key>. The slot says what the section
+  # is for within the pairing, and the key says which pairing it belongs to. In
+  # CHEM 1000 the lecture "A1" goes with the labs "B1", and the lecture "A2"
+  # with the labs "B2".
+  def link_slot
+    link_identifier&.first
+  end
+
+  def link_key
+    link_identifier.presence && link_identifier[1..].presence
+  end
+
+  # Sections a student has to register alongside this one: same course, same
+  # link key, a different slot. Returns none when the section is not linked.
+  def linked_sections
+    return Course.none if link_key.blank?
+
+    Course.active
+          .where(term_id: term_id, subject: subject, course_number: course_number)
+          .where("SUBSTRING(link_identifier FROM 2) = ?", link_key)
+          .where.not(id: id)
+          .where.not(link_identifier: nil)
+          .where("LEFT(link_identifier, 1) <> ?", link_slot)
   end
 
   # Returns deduplicated meeting times, preferring non-TBD locations when there are duplicates.
