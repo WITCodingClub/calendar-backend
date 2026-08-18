@@ -99,6 +99,7 @@ All filters are optional. Give a list as a comma-separated value, for example
 | `subject` | `COMP` | Match the code or the full label |
 | `course_number` | `1000` | Keep these course numbers |
 | `crn` | `10001,10002` | Keep these CRNs |
+| `pub_id` | `crs_kw7coe30` | Keep these sections by public id |
 | `q` | `algorithms` | Search the title, subject, and number |
 | `schedule_type` | `lecture` or `LEC` | Keep these schedule types |
 | `credit_hours` | `4` | Keep these credit hours |
@@ -178,6 +179,7 @@ One request for a section and everything attached to it:
       location { display building { abbreviation name } rooms { number floor } }
     }
     instructors { name rmp { avgRating numRatings } }
+    linked { required identifier crns pubIds }
     finalExam { date startTime endTime location }
   }
 }
@@ -206,6 +208,20 @@ query Sections($filter: SectionFilterInput) {
   up to a day old, so do not show them as a real-time seat count. Responses also
   carry `Cache-Control: public, max-age=3600`, which adds at most one more hour.
   Either field is `null` when Banner did not return enrollment data for the CRN.
+- `linked` says which sections a student must register together, most often a
+  lecture and its lab. It comes from Banner's own `linkIdentifier`, which reads
+  as `<slot><key>`: the first character is the slot (`A` for the lecture, `B`
+  for the lab) and the rest is the key that pairs them. A lecture `A1` goes with
+  every lab `B1` of the same course. `linked.crns` lists the partners in the
+  same term, so a client does not have to work the pairing out from the section
+  number. `linked.pub_ids` names the same partners by public id, in the same
+  order. `linked.required` is `false` and both lists are empty for a section
+  that stands alone.
+- `pub_id` is the id to store. It is unique across every term and it never
+  changes, so it is the key to use when you join this catalog to another system.
+  A CRN is only unique inside one term, and the registrar reuses it. Both are
+  filters: `pub_id` needs no term, `crn` normally does. A `pub_id` that does not
+  decode is a 400, not an empty result.
 - `location` is `null` when a section has no room, as with online sections.
   `location.display` is `null` when the room is a placeholder "TBD" record.
 - `rmp` is `null` when an instructor has no ratings. Rate My Professors reports

@@ -12,6 +12,10 @@ Rails.application.routes.draw do
 
   get "/robots.txt", to: "robots#show", format: false
 
+  # Public API reference, rendered from docs/public-catalog-api.md
+  get "/docs",     to: redirect("/docs/api")
+  get "/docs/api", to: "docs#api", as: :api_docs
+
   # Google OAuth2 callback (handles both admin login and calendar OAuth)
   get "/auth/google_oauth2/callback", to: "auth#google"
 

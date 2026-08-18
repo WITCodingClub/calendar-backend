@@ -238,14 +238,23 @@ class LeopardWebService < ApplicationService
       enrollment: {
         actual: extract_span_value(section, "Enrollment Actual:")&.to_i,
         maximum: extract_span_value(section, "Enrollment Maximum:")&.to_i,
-        seats_available: extract_span_value(section, "Enrollment Seats Available:")&.to_i
+        seats_available: clamp_seats(extract_span_value(section, "Enrollment Seats Available:"))
       },
       waitlist: {
         capacity: extract_span_value(section, "Waitlist Capacity:")&.to_i,
         actual: extract_span_value(section, "Waitlist Actual:")&.to_i,
-        seats_available: extract_span_value(section, "Waitlist Seats Available:")&.to_i
+        seats_available: clamp_seats(extract_span_value(section, "Waitlist Seats Available:"))
       }
     }
+  end
+
+  # Banner reports a negative count when a section holds more students than its
+  # cap, for example -8 of 15. The courses table forbids a negative count, and a
+  # student only needs to read that no seat is left, so the floor is zero.
+  def clamp_seats(raw)
+    return nil if raw.nil?
+
+    [ raw.to_i, 0 ].max
   end
 
   def extract_labeled_value(section, label)

@@ -15,6 +15,19 @@ RSpec.describe LeopardWebService, type: :service do
     </section>
   HTML
 
+  # Banner reports a negative count for a section that holds more students than
+  # its cap. The courses table forbids a negative count.
+  OVER_ENROLLED_HTML = <<~HTML
+    <section aria-labelledby="enrollmentInfo">
+      <span class="status-bold">Enrollment Actual:</span> <span dir="ltr">23</span><br>
+      <span class="status-bold">Enrollment Maximum:</span> <span dir="ltr">15</span><br>
+      <span class="status-bold">Enrollment Seats Available:</span> <span dir="ltr">-8</span><br>
+      <span class="status-bold">Waitlist Capacity:</span> <span dir="ltr">0</span><br>
+      <span class="status-bold">Waitlist Actual:</span> <span dir="ltr">2</span><br>
+      <span class="status-bold">Waitlist Seats Available:</span> <span dir="ltr">-2</span><br>
+    </section>
+  HTML
+
   # Banner answers with a page that has no enrollment section when it is not
   # told which section to describe.
   EMPTY_HTML = "<html><body><section aria-labelledby='other'></section></body></html>"
@@ -66,6 +79,17 @@ RSpec.describe LeopardWebService, type: :service do
 
       expect(result[:enrollment]).to eq(actual: 15, maximum: 16, seats_available: 1)
       expect(result[:waitlist]).to eq(capacity: 0, actual: 0, seats_available: 0)
+    end
+
+    it "reports no seat left for an over-enrolled section, not a negative count" do
+      service = described_class.new(action: :get_enrollment_info, term: 202710,
+                                    course_reference_number: 16_962)
+      stub_connection(service, body: OVER_ENROLLED_HTML)
+
+      result = service.call
+
+      expect(result[:enrollment]).to eq(actual: 23, maximum: 15, seats_available: 0)
+      expect(result[:waitlist][:seats_available]).to eq(0)
     end
 
     it "returns nil when the page carries no enrollment section" do

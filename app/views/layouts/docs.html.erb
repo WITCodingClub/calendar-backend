@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title) || "Docs" %></title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= yield :head %>
+
+    <%# The page carries its own style. It must not wait for an asset build. %>
+    <style>
+      :root {
+        --docs-text:   #0f172a;
+        --docs-muted:  #64748b;
+        --docs-link:   #1d4ed8;
+        --docs-rule:   #e2e8f0;
+        --docs-fill:   #f1f5f9;
+        --docs-page:   #ffffff;
+        --docs-code:   #0f172a;
+        --docs-code-t: #e2e8f0;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --docs-text:   #e2e8f0;
+          --docs-muted:  #94a3b8;
+          --docs-link:   #93c5fd;
+          --docs-rule:   #1e293b;
+          --docs-fill:   #1e293b;
+          --docs-page:   #0b1120;
+          --docs-code:   #020617;
+          --docs-code-t: #e2e8f0;
+        }
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: var(--docs-page);
+        color: var(--docs-text);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.65;
+      }
+
+      code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+      .docs-shell {
+        max-width: 64rem;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 5rem;
+      }
+
+      .docs-masthead {
+        border-bottom: 1px solid var(--docs-rule);
+        padding-bottom: 1rem;
+        margin-bottom: 2rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--docs-muted);
+      }
+
+      .docs {
+        display: grid;
+        gap: 2.5rem;
+        align-items: start;
+      }
+
+      @media (min-width: 1024px) {
+        .docs { grid-template-columns: 14rem minmax(0, 1fr); }
+        .docs-toc { position: sticky; top: 2rem; max-height: calc(100vh - 4rem); overflow-y: auto; }
+      }
+
+      .docs-toc-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--docs-muted);
+        margin: 0 0 0.5rem;
+      }
+
+      .docs-toc ul { list-style: none; margin: 0; padding: 0; }
+      .docs-toc li { margin: 0.25rem 0; }
+      .docs-toc a { color: var(--docs-text); font-size: 0.875rem; text-decoration: none; }
+      .docs-toc a:hover { text-decoration: underline; }
+
+      .docs-body { min-width: 0; }
+      .docs-body > :first-child { margin-top: 0; }
+
+      .docs-body h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 1rem; }
+
+      .docs-body h2 {
+        font-size: 1.35rem;
+        margin: 2.5rem 0 0.75rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--docs-rule);
+      }
+
+      .docs-body h3 { font-size: 1.05rem; margin: 1.75rem 0 0.5rem; }
+      .docs-body p, .docs-body ul, .docs-body ol { margin: 0 0 1rem; }
+      .docs-body ul, .docs-body ol { padding-left: 1.25rem; }
+      .docs-body li { margin-bottom: 0.35rem; }
+      .docs-body a { color: var(--docs-link); }
+
+      .docs-body code {
+        background: var(--docs-fill);
+        border-radius: 0.25rem;
+        padding: 0.1rem 0.3rem;
+        font-size: 0.875em;
+      }
+
+      .docs-body pre {
+        background: var(--docs-code);
+        color: var(--docs-code-t);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        overflow-x: auto;
+        margin: 0 0 1.25rem;
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+
+      .docs-body pre code { background: none; color: inherit; padding: 0; }
+
+      <%# A wide table scrolls inside itself. The page never scrolls sideways. %>
+      .docs-body table {
+        display: block;
+        overflow-x: auto;
+        max-width: 100%;
+        border-collapse: collapse;
+        margin: 0 0 1.25rem;
+        font-size: 0.9rem;
+      }
+
+      .docs-body th, .docs-body td {
+        border: 1px solid var(--docs-rule);
+        padding: 0.4rem 0.65rem;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .docs-body th { background: var(--docs-fill); }
+      .docs-body .mermaid {
+        margin: 0 0 1.25rem;
+        overflow-x: auto;
+        text-align: center;
+      }
+
+      .docs-body blockquote {
+        margin: 0 0 1rem;
+        padding-left: 1rem;
+        border-left: 3px solid var(--docs-rule);
+        color: var(--docs-muted);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="docs-shell">
+      <header class="docs-masthead">WIT Calendar</header>
+      <%= yield %>
+    </div>
+
+    <%# Draws the flowcharts. If the script does not load, each diagram stays on
+        the page as readable source in its code block. %>
+    <script type="module">
+      const blocks = document.querySelectorAll("pre > code.mermaid");
+      if (blocks.length > 0) {
+        try {
+          const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");
+          const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
+
+          blocks.forEach((block) => {
+            const holder = document.createElement("div");
+            holder.className = "mermaid";
+            holder.textContent = block.textContent;
+            block.parentElement.replaceWith(holder);
+          });
+
+          await mermaid.run({ querySelector: ".mermaid" });
+        } catch (error) {
+          console.warn("Diagrams stay as source:", error);
+        }
+      }
+    </script>
+  </body>
+</html>
