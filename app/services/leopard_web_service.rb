@@ -58,8 +58,12 @@ class LeopardWebService < ApplicationService
     ).call
   end
 
-  def self.get_enrollment_info
-    new(action: :get_enrollment_info).call
+  def self.get_enrollment_info(term:, course_reference_number:)
+    new(
+      action: :get_enrollment_info,
+      term: term,
+      course_reference_number: course_reference_number
+    ).call
   end
 
   def self.get_faculty_meeting_times(term:, course_reference_number:)
@@ -138,8 +142,19 @@ class LeopardWebService < ApplicationService
     details
   end
 
+  # Banner needs the term and the CRN to know which section to describe, and it
+  # only answers this one over POST. Without them it returns a page with no
+  # enrollment section at all, the parser returns nil, and the seat columns are
+  # never written.
   def get_enrollment_info
-    response = connection.get("getEnrollmentInfo")
+    raise ArgumentError, "term is required" unless term
+    raise ArgumentError, "course_reference_number is required" unless course_reference_number
+
+    response = connection.post("getEnrollmentInfo", {
+                                 term: term,
+                                 courseReferenceNumber: course_reference_number
+                               })
+
     handle_response(response, :enrollment_info)
   end
 
