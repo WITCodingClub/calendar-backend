@@ -48,9 +48,10 @@ module Catalog
       { uid: @course.term.uid, name: @course.term.name }
     end
 
-    # Both columns exist but the Banner catalog import does not populate them
-    # yet, so they are almost always null. Kept in the payload so consumers can
-    # code against the shape now.
+    # Live enrollment numbers from Banner, by way of LeopardWebService. The
+    # catalog import sets them, and CourseDataSyncJob refreshes them every night.
+    # They are therefore up to a day old. Do not present them as a real-time
+    # seat count. Null when Banner did not return enrollment data for the CRN.
     def seats
       { capacity: @course.seats_capacity, available: @course.seats_available }
     end

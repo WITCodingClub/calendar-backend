@@ -201,9 +201,11 @@ query Sections($filter: SectionFilterInput) {
 
 ## Notes on the data
 
-- `seats.capacity` and `seats.available` are almost always `null`. The Banner
-  import does not fill these columns yet. The fields stay in the payload so a
-  client can code against the final shape now.
+- `seats.capacity` and `seats.available` come from Banner. The catalog import
+  sets them, and a nightly job refreshes them for every active term. They can be
+  up to a day old, so do not show them as a real-time seat count. Responses also
+  carry `Cache-Control: public, max-age=3600`, which adds at most one more hour.
+  Either field is `null` when Banner did not return enrollment data for the CRN.
 - `location` is `null` when a section has no room, as with online sections.
   `location.display` is `null` when the room is a placeholder "TBD" record.
 - `rmp` is `null` when an instructor has no ratings. Rate My Professors reports
