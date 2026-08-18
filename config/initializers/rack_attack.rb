@@ -4,6 +4,12 @@ class Rack::Attack
   # Use Rails.cache (Solid Cache in production, memory store in dev/test)
   Rack::Attack.cache.store = Rails.cache
 
+  # Public, unauthenticated catalog API. Kept as one predicate so the throttle
+  # and blocklist rules below cannot drift apart.
+  PUBLIC_CATALOG_PATH = lambda do |req|
+    req.path.start_with?("/api/v1/catalog") || req.path == "/api/graphql"
+  end
+
   # ===========================================================================
   # SAFELISTS
   # ===========================================================================
@@ -47,6 +53,9 @@ class Rack::Attack
 
   blocklist("block-suspicious-agents") do |req|
     next false if Rails.env.test?
+    # Data tools and server-side clients often send no User-Agent at all, and
+    # the public catalog API exists for exactly those consumers.
+    next false if PUBLIC_CATALOG_PATH.call(req)
 
     ua = req.user_agent.to_s.downcase
     ua.include?("scraper") ||
@@ -80,9 +89,15 @@ class Rack::Attack
   end
 
   throttle("api/ip", limit: 20, period: 1.minute) do |req|
-    if req.path.start_with?("/api/") && !extract_user_id_from_jwt(req)
+    if req.path.start_with?("/api/") && !PUBLIC_CATALOG_PATH.call(req) && !extract_user_id_from_jwt(req)
       req.ip
     end
+  end
+
+  # The public catalog API is meant to be consumed anonymously, so it gets its
+  # own, more generous budget instead of the 20/min anonymous API limit.
+  throttle("catalog/ip", limit: 300, period: 1.minute) do |req|
+    req.ip if PUBLIC_CATALOG_PATH.call(req)
   end
 
   throttle("api/process-courses", limit: 5, period: 1.minute) do |req|

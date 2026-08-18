@@ -71,6 +71,11 @@ This guide will walk you through setting up the application for development usin
 
     **Note:** If you click the "Open in Browser" on the notification that comes up within the Codespace after starting the server, you will be redirected to the root page of the server, which doesn't exist. You must manually append `/users/sign_in` to the end of the URL.
 
+## Public Catalog API
+
+The app serves a read-only course catalog over REST and GraphQL. No
+authentication is needed. See [docs/public-catalog-api.md](docs/public-catalog-api.md).
+
 ## Troubleshooting
 
 If you run into any errors in the terminal you don't recogize, feel free to run them by @jasper [mayonej@wit.edu].

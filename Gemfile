@@ -59,6 +59,9 @@ gem "encoded_ids"
 gem "rack-attack"
 gem "rack-cors"
 
+# Public catalog GraphQL API
+gem "graphql", "~> 2.6"
+
 # Liquid templating for calendar event title/description customization
 gem "liquid"
 

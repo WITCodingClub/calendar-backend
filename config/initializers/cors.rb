@@ -17,4 +17,20 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
              credentials: true,
              expose: [ "Authorization" ]
   end
+
+  # The public catalog API carries no credentials and no user data, so any
+  # origin may read it. credentials must stay false to pair with origins "*".
+  allow do
+    origins "*"
+
+    resource "/api/v1/catalog/*",
+             headers: :any,
+             methods: [ :get, :options, :head ],
+             credentials: false
+
+    resource "/api/graphql",
+             headers: :any,
+             methods: [ :post, :options, :head ],
+             credentials: false
+  end
 end

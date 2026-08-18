@@ -167,6 +167,7 @@ GEM
       net-http (~> 0.5)
     faraday-retry (2.4.0)
       faraday (~> 2.0)
+    fiber-storage (1.0.1)
     flipper (1.4.2)
       concurrent-ruby (< 2)
     flipper-active_record (1.4.2)
@@ -209,6 +210,10 @@ GEM
       os (>= 0.9, < 2.0)
       pstore (~> 0.1)
       signet (>= 0.16, < 2.a)
+    graphql (2.6.9)
+      base64
+      fiber-storage
+      logger
     hashid-rails (1.4.1)
       activerecord (>= 4.0)
       hashids (~> 1.0)
@@ -619,6 +624,7 @@ DEPENDENCIES
   flipper-ui
   google-apis-calendar_v3
   googleauth
+  graphql
   htmlentities
   icalendar
   ice_cube
@@ -710,6 +716,7 @@ CHECKSUMS
   faraday-follow_redirects (0.5.0) sha256=5cde93c894b30943a5d2b93c2fe9284216a6b756f7af406a1e55f211d97d10ad
   faraday-net_http (3.4.4) sha256=0e78af151747ed1b00f33e25973b4bc220d7f16c00c39676817c8b12331eb588
   faraday-retry (2.4.0) sha256=7b79c48fb7e56526faf247b12d94a680071ff40c9fda7cf1ec1549439ad11ebe
+  fiber-storage (1.0.1) sha256=f48e5b6d8b0be96dac486332b55cee82240057065dc761c1ea692b2e719240e1
   flipper (1.4.2) sha256=dca7d65b5ec660b525b6c599e727219ac4994073c855b41b6656b2d91a9cb304
   flipper-active_record (1.4.2) sha256=ab70aeb78a44d59c690b5538fc269b08d1c2918abb720fe82832ac77fb1dfcd1
   flipper-active_support_cache_store (1.4.2) sha256=474e4a558f791032af317592b2b27a4ff2ee663bc49627b8aec64ce7e79c9522
@@ -721,6 +728,7 @@ CHECKSUMS
   google-cloud-env (2.3.1) sha256=0faac01eb27be78c2591d64433663b1a114f8f7af55a4f819755426cac9178e7
   google-logging-utils (0.2.0) sha256=675462b4ea5affa825a3442694ca2d75d0069455a1d0956127207498fca3df7b
   googleauth (1.17.0) sha256=dbddcaa3b78469fa9392c0e784ab6d8f3f760a1e5f6c6dbbbaa44a612c4198b0
+  graphql (2.6.9) sha256=afe7bc03164f1a61abc66a415744ffd315c5aca116c9f3438c57391a431e4fe5
   hashid-rails (1.4.1) sha256=cc14a9c16a6320a39f1b84a01c6b66ab934526cec9680118292f3c17370053e3
   hashids (1.0.6) sha256=a344c05f249417492bf48451a93770558834ff7a445e1b64ef112954a0293019
   hashie (5.1.0) sha256=c266471896f323c446ea8207f8ffac985d2718df0a0ba98651a3057096ca3870

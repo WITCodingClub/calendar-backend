@@ -28,6 +28,23 @@ Rails.application.routes.draw do
   # Google RISC cross-account protection webhook
   post "/risc/events", to: "risc#create", as: :risc_events
 
+  # Public catalog API (no auth, read-only course schedule data)
+  namespace :api do
+    post "graphql", to: "graphql#execute"
+
+    namespace :v1 do
+      namespace :catalog do
+        get "terms",            to: "terms#index"
+        get "terms/:uid",       to: "terms#show", as: :term, constraints: { uid: /\d+/ }
+        get "subjects",         to: "subjects#index"
+        get "sections",         to: "sections#index"
+        get "sections/:crn",    to: "sections#show", as: :section, constraints: { crn: /\d+/ }
+        get "instructors",      to: "instructors#index"
+        get "instructors/:pub_id", to: "instructors#show", as: :instructor
+      end
+    end
+  end
+
   # API routes (JWT-authenticated)
   namespace :api do
     post "user/onboard",                           to: "users#onboard"
