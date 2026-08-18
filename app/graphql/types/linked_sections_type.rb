@@ -11,5 +11,7 @@ module Types
           description: "Banner's link identifier, e.g. \"A1\" for a lecture and \"B1\" for its labs."
     field :crns, [ Integer ], null: false,
           description: "CRNs of the partner sections in the same term. Empty when the section stands alone."
+    field :pub_ids, [ String ], null: false,
+          description: "Public ids of the same partner sections, in the same order as crns."
   end
 end

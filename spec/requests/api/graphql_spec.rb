@@ -43,15 +43,27 @@ RSpec.describe "Api::Graphql", type: :request do
       result = gql(<<~GQL, variables: { filter: { crns: [ 10_002 ] } })
         query($filter: SectionFilterInput) {
           sections(filter: $filter, first: 1) {
-            nodes { crn linked { required identifier crns } }
+            nodes { crn linked { required identifier crns pubIds } }
           }
         }
       GQL
 
       expect(result["errors"]).to be_nil
       expect(result["data"]["sections"]["nodes"].first["linked"]).to eq(
-        "required" => true, "identifier" => "A1", "crns" => [ 10_003 ]
+        "required" => true, "identifier" => "A1", "crns" => [ 10_003 ],
+        "pubIds" => [ comp2000b.public_id ]
       )
+    end
+
+    it "filters by the public id it publishes" do
+      result = gql(<<~GQL, variables: { filter: { pubIds: [ comp2000.public_id ] } })
+        query($filter: SectionFilterInput) {
+          sections(filter: $filter, first: 5) { nodes { crn } }
+        }
+      GQL
+
+      expect(result["errors"]).to be_nil
+      expect(result["data"]["sections"]["nodes"].map { |n| n["crn"] }).to eq([ 10_002 ])
     end
 
     it "applies the same filters as the REST surface" do

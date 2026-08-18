@@ -47,6 +47,7 @@ module Api
             subject:           array_param(:subject),
             course_number:     array_param(:course_number),
             crns:              array_param(:crn),
+            pub_ids:           array_param(:pub_id),
             q:                 params[:q],
             schedule_types:    array_param(:schedule_type),
             meets_on:          array_param(:meets_on),

@@ -77,6 +77,23 @@ class Course < ApplicationRecord
   # is for within the pairing, and the key says which pairing it belongs to. In
   # CHEM 1000 the lecture "A1" goes with the labs "B1", and the lecture "A2"
   # with the labs "B2".
+  # The public id is derived from the numeric id, not stored, so a list of them
+  # is built rather than plucked.
+  def self.public_id_for(id)
+    "#{get_public_id_prefix}#{EncodedIds.configuration.separator}#{encode_id(id)}"
+  end
+
+  # Turns "crs_kw7coe30" back into the numeric id. Returns nil when the prefix
+  # or the hash does not belong to a course.
+  def self.id_from_public_id(value)
+    separator = EncodedIds.configuration.separator
+    parts     = value.to_s.strip.split(separator)
+    hash      = parts.pop
+    return nil unless parts.join(separator) == get_public_id_prefix
+
+    decode_id(hash)
+  end
+
   def link_slot
     link_identifier&.first
   end

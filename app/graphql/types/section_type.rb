@@ -41,10 +41,13 @@ module Types
     end
 
     def linked
+      partners = object.linked_sections.pluck(:crn, :id)
+
       {
         required:   object.is_section_linked,
         identifier: object.link_identifier,
-        crns:       object.linked_sections.pluck(:crn)
+        crns:       partners.map(&:first),
+        pub_ids:    partners.map { |(_crn, id)| Course.public_id_for(id) }
       }
     end
 

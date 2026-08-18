@@ -45,7 +45,7 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       get "/api/v1/catalog/sections", params: { crn: 10_001 }
 
       expect(json["data"].first["linked"]).to eq(
-        "required" => false, "identifier" => nil, "crns" => []
+        "required" => false, "identifier" => nil, "crns" => [], "pub_ids" => []
       )
     end
 
@@ -56,8 +56,15 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       get "/api/v1/catalog/sections", params: { crn: 10_002 }
 
       expect(json["data"].first["linked"]).to eq(
-        "required" => true, "identifier" => "A1", "crns" => [ 10_003 ]
+        "required" => true, "identifier" => "A1", "crns" => [ 10_003 ],
+        "pub_ids" => [ comp2000b.public_id ]
       )
+    end
+
+    it "finds a section by the public id it publishes" do
+      get "/api/v1/catalog/sections", params: { pub_id: comp2000.public_id }
+
+      expect(json["data"].map { |s| s["crn"] }).to eq([ 10_002 ])
     end
 
     it "serializes meeting times in day then time order" do

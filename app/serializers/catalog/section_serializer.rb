@@ -61,10 +61,13 @@ module Catalog
     # lecture and its lab. `crns` names the partners in the same term, so a
     # client does not have to guess the pairing from the section number.
     def linked
+      partners = @course.linked_sections.pluck(:crn, :id)
+
       {
         required:   @course.is_section_linked,
         identifier: @course.link_identifier,
-        crns:       @course.linked_sections.pluck(:crn)
+        crns:       partners.map(&:first),
+        pub_ids:    partners.map { |(_crn, id)| Course.public_id_for(id) }
       }
     end
 

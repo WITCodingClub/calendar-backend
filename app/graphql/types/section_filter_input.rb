@@ -9,6 +9,8 @@ module Types
              description: "Subject label or short code, e.g. \"COMP\""
     argument :course_number, [ Integer ], required: false
     argument :crns, [ Integer ], required: false
+    argument :pub_ids, [ String ], required: false,
+             description: "Public ids, which stay unique across terms"
     argument :q, String, required: false, description: "Free text over title, subject, and number"
     argument :schedule_types, [ ScheduleTypeEnum ], required: false
     argument :meets_on, [ DayOfWeekEnum ], required: false,

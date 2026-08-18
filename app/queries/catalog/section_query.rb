@@ -15,7 +15,7 @@ module Catalog
     DAYS = Course::MeetingTime.day_of_weeks.freeze
 
     FILTERS = %i[
-      term_uid subject course_number crns q schedule_types
+      term_uid subject course_number crns pub_ids q schedule_types
       meets_on free_days begins_after ends_before
       credit_hours instructor include_cancelled
     ].freeze
@@ -35,6 +35,7 @@ module Catalog
       relation = apply_subject(relation, filters[:subject])
       relation = apply_course_number(relation, filters[:course_number])
       relation = apply_crns(relation, filters[:crns])
+      relation = apply_pub_ids(relation, filters[:pub_ids])
       relation = apply_search(relation, filters[:q])
       relation = apply_schedule_types(relation, filters[:schedule_types])
       relation = apply_credit_hours(relation, filters[:credit_hours])
@@ -103,6 +104,21 @@ module Catalog
       return relation if crns.blank?
 
       relation.where(crn: Array(crns).map(&:to_i))
+    end
+
+    # The public id is stable and unique across terms, so it needs no term. It
+    # is derived from the numeric id, so it is decoded rather than matched.
+    def apply_pub_ids(relation, pub_ids)
+      return relation if pub_ids.blank?
+
+      values = Array(pub_ids).map { |value| value.to_s.strip }.reject(&:empty?)
+      return relation if values.empty?
+
+      ids = values.map do |value|
+        Course.id_from_public_id(value) || raise(FilterError, "Unknown pub_id #{value.inspect}")
+      end
+
+      relation.where(id: ids)
     end
 
     def apply_search(relation, query)

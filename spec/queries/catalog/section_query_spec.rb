@@ -21,6 +21,30 @@ RSpec.describe Catalog::SectionQuery do
     end
   end
 
+  describe "pub_ids" do
+    it "finds a section by its public id" do
+      expect(crns_for(pub_ids: [ comp2000.public_id ])).to eq([ 10_002 ])
+    end
+
+    it "needs no term, because the public id is unique across terms" do
+      expect(crns_for(pub_ids: [ comp2000.public_id, math1750.public_id ]).size).to eq(2)
+    end
+
+    it "ignores a blank list" do
+      expect(crns_for(pub_ids: [])).to eq(crns_for)
+    end
+
+    it "rejects an id that does not decode, rather than returning nothing" do
+      expect { crns_for(pub_ids: [ "crs_not-a-hash" ]) }
+        .to raise_error(described_class::FilterError, /Unknown pub_id/)
+    end
+
+    it "rejects the public id of another model" do
+      expect { crns_for(pub_ids: [ "fac_kw7coe30" ]) }
+        .to raise_error(described_class::FilterError, /Unknown pub_id/)
+    end
+  end
+
   describe "include_cancelled" do
     it "adds cancelled sections when truthy" do
       expect(crns_for(include_cancelled: true)).to include(10_999)
