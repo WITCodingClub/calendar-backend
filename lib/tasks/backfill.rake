@@ -24,6 +24,20 @@ namespace :backfill do
     end
   end
 
+  # Every term that holds courses, oldest first. The catalog task reads a whole
+  # term in one request, so unlike the per-CRN tasks it can afford the closed
+  # terms as well.
+  def backfill_all_terms(term_uid)
+    if term_uid.present?
+      term = Term.find_by(uid: term_uid)
+      raise "Term with UID #{term_uid} not found." unless term
+
+      [ term ]
+    else
+      Term.where(id: Course.select(:term_id).distinct).chronological.to_a
+    end
+  end
+
   desc "Fill in seats_capacity and seats_available for courses that have none (term_uid optional)"
   task :seats, [ :term_uid ] => :environment do |_, args|
     terms = backfill_terms(args[:term_uid])
@@ -135,5 +149,61 @@ namespace :backfill do
     end
 
     puts "\nLink identifier backfill done."
+  end
+
+  desc "Fill in seat counts from the Banner catalog, one request per term (term_uid optional)"
+  task :seats_from_catalog, [ :term_uid ] => :environment do |_, args|
+    terms = backfill_all_terms(args[:term_uid])
+    raise "No terms to process." if terms.empty?
+
+    puts "Reading the catalog for #{terms.count} term(s)."
+
+    terms.each do |term|
+      print "\n#{term.name} (#{term.uid}): "
+
+      result = LeopardWebService.get_course_catalog(term: term.uid.to_s)
+
+      unless result[:success]
+        puts "could not read the catalog: #{result[:error]}"
+        next
+      end
+
+      # Both counts have to move together. The database checks that
+      # seats_available is not more than seats_capacity, so writing one of the
+      # pair can fail on a section whose capacity went down.
+      seats = {}
+      result[:courses].each do |course_data|
+        crn = course_data["courseReferenceNumber"].to_s
+        capacity = course_data["maximumEnrollment"]
+        available = course_data["seatsAvailable"]
+        next if crn.blank? || capacity.nil? || available.nil?
+
+        seats[crn] = [ capacity.to_i, available.to_i ]
+      end
+
+      puts "catalog has seat counts for #{seats.size} of #{result[:courses].count} sections."
+
+      updated = 0
+      missing = 0
+      same = 0
+
+      Course.where(term: term).find_each(batch_size: 500) do |course|
+        pair = seats[course.crn.to_s]
+
+        if pair.nil?
+          missing += 1
+        elsif [ course.seats_capacity, course.seats_available ] == pair
+          same += 1
+        else
+          course.update_columns(seats_capacity: pair[0], seats_available: pair[1])
+          updated += 1
+        end
+      end
+
+      puts "  Updated #{updated}. Already correct #{same}. Not in the catalog #{missing}."
+      sleep backfill_pause
+    end
+
+    puts "\nCatalog seat backfill done."
   end
 end

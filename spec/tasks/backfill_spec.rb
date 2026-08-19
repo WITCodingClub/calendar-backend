@@ -151,4 +151,96 @@ RSpec.describe "backfill rake tasks" do
       expect(Course.find_by(crn: 16863).link_identifier).to be_nil
     end
   end
+
+  describe "backfill:seats_from_catalog" do
+    before do
+      allow_any_instance_of(Object).to receive(:sleep)
+    end
+
+    def catalog(*rows)
+      { success: true, courses: rows, total_count: rows.length }
+    end
+
+    def catalog_row(crn:, capacity: 30, available: 2)
+      {
+        "courseReferenceNumber" => crn.to_s,
+        "maximumEnrollment"     => capacity,
+        "seatsAvailable"        => available
+      }
+    end
+
+    it "writes both seat counts from one catalog request" do
+      target = course(crn: 11111)
+
+      allow(LeopardWebService).to receive(:get_course_catalog)
+        .with(term: "202710")
+        .and_return(catalog(catalog_row(crn: 11111, capacity: 24, available: 6)))
+
+      run_task("backfill:seats_from_catalog", "202710")
+
+      target.reload
+      expect(target.seats_capacity).to eq(24)
+      expect(target.seats_available).to eq(6)
+    end
+
+    it "keeps a negative count so an over-enrolled section is not read as full" do
+      target = course(crn: 22222)
+
+      allow(LeopardWebService).to receive(:get_course_catalog)
+        .and_return(catalog(catalog_row(crn: 22222, capacity: 0, available: -11)))
+
+      run_task("backfill:seats_from_catalog", "202710")
+
+      target.reload
+      expect(target.seats_capacity).to eq(0)
+      expect(target.seats_available).to eq(-11)
+    end
+
+    it "refreshes counts that are already set but out of date" do
+      target = course(crn: 33333, seats_capacity: 30, seats_available: 5)
+
+      allow(LeopardWebService).to receive(:get_course_catalog)
+        .and_return(catalog(catalog_row(crn: 33333, capacity: 30, available: 1)))
+
+      run_task("backfill:seats_from_catalog", "202710")
+
+      expect(target.reload.seats_available).to eq(1)
+    end
+
+    it "leaves a course alone when the catalog omits one of the two counts" do
+      target = course(crn: 44444)
+
+      allow(LeopardWebService).to receive(:get_course_catalog)
+        .and_return(catalog(catalog_row(crn: 44444, capacity: 30, available: nil)))
+
+      run_task("backfill:seats_from_catalog", "202710")
+
+      expect(target.reload.seats_capacity).to be_nil
+    end
+
+    it "leaves a course alone when the catalog does not list it" do
+      target = course(crn: 55555)
+
+      allow(LeopardWebService).to receive(:get_course_catalog)
+        .and_return(catalog(catalog_row(crn: 99999)))
+
+      run_task("backfill:seats_from_catalog", "202710")
+
+      expect(target.reload.seats_capacity).to be_nil
+    end
+
+    it "moves on to the next term when Banner does not answer" do
+      target = course(crn: 66666)
+
+      allow(LeopardWebService).to receive(:get_course_catalog)
+        .and_return({ success: false, error: "Banner is down" })
+
+      expect { run_task("backfill:seats_from_catalog", "202710") }.not_to raise_error
+      expect(target.reload.seats_capacity).to be_nil
+    end
+
+    it "stops when the term is unknown" do
+      expect { run_task("backfill:seats_from_catalog", "999999") }.to raise_error(/not found/)
+    end
+  end
 end
