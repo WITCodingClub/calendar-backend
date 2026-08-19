@@ -121,6 +121,8 @@ class CatalogImportService < ApplicationService
       raise "Cannot determine dates for CRN #{crn}: no meeting times and term #{term.uid} (#{term.name}) has no dates set"
     end
 
+    seats = seat_counts(course_data)
+
     course = Course.find_or_create_by!(crn: crn, term: term) do |c|
       c.title = titleize_with_roman_numerals(course_data["courseTitle"] || "Untitled Course")
       c.subject = course_data["subject"] || course_data["subjectCode"]
@@ -133,6 +135,8 @@ class CatalogImportService < ApplicationService
       c.start_date = start_date
       c.end_date = end_date
       c.term = term
+      c.seats_capacity = seats[:capacity]
+      c.seats_available = seats[:available]
     end
 
     if course.persisted? && !course.new_record?
@@ -143,6 +147,14 @@ class CatalogImportService < ApplicationService
       raw_title = course_data["courseTitle"] || "Untitled Course"
       new_title = titleize_with_roman_numerals(raw_title)
       update_attrs[:title] = new_title if course.title != new_title
+
+      # Set both counts together or neither. The database checks that
+      # seats_available is not more than seats_capacity, so a half update can
+      # fail on a section whose capacity went down.
+      if seats[:capacity].present? && seats[:available].present?
+        update_attrs[:seats_capacity] = seats[:capacity]
+        update_attrs[:seats_available] = seats[:available]
+      end
 
       course.update!(update_attrs) if update_attrs.any?
     end
@@ -170,6 +182,23 @@ class CatalogImportService < ApplicationService
     end
 
     course
+  end
+
+  # Banner ships seat counts in the catalog payload we already fetch, so this
+  # costs no extra request. Before this, only the per-user upload path recorded
+  # seats, which left every catalog-imported term with no enrollment data.
+  #
+  # seats_available is maximumEnrollment minus enrollment, so an over-enrolled
+  # section reports a negative number. About 17% of sections do. Store what
+  # Banner reports: clamping to 0 makes an over-enrolled section read as full.
+  def seat_counts(course_data)
+    capacity = course_data["maximumEnrollment"]
+    available = course_data["seatsAvailable"]
+
+    {
+      capacity: capacity.nil? ? nil : capacity.to_i,
+      available: available.nil? ? nil : available.to_i
+    }
   end
 
   def validate_courses_data!
