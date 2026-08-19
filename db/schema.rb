@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_19_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -487,6 +487,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_180000) do
 
   create_table "rooms", force: :cascade do |t|
     t.bigint "building_id", null: false
+    t.integer "capacity"
     t.datetime "created_at", null: false
     t.integer "floor", null: false
     t.string "formal_name"
@@ -497,6 +498,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_180000) do
     t.index ["building_id"], name: "index_rooms_on_building_id"
     t.index ["twenty_five_live_id"], name: "index_rooms_on_twenty_five_live_id", unique: true
     t.check_constraint "SUBSTRING(number FROM 1 FOR 1) !~ '^[0-9]$'::text OR SUBSTRING(number FROM 1 FOR 1) = floor::text", name: "rooms_floor_matches_number_prefix"
+    t.check_constraint "capacity IS NULL OR capacity > 0", name: "rooms_capacity_positive"
     t.check_constraint "floor >= 0", name: "rooms_floor_non_negative"
   end
 

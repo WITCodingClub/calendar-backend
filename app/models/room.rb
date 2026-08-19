@@ -5,6 +5,7 @@
 # Table name: rooms
 #
 #  id                  :bigint           not null, primary key
+#  capacity            :integer
 #  floor               :integer          not null
 #  formal_name         :string
 #  number              :string           not null

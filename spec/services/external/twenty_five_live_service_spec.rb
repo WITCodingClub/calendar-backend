@@ -20,7 +20,8 @@ RSpec.describe External::TwentyFiveLiveService, type: :service do
     "space_name"    => "WT 310",
     "formal_name"   => "Wentworth Hall 310",
     "building_id"   => 22,
-    "building_name" => "Wentworth Hall"
+    "building_name" => "Wentworth Hall",
+    "max_capacity"  => 36
   }.freeze
 
   def spaces_payload(spaces)
@@ -38,6 +39,32 @@ RSpec.describe External::TwentyFiveLiveService, type: :service do
       expect(room.formal_name).to eq("Wentworth Hall 310")
       expect(building.twenty_five_live_id).to eq(22)
       expect(building.formal_name).to eq("Wentworth Hall")
+      expect(room.capacity).to eq(36)
+    end
+
+    it "refreshes a capacity that changed, unlike the ID and the formal name" do
+      rooms(:wt_310).update!(capacity: 30)
+
+      StubbedService.new("spaces" => spaces_payload([ WENTWORTH_SPACE ])).send(:sync_spaces)
+
+      expect(rooms(:wt_310).reload.capacity).to eq(36)
+    end
+
+    it "leaves capacity unknown when 25Live reports 0" do
+      payload = spaces_payload([ WENTWORTH_SPACE.merge("max_capacity" => 0) ])
+
+      StubbedService.new("spaces" => payload).send(:sync_spaces)
+
+      expect(rooms(:wt_310).reload.capacity).to be_nil
+    end
+
+    it "keeps a known capacity when 25Live reports 0" do
+      rooms(:wt_310).update!(capacity: 30)
+      payload = spaces_payload([ WENTWORTH_SPACE.merge("max_capacity" => 0) ])
+
+      StubbedService.new("spaces" => payload).send(:sync_spaces)
+
+      expect(rooms(:wt_310).reload.capacity).to eq(30)
     end
 
     it "skips space when abbreviation doesn't match any building" do
@@ -101,7 +128,8 @@ RSpec.describe External::TwentyFiveLiveService, type: :service do
               "r25:space_name"    => "COMP 100",
               "r25:formal_name"   => "Computing Center 100",
               "r25:building_id"   => 22,
-              "r25:building_name" => "Computing Center"
+              "r25:building_name" => "Computing Center",
+              "r25:max_capacity"  => 24
             }
           ]
         }
@@ -112,6 +140,7 @@ RSpec.describe External::TwentyFiveLiveService, type: :service do
       room = rooms(:comp_100).reload
       expect(room.twenty_five_live_id).to eq(111)
       expect(room.formal_name).to eq("Computing Center 100")
+      expect(room.capacity).to eq(24)
     end
   end
 end

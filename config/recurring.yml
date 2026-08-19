@@ -79,6 +79,14 @@ production:
     queue: low
     schedule: every saturday at 2am
 
+  # 25Live holds the registrar's own room capacities, and it reports drift in
+  # the constants we mirror. Weekly is enough: rooms are rebuilt between terms,
+  # not between days.
+  twenty_five_live_sync:
+    class: TwentyFiveLiveSyncJob
+    queue: low
+    schedule: every saturday at 2:30am
+
   # Sunday: RateMyProfessor maintenance (fill IDs first, then update ratings)
   fill_missing_rmp_ids:
     class: FillMissingRmpIdsJob

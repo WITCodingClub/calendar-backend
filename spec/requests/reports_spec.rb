@@ -9,7 +9,7 @@ RSpec.describe "Reports", type: :request do
 
     let!(:annex)   { Building.create!(abbreviation: "ANX", name: "Annex") }
     let!(:dobbs)    { Building.create!(abbreviation: "DOB", name: "Dobbs Hall") }
-    let!(:room_305) { annex.rooms.create!(number: "305") }
+    let!(:room_305) { annex.rooms.create!(number: "305", capacity: 40) }
     let!(:room_5)   { dobbs.rooms.create!(number: "5") }
 
     let!(:fall_course) do
@@ -88,7 +88,8 @@ RSpec.describe "Reports", type: :request do
         "building"       => "ANX",
         "building_name"  => "Annex",
         "room_number"    => "305",
-        "room"           => "ANX 305"
+        "room"           => "ANX 305",
+        "room_capacity"  => "40"
       )
     end
 
@@ -153,6 +154,15 @@ RSpec.describe "Reports", type: :request do
       expect(csv.length).to eq(2)
       expect(csv.map { |r| r["room"] }).to contain_exactly("ANX 305", "DOB 005")
       expect(csv.map { |r| r["crn"] }.uniq).to eq([ "12345" ])
+    end
+
+    it "leaves room_capacity blank when 25Live has no capacity for the room" do
+      spring_meeting.rooms << room_5
+
+      get "/reports/meeting_times", params: { term_uid: "202620" },
+                                    headers: { "User-Agent" => "curl/8.7.1" }
+
+      expect(CSV.parse(response.body, headers: true).first["room_capacity"]).to be_nil
     end
 
     it "pads purely numeric room numbers to three digits" do
