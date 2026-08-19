@@ -175,6 +175,7 @@ module External
         space_name  = (raw["space_name"]  || raw["r25:space_name"])&.strip
         bldg_25_id  = (raw["building_id"] || raw["r25:building_id"])&.to_i
         bldg_formal = (raw["building_name"] || raw["r25:building_name"])&.strip
+        capacity    = (raw["max_capacity"] || raw["r25:max_capacity"]).to_i
 
         next unless space_id && space_name.present?
 
@@ -200,6 +201,14 @@ module External
         attrs = {}
         attrs[:twenty_five_live_id] = space_id    if room.twenty_five_live_id.nil?
         attrs[:formal_name]         = formal_name if formal_name.present? && room.formal_name.nil?
+
+        # Capacity is refreshed on every sync, unlike the ID and the formal
+        # name. 25Live is the registrar's own record of how many seats a room
+        # holds, and that number changes when a room is rebuilt. A capacity of
+        # 0 means 25Live has no count, so leave the room unknown rather than
+        # record a room with no seats.
+        attrs[:capacity] = capacity if capacity.positive? && room.capacity != capacity
+
         room.update!(attrs) if attrs.any?
       end
     end

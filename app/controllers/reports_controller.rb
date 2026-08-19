@@ -13,7 +13,7 @@ class ReportsController < ActionController::Base
     schedule_type status credit_hours faculty
     seats_capacity seats_available enrollment_current
     day day_of_week begin_time end_time meeting_type
-    building building_name room_number room
+    building building_name room_number room room_capacity
   ].freeze
 
   TERMS_HEADERS = %w[term_uid term season year start_date end_date meeting_times].freeze
@@ -54,7 +54,8 @@ class ReportsController < ActionController::Base
              "course_meeting_times.day_of_week",
              "course_meeting_times.begin_time", "course_meeting_times.end_time",
              "course_meeting_times.meeting_schedule_type",
-             "buildings.abbreviation", "buildings.name", "rooms.number"
+             "buildings.abbreviation", "buildings.name", "rooms.number",
+             "rooms.capacity"
            )
 
     expires_in 1.hour, public: true
@@ -100,7 +101,7 @@ class ReportsController < ActionController::Base
                     schedule_type, status, credit_hours, faculty,
                     seats_capacity, seats_available,
                     day_of_week, begin_time, end_time, meeting_schedule_type,
-                    building_abbreviation, building_name, room_number|
+                    building_abbreviation, building_name, room_number, room_capacity|
         # pluck type-casts enum columns, so season/day_of_week/meeting_schedule_type
         # arrive as their string keys ("fall", "monday", "lecture")
         csv << [
@@ -112,7 +113,7 @@ class ReportsController < ActionController::Base
           format_hhmm(begin_time), format_hhmm(end_time),
           meeting_schedule_type,
           building_abbreviation, building_name, format_room_number(room_number),
-          format_room(building_abbreviation, room_number)
+          format_room(building_abbreviation, room_number), room_capacity
         ]
       end
     end
