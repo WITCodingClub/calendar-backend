@@ -67,6 +67,18 @@ RSpec.describe MoveUniCalColorToUniversityWidePreference do
     expect(user.calendar_preferences.find_by(event_type: "holiday").title_template).to eq("{{summary}}!")
   end
 
+  it "keeps a category row that turns the reminders off" do
+    user = build_user("no-reminders@wit.edu")
+    set_extension_colors(user, 4)
+    user.calendar_preferences.find_by(event_type: "holiday").update!(reminder_settings: [])
+
+    migration.up
+
+    expect(university_color(user)).to eq(4)
+    expect(category_colors(user)).to eq({ "holiday" => nil })
+    expect(user.calendar_preferences.find_by(event_type: "holiday").reminder_settings).to eq([])
+  end
+
   it "leaves a user who chose a different color per category alone" do
     user = build_user("per-category@wit.edu")
     user.calendar_preferences.create!(scope: :uni_cal_category, event_type: "holiday", color_id: 2)

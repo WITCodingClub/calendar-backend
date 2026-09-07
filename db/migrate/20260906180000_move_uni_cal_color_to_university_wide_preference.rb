@@ -15,7 +15,9 @@ class MoveUniCalColorToUniversityWidePreference < ActiveRecord::Migration[8.1]
   UNI_CAL_GLOBAL_SCOPE   = 3 # CalendarPreference.scopes["uni_cal_global"]
 
   # A category row is worth keeping when it carries something other than color.
-  OTHER_FIELDS = %w[title_template description_template location_template reminder_settings visibility].freeze
+  # An empty reminder list means "no reminders at all", which is a choice the
+  # user made, so test reminder_settings for nil rather than for blank.
+  OTHER_FIELDS = %w[title_template description_template location_template visibility].freeze
 
   class MigrationCalendarPreference < ActiveRecord::Base
     self.table_name = "calendar_preferences"
@@ -46,7 +48,7 @@ class MoveUniCalColorToUniversityWidePreference < ActiveRecord::Migration[8.1]
                     color_id: colors.first, created_at: now, updated_at: now }
 
       colored = preferences.select { |pref| pref.color_id.present? }
-      keep, drop = colored.partition { |pref| OTHER_FIELDS.any? { |field| pref[field].present? } }
+      keep, drop = colored.partition { |pref| carries_more_than_color?(pref) }
       clear_ids.concat(keep.map(&:id))
       delete_ids.concat(drop.map(&:id))
     end
@@ -67,5 +69,13 @@ class MoveUniCalColorToUniversityWidePreference < ActiveRecord::Migration[8.1]
     # The category rows this dropped cannot be told apart from ones a user never
     # had, so there is nothing safe to restore.
     say "Nothing to revert: university wide color preferences are kept"
+  end
+
+  private
+
+  def carries_more_than_color?(preference)
+    return true unless preference.reminder_settings.nil?
+
+    OTHER_FIELDS.any? { |field| preference[field].present? }
   end
 end
