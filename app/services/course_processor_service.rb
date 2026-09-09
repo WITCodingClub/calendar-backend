@@ -113,19 +113,13 @@ class CourseProcessorService < ApplicationService
           end
         end
 
-        faculty_data = []
-        first_meeting = course_meetings.first
-        if first_meeting[:instructor] || first_meeting["instructor"] || first_meeting[:faculty] || first_meeting["faculty"]
-          instructor_name = first_meeting[:instructor] || first_meeting["instructor"] || first_meeting[:faculty] || first_meeting["faculty"]
-          instructor_email = first_meeting[:instructorEmail] || first_meeting["instructorEmail"] || first_meeting[:facultyEmail] || first_meeting["facultyEmail"]
-
-          if instructor_name.present? && instructor_name.to_s.strip != ""
-            faculty_data = [ {
-              displayName: instructor_name.to_s.strip,
-              emailAddress: instructor_email.to_s.strip.presence || "#{instructor_name.to_s.strip.downcase.gsub(/\s+/, '.')}@wit.edu"
-            } ]
-          end
-        end
+        # Banner is the authority on who teaches a section. The posted schedule
+        # is only a fallback for the rare section Banner answers with no
+        # faculty, and only when it carries a real address: a guessed
+        # first.last@wit.edu creates a second instructor who never matches the
+        # real record.
+        faculty_data = detailed_course_info[:faculty].presence ||
+                       posted_faculty(course_meetings.first)
 
         start_date = nil
         end_date = nil
@@ -185,7 +179,7 @@ class CourseProcessorService < ApplicationService
         )
         course.meeting_times.where.not(id: touched_meeting_time_ids).destroy_all
 
-        process_faculty(course, faculty_data)
+        FacultyIngestService.call(course: course, raw_faculty: faculty_data)
 
         Enrollment.find_or_create_by!(user: user, course: course, term: term)
 
@@ -268,50 +262,15 @@ class CourseProcessorService < ApplicationService
     end
   end
 
-  def process_faculty(course, faculty_data)
-    unique_faculty = faculty_data.uniq { |f| f["emailAddress"] || f[:emailAddress] }
-    existing_faculty_ids = course.faculty_ids.to_set
+  def posted_faculty(meeting)
+    return [] if meeting.blank?
 
-    unique_faculty.each do |faculty_info|
-      next if faculty_info.blank?
+    name  = meeting[:instructor] || meeting["instructor"] || meeting[:faculty] || meeting["faculty"]
+    email = meeting[:instructorEmail] || meeting["instructorEmail"] || meeting[:facultyEmail] || meeting["facultyEmail"]
 
-      email = (faculty_info["emailAddress"] || faculty_info[:emailAddress]).to_s.strip
-      display_name = (faculty_info["displayName"] || faculty_info[:displayName]).to_s.strip
+    return [] if name.blank? || email.blank?
 
-      next if email.blank?
-
-      first_name, last_name = parse_faculty_name(display_name)
-      next if first_name.blank? || last_name.blank?
-
-      faculty = Faculty.find_or_create_by!(email: email) do |f|
-        f.first_name = first_name
-        f.last_name = last_name
-      end
-
-      unless existing_faculty_ids.include?(faculty.id)
-        course.faculties << faculty
-        existing_faculty_ids.add(faculty.id)
-      end
-    end
-  end
-
-  def parse_faculty_name(display_name)
-    return [ nil, nil ] if display_name.blank?
-
-    if display_name.include?(",")
-      parts = display_name.split(",").map(&:strip)
-      last_name = parts[0]
-      first_name_parts = parts[1]&.split(/\s+/) || []
-      first_name = first_name_parts[0]
-      [ first_name, last_name ]
-    else
-      parts = display_name.split(/\s+/)
-      if parts.length >= 2
-        [ parts[0], parts[-1] ]
-      else
-        [ display_name, display_name ]
-      end
-    end
+    [ { "displayName" => name.to_s.strip, "emailAddress" => email.to_s.strip, "primaryIndicator" => true } ]
   end
 
   def parse_date(date_string)

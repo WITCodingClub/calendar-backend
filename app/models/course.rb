@@ -47,7 +47,10 @@ class Course < ApplicationRecord
 
   belongs_to :term
 
-  has_and_belongs_to_many :faculties
+  # Ordered on the join so `faculties.first` is Banner's primary instructor and
+  # not whichever join row happens to be oldest.
+  has_many :course_faculties, -> { in_banner_order }, dependent: :destroy, inverse_of: :course
+  has_many :faculties, through: :course_faculties
   has_many :meeting_times, class_name: "Course::MeetingTime", dependent: :destroy
   has_many :meeting_time_rooms, class_name: "Course::MeetingTimeRoom", through: :meeting_times
   has_many :rooms, through: :meeting_time_rooms

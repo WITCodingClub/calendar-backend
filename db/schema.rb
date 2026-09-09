@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_06_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_09_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -224,10 +224,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_06_180000) do
     t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'cancelled'::character varying]::text[])", name: "courses_status_valid"
   end
 
-  create_table "courses_faculties", id: false, force: :cascade do |t|
+  create_table "courses_faculties", force: :cascade do |t|
     t.bigint "course_id", null: false
     t.bigint "faculty_id", null: false
+    t.boolean "primary_indicator", default: false, null: false
     t.index ["course_id", "faculty_id"], name: "index_courses_faculties_on_course_id_and_faculty_id", unique: true
+    t.index ["course_id", "primary_indicator"], name: "index_courses_faculties_on_course_id_and_primary"
     t.index ["course_id"], name: "index_courses_faculties_on_course_id"
     t.index ["faculty_id"], name: "index_courses_faculties_on_faculty_id"
   end

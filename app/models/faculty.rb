@@ -40,7 +40,8 @@ class Faculty < ApplicationRecord
 
   set_public_id_prefix :fac
 
-  has_and_belongs_to_many :courses
+  has_many :course_faculties, dependent: :destroy, inverse_of: :faculty
+  has_many :courses, through: :course_faculties
   has_many :rmp_ratings, dependent: :destroy
   has_many :related_professors, dependent: :destroy
   has_one :rating_distribution, dependent: :destroy
