@@ -20,14 +20,9 @@ module CourseChangeTrackable
     after_destroy :mark_enrolled_users_for_sync
   end
 
-  private
-
-  def saved_change_to_relevant_attributes?
-    # Track changes to any attributes that affect calendar display
-    relevant_attrs = %w[title start_date end_date subject course_number section_number]
-    relevant_attrs.any? { |attr| saved_change_to_attribute?(attr) }
-  end
-
+  # Public so the faculty importer can mark calendars itself. An instructor
+  # change touches no column on courses, so the after_save callback never fires
+  # for it.
   def mark_enrolled_users_for_sync
     # Skip expensive JOIN query when no one is enrolled in this course.
     # Within a bulk operation wrapped with with_enrollment_cache, the EXISTS check
@@ -51,5 +46,13 @@ module CourseChangeTrackable
                    .pluck(:id)
 
     User.where(id: user_ids).update_all(calendar_needs_sync: true) if user_ids.any? # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  private
+
+  def saved_change_to_relevant_attributes?
+    # Track changes to any attributes that affect calendar display
+    relevant_attrs = %w[title start_date end_date subject course_number section_number]
+    relevant_attrs.any? { |attr| saved_change_to_attribute?(attr) }
   end
 end

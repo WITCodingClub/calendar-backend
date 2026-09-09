@@ -127,6 +127,8 @@ class LeopardWebService < ApplicationService
           }
         }
       end.compact
+
+      details[:faculty] = extract_faculty(meeting_times_data["fmt"])
     end
 
     begin
@@ -156,6 +158,26 @@ class LeopardWebService < ApplicationService
                                })
 
     handle_response(response, :enrollment_info)
+  end
+
+  # getFacultyMeetingTimes answers with the section's instructors alongside its
+  # meeting times, and Banner is the only place that says who actually teaches a
+  # section. Reading just the meeting times left us guessing from whatever the
+  # extension happened to post, so a mid-semester instructor change never
+  # reached the calendar.
+  def extract_faculty(fmt_entries)
+    fmt_entries.flat_map { |entry| entry["faculty"] || [] }
+               .filter_map do |member|
+                 email = member["emailAddress"].to_s.strip
+                 next if email.blank?
+
+                 {
+                   "displayName"      => member["displayName"].to_s.strip,
+                   "emailAddress"     => email,
+                   "primaryIndicator" => ActiveModel::Type::Boolean.new.cast(member["primaryIndicator"]) || false
+                 }
+               end
+               .uniq { |member| member["emailAddress"].downcase }
   end
 
   def get_faculty_meeting_times

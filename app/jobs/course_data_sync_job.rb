@@ -70,10 +70,20 @@ class CourseDataSyncJob < ApplicationJob
     end
 
     meeting_times_changed = sync_meeting_times(course, fresh_data)
+    faculty_changed       = sync_faculty(course, fresh_data)
 
-    Rails.logger.info "[CourseDataSyncJob] Updated course #{course.crn}" if course_changed || meeting_times_changed
+    changed = course_changed || meeting_times_changed || faculty_changed
+    Rails.logger.info "[CourseDataSyncJob] Updated course #{course.crn}" if changed
 
-    course_changed || meeting_times_changed
+    changed
+  end
+
+  # The registrar reassigns sections after the term starts, and the extension
+  # only posts a schedule when the student's course list changes. Without this
+  # the calendar keeps naming the instructor who taught the section on the day
+  # it was first imported.
+  def sync_faculty(course, fresh_data)
+    FacultyIngestService.call(course: course, raw_faculty: fresh_data[:faculty])
   end
 
   # The registrar moves sections between rooms after registration opens, and the
