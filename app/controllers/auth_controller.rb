@@ -62,8 +62,8 @@ class AuthController < ApplicationController
   def handle_user_login(auth)
     email = auth.info.email
 
-    unless email&.match?(/@wit\.edu\z/i)
-      redirect_to new_user_session_path, alert: "Only @wit.edu email addresses are allowed."
+    unless User.wit_email?(email)
+      redirect_to new_user_session_path, alert: "Only @#{User::WIT_EMAIL_DOMAIN} email addresses are allowed."
       return
     end
 

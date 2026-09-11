@@ -6,11 +6,13 @@ module Api
 
     # POST /api/user/onboard
     #
-    # The extension sends a Google OAuth access token for the user's (personal)
-    # Google account — the same account they sync calendars to. We verify it with
-    # Google and key the account to that verified email, so a caller can only ever
-    # reach the account tied to a Google identity they actually control (no
-    # domain restriction — personal accounts are the norm). See GoogleTokenVerifier.
+    # The extension sends a Google OAuth access token for the student's WIT
+    # Google account. We verify it with Google and key the account to that
+    # verified @wit.edu address, so the token proves two things at once: the
+    # caller controls the Google identity, and that identity is a WIT account.
+    # A personal Google account is linked afterwards, for calendar sync only
+    # (POST /api/user/gcal), and never becomes the identity.
+    # See GoogleTokenVerifier.
     def onboard
       access_token   = params[:google_access_token] || params[:access_token]
       preferred_name = params[:preferred_name]
@@ -27,8 +29,23 @@ module Api
         return
       end
 
-      google_email = verification.email
-      user         = find_or_create_onboarding_user(google_email, preferred_name)
+      unless verification.email_verified?
+        render json: { error: "Google has not verified this email address" }, status: :forbidden
+        return
+      end
+
+      wit_email = verification.email
+
+      unless User.wit_email?(wit_email)
+        render json: {
+          error: "Sign in with your @#{User::WIT_EMAIL_DOMAIN} Google account. " \
+                 "You can connect a personal Google account for calendar sync afterwards.",
+          code:  "WIT_ACCOUNT_REQUIRED"
+        }, status: :forbidden
+        return
+      end
+
+      user = find_or_create_onboarding_user(wit_email, preferred_name)
 
       token = JsonWebTokenService.encode({ user_id: user.id })
 
@@ -360,25 +377,21 @@ module Api
 
     private
 
-    # Resolves the account for a verified Google email, in this order:
-    #   1. a user already keyed to that Google email
-    #   2. a user who has connected that Google account for calendar sync
-    #      (oauth_credentials are OAuth-verified, so this link is trustworthy)
-    #   3. otherwise, a fresh account keyed to the Google email
+    # Resolves the account for a Google-verified WIT email. Accounts have always
+    # been keyed on the WIT address, so returning users match here — including
+    # the ones created before onboarding verified anything.
     #
-    # Note: we deliberately do NOT link by a client-supplied WIT email — that
-    # value isn't verified, so trusting it would let a caller attach their token
-    # to someone else's existing account. Legacy accounts that never connected a
-    # Google account can't be auto-linked safely and start fresh.
-    def find_or_create_onboarding_user(google_email, preferred_name)
-      existing = User.find_by(email: google_email) ||
-                 User.joins(:oauth_credentials)
-                     .find_by(oauth_credentials: { email: google_email, provider: "google" })
+    # Matching only on the verified address is what closes the takeover hole: a
+    # caller can reach exactly the account whose WIT identity they hold a Google
+    # token for. Linked personal accounts (oauth_credentials) are deliberately
+    # not matched, so a personal token can never resolve to a WIT identity.
+    def find_or_create_onboarding_user(wit_email, preferred_name)
+      existing = User.find_by(email: wit_email)
       return existing if existing
 
       first_name, last_name = preferred_name.to_s.strip.split(" ", 2)
       User.create!(
-        email:      google_email,
+        email:      wit_email,
         first_name: first_name,
         last_name:  last_name,
         password:   SecureRandom.hex(24)

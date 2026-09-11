@@ -17,6 +17,10 @@ class GoogleTokenVerifier
     def success?
       success
     end
+
+    def email_verified?
+      email_verified
+    end
   end
 
   def self.verify_access_token(access_token)

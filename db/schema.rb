@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_09_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_11_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -435,6 +435,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_09_120000) do
     t.index ["user_id"], name: "index_oauth_credentials_on_user_id"
   end
 
+  create_table "passkeys", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "external_id", null: false
+    t.datetime "last_used_at"
+    t.string "nickname", null: false
+    t.string "public_key", null: false
+    t.bigint "sign_count", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["external_id"], name: "index_passkeys_on_external_id", unique: true
+    t.index ["user_id", "nickname"], name: "index_passkeys_on_user_id_and_nickname", unique: true
+    t.index ["user_id"], name: "index_passkeys_on_user_id"
+  end
+
   create_table "rating_distributions", force: :cascade do |t|
     t.decimal "avg_difficulty", precision: 3, scale: 2
     t.decimal "avg_rating", precision: 3, scale: 2
@@ -801,6 +815,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_09_120000) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  create_table "webauthn_challenges", force: :cascade do |t|
+    t.string "challenge", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.string "handle", null: false
+    t.string "purpose", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["expires_at"], name: "index_webauthn_challenges_on_expires_at"
+    t.index ["handle"], name: "index_webauthn_challenges_on_handle", unique: true
+    t.index ["user_id"], name: "index_webauthn_challenges_on_user_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_preferences", "users"
@@ -824,6 +851,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_09_120000) do
   add_foreign_key "google_calendar_events", "google_calendars"
   add_foreign_key "google_calendars", "oauth_credentials"
   add_foreign_key "oauth_credentials", "users"
+  add_foreign_key "passkeys", "users"
   add_foreign_key "rating_distributions", "faculties"
   add_foreign_key "related_professors", "faculties"
   add_foreign_key "related_professors", "faculties", column: "related_faculty_id"
@@ -840,4 +868,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_09_120000) do
   add_foreign_key "teacher_rating_tags", "faculties"
   add_foreign_key "university_calendar_events", "terms"
   add_foreign_key "user_extension_configs", "users"
+  add_foreign_key "webauthn_challenges", "users"
 end

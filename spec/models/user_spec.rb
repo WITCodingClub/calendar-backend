@@ -45,4 +45,30 @@
 require "rails_helper"
 
 RSpec.describe User, type: :model do
+  describe ".wit_email?" do
+    it "accepts an address on the WIT domain" do
+      expect(described_class.wit_email?("lovelacea@wit.edu")).to be(true)
+    end
+
+    it "ignores the case, because Google reports addresses either way" do
+      expect(described_class.wit_email?("LovelaceA@WIT.EDU")).to be(true)
+    end
+
+    it "rejects a personal address" do
+      expect(described_class.wit_email?("ada@gmail.com")).to be(false)
+    end
+
+    it "rejects a domain that merely ends with the WIT one" do
+      expect(described_class.wit_email?("ada@notwit.edu")).to be(false)
+    end
+
+    it "rejects the domain used as a subdomain of somewhere else" do
+      expect(described_class.wit_email?("ada@wit.edu.example.com")).to be(false)
+    end
+
+    it "rejects a blank address" do
+      expect(described_class.wit_email?(nil)).to be(false)
+      expect(described_class.wit_email?("")).to be(false)
+    end
+  end
 end
