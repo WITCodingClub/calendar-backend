@@ -2,6 +2,33 @@
 
 require "rails_helper"
 
+# == Schema Information
+#
+# Table name: calendar_preferences
+#
+#  id                   :bigint           not null, primary key
+#  description_template :text
+#  event_type           :string
+#  location_template    :text
+#  reminder_settings    :jsonb
+#  scope                :integer          not null
+#  title_template       :text
+#  visibility           :string
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  color_id             :integer
+#  user_id              :bigint           not null
+#
+# Indexes
+#
+#  index_calendar_preferences_on_user_id     (user_id)
+#  index_calendar_prefs_on_user_scope_type   (user_id,scope,event_type) UNIQUE
+#  index_calendar_prefs_one_global_per_user  (user_id) UNIQUE WHERE (scope = 0)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
 RSpec.describe CalendarPreference, type: :model do
   let(:user) { User.create!(email: "prefs@wit.edu", password: "password123") }
 

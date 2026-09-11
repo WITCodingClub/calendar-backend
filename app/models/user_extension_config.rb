@@ -19,7 +19,7 @@
 #
 # Indexes
 #
-#  index_user_extension_configs_on_user_id  (user_id)
+#  index_user_extension_configs_on_user_id_unique  (user_id) UNIQUE
 #
 # Foreign Keys
 #
