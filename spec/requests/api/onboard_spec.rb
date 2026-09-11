@@ -92,6 +92,31 @@ RSpec.describe "Api::Users onboarding", type: :request do
       expect(owner.reload.email).to eq("hoppeg@wit.edu")
     end
 
+    it "reaches an account stored before the email was normalised" do
+      # Devise downcases on save and the verifier downcases the Google address,
+      # so an account created under any casing still resolves. This is the whole
+      # migration story for accounts made by the old flow.
+      existing = User.create!(email: "MixedCase@WIT.edu", password: "password123")
+      stub_google(verification(email: "mixedcase@wit.edu"))
+
+      expect {
+        post "/api/user/onboard", params: { google_access_token: "good-token" }
+      }.not_to change(User, :count)
+
+      expect(JsonWebTokenService.decode(json["jwt"])[:user_id]).to eq(existing.id)
+    end
+
+    it "keeps the enrollments and preferences already on the account" do
+      existing = User.create!(email: "returning@wit.edu", password: "password123")
+      preference = existing.calendar_preferences.create!(scope: :global, title_template: "{{title}}")
+      stub_google(verification(email: "returning@wit.edu"))
+
+      post "/api/user/onboard", params: { google_access_token: "good-token" }
+
+      expect(response).to have_http_status(:ok)
+      expect(existing.reload.calendar_preferences).to include(preference)
+    end
+
     it "issues a token that expires" do
       stub_google(verification(email: "lovelacea@wit.edu"))
 

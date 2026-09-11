@@ -45,4 +45,12 @@ RSpec.describe JsonWebTokenService do
 
     expect(described_class.decode(forged)).to be_nil
   end
+
+  describe "tokens minted before onboarding was fixed" do
+    it "refuses a token with no expiry, retiring every token the old endpoint minted" do
+      legacy = JWT.encode({ user_id: 1 }, described_class::SECRET_KEY)
+
+      expect(described_class.decode(legacy)).to be_nil
+    end
+  end
 end

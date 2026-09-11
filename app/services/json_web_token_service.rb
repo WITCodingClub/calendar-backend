@@ -19,8 +19,14 @@ class JsonWebTokenService
 
   # Verifies signature (HS256) and expiration. Returns nil for any invalid,
   # tampered, or expired token.
+  #
+  # An `exp` claim is required, not merely honoured when present. The old
+  # onboarding endpoint minted tokens with no expiry for any account an attacker
+  # named, and a token with no `exp` never expires — so closing that endpoint
+  # would leave every already-minted token valid forever. Refusing them retires
+  # the whole batch; their holders sign in again through the verified flow.
   def self.decode(token)
-    decoded = JWT.decode(token, SECRET_KEY, true, { algorithm: "HS256" })[0]
+    decoded = JWT.decode(token, SECRET_KEY, true, { algorithm: "HS256", required_claims: [ "exp" ] })[0]
     ActiveSupport::HashWithIndifferentAccess.new(decoded)
   rescue JWT::DecodeError, JWT::ExpiredSignature
     nil
