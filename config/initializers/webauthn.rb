@@ -1,17 +1,26 @@
 # frozen_string_literal: true
 
 # Passkeys let a student who already onboarded sign in again on a new device
-# without repeating the Google flow. The relying party is this backend, so the
-# id is the bare host, and the allowed origins list every front end that may run
-# the ceremony: the dashboard and the browser extension.
+# without repeating the Google flow.
 #
-# WEBAUTHN_RP_ID   — the registrable domain, e.g. "calendar.witcodingclub.com"
-# WEBAUTHN_ORIGINS — comma-separated origins, e.g.
-#                    "https://calendar.witcodingclub.com,chrome-extension://abc123"
+# WEBAUTHN_RP_ID   — the registrable domain: "calendar.witcc.dev" in production
+# WEBAUTHN_ORIGINS — comma-separated **website** origins allowed to run the
+#                    ceremony: "https://calendar.witcc.dev" in production,
+#                    "https://staging-calendar.witcc.dev" in staging
 #
 # Both are required in production. A passkey registered against one relying
 # party id cannot be used against another, so changing WEBAUTHN_RP_ID after
 # launch invalidates every passkey already registered.
+#
+# Only website origins belong in WEBAUTHN_ORIGINS. A browser extension can run
+# the ceremony itself, but then the origin it reports is its own
+# (chrome-extension://<id>, or a per-installation random moz-extension://<uuid>
+# on Firefox), and the list takes no wildcards. An unpacked build with no
+# manifest key gets a fresh id, so production config would have to chase
+# extension ids to keep anyone working. The credential is bound to
+# WEBAUTHN_RP_ID, not to whoever ran the prompt, so the extension instead opens
+# a page on this site and the origin stays the site's for every browser and
+# every build.
 WebAuthn.configure do |config|
   origins = ENV["WEBAUTHN_ORIGINS"].to_s.split(",").map(&:strip).reject(&:empty?)
   rp_id   = ENV["WEBAUTHN_RP_ID"].presence

@@ -9,6 +9,11 @@ module Api
   # Both ceremonies are two calls: ask for options (which issues a challenge),
   # then send back what the authenticator produced. The API keeps no session, so
   # the challenge travels as an opaque handle and is consumed on the second call.
+  #
+  # The ceremony is meant to run on a page of this site, not inside a browser
+  # extension: the credential is bound to WEBAUTHN_RP_ID either way, and keeping
+  # the prompt on the site keeps the reported origin stable across browsers and
+  # builds. See config/initializers/webauthn.rb.
   class PasskeysController < ApiController
     skip_before_action :authenticate_user_from_token!,
                        only: [ :authentication_options, :authenticate ]
