@@ -62,6 +62,15 @@ Rails.application.routes.draw do
     get "user/oauth_credentials",                  to: "users#list_oauth_credentials"
     delete "user/oauth_credentials/:credential_id", to: "users#disconnect_oauth_credential"
 
+    # Passkeys — a quick second sign-in for an account Google already vouched
+    # for. The two authentication routes are the only unauthenticated ones.
+    get    "user/passkeys",                      to: "passkeys#index"
+    post   "user/passkeys/registration_options", to: "passkeys#registration_options"
+    post   "user/passkeys",                      to: "passkeys#create"
+    delete "user/passkeys/:passkey_id",          to: "passkeys#destroy"
+    post   "user/passkeys/authentication_options", to: "passkeys#authentication_options"
+    post   "user/passkeys/authenticate",           to: "passkeys#authenticate"
+
     post "user/is_processed",      to: "users#is_processed"
     post "user/processed_events",  to: "users#get_processed_events_by_term"
 

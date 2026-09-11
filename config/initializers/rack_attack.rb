@@ -110,6 +110,19 @@ class Rack::Attack
     "preview:#{user_id}" if req.path == "/api/calendar_preferences/preview" && req.post? && user_id
   end
 
+  # Passkey sign-in and onboarding both mint a token without one, so they carry
+  # no user to bucket by. Give them a tighter budget than the general anonymous
+  # API limit, which guessing a credential would otherwise sit comfortably under.
+  UNAUTHENTICATED_TOKEN_PATHS = [
+    "/api/user/onboard",
+    "/api/user/passkeys/authentication_options",
+    "/api/user/passkeys/authenticate"
+  ].freeze
+
+  throttle("api/token-mint", limit: 10, period: 1.minute) do |req|
+    req.ip if req.post? && UNAUTHENTICATED_TOKEN_PATHS.include?(req.path)
+  end
+
   # ===========================================================================
   # CALENDAR FEED THROTTLES
   # ===========================================================================
