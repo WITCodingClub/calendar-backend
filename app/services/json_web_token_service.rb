@@ -7,7 +7,7 @@ class JsonWebTokenService
 
   # Default lifetime for API tokens. Every token gets an expiry — a token
   # without an `exp` claim would never expire, which is a security hazard.
-  DEFAULT_TTL = 14.days
+  DEFAULT_TTL = 90.days
 
   def self.encode(payload, exp = DEFAULT_TTL.from_now)
     raise ArgumentError, "JWT expiry is required" if exp.blank?

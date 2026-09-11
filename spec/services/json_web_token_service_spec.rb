@@ -10,6 +10,13 @@ RSpec.describe JsonWebTokenService do
     expect(payload["exp"]).to be_present
   end
 
+  it "uses a 90 day default expiry window" do
+    token   = described_class.encode({ user_id: 1 })
+    payload = JWT.decode(token, described_class::SECRET_KEY, true, algorithm: "HS256")[0]
+
+    expect(payload["exp"]).to be_within(1).of(90.days.from_now.to_i)
+  end
+
   it "raises when asked to encode without an expiry" do
     expect { described_class.encode({ user_id: 1 }, nil) }.to raise_error(ArgumentError)
   end
