@@ -7,9 +7,10 @@ module Api
     # POST /api/user/onboard
     #
     # The extension sends a Google OAuth access token for the student's WIT
-    # Google account. We verify it with Google and key the account to that
+    # Google account — the limited Workspace account the school provisions on
+    # the wit.edu domain. We verify it with Google and key the account to that
     # verified @wit.edu address, so the token proves two things at once: the
-    # caller controls the Google identity, and that identity is a WIT account.
+    # caller controls the Google identity, and only WIT could have issued it.
     # A personal Google account is linked afterwards, for calendar sync only
     # (POST /api/user/gcal), and never becomes the identity.
     # See GoogleTokenVerifier.

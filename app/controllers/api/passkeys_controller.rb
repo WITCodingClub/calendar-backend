@@ -28,7 +28,11 @@ module Api
 
       options = WebAuthn::Credential.options_for_create(
         user: {
-          id:           current_user.public_id,
+          # Base64url like every credential id in these options, so the client
+          # decodes every binary field the same way. The gem passes this value
+          # through untouched, and nothing reads the handle back — we resolve
+          # the account from the credential id.
+          id:           Base64.urlsafe_encode64(current_user.public_id, padding: false),
           name:         current_user.email,
           display_name: current_user.full_name.presence || current_user.email
         },

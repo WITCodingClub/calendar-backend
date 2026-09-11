@@ -48,10 +48,12 @@ class User < ApplicationRecord
   include CalendarTokenable
   include EncodedIds::HashidIdentifiable
 
-  # WIT runs its mail on a Google Workspace domain, so a Google account on this
-  # domain proves the person holds a WIT account. Every sign-in path keys the
-  # account to an address on this domain. Personal Google accounts attach later
-  # as oauth_credentials for calendar sync, never as the identity.
+  # WIT mail itself runs on Microsoft, but the school also provisions every
+  # student a limited Google Workspace account on this domain. Only WIT can
+  # issue one, so a Google account on this domain still proves the person holds
+  # a WIT account. Every sign-in path keys the account to an address on this
+  # domain. Personal Google accounts attach later as oauth_credentials for
+  # calendar sync, never as the identity.
   WIT_EMAIL_DOMAIN = "wit.edu"
   WIT_EMAIL_REGEX  = /@#{Regexp.escape(WIT_EMAIL_DOMAIN)}\z/i
 
