@@ -204,6 +204,208 @@ RSpec.describe "Reports", type: :request do
     end
   end
 
+  describe "GET /reports/sections" do
+    let!(:fall_term) { Term.create!(uid: 202710, year: 2026, season: :fall) }
+
+    let!(:annex)    { Building.create!(abbreviation: "ANX", name: "Annex") }
+    let!(:dobbs)    { Building.create!(abbreviation: "DOB", name: "Dobbs Hall") }
+    let!(:room_305) { annex.rooms.create!(number: "305", capacity: 40) }
+    let!(:room_5)   { dobbs.rooms.create!(number: "5", capacity: 24) }
+
+    let!(:course) do
+      fall_term.courses.create!(
+        crn: 12345, subject: "Computer Science", course_number: 3100,
+        section_number: "01", title: "Algorithms", schedule_type: :lecture,
+        seats_capacity: 30, seats_available: 5, credit_hours: 4,
+        start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15)
+      )
+    end
+
+    # A Monday/Wednesday lecture in one room: two meeting times, one section.
+    def add_meeting(day, room: room_305, begin_time: 900, end_time: 1015,
+                    schedule_type: :lecture)
+      meeting = course.meeting_times.create!(
+        begin_time: begin_time, end_time: end_time, day_of_week: day,
+        meeting_schedule_type: schedule_type, meeting_type: :class_meeting,
+        start_date: course.start_date, end_date: course.end_date
+      )
+      meeting.rooms << room if room
+      meeting
+    end
+
+    it "returns one row per section, not one per meeting day" do
+      add_meeting(:monday)
+      add_meeting(:wednesday)
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/csv")
+
+      csv = CSV.parse(response.body, headers: true)
+      expect(csv.length).to eq(1)
+      expect(csv.first.to_h).to include(
+        "term_uid"       => "202710",
+        "term"           => "Fall 2026",
+        "crn"            => "12345",
+        "subject"        => "Computer Science",
+        "course_number"  => "3100",
+        "section_number" => "01",
+        "title"          => "Algorithms",
+        "schedule_type"  => "lecture",
+        "status"         => "active",
+        "credit_hours"   => "4",
+        "seats_capacity" => "30",
+        "seats_available" => "5",
+        "enrollment_current" => "25",
+        "meeting_days"   => "MW",
+        "meeting_times"  => "09:00-10:15",
+        "meeting_type"   => "lecture",
+        "room"           => "ANX 305",
+        "room_capacity"  => "40",
+        "meeting_count"  => "2"
+      )
+    end
+
+    it "orders day codes by the week, not by insertion" do
+      add_meeting(:friday)
+      add_meeting(:monday)
+      add_meeting(:wednesday)
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      expect(CSV.parse(response.body, headers: true).first["meeting_days"]).to eq("MWF")
+    end
+
+    it "uses R for Thursday and U for Sunday" do
+      add_meeting(:thursday)
+      add_meeting(:sunday)
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      expect(CSV.parse(response.body, headers: true).first["meeting_days"]).to eq("RU")
+    end
+
+    it "keeps a second meeting pattern separate when the hour differs" do
+      add_meeting(:monday)
+      add_meeting(:wednesday)
+      add_meeting(:friday, begin_time: 1300, end_time: 1450, room: room_5,
+                           schedule_type: :laboratory)
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      row = CSV.parse(response.body, headers: true).first
+      expect(row["meeting_days"]).to eq("MW; F")
+      expect(row["meeting_times"]).to eq("09:00-10:15; 13:00-14:50")
+      expect(row["meeting_type"]).to eq("lecture; laboratory")
+      expect(row["room"]).to eq("ANX 305; DOB 005")
+      expect(row["meeting_count"]).to eq("3")
+    end
+
+    it "reports the largest room a section is scheduled into" do
+      add_meeting(:monday)
+      add_meeting(:friday, begin_time: 1300, end_time: 1450, room: room_5)
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      expect(CSV.parse(response.body, headers: true).first["room_capacity"]).to eq("40")
+    end
+
+    it "collapses duplicate meeting time rows left by a concurrent ingest" do
+      add_meeting(:monday)
+      add_meeting(:monday)
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      row = CSV.parse(response.body, headers: true).first
+      expect(row["meeting_days"]).to eq("M")
+      expect(row["meeting_count"]).to eq("1")
+    end
+
+    it "emits one row per section even when a meeting is booked into two rooms" do
+      meeting = add_meeting(:monday)
+      meeting.rooms << room_5
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      csv = CSV.parse(response.body, headers: true)
+      expect(csv.length).to eq(1)
+      # One part per room in every column, so the parts line up.
+      expect(csv.first["room"]).to eq("ANX 305; DOB 005")
+      expect(csv.first["meeting_days"]).to eq("M; M")
+      expect(csv.first["meeting_times"]).to eq("09:00-10:15; 09:00-10:15")
+    end
+
+    it "leaves room columns blank for a meeting with no room assigned" do
+      add_meeting(:monday, room: nil)
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      row = CSV.parse(response.body, headers: true).first
+      expect(row["room"]).to be_nil
+      expect(row["room_capacity"]).to be_nil
+      expect(row["meeting_days"]).to eq("M")
+    end
+
+    it "joins team-taught faculty into one column without splitting the section" do
+      add_meeting(:monday)
+      course.faculties << Faculty.create!(first_name: "Ada", last_name: "Lovelace",
+                                          display_name: "Ada Lovelace", email: "lovelacea@wit.edu")
+      course.faculties << Faculty.create!(first_name: "Charles", last_name: "Babbage",
+                                          display_name: "Charles Babbage", email: "babbagec@wit.edu")
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      csv = CSV.parse(response.body, headers: true)
+      expect(csv.length).to eq(1)
+      expect(csv.first["faculty"]).to eq("Charles Babbage, Ada Lovelace")
+    end
+
+    it "keeps each section separate" do
+      add_meeting(:monday)
+      other = fall_term.courses.create!(
+        crn: 54321, subject: "Mathematics", course_number: 2300,
+        section_number: "03", title: "Discrete", schedule_type: :lecture,
+        start_date: course.start_date, end_date: course.end_date
+      )
+      other.meeting_times.create!(
+        begin_time: 1000, end_time: 1145, day_of_week: :tuesday,
+        meeting_schedule_type: :lecture, meeting_type: :class_meeting,
+        start_date: other.start_date, end_date: other.end_date
+      )
+
+      get "/reports/sections", params: { term_uid: 202710 }
+
+      csv = CSV.parse(response.body, headers: true)
+      expect(csv.length).to eq(2)
+      expect(csv.map { |r| r["crn"] }).to contain_exactly("12345", "54321")
+    end
+
+    it "filters by term_uid" do
+      add_meeting(:monday)
+
+      get "/reports/sections", params: { term_uid: 999999 }
+
+      expect(CSV.parse(response.body, headers: true).length).to eq(0)
+    end
+
+    it "serves non-browser clients such as Power BI and curl" do
+      add_meeting(:monday)
+
+      get "/reports/sections", headers: { "User-Agent" => "curl/8.7.1" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/csv")
+    end
+
+    it "sets public cache headers" do
+      get "/reports/sections"
+
+      expect(response.headers["Cache-Control"]).to include("public")
+      expect(response.headers["Cache-Control"]).to include("max-age=3600")
+    end
+  end
+
   describe "GET /reports/terms" do
     let!(:fall_term)   { Term.create!(uid: 202710, year: 2026, season: :fall) }
     let!(:spring_term) { Term.create!(uid: 202620, year: 2026, season: :spring) }
