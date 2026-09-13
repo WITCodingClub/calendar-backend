@@ -35,6 +35,20 @@
         </svg>
         Sign in with Google
       <% end %>
+
+      <%# Shown only once the browser says it can run the ceremony, so a device
+          with no authenticator never sees a button that cannot work. %>
+      <button type="button"
+              id="passkey-sign-in"
+              hidden
+              class="flex items-center justify-center gap-3 w-full px-4 py-3 border border-outline-variant rounded-xl bg-surface-container hover:bg-surface-container-high transition font-medium text-on-surface shadow-sm">
+        <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 1a5 5 0 0 0-5 5c0 2.2 1.4 4.1 3.4 4.7L10 12v2H8v2h2v2l2 2 2-2V10.7A5 5 0 0 0 12 1zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" />
+        </svg>
+        Sign in with a passkey
+      </button>
+
+      <p id="passkey-error" hidden class="m3-alert-error text-sm"></p>
     </div>
 
     <p class="text-center text-xs text-on-surface-variant mt-6">
@@ -42,3 +56,87 @@
     </p>
   </div>
 </div>
+
+<script>
+  (function () {
+    const button = document.getElementById('passkey-sign-in');
+    const error  = document.getElementById('passkey-error');
+    const token  = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    function base64UrlToBytes(value) {
+      const padded = value.replace(/-/g, '+').replace(/_/g, '/');
+      const binary = atob(padded.padEnd(Math.ceil(padded.length / 4) * 4, '='));
+      const buffer = new ArrayBuffer(binary.length);
+      const bytes  = new Uint8Array(buffer);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return buffer;
+    }
+
+    function bytesToBase64Url(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    async function post(url, body) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        body: JSON.stringify(body ?? {})
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not sign in with that passkey.');
+      return data;
+    }
+
+    async function signIn() {
+      error.hidden = true;
+      button.disabled = true;
+      try {
+        const { handle, options } = await post(<%= passkey_session_options_path.to_json.html_safe %>);
+
+        const credential = await navigator.credentials.get({
+          publicKey: {
+            ...options,
+            challenge: base64UrlToBytes(options.challenge),
+            allowCredentials: (options.allowCredentials ?? []).map(function (c) {
+              return { ...c, id: base64UrlToBytes(c.id) };
+            })
+          }
+        });
+
+        const assertion = credential.response;
+        const result = await post(<%= passkey_session_path.to_json.html_safe %>, {
+          handle: handle,
+          credential: {
+            type: credential.type,
+            id: credential.id,
+            rawId: bytesToBase64Url(credential.rawId),
+            authenticatorAttachment: credential.authenticatorAttachment,
+            response: {
+              authenticatorData: bytesToBase64Url(assertion.authenticatorData),
+              clientDataJSON: bytesToBase64Url(assertion.clientDataJSON),
+              signature: bytesToBase64Url(assertion.signature),
+              userHandle: assertion.userHandle ? bytesToBase64Url(assertion.userHandle) : null
+            }
+          }
+        });
+
+        window.location.assign(result.redirect_to);
+      } catch (err) {
+        // Dismissing the prompt is a choice, not a failure worth shouting about.
+        if (!(err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'AbortError'))) {
+          error.textContent = err.message;
+          error.hidden = false;
+        }
+        button.disabled = false;
+      }
+    }
+
+    if (window.PublicKeyCredential) {
+      button.hidden = false;
+      button.addEventListener('click', signIn);
+    }
+  })();
+</script>

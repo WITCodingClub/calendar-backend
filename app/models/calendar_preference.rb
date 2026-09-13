@@ -19,8 +19,9 @@
 #
 # Indexes
 #
-#  index_calendar_preferences_on_user_id    (user_id)
-#  index_calendar_prefs_on_user_scope_type  (user_id,scope,event_type) UNIQUE
+#  index_calendar_preferences_on_user_id     (user_id)
+#  index_calendar_prefs_on_user_scope_type   (user_id,scope,event_type) UNIQUE
+#  index_calendar_prefs_one_global_per_user  (user_id) UNIQUE WHERE (scope = 0)
 #
 # Foreign Keys
 #

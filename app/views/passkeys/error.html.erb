@@ -1,0 +1,20 @@
+<% content_for :title, "Passkey" %>
+
+<div class="m3-card p-8 w-full max-w-sm text-center">
+  <div class="flex items-center justify-center mb-5">
+    <div class="w-16 h-16 rounded-full bg-error-container flex items-center justify-center">
+      <svg class="w-8 h-8 text-on-error-container" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </div>
+  </div>
+
+  <h1 class="text-xl font-semibold text-on-surface mb-1">Can't continue</h1>
+
+  <p class="text-sm text-on-surface-variant"><%= @error %></p>
+
+  <p class="mt-6 text-xs text-on-surface-variant/60">
+    Open the WIT Calendar extension and try from there.
+  </p>
+</div>

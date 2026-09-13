@@ -36,6 +36,10 @@ class OauthCredential < ApplicationRecord
   has_one :google_calendar, dependent: :destroy
   has_many :security_events, dependent: :nullify
 
+  # Disconnecting the Google account that vouched for this person should not
+  # leave tokens it produced still working.
+  after_destroy :revoke_sessions
+
   validates :provider, presence: true, inclusion: { in: %w[google] }
   validates :uid, presence: true, uniqueness: { scope: :provider }
   validates :access_token, presence: true
@@ -73,5 +77,11 @@ class OauthCredential < ApplicationRecord
     service.remove_calendar_from_user_list_for_email(google_calendar.google_calendar_id, email)
   rescue => e
     Rails.logger.error("Failed to revoke calendar access for #{email}: #{e.message}")
+  end
+
+  private
+
+  def revoke_sessions
+    UserSession.revoke_all_for(user, reason: "google account disconnected") if user
   end
 end

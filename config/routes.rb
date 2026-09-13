@@ -1,10 +1,9 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
-  devise_for :users, controllers: {
-    sessions:      "users/sessions",
-    registrations: "users/registrations"
-  }
+  devise_for :users,
+             controllers: { sessions: "users/sessions" },
+             skip: [ :registrations ]
 
   get "up" => "rails/health#show", as: :rails_health_check
 
@@ -20,6 +19,15 @@ Rails.application.routes.draw do
   get "/auth/google_oauth2/callback", to: "auth#google"
 
   # OAuth result pages (opened by Chrome extension)
+  # The passkey ceremony runs on this site, not in the extension, so the origin
+  # the browser reports stays the same for every browser and build.
+  get "/passkey", to: "passkeys#show"
+
+  # Signing in to the dashboard with the same passkey, ending in a Devise
+  # session rather than a token.
+  post "/users/passkey/options",  to: "users/passkey_sessions#options",  as: :passkey_session_options
+  post "/users/passkey/callback", to: "users/passkey_sessions#create",   as: :passkey_session
+
   get "/oauth/success", to: "oauth#success"
   get "/oauth/failure", to: "oauth#failure"
 
@@ -62,6 +70,22 @@ Rails.application.routes.draw do
     get "user/ics_url",                            to: "users#get_ics_url"
     get "user/oauth_credentials",                  to: "users#list_oauth_credentials"
     delete "user/oauth_credentials/:credential_id", to: "users#disconnect_oauth_credential"
+
+    # Passkeys — a quick second sign-in for an account Google already vouched
+    # for. The two authentication routes are the only unauthenticated ones.
+    get    "user/passkeys",                      to: "passkeys#index"
+    post   "user/passkeys/registration_options", to: "passkeys#registration_options"
+    post   "user/passkeys",                      to: "passkeys#create"
+    delete "user/passkeys/:passkey_id",          to: "passkeys#destroy"
+    post   "user/passkeys/handoff",              to: "passkeys#handoff"
+    post   "user/passkeys/authentication_options", to: "passkeys#authentication_options"
+    post   "user/passkeys/authenticate",           to: "passkeys#authenticate"
+    post   "user/passkeys/exchange",               to: "passkeys#exchange"
+
+    # Sessions — see where the account is signed in, and end any of it.
+    get    "user/sessions",             to: "sessions#index"
+    delete "user/sessions/:session_id", to: "sessions#destroy"
+    post   "user/sessions/revoke_all",  to: "sessions#revoke_all"
 
     post "user/is_processed",      to: "users#is_processed"
     post "user/processed_events",  to: "users#get_processed_events_by_term"
@@ -152,6 +176,13 @@ Rails.application.routes.draw do
           delete "oauth_credentials/:credential_id",
                  to: "users#revoke_oauth_credential",
                  as: :revoke_oauth_credential
+          # Ending sessions for an account someone reports as compromised.
+          delete "sessions/:session_id",
+                 to: "users#revoke_session",
+                 as: :revoke_session
+          delete "sessions",
+                 to: "users#revoke_all_sessions",
+                 as: :revoke_all_sessions
           post "oauth_credentials/:credential_id/refresh",
                to: "users#refresh_oauth_credential",
                as: :refresh_oauth_credential

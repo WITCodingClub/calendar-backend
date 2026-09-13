@@ -110,6 +110,19 @@ class Rack::Attack
     "preview:#{user_id}" if req.path == "/api/calendar_preferences/preview" && req.post? && user_id
   end
 
+  # Passkey sign-in and onboarding both mint a token without one, so they carry
+  # no user to bucket by. Give them a tighter budget than the general anonymous
+  # API limit, which guessing a credential would otherwise sit comfortably under.
+  UNAUTHENTICATED_TOKEN_PATHS = [
+    "/api/user/onboard",
+    "/api/user/passkeys/authentication_options",
+    "/api/user/passkeys/authenticate"
+  ].freeze
+
+  throttle("api/token-mint", limit: 10, period: 1.minute) do |req|
+    req.ip if req.post? && UNAUTHENTICATED_TOKEN_PATHS.include?(req.path)
+  end
+
   # ===========================================================================
   # CALENDAR FEED THROTTLES
   # ===========================================================================
@@ -170,9 +183,11 @@ class Rack::Attack
     return nil unless auth_header&.start_with?("Bearer ")
 
     token = auth_header.split.last
-    payload = JWT.decode(token, nil, false).first
-    payload["user_id"]
-  rescue JWT::DecodeError, StandardError
+    # Verify signature and expiration. A forged/unsigned token must not be able
+    # to grant the admin throttle safelist or a controlled throttle-bucket key.
+    payload = JsonWebTokenService.decode(token)
+    payload && payload[:user_id]
+  rescue StandardError
     nil
   end
 end

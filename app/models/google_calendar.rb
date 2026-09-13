@@ -16,9 +16,9 @@
 #
 # Indexes
 #
-#  index_google_calendars_on_google_calendar_id   (google_calendar_id) UNIQUE
-#  index_google_calendars_on_last_synced_at       (last_synced_at)
-#  index_google_calendars_on_oauth_credential_id  (oauth_credential_id)
+#  index_google_calendars_on_google_calendar_id          (google_calendar_id) UNIQUE
+#  index_google_calendars_on_last_synced_at              (last_synced_at)
+#  index_google_calendars_on_oauth_credential_id_unique  (oauth_credential_id) UNIQUE
 #
 # Foreign Keys
 #
@@ -34,6 +34,8 @@ class GoogleCalendar < ApplicationRecord
   has_one :user, through: :oauth_credential
 
   validates :google_calendar_id, presence: true, uniqueness: true
+  # One course calendar per OAuth credential — the app treats this as a has_one.
+  validates :oauth_credential_id, uniqueness: true
 
   before_destroy :enqueue_google_calendar_deletion
 

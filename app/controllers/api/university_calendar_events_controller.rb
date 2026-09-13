@@ -6,7 +6,7 @@ module Api
 
     def index
       authorize UniversityCalendarEvent, :index?
-      @events = policy_scope(UniversityCalendarEvent).upcoming.order(:start_time)
+      @events = policy_scope(UniversityCalendarEvent).includes(:term).upcoming.order(:start_time)
 
       @events = @events.where(category: params[:category]) if params[:category].present?
 
@@ -52,7 +52,7 @@ module Api
 
     def holidays
       authorize UniversityCalendarEvent, :index?
-      @holidays = UniversityCalendarEvent.holidays.upcoming.order(:start_time)
+      @holidays = UniversityCalendarEvent.holidays.includes(:term).upcoming.order(:start_time)
 
       if params[:term_id].present?
         term      = Term.find_by_public_id(params[:term_id])
