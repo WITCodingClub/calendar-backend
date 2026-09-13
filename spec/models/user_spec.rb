@@ -82,6 +82,9 @@ RSpec.describe User, type: :model do
     it "returns false for nil and for yourself" do
       expect(user.remove_friend(nil)).to be(false)
       expect(user.remove_friend(user)).to be(false)
+    end
+  end
+
   describe ".wit_email?" do
     it "accepts an address on the WIT domain" do
       expect(described_class.wit_email?("lovelacea@wit.edu")).to be(true)
