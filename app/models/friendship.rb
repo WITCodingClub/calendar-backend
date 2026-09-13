@@ -44,6 +44,8 @@ class Friendship < ApplicationRecord
   scope :outgoing_from,  ->(user) { pending.where(requester: user) }
   scope :accepted_for,   ->(user) { accepted.involving(user) }
 
+  after_create_commit :email_addressee_about_request, if: :pending?
+
   def friend_for(user)
     requester_id == user.id ? addressee : requester
   end
@@ -52,6 +54,12 @@ class Friendship < ApplicationRecord
   def addressee?(user) = addressee_id == user.id
 
   private
+
+  # Admins can create an already-accepted friendship, so only a pending row is a
+  # real request that the addressee has to answer.
+  def email_addressee_about_request
+    FriendshipMailer.request_received(self).deliver_later
+  end
 
   def cannot_friend_self
     errors.add(:addressee, "cannot be yourself") if requester_id == addressee_id

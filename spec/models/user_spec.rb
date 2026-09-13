@@ -45,6 +45,43 @@
 require "rails_helper"
 
 RSpec.describe User, type: :model do
+  def create_user(email)
+    User.create!(email: email, password: "password123")
+  end
+
+  describe "#remove_friend" do
+    let(:user)   { create_user("me@wit.edu") }
+    let(:friend) { create_user("friend@wit.edu") }
+
+    it "deletes the friendship when this user sent the request" do
+      Friendship.create!(requester: user, addressee: friend, status: :accepted)
+
+      expect(user.remove_friend(friend)).to be(true)
+      expect(user.friends).to be_empty
+      expect(friend.friends).to be_empty
+    end
+
+    it "deletes the friendship when the other user sent the request" do
+      Friendship.create!(requester: friend, addressee: user, status: :accepted)
+
+      expect(user.remove_friend(friend)).to be(true)
+      expect(user.friends).to be_empty
+    end
+
+    it "leaves a pending request alone" do
+      friendship = Friendship.create!(requester: user, addressee: friend)
+
+      expect(user.remove_friend(friend)).to be(false)
+      expect(friendship.reload).to be_pending
+    end
+
+    it "returns false for a stranger" do
+      expect(user.remove_friend(friend)).to be(false)
+    end
+
+    it "returns false for nil and for yourself" do
+      expect(user.remove_friend(nil)).to be(false)
+      expect(user.remove_friend(user)).to be(false)
   describe ".wit_email?" do
     it "accepts an address on the WIT domain" do
       expect(described_class.wit_email?("lovelacea@wit.edu")).to be(true)

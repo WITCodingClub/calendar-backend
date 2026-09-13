@@ -1,0 +1,18 @@
+<h2>New friend request</h2>
+
+<p>
+  Hi<%= " #{@addressee.first_name}" if @addressee.first_name.present? %>,
+</p>
+
+<p>
+  <strong><%= @requester.full_name %></strong> sent you a friend request on WIT Calendar.
+  Friends can see each other's class schedules.
+</p>
+
+<p style="margin-top: 16px;">
+  <a href="<%= @requests_url %>">Review the request</a>
+</p>
+
+<p style="margin-top: 16px; color: #6b7280; font-size: 12px;">
+  If you do not know this person, you can decline the request.
+</p>
