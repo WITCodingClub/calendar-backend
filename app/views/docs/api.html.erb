@@ -1,7 +1,38 @@
 <% content_for :title, "Course Catalog API" %>
 
+<% description = "Public read-only REST and GraphQL API for the Wentworth course catalog." %>
+
 <% content_for :head do %>
-  <meta name="description" content="Public read-only REST and GraphQL API for the Wentworth course catalog.">
+  <meta name="description" content="<%= description %>">
+  <link rel="canonical" href="<%= api_docs_url %>">
+  <link rel="alternate" type="text/markdown" href="<%= api_docs_url(format: :md) %>">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="<%= ApplicationHelper::SITE_NAME %>">
+  <meta property="og:title" content="<%= page_title %>">
+  <meta property="og:description" content="<%= description %>">
+  <meta property="og:url" content="<%= api_docs_url %>">
+  <meta name="twitter:card" content="summary">
+
+  <%= structured_data_tag(
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: page_title,
+    description: description,
+    url: api_docs_url,
+    inLanguage: "en",
+    isAccessibleForFree: true,
+    encoding: {
+      "@type": "MediaObject",
+      encodingFormat: "text/markdown",
+      contentUrl: api_docs_url(format: :md)
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "WIT Coding Club",
+      url: "https://github.com/WITCodingClub"
+    }
+  ) %>
 <% end %>
 
 <div class="docs">

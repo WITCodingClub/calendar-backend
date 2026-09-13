@@ -3,6 +3,10 @@
 A read-only API for the WIT course schedule. It needs no authentication and no
 API key.
 
+This reference is also available as markdown at `/docs/api.md`. A client that
+sends `Accept: text/markdown` to `/docs/api` gets the same markdown.
+`/llms.txt` lists the main entry points for AI agents.
+
 The API has three surfaces over the same data:
 
 | Surface | Endpoint | Use it for |

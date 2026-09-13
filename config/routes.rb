@@ -9,9 +9,13 @@ Rails.application.routes.draw do
 
   get "/session/status", to: "auth_status#show"
 
-  get "/robots.txt", to: "robots#show", format: false
+  # Files for search engines and AI agents
+  get "/robots.txt",  to: "discovery#robots",  as: :robots,  format: false, defaults: { format: :text }
+  get "/sitemap.xml", to: "discovery#sitemap", as: :sitemap, format: false, defaults: { format: :xml }
+  get "/llms.txt",    to: "discovery#llms",    as: :llms,    format: false, defaults: { format: :text }
 
-  # Public API reference, rendered from docs/public-catalog-api.md
+  # Public API reference, rendered from docs/public-catalog-api.md.
+  # /docs/api.md, or Accept: text/markdown, returns the markdown source.
   get "/docs",     to: redirect("/docs/api")
   get "/docs/api", to: "docs#api", as: :api_docs
 

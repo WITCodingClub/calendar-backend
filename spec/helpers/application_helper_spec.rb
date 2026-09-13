@@ -40,4 +40,20 @@ RSpec.describe ApplicationHelper, type: :helper do
       expect(helper.browser_title).to eq("Faculty &amp; Staff — WIT Calendar")
     end
   end
+
+  describe "#structured_data_tag" do
+    it "writes the data as JSON-LD" do
+      html   = helper.structured_data_tag("@type": "TechArticle", headline: "Faculty & Staff")
+      script = Nokogiri::HTML.fragment(html).at("script")
+
+      expect(script["type"]).to eq("application/ld+json")
+      expect(JSON.parse(script.text)).to eq("@type" => "TechArticle", "headline" => "Faculty & Staff")
+    end
+
+    it "does not let a value close the script tag" do
+      html = helper.structured_data_tag(headline: "</script><script>alert(1)</script>")
+
+      expect(html.scan("</script>").size).to eq(1)
+    end
+  end
 end

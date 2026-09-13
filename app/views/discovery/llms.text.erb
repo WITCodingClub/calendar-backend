@@ -1,0 +1,23 @@
+# WIT Calendar
+
+> WIT Calendar puts a Wentworth Institute of Technology student's course schedule into Google Calendar. It also publishes a public, read-only API for the Wentworth course catalog. The API needs no authentication and no API key.
+
+The API contains course schedule data only: terms, subjects, course sections, meeting days and times, buildings and rooms, instructors with Rate My Professors scores, and final exam times. It contains no student data. The rate limit is 300 requests per minute per IP address.
+
+## Docs
+
+- [Course Catalog API reference](<%= api_docs_url(format: :md) %>): The full reference as markdown. It covers the REST, GraphQL, and CSV endpoints, the filters, the limits, and examples.
+
+## API
+
+- [Terms](<%= api_v1_catalog_terms_url %>): JSON list of terms, newest first. Start here to get a `term_uid`.
+- [Sections](<%= api_v1_catalog_sections_url %>): JSON list of course sections. It accepts the filters in the reference.
+- [GraphQL](<%= api_graphql_url %>): POST endpoint for nested data in one request. It has no mutations.
+- [Sections CSV](<%= sections_report_url %>): One row for each course section, for Excel and Power BI.
+
+## Optional
+
+- [Subjects](<%= api_v1_catalog_subjects_url %>): JSON list of subjects with section counts.
+- [Instructors](<%= api_v1_catalog_instructors_url %>): JSON list of the faculty who teach at least one section.
+- [Meeting times CSV](<%= meeting_times_report_url %>): One row for each meeting, in one room, on one day.
+- [Terms CSV](<%= terms_report_url %>): The terms that have schedule data.

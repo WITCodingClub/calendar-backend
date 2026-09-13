@@ -5,6 +5,10 @@
 # The page renders docs/public-catalog-api.md, the same file the repository
 # keeps, so the site and the repository cannot say different things.
 #
+# An agent reads the markdown source, not the HTML. It gets the source from
+# /docs/api.md, or from /docs/api when its Accept header ranks text/markdown
+# above text/html.
+#
 # It inherits ActionController::Base, not ApplicationController. The page needs
 # no sign-in and no Pundit, and the modern-browser guard on the app pages would
 # refuse curl and any other script that reads the reference.
@@ -17,6 +21,13 @@ class DocsController < ActionController::Base
   def api
     raise ActionController::RoutingError, "No API reference" unless SOURCE.exist?
 
+    expires_in CACHE_AGE, public: true
+    # The HTML and the markdown share one URL, so a cache must key on Accept.
+    response.headers["Vary"] = "Accept"
+    response.headers["Link"] = %(<#{api_docs_url(format: :md)}>; rel="alternate"; type="text/markdown")
+
+    return render(plain: SOURCE.read, content_type: "text/markdown") if markdown_requested?
+
     document  = self.class.render_markdown(SOURCE.read)
     # Safe to mark: the source is a file in this repository, not user input, and
     # the renderer is configured with escape_html so any HTML inside the
@@ -25,7 +36,8 @@ class DocsController < ActionController::Base
     @body     = document[:html].html_safe # rubocop:disable Rails/OutputSafety
     @headings = document[:headings]
 
-    expires_in CACHE_AGE, public: true
+    # A client that asks for neither format still gets the page.
+    render formats: :html
   end
 
   # @return [Hash] the rendered HTML and the top-level headings, for the menu.
@@ -54,4 +66,25 @@ class DocsController < ActionController::Base
     )
   end
   private_class_method :markdown
+
+  private
+
+  def markdown_requested?
+    case params[:format]
+    when "md"   then true
+    when "html" then false
+    when nil    then prefers_markdown?
+    else raise ActionController::UnknownFormat
+    end
+  end
+
+  # Rails ignores an Accept header that also lists */*, and most agents send
+  # one, for example "text/markdown, text/html, */*". This method reads the
+  # header itself. Markdown wins only when the client ranks it above HTML.
+  def prefers_markdown?
+    types = Mime::Type.parse(request.headers["Accept"].to_s)
+    types.find { |type| type == Mime[:md] || type == Mime[:html] } == Mime[:md]
+  rescue Mime::Type::InvalidMimeType
+    false
+  end
 end

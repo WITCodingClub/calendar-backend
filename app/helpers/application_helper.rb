@@ -13,6 +13,15 @@ module ApplicationHelper
     safe_join([ page_title(default), SITE_NAME ].compact_blank, " — ")
   end
 
+  # A JSON-LD script tag that describes the page to search engines.
+  #
+  # Safe to mark: to_json escapes <, >, and & in every string, so no value can
+  # close the tag. HTML escaping would break the JSON, because a browser does
+  # not decode entities inside a script tag.
+  def structured_data_tag(data)
+    tag.script(data.to_json.html_safe, type: "application/ld+json") # rubocop:disable Rails/OutputSafety
+  end
+
   def titleize_with_roman_numerals(title)
     result = HTMLEntities.new.decode(title.to_s)
 
