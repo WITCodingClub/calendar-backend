@@ -114,7 +114,7 @@
     });
 
     say('Passkey added. Returning to the extension…');
-    handBack({ status: 'registered' });
+    handBack({ ok: '1' });
   }
 
   async function signIn() {
@@ -162,7 +162,7 @@
       if (error instanceof DOMException &&
           (error.name === 'NotAllowedError' || error.name === 'AbortError')) {
         say('Cancelled.');
-        handBack({ status: 'cancelled' });
+        handBack({ error: 'cancelled' });
         return;
       }
       console.error(error);

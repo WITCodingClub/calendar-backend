@@ -16,10 +16,12 @@ class PasskeysController < ApplicationController
 
   skip_before_action :verify_authenticity_token
 
-  MODES = %w[signin register].freeze
+  # "authenticate" is the extension's spelling; "signin" is accepted too so a
+  # build from either side of this change keeps working.
+  MODES = %w[authenticate signin register].freeze
 
   def show
-    @mode         = MODES.include?(params[:mode]) ? params[:mode] : "signin"
+    @mode         = MODES.include?(params[:mode]) ? params[:mode] : "authenticate"
     @redirect_uri = params[:redirect_uri].to_s
     @state        = params[:state].to_s
     @handoff      = params[:handoff].to_s
