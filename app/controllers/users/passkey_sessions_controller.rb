@@ -50,6 +50,8 @@ module Users
       passkey.record_use!(credential.sign_count)
 
       user = passkey.user
+      # Stay signed in past the :timeoutable idle limit, as the Google sign-in does.
+      user.remember_me = true
       sign_in(:user, user)
 
       render json: { redirect_to: after_sign_in_path_for(user) }, status: :ok

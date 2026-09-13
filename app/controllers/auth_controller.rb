@@ -94,6 +94,9 @@ class AuthController < ApplicationController
       credential.save!
     end
 
+    # Without a remember cookie, :timeoutable signs the person out after 30
+    # idle minutes and the session cookie ends when the browser closes.
+    user.remember_me = true
     sign_in(:user, user)
 
     redirect_to user.admin_access? ? admin_root_path : dashboard_root_path,
