@@ -32,11 +32,16 @@ class PreferenceResolver
     visibility: "default"
   }.freeze
 
+  # All-day events start at midnight, so "1 day before" fires at 12AM the day
+  # before. 15 hours before start is 9AM the day before, which people read.
+  UNI_CAL_ALL_DAY_REMINDERS = [ { "time" => "15", "type" => "hours", "method" => "popup" } ].freeze
+  UNI_CAL_TIMED_REMINDERS   = [ { "time" => "30", "type" => "minutes", "method" => "popup" } ].freeze
+
   UNI_CAL_DEFAULTS = {
     title_template: "{{summary}}",
     description_template: "{{description}}",
     location_template: "{{location}}",
-    reminder_settings: [ { "time" => "1", "type" => "days", "method" => "popup" } ],
+    reminder_settings: UNI_CAL_ALL_DAY_REMINDERS,
     color_id: 8,
     visibility: "default"
   }.freeze
@@ -136,6 +141,16 @@ class PreferenceResolver
       end
     end
 
+    if university_calendar_event?(event)
+      uni_pref = @calendar_preferences[[ "uni_cal_global", nil ]]
+      if uni_pref.present?
+        value = uni_pref.public_send(field)
+        if field == :reminder_settings ? !value.nil? : value.present?
+          return [ value, "uni_cal_global" ]
+        end
+      end
+    end
+
     if event_type.present?
       type_pref = @calendar_preferences[[ "event_type", event_type ]]
       if type_pref.present?
@@ -147,14 +162,14 @@ class PreferenceResolver
     end
 
     global_pref = @calendar_preferences[[ "global", nil ]]
-    if global_pref.present?
+    if global_pref.present? && !university_calendar_event?(event)
       value = global_pref.public_send(field)
       if field == :reminder_settings ? !value.nil? : value.present?
         return [ value, "global" ]
       end
     end
 
-    default_value = system_default_for(field, event, event_type, uni_cal_category)
+    default_value = system_default_for(field, event, event_type)
     [ default_value, "system_default" ]
   end
 
@@ -172,18 +187,31 @@ class PreferenceResolver
   end
 
   def extract_uni_cal_category(event)
+    university_calendar_event_for(event)&.category
+  end
+
+  def university_calendar_event?(event)
+    university_calendar_event_for(event).present?
+  end
+
+  def university_calendar_event_for(event)
     case event
     when UniversityCalendarEvent
-      event.category
+      event
     when GoogleCalendarEvent
-      event.university_calendar_event&.category
+      event.university_calendar_event
     end
   end
 
-  def system_default_for(field, event, event_type, uni_cal_category = nil)
+  def system_default_for(field, event, event_type)
     return FINAL_EXAM_DEFAULTS[field] if event_type == "final_exam"
 
-    return UNI_CAL_DEFAULTS[field] if uni_cal_category.present?
+    uni_cal_event = university_calendar_event_for(event)
+    if uni_cal_event.present?
+      return uni_cal_default_reminders(uni_cal_event) if field == :reminder_settings
+
+      return UNI_CAL_DEFAULTS[field]
+    end
 
     if field == :color_id
       meeting_time = event.is_a?(Course::MeetingTime) ? event : event.meeting_time
@@ -202,6 +230,10 @@ class PreferenceResolver
     end
 
     SYSTEM_DEFAULTS[field]
+  end
+
+  def uni_cal_default_reminders(uni_cal_event)
+    uni_cal_event.all_day? ? UNI_CAL_ALL_DAY_REMINDERS : UNI_CAL_TIMED_REMINDERS
   end
 
   def cache_key_for(event)

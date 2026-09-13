@@ -1,6 +1,18 @@
 # frozen_string_literal: true
 
 module ApplicationHelper
+  SITE_NAME = "WIT Calendar"
+
+  # The name of the page. A view sets it with `content_for :title`.
+  def page_title(default = nil)
+    content_for?(:title) ? content_for(:title) : default
+  end
+
+  # The text for the browser tab. It always ends with the site name.
+  def browser_title(default = nil)
+    safe_join([ page_title(default), SITE_NAME ].compact_blank, " — ")
+  end
+
   def titleize_with_roman_numerals(title)
     result = HTMLEntities.new.decode(title.to_s)
 

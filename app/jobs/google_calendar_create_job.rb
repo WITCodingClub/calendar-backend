@@ -19,6 +19,10 @@ class GoogleCalendarCreateJob < ApplicationJob
       end
     end
 
-    user.sync_course_schedule(force: true)
+    # Route the follow-up sync through GoogleCalendarSyncJob rather than syncing
+    # inline: that job carries limits_concurrency keyed per user, so a
+    # creation-triggered sync can't race a concurrent sync and double-create
+    # remote events.
+    GoogleCalendarSyncJob.perform_later(user, force: true)
   end
 end

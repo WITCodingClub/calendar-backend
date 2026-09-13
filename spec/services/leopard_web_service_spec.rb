@@ -122,4 +122,73 @@ RSpec.describe LeopardWebService, type: :service do
       described_class.get_enrollment_info(term: 202710, course_reference_number: 16_160)
     end
   end
+
+  describe "#get_class_details faculty" do
+    # A trimmed copy of what Banner returns for CRN 16004 in term 202710. The
+    # faculty array sits beside meetingTime in the same fmt entry, and the
+    # service used to read only the meeting time.
+    let(:fmt_payload) do
+      {
+        "fmt" => [
+          {
+            "courseReferenceNumber" => "16004",
+            "faculty" => [
+              {
+                "displayName"      => "Elijah Sanderson",
+                "emailAddress"     => "sandersone1@wit.edu",
+                "primaryIndicator" => true
+              }
+            ],
+            "meetingTime" => {
+              "beginTime" => "1300", "endTime" => "1410",
+              "building" => "BEATT", "buildingDescription" => "Beatty Hall",
+              "room" => "420", "startDate" => "09/08/2026", "endDate" => "10/20/2026",
+              "monday" => true, "wednesday" => true, "friday" => true,
+              "tuesday" => false, "thursday" => false, "saturday" => false, "sunday" => false
+            }
+          }
+        ]
+      }
+    end
+
+    def service_with(fmt)
+      service = described_class.new(action: :get_class_details, term: 202710,
+                                    course_reference_number: 16_004)
+      allow(service).to receive(:handle_response).and_return({ title: "Calculus 2A" })
+      allow(service).to receive(:get_faculty_meeting_times).and_return(fmt)
+      allow(service).to receive(:get_enrollment_info).and_return(nil)
+      allow(service).to receive(:connection).and_return(instance_double(Faraday::Connection, get: nil))
+      service
+    end
+
+    it "keeps the instructor Banner reports alongside the meeting times" do
+      details = service_with(fmt_payload).call
+
+      expect(details[:faculty]).to eq([
+        {
+          "displayName"      => "Elijah Sanderson",
+          "emailAddress"     => "sandersone1@wit.edu",
+          "primaryIndicator" => true
+        }
+      ])
+    end
+
+    it "drops an entry with no email, which no faculty record can match" do
+      fmt_payload["fmt"].first["faculty"] << { "displayName" => "Staff", "emailAddress" => "" }
+
+      expect(service_with(fmt_payload).call[:faculty].size).to eq(1)
+    end
+
+    it "lists an instructor once when several meetings share them" do
+      fmt_payload["fmt"] << fmt_payload["fmt"].first.deep_dup
+
+      expect(service_with(fmt_payload).call[:faculty].size).to eq(1)
+    end
+
+    it "defaults primaryIndicator to false when Banner omits it" do
+      fmt_payload["fmt"].first["faculty"].first.delete("primaryIndicator")
+
+      expect(service_with(fmt_payload).call[:faculty].first["primaryIndicator"]).to be(false)
+    end
+  end
 end

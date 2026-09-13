@@ -1,4 +1,6 @@
+# frozen_string_literal: true
+
 class ApplicationMailer < ActionMailer::Base
-  default from: "WIT Calendar <noreply@wit.edu>"
+  default from: Rails.application.config.x.mailer_from
   layout "mailer"
 end

@@ -8,11 +8,13 @@ class Dashboard::CalendarPreferencesController < Dashboard::ApplicationControlle
   def index
     authorize current_user, :show?
 
-    preferences       = policy_scope(current_user.calendar_preferences)
-    @global_pref      = preferences.find_by(scope: :global)
-    @event_type_prefs = preferences.where(scope: :event_type)
-    @uni_cal_prefs    = preferences.where(scope: :uni_cal_category)
-    @global_pref    ||= current_user.calendar_preferences.build(scope: :global)
+    preferences        = policy_scope(current_user.calendar_preferences)
+    @global_pref       = preferences.find_by(scope: :global)
+    @uni_cal_pref      = preferences.find_by(scope: :uni_cal_global)
+    @event_type_prefs  = preferences.where(scope: :event_type)
+    @uni_cal_prefs     = preferences.where(scope: :uni_cal_category)
+    @global_pref     ||= current_user.calendar_preferences.build(scope: :global)
+    @uni_cal_pref    ||= current_user.calendar_preferences.build(scope: :uni_cal_global)
   end
 
   def update
@@ -30,19 +32,6 @@ class Dashboard::CalendarPreferencesController < Dashboard::ApplicationControlle
   private
 
   def set_calendar_preference
-    scope_param = params[:id]
-
-    @calendar_preference = if scope_param == "global"
-                              current_user.calendar_preferences.find_or_initialize_by(scope: :global)
-    elsif scope_param.to_s.start_with?("uni_cal:")
-                              category = scope_param.delete_prefix("uni_cal:")
-                              current_user.calendar_preferences.find_or_initialize_by(
-                                scope: :uni_cal_category, event_type: category
-                              )
-    else
-                              current_user.calendar_preferences.find_or_initialize_by(
-                                scope: :event_type, event_type: scope_param
-                              )
-    end
+    @calendar_preference = calendar_preference_for_scope(params[:id])
   end
 end

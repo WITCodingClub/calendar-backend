@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_12_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -125,6 +125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
     t.string "visibility"
     t.index ["user_id", "scope", "event_type"], name: "index_calendar_prefs_on_user_scope_type", unique: true
     t.index ["user_id"], name: "index_calendar_preferences_on_user_id"
+    t.index ["user_id"], name: "index_calendar_prefs_one_global_per_user", unique: true, where: "(scope = 0)"
   end
 
   create_table "console1984_commands", force: :cascade do |t|
@@ -224,10 +225,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
     t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'cancelled'::character varying]::text[])", name: "courses_status_valid"
   end
 
-  create_table "courses_faculties", id: false, force: :cascade do |t|
+  create_table "courses_faculties", force: :cascade do |t|
     t.bigint "course_id", null: false
     t.bigint "faculty_id", null: false
+    t.boolean "primary_indicator", default: false, null: false
     t.index ["course_id", "faculty_id"], name: "index_courses_faculties_on_course_id_and_faculty_id", unique: true
+    t.index ["course_id", "primary_indicator"], name: "index_courses_faculties_on_course_id_and_primary"
     t.index ["course_id"], name: "index_courses_faculties_on_course_id"
     t.index ["faculty_id"], name: "index_courses_faculties_on_faculty_id"
   end
@@ -365,6 +368,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
     t.bigint "requester_id", null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
+    t.index "LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)", name: "index_friendships_on_unordered_pair", unique: true
     t.index ["addressee_id", "status"], name: "index_friendships_on_addressee_id_and_status"
     t.index ["addressee_id"], name: "index_friendships_on_addressee_id"
     t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
@@ -411,7 +415,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
     t.datetime "updated_at", null: false
     t.index ["google_calendar_id"], name: "index_google_calendars_on_google_calendar_id", unique: true
     t.index ["last_synced_at"], name: "index_google_calendars_on_last_synced_at"
-    t.index ["oauth_credential_id"], name: "index_google_calendars_on_oauth_credential_id"
+    t.index ["oauth_credential_id"], name: "index_google_calendars_on_oauth_credential_id_unique", unique: true
   end
 
   create_table "oauth_credentials", force: :cascade do |t|
@@ -429,6 +433,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
     t.index ["token_expires_at"], name: "index_oauth_credentials_on_token_expires_at"
     t.index ["user_id", "provider", "email"], name: "index_oauth_credentials_on_user_provider_email", unique: true
     t.index ["user_id"], name: "index_oauth_credentials_on_user_id"
+  end
+
+  create_table "passkey_handoffs", force: :cascade do |t|
+    t.string "code_digest", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.string "purpose", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["code_digest"], name: "index_passkey_handoffs_on_code_digest", unique: true
+    t.index ["expires_at"], name: "index_passkey_handoffs_on_expires_at"
+    t.index ["user_id"], name: "index_passkey_handoffs_on_user_id"
+  end
+
+  create_table "passkeys", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "external_id", null: false
+    t.datetime "last_used_at"
+    t.string "nickname", null: false
+    t.string "public_key", null: false
+    t.bigint "sign_count", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["external_id"], name: "index_passkeys_on_external_id", unique: true
+    t.index ["user_id", "nickname"], name: "index_passkeys_on_user_id_and_nickname", unique: true
+    t.index ["user_id"], name: "index_passkeys_on_user_id"
   end
 
   create_table "rating_distributions", force: :cascade do |t|
@@ -758,7 +788,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
     t.jsonb "university_event_categories"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
-    t.index ["user_id"], name: "index_user_extension_configs_on_user_id"
+    t.index ["user_id"], name: "index_user_extension_configs_on_user_id_unique", unique: true
+  end
+
+  create_table "user_sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "device_label"
+    t.datetime "expires_at", null: false
+    t.string "ip_address"
+    t.string "jti", null: false
+    t.datetime "last_seen_at"
+    t.bigint "passkey_id"
+    t.datetime "revoked_at"
+    t.string "revoked_reason"
+    t.string "source", null: false
+    t.datetime "updated_at", null: false
+    t.string "user_agent"
+    t.bigint "user_id", null: false
+    t.index ["expires_at"], name: "index_user_sessions_on_expires_at"
+    t.index ["jti"], name: "index_user_sessions_on_jti", unique: true
+    t.index ["passkey_id"], name: "index_user_sessions_on_passkey_id"
+    t.index ["user_id", "revoked_at"], name: "index_user_sessions_on_user_id_and_revoked_at"
+    t.index ["user_id"], name: "index_user_sessions_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -797,6 +848,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  create_table "webauthn_challenges", force: :cascade do |t|
+    t.string "challenge", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.string "handle", null: false
+    t.string "purpose", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["expires_at"], name: "index_webauthn_challenges_on_expires_at"
+    t.index ["handle"], name: "index_webauthn_challenges_on_handle", unique: true
+    t.index ["user_id"], name: "index_webauthn_challenges_on_user_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_preferences", "users"
@@ -820,6 +884,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
   add_foreign_key "google_calendar_events", "google_calendars"
   add_foreign_key "google_calendars", "oauth_credentials"
   add_foreign_key "oauth_credentials", "users"
+  add_foreign_key "passkey_handoffs", "users"
+  add_foreign_key "passkeys", "users"
   add_foreign_key "rating_distributions", "faculties"
   add_foreign_key "related_professors", "faculties"
   add_foreign_key "related_professors", "faculties", column: "related_faculty_id"
@@ -836,4 +902,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_19_190000) do
   add_foreign_key "teacher_rating_tags", "faculties"
   add_foreign_key "university_calendar_events", "terms"
   add_foreign_key "user_extension_configs", "users"
+  add_foreign_key "user_sessions", "passkeys"
+  add_foreign_key "user_sessions", "users"
+  add_foreign_key "webauthn_challenges", "users"
 end

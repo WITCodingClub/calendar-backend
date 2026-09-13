@@ -89,6 +89,10 @@ module CourseScheduleSyncable
 
     result = service.update_calendar_events(events, force: force)
 
+    # Remove past university events the user no longer wants. update_calendar_events
+    # keeps every past event, so this is the only place they get deleted.
+    prune_unwanted_university_events
+
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
       # rubocop:disable Rails/SkipsModelValidations
@@ -306,8 +310,10 @@ module CourseScheduleSyncable
     end
 
     # Build weekly recurrence rule using ice_cube and export to iCalendar format.
-    # UNTIL is set to end-of-day UTC so the last occurrence is fully included.
-    until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59)
+    # UNTIL must be end-of-day in the *local* zone expressed as UTC. Using bare
+    # Time.utc(...,23,59,59) drops the final occurrence of evening (Eastern)
+    # classes, whose start instant falls after midnight UTC.
+    until_time = Time.zone.local(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59).utc
     rule = IceCube::Rule.weekly.day(meeting_time.day_of_week.to_sym).until(until_time)
     "RRULE:#{rule.to_ical}"
   end
@@ -517,6 +523,44 @@ module CourseScheduleSyncable
     events
   end
 
+  # Delete synced university events that the user no longer wants, including
+  # past ones. A user who turns off sync_university_events, or who unselects a
+  # category, keeps the old events on the calendar without this step, because
+  # update_calendar_events never deletes an event that is fully in the past.
+  # Holidays stay, because every user gets them.
+  # @return [Integer] the number of events deleted
+  def prune_unwanted_university_events
+    google_calendar = GoogleCalendar.for_user(self).first
+    return 0 unless google_calendar
+
+    synced = google_calendar.google_calendar_events.university_events_only.to_a
+    return 0 if synced.empty?
+
+    wanted   = wanted_university_event_ids(synced.map(&:university_calendar_event_id).uniq).to_set
+    unwanted = synced.reject { |event| wanted.include?(event.university_calendar_event_id) }
+    return 0 if unwanted.empty?
+
+    GoogleCalendarService.new(self).delete_events(unwanted)
+  end
+
+  # Of the given university event ids, the ones this user's settings still want.
+  # @param candidate_ids [Array<Integer>] university calendar event ids to check
+  # @return [Array<Integer>] the wanted subset of candidate_ids
+  def wanted_university_event_ids(candidate_ids)
+    return [] if candidate_ids.empty?
+
+    candidates = UniversityCalendarEvent.where(id: candidate_ids)
+    ids = candidates.holidays.ids
+
+    user_config = user_extension_config
+    return ids unless user_config&.sync_university_events
+
+    categories = (user_config.university_event_categories || []) - [ "holiday" ]
+    return ids if categories.empty?
+
+    ids | candidates.by_categories(categories).ids
+  end
+
   # Build events for final exams of enrolled courses.
   # time_scope: :future (default) — exams today or later (fast path)
   #             :past             — exams before today (historical backfill)
@@ -645,7 +689,8 @@ module CourseScheduleSyncable
   def tbd_room?(room)
     return false unless room
 
-    room.number == 0
+    # Room#number is a string column, so compare against the string "0".
+    room.number.to_s == "0"
     # Note: Room model in production only has 'number', not 'name'
     # If room.name is added later, uncomment these lines:
     # room.name&.downcase&.include?("tbd") ||

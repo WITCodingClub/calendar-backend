@@ -7,7 +7,7 @@
   <div class="m3-card overflow-hidden">
     <div class="px-5 py-4 border-b border-outline-variant">
       <h2 class="text-base font-semibold text-on-surface">Global Defaults</h2>
-      <p class="text-xs text-on-surface-variant mt-0.5">Applied to all events unless overridden per event type.</p>
+      <p class="text-xs text-on-surface-variant mt-0.5">Applied to your classes unless overridden per event type. University calendar events keep their own defaults.</p>
     </div>
     <div class="px-5 py-4">
       <%= form_with url: dashboard_calendar_preference_path("global"), method: :patch, class: "space-y-4" do |f| %>
@@ -39,6 +39,27 @@
           <%= f.submit "Save", class: "m3-btn-filled" %>
         </div>
       <% end %>
+    </div>
+  </div>
+
+  <!-- University calendar events -->
+  <div class="m3-card overflow-hidden">
+    <div class="px-5 py-4 border-b border-outline-variant">
+      <h2 class="text-base font-semibold text-on-surface">University Calendar Events</h2>
+      <p class="text-xs text-on-surface-variant mt-0.5">Holidays, deadlines, and other campus events.</p>
+    </div>
+    <div class="px-5 py-4 flex items-center justify-between gap-4">
+      <p class="text-sm text-on-surface">
+        Reminders:
+        <% if @uni_cal_pref.reminder_settings.nil? %>
+          the default for university events
+        <% elsif @uni_cal_pref.reminder_settings.empty? %>
+          off
+        <% else %>
+          your own choice
+        <% end %>
+      </p>
+      <%= link_to "Change", dashboard_notifications_path, class: "text-xs text-primary hover:underline" %>
     </div>
   </div>
 

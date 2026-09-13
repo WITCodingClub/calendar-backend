@@ -1,6 +1,8 @@
+<% content_for :title, "Faculty &amp; Staff" %>
+
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-on-surface">Faculty & Staff</h1>
+    <h1 class="text-2xl font-bold text-on-surface">Faculty &amp; Staff</h1>
     <div class="flex gap-2">
       <% if policy(Faculty).sync_directory? %>
         <%= button_to "Sync Directory", sync_directory_admin_faculties_path,
@@ -66,7 +68,7 @@
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                   <% if faculty.photo_url.present? %>
-                    <img src="<%= faculty.photo_url %>" alt="" class="h-10 w-10 rounded-full object-cover mr-3">
+                    <%= image_tag faculty.photo_url, alt: "", class: "h-10 w-10 rounded-full object-cover mr-3" %>
                   <% else %>
                     <div class="h-10 w-10 rounded-full bg-surface-container-high flex items-center justify-center mr-3">
                       <span class="text-on-surface-variant text-sm font-medium"><%= faculty.initials %></span>

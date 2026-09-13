@@ -4,7 +4,7 @@
     <div class="text-center mb-8">
       <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-container mb-4">
         <svg class="w-8 h-8 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       </div>
       <h1 class="text-2xl font-bold text-on-surface">WIT Calendar</h1>
@@ -28,13 +28,27 @@
       <%= link_to "/auth/google_oauth2?scope=email%20profile",
           class: "flex items-center justify-center gap-3 w-full px-4 py-3 border border-outline-variant rounded-xl bg-surface-container hover:bg-surface-container-high transition font-medium text-on-surface shadow-sm" do %>
         <svg class="w-5 h-5" viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
         </svg>
         Sign in with Google
       <% end %>
+
+      <%# Shown only once the browser says it can run the ceremony, so a device
+          with no authenticator never sees a button that cannot work. %>
+      <button type="button"
+              id="passkey-sign-in"
+              hidden
+              class="flex items-center justify-center gap-3 w-full px-4 py-3 border border-outline-variant rounded-xl bg-surface-container hover:bg-surface-container-high transition font-medium text-on-surface shadow-sm">
+        <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 1a5 5 0 0 0-5 5c0 2.2 1.4 4.1 3.4 4.7L10 12v2H8v2h2v2l2 2 2-2V10.7A5 5 0 0 0 12 1zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z" />
+        </svg>
+        Sign in with a passkey
+      </button>
+
+      <p id="passkey-error" hidden class="m3-alert-error text-sm"></p>
     </div>
 
     <p class="text-center text-xs text-on-surface-variant mt-6">
@@ -42,3 +56,87 @@
     </p>
   </div>
 </div>
+
+<script>
+  (function () {
+    const button = document.getElementById('passkey-sign-in');
+    const error  = document.getElementById('passkey-error');
+    const token  = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    function base64UrlToBytes(value) {
+      const padded = value.replace(/-/g, '+').replace(/_/g, '/');
+      const binary = atob(padded.padEnd(Math.ceil(padded.length / 4) * 4, '='));
+      const buffer = new ArrayBuffer(binary.length);
+      const bytes  = new Uint8Array(buffer);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return buffer;
+    }
+
+    function bytesToBase64Url(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    async function post(url, body) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        body: JSON.stringify(body ?? {})
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not sign in with that passkey.');
+      return data;
+    }
+
+    async function signIn() {
+      error.hidden = true;
+      button.disabled = true;
+      try {
+        const { handle, options } = await post(<%= passkey_session_options_path.to_json.html_safe %>);
+
+        const credential = await navigator.credentials.get({
+          publicKey: {
+            ...options,
+            challenge: base64UrlToBytes(options.challenge),
+            allowCredentials: (options.allowCredentials ?? []).map(function (c) {
+              return { ...c, id: base64UrlToBytes(c.id) };
+            })
+          }
+        });
+
+        const assertion = credential.response;
+        const result = await post(<%= passkey_session_path.to_json.html_safe %>, {
+          handle: handle,
+          credential: {
+            type: credential.type,
+            id: credential.id,
+            rawId: bytesToBase64Url(credential.rawId),
+            authenticatorAttachment: credential.authenticatorAttachment,
+            response: {
+              authenticatorData: bytesToBase64Url(assertion.authenticatorData),
+              clientDataJSON: bytesToBase64Url(assertion.clientDataJSON),
+              signature: bytesToBase64Url(assertion.signature),
+              userHandle: assertion.userHandle ? bytesToBase64Url(assertion.userHandle) : null
+            }
+          }
+        });
+
+        window.location.assign(result.redirect_to);
+      } catch (err) {
+        // Dismissing the prompt is a choice, not a failure worth shouting about.
+        if (!(err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'AbortError'))) {
+          error.textContent = err.message;
+          error.hidden = false;
+        }
+        button.disabled = false;
+      }
+    }
+
+    if (window.PublicKeyCredential) {
+      button.hidden = false;
+      button.addEventListener('click', signIn);
+    }
+  })();
+</script>

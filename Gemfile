@@ -39,6 +39,9 @@ gem "thruster", require: false
 # Authentication
 gem "devise", "~> 5.0"
 
+# Passkeys (WebAuthn) for quick extension sign-in on a new device
+gem "webauthn", "~> 3.4"
+
 # Google OAuth + Calendar API
 gem "omniauth-google-oauth2"
 gem "omniauth-rails_csrf_protection"

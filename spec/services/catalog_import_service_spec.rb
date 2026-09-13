@@ -153,4 +153,35 @@ RSpec.describe CatalogImportService do
       expect(imported_course).to have_attributes(seats_capacity: 5, seats_available: 1)
     end
   end
+
+  describe "instructors" do
+    def banner_faculty(name:, email:, primary: true)
+      { "displayName" => name, "emailAddress" => email, "primaryIndicator" => primary }
+    end
+
+    let(:sanderson) { banner_faculty(name: "Sanderson, Elijah", email: "sandersone1@wit.edu") }
+    let(:minevich)  { banner_faculty(name: "Minevich, Igor", email: "minevichi@wit.edu") }
+
+    it "attaches the instructor from the catalog payload" do
+      described_class.new([ catalog_course("faculty" => [ sanderson ]) ]).call!
+
+      expect(imported_course.faculties.map(&:email)).to eq([ "sandersone1@wit.edu" ])
+    end
+
+    it "detaches an instructor the catalog no longer lists" do
+      described_class.new([ catalog_course("faculty" => [ minevich ]) ]).call!
+      described_class.new([ catalog_course("faculty" => [ sanderson ]) ]).call!
+
+      expect(imported_course.faculties.map(&:email)).to eq([ "sandersone1@wit.edu" ])
+    end
+
+    it "lists the primary instructor first" do
+      described_class.new([
+        catalog_course("faculty" => [ minevich.merge("primaryIndicator" => false), sanderson ])
+      ]).call!
+
+      expect(imported_course.faculties.map(&:email))
+        .to eq([ "sandersone1@wit.edu", "minevichi@wit.edu" ])
+    end
+  end
 end

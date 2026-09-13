@@ -5,7 +5,8 @@ module Admin
     before_action :set_user, only: [
       :show, :edit, :update, :destroy,
       :revoke_oauth_credential, :refresh_oauth_credential,
-      :force_calendar_sync, :add_friend, :remove_friend
+      :force_calendar_sync, :add_friend, :remove_friend,
+      :revoke_session, :revoke_all_sessions
     ]
 
     def index
@@ -49,6 +50,12 @@ module Admin
                              []
       end
 
+      @sessions = if policy(@user).view_sessions?
+                    @user.user_sessions.active.recent_first.includes(:passkey)
+      else
+                    []
+      end
+
       @friends = @user.friends.to_a
       @incoming_requests = @user.incoming_friend_requests.includes(:requester).to_a
       @outgoing_requests = @user.outgoing_friend_requests.includes(:addressee).to_a
@@ -72,6 +79,28 @@ module Admin
       authorize @user
       @user.destroy
       redirect_to admin_users_path, notice: "User was successfully deleted."
+    end
+
+    # A student reporting a compromised account needs someone able to end the
+    # sessions on it, without waiting ninety days for the tokens to lapse.
+    def revoke_session
+      authorize @user, :revoke_session?
+
+      session = @user.user_sessions.find_by(id: params[:session_id])
+      if session.nil?
+        redirect_to admin_user_path(@user), alert: "That session no longer exists."
+        return
+      end
+
+      session.revoke!(reason: "ended by an admin")
+      redirect_to admin_user_path(@user), notice: "Session ended."
+    end
+
+    def revoke_all_sessions
+      authorize @user, :revoke_session?
+
+      UserSession.revoke_all_for(@user, reason: "ended by an admin")
+      redirect_to admin_user_path(@user), notice: "All sessions ended."
     end
 
     def revoke_oauth_credential

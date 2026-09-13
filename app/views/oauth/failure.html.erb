@@ -1,3 +1,5 @@
+<% content_for :title, "Connection Failed" %>
+
 <div class="m3-card p-8 w-full max-w-sm text-center">
   <div class="flex items-center justify-center mb-5">
     <div class="w-16 h-16 rounded-full bg-error-container flex items-center justify-center">
@@ -23,7 +25,7 @@
   if (window.opener) {
     window.opener.postMessage({
       type: 'oauth-failure',
-      error: '<%= j @error.to_s %>'
+      error: <%= @error.to_s.to_json.html_safe %>
     }, '*');
   }
 </script>

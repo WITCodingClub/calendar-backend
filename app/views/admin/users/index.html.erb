@@ -1,3 +1,5 @@
+<% content_for :title, "Users" %>
+
 <div class="flex justify-between items-center mb-6">
   <h1 class="text-2xl font-bold text-on-surface">Users</h1>
 </div>
@@ -15,4 +17,4 @@
   <% end %>
 </div>
 
-<%= render "users_table" %>
+<%= render "users_table", users: @users %>

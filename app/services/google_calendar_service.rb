@@ -178,9 +178,40 @@ class GoogleCalendarService
     stats
   end
 
+  # Delete tracked events from Google Calendar and from the database.
+  # Used for events that the reconcile pass in update_calendar_events keeps,
+  # such as past university events the user no longer wants.
+  def delete_events(db_events)
+    db_events = Array(db_events)
+    return 0 if db_events.empty?
+
+    google_calendar = GoogleCalendar.for_user(user).first
+    return 0 unless google_calendar
+
+    service = user_calendar_service
+    with_batch_throttling(db_events) do |db_event|
+      delete_event_from_calendar(service, google_calendar, db_event)
+    end
+
+    db_events.size
+  end
+
   def list_calendars
     service = service_account_calendar_service
     with_rate_limit_handling { service.list_calendar_lists }
+  end
+
+  # Deletes a single event from a calendar using the service account (which owns
+  # all app-created calendars). Used when a GoogleCalendarEvent row is destroyed
+  # so the live Google event doesn't linger as an orphan. Treats a missing event
+  # as success.
+  def delete_calendar_event(calendar_id, google_event_id)
+    service = service_account_calendar_service
+    with_rate_limit_handling { service.delete_event(calendar_id, google_event_id) }
+  rescue Google::Apis::ClientError => e
+    raise unless e.status_code == 404
+
+    Rails.logger.info("Event #{google_event_id} already absent from calendar #{calendar_id}")
   end
 
   def delete_calendar(calendar_id)
@@ -432,6 +463,14 @@ class GoogleCalendarService
     end
 
     google_calendar.google_calendar_events.create!(event_attributes)
+  rescue ActiveRecord::RecordNotUnique
+    # A concurrent sync already created the tracking row for this event, so the
+    # insert_event above produced a duplicate remote event. Remove the duplicate
+    # we just created rather than leaving it orphaned on the calendar.
+    Rails.logger.warn({ message: "Duplicate event race — removing redundant remote event",
+                        user_id: user&.id, calendar_id: calendar_id, google_event_id: created_event&.id }.to_json)
+    with_rate_limit_handling { service.delete_event(calendar_id, created_event.id) } if created_event&.id
+    nil
   end
 
   def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, preference_resolver: nil, template_renderer: nil)
@@ -512,12 +551,14 @@ class GoogleCalendarService
   def delete_event_from_calendar(service, google_calendar, db_event)
     calendar_id = google_calendar.google_calendar_id
     with_rate_limit_handling { service.delete_event(calendar_id, db_event.google_event_id) }
+    db_event.skip_remote_deletion = true
     db_event.destroy
   rescue Google::Apis::ClientError => e
     raise unless e.status_code == 404
 
     Rails.logger.warn({ message: "Event not found in Google Calendar, removing from database",
                         user_id: user.id, google_event_id: db_event.google_event_id }.to_json)
+    db_event.skip_remote_deletion = true
     db_event.destroy
   end
 
@@ -689,7 +730,7 @@ class GoogleCalendarService
 
     google_event.recurrence = event_data[:recurrence] if event_data[:recurrence].present?
 
-    if event_data[:reminder_settings].present? && event_data[:reminder_settings].is_a?(Array)
+    if event_data[:reminder_settings].is_a?(Array)
       valid_reminders = event_data[:reminder_settings].select do |reminder|
         reminder.is_a?(Hash) &&
           reminder["method"].present? &&
@@ -698,16 +739,16 @@ class GoogleCalendarService
           [ "email", "popup", "notification" ].include?(reminder["method"])
       end
 
-      if valid_reminders.any?
-        google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
-          use_default: false,
-          overrides:   valid_reminders.map do |reminder|
-            method  = reminder["method"] == "notification" ? "popup" : reminder["method"]
-            minutes = convert_time_to_minutes(reminder["time"], reminder["type"])
-            Google::Apis::CalendarV3::EventReminder.new(reminder_method: method, minutes: minutes)
-          end
-        )
-      end
+      # An empty list means "no reminders". It must still send use_default: false,
+      # otherwise Google applies the calendar default reminders.
+      google_event.reminders = Google::Apis::CalendarV3::Event::Reminders.new(
+        use_default: false,
+        overrides:   valid_reminders.map do |reminder|
+          method  = reminder["method"] == "notification" ? "popup" : reminder["method"]
+          minutes = convert_time_to_minutes(reminder["time"], reminder["type"])
+          Google::Apis::CalendarV3::EventReminder.new(reminder_method: method, minutes: minutes)
+        end
+      )
     end
 
     google_event.visibility = event_data[:visibility] if event_data[:visibility].present?

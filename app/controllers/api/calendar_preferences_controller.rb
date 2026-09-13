@@ -9,11 +9,13 @@ module Api
     def index
       preferences        = policy_scope(current_user.calendar_preferences)
       global_pref        = preferences.find_by(scope: :global)
+      uni_cal_pref       = preferences.find_by(scope: :uni_cal_global)
       event_type_prefs   = preferences.where(scope: :event_type)
       uni_cal_cat_prefs  = preferences.where(scope: :uni_cal_category)
 
       render json: {
         global:          global_pref ? CalendarPreferenceSerializer.new(global_pref).as_json : nil,
+        uni_cal_global:  uni_cal_pref ? CalendarPreferenceSerializer.new(uni_cal_pref).as_json : nil,
         event_types:     event_type_prefs.index_by(&:event_type).transform_values { |p| CalendarPreferenceSerializer.new(p).as_json },
         uni_cal_categories: uni_cal_cat_prefs.index_by(&:event_type).transform_values { |p| CalendarPreferenceSerializer.new(p).as_json }
       }
@@ -90,20 +92,7 @@ module Api
     private
 
     def set_calendar_preference
-      scope_param = params[:id] || params[:scope]
-
-      @calendar_preference = if scope_param == "global"
-                                current_user.calendar_preferences.find_or_initialize_by(scope: :global)
-      elsif scope_param.start_with?("uni_cal:")
-                                category = scope_param.delete_prefix("uni_cal:")
-                                current_user.calendar_preferences.find_or_initialize_by(
-                                  scope: :uni_cal_category, event_type: category
-                                )
-      else
-                                current_user.calendar_preferences.find_or_initialize_by(
-                                  scope: :event_type, event_type: scope_param
-                                )
-      end
+      @calendar_preference = calendar_preference_for_scope(params[:id] || params[:scope])
     end
   end
 end

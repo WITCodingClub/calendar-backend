@@ -179,17 +179,22 @@ class CatalogImportService < ApplicationService
     end
 
     if meeting_times.any?
-      MeetingTimesIngestService.call(
+      kept_ids = MeetingTimesIngestService.call(
         course: course,
         raw_meeting_times: meeting_times
       )
+
+      # Remove meeting times that no longer exist upstream (e.g. Banner changed a
+      # section's day/time), but only when the ingest produced rows — never wipe
+      # the course from an empty result. Preserves untouched rows and their events.
+      course.meeting_times.where.not(id: kept_ids).destroy_all if kept_ids.any?
     else
       Rails.logger.warn("No meeting times found for course CRN #{crn}")
     end
 
     faculty_data = course_data["faculty"] || []
     if faculty_data.any?
-      process_faculty(course, faculty_data)
+      FacultyIngestService.call(course: course, raw_faculty: faculty_data)
     else
       Rails.logger.warn("No faculty data found for course CRN #{crn}")
     end
@@ -237,52 +242,6 @@ class CatalogImportService < ApplicationService
 
       unless term_uid.to_s.match?(/^\d+$/)
         raise ArgumentError, "course at index #{index} has invalid term UID: #{term_uid}"
-      end
-    end
-  end
-
-  def process_faculty(course, faculty_data)
-    unique_faculty = faculty_data.uniq { |f| f["emailAddress"] || f[:emailAddress] }
-    existing_faculty_ids = course.faculty_ids.to_set
-
-    unique_faculty.each do |faculty_info|
-      next if faculty_info.blank?
-
-      email = (faculty_info["emailAddress"] || faculty_info[:emailAddress]).to_s.strip
-      display_name = (faculty_info["displayName"] || faculty_info[:displayName]).to_s.strip
-
-      next if email.blank?
-
-      first_name, last_name = parse_faculty_name(display_name)
-      next if first_name.blank? || last_name.blank?
-
-      faculty = Faculty.find_or_create_by!(email: email) do |f|
-        f.first_name = first_name
-        f.last_name = last_name
-      end
-
-      unless existing_faculty_ids.include?(faculty.id)
-        course.faculties << faculty
-        existing_faculty_ids.add(faculty.id)
-      end
-    end
-  end
-
-  def parse_faculty_name(display_name)
-    return [ nil, nil ] if display_name.blank?
-
-    if display_name.include?(",")
-      parts = display_name.split(",").map(&:strip)
-      last_name = parts[0]
-      first_name_parts = parts[1]&.split(/\s+/) || []
-      first_name = first_name_parts[0]
-      [ first_name, last_name ]
-    else
-      parts = display_name.split(/\s+/)
-      if parts.length >= 2
-        [ parts[0], parts[-1] ]
-      else
-        [ display_name, display_name ]
       end
     end
   end

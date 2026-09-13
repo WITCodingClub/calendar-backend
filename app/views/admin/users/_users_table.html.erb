@@ -13,7 +13,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-outline-variant">
-          <% @users.each do |user| %>
+          <% users.each do |user| %>
             <tr>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm text-on-surface font-medium"><%= user.email %></div>
@@ -50,9 +50,9 @@
       </table>
     </div>
 
-    <% if @users.respond_to?(:total_pages) %>
+    <% if users.respond_to?(:total_pages) %>
       <div class="px-6 py-4 border-t border-outline-variant bg-surface-container-low">
-        <%= paginate @users %>
+        <%= paginate users %>
       </div>
     <% end %>
   </div>

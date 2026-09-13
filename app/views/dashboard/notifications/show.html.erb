@@ -1,5 +1,14 @@
 <% content_for :title, "Notifications" %>
 
+<%
+  uni_reminders   = @university_event_preference.reminder_settings
+  uni_mode        = uni_reminders.nil? ? "default" : (uni_reminders.empty? ? "off" : "custom")
+  uni_reminder    = uni_reminders&.first || {}
+  uni_delivery    = uni_reminder["method"] == "email" ? "email" : "popup"
+  choices         = Dashboard::NotificationsController::UNIVERSITY_EVENT_REMINDER_CHOICES
+  selected_choice = [ uni_reminder["time"].to_s, uni_reminder["type"].to_s ].join(":")
+%>
+
 <div class="max-w-xl mx-auto space-y-6">
   <h1 class="text-2xl font-bold text-on-surface">Notifications</h1>
 
@@ -35,6 +44,65 @@
         <% end %>
       <% end %>
     </div>
+  </div>
+
+  <div class="m3-card overflow-hidden">
+    <div class="px-5 py-4 border-b border-outline-variant">
+      <h2 class="text-base font-semibold text-on-surface">University calendar events</h2>
+      <p class="text-xs text-on-surface-variant mt-0.5">
+        Holidays, deadlines, and other campus events. Your class reminders stay as they are.
+      </p>
+    </div>
+
+    <%= form_with url: university_events_dashboard_notifications_path, method: :patch, class: "px-5 py-4 space-y-4" do %>
+      <div class="space-y-2">
+        <label class="flex items-start gap-3 cursor-pointer">
+          <%= radio_button_tag :mode, "default", uni_mode == "default", class: "mt-1" %>
+          <span>
+            <span class="block text-sm text-on-surface">Default reminder</span>
+            <span class="block text-xs text-on-surface-variant">
+              9AM the day before for all day events, 30 minutes before for events with a start time.
+            </span>
+          </span>
+        </label>
+
+        <label class="flex items-start gap-3 cursor-pointer">
+          <%= radio_button_tag :mode, "off", uni_mode == "off", class: "mt-1" %>
+          <span>
+            <span class="block text-sm text-on-surface">No reminders</span>
+            <span class="block text-xs text-on-surface-variant">
+              University events stay on your calendar, but they do not notify you.
+            </span>
+          </span>
+        </label>
+
+        <label class="flex items-start gap-3 cursor-pointer">
+          <%= radio_button_tag :mode, "custom", uni_mode == "custom", class: "mt-1" %>
+          <span class="block text-sm text-on-surface">Custom reminder</span>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pl-7">
+        <div>
+          <label class="m3-label" for="university_event_reminder">When</label>
+          <%= select_tag :reminder,
+              options_for_select(choices.map { |choice| [ choice[:label], "#{choice[:time]}:#{choice[:type]}" ] }, selected_choice),
+              id: "university_event_reminder",
+              class: "m3-select" %>
+        </div>
+        <div>
+          <label class="m3-label" for="university_event_delivery">How</label>
+          <%= select_tag :delivery,
+              options_for_select([ [ "Notification", "popup" ], [ "Email", "email" ] ], uni_delivery),
+              id: "university_event_delivery",
+              class: "m3-select" %>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <%= submit_tag "Save", class: "m3-btn-filled", data: { disable_with: false } %>
+      </div>
+    <% end %>
   </div>
 
   <div class="m3-card p-4 text-sm text-on-surface-variant">

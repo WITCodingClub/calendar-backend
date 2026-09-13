@@ -1,3 +1,5 @@
+<% content_for :title, "OAuth Authorization Successful" %>
+
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold text-on-surface">OAuth Authorization Successful</h1>
@@ -12,14 +14,14 @@
     <div class="mb-4">
       <label class="block text-sm font-medium text-on-surface-variant mb-2">Refresh Token (copy this):</label>
       <div class="relative">
-        <input type="text" readonly id="refresh-token-input" value="<%= @refresh_token %>"
+        <input type="text" readonly autocomplete="off" id="refresh-token-input" value="<%= @refresh_token %>"
                class="m3-input w-full px-3 py-2 border border-outline-variant rounded-md font-mono text-sm pr-20 bg-surface-container text-on-surface">
         <button onclick="copyToken()" class="m3-btn-outlined absolute right-2 top-1.5 px-3 py-1 text-xs rounded">Copy</button>
       </div>
     </div>
     <div>
       <label class="block text-sm font-medium text-on-surface-variant mb-2">Access Token (reference only):</label>
-      <input type="text" readonly value="<%= @access_token&.first(50) %>..."
+      <input type="text" readonly autocomplete="off" value="<%= @access_token&.first(50) %>..."
              class="m3-input w-full px-3 py-2 border border-outline-variant rounded-md font-mono text-sm bg-surface-container text-on-surface">
     </div>
   </div>

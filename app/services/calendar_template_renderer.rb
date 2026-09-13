@@ -217,8 +217,30 @@ class CalendarTemplateRenderer
       datetime.strftime("%-I:%M %p")
     end
 
-    def check_for_disallowed_tags(_parsed_template)
+    # Templates may only contain plain text and {{ variable }} interpolation.
+    # Liquid tags ({% ... %}) — loops, includes, conditionals — are rejected so
+    # a user-supplied template can't do control flow, resource exhaustion, or
+    # pull in other content.
+    def check_for_disallowed_tags(parsed_template)
+      tags = collect_tag_names(parsed_template.root)
+      if tags.any?
+        raise InvalidTemplateError, "Disallowed tags: #{tags.uniq.join(', ')}"
+      end
+
       true
+    end
+
+    def collect_tag_names(node, names = [])
+      return names unless node.respond_to?(:nodelist) && node.nodelist
+
+      node.nodelist.each do |child|
+        if child.is_a?(Liquid::Tag)
+          names << (child.respond_to?(:tag_name) ? child.tag_name : child.class.name.demodulize.underscore)
+        end
+        collect_tag_names(child, names)
+      end
+
+      names
     end
 
     def extract_variables(parsed_template)

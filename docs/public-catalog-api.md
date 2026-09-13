@@ -3,12 +3,13 @@
 A read-only API for the WIT course schedule. It needs no authentication and no
 API key.
 
-The API has two surfaces over the same data:
+The API has three surfaces over the same data:
 
 | Surface | Endpoint | Use it for |
 | --- | --- | --- |
 | REST | `GET /api/v1/catalog/...` | Simple requests, caching, curl |
 | GraphQL | `POST /api/graphql` | One request for nested data |
+| CSV reports | `GET /reports/...` | Excel and Power BI, no code |
 
 Both surfaces use the same filter object, `Catalog::SectionQuery`. A filter
 gives the same result on both.
@@ -43,6 +44,73 @@ office locations.
 - GraphQL page size: 50 by default, 200 maximum.
 - GraphQL query depth: 12 maximum. Query complexity: 500 maximum.
 - GraphQL has no mutations.
+
+## CSV reports
+
+Three URLs answer with a CSV body. Open one in Excel with **Data > From Web**,
+or point Power BI at it. They need no code and no key, and they refresh in
+place. They carry the same cache headers as the rest of the API.
+
+| Report | Grain | One row is |
+| --- | --- | --- |
+| `GET /reports/sections?term_uid=<uid>` | section | one course section |
+| `GET /reports/meeting_times?term_uid=<uid>` | meeting time by room | one meeting, in one room, on one day |
+| `GET /reports/terms` | term | one term that has schedule data |
+
+`term_uid` is optional on the first two. Omit it to get every term at once.
+`GET /reports/terms` lists the valid values.
+
+### Which grain do I want?
+
+Start with `sections`. It is the grain most people expect: a section appears
+once, the way it appears on a schedule.
+
+```
+crn    subject            course_number  section_number  meeting_days  meeting_times  room
+16036  Mathematics (MATH)  2300          3               TR            10:00-11:45    WENTW 214
+17309  Mathematics (MATH)  1525          1A              MW            08:00-09:15    WENTW 206
+```
+
+Use `meeting_times` when the question is about a room or an hour, such as
+"what is in WENTW 206 on Tuesday at 08:00". There, a section that meets twice
+a week is two rows, one per day. That is the right shape for a room question
+and the wrong shape for a course list: a reader scanning it sees each course
+more than once and reads the extra rows as duplicates.
+
+```mermaid
+flowchart LR
+    Q{What are you counting?} -->|courses| S["/reports/sections"]
+    Q -->|room hours| M["/reports/meeting_times"]
+```
+
+`meeting_count` on a section row says how many `meeting_times` rows collapsed
+into it, so the two reports reconcile.
+
+### Reading the meeting columns
+
+`meeting_days` uses Banner's day codes, starting on Monday. `R` is Thursday
+and `U` is Sunday, because `T` and `S` are already taken.
+
+| Code | M | T | W | R | F | S | U |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Day | Mon | Tue | Wed | Thu | Fri | Sat | Sun |
+
+Most sections meet on one pattern, so `meeting_days` reads as `MW` and
+`meeting_times` as `08:00-09:15`. A section with more than one pattern, such
+as a lecture that also has a Friday lab in another room, lists one part per
+pattern separated by `; `. The parts line up across every meeting column:
+
+```
+meeting_days  meeting_times                room
+MW; F         09:00-10:15; 13:00-14:50     ANX 305; DOB 005
+```
+
+Faculty names inside a single cell are separated by `, `, so the two
+separators never collide.
+
+`room_capacity` on a section row is the largest room the section is scheduled
+into. It comes from 25Live and is blank when 25Live has no capacity for the
+room. It is not an official seat count for the room.
 
 ## REST
 

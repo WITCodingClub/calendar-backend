@@ -50,6 +50,20 @@ jobs:
       - name: Lint code for consistent style
         run: bin/rubocop -f github
 
+  herb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Lint HTML+ERB templates
+        run: npx --yes @herb-tools/linter
+
   test:
     runs-on: ubuntu-latest
 

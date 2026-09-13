@@ -97,4 +97,60 @@ RSpec.describe CourseProcessorService do
     expect(event.reload.meeting_time_id).to be_nil
     expect(GoogleCalendarEvent.orphaned).to include(event)
   end
+
+  describe "instructors" do
+    let(:banner_faculty) do
+      [ { "displayName" => "Elijah Sanderson", "emailAddress" => "sandersone1@wit.edu",
+          "primaryIndicator" => true } ]
+    end
+
+    it "attaches the instructor Banner reports" do
+      allow(LeopardWebService).to receive(:get_class_details)
+        .and_return(class_details.merge(faculty: banner_faculty))
+
+      process!
+
+      expect(Course.find_by(crn: 12345).faculties.map(&:email)).to eq([ "sandersone1@wit.edu" ])
+    end
+
+    it "prefers Banner over the name the extension posted" do
+      allow(LeopardWebService).to receive(:get_class_details)
+        .and_return(class_details.merge(faculty: banner_faculty))
+      courses_payload.first.merge!(instructor: "Igor Minevich", instructorEmail: "minevichi@wit.edu")
+
+      process!
+
+      expect(Course.find_by(crn: 12345).faculties.map(&:email)).to eq([ "sandersone1@wit.edu" ])
+    end
+
+    it "drops an instructor Banner no longer lists on re-import" do
+      allow(LeopardWebService).to receive(:get_class_details)
+        .and_return(class_details.merge(faculty: [ { "displayName" => "Igor Minevich",
+                                                     "emailAddress" => "minevichi@wit.edu" } ]))
+      process!
+
+      allow(LeopardWebService).to receive(:get_class_details)
+        .and_return(class_details.merge(faculty: banner_faculty))
+      process!
+
+      expect(Course.find_by(crn: 12345).faculties.map(&:email)).to eq([ "sandersone1@wit.edu" ])
+    end
+
+    it "falls back to the posted instructor when Banner reports none" do
+      courses_payload.first.merge!(instructor: "Igor Minevich", instructorEmail: "minevichi@wit.edu")
+
+      process!
+
+      expect(Course.find_by(crn: 12345).faculties.map(&:email)).to eq([ "minevichi@wit.edu" ])
+    end
+
+    it "records no instructor when the posted name carries no email" do
+      courses_payload.first.merge!(instructor: "Igor Minevich")
+
+      process!
+
+      expect(Course.find_by(crn: 12345).faculties).to be_empty
+      expect(Faculty.count).to eq(0)
+    end
+  end
 end

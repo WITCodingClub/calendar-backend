@@ -1,3 +1,5 @@
+<% content_for :title, "User Details" %>
+
 <div class="flex justify-between items-center mb-6">
   <h1 class="text-2xl font-bold text-on-surface">User Details</h1>
   <%= link_to "Back to Users", admin_users_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
@@ -23,7 +25,8 @@
         <dd class="mt-1 flex items-center gap-2">
           <code class="text-sm bg-surface-container-high px-2 py-1 rounded font-mono text-on-surface"><%= @user.public_id %></code>
           <button type="button"
-                  onclick="navigator.clipboard.writeText('<%= @user.public_id %>'); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
+                  data-copy="<%= @user.public_id %>"
+                  onclick="navigator.clipboard.writeText(this.dataset.copy); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
                   class="text-xs text-primary hover:text-primary font-medium">
             Copy
           </button>
@@ -45,7 +48,8 @@
           <% if @user.calendar_token.present? %>
             <code class="text-xs bg-surface-container-high px-2 py-1 rounded font-mono text-on-surface break-all"><%= @user.cal_url %></code>
             <button type="button"
-                    onclick="navigator.clipboard.writeText('<%= @user.cal_url %>'); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
+                    data-copy="<%= @user.cal_url %>"
+                  onclick="navigator.clipboard.writeText(this.dataset.copy); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
                     class="text-xs text-primary hover:text-primary font-medium">
               Copy
             </button>
@@ -102,7 +106,7 @@
       <summary class="flex justify-between items-center cursor-pointer list-none">
         <h2 class="text-xl font-bold text-on-surface">Friends (<%= @friends.size %>)</h2>
         <svg class="w-5 h-5 text-on-surface-variant transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
       </summary>
       <div class="mt-4">
@@ -175,6 +179,51 @@
     </details>
   </div>
 </div>
+
+<!-- Sessions Section -->
+<% if policy(@user).view_sessions? %>
+  <div class="mt-8 m3-card shadow-sm rounded-xl overflow-hidden">
+    <div class="px-6 py-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-on-surface">Signed-in Devices</h2>
+        <% if @sessions.any? %>
+          <%= button_to "End all sessions",
+                        revoke_all_sessions_admin_user_path(@user),
+                        method: :delete,
+                        form: { data: { turbo_confirm: "End every session for this account? They will have to sign in again." } },
+                        class: "text-sm px-3 py-1.5 rounded-full bg-error-container text-on-error-container hover:opacity-90" %>
+        <% end %>
+      </div>
+
+      <% if @sessions.any? %>
+        <div class="space-y-3">
+          <% @sessions.each do |session| %>
+            <div class="flex items-center justify-between bg-surface-container-low rounded-lg p-3">
+              <div class="flex flex-col gap-1">
+                <span class="text-sm text-on-surface"><%= session.device_label %></span>
+                <span class="text-xs text-on-surface-variant">
+                  <%= session.source == "passkey" ? "Passkey#{" · #{session.passkey.nickname}" if session.passkey}" : "Google sign-in" %>
+                  <% if session.ip_address.present? %> · <%= session.ip_address %><% end %>
+                </span>
+                <span class="text-xs text-on-surface-variant/70">
+                  Started <%= session.created_at.to_date %>
+                  <% if session.last_seen_at %> · last seen <%= time_ago_in_words(session.last_seen_at) %> ago<% end %>
+                </span>
+              </div>
+              <%= button_to "End",
+                            revoke_session_admin_user_path(@user, session_id: session.id),
+                            method: :delete,
+                            form: { data: { turbo_confirm: "End this session?" } },
+                            class: "text-sm px-3 py-1.5 rounded-full bg-surface-container-high text-on-surface hover:opacity-90" %>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <p class="text-sm text-on-surface-variant italic">No active sessions.</p>
+      <% end %>
+    </div>
+  </div>
+<% end %>
 
 <!-- OAuth Credentials Section -->
 <% if policy(@user).view_oauth_credentials? && @oauth_credentials.any? %>
@@ -258,9 +307,8 @@
         <h2 class="text-xl font-bold text-on-surface">Enrollments</h2>
         <% if @enrollments_by_term.size > 1 %>
           <select id="enrollments-term-select" class="px-3 py-1 text-sm border border-outline-variant rounded-md shadow-sm bg-surface text-primary">
-            <% @enrollments_by_term.keys.each_with_index do |term, index| %>
-              <option value="<%= term.id %>" <%= index == 0 ? 'selected' : '' %>><%= term.name %></option>
-            <% end %>
+            <%= options_for_select(@enrollments_by_term.keys.map { |term| [ term.name, term.id ] },
+                                   @enrollments_by_term.keys.first&.id) %>
           </select>
         <% end %>
       </div>

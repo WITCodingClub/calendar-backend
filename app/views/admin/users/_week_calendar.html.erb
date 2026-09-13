@@ -9,9 +9,7 @@
         <select class="px-3 py-1 text-sm border border-outline-variant rounded-md shadow-sm bg-surface text-primary"
                 data-action="change->schedule-collapse#switchTerm"
                 data-schedule-collapse-target="termSelect">
-          <% terms.each_with_index do |term, index| %>
-            <option value="<%= term.id %>" <%= index == 0 ? 'selected' : '' %>><%= term.name %></option>
-          <% end %>
+          <%= options_for_select(terms.map { |term| [ term.name, term.id ] }, terms.first&.id) %>
         </select>
       <% end %>
     </div>

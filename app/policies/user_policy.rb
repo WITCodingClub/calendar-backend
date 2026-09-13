@@ -14,6 +14,11 @@ class UserPolicy < ApplicationPolicy
 
   def view_user_details?         = show?
   def view_oauth_credentials?    = super_admin?
+  # Sessions are what an admin acts on when a student reports a compromise, so
+  # any admin can see and end them — narrower than the OAuth credentials below,
+  # which expose tokens.
+  def view_sessions?             = admin?
+  def revoke_session?            = admin?
   def manage_oauth_credentials?  = super_admin?
   def view_enrollments?          = super_admin?
   def view_calendar_sync_info?   = admin?

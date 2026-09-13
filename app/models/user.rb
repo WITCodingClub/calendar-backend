@@ -48,7 +48,23 @@ class User < ApplicationRecord
   include CalendarTokenable
   include EncodedIds::HashidIdentifiable
 
-  devise :database_authenticatable, :registerable,
+  # WIT mail itself runs on Microsoft, but the school also provisions every
+  # student a limited Google Workspace account on this domain. Only WIT can
+  # issue one, so a Google account on this domain still proves the person holds
+  # a WIT account. Every sign-in path keys the account to an address on this
+  # domain. Personal Google accounts attach later as oauth_credentials for
+  # calendar sync, never as the identity.
+  WIT_EMAIL_DOMAIN = "wit.edu"
+  WIT_EMAIL_REGEX  = /@#{Regexp.escape(WIT_EMAIL_DOMAIN)}\z/i
+
+  def self.wit_email?(email)
+    email.to_s.strip.match?(WIT_EMAIL_REGEX)
+  end
+
+  # No :registerable — accounts are provisioned only via Google OAuth
+  # (see AuthController#handle_user_login, which enforces the @wit.edu gate).
+  # Self-service password signup would bypass that domain restriction.
+  devise :database_authenticatable,
          :recoverable, :rememberable, :validatable, :confirmable, :trackable, :timeoutable, :lockable
 
   set_public_id_prefix :usr
@@ -66,6 +82,8 @@ class User < ApplicationRecord
   has_many :event_preferences, dependent: :destroy
   has_one :user_extension_config, dependent: :destroy
   has_many :security_events, dependent: :destroy
+  has_many :passkeys, dependent: :destroy
+  has_many :user_sessions, dependent: :destroy
 
   has_many :sent_friendships, class_name: "Friendship", foreign_key: :requester_id,
            dependent: :destroy, inverse_of: :requester

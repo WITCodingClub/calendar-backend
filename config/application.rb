@@ -21,6 +21,11 @@ module Calendar
 
     config.active_job.queue_adapter = :solid_queue
 
+    # Single source of truth for the sender address. Action Mailer and Devise
+    # both read it. The domain has to be one that is verified in Resend, so
+    # do not point it back at wit.edu.
+    config.x.mailer_from = ENV.fetch("MAILER_FROM", "WIT Calendar <noreply@send.witcc.dev>")
+
     config.mission_control.jobs.base_controller_class = "Admin::ApplicationController"
     config.mission_control.jobs.http_basic_auth_enabled = false
 
