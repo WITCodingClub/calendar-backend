@@ -13,7 +13,8 @@ class Course::ScheduleType
     online_sync_lecture: { code: "OLC", readable_description: "online synchronous lecture" },
     rotating_lab:        { code: "RLB", readable_description: "rotating laboratory" },
     rotating_lecture:    { code: "RLC", readable_description: "rotating lecture" },
-    study_abroad:        { code: "SAB", readable_description: "study abroad" }
+    study_abroad:        { code: "SAB", readable_description: "study abroad" },
+    study_away_domestic: { code: "SAD", readable_description: "study away domestic" }
   }.freeze
 
   attr_reader :type
