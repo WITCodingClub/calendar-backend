@@ -4,7 +4,7 @@ require "rails_helper"
 
 RSpec.describe "Api::CalendarPreferences", type: :request do
   let(:user) { User.create!(email: "api-prefs@wit.edu", password: "password123", confirmed_at: Time.current) }
-  let(:headers) { { "Authorization" => "Bearer #{JsonWebTokenService.encode(user_id: user.id)}" } }
+  let(:headers) { { "Authorization" => "Bearer #{api_token_for(user)}" } }
 
   def json = JSON.parse(response.body)
   def university_preference = user.calendar_preferences.find_by(scope: :uni_cal_global)

@@ -83,6 +83,7 @@ class User < ApplicationRecord
   has_one :user_extension_config, dependent: :destroy
   has_many :security_events, dependent: :destroy
   has_many :passkeys, dependent: :destroy
+  has_many :user_sessions, dependent: :destroy
 
   has_many :sent_friendships, class_name: "Friendship", foreign_key: :requester_id,
            dependent: :destroy, inverse_of: :requester

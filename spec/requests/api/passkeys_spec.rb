@@ -9,7 +9,7 @@ RSpec.describe "Api::Passkeys", type: :request do
   ORIGIN = "http://localhost:3000"
 
   let(:user) { User.create!(email: "passkey@wit.edu", password: "password123", confirmed_at: Time.current) }
-  let(:headers) { { "Authorization" => "Bearer #{JsonWebTokenService.encode(user_id: user.id)}" } }
+  let(:headers) { { "Authorization" => "Bearer #{api_token_for(user)}" } }
   let(:authenticator) { WebAuthn::FakeAuthenticator.new }
   let(:client) { WebAuthn::FakeClient.new(ORIGIN, authenticator: authenticator) }
 
@@ -97,7 +97,7 @@ RSpec.describe "Api::Passkeys", type: :request do
       challenge = json.dig("options", "challenge")
 
       intruder = User.create!(email: "intruder@wit.edu", password: "password123")
-      intruder_headers = { "Authorization" => "Bearer #{JsonWebTokenService.encode(user_id: intruder.id)}" }
+      intruder_headers = { "Authorization" => "Bearer #{api_token_for(intruder)}" }
 
       post "/api/user/passkeys",
            params: { handle: handle, credential: client.create(challenge: challenge) },

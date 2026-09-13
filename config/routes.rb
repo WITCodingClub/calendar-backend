@@ -77,6 +77,11 @@ Rails.application.routes.draw do
     post   "user/passkeys/authenticate",           to: "passkeys#authenticate"
     post   "user/passkeys/exchange",               to: "passkeys#exchange"
 
+    # Sessions — see where the account is signed in, and end any of it.
+    get    "user/sessions",             to: "sessions#index"
+    delete "user/sessions/:session_id", to: "sessions#destroy"
+    post   "user/sessions/revoke_all",  to: "sessions#revoke_all"
+
     post "user/is_processed",      to: "users#is_processed"
     post "user/processed_events",  to: "users#get_processed_events_by_term"
 
@@ -166,6 +171,13 @@ Rails.application.routes.draw do
           delete "oauth_credentials/:credential_id",
                  to: "users#revoke_oauth_credential",
                  as: :revoke_oauth_credential
+          # Ending sessions for an account someone reports as compromised.
+          delete "sessions/:session_id",
+                 to: "users#revoke_session",
+                 as: :revoke_session
+          delete "sessions",
+                 to: "users#revoke_all_sessions",
+                 as: :revoke_all_sessions
           post "oauth_credentials/:credential_id/refresh",
                to: "users#refresh_oauth_credential",
                as: :refresh_oauth_credential

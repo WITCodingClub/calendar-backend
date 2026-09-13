@@ -168,7 +168,7 @@ module Api
 
       render json: {
         pub_id: user.public_id.delete_prefix("usr_"),
-        jwt:    JsonWebTokenService.encode({ user_id: user.id })
+        jwt:    JsonWebTokenService.issue(user: user, source: "passkey", request: request, passkey: passkey)
       }, status: :ok
     rescue WebAuthn::Error => e
       Rails.logger.warn("Passkey sign-in rejected: #{e.class} #{e.message}")
@@ -199,7 +199,7 @@ module Api
 
       render json: {
         pub_id: user.public_id.delete_prefix("usr_"),
-        jwt:    JsonWebTokenService.encode({ user_id: user.id })
+        jwt:    JsonWebTokenService.issue(user: user, source: "passkey", request: request)
       }, status: :ok
     end
 
