@@ -148,6 +148,20 @@ class User < ApplicationRecord
     )
   end
 
+  # Returns true when a friendship was removed, false when there was none.
+  def remove_friend(other_user)
+    return false if other_user.nil? || other_user.id == id
+
+    friendship = Friendship.accepted.find_by(
+      "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
+      id, other_user.id, other_user.id, id
+    )
+    return false if friendship.nil?
+
+    friendship.destroy!
+    true
+  end
+
   def incoming_friend_requests
     Friendship.pending_for(self)
   end

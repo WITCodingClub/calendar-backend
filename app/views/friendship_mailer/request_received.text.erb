@@ -1,0 +1,13 @@
+New friend request
+
+Hi<%= " #{@addressee.first_name}" if @addressee.first_name.present? %>,
+
+<%= @requester.full_name %> sent you a friend request on WIT Calendar.
+Friends can see each other's class schedules.
+
+Review the request: <%= @requests_url %>
+
+If you do not know this person, you can decline the request.
+
+--
+WIT Calendar

@@ -26,12 +26,15 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
       return redirect_to dashboard_friends_path, alert: "You can't add yourself."
     end
 
-    request = FriendRequest.find_or_initialize_by(requester: current_user, addressee: addressee)
+    friendship = Friendship.new(requester: current_user, addressee: addressee)
 
-    if request.new_record? && request.save
+    # The self check above covers the only other validation, so a failure here
+    # means a request or friendship already exists in one direction or the other.
+    if friendship.save
       redirect_to dashboard_friends_path, notice: "Friend request sent to #{addressee.first_name}."
     else
-      redirect_to dashboard_friends_path, alert: "Could not send request."
+      redirect_to dashboard_friends_path,
+                  alert: "You already have a request or friendship with #{addressee.first_name}."
     end
   end
 
@@ -41,7 +44,7 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     fr = current_user.incoming_friend_requests.find_by(id: params[:id])
     return redirect_to dashboard_friends_path, alert: "Request not found." unless fr
 
-    fr.accept!
+    fr.accepted!
     redirect_to dashboard_friends_path, notice: "#{fr.requester.first_name} added as a friend."
   end
 
