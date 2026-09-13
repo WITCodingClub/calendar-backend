@@ -50,6 +50,11 @@ linter:
     html-require-script-nonce:
       enabled: false
 
+  # A .text.erb template is plain text or markdown, not HTML. The HTML rules
+  # would ask for &gt; in llms.txt, and that breaks the markdown.
+  exclude:
+    - "**/*.text.erb"
+
   # # Exit with error code when diagnostics of this severity or higher are present
   # # Valid values: error (default), warning, info, hint
   # failLevel: warning

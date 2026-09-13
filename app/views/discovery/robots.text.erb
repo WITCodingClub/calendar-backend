@@ -1,0 +1,20 @@
+# WIT Calendar
+#
+# Search engines and AI agents may read every public page and the public API.
+# The API reference is at <%= api_docs_url %>
+# The same reference as markdown is at <%= api_docs_url(format: :md) %>
+# A short index for AI agents is at <%= llms_url %>
+#
+# The disallowed paths need a sign-in or hold a personal calendar token.
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /users/
+Disallow: /auth/
+Disallow: /oauth/
+Disallow: /passkey
+Disallow: /calendar/
+
+Sitemap: <%= sitemap_url %>
