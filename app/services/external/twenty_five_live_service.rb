@@ -211,6 +211,10 @@ module External
 
         room.update!(attrs) if attrs.any?
       end
+
+      # Every building has now been looked for, found or not. The admin page
+      # reads this to tell "not in 25Live" apart from "not synced yet".
+      Building.update_all(twenty_five_live_checked_at: Time.current)
     end
 
     # ---------------------------------------------------------------------------

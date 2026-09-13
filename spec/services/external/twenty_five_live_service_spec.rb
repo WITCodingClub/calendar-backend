@@ -67,6 +67,13 @@ RSpec.describe External::TwentyFiveLiveService, type: :service do
       expect(rooms(:wt_310).reload.capacity).to eq(30)
     end
 
+    it "marks every building as checked, found in 25Live or not" do
+      StubbedService.new("spaces" => spaces_payload([ WENTWORTH_SPACE ])).send(:sync_spaces)
+
+      expect(buildings(:WT).reload.twenty_five_live_checked_at).to be_within(1.second).of(Time.current)
+      expect(buildings(:COMP).reload.twenty_five_live_checked_at).to be_within(1.second).of(Time.current)
+    end
+
     it "skips space when abbreviation doesn't match any building" do
       payload = spaces_payload([
         { "space_id" => 777, "space_name" => "NOPE 100", "building_id" => 99, "building_name" => "Unknown" }

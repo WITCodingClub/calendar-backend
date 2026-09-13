@@ -4,11 +4,19 @@ module Admin
   class BuildingsController < Admin::ApplicationController
     def index
       authorize Building
-      @buildings = Building.includes(:rooms).order(:abbreviation)
+      @buildings = Building.physical.includes(:rooms).order(:abbreviation)
+      @sync_in_progress = TwentyFiveLiveSyncJob.in_progress?
+      @last_checked_at = @buildings.filter_map(&:twenty_five_live_checked_at).max
     end
 
     def sync
       authorize Building, :sync?
+
+      if TwentyFiveLiveSyncJob.in_progress?
+        redirect_to admin_buildings_path, notice: "A 25Live space sync is already running."
+        return
+      end
+
       TwentyFiveLiveSyncJob.perform_later
       redirect_to admin_buildings_path, notice: "25Live space sync queued."
     end
@@ -29,8 +37,9 @@ module Admin
     def apply_all
       authorize Building, :apply_all?
 
-      count = Building.where.not(formal_name: nil).where.not("name = formal_name").count
-      Building.where.not(formal_name: nil).where.not("name = formal_name").find_each do |b|
+      mismatched = Building.physical.where.not(formal_name: nil).where.not("name = formal_name")
+      count = mismatched.count
+      mismatched.find_each do |b|
         b.update!(name: b.formal_name)
       end
 
