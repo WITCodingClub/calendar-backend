@@ -36,7 +36,8 @@ module TwentyFiveLive
       { layout_id: 32, layout_name: "Theater Style 400 Chairs" },
       { layout_id: 33, layout_name: "Theater Style 800 Chairs" },
       { layout_id: 34, layout_name: "Panel Gala" },
-      { layout_id: 35, layout_name: "Panel Summit" }
+      { layout_id: 35, layout_name: "Panel Summit" },
+      { layout_id: 36, layout_name: "Flex" }
     ].freeze
   end
 end
