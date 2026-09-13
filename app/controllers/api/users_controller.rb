@@ -6,20 +6,31 @@ module Api
 
     # POST /api/user/onboard
     #
-    # The extension sends a Google OAuth access token for the student's WIT
-    # Google account — the limited Workspace account the school provisions on
-    # the wit.edu domain. We verify it with Google and key the account to that
-    # verified @wit.edu address, so the token proves two things at once: the
-    # caller controls the Google identity, and only WIT could have issued it.
-    # A personal Google account is linked afterwards, for calendar sync only
-    # (POST /api/user/gcal), and never becomes the identity.
-    # See GoogleTokenVerifier.
+    # Identity is the student's WIT Google account — the limited Workspace
+    # account the school provisions on the wit.edu domain. We verify it with
+    # Google and key the account to that verified @wit.edu address, so it proves
+    # two things at once: the caller controls the Google identity, and only WIT
+    # could have issued it. A personal Google account is linked afterwards, for
+    # calendar sync only (POST /api/user/gcal), and never becomes the identity.
+    #
+    # The extension runs the PKCE flow and sends the authorization code, because
+    # Google wants a client_secret at the token endpoint and a published
+    # extension cannot keep one. We finish the exchange here. A caller that
+    # already holds an access token may send that instead.
+    # See GoogleAuthCodeExchanger and GoogleTokenVerifier.
     def onboard
-      access_token   = params[:google_access_token] || params[:access_token]
       preferred_name = params[:preferred_name]
 
+      access_token, exchange_error = resolve_google_access_token
+
+      if exchange_error
+        Rails.logger.warn("Onboard code exchange failed: #{exchange_error}")
+        render json: { error: "Could not complete Google sign-in" }, status: :unauthorized
+        return
+      end
+
       if access_token.blank?
-        render json: { error: "google_access_token is required" }, status: :bad_request
+        render json: { error: "google_auth_code or google_access_token is required" }, status: :bad_request
         return
       end
 
@@ -377,6 +388,26 @@ module Api
     end
 
     private
+
+    # Returns [access_token, error]. A code takes precedence over a token, so a
+    # client that sends both during a rollout gets the verified path.
+    def resolve_google_access_token
+      code = params[:google_auth_code].presence
+
+      if code
+        result = GoogleAuthCodeExchanger.exchange(
+          code:          code,
+          code_verifier: params[:code_verifier],
+          redirect_uri:  params[:redirect_uri]
+        )
+
+        return [ nil, result.error ] unless result.success?
+
+        return [ result.access_token, nil ]
+      end
+
+      [ params[:google_access_token].presence || params[:access_token].presence, nil ]
+    end
 
     # Resolves the account for a Google-verified WIT email. Accounts have always
     # been keyed on the WIT address, so returning users match here — including

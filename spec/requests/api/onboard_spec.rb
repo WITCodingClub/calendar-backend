@@ -117,6 +117,54 @@ RSpec.describe "Api::Users onboarding", type: :request do
       expect(existing.reload.calendar_preferences).to include(preference)
     end
 
+    it "finishes the exchange the extension cannot, then onboards" do
+      allow(GoogleAuthCodeExchanger).to receive(:exchange)
+        .with(code: "auth-code", code_verifier: "verifier", redirect_uri: "https://ext.chromiumapp.org/")
+        .and_return(GoogleAuthCodeExchanger::Result.new(success: true, access_token: "ya29.token"))
+      allow(GoogleTokenVerifier).to receive(:verify_access_token)
+        .with("ya29.token")
+        .and_return(verification(email: "lovelacea@wit.edu"))
+
+      post "/api/user/onboard", params: {
+        google_auth_code: "auth-code",
+        code_verifier:    "verifier",
+        redirect_uri:     "https://ext.chromiumapp.org/",
+        preferred_name:   "Ada Lovelace"
+      }
+
+      expect(response).to have_http_status(:ok)
+      expect(User.find_by(email: "lovelacea@wit.edu")).to be_present
+    end
+
+    it "refuses when Google will not trade the code" do
+      allow(GoogleAuthCodeExchanger).to receive(:exchange)
+        .and_return(GoogleAuthCodeExchanger::Result.new(success: false, error: "invalid_grant"))
+
+      post "/api/user/onboard", params: { google_auth_code: "spent-code", code_verifier: "v", redirect_uri: "https://x/" }
+
+      expect(response).to have_http_status(:unauthorized)
+      expect(response.body).not_to include("invalid_grant")
+      expect(User.count).to eq(0)
+    end
+
+    it "prefers the code when a client in mid-rollout sends both" do
+      allow(GoogleAuthCodeExchanger).to receive(:exchange)
+        .and_return(GoogleAuthCodeExchanger::Result.new(success: true, access_token: "from-code"))
+      allow(GoogleTokenVerifier).to receive(:verify_access_token)
+        .with("from-code")
+        .and_return(verification(email: "lovelacea@wit.edu"))
+
+      post "/api/user/onboard", params: {
+        google_auth_code:    "auth-code",
+        code_verifier:       "verifier",
+        redirect_uri:        "https://ext.chromiumapp.org/",
+        google_access_token: "stale-token"
+      }
+
+      expect(response).to have_http_status(:ok)
+      expect(GoogleTokenVerifier).to have_received(:verify_access_token).with("from-code")
+    end
+
     it "issues a token that expires" do
       stub_google(verification(email: "lovelacea@wit.edu"))
 
