@@ -19,6 +19,10 @@ Rails.application.routes.draw do
   get "/auth/google_oauth2/callback", to: "auth#google"
 
   # OAuth result pages (opened by Chrome extension)
+  # The passkey ceremony runs on this site, not in the extension, so the origin
+  # the browser reports stays the same for every browser and build.
+  get "/passkey", to: "passkeys#show"
+
   get "/oauth/success", to: "oauth#success"
   get "/oauth/failure", to: "oauth#failure"
 
@@ -68,8 +72,10 @@ Rails.application.routes.draw do
     post   "user/passkeys/registration_options", to: "passkeys#registration_options"
     post   "user/passkeys",                      to: "passkeys#create"
     delete "user/passkeys/:passkey_id",          to: "passkeys#destroy"
+    post   "user/passkeys/handoff",              to: "passkeys#handoff"
     post   "user/passkeys/authentication_options", to: "passkeys#authentication_options"
     post   "user/passkeys/authenticate",           to: "passkeys#authenticate"
+    post   "user/passkeys/exchange",               to: "passkeys#exchange"
 
     post "user/is_processed",      to: "users#is_processed"
     post "user/processed_events",  to: "users#get_processed_events_by_term"

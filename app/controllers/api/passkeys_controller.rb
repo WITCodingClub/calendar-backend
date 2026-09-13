@@ -16,7 +16,12 @@ module Api
   # builds. See config/initializers/webauthn.rb.
   class PasskeysController < ApiController
     skip_before_action :authenticate_user_from_token!,
-                       only: [ :authentication_options, :authenticate ]
+                       only: [ :authentication_options, :authenticate, :exchange ]
+
+    # The page runs the ceremony but holds no JWT, so the extension mints a
+    # handoff and the page spends it. Falls through to the normal token check
+    # when no handoff is present.
+    prepend_before_action :authenticate_user_from_handoff, only: [ :registration_options, :create ]
 
     # GET /api/user/passkeys
     def index
@@ -64,10 +69,16 @@ module Api
 
       challenge = WebauthnChallenge.consume(handle: params[:handle], purpose: "registration")
 
+      # Holding the handle is not authority to register. The caller proved who
+      # they are with a token or a handoff, and the challenge has to belong to
+      # that same account — otherwise a leaked handle would let anyone attach
+      # their own authenticator to someone else's account.
       if challenge.nil? || challenge.user_id != current_user.id
         render json: { error: "Passkey registration expired. Start again." }, status: :unprocessable_content
         return
       end
+
+      owner = current_user
 
       credential = WebAuthn::Credential.from_create(registration_credential_params)
       credential.verify(challenge.challenge)
@@ -76,13 +87,16 @@ module Api
         external_id: credential.id,
         public_key:  credential.public_key,
         sign_count:  credential.sign_count,
-        nickname:    params[:nickname].to_s.strip.presence || default_nickname
+        nickname:    params[:nickname].to_s.strip.presence || default_nickname(owner)
       )
       passkey.save!
 
+      # Spent only now, so a failed attempt can be retried with the same link.
+      PasskeyHandoff.consume(code: params[:handoff], purpose: "register") if params[:handoff].present?
+
       render json: { passkey: serialize(passkey) }, status: :created
     rescue WebAuthn::Error => e
-      Rails.logger.warn("Passkey registration rejected for user #{current_user.id}: #{e.class} #{e.message}")
+      Rails.logger.warn("Passkey registration rejected: #{e.class} #{e.message}")
       render json: { error: "Could not verify this passkey" }, status: :unprocessable_content
     end
 
@@ -143,19 +157,77 @@ module Api
 
       passkey.record_use!(credential.sign_count)
 
-      user  = passkey.user
-      token = JsonWebTokenService.encode({ user_id: user.id })
+      user = passkey.user
+
+      # The page asks for a handoff rather than the token: it has to send this
+      # back to the extension through a redirect, and a JWT in a URL lands in
+      # browser history and referer headers.
+      if ActiveModel::Type::Boolean.new.cast(params[:handoff])
+        return render json: { code: PasskeyHandoff.issue!(user: user, purpose: "session") }, status: :ok
+      end
 
       render json: {
         pub_id: user.public_id.delete_prefix("usr_"),
-        jwt:    token
+        jwt:    JsonWebTokenService.encode({ user_id: user.id })
       }, status: :ok
     rescue WebAuthn::Error => e
       Rails.logger.warn("Passkey sign-in rejected: #{e.class} #{e.message}")
       render json: { error: "Could not verify this passkey" }, status: :unauthorized
     end
 
+    # POST /api/user/passkeys/handoff
+    #
+    # Mints the code the extension hands to the passkey page so the page can
+    # register a passkey for the signed-in account.
+    def handoff
+      authorize Passkey.new(user: current_user), :create?
+
+      render json: { code: PasskeyHandoff.issue!(user: current_user, purpose: "register") }, status: :ok
+    end
+
+    # POST /api/user/passkeys/exchange
+    #
+    # Unauthenticated: trades the code the page redirected back with for a JWT.
+    # Same body as onboarding, so the extension keeps one code path.
+    def exchange
+      user = PasskeyHandoff.consume(code: params[:code], purpose: "session")
+
+      if user.nil?
+        render json: { error: "That sign-in link has expired. Start again." }, status: :unauthorized
+        return
+      end
+
+      render json: {
+        pub_id: user.public_id.delete_prefix("usr_"),
+        jwt:    JsonWebTokenService.encode({ user_id: user.id })
+      }, status: :ok
+    end
+
     private
+
+    def authenticate_user_from_handoff
+      code = params[:handoff].presence
+      return if code.nil?
+
+      # Peeked, not spent: registration is two calls and both need a caller.
+      # #create spends it once the passkey is actually stored.
+      user = PasskeyHandoff.peek(code: code, purpose: "register")
+
+      if user.nil?
+        render json: { error: "That registration link has expired. Start again." }, status: :unauthorized
+        return
+      end
+
+      @current_user = user
+    end
+
+    # A spent handoff already says who this is, and the page has no token to
+    # send. Anything without one still goes through the usual check.
+    def authenticate_user_from_token!
+      return if @current_user
+
+      super
+    end
 
     # The exact keys WebAuthn::Credential reads. The clientExtensionResults hash
     # is open ended and nothing here consults it, so it stays out.
@@ -175,8 +247,8 @@ module Api
       ).to_h
     end
 
-    def default_nickname
-      taken = current_user.passkeys.pluck(:nickname)
+    def default_nickname(owner)
+      taken = owner.passkeys.pluck(:nickname)
       return "Passkey" if taken.exclude?("Passkey")
 
       index = 2

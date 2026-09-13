@@ -25,7 +25,12 @@ WebAuthn.configure do |config|
   origins = ENV["WEBAUTHN_ORIGINS"].to_s.split(",").map(&:strip).reject(&:empty?)
   rp_id   = ENV["WEBAUTHN_RP_ID"].presence
 
-  if Rails.env.local? || Rails.env.test?
+  # The test suite must not depend on a developer's local tunnel, so it pins its
+  # own values rather than reading whatever .env happens to hold.
+  if Rails.env.test?
+    origins = [ "http://localhost:3000" ]
+    rp_id   = "localhost"
+  elsif Rails.env.local?
     origins = [ "http://localhost:3000" ] if origins.empty?
     rp_id ||= "localhost"
   end

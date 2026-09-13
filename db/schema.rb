@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_11_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_12_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -435,6 +435,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_11_130000) do
     t.index ["user_id"], name: "index_oauth_credentials_on_user_id"
   end
 
+  create_table "passkey_handoffs", force: :cascade do |t|
+    t.string "code_digest", null: false
+    t.datetime "created_at", null: false
+    t.datetime "expires_at", null: false
+    t.string "purpose", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["code_digest"], name: "index_passkey_handoffs_on_code_digest", unique: true
+    t.index ["expires_at"], name: "index_passkey_handoffs_on_expires_at"
+    t.index ["user_id"], name: "index_passkey_handoffs_on_user_id"
+  end
+
   create_table "passkeys", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "external_id", null: false
@@ -851,6 +863,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_11_130000) do
   add_foreign_key "google_calendar_events", "google_calendars"
   add_foreign_key "google_calendars", "oauth_credentials"
   add_foreign_key "oauth_credentials", "users"
+  add_foreign_key "passkey_handoffs", "users"
   add_foreign_key "passkeys", "users"
   add_foreign_key "rating_distributions", "faculties"
   add_foreign_key "related_professors", "faculties"
