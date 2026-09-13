@@ -10,7 +10,11 @@
   <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
   <%= javascript_importmap_tags %>
 </head>
-<body class="h-full bg-surface text-on-surface" data-controller="admin-layout">
+<%# The sidebar controller lives on body so the header menu button and the
+    small-screen overlay are both in its scope. %>
+<body class="h-full bg-surface text-on-surface"
+      data-controller="admin-sidebar"
+      data-action="keydown.esc@window->admin-sidebar#close turbo:before-cache@document->admin-sidebar#close">
   <%= render "shared/flash_messages" %>
   <%= render "shared/command_palette" %>
 
@@ -24,6 +28,7 @@
         <!-- Mobile menu button -->
         <button type="button"
                 class="lg:hidden p-2 rounded-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
+                aria-label="Open navigation"
                 data-action="click->admin-sidebar#open">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
