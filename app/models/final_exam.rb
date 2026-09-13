@@ -114,8 +114,20 @@ class FinalExam < ApplicationRecord
     course&.faculties&.map(&:full_name)&.join(", ").presence || "TBA"
   end
 
+  # Rows imported from the old backend hold the JSON text as a JSON string
+  # (double-encoded), so the serializer gives back a String, not an Array.
+  def combined_crns
+    value = super
+    return value unless value.is_a?(String)
+
+    parsed = JSON.parse(value)
+    parsed.is_a?(Array) ? parsed : [ parsed ]
+  rescue JSON::ParserError
+    value.split(/[\s,-]+/).compact_blank
+  end
+
   def combined_crns_display
-    (combined_crns || [ crn ]).join(", ")
+    (combined_crns.presence || [ crn ]).join(", ")
   end
 
   def start_datetime
