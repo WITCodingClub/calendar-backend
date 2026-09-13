@@ -187,7 +187,7 @@ class ImportFromBackendService
         end_time:      row["end_time"].to_i,
         location:      row["location"],
         notes:         row["notes"],
-        combined_crns: row["combined_crns"]
+        combined_crns: row["combined_crns"] && JSON.parse(row["combined_crns"])
       )
 
       if exam.save
