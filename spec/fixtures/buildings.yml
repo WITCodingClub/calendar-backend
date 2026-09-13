@@ -2,13 +2,14 @@
 #
 # Table name: buildings
 #
-#  id                  :bigint           not null, primary key
-#  abbreviation        :string           not null
-#  formal_name         :string
-#  name                :string           not null
-#  created_at          :datetime         not null
-#  updated_at          :datetime         not null
-#  twenty_five_live_id :integer
+#  id                          :bigint           not null, primary key
+#  abbreviation                :string           not null
+#  formal_name                 :string
+#  name                        :string           not null
+#  twenty_five_live_checked_at :datetime
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  twenty_five_live_id         :integer
 #
 # Indexes
 #
