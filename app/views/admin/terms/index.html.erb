@@ -20,7 +20,7 @@
         </thead>
         <tbody class="divide-y divide-outline-variant">
           <% @terms.each do |term| %>
-            <tr class="hover:bg-surface-container cursor-pointer transition" onclick="window.location='<%= admin_term_path(term) %>'">
+            <tr class="hover:bg-surface-container cursor-pointer transition" data-href="<%= admin_term_path(term) %>" onclick="window.location = this.dataset.href">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium">
                   <%= link_to term.name, admin_term_path(term), class: "text-primary hover:underline" %>

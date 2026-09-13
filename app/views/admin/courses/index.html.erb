@@ -32,7 +32,7 @@
         </thead>
         <tbody class="divide-y divide-outline-variant">
           <% @courses.each do |course| %>
-            <tr class="hover:bg-surface-container cursor-pointer transition" onclick="window.location='<%= admin_course_path(course) %>'">
+            <tr class="hover:bg-surface-container cursor-pointer transition" data-href="<%= admin_course_path(course) %>" onclick="window.location = this.dataset.href">
               <td class="px-6 py-4 whitespace-nowrap">
                 <%= link_to "#{course.subject} #{course.course_number}", admin_course_path(course), class: "text-sm font-medium text-primary hover:underline" %>
               </td>

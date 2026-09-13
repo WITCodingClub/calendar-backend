@@ -43,7 +43,7 @@
   <div class="m3-card rounded-xl border-l-4 border-primary p-4">
     <h3 class="text-sm font-semibold text-on-surface mb-2">Before you start</h3>
     <p class="text-sm text-on-surface-variant mb-2">Add this redirect URI to your Google Cloud Console OAuth client:</p>
-    <code class="block px-2 py-1 rounded bg-surface-container-high font-mono text-sm text-on-surface mb-3"><%= "#{request.base_url}/admin/oauth/callback" %></code>
+    <code class="block px-2 py-1 rounded bg-surface-container-high font-mono text-sm text-on-surface mb-3"><%= request.base_url %>/admin/oauth/callback</code>
     <ol class="list-decimal list-inside space-y-1 text-sm text-on-surface-variant">
       <li>Add the redirect URI above in Google Cloud Console</li>
       <li>Click "Authorize with Google" and sign in as the service account</li>

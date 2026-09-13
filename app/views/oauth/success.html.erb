@@ -31,8 +31,8 @@
   if (window.opener) {
     window.opener.postMessage({
       type: 'oauth-success',
-      email: '<%= j @email %>',
-      calendarId: '<%= j @calendar_id.to_s %>'
+      email: <%= @email.to_json.html_safe %>,
+      calendarId: <%= @calendar_id.to_s.to_json.html_safe %>
     }, '*');
   }
 

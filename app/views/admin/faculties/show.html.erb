@@ -13,7 +13,7 @@
     <div class="flex flex-col md:flex-row gap-6">
       <div class="flex-shrink-0">
         <% if @faculty.photo_url.present? %>
-          <img src="<%= @faculty.photo_url %>" alt="<%= @faculty.full_name %>" class="h-32 w-32 rounded-xl object-cover shadow">
+          <%= image_tag @faculty.photo_url, alt: @faculty.full_name, class: "h-32 w-32 rounded-xl object-cover shadow" %>
         <% else %>
           <div class="h-32 w-32 rounded-xl bg-surface-container-high flex items-center justify-center shadow">
             <span class="text-on-surface-variant text-3xl font-bold"><%= @faculty.initials %></span>
@@ -51,12 +51,12 @@
           <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Type</h3>
           <p class="mt-1">
             <% case @faculty.employee_type %>
-            <% when "faculty" %>
-              <span class="px-2 py-1 text-xs font-medium rounded-full bg-tertiary-container text-on-tertiary-container">Faculty</span>
-            <% when "staff" %>
-              <span class="px-2 py-1 text-xs font-medium rounded-full bg-surface-container-high text-on-surface">Staff</span>
-            <% else %>
-              <span class="px-2 py-1 text-xs font-medium rounded-full bg-secondary-container text-on-secondary-container">Unknown</span>
+              <% when "faculty" %>
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-tertiary-container text-on-tertiary-container">Faculty</span>
+              <% when "staff" %>
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-surface-container-high text-on-surface">Staff</span>
+              <% else %>
+                <span class="px-2 py-1 text-xs font-medium rounded-full bg-secondary-container text-on-secondary-container">Unknown</span>
             <% end %>
           </p>
         </div>
@@ -116,11 +116,13 @@
           </div>
         <% end %>
       </div>
-      <% if @faculty.rmp_id.present? %>
-        <p class="text-sm text-on-surface-variant">RMP ID: <span class="font-mono"><%= @faculty.rmp_id %></span></p>
-      <% else %>
-        <p class="text-sm text-on-surface-variant">Not linked to Rate My Professor.</p>
-      <% end %>
+      <p class="text-sm text-on-surface-variant">
+        <% if @faculty.rmp_id.present? %>
+          RMP ID: <span class="font-mono"><%= @faculty.rmp_id %></span>
+        <% else %>
+          Not linked to Rate My Professor.
+        <% end %>
+      </p>
     </div>
   <% end %>
 

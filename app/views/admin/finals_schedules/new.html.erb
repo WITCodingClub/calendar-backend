@@ -25,7 +25,7 @@
           <div data-controller="term-filter">
             <%= f.label :term_id, "Term", class: "block text-sm font-medium text-on-surface-variant mb-2" %>
 
-            <input type="text"
+            <input type="text" autocomplete="off"
                    placeholder="Type to filter terms..."
                    data-term-filter-target="search"
                    data-action="input->term-filter#filter"

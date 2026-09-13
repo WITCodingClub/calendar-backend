@@ -25,7 +25,8 @@
         <dd class="mt-1 flex items-center gap-2">
           <code class="text-sm bg-surface-container-high px-2 py-1 rounded font-mono text-on-surface"><%= @user.public_id %></code>
           <button type="button"
-                  onclick="navigator.clipboard.writeText('<%= @user.public_id %>'); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
+                  data-copy="<%= @user.public_id %>"
+                  onclick="navigator.clipboard.writeText(this.dataset.copy); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
                   class="text-xs text-primary hover:text-primary font-medium">
             Copy
           </button>
@@ -47,7 +48,8 @@
           <% if @user.calendar_token.present? %>
             <code class="text-xs bg-surface-container-high px-2 py-1 rounded font-mono text-on-surface break-all"><%= @user.cal_url %></code>
             <button type="button"
-                    onclick="navigator.clipboard.writeText('<%= @user.cal_url %>'); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
+                    data-copy="<%= @user.cal_url %>"
+                  onclick="navigator.clipboard.writeText(this.dataset.copy); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
                     class="text-xs text-primary hover:text-primary font-medium">
               Copy
             </button>
@@ -104,7 +106,7 @@
       <summary class="flex justify-between items-center cursor-pointer list-none">
         <h2 class="text-xl font-bold text-on-surface">Friends (<%= @friends.size %>)</h2>
         <svg class="w-5 h-5 text-on-surface-variant transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
       </summary>
       <div class="mt-4">
@@ -260,9 +262,8 @@
         <h2 class="text-xl font-bold text-on-surface">Enrollments</h2>
         <% if @enrollments_by_term.size > 1 %>
           <select id="enrollments-term-select" class="px-3 py-1 text-sm border border-outline-variant rounded-md shadow-sm bg-surface text-primary">
-            <% @enrollments_by_term.keys.each_with_index do |term, index| %>
-              <option value="<%= term.id %>" <%= index == 0 ? 'selected' : '' %>><%= term.name %></option>
-            <% end %>
+            <%= options_for_select(@enrollments_by_term.keys.map { |term| [ term.name, term.id ] },
+                                   @enrollments_by_term.keys.first&.id) %>
           </select>
         <% end %>
       </div>

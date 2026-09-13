@@ -24,9 +24,7 @@
             <input type="hidden" name="month" value="<%= @month_date.strftime("%Y-%m") %>">
           <% end %>
           <select name="term_uid" onchange="this.form.submit()" class="m3-select w-auto">
-            <% @terms.each do |term| %>
-              <option value="<%= term.uid %>" <%= "selected" if @selected_term&.id == term.id %>><%= term.name %></option>
-            <% end %>
+            <%= options_for_select(@terms.map { |term| [ term.name, term.uid ] }, @selected_term&.uid) %>
           </select>
         </form>
       <% end %>
@@ -115,7 +113,7 @@
     <div class="flex items-center justify-between">
       <%= link_to dashboard_schedule_path(view: "week", term_uid: @selected_term.uid, week_start: prev_week.iso8601),
           class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
         Prev
       <% end %>
 
@@ -131,7 +129,7 @@
       <%= link_to dashboard_schedule_path(view: "week", term_uid: @selected_term.uid, week_start: next_week.iso8601),
           class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
         Next
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
       <% end %>
     </div>
 
@@ -265,7 +263,7 @@
     <div class="flex items-center justify-between">
       <%= link_to dashboard_schedule_path(view: "month", term_uid: @selected_term.uid, month: prev_month.strftime("%Y-%m")),
           class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
         Prev
       <% end %>
 
@@ -279,7 +277,7 @@
       <%= link_to dashboard_schedule_path(view: "month", term_uid: @selected_term.uid, month: next_month.strftime("%Y-%m")),
           class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
         Next
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
       <% end %>
     </div>
 

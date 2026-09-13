@@ -101,7 +101,7 @@
   <% if @finals_schedule.error_message.present? %>
     <div class="m3-card shadow-sm rounded-xl overflow-hidden mb-6">
       <div class="px-6 py-4 bg-error-container border-b border-error flex justify-between items-center">
-        <h2 class="text-lg font-semibold text-on-error-container">Errors & Warnings</h2>
+        <h2 class="text-lg font-semibold text-on-error-container">Errors &amp; Warnings</h2>
         <span class="text-sm text-on-error-container"><%= @finals_schedule.error_message.lines.count %> messages</span>
       </div>
       <div class="px-6 py-4 bg-error-container max-h-64 overflow-y-auto">

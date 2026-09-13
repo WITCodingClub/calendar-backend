@@ -84,22 +84,25 @@
                   </p>
                 </div>
                 <div>
-                  <% if teacher["avgRating"] %>
-                    <p class="text-sm text-on-surface-variant">
-                      <strong>Rating:</strong>
+                  <p class="text-sm text-on-surface-variant">
+                    <strong>Rating:</strong>
+                    <% if teacher["avgRating"] %>
                       <span class="font-semibold <%= teacher["avgRating"] >= 4.0 ? 'text-on-tertiary-container' : teacher["avgRating"] >= 3.0 ? 'text-on-secondary-container' : 'text-on-error-container' %>">
                         <%= teacher["avgRating"] %> / 5.0
                       </span>
                       (<%= teacher["numRatings"] || 0 %> ratings)
-                    </p>
-                  <% else %>
-                    <p class="text-sm text-on-surface-variant"><strong>Rating:</strong> N/A</p>
-                  <% end %>
-                  <% if teacher["avgDifficulty"] %>
-                    <p class="text-sm text-on-surface-variant"><strong>Difficulty:</strong> <%= teacher["avgDifficulty"] %> / 5.0</p>
-                  <% else %>
-                    <p class="text-sm text-on-surface-variant"><strong>Difficulty:</strong> N/A</p>
-                  <% end %>
+                    <% else %>
+                      N/A
+                    <% end %>
+                  </p>
+                  <p class="text-sm text-on-surface-variant">
+                    <strong>Difficulty:</strong>
+                    <% if teacher["avgDifficulty"] %>
+                      <%= teacher["avgDifficulty"] %> / 5.0
+                    <% else %>
+                      N/A
+                    <% end %>
+                  </p>
                 </div>
               </div>
             </div>

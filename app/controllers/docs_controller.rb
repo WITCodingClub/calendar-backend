@@ -18,7 +18,11 @@ class DocsController < ActionController::Base
     raise ActionController::RoutingError, "No API reference" unless SOURCE.exist?
 
     document  = self.class.render_markdown(SOURCE.read)
-    @body     = document[:html]
+    # Safe to mark: the source is a file in this repository, not user input, and
+    # the renderer is configured with escape_html so any HTML inside the
+    # markdown comes out escaped. Saying so here keeps the reasoning next to the
+    # renderer rather than leaving a bare raw() in the template.
+    @body     = document[:html].html_safe # rubocop:disable Rails/OutputSafety
     @headings = document[:headings]
 
     expires_in CACHE_AGE, public: true

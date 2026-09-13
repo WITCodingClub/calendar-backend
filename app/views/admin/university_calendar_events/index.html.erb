@@ -119,13 +119,15 @@
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
                 <div><%= event.start_time.strftime("%b %d, %Y") %></div>
-                <% if event.all_day %>
-                  <div class="text-xs text-on-surface-variant">All Day</div>
-                <% else %>
-                  <div class="text-xs text-on-surface-variant">
+                <div class="text-xs text-on-surface-variant">
+                  <% if event.all_day %>
+                    All Day
+                  <% else %>
+
                     <%= event.start_time.strftime("%l:%M %p") %> – <%= event.end_time.strftime("%l:%M %p") %>
-                  </div>
-                <% end %>
+
+                  <% end %>
+                </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
                 <%= event.term&.name || event.academic_term.presence || "—" %>
