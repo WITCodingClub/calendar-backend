@@ -23,6 +23,11 @@ Rails.application.routes.draw do
   # the browser reports stays the same for every browser and build.
   get "/passkey", to: "passkeys#show"
 
+  # Signing in to the dashboard with the same passkey, ending in a Devise
+  # session rather than a token.
+  post "/users/passkey/options",  to: "users/passkey_sessions#options",  as: :passkey_session_options
+  post "/users/passkey/callback", to: "users/passkey_sessions#create",   as: :passkey_session
+
   get "/oauth/success", to: "oauth#success"
   get "/oauth/failure", to: "oauth#failure"
 

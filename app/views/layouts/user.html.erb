@@ -45,7 +45,9 @@
         <% end %>
         <div class="hidden xl:flex items-center gap-2 px-3 py-2 rounded-2xl">
           <div class="w-7 h-7 rounded-full bg-secondary-container flex items-center justify-center text-xs font-bold text-on-secondary-container flex-shrink-0">
-            <%= current_user.first_name[0].upcase %>
+            <%# Onboarding leaves first_name nil when a student has no preferred
+                name, and indexing nil takes the whole dashboard down. %>
+            <%= (current_user.first_name.presence || current_user.email).first.upcase %>
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-xs font-medium text-on-surface truncate"><%= current_user.full_name %></p>
