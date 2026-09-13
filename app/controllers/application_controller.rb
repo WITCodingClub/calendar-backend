@@ -22,6 +22,11 @@ class ApplicationController < ActionController::Base
 
   private
 
+  # Audits1984 (mounted at /admin/audits) calls this to find the auditor.
+  def find_current_auditor
+    current_user if current_user&.admin_access?
+  end
+
   def user_not_authorized
     flash[:alert] = "You are not authorized to perform this action."
     redirect_back_or_to unauthorized_path
