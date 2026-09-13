@@ -1,0 +1,88 @@
+# Local development setup. On a new machine, run:
+#
+#   mise trust
+#   mise bootstrap
+#
+# Then run `mise run dev`. Run `mise tasks` to see all tasks.
+
+min_version = { soft = "2026.9.0" }
+
+[settings]
+# Read Ruby from .ruby-version, which the Dockerfile and CI also use.
+idiomatic_version_file_enable_tools = ["ruby"]
+
+[tools]
+node = "24"
+
+[env]
+# Load your local secrets. Copy .env.example to .env to start.
+_.file = ".env"
+# Lets you type `rails`, `rubocop`, etc. without the `bin/` prefix.
+_.path = ["{{config_root}}/bin"]
+
+# System packages for `mise bootstrap`: Postgres, plus the native
+# libraries that Ruby and the pg and ruby-vips gems build against.
+# brew entries also work on Linux, so limit them to macOS.
+[bootstrap.packages]
+"brew:postgresql@17" = { os = "macos" }
+"brew:vips" = { os = "macos" }
+"brew:libyaml" = { os = "macos" }
+"brew:openssl@3" = { os = "macos" }
+"apt:postgresql" = "latest"
+"apt:libpq-dev" = "latest"
+"apt:libvips" = "latest"
+"apt:libyaml-dev" = "latest"
+"apt:libssl-dev" = "latest"
+"apt:build-essential" = "latest"
+
+[tasks.setup]
+description = "Install gems and prepare the database"
+run = "bin/setup --skip-server"
+
+# `mise bootstrap` runs a task named `bootstrap` as its last step.
+[tasks.bootstrap]
+description = "Run setup after mise bootstrap installs packages and tools"
+depends = ["setup"]
+
+[tasks.dev]
+description = "Start the web server and the Tailwind watcher"
+run = "bin/dev"
+raw = true
+
+[tasks."db:reset"]
+description = "Drop, create, and seed the development database"
+run = "bin/rails db:reset"
+
+[tasks."css:build"]
+description = "Build Tailwind CSS (request specs need it)"
+run = "bin/rails tailwindcss:build"
+
+[tasks.test]
+description = "Run the RSpec suite (pass paths to run a subset)"
+depends = ["css:build"]
+run = "bundle exec rspec"
+
+[tasks."lint:ruby"]
+description = "Lint Ruby with RuboCop"
+run = "bin/rubocop"
+
+[tasks."lint:erb"]
+description = "Lint HTML+ERB templates with Herb"
+# Match the version in .herb.yml.
+tools = { "npm:@herb-tools/linter" = "0.10.4" }
+run = "herb-lint"
+
+[tasks.lint]
+description = "Run all linters"
+depends = ["lint:ruby", "lint:erb"]
+
+[tasks.security]
+description = "Scan with Brakeman and bundler-audit"
+run = [
+  "bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error",
+  "bin/bundler-audit",
+]
+
+[tasks.ci]
+description = "Run lint, security scans, and tests, like CI"
+depends = ["lint", "security", "test"]

@@ -57,3 +57,6 @@ public/*.webp
 config/credentials/
 /.postgres-data
 /.postgres-socket
+
+# Personal mise overrides
+mise.local.toml
