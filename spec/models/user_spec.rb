@@ -46,7 +46,7 @@ require "rails_helper"
 
 RSpec.describe User, type: :model do
   def create_user(email)
-    User.create!(email: email, password: "password123")
+    create(:user, email: email)
   end
 
   describe "associations and validations" do

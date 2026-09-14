@@ -43,12 +43,7 @@ RSpec.describe Term, type: :model do
   end
 
   def create_term(year:, season:, **attrs)
-    described_class.create!(
-      year: year,
-      season: season,
-      uid: year * 100 + described_class.seasons.fetch(season.to_s),
-      **attrs
-    )
+    create(:term, year: year, season: season, **attrs)
   end
 
   describe ".chronological / .reverse_chronological" do
@@ -89,25 +84,17 @@ RSpec.describe Term, type: :model do
 
   describe ".enrolled_for" do
     it "returns only terms the user has enrollments in" do
-      user       = User.create!(email: "student@wit.edu", password: "password123")
-      other_user = User.create!(email: "other@wit.edu", password: "password123")
+      user       = create(:user)
+      other_user = create(:user)
 
       enrolled_term = create_term(year: 2026, season: :fall)
       other_term    = create_term(year: 2026, season: :summer)
 
-      course = Course.create!(
-        crn: 12345, term: enrolled_term, title: "Data Structures", subject: "COMP",
-        course_number: 2000, section_number: "01", schedule_type: "LEC",
-        start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15)
-      )
-      other_course = Course.create!(
-        crn: 54321, term: other_term, title: "Networks", subject: "COMP",
-        course_number: 3000, section_number: "01", schedule_type: "LEC",
-        start_date: Date.new(2026, 5, 11), end_date: Date.new(2026, 8, 14)
-      )
+      course       = create(:course, term: enrolled_term)
+      other_course = create(:course, term: other_term)
 
-      Enrollment.create!(user: user, course: course, term: enrolled_term)
-      Enrollment.create!(user: other_user, course: other_course, term: other_term)
+      create(:enrollment, user: user, course: course, term: enrolled_term)
+      create(:enrollment, user: other_user, course: other_course, term: other_term)
 
       expect(described_class.enrolled_for(user)).to contain_exactly(enrolled_term)
     end

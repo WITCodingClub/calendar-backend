@@ -41,7 +41,7 @@ RSpec.describe WebauthnChallenge do
     it { is_expected.to validate_presence_of(:expires_at) }
   end
 
-  let(:user) { User.create!(email: "challenge@wit.edu", password: "password123") }
+  let(:user) { create(:user) }
 
   it "hands back the challenge it was issued with" do
     record = described_class.issue!(challenge: "abc123", purpose: "authentication")

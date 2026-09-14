@@ -30,7 +30,7 @@ require "rails_helper"
 #  fk_rails_...  (user_id => users.id)
 #
 RSpec.describe CalendarPreference, type: :model do
-  let(:user) { User.create!(email: "prefs@wit.edu", password: "password123") }
+  let(:user) { create(:user) }
 
   before { allow(GoogleCalendarSyncJob).to receive(:perform_later) }
 

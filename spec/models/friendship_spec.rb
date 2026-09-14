@@ -44,14 +44,8 @@ RSpec.describe Friendship, type: :model do
     # at.
   end
 
-  let(:requester) do
-    User.create!(email: "requester@wit.edu", password: "password123",
-                 first_name: "Ada", last_name: "Lovelace")
-  end
-  let(:addressee) do
-    User.create!(email: "addressee@wit.edu", password: "password123",
-                 first_name: "Grace", last_name: "Hopper")
-  end
+  let(:requester) { create(:user) }
+  let(:addressee) { create(:user) }
 
   describe "the friend request email" do
     it "emails the requestee when a pending request is created" do
