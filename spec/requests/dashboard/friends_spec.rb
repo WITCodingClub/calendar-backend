@@ -3,15 +3,14 @@
 require "rails_helper"
 
 RSpec.describe "Dashboard::Friends", type: :request do
-  def create_user(email, first_name)
-    User.create!(email: email, password: "password123", first_name: first_name,
-                 last_name: "Student", confirmed_at: Time.current)
+  def create_user(first_name)
+    create(:user, first_name: first_name)
   end
 
   include ActiveJob::TestHelper
 
-  let(:current_user) { create_user("me@wit.edu", "Ada") }
-  let(:other_user)   { create_user("other@wit.edu", "Grace") }
+  let(:current_user) { create_user("Ada") }
+  let(:other_user)   { create_user("Grace") }
 
   before { sign_in current_user }
 
@@ -53,7 +52,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
 
     it "refuses a second request to the same user" do
-      Friendship.create!(requester: current_user, addressee: other_user)
+      create(:friendship, requester: current_user, addressee: other_user)
 
       expect {
         post dashboard_friends_path, params: { friend_id: other_user.public_id }
@@ -63,7 +62,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
 
     it "refuses a request when the other user already sent one" do
-      Friendship.create!(requester: other_user, addressee: current_user)
+      create(:friendship, requester: other_user, addressee: current_user)
 
       expect {
         post dashboard_friends_path, params: { friend_id: other_user.public_id }
@@ -75,7 +74,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
 
   describe "POST /dashboard/friends/:id/accept" do
     it "accepts an incoming request" do
-      friendship = Friendship.create!(requester: other_user, addressee: current_user)
+      friendship = create(:friendship, requester: other_user, addressee: current_user)
 
       post accept_dashboard_friend_path(friendship.id)
 
@@ -86,8 +85,8 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
 
     it "does not accept a request addressed to somebody else" do
-      third      = create_user("third@wit.edu", "Alan")
-      friendship = Friendship.create!(requester: other_user, addressee: third)
+      third      = create_user("Alan")
+      friendship = create(:friendship, requester: other_user, addressee: third)
 
       post accept_dashboard_friend_path(friendship.id)
 
@@ -98,7 +97,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
 
   describe "POST /dashboard/friends/:id/decline" do
     it "deletes an incoming request" do
-      friendship = Friendship.create!(requester: other_user, addressee: current_user)
+      friendship = create(:friendship, requester: other_user, addressee: current_user)
 
       expect { post decline_dashboard_friend_path(friendship.id) }
         .to change(Friendship, :count).by(-1)
@@ -109,7 +108,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
 
   describe "DELETE /dashboard/friends/:id" do
     it "removes an accepted friend" do
-      Friendship.create!(requester: other_user, addressee: current_user, status: :accepted)
+      create(:friendship, :accepted, requester: other_user, addressee: current_user)
 
       expect { delete dashboard_friend_path(other_user.public_id) }
         .to change(Friendship, :count).by(-1)
