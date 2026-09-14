@@ -178,7 +178,17 @@ class Rack::Attack
   # HELPERS
   # ===========================================================================
 
+  # Up to five rules ask for the user on one API request. Decode the token once
+  # and keep the answer on the request.
+  JWT_USER_ID_ENV_KEY = "rack.attack.jwt_user_id"
+
   def self.extract_user_id_from_jwt(req)
+    return req.env[JWT_USER_ID_ENV_KEY] if req.env.key?(JWT_USER_ID_ENV_KEY)
+
+    req.env[JWT_USER_ID_ENV_KEY] = decode_user_id_from_jwt(req)
+  end
+
+  def self.decode_user_id_from_jwt(req)
     auth_header = req.env["HTTP_AUTHORIZATION"]
     return nil unless auth_header&.start_with?("Bearer ")
 

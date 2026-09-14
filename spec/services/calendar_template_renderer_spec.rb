@@ -67,4 +67,40 @@ RSpec.describe CalendarTemplateRenderer do
     expect(context[:faculty]).to eq("")
     expect(context[:faculty_email]).to eq("")
   end
+
+  describe "#render" do
+    subject(:renderer) { described_class.new }
+
+    it "parses a template once, however many events use it" do
+      allow(Liquid::Template).to receive(:parse).and_call_original
+
+      3.times { renderer.render("{{title}} in {{room}}", { title: "Calculus", room: "420" }) }
+
+      # Once to check the template, once to keep it for rendering.
+      expect(Liquid::Template).to have_received(:parse).twice
+    end
+
+    it "fills each event's own values into a shared template" do
+      template = "{{course_code}}: {{title}}"
+
+      expect(renderer.render(template, { course_code: "MATH-1876-03", title: "Calculus 2A" })).to eq("MATH-1876-03: Calculus 2A")
+      expect(renderer.render(template, { course_code: "COMP-2000-01", title: "Data Structures" })).to eq("COMP-2000-01: Data Structures")
+    end
+
+    it "keeps variables outside the allowed list out of the output" do
+      expect(renderer.render("{{title}}{{secret}}", { title: "Calculus", secret: "hidden" })).to eq("Calculus")
+    end
+
+    it "falls back to the title every time a template is not allowed" do
+      template = "{% for x in (1..3) %}{{title}}{% endfor %}"
+
+      2.times do
+        expect(renderer.render(template, { title: "Calculus 2A" })).to eq("Calculus 2A")
+      end
+    end
+
+    it "returns an empty string for a blank template" do
+      expect(renderer.render("", { title: "Calculus" })).to eq("")
+    end
+  end
 end

@@ -97,7 +97,7 @@ class GoogleCalendarService
         event_with_prefs     = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
         if force || existing_event.data_changed?(event_with_prefs)
-          result = update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
+          result = update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force)
           stats[:updated] += 1 if result == :updated
           stats[:skipped] += 1 if result == :skipped_user_edit
         else
@@ -162,7 +162,7 @@ class GoogleCalendarService
         event_with_prefs = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
         if force || existing_event.data_changed?(event_with_prefs)
-          update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force, preference_resolver: preference_resolver, template_renderer: template_renderer)
+          update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force)
           stats[:updated] += 1
         else
           existing_event.mark_synced!
@@ -473,7 +473,10 @@ class GoogleCalendarService
     nil
   end
 
-  def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, preference_resolver: nil, template_renderer: nil)
+  # course_event already has the user's preferences applied: both callers apply
+  # them to decide whether the event changed. Applying them again gave the same
+  # data and cost a database lookup for every updated event.
+  def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false)
     unless force || db_event.data_changed?(course_event)
       db_event.mark_synced!
       return :skipped_no_change
@@ -509,8 +512,7 @@ class GoogleCalendarService
       end
     end
 
-    syncable   = resolve_syncable(course_event)
-    event_data = apply_preferences_to_event(syncable, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
+    event_data = course_event
 
     all_edited_fields = force ? [] : ((db_event.user_edited_fields || []) + newly_edited_fields).uniq
 

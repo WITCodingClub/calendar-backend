@@ -191,4 +191,60 @@ RSpec.describe LeopardWebService, type: :service do
       expect(service_with(fmt_payload).call[:faculty].first["primaryIndicator"]).to be(false)
     end
   end
+
+  describe "#get_class_details requests" do
+    let(:service) do
+      described_class.new(action: :get_class_details, term: 202710, course_reference_number: 16_004)
+    end
+
+    let(:connection) { instance_double(Faraday::Connection, get: nil) }
+
+    before do
+      allow(service).to receive(:connection).and_return(connection)
+      allow(service).to receive(:handle_response).and_return({ title: "Calculus 2A" })
+    end
+
+    it "sends the details, meeting times, and enrollment requests at the same time" do
+      in_flight = Queue.new
+      wait_for_all = lambda do |name, result|
+        in_flight << name
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5
+        sleep 0.01 while in_flight.size < 3 && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
+        raise "requests ran one at a time" if in_flight.size < 3
+
+        result
+      end
+      allow(connection).to receive(:get) { wait_for_all.call(:details, nil) }
+      allow(service).to receive(:get_faculty_meeting_times) { wait_for_all.call(:fmt, nil) }
+      allow(service).to receive(:get_enrollment_info) do
+        wait_for_all.call(:enrollment, { enrollment: { seats_available: 4, maximum: 30 } })
+      end
+
+      details = service.call
+
+      expect(details).to include(title: "Calculus 2A", seats_available: 4, seats_capacity: 30)
+    end
+
+    it "still raises a meeting times failure for a section that exists" do
+      allow(service).to receive(:get_faculty_meeting_times).and_raise(LeopardWebService::RequestError, "Banner is down")
+      allow(service).to receive(:get_enrollment_info).and_return(nil)
+
+      expect { service.call }.to raise_error(LeopardWebService::RequestError, "Banner is down")
+    end
+
+    it "returns nil for a missing section, even when the other requests fail" do
+      allow(service).to receive(:handle_response).and_return(nil)
+      allow(service).to receive(:get_faculty_meeting_times).and_raise(LeopardWebService::RequestError, "Banner is down")
+      allow(service).to receive(:get_enrollment_info).and_raise(LeopardWebService::RequestError, "Banner is down")
+
+      expect(service.call).to be_nil
+    end
+
+    it "keeps the details when only the enrollment request fails" do
+      allow(service).to receive(:get_faculty_meeting_times).and_return(nil)
+      allow(service).to receive(:get_enrollment_info).and_raise(LeopardWebService::RequestError, "Banner is down")
+
+      expect(service.call).to eq({ title: "Calculus 2A" })
+    end
+  end
 end

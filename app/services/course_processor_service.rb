@@ -28,13 +28,12 @@ class CourseProcessorService < ApplicationService
     orphan_exam_cache = FinalExam.orphan.where(crn: crns, term_id: term_ids)
                                  .index_by { |e| [ e.crn.to_s, e.term_id ] }
 
+    class_details = fetch_class_details(grouped_courses.keys)
+
     Term.with_deferred_date_updates do
-      grouped_courses.each_value do |course_meetings|
+      grouped_courses.each do |key, course_meetings|
         course_data = course_meetings.first
-        detailed_course_info = LeopardWebService.get_class_details(
-          term: course_data[:term],
-          course_reference_number: course_data[:crn]
-        )
+        detailed_course_info = class_details[key]
 
         unless detailed_course_info
           Rails.logger.warn("[CourseProcessorService] No class details returned for CRN #{course_data[:crn]} in term #{course_data[:term]}, skipping")
@@ -237,6 +236,30 @@ class CourseProcessorService < ApplicationService
   end
 
   private
+
+  # Banner answers one section per request, with two round trips each, and a
+  # schedule has several sections. Asked one after another, process_courses
+  # spent over a second waiting on Banner. The requests only use the network,
+  # so send a few at once. An error in any request still raises here, before
+  # anything is written.
+  LEOPARD_WEB_CONCURRENCY = 6
+
+  def fetch_class_details(keys)
+    keys.each_slice(LEOPARD_WEB_CONCURRENCY).each_with_object({}) do |batch, details|
+      threads = batch.map do |crn, term_uid|
+        Thread.new do
+          Thread.current.report_on_exception = false
+          Rails.application.executor.wrap do
+            LeopardWebService.get_class_details(term: term_uid, course_reference_number: crn)
+          end
+        end
+      end
+
+      ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
+        batch.zip(threads) { |key, thread| details[key] = thread.value }
+      end
+    end
+  end
 
   def validate_courses_data!
     raise ArgumentError, "courses cannot be nil" if courses.nil?

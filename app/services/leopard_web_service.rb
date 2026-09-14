@@ -91,15 +91,24 @@ class LeopardWebService < ApplicationService
     raise ArgumentError, "term is required" unless term
     raise ArgumentError, "course_reference_number is required" unless course_reference_number
 
-    response = connection.get("getClassDetails", {
-                                term: term,
-                                courseReferenceNumber: course_reference_number
-                              })
+    # Banner gives the details, the meeting times, and the seats on three
+    # separate requests. Send them together, not one after another. The
+    # results are still read in the old order, so a failed request or a
+    # missing section has the same effect as before.
+    connection
+    response, meeting_times_attempt, enrollment_attempt = Concurrently.map(
+      [
+        -> { connection.get("getClassDetails", { term: term, courseReferenceNumber: course_reference_number }) },
+        -> { attempt { get_faculty_meeting_times } },
+        -> { attempt { get_enrollment_info } }
+      ],
+      &:call
+    )
 
     details = handle_response(response, :class_details)
     return nil unless details
 
-    meeting_times_data = get_faculty_meeting_times
+    meeting_times_data = meeting_times_attempt.value!
 
     if meeting_times_data.present? && meeting_times_data["fmt"].present?
       details[:meeting_times] = meeting_times_data["fmt"].map do |mt_data|
@@ -132,7 +141,7 @@ class LeopardWebService < ApplicationService
     end
 
     begin
-      enrollment_data = get_enrollment_info
+      enrollment_data = enrollment_attempt.value!
       if enrollment_data
         details[:seats_available] = enrollment_data.dig(:enrollment, :seats_available)
         details[:seats_capacity]  = enrollment_data.dig(:enrollment, :maximum)
@@ -178,6 +187,22 @@ class LeopardWebService < ApplicationService
                  }
                end
                .uniq { |member| member["emailAddress"].downcase }
+  end
+
+  # The result of a request that ran in another thread. value! gives the result
+  # or raises the request's error, at the point the caller reads it.
+  Attempt = Struct.new(:value, :error) do
+    def value!
+      raise error if error
+
+      value
+    end
+  end
+
+  def attempt
+    Attempt.new(yield, nil)
+  rescue StandardError => e
+    Attempt.new(nil, e)
   end
 
   def get_faculty_meeting_times
