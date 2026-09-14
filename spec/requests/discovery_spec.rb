@@ -92,5 +92,73 @@ RSpec.describe "Discovery files", type: :request do
         expect(route[:controller]).not_to eq("api/catch_all"), "#{link} has no route"
       end
     end
+
+    it "lists the API catalog" do
+      get "/llms.txt", headers: crawler
+
+      expect(links).to include("http://example.com/.well-known/api-catalog")
+    end
+  end
+
+  describe "GET /.well-known/api-catalog" do
+    # Rails does not know the linkset media type, so it does not parse the body.
+    let(:linkset) { JSON.parse(response.body).fetch("linkset") }
+
+    it "answers a crawler with an RFC 9727 linkset" do
+      get "/.well-known/api-catalog", headers: crawler
+
+      expect(response).to have_http_status(:ok)
+      # Rails keeps every parameter except charset in media_type.
+      expect(response.media_type).to eq('application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"')
+    end
+
+    it "names each public surface of the API" do
+      get "/.well-known/api-catalog", headers: crawler
+
+      expect(linkset.map { |entry| entry["anchor"] }).to eq([
+        "http://example.com/api/v1/catalog",
+        "http://example.com/api/graphql",
+        "http://example.com/reports"
+      ])
+    end
+
+    it "links each surface to the HTML and markdown reference" do
+      get "/.well-known/api-catalog", headers: crawler
+
+      linkset.each do |entry|
+        types = entry.fetch("service-doc").map { |link| link["type"] }
+        expect(types).to eq([ "text/html", "text/markdown" ])
+      end
+    end
+
+    it "links to headings that exist in the reference" do
+      get "/.well-known/api-catalog", headers: crawler
+      fragments = linkset.map { |entry| URI(entry["service-doc"].first["href"]).fragment }
+
+      get "/docs/api", headers: crawler
+
+      fragments.each do |fragment|
+        expect(response.body).to include(%(id="#{fragment}")), "#{fragment} is not a heading"
+      end
+    end
+
+    it "does not list the token-only extension API" do
+      get "/.well-known/api-catalog", headers: crawler
+
+      expect(response.body).not_to include("/api/user")
+    end
+
+    it "sends the api-catalog link on a HEAD request" do
+      head "/.well-known/api-catalog", headers: crawler
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["Link"]).to eq('<http://example.com/.well-known/api-catalog>; rel="api-catalog"')
+    end
+
+    it "lets a proxy cache the catalog" do
+      get "/.well-known/api-catalog", headers: crawler
+
+      expect(response.headers["Cache-Control"]).to include("public")
+    end
   end
 end

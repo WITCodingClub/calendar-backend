@@ -13,6 +13,7 @@ Rails.application.routes.draw do
   get "/robots.txt",  to: "discovery#robots",  as: :robots,  format: false, defaults: { format: :text }
   get "/sitemap.xml", to: "discovery#sitemap", as: :sitemap, format: false, defaults: { format: :xml }
   get "/llms.txt",    to: "discovery#llms",    as: :llms,    format: false, defaults: { format: :text }
+  get "/.well-known/api-catalog", to: "discovery#api_catalog", as: :api_catalog, format: false, defaults: { format: :json }
 
   # Public API reference, rendered from docs/public-catalog-api.md.
   # /docs/api.md, or Accept: text/markdown, returns the markdown source.

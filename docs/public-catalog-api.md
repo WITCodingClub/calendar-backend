@@ -6,6 +6,7 @@ API key.
 This reference is also available as markdown at `/docs/api.md`. A client that
 sends `Accept: text/markdown` to `/docs/api` gets the same markdown.
 `/llms.txt` lists the main entry points for AI agents.
+`/.well-known/api-catalog` lists the three surfaces in the RFC 9727 format.
 
 The API has three surfaces over the same data:
 
