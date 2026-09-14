@@ -8,31 +8,28 @@
 #   COMP 2000-02  Fri 16:00-17:15                    Ada Byron
 #   MATH 1750-01  Mon 11:00-12:15  (spring term)
 RSpec.shared_context "catalog fixtures" do
-  let!(:fall_term)   { Term.create!(uid: 202710, year: 2026, season: :fall) }
-  let!(:spring_term) { Term.create!(uid: 202620, year: 2026, season: :spring) }
+  let!(:fall_term)   { create(:term, uid: 202710, year: 2026, season: :fall) }
+  let!(:spring_term) { create(:term, uid: 202620, year: 2026, season: :spring) }
 
-  let!(:building) { Building.create!(abbreviation: "ANNX", name: "Test Annex") }
-  let!(:room)     { Room.create!(building: building, number: "306") }
+  let!(:building) { create(:building, abbreviation: "ANNX") }
+  let!(:room)     { create(:room, building: building, number: "306") }
 
   let!(:ada) do
-    Faculty.create!(first_name: "Ada", last_name: "Byron", email: "byrona@wit.edu",
-                    title: "Professor", school: "School of Computing & Data Science",
-                    rmp_id: "rmp-ada")
+    create(:faculty, first_name: "Ada", last_name: "Byron", title: "Professor",
+                     school: "School of Computing & Data Science", rmp_id: "rmp-ada")
   end
 
-  let!(:grace) do
-    Faculty.create!(first_name: "Grace", last_name: "Hop", email: "hopg@wit.edu")
-  end
+  let!(:grace) { create(:faculty, first_name: "Grace", last_name: "Hop") }
 
   # Ada has real ratings; Grace has none, so the sentinel handling is covered.
   let!(:ada_ratings) do
-    RatingDistribution.create!(faculty: ada, avg_rating: 4.5, avg_difficulty: 2.5,
-                               num_ratings: 12, would_take_again_percent: 88.0)
+    create(:rating_distribution, faculty: ada, avg_rating: 4.5, avg_difficulty: 2.5,
+                                 num_ratings: 12, would_take_again_percent: 88.0)
   end
 
   let!(:grace_ratings) do
-    RatingDistribution.create!(faculty: grace, avg_rating: 0, avg_difficulty: 0,
-                               num_ratings: 0, would_take_again_percent: -1)
+    create(:rating_distribution, faculty: grace, avg_rating: 0, avg_difficulty: 0,
+                                 num_ratings: 0, would_take_again_percent: -1)
   end
 
   let!(:comp1000) { build_section(crn: 10_001, number: 1000, section: "01", faculty: ada) }
@@ -51,9 +48,9 @@ RSpec.shared_context "catalog fixtures" do
   end
 
   let!(:comp1000_final) do
-    FinalExam.create!(term: fall_term, course: comp1000, crn: comp1000.crn,
-                      exam_date: Date.new(2026, 12, 17), start_time: 800, end_time: 1000,
-                      location: "ANNX 306")
+    create(:final_exam, term: fall_term, course: comp1000, crn: comp1000.crn,
+                        exam_date: Date.new(2026, 12, 17), start_time: 800, end_time: 1000,
+                        location: "ANNX 306")
   end
 
   before do
@@ -67,21 +64,16 @@ RSpec.shared_context "catalog fixtures" do
 
   def build_section(crn:, number:, section:, subject: "Computer Science (COMP)",
                     term: fall_term, faculty: nil, credit_hours: 4)
-    course = term.courses.create!(
-      crn: crn, subject: subject, course_number: number, section_number: section,
-      title: "Course #{number}", schedule_type: :lecture, credit_hours: credit_hours,
-      start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15)
-    )
+    course = create(:course, term: term, crn: crn, subject: subject, course_number: number,
+                             section_number: section, title: "Course #{number}", credit_hours: credit_hours,
+                             start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15))
     course.faculties << faculty if faculty
     course
   end
 
   def add_meeting(course, day, begin_time, end_time, room: nil)
-    meeting = course.meeting_times.create!(
-      day_of_week: day, begin_time: begin_time, end_time: end_time,
-      meeting_schedule_type: :lecture, meeting_type: :class_meeting,
-      start_date: course.start_date, end_date: course.end_date
-    )
+    meeting = create(:course_meeting_time, course: course, day_of_week: day,
+                                           begin_time: begin_time, end_time: end_time)
     meeting.rooms << room if room
     meeting
   end
