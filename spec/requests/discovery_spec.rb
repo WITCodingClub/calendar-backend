@@ -188,6 +188,12 @@ RSpec.describe "Discovery files", type: :request do
       expect(fields.to_h.fetch("Canonical")).to eq("http://example.com/.well-known/security.txt")
     end
 
+    it "links to the security page on this host as the policy" do
+      get "/.well-known/security.txt", headers: crawler
+
+      expect(fields.to_h.fetch("Policy")).to eq("http://example.com/security")
+    end
+
     it "uses only the fields RFC 9116 defines" do
       get "/.well-known/security.txt", headers: crawler
 
