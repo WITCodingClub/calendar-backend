@@ -12,6 +12,8 @@
   <%= javascript_importmap_tags %>
 </head>
 <body class="h-full bg-background text-on-background">
+  <%# Stop Cloudflare Email Obfuscation, see layouts/admin.html.erb. %>
+  <!--email_off-->
   <%= render "shared/flash_messages" %>
 
   <div class="flex h-full min-h-screen">
@@ -109,5 +111,6 @@
     </div>
 
   </div>
+  <!--/email_off-->
 </body>
 </html>
