@@ -9,13 +9,8 @@ RSpec.describe "backfill rake tasks" do
   end
 
   let!(:term) do
-    Term.create!(
-      uid: 202710,
-      season: :fall,
-      year: 2026,
-      start_date: Date.new(2026, 9, 8),
-      end_date: Date.new(2026, 12, 15)
-    )
+    create(:term, uid: 202710, season: :fall, year: 2026,
+           start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15))
   end
 
   def run_task(name, *args)
@@ -25,7 +20,7 @@ RSpec.describe "backfill rake tasks" do
   end
 
   def course(crn:, section_number: "01", schedule_type: "LEC", **attrs)
-    Course.create!({
+    create(:course, {
       crn: crn,
       term: term,
       title: "General Chemistry",

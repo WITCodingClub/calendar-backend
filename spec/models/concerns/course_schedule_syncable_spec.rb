@@ -22,16 +22,14 @@ RSpec.describe CourseScheduleSyncable, type: :model do
   end
 
   let!(:holiday_event) do
-    calendar.google_calendar_events.create!(
-      google_event_id: "gcal_holiday", university_calendar_event: past_holiday,
-      end_time: past_holiday.end_time
-    )
+    create(:google_calendar_event, :for_university_event, google_calendar: calendar,
+           google_event_id: "gcal_holiday", university_calendar_event: past_holiday,
+           end_time: past_holiday.end_time)
   end
   let!(:campus_gcal_event) do
-    calendar.google_calendar_events.create!(
-      google_event_id: "gcal_campus", university_calendar_event: past_campus_event,
-      end_time: past_campus_event.end_time
-    )
+    create(:google_calendar_event, :for_university_event, google_calendar: calendar,
+           google_event_id: "gcal_campus", university_calendar_event: past_campus_event,
+           end_time: past_campus_event.end_time)
   end
 
   let(:google_service) { instance_double(Google::Apis::CalendarV3::CalendarService) }
