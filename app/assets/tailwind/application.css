@@ -5,10 +5,13 @@
    Ported from extension/client/src/app.css + main.css
    ───────────────────────────────────────────────────────────────────────────── */
 
-/* Roboto Flex variable font — self-hosted */
+/* Roboto Flex variable font, self-hosted from app/assets/fonts (Fontsource
+   @fontsource-variable/roboto-flex 5.3.0, latin wght axis, OFL-1.1). The URL
+   has no /assets prefix: Propshaft resolves "/RobotoFlex-Regular.woff2" to the
+   asset and adds the digest, but it cannot resolve "/assets/...". */
 @font-face {
   font-family: "Roboto Flex";
-  src: url("/assets/RobotoFlex-Regular.woff2") format("woff2");
+  src: url("/RobotoFlex-Regular.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
