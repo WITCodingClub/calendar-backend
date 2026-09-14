@@ -7,8 +7,9 @@ require "zlib"
 #
 # Only the columns in TABLES leave the source database. Faculty keep their names,
 # title, department, and school. Their email becomes a placeholder, and contact
-# details, raw directory HTML, and RateMyProfessor data stay behind. No table
-# that holds user data is read.
+# details, raw directory HTML, and RateMyProfessor data stay behind. Email
+# addresses in free text, such as event descriptions, become a placeholder. No
+# table that holds user data is read.
 class CatalogSnapshot
   class CatalogNotEmpty < StandardError; end
 
@@ -48,12 +49,33 @@ class CatalogSnapshot
 
   def self.placeholder_email(faculty_id) = "faculty-#{faculty_id}@example.com"
 
+  EMAIL_PATTERN = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/
+  REDACTED_EMAIL = "redacted@example.com"
+
+  # Free text that can name a person's address. ics_uid is not here: it is
+  # unique and can look like an address, so scrubbing it would break the import.
+  SCRUBBED_COLUMNS = {
+    "university_calendar_events" => %w[summary description location organization],
+    "final_exams"                => %w[notes location]
+  }.freeze
+
+  # Replaces every email address in SCRUBBED_COLUMNS with REDACTED_EMAIL.
+  def self.scrub_emails(tables)
+    SCRUBBED_COLUMNS.each do |table, columns|
+      tables.fetch(table, []).each do |row|
+        columns.each { |column| row[column] = row[column].gsub(EMAIL_PATTERN, REDACTED_EMAIL) if row[column].is_a?(String) }
+      end
+    end
+    tables
+  end
+
   # Rows come from pluck, so JSON and enum columns hold Ruby values. insert_all!
   # serializes them through the same attribute types, which keeps text columns
   # that store JSON, such as final_exams.combined_crns, from double encoding.
   def export(term_count:)
     scopes = export_scopes(term_count)
     tables = TABLES.to_h { |table, (_model, columns)| [ table, rows(scopes.fetch(table), columns) ] }
+    self.class.scrub_emails(tables)
     tables["faculties"].each { |row| row["email"] = self.class.placeholder_email(row["id"]) }
 
     { "format_version" => FORMAT_VERSION, "exported_at" => Time.current.iso8601, "tables" => tables }
