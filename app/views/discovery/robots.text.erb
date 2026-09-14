@@ -6,6 +6,9 @@
 # A short index for AI agents is at <%= llms_url %>
 #
 # The disallowed paths need a sign-in or hold a personal calendar token.
+#
+# Content signals (https://contentsignals.org/): search engines and AI agents
+# may use the pages to answer questions, but not to train models.
 
 User-agent: *
 Allow: /
@@ -16,5 +19,6 @@ Disallow: /auth/
 Disallow: /oauth/
 Disallow: /passkey
 Disallow: /calendar/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
 
 Sitemap: <%= sitemap_url %>
