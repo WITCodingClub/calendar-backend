@@ -29,6 +29,13 @@ RSpec.describe "Discovery files", type: :request do
       end
     end
 
+    it "declares content signals for every crawler" do
+      get "/robots.txt", headers: crawler
+
+      group = response.body[/^User-agent: \*\n(?:[^\n]+\n)*/]
+      expect(group).to include("Content-Signal: search=yes, ai-input=yes, ai-train=no\n")
+    end
+
     it "does not disallow the public API or the reference" do
       get "/robots.txt", headers: crawler
 
