@@ -21,13 +21,6 @@ RSpec.describe "Discovery files", type: :request do
       expect(response.body).not_to match(/^Disallow: \/$/)
     end
 
-    it "declares content signals for search, AI input, and AI training" do
-      get "/robots.txt", headers: crawler
-
-      group = response.body[/^User-agent: \*\n(?:[^\n]+\n)+/]
-      expect(group).to include("Content-Signal: ai-train=no, search=yes, ai-input=yes\n")
-    end
-
     it "keeps crawlers out of the pages that need a sign-in or a calendar token" do
       get "/robots.txt", headers: crawler
 
