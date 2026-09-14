@@ -18,6 +18,9 @@ Rails.application.routes.draw do
   # RFC 9727 API catalog: the list of public APIs that an agent reads first.
   get "/.well-known/api-catalog", to: "discovery#api_catalog", as: :api_catalog, format: false
 
+  # RFC 9116 security.txt: where to report a vulnerability.
+  get "/.well-known/security.txt", to: "discovery#security", as: :security_txt, format: false, defaults: { format: :text }
+
   # Public API reference, rendered from docs/public-catalog-api.md.
   # /docs/api.md, or Accept: text/markdown, returns the markdown source.
   get "/docs",     to: redirect("/docs/api")

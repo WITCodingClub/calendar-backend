@@ -162,6 +162,56 @@ RSpec.describe "Discovery files", type: :request do
     end
   end
 
+  describe "GET /.well-known/security.txt" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    let(:fields) { response.body.lines.grep_v(/^#/).map { |line| line.chomp.split(": ", 2) } }
+
+    it "answers with plain text" do
+      get "/.well-known/security.txt", headers: crawler
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["Content-Type"]).to eq("text/plain; charset=utf-8")
+    end
+
+    it "lists GitHub private reporting first, then the email contacts" do
+      get "/.well-known/security.txt", headers: crawler
+
+      contacts = fields.select { |name, _| name == "Contact" }.map(&:last)
+      expect(contacts).to eq([
+        "https://github.com/WITCodingClub/calendar-backend/security/advisories/new",
+        "mailto:calendarwit@gmail.com",
+        "mailto:lambertl@wit.edu",
+        "mailto:mayonej@wit.edu"
+      ])
+    end
+
+    it "expires in the future and less than one year ahead" do
+      travel_to Time.utc(2026, 9, 13, 15, 30) do
+        get "/.well-known/security.txt", headers: crawler
+      end
+
+      expires = fields.to_h.fetch("Expires")
+      expect(expires).to eq("2027-09-01T00:00:00Z")
+    end
+
+    it "names its canonical URL on this host" do
+      get "/.well-known/security.txt", headers: crawler
+
+      expect(fields.to_h.fetch("Canonical")).to eq("http://example.com/.well-known/security.txt")
+    end
+
+    it "links to the security page on this host as the policy" do
+      get "/.well-known/security.txt", headers: crawler
+
+      expect(fields.to_h.fetch("Policy")).to eq("http://example.com/security")
+    end
+
+    it "uses only the fields RFC 9116 defines" do
+      get "/.well-known/security.txt", headers: crawler
+
+      known = %w[Acknowledgments Canonical Contact Encryption Expires Hiring Policy Preferred-Languages CSAF]
+      expect(fields.map(&:first).uniq - known).to be_empty
   describe "GET /auth.md" do
     before { get "/auth.md", headers: crawler }
 

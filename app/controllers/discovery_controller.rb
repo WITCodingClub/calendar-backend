@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 # Serves the files that search engines and AI agents read first: /robots.txt,
-# /sitemap.xml, /llms.txt, /auth.md, and the API catalog at
+
+# /sitemap.xml, /llms.txt, /auth.md, /.well-known/security.txt, and the API catalog at
 # /.well-known/api-catalog.
-#
+
 # The files are templates, not files in public/, so each URL inside them comes
 # from the routes and the request host. A static file would name one host and
 # could point at a path that no longer exists.
@@ -24,6 +25,13 @@ class DiscoveryController < ActionController::Base
   def sitemap; end
 
   def llms; end
+
+  # RFC 9116 wants an Expires date less than one year ahead. The date moves
+  # forward on the first day of each month, so a proxy cache stays correct
+  # and the file never goes stale while the site runs.
+  def security
+    @expires = Time.current.utc.beginning_of_month.advance(years: 1)
+  end
 
   # A HEAD request gets the Link header only. RFC 9727 names the relation.
   def api_catalog
