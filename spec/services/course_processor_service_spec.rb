@@ -3,8 +3,8 @@
 require "rails_helper"
 
 RSpec.describe CourseProcessorService do
-  let(:user) { User.create!(email: "student@wit.edu", password: "password123") }
-  let!(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
+  let(:user) { create(:user) }
+  let!(:term) { create(:term, uid: 202710) }
 
   let(:class_details) do
     {
@@ -64,13 +64,9 @@ RSpec.describe CourseProcessorService do
     course = Course.find_by(crn: 12345)
     meeting_time = course.meeting_times.first
 
-    credential = user.oauth_credentials.create!(
-      provider: "google", uid: "google-uid", email: user.email, access_token: "token"
-    )
-    calendar = credential.create_google_calendar!(google_calendar_id: "cal_123")
-    event = calendar.google_calendar_events.create!(
-      google_event_id: "evt_123", meeting_time: meeting_time
-    )
+    credential = create(:oauth_credential, user: user)
+    calendar = create(:google_calendar, oauth_credential: credential)
+    event = create(:google_calendar_event, google_calendar: calendar, meeting_time: meeting_time)
 
     process!
 
@@ -81,14 +77,10 @@ RSpec.describe CourseProcessorService do
     process!
     course = Course.find_by(crn: 12345)
 
-    credential = user.oauth_credentials.create!(
-      provider: "google", uid: "google-uid", email: user.email, access_token: "token"
-    )
-    calendar = credential.create_google_calendar!(google_calendar_id: "cal_123")
+    credential = create(:oauth_credential, user: user)
+    calendar = create(:google_calendar, oauth_credential: credential)
     stale_meeting_time = course.meeting_times.find_by(day_of_week: :wednesday)
-    event = calendar.google_calendar_events.create!(
-      google_event_id: "evt_stale", meeting_time: stale_meeting_time
-    )
+    event = create(:google_calendar_event, google_calendar: calendar, meeting_time: stale_meeting_time)
 
     class_details[:meeting_times].first["days"] = { "monday" => true }
     process!

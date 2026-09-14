@@ -45,10 +45,6 @@
 require "rails_helper"
 
 RSpec.describe User, type: :model do
-  def create_user(email)
-    create(:user, email: email)
-  end
-
   describe "associations and validations" do
     subject { create(:user) }
 
@@ -73,11 +69,11 @@ RSpec.describe User, type: :model do
   end
 
   describe "#remove_friend" do
-    let(:user)   { create_user("me@wit.edu") }
-    let(:friend) { create_user("friend@wit.edu") }
+    let(:user)   { create(:user) }
+    let(:friend) { create(:user) }
 
     it "deletes the friendship when this user sent the request" do
-      Friendship.create!(requester: user, addressee: friend, status: :accepted)
+      create(:friendship, :accepted, requester: user, addressee: friend)
 
       expect(user.remove_friend(friend)).to be(true)
       expect(user.friends).to be_empty
@@ -85,14 +81,14 @@ RSpec.describe User, type: :model do
     end
 
     it "deletes the friendship when the other user sent the request" do
-      Friendship.create!(requester: friend, addressee: user, status: :accepted)
+      create(:friendship, :accepted, requester: friend, addressee: user)
 
       expect(user.remove_friend(friend)).to be(true)
       expect(user.friends).to be_empty
     end
 
     it "leaves a pending request alone" do
-      friendship = Friendship.create!(requester: user, addressee: friend)
+      friendship = create(:friendship, requester: user, addressee: friend)
 
       expect(user.remove_friend(friend)).to be(false)
       expect(friendship.reload).to be_pending

@@ -22,7 +22,7 @@ module Api
           {
             id: category,
             name: category.titleize,
-            description: university_event_category_description(category)
+            description: UniversityCalendarEvent.category_description(category)
           }
         end
       }, status: :ok
@@ -74,26 +74,6 @@ module Api
     rescue => e
       Rails.logger.error("Error updating user extension config for user #{current_user.id}: #{e.message}")
       render json: { error: "Failed to update user extension config" }, status: :internal_server_error
-    end
-
-    private
-
-    def university_event_category_description(category)
-      case category
-      when "holiday"       then "Official university holidays and breaks (always synced)"
-      when "term_dates"    then "Semester start and end dates (classes begin/end)"
-      when "registration"  then "Registration periods and enrollment dates"
-      when "deadline"      then "Academic deadlines (add/drop, withdrawal, payment due)"
-      when "study_day"     then "Study days (no-class days before finals)"
-      when "finals"        then "Final exam schedules and exam periods"
-      when "graduation"    then "Commencement ceremonies and graduation events"
-      when "academic"      then "Other academic events and calendar announcements"
-      when "campus_event"  then "Campus activities, concerts, and student events"
-      when "meeting"       then "University meetings and administrative events"
-      when "exhibit"       then "Art exhibits, displays, and gallery events"
-      when "announcement"  then "Important university announcements and notices"
-      else                      "Other university events"
-      end
     end
   end
 end

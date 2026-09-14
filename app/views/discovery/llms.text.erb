@@ -7,6 +7,9 @@ The API contains course schedule data only: terms, subjects, course sections, me
 ## Docs
 
 - [Course Catalog API reference](<%= api_docs_url(format: :md) %>): The full reference as markdown. It covers the REST, GraphQL, and CSV endpoints, the filters, the limits, and examples.
+- [OpenAPI description](<%= api_openapi_url %>): OpenAPI 3.1 description of the REST endpoints, as JSON.
+- [API catalog](<%= api_catalog_url %>): RFC 9727 linkset. It lists each API with its description, its reference, and its health check.
+- [auth.md](<%= auth_md_url %>): How an agent gets a credential for the endpoints that hold one person's data, and how to use it. The catalog needs no credential.
 
 ## API
 
@@ -21,3 +24,4 @@ The API contains course schedule data only: terms, subjects, course sections, me
 - [Instructors](<%= api_v1_catalog_instructors_url %>): JSON list of the faculty who teach at least one section.
 - [Meeting times CSV](<%= meeting_times_report_url %>): One row for each meeting, in one room, on one day.
 - [Terms CSV](<%= terms_report_url %>): The terms that have schedule data.
+- [GraphQL schema](<%= api_graphql_schema_url %>): The GraphQL schema in SDL.

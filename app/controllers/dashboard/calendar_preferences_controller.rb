@@ -15,6 +15,7 @@ class Dashboard::CalendarPreferencesController < Dashboard::ApplicationControlle
     @uni_cal_prefs     = preferences.where(scope: :uni_cal_category)
     @global_pref     ||= current_user.calendar_preferences.build(scope: :global)
     @uni_cal_pref    ||= current_user.calendar_preferences.build(scope: :uni_cal_global)
+    @extension_config  = current_user.user_extension_config || current_user.build_user_extension_config
   end
 
   def update
@@ -26,6 +27,24 @@ class Dashboard::CalendarPreferencesController < Dashboard::ApplicationControlle
     else
       redirect_to dashboard_calendar_preferences_path,
                   alert: @calendar_preference.errors.full_messages.to_sentence
+    end
+  end
+
+  # Turns university event sync on or off and sets the categories to sync.
+  # The categories stay stored while sync is off, so turning it on again restores them.
+  # UserExtensionConfig queues the calendar sync when either setting changes.
+  def university_events
+    config = UserExtensionConfig.find_or_create_by!(user: current_user)
+    authorize config, :update?
+
+    config.sync_university_events      = params[:sync_university_events] == "1"
+    config.university_event_categories =
+      Array(params[:university_event_categories]).map(&:to_s) & UniversityCalendarEvent::CATEGORIES
+
+    if config.save
+      redirect_to dashboard_calendar_preferences_path, notice: "University event sync saved."
+    else
+      redirect_to dashboard_calendar_preferences_path, alert: config.errors.full_messages.to_sentence
     end
   end
 

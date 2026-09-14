@@ -4,51 +4,42 @@ require "rails_helper"
 
 RSpec.describe "Reports", type: :request do
   describe "GET /reports/meeting_times" do
-    let!(:fall_term)   { Term.create!(uid: 202710, year: 2026, season: :fall) }
-    let!(:spring_term) { Term.create!(uid: 202620, year: 2026, season: :spring) }
+    let!(:fall_term)   { create(:term, uid: 202710, year: 2026, season: :fall) }
+    let!(:spring_term) { create(:term, uid: 202620, year: 2026, season: :spring) }
 
-    let!(:annex)   { Building.create!(abbreviation: "ANX", name: "Annex") }
-    let!(:dobbs)    { Building.create!(abbreviation: "DOB", name: "Dobbs Hall") }
-    let!(:room_305) { annex.rooms.create!(number: "305", capacity: 40) }
-    let!(:room_5)   { dobbs.rooms.create!(number: "5") }
+    let!(:annex)   { create(:building, abbreviation: "ANX", name: "Annex") }
+    let!(:dobbs)    { create(:building, abbreviation: "DOB", name: "Dobbs Hall") }
+    let!(:room_305) { create(:room, building: annex, number: "305", capacity: 40) }
+    let!(:room_5)   { create(:room, building: dobbs, number: "5") }
 
     let!(:fall_course) do
-      fall_term.courses.create!(
-        crn: 12345, subject: "Computer Science", course_number: 3100,
-        section_number: "01", title: "Algorithms", schedule_type: :lecture,
-        seats_capacity: 30, seats_available: 5, credit_hours: 4,
-        start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15)
-      )
+      create(:course, term: fall_term,
+             crn: 12345, subject: "Computer Science", course_number: 3100,
+             section_number: "01", title: "Algorithms", schedule_type: :lecture,
+             seats_capacity: 30, seats_available: 5, credit_hours: 4)
     end
 
     let!(:spring_course) do
-      spring_term.courses.create!(
-        crn: 54321, subject: "Mathematics", course_number: 2025,
-        section_number: "02", title: "Linear Algebra", schedule_type: :laboratory,
-        seats_capacity: 24, seats_available: 0,
-        start_date: Date.new(2026, 1, 12), end_date: Date.new(2026, 4, 20)
-      )
+      create(:course, term: spring_term,
+             crn: 54321, subject: "Mathematics", course_number: 2025,
+             section_number: "02", title: "Linear Algebra", schedule_type: :laboratory,
+             seats_capacity: 24, seats_available: 0,
+             start_date: Date.new(2026, 1, 12), end_date: Date.new(2026, 4, 20))
     end
 
     let!(:fall_meeting) do
-      fall_course.meeting_times.create!(
-        begin_time: 900, end_time: 1050, day_of_week: :monday,
-        meeting_schedule_type: :lecture, meeting_type: :class_meeting,
-        start_date: fall_course.start_date, end_date: fall_course.end_date
-      )
+      create(:course_meeting_time, course: fall_course,
+             begin_time: 900, end_time: 1050, day_of_week: :monday, meeting_schedule_type: :lecture)
     end
 
     let!(:spring_meeting) do
-      spring_course.meeting_times.create!(
-        begin_time: 1350, end_time: 1550, day_of_week: :thursday,
-        meeting_schedule_type: :laboratory, meeting_type: :class_meeting,
-        start_date: spring_course.start_date, end_date: spring_course.end_date
-      )
+      create(:course_meeting_time, course: spring_course,
+             begin_time: 1350, end_time: 1550, day_of_week: :thursday, meeting_schedule_type: :laboratory)
     end
 
     let!(:lovelace) do
-      Faculty.create!(first_name: "Ada", last_name: "Lovelace",
-                      display_name: "Ada Lovelace", email: "lovelacea@wit.edu")
+      create(:faculty, first_name: "Ada", last_name: "Lovelace",
+             display_name: "Ada Lovelace", email: "lovelacea@wit.edu")
     end
 
     before do
@@ -106,11 +97,8 @@ RSpec.describe "Reports", type: :request do
     it "collapses duplicate meeting time rows into one" do
       # Ingest copies the room assignment too, so the duplicate is identical
       # across every column the report selects.
-      duplicate = fall_course.meeting_times.create!(
-        begin_time: 900, end_time: 1050, day_of_week: :monday,
-        meeting_schedule_type: :lecture, meeting_type: :class_meeting,
-        start_date: fall_course.start_date, end_date: fall_course.end_date
-      )
+      duplicate = create(:course_meeting_time, course: fall_course,
+                         begin_time: 900, end_time: 1050, day_of_week: :monday, meeting_schedule_type: :lecture)
       duplicate.rooms << room_305
 
       get "/reports/meeting_times", params: { term_uid: 202710 }
@@ -176,8 +164,8 @@ RSpec.describe "Reports", type: :request do
     end
 
     it "joins team-taught faculty into one column without multiplying rows" do
-      babbage = Faculty.create!(first_name: "Charles", last_name: "Babbage",
-                                display_name: "Charles Babbage", email: "babbagec@wit.edu")
+      babbage = create(:faculty, first_name: "Charles", last_name: "Babbage",
+                       display_name: "Charles Babbage", email: "babbagec@wit.edu")
       fall_course.faculties << babbage
 
       get "/reports/meeting_times", params: { term_uid: 202710 }
@@ -205,30 +193,26 @@ RSpec.describe "Reports", type: :request do
   end
 
   describe "GET /reports/sections" do
-    let!(:fall_term) { Term.create!(uid: 202710, year: 2026, season: :fall) }
+    let!(:fall_term) { create(:term, uid: 202710, year: 2026, season: :fall) }
 
-    let!(:annex)    { Building.create!(abbreviation: "ANX", name: "Annex") }
-    let!(:dobbs)    { Building.create!(abbreviation: "DOB", name: "Dobbs Hall") }
-    let!(:room_305) { annex.rooms.create!(number: "305", capacity: 40) }
-    let!(:room_5)   { dobbs.rooms.create!(number: "5", capacity: 24) }
+    let!(:annex)    { create(:building, abbreviation: "ANX", name: "Annex") }
+    let!(:dobbs)    { create(:building, abbreviation: "DOB", name: "Dobbs Hall") }
+    let!(:room_305) { create(:room, building: annex, number: "305", capacity: 40) }
+    let!(:room_5)   { create(:room, building: dobbs, number: "5", capacity: 24) }
 
     let!(:course) do
-      fall_term.courses.create!(
-        crn: 12345, subject: "Computer Science", course_number: 3100,
-        section_number: "01", title: "Algorithms", schedule_type: :lecture,
-        seats_capacity: 30, seats_available: 5, credit_hours: 4,
-        start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15)
-      )
+      create(:course, term: fall_term,
+             crn: 12345, subject: "Computer Science", course_number: 3100,
+             section_number: "01", title: "Algorithms", schedule_type: :lecture,
+             seats_capacity: 30, seats_available: 5, credit_hours: 4)
     end
 
     # A Monday/Wednesday lecture in one room: two meeting times, one section.
     def add_meeting(day, room: room_305, begin_time: 900, end_time: 1015,
                     schedule_type: :lecture)
-      meeting = course.meeting_times.create!(
-        begin_time: begin_time, end_time: end_time, day_of_week: day,
-        meeting_schedule_type: schedule_type, meeting_type: :class_meeting,
-        start_date: course.start_date, end_date: course.end_date
-      )
+      meeting = create(:course_meeting_time, course: course,
+                       begin_time: begin_time, end_time: end_time, day_of_week: day,
+                       meeting_schedule_type: schedule_type)
       meeting.rooms << room if room
       meeting
     end
@@ -349,10 +333,10 @@ RSpec.describe "Reports", type: :request do
 
     it "joins team-taught faculty into one column without splitting the section" do
       add_meeting(:monday)
-      course.faculties << Faculty.create!(first_name: "Ada", last_name: "Lovelace",
-                                          display_name: "Ada Lovelace", email: "lovelacea@wit.edu")
-      course.faculties << Faculty.create!(first_name: "Charles", last_name: "Babbage",
-                                          display_name: "Charles Babbage", email: "babbagec@wit.edu")
+      course.faculties << create(:faculty, first_name: "Ada", last_name: "Lovelace",
+                                 display_name: "Ada Lovelace", email: "lovelacea@wit.edu")
+      course.faculties << create(:faculty, first_name: "Charles", last_name: "Babbage",
+                                 display_name: "Charles Babbage", email: "babbagec@wit.edu")
 
       get "/reports/sections", params: { term_uid: 202710 }
 
@@ -363,16 +347,8 @@ RSpec.describe "Reports", type: :request do
 
     it "keeps each section separate" do
       add_meeting(:monday)
-      other = fall_term.courses.create!(
-        crn: 54321, subject: "Mathematics", course_number: 2300,
-        section_number: "03", title: "Discrete", schedule_type: :lecture,
-        start_date: course.start_date, end_date: course.end_date
-      )
-      other.meeting_times.create!(
-        begin_time: 1000, end_time: 1145, day_of_week: :tuesday,
-        meeting_schedule_type: :lecture, meeting_type: :class_meeting,
-        start_date: other.start_date, end_date: other.end_date
-      )
+      other = create(:course, term: fall_term, crn: 54321)
+      create(:course_meeting_time, course: other, begin_time: 1000, end_time: 1145, day_of_week: :tuesday)
 
       get "/reports/sections", params: { term_uid: 202710 }
 
@@ -407,22 +383,14 @@ RSpec.describe "Reports", type: :request do
   end
 
   describe "GET /reports/terms" do
-    let!(:fall_term)   { Term.create!(uid: 202710, year: 2026, season: :fall) }
-    let!(:spring_term) { Term.create!(uid: 202620, year: 2026, season: :spring) }
-    let!(:empty_term)  { Term.create!(uid: 202730, year: 2026, season: :summer) }
+    let!(:fall_term)   { create(:term, uid: 202710, year: 2026, season: :fall) }
+    let!(:spring_term) { create(:term, uid: 202620, year: 2026, season: :spring) }
+    let!(:empty_term)  { create(:term, uid: 202730, year: 2026, season: :summer) }
 
     before do
-      [ fall_term, spring_term ].each_with_index do |term, i|
-        course = term.courses.create!(
-          crn: 10_000 + i, subject: "CS", course_number: 1000, section_number: "01",
-          title: "Intro", schedule_type: :lecture,
-          start_date: Date.new(2026, 1, 12), end_date: Date.new(2026, 4, 20)
-        )
-        course.meeting_times.create!(
-          begin_time: 900, end_time: 1050, day_of_week: :monday,
-          meeting_schedule_type: :lecture, meeting_type: :class_meeting,
-          start_date: course.start_date, end_date: course.end_date
-        )
+      [ fall_term, spring_term ].each do |term|
+        course = create(:course, term: term)
+        create(:course_meeting_time, course: course)
       end
     end
 

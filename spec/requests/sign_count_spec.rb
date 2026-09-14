@@ -2,7 +2,7 @@ require "rails_helper"
 require "webauthn/fake_client"
 
 RSpec.describe "sign count behaviour", type: :request do
-  let(:user) { User.create!(email: "sc@wit.edu", password: "password123", confirmed_at: Time.current) }
+  let(:user) { create(:user) }
   let(:headers) { { "Authorization" => "Bearer #{api_token_for(user)}" } }
   let(:client) { WebAuthn::FakeClient.new("http://localhost:3000") }
   def json = JSON.parse(response.body)

@@ -81,7 +81,7 @@ RSpec.describe CalendarPreference, type: :model do
     end
 
     it "is one row per user" do
-      user.calendar_preferences.create!(scope: :uni_cal_global, reminder_settings: [])
+      create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
       duplicate = user.calendar_preferences.new(scope: :uni_cal_global)
 
       expect(duplicate).not_to be_valid
@@ -89,7 +89,7 @@ RSpec.describe CalendarPreference, type: :model do
     end
 
     it "sits beside the global scope rather than replacing it" do
-      user.calendar_preferences.create!(scope: :global, title_template: "{{title}}")
+      create(:calendar_preference, user: user)
       preference = user.calendar_preferences.new(scope: :uni_cal_global, reminder_settings: [])
 
       expect(preference).to be_valid
@@ -98,7 +98,7 @@ RSpec.describe CalendarPreference, type: :model do
 
   describe "syncing after a change" do
     it "enqueues a forced sync when the reminders change" do
-      preference = user.calendar_preferences.create!(scope: :uni_cal_global, reminder_settings: [])
+      preference = create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
 
       preference.update!(reminder_settings: [ { "time" => "1", "type" => "days", "method" => "popup" } ])
 

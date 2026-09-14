@@ -3,14 +3,7 @@
 require "rails_helper"
 
 RSpec.describe CalendarTemplateRenderer do
-  let(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
-  let(:course) do
-    Course.create!(
-      crn: 16004, term: term, title: "Calculus 2A", subject: "MATH",
-      course_number: 1876, section_number: "03", schedule_type: "LEC",
-      start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 10, 20)
-    )
-  end
+  let(:course) { create(:course, start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 10, 20)) }
 
   let(:meeting_time) do
     MeetingTimesIngestService.call(
@@ -31,20 +24,15 @@ RSpec.describe CalendarTemplateRenderer do
     course.meeting_times.first
   end
 
-  let!(:minevich) do
-    Faculty.create!(email: "minevichi@wit.edu", first_name: "Igor", last_name: "Minevich")
-  end
-
-  let!(:sanderson) do
-    Faculty.create!(email: "sandersone1@wit.edu", first_name: "Elijah", last_name: "Sanderson")
-  end
+  let!(:minevich)  { create(:faculty, email: "minevichi@wit.edu", first_name: "Igor", last_name: "Minevich") }
+  let!(:sanderson) { create(:faculty, email: "sandersone1@wit.edu", first_name: "Elijah", last_name: "Sanderson") }
 
   # The instructor who was attached first is not always the one teaching the
   # section. Before the join carried Banner's primary flag, the event named
   # whichever row was oldest.
   it "names Banner's primary instructor, not the oldest join row" do
-    CourseFaculty.create!(course: course, faculty: minevich, primary_indicator: false)
-    CourseFaculty.create!(course: course, faculty: sanderson, primary_indicator: true)
+    create(:course_faculty, course: course, faculty: minevich, primary_indicator: false)
+    create(:course_faculty, course: course, faculty: sanderson, primary_indicator: true)
 
     context = described_class.build_context_from_meeting_time(meeting_time)
 
@@ -53,8 +41,8 @@ RSpec.describe CalendarTemplateRenderer do
   end
 
   it "lists every instructor with the primary one first" do
-    CourseFaculty.create!(course: course, faculty: minevich, primary_indicator: false)
-    CourseFaculty.create!(course: course, faculty: sanderson, primary_indicator: true)
+    create(:course_faculty, course: course, faculty: minevich, primary_indicator: false)
+    create(:course_faculty, course: course, faculty: sanderson, primary_indicator: true)
 
     context = described_class.build_context_from_meeting_time(meeting_time)
 

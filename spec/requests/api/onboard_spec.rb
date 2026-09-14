@@ -49,7 +49,7 @@ RSpec.describe "Api::Users onboarding", type: :request do
     end
 
     it "returns the existing account rather than a second one" do
-      existing = User.create!(email: "hoppeg@wit.edu", password: "password123", first_name: "Grace")
+      existing = create(:user, email: "hoppeg@wit.edu")
       stub_google(verification(email: "hoppeg@wit.edu"))
 
       expect {
@@ -79,11 +79,8 @@ RSpec.describe "Api::Users onboarding", type: :request do
     end
 
     it "does not reach a WIT account through a personal address linked for calendar sync" do
-      owner = User.create!(email: "hoppeg@wit.edu", password: "password123")
-      owner.oauth_credentials.create!(
-        provider: "google", email: "grace@gmail.com", uid: "google-uid-1",
-        access_token: "token", refresh_token: "refresh", token_expires_at: 1.hour.from_now
-      )
+      owner = create(:user, email: "hoppeg@wit.edu")
+      create(:oauth_credential, user: owner, email: "grace@gmail.com")
       stub_google(verification(email: "grace@gmail.com"))
 
       post "/api/user/onboard", params: { google_access_token: "personal-token" }
@@ -96,7 +93,7 @@ RSpec.describe "Api::Users onboarding", type: :request do
       # Devise downcases on save and the verifier downcases the Google address,
       # so an account created under any casing still resolves. This is the whole
       # migration story for accounts made by the old flow.
-      existing = User.create!(email: "MixedCase@WIT.edu", password: "password123")
+      existing = create(:user, email: "MixedCase@WIT.edu")
       stub_google(verification(email: "mixedcase@wit.edu"))
 
       expect {
@@ -107,8 +104,8 @@ RSpec.describe "Api::Users onboarding", type: :request do
     end
 
     it "keeps the enrollments and preferences already on the account" do
-      existing = User.create!(email: "returning@wit.edu", password: "password123")
-      preference = existing.calendar_preferences.create!(scope: :global, title_template: "{{title}}")
+      existing = create(:user, email: "returning@wit.edu")
+      preference = create(:calendar_preference, user: existing)
       stub_google(verification(email: "returning@wit.edu"))
 
       post "/api/user/onboard", params: { google_access_token: "good-token" }

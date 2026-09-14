@@ -7,6 +7,14 @@ This reference is also available as markdown at `/docs/api.md`. A client that
 sends `Accept: text/markdown` to `/docs/api` gets the same markdown.
 `/llms.txt` lists the main entry points for AI agents.
 
+Machine descriptions of the API are also available:
+
+| URL | Content |
+| --- | --- |
+| `/.well-known/api-catalog` | An [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) API catalog. It links each API to its description, this reference, and a health check. |
+| `/docs/api/openapi.json` | An OpenAPI 3.1 description of the REST endpoints |
+| `/docs/api/schema.graphql` | The GraphQL schema in SDL |
+
 The API has three surfaces over the same data:
 
 | Surface | Endpoint | Use it for |
@@ -303,6 +311,8 @@ query Sections($filter: SectionFilterInput) {
   real room wins.
 
 ## Dump the GraphQL schema
+
+`/docs/api/schema.graphql` returns the schema. To dump it from a checkout:
 
 ```bash
 bin/rails runner 'puts CatalogSchema.to_definition' > catalog.graphql

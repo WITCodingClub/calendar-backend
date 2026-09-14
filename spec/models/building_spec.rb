@@ -28,8 +28,8 @@ RSpec.describe Building, type: :model do
 
   describe ".physical" do
     it "leaves out the TBD and ONLINE placeholders" do
-      Building.create!(abbreviation: "TBD", name: "To Be Determined")
-      Building.create!(abbreviation: "ONLINE", name: "Online Section")
+      create(:building, abbreviation: "TBD", name: "To Be Determined")
+      create(:building, abbreviation: "ONLINE", name: "Online Section")
 
       expect(Building.physical.pluck(:abbreviation)).to contain_exactly("WT", "COMP")
     end

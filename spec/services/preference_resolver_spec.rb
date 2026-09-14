@@ -3,35 +3,11 @@
 require "rails_helper"
 
 RSpec.describe PreferenceResolver do
-  let(:user) { User.create!(email: "resolver@wit.edu", password: "password123") }
-  let(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
-  let(:course) do
-    Course.create!(
-      crn: 54321, term: term, title: "Data Structures", subject: "COMP",
-      course_number: 2000, section_number: "01", schedule_type: "lecture",
-      start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15)
-    )
-  end
-  let(:meeting_time) do
-    Course::MeetingTime.create!(
-      course: course,
-      start_date: Time.zone.local(2026, 9, 8),
-      end_date: Time.zone.local(2026, 12, 15, 23, 59, 59),
-      begin_time: 1300, end_time: 1445,
-      day_of_week: :monday,
-      meeting_schedule_type: :lecture, meeting_type: :class_meeting
-    )
-  end
+  let(:user) { create(:user) }
+  let(:meeting_time) { create(:course_meeting_time) }
 
   def university_event(all_day: true, category: "holiday")
-    UniversityCalendarEvent.create!(
-      ics_uid: "uce-#{SecureRandom.hex(4)}",
-      summary: "Fall Break",
-      category: category,
-      all_day: all_day,
-      start_time: Time.zone.local(2026, 10, 12),
-      end_time: Time.zone.local(2026, 10, 12, 23, 59, 59)
-    )
+    create(:university_calendar_event, category: category, all_day: all_day)
   end
 
   before { allow(GoogleCalendarSyncJob).to receive(:perform_later) }
@@ -63,7 +39,7 @@ RSpec.describe PreferenceResolver do
 
   describe "the university wide preference" do
     it "turns off reminders for university events and leaves classes alone" do
-      user.calendar_preferences.create!(scope: :uni_cal_global, reminder_settings: [])
+      create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
       resolver = described_class.new(user)
 
       expect(resolver.resolve_for(university_event)[:reminder_settings]).to eq([])
@@ -73,10 +49,8 @@ RSpec.describe PreferenceResolver do
     end
 
     it "reports itself as the source of the value" do
-      user.calendar_preferences.create!(
-        scope: :uni_cal_global,
-        reminder_settings: [ { "time" => "2", "type" => "days", "method" => "popup" } ]
-      )
+      create(:calendar_preference, :uni_cal_global, user: user,
+             reminder_settings: [ { "time" => "2", "type" => "days", "method" => "popup" } ])
 
       result = described_class.new(user).resolve_with_sources(university_event)
 
@@ -87,11 +61,9 @@ RSpec.describe PreferenceResolver do
     end
 
     it "gives way to a preference for one category" do
-      user.calendar_preferences.create!(scope: :uni_cal_global, reminder_settings: [])
-      user.calendar_preferences.create!(
-        scope: :uni_cal_category, event_type: "holiday",
-        reminder_settings: [ { "time" => "1", "type" => "hours", "method" => "popup" } ]
-      )
+      create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
+      create(:calendar_preference, :uni_cal_category, user: user,
+             reminder_settings: [ { "time" => "1", "type" => "hours", "method" => "popup" } ])
 
       resolver = described_class.new(user)
 
@@ -102,12 +74,10 @@ RSpec.describe PreferenceResolver do
     end
 
     it "gives way to a preference for one event" do
-      user.calendar_preferences.create!(scope: :uni_cal_global, reminder_settings: [])
+      create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
       event = university_event
-      user.event_preferences.create!(
-        preferenceable: event,
-        reminder_settings: [ { "time" => "45", "type" => "minutes", "method" => "popup" } ]
-      )
+      create(:event_preference, user: user, preferenceable: event,
+             reminder_settings: [ { "time" => "45", "type" => "minutes", "method" => "popup" } ])
 
       resolved = described_class.new(user).resolve_for(event)
 
@@ -119,10 +89,8 @@ RSpec.describe PreferenceResolver do
 
   describe "the global preference" do
     it "does not reach university events, so class settings stay separate" do
-      user.calendar_preferences.create!(
-        scope: :global,
-        reminder_settings: [ { "time" => "5", "type" => "minutes", "method" => "popup" } ]
-      )
+      create(:calendar_preference, user: user,
+             reminder_settings: [ { "time" => "5", "type" => "minutes", "method" => "popup" } ])
 
       resolver = described_class.new(user)
 
