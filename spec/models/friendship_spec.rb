@@ -29,6 +29,21 @@ require "rails_helper"
 RSpec.describe Friendship, type: :model do
   include ActiveJob::TestHelper
 
+  describe "associations and validations" do
+    subject { create(:friendship) }
+
+    it { is_expected.to belong_to(:requester).class_name("User") }
+    it { is_expected.to belong_to(:addressee).class_name("User") }
+
+    it { is_expected.to validate_uniqueness_of(:requester_id).scoped_to(:addressee_id).with_message("friendship already exists") }
+
+    it { is_expected.to define_enum_for(:status).with_values(pending: 0, accepted: 1).backed_by_column_of_type(:integer).with_default(:pending) }
+
+    # #cannot_friend_self and #no_reverse_friendship_exists are custom,
+    # cross-record validations with no single attribute to point a one-liner
+    # at.
+  end
+
   let(:requester) do
     User.create!(email: "requester@wit.edu", password: "password123",
                  first_name: "Ada", last_name: "Lovelace")

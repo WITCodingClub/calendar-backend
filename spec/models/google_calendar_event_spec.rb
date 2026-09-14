@@ -43,6 +43,37 @@
 require "rails_helper"
 
 RSpec.describe GoogleCalendarEvent, type: :model do
+  describe "associations and validations" do
+    subject { create(:google_calendar_event) }
+
+    it { is_expected.to belong_to(:google_calendar) }
+    it { is_expected.to belong_to(:meeting_time).class_name("Course::MeetingTime").optional }
+    it { is_expected.to belong_to(:final_exam).optional }
+    it { is_expected.to belong_to(:university_calendar_event).optional }
+    it { is_expected.to have_one(:event_preference).dependent(:destroy) }
+    it { is_expected.to have_one(:oauth_credential).through(:google_calendar) }
+    it { is_expected.to have_one(:user).through(:oauth_credential) }
+
+    it { is_expected.to validate_presence_of(:google_event_id) }
+    it { is_expected.to validate_uniqueness_of(:meeting_time_id).scoped_to(:google_calendar_id) }
+
+    # #only_one_event_type_associated is a custom cross-field validation
+    # (exactly one of meeting_time/final_exam/university_calendar_event), so
+    # it has no single one-liner.
+
+    context "associated with a final exam instead" do
+      subject { create(:google_calendar_event, :for_final_exam) }
+
+      it { is_expected.to validate_uniqueness_of(:final_exam_id).scoped_to(:google_calendar_id) }
+    end
+
+    context "associated with a university calendar event instead" do
+      subject { create(:google_calendar_event, :for_university_event) }
+
+      it { is_expected.to validate_uniqueness_of(:university_calendar_event_id).scoped_to(:google_calendar_id) }
+    end
+  end
+
   let(:user) { User.create!(email: "student@wit.edu", password: "password123") }
   let(:credential) do
     user.oauth_credentials.create!(

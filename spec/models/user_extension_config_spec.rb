@@ -43,6 +43,13 @@ RSpec.describe UserExtensionConfig, type: :model do
     allow(GoogleCalendarSyncJob).to receive(:perform_later)
   end
 
+  describe "associations and validations" do
+    subject { config }
+
+    it { is_expected.to belong_to(:user) }
+    it { is_expected.to validate_uniqueness_of(:user_id) }
+  end
+
   describe "toggling sync_university_events" do
     before do
       config.update!(

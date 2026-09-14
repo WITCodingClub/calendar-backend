@@ -38,6 +38,44 @@
 require "rails_helper"
 
 RSpec.describe Course, type: :model do
+  describe "associations and validations" do
+    subject { create(:course) }
+
+    it { is_expected.to belong_to(:term) }
+    it { is_expected.to have_many(:course_faculties).dependent(:destroy) }
+    it { is_expected.to have_many(:faculties).through(:course_faculties) }
+    it { is_expected.to have_many(:meeting_times).class_name("Course::MeetingTime").dependent(:destroy) }
+    it { is_expected.to have_many(:meeting_time_rooms).through(:meeting_times) }
+    it { is_expected.to have_many(:rooms).through(:meeting_time_rooms) }
+    it { is_expected.to have_many(:enrollments).dependent(:destroy) }
+    it { is_expected.to have_many(:users).through(:enrollments) }
+    it { is_expected.to have_one(:final_exam).dependent(:destroy) }
+
+    # allow_nil isn't checked here: the model validation allows a nil crn, but
+    # the courses.crn column is NOT NULL at the database level, so the model's
+    # allow_nil: true can never actually be exercised (a nil crn fails at the
+    # database before the validation would waive it). Worth a look as a
+    # possible model bug.
+    it do
+      expect(subject).to validate_uniqueness_of(:crn)
+        .scoped_to(:term_id)
+        .with_message("has already been taken for this term")
+    end
+
+    it { is_expected.to define_enum_for(:status).with_values(active: "active", cancelled: "cancelled").backed_by_column_of_type(:string) }
+
+    it do
+      expect(subject).to define_enum_for(:schedule_type)
+        .with_values(
+          extension: "EXT", hybrid: "HYB", independent_study: "IND", laboratory: "LAB",
+          lecture: "LEC", online: "ONL", online_blended: "ONB", online_sync_lab: "OLB",
+          online_sync_lecture: "OLC", rotating_lab: "RLB", rotating_lecture: "RLC",
+          study_abroad: "SAB", study_away_domestic: "SAD"
+        )
+        .backed_by_column_of_type(:string)
+    end
+  end
+
   let(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
 
   def course(crn:, section_number:, schedule_type: "LEC", link_identifier: nil, subject: "CHEM", course_number: 1000)

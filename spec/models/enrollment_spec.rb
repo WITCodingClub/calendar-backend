@@ -27,4 +27,15 @@
 require "rails_helper"
 
 RSpec.describe Enrollment, type: :model do
+  subject { create(:enrollment) }
+
+  it { is_expected.to belong_to(:user) }
+  it { is_expected.to belong_to(:course) }
+  it { is_expected.to belong_to(:term) }
+
+  it do
+    expect(subject).to validate_uniqueness_of(:user_id)
+      .scoped_to(:course_id, :term_id)
+      .with_message("is already enrolled in this course for this term")
+  end
 end

@@ -34,6 +34,38 @@ RSpec.describe CalendarPreference, type: :model do
 
   before { allow(GoogleCalendarSyncJob).to receive(:perform_later) }
 
+  describe "associations and validations" do
+    subject { create(:calendar_preference) }
+
+    it { is_expected.to belong_to(:user) }
+
+    it { is_expected.to validate_presence_of(:scope) }
+
+    # validate_uniqueness_of probes case sensitivity by upcasing the value it
+    # assigns (e.g. "global" -> "GLOBAL"), but :scope is enum-backed, so
+    # anything other than one of its declared labels raises ArgumentError
+    # instead of failing validation. Covered instead by the "is one row per
+    # user" example below, which exercises the real uniqueness scope.
+
+    it { is_expected.to validate_length_of(:title_template).is_at_most(500).allow_blank }
+    it { is_expected.to validate_length_of(:description_template).is_at_most(2000).allow_blank }
+    it { is_expected.to validate_length_of(:location_template).is_at_most(500).allow_blank }
+    it { is_expected.to validate_inclusion_of(:color_id).in_range(1..11).allow_nil }
+    it { is_expected.to validate_inclusion_of(:visibility).in_array(%w[public private default]).allow_blank }
+
+    it do
+      expect(subject).to define_enum_for(:scope)
+        .with_values(global: 0, event_type: 1, uni_cal_category: 2, uni_cal_global: 3)
+        .with_prefix
+        .backed_by_column_of_type(:integer)
+    end
+
+    # #event_type's presence/absence depends on which scope is set
+    # (scope_event_type?/scope_uni_cal_category? require it, scope_global?/
+    # scope_uni_cal_global? forbid it), so there's no single unconditional
+    # validate_presence_of/validate_absence_of to assert here.
+  end
+
   describe "the university wide scope" do
     it "holds a preference for every university event" do
       preference = user.calendar_preferences.new(scope: :uni_cal_global, reminder_settings: [])

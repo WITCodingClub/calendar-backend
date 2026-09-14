@@ -28,6 +28,20 @@ require "rails_helper"
 RSpec.describe Term, type: :model do
   include ActiveSupport::Testing::TimeHelpers
 
+  describe "associations and validations" do
+    subject { create(:term) }
+
+    it { is_expected.to have_many(:courses).dependent(:destroy) }
+    it { is_expected.to have_many(:enrollments).through(:courses) }
+    it { is_expected.to have_many(:final_exams).dependent(:destroy) }
+    it { is_expected.to have_many(:university_calendar_events).dependent(:nullify) }
+
+    it { is_expected.to validate_presence_of(:uid) }
+    it { is_expected.to validate_uniqueness_of(:uid) }
+
+    it { is_expected.to define_enum_for(:season).with_values(spring: 1, fall: 2, summer: 3).backed_by_column_of_type(:integer) }
+  end
+
   def create_term(year:, season:, **attrs)
     described_class.create!(
       year: year,

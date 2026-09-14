@@ -49,6 +49,29 @@ RSpec.describe User, type: :model do
     User.create!(email: email, password: "password123")
   end
 
+  describe "associations and validations" do
+    subject { create(:user) }
+
+    it { is_expected.to have_many(:enrollments).dependent(:destroy) }
+    it { is_expected.to have_many(:courses).through(:enrollments) }
+    it { is_expected.to have_many(:oauth_credentials).dependent(:destroy) }
+    it { is_expected.to have_many(:google_calendars).through(:oauth_credentials) }
+    it { is_expected.to have_many(:google_calendar_events).through(:google_calendars) }
+    it { is_expected.to have_many(:calendar_preferences).dependent(:destroy) }
+    it { is_expected.to have_many(:event_preferences).dependent(:destroy) }
+    it { is_expected.to have_one(:user_extension_config).dependent(:destroy) }
+    it { is_expected.to have_many(:security_events).dependent(:destroy) }
+    it { is_expected.to have_many(:passkeys).dependent(:destroy) }
+    it { is_expected.to have_many(:user_sessions).dependent(:destroy) }
+    it { is_expected.to have_many(:sent_friendships).class_name("Friendship").with_foreign_key(:requester_id).dependent(:destroy) }
+    it { is_expected.to have_many(:received_friendships).class_name("Friendship").with_foreign_key(:addressee_id).dependent(:destroy) }
+
+    it { is_expected.to validate_presence_of(:email) }
+    it { is_expected.to validate_uniqueness_of(:email).case_insensitive }
+
+    it { is_expected.to define_enum_for(:access_level).with_values(user: 0, admin: 1, super_admin: 2, owner: 3).backed_by_column_of_type(:integer).with_default(:user) }
+  end
+
   describe "#remove_friend" do
     let(:user)   { create_user("me@wit.edu") }
     let(:friend) { create_user("friend@wit.edu") }
