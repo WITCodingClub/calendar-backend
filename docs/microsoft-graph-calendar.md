@@ -71,7 +71,21 @@ sequenceDiagram
             MS->>Graph: POST /me/calendars/{id}/events
             Graph-->>MS: id, iCalUId
             MS->>DB: create row (external_event_id, external_ical_uid)
-        else row changed or force
+        else row changed, no force
+            MS->>Graph: GET /me/events/{external_event_id}
+            opt 404: event moved folders
+                MS->>Graph: GET /me/events?$filter=iCalUId eq '...'
+                MS->>Graph: GET /me/events/{new id}
+            end
+            MS->>MS: compare with the row (what the app last wrote)
+            alt recurrence changed in Outlook
+                MS->>DB: keep the person's event, mark synced
+            else
+                MS->>MS: keep edited summary, location, start, end
+                MS->>Graph: PATCH /me/events/{id} with merged fields
+                MS->>DB: store values and user_edited_fields
+            end
+        else force
             MS->>Graph: PATCH /me/events/{external_event_id}
             alt 404: event moved folders
                 MS->>Graph: GET /me/events?$filter=iCalUId eq '...'
@@ -83,6 +97,7 @@ sequenceDiagram
                     MS->>DB: replace row
                 end
             end
+            MS->>DB: clear user_edited_fields
         else unchanged
             MS->>DB: mark synced
         end
@@ -96,5 +111,6 @@ sequenceDiagram
 - Graph has no RRULE or EXDATE. The provider sends a weekly `patternedRecurrence` and cancels each excluded occurrence after it creates or updates the series.
 - Graph has one reminder per event. The provider sends the earliest reminder.
 - Event colors are not sent. Outlook colors come from categories.
-- The Google provider keeps edits that a person makes in Google Calendar. The Microsoft provider does not detect edits yet. A sync overwrites changed fields.
+- Both providers keep edits that a person makes in their calendar. The Microsoft provider reads the event before a PATCH and compares it with the `calendar_events` row. A changed subject, location, start or end stays, and the field goes into `user_edited_fields`. A changed recurrence keeps the whole event. A forced sync writes the app's values again.
+- Google counts any description as an edit. The row does not store the description that the app wrote, so the Microsoft provider does not compare descriptions. Template changes to the description still reach Outlook.
 - The calendar belongs to the person's mailbox, not to a service account. When the person disconnects the account, the app cannot delete the calendar, because the token is gone.

@@ -1,0 +1,11 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('00000000-0000-0000-0000-000000000001')/events(id,subject,location,start,end,isAllDay,recurrence)/$entity",
+  "@odata.etag": "W/\"SyntheticChangeKey1\"",
+  "id": "AAMkSyntheticEvent1",
+  "subject": "Synthetic Course",
+  "isAllDay": false,
+  "start": { "dateTime": "2026-09-14T09:00:00.0000000", "timeZone": "Eastern Standard Time" },
+  "end": { "dateTime": "2026-09-14T10:15:00.0000000", "timeZone": "Eastern Standard Time" },
+  "location": { "displayName": "Synthetic Hall - 101" },
+  "recurrence": null
+}
