@@ -15,6 +15,11 @@
 class DiscoveryController < ActionController::Base
   CACHE_AGE = 1.hour
 
+  # The pages that the calendar-website Worker serves on this host. The proxy
+  # sends only the paths that the website does not know to this app, so the
+  # website pages have no route here.
+  WEBSITE_PATHS = %w[/ /about /contact /privacy /tos].freeze
+
   # RFC 9727 asks for this profile on the catalog media type.
   API_CATALOG_PROFILE = "https://www.rfc-editor.org/info/rfc9727"
 

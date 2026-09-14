@@ -41,12 +41,59 @@ RSpec.describe Rack::Attack do
     end
 
     it "does not treat a path that only starts with /docs as docs" do
-      expect(described_class.suspicious_agent?(request_to("/docsx", "GPTBot/1.1"))).to be(true)
+      expect(described_class::AGENT_READABLE_PATH.call(request_to("/docsx", "GPTBot/1.1"))).to be(false)
+    end
+
+    it "lets a bot get the 404 for a path with no route" do
+      expect(described_class.suspicious_agent?(request_to("/some-path-that-does-not-exist", "GPTBot/1.1"))).to be(false)
+    end
+
+    it "blocks a bot on a page that needs a sign-in" do
+      expect(described_class.suspicious_agent?(request_to("/dashboard/settings", "GPTBot/1.1"))).to be(true)
+    end
+
+    it "blocks a bot on an unknown API path, which the API catch-all route answers" do
+      expect(described_class.suspicious_agent?(request_to("/api/nope", "GPTBot/1.1"))).to be(true)
     end
 
     it "lets Googlebot and browsers read app pages" do
       expect(described_class.suspicious_agent?(request_to("/admin", "Googlebot/2.1"))).to be(false)
       expect(described_class.suspicious_agent?(request_to("/admin", "Mozilla/5.0 (Macintosh)"))).to be(false)
+    end
+  end
+
+  describe ".unknown_path?" do
+    def request_to(path)
+      Rack::Attack::Request.new(Rack::MockRequest.env_for(path))
+    end
+
+    it "is true for a path with no route" do
+      expect(described_class.unknown_path?(request_to("/some-path-that-does-not-exist"))).to be(true)
+    end
+
+    it "is false for a path with a route" do
+      expect(described_class.unknown_path?(request_to("/admin"))).to be(false)
+      expect(described_class.unknown_path?(request_to("/passkey"))).to be(false)
+    end
+  end
+
+  describe "responses" do
+    it "gives a throttled request a typed error body and a Retry-After header" do
+      env = Rack::MockRequest.env_for("/api/v1/catalog/terms")
+      env["rack.attack.match_data"] = { limit: 300, period: 60, count: 301, epoch_time: 1_000_020 }
+
+      status, headers, body = described_class.throttled_responder.call(Rack::Attack::Request.new(env))
+
+      expect(status).to eq(429)
+      expect(headers["Retry-After"]).to eq("60")
+      expect(JSON.parse(body.join)).to include("code" => "RATE_LIMITED", "retry_after" => 60)
+    end
+
+    it "gives a blocked request a typed error body" do
+      status, _headers, body = described_class.blocklisted_responder.call(nil)
+
+      expect(status).to eq(403)
+      expect(JSON.parse(body.join)).to include("error" => "Forbidden", "code" => "FORBIDDEN")
     end
   end
 

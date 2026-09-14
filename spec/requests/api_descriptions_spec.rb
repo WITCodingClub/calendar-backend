@@ -43,6 +43,35 @@ RSpec.describe "API descriptions", type: :request do
       end
     end
 
+    it "gives every 4xx and 5xx response the Error schema" do
+      responses = document["paths"].values.flat_map(&:values).flat_map { |op| op["responses"].to_a }
+      errors    = responses.select { |status, _| status.match?(/\A[45]\d\d\z/) }
+
+      expect(errors).not_to be_empty
+      errors.each do |status, ref|
+        name   = ref["$ref"].to_s.split("/").last
+        schema = document.dig("components", "responses", name, "content", "application/json", "schema", "$ref")
+        expect(schema).to eq("#/components/schemas/Error"), "#{status} #{name} has no Error schema"
+      end
+    end
+
+    it "lists every error code that the API sends" do
+      expect(document.dig("components", "schemas", "Error", "properties", "code", "enum"))
+        .to contain_exactly("INVALID_FILTER", "NOT_FOUND", "RATE_LIMITED", "INTERNAL_ERROR")
+    end
+
+    it "declares the rate limit headers on every success and on the 429" do
+      document["paths"].values.flat_map(&:values).each do |op|
+        expect(op.dig("responses", "200", "headers").keys).to include("RateLimit", "RateLimit-Policy")
+      end
+      expect(document.dig("components", "responses", "TooManyRequests", "headers").keys)
+        .to include("Retry-After", "RateLimit", "RateLimit-Policy")
+    end
+
+    it "states the deprecation policy" do
+      expect(document.dig("info", "description")).to include("Deprecation", "Sunset", "90 days")
+    end
+
     it "lets a proxy cache the file" do
       expect(response.headers["Cache-Control"]).to include("public")
     end

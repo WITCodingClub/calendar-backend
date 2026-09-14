@@ -59,14 +59,16 @@ RSpec.describe "Discovery files", type: :request do
   end
 
   describe "GET /sitemap.xml" do
-    it "lists the API reference" do
+    it "lists the website pages and the API reference" do
       get "/sitemap.xml", headers: crawler
 
       expect(response).to have_http_status(:ok)
       expect(response.media_type).to eq("application/xml")
 
       locations = Nokogiri::XML(response.body).remove_namespaces!.xpath("//url/loc").map(&:text)
-      expect(locations).to eq([ "http://example.com/docs/api" ])
+      expect(locations).to eq(
+        %w[/ /about /contact /privacy /tos /docs/api].map { |path| "http://example.com#{path}" }
+      )
     end
   end
 
@@ -85,6 +87,24 @@ RSpec.describe "Discovery files", type: :request do
       get "/llms.txt", headers: crawler
 
       expect(links).to include("http://example.com/docs/api.md")
+    end
+
+    it "tells agents when to use the service and how to call it" do
+      get "/llms.txt", headers: crawler
+
+      intro   = response.body.split(/^## /).first
+      section = response.body[/^## When to use this service\n\n((?:- \[[^\n]+\n)+)/, 1]
+
+      expect(intro).to include("Use WIT Calendar when", "Do not use it for")
+      expect(intro).to include("RateLimit", "Retry-After")
+      expect(section).to be_present
+      expect(section.lines).to all(match(/\A- \[[^\]]+\]\(http[^)]+\): \S/))
+    end
+
+    it "sends agents to the versioning and deprecation policy" do
+      get "/llms.txt", headers: crawler
+
+      expect(links).to include("http://example.com/docs/api#versioning-and-deprecation")
     end
 
     it "sends agents to auth.md" do
@@ -212,6 +232,9 @@ RSpec.describe "Discovery files", type: :request do
 
       known = %w[Acknowledgments Canonical Contact Encryption Expires Hiring Policy Preferred-Languages CSAF]
       expect(fields.map(&:first).uniq - known).to be_empty
+    end
+  end
+
   describe "GET /auth.md" do
     before { get "/auth.md", headers: crawler }
 

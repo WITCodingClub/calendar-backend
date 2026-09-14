@@ -1,6 +1,6 @@
-# Public Catalog API
+# WIT Calendar Course Catalog API
 
-A read-only API for the WIT course schedule. It needs no authentication and no
+A read-only API for the WIT course schedule, published by WIT Calendar. It needs no authentication and no
 API key.
 
 This reference is also available as markdown at `/docs/api.md`. A client that
@@ -56,6 +56,43 @@ office locations.
 - GraphQL page size: 50 by default, 200 maximum.
 - GraphQL query depth: 12 maximum. Query complexity: 500 maximum.
 - GraphQL has no mutations.
+
+### Rate limit headers
+
+Every API response sends two headers from the IETF draft
+[RateLimit header fields for HTTP](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/).
+Each list item is one policy:
+
+```http
+RateLimit-Policy: "req/ip";q=600;w=300, "catalog/ip";q=300;w=60
+RateLimit: "req/ip";r=599;t=180, "catalog/ip";r=299;t=42
+```
+
+- In `RateLimit-Policy`, `q` is the number of requests allowed in a window of
+  `w` seconds.
+- In `RateLimit`, `r` is the number of requests left, and `t` is the number of
+  seconds until the window resets.
+
+When `r` reaches 0, wait `t` seconds. A client that goes over a limit gets HTTP
+429 with the `RATE_LIMITED` error code. Wait for the number of seconds in the
+`Retry-After` header before the next request.
+
+## Versioning and deprecation
+
+- The major version of the REST API is in the path: `/api/v1`.
+- Version 1 only gets changes that do not break a client: a new field, a new
+  endpoint, a new filter, or a new error code. A client must ignore fields that
+  it does not know.
+- A change that breaks a client gets a new path, such as `/api/v2`.
+- Before an endpoint or a field is removed, its responses send a `Deprecation`
+  header ([RFC 9745](https://www.rfc-editor.org/rfc/rfc9745)) with the date of
+  the deprecation. They also send a `Sunset` header
+  ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)) with the date of the
+  removal.
+- The removal comes at least 90 days after the first `Deprecation` header.
+- A GraphQL field gets `@deprecated` with a reason at least 90 days before it
+  is removed.
+- No endpoint and no field is deprecated now.
 
 ## CSV reports
 
@@ -145,7 +182,15 @@ An error returns `error` and `code`:
 { "error": "Unknown day \"funday\"", "code": "INVALID_FILTER" }
 ```
 
-The code is `INVALID_FILTER` (HTTP 400) or `NOT_FOUND` (HTTP 404).
+Every 4xx and 5xx response has this body. Branch on `code`, not on the
+message:
+
+| Code | HTTP status | Meaning |
+| --- | --- | --- |
+| `INVALID_FILTER` | 400 | A filter value is not valid |
+| `NOT_FOUND` | 404 | No record matches |
+| `RATE_LIMITED` | 429 | The client went over a rate limit. The body also has `retry_after`. |
+| `INTERNAL_ERROR` | 500 | An unexpected server error |
 
 ### Endpoints
 
