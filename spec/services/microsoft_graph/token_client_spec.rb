@@ -74,6 +74,15 @@ RSpec.describe MicrosoftGraph::TokenClient, :microsoft_graph do
       credential = create(:oauth_credential, :microsoft, refresh_token: nil)
 
       expect { token_client.refresh!(credential) }.to raise_error(MicrosoftGraph::AuthError)
+      expect(credential.reload).not_to be_token_revoked
+    end
+
+    it "marks the credential revoked when Microsoft answers invalid_grant" do
+      credential = create(:oauth_credential, :microsoft, token_expires_at: 1.minute.ago)
+      stub_request(:post, MicrosoftGraphHelpers::TOKEN_URL).to_return(graph_json_response("token_invalid_grant", status: 400))
+
+      expect { token_client.refresh!(credential) }.to raise_error(MicrosoftGraph::AuthError)
+      expect(credential.reload).to be_token_revoked
     end
   end
 end
