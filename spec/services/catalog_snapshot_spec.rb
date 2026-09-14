@@ -45,6 +45,17 @@ RSpec.describe CatalogSnapshot do
       end
     end
 
+    it "replaces email addresses in free text and keeps the ics_uid" do
+      course
+      create(:university_calendar_event, term: term, ics_uid: "event-1@calendar.wit.edu",
+                                         description: "Questions? Email jdoe1@wit.edu or access@wit.edu.")
+
+      row = export["tables"]["university_calendar_events"].sole
+
+      expect(row["description"]).to eq("Questions? Email redacted@example.com or redacted@example.com.")
+      expect(row["ics_uid"]).to eq("event-1@calendar.wit.edu")
+    end
+
     it "exports the most recent terms that have courses" do
       create(:course, term: create(:term, uid: 202610, year: 2025, season: :fall))
       course
