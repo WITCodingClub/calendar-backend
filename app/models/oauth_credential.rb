@@ -108,7 +108,13 @@ class OauthCredential < ApplicationRecord
     self.metadata = metadata.except("token_revoked", "token_revoked_at", "revocation_reason")
   end
 
+  # Sessions do not record a credential. Onboarding opens google_onboard
+  # sessions only after Google verifies the user's own WIT email, so that
+  # account is the one that vouched for them. Any other Google account only
+  # shares the calendar, and passkey sessions end with their passkey.
   def revoke_sessions
-    UserSession.revoke_all_for(user, reason: "google account disconnected") if user
+    return unless user && email.to_s.casecmp?(user.email.to_s)
+
+    UserSession.revoke_all_for(user, reason: "google account disconnected", source: "google_onboard")
   end
 end

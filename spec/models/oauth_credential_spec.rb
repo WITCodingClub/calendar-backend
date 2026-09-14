@@ -82,6 +82,44 @@ RSpec.describe OauthCredential, type: :model do
     end
   end
 
+  # No matcher covers what an after_destroy callback does to other records, so
+  # these examples check the sessions directly.
+  describe "sessions after a Google account is disconnected" do
+    let(:user) { create(:user) }
+    # The factory gives the credential the user's own email: the WIT account
+    # that onboarding verified.
+    let!(:sign_in_account) { create(:oauth_credential, user: user) }
+    let!(:personal_account) { create(:oauth_credential, user: user, email: "personal@example.test") }
+
+    def session_for(token)
+      UserSession.find_by(jti: JsonWebTokenService.decode(token)[:jti])
+    end
+
+    it "keeps the sessions when the account only shares the calendar" do
+      token = api_token_for(user)
+
+      personal_account.destroy!
+
+      expect(session_for(token).reload).to be_active
+    end
+
+    it "ends the Google sign-in sessions when the sign-in account is disconnected" do
+      token = api_token_for(user)
+
+      sign_in_account.destroy!
+
+      expect(session_for(token).reload).to be_revoked
+    end
+
+    it "keeps the passkey sessions, which the Google account did not open" do
+      token = api_token_for(user, source: "passkey", passkey: create(:passkey, user: user))
+
+      sign_in_account.destroy!
+
+      expect(session_for(token).reload).to be_active
+    end
+  end
+
   describe "the revoked flag" do
     let(:credential) do
       create(:oauth_credential, refresh_token: "synthetic-refresh-token",
