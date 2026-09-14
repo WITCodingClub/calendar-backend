@@ -10,6 +10,10 @@ gem "turbo-rails"
 gem "stimulus-rails"
 gem "jbuilder"
 
+# json 3 changed JSON.parse to take one argument, which breaks
+# ActiveSupport::JSON.decode in Rails 8.1. Remove this pin when Rails supports json 3.
+gem "json", "< 3"
+
 # Renders the public API reference from the markdown file in docs/
 gem "redcarpet"
 gem "bcrypt", "~> 3.1.7"
