@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 # Serves the files that search engines and AI agents read first: /robots.txt,
-# /sitemap.xml, /llms.txt, and the API catalog at /.well-known/api-catalog.
+# /sitemap.xml, /llms.txt, /auth.md, and the API catalog at
+# /.well-known/api-catalog.
 #
 # The files are templates, not files in public/, so each URL inside them comes
 # from the routes and the request host. A static file would name one host and
@@ -31,4 +32,9 @@ class DiscoveryController < ActionController::Base
     render json:         ApiCatalogSerializer.new(url_options).as_json,
            content_type: %(application/linkset+json; profile="#{API_CATALOG_PROFILE}")
   end
+
+  # How an agent gets a credential for the personal API. The service has no
+  # OAuth authorization server, so the file stands alone and there is no
+  # /.well-known/oauth-protected-resource document.
+  def auth; end
 end

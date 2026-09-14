@@ -1,0 +1,101 @@
+# WIT Calendar auth.md
+
+This file tells AI agents how to get a credential for the WIT Calendar API and how to use it.
+
+## Audience
+
+WIT Calendar serves the students and staff of Wentworth Institute of Technology. Each account belongs to one person who has a verified `@wit.edu` Google account.
+
+An agent does not get an account of its own. An agent acts for one person, with a credential that the person gets when they sign in.
+
+## When you do not need a credential
+
+The public course catalog needs no credential and no API key. Do not register to read it.
+
+- [Terms](<%= api_v1_catalog_terms_url %>), [Sections](<%= api_v1_catalog_sections_url %>), and the other `/api/v1/catalog/` endpoints
+- [GraphQL](<%= api_graphql_url %>) (POST)
+- The CSV reports under `/reports/`
+
+The [API reference](<%= api_docs_url(format: :md) %>) describes these endpoints.
+
+You need a credential only for the other `/api/` endpoints. They read or change the data of one person: the schedule, the calendar preferences, the friends, and the sessions.
+
+## Supported methods
+
+| Method | Endpoints | Who must take part |
+| --- | --- | --- |
+| Google sign-in | `POST <%= api_user_onboard_url %>` | The person, in a Google consent screen |
+| Passkey | `POST <%= api_user_passkeys_authentication_options_url %>`, then `POST <%= api_user_passkeys_authenticate_url %>` | The person, with their authenticator |
+
+This service does not support these methods:
+
+- Anonymous credentials
+- Verified email claims
+- Identity assertions (ID-JAG)
+- OAuth dynamic client registration or OAuth authorization server metadata
+- API keys
+
+### Google sign-in
+
+Send one of these request bodies as JSON:
+
+- `google_auth_code`, `code_verifier`, and `redirect_uri`, from a Google authorization code flow with PKCE
+- `google_access_token`
+
+The Google token or code must come from the WIT Calendar Google OAuth client. The server checks the token audience. A token that Google issued to a different client gets `401`.
+
+The first successful sign-in creates the account. Call this endpoint only when the person asks you to sign them in.
+
+Responses:
+
+- `200`: `{ "pub_id": "...", "jwt": "..." }`
+- `400`: the body has no code and no token.
+- `401`: Google did not accept the code or the token.
+- `403`: Google has not verified the email address, or the address is not a `@wit.edu` address (`"code": "WIT_ACCOUNT_REQUIRED"`).
+
+### Passkey
+
+A person who already has an account can sign in with a passkey.
+
+1. Call `POST <%= api_user_passkeys_authentication_options_url %>`. The response has a `handle` and the WebAuthn `options`.
+2. Give the options to the person's authenticator.
+3. Call `POST <%= api_user_passkeys_authenticate_url %>` with the `handle` and a `credential` object. The `credential` object holds the WebAuthn assertion: `id`, `rawId`, `type`, and `response` (`authenticatorData`, `clientDataJSON`, `signature`, `userHandle`).
+
+A successful call returns the same body as Google sign-in: `{ "pub_id": "...", "jwt": "..." }`.
+
+## Using the credential
+
+Send the `jwt` value in the `Authorization` header:
+
+```http
+Authorization: Bearer <jwt>
+```
+
+The server does not accept the token in a query string, a cookie, or a request body.
+
+- The token expires 90 days after the server issues it.
+- The person can end the session at any time. The token then stops working.
+- Keep the token secret. Do not write it to logs.
+
+When the server refuses a token, it returns `401` with one of these codes:
+
+| `code` | Meaning | What to do |
+| --- | --- | --- |
+| `AUTH_MISSING` | The request has no token. | Send the `Authorization` header. |
+| `AUTH_INVALID` | The token is not valid or has expired. | Ask the person to sign in again. |
+| `AUTH_REVOKED` | The person ended the session. | Ask the person to sign in again. Do not retry with the same token. |
+
+The personal API can be in beta. If the account does not have beta access, the server returns `403` with the error `Access denied. This feature is currently in beta testing.` A new token does not change this. Stop and tell the person.
+
+The person can see and end their sessions:
+
+- `GET <%= api_user_sessions_url %>`
+- `DELETE <%= api_user_sessions_url %>/{session_id}`
+
+## Rate limits
+
+- 100 requests per minute for each signed-in person on `/api/`
+- 20 requests per minute for each IP address on `/api/` without a credential
+- 300 requests per minute for each IP address on the public catalog
+
+A request over a limit gets `429`.
