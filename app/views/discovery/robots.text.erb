@@ -4,8 +4,14 @@
 # The API reference is at <%= api_docs_url %>
 # The same reference as markdown is at <%= api_docs_url(format: :md) %>
 # A short index for AI agents is at <%= llms_url %>
+# How an agent gets a credential is at <%= auth_md_url %>
 #
 # The disallowed paths need a sign-in or hold a personal calendar token.
+#
+# Content signals (https://contentsignals.org/):
+# search=yes    Search engines may index the pages and show links to them.
+# ai-input=yes  AI agents may use the pages to answer a question in real time.
+# ai-train=no   Do not use the pages to train or fine-tune an AI model.
 
 User-agent: *
 Allow: /
@@ -16,5 +22,6 @@ Disallow: /auth/
 Disallow: /oauth/
 Disallow: /passkey
 Disallow: /calendar/
+Content-Signal: search=yes, ai-input=yes, ai-train=no
 
 Sitemap: <%= sitemap_url %>

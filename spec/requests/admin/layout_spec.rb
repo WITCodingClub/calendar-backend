@@ -6,11 +6,14 @@ require "rails_helper"
 # element. Issue #572: the sidebar controller was on the desktop sidebar, so
 # the small-screen menu button did nothing.
 RSpec.describe "Admin layout", type: :request do
-  let(:admin) { create(:user, :admin) }
+  # No name, so User#full_name falls back to the email that the obfuscation example checks.
+  let(:admin) { create(:user, :admin, email: "admin@wit.edu", first_name: nil, last_name: nil) }
 
   let(:page) { Nokogiri::HTML(response.body) }
 
   before do
+    stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar/releases/latest")
+      .to_return(status: 200, body: { tag_name: "v0.0.0" }.to_json)
     allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(false)
     sign_in admin
     get admin_buildings_path

@@ -1,0 +1,33 @@
+{
+  "data": {
+    "node": {
+      "__typename": "Teacher",
+      "ratings": {
+        "edges": [
+          {
+            "cursor": "cursor-1",
+            "node": {
+              "id": "UmF0aW5nLTE=",
+              "legacyId": 1,
+              "comment": "Fake review one, purely synthetic test data.",
+              "date": "2024-01-15 00:00:00 +0000 UTC",
+              "class": "COMP1050",
+              "helpfulRating": 5,
+              "clarityRating": 5,
+              "difficultyRating": 2,
+              "wouldTakeAgain": 1,
+              "grade": "A",
+              "thumbsUpTotal": 3,
+              "thumbsDownTotal": 0,
+              "isForOnlineClass": false,
+              "isForCredit": true,
+              "attendanceMandatory": "mandatory",
+              "ratingTags": "Caring--Tough Grader"
+            }
+          }
+        ],
+        "pageInfo": { "hasNextPage": true, "endCursor": "cursor-1" }
+      }
+    }
+  }
+}

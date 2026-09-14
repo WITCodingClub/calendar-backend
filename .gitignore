@@ -60,3 +60,10 @@ config/credentials/
 
 # Personal mise overrides
 mise.local.toml
+
+# SimpleCov coverage reports
+/coverage/
+
+# The development catalog snapshot (see CatalogSnapshot). A global *.gz rule
+# would otherwise hide it.
+!/db/seeds/catalog.json.gz

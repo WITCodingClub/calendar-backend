@@ -13,6 +13,7 @@ Rails.application.routes.draw do
   get "/robots.txt",  to: "discovery#robots",  as: :robots,  format: false, defaults: { format: :text }
   get "/sitemap.xml", to: "discovery#sitemap", as: :sitemap, format: false, defaults: { format: :xml }
   get "/llms.txt",    to: "discovery#llms",    as: :llms,    format: false, defaults: { format: :text }
+  get "/auth.md",     to: "discovery#auth",    as: :auth_md, format: false, defaults: { format: :md }
 
   # RFC 9727 API catalog: the list of public APIs that an agent reads first.
   get "/.well-known/api-catalog", to: "discovery#api_catalog", as: :api_catalog, format: false

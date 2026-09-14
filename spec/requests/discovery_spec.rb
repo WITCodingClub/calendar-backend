@@ -29,11 +29,18 @@ RSpec.describe "Discovery files", type: :request do
       end
     end
 
+    it "declares content signals for every crawler" do
+      get "/robots.txt", headers: crawler
+
+      group = response.body[/^User-agent: \*\n(?:[^\n]+\n)*/]
+      expect(group).to include("Content-Signal: search=yes, ai-input=yes, ai-train=no\n")
+    end
+
     it "does not disallow the public API or the reference" do
       get "/robots.txt", headers: crawler
 
       disallowed = response.body.scan(/^Disallow: (\S+)$/).flatten
-      %w[/api/v1/catalog/terms /docs/api /docs/api.md /llms.txt /reports/sections].each do |path|
+      %w[/api/v1/catalog/terms /docs/api /docs/api.md /llms.txt /auth.md /reports/sections].each do |path|
         expect(disallowed.none? { |prefix| path.start_with?(prefix) }).to be(true), "#{path} is disallowed"
       end
     end
@@ -78,6 +85,12 @@ RSpec.describe "Discovery files", type: :request do
       get "/llms.txt", headers: crawler
 
       expect(links).to include("http://example.com/docs/api.md")
+    end
+
+    it "sends agents to auth.md" do
+      get "/llms.txt", headers: crawler
+
+      expect(links).to include("http://example.com/auth.md")
     end
 
     it "links only to routes that exist" do
@@ -199,6 +212,57 @@ RSpec.describe "Discovery files", type: :request do
 
       known = %w[Acknowledgments Canonical Contact Encryption Expires Hiring Policy Preferred-Languages CSAF]
       expect(fields.map(&:first).uniq - known).to be_empty
+  describe "GET /auth.md" do
+    before { get "/auth.md", headers: crawler }
+
+    it "answers an agent with markdown under an auth.md heading" do
+      expect(response).to have_http_status(:ok)
+      expect(response.media_type).to eq("text/markdown")
+      expect(response.body.lines.first).to match(/\A# .*auth\.md$/)
+    end
+
+    it "names the audience, the methods, and how to send the credential" do
+      expect(response.body).to include("## Audience", "## Supported methods", "## Using the credential")
+      expect(response.body).to include("POST http://example.com/api/user/onboard")
+      expect(response.body).to include("POST http://example.com/api/user/passkeys/authenticate")
+      expect(response.body).to include("Authorization: Bearer <jwt>")
+    end
+
+    it "lists every token error code that the API returns" do
+      source = Rails.root.join("app/controllers/concerns/json_web_token_authenticatable.rb").read
+      codes  = source.scan(/code: "(AUTH_[A-Z_]+)"/).flatten.uniq
+
+      expect(codes).not_to be_empty
+      codes.each { |code| expect(response.body).to include("`#{code}`") }
+    end
+
+    it "names only endpoints that exist" do
+      endpoints = response.body.scan(%r{(GET|POST|DELETE) http://example\.com(/[^\s`]+)})
+
+      expect(endpoints).not_to be_empty
+      endpoints.each do |verb, path|
+        # A placeholder such as {session_id} stands for any id.
+        route = Rails.application.routes.recognize_path(path.gsub(/\{\w+\}/, "1"), method: verb.downcase.to_sym)
+
+        expect(route[:controller]).not_to eq("api/catch_all"), "#{verb} #{path} has no route"
+      end
+    end
+
+    it "links only to routes that exist" do
+      links = response.body.scan(/\]\((http[^)]+)\)/).flatten
+
+      expect(links).not_to be_empty
+      links.each do |link|
+        path   = URI(link).path
+        method = path == "/api/graphql" ? :post : :get
+        route  = Rails.application.routes.recognize_path(path, method: method)
+
+        expect(route[:controller]).not_to eq("api/catch_all"), "#{link} has no route"
+      end
+    end
+
+    it "lets a proxy cache the file" do
+      expect(response.headers["Cache-Control"]).to include("public")
     end
   end
 end
