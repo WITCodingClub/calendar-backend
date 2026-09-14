@@ -10,11 +10,14 @@
   <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
   <%= javascript_importmap_tags %>
 </head>
-<%# The sidebar controller lives on body so the header menu button and the
-    small-screen overlay are both in its scope. %>
+<%# The sidebar and command palette controllers live on body so the header
+    buttons, the small-screen overlay, and the palette are all in their scope. %>
 <body class="h-full bg-surface text-on-surface"
-      data-controller="admin-sidebar"
+      data-controller="admin-sidebar command-palette"
       data-action="keydown.esc@window->admin-sidebar#close turbo:before-cache@document->admin-sidebar#close">
+  <%# Cloudflare Email Obfuscation turns addresses into "[email protected]" and
+      only decodes them on a full page load. Admins need the real addresses. %>
+  <!--email_off-->
   <%= render "shared/flash_messages" %>
   <%= render "shared/command_palette" %>
 
@@ -64,5 +67,6 @@
       <%= render "shared/version_footer" %>
     </div>
   </div>
+  <!--/email_off-->
 </body>
 </html>

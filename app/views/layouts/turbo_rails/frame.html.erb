@@ -1,0 +1,14 @@
+<%# Replaces the turbo-rails frame layout. Cloudflare Email Obfuscation turns
+    addresses into "[email protected]", and its decoder does not run on frame
+    responses, so admin user search showed no real emails. %>
+<html>
+  <head>
+    <%= csrf_meta_tags %>
+    <%= yield :head %>
+  </head>
+  <body>
+    <!--email_off-->
+    <%= yield %>
+    <!--/email_off-->
+  </body>
+</html>
