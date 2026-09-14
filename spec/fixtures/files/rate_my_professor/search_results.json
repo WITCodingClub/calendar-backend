@@ -1,0 +1,35 @@
+{
+  "data": {
+    "newSearch": {
+      "teachers": {
+        "didFallback": false,
+        "edges": [
+          {
+            "cursor": "YXJyYXljb25uZWN0aW9uOjA=",
+            "node": {
+              "id": "VGVhY2hlci0xMjM0NTY=",
+              "legacyId": 123456,
+              "firstName": "Ada",
+              "lastName": "Byron",
+              "department": "Computer Science",
+              "departmentId": "42",
+              "school": {
+                "legacyId": 1158,
+                "name": "Wentworth Institute of Technology",
+                "id": "U2Nob29sLTExNTg="
+              },
+              "avgRating": 4.5,
+              "avgDifficulty": 2.3,
+              "numRatings": 42,
+              "wouldTakeAgainPercentRounded": 88,
+              "mandatoryAttendance": { "yes": 10, "no": 5, "neither": 2, "total": 17 },
+              "takenForCredit": { "yes": 40, "no": 2, "neither": 0, "total": 42 },
+              "ratingsDistribution": { "total": 42, "r1": 1, "r2": 2, "r3": 4, "r4": 15, "r5": 20 },
+              "lockStatus": "UNLOCKED"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
