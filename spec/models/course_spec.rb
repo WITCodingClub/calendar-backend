@@ -38,48 +38,81 @@
 require "rails_helper"
 
 RSpec.describe Course, type: :model do
-  let(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
+  describe "associations and validations" do
+    subject { create(:course) }
 
-  def course(crn:, section_number:, schedule_type: "LEC", link_identifier: nil, subject: "CHEM", course_number: 1000)
-    Course.create!(
-      crn: crn,
-      term: term,
-      title: "Chemistry",
-      subject: subject,
-      course_number: course_number,
-      section_number: section_number,
-      schedule_type: schedule_type,
-      link_identifier: link_identifier,
-      is_section_linked: link_identifier.present?,
-      start_date: Date.new(2026, 9, 8),
-      end_date: Date.new(2026, 12, 15)
-    )
+    it { is_expected.to belong_to(:term) }
+    it { is_expected.to have_many(:course_faculties).dependent(:destroy) }
+    it { is_expected.to have_many(:faculties).through(:course_faculties) }
+    it { is_expected.to have_many(:meeting_times).class_name("Course::MeetingTime").dependent(:destroy) }
+    it { is_expected.to have_many(:meeting_time_rooms).through(:meeting_times) }
+    it { is_expected.to have_many(:rooms).through(:meeting_time_rooms) }
+    it { is_expected.to have_many(:enrollments).dependent(:destroy) }
+    it { is_expected.to have_many(:users).through(:enrollments) }
+    it { is_expected.to have_one(:final_exam).dependent(:destroy) }
+
+    # allow_nil isn't checked here: the model validation allows a nil crn, but
+    # the courses.crn column is NOT NULL at the database level, so the model's
+    # allow_nil: true can never actually be exercised (a nil crn fails at the
+    # database before the validation would waive it). Worth a look as a
+    # possible model bug.
+    it do
+      expect(subject).to validate_uniqueness_of(:crn)
+        .scoped_to(:term_id)
+        .with_message("has already been taken for this term")
+    end
+
+    it { is_expected.to define_enum_for(:status).with_values(active: "active", cancelled: "cancelled").backed_by_column_of_type(:string) }
+
+    it do
+      expect(subject).to define_enum_for(:schedule_type)
+        .with_values(
+          extension: "EXT", hybrid: "HYB", independent_study: "IND", laboratory: "LAB",
+          lecture: "LEC", online: "ONL", online_blended: "ONB", online_sync_lab: "OLB",
+          online_sync_lecture: "OLC", rotating_lab: "RLB", rotating_lecture: "RLC",
+          study_abroad: "SAB", study_away_domestic: "SAD"
+        )
+        .backed_by_column_of_type(:string)
+    end
+  end
+
+  let(:term) { create(:term) }
+
+  def course(section_number:, schedule_type: "LEC", link_identifier: nil, subject: "CHEM", course_number: 1000)
+    create(:course,
+           term: term,
+           subject: subject,
+           course_number: course_number,
+           section_number: section_number,
+           schedule_type: schedule_type,
+           link_identifier: link_identifier,
+           is_section_linked: link_identifier.present?)
   end
 
   describe "#link_slot and #link_key" do
     it "splits the Banner identifier into the slot and the key" do
-      lecture = course(crn: 1, section_number: "1A", link_identifier: "A1")
+      lecture = course(section_number: "1A", link_identifier: "A1")
 
       expect(lecture.link_slot).to eq("A")
       expect(lecture.link_key).to eq("1")
     end
 
     it "keeps a key that is more than one character" do
-      lecture = course(crn: 2, section_number: "1A", link_identifier: "AAB")
+      lecture = course(section_number: "1A", link_identifier: "AAB")
 
       expect(lecture.link_slot).to eq("A")
       expect(lecture.link_key).to eq("AB")
     end
 
     it "returns nil when the section is not linked" do
-      lecture = course(crn: 3, section_number: "01")
+      lecture = course(section_number: "01")
 
       expect(lecture.link_slot).to be_nil
       expect(lecture.link_key).to be_nil
     end
 
     it "returns nil for a key when the identifier is only a slot" do
-      lecture = course(crn: 4, section_number: "01", link_identifier: "A")
+      lecture = course(section_number: "01", link_identifier: "A")
 
       expect(lecture.link_slot).to eq("A")
       expect(lecture.link_key).to be_nil
@@ -88,53 +121,53 @@ RSpec.describe Course, type: :model do
 
   describe "#linked_sections" do
     it "finds the labs that go with a lecture" do
-      lecture = course(crn: 10, section_number: "1A", link_identifier: "A1")
-      lab_one = course(crn: 11, section_number: "2A", schedule_type: "LAB", link_identifier: "B1")
-      lab_two = course(crn: 12, section_number: "3A", schedule_type: "LAB", link_identifier: "B1")
+      lecture = course(section_number: "1A", link_identifier: "A1")
+      lab_one = course(section_number: "2A", schedule_type: "LAB", link_identifier: "B1")
+      lab_two = course(section_number: "3A", schedule_type: "LAB", link_identifier: "B1")
 
       expect(lecture.linked_sections).to contain_exactly(lab_one, lab_two)
     end
 
     it "finds the lecture that goes with a lab" do
-      lecture = course(crn: 20, section_number: "1A", link_identifier: "A1")
-      lab     = course(crn: 21, section_number: "2A", schedule_type: "LAB", link_identifier: "B1")
+      lecture = course(section_number: "1A", link_identifier: "A1")
+      lab     = course(section_number: "2A", schedule_type: "LAB", link_identifier: "B1")
 
       expect(lab.linked_sections).to contain_exactly(lecture)
     end
 
     it "does not cross keys" do
-      lecture = course(crn: 30, section_number: "1A", link_identifier: "A1")
-      course(crn: 31, section_number: "5B", schedule_type: "LAB", link_identifier: "B2")
+      lecture = course(section_number: "1A", link_identifier: "A1")
+      course(section_number: "5B", schedule_type: "LAB", link_identifier: "B2")
 
       expect(lecture.linked_sections).to be_empty
     end
 
     it "does not return another section in the same slot" do
-      lecture = course(crn: 40, section_number: "1A", link_identifier: "A1")
-      course(crn: 41, section_number: "2A", link_identifier: "A1")
+      lecture = course(section_number: "1A", link_identifier: "A1")
+      course(section_number: "2A", link_identifier: "A1")
 
       expect(lecture.linked_sections).to be_empty
     end
 
     it "does not cross courses" do
-      lecture = course(crn: 50, section_number: "1A", link_identifier: "A1")
-      course(crn: 51, section_number: "2A", schedule_type: "LAB", link_identifier: "B1",
+      lecture = course(section_number: "1A", link_identifier: "A1")
+      course(section_number: "2A", schedule_type: "LAB", link_identifier: "B1",
              subject: "PHYS", course_number: 1000)
 
       expect(lecture.linked_sections).to be_empty
     end
 
     it "leaves out cancelled sections" do
-      lecture = course(crn: 60, section_number: "1A", link_identifier: "A1")
-      lab     = course(crn: 61, section_number: "2A", schedule_type: "LAB", link_identifier: "B1")
+      lecture = course(section_number: "1A", link_identifier: "A1")
+      lab     = course(section_number: "2A", schedule_type: "LAB", link_identifier: "B1")
       lab.update!(status: :cancelled)
 
       expect(lecture.linked_sections).to be_empty
     end
 
     it "returns none when the section is not linked" do
-      lecture = course(crn: 70, section_number: "01")
-      course(crn: 71, section_number: "02", schedule_type: "LAB", link_identifier: "B1")
+      lecture = course(section_number: "01")
+      course(section_number: "02", schedule_type: "LAB", link_identifier: "B1")
 
       expect(lecture.linked_sections).to be_empty
     end

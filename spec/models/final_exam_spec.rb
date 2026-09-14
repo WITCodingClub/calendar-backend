@@ -3,6 +3,28 @@
 require "rails_helper"
 
 RSpec.describe FinalExam do
+  describe "associations and validations" do
+    subject { create(:final_exam) }
+
+    it { is_expected.to belong_to(:term) }
+    it { is_expected.to belong_to(:course).optional }
+    it { is_expected.to have_many(:google_calendar_events).dependent(:nullify) }
+
+    it { is_expected.to validate_presence_of(:crn) }
+    it { is_expected.to validate_presence_of(:exam_date) }
+    it { is_expected.to validate_presence_of(:start_time) }
+    it { is_expected.to validate_presence_of(:end_time) }
+    it do
+      expect(subject).to validate_uniqueness_of(:crn)
+        .scoped_to(:term_id)
+        .with_message("can only have one final exam per CRN per term")
+    end
+
+    # #end_time_after_start_time is a custom cross-field validation, not a
+    # one-liner (validate_numericality_of has no "relative to another
+    # attribute" comparison).
+  end
+
   describe "#combined_crns" do
     it "returns an Array when the value is an Array" do
       exam = described_class.new(crn: 11111, combined_crns: [ 11111, 22222 ])

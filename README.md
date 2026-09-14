@@ -1,8 +1,49 @@
 # Getting Started
 
-This guide will walk you through setting up the application for development using GitHub Codespaces.
+You can set up the app on your own machine with mise, or in GitHub Codespaces.
 
-## Setup
+## Local Setup (mise)
+
+[mise](https://mise.jdx.dev) installs Ruby, Node, Postgres, and the system libraries that the gems need. It also runs the project tasks. You need mise `2026.9.0` or later.
+
+1.  Clone the repository and go into it.
+
+2.  Trust the project config:
+
+    ```bash
+    mise trust
+    ```
+
+3.  Get the development credentials key. See step 7 in [Codespaces Setup](#codespaces-setup).
+
+4.  Install everything and prepare the database:
+
+    ```bash
+    mise bootstrap
+    ```
+
+    This installs the system packages from `mise.toml`, installs the tools, and then runs `mise run setup`. Postgres must be running before the setup step.
+
+5.  Start the app:
+
+    ```bash
+    mise run dev
+    ```
+
+Run `mise tasks` to see all tasks. Common tasks:
+
+| Task | What it does |
+| --- | --- |
+| `mise run dev` | Starts the web server and the Tailwind watcher |
+| `mise run test` | Builds Tailwind CSS and runs RSpec. Add paths to run a subset. |
+| `mise run lint` | Runs RuboCop and the Herb linter |
+| `mise run security` | Runs Brakeman and bundler-audit |
+| `mise run ci` | Runs lint, security, and tests |
+| `mise run db:reset` | Drops, creates, and seeds the development database |
+
+Put personal overrides in `mise.local.toml`. Git ignores that file.
+
+## Codespaces Setup
 
 1.  Create a new branch OR fork this repository
 	

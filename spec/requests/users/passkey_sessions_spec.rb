@@ -4,6 +4,8 @@ require "rails_helper"
 require "webauthn/fake_client"
 
 RSpec.describe "Signing in to the dashboard with a passkey", type: :request do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:user) { User.create!(email: "webui@wit.edu", password: "password123", confirmed_at: Time.current) }
   let(:client) { WebAuthn::FakeClient.new("http://localhost:3000") }
 
@@ -51,6 +53,24 @@ RSpec.describe "Signing in to the dashboard with a passkey", type: :request do
     # The session is a real one: a page behind authentication now opens.
     get json["redirect_to"]
     expect(response).not_to redirect_to(new_user_session_path)
+  end
+
+  it "remembers the person past the idle timeout" do
+    register_passkey
+
+    post "/users/passkey/options"
+    handle    = json["handle"]
+    challenge = json.dig("options", "challenge")
+
+    post "/users/passkey/callback",
+         params: { handle: handle, credential: client.get(challenge: challenge) }, as: :json
+    expect(cookies["remember_user_token"]).to be_present
+    redirect_path = json["redirect_to"]
+
+    travel(User.timeout_in + 1.minute) do
+      get redirect_path
+      expect(response).to have_http_status(:ok)
+    end
   end
 
   it "refuses a challenge that was already spent" do

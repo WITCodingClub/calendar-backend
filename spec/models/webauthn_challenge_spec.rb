@@ -28,7 +28,20 @@ require "rails_helper"
 RSpec.describe WebauthnChallenge do
   include ActiveSupport::Testing::TimeHelpers
 
-  let(:user) { User.create!(email: "challenge@wit.edu", password: "password123") }
+  describe "associations and validations" do
+    subject { create(:webauthn_challenge) }
+
+    it { is_expected.to belong_to(:user).optional }
+
+    it { is_expected.to validate_presence_of(:handle) }
+    it { is_expected.to validate_uniqueness_of(:handle) }
+    it { is_expected.to validate_presence_of(:challenge) }
+    it { is_expected.to validate_presence_of(:purpose) }
+    it { is_expected.to validate_inclusion_of(:purpose).in_array(%w[registration authentication]) }
+    it { is_expected.to validate_presence_of(:expires_at) }
+  end
+
+  let(:user) { create(:user) }
 
   it "hands back the challenge it was issued with" do
     record = described_class.issue!(challenge: "abc123", purpose: "authentication")

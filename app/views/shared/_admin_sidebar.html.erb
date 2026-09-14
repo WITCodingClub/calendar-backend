@@ -1,8 +1,7 @@
 <% categories = Admin::NavigationRegistry.categories_for(current_user) %>
 
 <!-- Desktop sidebar (fixed) -->
-<aside class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 z-30 border-r border-outline-variant bg-surface-container"
-       data-controller="admin-sidebar">
+<aside class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 z-30 border-r border-outline-variant bg-surface-container">
 
   <!-- Logo -->
   <div class="flex items-center gap-3 px-5 py-4 border-b border-outline-variant">
@@ -52,15 +51,15 @@
   </nav>
 </aside>
 
-<!-- Mobile sidebar overlay -->
+<!-- Mobile sidebar overlay. The admin-sidebar controller is on <body> in
+     layouts/admin, because this overlay and the menu button are siblings. -->
 <div class="lg:hidden fixed inset-0 z-40 hidden"
-     data-admin-sidebar-target="overlay"
-     data-action="click->admin-sidebar#close">
-  <div class="absolute inset-0 bg-scrim/40"></div>
+     data-admin-sidebar-target="overlay">
+  <div class="absolute inset-0 bg-scrim/40" data-action="click->admin-sidebar#close"></div>
   <aside class="relative w-64 h-full flex flex-col border-r border-outline-variant bg-surface-container-high">
     <div class="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
       <p class="text-sm font-bold text-on-surface">WIT Calendar Admin</p>
-      <button type="button" data-action="click->admin-sidebar#close" class="text-on-surface-variant hover:text-on-surface">
+      <button type="button" aria-label="Close navigation" data-action="click->admin-sidebar#close" class="text-on-surface-variant hover:text-on-surface">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>

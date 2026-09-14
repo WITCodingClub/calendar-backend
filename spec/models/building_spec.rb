@@ -24,6 +24,8 @@ require "rails_helper"
 RSpec.describe Building, type: :model do
   fixtures :buildings
 
+  it { is_expected.to have_many(:rooms).dependent(:restrict_with_exception) }
+
   describe ".physical" do
     it "leaves out the TBD and ONLINE placeholders" do
       Building.create!(abbreviation: "TBD", name: "To Be Determined")

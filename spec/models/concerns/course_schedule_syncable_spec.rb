@@ -3,24 +3,15 @@
 require "rails_helper"
 
 RSpec.describe CourseScheduleSyncable, type: :model do
-  let(:user) { User.create!(email: "syncable@wit.edu", password: "password123") }
-  let(:credential) do
-    user.oauth_credentials.create!(
-      provider: "google", uid: "google-uid", email: user.email, access_token: "token"
-    )
-  end
-  let(:calendar) { credential.create_google_calendar!(google_calendar_id: "cal_123") }
+  let(:user)       { create(:user) }
+  let(:credential) { create(:oauth_credential, user: user) }
+  let(:calendar)   { create(:google_calendar, oauth_credential: credential, google_calendar_id: "cal_123") }
   let(:config) { user.user_extension_config }
 
   def university_event(summary:, category:, start_time:)
-    UniversityCalendarEvent.create!(
-      ics_uid: "uid-#{summary.parameterize}",
-      summary: summary,
-      category: category,
-      all_day: true,
-      start_time: start_time,
-      end_time: start_time + 1.day
-    )
+    create(:university_calendar_event,
+           summary: summary, category: category, all_day: true,
+           start_time: start_time, end_time: start_time + 1.day)
   end
 
   let(:past_holiday) do
@@ -82,7 +73,7 @@ RSpec.describe CourseScheduleSyncable, type: :model do
     end
 
     it "returns zero when the user has no calendar" do
-      other_user = User.create!(email: "no-calendar@wit.edu", password: "password123")
+      other_user = create(:user)
 
       expect(other_user.prune_unwanted_university_events).to eq(0)
     end

@@ -27,4 +27,7 @@
 require "rails_helper"
 
 RSpec.describe Room, type: :model do
+  it { is_expected.to belong_to(:building) }
+  it { is_expected.to have_many(:meeting_time_rooms).class_name("Course::MeetingTimeRoom").dependent(:destroy) }
+  it { is_expected.to have_many(:meeting_times).class_name("Course::MeetingTime").through(:meeting_time_rooms) }
 end
