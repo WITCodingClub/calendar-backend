@@ -10,9 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_13_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_14_010200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_stat_statements"
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -472,6 +473,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_13_050000) do
     t.index ["external_id"], name: "index_passkeys_on_external_id", unique: true
     t.index ["user_id", "nickname"], name: "index_passkeys_on_user_id_and_nickname", unique: true
     t.index ["user_id"], name: "index_passkeys_on_user_id"
+  end
+
+  create_table "pghero_queries", force: :cascade do |t|
+    t.text "query"
+    t.index ["query"], name: "index_pghero_queries_on_query", using: :hash
+  end
+
+  create_table "pghero_query_stats", force: :cascade do |t|
+    t.bigint "calls"
+    t.datetime "captured_at", precision: nil
+    t.text "database"
+    t.bigint "query_hash"
+    t.bigint "query_id"
+    t.float "total_time"
+    t.text "user"
+    t.index ["database", "captured_at"], name: "index_pghero_query_stats_on_database_and_captured_at"
+  end
+
+  create_table "pghero_space_stats", force: :cascade do |t|
+    t.datetime "captured_at", precision: nil
+    t.text "database"
+    t.text "relation"
+    t.text "schema"
+    t.bigint "size"
+    t.index ["database", "captured_at"], name: "index_pghero_space_stats_on_database_and_captured_at"
   end
 
   create_table "rating_distributions", force: :cascade do |t|

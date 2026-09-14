@@ -1,0 +1,25 @@
+# frozen_string_literal: true
+
+# PgHero 4.0 layout: each query text is stored once in pghero_queries, and the
+# stats rows reference it.
+class CreatePgheroQueryStats < ActiveRecord::Migration[8.1]
+  def change
+    create_table :pghero_queries do |t|
+      t.text :query
+    end
+
+    add_index :pghero_queries, :query, using: :hash
+
+    create_table :pghero_query_stats do |t|
+      t.text :database
+      t.text :user
+      t.references :query, index: false
+      t.integer :query_hash, limit: 8
+      t.float :total_time
+      t.integer :calls, limit: 8
+      t.timestamp :captured_at
+    end
+
+    add_index :pghero_query_stats, [ :database, :captured_at ]
+  end
+end

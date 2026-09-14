@@ -3,6 +3,15 @@
 
 production:
   # ---------------------------------------------------------------------------
+  # FREQUENT
+  # ---------------------------------------------------------------------------
+
+  pghero_capture_query_stats:
+    class: PgheroCaptureQueryStatsJob
+    queue: low
+    schedule: every 5 minutes
+
+  # ---------------------------------------------------------------------------
   # HOURLY
   # ---------------------------------------------------------------------------
 
@@ -54,6 +63,23 @@ production:
     class: CleanupOrphanedCalendarEventsJob
     queue: low
     schedule: every day at 5am
+
+  pghero_space_stats:
+    class: PgheroCaptureSpaceStatsJob
+    queue: low
+    schedule: every day at 5:30am
+
+  # Query stats are captured every 5 minutes, so the table grows fast. PgHero
+  # keeps 14 days of query stats and 90 days of space stats by default.
+  pghero_clean_query_stats:
+    command: "PgHero.clean_query_stats"
+    queue: low
+    schedule: every day at 6am
+
+  pghero_clean_space_stats:
+    command: "PgHero.clean_space_stats"
+    queue: low
+    schedule: every day at 6:30am
 
   # ---------------------------------------------------------------------------
   # WEEKLY
