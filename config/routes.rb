@@ -14,10 +14,16 @@ Rails.application.routes.draw do
   get "/sitemap.xml", to: "discovery#sitemap", as: :sitemap, format: false, defaults: { format: :xml }
   get "/llms.txt",    to: "discovery#llms",    as: :llms,    format: false, defaults: { format: :text }
 
+  # RFC 9727 API catalog: the list of public APIs that an agent reads first.
+  get "/.well-known/api-catalog", to: "discovery#api_catalog", as: :api_catalog, format: false
+
   # Public API reference, rendered from docs/public-catalog-api.md.
   # /docs/api.md, or Accept: text/markdown, returns the markdown source.
   get "/docs",     to: redirect("/docs/api")
   get "/docs/api", to: "docs#api", as: :api_docs
+  # Machine descriptions of the same API, for code generators and agents.
+  get "/docs/api/openapi.json",   to: "docs#openapi",        as: :api_openapi,        format: false
+  get "/docs/api/schema.graphql", to: "docs#graphql_schema", as: :api_graphql_schema, format: false
 
   # Google OAuth2 callback (handles both admin login and calendar OAuth)
   get "/auth/google_oauth2/callback", to: "auth#google"

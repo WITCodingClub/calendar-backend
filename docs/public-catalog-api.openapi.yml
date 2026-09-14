@@ -1,0 +1,488 @@
+# OpenAPI description of the public catalog REST API.
+#
+# DocsController serves this file as JSON at /docs/api/openapi.json and
+# replaces the server URL with the one for the request host. The prose reference is
+# docs/public-catalog-api.md. Change both files together.
+openapi: 3.1.0
+info:
+  title: WIT Course Catalog API
+  version: "1.0.0"
+  summary: Read-only course schedule data for Wentworth Institute of Technology.
+  description: |
+    A public, read-only API for the WIT course schedule. It needs no
+    authentication and no API key.
+
+    The API contains course schedule data only. It contains no student data.
+
+    Responses are public and cacheable for 1 hour. The rate limit is 300
+    requests per minute per IP address. The same data is also available
+    through GraphQL at `POST /api/graphql` and as CSV at `/reports/...`.
+externalDocs:
+  description: Course Catalog API reference
+  url: /docs/api
+servers:
+  - url: https://calendar.witcc.dev
+# The API needs no authentication.
+security: []
+tags:
+  - name: terms
+    description: Academic terms
+  - name: subjects
+    description: Subjects with section counts
+  - name: sections
+    description: Course sections, one for each CRN
+  - name: instructors
+    description: Faculty who teach at least one section
+
+paths:
+  /api/v1/catalog/terms:
+    get:
+      tags: [terms]
+      operationId: listTerms
+      summary: List all terms, newest first
+      description: Start here to get a `term_uid`.
+      responses:
+        "200":
+          description: Every term
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Term" }
+                  meta:
+                    type: object
+                    properties:
+                      count: { type: integer }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/v1/catalog/terms/{uid}:
+    get:
+      tags: [terms]
+      operationId: getTerm
+      summary: Get one term by its Banner code
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          description: The Banner term code, for example `202710`.
+          schema: { type: integer, examples: [202710] }
+      responses:
+        "200":
+          description: The term
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Term" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/v1/catalog/subjects:
+    get:
+      tags: [subjects]
+      operationId: listSubjects
+      summary: List subjects with section counts
+      parameters:
+        - $ref: "#/components/parameters/TermUid"
+      responses:
+        "200":
+          description: Subjects, sorted by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Subject" }
+                  meta:
+                    type: object
+                    properties:
+                      count: { type: integer }
+                      term_uid: { type: [integer, "null"] }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/v1/catalog/sections:
+    get:
+      tags: [sections]
+      operationId: listSections
+      summary: List course sections, with filters
+      description: |
+        All filters are optional. `free_days`, `begins_after`, and
+        `ends_before` apply to the whole section: a section is dropped if any
+        of its meetings breaks the rule. An unknown filter value returns
+        HTTP 400. An unknown query parameter is ignored.
+      parameters:
+        - $ref: "#/components/parameters/TermUid"
+        - name: subject
+          in: query
+          description: Match the subject code or the full label, for example `COMP`.
+          style: form
+          explode: false
+          schema: { type: array, items: { type: string } }
+        - name: course_number
+          in: query
+          description: Keep these course numbers.
+          style: form
+          explode: false
+          schema: { type: array, items: { type: string } }
+        - name: crn
+          in: query
+          description: Keep these CRNs.
+          style: form
+          explode: false
+          schema: { type: array, items: { type: string } }
+        - name: pub_id
+          in: query
+          description: Keep these sections by public id. A value that does not decode returns HTTP 400.
+          style: form
+          explode: false
+          schema: { type: array, items: { type: string } }
+        - name: q
+          in: query
+          description: Search the title, subject, and course number.
+          schema: { type: string }
+        - name: schedule_type
+          in: query
+          description: Keep these schedule types, by name or by code, for example `lecture` or `LEC`.
+          style: form
+          explode: false
+          schema: { type: array, items: { type: string } }
+        - name: credit_hours
+          in: query
+          description: Keep these credit hours.
+          style: form
+          explode: false
+          schema: { type: array, items: { type: string } }
+        - name: instructor
+          in: query
+          description: Match the instructor name.
+          schema: { type: string }
+        - name: meets_on
+          in: query
+          description: Keep sections that meet on any of these days.
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: "#/components/schemas/Day" } }
+        - name: free_days
+          in: query
+          description: Drop sections that meet on any of these days.
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: "#/components/schemas/Day" } }
+        - name: begins_after
+          in: query
+          description: Drop sections with any meeting before this time. Use `HH:MM` or `HHMM`. Inclusive.
+          schema: { type: string, examples: ["10:00"] }
+        - name: ends_before
+          in: query
+          description: Drop sections with any meeting after this time. Use `HH:MM` or `HHMM`. Inclusive.
+          schema: { type: string, examples: ["16:00"] }
+        - name: include_cancelled
+          in: query
+          description: Add cancelled sections.
+          schema: { type: boolean }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: One page of sections
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Section" }
+                  meta:
+                    allOf:
+                      - $ref: "#/components/schemas/PageMeta"
+                      - type: object
+                        properties:
+                          filters:
+                            type: object
+                            description: The filters that the request applied.
+                            additionalProperties: true
+        "400": { $ref: "#/components/responses/InvalidFilter" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/v1/catalog/sections/{crn}:
+    get:
+      tags: [sections]
+      operationId: getSection
+      summary: Get one section by CRN
+      description: |
+        This endpoint also returns cancelled sections. A CRN is only unique
+        inside one term, so send `term_uid` when a CRN occurs in more than one
+        term.
+      parameters:
+        - name: crn
+          in: path
+          required: true
+          schema: { type: integer, examples: [17294] }
+        - $ref: "#/components/parameters/TermUid"
+      responses:
+        "200":
+          description: The section
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Section" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/v1/catalog/instructors:
+    get:
+      tags: [instructors]
+      operationId: listInstructors
+      summary: List faculty who teach at least one section
+      parameters:
+        - $ref: "#/components/parameters/TermUid"
+        - name: q
+          in: query
+          description: Match the first, last, or display name.
+          schema: { type: string }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: One page of instructors, sorted by last name
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Instructor" }
+                  meta: { $ref: "#/components/schemas/PageMeta" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /api/v1/catalog/instructors/{pub_id}:
+    get:
+      tags: [instructors]
+      operationId: getInstructor
+      summary: Get one instructor by public id
+      parameters:
+        - name: pub_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: The instructor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Instructor" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+components:
+  parameters:
+    TermUid:
+      name: term_uid
+      in: query
+      description: Keep results in this term, by Banner term code.
+      schema: { type: integer, examples: [202710] }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+
+  responses:
+    InvalidFilter:
+      description: A filter value is not valid
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooManyRequests:
+      description: The IP address sent more than 300 requests in one minute
+    NotFound:
+      description: No record matches
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [INVALID_FILTER, NOT_FOUND] }
+
+    PageMeta:
+      type: object
+      required: [page, per_page, total_count, total_pages]
+      properties:
+        page: { type: integer }
+        per_page: { type: integer }
+        total_count: { type: integer }
+        total_pages: { type: integer }
+
+    Day:
+      type: string
+      enum: [sunday, monday, tuesday, wednesday, thursday, friday, saturday]
+
+    Term:
+      type: object
+      required: [uid, name]
+      properties:
+        uid: { type: integer, description: The Banner term code. }
+        name: { type: string, examples: ["Fall 2026"] }
+        season: { type: string, examples: [fall] }
+        year: { type: integer }
+        start_date: { type: [string, "null"], format: date }
+        end_date: { type: [string, "null"], format: date }
+        section_count: { type: integer, description: The number of active sections. }
+
+    Subject:
+      type: object
+      required: [subject, code, section_count]
+      properties:
+        subject: { type: string, examples: ["Computer Science (COMP)"] }
+        code: { type: string, examples: [COMP] }
+        section_count: { type: integer }
+
+    Section:
+      type: object
+      required: [crn, pub_id, term, subject, course_number, section_number, title, status]
+      properties:
+        crn: { type: integer, description: Unique only inside one term. }
+        pub_id:
+          type: string
+          description: Unique across every term and never changes. Use it as the key to store.
+        term:
+          type: object
+          properties:
+            uid: { type: integer }
+            name: { type: string }
+        subject: { type: string }
+        subject_code: { type: [string, "null"] }
+        course_number: { type: integer }
+        section_number: { type: string }
+        course_code: { type: string, examples: ["COMP 1000-01"] }
+        title: { type: string }
+        schedule_type: { type: string, examples: [lecture] }
+        schedule_type_code: { type: [string, "null"], examples: [LEC] }
+        credit_hours: { type: [integer, "null"] }
+        grade_mode: { type: [string, "null"] }
+        status: { type: string, enum: [active, cancelled] }
+        seats:
+          type: object
+          description: From Banner, refreshed every night. Up to a day old. Not a real-time seat count.
+          properties:
+            capacity: { type: [integer, "null"] }
+            available: { type: [integer, "null"] }
+        linked:
+          type: object
+          description: The sections that a student must register together, most often a lecture and its lab.
+          properties:
+            required: { type: boolean }
+            identifier: { type: [string, "null"] }
+            crns: { type: array, items: { type: integer } }
+            pub_ids: { type: array, items: { type: string } }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        instructors:
+          type: array
+          items: { $ref: "#/components/schemas/Instructor" }
+        meeting_times:
+          type: array
+          items: { $ref: "#/components/schemas/MeetingTime" }
+        final_exam:
+          oneOf:
+            - $ref: "#/components/schemas/FinalExam"
+            - type: "null"
+
+    MeetingTime:
+      type: object
+      properties:
+        day: { $ref: "#/components/schemas/Day" }
+        day_of_week: { type: integer, minimum: 0, maximum: 6, description: 0 is Sunday. }
+        begin_time: { type: string, examples: ["08:00"] }
+        end_time: { type: string, examples: ["09:15"] }
+        begin_time_12h: { type: string }
+        end_time_12h: { type: string }
+        duration_minutes: { type: integer }
+        meeting_type: { type: [string, "null"] }
+        all_day: { type: boolean }
+        location:
+          description: Null when the section has no room, as with online sections.
+          oneOf:
+            - $ref: "#/components/schemas/Location"
+            - type: "null"
+
+    Location:
+      type: object
+      properties:
+        display:
+          type: [string, "null"]
+          description: Null when the room is a placeholder "TBD" record.
+        building:
+          type: object
+          properties:
+            abbreviation: { type: [string, "null"] }
+            name: { type: [string, "null"] }
+        rooms:
+          type: array
+          items:
+            type: object
+            properties:
+              number: { type: string }
+              floor: { type: integer }
+
+    FinalExam:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        start_time: { type: [string, "null"] }
+        end_time: { type: [string, "null"] }
+        location: { type: [string, "null"] }
+
+    Instructor:
+      type: object
+      required: [pub_id, name]
+      properties:
+        pub_id: { type: string }
+        name: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        title: { type: [string, "null"] }
+        department: { type: [string, "null"] }
+        school: { type: [string, "null"] }
+        rmp:
+          description: Rate My Professors scores. Null when the instructor has no ratings.
+          oneOf:
+            - $ref: "#/components/schemas/Rmp"
+            - type: "null"
+
+    Rmp:
+      type: object
+      properties:
+        id: { type: [string, "null"] }
+        avg_rating: { type: [number, "null"] }
+        avg_difficulty: { type: [number, "null"] }
+        num_ratings: { type: integer }
+        would_take_again_percent: { type: [number, "null"] }

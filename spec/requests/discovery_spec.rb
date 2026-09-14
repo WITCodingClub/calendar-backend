@@ -93,4 +93,59 @@ RSpec.describe "Discovery files", type: :request do
       end
     end
   end
+
+  describe "GET /.well-known/api-catalog" do
+    let(:catalog) { JSON.parse(response.body) }
+
+    it "answers with a linkset in the RFC 9727 media type" do
+      get "/.well-known/api-catalog", headers: crawler
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["Content-Type"]).to start_with(
+        'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"'
+      )
+    end
+
+    it "lists the REST API and the GraphQL API on this host" do
+      get "/.well-known/api-catalog", headers: crawler
+
+      expect(catalog["linkset"].pluck("anchor")).to eq(
+        [ "http://example.com/api/v1/catalog", "http://example.com/api/graphql" ]
+      )
+    end
+
+    it "gives each API a description, a reference, and a health check" do
+      get "/.well-known/api-catalog", headers: crawler
+
+      catalog["linkset"].each do |entry|
+        %w[service-desc service-doc status].each do |relation|
+          expect(entry[relation]).to be_present, "#{entry['anchor']} has no #{relation}"
+        end
+      end
+    end
+
+    it "links only to URLs that answer" do
+      get "/.well-known/api-catalog", headers: crawler
+      hrefs = catalog["linkset"].flat_map { |entry| entry.except("anchor").values.flatten.pluck("href") }.uniq
+
+      hrefs.each do |href|
+        get URI(href).path, headers: crawler
+
+        expect(response).to have_http_status(:ok), "#{href} answered #{response.status}"
+      end
+    end
+
+    it "names itself in a Link header, so a HEAD request finds it" do
+      head "/.well-known/api-catalog", headers: crawler
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["Link"]).to eq('<http://example.com/.well-known/api-catalog>; rel="api-catalog"')
+    end
+
+    it "lets a proxy cache the file" do
+      get "/.well-known/api-catalog", headers: crawler
+
+      expect(response.headers["Cache-Control"]).to include("public")
+    end
+  end
 end
