@@ -51,6 +51,10 @@ class CourseCalendar < ApplicationRecord
 
   before_destroy :enqueue_remote_calendar_deletion
 
+  # Set when the remote calendar was already deleted, or cannot be deleted
+  # later, so destroying the row does not enqueue a delete job.
+  attr_accessor :skip_remote_deletion
+
   scope :for_user, ->(user) { joins(:oauth_credential).where(oauth_credentials: { user_id: user.id }) }
   scope :stale, ->(time_ago = 1.hour) { where("last_synced_at IS NULL OR last_synced_at < ?", time_ago.ago) }
 
@@ -65,7 +69,7 @@ class CourseCalendar < ApplicationRecord
   private
 
   def enqueue_remote_calendar_deletion
-    return if external_calendar_id.blank?
+    return if skip_remote_deletion || external_calendar_id.blank?
 
     if microsoft?
       MicrosoftGraphCalendarDeleteJob.perform_later(oauth_credential_id, external_calendar_id)

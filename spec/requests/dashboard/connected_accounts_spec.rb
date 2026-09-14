@@ -88,7 +88,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
 
         expect(outlook_section.text).to include(credential.email, "Syncing")
         expect(outlook_section.text).not_to include("Connect Outlook", "Reconnect")
-        expect(outlook_section.at_css("form[action='#{dashboard_connected_account_path(credential)}']")).to be_present
+        expect(outlook_section.at_css("form[action='#{dashboard_connected_account_path(credential.public_id)}']")).to be_present
       end
 
       it "shows a sign-in that expired" do
@@ -123,6 +123,34 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
         google_list = response.body.split('id="outlook-calendar"').first
         expect(google_list).not_to include(credential.email)
       end
+    end
+  end
+
+  describe "DELETE /dashboard/connected_accounts/:id", :microsoft_graph do
+    it "removes the Outlook calendar and then the Microsoft account" do
+      credential = create(:oauth_credential, :microsoft, user: user)
+      create(:course_calendar, :microsoft, oauth_credential: credential, external_calendar_id: "AAMkSyntheticCalendar1")
+      delete_calendar = stub_request(:delete, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/calendars/AAMkSyntheticCalendar1")
+                        .to_return(status: 204)
+
+      delete dashboard_connected_account_path(credential.public_id)
+
+      expect(response).to redirect_to(dashboard_connected_accounts_path)
+      expect(flash[:notice]).to eq("Account disconnected.")
+      expect(delete_calendar).to have_been_requested
+      expect(user.oauth_credentials.microsoft).to be_empty
+    end
+
+    it "disconnects the account when Graph cannot delete the calendar" do
+      credential = create(:oauth_credential, :microsoft, user: user)
+      create(:course_calendar, :microsoft, oauth_credential: credential, external_calendar_id: "AAMkSyntheticCalendar1")
+      stub_request(:delete, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/calendars/AAMkSyntheticCalendar1")
+        .to_return(graph_json_response("error_unauthorized", status: 500))
+
+      delete dashboard_connected_account_path(credential.public_id)
+
+      expect(flash[:notice]).to eq("Account disconnected.")
+      expect(user.oauth_credentials.microsoft).to be_empty
     end
   end
 
