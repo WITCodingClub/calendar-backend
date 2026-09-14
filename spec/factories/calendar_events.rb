@@ -19,5 +19,10 @@ FactoryBot.define do
       meeting_time { nil }
       association :university_calendar_event, strategy: :create
     end
+
+    trait :microsoft do
+      association :course_calendar, :microsoft, strategy: :create
+      external_ical_uid { Faker::Internet.uuid }
+    end
   end
 end

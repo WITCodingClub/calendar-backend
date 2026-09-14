@@ -18,4 +18,21 @@ RSpec.describe CourseCalendar, type: :model do
   it "uses the provider-neutral calendars table" do
     expect(described_class.table_name).to eq("calendars")
   end
+
+  describe "remote deletion on destroy" do
+    include ActiveJob::TestHelper
+
+    it "deletes a Google calendar through the service account job" do
+      calendar = create(:course_calendar, external_calendar_id: "cal@group.calendar.google.com")
+
+      expect { calendar.destroy }.to have_enqueued_job(GoogleCalendarDeleteJob).with("cal@group.calendar.google.com")
+    end
+
+    it "deletes a Microsoft calendar with the owner's credential" do
+      calendar = create(:course_calendar, :microsoft)
+
+      expect { calendar.destroy }
+        .to have_enqueued_job(MicrosoftGraphCalendarDeleteJob).with(calendar.oauth_credential_id, calendar.external_calendar_id)
+    end
+  end
 end

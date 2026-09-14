@@ -10,7 +10,7 @@ RSpec.describe OauthCredential, type: :model do
   it { is_expected.to have_many(:security_events).dependent(:nullify) }
 
   it { is_expected.to validate_presence_of(:provider) }
-  it { is_expected.to validate_inclusion_of(:provider).in_array(%w[google]) }
+  it { is_expected.to validate_inclusion_of(:provider).in_array(%w[google microsoft]) }
   it { is_expected.to validate_presence_of(:uid) }
   it { is_expected.to validate_uniqueness_of(:uid).scoped_to(:provider) }
   it { is_expected.to validate_presence_of(:access_token) }

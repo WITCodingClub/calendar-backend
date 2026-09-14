@@ -1,0 +1,238 @@
+# frozen_string_literal: true
+
+require "rails_helper"
+
+RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
+  include ActiveSupport::Testing::TimeHelpers
+
+  subject(:service) { described_class.new(user) }
+
+  let(:graph)        { MicrosoftGraphHelpers::GRAPH_URL }
+  let(:user)         { create(:user) }
+  let(:credential)   { create(:oauth_credential, :microsoft, user: user, token_expires_at: 1.hour.from_now) }
+  let(:calendar)     { create(:course_calendar, :microsoft, oauth_credential: credential, external_calendar_id: "AAMkSyntheticCalendar1") }
+  let(:meeting_time) { create(:course_meeting_time) }
+  let(:zone)         { Time.find_zone!("America/New_York") }
+
+  let(:class_event) do
+    {
+      summary:         "Synthetic Course",
+      description:     "COMP-1000-01",
+      location:        "Synthetic Hall - 101",
+      start_time:      zone.local(2026, 9, 14, 9, 0),
+      end_time:        zone.local(2026, 9, 14, 10, 15),
+      meeting_time_id: meeting_time.id,
+      recurrence:      nil,
+      all_day:         false
+    }
+  end
+
+  let(:created_event_id) { "AAMkSyntheticEvent1" }
+  let(:created_ical_uid) { JSON.parse(graph_fixture("event_created"))["iCalUId"] }
+
+  around { |example| travel_to(zone.local(2026, 9, 1, 12, 0)) { example.run } }
+
+  def stub_event_create
+    stub_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events").to_return(graph_json_response("event_created"))
+  end
+
+  describe "#create_or_get_course_calendar" do
+    it "creates the calendar in the mailbox and tracks it" do
+      credential
+      stub = stub_request(:post, "#{graph}/me/calendars")
+             .with(body: hash_including("name" => "[TEST] WIT Courses"))
+             .to_return(graph_json_response("calendar_created"))
+
+      expect(service.create_or_get_course_calendar).to eq("AAMkSyntheticCalendarNew")
+      expect(stub).to have_been_requested
+      expect(CourseCalendar.find_by!(oauth_credential: credential)).to have_attributes(provider: "microsoft", external_calendar_id: "AAMkSyntheticCalendarNew")
+    end
+
+    it "keeps a calendar that still exists" do
+      calendar
+      stub_request(:get, "#{graph}/me/calendars/AAMkSyntheticCalendar1").with(query: hash_including({}))
+        .to_return(graph_json_response("calendar_found"))
+
+      expect(service.create_or_get_course_calendar).to eq("AAMkSyntheticCalendar1")
+    end
+
+    it "creates the calendar again when the person deleted it in Outlook" do
+      create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time)
+      stub_request(:get, "#{graph}/me/calendars/AAMkSyntheticCalendar1").with(query: hash_including({}))
+        .to_return(graph_json_response("error_not_found", status: 404))
+      stub_request(:post, "#{graph}/me/calendars").to_return(graph_json_response("calendar_created"))
+
+      expect(service.create_or_get_course_calendar).to eq("AAMkSyntheticCalendarNew")
+      expect(calendar.reload.external_calendar_id).to eq("AAMkSyntheticCalendarNew")
+      expect(calendar.calendar_events).to be_empty
+    end
+
+    it "needs a Microsoft credential" do
+      expect { service.create_or_get_course_calendar }.to raise_error(MicrosoftGraph::AuthError)
+    end
+  end
+
+  describe "#update_calendar_events" do
+    it "does nothing without a Microsoft calendar" do
+      credential
+
+      expect(service.update_calendar_events([ class_event ])).to eq(created: 0, updated: 0, skipped: 0)
+    end
+
+    it "creates a new event and stores both Graph ids" do
+      calendar
+      create_stub = stub_event_create
+
+      stats = service.update_calendar_events([ class_event ])
+
+      expect(stats).to eq(created: 1, updated: 0, skipped: 0)
+      expect(create_stub).to have_been_requested.once
+      expect(calendar.calendar_events.sole).to have_attributes(
+        meeting_time_id: meeting_time.id, external_event_id: created_event_id, external_ical_uid: created_ical_uid
+      )
+    end
+
+    it "cancels the occurrences an EXDATE removes" do
+      calendar
+      stub_event_create
+      instances = stub_request(:get, "#{graph}/me/events/#{created_event_id}/instances")
+                  .with(query: hash_including("startDateTime" => "2026-10-12T00:00:00-04:00"))
+                  .to_return(graph_json_response("event_instances"))
+      cancel = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticOccurrence1").to_return(status: 204)
+
+      service.update_calendar_events([ class_event.merge(
+        recurrence: [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO", "EXDATE;TZID=America/New_York:20261012T090000" ]
+      ) ])
+
+      expect(instances).to have_been_requested
+      expect(cancel).to have_been_requested
+    end
+
+    it "skips an event that has not changed" do
+      calendar
+      create_stub = stub_event_create
+      service.update_calendar_events([ class_event ])
+
+      stats = described_class.new(user).update_calendar_events([ class_event ])
+
+      expect(stats).to eq(created: 0, updated: 0, skipped: 1)
+      expect(create_stub).to have_been_requested.once
+    end
+
+    it "updates a tracked event when forced" do
+      row = create(:calendar_event, :microsoft, course_calendar: calendar, meeting_time: meeting_time,
+                                                external_event_id: created_event_id)
+      # The preference templates rewrite the subject, so match on the time.
+      patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}")
+              .with(body: hash_including("start" => { "dateTime" => "2026-09-14T09:00:00", "timeZone" => "Eastern Standard Time" }))
+              .to_return(graph_json_response("event_updated"))
+
+      stats = service.update_calendar_events([ class_event ], force: true)
+
+      expect(stats).to eq(created: 0, updated: 1, skipped: 0)
+      expect(patch).to have_been_requested
+      expect(row.reload.event_data_hash).to be_present
+    end
+
+    it "follows an event that moved folders by its iCalUId" do
+      row = create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time,
+                                    external_event_id: "AAMkSyntheticEventOld", external_ical_uid: created_ical_uid)
+      stub_request(:patch, "#{graph}/me/events/AAMkSyntheticEventOld").to_return(graph_json_response("error_not_found", status: 404))
+      lookup = stub_request(:get, "#{graph}/me/events")
+               .with(query: hash_including("$filter" => "iCalUId eq '#{created_ical_uid}'"))
+               .to_return(graph_json_response("events_by_ical_uid"))
+      moved = stub_request(:patch, "#{graph}/me/events/AAMkSyntheticEventMoved").to_return(graph_json_response("event_updated"))
+
+      service.update_calendar_events([ class_event ], force: true)
+
+      expect(lookup).to have_been_requested
+      expect(moved).to have_been_requested
+      expect(row.reload.external_event_id).to eq("AAMkSyntheticEventMoved")
+    end
+
+    it "creates the event again when neither id finds it" do
+      old_row = create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time,
+                                        external_event_id: "AAMkSyntheticEventGone", external_ical_uid: "synthetic-gone-uid")
+      stub_request(:patch, "#{graph}/me/events/AAMkSyntheticEventGone").to_return(graph_json_response("error_not_found", status: 404))
+      stub_request(:get, "#{graph}/me/events").with(query: hash_including({})).to_return(graph_json_response("events_empty"))
+      create_stub = stub_event_create
+
+      expect { service.update_calendar_events([ class_event ], force: true) }.not_to have_enqueued_job(MicrosoftGraphEventDeleteJob)
+
+      expect(create_stub).to have_been_requested
+      expect(CalendarEvent.exists?(old_row.id)).to be(false)
+      expect(calendar.calendar_events.sole.external_event_id).to eq(created_event_id)
+    end
+
+    it "deletes a future event the schedule no longer has" do
+      other_meeting_time = create(:course_meeting_time)
+      row = create(:calendar_event, course_calendar: calendar, meeting_time: other_meeting_time,
+                                    external_event_id: "AAMkSyntheticEventDropped", end_time: zone.local(2026, 12, 1, 10))
+      delete = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticEventDropped").to_return(status: 204)
+
+      expect { service.update_calendar_events([]) }.not_to have_enqueued_job(MicrosoftGraphEventDeleteJob)
+
+      expect(delete).to have_been_requested
+      expect(CalendarEvent.exists?(row.id)).to be(false)
+    end
+
+    it "keeps a past event the schedule no longer has" do
+      other_meeting_time = create(:course_meeting_time)
+      row = create(:calendar_event, course_calendar: calendar, meeting_time: other_meeting_time,
+                                    external_event_id: "AAMkSyntheticEventPast", end_time: zone.local(2026, 5, 1, 10))
+
+      service.update_calendar_events([])
+
+      expect(CalendarEvent.exists?(row.id)).to be(true)
+    end
+  end
+
+  describe "#update_specific_events" do
+    it "creates only the events it is given" do
+      calendar
+      stub_event_create
+
+      expect(service.update_specific_events([ class_event ])).to eq(created: 1, updated: 0, skipped: 0)
+    end
+  end
+
+  describe "#delete_events" do
+    it "deletes each remote event and its row" do
+      row = create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time, external_event_id: created_event_id)
+      delete = stub_request(:delete, "#{graph}/me/events/#{created_event_id}").to_return(status: 204)
+
+      expect(service.delete_events([ row ])).to eq(1)
+      expect(delete).to have_been_requested
+      expect(CalendarEvent.exists?(row.id)).to be(false)
+    end
+  end
+
+  describe "#delete_calendar_event" do
+    it "deletes a moved event by its iCalUId when the stored id is gone" do
+      credential
+      stub_request(:delete, "#{graph}/me/events/AAMkSyntheticEventOld").to_return(graph_json_response("error_not_found", status: 404))
+      stub_request(:get, "#{graph}/me/events").with(query: hash_including({})).to_return(graph_json_response("events_by_ical_uid"))
+      moved = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticEventMoved").to_return(status: 204)
+
+      service.delete_calendar_event("AAMkSyntheticEventOld", created_ical_uid)
+
+      expect(moved).to have_been_requested
+    end
+
+    it "treats an event that is gone everywhere as deleted" do
+      credential
+      stub_request(:delete, "#{graph}/me/events/AAMkSyntheticEventOld").to_return(graph_json_response("error_not_found", status: 404))
+
+      expect { service.delete_calendar_event("AAMkSyntheticEventOld") }.not_to raise_error
+    end
+  end
+
+  describe "#delete_calendar" do
+    it "treats a missing calendar as deleted" do
+      credential
+      stub_request(:delete, "#{graph}/me/calendars/AAMkSyntheticCalendar1").to_return(graph_json_response("error_not_found", status: 404))
+
+      expect { service.delete_calendar("AAMkSyntheticCalendar1") }.not_to raise_error
+    end
+  end
+end
