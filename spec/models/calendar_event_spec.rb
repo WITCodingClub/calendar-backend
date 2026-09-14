@@ -81,6 +81,30 @@ RSpec.describe CalendarEvent, type: :model do
   let(:term)   { create(:term) }
   let(:course) { create(:course, term: term) }
 
+  describe "remote deletion on destroy" do
+    include ActiveJob::TestHelper
+
+    it "deletes a Google event through the service account job" do
+      event = create(:calendar_event, course_calendar: calendar, external_event_id: "google-evt")
+
+      expect { event.destroy }.to have_enqueued_job(GoogleCalendarEventDeleteJob).with("cal_123", "google-evt")
+    end
+
+    it "deletes a Microsoft event with the owner's credential and its iCalUId" do
+      event = create(:calendar_event, :microsoft, external_event_id: "AAMkSyntheticEvent1")
+
+      expect { event.destroy }.to have_enqueued_job(MicrosoftGraphEventDeleteJob)
+        .with(event.course_calendar.oauth_credential_id, "AAMkSyntheticEvent1", event.external_ical_uid)
+    end
+
+    it "leaves the remote event alone when the sync already deleted it" do
+      event = create(:calendar_event, course_calendar: calendar)
+      event.skip_remote_deletion = true
+
+      expect { event.destroy }.not_to have_enqueued_job
+    end
+  end
+
   describe "orphaning behavior" do
     it "is nullified, not destroyed, when its meeting time is destroyed" do
       meeting_time = create(:course_meeting_time, course: course)

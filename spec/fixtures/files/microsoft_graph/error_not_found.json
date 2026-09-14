@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "ErrorItemNotFound",
+    "message": "The specified object was not found in the store."
+  }
+}
