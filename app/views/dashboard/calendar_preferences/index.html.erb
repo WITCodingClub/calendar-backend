@@ -48,6 +48,38 @@
       <h2 class="text-base font-semibold text-on-surface">University Calendar Events</h2>
       <p class="text-xs text-on-surface-variant mt-0.5">Holidays, deadlines, and other campus events.</p>
     </div>
+    <%= form_with url: university_events_dashboard_calendar_preferences_path, method: :patch, class: "px-5 py-4 space-y-4 border-b border-outline-variant" do %>
+      <label class="flex items-start gap-3 cursor-pointer">
+        <%= hidden_field_tag :sync_university_events, "0", id: nil %>
+        <%= check_box_tag :sync_university_events, "1", @extension_config.sync_university_events, class: "mt-1 accent-primary" %>
+        <span>
+          <span class="block text-sm font-medium text-on-surface">Sync university events to Google Calendar</span>
+          <span class="block text-xs text-on-surface-variant">
+            Holidays always sync. Pick the other categories you want below.
+          </span>
+        </span>
+      </label>
+
+      <fieldset class="space-y-2 pl-7">
+        <legend class="m3-label">Categories</legend>
+        <%= hidden_field_tag "university_event_categories[]", "", id: nil %>
+        <% selected_categories = @extension_config.university_event_categories || [] %>
+        <% (UniversityCalendarEvent::CATEGORIES - [ "holiday" ]).each do |category| %>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <%= check_box_tag "university_event_categories[]", category, selected_categories.include?(category),
+                id: "university_event_category_#{category}", class: "mt-1 accent-primary" %>
+            <span>
+              <span class="block text-sm text-on-surface"><%= category.titleize %></span>
+              <span class="block text-xs text-on-surface-variant"><%= UniversityCalendarEvent.category_description(category) %></span>
+            </span>
+          </label>
+        <% end %>
+      </fieldset>
+
+      <div class="flex justify-end">
+        <%= submit_tag "Save", class: "m3-btn-filled", data: { disable_with: false } %>
+      </div>
+    <% end %>
     <div class="px-5 py-4 flex items-center justify-between gap-4">
       <p class="text-sm text-on-surface">
         Reminders:

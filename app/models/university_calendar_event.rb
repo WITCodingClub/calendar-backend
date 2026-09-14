@@ -46,6 +46,26 @@ class UniversityCalendarEvent < ApplicationRecord
 
   CATEGORIES = %w[holiday term_dates registration deadline study_day finals graduation academic campus_event meeting exhibit announcement other].freeze
 
+  # Shown to users who pick which categories to sync, in the extension and on the dashboard.
+  CATEGORY_DESCRIPTIONS = {
+    "holiday"      => "Official university holidays and breaks (always synced)",
+    "term_dates"   => "Semester start and end dates (classes begin/end)",
+    "registration" => "Registration periods and enrollment dates",
+    "deadline"     => "Academic deadlines (add/drop, withdrawal, payment due)",
+    "study_day"    => "Study days (no-class days before finals)",
+    "finals"       => "Final exam schedules and exam periods",
+    "graduation"   => "Commencement ceremonies and graduation events",
+    "academic"     => "Other academic events and calendar announcements",
+    "campus_event" => "Campus activities, concerts, and student events",
+    "meeting"      => "University meetings and administrative events",
+    "exhibit"      => "Art exhibits, displays, and gallery events",
+    "announcement" => "Important university announcements and notices"
+  }.freeze
+
+  def self.category_description(category)
+    CATEGORY_DESCRIPTIONS.fetch(category.to_s, "Other university events")
+  end
+
   validates :ics_uid, presence: true, uniqueness: true
   validates :summary, presence: true
   validates :start_time, :end_time, presence: true

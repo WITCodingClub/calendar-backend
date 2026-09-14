@@ -154,7 +154,9 @@ Rails.application.routes.draw do
     namespace :dashboard do
       root to: "overview#index"
       resource  :schedule,             only: [ :show ]
-      resources :calendar_preferences, only: [ :index, :update ]
+      resources :calendar_preferences, only: [ :index, :update ] do
+        patch :university_events, on: :collection
+      end
       resources :connected_accounts,   only: [ :index, :destroy ]
       resource  :ics_feed,             only: [ :show ]
       resource  :notifications,        only: [ :show, :update ] do
