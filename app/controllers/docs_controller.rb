@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-# Publishes the public catalog API reference at /docs/api.
+# Publishes the public catalog API reference at /docs/api, and the machine
+# descriptions of the API at /docs/api/openapi.json and
+# /docs/api/schema.graphql.
 #
 # The page renders docs/public-catalog-api.md, the same file the repository
 # keeps, so the site and the repository cannot say different things.
@@ -16,6 +18,7 @@ class DocsController < ActionController::Base
   layout "docs"
 
   SOURCE    = Rails.root.join("docs/public-catalog-api.md")
+  OPENAPI   = Rails.root.join("docs/public-catalog-api.openapi.yml")
   CACHE_AGE = 1.hour
 
   def api
@@ -38,6 +41,24 @@ class DocsController < ActionController::Base
 
     # A client that asks for neither format still gets the page.
     render formats: :html
+  end
+
+  # The file names no host. The server URL comes from the request, the same as
+  # the URLs in /llms.txt.
+  def openapi
+    expires_in CACHE_AGE, public: true
+
+    document = YAML.safe_load_file(OPENAPI)
+    document["servers"] = [ { "url" => root_url.delete_suffix("/") } ]
+
+    render json: document, content_type: "application/vnd.oai.openapi+json"
+  end
+
+  # The SDL comes from the schema class that runs the queries, so it cannot
+  # drift from the endpoint.
+  def graphql_schema
+    expires_in CACHE_AGE, public: true
+    render plain: CatalogSchema.to_definition
   end
 
   # @return [Hash] the rendered HTML and the top-level headings, for the menu.
