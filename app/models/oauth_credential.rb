@@ -37,8 +37,9 @@ class OauthCredential < ApplicationRecord
   has_many :security_events, dependent: :nullify
 
   # Disconnecting the Google account that vouched for this person should not
-  # leave tokens it produced still working.
-  after_destroy :revoke_sessions
+  # leave tokens it produced still working. A Microsoft credential only syncs a
+  # calendar and never signs anyone in, so removing it keeps the sessions.
+  after_destroy :revoke_sessions, if: :google?
 
   PROVIDERS = %w[google microsoft].freeze
 

@@ -15,4 +15,26 @@ RSpec.describe OauthCredential, type: :model do
   it { is_expected.to validate_uniqueness_of(:uid).scoped_to(:provider) }
   it { is_expected.to validate_presence_of(:access_token) }
   it { is_expected.to validate_presence_of(:email) }
+
+  # No matcher covers a conditional after_destroy callback, so these examples
+  # check its effect on the person's sessions.
+  describe "sessions after destroy" do
+    def active_sessions(user)
+      UserSession.where(user_id: user.id, revoked_at: nil)
+    end
+
+    it "ends the sessions when a Google credential is destroyed" do
+      credential = create(:oauth_credential)
+      api_token_for(credential.user)
+
+      expect { credential.destroy! }.to change { active_sessions(credential.user).count }.from(1).to(0)
+    end
+
+    it "keeps the sessions when a Microsoft credential is destroyed" do
+      credential = create(:oauth_credential, :microsoft)
+      api_token_for(credential.user)
+
+      expect { credential.destroy! }.not_to(change { active_sessions(credential.user).count })
+    end
+  end
 end
