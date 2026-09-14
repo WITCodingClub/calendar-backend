@@ -73,6 +73,20 @@ RSpec.describe CatalogImportService do
     end
   end
 
+  describe "schedule types" do
+    it "imports a Study Away Domestic (SAD) section" do
+      described_class.new([ catalog_row(crn: 32115, sequence: "01", schedule_type: "Study Away Domestic (SAD)") ]).call!
+
+      expect(Course.find_by(crn: 32115, term: term).schedule_type).to eq("study_away_domestic")
+    end
+
+    it "still fails the import for a schedule type it does not know" do
+      service = described_class.new([ catalog_row(crn: 32116, sequence: "01", schedule_type: "Made Up Type (ZZZ)") ])
+
+      expect { service.call! }.to raise_error(RuntimeError, /Failed to process 1 courses/)
+    end
+  end
+
   # One entry of the searchResults payload, cut down to the keys the service
   # reads. Seat counts come from this same payload, so importing them needs no
   # extra request to LeopardWeb.
