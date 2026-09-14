@@ -40,7 +40,7 @@ RSpec.describe GoogleCalendarService do
   end
 
   describe "#update_event_in_calendar" do
-    let(:user) { User.create!(email: "sync@wit.edu", password: "password123") }
+    let(:user) { create(:user) }
     let(:service) { described_class.new(user) }
     let(:calendar_api) { instance_double(Google::Apis::CalendarV3::CalendarService) }
     let(:google_calendar) { instance_double(GoogleCalendar, google_calendar_id: "cal@group.calendar.google.com") }
