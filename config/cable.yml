@@ -4,7 +4,8 @@ development:
 test:
   adapter: test
 
+# Nothing broadcasts or subscribes yet, and production is one Puma process, so
+# the in-process adapter is enough. Use solid_cable when a second process needs
+# to receive broadcasts.
 production:
-  adapter: redis
-  url: <%= ENV.fetch("REDIS_URL") { "redis://localhost:6379/1" } %>
-  channel_prefix: calendar_production
+  adapter: async
