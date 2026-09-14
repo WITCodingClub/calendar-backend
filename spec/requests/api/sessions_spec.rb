@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "Api::Sessions", type: :request do
-  let(:user) { User.create!(email: "sessions@wit.edu", password: "password123", confirmed_at: Time.current) }
+  let(:user) { create(:user) }
   let(:token) { api_token_for(user) }
   let(:headers) { { "Authorization" => "Bearer #{token}" } }
 
@@ -39,7 +39,7 @@ RSpec.describe "Api::Sessions", type: :request do
     end
 
     it "shows nobody else's sessions" do
-      stranger = User.create!(email: "stranger@wit.edu", password: "password123")
+      stranger = create(:user)
       api_token_for(stranger)
 
       get "/api/user/sessions", headers: headers
@@ -78,7 +78,7 @@ RSpec.describe "Api::Sessions", type: :request do
     end
 
     it "will not end someone else's session" do
-      stranger = User.create!(email: "stranger@wit.edu", password: "password123")
+      stranger = create(:user)
       theirs = session_for(api_token_for(stranger))
 
       delete "/api/user/sessions/#{theirs.public_id}", headers: headers
@@ -106,7 +106,7 @@ RSpec.describe "Api::Sessions", type: :request do
 
   describe "sessions that a security event should end" do
     it "ends the sessions a removed passkey opened" do
-      passkey = user.passkeys.create!(external_id: "cred-1", public_key: "key", nickname: "Old phone")
+      passkey = create(:passkey, user: user, nickname: "Old phone")
       from_passkey = JsonWebTokenService.issue(user: user, source: "passkey", passkey: passkey)
       unrelated    = api_token_for(user)
 
@@ -118,10 +118,7 @@ RSpec.describe "Api::Sessions", type: :request do
 
     it "ends every session when the Google account is disconnected" do
       signed_in = session_for(token) # the session must exist before the disconnect
-      credential = user.oauth_credentials.create!(
-        provider: "google", email: "them@gmail.com", uid: "uid-1",
-        access_token: "t", refresh_token: "r", token_expires_at: 1.hour.from_now
-      )
+      credential = create(:oauth_credential, user: user, email: "them@gmail.com")
 
       credential.destroy!
 
