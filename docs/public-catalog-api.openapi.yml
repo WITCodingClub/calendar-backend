@@ -5,7 +5,7 @@
 # docs/public-catalog-api.md. Change both files together.
 openapi: 3.1.0
 info:
-  title: WIT Course Catalog API
+  title: WIT Calendar Course Catalog API
   version: "1.0.0"
   summary: Read-only course schedule data for Wentworth Institute of Technology.
   description: |
@@ -15,8 +15,21 @@ info:
     The API contains course schedule data only. It contains no student data.
 
     Responses are public and cacheable for 1 hour. The rate limit is 300
-    requests per minute per IP address. The same data is also available
-    through GraphQL at `POST /api/graphql` and as CSV at `/reports/...`.
+    requests per minute per IP address. Every response sends the
+    `RateLimit-Policy` and `RateLimit` headers from the IETF draft "RateLimit
+    header fields for HTTP", so a client can slow down before it reaches the
+    limit. A 429 response also sends `Retry-After`. The same data is also
+    available through GraphQL at `POST /api/graphql` and as CSV at
+    `/reports/...`.
+
+    Every 4xx and 5xx response has the `Error` body. Branch on its `code`.
+
+    Versioning: the major version is in the path (`/api/v1`). Version 1 only
+    gets changes that do not break a client, such as a new field, a new
+    endpoint, or a new filter. Before an endpoint or a field is removed, its
+    responses send a `Deprecation` header (RFC 9745) and a `Sunset` header
+    (RFC 8594). The removal comes at least 90 days after the first
+    `Deprecation` header. No endpoint is deprecated now.
 externalDocs:
   description: Course Catalog API reference
   url: /docs/api
@@ -44,6 +57,9 @@ paths:
       responses:
         "200":
           description: Every term
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
           content:
             application/json:
               schema:
@@ -58,6 +74,7 @@ paths:
                     properties:
                       count: { type: integer }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /api/v1/catalog/terms/{uid}:
     get:
@@ -73,6 +90,9 @@ paths:
       responses:
         "200":
           description: The term
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
           content:
             application/json:
               schema:
@@ -82,6 +102,7 @@ paths:
                   data: { $ref: "#/components/schemas/Term" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /api/v1/catalog/subjects:
     get:
@@ -93,6 +114,9 @@ paths:
       responses:
         "200":
           description: Subjects, sorted by name
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
           content:
             application/json:
               schema:
@@ -108,6 +132,7 @@ paths:
                       count: { type: integer }
                       term_uid: { type: [integer, "null"] }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /api/v1/catalog/sections:
     get:
@@ -194,6 +219,9 @@ paths:
       responses:
         "200":
           description: One page of sections
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
           content:
             application/json:
               schema:
@@ -214,6 +242,7 @@ paths:
                             additionalProperties: true
         "400": { $ref: "#/components/responses/InvalidFilter" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /api/v1/catalog/sections/{crn}:
     get:
@@ -233,6 +262,9 @@ paths:
       responses:
         "200":
           description: The section
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
           content:
             application/json:
               schema:
@@ -242,6 +274,7 @@ paths:
                   data: { $ref: "#/components/schemas/Section" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /api/v1/catalog/instructors:
     get:
@@ -259,6 +292,9 @@ paths:
       responses:
         "200":
           description: One page of instructors, sorted by last name
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
           content:
             application/json:
               schema:
@@ -270,6 +306,7 @@ paths:
                     items: { $ref: "#/components/schemas/Instructor" }
                   meta: { $ref: "#/components/schemas/PageMeta" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /api/v1/catalog/instructors/{pub_id}:
     get:
@@ -284,6 +321,9 @@ paths:
       responses:
         "200":
           description: The instructor
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
           content:
             application/json:
               schema:
@@ -293,6 +333,7 @@ paths:
                   data: { $ref: "#/components/schemas/Instructor" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
 components:
   parameters:
@@ -310,6 +351,21 @@ components:
       in: query
       schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
 
+  headers:
+    RateLimit:
+      description: |
+        The quota that is left under each policy. `r` is the number of requests
+        left, and `t` is the number of seconds until the window resets.
+      schema: { type: string, examples: ['"req/ip";r=599;t=180, "catalog/ip";r=299;t=42'] }
+    RateLimitPolicy:
+      description: |
+        The quota policies that apply to the request. `q` is the number of
+        requests allowed in a window of `w` seconds.
+      schema: { type: string, examples: ['"req/ip";q=600;w=300, "catalog/ip";q=300;w=60'] }
+    RetryAfter:
+      description: The number of seconds to wait before the next request.
+      schema: { type: integer, examples: [60] }
+
   responses:
     InvalidFilter:
       description: A filter value is not valid
@@ -317,9 +373,21 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     TooManyRequests:
-      description: The IP address sent more than 300 requests in one minute
+      description: The client used all of a quota. Wait for the number of seconds in Retry-After.
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+        RateLimit: { $ref: "#/components/headers/RateLimit" }
+        RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     NotFound:
       description: No record matches
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InternalError:
+      description: An unexpected server error
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -327,10 +395,16 @@ components:
   schemas:
     Error:
       type: object
+      description: The body of every 4xx and 5xx response.
       required: [error, code]
       properties:
-        error: { type: string }
-        code: { type: string, enum: [INVALID_FILTER, NOT_FOUND] }
+        error: { type: string, description: A message for a person. }
+        code:
+          type: string
+          description: A stable, machine-readable code. Branch on this, not on `error`.
+          enum: [INVALID_FILTER, NOT_FOUND, RATE_LIMITED, INTERNAL_ERROR]
+        message: { type: string, description: More detail. Only RATE_LIMITED sends it. }
+        retry_after: { type: integer, description: Seconds to wait. Only RATE_LIMITED sends it. }
 
     PageMeta:
       type: object

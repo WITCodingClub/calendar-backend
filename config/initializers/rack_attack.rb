@@ -169,13 +169,20 @@ class Rack::Attack
       "Retry-After"         => match_data[:period].to_s
     }
 
-    body = { error: "Rate limit exceeded", message: "Too many requests. Please try again later.", retry_after: match_data[:period] }.to_json
+    body = {
+      error:       "Rate limit exceeded",
+      code:        "RATE_LIMITED",
+      message:     "Too many requests. Please try again later.",
+      retry_after: match_data[:period]
+    }.to_json
 
     [ 429, headers, [ body ] ]
   end
 
   self.blocklisted_responder = lambda do |_request|
-    [ 403, { "Content-Type" => "application/json" }, [ { error: "Forbidden", message: "Request blocked" }.to_json ] ]
+    body = { error: "Forbidden", code: "FORBIDDEN", message: "Request blocked" }.to_json
+
+    [ 403, { "Content-Type" => "application/json" }, [ body ] ]
   end
 
   # ===========================================================================
@@ -193,10 +200,27 @@ class Rack::Attack
     return false if AGENT_READABLE_PATH.call(req)
 
     ua = req.user_agent.to_s.downcase
-    ua.include?("scraper") ||
-      (ua.include?("bot") && ua.exclude?("googlebot")) ||
-      ua.include?("crawler") ||
-      ua.empty?
+    suspicious = ua.include?("scraper") ||
+                 (ua.include?("bot") && ua.exclude?("googlebot")) ||
+                 ua.include?("crawler") ||
+                 ua.empty?
+
+    # Checked last, because it runs the router.
+    suspicious && !unknown_path?(req)
+  end
+
+  # A path with no route gets the 404 page, which tells an agent that the page
+  # does not exist and where to look instead. A 403 says that the page exists
+  # and that the agent may not read it.
+  def self.unknown_path?(req)
+    Rails.application.routes.recognize_path(req.path, method: req.request_method)
+    false
+  rescue ActionController::RoutingError
+    true
+  rescue StandardError
+    # A route constraint that needs a session, such as Devise's authenticate,
+    # can raise here. That path is an app page, so keep blocking it.
+    false
   end
 
   def self.extract_user_id_from_jwt(req)

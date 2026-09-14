@@ -15,6 +15,8 @@
 # no sign-in and no Pundit, and the modern-browser guard on the app pages would
 # refuse curl and any other script that reads the reference.
 class DocsController < ActionController::Base
+  include MarkdownNegotiation
+
   layout "docs"
 
   SOURCE    = Rails.root.join("docs/public-catalog-api.md")
@@ -99,13 +101,8 @@ class DocsController < ActionController::Base
     end
   end
 
-  # Rails ignores an Accept header that also lists */*, and most agents send
-  # one, for example "text/markdown, text/html, */*". This method reads the
-  # header itself. Markdown wins only when the client ranks it above HTML.
+  # Markdown wins only when the client ranks it above HTML.
   def prefers_markdown?
-    types = Mime::Type.parse(request.headers["Accept"].to_s)
-    types.find { |type| type == Mime[:md] || type == Mime[:html] } == Mime[:md]
-  rescue Mime::Type::InvalidMimeType
-    false
+    preferred_document_type == Mime[:md]
   end
 end

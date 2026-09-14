@@ -10,6 +10,9 @@ module Api
     class PublicController < ActionController::API
       CACHE_MAX_AGE = 1.hour
 
+      # Declared first. rescue_from tries the last handler first, so the
+      # specific handlers below still win.
+      rescue_from StandardError, with: :render_internal_error
       rescue_from ::Catalog::SectionQuery::FilterError, with: :render_bad_request
       rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
 
@@ -35,6 +38,16 @@ module Api
 
       def render_not_found(exception = nil)
         render json: { error: exception&.message || "Not found", code: "NOT_FOUND" }, status: :not_found
+      end
+
+      # An unexpected error still returns the documented error object, so a
+      # client can branch on the code. The message stays generic, and the
+      # details go to the log.
+      def render_internal_error(exception)
+        Rails.logger.error("Catalog API error: #{exception.class} - #{exception.message}")
+        Rails.error.report(exception)
+
+        render json: { error: "Internal server error", code: "INTERNAL_ERROR" }, status: :internal_server_error
       end
 
       # Page size is capped so one request cannot pull the whole catalog.
