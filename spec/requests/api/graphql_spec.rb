@@ -237,6 +237,13 @@ RSpec.describe "Api::Graphql", type: :request do
 
       expect(gql(deep)["errors"]).to be_present
     end
+
+    it "rejects a query that costs more than the cost limit" do
+      costly = "{ sections(first: 200) { nodes { crn title } } }"
+      allow(CatalogSchema).to receive(:max_complexity).and_return(10)
+
+      expect(gql(costly)["errors"].pluck("message").join).to include("complexity")
+    end
   end
 
   describe "schema guarantees" do

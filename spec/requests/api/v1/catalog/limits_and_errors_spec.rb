@@ -20,6 +20,15 @@ RSpec.describe "Catalog API rate limits and errors", type: :request do
     expect(response.parsed_body).to eq("error" => "Internal server error", "code" => "INTERNAL_ERROR")
   end
 
+  it "never shows a database query in a not found message" do
+    %w[/api/v1/catalog/terms/999999 /api/v1/catalog/sections/999999 /api/v1/catalog/instructors/nope].each do |path|
+      get path
+
+      expect(response).to have_http_status(:not_found)
+      expect(response.parsed_body["error"]).not_to match(/WHERE|SELECT|Couldn't find|\$1/), path
+    end
+  end
+
   it "keeps the specific error for a record that does not exist" do
     get "/api/v1/catalog/terms/999999"
 

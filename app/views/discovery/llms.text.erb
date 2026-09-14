@@ -38,4 +38,4 @@ Do not use it for other schools, for live seat counts, for registration or enrol
 - [Instructors](<%= api_v1_catalog_instructors_url %>): JSON list of the faculty who teach at least one section.
 - [Meeting times CSV](<%= meeting_times_report_url %>): One row for each meeting, in one room, on one day.
 - [Terms CSV](<%= terms_report_url %>): The terms that have schedule data.
-- [GraphQL schema](<%= api_graphql_schema_url %>): The GraphQL schema in SDL.
+- [GraphQL schema](<%= api_graphql_schema_url %>): The GraphQL schema in SDL. Its `@cost` and `@listSize` directives (IBM GraphQL Cost Directives) give the cost of each field, and `@queryLimits` and `@rateLimit` give the limits.

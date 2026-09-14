@@ -54,7 +54,8 @@ office locations.
 - Rate limit: 300 requests per minute per IP address.
 - REST page size: 50 by default, 200 maximum.
 - GraphQL page size: 50 by default, 200 maximum.
-- GraphQL query depth: 12 maximum. Query complexity: 500 maximum.
+- GraphQL query depth: 12 maximum. Query cost: 500 maximum. See
+  [Cost and limits](#cost-and-limits).
 - GraphQL has no mutations.
 
 ### Rate limit headers
@@ -280,6 +281,39 @@ value into a string, and GraphQL then rejects booleans and numbers.
 
 `sections` and `instructors` are Relay connections. Both add `totalCount`, so a
 client can show "50 of 1174" without a second request.
+
+### Cost and limits
+
+The schema describes the cost of a query and its limits with directives. A
+client can read them from `/docs/api/schema.graphql` and check a query before
+it sends it.
+
+| Directive | Where | Meaning |
+| --- | --- | --- |
+| `@cost(weight: "1")` | Every field | The field adds 1 to the cost of a query. |
+| `@listSize(slicingArguments: ["first", "last"], sizedFields: ["edges", "nodes"], assumedSize: 200, requireOneSlicingArgument: false)` | `sections`, `instructors` | `first` or `last` sets the length of `edges` and `nodes`. A page never has more than 200 items. |
+| `@queryLimits(maxCost: 500, maxDepth: 12, defaultPageSize: 50, maxPageSize: 200)` | The schema | The server rejects a query that costs more than `maxCost` or nests deeper than `maxDepth`. |
+| `@rateLimit(max: 300, window: 60)` | The schema | One IP address can send at most 300 requests in 60 seconds. REST and GraphQL share this limit. |
+
+`@cost` and `@listSize` come from the
+[IBM GraphQL Cost Directives specification](https://ibm.github.io/graphql-specs/cost-spec.html).
+No published standard defines `@queryLimits` or `@rateLimit`.
+
+The server computes the cost of each query:
+
+- Each field adds 1.
+- In a connection, each field inside `edges` and `nodes` counts once for each
+  item on the page. The page size is `first` or `last`, or 50 when the query
+  gives neither.
+- A plain list, such as `terms` or `meetingTimes`, counts its fields once.
+- `__typename` adds 0.
+
+The directives do not describe the cost of an introspection query (`__schema`
+or `__type`).
+
+A cost analysis that reads `@cost` and `@listSize` gets the server's cost or a
+higher one. Without `first` or `last`, the analysis must assume a page of 200
+items. Give `first` to get a closer estimate.
 
 The `filter` argument takes the same filters as REST, in camelCase. Days and
 schedule types are enums, for example `FRIDAY` and `LECTURE`, so a wrong value

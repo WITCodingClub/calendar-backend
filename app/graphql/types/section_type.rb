@@ -5,6 +5,7 @@ module Types
     description "One course section, identified by its CRN within a term"
 
     connection_type_class Types::BaseConnection
+    edge_type_class Types::BaseEdge
 
     field :crn, Integer, null: false
     field :pub_id, String, null: false, method: :public_id

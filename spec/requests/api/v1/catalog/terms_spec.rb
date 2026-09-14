@@ -43,6 +43,7 @@ RSpec.describe "Api::V1::Catalog::Terms", type: :request do
 
       expect(response).to have_http_status(:not_found)
       expect(json["code"]).to eq("NOT_FOUND")
+      expect(json["error"]).to eq("No term 999999")
     end
   end
 end
