@@ -4,8 +4,18 @@ class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
   def index
     authorize current_user, :show?
 
-    @credentials = current_user.oauth_credentials.includes(:course_calendar).order(:created_at)
+    credentials = current_user.oauth_credentials.includes(:course_calendar).order(:created_at).to_a
+    @credentials = credentials.select { |credential| credential.provider == "google" }
+    @can_disconnect = credentials.size > 1
     @add_account_url = add_account_url
+
+    # The Outlook section shows only while the Microsoft Graph provider is on
+    # for this person, like the extension endpoints.
+    @microsoft_enabled = MicrosoftGraph.enabled_for?(current_user)
+    return unless @microsoft_enabled
+
+    @microsoft_credentials = credentials.select { |credential| credential.provider == "microsoft" }
+    @microsoft_connect_url = microsoft_connect_url
   end
 
   def destroy
@@ -39,5 +49,10 @@ class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
       email:   current_user.email
     )
     "/auth/google_oauth2?state=#{CGI.escape(state)}"
+  end
+
+  def microsoft_connect_url
+    state = MicrosoftGraph::OauthState.generate(user_id: current_user.id)
+    microsoft_graph_auth_path(state: state)
   end
 end

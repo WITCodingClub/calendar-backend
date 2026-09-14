@@ -62,6 +62,8 @@ class MicrosoftAuthController < ApplicationController
     credential.access_token     = token.access_token
     credential.refresh_token    = token.refresh_token if token.refresh_token.present?
     credential.token_expires_at = token.expires_at
+    # A new sign-in replaces a refresh token that Microsoft refused.
+    credential.metadata         = (credential.metadata || {}).except("token_revoked", "token_revoked_at", "revocation_reason")
     credential.save!
     credential
   end
