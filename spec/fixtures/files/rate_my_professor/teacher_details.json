@@ -1,0 +1,46 @@
+{
+  "data": {
+    "node": {
+      "__typename": "Teacher",
+      "id": "VGVhY2hlci0xMjM0NTY=",
+      "legacyId": 123456,
+      "firstName": "Ada",
+      "lastName": "Byron",
+      "department": "Computer Science",
+      "departmentId": "42",
+      "avgRating": 4.5,
+      "avgDifficulty": 2.3,
+      "numRatings": 42,
+      "wouldTakeAgainPercent": 88.0,
+      "isProfCurrentUser": false,
+      "isSaved": false,
+      "lockStatus": "UNLOCKED",
+      "school": {
+        "legacyId": 1158,
+        "name": "Wentworth Institute of Technology",
+        "city": "Boston",
+        "state": "MA",
+        "country": "USA",
+        "avgRating": 3.9,
+        "numRatings": 5000,
+        "id": "U2Nob29sLTExNTg="
+      },
+      "courseCodes": [
+        { "courseName": "COMP1050", "courseCount": 12 }
+      ],
+      "ratingsDistribution": { "r1": 1, "r2": 2, "r3": 4, "r4": 15, "r5": 20, "total": 42 },
+      "teacherRatingTags": [
+        { "id": "VGVhY2hlclRhZy0x", "legacyId": 1, "tagName": "Caring", "tagCount": 12 },
+        { "id": "VGVhY2hlclRhZy0y", "legacyId": 2, "tagName": "Tough Grader", "tagCount": 8 }
+      ],
+      "relatedTeachers": [
+        { "legacyId": 654321, "firstName": "Grace", "lastName": "Hopperfield", "avgRating": 4.1, "id": "VGVhY2hlci02NTQzMjE=" }
+      ],
+      "ratings": {
+        "edges": [],
+        "pageInfo": { "hasNextPage": false, "endCursor": null }
+      },
+      "id": "VGVhY2hlci0xMjM0NTY="
+    }
+  }
+}
