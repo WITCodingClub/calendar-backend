@@ -3,15 +3,6 @@
 
 production:
   # ---------------------------------------------------------------------------
-  # FREQUENT
-  # ---------------------------------------------------------------------------
-
-  pghero_capture_query_stats:
-    class: PgheroCaptureQueryStatsJob
-    queue: low
-    schedule: every 5 minutes
-
-  # ---------------------------------------------------------------------------
   # HOURLY
   # ---------------------------------------------------------------------------
 
@@ -57,11 +48,6 @@ production:
     class: CleanupOrphanedCalendarEventsJob
     queue: low
     schedule: every day at 5am
-
-  pghero_space_stats:
-    class: PgheroCaptureSpaceStatsJob
-    queue: low
-    schedule: every day at 5:30am
 
   # ---------------------------------------------------------------------------
   # WEEKLY

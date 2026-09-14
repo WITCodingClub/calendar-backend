@@ -15,10 +15,9 @@ gem "redcarpet"
 gem "bcrypt", "~> 3.1.7"
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
-# Database-backed adapters for cache, jobs, and cable
+# Database-backed adapters for cache and jobs
 gem "solid_cache"
 gem "solid_queue"
-gem "solid_cable"
 gem "mission_control-jobs"
 
 # Admin tooling
@@ -33,8 +32,6 @@ gem "console1984"
 
 gem "bootsnap", require: false
 gem "thruster", require: false
-# gem "image_processing", "~> 2.0"
-# gem "ruby-vips"
 
 # Authentication
 gem "devise", "~> 5.0"
@@ -47,7 +44,6 @@ gem "omniauth-google-oauth2"
 gem "omniauth-rails_csrf_protection"
 gem "google-apis-calendar_v3"
 gem "googleauth"
-gem "multi_json"
 
 # Authorization
 gem "pundit"
@@ -106,7 +102,5 @@ group :development do
 end
 
 group :test do
-  gem "capybara"
-  gem "selenium-webdriver"
   gem "shoulda-matchers"
 end
