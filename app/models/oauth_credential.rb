@@ -44,6 +44,11 @@ class OauthCredential < ApplicationRecord
   # leave tokens it produced still working.
   after_destroy :revoke_sessions
 
+  # Every way to disconnect an account (API, dashboard, admin, RISC, deleting
+  # the user) ends the Google grant too. After commit, so a rolled back destroy
+  # keeps its grant, and in a job, so the request does not wait for Google.
+  after_destroy_commit :enqueue_google_token_revocation
+
   validates :provider, presence: true, inclusion: { in: %w[google] }
   validates :uid, presence: true, uniqueness: { scope: :provider }
   validates :access_token, presence: true
@@ -100,6 +105,12 @@ class OauthCredential < ApplicationRecord
          Signet::UnexpectedStatusError, Faraday::Error => e
     Rails.logger.error("Failed to #{action} for #{email}: #{e.message}")
     Rails.error.report(e, handled: true, context: { oauth_credential_id: id, action: action })
+  end
+
+  # The refresh token ends the whole grant. Google does not revoke an access
+  # token that has expired.
+  def enqueue_google_token_revocation
+    RevokeGoogleTokenJob.perform_later(refresh_token.presence || access_token)
   end
 
   def clear_revoked_flag
