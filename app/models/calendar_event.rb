@@ -157,16 +157,27 @@ class CalendarEvent < ApplicationRecord
     return if skip_remote_deletion
     return if destroyed_by_association&.foreign_key.to_s == "calendar_id"
 
-    @remote_event_ref = [ course_calendar&.external_calendar_id, external_event_id ]
+    calendar = course_calendar
+    @remote_event_ref = {
+      provider:            calendar&.provider,
+      calendar_id:         calendar&.external_calendar_id,
+      oauth_credential_id: calendar&.oauth_credential_id,
+      event_id:            external_event_id,
+      ical_uid:            external_ical_uid
+    }
   end
 
   def enqueue_remote_event_deletion
     return if @remote_event_ref.blank?
 
-    calendar_id, event_id = @remote_event_ref
-    return if calendar_id.blank? || event_id.blank?
+    ref = @remote_event_ref
+    return if ref[:calendar_id].blank? || ref[:event_id].blank?
 
-    GoogleCalendarEventDeleteJob.perform_later(calendar_id, event_id)
+    if ref[:provider] == "microsoft"
+      MicrosoftGraphEventDeleteJob.perform_later(ref[:oauth_credential_id], ref[:event_id], ref[:ical_uid])
+    else
+      GoogleCalendarEventDeleteJob.perform_later(ref[:calendar_id], ref[:event_id])
+    end
   end
 
   def only_one_event_type_associated

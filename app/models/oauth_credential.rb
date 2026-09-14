@@ -47,9 +47,10 @@ class OauthCredential < ApplicationRecord
   # Every way to disconnect an account (API, dashboard, admin, RISC, deleting
   # the user) ends the Google grant too. After commit, so a rolled back destroy
   # keeps its grant, and in a job, so the request does not wait for Google.
-  after_destroy_commit :enqueue_google_token_revocation
+  # Google only: Google's revoke endpoint cannot end a Microsoft grant.
+  after_destroy_commit :enqueue_google_token_revocation, if: :google?
 
-  PROVIDERS = %w[google].freeze
+  PROVIDERS = %w[google microsoft].freeze
 
   validates :provider, presence: true, inclusion: { in: PROVIDERS }
   validates :uid, presence: true, uniqueness: { scope: :provider }
@@ -62,6 +63,7 @@ class OauthCredential < ApplicationRecord
 
   scope :for_provider, ->(provider) { where(provider: provider) }
   scope :google,        -> { for_provider("google") }
+  scope :microsoft,     -> { for_provider("microsoft") }
   scope :revoked,       -> { where("metadata->>'token_revoked' = 'true'") }
   scope :needs_refresh, -> { where(updated_at: ...7.days.ago).where.not(refresh_token: nil) }
 
@@ -83,10 +85,20 @@ class OauthCredential < ApplicationRecord
 
   private
 
+  def google?
+    provider == "google"
+  end
+
+  # Only Google calendars are shared into the person's calendar list. A
+  # Microsoft calendar lives in the person's own mailbox, so there is nothing
+  # to unshare.
+  #
   # The course calendar belongs to one credential, but it is shared with every
   # Google account the person connects. So look it up for the user, not only
   # on this credential.
   def revoke_calendar_access
+    return unless google?
+
     calendar_id = CourseCalendar.google.for_user(user).pick(:external_calendar_id) if user
     return if calendar_id.blank?
 
