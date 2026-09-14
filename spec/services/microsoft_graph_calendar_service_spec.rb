@@ -187,6 +187,122 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
     end
   end
 
+  describe "keeping edits made in Outlook" do
+    let!(:row) do
+      create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time,
+                              external_event_id: created_event_id, external_ical_uid: created_ical_uid,
+                              summary: "Synthetic Course", location: "Synthetic Hall - 101",
+                              start_time: zone.local(2026, 9, 14, 8, 0), end_time: zone.local(2026, 9, 14, 9, 15),
+                              event_data_hash: "stale")
+    end
+
+    def stub_event_fetch(event_id = created_event_id, **overrides)
+      body = JSON.parse(graph_fixture("event_fetched")).merge(overrides.deep_stringify_keys)
+      stub_request(:get, "#{graph}/me/events/#{event_id}")
+        .with(query: hash_including("$select" => MicrosoftGraph::EventEdits::SELECT))
+        .to_return(status: 200, body: body.to_json, headers: { "Content-Type" => "application/json" })
+    end
+
+    def outlook_time(hour, minute = 0)
+      { "dateTime" => format("2026-09-14T%02d:%02d:00.0000000", hour, minute), "timeZone" => "Eastern Standard Time" }
+    end
+
+    it "sends the app's new time when the person changed nothing" do
+      stub_event_fetch(start: outlook_time(8), end: outlook_time(9, 15))
+      patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}")
+              .with(body: hash_including("start" => outlook_time(9).merge("dateTime" => "2026-09-14T09:00:00")))
+              .to_return(graph_json_response("event_updated"))
+
+      stats = service.update_calendar_events([ class_event ])
+
+      expect(stats).to eq(created: 0, updated: 1, skipped: 0)
+      expect(patch).to have_been_requested
+      expect(row.reload).to have_attributes(user_edited_fields: nil, start_time: zone.local(2026, 9, 14, 9, 0))
+    end
+
+    it "keeps a title and a time the person changed" do
+      stub_event_fetch(subject: "Renamed in Outlook", start: outlook_time(11), end: outlook_time(9, 15))
+      patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}")
+              .with(body: hash_including("subject" => "Renamed in Outlook",
+                                         "start"   => { "dateTime" => "2026-09-14T11:00:00", "timeZone" => "Eastern Standard Time" },
+                                         "end"     => { "dateTime" => "2026-09-14T10:15:00", "timeZone" => "Eastern Standard Time" }))
+              .to_return(graph_json_response("event_updated"))
+
+      service.update_calendar_events([ class_event ])
+
+      expect(patch).to have_been_requested
+      expect(row.reload.user_edited_fields).to contain_exactly("summary", "start_time")
+      expect(row.summary).to eq("Renamed in Outlook")
+    end
+
+    it "keeps a field the person changed in an earlier sync" do
+      row.update!(user_edited_fields: [ "location" ], location: "Room chosen in Outlook")
+      stub_event_fetch(start: outlook_time(8), end: outlook_time(9, 15), location: { displayName: "Room chosen in Outlook" })
+      patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}")
+              .with(body: hash_including("location" => { "displayName" => "Room chosen in Outlook" }))
+              .to_return(graph_json_response("event_updated"))
+
+      service.update_calendar_events([ class_event ])
+
+      expect(patch).to have_been_requested
+      expect(row.reload.user_edited_fields).to eq([ "location" ])
+    end
+
+    it "leaves an event alone when the person changed its recurrence" do
+      row.update!(recurrence: [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO" ])
+      stub_event_fetch(start: outlook_time(8), end: outlook_time(9, 15), recurrence: {
+                         pattern: { type: "weekly", interval: 1, daysOfWeek: %w[monday wednesday], firstDayOfWeek: "sunday" },
+                         range:   { type: "endDate", startDate: "2026-09-14", endDate: "2026-12-11" }
+                       })
+
+      stats = service.update_calendar_events([ class_event ])
+
+      expect(stats).to eq(created: 0, updated: 0, skipped: 1)
+      expect(a_request(:patch, "#{graph}/me/events/#{created_event_id}")).not_to have_been_made
+      expect(row.reload.last_synced_at).to be_present
+    end
+
+    it "does not count an unchanged series as a recurrence edit" do
+      rule = [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO" ]
+      row.update!(recurrence: rule)
+      stub_event_fetch(start: outlook_time(8), end: outlook_time(9, 15), recurrence: {
+                         pattern: { type: "weekly", interval: 1, month: 0, dayOfMonth: 0, daysOfWeek: %w[monday], firstDayOfWeek: "sunday", index: "first" },
+                         range:   { type: "endDate", startDate: "2026-09-14", endDate: "2026-12-11", recurrenceTimeZone: "Eastern Standard Time", numberOfOccurrences: 0 }
+                       })
+      patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}").to_return(graph_json_response("event_updated"))
+
+      service.update_calendar_events([ class_event.merge(recurrence: rule) ])
+
+      expect(patch).to have_been_requested
+    end
+
+    it "reads a moved event by its iCalUId before it updates it" do
+      stub_request(:get, "#{graph}/me/events/#{created_event_id}").with(query: hash_including({}))
+        .to_return(graph_json_response("error_not_found", status: 404))
+      stub_request(:get, "#{graph}/me/events")
+        .with(query: hash_including("$filter" => "iCalUId eq '#{created_ical_uid}'"))
+        .to_return(graph_json_response("events_by_ical_uid"))
+      stub_event_fetch("AAMkSyntheticEventMoved", start: outlook_time(8), end: outlook_time(9, 15))
+      moved = stub_request(:patch, "#{graph}/me/events/AAMkSyntheticEventMoved").to_return(graph_json_response("event_updated"))
+
+      service.update_calendar_events([ class_event ])
+
+      expect(moved).to have_been_requested
+      expect(row.reload.external_event_id).to eq("AAMkSyntheticEventMoved")
+    end
+
+    it "writes the app's values and forgets the edits when forced" do
+      row.update!(user_edited_fields: [ "summary" ])
+      patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}").to_return(graph_json_response("event_updated"))
+
+      service.update_calendar_events([ class_event ], force: true)
+
+      expect(patch).to have_been_requested
+      expect(a_request(:get, "#{graph}/me/events/#{created_event_id}")).not_to have_been_made
+      expect(row.reload.user_edited_fields).to be_nil
+    end
+  end
+
   describe "#update_specific_events" do
     it "creates only the events it is given" do
       calendar

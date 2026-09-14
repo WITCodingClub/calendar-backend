@@ -141,8 +141,8 @@ class MicrosoftGraphCalendarService
         create_remote_event(calendar, event, data)
         stats[:created] += 1
       elsif force || row.data_changed?(data)
-        update_remote_event(calendar, row, event, data)
-        stats[:updated] += 1
+        result = update_remote_event(calendar, row, event, data, force: force)
+        stats[result == :skipped_user_edit ? :skipped : :updated] += 1
       else
         row.mark_synced!
         stats[:skipped] += 1
@@ -169,21 +169,76 @@ class MicrosoftGraphCalendarService
     nil
   end
 
-  def update_remote_event(calendar, row, event, data)
-    payload  = MicrosoftGraph::EventPayload.build(data)
+  # Like GoogleCalendarService#update_event_in_calendar: without force, the
+  # service reads the Outlook event first and keeps each field the person
+  # changed there. A changed recurrence keeps the whole event. A forced sync
+  # writes the app's values and forgets the edits.
+  def update_remote_event(calendar, row, event, data, force:)
     event_id = row.external_event_id
+    edited   = []
+    payload_data = data
 
-    begin
-      client.patch(event_path(event_id), payload)
-    rescue MicrosoftGraph::NotFoundError
-      event_id = find_event_id_by_ical_uid(row.external_ical_uid)
+    unless force
+      event_id, remote = fetch_tracked_event(row)
       return recreate_remote_event(calendar, row, event, data) if event_id.blank?
 
-      client.patch(event_path(event_id), payload)
+      edits = MicrosoftGraph::EventEdits.new(row, remote)
+      return keep_recurrence_edit(row, event_id, edits) if edits.recurrence_changed?
+
+      edited       = ((row.user_edited_fields || []) + edits.edited_fields).uniq
+      payload_data = edits.merge(data, edited)
     end
 
-    cancel_excluded_occurrences(event_id, data)
-    row.update!(row_attributes(data).merge(external_event_id: event_id))
+    event_id = patch_event(row, event_id, MicrosoftGraph::EventPayload.build(payload_data))
+    return recreate_remote_event(calendar, row, event, data) if event_id.blank?
+
+    cancel_excluded_occurrences(event_id, payload_data)
+    row.update!(row_attributes(payload_data).merge(external_event_id: event_id, user_edited_fields: edited.presence))
+    :updated
+  end
+
+  # Returns the event id and the event. The id is nil when neither the stored
+  # id nor the iCalUId finds the event.
+  def fetch_tracked_event(row)
+    [ row.external_event_id, fetch_event(row.external_event_id) ]
+  rescue MicrosoftGraph::NotFoundError
+    moved_id = find_event_id_by_ical_uid(row.external_ical_uid)
+    return [ nil, nil ] if moved_id.blank?
+
+    begin
+      [ moved_id, fetch_event(moved_id) ]
+    rescue MicrosoftGraph::NotFoundError
+      [ nil, nil ]
+    end
+  end
+
+  def fetch_event(event_id)
+    client.get(event_path(event_id), params: { "$select" => MicrosoftGraph::EventEdits::SELECT })
+  end
+
+  # Returns the id the PATCH reached, or nil when the event is gone.
+  def patch_event(row, event_id, payload)
+    client.patch(event_path(event_id), payload)
+    event_id
+  rescue MicrosoftGraph::NotFoundError
+    moved_id = find_event_id_by_ical_uid(row.external_ical_uid)
+    return nil if moved_id.blank? || moved_id == event_id
+
+    client.patch(event_path(moved_id), payload)
+    moved_id
+  end
+
+  # The person changed the recurrence in Outlook. The app cannot merge a
+  # series, so it keeps the event and records what the person left.
+  def keep_recurrence_edit(row, event_id, edits)
+    Rails.logger.info({ message: "Microsoft event recurrence edited in Outlook, keeping it", user_id: user.id, calendar_event_id: row.id }.to_json)
+    attributes = edits.remote_attributes
+    row.update!(attributes.merge(
+      external_event_id: event_id,
+      event_data_hash:   CalendarEvent.generate_data_hash(attributes.merge(recurrence: row.recurrence)),
+      last_synced_at:    Time.current
+    ))
+    :skipped_user_edit
   end
 
   def recreate_remote_event(calendar, row, event, data)

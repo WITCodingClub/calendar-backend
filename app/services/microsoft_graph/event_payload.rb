@@ -37,6 +37,13 @@ module MicrosoftGraph
       end.uniq
     end
 
+    # The patternedRecurrence for a start time and an RRULE list, or nil.
+    def self.recurrence_for(start_time:, recurrence:)
+      return nil if start_time.nil?
+
+      new(start_time: start_time, recurrence: recurrence).send(:recurrence_payload)
+    end
+
     def initialize(event_data)
       @data = event_data
     end
