@@ -5,6 +5,7 @@ module Types
     description "A faculty member who teaches sections"
 
     connection_type_class Types::BaseConnection
+    edge_type_class Types::BaseEdge
 
     field :pub_id, String, null: false, method: :public_id
     field :name, String, null: false, method: :full_name

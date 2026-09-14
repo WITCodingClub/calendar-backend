@@ -16,7 +16,11 @@ module Api
         end
 
         def show
-          term  = Term.find_by!(uid: params[:uid])
+          # find_by! would put its SQL condition in the message, and the client
+          # sees the message.
+          term = Term.find_by(uid: params[:uid])
+          raise ActiveRecord::RecordNotFound, "No term #{params[:uid]}" if term.nil?
+
           count = Course.active.where(term_id: term.id).count
 
           render_resource(::Catalog::TermSerializer.new(term, section_count: count).as_json)

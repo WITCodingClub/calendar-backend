@@ -4,6 +4,16 @@ module Types
   class QueryType < BaseObject
     description "Public, read-only WIT course catalog"
 
+    # IBM @listSize for a Relay connection. first or last sets the length of
+    # edges and nodes. No page is ever longer than the maximum page size, so that
+    # is the assumed size when a query gives neither.
+    CONNECTION_LIST_SIZE = {
+      slicing_arguments:            %w[first last],
+      sized_fields:                 %w[edges nodes],
+      assumed_size:                 ::Catalog::SectionQuery::MAX_PER_PAGE,
+      require_one_slicing_argument: false
+    }.freeze
+
     field :terms, [ TermType ], null: false,
           description: "All known terms, newest first"
 
@@ -20,6 +30,7 @@ module Types
     field :sections, SectionType.connection_type, null: false,
           description: "Course sections matching the given filters" do
       argument :filter, SectionFilterInput, required: false
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE
     end
 
     field :section, SectionType, null: true,
@@ -32,6 +43,7 @@ module Types
           description: "Faculty who teach at least one section" do
       argument :term_uid, Integer, required: false
       argument :q, String, required: false
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE
     end
 
     def terms
