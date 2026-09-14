@@ -41,8 +41,9 @@ class OauthCredential < ApplicationRecord
   before_destroy :revoke_calendar_access, prepend: true
 
   # Disconnecting the Google account that vouched for this person should not
-  # leave tokens it produced still working.
-  after_destroy :revoke_sessions
+  # leave tokens it produced still working. A Microsoft credential only syncs a
+  # calendar and never signs anyone in, so removing it keeps the sessions.
+  after_destroy :revoke_sessions, if: :google?
 
   # Every way to disconnect an account (API, dashboard, admin, RISC, deleting
   # the user) ends the Google grant too. After commit, so a rolled back destroy

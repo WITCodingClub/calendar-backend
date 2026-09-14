@@ -147,6 +147,18 @@ RSpec.describe OauthCredential, type: :model do
     end
   end
 
+  # No matcher covers a conditional after_destroy callback, so this example
+  # checks its effect on the person's sessions.
+  describe "sessions after a Microsoft account is disconnected" do
+    it "keeps the sessions, because a Microsoft credential never signs anyone in" do
+      credential = create(:oauth_credential, :microsoft)
+      api_token_for(credential.user)
+      active = UserSession.where(user_id: credential.user.id, revoked_at: nil)
+
+      expect { credential.destroy! }.not_to(change { active.count })
+    end
+  end
+
   describe "the revoked flag" do
     let(:credential) do
       create(:oauth_credential, refresh_token: "synthetic-refresh-token",
