@@ -10,6 +10,17 @@ class Rack::Attack
     req.path.start_with?("/api/v1/catalog") || req.path == "/api/graphql"
   end
 
+  # Files and docs written for search engines and AI agents. robots.txt tells
+  # every agent it may read them, so the agent blocklist must not refuse them.
+  AGENT_READABLE_PATHS = [ "/robots.txt", "/sitemap.xml", "/llms.txt" ].freeze
+
+  AGENT_READABLE_PATH = lambda do |req|
+    AGENT_READABLE_PATHS.include?(req.path) ||
+      req.path == "/docs" ||
+      req.path.start_with?("/docs/") ||
+      PUBLIC_CATALOG_PATH.call(req)
+  end
+
   # ===========================================================================
   # SAFELISTS
   # ===========================================================================
@@ -53,15 +64,8 @@ class Rack::Attack
 
   blocklist("block-suspicious-agents") do |req|
     next false if Rails.env.test?
-    # Data tools and server-side clients often send no User-Agent at all, and
-    # the public catalog API exists for exactly those consumers.
-    next false if PUBLIC_CATALOG_PATH.call(req)
 
-    ua = req.user_agent.to_s.downcase
-    ua.include?("scraper") ||
-      (ua.include?("bot") && ua.exclude?("googlebot")) ||
-      ua.include?("crawler") ||
-      ua.empty?
+    suspicious_agent?(req)
   end
 
   # ===========================================================================
@@ -181,6 +185,19 @@ class Rack::Attack
   # Up to five rules ask for the user on one API request. Decode the token once
   # and keep the answer on the request.
   JWT_USER_ID_ENV_KEY = "rack.attack.jwt_user_id"
+
+  # Crawlers, bots, and clients with no User-Agent get no access to the app
+  # pages. Agents may still read the files and docs written for them, and data
+  # tools, which often send no User-Agent, may still read the catalog API.
+  def self.suspicious_agent?(req)
+    return false if AGENT_READABLE_PATH.call(req)
+
+    ua = req.user_agent.to_s.downcase
+    ua.include?("scraper") ||
+      (ua.include?("bot") && ua.exclude?("googlebot")) ||
+      ua.include?("crawler") ||
+      ua.empty?
+  end
 
   def self.extract_user_id_from_jwt(req)
     return req.env[JWT_USER_ID_ENV_KEY] if req.env.key?(JWT_USER_ID_ENV_KEY)
