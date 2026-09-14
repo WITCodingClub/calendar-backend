@@ -67,7 +67,11 @@ class CourseCalendar < ApplicationRecord
   def enqueue_remote_calendar_deletion
     return if external_calendar_id.blank?
 
-    GoogleCalendarDeleteJob.perform_later(external_calendar_id)
+    if microsoft?
+      MicrosoftGraphCalendarDeleteJob.perform_later(oauth_credential_id, external_calendar_id)
+    else
+      GoogleCalendarDeleteJob.perform_later(external_calendar_id)
+    end
   rescue => e
     Rails.logger.error("Failed to enqueue calendar deletion for #{external_calendar_id}: #{e.message}")
   end

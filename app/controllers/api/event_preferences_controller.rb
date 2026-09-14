@@ -161,7 +161,7 @@ module Api
       end
 
       return unless meeting_time
-      return unless current_user.google_credential
+      return unless current_user.google_credential || current_user.course_calendars.microsoft.exists?
 
       GoogleCalendarSyncJob.perform_later(current_user, force: true)
     end

@@ -32,6 +32,10 @@ Rails.application.routes.draw do
   # Google OAuth2 callback (handles both admin login and calendar OAuth)
   get "/auth/google_oauth2/callback", to: "auth#google"
 
+  # Microsoft Graph calendar connection. Off unless the Flipper flag is on.
+  get "/auth/microsoft_graph",          to: "microsoft_auth#start",    as: :microsoft_graph_auth
+  get "/auth/microsoft_graph/callback", to: "microsoft_auth#callback", as: :microsoft_graph_auth_callback
+
   # OAuth result pages (opened by Chrome extension)
   # The passkey ceremony runs on this site, not in the extension, so the origin
   # the browser reports stays the same for every browser and build.
@@ -84,6 +88,7 @@ Rails.application.routes.draw do
     get "user/ics_url",                            to: "users#get_ics_url"
     get "user/oauth_credentials",                  to: "users#list_oauth_credentials"
     delete "user/oauth_credentials/:credential_id", to: "users#disconnect_oauth_credential"
+    post "user/microsoft_calendar",                to: "microsoft_calendars#create"
 
     # Passkeys — a quick second sign-in for an account Google already vouched
     # for. The two authentication routes are the only unauthenticated ones.

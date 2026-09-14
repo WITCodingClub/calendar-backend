@@ -40,7 +40,7 @@ class OauthCredential < ApplicationRecord
   # leave tokens it produced still working.
   after_destroy :revoke_sessions
 
-  PROVIDERS = %w[google].freeze
+  PROVIDERS = %w[google microsoft].freeze
 
   validates :provider, presence: true, inclusion: { in: PROVIDERS }
   validates :uid, presence: true, uniqueness: { scope: :provider }
@@ -51,6 +51,7 @@ class OauthCredential < ApplicationRecord
 
   scope :for_provider, ->(provider) { where(provider: provider) }
   scope :google,        -> { for_provider("google") }
+  scope :microsoft,     -> { for_provider("microsoft") }
   scope :revoked,       -> { where("metadata->>'token_revoked' = 'true'") }
   scope :needs_refresh, -> { where(updated_at: ...7.days.ago).where.not(refresh_token: nil) }
 
@@ -72,7 +73,15 @@ class OauthCredential < ApplicationRecord
 
   private
 
+  def google?
+    provider == "google"
+  end
+
+  # Only Google calendars are shared into the person's calendar list. A
+  # Microsoft calendar lives in the person's own mailbox, so there is nothing
+  # to unshare.
   def revoke_calendar_access
+    return unless google?
     return if course_calendar&.external_calendar_id.blank?
 
     service = GoogleCalendarService.new(user)
