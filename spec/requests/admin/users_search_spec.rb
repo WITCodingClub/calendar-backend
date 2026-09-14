@@ -6,13 +6,13 @@ require "rails_helper"
 # response uses the turbo_rails/frame layout, where the Cloudflare decoder never
 # runs, so emails showed as "[email protected]".
 RSpec.describe "Admin users search", type: :request do
-  let(:admin) do
-    User.create!(email: "admin@wit.edu", password: "password123", confirmed_at: Time.current, access_level: :admin)
-  end
+  let(:admin) { create(:user, :admin) }
 
   before do
+    stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar/releases/latest")
+      .to_return(status: 200, body: { tag_name: "v0.0.0" }.to_json)
     allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(false)
-    User.create!(email: "student@wit.edu", password: "password123", confirmed_at: Time.current)
+    create(:user, email: "student@wit.edu")
     sign_in admin
   end
 

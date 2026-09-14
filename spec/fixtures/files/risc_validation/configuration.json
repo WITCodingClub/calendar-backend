@@ -1,0 +1,4 @@
+{
+  "issuer": "https://accounts.google.com",
+  "jwks_uri": "https://www.googleapis.com/service_accounts/v1/risc/v1/jwks"
+}

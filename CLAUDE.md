@@ -19,6 +19,14 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - `validate_uniqueness_of` needs a saved subject: `subject { create(:course) }`.
 - A cross-field or custom validation gets a normal example, with a comment that says why no matcher covers it.
 
+### Outside HTTP
+
+- WebMock blocks every real network request in specs (`spec/support/webmock.rb`). A spec that reaches a real host fails with `WebMock::NetConnectNotAllowedError`.
+- Stub at the HTTP boundary with `stub_request`, so the real client code runs: `stub_request(:post, url).to_return(status: 200, body: file_fixture("rate_my_professor/<case>.json").read)`.
+- In a service's own spec, stub the HTTP request, not the service's methods. A job spec that only calls a service may stub the service class.
+- Put response bodies in `spec/fixtures/files/<service>/`. Write synthetic data in the shape of the real response. The repo is public, so fixtures hold no real names, emails, or tokens.
+- The admin layout requests the latest GitHub release on every render. Admin request specs stub that request.
+
 ### Fixture leakage
 
 A spec that declares `fixtures :buildings` inserts those rows outside the test transaction, so they stay for the rest of the run. Buildings have unique `name` and `abbreviation` columns. Give buildings in a spec names and abbreviations that `spec/fixtures/buildings.yml` does not use. The building factory uses `FCT` names for this reason. A spec that fails only in the full run usually hits this.
@@ -29,3 +37,4 @@ A spec that declares `fixtures :buildings` inserts those rows outside the test t
 - Set `HASHID_SALT` to any value. Without it, boot reads credentials and needs `config/master.key`.
 - In a new worktree, run `bin/rails tailwindcss:build` first. Request specs fail without the built CSS.
 - `bin/rails db:test:prepare && bundle exec rspec`
+- SimpleCov writes line and branch coverage to `coverage/index.html` after each run. Check it to find untested code.

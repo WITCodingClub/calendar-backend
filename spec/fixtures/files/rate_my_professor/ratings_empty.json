@@ -1,0 +1,11 @@
+{
+  "data": {
+    "node": {
+      "__typename": "Teacher",
+      "ratings": {
+        "edges": [],
+        "pageInfo": { "hasNextPage": false, "endCursor": null }
+      }
+    }
+  }
+}

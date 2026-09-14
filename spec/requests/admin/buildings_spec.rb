@@ -8,6 +8,8 @@ RSpec.describe "Admin::Buildings", type: :request do
   let!(:wentworth) { create(:building, abbreviation: "WENTW", name: "Wentworth Test Hall") }
 
   before do
+    stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar/releases/latest")
+      .to_return(status: 200, body: { tag_name: "v0.0.0" }.to_json)
     create(:building, abbreviation: "TBD", name: "To Be Determined")
     create(:building, abbreviation: "ONLINE", name: "Online Section")
     allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(false)
