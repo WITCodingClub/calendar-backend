@@ -64,4 +64,51 @@ RSpec.describe GoogleCalendarService do
       expect(db_event).to have_received(:update!).with(hash_including(summary: "MATH-1876-03 Calculus 2A"))
     end
   end
+
+  describe "#remove_calendar_from_user_list_for_email" do
+    let(:user) { create(:user) }
+    let(:credential) do
+      create(:oauth_credential, user: user, email: "second@example.test",
+                                access_token: "synthetic-second-token",
+                                refresh_token: "synthetic-second-refresh",
+                                token_expires_at: 1.hour.from_now)
+    end
+
+    before { create(:google_calendar, oauth_credential: credential, google_calendar_id: "synthetic-course-calendar") }
+
+    # OauthCredential calls this when an account is disconnected. While it was
+    # private, the call raised NoMethodError and the calendar stayed in the list.
+    it "can be called from outside the service" do
+      removal = stub_request(:delete, google_calendar_list_url("synthetic-course-calendar"))
+        .with(headers: { "Authorization" => "Bearer synthetic-second-token" })
+        .to_return(status: 204)
+
+      described_class.new(user).remove_calendar_from_user_list_for_email("synthetic-course-calendar", "second@example.test")
+
+      expect(removal).to have_been_requested.once
+    end
+  end
+
+  describe "#unshare_calendar_with_email" do
+    before { stub_google_service_account }
+
+    it "deletes the ACL rule that shares the calendar with the email" do
+      removal = stub_request(:delete, google_acl_url("synthetic-course-calendar", "second@example.test"))
+        .with(headers: { "Authorization" => "Bearer synthetic-service-account-token" })
+        .to_return(status: 204)
+
+      described_class.new.unshare_calendar_with_email("synthetic-course-calendar", "second@example.test")
+
+      expect(removal).to have_been_requested.once
+    end
+
+    it "treats a rule that is already gone as done" do
+      stub_request(:delete, google_acl_url("synthetic-course-calendar", "second@example.test"))
+        .to_return(status: 404, body: { error: { code: 404, message: "Not Found" } }.to_json,
+                   headers: { "Content-Type" => "application/json" })
+
+      expect { described_class.new.unshare_calendar_with_email("synthetic-course-calendar", "second@example.test") }
+        .not_to raise_error
+    end
+  end
 end
