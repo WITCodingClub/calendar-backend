@@ -34,7 +34,7 @@ namespace :onboarding do
       puts "  #{user.public_id}  #{label}"
       puts "    created      #{user.created_at.to_date}"
       puts "    enrollments  #{user.enrollments.count}"
-      puts "    calendars    #{user.google_calendars.count}"
+      puts "    calendars    #{user.course_calendars.count}"
       puts "    linked gmail #{user.oauth_credentials.where(provider: 'google').pluck(:email).join(', ').presence || 'none'}"
       puts
     end

@@ -530,10 +530,10 @@ module CourseScheduleSyncable
   # Holidays stay, because every user gets them.
   # @return [Integer] the number of events deleted
   def prune_unwanted_university_events
-    google_calendar = GoogleCalendar.for_user(self).first
-    return 0 unless google_calendar
+    course_calendar = CourseCalendar.google.for_user(self).first
+    return 0 unless course_calendar
 
-    synced = google_calendar.google_calendar_events.university_events_only.to_a
+    synced = course_calendar.calendar_events.university_events_only.to_a
     return 0 if synced.empty?
 
     wanted   = wanted_university_event_ids(synced.map(&:university_calendar_event_id).uniq).to_set
@@ -633,16 +633,16 @@ module CourseScheduleSyncable
 
   # Add a method to handle calendar deletion/cleanup
   def delete_course_calendar
-    google_calendar = GoogleCalendar.for_user(self).first
-    return if google_calendar.blank?
+    course_calendar = CourseCalendar.google.for_user(self).first
+    return if course_calendar.blank?
 
-    service = GoogleCalendarService.new(self)
-    service_account_service = service.send(:service_account_calendar_service)
+    google_service = GoogleCalendarService.new(self)
+    service_account_service = google_service.send(:service_account_calendar_service)
 
-    service_account_service.delete_calendar(google_calendar.google_calendar_id)
+    service_account_service.delete_calendar(course_calendar.external_calendar_id)
 
-    # Destroy the GoogleCalendar record (this will cascade delete all associated events)
-    google_calendar.destroy
+    # Destroy the CourseCalendar record (this will cascade delete all associated events)
+    course_calendar.destroy
   rescue Google::Apis::Error => e
     Rails.logger.error "Failed to delete calendar: #{e.message}"
   end

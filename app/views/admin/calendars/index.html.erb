@@ -18,8 +18,8 @@
           <% @calendars.each do |calendar| %>
             <tr class="hover:bg-surface-container">
               <td class="px-3 py-4 whitespace-nowrap">
-                <div class="text-sm text-on-surface-variant font-mono" title="<%= calendar.google_calendar_id %>">
-                  <%= truncate(calendar.google_calendar_id, length: 40) %>
+                <div class="text-sm text-on-surface-variant font-mono" title="<%= calendar.external_calendar_id %>">
+                  <%= truncate(calendar.external_calendar_id, length: 40) %>
                 </div>
               </td>
               <td class="px-3 py-4 whitespace-nowrap">

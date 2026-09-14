@@ -168,7 +168,7 @@ class CourseProcessorService < ApplicationService
         end
 
         # Upsert in place so meeting time IDs stay stable — destroying them
-        # cascades to google_calendar_events tracking rows, which strands the
+        # cascades to calendar_events tracking rows, which strands the
         # real events in Google Calendar and duplicates them on the next sync.
         # Only rows absent from the upload are removed; their calendar events
         # are nullified and cleaned up by CleanupOrphanedCalendarEventsJob.
@@ -228,7 +228,7 @@ class CourseProcessorService < ApplicationService
       end
     end
 
-    if GoogleCalendar.for_user(user).exists?
+    if CourseCalendar.for_user(user).exists?
       GoogleCalendarSyncJob.perform_later(user, force: false)
     end
 

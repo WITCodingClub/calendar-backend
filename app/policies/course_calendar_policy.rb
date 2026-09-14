@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class GoogleCalendarPolicy < ApplicationPolicy
+class CourseCalendarPolicy < ApplicationPolicy
   def index?   = admin?
   def show?    = owner_of_record_through?(:oauth_credential) || admin?
   def create?  = owner_of_record_through?(:oauth_credential) || super_admin?

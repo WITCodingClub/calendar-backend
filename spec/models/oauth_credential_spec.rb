@@ -33,7 +33,7 @@ RSpec.describe OauthCredential, type: :model do
   subject { create(:oauth_credential) }
 
   it { is_expected.to belong_to(:user) }
-  it { is_expected.to have_one(:google_calendar).dependent(:destroy) }
+  it { is_expected.to have_one(:course_calendar).dependent(:destroy) }
   it { is_expected.to have_many(:security_events).dependent(:nullify) }
 
   it { is_expected.to validate_presence_of(:provider) }
@@ -62,7 +62,7 @@ RSpec.describe OauthCredential, type: :model do
     before do
       # The course calendar belongs to one credential and is shared with every
       # Google account the person connects.
-      create(:google_calendar, oauth_credential: owner, google_calendar_id: calendar_id)
+      create(:course_calendar, oauth_credential: owner, external_calendar_id: calendar_id)
       stub_google_service_account
       stub_request(:delete, google_acl_url(calendar_id, "owner@example.test")).to_return(status: 204)
       stub_request(:delete, google_acl_url(calendar_id, "second@example.test")).to_return(status: 204)

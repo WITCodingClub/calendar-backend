@@ -22,7 +22,7 @@
               <p class="text-sm font-medium text-on-surface truncate"><%= cred.email %></p>
               <% if cred.token_revoked? || cred.needs_reauth? %>
                 <span class="m3-badge-error">Needs re-auth</span>
-              <% elsif cred.google_calendar.present? %>
+              <% elsif cred.course_calendar.present? %>
                 <span class="m3-badge-secondary">Calendar connected</span>
               <% end %>
             </div>

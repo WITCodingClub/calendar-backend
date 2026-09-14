@@ -33,7 +33,7 @@ class OauthCredential < ApplicationRecord
   set_public_id_prefix :oac
 
   belongs_to :user
-  has_one :google_calendar, dependent: :destroy
+  has_one :course_calendar, dependent: :destroy
   has_many :security_events, dependent: :nullify
 
   # prepend: the dependent destroy above is a before_destroy callback too, and
@@ -49,7 +49,9 @@ class OauthCredential < ApplicationRecord
   # keeps its grant, and in a job, so the request does not wait for Google.
   after_destroy_commit :enqueue_google_token_revocation
 
-  validates :provider, presence: true, inclusion: { in: %w[google] }
+  PROVIDERS = %w[google].freeze
+
+  validates :provider, presence: true, inclusion: { in: PROVIDERS }
   validates :uid, presence: true, uniqueness: { scope: :provider }
   validates :access_token, presence: true
   validates :email, presence: true, format: { with: /\A[^@\s]+@[^@\s]+\z/, message: "must be a valid email address" }
@@ -64,7 +66,7 @@ class OauthCredential < ApplicationRecord
   scope :needs_refresh, -> { where(updated_at: ...7.days.ago).where.not(refresh_token: nil) }
 
   def course_calendar_id
-    google_calendar&.google_calendar_id
+    course_calendar&.external_calendar_id
   end
 
   def token_expired?
@@ -85,7 +87,7 @@ class OauthCredential < ApplicationRecord
   # Google account the person connects. So look it up for the user, not only
   # on this credential.
   def revoke_calendar_access
-    calendar_id = GoogleCalendar.for_user(user).pick(:google_calendar_id) if user
+    calendar_id = CourseCalendar.google.for_user(user).pick(:external_calendar_id) if user
     return if calendar_id.blank?
 
     service = GoogleCalendarService.new(user)
