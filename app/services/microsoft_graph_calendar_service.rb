@@ -153,8 +153,7 @@ class MicrosoftGraphCalendarService
   end
 
   def create_remote_event(calendar, event, data)
-    remote = client.post("me/calendars/#{escape(calendar.external_calendar_id)}/events",
-                         MicrosoftGraph::EventPayload.build(data))
+    remote = client.post("me/calendars/#{escape(calendar.external_calendar_id)}/events", event_payload(data))
     cancel_excluded_occurrences(remote.fetch("id"), data)
 
     calendar.calendar_events.create!(
@@ -176,6 +175,7 @@ class MicrosoftGraphCalendarService
   def update_remote_event(calendar, row, event, data, force:)
     event_id = row.external_event_id
     edited   = []
+    remote   = nil
     payload_data = data
 
     unless force
@@ -189,12 +189,35 @@ class MicrosoftGraphCalendarService
       payload_data = edits.merge(data, edited)
     end
 
-    event_id = patch_event(row, event_id, MicrosoftGraph::EventPayload.build(payload_data))
+    payload  = event_payload(payload_data, remote_categories: remote&.fetch("categories", nil))
+    event_id = patch_event(row, event_id, payload)
     return recreate_remote_event(calendar, row, event, data) if event_id.blank?
 
     cancel_excluded_occurrences(event_id, payload_data)
     row.update!(row_attributes(payload_data).merge(external_event_id: event_id, user_edited_fields: edited.presence))
     :updated
+  end
+
+  # The Graph event with the category for the event's color. Without a read of
+  # the event (a create or a forced update), the WIT category is set only when
+  # the event has a color. After a read, the person's own categories stay and
+  # only the WIT category changes.
+  def event_payload(data, remote_categories: nil)
+    payload  = MicrosoftGraph::EventPayload.build(data)
+    category = category_cache.name_for(data[:color_id])
+
+    if remote_categories.nil?
+      payload[:categories] = [ category ] if category
+    else
+      own = Array(remote_categories).reject { |name| MicrosoftGraph::CategoryCache.app_category?(name) }
+      payload[:categories] = own + [ category ].compact
+    end
+
+    payload
+  end
+
+  def category_cache
+    @category_cache ||= MicrosoftGraph::CategoryCache.new(client)
   end
 
   # Returns the event id and the event. The id is nil when neither the stored

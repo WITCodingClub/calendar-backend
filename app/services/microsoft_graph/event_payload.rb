@@ -7,8 +7,8 @@ module MicrosoftGraph
   # Graph has no RRULE or EXDATE. A weekly RRULE becomes a patternedRecurrence,
   # and the EXDATE days are cancelled after the series exists (see
   # MicrosoftGraphCalendarService#cancel_excluded_occurrences). Graph has one
-  # reminder per event, so the earliest reminder wins. Event colors are not
-  # sent: Outlook colors come from categories, not a color id.
+  # reminder per event, so the earliest reminder wins. Colors are not part of
+  # the payload: MicrosoftGraphCalendarService adds an Outlook category.
   class EventPayload
     GRAPH_TIME_ZONE = "Eastern Standard Time"
     LOCAL_TIME_ZONE = "America/New_York"
