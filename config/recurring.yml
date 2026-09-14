@@ -11,6 +11,12 @@ production:
     queue: low
     schedule: every hour at minute 12
 
+  # Failed batches are kept for inspection, like failed jobs.
+  clear_solid_queue_finished_batches:
+    command: "SolidQueue::Batch.clear_finished_in_batches(sleep_between_batches: 0.3)"
+    queue: low
+    schedule: every hour at minute 42
+
   # ---------------------------------------------------------------------------
   # EVERY 6 HOURS
   # ---------------------------------------------------------------------------
