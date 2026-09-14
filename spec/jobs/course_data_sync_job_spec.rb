@@ -5,14 +5,13 @@ require "rails_helper"
 RSpec.describe CourseDataSyncJob do
   include ActiveSupport::Testing::TimeHelpers
 
-  let(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
+  let(:term) { create(:term, uid: 202710, season: :fall, year: 2026) }
   let(:course) do
-    Course.create!(
-      crn: 12345, term: term, title: "Data Structures", subject: "COMP",
-      course_number: 2000, section_number: "1", schedule_type: "LEC",
-      credit_hours: 4, grade_mode: "Standard Letter",
-      start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15)
-    )
+    create(:course,
+           crn: 12345, term: term, title: "Data Structures", subject: "COMP",
+           course_number: 2000, section_number: "1", schedule_type: "LEC",
+           credit_hours: 4, grade_mode: "Standard Letter",
+           start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15))
   end
 
   # Banner's getFacultyMeetingTimes shape, as LeopardWebService returns it.
@@ -119,10 +118,8 @@ RSpec.describe CourseDataSyncJob do
     end
 
     it "leaves out a term that has already ended" do
-      old_term = Term.create!(
-        uid: 201710, season: :fall, year: 2016,
-        start_date: Date.new(2016, 9, 1), end_date: Date.new(2016, 12, 20)
-      )
+      old_term = create(:term, uid: 201710, season: :fall, year: 2016,
+                        start_date: Date.new(2016, 9, 1), end_date: Date.new(2016, 12, 20))
 
       expect(described_class.new.send(:default_term_uids)).not_to include(old_term.uid)
     end
@@ -133,16 +130,16 @@ RSpec.describe CourseDataSyncJob do
     # These two cases are why default_term_uids unions in Term.active.
     context "when a running term overlaps the next one" do
       let!(:summer_2026) do
-        Term.create!(uid: 202630, season: :summer, year: 2026,
-                     start_date: Date.new(2026, 5, 18), end_date: Date.new(2026, 8, 20))
+        create(:term, uid: 202630, season: :summer, year: 2026,
+               start_date: Date.new(2026, 5, 18), end_date: Date.new(2026, 8, 20))
       end
       # The outer term is Fall 2026 (202710); it just needs real dates here.
       let!(:fall_2026) do
         term.tap { |t| t.update!(start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 20)) }
       end
       let!(:spring_2027) do
-        Term.create!(uid: 202720, season: :spring, year: 2027,
-                     start_date: Date.new(2027, 1, 12), end_date: Date.new(2027, 5, 5))
+        create(:term, uid: 202720, season: :spring, year: 2027,
+               start_date: Date.new(2027, 1, 12), end_date: Date.new(2027, 5, 5))
       end
 
       it "keeps the fall term in December, after the heuristic jumps to spring" do
@@ -173,16 +170,12 @@ RSpec.describe CourseDataSyncJob do
   end
 
   context "when a student with a Google calendar is enrolled" do
-    let(:user) { User.create!(email: "student@wit.edu", password: "password123") }
-    let(:credential) do
-      user.oauth_credentials.create!(
-        provider: "google", uid: "google-uid", email: user.email, access_token: "token"
-      )
-    end
+    let(:user)       { create(:user) }
+    let(:credential) { create(:oauth_credential, user: user) }
     # A user counts as having a calendar through this association, the same way
     # NightlyCalendarSyncJob selects them.
-    let!(:google_calendar) { credential.create_google_calendar!(google_calendar_id: "cal_123") }
-    let!(:enrollment) { Enrollment.create!(user: user, course: course, term: term) }
+    let!(:google_calendar) { create(:google_calendar, oauth_credential: credential) }
+    let!(:enrollment) { create(:enrollment, user: user, course: course) }
 
     before { user.update!(calendar_needs_sync: false) }
 
@@ -204,9 +197,7 @@ RSpec.describe CourseDataSyncJob do
   end
 
   describe "instructor changes" do
-    let(:previous_instructor) do
-      Faculty.create!(email: "minevichi@wit.edu", first_name: "Igor", last_name: "Minevich")
-    end
+    let(:previous_instructor) { create(:faculty, email: "minevichi@wit.edu") }
 
     before { course.faculties << previous_instructor }
 
