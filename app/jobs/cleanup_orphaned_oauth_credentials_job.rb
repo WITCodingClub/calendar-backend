@@ -52,7 +52,7 @@ class CleanupOrphanedOauthCredentialsJob < ApplicationJob
                                                .pluck(:id)
     orphaned_ids.concat(orphaned_by_expired_token)
 
-    OauthCredential.where(id: orphaned_ids.uniq).includes(:user, :google_calendar)
+    OauthCredential.where(id: orphaned_ids.uniq).includes(:user, :course_calendar)
   end
 
   def determine_orphan_reason(credential)

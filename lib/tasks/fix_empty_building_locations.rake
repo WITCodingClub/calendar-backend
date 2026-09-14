@@ -82,7 +82,7 @@ namespace :cleanup do
 
         if tbd_mts.any? && valid_mts.any?
           tbd_mts.each do |mt|
-            events_deleted += mt.google_calendar_events.count
+            events_deleted += mt.calendar_events.count
             puts "  Deleting MeetingTime #{mt.id} for course #{course.crn} (TBD, valid location exists)"
             mt.destroy!
             deleted_count += 1
@@ -92,7 +92,7 @@ namespace :cleanup do
     end
 
     puts "\nDeleted #{deleted_count} duplicate TBD MeetingTimes"
-    puts "Deleted #{events_deleted} associated GoogleCalendarEvents (recreated on next sync)"
+    puts "Deleted #{events_deleted} associated CalendarEvents (recreated on next sync)"
     puts "\nRun 'rails cleanup:sync_affected_users' to update affected user calendars"
   end
 
@@ -104,7 +104,7 @@ namespace :cleanup do
     puts "Queueing calendar syncs for all users with Google Calendars..."
 
     count = 0
-    User.joins(:google_calendars).distinct.find_each do |user|
+    User.joins(:course_calendars).distinct.find_each do |user|
       GoogleCalendarSyncJob.perform_later(user, force: true)
       count += 1
       print "." if count % 10 == 0

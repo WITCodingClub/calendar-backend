@@ -49,7 +49,7 @@ class UniversityCalendarSyncJob < ApplicationJob
   def trigger_sync_for_all_users
     Rails.logger.info("Holiday changes detected - syncing all users")
 
-    User.joins(oauth_credentials: :google_calendar)
+    User.joins(oauth_credentials: :course_calendar)
         .distinct
         .find_each do |user|
           GoogleCalendarSyncJob.perform_later(user, force: true)
@@ -61,7 +61,7 @@ class UniversityCalendarSyncJob < ApplicationJob
 
     User.joins(:user_extension_config)
         .where(user_extension_configs: { sync_university_events: true })
-        .joins(oauth_credentials: :google_calendar)
+        .joins(oauth_credentials: :course_calendar)
         .distinct
         .find_each do |user|
           GoogleCalendarSyncJob.perform_later(user, force: true)

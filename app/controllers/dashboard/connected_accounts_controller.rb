@@ -4,7 +4,7 @@ class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
   def index
     authorize current_user, :show?
 
-    @credentials = current_user.oauth_credentials.includes(:google_calendar).order(:created_at)
+    @credentials = current_user.oauth_credentials.includes(:course_calendar).order(:created_at)
     @add_account_url = add_account_url
   end
 

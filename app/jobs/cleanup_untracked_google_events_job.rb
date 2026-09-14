@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Deletes events that exist in a user's Google Calendar but have no tracking
-# row in google_calendar_events. These orphans were left behind when tracking
+# row in calendar_events. These orphans were left behind when tracking
 # rows were cascade-destroyed (e.g. meeting times destroyed on schedule
 # re-upload) without deleting the real events, so every subsequent sync
 # created a duplicate next to them.
@@ -16,11 +16,11 @@ class CleanupUntrackedGoogleEventsJob < ApplicationJob
 
   queue_as :low
 
-  def perform(google_calendar_id = nil, dry_run: false)
-    calendars = if google_calendar_id
-                  GoogleCalendar.where(id: google_calendar_id)
+  def perform(calendar_id = nil, dry_run: false)
+    calendars = if calendar_id
+                  CourseCalendar.google.where(id: calendar_id)
     else
-                  GoogleCalendar.all
+                  CourseCalendar.google
     end
 
     totals = { scanned: 0, deleted: 0, errors: 0 }
@@ -41,7 +41,7 @@ class CleanupUntrackedGoogleEventsJob < ApplicationJob
 
   def reconcile_calendar(calendar, dry_run:)
     stats = { scanned: 0, deleted: 0, errors: 0 }
-    tracked_ids = calendar.google_calendar_events.pluck(:google_event_id).to_set
+    tracked_ids = calendar.calendar_events.pluck(:external_event_id).to_set
 
     untracked = []
     page_token = nil
@@ -49,7 +49,7 @@ class CleanupUntrackedGoogleEventsJob < ApplicationJob
     loop do
       response = with_rate_limit_handling do
         calendar_service.list_events(
-          calendar.google_calendar_id,
+          calendar.external_calendar_id,
           max_results: 2500,
           page_token: page_token,
           show_deleted: false
@@ -95,7 +95,7 @@ class CleanupUntrackedGoogleEventsJob < ApplicationJob
   end
 
   def delete_untracked_event(calendar, event)
-    calendar_service.delete_event(calendar.google_calendar_id, event.id)
+    calendar_service.delete_event(calendar.external_calendar_id, event.id)
     Rails.logger.info "[CleanupUntrackedGoogleEventsJob] Deleted #{event.id} " \
                       "(#{event.summary.inspect}) from calendar #{calendar.id}"
   rescue Google::Apis::ClientError => e

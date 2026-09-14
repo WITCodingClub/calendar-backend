@@ -6,7 +6,7 @@ RSpec.describe Course::MeetingTime, type: :model do
   it { is_expected.to belong_to(:course) }
   it { is_expected.to have_many(:meeting_time_rooms).class_name("Course::MeetingTimeRoom").dependent(:destroy) }
   it { is_expected.to have_many(:rooms).through(:meeting_time_rooms) }
-  it { is_expected.to have_many(:google_calendar_events).dependent(:nullify) }
+  it { is_expected.to have_many(:calendar_events).dependent(:nullify) }
   it { is_expected.to have_one(:event_preference).dependent(:destroy) }
 
   it do

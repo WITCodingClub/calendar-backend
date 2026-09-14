@@ -33,14 +33,16 @@ class OauthCredential < ApplicationRecord
   set_public_id_prefix :oac
 
   belongs_to :user
-  has_one :google_calendar, dependent: :destroy
+  has_one :course_calendar, dependent: :destroy
   has_many :security_events, dependent: :nullify
 
   # Disconnecting the Google account that vouched for this person should not
   # leave tokens it produced still working.
   after_destroy :revoke_sessions
 
-  validates :provider, presence: true, inclusion: { in: %w[google] }
+  PROVIDERS = %w[google].freeze
+
+  validates :provider, presence: true, inclusion: { in: PROVIDERS }
   validates :uid, presence: true, uniqueness: { scope: :provider }
   validates :access_token, presence: true
   validates :email, presence: true, format: { with: /\A[^@\s]+@[^@\s]+\z/, message: "must be a valid email address" }
@@ -53,7 +55,7 @@ class OauthCredential < ApplicationRecord
   scope :needs_refresh, -> { where(updated_at: ...7.days.ago).where.not(refresh_token: nil) }
 
   def course_calendar_id
-    google_calendar&.google_calendar_id
+    course_calendar&.external_calendar_id
   end
 
   def token_expired?
@@ -71,10 +73,10 @@ class OauthCredential < ApplicationRecord
   private
 
   def revoke_calendar_access
-    return if google_calendar&.google_calendar_id.blank?
+    return if course_calendar&.external_calendar_id.blank?
 
     service = GoogleCalendarService.new(user)
-    service.remove_calendar_from_user_list_for_email(google_calendar.google_calendar_id, email)
+    service.remove_calendar_from_user_list_for_email(course_calendar.external_calendar_id, email)
   rescue => e
     Rails.logger.error("Failed to revoke calendar access for #{email}: #{e.message}")
   end

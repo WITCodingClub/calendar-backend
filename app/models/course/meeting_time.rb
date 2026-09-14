@@ -41,7 +41,7 @@ class Course::MeetingTime < ApplicationRecord
   # Nullify, never destroy: the tracking row is the only pointer to the real
   # event in Google Calendar. CleanupOrphanedCalendarEventsJob deletes orphans
   # from Google before removing the row.
-  has_many :google_calendar_events, dependent: :nullify
+  has_many :calendar_events, dependent: :nullify
   has_one :event_preference, as: :preferenceable, dependent: :destroy
 
   def room

@@ -8,7 +8,7 @@ RSpec.describe FinalExam do
 
     it { is_expected.to belong_to(:term) }
     it { is_expected.to belong_to(:course).optional }
-    it { is_expected.to have_many(:google_calendar_events).dependent(:nullify) }
+    it { is_expected.to have_many(:calendar_events).dependent(:nullify) }
 
     it { is_expected.to validate_presence_of(:crn) }
     it { is_expected.to validate_presence_of(:exam_date) }

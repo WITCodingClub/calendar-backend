@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Cleans up orphaned GoogleCalendarEvent records — events with no associated
+# Cleans up orphaned CalendarEvent records — events with no associated
 # meeting_time, final_exam, or university_calendar_event. Can happen when courses
 # are deleted during catalog refresh or meeting times are removed.
 class CleanupOrphanedCalendarEventsJob < ApplicationJob
@@ -9,7 +9,7 @@ class CleanupOrphanedCalendarEventsJob < ApplicationJob
   def perform(dry_run: false)
     Rails.logger.info "[CleanupOrphanedCalendarEventsJob] Starting (dry_run: #{dry_run})"
 
-    orphaned_events = GoogleCalendarEvent.orphaned
+    orphaned_events = CalendarEvent.orphaned
     total_count = orphaned_events.count
 
     Rails.logger.info "[CleanupOrphanedCalendarEventsJob] Found #{total_count} orphaned events"
@@ -19,7 +19,7 @@ class CleanupOrphanedCalendarEventsJob < ApplicationJob
     deleted_count = 0
     error_count = 0
 
-    orphaned_events.includes(:google_calendar, google_calendar: :oauth_credential).find_each do |event|
+    orphaned_events.includes(:course_calendar, course_calendar: :oauth_credential).find_each do |event|
       delete_orphaned_event(event)
       deleted_count += 1
     rescue => e
@@ -35,19 +35,20 @@ class CleanupOrphanedCalendarEventsJob < ApplicationJob
   private
 
   def delete_orphaned_event(event)
-    calendar = event.google_calendar
+    calendar = event.course_calendar
     credential = calendar&.oauth_credential
 
-    if credential && calendar.google_calendar_id.present?
+    # A Microsoft row deletes its remote event from the destroy callback below.
+    if calendar&.google? && credential && calendar.external_calendar_id.present?
       begin
         service = build_calendar_service(credential)
-        service.delete_event(calendar.google_calendar_id, event.google_event_id)
-        Rails.logger.info "[CleanupOrphanedCalendarEventsJob] Deleted event #{event.google_event_id} from Google Calendar"
+        service.delete_event(calendar.external_calendar_id, event.external_event_id)
+        Rails.logger.info "[CleanupOrphanedCalendarEventsJob] Deleted event #{event.external_event_id} from Google Calendar"
       rescue Google::Apis::ClientError => e
         if e.status_code == 404
-          Rails.logger.info "[CleanupOrphanedCalendarEventsJob] Event #{event.google_event_id} already deleted from Google Calendar"
+          Rails.logger.info "[CleanupOrphanedCalendarEventsJob] Event #{event.external_event_id} already deleted from Google Calendar"
         else
-          Rails.logger.warn "[CleanupOrphanedCalendarEventsJob] Failed to delete event #{event.google_event_id} from Google: #{e.message}"
+          Rails.logger.warn "[CleanupOrphanedCalendarEventsJob] Failed to delete event #{event.external_event_id} from Google: #{e.message}"
         end
       end
     end

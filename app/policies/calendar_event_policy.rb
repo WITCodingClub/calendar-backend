@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class GoogleCalendarEventPolicy < ApplicationPolicy
+class CalendarEventPolicy < ApplicationPolicy
   def index?   = admin?
   def show?    = owner_through_calendar? || admin?
   def create?  = owner_through_calendar? || super_admin?
@@ -10,9 +10,9 @@ class GoogleCalendarEventPolicy < ApplicationPolicy
   private
 
   def owner_through_calendar?
-    return false unless user && record.respond_to?(:google_calendar)
+    return false unless user && record.respond_to?(:course_calendar)
 
-    calendar = record.google_calendar
+    calendar = record.course_calendar
     return false unless calendar.respond_to?(:oauth_credential)
 
     calendar.oauth_credential&.user_id == user.id
@@ -23,7 +23,7 @@ class GoogleCalendarEventPolicy < ApplicationPolicy
       if user&.admin_access?
         scope.all
       else
-        scope.joins(google_calendar: :oauth_credential)
+        scope.joins(course_calendar: :oauth_credential)
              .where(oauth_credentials: { user_id: user&.id })
       end
     end

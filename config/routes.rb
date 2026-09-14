@@ -143,6 +143,10 @@ Rails.application.routes.draw do
     resources :meeting_times, only: [] do
       resource :preference, controller: "event_preferences", only: [ :show, :update, :destroy ]
     end
+    resources :calendar_events, only: [] do
+      resource :preference, controller: "event_preferences", only: [ :show, :update, :destroy ]
+    end
+    # Legacy path. The published extension still calls it.
     resources :google_calendar_events, only: [] do
       resource :preference, controller: "event_preferences", only: [ :show, :update, :destroy ]
     end
@@ -211,7 +215,7 @@ Rails.application.routes.draw do
 
       resources :calendars,                   only: [ :index, :destroy ]
       resources :courses,                     only: [ :index, :show ]
-      resources :google_calendar_events,      only: [ :index ]
+      resources :calendar_events,             only: [ :index ]
 
       resources :faculties, only: [ :index, :show ] do
         collection do

@@ -5,7 +5,7 @@ namespace :calendars do
   task delete_all: :environment do
     puts "Starting calendar deletion process..."
 
-    calendars     = GoogleCalendar.includes(:oauth_credential)
+    calendars     = CourseCalendar.google.includes(:oauth_credential)
     total         = calendars.count
 
     if total.zero?
@@ -25,11 +25,11 @@ namespace :calendars do
 
     calendars.find_each do |calendar|
       user_email = calendar.oauth_credential&.user&.email || "unknown"
-      puts "Deleting calendar for user: #{user_email} (Calendar ID: #{calendar.google_calendar_id})"
+      puts "Deleting calendar for user: #{user_email} (Calendar ID: #{calendar.external_calendar_id})"
 
       begin
-        GoogleCalendarService.new(calendar.oauth_credential.user).delete_calendar(calendar.google_calendar_id)
-        calendar.google_calendar_events.destroy_all
+        GoogleCalendarService.new(calendar.oauth_credential.user).delete_calendar(calendar.external_calendar_id)
+        calendar.calendar_events.destroy_all
         calendar.destroy!
         deleted_count += 1
         puts "  Successfully deleted calendar for #{user_email}"
@@ -37,7 +37,7 @@ namespace :calendars do
         error_count += 1
         puts "  Failed to delete calendar for #{user_email}: #{e.message}"
         begin
-          calendar.google_calendar_events.destroy_all
+          calendar.calendar_events.destroy_all
           calendar.destroy!
           puts "  Cleaned up local records for #{user_email}"
         rescue => local_error
@@ -76,7 +76,7 @@ namespace :calendars do
       user       = credential.user
       user_email = user.email || "unknown"
 
-      if credential.google_calendar.present?
+      if credential.course_calendar.present?
         puts "Calendar already exists for #{user_email}, skipping"
         skipped_count += 1
         next

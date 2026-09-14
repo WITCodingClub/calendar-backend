@@ -6,7 +6,7 @@ RSpec.describe OauthCredential, type: :model do
   subject { create(:oauth_credential) }
 
   it { is_expected.to belong_to(:user) }
-  it { is_expected.to have_one(:google_calendar).dependent(:destroy) }
+  it { is_expected.to have_one(:course_calendar).dependent(:destroy) }
   it { is_expected.to have_many(:security_events).dependent(:nullify) }
 
   it { is_expected.to validate_presence_of(:provider) }

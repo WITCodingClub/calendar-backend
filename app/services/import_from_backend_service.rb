@@ -9,7 +9,7 @@ require "pg"
 #   2. FinalExams           (manual PDF-upload data, not from catalog)
 #   3. Users                (emails table → Devise user)
 #   4. OauthCredentials
-#   5. GoogleCalendars
+#   5. CourseCalendars (the legacy google_calendars table)
 #   6. Enrollments
 #   7. CalendarPreferences
 #   8. EventPreferences
@@ -359,7 +359,7 @@ class ImportFromBackendService
       end
 
       new_oauth_id = @oauth_id_map[row["oauth_credential_id"].to_i]
-      cal = GoogleCalendar.find_or_initialize_by(google_calendar_id: row["google_calendar_id"])
+      cal = CourseCalendar.find_or_initialize_by(provider: "google", external_calendar_id: row["google_calendar_id"])
       cal.assign_attributes(
         oauth_credential_id: new_oauth_id,
         summary:             row["summary"],
@@ -372,7 +372,7 @@ class ImportFromBackendService
         @gcal_id_map[row["id"].to_i] = cal.id
         @stats[:gcal_created] += 1
       else
-        record_error("GoogleCalendar #{row['id']}: #{cal.errors.full_messages.join(', ')}")
+        record_error("CourseCalendar #{row['id']}: #{cal.errors.full_messages.join(', ')}")
         @stats[:gcal_failed] += 1
       end
     end

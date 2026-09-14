@@ -24,16 +24,16 @@ namespace :cleanup do
     users = if ENV["USER_ID"].present?
               [ User.find(ENV["USER_ID"]) ]
     else
-              User.joins(:google_calendars).distinct
+              User.joins(:course_calendars).distinct
     end
 
     total_duplicates = 0
 
     users.find_each do |user|
-      google_calendar = user.google_credential&.google_calendar
-      next unless google_calendar
+      course_calendar = user.google_credential&.course_calendar
+      next unless course_calendar
 
-      google_events = google_calendar.google_calendar_events
+      google_events = course_calendar.calendar_events
                                      .where.not(meeting_time_id: nil)
                                      .includes(meeting_time: { room: :building })
 

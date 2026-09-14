@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe CourseScheduleSyncable, type: :model do
   let(:user)       { create(:user) }
   let(:credential) { create(:oauth_credential, user: user) }
-  let(:calendar)   { create(:google_calendar, oauth_credential: credential, google_calendar_id: "cal_123") }
+  let(:calendar)   { create(:course_calendar, oauth_credential: credential, external_calendar_id: "cal_123") }
   let(:config) { user.user_extension_config }
 
   def university_event(summary:, category:, start_time:)
@@ -22,13 +22,13 @@ RSpec.describe CourseScheduleSyncable, type: :model do
   end
 
   let!(:holiday_event) do
-    create(:google_calendar_event, :for_university_event, google_calendar: calendar,
-           google_event_id: "gcal_holiday", university_calendar_event: past_holiday,
+    create(:calendar_event, :for_university_event, course_calendar: calendar,
+           external_event_id: "gcal_holiday", university_calendar_event: past_holiday,
            end_time: past_holiday.end_time)
   end
   let!(:campus_gcal_event) do
-    create(:google_calendar_event, :for_university_event, google_calendar: calendar,
-           google_event_id: "gcal_campus", university_calendar_event: past_campus_event,
+    create(:calendar_event, :for_university_event, course_calendar: calendar,
+           external_event_id: "gcal_campus", university_calendar_event: past_campus_event,
            end_time: past_campus_event.end_time)
   end
 
@@ -52,7 +52,7 @@ RSpec.describe CourseScheduleSyncable, type: :model do
 
       expect(user.prune_unwanted_university_events).to eq(1)
       expect(google_service).to have_received(:delete_event).with("cal_123", "gcal_campus")
-      expect(GoogleCalendarEvent.exists?(campus_gcal_event.id)).to be(false)
+      expect(CalendarEvent.exists?(campus_gcal_event.id)).to be(false)
     end
 
     it "deletes a past event after the user unselects its category" do
@@ -66,7 +66,7 @@ RSpec.describe CourseScheduleSyncable, type: :model do
       config.update!(sync_university_events: false)
       user.prune_unwanted_university_events
 
-      expect(GoogleCalendarEvent.exists?(holiday_event.id)).to be(true)
+      expect(CalendarEvent.exists?(holiday_event.id)).to be(true)
       expect(google_service).not_to have_received(:delete_event).with("cal_123", "gcal_holiday")
     end
 
@@ -86,7 +86,7 @@ RSpec.describe CourseScheduleSyncable, type: :model do
 
       user.sync_course_schedule(force: false)
 
-      expect(GoogleCalendarEvent.exists?(campus_gcal_event.id)).to be(false)
+      expect(CalendarEvent.exists?(campus_gcal_event.id)).to be(false)
     end
   end
 end
