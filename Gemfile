@@ -103,4 +103,6 @@ end
 
 group :test do
   gem "shoulda-matchers"
+  gem "simplecov", require: false
+  gem "webmock"
 end

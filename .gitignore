@@ -60,3 +60,6 @@ config/credentials/
 
 # Personal mise overrides
 mise.local.toml
+
+# SimpleCov coverage reports
+/coverage/

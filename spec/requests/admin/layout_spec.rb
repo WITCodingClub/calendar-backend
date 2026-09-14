@@ -11,6 +11,8 @@ RSpec.describe "Admin layout", type: :request do
   let(:page) { Nokogiri::HTML(response.body) }
 
   before do
+    stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar/releases/latest")
+      .to_return(status: 200, body: { tag_name: "v0.0.0" }.to_json)
     allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(false)
     sign_in admin
     get admin_buildings_path
