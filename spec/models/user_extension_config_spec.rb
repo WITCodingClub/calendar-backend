@@ -28,19 +28,20 @@
 require "rails_helper"
 
 RSpec.describe UserExtensionConfig, type: :model do
-  let(:user) do
-    User.create!(
-      email: "config-spec@example.com",
-      password: "password123",
-      password_confirmation: "password123"
-    )
-  end
+  let(:user) { create(:user) }
 
   # The user model creates a UserExtensionConfig on create; reuse it.
   let(:config) { user.user_extension_config }
 
   before do
     allow(GoogleCalendarSyncJob).to receive(:perform_later)
+  end
+
+  describe "associations and validations" do
+    subject { config }
+
+    it { is_expected.to belong_to(:user) }
+    it { is_expected.to validate_uniqueness_of(:user_id) }
   end
 
   describe "toggling sync_university_events" do

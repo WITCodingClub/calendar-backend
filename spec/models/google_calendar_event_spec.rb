@@ -43,33 +43,47 @@
 require "rails_helper"
 
 RSpec.describe GoogleCalendarEvent, type: :model do
-  let(:user) { User.create!(email: "student@wit.edu", password: "password123") }
-  let(:credential) do
-    user.oauth_credentials.create!(
-      provider: "google", uid: "google-uid", email: user.email, access_token: "token"
-    )
-  end
-  let(:calendar) { credential.create_google_calendar!(google_calendar_id: "cal_123") }
+  describe "associations and validations" do
+    subject { create(:google_calendar_event) }
 
-  let(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
-  let(:course) do
-    Course.create!(
-      crn: 12345, term: term, title: "Data Structures", subject: "COMP",
-      course_number: 2000, section_number: "01", schedule_type: "LEC",
-      start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15)
-    )
+    it { is_expected.to belong_to(:google_calendar) }
+    it { is_expected.to belong_to(:meeting_time).class_name("Course::MeetingTime").optional }
+    it { is_expected.to belong_to(:final_exam).optional }
+    it { is_expected.to belong_to(:university_calendar_event).optional }
+    it { is_expected.to have_one(:event_preference).dependent(:destroy) }
+    it { is_expected.to have_one(:oauth_credential).through(:google_calendar) }
+    it { is_expected.to have_one(:user).through(:oauth_credential) }
+
+    it { is_expected.to validate_presence_of(:google_event_id) }
+    it { is_expected.to validate_uniqueness_of(:meeting_time_id).scoped_to(:google_calendar_id) }
+
+    # #only_one_event_type_associated is a custom cross-field validation
+    # (exactly one of meeting_time/final_exam/university_calendar_event), so
+    # it has no single one-liner.
+
+    context "associated with a final exam instead" do
+      subject { create(:google_calendar_event, :for_final_exam) }
+
+      it { is_expected.to validate_uniqueness_of(:final_exam_id).scoped_to(:google_calendar_id) }
+    end
+
+    context "associated with a university calendar event instead" do
+      subject { create(:google_calendar_event, :for_university_event) }
+
+      it { is_expected.to validate_uniqueness_of(:university_calendar_event_id).scoped_to(:google_calendar_id) }
+    end
   end
+
+  let(:user)       { create(:user) }
+  let(:credential) { create(:oauth_credential, user: user) }
+  let(:calendar)   { create(:google_calendar, oauth_credential: credential, google_calendar_id: "cal_123") }
+
+  let(:term)   { create(:term) }
+  let(:course) { create(:course, term: term) }
 
   describe "orphaning behavior" do
     it "is nullified, not destroyed, when its meeting time is destroyed" do
-      meeting_time = Course::MeetingTime.create!(
-        course: course,
-        start_date: Time.zone.local(2026, 9, 8),
-        end_date: Time.zone.local(2026, 12, 15, 23, 59, 59),
-        begin_time: 1300, end_time: 1445,
-        day_of_week: :monday,
-        meeting_schedule_type: :lecture, meeting_type: :class_meeting
-      )
+      meeting_time = create(:course_meeting_time, course: course)
       event = calendar.google_calendar_events.create!(
         google_event_id: "evt_1", meeting_time: meeting_time
       )
@@ -80,12 +94,7 @@ RSpec.describe GoogleCalendarEvent, type: :model do
     end
 
     it "is nullified, not destroyed, when its final exam is destroyed" do
-      final_exam = FinalExam.create!(
-        term: term, course: course, crn: 12345,
-        exam_date: Date.new(2026, 12, 17),
-        start_time: Time.zone.local(2026, 12, 17, 10, 0),
-        end_time: Time.zone.local(2026, 12, 17, 12, 0)
-      )
+      final_exam = create(:final_exam, term: term, course: course)
       event = calendar.google_calendar_events.create!(
         google_event_id: "evt_2", final_exam: final_exam
       )
