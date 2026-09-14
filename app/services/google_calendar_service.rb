@@ -230,6 +230,34 @@ class GoogleCalendarService
     with_rate_limit_handling { service.delete_calendar(calendar_id) }
   end
 
+  # Public: OauthCredential calls this when a Google account is disconnected.
+  # Uses that account's own token, so call it before the token is revoked.
+  def remove_calendar_from_user_list_for_email(calendar_id, email)
+    google_calendar = GoogleCalendar.find_by(google_calendar_id: calendar_id)
+    return unless google_calendar
+
+    calendar_user = google_calendar.user
+    credential    = calendar_user.google_credential_for_email(email)
+    return unless credential
+
+    service = user_calendar_service_for_credential(credential)
+    with_rate_limit_handling { service.delete_calendar_list(calendar_id) }
+  rescue Google::Apis::ClientError => e
+    Rails.logger.warn "Failed to remove calendar from user list: #{e.message}" unless e.status_code == 404
+  end
+
+  # Deletes the ACL rule that share_calendar_with_user added for the email.
+  # Without this, a disconnected account keeps owner access to the calendar.
+  # Uses the service account, so it works after the account's token is gone.
+  def unshare_calendar_with_email(calendar_id, email)
+    service = service_account_calendar_service
+    with_rate_limit_handling { service.delete_acl(calendar_id, "user:#{email}") }
+  rescue Google::Apis::ClientError => e
+    raise unless e.status_code == 404
+
+    Rails.logger.info("ACL rule for #{email} already absent from calendar #{calendar_id}")
+  end
+
   private
 
   def build_event_key(e)
@@ -391,20 +419,6 @@ class GoogleCalendarService
         raise
       end
     end
-  end
-
-  def remove_calendar_from_user_list_for_email(calendar_id, email)
-    google_calendar = GoogleCalendar.find_by(google_calendar_id: calendar_id)
-    return unless google_calendar
-
-    calendar_user = google_calendar.user
-    credential    = calendar_user.google_credential_for_email(email)
-    return unless credential
-
-    service = user_calendar_service_for_credential(credential)
-    with_rate_limit_handling { service.delete_calendar_list(calendar_id) }
-  rescue Google::Apis::ClientError => e
-    Rails.logger.warn "Failed to remove calendar from user list: #{e.message}" unless e.status_code == 404
   end
 
   def user_calendar_service_for_credential(credential)
