@@ -142,8 +142,8 @@ RSpec.describe "Api::Graphql", type: :request do
     end
 
     it "returns a null display for a placeholder TBD building" do
-      tbd  = Building.create!(abbreviation: "TBD", name: "To Be Determined")
-      room = Room.create!(building: tbd, number: "TBD")
+      tbd  = create(:building, abbreviation: "TBD", name: "To Be Determined")
+      room = create(:room, building: tbd, number: "TBD")
       comp2000.meeting_times.first.rooms << room
 
       result = gql("{ section(crn: 10002) { meetingTimes { location { display building { abbreviation } } } } }")

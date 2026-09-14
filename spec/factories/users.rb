@@ -13,5 +13,9 @@ FactoryBot.define do
     trait :unconfirmed do
       confirmed_at { nil }
     end
+
+    trait :admin do
+      access_level { :admin }
+    end
   end
 end

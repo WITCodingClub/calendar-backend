@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "Api::CalendarPreferences", type: :request do
-  let(:user) { User.create!(email: "api-prefs@wit.edu", password: "password123", confirmed_at: Time.current) }
+  let(:user) { create(:user) }
   let(:headers) { { "Authorization" => "Bearer #{api_token_for(user)}" } }
 
   def json = JSON.parse(response.body)
@@ -53,7 +53,7 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
     end
 
     it "returns to the system default when the list is 'default'" do
-      user.calendar_preferences.create!(scope: :uni_cal_global, reminder_settings: [])
+      create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
 
       patch "/api/calendar_preferences/uni_cal",
             params: { calendar_preference: { reminder_settings: "default" } },
@@ -76,7 +76,7 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
 
   describe "GET /api/calendar_preferences" do
     it "publishes the university wide preference beside the global one" do
-      user.calendar_preferences.create!(scope: :uni_cal_global, reminder_settings: [])
+      create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
 
       get "/api/calendar_preferences", headers: headers
 

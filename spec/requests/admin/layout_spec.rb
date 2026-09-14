@@ -6,9 +6,7 @@ require "rails_helper"
 # element. Issue #572: the sidebar controller was on the desktop sidebar, so
 # the small-screen menu button did nothing.
 RSpec.describe "Admin layout", type: :request do
-  let(:admin) do
-    User.create!(email: "admin@wit.edu", password: "password123", confirmed_at: Time.current, access_level: :admin)
-  end
+  let(:admin) { create(:user, :admin) }
 
   let(:page) { Nokogiri::HTML(response.body) }
 
