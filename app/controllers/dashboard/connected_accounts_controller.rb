@@ -17,7 +17,10 @@ class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
       credential = nil unless credential&.user_id == current_user.id
     end
 
-    return redirect_to dashboard_connected_accounts_path, alert: "Credential not found." unless credential
+    unless credential
+      skip_authorization
+      return redirect_to dashboard_connected_accounts_path, alert: "Credential not found."
+    end
 
     authorize credential, :destroy?
 
