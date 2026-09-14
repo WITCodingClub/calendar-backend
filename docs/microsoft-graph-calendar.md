@@ -14,6 +14,7 @@ Do not turn on the flag for real users until IT confirms the consent.
 2. Add the redirect URI `https://calendar.witcc.dev/auth/microsoft_graph/callback`. For local work, add `http://localhost:3000/auth/microsoft_graph/callback`.
 3. Add the delegated Microsoft Graph permissions:
    - `Calendars.ReadWrite`
+   - `MailboxSettings.ReadWrite` (reads and creates the Outlook categories that color events)
    - `offline_access`
    - `openid`, `email`, `profile` (sign-in only, no Graph data)
 4. Create a client secret.
@@ -66,6 +67,10 @@ sequenceDiagram
     Providers-->>User: Google and/or Microsoft service
     User->>MS: update_calendar_events(events)
     MS->>DB: load rows for the calendar
+    opt an event has a color (once per sync)
+        MS->>Graph: GET /me/outlook/masterCategories
+        MS->>Graph: POST /me/outlook/masterCategories for a missing WIT category
+    end
     loop each event
         alt no row
             MS->>Graph: POST /me/calendars/{id}/events
@@ -110,7 +115,8 @@ sequenceDiagram
 
 - Graph has no RRULE or EXDATE. The provider sends a weekly `patternedRecurrence` and cancels each excluded occurrence after it creates or updates the series.
 - Graph has one reminder per event. The provider sends the earliest reminder.
-- Event colors are not sent. Outlook colors come from categories.
+- Outlook colors events through categories, not a color id. The provider maps each Google color to a "WIT <color>" category with the closest preset color, for example "WIT Tomato" with `preset0`. It reads the master list once for each sync with `GET /me/outlook/masterCategories` and creates a missing category with `POST /me/outlook/masterCategories`. It does not change a category that the person already has. A normal sync keeps the person's other categories on the event. A forced sync sets only the WIT category when the event has a color.
+- The master category list needs `MailboxSettings.ReadWrite`. If Graph answers 403, the event still gets the category name, and Outlook shows it without a color.
 - Both providers keep edits that a person makes in their calendar. The Microsoft provider reads the event before a PATCH and compares it with the `calendar_events` row. A changed subject, location, start or end stays, and the field goes into `user_edited_fields`. A changed recurrence keeps the whole event. A forced sync writes the app's values again.
 - Google counts any description as an edit. The row does not store the description that the app wrote, so the Microsoft provider does not compare descriptions. Template changes to the description still reach Outlook.
 - The calendar belongs to the person's mailbox, not to a service account. When the person disconnects the account, the app cannot delete the calendar, because the token is gone.

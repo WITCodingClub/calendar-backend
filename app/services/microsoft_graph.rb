@@ -22,8 +22,9 @@ module MicrosoftGraph
   class AuthError < Error; end
 
   # Delegated scopes. openid, email and profile identify the account;
-  # offline_access returns a refresh token.
-  SCOPES = %w[openid email profile offline_access Calendars.ReadWrite].freeze
+  # offline_access returns a refresh token. MailboxSettings.ReadWrite reads and
+  # creates the Outlook categories that color events.
+  SCOPES = %w[openid email profile offline_access Calendars.ReadWrite MailboxSettings.ReadWrite].freeze
 
   module_function
 

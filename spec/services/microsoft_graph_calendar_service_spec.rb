@@ -32,6 +32,15 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
 
   around { |example| travel_to(zone.local(2026, 9, 1, 12, 0)) { example.run } }
 
+  # Course events carry a color, so a sync reads the master category list.
+  let!(:master_categories) do
+    stub_request(:get, "#{graph}/me/outlook/masterCategories").with(query: hash_including({}))
+      .to_return(graph_json_response("master_categories"))
+  end
+  let!(:category_create) do
+    stub_request(:post, "#{graph}/me/outlook/masterCategories").to_return(graph_json_response("master_category_created", status: 201))
+  end
+
   def stub_event_create
     stub_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events").to_return(graph_json_response("event_created"))
   end
@@ -300,6 +309,43 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
       expect(patch).to have_been_requested
       expect(a_request(:get, "#{graph}/me/events/#{created_event_id}")).not_to have_been_made
       expect(row.reload.user_edited_fields).to be_nil
+    end
+  end
+
+  describe "event colors" do
+    let(:categories_url) { "#{graph}/me/outlook/masterCategories" }
+
+    before { user.user_extension_config.update!(default_color_lecture: GoogleColors::WITCC_BANANA) }
+
+    it "creates the category for a lecture color once and sets it on each new event" do
+      calendar
+      create_stub = stub_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events")
+                    .with(body: hash_including("categories" => [ "WIT Banana" ]))
+                    .to_return(graph_json_response("event_created"))
+      second_event = class_event.merge(meeting_time_id: create(:course_meeting_time).id)
+
+      service.update_calendar_events([ class_event, second_event ])
+
+      expect(create_stub).to have_been_requested.twice
+      expect(master_categories).to have_been_requested.once
+      expect(a_request(:post, categories_url).with(body: { displayName: "WIT Banana", color: "preset3" }.to_json)).to have_been_made.once
+    end
+
+    it "keeps the person's own categories and swaps the old WIT category on update" do
+      create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time,
+                              external_event_id: created_event_id, summary: "Synthetic Course", location: "Synthetic Hall - 101",
+                              start_time: zone.local(2026, 9, 14, 9, 0), end_time: zone.local(2026, 9, 14, 10, 15),
+                              event_data_hash: "stale")
+      body = JSON.parse(graph_fixture("event_fetched")).merge("categories" => [ "Synthetic Personal", "WIT Tomato" ])
+      stub_request(:get, "#{graph}/me/events/#{created_event_id}").with(query: hash_including({}))
+        .to_return(status: 200, body: body.to_json, headers: { "Content-Type" => "application/json" })
+      patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}")
+              .with(body: hash_including("categories" => [ "Synthetic Personal", "WIT Banana" ]))
+              .to_return(graph_json_response("event_updated"))
+
+      service.update_calendar_events([ class_event ])
+
+      expect(patch).to have_been_requested
     end
   end
 

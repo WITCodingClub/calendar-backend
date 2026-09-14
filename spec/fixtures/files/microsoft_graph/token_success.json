@@ -1,6 +1,6 @@
 {
   "token_type": "Bearer",
-  "scope": "openid email profile offline_access Calendars.ReadWrite",
+  "scope": "openid email profile offline_access Calendars.ReadWrite MailboxSettings.ReadWrite",
   "expires_in": 3599,
   "ext_expires_in": 3599,
   "access_token": "synthetic-access-token",

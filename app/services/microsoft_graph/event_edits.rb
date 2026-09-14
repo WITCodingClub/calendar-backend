@@ -11,7 +11,7 @@ module MicrosoftGraph
   # description the app wrote, so that rule would freeze every description.
   class EventEdits
     # The fields a GET must ask for.
-    SELECT          = "id,subject,location,start,end,isAllDay,recurrence"
+    SELECT          = "id,subject,location,start,end,isAllDay,recurrence,categories"
     LOCAL_TIME_ZONE = "America/New_York"
     UTC_ZONES       = %w[UTC Etc/GMT GMT].freeze
 

@@ -22,7 +22,7 @@ RSpec.describe MicrosoftGraph::TokenClient, :microsoft_graph do
         "code_challenge"        => described_class.code_challenge("verifier-123"),
         "code_challenge_method" => "S256"
       )
-      expect(query["scope"].split).to include("offline_access", "Calendars.ReadWrite")
+      expect(query["scope"].split).to include("offline_access", "Calendars.ReadWrite", "MailboxSettings.ReadWrite")
     end
   end
 
