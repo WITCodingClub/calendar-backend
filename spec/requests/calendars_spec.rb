@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "GET /calendar/:calendar_token", type: :request do
-  let!(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
+  let!(:term) { create(:term, uid: 202710) }
 
   let(:class_details) do
     {
@@ -29,15 +29,14 @@ RSpec.describe "GET /calendar/:calendar_token", type: :request do
 
   before { allow(LeopardWebService).to receive(:get_class_details).and_return(class_details) }
 
-  def student_in(email, crns)
-    user = User.create!(email: email, password: "password123")
+  def student_in(crns)
+    user = create(:user)
     CourseProcessorService.new(crns.map { |crn| { crn: crn, term: "202710", courseNumber: "2000" } }, user).call
     user
   end
 
   def final_for(crn, date)
-    FinalExam.create!(term: term, crn: crn, course: Course.find_by!(crn: crn, term: term),
-                      exam_date: date, start_time: 800, end_time: 1000)
+    create(:final_exam, term: term, crn: crn, course: Course.find_by!(crn: crn, term: term), exam_date: date)
   end
 
   def recurrence_end_by_crn
@@ -56,7 +55,7 @@ RSpec.describe "GET /calendar/:calendar_token", type: :request do
   end
 
   it "ends each class the day before its own final" do
-    user = student_in("ics@wit.edu", %w[11111 22222 33333])
+    user = student_in(%w[11111 22222 33333])
     final_for(11111, Date.new(2026, 12, 10))
     final_for(22222, Date.new(2026, 12, 3))
 
@@ -72,8 +71,8 @@ RSpec.describe "GET /calendar/:calendar_token", type: :request do
   end
 
   it "looks up finals with the same number of queries for three classes as for one" do
-    one   = student_in("one@wit.edu", %w[11111])
-    three = student_in("three@wit.edu", %w[22222 33333 44444])
+    one   = student_in(%w[11111])
+    three = student_in(%w[22222 33333 44444])
     %w[11111 22222 33333 44444].each_with_index { |crn, i| final_for(crn, Date.new(2026, 12, 3 + i)) }
 
     one_count   = final_exam_queries { get "/calendar/#{one.calendar_token}" }

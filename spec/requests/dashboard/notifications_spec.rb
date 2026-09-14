@@ -3,9 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "Dashboard::Notifications", type: :request do
-  let(:user) do
-    User.create!(email: "dash@wit.edu", password: "password123", confirmed_at: Time.current)
-  end
+  let(:user) { create(:user) }
 
   def university_preference = user.calendar_preferences.find_by(scope: :uni_cal_global)
 
@@ -33,7 +31,7 @@ RSpec.describe "Dashboard::Notifications", type: :request do
     end
 
     it "returns to the default by clearing the stored reminders" do
-      user.calendar_preferences.create!(scope: :uni_cal_global, reminder_settings: [])
+      create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
 
       patch university_events_dashboard_notifications_path, params: { mode: "default" }
 
@@ -49,9 +47,8 @@ RSpec.describe "Dashboard::Notifications", type: :request do
     end
 
     it "leaves the class reminders untouched" do
-      global = user.calendar_preferences.create!(
-        scope: :global, reminder_settings: [ { "time" => "10", "type" => "minutes", "method" => "popup" } ]
-      )
+      global = create(:calendar_preference, user: user,
+                      reminder_settings: [ { "time" => "10", "type" => "minutes", "method" => "popup" } ])
 
       patch university_events_dashboard_notifications_path, params: { mode: "off" }
 

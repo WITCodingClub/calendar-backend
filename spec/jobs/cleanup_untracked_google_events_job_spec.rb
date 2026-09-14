@@ -3,35 +3,13 @@
 require "rails_helper"
 
 RSpec.describe CleanupUntrackedGoogleEventsJob do
-  let(:user) { User.create!(email: "student@wit.edu", password: "password123") }
-  let(:credential) do
-    user.oauth_credentials.create!(
-      provider: "google", uid: "google-uid", email: user.email, access_token: "token"
-    )
-  end
-  let(:calendar) { credential.create_google_calendar!(google_calendar_id: "cal_123") }
-
-  let(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
-  let(:course) do
-    Course.create!(
-      crn: 12345, term: term, title: "Data Structures", subject: "COMP",
-      course_number: 2000, section_number: "01", schedule_type: "LEC",
-      start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15)
-    )
-  end
-  let(:meeting_time) do
-    Course::MeetingTime.create!(
-      course: course,
-      start_date: Time.zone.local(2026, 9, 8),
-      end_date: Time.zone.local(2026, 12, 15, 23, 59, 59),
-      begin_time: 1300, end_time: 1445,
-      day_of_week: :monday,
-      meeting_schedule_type: :lecture, meeting_type: :class_meeting
-    )
-  end
+  let(:user)       { create(:user) }
+  let(:credential) { create(:oauth_credential, user: user) }
+  let(:calendar)   { create(:google_calendar, oauth_credential: credential, google_calendar_id: "cal_123") }
+  let(:meeting_time) { create(:course_meeting_time) }
 
   let!(:tracked_event) do
-    calendar.google_calendar_events.create!(google_event_id: "tracked_1", meeting_time: meeting_time)
+    create(:google_calendar_event, google_calendar: calendar, meeting_time: meeting_time, google_event_id: "tracked_1")
   end
 
   let(:fake_service) { instance_double(Google::Apis::CalendarV3::CalendarService) }

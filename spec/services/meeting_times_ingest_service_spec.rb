@@ -3,20 +3,7 @@
 require "rails_helper"
 
 RSpec.describe MeetingTimesIngestService do
-  let(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
-  let(:course) do
-    Course.create!(
-      crn: 12345,
-      term: term,
-      title: "Data Structures",
-      subject: "COMP",
-      course_number: 2000,
-      section_number: "01",
-      schedule_type: "LEC",
-      start_date: Date.new(2026, 9, 8),
-      end_date: Date.new(2026, 12, 15)
-    )
-  end
+  let(:course) { create(:course) }
 
   let(:raw_meeting_times) do
     [
@@ -50,16 +37,7 @@ RSpec.describe MeetingTimesIngestService do
   end
 
   it "does not include stale meeting times in the returned ids" do
-    stale = Course::MeetingTime.create!(
-      course: course,
-      start_date: Time.zone.local(2026, 9, 8),
-      end_date: Time.zone.local(2026, 12, 15, 23, 59, 59),
-      begin_time: 900,
-      end_time: 1045,
-      day_of_week: :friday,
-      meeting_schedule_type: :lecture,
-      meeting_type: :class_meeting
-    )
+    stale = create(:course_meeting_time, course: course, day_of_week: :friday)
 
     touched_ids = described_class.call(course: course, raw_meeting_times: raw_meeting_times)
 

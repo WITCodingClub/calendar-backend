@@ -3,8 +3,8 @@
 require "rails_helper"
 
 RSpec.describe "POST /api/user/processed_events", type: :request do
-  let(:user) { User.create!(email: "events@wit.edu", password: "password123") }
-  let!(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
+  let(:user) { create(:user) }
+  let!(:term) { create(:term, uid: 202710) }
   let(:headers) { auth_headers_for(user) }
 
   def class_details(room)

@@ -3,14 +3,8 @@
 require "rails_helper"
 
 RSpec.describe "Admin console audits", type: :request do
-  let(:admin) do
-    User.create!(email: "auditor@wit.edu", password: "password123", confirmed_at: Time.current,
-                 first_name: "Ada", last_name: "Lovelace", access_level: :admin)
-  end
-  let(:other_admin) do
-    User.create!(email: "other-auditor@wit.edu", password: "password123", confirmed_at: Time.current,
-                 first_name: "Grace", last_name: "Hopper", access_level: :admin)
-  end
+  let(:admin) { create(:user, :admin, first_name: "Ada", last_name: "Lovelace") }
+  let(:other_admin) { create(:user, :admin, first_name: "Grace", last_name: "Hopper") }
   let(:console_user) { Console1984::User.create!(username: "deploy") }
   let!(:console_session) { Console1984::Session.create!(user: console_user, reason: "Fix a stuck sync") }
 
@@ -46,7 +40,7 @@ RSpec.describe "Admin console audits", type: :request do
 
   context "when a non-admin is signed in" do
     it "does not show console sessions" do
-      sign_in User.create!(email: "student@wit.edu", password: "password123", confirmed_at: Time.current)
+      sign_in create(:user)
 
       get "/admin/audits"
 

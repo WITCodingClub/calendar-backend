@@ -3,8 +3,8 @@
 require "rails_helper"
 
 RSpec.describe "POST /api/meeting_times/preferences", type: :request do
-  let(:user) { User.create!(email: "batch@wit.edu", password: "password123") }
-  let!(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
+  let(:user) { create(:user) }
+  let!(:term) { create(:term, uid: 202710) }
   let(:headers) { auth_headers_for(user) }
 
   def class_details(room)
@@ -56,8 +56,8 @@ RSpec.describe "POST /api/meeting_times/preferences", type: :request do
 
   it "answers for each meeting time exactly as the single endpoint does" do
     meeting_times = enroll_in(%w[11111 22222])
-    CalendarPreference.create!(user: user, scope: :global, title_template: "{{course_code}} {{title}}", color_id: 5)
-    EventPreference.create!(user: user, preferenceable: meeting_times.first, title_template: "Mine: {{title}}")
+    create(:calendar_preference, user: user, title_template: "{{course_code}} {{title}}", color_id: 5)
+    create(:event_preference, user: user, preferenceable: meeting_times.first, title_template: "Mine: {{title}}")
 
     singles = meeting_times.to_h do |mt|
       get "/api/meeting_times/#{mt.public_id}/preference", headers: headers

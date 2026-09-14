@@ -3,20 +3,7 @@
 require "rails_helper"
 
 RSpec.describe FacultyIngestService do
-  let(:term) { Term.create!(uid: 202710, season: :fall, year: 2026) }
-  let(:course) do
-    Course.create!(
-      crn: 16004,
-      term: term,
-      title: "Calculus 2A",
-      subject: "MATH",
-      course_number: 1876,
-      section_number: "03",
-      schedule_type: "LEC",
-      start_date: Date.new(2026, 9, 8),
-      end_date: Date.new(2026, 10, 20)
-    )
-  end
+  let(:course) { create(:course) }
 
   let(:sanderson) do
     {
@@ -91,11 +78,7 @@ RSpec.describe FacultyIngestService do
   end
 
   it "reuses a faculty record whose stored email differs only in case" do
-    existing = Faculty.create!(
-      email: "SandersonE1@wit.edu",
-      first_name: "Elijah",
-      last_name: "Sanderson"
-    )
+    existing = create(:faculty, email: "SandersonE1@wit.edu", first_name: "Elijah", last_name: "Sanderson")
 
     described_class.call(course: course, raw_faculty: [ sanderson ])
 
@@ -123,20 +106,10 @@ RSpec.describe FacultyIngestService do
   end
 
   it "marks enrolled users for calendar sync when the instructor changes" do
-    user = User.create!(
-      email: "student@wit.edu",
-      password: "password123",
-      first_name: "Leigh",
-      last_name: "Student"
-    )
-    Enrollment.create!(user: user, course: course, term: term)
-    credential = user.oauth_credentials.create!(
-      provider: "google",
-      uid: "google-uid-1",
-      email: "student@wit.edu",
-      access_token: "token"
-    )
-    credential.create_google_calendar!(google_calendar_id: "cal-1", summary: "WIT-Calendar")
+    user = create(:user)
+    create(:enrollment, user: user, course: course)
+    credential = create(:oauth_credential, user: user)
+    create(:google_calendar, oauth_credential: credential)
     user.update_column(:calendar_needs_sync, false)
 
     described_class.call(course: course, raw_faculty: [ sanderson ])

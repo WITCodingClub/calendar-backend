@@ -4,14 +4,12 @@ require "rails_helper"
 
 RSpec.describe FriendshipMailer, type: :mailer do
   let(:requester) do
-    User.create!(email: "requester@wit.edu", password: "password123",
-                 first_name: "Ada", last_name: "Lovelace")
+    create(:user, email: "requester@wit.edu", first_name: "Ada", last_name: "Lovelace")
   end
   let(:addressee) do
-    User.create!(email: "addressee@wit.edu", password: "password123",
-                 first_name: "Grace", last_name: "Hopper")
+    create(:user, email: "addressee@wit.edu", first_name: "Grace", last_name: "Hopper")
   end
-  let(:friendship) { Friendship.new(requester: requester, addressee: addressee) }
+  let(:friendship) { build(:friendship, requester: requester, addressee: addressee) }
 
   describe "#request_received" do
     subject(:mail) { described_class.request_received(friendship) }

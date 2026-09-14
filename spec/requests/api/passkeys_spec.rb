@@ -8,7 +8,7 @@ RSpec.describe "Api::Passkeys", type: :request do
 
   ORIGIN = "http://localhost:3000"
 
-  let(:user) { User.create!(email: "passkey@wit.edu", password: "password123", confirmed_at: Time.current) }
+  let(:user) { create(:user) }
   let(:headers) { { "Authorization" => "Bearer #{api_token_for(user)}" } }
   let(:authenticator) { WebAuthn::FakeAuthenticator.new }
   let(:client) { WebAuthn::FakeClient.new(ORIGIN, authenticator: authenticator) }
@@ -96,7 +96,7 @@ RSpec.describe "Api::Passkeys", type: :request do
       handle    = json["handle"]
       challenge = json.dig("options", "challenge")
 
-      intruder = User.create!(email: "intruder@wit.edu", password: "password123")
+      intruder = create(:user)
       intruder_headers = { "Authorization" => "Bearer #{api_token_for(intruder)}" }
 
       post "/api/user/passkeys",
@@ -202,8 +202,8 @@ RSpec.describe "Api::Passkeys", type: :request do
     it "lists only the signed-in user's passkeys" do
       register(nickname: "Mine")
 
-      other = User.create!(email: "other@wit.edu", password: "password123")
-      other.passkeys.create!(external_id: "someone-else", public_key: "key", nickname: "Theirs")
+      other = create(:user)
+      create(:passkey, user: other, nickname: "Theirs")
 
       get "/api/user/passkeys", headers: headers
 
@@ -220,8 +220,8 @@ RSpec.describe "Api::Passkeys", type: :request do
     end
 
     it "will not remove someone else's passkey" do
-      other = User.create!(email: "other@wit.edu", password: "password123")
-      theirs = other.passkeys.create!(external_id: "someone-else", public_key: "key", nickname: "Theirs")
+      other = create(:user)
+      theirs = create(:passkey, user: other, nickname: "Theirs")
 
       delete "/api/user/passkeys/#{theirs.public_id}", headers: headers
 

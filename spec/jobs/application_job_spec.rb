@@ -12,7 +12,7 @@ RSpec.describe ApplicationJob do
   end
 
   it "discards a job whose record was deleted before the job ran" do
-    user    = User.create!(email: "deleted-before-run@wit.edu", password: "password123")
+    user    = create(:user)
     payload = RecordArgumentJob.new(user).serialize
     user.destroy!
 
@@ -20,7 +20,7 @@ RSpec.describe ApplicationJob do
   end
 
   it "still runs a job whose record exists" do
-    user    = User.create!(email: "still-here@wit.edu", password: "password123")
+    user    = create(:user)
     payload = RecordArgumentJob.new(user).serialize
 
     expect { ActiveJob::Base.execute(payload) }.to raise_error(RuntimeError, "the job ran")

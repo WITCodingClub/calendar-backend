@@ -7,7 +7,7 @@ RSpec.describe "The passkey page", type: :request do
   ORIGIN = "http://localhost:3000"
   EXT    = "https://aceelinogfcceklkpacakdeddnaakicj.chromiumapp.org/"
 
-  let(:user) { User.create!(email: "page@wit.edu", password: "password123", confirmed_at: Time.current) }
+  let(:user) { create(:user) }
   let(:token) { api_token_for(user) }
   let(:headers) { { "Authorization" => "Bearer #{token}" } }
   let(:client) { WebAuthn::FakeClient.new(ORIGIN) }

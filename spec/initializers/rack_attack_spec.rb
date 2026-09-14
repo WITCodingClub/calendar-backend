@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe Rack::Attack do
-  let(:user) { User.create!(email: "ratelimit@wit.edu", password: "password123") }
+  let(:user) { create(:user) }
 
   def request_with(header)
     Rack::Attack::Request.new(Rack::MockRequest.env_for("/api/user/email", "HTTP_AUTHORIZATION" => header))
@@ -29,7 +29,7 @@ RSpec.describe Rack::Attack do
     end
 
     it "does not share the answer between requests" do
-      other = User.create!(email: "other-ratelimit@wit.edu", password: "password123")
+      other = create(:user)
 
       expect(described_class.extract_user_id_from_jwt(request_with("Bearer #{api_token_for(user)}"))).to eq(user.id)
       expect(described_class.extract_user_id_from_jwt(request_with("Bearer #{api_token_for(other)}"))).to eq(other.id)

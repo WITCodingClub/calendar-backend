@@ -84,9 +84,7 @@ RSpec.describe GoogleCalendarEvent, type: :model do
   describe "orphaning behavior" do
     it "is nullified, not destroyed, when its meeting time is destroyed" do
       meeting_time = create(:course_meeting_time, course: course)
-      event = calendar.google_calendar_events.create!(
-        google_event_id: "evt_1", meeting_time: meeting_time
-      )
+      event = create(:google_calendar_event, google_calendar: calendar, meeting_time: meeting_time)
 
       expect { meeting_time.destroy! }.not_to change(GoogleCalendarEvent, :count)
       expect(event.reload.meeting_time_id).to be_nil
@@ -95,9 +93,7 @@ RSpec.describe GoogleCalendarEvent, type: :model do
 
     it "is nullified, not destroyed, when its final exam is destroyed" do
       final_exam = create(:final_exam, term: term, course: course)
-      event = calendar.google_calendar_events.create!(
-        google_event_id: "evt_2", final_exam: final_exam
-      )
+      event = create(:google_calendar_event, :for_final_exam, google_calendar: calendar, final_exam: final_exam)
 
       expect { final_exam.destroy! }.not_to change(GoogleCalendarEvent, :count)
       expect(event.reload.final_exam_id).to be_nil

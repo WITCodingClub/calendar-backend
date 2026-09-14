@@ -3,15 +3,13 @@
 require "rails_helper"
 
 RSpec.describe "Admin::Buildings", type: :request do
-  let(:admin) do
-    User.create!(email: "admin@wit.edu", password: "password123", confirmed_at: Time.current, access_level: :admin)
-  end
+  let(:admin) { create(:user, :admin) }
 
-  let!(:wentworth) { Building.create!(abbreviation: "WENTW", name: "Wentworth Test Hall") }
+  let!(:wentworth) { create(:building, abbreviation: "WENTW", name: "Wentworth Test Hall") }
 
   before do
-    Building.create!(abbreviation: "TBD", name: "To Be Determined")
-    Building.create!(abbreviation: "ONLINE", name: "Online Section")
+    create(:building, abbreviation: "TBD", name: "To Be Determined")
+    create(:building, abbreviation: "ONLINE", name: "Online Section")
     allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(false)
     sign_in admin
   end

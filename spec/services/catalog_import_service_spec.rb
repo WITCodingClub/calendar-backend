@@ -4,13 +4,8 @@ require "rails_helper"
 
 RSpec.describe CatalogImportService do
   let!(:term) do
-    Term.create!(
-      uid: 202710,
-      season: :fall,
-      year: 2026,
-      start_date: Date.new(2026, 9, 8),
-      end_date: Date.new(2026, 12, 15)
-    )
+    create(:term, uid: 202710, season: :fall, year: 2026,
+           start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15))
   end
 
   def catalog_row(crn:, sequence:, schedule_type: "Lecture (LEC)", link_identifier: nil, is_section_linked: nil)

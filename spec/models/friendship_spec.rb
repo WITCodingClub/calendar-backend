@@ -50,24 +50,24 @@ RSpec.describe Friendship, type: :model do
   describe "the friend request email" do
     it "emails the requestee when a pending request is created" do
       expect {
-        Friendship.create!(requester: requester, addressee: addressee)
+        create(:friendship, requester: requester, addressee: addressee)
       }.to have_enqueued_mail(FriendshipMailer, :request_received)
     end
 
     it "does not email when an admin creates an already accepted friendship" do
       expect {
-        Friendship.create!(requester: requester, addressee: addressee, status: :accepted)
+        create(:friendship, :accepted, requester: requester, addressee: addressee)
       }.not_to have_enqueued_mail(FriendshipMailer, :request_received)
     end
 
     it "does not email when the request is accepted later" do
-      friendship = Friendship.create!(requester: requester, addressee: addressee)
+      friendship = create(:friendship, requester: requester, addressee: addressee)
 
       expect { friendship.accepted! }.not_to have_enqueued_mail(FriendshipMailer, :request_received)
     end
 
     it "does not email when the request is invalid" do
-      Friendship.create!(requester: requester, addressee: addressee)
+      create(:friendship, requester: requester, addressee: addressee)
 
       expect {
         Friendship.create(requester: addressee, addressee: requester)

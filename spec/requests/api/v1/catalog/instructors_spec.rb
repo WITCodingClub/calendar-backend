@@ -9,7 +9,7 @@ RSpec.describe "Api::V1::Catalog::Instructors", type: :request do
 
   describe "GET /api/v1/catalog/instructors" do
     it "lists only faculty who teach at least one section" do
-      Faculty.create!(first_name: "Unassigned", last_name: "Person", email: "nobody@wit.edu")
+      create(:faculty)
       get "/api/v1/catalog/instructors"
 
       expect(response).to have_http_status(:ok)

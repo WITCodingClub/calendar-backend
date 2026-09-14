@@ -7,5 +7,9 @@ FactoryBot.define do
     # created) or the two unsaved (nil) ids compare equal.
     association :requester, factory: :user, strategy: :create
     association :addressee, factory: :user, strategy: :create
+
+    trait :accepted do
+      status { :accepted }
+    end
   end
 end
