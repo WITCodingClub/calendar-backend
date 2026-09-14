@@ -31,6 +31,7 @@
 #  index_faculties_on_directory_raw_data        (directory_raw_data) USING gin
 #  index_faculties_on_email                     (email) UNIQUE
 #  index_faculties_on_employee_type             (employee_type)
+#  index_faculties_on_lower_email               (lower((email)::text))
 #  index_faculties_on_rmp_id                    (rmp_id) UNIQUE
 #  index_faculties_on_rmp_raw_data              (rmp_raw_data) USING gin
 #  index_faculties_on_school                    (school)

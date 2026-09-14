@@ -153,4 +153,38 @@ RSpec.describe CourseProcessorService do
       expect(Faculty.count).to eq(0)
     end
   end
+
+  describe "fetching from Banner" do
+    let(:courses_payload) do
+      [ { crn: "12345", term: "202710", courseNumber: "2000" }, { crn: "67890", term: "202710", courseNumber: "2100" } ]
+    end
+
+    it "asks Banner about every section at the same time" do
+      in_flight = Queue.new
+      allow(LeopardWebService).to receive(:get_class_details) do |course_reference_number:, **|
+        in_flight << course_reference_number
+        # Hold this request open until the other one starts. Asked one after
+        # another, the second never starts and this times out.
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5
+        sleep 0.01 while in_flight.size < 2 && Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline
+        raise "sections were fetched one at a time" if in_flight.size < 2
+
+        class_details
+      end
+
+      process!
+
+      expect(Course.where(term: term).pluck(:crn)).to contain_exactly(12345, 67890)
+    end
+
+    it "writes nothing when Banner fails for one section" do
+      allow(LeopardWebService).to receive(:get_class_details).and_return(class_details)
+      allow(LeopardWebService).to receive(:get_class_details)
+        .with(term: "202710", course_reference_number: "67890")
+        .and_raise(LeopardWebService::RequestError, "Banner is down")
+
+      expect { process! }.to raise_error(LeopardWebService::RequestError)
+      expect(Course.count).to eq(0)
+    end
+  end
 end

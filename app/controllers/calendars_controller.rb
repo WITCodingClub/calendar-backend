@@ -11,7 +11,7 @@ class CalendarsController < ApplicationController
     @courses = @user.courses
                     .includes(:term, meeting_times: [ { rooms: :building }, { course: [ :faculties, :term ] } ])
 
-    @final_exams = FinalExam.where(course_id: @courses.pluck(:id))
+    @final_exams = FinalExam.where(course_id: @courses.map(&:id))
                             .where(exam_date: Time.zone.today..)
                             .includes(:course)
 
@@ -36,7 +36,6 @@ class CalendarsController < ApplicationController
     @preference_resolver   = PreferenceResolver.new(@user)
     @template_renderer     = CalendarTemplateRenderer.new
     @holidays_cache        = preload_holidays_cache(courses)
-    @ics_course_finals_cache       = {}
     @ics_term_finals_cache         = {}
     @ics_term_finals_period_cache  = {}
 
@@ -318,12 +317,15 @@ class CalendarsController < ApplicationController
     recurrence_end
   end
 
+  # The earliest final for each course, found with one grouped query for the
+  # whole calendar instead of one query per course. A course with no final is
+  # absent from the hash, so it reads as nil, as the per-course query did.
   def ics_final_exam_date_for_course(course_id)
-    return @ics_course_finals_cache[course_id] if @ics_course_finals_cache.key?(course_id)
-
-    @ics_course_finals_cache[course_id] = FinalExam.where(course_id: course_id)
-                                                   .where.not(exam_date: nil)
-                                                   .minimum(:exam_date)
+    @ics_course_finals_cache ||= FinalExam.where(course_id: @courses.map(&:id))
+                                          .where.not(exam_date: nil)
+                                          .group(:course_id)
+                                          .minimum(:exam_date)
+    @ics_course_finals_cache[course_id]
   end
 
   def ics_earliest_final_for_term(term_id)

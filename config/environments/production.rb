@@ -46,8 +46,13 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Replace the default in-process memory cache store with a durable alternative.
-  # config.cache_store = :mem_cache_store
+  # Keep the cache in memory. Production is one Puma process that also runs the
+  # jobs (SOLID_QUEUE_IN_PUMA), and the container starts with an empty tmp on
+  # every restart, so the file store it fell back to shared nothing more. It
+  # only added a disk read or write to every request for Rack::Attack counters
+  # and Flipper. If the app ever runs more than one process, move to a shared
+  # store, or rate limits start to count per process.
+  config.cache_store = :memory_store, { size: 64.megabytes }
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   config.active_job.queue_adapter = :solid_queue

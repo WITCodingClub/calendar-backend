@@ -7,11 +7,13 @@ module Api
     before_action :set_calendar_preference, only: [ :show, :update, :destroy ]
 
     def index
-      preferences        = policy_scope(current_user.calendar_preferences)
-      global_pref        = preferences.find_by(scope: :global)
-      uni_cal_pref       = preferences.find_by(scope: :uni_cal_global)
-      event_type_prefs   = preferences.where(scope: :event_type)
-      uni_cal_cat_prefs  = preferences.where(scope: :uni_cal_category)
+      # One query for every preference the user has, split up here, instead
+      # of one query for each scope.
+      preferences        = policy_scope(current_user.calendar_preferences).to_a
+      global_pref        = preferences.find { |p| p.scope == "global" }
+      uni_cal_pref       = preferences.find { |p| p.scope == "uni_cal_global" }
+      event_type_prefs   = preferences.select { |p| p.scope == "event_type" }
+      uni_cal_cat_prefs  = preferences.select { |p| p.scope == "uni_cal_category" }
 
       render json: {
         global:          global_pref ? CalendarPreferenceSerializer.new(global_pref).as_json : nil,

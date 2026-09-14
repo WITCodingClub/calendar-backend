@@ -129,6 +129,7 @@ Rails.application.routes.draw do
     end
 
     # Per-event preferences (meeting time or calendar event)
+    post "meeting_times/preferences", to: "event_preferences#batch_show"
     resources :meeting_times, only: [] do
       resource :preference, controller: "event_preferences", only: [ :show, :update, :destroy ]
     end

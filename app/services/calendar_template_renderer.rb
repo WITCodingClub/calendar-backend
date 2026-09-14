@@ -33,16 +33,15 @@ class CalendarTemplateRenderer
     end
   end
 
+  ALLOWED_CONTEXT_KEYS = ALLOWED_VARIABLES.map(&:to_sym).freeze
+
   def render(template_string, context)
     return "" if template_string.blank?
 
-    self.class.validate_template(template_string)
-
-    filtered_context = context.slice(*ALLOWED_VARIABLES.map(&:to_sym))
+    filtered_context = context.slice(*ALLOWED_CONTEXT_KEYS)
                               .transform_keys(&:to_s)
 
-    template = Liquid::Template.parse(template_string)
-    template.render(filtered_context)
+    compiled_template(template_string).render(filtered_context)
   rescue Liquid::Error, InvalidTemplateError => e
     Rails.logger.error("Liquid template rendering error: #{e.message}")
     context[:title] || "Event"
@@ -299,5 +298,25 @@ class CalendarTemplateRenderer
     rescue
       ""
     end
+  end
+
+  private
+
+  # One renderer builds a whole calendar, and its events share a few
+  # templates. Check and parse each template once, not twice for every event.
+  # A template that fails the check is remembered as that error, so it fails
+  # the same way on every event.
+  def compiled_template(template_string)
+    @compiled_templates ||= {}
+    compiled = @compiled_templates[template_string] ||= begin
+      self.class.validate_template(template_string)
+      Liquid::Template.parse(template_string)
+    rescue Liquid::Error, InvalidTemplateError => e
+      e
+    end
+
+    raise compiled if compiled.is_a?(Exception)
+
+    compiled
   end
 end

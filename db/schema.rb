@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_13_020202) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_13_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -322,6 +322,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_13_020202) do
     t.index ["directory_raw_data"], name: "index_faculties_on_directory_raw_data", using: :gin
     t.index ["email"], name: "index_faculties_on_email", unique: true
     t.index ["employee_type"], name: "index_faculties_on_employee_type"
+    t.index "lower((email)::text)", name: "index_faculties_on_lower_email"
     t.index ["rmp_id"], name: "index_faculties_on_rmp_id", unique: true
     t.index ["rmp_raw_data"], name: "index_faculties_on_rmp_raw_data", using: :gin
     t.index ["school"], name: "index_faculties_on_school"

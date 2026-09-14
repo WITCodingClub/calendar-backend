@@ -89,7 +89,8 @@ module PreferenceParams
   end
 
   def generate_preview(resolved_preferences, context)
-    renderer    = CalendarTemplateRenderer.new
+    # One renderer per request, so a template shared by many events is parsed once.
+    renderer    = (@preview_renderer ||= CalendarTemplateRenderer.new)
     title       = resolved_preferences[:title_template].present? ? renderer.render(resolved_preferences[:title_template], context) : context[:title]
     description = resolved_preferences[:description_template].present? ? renderer.render(resolved_preferences[:description_template], context) : ""
     location    = resolved_preferences[:location_template].present? ? renderer.render(resolved_preferences[:location_template], context) : (context[:location] || "")
