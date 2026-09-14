@@ -11,7 +11,7 @@ RSpec.shared_context "catalog fixtures" do
   let!(:fall_term)   { create(:term, uid: 202710, year: 2026, season: :fall) }
   let!(:spring_term) { create(:term, uid: 202620, year: 2026, season: :spring) }
 
-  let!(:building) { create(:building, abbreviation: "ANNX") }
+  let!(:building) { create(:building, abbreviation: "ANNX", name: "Test Annex") }
   let!(:room)     { create(:room, building: building, number: "306") }
 
   let!(:ada) do
