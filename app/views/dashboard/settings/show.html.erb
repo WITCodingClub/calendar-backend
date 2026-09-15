@@ -33,6 +33,28 @@
     <% end %>
   </div>
 
+  <% if @sign_in_identities.any? %>
+    <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+      <div class="px-5 py-4">
+        <p class="m3-label">Microsoft sign-in</p>
+        <p class="text-xs text-on-surface-variant mt-0.5">Removing an account here does not sign you out.</p>
+      </div>
+      <% @sign_in_identities.each do |identity| %>
+        <div class="px-5 py-4 flex items-center justify-between gap-4">
+          <div class="min-w-0">
+            <p class="text-sm text-on-surface truncate"><%= identity.email %></p>
+            <p class="text-xs text-on-surface-variant">Added <%= identity.created_at.strftime("%b %d, %Y") %></p>
+          </div>
+          <%= button_to "Remove",
+              dashboard_sign_in_identity_path(identity),
+              method: :delete,
+              data: { turbo_confirm: "Remove Microsoft sign-in for #{identity.email}?" },
+              class: "m3-btn-danger text-xs px-4 py-2 flex-shrink-0" %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
   <div>
     <%= link_to destroy_user_session_path,
         data: { turbo_method: :delete },

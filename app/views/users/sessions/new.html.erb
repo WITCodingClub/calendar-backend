@@ -36,6 +36,23 @@
         Sign in with Google
       <% end %>
 
+      <%# A POST, not a link: omniauth-rails_csrf_protection checks the token.
+          Turbo stays off so the browser follows the redirect to Microsoft. %>
+      <% if MicrosoftSignIn.enabled? %>
+        <%= button_to MicrosoftSignIn::REQUEST_PATH,
+            method: :post,
+            form: { data: { turbo: false } },
+            class: "flex items-center justify-center gap-3 w-full px-4 py-3 border border-outline-variant rounded-xl bg-surface-container hover:bg-surface-container-high transition font-medium text-on-surface shadow-sm" do %>
+          <svg class="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#F25022" d="M1 1h10.5v10.5H1z" />
+            <path fill="#7FBA00" d="M12.5 1H23v10.5H12.5z" />
+            <path fill="#00A4EF" d="M1 12.5h10.5V23H1z" />
+            <path fill="#FFB900" d="M12.5 12.5H23V23H12.5z" />
+          </svg>
+          Sign in with Microsoft
+        <% end %>
+      <% end %>
+
       <%# Shown only once the browser says it can run the ceremony, so a device
           with no authenticator never sees a button that cannot work. %>
       <button type="button"
