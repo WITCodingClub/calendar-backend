@@ -1,0 +1,7 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('00000000-0000-0000-0000-000000000001')/outlook/masterCategories(displayName)",
+  "value": [
+    { "id": "00000000-0000-0000-0000-00000000c001", "displayName": "Synthetic Personal" },
+    { "id": "00000000-0000-0000-0000-00000000c002", "displayName": "WIT Tomato" }
+  ]
+}

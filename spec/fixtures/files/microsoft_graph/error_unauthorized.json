@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "InvalidAuthenticationToken",
+    "message": "Lifetime validation failed, the token is expired."
+  }
+}

@@ -18,7 +18,8 @@ class CleanupOrphanedOauthCredentialsJob < ApplicationJob
       Rails.logger.info "[CleanupOrphanedOauthCredentialsJob] Deleting credential #{credential.id} " \
                         "(email: #{credential.email}) - Reason: #{reason}"
 
-      revoke_token_with_google(credential.access_token)
+      # Only Google tokens go to Google's revoke endpoint.
+      revoke_token_with_google(credential.access_token) if credential.provider == "google"
       credential.destroy!
       deleted_count += 1
     rescue => e
@@ -52,7 +53,7 @@ class CleanupOrphanedOauthCredentialsJob < ApplicationJob
                                                .pluck(:id)
     orphaned_ids.concat(orphaned_by_expired_token)
 
-    OauthCredential.where(id: orphaned_ids.uniq).includes(:user, :google_calendar)
+    OauthCredential.where(id: orphaned_ids.uniq).includes(:user, :course_calendar)
   end
 
   def determine_orphan_reason(credential)

@@ -8,14 +8,14 @@ namespace :calendar do
     fixed_users           = 0
     total_duplicates_removed = 0
 
-    User.joins(oauth_credentials: :google_calendar).find_in_batches(batch_size: 50) do |users|
+    User.joins(oauth_credentials: :course_calendar).find_in_batches(batch_size: 50) do |users|
       users.each do |user|
-        calendar = user.google_credential&.google_calendar
+        calendar = user.google_credential&.course_calendar
         next unless calendar
 
         puts "Processing user #{user.id} (#{user.email})..."
 
-        all_events      = calendar.google_calendar_events.to_a
+        all_events      = calendar.calendar_events.to_a
         existing_events = {}
         duplicates      = []
 
@@ -48,7 +48,7 @@ namespace :calendar do
           duplicates.each do |cal_event|
             begin
               user_service = service.send(:user_calendar_service)
-              user_service.delete_event(calendar.google_calendar_id, cal_event.google_event_id)
+              user_service.delete_event(calendar.external_calendar_id, cal_event.external_event_id)
               cal_event.destroy
               total_duplicates_removed += 1
               print "."
@@ -91,12 +91,12 @@ namespace :calendar do
     total_duplicates      = 0
     tbd_locations         = 0
 
-    User.joins(oauth_credentials: :google_calendar).find_in_batches(batch_size: 50) do |users|
+    User.joins(oauth_credentials: :course_calendar).find_in_batches(batch_size: 50) do |users|
       users.each do |user|
-        calendar = user.google_credential&.google_calendar
+        calendar = user.google_credential&.course_calendar
         next unless calendar
 
-        duplicates = calendar.google_calendar_events
+        duplicates = calendar.calendar_events
                              .where.not(meeting_time_id: nil)
                              .group(:meeting_time_id)
                              .having("count(*) > 1")
@@ -109,7 +109,7 @@ namespace :calendar do
           puts "User #{user.id}: #{extra} duplicate events across #{duplicates.size} meeting times"
         end
 
-        tbd_count = calendar.google_calendar_events.where("location ILIKE ?", "%TBD%").count
+        tbd_count = calendar.calendar_events.where("location ILIKE ?", "%TBD%").count
         if tbd_count > 0
           tbd_locations += tbd_count
           puts "User #{user.id}: #{tbd_count} events with TBD locations"

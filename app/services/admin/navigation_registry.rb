@@ -15,8 +15,8 @@ module Admin
         items: [
           { id: :users, title: "Users", path: :admin_users_path,
             description: "Manage user accounts and permissions", keywords: [ "accounts", "permissions" ] },
-          { id: :google_calendars, title: "Google Calendars", path: :admin_calendars_path,
-            description: "View user Google Calendars", keywords: [ "google", "calendars" ] }
+          { id: :course_calendars, title: "Calendars", path: :admin_calendars_path,
+            description: "View synced course calendars", keywords: [ "google", "microsoft", "calendars" ] }
         ]
       },
       {
@@ -39,7 +39,7 @@ module Admin
             description: "Manage finals exam schedules", keywords: [ "exams", "finals" ] },
           { id: :university_events, title: "University Events", path: :admin_university_calendar_events_path,
             description: "Manage university-wide calendar events", keywords: [ "holidays", "breaks", "events" ] },
-          { id: :google_calendar_events, title: "Google Calendar Events", path: :admin_google_calendar_events_path,
+          { id: :calendar_events, title: "Calendar Events", path: :admin_calendar_events_path,
             description: "View synced calendar events", keywords: [ "events", "sync" ], read_only: true }
         ]
       },

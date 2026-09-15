@@ -49,7 +49,7 @@ class FinalsSchedule < ApplicationRecord
 
   def trigger_calendar_resyncs_for_term
     users_to_sync = User
-      .joins(oauth_credentials: :google_calendar)
+      .joins(oauth_credentials: :course_calendar)
       .joins(enrollments: :course)
       .where(courses: { term_id: term_id })
       .where(oauth_credentials: { provider: "google" })

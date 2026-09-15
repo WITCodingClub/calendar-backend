@@ -8,6 +8,7 @@ module FlipperFlags
   DEBUG_MODE = :"debug_mode"
   FINALS_RETROACTIVE = :"finals_retroactive"
   BYPASS_RATE_LIMITS = :"bypass_rate_limits"
+  MICROSOFT_GRAPH_CALENDAR = :"microsoft_graph_calendar"
   # rubocop:enable Lint/SymbolConversion, Style/SymbolLiteral
 
   MAP = {
@@ -16,7 +17,8 @@ module FlipperFlags
     envSwitcher: ENV_SWITCHER,
     debugMode: DEBUG_MODE,
     finalsRetroactive: FINALS_RETROACTIVE,
-    bypassRateLimits: BYPASS_RATE_LIMITS
+    bypassRateLimits: BYPASS_RATE_LIMITS,
+    microsoftGraphCalendar: MICROSOFT_GRAPH_CALENDAR
   }.freeze
 
   ALL_FLAGS = %i[
@@ -26,5 +28,6 @@ module FlipperFlags
     debugMode
     finalsRetroactive
     bypassRateLimits
+    microsoftGraphCalendar
   ].freeze
 end

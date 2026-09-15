@@ -2,6 +2,7 @@
 
 class GoogleCalendarService
   include GoogleApiRateLimiter
+  include CalendarEventPreparation
 
   attr_reader :user
 
@@ -9,17 +10,21 @@ class GoogleCalendarService
     @user = user
   end
 
+  def course_calendar
+    CourseCalendar.google.for_user(user).first
+  end
+
   def create_or_get_course_calendar
-    google_calendar = GoogleCalendar.for_user(user).first
+    course_calendar = CourseCalendar.google.for_user(user).first
     newly_created   = false
 
-    if google_calendar.blank?
+    if course_calendar.blank?
       google_api_calendar = create_calendar_with_service_account
       primary_credential  = user.google_credential || user.google_credentials.first
       raise "No Google OAuth credentials found for user" unless primary_credential
 
-      google_calendar = primary_credential.create_google_calendar!(
-        google_calendar_id: google_api_calendar.id,
+      course_calendar = primary_credential.create_course_calendar!(
+        external_calendar_id: google_api_calendar.id,
         summary:            google_api_calendar.summary,
         description:        google_api_calendar.description,
         time_zone:          google_api_calendar.time_zone
@@ -27,7 +32,7 @@ class GoogleCalendarService
       newly_created = true
     end
 
-    calendar_id = google_calendar.google_calendar_id
+    calendar_id = course_calendar.external_calendar_id
 
     share_calendar_with_user(calendar_id)
     add_calendar_to_all_oauth_users(calendar_id)
@@ -44,12 +49,12 @@ class GoogleCalendarService
 
   def update_calendar_events(events, force: false)
     service         = user_calendar_service
-    google_calendar = GoogleCalendar.for_user(user).first
-    return { created: 0, updated: 0, skipped: 0 } unless google_calendar
+    course_calendar = CourseCalendar.google.for_user(user).first
+    return { created: 0, updated: 0, skipped: 0 } unless course_calendar
 
-    calendar_id = google_calendar.google_calendar_id
+    calendar_id = course_calendar.external_calendar_id
 
-    all_existing_events = google_calendar.google_calendar_events.to_a
+    all_existing_events = course_calendar.calendar_events.to_a
     existing_events     = {}
     duplicates_to_delete = []
 
@@ -71,7 +76,7 @@ class GoogleCalendarService
     if duplicates_to_delete.any?
       Rails.logger.info "Cleaning up #{duplicates_to_delete.size} duplicate calendar events"
       with_batch_throttling(duplicates_to_delete) do |cal_event|
-        delete_event_from_calendar(service, google_calendar, cal_event)
+        delete_event_from_calendar(service, course_calendar, cal_event)
       end
     end
 
@@ -81,7 +86,7 @@ class GoogleCalendarService
       event_fully_past?(cal_event)
     end
     with_batch_throttling(events_to_delete.values) do |cal_event|
-      delete_event_from_calendar(service, google_calendar, cal_event)
+      delete_event_from_calendar(service, course_calendar, cal_event)
     end
 
     stats              = { created: 0, updated: 0, skipped: 0 }
@@ -97,7 +102,7 @@ class GoogleCalendarService
         event_with_prefs     = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
         if force || existing_event.data_changed?(event_with_prefs)
-          result = update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force)
+          result = update_event_in_calendar(service, course_calendar, existing_event, event_with_prefs, force: force)
           stats[:updated] += 1 if result == :updated
           stats[:skipped] += 1 if result == :skipped_user_edit
         else
@@ -105,7 +110,7 @@ class GoogleCalendarService
           stats[:skipped] += 1
         end
       else
-        create_event_in_calendar(service, google_calendar, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
+        create_event_in_calendar(service, course_calendar, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
         stats[:created] += 1
       end
     end
@@ -128,9 +133,9 @@ class GoogleCalendarService
 
   def update_specific_events(events, force: false)
     service         = user_calendar_service
-    google_calendar = GoogleCalendar.for_user(user).first
+    course_calendar = CourseCalendar.google.for_user(user).first
 
-    unless google_calendar
+    unless course_calendar
       Rails.logger.warn({ message: "Cannot update events - no Google Calendar found", user_id: user&.id, event_count: events.size }.to_json)
       return { created: 0, updated: 0, skipped: 0 }
     end
@@ -139,7 +144,7 @@ class GoogleCalendarService
     final_exam_ids      = events.filter_map { |e| e[:final_exam_id] }
     university_event_ids = events.filter_map { |e| e[:university_calendar_event_id] }
 
-    base_query = google_calendar.google_calendar_events
+    base_query = course_calendar.calendar_events
     conditions = []
     conditions << base_query.where(meeting_time_id: meeting_time_ids)         if meeting_time_ids.any?
     conditions << base_query.where(final_exam_id: final_exam_ids)             if final_exam_ids.any?
@@ -162,14 +167,14 @@ class GoogleCalendarService
         event_with_prefs = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
         if force || existing_event.data_changed?(event_with_prefs)
-          update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force)
+          update_event_in_calendar(service, course_calendar, existing_event, event_with_prefs, force: force)
           stats[:updated] += 1
         else
           existing_event.mark_synced!
           stats[:skipped] += 1
         end
       else
-        create_event_in_calendar(service, google_calendar, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
+        create_event_in_calendar(service, course_calendar, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
         stats[:created] += 1
       end
     end
@@ -185,12 +190,12 @@ class GoogleCalendarService
     db_events = Array(db_events)
     return 0 if db_events.empty?
 
-    google_calendar = GoogleCalendar.for_user(user).first
-    return 0 unless google_calendar
+    course_calendar = CourseCalendar.google.for_user(user).first
+    return 0 unless course_calendar
 
     service = user_calendar_service
     with_batch_throttling(db_events) do |db_event|
-      delete_event_from_calendar(service, google_calendar, db_event)
+      delete_event_from_calendar(service, course_calendar, db_event)
     end
 
     db_events.size
@@ -202,23 +207,23 @@ class GoogleCalendarService
   end
 
   # Deletes a single event from a calendar using the service account (which owns
-  # all app-created calendars). Used when a GoogleCalendarEvent row is destroyed
+  # all app-created calendars). Used when a CalendarEvent row is destroyed
   # so the live Google event doesn't linger as an orphan. Treats a missing event
   # as success.
-  def delete_calendar_event(calendar_id, google_event_id)
+  def delete_calendar_event(calendar_id, external_event_id)
     service = service_account_calendar_service
-    with_rate_limit_handling { service.delete_event(calendar_id, google_event_id) }
+    with_rate_limit_handling { service.delete_event(calendar_id, external_event_id) }
   rescue Google::Apis::ClientError => e
     raise unless e.status_code == 404
 
-    Rails.logger.info("Event #{google_event_id} already absent from calendar #{calendar_id}")
+    Rails.logger.info("Event #{external_event_id} already absent from calendar #{calendar_id}")
   end
 
   def delete_calendar(calendar_id)
-    google_calendar = GoogleCalendar.find_by(google_calendar_id: calendar_id)
+    course_calendar = CourseCalendar.google.find_by(external_calendar_id: calendar_id)
 
-    if google_calendar
-      calendar_user = google_calendar.user
+    if course_calendar
+      calendar_user = course_calendar.user
       credentials   = calendar_user.google_credentials.to_a
 
       with_batch_throttling(credentials) do |credential|
@@ -231,38 +236,6 @@ class GoogleCalendarService
   end
 
   private
-
-  def build_event_key(e)
-    if e.meeting_time_id
-      "mt_#{e.meeting_time_id}"
-    elsif e.final_exam_id
-      "fe_#{e.final_exam_id}"
-    else
-      "ue_#{e.university_calendar_event_id}"
-    end
-  end
-
-  def build_event_key_from_hash(e)
-    if e[:meeting_time_id]
-      "mt_#{e[:meeting_time_id]}"
-    elsif e[:final_exam_id]
-      "fe_#{e[:final_exam_id]}"
-    elsif e[:university_calendar_event_id]
-      "ue_#{e[:university_calendar_event_id]}"
-    end
-  end
-
-  def resolve_syncable(event)
-    if event[:meeting_time_id]
-      Course::MeetingTime.includes(course: :faculties).find_by(id: event[:meeting_time_id])
-    elsif event[:final_exam_id]
-      FinalExam.includes(course: :faculties).find_by(id: event[:final_exam_id])
-    elsif event[:university_calendar_event_id]
-      UniversityCalendarEvent.find_by(id: event[:university_calendar_event_id])
-    else
-      raise "Unknown event type — missing meeting_time_id, final_exam_id, or university_calendar_event_id"
-    end
-  end
 
   def service_account_calendar_service
     service = Google::Apis::CalendarV3::CalendarService.new
@@ -394,10 +367,10 @@ class GoogleCalendarService
   end
 
   def remove_calendar_from_user_list_for_email(calendar_id, email)
-    google_calendar = GoogleCalendar.find_by(google_calendar_id: calendar_id)
-    return unless google_calendar
+    course_calendar = CourseCalendar.google.find_by(external_calendar_id: calendar_id)
+    return unless course_calendar
 
-    calendar_user = google_calendar.user
+    calendar_user = course_calendar.user
     credential    = calendar_user.google_credential_for_email(email)
     return unless credential
 
@@ -434,8 +407,8 @@ class GoogleCalendarService
     credentials
   end
 
-  def create_event_in_calendar(service, google_calendar, course_event, preference_resolver: nil, template_renderer: nil)
-    calendar_id = google_calendar.google_calendar_id
+  def create_event_in_calendar(service, course_calendar, course_event, preference_resolver: nil, template_renderer: nil)
+    calendar_id = course_calendar.external_calendar_id
     syncable    = resolve_syncable(course_event)
     event_data  = apply_preferences_to_event(syncable, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
@@ -444,13 +417,13 @@ class GoogleCalendarService
     created_event = with_rate_limit_handling { service.insert_event(calendar_id, google_event) }
 
     event_attributes = {
-      google_event_id:  created_event.id,
+      external_event_id:  created_event.id,
       summary:          event_data[:summary],
       location:         event_data[:location],
       start_time:       event_data[:start_time],
       end_time:         event_data[:end_time],
       recurrence:       event_data[:recurrence],
-      event_data_hash:  GoogleCalendarEvent.generate_data_hash(event_data),
+      event_data_hash:  CalendarEvent.generate_data_hash(event_data),
       last_synced_at:   Time.current
     }
 
@@ -462,13 +435,13 @@ class GoogleCalendarService
       event_attributes[:university_calendar_event_id] = course_event[:university_calendar_event_id]
     end
 
-    google_calendar.google_calendar_events.create!(event_attributes)
+    course_calendar.calendar_events.create!(event_attributes)
   rescue ActiveRecord::RecordNotUnique
     # A concurrent sync already created the tracking row for this event, so the
     # insert_event above produced a duplicate remote event. Remove the duplicate
     # we just created rather than leaving it orphaned on the calendar.
     Rails.logger.warn({ message: "Duplicate event race — removing redundant remote event",
-                        user_id: user&.id, calendar_id: calendar_id, google_event_id: created_event&.id }.to_json)
+                        user_id: user&.id, calendar_id: calendar_id, external_event_id: created_event&.id }.to_json)
     with_rate_limit_handling { service.delete_event(calendar_id, created_event.id) } if created_event&.id
     nil
   end
@@ -476,19 +449,19 @@ class GoogleCalendarService
   # course_event already has the user's preferences applied: both callers apply
   # them to decide whether the event changed. Applying them again gave the same
   # data and cost a database lookup for every updated event.
-  def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false)
+  def update_event_in_calendar(service, course_calendar, db_event, course_event, force: false)
     unless force || db_event.data_changed?(course_event)
       db_event.mark_synced!
       return :skipped_no_change
     end
 
-    calendar_id        = google_calendar.google_calendar_id
+    calendar_id        = course_calendar.external_calendar_id
     current_gcal_event = nil
     newly_edited_fields = []
 
     unless force
       begin
-        current_gcal_event = with_rate_limit_handling { service.get_event(calendar_id, db_event.google_event_id) }
+        current_gcal_event = with_rate_limit_handling { service.get_event(calendar_id, db_event.external_event_id) }
 
         newly_edited_fields = detect_user_edited_fields(db_event, current_gcal_event)
 
@@ -496,7 +469,7 @@ class GoogleCalendarService
         recurrence_changed = normalize_recurrence(gcal_recurrence) != normalize_recurrence(db_event.recurrence)
 
         if recurrence_changed
-          Rails.logger.info "User edited recurrence in Google Calendar: #{db_event.google_event_id}. Preserving user changes."
+          Rails.logger.info "User edited recurrence in Google Calendar: #{db_event.external_event_id}. Preserving user changes."
           update_db_from_gcal_event(db_event, current_gcal_event)
           db_event.mark_synced!
           return :skipped_user_edit
@@ -505,9 +478,9 @@ class GoogleCalendarService
         raise unless e.status_code == 404
 
         Rails.logger.warn({ message: "Event not found in Google Calendar, recreating",
-                            user_id: user.id, google_event_id: db_event.google_event_id }.to_json)
+                            user_id: user.id, external_event_id: db_event.external_event_id }.to_json)
         db_event.destroy
-        create_event_in_calendar(service, google_calendar, course_event)
+        create_event_in_calendar(service, course_calendar, course_event)
         return :recreated
       end
     end
@@ -530,7 +503,7 @@ class GoogleCalendarService
     end
 
     google_event = build_google_event(merged_event_data)
-    with_rate_limit_handling { service.update_event(calendar_id, db_event.google_event_id, google_event) }
+    with_rate_limit_handling { service.update_event(calendar_id, db_event.external_event_id, google_event) }
 
     db_event.update!(
       summary:           merged_event_data[:summary],
@@ -538,28 +511,28 @@ class GoogleCalendarService
       start_time:        merged_event_data[:start_time],
       end_time:          merged_event_data[:end_time],
       recurrence:        merged_event_data[:recurrence],
-      event_data_hash:   GoogleCalendarEvent.generate_data_hash(merged_event_data),
+      event_data_hash:   CalendarEvent.generate_data_hash(merged_event_data),
       last_synced_at:    Time.current,
       user_edited_fields: all_edited_fields.any? ? all_edited_fields : nil
     )
 
     Rails.logger.info({ message: "Google Calendar event updated", user_id: user.id,
-                        google_event_id: db_event.google_event_id, forced: force,
+                        external_event_id: db_event.external_event_id, forced: force,
                         color_id: merged_event_data[:color_id], user_edited_fields: all_edited_fields }.to_json)
 
     :updated
   end
 
-  def delete_event_from_calendar(service, google_calendar, db_event)
-    calendar_id = google_calendar.google_calendar_id
-    with_rate_limit_handling { service.delete_event(calendar_id, db_event.google_event_id) }
+  def delete_event_from_calendar(service, course_calendar, db_event)
+    calendar_id = course_calendar.external_calendar_id
+    with_rate_limit_handling { service.delete_event(calendar_id, db_event.external_event_id) }
     db_event.skip_remote_deletion = true
     db_event.destroy
   rescue Google::Apis::ClientError => e
     raise unless e.status_code == 404
 
     Rails.logger.warn({ message: "Event not found in Google Calendar, removing from database",
-                        user_id: user.id, google_event_id: db_event.google_event_id }.to_json)
+                        user_id: user.id, external_event_id: db_event.external_event_id }.to_json)
     db_event.skip_remote_deletion = true
     db_event.destroy
   end
@@ -613,11 +586,11 @@ class GoogleCalendarService
       start_time:      start_time,
       end_time:        end_time,
       recurrence:      recurrence,
-      event_data_hash: GoogleCalendarEvent.generate_data_hash(event_data),
+      event_data_hash: CalendarEvent.generate_data_hash(event_data),
       last_synced_at:  Time.current
     )
 
-    Rails.logger.info "Updated local DB with user's Google Calendar edits for event: #{db_event.google_event_id}"
+    Rails.logger.info "Updated local DB with user's Google Calendar edits for event: #{db_event.external_event_id}"
   end
 
   def parse_gcal_time(time_obj)
@@ -642,63 +615,6 @@ class GoogleCalendarService
     return nil if recurrence.blank?
 
     Array(recurrence).compact.sort
-  end
-
-  def apply_preferences_to_event(syncable, course_event, preference_resolver: nil, template_renderer: nil)
-    return course_event unless syncable
-
-    resolver = preference_resolver || PreferenceResolver.new(user)
-    renderer = template_renderer  || CalendarTemplateRenderer.new
-
-    prefs = resolver.resolve_for(syncable)
-
-    context = case syncable
-    when FinalExam
-                CalendarTemplateRenderer.build_context_from_final_exam(syncable)
-    when UniversityCalendarEvent
-                CalendarTemplateRenderer.build_context_from_university_calendar_event(syncable)
-    else
-                CalendarTemplateRenderer.build_context_from_meeting_time(syncable)
-    end
-
-    event_data = course_event.dup
-
-    event_data[:summary]     = renderer.render(prefs[:title_template], context)       if prefs[:title_template].present?
-    event_data[:description] = renderer.render(prefs[:description_template], context) if prefs[:description_template].present?
-    event_data[:location]    = renderer.render(prefs[:location_template], context)    if prefs[:location_template].present?
-
-    event_data[:reminder_settings] = prefs[:reminder_settings] unless prefs[:reminder_settings].nil?
-    event_data[:color_id]           = prefs[:color_id].present? ? normalize_color_id(prefs[:color_id]) : nil
-    event_data[:visibility]         = prefs[:visibility] if prefs[:visibility].present?
-
-    event_data
-  end
-
-  def normalize_color_id(color_id_or_hex)
-    return nil if color_id_or_hex.blank?
-
-    if color_id_or_hex.is_a?(Integer)
-      return color_id_or_hex if (1..11).cover?(color_id_or_hex)
-      return nil
-    end
-
-    if color_id_or_hex.is_a?(String) && color_id_or_hex.match?(/\A\d+\z/)
-      id = color_id_or_hex.to_i
-      return id if (1..11).cover?(id)
-      return nil
-    end
-
-    if color_id_or_hex.is_a?(String) && color_id_or_hex.start_with?("#")
-      normalized_hex  = color_id_or_hex.downcase
-      witcc_color_id  = GoogleColors.witcc_to_color_id(normalized_hex)
-      return witcc_color_id if witcc_color_id.present?
-
-      GoogleColors::EVENT_MAP.each do |key, hex_value|
-        return key if key.is_a?(Integer) && hex_value == normalized_hex
-      end
-    end
-
-    nil
   end
 
   def convert_time_to_minutes(time, type)
@@ -756,18 +672,5 @@ class GoogleCalendarService
     google_event.visibility = event_data[:visibility] if event_data[:visibility].present?
 
     google_event
-  end
-
-  # Returns true only when the event (including its full recurrence) is entirely in the past.
-  # end_time stores the *first* occurrence, so it's past for any ongoing recurring event.
-  # Instead, parse the UNTIL date from the RRULE when present.
-  def event_fully_past?(cal_event)
-    rrule = Array(cal_event.recurrence).find { |r| r.start_with?("RRULE:") }
-    if rrule
-      until_match = rrule.match(/UNTIL=(\d{8}T\d{6}Z)/)
-      return until_match ? Time.parse(until_match[1]).past? : false
-    end
-
-    cal_event.end_time&.past?
   end
 end

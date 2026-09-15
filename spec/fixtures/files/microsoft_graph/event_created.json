@@ -1,0 +1,15 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('00000000-0000-0000-0000-000000000001')/calendars('AAMkSyntheticCalendar1')/events/$entity",
+  "id": "AAMkSyntheticEvent1",
+  "iCalUId": "040000008200E00074C5B7101A82E0080000000000000000000000000000000000000001",
+  "subject": "Synthetic Course",
+  "isAllDay": false,
+  "isReminderOn": true,
+  "reminderMinutesBeforeStart": 15,
+  "sensitivity": "normal",
+  "type": "singleInstance",
+  "start": { "dateTime": "2026-09-14T09:00:00.0000000", "timeZone": "Eastern Standard Time" },
+  "end": { "dateTime": "2026-09-14T10:15:00.0000000", "timeZone": "Eastern Standard Time" },
+  "location": { "displayName": "Synthetic Hall - 101" },
+  "recurrence": null
+}

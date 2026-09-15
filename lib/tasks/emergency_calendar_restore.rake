@@ -7,9 +7,9 @@ namespace :calendar do
       user = User.find(args[:user_id])
       puts "Emergency resync for user #{user.id} (#{user.email})..."
 
-      if user.google_credential&.google_calendar
+      if user.google_credential&.course_calendar
         puts "Clearing database records..."
-        user.google_credential.google_calendar.google_calendar_events.destroy_all
+        user.google_credential.course_calendar.calendar_events.destroy_all
       end
 
       puts "Triggering full calendar rebuild..."
@@ -17,7 +17,7 @@ namespace :calendar do
       puts "Done! Calendar should be restored."
     else
       puts "Emergency resync for ALL users..."
-      User.joins(oauth_credentials: :google_calendar).find_each do |user|
+      User.joins(oauth_credentials: :course_calendar).find_each do |user|
         puts "Resyncing user #{user.id}..."
         GoogleCalendarSyncJob.perform_later(user, force: true)
       end
