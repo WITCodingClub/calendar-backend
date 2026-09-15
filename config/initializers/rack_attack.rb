@@ -14,11 +14,6 @@ class Rack::Attack
   # every agent it may read them, so the agent blocklist must not refuse them.
   AGENT_READABLE_PATHS = [ "/robots.txt", "/sitemap.xml", "/llms.txt" ].freeze
 
-  # Anonymous usage events from the extension. Many students share one campus
-  # IP address, so these get their own budget and do not use up the anonymous
-  # API limit that sign-in needs.
-  EXTENSION_EVENTS_PATH = "/api/extension_events"
-
   AGENT_READABLE_PATH = lambda do |req|
     AGENT_READABLE_PATHS.include?(req.path) ||
       req.path == "/docs" ||
@@ -98,14 +93,9 @@ class Rack::Attack
   end
 
   throttle("api/ip", limit: 20, period: 1.minute) do |req|
-    if req.path.start_with?("/api/") && !PUBLIC_CATALOG_PATH.call(req) &&
-       req.path != EXTENSION_EVENTS_PATH && !extract_user_id_from_jwt(req)
+    if req.path.start_with?("/api/") && !PUBLIC_CATALOG_PATH.call(req) && !extract_user_id_from_jwt(req)
       req.ip
     end
-  end
-
-  throttle("api/extension-events", limit: 120, period: 1.minute) do |req|
-    req.ip if req.path == EXTENSION_EVENTS_PATH
   end
 
   # The public catalog API is meant to be consumed anonymously, so it gets its

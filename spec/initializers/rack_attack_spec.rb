@@ -123,21 +123,4 @@ RSpec.describe Rack::Attack do
       expect(described_class.extract_user_id_from_jwt(request_with("Bearer #{api_token_for(other)}"))).to eq(other.id)
     end
   end
-
-  describe "extension events throttles" do
-    def discriminator(name, path)
-      request = Rack::Attack::Request.new(Rack::MockRequest.env_for(path, method: "POST", "REMOTE_ADDR" => "1.2.3.4"))
-      described_class.throttles.fetch(name).block.call(request)
-    end
-
-    it "counts extension events against their own budget" do
-      expect(discriminator("api/extension-events", "/api/extension_events")).to eq("1.2.3.4")
-      expect(discriminator("api/extension-events", "/api/user/onboard")).to be_nil
-    end
-
-    it "does not count extension events against the anonymous API limit that sign-in needs" do
-      expect(discriminator("api/ip", "/api/extension_events")).to be_nil
-      expect(discriminator("api/ip", "/api/user/onboard")).to eq("1.2.3.4")
-    end
-  end
 end

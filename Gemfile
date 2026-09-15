@@ -87,16 +87,6 @@ gem "kaminari"
 # Server uptime monitoring
 gem "okcomputer"
 
-# Prometheus metrics for Grafana (docs/metrics.md)
-gem "yabeda-rails", "~> 0.11.0"
-gem "yabeda-puma-plugin", "~> 0.9.0"
-gem "yabeda-activejob", "~> 0.6.0"
-gem "yabeda-prometheus", "~> 0.9.1"
-# prometheus-client 4.x reads labels back from its multi-process file store
-# with CGI.parse, which Ruby 4.0 removed. prometheus-client 5 does not need it,
-# but yabeda-prometheus 0.9 allows only 4.x. Remove this when that changes.
-gem "cgi"
-
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
   gem "bundler-audit", require: false
