@@ -3,7 +3,7 @@
 class ProcessRiscEventJob < ApplicationJob
   queue_as :high
 
-  retry_on StandardError, wait: :exponentially_longer, attempts: 3
+  retry_on StandardError, wait: :polynomially_longer, attempts: 3
   discard_on RiscValidationService::ValidationError
 
   def perform(token)
