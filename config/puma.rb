@@ -37,6 +37,16 @@ plugin :tmp_restart
 # Run the Solid Queue supervisor inside of Puma for single-server deployments.
 plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
 
+# Prometheus metrics for Grafana (docs/metrics.md). The exporter listens on its
+# own port, which the host publishes to the tailnet only. It reads the Puma
+# thread stats from the control app, so the control app starts too, on a
+# socket in tmp.
+if ENV["PROMETHEUS_EXPORTER_PORT"]
+  activate_control_app "unix://tmp/pumactl.sock", no_token: true
+  plugin :yabeda
+  plugin :yabeda_prometheus
+end
+
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.
 pidfile ENV["PIDFILE"] if ENV["PIDFILE"]

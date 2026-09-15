@@ -75,6 +75,9 @@ Rails.application.routes.draw do
 
   # API routes (JWT-authenticated)
   namespace :api do
+    # Anonymous usage counts from the extension, for Grafana. No token.
+    post "extension_events",                       to: "extension_events#create"
+
     post "user/onboard",                           to: "users#onboard"
     post "user/gcal",                              to: "users#request_g_cal"
     post "user/gcal/add_email",                    to: "users#add_email_to_g_cal"
