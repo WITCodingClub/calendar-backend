@@ -11,7 +11,9 @@ class ProcessRiscEventJob < ApplicationJob
     decoded_token = validation_service.validate_and_decode(token)
     event_data    = validation_service.extract_event_data(decoded_token)
 
-    if SecurityEvent.exists?(jti: event_data[:jti])
+    # Skip only a finished event. One that a failed attempt left unprocessed
+    # has to run again, or the retry does nothing.
+    if SecurityEvent.processed.exists?(jti: event_data[:jti])
       Rails.logger.info("RISC event already processed: #{event_data[:jti]}")
       return
     end

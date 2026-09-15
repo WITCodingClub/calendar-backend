@@ -36,16 +36,27 @@ class OauthCredential < ApplicationRecord
   has_one :google_calendar, dependent: :destroy
   has_many :security_events, dependent: :nullify
 
+  # prepend: the dependent destroy above is a before_destroy callback too, and
+  # it deletes the calendar row that the removal has to look up.
+  before_destroy :revoke_calendar_access, prepend: true
+
   # Disconnecting the Google account that vouched for this person should not
   # leave tokens it produced still working.
   after_destroy :revoke_sessions
+
+  # Every way to disconnect an account (API, dashboard, admin, RISC, deleting
+  # the user) ends the Google grant too. After commit, so a rolled back destroy
+  # keeps its grant, and in a job, so the request does not wait for Google.
+  after_destroy_commit :enqueue_google_token_revocation
 
   validates :provider, presence: true, inclusion: { in: %w[google] }
   validates :uid, presence: true, uniqueness: { scope: :provider }
   validates :access_token, presence: true
   validates :email, presence: true, format: { with: /\A[^@\s]+@[^@\s]+\z/, message: "must be a valid email address" }
 
-  before_destroy :revoke_calendar_access
+  # RefreshOauthTokensJob flags a grant that Google refused. A new access token
+  # only comes from a working grant, so saving one takes the flag away.
+  before_update :clear_revoked_flag, if: :will_save_change_to_access_token?
 
   scope :for_provider, ->(provider) { where(provider: provider) }
   scope :google,        -> { for_provider("google") }
@@ -70,18 +81,51 @@ class OauthCredential < ApplicationRecord
 
   private
 
+  # The course calendar belongs to one credential, but it is shared with every
+  # Google account the person connects. So look it up for the user, not only
+  # on this credential.
   def revoke_calendar_access
-    return if google_calendar&.google_calendar_id.blank?
+    calendar_id = GoogleCalendar.for_user(user).pick(:google_calendar_id) if user
+    return if calendar_id.blank?
 
     service = GoogleCalendarService.new(user)
-    service.remove_calendar_from_user_list_for_email(google_calendar.google_calendar_id, email)
-  rescue => e
-    Rails.logger.error("Failed to revoke calendar access for #{email}: #{e.message}")
+    report_google_failure("remove the course calendar from the calendar list") do
+      service.remove_calendar_from_user_list_for_email(calendar_id, email)
+    end
+    report_google_failure("stop sharing the course calendar") do
+      service.unshare_calendar_with_email(calendar_id, email)
+    end
   end
 
-  private
+  # Google can refuse or be down, and that must not block the disconnect. Any
+  # other error is a bug, so it is not rescued here.
+  def report_google_failure(action)
+    yield
+  rescue Google::Apis::Error, Signet::AuthorizationError, Signet::RemoteServerError,
+         Signet::UnexpectedStatusError, Faraday::Error => e
+    Rails.logger.error("Failed to #{action} for #{email}: #{e.message}")
+    Rails.error.report(e, handled: true, context: { oauth_credential_id: id, action: action })
+  end
 
+  # The refresh token ends the whole grant. Google does not revoke an access
+  # token that has expired.
+  def enqueue_google_token_revocation
+    RevokeGoogleTokenJob.perform_later(refresh_token.presence || access_token)
+  end
+
+  def clear_revoked_flag
+    return unless token_revoked?
+
+    self.metadata = metadata.except("token_revoked", "token_revoked_at", "revocation_reason")
+  end
+
+  # Sessions do not record a credential. Onboarding opens google_onboard
+  # sessions only after Google verifies the user's own WIT email, so that
+  # account is the one that vouched for them. Any other Google account only
+  # shares the calendar, and passkey sessions end with their passkey.
   def revoke_sessions
-    UserSession.revoke_all_for(user, reason: "google account disconnected") if user
+    return unless user && email.to_s.casecmp?(user.email.to_s)
+
+    UserSession.revoke_all_for(user, reason: "google account disconnected", source: "google_onboard")
   end
 end

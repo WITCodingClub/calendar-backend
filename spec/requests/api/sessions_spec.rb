@@ -116,9 +116,11 @@ RSpec.describe "Api::Sessions", type: :request do
       expect(session_for(unrelated).reload).to be_active
     end
 
-    it "ends every session when the Google account is disconnected" do
+    it "ends the Google sign-in session when the sign-in Google account is disconnected" do
       signed_in = session_for(token) # the session must exist before the disconnect
-      credential = create(:oauth_credential, user: user, email: "them@gmail.com")
+      # The factory gives the credential the user's own WIT email, the account
+      # that onboarding verified.
+      credential = create(:oauth_credential, user: user)
 
       credential.destroy!
 

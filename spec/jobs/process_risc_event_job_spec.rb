@@ -113,14 +113,27 @@ RSpec.describe ProcessRiscEventJob, type: :job do
     expect(event.processing_error).to eq("User not found")
   end
 
-  it "skips reprocessing an event whose jti was already recorded" do
+  it "skips reprocessing an event whose jti was already processed" do
     stub_google_risc_endpoints
-    create(:security_event, jti: "already-seen-jti")
+    create(:security_event, :processed, jti: "already-seen-jti")
     token = build_token(event_type: SecurityEvent::TOKEN_REVOKED, subject: "some-subject", jti: "already-seen-jti")
 
     expect(RiscEventHandlerService).not_to receive(:new)
 
     described_class.perform_now(token)
+  end
+
+  it "handles an event again when an earlier attempt did not finish it" do
+    stub_google_risc_endpoints
+    user = create(:user)
+    credential = create(:oauth_credential, user: user, uid: "unfinished-subject")
+    create(:security_event, jti: "unfinished-jti", processed: false)
+    token = build_token(event_type: SecurityEvent::TOKENS_REVOKED, subject: "unfinished-subject", jti: "unfinished-jti")
+
+    described_class.perform_now(token)
+
+    expect(OauthCredential.exists?(credential.id)).to be(false)
+    expect(SecurityEvent.find_by(jti: "unfinished-jti").processed).to be(true)
   end
 
   it "discards the job without raising when the token fails validation" do

@@ -1,88 +1,45 @@
 # frozen_string_literal: true
 
+# Marks credentials that can no longer reach Google, so the person is asked to
+# sign in again.
+#
+# A credential with an expired access token and no refresh token cannot get a
+# new token. This job used to destroy it. That also deleted the course
+# calendar and ended the person's sessions, and it asked Google to revoke an
+# expired token, which Google always refuses. Now the job only sets the flag
+# that needs_reauth? and the dashboard ("Needs re-auth") read. The next token
+# from sign-in clears the flag (OauthCredential#clear_revoked_flag).
+#
+# The job no longer looks for credentials without a user. The foreign key on
+# oauth_credentials.user_id makes that row impossible, so nothing is destroyed.
 class CleanupOrphanedOauthCredentialsJob < ApplicationJob
   queue_as :low
 
+  REASON = "access token expired and no refresh token"
+
   def perform
-    Rails.logger.info "[CleanupOrphanedOauthCredentialsJob] Starting orphaned OAuth credential cleanup"
+    flagged = 0
 
-    deleted_count = 0
-    error_count = 0
-
-    orphaned_credentials = find_orphaned_credentials
-
-    Rails.logger.info "[CleanupOrphanedOauthCredentialsJob] Found #{orphaned_credentials.size} orphaned credentials"
-
-    orphaned_credentials.each do |credential|
-      reason = determine_orphan_reason(credential)
-      Rails.logger.info "[CleanupOrphanedOauthCredentialsJob] Deleting credential #{credential.id} " \
-                        "(email: #{credential.email}) - Reason: #{reason}"
-
-      revoke_token_with_google(credential.access_token)
-      credential.destroy!
-      deleted_count += 1
-    rescue => e
-      error_count += 1
-      Rails.logger.error "[CleanupOrphanedOauthCredentialsJob] Failed to delete credential #{credential.id}: #{e.message}"
+    unusable_credentials.find_each do |credential|
+      credential.update!(
+        metadata: (credential.metadata || {}).merge(
+          "token_revoked"     => true,
+          "token_revoked_at"  => Time.current.iso8601,
+          "revocation_reason" => REASON
+        )
+      )
+      flagged += 1
     end
 
-    Rails.logger.info "[CleanupOrphanedOauthCredentialsJob] Completed: #{deleted_count} deleted, #{error_count} errors"
+    Rails.logger.info "[CleanupOrphanedOauthCredentialsJob] Marked #{flagged} credentials as needing sign-in again"
 
-    { deleted: deleted_count, errors: error_count }
+    { flagged: flagged }
   end
 
   private
 
-  def find_orphaned_credentials
-    orphaned_ids = []
-
-    # Find credentials whose user no longer exists
-    orphaned_by_user_sql = <<~SQL.squish
-      SELECT oauth_credentials.id
-      FROM oauth_credentials
-      LEFT OUTER JOIN users ON users.id = oauth_credentials.user_id
-      WHERE users.id IS NULL
-    SQL
-    orphaned_by_user = ActiveRecord::Base.connection.execute(orphaned_by_user_sql).to_a.pluck("id")
-    orphaned_ids.concat(orphaned_by_user)
-
-    # Find credentials with expired tokens that cannot be refreshed
-    orphaned_by_expired_token = OauthCredential.where(token_expires_at: ..Time.current)
-                                               .where(refresh_token: nil)
-                                               .pluck(:id)
-    orphaned_ids.concat(orphaned_by_expired_token)
-
-    OauthCredential.where(id: orphaned_ids.uniq).includes(:user, :google_calendar)
-  end
-
-  def determine_orphan_reason(credential)
-    return "Missing user" if credential.user.blank?
-
-    if credential.token_expires_at.present? &&
-       credential.token_expires_at <= Time.current &&
-       credential.refresh_token.blank?
-      return "Expired token without refresh capability"
-    end
-
-    "Unknown reason"
-  end
-
-  def revoke_token_with_google(access_token)
-    require "net/http"
-    require "uri"
-
-    uri = URI("https://oauth2.googleapis.com/revoke")
-    response = Net::HTTP.post_form(uri, { "token" => access_token })
-
-    case response.code
-    when "200"
-      Rails.logger.info "[CleanupOrphanedOauthCredentialsJob] Token revoked with Google successfully"
-    when "400"
-      Rails.logger.warn "[CleanupOrphanedOauthCredentialsJob] Token may already be revoked or invalid (HTTP 400)"
-    else
-      Rails.logger.warn "[CleanupOrphanedOauthCredentialsJob] Google OAuth revocation returned: HTTP #{response.code}"
-    end
-  rescue => e
-    Rails.logger.error "[CleanupOrphanedOauthCredentialsJob] Error revoking token: #{e.message}"
+  def unusable_credentials
+    OauthCredential.where(token_expires_at: ..Time.current, refresh_token: nil)
+                   .where("metadata->>'token_revoked' IS DISTINCT FROM 'true'")
   end
 end
