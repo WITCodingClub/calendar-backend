@@ -42,6 +42,12 @@ Rails.application.routes.draw do
   post "/users/passkey/options",  to: "users/passkey_sessions#options",  as: :passkey_session_options
   post "/users/passkey/callback", to: "users/passkey_sessions#create",   as: :passkey_session
 
+  # Signing in to the dashboard with a WIT Microsoft account. OmniAuth starts it
+  # on POST /auth/microsoft. Off unless MicrosoftSignIn.enabled?.
+  get "/auth/microsoft/callback", to: "users/microsoft_sessions#create", as: :microsoft_sign_in_callback
+  get "/auth/failure", to: "users/microsoft_sessions#failure",
+                       constraints: ->(request) { request.params[:strategy] == MicrosoftSignIn::PROVIDER }
+
   get "/oauth/success", to: "oauth#success"
   get "/oauth/failure", to: "oauth#failure"
 
@@ -171,6 +177,7 @@ Rails.application.routes.draw do
         patch :university_events, on: :collection
       end
       resources :connected_accounts,   only: [ :index, :destroy ]
+      resources :sign_in_identities,   only: [ :destroy ]
       resource  :ics_feed,             only: [ :show ]
       resource  :notifications,        only: [ :show, :update ] do
         patch :university_events

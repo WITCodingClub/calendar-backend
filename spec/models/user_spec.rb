@@ -58,6 +58,7 @@ RSpec.describe User, type: :model do
     it { is_expected.to have_one(:user_extension_config).dependent(:destroy) }
     it { is_expected.to have_many(:security_events).dependent(:destroy) }
     it { is_expected.to have_many(:passkeys).dependent(:destroy) }
+    it { is_expected.to have_many(:sign_in_identities).dependent(:destroy) }
     it { is_expected.to have_many(:user_sessions).dependent(:destroy) }
     it { is_expected.to have_many(:sent_friendships).class_name("Friendship").with_foreign_key(:requester_id).dependent(:destroy) }
     it { is_expected.to have_many(:received_friendships).class_name("Friendship").with_foreign_key(:addressee_id).dependent(:destroy) }

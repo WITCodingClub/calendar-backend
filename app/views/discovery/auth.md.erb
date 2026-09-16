@@ -4,7 +4,7 @@ This file tells AI agents how to get a credential for the WIT Calendar API and h
 
 ## Audience
 
-WIT Calendar serves the students and staff of Wentworth Institute of Technology. Each account belongs to one person who has a verified `@wit.edu` Google account.
+WIT Calendar serves the students and staff of Wentworth Institute of Technology. Each account belongs to one person with a verified `@wit.edu` address. The person proves the address with a WIT Google account<% if MicrosoftSignIn.enabled? %> or a WIT Microsoft account. A Microsoft account must belong to a member of the WIT tenant. The service refuses guest accounts<% end %>.
 
 An agent does not get an account of its own. An agent acts for one person, with a credential that the person gets when they sign in.
 
@@ -27,6 +27,10 @@ You need a credential only for the other `/api/` endpoints. They read or change 
 | Google sign-in | `POST <%= api_user_onboard_url %>` | The person, in a Google consent screen |
 | Passkey | `POST <%= api_user_passkeys_authentication_options_url %>`, then `POST <%= api_user_passkeys_authenticate_url %>` | The person, with their authenticator |
 
+<% if MicrosoftSignIn.enabled? %>
+Sign in with Microsoft opens a session on the web dashboard only. It does not give an API credential. To get a credential, the person uses Google sign-in with the same `@wit.edu` address, or a passkey.
+
+<% end %>
 This service does not support these methods:
 
 - Anonymous credentials
