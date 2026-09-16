@@ -84,10 +84,12 @@ class UserSession < ApplicationRecord
 
   # Ends every session for a user. Called when something happens that should
   # invalidate anything already issued — a removed passkey, a disconnected
-  # Google account, a changed password.
-  def self.revoke_all_for(user, reason:, except: nil)
+  # Google account, a changed password. Pass source: to end only the sessions
+  # that one way of signing in opened.
+  def self.revoke_all_for(user, reason:, except: nil, source: nil)
     scope = where(user_id: user.id, revoked_at: nil)
     scope = scope.where.not(id: except.id) if except
+    scope = scope.where(source: source) if source
 
     scope.update_all(revoked_at: Time.current, revoked_reason: reason) # rubocop:disable Rails/SkipsModelValidations
   end

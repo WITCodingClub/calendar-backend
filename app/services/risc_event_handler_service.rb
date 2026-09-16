@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 class RiscEventHandlerService
+  # A credential could not be revoked. The event stays unprocessed, so the job
+  # retries it and does not skip it as already seen.
+  class RevocationFailed < StandardError; end
+
   attr_reader :event_data, :security_event
 
   def initialize(event_data)
@@ -44,6 +48,9 @@ class RiscEventHandlerService
     @security_event.mark_processed!
 
     { success: true, **result }
+  rescue RevocationFailed => e
+    Rails.logger.error("RISC event #{event_data[:jti]} left unprocessed: #{e.message}")
+    raise
   rescue => e
     Rails.logger.error("Error processing RISC event: #{e.message}")
     Rails.logger.error(e.backtrace.join("\n"))
@@ -60,18 +67,21 @@ class RiscEventHandlerService
     oauth_credential&.user
   end
 
+  # A retry finds the row that the failed attempt left, instead of failing on
+  # the unique jti.
   def create_security_event(user)
     oauth_credential = user&.oauth_credentials&.find_by(provider: "google", uid: event_data[:google_subject])
 
-    SecurityEvent.create!(
-      jti: event_data[:jti],
-      event_type: event_data[:event_type],
-      google_subject: event_data[:google_subject],
-      user: user,
-      oauth_credential: oauth_credential,
-      reason: event_data[:reason],
-      raw_event_data: event_data[:raw_event_data]
-    )
+    SecurityEvent.find_or_initialize_by(jti: event_data[:jti]).tap do |event|
+      event.update!(
+        event_type: event_data[:event_type],
+        google_subject: event_data[:google_subject],
+        user: user,
+        oauth_credential: oauth_credential,
+        reason: event_data[:reason],
+        raw_event_data: event_data[:raw_event_data]
+      )
+    end
   end
 
   def handle_sessions_revoked(user)
@@ -119,12 +129,19 @@ class RiscEventHandlerService
     { action: "verification", state: event_data[:state] }
   end
 
+  # Tries every credential, so one failure does not keep the others alive, then
+  # raises if any failed.
   def revoke_all_oauth_credentials(user)
+    failures = []
+
     user.oauth_credentials.google.each do |credential|
       credential.destroy!
       Rails.logger.info("Revoked OAuth credential #{credential.id} for user #{user.id}")
     rescue => e
       Rails.logger.error("Failed to revoke OAuth credential #{credential.id}: #{e.message}")
+      failures << "credential #{credential.id}: #{e.class}: #{e.message}"
     end
+
+    raise RevocationFailed, "Could not revoke #{failures.join('; ')}" if failures.any?
   end
 end
