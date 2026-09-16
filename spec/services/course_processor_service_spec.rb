@@ -59,14 +59,14 @@ RSpec.describe CourseProcessorService do
     expect(Course.find_by(crn: 12345).meeting_times.pluck(:id)).to match_array(original_ids)
   end
 
-  it "preserves google_calendar_events tracking rows across re-processing" do
+  it "preserves calendar_events tracking rows across re-processing" do
     process!
     course = Course.find_by(crn: 12345)
     meeting_time = course.meeting_times.first
 
     credential = create(:oauth_credential, user: user)
-    calendar = create(:google_calendar, oauth_credential: credential)
-    event = create(:google_calendar_event, google_calendar: calendar, meeting_time: meeting_time)
+    calendar = create(:course_calendar, oauth_credential: credential)
+    event = create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time)
 
     process!
 
@@ -78,16 +78,16 @@ RSpec.describe CourseProcessorService do
     course = Course.find_by(crn: 12345)
 
     credential = create(:oauth_credential, user: user)
-    calendar = create(:google_calendar, oauth_credential: credential)
+    calendar = create(:course_calendar, oauth_credential: credential)
     stale_meeting_time = course.meeting_times.find_by(day_of_week: :wednesday)
-    event = create(:google_calendar_event, google_calendar: calendar, meeting_time: stale_meeting_time)
+    event = create(:calendar_event, course_calendar: calendar, meeting_time: stale_meeting_time)
 
     class_details[:meeting_times].first["days"] = { "monday" => true }
     process!
 
     expect(course.meeting_times.pluck(:day_of_week)).to eq([ "monday" ])
     expect(event.reload.meeting_time_id).to be_nil
-    expect(GoogleCalendarEvent.orphaned).to include(event)
+    expect(CalendarEvent.orphaned).to include(event)
   end
 
   describe "instructors" do

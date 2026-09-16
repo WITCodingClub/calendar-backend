@@ -14,11 +14,11 @@ namespace :calendar do
       past_events:                []
     }
 
-    GoogleCalendarEvent.includes(
+    CalendarEvent.includes(
       :meeting_time, :final_exam, :university_calendar_event,
-      google_calendar: :user
+      course_calendar: :user
     ).find_each do |event|
-      user = event.google_calendar&.user
+      user = event.course_calendar&.user
 
       if event.meeting_time_id.present? && event.meeting_time.nil?
         orphaned[:missing_meeting_times] << event
@@ -67,11 +67,11 @@ namespace :calendar do
     deleted_count = 0
     error_count   = 0
 
-    orphaned_events = GoogleCalendarEvent
-      .includes(:meeting_time, :final_exam, :university_calendar_event, google_calendar: :user)
+    orphaned_events = CalendarEvent
+      .includes(:meeting_time, :final_exam, :university_calendar_event, course_calendar: :user)
       .find_each
       .select do |event|
-        user = event.google_calendar&.user
+        user = event.course_calendar&.user
 
         missing_assoc = (event.meeting_time_id.present? && event.meeting_time.nil?) ||
                         (event.final_exam_id.present? && event.final_exam.nil?) ||
@@ -89,7 +89,7 @@ namespace :calendar do
         end
       end
 
-    events_by_user = orphaned_events.group_by { |e| e.google_calendar&.user }
+    events_by_user = orphaned_events.group_by { |e| e.course_calendar&.user }
 
     events_by_user.each do |user, events|
       next unless user
@@ -99,9 +99,16 @@ namespace :calendar do
 
       events.each do |event|
         begin
-          calendar     = event.google_calendar
+          calendar     = event.course_calendar
+          if calendar.microsoft?
+            # The destroy callback deletes the Microsoft event.
+            event.destroy
+            deleted_count += 1
+            next
+          end
+
           user_service = service.send(:user_calendar_service)
-          user_service.delete_event(calendar.google_calendar_id, event.google_event_id)
+          user_service.delete_event(calendar.external_calendar_id, event.external_event_id)
           event.destroy
           deleted_count += 1
           print "."

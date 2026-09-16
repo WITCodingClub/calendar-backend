@@ -1,0 +1,7 @@
+{
+  "error": "invalid_grant",
+  "error_description": "AADSTS70000: Synthetic description that must not reach the caller.",
+  "error_codes": [70000],
+  "trace_id": "00000000-0000-0000-0000-000000000000",
+  "correlation_id": "00000000-0000-0000-0000-000000000000"
+}

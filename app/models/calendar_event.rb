@@ -2,11 +2,12 @@
 
 # == Schema Information
 #
-# Table name: google_calendar_events
+# Table name: calendar_events
 #
 #  id                           :bigint           not null, primary key
 #  end_time                     :datetime
 #  event_data_hash              :string
+#  external_ical_uid            :string
 #  last_synced_at               :datetime
 #  location                     :string
 #  recurrence                   :text
@@ -15,48 +16,49 @@
 #  user_edited_fields           :jsonb
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
+#  calendar_id                  :bigint           not null
+#  external_event_id            :string           not null
 #  final_exam_id                :bigint
-#  google_calendar_id           :bigint           not null
-#  google_event_id              :string           not null
 #  meeting_time_id              :bigint
 #  university_calendar_event_id :bigint
 #
 # Indexes
 #
-#  idx_gcal_events_unique_final_exam                             (google_calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
-#  idx_gcal_events_unique_meeting_time                           (google_calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
-#  idx_gcal_events_unique_university                             (google_calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
-#  idx_on_google_calendar_id_meeting_time_id                     (google_calendar_id,meeting_time_id)
-#  index_google_calendar_events_on_final_exam_id                 (final_exam_id)
-#  index_google_calendar_events_on_google_calendar_id            (google_calendar_id)
-#  index_google_calendar_events_on_google_event_id               (google_event_id)
-#  index_google_calendar_events_on_last_synced_at                (last_synced_at)
-#  index_google_calendar_events_on_meeting_time_id               (meeting_time_id)
-#  index_google_calendar_events_on_university_calendar_event_id  (university_calendar_event_id)
+#  idx_calendar_events_on_calendar_id_meeting_time_id    (calendar_id,meeting_time_id)
+#  idx_calendar_events_unique_final_exam                 (calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
+#  idx_calendar_events_unique_meeting_time               (calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
+#  idx_calendar_events_unique_university                 (calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
+#  index_calendar_events_on_calendar_id                  (calendar_id)
+#  index_calendar_events_on_external_event_id            (external_event_id)
+#  index_calendar_events_on_external_ical_uid            (external_ical_uid)
+#  index_calendar_events_on_final_exam_id                (final_exam_id)
+#  index_calendar_events_on_last_synced_at               (last_synced_at)
+#  index_calendar_events_on_meeting_time_id              (meeting_time_id)
+#  index_calendar_events_on_university_calendar_event_id (university_calendar_event_id)
 #
 # Foreign Keys
 #
-#  fk_rails_...  (google_calendar_id => google_calendars.id)
+#  fk_rails_...  (calendar_id => calendars.id)
 #  fk_rails_...  (meeting_time_id => course_meeting_times.id)
 #
-class GoogleCalendarEvent < ApplicationRecord
+class CalendarEvent < ApplicationRecord
   include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :gce, min_hash_length: 12
 
-  belongs_to :google_calendar
+  belongs_to :course_calendar, foreign_key: :calendar_id, inverse_of: :calendar_events
   belongs_to :meeting_time, class_name: "Course::MeetingTime", optional: true
   belongs_to :final_exam, optional: true
   belongs_to :university_calendar_event, optional: true
   has_one :event_preference, as: :preferenceable, dependent: :destroy
-  has_one :oauth_credential, through: :google_calendar
+  has_one :oauth_credential, through: :course_calendar
   has_one :user, through: :oauth_credential
 
-  validates :google_event_id, presence: true
+  validates :external_event_id, presence: true
   validate :only_one_event_type_associated
-  validates :meeting_time_id, uniqueness: { scope: :google_calendar_id }, if: :meeting_time_id?
-  validates :final_exam_id, uniqueness: { scope: :google_calendar_id }, if: :final_exam?
-  validates :university_calendar_event_id, uniqueness: { scope: :google_calendar_id }, if: :university_event?
+  validates :meeting_time_id, uniqueness: { scope: :calendar_id }, if: :meeting_time_id?
+  validates :final_exam_id, uniqueness: { scope: :calendar_id }, if: :final_exam?
+  validates :university_calendar_event_id, uniqueness: { scope: :calendar_id }, if: :university_event?
 
   serialize :recurrence, coder: JSON
 
@@ -147,24 +149,35 @@ class GoogleCalendarEvent < ApplicationRecord
 
   private
 
-  # Records the (calendar, event) pair before the row is destroyed so we can
-  # delete the live Google event after the transaction commits. Skipped when the
+  # Records the remote event before the row is destroyed so we can delete the
+  # live provider event after the transaction commits. Skipped when the
   # sync service already handled the remote delete, or when the whole calendar is
   # being torn down (delete_calendar cleans up its events server-side).
   def capture_remote_event_ref
     return if skip_remote_deletion
-    return if destroyed_by_association&.foreign_key.to_s == "google_calendar_id"
+    return if destroyed_by_association&.foreign_key.to_s == "calendar_id"
 
-    @remote_event_ref = [ google_calendar&.google_calendar_id, google_event_id ]
+    calendar = course_calendar
+    @remote_event_ref = {
+      provider:            calendar&.provider,
+      calendar_id:         calendar&.external_calendar_id,
+      oauth_credential_id: calendar&.oauth_credential_id,
+      event_id:            external_event_id,
+      ical_uid:            external_ical_uid
+    }
   end
 
   def enqueue_remote_event_deletion
     return if @remote_event_ref.blank?
 
-    calendar_id, event_id = @remote_event_ref
-    return if calendar_id.blank? || event_id.blank?
+    ref = @remote_event_ref
+    return if ref[:calendar_id].blank? || ref[:event_id].blank?
 
-    GoogleCalendarEventDeleteJob.perform_later(calendar_id, event_id)
+    if ref[:provider] == "microsoft"
+      MicrosoftGraphEventDeleteJob.perform_later(ref[:oauth_credential_id], ref[:event_id], ref[:ical_uid])
+    else
+      GoogleCalendarEventDeleteJob.perform_later(ref[:calendar_id], ref[:event_id])
+    end
   end
 
   def only_one_event_type_associated

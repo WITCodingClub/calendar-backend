@@ -9,8 +9,8 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
     if user_id
       cleanup_for_user(User.find(user_id))
     else
-      User.joins(:google_calendars).distinct
-          .includes(oauth_credentials: :google_calendar)
+      User.joins(:course_calendars).distinct
+          .includes(oauth_credentials: :course_calendar)
           .find_each { |user| cleanup_for_user(user) }
     end
   end
@@ -20,13 +20,13 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
   def cleanup_for_user(user)
     Rails.logger.info "[CleanupDuplicateTbdEventsJob] Starting cleanup for user #{user.id}"
 
-    google_calendar = user.google_credential&.google_calendar
-    return unless google_calendar
+    course_calendar = user.google_credential&.course_calendar
+    return unless course_calendar
 
     service = GoogleCalendarService.new(user)
-    calendar_id = google_calendar.google_calendar_id
+    calendar_id = course_calendar.external_calendar_id
 
-    google_events = google_calendar.google_calendar_events
+    google_events = course_calendar.calendar_events
                                    .where.not(meeting_time_id: nil)
                                    .includes(meeting_time: { rooms: :building })
 
@@ -50,16 +50,16 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
       tbd_events.each do |event|
         begin
           api_service = service.send(:user_calendar_service)
-          api_service.delete_event(calendar_id, event.google_event_id)
+          api_service.delete_event(calendar_id, event.external_event_id)
           event.destroy!
           events_deleted += 1
-          Rails.logger.info "[CleanupDuplicateTbdEventsJob] Deleted TBD duplicate #{event.google_event_id} for user #{user.id}"
+          Rails.logger.info "[CleanupDuplicateTbdEventsJob] Deleted TBD duplicate #{event.external_event_id} for user #{user.id}"
         rescue Google::Apis::ClientError => e
           if e.status_code == 404
             event.destroy!
             events_deleted += 1
           else
-            Rails.logger.error "[CleanupDuplicateTbdEventsJob] Failed to delete #{event.google_event_id}: #{e.message}"
+            Rails.logger.error "[CleanupDuplicateTbdEventsJob] Failed to delete #{event.external_event_id}: #{e.message}"
           end
         end
       end

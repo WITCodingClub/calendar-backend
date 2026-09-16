@@ -83,7 +83,7 @@
       <% if policy(@user).edit? %>
         <%= link_to "Edit User", edit_admin_user_path(@user), class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
       <% end %>
-      <% if policy(@user).force_calendar_sync? && GoogleCalendar.for_user(@user).exists? %>
+      <% if policy(@user).force_calendar_sync? && CourseCalendar.for_user(@user).exists? %>
         <%= button_to "Force Calendar Sync", force_calendar_sync_admin_user_path(@user),
             method: :post,
             data: { turbo_confirm: "Force sync calendar for #{@user.email}? This will update all events regardless of changes." },
@@ -268,9 +268,9 @@
                   <div>
                     <dt class="font-medium text-on-surface-variant">Google Calendar</dt>
                     <dd class="text-on-surface">
-                      <% if credential.google_calendar %>
+                      <% if credential.course_calendar %>
                         <span class="text-on-tertiary-container">✓ Connected</span>
-                        <div class="text-xs text-on-surface-variant mt-1"><%= credential.google_calendar.summary %></div>
+                        <div class="text-xs text-on-surface-variant mt-1"><%= credential.course_calendar.summary %></div>
                       <% else %>
                         <span class="text-on-surface-variant">Not connected</span>
                       <% end %>

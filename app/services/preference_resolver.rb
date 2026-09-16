@@ -179,7 +179,7 @@ class PreferenceResolver
       "final_exam"
     when Course::MeetingTime
       event.course&.schedule_type
-    when GoogleCalendarEvent
+    when CalendarEvent
       return "final_exam" if event.final_exam_id.present?
 
       event.meeting_time&.course&.schedule_type
@@ -198,7 +198,7 @@ class PreferenceResolver
     case event
     when UniversityCalendarEvent
       event
-    when GoogleCalendarEvent
+    when CalendarEvent
       event.university_calendar_event
     end
   end

@@ -12,11 +12,11 @@ class CleanupOrphanedCalendarRecordsJob < ApplicationJob
     orphaned_calendar_ids = []
 
     # Find calendars with missing oauth credentials
-    orphaned_by_credential = GoogleCalendar.where.missing(:oauth_credential).pluck(:id)
+    orphaned_by_credential = CourseCalendar.where.missing(:oauth_credential).pluck(:id)
     orphaned_calendar_ids.concat(orphaned_by_credential)
 
     # Find calendars with expired credentials that cannot be refreshed
-    orphaned_by_expired_token = GoogleCalendar.joins(:oauth_credential)
+    orphaned_by_expired_token = CourseCalendar.joins(:oauth_credential)
                                               .where(oauth_credentials: { token_expires_at: ..Time.current })
                                               .where(oauth_credentials: { refresh_token: nil })
                                               .pluck(:id)
@@ -24,16 +24,16 @@ class CleanupOrphanedCalendarRecordsJob < ApplicationJob
 
     # Find calendars whose oauth credential has no user
     orphaned_by_user_sql = <<~SQL.squish
-      SELECT google_calendars.id
-      FROM google_calendars
-      INNER JOIN oauth_credentials ON oauth_credentials.id = google_calendars.oauth_credential_id
+      SELECT calendars.id
+      FROM calendars
+      INNER JOIN oauth_credentials ON oauth_credentials.id = calendars.oauth_credential_id
       LEFT OUTER JOIN users ON users.id = oauth_credentials.user_id
       WHERE users.id IS NULL
     SQL
     orphaned_by_user = ActiveRecord::Base.connection.execute(orphaned_by_user_sql).to_a.pluck("id")
     orphaned_calendar_ids.concat(orphaned_by_user)
 
-    orphaned_calendars = GoogleCalendar.where(id: orphaned_calendar_ids.uniq)
+    orphaned_calendars = CourseCalendar.where(id: orphaned_calendar_ids.uniq)
                                        .includes(:oauth_credential)
 
     Rails.logger.info "[CleanupOrphanedCalendarRecordsJob] Found #{orphaned_calendars.size} orphaned calendars"
@@ -41,7 +41,7 @@ class CleanupOrphanedCalendarRecordsJob < ApplicationJob
     orphaned_calendars.each do |calendar|
       reason = determine_orphan_reason(calendar)
       Rails.logger.info "[CleanupOrphanedCalendarRecordsJob] Deleting calendar #{calendar.id} " \
-                        "(google_calendar_id: #{calendar.google_calendar_id}) - Reason: #{reason}"
+                        "(external_calendar_id: #{calendar.external_calendar_id}) - Reason: #{reason}"
 
       calendar.destroy!
       deleted_count += 1

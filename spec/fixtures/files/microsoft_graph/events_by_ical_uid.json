@@ -1,0 +1,9 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('00000000-0000-0000-0000-000000000001')/events(id,iCalUId)",
+  "value": [
+    {
+      "id": "AAMkSyntheticEventMoved",
+      "iCalUId": "040000008200E00074C5B7101A82E0080000000000000000000000000000000000000001"
+    }
+  ]
+}

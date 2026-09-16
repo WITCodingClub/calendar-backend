@@ -6,7 +6,7 @@ RSpec.describe UniversityCalendarEvent, type: :model do
   subject { create(:university_calendar_event) }
 
   it { is_expected.to belong_to(:term).optional }
-  it { is_expected.to have_many(:google_calendar_events).dependent(:nullify) }
+  it { is_expected.to have_many(:calendar_events).dependent(:nullify) }
 
   it { is_expected.to validate_presence_of(:ics_uid) }
   it { is_expected.to validate_uniqueness_of(:ics_uid) }

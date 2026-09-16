@@ -70,14 +70,14 @@ class CourseReprocessService < ApplicationService
   end
 
   def cleanup_calendar_events_for_enrollment(enrollment)
-    google_calendar = user.google_credential&.google_calendar
-    return 0 unless google_calendar
+    course_calendar = user.google_credential&.course_calendar
+    return 0 unless course_calendar
 
     course           = enrollment.course
     meeting_time_ids = course.meeting_times.pluck(:id)
     return 0 if meeting_time_ids.empty?
 
-    calendar_events = google_calendar.google_calendar_events.where(meeting_time_id: meeting_time_ids)
+    calendar_events = course_calendar.calendar_events.where(meeting_time_id: meeting_time_ids)
     return 0 if calendar_events.empty?
 
     service       = build_google_service
@@ -85,9 +85,9 @@ class CourseReprocessService < ApplicationService
 
     calendar_events.find_each do |cal_event|
       begin
-        service&.delete_event(google_calendar.google_calendar_id, cal_event.google_event_id)
+        service&.delete_event(course_calendar.external_calendar_id, cal_event.external_event_id)
       rescue Google::Apis::ClientError => e
-        Rails.logger.warn("[CourseReprocess] User #{user.id}: Could not delete event #{cal_event.google_event_id}: #{e.message}")
+        Rails.logger.warn("[CourseReprocess] User #{user.id}: Could not delete event #{cal_event.external_event_id}: #{e.message}")
       end
       cal_event.destroy!
       deleted_count += 1

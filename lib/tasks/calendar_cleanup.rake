@@ -6,13 +6,13 @@ namespace :calendar do
     puts "Finding orphaned calendars...\n"
 
     service         = GoogleCalendarService.new
-    google_calendars = service.list_calendars
-    db_calendar_ids = GoogleCalendar.pluck(:google_calendar_id)
+    google_api_calendars = service.list_calendars
+    db_calendar_ids = CourseCalendar.google.pluck(:external_calendar_id)
 
-    puts "Calendars in Google:    #{google_calendars.items.count}"
+    puts "Calendars in Google:    #{google_api_calendars.items.count}"
     puts "Calendars in database:  #{db_calendar_ids.count}\n\n"
 
-    orphaned = google_calendars.items.reject { |cal| db_calendar_ids.include?(cal.id) }
+    orphaned = google_api_calendars.items.reject { |cal| db_calendar_ids.include?(cal.id) }
 
     orphaned.each do |cal|
       puts "  #{cal.summary}"
@@ -28,10 +28,10 @@ namespace :calendar do
     puts "Finding orphaned calendars...\n"
 
     service         = GoogleCalendarService.new
-    google_calendars = service.list_calendars
-    db_calendar_ids = GoogleCalendar.pluck(:google_calendar_id)
+    google_api_calendars = service.list_calendars
+    db_calendar_ids = CourseCalendar.google.pluck(:external_calendar_id)
 
-    orphaned = google_calendars.items.reject { |cal| db_calendar_ids.include?(cal.id) }
+    orphaned = google_api_calendars.items.reject { |cal| db_calendar_ids.include?(cal.id) }
     puts "Found #{orphaned.count} orphaned calendar(s)\n\n"
 
     orphaned.each do |cal|
@@ -69,7 +69,7 @@ namespace :calendar do
 
     puts "Syncing finals for #{term.name}..."
 
-    users_with_calendars = User.joins(oauth_credentials: :google_calendar)
+    users_with_calendars = User.joins(oauth_credentials: :course_calendar)
                                .where(oauth_credentials: { provider: "google" })
                                .distinct
 
@@ -137,7 +137,7 @@ namespace :calendar do
   task force_sync_all: :environment do
     puts "Force syncing all user calendars..."
 
-    users_with_calendars = User.joins(oauth_credentials: :google_calendar)
+    users_with_calendars = User.joins(oauth_credentials: :course_calendar)
                                .where(oauth_credentials: { provider: "google" })
                                .distinct
 
