@@ -144,10 +144,6 @@ RSpec.describe ProcessRiscEventJob, type: :job do
   end
 
   it "retries instead of raising when an unexpected error occurs while handling the event" do
-    pending "bug: retry_on wait: :exponentially_longer is not a valid ActiveJob backoff algorithm " \
-            "(this ActiveJob version only recognizes :polynomially_longer), so any retryable " \
-            "StandardError crashes with RuntimeError instead of scheduling a retry"
-
     stub_google_risc_endpoints
     token = build_token(event_type: SecurityEvent::ACCOUNT_ENABLED, subject: "some-subject", jti: "retry-me-jti")
     allow(RiscEventHandlerService).to receive(:new).and_raise(StandardError, "boom")
