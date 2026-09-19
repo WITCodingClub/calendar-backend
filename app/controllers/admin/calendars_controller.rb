@@ -16,7 +16,8 @@ module Admin
       calendar = CourseCalendar.find(params[:id])
       authorize calendar
 
-      GoogleCalendarDeleteJob.perform_later(calendar.external_calendar_id)
+      # The row's own callback deletes the remote calendar with the right
+      # provider. A Google delete job here would get a Microsoft calendar id.
       calendar.destroy
       redirect_to admin_calendars_path, notice: "Calendar deleted successfully."
     rescue => e
