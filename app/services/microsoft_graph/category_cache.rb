@@ -3,7 +3,7 @@
 module MicrosoftGraph
   # Turns the app's event color into an Outlook category.
   #
-  # Google takes a color id on each event. Outlook colors an event through its
+  # Google takes a color on each event. Outlook colors an event through its
   # categories, and each category in the person's master list has one preset
   # color. The app uses one "WIT <color>" category for each Google color. It
   # reuses a category with that name when the person already has one, and does
@@ -44,9 +44,15 @@ module MicrosoftGraph
       @names  = {}
     end
 
-    # The category name for a color id, or nil when the event has no color.
-    def name_for(color_id)
-      name, preset = COLORS[color_id.to_i]
+    # The category name for an event color, or nil when the event has no color.
+    # The app stores a color as a "#rrggbb" hex, and any RGB color is allowed.
+    # Outlook has only preset colors, so a custom color gets the category of
+    # the nearest Google palette color. A legacy color id (1-11) also works.
+    def name_for(color)
+      hex = GoogleColors.normalize(color)
+      return nil unless hex
+
+      name, preset = COLORS[GoogleColors.nearest_color_id(hex)]
       return nil unless name
 
       category = "#{PREFIX}#{name}"

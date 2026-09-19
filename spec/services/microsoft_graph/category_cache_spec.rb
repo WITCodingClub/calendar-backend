@@ -12,6 +12,29 @@ RSpec.describe MicrosoftGraph::CategoryCache, :microsoft_graph do
     stub_request(:get, categories_url).with(query: hash_including({})).to_return(graph_json_response(fixture, status: status))
   end
 
+  it "takes the hex color that the app stores" do
+    stub_request(:get, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/outlook/masterCategories").with(query: hash_including({}))
+      .to_return(graph_json_response("master_categories"))
+    stub_request(:post, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/outlook/masterCategories")
+      .to_return(graph_json_response("master_category_created", status: 201))
+
+    expect(cache.name_for(GoogleColors::TOMATO)).to eq("WIT Tomato")
+  end
+
+  it "gives a custom color the category of the nearest palette color" do
+    stub_request(:get, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/outlook/masterCategories").with(query: hash_including({}))
+      .to_return(graph_json_response("master_categories"))
+    stub_request(:post, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/outlook/masterCategories")
+      .to_return(graph_json_response("master_category_created", status: 201))
+
+    # One step away from Tomato (#d50000), and not a palette color.
+    expect(cache.name_for("#d40101")).to eq("WIT Tomato")
+  end
+
+  it "gives no category to a value that is not a color" do
+    expect(cache.name_for("not-a-color")).to be_nil
+  end
+
   it "gives no category to an event without a color" do
     expect(cache.name_for(nil)).to be_nil
     expect(a_request(:any, /graph\.microsoft\.com/)).not_to have_been_made

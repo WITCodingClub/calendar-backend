@@ -107,7 +107,7 @@ RSpec.describe GoogleCalendarService do
       labels = instance_double(GoogleEventLabels, available?: true, label_id_for: "11111111-2222-3333-4444-555555555555")
       allow(calendar_api).to receive(:update_event)
 
-      service.send(:update_event_in_calendar, calendar_api, google_calendar, db_event,
+      service.send(:update_event_in_calendar, calendar_api, course_calendar, db_event,
                    event_with_prefs.merge(color_id: "#1a2b3c"), force: true, labels: labels)
 
       expect(calendar_api).to have_received(:update_event).with(
