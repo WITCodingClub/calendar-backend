@@ -33,7 +33,7 @@ RSpec.describe PreferenceResolver do
       resolved = described_class.new(user).resolve_for(university_event(category: nil))
 
       expect(resolved[:title_template]).to eq("{{summary}}")
-      expect(resolved[:color_id]).to eq(8)
+      expect(resolved[:color_id]).to eq("#616161")
     end
   end
 

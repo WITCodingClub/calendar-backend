@@ -68,7 +68,6 @@ module Api
 
         resolved_prefs = resolved_data[:preferences].dup
         resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])
-        resolved_prefs[:color_id]          = normalize_color_to_witcc_hex(resolved_prefs[:color_id])
 
         render json: {
           individual_preference: EventPreferenceSerializer.new(preference).as_json,
@@ -110,7 +109,6 @@ module Api
 
       resolved_prefs = resolved_data[:preferences].dup
       resolved_prefs[:reminder_settings] = transform_reminder_settings(resolved_prefs[:reminder_settings])
-      resolved_prefs[:color_id]          = normalize_color_to_witcc_hex(resolved_prefs[:color_id])
 
       {
         individual_preference: preference ? EventPreferenceSerializer.new(preference).as_json : nil,
@@ -172,12 +170,6 @@ module Api
       settings.map do |r|
         r.is_a?(Hash) ? r.merge("method" => r["method"] == "popup" ? "notification" : r["method"]) : r
       end
-    end
-
-    def normalize_color_to_witcc_hex(color_id)
-      return nil unless color_id
-
-      GoogleColors::EVENT_MAP[color_id.to_i]
     end
   end
 end

@@ -13,7 +13,7 @@
 #  visibility           :string
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
-#  color_id             :integer
+#  color_id             :string
 #  preferenceable_id    :bigint           not null
 #  user_id              :bigint           not null
 #
@@ -40,7 +40,7 @@ class EventPreferenceSerializer
       description_template: @preference.description_template,
       location_template:    @preference.location_template,
       reminder_settings:    transform_reminder_settings(@preference.reminder_settings),
-      color_id:             normalize_color_to_witcc_hex(@preference.color_id),
+      color_id:             @preference.color_id,
       visibility:           @preference.visibility
     }
   end

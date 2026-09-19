@@ -23,9 +23,6 @@ class MeetingTimeSerializer
                               @template_renderer.render(preferences[:description_template], context)
     end
 
-    color_value = preferences[:color_id] || @mt.event_color
-    witcc_color = GoogleColors.to_witcc_hex(color_value)
-
     {
       id:                  @mt.public_id,
       day_of_week:         @mt.day_of_week,
@@ -44,7 +41,7 @@ class MeetingTimeSerializer
       calendar_config: {
         title:             rendered_title,
         description:       rendered_description,
-        color_id:          witcc_color,
+        color_id:          GoogleColors.normalize(preferences[:color_id]) || @mt.event_color,
         reminder_settings: preferences[:reminder_settings],
         visibility:        preferences[:visibility]
       }

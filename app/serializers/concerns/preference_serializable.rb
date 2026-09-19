@@ -15,21 +15,4 @@ module PreferenceSerializable
       reminder.transform_keys(&:to_s)
     end
   end
-
-  def normalize_color_to_witcc_hex(color_id_or_hex)
-    return nil if color_id_or_hex.blank?
-
-    if color_id_or_hex.is_a?(Integer)
-      return GoogleColors.to_witcc_hex(color_id_or_hex)
-    end
-
-    if color_id_or_hex.is_a?(String) && color_id_or_hex.start_with?("#")
-      normalized_hex = color_id_or_hex.downcase
-      return normalized_hex if GoogleColors::WITCC_MAP.key?(normalized_hex)
-
-      return GoogleColors.to_witcc_hex(color_id_or_hex)
-    end
-
-    nil
-  end
 end

@@ -16,7 +16,7 @@ require "rails_helper"
 #  visibility           :string
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
-#  color_id             :integer
+#  color_id             :string
 #  user_id              :bigint           not null
 #
 # Indexes
@@ -50,7 +50,11 @@ RSpec.describe CalendarPreference, type: :model do
     it { is_expected.to validate_length_of(:title_template).is_at_most(500).allow_blank }
     it { is_expected.to validate_length_of(:description_template).is_at_most(2000).allow_blank }
     it { is_expected.to validate_length_of(:location_template).is_at_most(500).allow_blank }
-    it { is_expected.to validate_inclusion_of(:color_id).in_range(1..11).allow_nil }
+    it { is_expected.to allow_values("#1a2b3c", "#d50000", nil).for(:color_id) }
+    it { is_expected.not_to allow_values("red", "#12345", "#gggggg", "12").for(:color_id) }
+    it { is_expected.to normalize(:color_id).from("#1A2B3C").to("#1a2b3c") }
+    it { is_expected.to normalize(:color_id).from(11).to("#d50000") }
+    it { is_expected.to normalize(:color_id).from("").to(nil) }
     it { is_expected.to validate_inclusion_of(:visibility).in_array(%w[public private default]).allow_blank }
 
     it do

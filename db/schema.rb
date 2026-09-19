@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_19_175952) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_19_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -125,7 +125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_175952) do
   end
 
   create_table "calendar_preferences", force: :cascade do |t|
-    t.integer "color_id"
+    t.string "color_id"
     t.datetime "created_at", null: false
     t.text "description_template"
     t.string "event_type"
@@ -283,7 +283,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_175952) do
   end
 
   create_table "event_preferences", force: :cascade do |t|
-    t.integer "color_id"
+    t.string "color_id"
     t.datetime "created_at", null: false
     t.text "description_template"
     t.text "location_template"

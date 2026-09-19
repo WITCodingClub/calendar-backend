@@ -42,6 +42,12 @@ RSpec.describe UserExtensionConfig, type: :model do
 
     it { is_expected.to belong_to(:user) }
     it { is_expected.to validate_uniqueness_of(:user_id) }
+    it { is_expected.to allow_values("#1a2b3c", "#d50000").for(:default_color_lecture) }
+    it { is_expected.to allow_values("#1a2b3c", "#d50000").for(:default_color_lab) }
+    it { is_expected.not_to allow_values("banana", "#12345", nil).for(:default_color_lecture) }
+    it { is_expected.not_to allow_values("banana", "#12345", nil).for(:default_color_lab) }
+    it { is_expected.to normalize(:default_color_lecture, :default_color_lab).from("#1A2B3C").to("#1a2b3c") }
+    it { is_expected.to normalize(:default_color_lecture, :default_color_lab).from("5").to("#f6bf26") }
   end
 
   describe "toggling sync_university_events" do

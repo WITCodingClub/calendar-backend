@@ -87,6 +87,7 @@ class GoogleCalendarService
     stats              = { created: 0, updated: 0, skipped: 0 }
     preference_resolver = PreferenceResolver.new(user)
     template_renderer   = CalendarTemplateRenderer.new
+    labels              = GoogleEventLabels.new(service, calendar_id)
 
     events.each do |event|
       event_key      = build_event_key_from_hash(event)
@@ -97,7 +98,7 @@ class GoogleCalendarService
         event_with_prefs     = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
         if force || existing_event.data_changed?(event_with_prefs)
-          result = update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force)
+          result = update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force, labels: labels)
           stats[:updated] += 1 if result == :updated
           stats[:skipped] += 1 if result == :skipped_user_edit
         else
@@ -105,7 +106,8 @@ class GoogleCalendarService
           stats[:skipped] += 1
         end
       else
-        create_event_in_calendar(service, google_calendar, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
+        create_event_in_calendar(service, google_calendar, event, preference_resolver: preference_resolver,
+                                                                  template_renderer: template_renderer, labels: labels)
         stats[:created] += 1
       end
     end
@@ -151,6 +153,7 @@ class GoogleCalendarService
 
     preference_resolver = PreferenceResolver.new(user)
     template_renderer   = CalendarTemplateRenderer.new
+    labels              = GoogleEventLabels.new(service, google_calendar.google_calendar_id)
     stats = { created: 0, updated: 0, skipped: 0 }
 
     events.each do |event|
@@ -162,14 +165,15 @@ class GoogleCalendarService
         event_with_prefs = apply_preferences_to_event(syncable, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
         if force || existing_event.data_changed?(event_with_prefs)
-          update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force)
+          update_event_in_calendar(service, google_calendar, existing_event, event_with_prefs, force: force, labels: labels)
           stats[:updated] += 1
         else
           existing_event.mark_synced!
           stats[:skipped] += 1
         end
       else
-        create_event_in_calendar(service, google_calendar, event, preference_resolver: preference_resolver, template_renderer: template_renderer)
+        create_event_in_calendar(service, google_calendar, event, preference_resolver: preference_resolver,
+                                                                  template_renderer: template_renderer, labels: labels)
         stats[:created] += 1
       end
     end
@@ -448,14 +452,14 @@ class GoogleCalendarService
     credentials
   end
 
-  def create_event_in_calendar(service, google_calendar, course_event, preference_resolver: nil, template_renderer: nil)
+  def create_event_in_calendar(service, google_calendar, course_event, preference_resolver: nil, template_renderer: nil, labels: nil)
     calendar_id = google_calendar.google_calendar_id
     syncable    = resolve_syncable(course_event)
     event_data  = apply_preferences_to_event(syncable, course_event, preference_resolver: preference_resolver, template_renderer: template_renderer)
 
-    google_event = build_google_event(event_data)
+    google_event = build_google_event(event_data, labels)
 
-    created_event = with_rate_limit_handling { service.insert_event(calendar_id, google_event) }
+    created_event = with_rate_limit_handling { service.insert_event(calendar_id, google_event, **label_options(google_event)) }
 
     event_attributes = {
       google_event_id:  created_event.id,
@@ -490,7 +494,7 @@ class GoogleCalendarService
   # course_event already has the user's preferences applied: both callers apply
   # them to decide whether the event changed. Applying them again gave the same
   # data and cost a database lookup for every updated event.
-  def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false)
+  def update_event_in_calendar(service, google_calendar, db_event, course_event, force: false, labels: nil)
     unless force || db_event.data_changed?(course_event)
       db_event.mark_synced!
       return :skipped_no_change
@@ -521,7 +525,7 @@ class GoogleCalendarService
         Rails.logger.warn({ message: "Event not found in Google Calendar, recreating",
                             user_id: user.id, google_event_id: db_event.google_event_id }.to_json)
         db_event.destroy
-        create_event_in_calendar(service, google_calendar, course_event)
+        create_event_in_calendar(service, google_calendar, course_event, labels: labels)
         return :recreated
       end
     end
@@ -543,8 +547,10 @@ class GoogleCalendarService
       end
     end
 
-    google_event = build_google_event(merged_event_data)
-    with_rate_limit_handling { service.update_event(calendar_id, db_event.google_event_id, google_event) }
+    google_event = build_google_event(merged_event_data, labels)
+    with_rate_limit_handling do
+      service.update_event(calendar_id, db_event.google_event_id, google_event, **label_options(google_event))
+    end
 
     db_event.update!(
       summary:           merged_event_data[:summary],
@@ -682,37 +688,29 @@ class GoogleCalendarService
     event_data[:location]    = renderer.render(prefs[:location_template], context)    if prefs[:location_template].present?
 
     event_data[:reminder_settings] = prefs[:reminder_settings] unless prefs[:reminder_settings].nil?
-    event_data[:color_id]           = prefs[:color_id].present? ? normalize_color_id(prefs[:color_id]) : nil
+    event_data[:color_id]           = GoogleColors.normalize(prefs[:color_id])
     event_data[:visibility]         = prefs[:visibility] if prefs[:visibility].present?
 
     event_data
   end
 
-  def normalize_color_id(color_id_or_hex)
-    return nil if color_id_or_hex.blank?
+  # A custom color needs an event label. When the calendar cannot take labels,
+  # the event gets the legacy colorId nearest to the color.
+  def apply_event_color(google_event, hex, labels)
+    label_id = labels.label_id_for(hex) if labels && hex
 
-    if color_id_or_hex.is_a?(Integer)
-      return color_id_or_hex if (1..11).cover?(color_id_or_hex)
-      return nil
+    if labels&.available? && (hex.nil? || label_id)
+      # An empty id removes the label, so the event takes the calendar color.
+      google_event.event_label_id = label_id.to_s
+    elsif hex
+      google_event.color_id = GoogleColors.nearest_color_id(hex).to_s
     end
+  end
 
-    if color_id_or_hex.is_a?(String) && color_id_or_hex.match?(/\A\d+\z/)
-      id = color_id_or_hex.to_i
-      return id if (1..11).cover?(id)
-      return nil
-    end
-
-    if color_id_or_hex.is_a?(String) && color_id_or_hex.start_with?("#")
-      normalized_hex  = color_id_or_hex.downcase
-      witcc_color_id  = GoogleColors.witcc_to_color_id(normalized_hex)
-      return witcc_color_id if witcc_color_id.present?
-
-      GoogleColors::EVENT_MAP.each do |key, hex_value|
-        return key if key.is_a?(Integer) && hex_value == normalized_hex
-      end
-    end
-
-    nil
+  # Google reads eventLabelId only when the request asks for label version 1.
+  # With version 1, Google ignores colorId.
+  def label_options(google_event)
+    google_event.event_label_id.nil? ? {} : { event_label_version: 1 }
   end
 
   def convert_time_to_minutes(time, type)
@@ -725,13 +723,13 @@ class GoogleCalendarService
     end
   end
 
-  def build_google_event(event_data)
+  def build_google_event(event_data, labels = nil)
     google_event = Google::Apis::CalendarV3::Event.new(
       summary:     event_data[:summary],
       description: event_data[:description],
-      location:    event_data[:location],
-      color_id:    event_data[:color_id]&.to_s
+      location:    event_data[:location]
     )
+    apply_event_color(google_event, event_data[:color_id], labels)
 
     if event_data[:all_day]
       google_event.start = { date: event_data[:start_time].to_date.to_s }

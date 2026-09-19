@@ -2,7 +2,7 @@
 
 # Shared strong-parameter helpers for calendar/event preference controllers.
 # Included by both Api:: and Dashboard:: preference controllers so JSON and
-# form paths stay in lockstep (color hex↔id, reminder normalization).
+# form paths stay in lockstep (reminder normalization).
 module PreferenceParams
   extend ActiveSupport::Concern
 
@@ -44,10 +44,6 @@ module PreferenceParams
 
     apply_reminder_settings(permitted, params[:calendar_preference])
 
-    if permitted[:color_id].is_a?(String) && permitted[:color_id].start_with?("#")
-      permitted[:color_id] = GoogleColors.witcc_to_color_id(permitted[:color_id])
-    end
-
     permitted
   end
 
@@ -58,10 +54,6 @@ module PreferenceParams
     )
 
     apply_reminder_settings(permitted, params[:event_preference])
-
-    if permitted[:color_id].is_a?(String) && permitted[:color_id].start_with?("#")
-      permitted[:color_id] = GoogleColors.witcc_to_color_id(permitted[:color_id])
-    end
 
     permitted
   end
