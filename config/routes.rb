@@ -98,6 +98,7 @@ Rails.application.routes.draw do
     get "user/oauth_credentials",                  to: "users#list_oauth_credentials"
     delete "user/oauth_credentials/:credential_id", to: "users#disconnect_oauth_credential"
     post "user/microsoft_calendar",                to: "microsoft_calendars#create"
+    patch "user/microsoft_calendar",               to: "microsoft_calendars#update"
 
     # Passkeys — a quick second sign-in for an account Google already vouched
     # for. The two authentication routes are the only unauthenticated ones.
@@ -185,7 +186,9 @@ Rails.application.routes.draw do
       resources :calendar_preferences, only: [ :index, :update ] do
         patch :university_events, on: :collection
       end
-      resources :connected_accounts,   only: [ :index, :destroy ]
+      resources :connected_accounts,   only: [ :index, :destroy ] do
+        member { patch :calendar_placement }
+      end
       resources :sign_in_identities,   only: [ :destroy ]
       resource  :ics_feed,             only: [ :show ]
       resource  :notifications,        only: [ :show, :update ] do

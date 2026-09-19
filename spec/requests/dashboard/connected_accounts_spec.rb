@@ -91,6 +91,28 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
         expect(outlook_section.at_css("form[action='#{dashboard_connected_account_path(credential.public_id)}']")).to be_present
       end
 
+      it "offers to show classes as busy for a separate calendar" do
+        credential = create(:oauth_credential, :microsoft, user: user)
+        create(:course_calendar, :microsoft, oauth_credential: credential)
+
+        get dashboard_connected_accounts_path
+
+        form = outlook_section.at_css("form[action='#{calendar_placement_dashboard_connected_account_path(credential.public_id)}']")
+        expect(outlook_section.text).to include("do not show as busy", "Show classes as busy")
+        expect(form.at_css("input[name='placement']")["value"]).to eq("primary")
+      end
+
+      it "offers a separate calendar when classes are in the main calendar" do
+        credential = create(:oauth_credential, :microsoft, user: user)
+        create(:course_calendar, :primary, oauth_credential: credential)
+
+        get dashboard_connected_accounts_path
+
+        form = outlook_section.at_css("form[action='#{calendar_placement_dashboard_connected_account_path(credential.public_id)}']")
+        expect(outlook_section.text).to include("show as busy", "Use a separate calendar")
+        expect(form.at_css("input[name='placement']")["value"]).to eq("separate")
+      end
+
       it "shows a sign-in that expired" do
         create(:oauth_credential, :microsoft, user: user, refresh_token: nil)
 
@@ -123,6 +145,52 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
         google_list = response.body.split('id="outlook-calendar"').first
         expect(google_list).not_to include(credential.email)
       end
+    end
+  end
+
+  describe "PATCH /dashboard/connected_accounts/:id/calendar_placement", :microsoft_graph do
+    include ActiveJob::TestHelper
+
+    let(:credential) { create(:oauth_credential, :microsoft, user: user) }
+
+    before { Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user) }
+
+    it "starts the move" do
+      expect { patch calendar_placement_dashboard_connected_account_path(credential.public_id), params: { placement: "primary" } }
+        .to have_enqueued_job(MicrosoftGraphCalendarPlacementJob).with(user, "primary")
+
+      expect(response).to redirect_to(dashboard_connected_accounts_path)
+      expect(flash[:notice]).to include("moving")
+    end
+
+    it "refuses a placement it does not know" do
+      expect { patch calendar_placement_dashboard_connected_account_path(credential.public_id), params: { placement: "shared" } }
+        .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
+
+      expect(flash[:alert]).to be_present
+    end
+
+    it "refuses the account of a different person" do
+      other = create(:oauth_credential, :microsoft)
+
+      expect { patch calendar_placement_dashboard_connected_account_path(other.public_id), params: { placement: "primary" } }
+        .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
+
+      expect(flash[:alert]).to eq("Credential not found.")
+    end
+
+    it "refuses a Google account" do
+      google = create(:oauth_credential, user: user)
+
+      expect { patch calendar_placement_dashboard_connected_account_path(google.public_id), params: { placement: "primary" } }
+        .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
+    end
+
+    it "refuses while the provider is off" do
+      Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR)
+
+      expect { patch calendar_placement_dashboard_connected_account_path(credential.public_id), params: { placement: "primary" } }
+        .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
     end
   end
 

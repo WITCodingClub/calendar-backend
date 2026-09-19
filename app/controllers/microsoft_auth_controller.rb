@@ -34,7 +34,8 @@ class MicrosoftAuthController < ApplicationController
                                        code_verifier: pending["code_verifier"],
                                        redirect_uri: redirect_uri)
     credential  = save_credential(token)
-    calendar_id = MicrosoftGraphCalendarService.new(@user, credential: credential).create_or_get_course_calendar
+    calendar_id = MicrosoftGraphCalendarService.new(@user, credential: credential)
+                                               .create_or_get_course_calendar(placement: @state["placement"])
 
     GoogleCalendarSyncJob.perform_later(@user, force: true) if @user.enrollments.any?
 

@@ -43,6 +43,14 @@ RSpec.describe MicrosoftGraph::EventPayload do
       )
     end
 
+    it "shows a timed event as busy, so a class blocks the time" do
+      expect(described_class.build(weekly_class)[:showAs]).to eq("busy")
+    end
+
+    it "shows an all-day event as free" do
+      expect(described_class.build(weekly_class.merge(all_day: true))[:showAs]).to eq("free")
+    end
+
     it "sends no recurrence for a single event" do
       expect(described_class.build(weekly_class.merge(recurrence: nil))[:recurrence]).to be_nil
     end

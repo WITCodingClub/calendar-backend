@@ -44,6 +44,31 @@ class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
     redirect_to dashboard_connected_accounts_path, notice: "Account disconnected."
   end
 
+  # PATCH /dashboard/connected_accounts/:id/calendar_placement
+  #
+  # Moves the course events of an Outlook connection between a calendar of
+  # their own and the person's main calendar. The move runs in a job.
+  def calendar_placement
+    credential = OauthCredential.find_by_public_id(params[:id])
+    credential = nil unless credential&.user_id == current_user.id && credential.provider == "microsoft"
+
+    unless credential && MicrosoftGraph.enabled_for?(current_user)
+      skip_authorization
+      return redirect_to dashboard_connected_accounts_path, alert: "Credential not found."
+    end
+
+    authorize credential, :update?
+
+    placement = params[:placement].to_s
+    unless CourseCalendar::PLACEMENTS.value?(placement)
+      return redirect_to dashboard_connected_accounts_path, alert: "Choose where your classes go."
+    end
+
+    MicrosoftGraphCalendarPlacementJob.perform_later(current_user, placement)
+    redirect_to dashboard_connected_accounts_path,
+                notice: "Your classes are moving. This can take a minute."
+  end
+
   private
 
   def add_account_url

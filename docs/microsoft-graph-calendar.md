@@ -65,9 +65,51 @@ Turn on the flag for one test account first in the Flipper UI (`/admin/flipper`)
 2. The browser opens `oauth_url`. The app sends the person to Microsoft with PKCE.
 3. Microsoft returns to `/auth/microsoft_graph/callback`. The Microsoft account must be the person's own WIT account: its email must equal the email of the WIT-Calendar account. The extension opens this flow in a tab with no session, so the state alone does not prove who is at the browser. Without this rule, a person could send their start URL to someone else and get that person's mailbox on their own account. Development skips the rule, so a personal Outlook.com account can test the provider.
 4. The app stores the tokens in `oauth_credentials` with `provider = "microsoft"`.
-5. The app creates a "WIT Courses" calendar in the mailbox and starts a sync.
+5. The app creates a "WIT Courses" calendar in the mailbox, or uses the primary calendar (see "Where the events go"), and starts a sync.
 
 While the provider is off, all three endpoints answer 404.
+
+## Where the events go
+
+A person chooses one of two placements. The `calendars.placement` column holds the choice.
+
+| Placement | Where the events go | Free and busy time | Disconnect |
+| --- | --- | --- | --- |
+| `separate` (default) | A "WIT Courses" calendar that the app creates | Not affected | The app deletes the calendar |
+| `primary` | The person's main calendar | Classes show as busy | The app deletes each event that it tracks |
+
+Exchange works out free and busy time from the primary calendar only. The Scheduling Assistant does not read a second calendar, even a shared one. A person who wants a class to block a meeting request must use `primary`.
+
+- A timed event has `showAs: "busy"`. An all-day event has `showAs: "free"`. The app sets `showAs` on a create and on a forced sync. After it reads an event, it keeps the value that the person set.
+- The app never deletes a primary calendar. `MicrosoftGraphCalendarService#delete_calendar` refuses a calendar id that a row tracks as primary. A `CourseCalendar` row with the `primary` placement does not start `MicrosoftGraphCalendarDeleteJob`.
+- Only a Microsoft calendar can be `primary`. The service account owns a Google course calendar, so the app cannot reach the person's main Google calendar.
+
+### Choose the placement
+
+- At the first connection: send `placement` with `POST /api/user/microsoft_calendar`. The value goes into the signed state, and the callback uses it.
+- Later: `PATCH /api/user/microsoft_calendar` with `placement`, or the button in the "Outlook Calendar" section of the dashboard. Both start `MicrosoftGraphCalendarPlacementJob` and answer before the move is complete. The API answers 202.
+
+### The move
+
+```mermaid
+flowchart TD
+    Start[MicrosoftGraphCalendarPlacementJob] --> Which{New placement}
+    Which -->|primary| ReadP[GET /me/calendar]
+    ReadP --> DelCal[DELETE the WIT Courses calendar]
+    DelCal --> DropRows[Delete the tracking rows]
+    Which -->|separate| DelEvents[DELETE each tracked event]
+    DelEvents --> NewCal[POST /me/calendars]
+    DropRows --> Save[Store the calendar id and the placement]
+    NewCal --> Save
+    Save --> Sync[GoogleCalendarSyncJob with force]
+    Sync --> Create[The sync creates the events in the new place]
+```
+
+- The job uses the concurrency group and key of `GoogleCalendarSyncJob`. A move and a sync for one person do not run at the same time.
+- A failed step can run again, and the job tries 5 times. The job reads the primary calendar id before it deletes anything. A delete of a missing event or calendar counts as done. A move to `separate` stops while an event delete has failed, because the sync would update the old event in the primary calendar.
+- One gap stays. If the process dies after Graph creates the separate calendar and before the row is saved, the next run creates a second, empty "WIT Courses" calendar. The app does not look for a calendar by name, because it could then adopt, and later delete, a calendar that the person made.
+- Edits that the person made to class events in Outlook do not survive a move. The dashboard tells the person this before the move.
+- On a disconnect with the `primary` placement, the app deletes each tracked event in the request, one Graph call for each event. A failed delete is logged, and that event stays in Outlook with its "WIT" category.
 
 ## Sync flow
 

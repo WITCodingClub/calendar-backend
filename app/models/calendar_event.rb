@@ -152,10 +152,11 @@ class CalendarEvent < ApplicationRecord
   # Records the remote event before the row is destroyed so we can delete the
   # live provider event after the transaction commits. Skipped when the
   # sync service already handled the remote delete, or when the whole calendar is
-  # being torn down (delete_calendar cleans up its events server-side).
+  # being torn down (delete_calendar cleans up its events server-side). A
+  # primary calendar is never deleted, so its events are deleted one by one.
   def capture_remote_event_ref
     return if skip_remote_deletion
-    return if destroyed_by_association&.foreign_key.to_s == "calendar_id"
+    return if destroyed_by_association&.foreign_key.to_s == "calendar_id" && !course_calendar&.primary_placement?
 
     calendar = course_calendar
     @remote_event_ref = {

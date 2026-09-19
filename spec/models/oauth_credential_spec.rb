@@ -202,6 +202,19 @@ RSpec.describe OauthCredential, type: :model do
       expect(CourseCalendar.exists?(oauth_credential_id: credential.id)).to be(false)
     end
 
+    it "deletes only the course events when they are in the primary calendar" do
+      calendar = credential.course_calendar
+      calendar.update!(placement: "primary", external_calendar_id: "AAMkSyntheticPrimaryCalendar")
+      create(:calendar_event, course_calendar: calendar, external_event_id: "AAMkSyntheticEvent1")
+      delete_event = stub_request(:delete, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/events/AAMkSyntheticEvent1").to_return(status: 204)
+
+      credential.destroy!
+
+      expect(delete_event).to have_been_requested
+      expect(a_request(:delete, %r{/me/calendars/})).not_to have_been_made
+      expect(OauthCredential.exists?(credential.id)).to be(false)
+    end
+
     it "still disconnects when Graph fails" do
       stub_request(:delete, calendar_url).to_return(status: 503, body: "{}")
 

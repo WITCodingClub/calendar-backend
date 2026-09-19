@@ -9,6 +9,10 @@ module MicrosoftGraph
   # MicrosoftGraphCalendarService#cancel_excluded_occurrences). Graph has one
   # reminder per event, so the earliest reminder wins. Colors are not part of
   # the payload: MicrosoftGraphCalendarService adds an Outlook category.
+  #
+  # A timed event shows as busy, so a class in the primary calendar blocks the
+  # time for people who check the person's availability. An all-day event, for
+  # example a holiday, shows as free, like Outlook's own default.
   class EventPayload
     GRAPH_TIME_ZONE = "Eastern Standard Time"
     LOCAL_TIME_ZONE = "America/New_York"
@@ -54,6 +58,7 @@ module MicrosoftGraph
         body:       { contentType: "text", content: data[:description].to_s },
         location:   { displayName: data[:location].to_s },
         isAllDay:   all_day?,
+        showAs:     all_day? ? "free" : "busy",
         start:      time_payload(start_value),
         end:        time_payload(end_value),
         recurrence: recurrence_payload

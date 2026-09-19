@@ -56,6 +56,20 @@ RSpec.describe "Connecting a Microsoft calendar", type: :request do
       expect(credential.course_calendar).to have_attributes(provider: "microsoft", external_calendar_id: "AAMkSyntheticCalendarNew")
     end
 
+    it "uses the primary calendar when the state asks for it" do
+      state = MicrosoftGraph::OauthState.generate(user_id: user.id, placement: "primary")
+      stub_request(:post, MicrosoftGraphHelpers::TOKEN_URL).to_return(graph_json_response("token_success"))
+      stub_request(:get, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/calendar").with(query: hash_including({}))
+        .to_return(graph_json_response("calendar_primary"))
+
+      get "/auth/microsoft_graph", params: { state: state }
+      get "/auth/microsoft_graph/callback", params: { state: state, code: "auth-code" }
+
+      expect(user.oauth_credentials.microsoft.sole.course_calendar)
+        .to have_attributes(placement: "primary", external_calendar_id: "AAMkSyntheticPrimaryCalendar")
+      expect(a_request(:post, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/calendars")).not_to have_been_made
+    end
+
     # A person can send their own start URL to someone else. That person's
     # mailbox must not land on the sender's account.
     it "refuses a Microsoft account that is not the person's own" do

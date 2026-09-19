@@ -10,13 +10,16 @@ module MicrosoftGraph
 
     module_function
 
-    def generate(user_id:)
+    # `placement` is where the person wants the course events: "separate" or
+    # "primary". It applies to a first connection only.
+    def generate(user_id:, placement: nil)
       payload = {
-        user_id: user_id,
-        purpose: PURPOSE,
-        nonce:   SecureRandom.hex(16),
-        exp:     TTL.from_now.to_i
-      }
+        user_id:   user_id,
+        purpose:   PURPOSE,
+        placement: (placement if CourseCalendar::PLACEMENTS.value?(placement.to_s)),
+        nonce:     SecureRandom.hex(16),
+        exp:       TTL.from_now.to_i
+      }.compact
 
       JWT.encode(payload, Rails.application.secret_key_base, "HS256")
     end
