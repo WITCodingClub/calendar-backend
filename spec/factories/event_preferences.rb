@@ -13,7 +13,7 @@
 #  visibility           :string
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
-#  color_id             :integer
+#  color_id             :string
 #  preferenceable_id    :bigint           not null
 #  user_id              :bigint           not null
 #

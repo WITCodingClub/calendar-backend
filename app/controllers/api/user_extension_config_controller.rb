@@ -39,15 +39,8 @@ module Api
       config.military_time = params[:military_time] unless params[:military_time].nil?
       config.advanced_editing = params[:advanced_editing] unless params[:advanced_editing].nil?
 
-      unless params[:default_color_lecture].nil?
-        witcc_color = GoogleColors.to_witcc_hex(params[:default_color_lecture])
-        config.default_color_lecture = witcc_color || params[:default_color_lecture]
-      end
-
-      unless params[:default_color_lab].nil?
-        witcc_color = GoogleColors.to_witcc_hex(params[:default_color_lab])
-        config.default_color_lab = witcc_color || params[:default_color_lab]
-      end
+      config.default_color_lecture = params[:default_color_lecture] unless params[:default_color_lecture].nil?
+      config.default_color_lab = params[:default_color_lab] unless params[:default_color_lab].nil?
 
       config.sync_university_events = params[:sync_university_events] unless params[:sync_university_events].nil?
       config.show_historic_terms = params[:show_historic_terms] unless params[:show_historic_terms].nil?

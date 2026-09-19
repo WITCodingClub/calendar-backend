@@ -28,7 +28,7 @@ class PreferenceResolver
       { "time" => "1", "type" => "hours", "method" => "popup" },
       { "time" => "15", "type" => "minutes", "method" => "popup" }
     ],
-    color_id: 11,
+    color_id: GoogleColors::TOMATO,
     visibility: "default"
   }.freeze
 
@@ -42,7 +42,7 @@ class PreferenceResolver
     description_template: "{{description}}",
     location_template: "{{location}}",
     reminder_settings: UNI_CAL_ALL_DAY_REMINDERS,
-    color_id: 8,
+    color_id: GoogleColors::GRAPHITE,
     visibility: "default"
   }.freeze
 

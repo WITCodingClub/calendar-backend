@@ -39,6 +39,45 @@ RSpec.describe GoogleCalendarService do
     end
   end
 
+  describe "#build_google_event colors" do
+    let(:labels) { instance_double(GoogleEventLabels, available?: true, label_id_for: "11111111-2222-3333-4444-555555555555") }
+
+    it "gives a custom color through the label for that color" do
+      google_event = service.send(:build_google_event, event_data.merge(color_id: "#1a2b3c"), labels)
+
+      expect(labels).to have_received(:label_id_for).with("#1a2b3c")
+      expect(google_event.event_label_id).to eq("11111111-2222-3333-4444-555555555555")
+      expect(google_event.color_id).to be_nil
+      expect(service.send(:label_options, google_event)).to eq(event_label_version: 1)
+    end
+
+    it "removes the label from an event with no color" do
+      google_event = service.send(:build_google_event, event_data.merge(color_id: nil), labels)
+
+      expect(google_event.event_label_id).to eq("")
+      expect(service.send(:label_options, google_event)).to eq(event_label_version: 1)
+    end
+
+    it "sends the nearest legacy color id when the calendar cannot take labels" do
+      allow(labels).to receive_messages(available?: false, label_id_for: nil)
+
+      google_event = service.send(:build_google_event, event_data.merge(color_id: "#ff0000"), labels)
+
+      expect(google_event.event_label_id).to be_nil
+      expect(google_event.color_id).to eq("11")
+      expect(service.send(:label_options, google_event)).to eq({})
+    end
+
+    it "sends the nearest legacy color id when the calendar has no room for another label" do
+      allow(labels).to receive(:label_id_for).and_return(nil)
+
+      google_event = service.send(:build_google_event, event_data.merge(color_id: "#0b8043"), labels)
+
+      expect(google_event.event_label_id).to be_nil
+      expect(google_event.color_id).to eq("10")
+    end
+  end
+
   describe "#update_event_in_calendar" do
     let(:user) { create(:user) }
     let(:service) { described_class.new(user) }
@@ -62,6 +101,34 @@ RSpec.describe GoogleCalendarService do
         having_attributes(summary: "MATH-1876-03 Calculus 2A", location: "Beatty Hall 420")
       )
       expect(db_event).to have_received(:update!).with(hash_including(summary: "MATH-1876-03 Calculus 2A"))
+    end
+
+    it "asks Google to read the event label" do
+      labels = instance_double(GoogleEventLabels, available?: true, label_id_for: "11111111-2222-3333-4444-555555555555")
+      allow(calendar_api).to receive(:update_event)
+
+      service.send(:update_event_in_calendar, calendar_api, google_calendar, db_event,
+                   event_with_prefs.merge(color_id: "#1a2b3c"), force: true, labels: labels)
+
+      expect(calendar_api).to have_received(:update_event).with(
+        "cal@group.calendar.google.com", "evt123",
+        having_attributes(event_label_id: "11111111-2222-3333-4444-555555555555"),
+        event_label_version: 1
+      )
+    end
+  end
+
+  describe "#apply_preferences_to_event" do
+    let(:user) { create(:user) }
+    let(:service) { described_class.new(user) }
+    let(:university_event) { create(:university_calendar_event) }
+
+    it "resolves the color to a hex color" do
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: 3)
+
+      prepared = service.send(:apply_preferences_to_event, university_event, event_data)
+
+      expect(prepared[:color_id]).to eq(GoogleColors::GRAPE)
     end
   end
 

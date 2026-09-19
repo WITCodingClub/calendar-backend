@@ -17,6 +17,27 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
   after { Flipper.disable(FlipperFlags::V1) }
 
   describe "PATCH /api/calendar_preferences/uni_cal" do
+    it "sets a custom color for every university event" do
+      patch "/api/calendar_preferences/uni_cal",
+            params: { calendar_preference: { color_id: "#1a2b3c" } },
+            headers: headers,
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(json["color_id"]).to eq("#1a2b3c")
+      expect(university_preference.color_id).to eq("#1a2b3c")
+    end
+
+    it "takes the legacy color id that old extension versions send" do
+      patch "/api/calendar_preferences/uni_cal",
+            params: { calendar_preference: { color_id: "8" } },
+            headers: headers,
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(json["color_id"]).to eq(GoogleColors::GRAPHITE)
+    end
+
     it "sets one reminder for every university event" do
       patch "/api/calendar_preferences/uni_cal",
             params: {

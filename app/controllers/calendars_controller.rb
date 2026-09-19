@@ -134,17 +134,9 @@ class CalendarsController < ApplicationController
 
           e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
 
-          color_hex = if prefs[:color_id].present?
-                        get_google_color_hex(prefs[:color_id])
-          elsif meeting_time.event_color.present?
-                        meeting_time.event_color
-          end
-
-          if color_hex
-            e.color = "##{color_hex}"
-            e.append_custom_property("X-APPLE-CALENDAR-COLOR", "##{color_hex}")
-            e.append_custom_property("COLOR", color_hex.to_s)
-          end
+          color_hex = GoogleColors.normalize(prefs[:color_id]) || meeting_time.event_color
+          e.color = color_hex
+          e.append_custom_property("X-APPLE-CALENDAR-COLOR", color_hex)
 
           e.dtstamp = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
 
@@ -367,13 +359,5 @@ class CalendarsController < ApplicationController
     end
 
     nil
-  end
-
-  def get_google_color_hex(color_id)
-    {
-      1 => "A4BDFC", 2 => "7AE7BF", 3 => "DBADFF", 4 => "FF887C",
-      5 => "FBD75B", 6 => "FFB878", 7 => "46D6DB", 8 => "E1E1E1",
-      9 => "5484ED", 10 => "51B749", 11 => "DC2127"
-    }[color_id]
   end
 end
