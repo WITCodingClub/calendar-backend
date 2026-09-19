@@ -57,6 +57,43 @@ RSpec.describe Faculty, type: :model do
   it { is_expected.to validate_presence_of(:last_name) }
   it { is_expected.to validate_uniqueness_of(:rmp_id).allow_nil }
 
+  describe "#similar_instructors" do
+    let(:term) { create(:term) }
+
+    def teaching_faculty(angle)
+      person = give_embedding(create(:faculty), angle)
+      create(:course, term: term).faculties << person
+      person
+    end
+
+    it "returns the closest instructors who teach, nearest first" do
+      source = teaching_faculty(0.0)
+      near   = teaching_faculty(0.10)
+      far    = teaching_faculty(0.90)
+
+      expect(source.similar_instructors).to eq([ near, far ])
+    end
+
+    it "leaves out people who teach nothing" do
+      source = teaching_faculty(0.0)
+      give_embedding(create(:faculty), 0.01)
+
+      expect(source.similar_instructors).to be_empty
+    end
+
+    it "stops at the limit" do
+      source = teaching_faculty(0.0)
+      teaching_faculty(0.10)
+      teaching_faculty(0.20)
+
+      expect(source.similar_instructors(limit: 1).length).to eq(1)
+    end
+
+    it "returns nothing until the instructor has a vector" do
+      expect(create(:faculty).similar_instructors).to be_empty
+    end
+  end
+
   describe "#embedding_text" do
     it "reads the directory facts a student would search by" do
       faculty = create(:faculty, first_name: "Ada", last_name: "Lovelace", display_name: nil,

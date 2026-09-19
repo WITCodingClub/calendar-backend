@@ -135,6 +135,20 @@ class Course < ApplicationRecord
           .where("LEFT(link_identifier, 1) <> ?", link_slot)
   end
 
+  # Sections that teach something close to this one, nearest first.
+  #
+  # Same term, because a student picks from what is offered now. The other
+  # sections of this same course are left out: they carry the same words, so
+  # they would fill the list with what the student is already looking at.
+  def similar_sections(limit: Embeddable::DEFAULT_SIMILAR_LIMIT)
+    return Course.none if embedding.nil?
+
+    Course.nearest_to(embedding, limit: limit)
+          .active
+          .where(term_id: term_id)
+          .where.not(subject: subject, course_number: course_number)
+  end
+
   # Returns deduplicated meeting times, preferring non-TBD locations when there are duplicates.
   def filtered_meeting_times
     mts = meeting_times.loaded? ? meeting_times : meeting_times.includes(rooms: :building)
