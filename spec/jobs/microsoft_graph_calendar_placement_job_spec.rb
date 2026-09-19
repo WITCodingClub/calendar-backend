@@ -25,6 +25,26 @@ RSpec.describe MicrosoftGraphCalendarPlacementJob, :microsoft_graph do
       expect(service).to have_received(:change_placement).with("primary")
     end
 
+    it "tries again after a Graph failure, and starts no sync" do
+      credential
+      service = instance_double(MicrosoftGraphCalendarService, credential: credential)
+      allow(service).to receive(:change_placement).and_raise(MicrosoftGraph::Error, "synthetic failure")
+      allow(MicrosoftGraphCalendarService).to receive(:new).with(user).and_return(service)
+
+      expect { described_class.perform_now(user, "separate") }
+        .to have_enqueued_job(described_class).with(user, "separate")
+      expect(GoogleCalendarSyncJob).not_to have_been_enqueued
+    end
+
+    it "drops the job when the person must sign in again" do
+      credential
+      service = instance_double(MicrosoftGraphCalendarService, credential: credential)
+      allow(service).to receive(:change_placement).and_raise(MicrosoftGraph::AuthError, "synthetic failure")
+      allow(MicrosoftGraphCalendarService).to receive(:new).with(user).and_return(service)
+
+      expect { described_class.perform_now(user, "separate") }.not_to have_enqueued_job(described_class)
+    end
+
     it "does nothing for a person with no Microsoft account" do
       expect { described_class.perform_now(user, "primary") }.not_to have_enqueued_job(GoogleCalendarSyncJob)
     end
