@@ -503,7 +503,7 @@ module CourseScheduleSyncable
 
     user_config = user_extension_config
     if user_config&.sync_university_events
-      categories = (user_config.university_event_categories || []) - [ "holiday" ]
+      categories = user_config.synced_university_event_categories
       unless categories.empty?
         UniversityCalendarEvent.by_categories(categories).merge(university_event_scope(time_scope)).find_each do |event|
           events << {
@@ -560,7 +560,7 @@ module CourseScheduleSyncable
     user_config = user_extension_config
     return ids unless user_config&.sync_university_events
 
-    categories = (user_config.university_event_categories || []) - [ "holiday" ]
+    categories = user_config.synced_university_event_categories
     return ids if categories.empty?
 
     ids | candidates.by_categories(categories).ids

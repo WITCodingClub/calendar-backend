@@ -46,7 +46,7 @@
   <div class="m3-card overflow-hidden">
     <div class="px-5 py-4 border-b border-outline-variant">
       <h2 class="text-base font-semibold text-on-surface">University Calendar Events</h2>
-      <p class="text-xs text-on-surface-variant mt-0.5">Holidays, deadlines, and other campus events.</p>
+      <p class="text-xs text-on-surface-variant mt-0.5">Holidays, deadlines, and other university events.</p>
     </div>
     <%= form_with url: university_events_dashboard_calendar_preferences_path, method: :patch, class: "px-5 py-4 space-y-4 border-b border-outline-variant" do %>
       <label class="flex items-start gap-3 cursor-pointer">
@@ -64,7 +64,7 @@
         <legend class="m3-label">Categories</legend>
         <%= hidden_field_tag "university_event_categories[]", "", id: nil %>
         <% selected_categories = @extension_config.university_event_categories || [] %>
-        <% (UniversityCalendarEvent::CATEGORIES - [ "holiday" ]).each do |category| %>
+        <% (UniversityCalendarEvent::SYNCABLE_CATEGORIES - [ "holiday" ]).each do |category| %>
           <label class="flex items-start gap-3 cursor-pointer">
             <%= check_box_tag "university_event_categories[]", category, selected_categories.include?(category),
                 id: "university_event_category_#{category}", class: "mt-1 accent-primary" %>

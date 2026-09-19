@@ -50,11 +50,22 @@ RSpec.describe UniversityCalendarEvent, type: :model do
   it { is_expected.to validate_presence_of(:end_time) }
   it { is_expected.to validate_inclusion_of(:category).in_array(UniversityCalendarEvent::CATEGORIES).allow_blank }
 
+  describe "SYNCABLE_CATEGORIES" do
+    it "is a subset of the stored categories" do
+      expect(UniversityCalendarEvent::CATEGORIES).to include(*UniversityCalendarEvent::SYNCABLE_CATEGORIES)
+    end
+
+    it "leaves out the cluttered feed categories" do
+      expect(UniversityCalendarEvent::SYNCABLE_CATEGORIES).not_to include("campus_event", "meeting", "exhibit", "announcement", "other")
+    end
+  end
+
   describe ".category_description" do
-    it "describes every category" do
-      descriptions = UniversityCalendarEvent::CATEGORIES.map { |category| described_class.category_description(category) }
+    it "gives every syncable category its own description" do
+      descriptions = UniversityCalendarEvent::SYNCABLE_CATEGORIES.map { |category| described_class.category_description(category) }
 
       expect(descriptions).to all(be_present)
+      expect(descriptions).to eq(descriptions.uniq)
     end
 
     it "returns the description of a known category" do

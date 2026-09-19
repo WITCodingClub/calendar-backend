@@ -4,7 +4,7 @@
 # names and the labels are bounded, so a client that sends junk cannot grow the
 # number of Prometheus series without limit. docs/metrics.md lists the events.
 module ExtensionUsage
-  # Keep in sync with TELEMETRY_EVENTS in the extension (client/src/lib/telemetry.ts).
+  # Keep in sync with TELEMETRY_EVENTS in the extension (src/lib/telemetry.ts).
   EVENTS = %w[
     sign_in_google_succeeded
     sign_in_google_failed
@@ -16,6 +16,7 @@ module ExtensionUsage
     calendar_choice_google
     calendar_choice_other
     google_calendar_connected
+    outlook_calendar_connected
     schedule_import_succeeded
     schedule_import_failed
     calendar_link_copied

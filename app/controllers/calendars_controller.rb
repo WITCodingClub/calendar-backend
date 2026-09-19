@@ -185,7 +185,7 @@ class CalendarsController < ApplicationController
     user_config = @user.user_extension_config
     return unless user_config&.sync_university_events
 
-    categories = (user_config.university_event_categories || []) - [ "holiday" ]
+    categories = user_config.synced_university_event_categories
     return if categories.empty?
 
     if min_date && max_date
