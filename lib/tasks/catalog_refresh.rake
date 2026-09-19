@@ -78,7 +78,7 @@ namespace :catalog do
 
       puts "Orphaning Google Calendar events..."
       meeting_time_ids = Course::MeetingTime.where(course_id: course_ids_for_term).pluck(:id)
-      GoogleCalendarEvent.where(meeting_time_id: meeting_time_ids).update_all(meeting_time_id: nil)
+      CalendarEvent.where(meeting_time_id: meeting_time_ids).update_all(meeting_time_id: nil)
 
       puts "Deleting meeting times..."
       Course::MeetingTime.where(course_id: course_ids_for_term).delete_all

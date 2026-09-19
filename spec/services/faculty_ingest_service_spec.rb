@@ -109,7 +109,7 @@ RSpec.describe FacultyIngestService do
     user = create(:user)
     create(:enrollment, user: user, course: course)
     credential = create(:oauth_credential, user: user)
-    create(:google_calendar, oauth_credential: credential)
+    create(:course_calendar, oauth_credential: credential)
     user.update_column(:calendar_needs_sync, false)
 
     described_class.call(course: course, raw_faculty: [ sanderson ])

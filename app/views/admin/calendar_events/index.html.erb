@@ -19,13 +19,13 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-outline-variant">
-          <% @google_calendar_events.each do |event| %>
+          <% @calendar_events.each do |event| %>
             <tr>
               <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-on-surface font-mono"><%= event.google_event_id&.first(20) || "N/A" %>...</div>
+                <div class="text-sm text-on-surface font-mono"><%= event.external_event_id&.first(20) || "N/A" %>...</div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
-                <%= event.google_calendar&.summary || "N/A" %>
+                <%= event.course_calendar&.summary || "N/A" %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
                 <%= event.meeting_time_id || "N/A" %>
@@ -41,9 +41,9 @@
         </tbody>
       </table>
     </div>
-    <% if @google_calendar_events.respond_to?(:total_pages) %>
+    <% if @calendar_events.respond_to?(:total_pages) %>
       <div class="px-6 py-4 border-t border-outline-variant bg-surface-container-low">
-        <%= paginate @google_calendar_events %>
+        <%= paginate @calendar_events %>
       </div>
     <% end %>
   </div>

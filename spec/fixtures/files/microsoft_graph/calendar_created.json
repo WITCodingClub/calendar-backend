@@ -1,0 +1,16 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('00000000-0000-0000-0000-000000000001')/calendars/$entity",
+  "id": "AAMkSyntheticCalendarNew",
+  "name": "[TEST] WIT Courses",
+  "color": "auto",
+  "hexColor": "",
+  "isDefaultCalendar": false,
+  "canShare": true,
+  "canViewPrivateItems": true,
+  "canEdit": true,
+  "allowedOnlineMeetingProviders": ["teamsForBusiness"],
+  "defaultOnlineMeetingProvider": "teamsForBusiness",
+  "isTallyingResponses": false,
+  "isRemovable": true,
+  "owner": { "name": "Test Student", "address": "student@example.edu" }
+}

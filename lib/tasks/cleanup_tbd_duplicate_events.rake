@@ -9,7 +9,7 @@ namespace :calendar do
     service      = GoogleCalendarService.new
     calendar_svc = service.send(:service_account_calendar_service)
 
-    users_with_calendars = User.joins(:google_calendars).distinct
+    users_with_calendars = User.joins(:course_calendars).distinct
     total                = users_with_calendars.count
     puts "Found #{total} users with calendars\n\n"
 
@@ -18,10 +18,10 @@ namespace :calendar do
     error_count      = 0
 
     users_with_calendars.find_each do |user|
-      google_calendar = user.google_credential&.google_calendar
-      next unless google_calendar
+      course_calendar = user.google_credential&.course_calendar
+      next unless course_calendar
 
-      calendar_id = google_calendar.google_calendar_id
+      calendar_id = course_calendar.external_calendar_id
 
       begin
         result = calendar_svc.list_events(
@@ -47,7 +47,7 @@ namespace :calendar do
             begin
               calendar_svc.delete_event(calendar_id, event.id)
 
-              db_event = google_calendar.google_calendar_events.find_by(google_event_id: event.id)
+              db_event = course_calendar.calendar_events.find_by(external_event_id: event.id)
               db_event&.destroy
 
               user_removed  += 1
@@ -55,7 +55,7 @@ namespace :calendar do
               print "."
             rescue Google::Apis::ClientError => e
               if e.status_code == 404
-                db_event = google_calendar.google_calendar_events.find_by(google_event_id: event.id)
+                db_event = course_calendar.calendar_events.find_by(external_event_id: event.id)
                 db_event&.destroy
                 user_removed  += 1
                 total_removed += 1

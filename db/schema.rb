@@ -124,6 +124,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_220000) do
     t.check_constraint "length(TRIM(BOTH FROM abbreviation)) > 0 AND length(TRIM(BOTH FROM name)) > 0", name: "buildings_abbreviation_and_name_not_blank"
   end
 
+  create_table "calendar_events", force: :cascade do |t|
+    t.bigint "calendar_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "end_time"
+    t.string "event_data_hash"
+    t.string "external_event_id", null: false
+    t.string "external_ical_uid"
+    t.bigint "final_exam_id"
+    t.datetime "last_synced_at"
+    t.string "location"
+    t.bigint "meeting_time_id"
+    t.text "recurrence"
+    t.datetime "start_time"
+    t.string "summary"
+    t.bigint "university_calendar_event_id"
+    t.datetime "updated_at", null: false
+    t.jsonb "user_edited_fields"
+    t.index ["calendar_id", "final_exam_id"], name: "idx_calendar_events_unique_final_exam", unique: true, where: "(final_exam_id IS NOT NULL)"
+    t.index ["calendar_id", "meeting_time_id"], name: "idx_calendar_events_on_calendar_id_meeting_time_id"
+    t.index ["calendar_id", "meeting_time_id"], name: "idx_calendar_events_unique_meeting_time", unique: true, where: "(meeting_time_id IS NOT NULL)"
+    t.index ["calendar_id", "university_calendar_event_id"], name: "idx_calendar_events_unique_university", unique: true, where: "(university_calendar_event_id IS NOT NULL)"
+    t.index ["calendar_id"], name: "index_calendar_events_on_calendar_id"
+    t.index ["external_event_id"], name: "index_calendar_events_on_external_event_id"
+    t.index ["external_ical_uid"], name: "index_calendar_events_on_external_ical_uid"
+    t.index ["final_exam_id"], name: "index_calendar_events_on_final_exam_id"
+    t.index ["last_synced_at"], name: "index_calendar_events_on_last_synced_at"
+    t.index ["meeting_time_id"], name: "index_calendar_events_on_meeting_time_id"
+    t.index ["university_calendar_event_id"], name: "index_calendar_events_on_university_calendar_event_id"
+  end
+
   create_table "calendar_preferences", force: :cascade do |t|
     t.string "color_id"
     t.datetime "created_at", null: false
@@ -139,6 +169,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_220000) do
     t.index ["user_id", "scope", "event_type"], name: "index_calendar_prefs_on_user_scope_type", unique: true
     t.index ["user_id"], name: "index_calendar_preferences_on_user_id"
     t.index ["user_id"], name: "index_calendar_prefs_one_global_per_user", unique: true, where: "(scope = 0)"
+  end
+
+  create_table "calendars", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "external_calendar_id", null: false
+    t.datetime "last_synced_at"
+    t.bigint "oauth_credential_id", null: false
+    t.string "provider", default: "google", null: false
+    t.string "summary"
+    t.string "time_zone"
+    t.datetime "updated_at", null: false
+    t.index ["last_synced_at"], name: "index_calendars_on_last_synced_at"
+    t.index ["oauth_credential_id"], name: "index_calendars_on_oauth_credential_id_unique", unique: true
+    t.index ["provider", "external_calendar_id"], name: "index_calendars_on_provider_and_external_calendar_id", unique: true
   end
 
   create_table "console1984_commands", force: :cascade do |t|
@@ -231,7 +276,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_220000) do
     t.index ["term_id", "subject", "course_number", "link_identifier"], name: "index_courses_on_course_and_link_identifier"
     t.index ["term_id"], name: "index_courses_on_term_id"
     t.check_constraint "credit_hours IS NULL OR credit_hours > 0", name: "courses_credit_hours_positive"
-    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying, 'HYB'::character varying, 'IND'::character varying, 'LAB'::character varying, 'LEC'::character varying, 'ONL'::character varying, 'ONB'::character varying, 'OLB'::character varying, 'OLC'::character varying, 'RLB'::character varying, 'RLC'::character varying, 'SAB'::character varying, 'SAD'::character varying]::text[])", name: "courses_schedule_type_valid"
+    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying::text, 'HYB'::character varying::text, 'IND'::character varying::text, 'LAB'::character varying::text, 'LEC'::character varying::text, 'ONL'::character varying::text, 'ONB'::character varying::text, 'OLB'::character varying::text, 'OLC'::character varying::text, 'RLB'::character varying::text, 'RLC'::character varying::text, 'SAB'::character varying::text, 'SAD'::character varying::text])", name: "courses_schedule_type_valid"
     t.check_constraint "seats_available IS NULL OR seats_capacity IS NULL OR seats_available <= seats_capacity", name: "courses_seats_available_le_capacity"
     t.check_constraint "seats_capacity IS NULL OR seats_capacity >= 0", name: "courses_seats_capacity_non_negative"
     t.check_constraint "start_date IS NULL OR end_date IS NULL OR end_date >= start_date", name: "courses_end_date_on_or_after_start_date"
@@ -388,48 +433,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_220000) do
     t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
     t.index ["requester_id", "status"], name: "index_friendships_on_requester_id_and_status"
     t.index ["requester_id"], name: "index_friendships_on_requester_id"
-  end
-
-  create_table "google_calendar_events", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.datetime "end_time"
-    t.string "event_data_hash"
-    t.bigint "final_exam_id"
-    t.bigint "google_calendar_id", null: false
-    t.string "google_event_id", null: false
-    t.datetime "last_synced_at"
-    t.string "location"
-    t.bigint "meeting_time_id"
-    t.text "recurrence"
-    t.datetime "start_time"
-    t.string "summary"
-    t.bigint "university_calendar_event_id"
-    t.datetime "updated_at", null: false
-    t.jsonb "user_edited_fields"
-    t.index ["final_exam_id"], name: "index_google_calendar_events_on_final_exam_id"
-    t.index ["google_calendar_id", "final_exam_id"], name: "idx_gcal_events_unique_final_exam", unique: true, where: "(final_exam_id IS NOT NULL)"
-    t.index ["google_calendar_id", "meeting_time_id"], name: "idx_gcal_events_unique_meeting_time", unique: true, where: "(meeting_time_id IS NOT NULL)"
-    t.index ["google_calendar_id", "meeting_time_id"], name: "idx_on_google_calendar_id_meeting_time_id"
-    t.index ["google_calendar_id", "university_calendar_event_id"], name: "idx_gcal_events_unique_university", unique: true, where: "(university_calendar_event_id IS NOT NULL)"
-    t.index ["google_calendar_id"], name: "index_google_calendar_events_on_google_calendar_id"
-    t.index ["google_event_id"], name: "index_google_calendar_events_on_google_event_id"
-    t.index ["last_synced_at"], name: "index_google_calendar_events_on_last_synced_at"
-    t.index ["meeting_time_id"], name: "index_google_calendar_events_on_meeting_time_id"
-    t.index ["university_calendar_event_id"], name: "index_google_calendar_events_on_university_calendar_event_id"
-  end
-
-  create_table "google_calendars", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.text "description"
-    t.string "google_calendar_id", null: false
-    t.datetime "last_synced_at"
-    t.bigint "oauth_credential_id", null: false
-    t.string "summary"
-    t.string "time_zone"
-    t.datetime "updated_at", null: false
-    t.index ["google_calendar_id"], name: "index_google_calendars_on_google_calendar_id", unique: true
-    t.index ["last_synced_at"], name: "index_google_calendars_on_last_synced_at"
-    t.index ["oauth_credential_id"], name: "index_google_calendars_on_oauth_credential_id_unique", unique: true
   end
 
   create_table "oauth_access_grants", force: :cascade do |t|
@@ -994,7 +997,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_220000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "calendar_events", "calendars"
+  add_foreign_key "calendar_events", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "calendar_preferences", "users"
+  add_foreign_key "calendars", "oauth_credentials"
   add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "course_meeting_time_rooms", "rooms"
   add_foreign_key "course_meeting_times", "courses"
@@ -1011,9 +1017,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_220000) do
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
   add_foreign_key "friendships", "users", column: "addressee_id"
   add_foreign_key "friendships", "users", column: "requester_id"
-  add_foreign_key "google_calendar_events", "course_meeting_times", column: "meeting_time_id"
-  add_foreign_key "google_calendar_events", "google_calendars"
-  add_foreign_key "google_calendars", "oauth_credentials"
   add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"
   add_foreign_key "oauth_access_grants", "users", column: "resource_owner_id"
   add_foreign_key "oauth_access_tokens", "oauth_applications", column: "application_id"

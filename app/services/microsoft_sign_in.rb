@@ -18,12 +18,10 @@ module MicrosoftSignIn
 
   module_function
 
+  # One Entra registration serves the sign-in and the calendar provider, so
+  # MicrosoftGraph.config owns the settings.
   def config
-    {
-      client_id:     ENV["MICROSOFT_CLIENT_ID"].presence,
-      client_secret: ENV["MICROSOFT_CLIENT_SECRET"].presence,
-      tenant_id:     ENV["MICROSOFT_TENANT_ID"].presence || "organizations"
-    }
+    MicrosoftGraph.config.slice(:client_id, :client_secret, :tenant_id)
   end
 
   # Sign-in needs one tenant id, not "organizations". The strategy checks the

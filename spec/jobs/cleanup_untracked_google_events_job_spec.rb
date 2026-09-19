@@ -5,11 +5,11 @@ require "rails_helper"
 RSpec.describe CleanupUntrackedGoogleEventsJob do
   let(:user)       { create(:user) }
   let(:credential) { create(:oauth_credential, user: user) }
-  let(:calendar)   { create(:google_calendar, oauth_credential: credential, google_calendar_id: "cal_123") }
+  let(:calendar)   { create(:course_calendar, oauth_credential: credential, external_calendar_id: "cal_123") }
   let(:meeting_time) { create(:course_meeting_time) }
 
   let!(:tracked_event) do
-    create(:google_calendar_event, google_calendar: calendar, meeting_time: meeting_time, google_event_id: "tracked_1")
+    create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time, external_event_id: "tracked_1")
   end
 
   let(:fake_service) { instance_double(Google::Apis::CalendarV3::CalendarService) }
@@ -46,7 +46,7 @@ RSpec.describe CleanupUntrackedGoogleEventsJob do
 
     expect(result[:deleted]).to eq(1)
     expect(result[:errors]).to eq(0)
-    expect(GoogleCalendarEvent.exists?(tracked_event.id)).to be(true)
+    expect(CalendarEvent.exists?(tracked_event.id)).to be(true)
   end
 
   it "does not delete anything in dry run mode" do

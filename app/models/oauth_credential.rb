@@ -33,23 +33,34 @@ class OauthCredential < ApplicationRecord
   set_public_id_prefix :oac
 
   belongs_to :user
-  has_one :google_calendar, dependent: :destroy
+  has_one :course_calendar, dependent: :destroy
   has_many :security_events, dependent: :nullify
 
   # prepend: the dependent destroy above is a before_destroy callback too, and
   # it deletes the calendar row that the removal has to look up.
   before_destroy :revoke_calendar_access, prepend: true
 
+  # A Microsoft calendar lives in the person's mailbox, and only this
+  # credential's token can delete it. `has_one :course_calendar, dependent:
+  # :destroy` runs before any before_destroy declared after it, and the
+  # MicrosoftGraphCalendarDeleteJob it enqueues runs after the credential is
+  # gone. So this callback is prepended and deletes the calendar now.
+  before_destroy :delete_microsoft_calendar, prepend: true, if: :microsoft?
+
   # Disconnecting the Google account that vouched for this person should not
-  # leave tokens it produced still working.
-  after_destroy :revoke_sessions
+  # leave tokens it produced still working. A Microsoft credential only syncs a
+  # calendar and never signs anyone in, so removing it keeps the sessions.
+  after_destroy :revoke_sessions, if: :google?
 
   # Every way to disconnect an account (API, dashboard, admin, RISC, deleting
   # the user) ends the Google grant too. After commit, so a rolled back destroy
   # keeps its grant, and in a job, so the request does not wait for Google.
-  after_destroy_commit :enqueue_google_token_revocation
+  # Google only: Google's revoke endpoint cannot end a Microsoft grant.
+  after_destroy_commit :enqueue_google_token_revocation, if: :google?
 
-  validates :provider, presence: true, inclusion: { in: %w[google] }
+  PROVIDERS = %w[google microsoft].freeze
+
+  validates :provider, presence: true, inclusion: { in: PROVIDERS }
   validates :uid, presence: true, uniqueness: { scope: :provider }
   validates :access_token, presence: true
   validates :email, presence: true, format: { with: /\A[^@\s]+@[^@\s]+\z/, message: "must be a valid email address" }
@@ -60,11 +71,12 @@ class OauthCredential < ApplicationRecord
 
   scope :for_provider, ->(provider) { where(provider: provider) }
   scope :google,        -> { for_provider("google") }
+  scope :microsoft,     -> { for_provider("microsoft") }
   scope :revoked,       -> { where("metadata->>'token_revoked' = 'true'") }
   scope :needs_refresh, -> { where(updated_at: ...7.days.ago).where.not(refresh_token: nil) }
 
   def course_calendar_id
-    google_calendar&.google_calendar_id
+    course_calendar&.external_calendar_id
   end
 
   def token_expired?
@@ -81,11 +93,39 @@ class OauthCredential < ApplicationRecord
 
   private
 
+  def google?
+    provider == "google"
+  end
+
+  def microsoft?
+    provider == "microsoft"
+  end
+
+  # A Graph failure must not block the disconnect, so it is logged only.
+  def delete_microsoft_calendar
+    calendar = course_calendar
+    return if calendar.nil? || calendar.external_calendar_id.blank?
+
+    MicrosoftGraphCalendarService.new(user, credential: self).delete_calendar(calendar.external_calendar_id)
+  rescue => e
+    Rails.logger.error({ message: "Could not delete the Outlook calendar on disconnect",
+                         oauth_credential_id: id, error: e.class.name }.to_json)
+  ensure
+    # The delete job would find no credential, so it is not enqueued.
+    calendar&.skip_remote_deletion = true
+  end
+
+  # Only Google calendars are shared into the person's calendar list. A
+  # Microsoft calendar lives in the person's own mailbox, so there is nothing
+  # to unshare.
+  #
   # The course calendar belongs to one credential, but it is shared with every
   # Google account the person connects. So look it up for the user, not only
   # on this credential.
   def revoke_calendar_access
-    calendar_id = GoogleCalendar.for_user(user).pick(:google_calendar_id) if user
+    return unless google?
+
+    calendar_id = CourseCalendar.google.for_user(user).pick(:external_calendar_id) if user
     return if calendar_id.blank?
 
     service = GoogleCalendarService.new(user)

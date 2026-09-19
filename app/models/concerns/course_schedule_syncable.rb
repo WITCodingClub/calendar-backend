@@ -4,7 +4,7 @@ module CourseScheduleSyncable
   extend ActiveSupport::Concern
 
   def sync_course_schedule(force: false, backfill_historical: force)
-    service = GoogleCalendarService.new(self)
+    services = CalendarProviders.services_for(self)
 
     # Build events from enrollments - each course can have multiple meeting times
     # Each meeting_time now represents a single day of the week
@@ -87,7 +87,7 @@ module CourseScheduleSyncable
     university_events = build_university_events_for_sync(time_scope: :future)
     events.concat(university_events)
 
-    result = service.update_calendar_events(events, force: force)
+    result = CalendarProviders.merge_stats(services.map { |service| service.update_calendar_events(events, force: force) })
 
     # Remove past university events the user no longer wants. update_calendar_events
     # keeps every past event, so this is the only place they get deleted.
@@ -111,7 +111,7 @@ module CourseScheduleSyncable
 
   # Intelligent partial sync - only sync specific enrollments
   def sync_enrollments(enrollment_ids, force: false)
-    service = GoogleCalendarService.new(self)
+    services = CalendarProviders.services_for(self)
     events = []
 
     enrollments.where(id: enrollment_ids).includes(course: [ meeting_times: [ rooms: :building ] ]).find_each do |enrollment|
@@ -163,7 +163,7 @@ module CourseScheduleSyncable
     end
 
     # Only sync these specific events
-    result = service.update_specific_events(events, force: force)
+    result = CalendarProviders.merge_stats(services.map { |service| service.update_specific_events(events, force: force) })
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
@@ -180,7 +180,7 @@ module CourseScheduleSyncable
 
   # Sync a single meeting time immediately (for preference changes)
   def sync_meeting_time(meeting_time_id, force: true)
-    service = GoogleCalendarService.new(self)
+    services = CalendarProviders.services_for(self)
     meeting_time = Course::MeetingTime.includes(course: [ :faculties ], rooms: :building).find_by(id: meeting_time_id)
     return unless meeting_time
     return if meeting_time.day_of_week.blank?
@@ -227,7 +227,7 @@ module CourseScheduleSyncable
     }
 
     # Sync just this one event
-    result = service.update_specific_events([ event ], force: force)
+    result = CalendarProviders.merge_stats(services.map { |service| service.update_specific_events([ event ], force: force) })
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
@@ -530,17 +530,22 @@ module CourseScheduleSyncable
   # Holidays stay, because every user gets them.
   # @return [Integer] the number of events deleted
   def prune_unwanted_university_events
-    google_calendar = GoogleCalendar.for_user(self).first
-    return 0 unless google_calendar
+    CalendarProviders.services_for(self).sum { |service| prune_unwanted_university_events_with(service) }
+  end
 
-    synced = google_calendar.google_calendar_events.university_events_only.to_a
+  # @param service [#course_calendar, #delete_events] one provider service
+  def prune_unwanted_university_events_with(service)
+    course_calendar = service.course_calendar
+    return 0 unless course_calendar
+
+    synced = course_calendar.calendar_events.university_events_only.to_a
     return 0 if synced.empty?
 
     wanted   = wanted_university_event_ids(synced.map(&:university_calendar_event_id).uniq).to_set
     unwanted = synced.reject { |event| wanted.include?(event.university_calendar_event_id) }
     return 0 if unwanted.empty?
 
-    GoogleCalendarService.new(self).delete_events(unwanted)
+    service.delete_events(unwanted)
   end
 
   # Of the given university event ids, the ones this user's settings still want.
@@ -595,17 +600,17 @@ module CourseScheduleSyncable
   # Backfill past finals and university events — called by GoogleCalendarHistoricalSyncJob.
   # Uses update_specific_events (upsert only, no deletions) since past events are stable.
   def sync_historical_events(force: false)
-    service = GoogleCalendarService.new(self)
+    services = CalendarProviders.services_for(self)
     events  = build_finals_events_for_sync(time_scope: :past)
     events.concat(build_university_events_for_sync(time_scope: :past))
     return if events.empty?
 
-    service.update_specific_events(events, force: force)
+    CalendarProviders.merge_stats(services.map { |service| service.update_specific_events(events, force: force) })
   end
 
   # Sync a single final exam immediately (for preference changes)
   def sync_final_exam(final_exam_id, force: true)
-    service = GoogleCalendarService.new(self)
+    services = CalendarProviders.services_for(self)
     final_exam = ::FinalExam.includes(course: :faculties).find_by(id: final_exam_id)
     return unless final_exam
     return unless final_exam.start_datetime && final_exam.end_datetime
@@ -621,7 +626,7 @@ module CourseScheduleSyncable
       recurrence: nil
     }
 
-    result = service.update_specific_events([ event ], force: force)
+    result = CalendarProviders.merge_stats(services.map { |service| service.update_specific_events([ event ], force: force) })
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
@@ -633,16 +638,16 @@ module CourseScheduleSyncable
 
   # Add a method to handle calendar deletion/cleanup
   def delete_course_calendar
-    google_calendar = GoogleCalendar.for_user(self).first
-    return if google_calendar.blank?
+    course_calendar = CourseCalendar.google.for_user(self).first
+    return if course_calendar.blank?
 
-    service = GoogleCalendarService.new(self)
-    service_account_service = service.send(:service_account_calendar_service)
+    google_service = GoogleCalendarService.new(self)
+    service_account_service = google_service.send(:service_account_calendar_service)
 
-    service_account_service.delete_calendar(google_calendar.google_calendar_id)
+    service_account_service.delete_calendar(course_calendar.external_calendar_id)
 
-    # Destroy the GoogleCalendar record (this will cascade delete all associated events)
-    google_calendar.destroy
+    # Destroy the CourseCalendar record (this will cascade delete all associated events)
+    course_calendar.destroy
   rescue Google::Apis::Error => e
     Rails.logger.error "Failed to delete calendar: #{e.message}"
   end

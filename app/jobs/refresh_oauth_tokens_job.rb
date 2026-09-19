@@ -6,7 +6,7 @@ class RefreshOauthTokensJob < ApplicationJob
   REFRESH_THRESHOLD = 7.days
 
   def perform
-    credentials_to_refresh = OauthCredential.google
+    credentials_to_refresh = OauthCredential.where(provider: refreshable_providers)
                                             .where(updated_at: ...REFRESH_THRESHOLD.ago)
                                             .where.not(refresh_token: nil)
 
@@ -34,7 +34,14 @@ class RefreshOauthTokensJob < ApplicationJob
 
   private
 
+  # Microsoft credentials refresh only while the app has an Entra client.
+  def refreshable_providers
+    MicrosoftGraph.configured? ? %w[google microsoft] : %w[google]
+  end
+
   def refresh_credential(credential)
+    return refresh_microsoft_credential(credential) if credential.provider == "microsoft"
+
     google_credentials = Google::Auth::UserRefreshCredentials.new(
       client_id:     Rails.application.credentials.dig(:google, :client_id),
       client_secret: Rails.application.credentials.dig(:google, :client_secret),
@@ -63,6 +70,27 @@ class RefreshOauthTokensJob < ApplicationJob
     :revoked
   rescue => e
     Rails.logger.error "[RefreshOauthTokensJob] Failed to refresh credential #{credential.id} (#{credential.email}): #{e.message}"
+    :failure
+  end
+
+  # Microsoft refresh tokens expire after 90 days without use, so a weekly
+  # refresh keeps an idle connection alive. TokenClient marks the credential
+  # revoked when Microsoft answers invalid_grant.
+  def refresh_microsoft_credential(credential)
+    MicrosoftGraph::TokenClient.new.refresh!(credential)
+
+    Rails.logger.info "[RefreshOauthTokensJob] Refreshed Microsoft token for credential #{credential.id}"
+    :success
+  rescue MicrosoftGraph::AuthError => e
+    if credential.token_revoked?
+      Rails.logger.warn "[RefreshOauthTokensJob] Microsoft token revoked for credential #{credential.id}"
+      :revoked
+    else
+      Rails.logger.error "[RefreshOauthTokensJob] Failed to refresh Microsoft credential #{credential.id}: #{e.message}"
+      :failure
+    end
+  rescue => e
+    Rails.logger.error "[RefreshOauthTokensJob] Failed to refresh Microsoft credential #{credential.id}: #{e.message}"
     :failure
   end
 end

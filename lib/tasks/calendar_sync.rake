@@ -10,7 +10,7 @@ namespace :calendar do
     skipped_count = 0
 
     User.find_each.with_index do |user, index|
-      if user.google_credential&.google_calendar
+      if user.google_credential&.course_calendar
         puts "#{index + 1}/#{total_users}: Queuing sync for user #{user.id} (#{user.email})"
         GoogleCalendarSyncJob.perform_later(user, force: true)
         queued_count += 1
@@ -41,7 +41,7 @@ namespace :calendar do
       exit 1
     end
 
-    if user.google_credential&.google_calendar
+    if user.google_credential&.course_calendar
       puts "Queuing forced calendar sync for #{user.email}..."
       GoogleCalendarSyncJob.perform_later(user, force: true)
       puts "✓ Sync job queued successfully"
@@ -64,7 +64,7 @@ namespace :calendar do
       exit 1
     end
 
-    if user.google_credential&.google_calendar
+    if user.google_credential&.course_calendar
       puts "Queuing forced calendar sync for user #{user.id} (#{user.email})..."
       GoogleCalendarSyncJob.perform_later(user, force: true)
       puts "✓ Sync job queued successfully"
@@ -80,7 +80,7 @@ namespace :calendar do
     puts "=" * 40
 
     puts "Total users:                    #{User.count}"
-    puts "Users with Google Calendars:    #{User.joins(:google_calendars).distinct.count}"
+    puts "Users with Google Calendars:    #{User.joins(:course_calendars).distinct.count}"
     puts "Users marked as needing sync:   #{User.where(calendar_needs_sync: true).count}"
 
     recent_syncs = User.where.not(last_calendar_sync_at: nil)
@@ -91,7 +91,7 @@ namespace :calendar do
     oldest_sync = User.where.not(last_calendar_sync_at: nil).minimum(:last_calendar_sync_at)
     puts "Oldest sync:                    #{oldest_sync&.strftime('%Y-%m-%d %H:%M:%S') || 'none'}"
 
-    never_synced = User.joins(:google_calendars).where(last_calendar_sync_at: nil).count
+    never_synced = User.joins(:course_calendars).where(last_calendar_sync_at: nil).count
     puts "With calendars but never synced: #{never_synced}"
 
     puts "=" * 40

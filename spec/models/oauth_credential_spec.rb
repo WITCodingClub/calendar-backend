@@ -33,11 +33,11 @@ RSpec.describe OauthCredential, type: :model do
   subject { create(:oauth_credential) }
 
   it { is_expected.to belong_to(:user) }
-  it { is_expected.to have_one(:google_calendar).dependent(:destroy) }
+  it { is_expected.to have_one(:course_calendar).dependent(:destroy) }
   it { is_expected.to have_many(:security_events).dependent(:nullify) }
 
   it { is_expected.to validate_presence_of(:provider) }
-  it { is_expected.to validate_inclusion_of(:provider).in_array(%w[google]) }
+  it { is_expected.to validate_inclusion_of(:provider).in_array(%w[google microsoft]) }
   it { is_expected.to validate_presence_of(:uid) }
   it { is_expected.to validate_uniqueness_of(:uid).scoped_to(:provider) }
   it { is_expected.to validate_presence_of(:access_token) }
@@ -62,7 +62,7 @@ RSpec.describe OauthCredential, type: :model do
     before do
       # The course calendar belongs to one credential and is shared with every
       # Google account the person connects.
-      create(:google_calendar, oauth_credential: owner, google_calendar_id: calendar_id)
+      create(:course_calendar, oauth_credential: owner, external_calendar_id: calendar_id)
       stub_google_service_account
       stub_request(:delete, google_acl_url(calendar_id, "owner@example.test")).to_return(status: 204)
       stub_request(:delete, google_acl_url(calendar_id, "second@example.test")).to_return(status: 204)
@@ -147,6 +147,18 @@ RSpec.describe OauthCredential, type: :model do
     end
   end
 
+  # No matcher covers a conditional after_destroy callback, so this example
+  # checks its effect on the person's sessions.
+  describe "sessions after a Microsoft account is disconnected" do
+    it "keeps the sessions, because a Microsoft credential never signs anyone in" do
+      credential = create(:oauth_credential, :microsoft)
+      api_token_for(credential.user)
+      active = UserSession.where(user_id: credential.user.id, revoked_at: nil)
+
+      expect { credential.destroy! }.not_to(change { active.count })
+    end
+  end
+
   describe "the revoked flag" do
     let(:credential) do
       create(:oauth_credential, refresh_token: "synthetic-refresh-token",
@@ -168,6 +180,54 @@ RSpec.describe OauthCredential, type: :model do
       credential.update!(metadata: credential.metadata.merge("note" => "synthetic"))
 
       expect(credential.reload).to be_token_revoked
+    end
+  end
+  describe "disconnecting a Microsoft credential", :microsoft_graph do
+    let(:credential) { create(:oauth_credential, :microsoft, token_expires_at: 1.hour.from_now) }
+    let(:calendar_url) { "#{MicrosoftGraphHelpers::GRAPH_URL}/me/calendars/AAMkSyntheticCalendar1" }
+
+    before { create(:course_calendar, :microsoft, oauth_credential: credential, external_calendar_id: "AAMkSyntheticCalendar1") }
+
+    it "deletes the Outlook calendar with the token before the rows are gone" do
+      rows_at_delete = nil
+      delete = stub_request(:delete, calendar_url).to_return do
+        rows_at_delete = [ OauthCredential.exists?(credential.id), CourseCalendar.exists?(oauth_credential_id: credential.id) ]
+        { status: 204 }
+      end
+
+      expect { credential.destroy! }.not_to have_enqueued_job(MicrosoftGraphCalendarDeleteJob)
+
+      expect(delete).to have_been_requested
+      expect(rows_at_delete).to eq([ true, true ])
+      expect(CourseCalendar.exists?(oauth_credential_id: credential.id)).to be(false)
+    end
+
+    it "still disconnects when Graph fails" do
+      stub_request(:delete, calendar_url).to_return(status: 503, body: "{}")
+
+      expect { credential.destroy! }.not_to raise_error
+
+      expect(OauthCredential.exists?(credential.id)).to be(false)
+    end
+
+    it "still disconnects when Microsoft refuses the refresh token" do
+      credential.update!(token_expires_at: 1.hour.ago)
+      stub_request(:post, MicrosoftGraphHelpers::TOKEN_URL).to_return(graph_json_response("token_invalid_grant", status: 400))
+
+      expect { credential.destroy! }.not_to raise_error
+
+      expect(OauthCredential.exists?(credential.id)).to be(false)
+      expect(a_request(:delete, calendar_url)).not_to have_been_made
+    end
+  end
+
+  describe "disconnecting a Google credential" do
+    it "does not call Microsoft Graph" do
+      credential = create(:oauth_credential)
+
+      credential.destroy!
+
+      expect(a_request(:any, /graph\.microsoft\.com/)).not_to have_been_made
     end
   end
 end

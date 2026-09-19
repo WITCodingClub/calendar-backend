@@ -1,0 +1,6 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('00000000-0000-0000-0000-000000000001')/outlook/masterCategories/$entity",
+  "id": "00000000-0000-0000-0000-00000000c003",
+  "displayName": "WIT Graphite",
+  "color": "preset12"
+}

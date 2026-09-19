@@ -4,7 +4,7 @@ class NightlyCalendarSyncJob < ApplicationJob
   queue_as :low
 
   def perform
-    base = User.joins(:google_calendars).distinct
+    base = User.joins(:course_calendars).distinct
 
     # Never-synced users: first full sync, no force needed (nothing stale to skip)
     first_time = base.where(last_calendar_sync_at: nil)

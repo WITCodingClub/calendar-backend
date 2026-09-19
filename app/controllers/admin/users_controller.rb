@@ -44,7 +44,7 @@ module Admin
 
       @oauth_credentials = if policy(@user).view_oauth_credentials?
                              @user.oauth_credentials
-                                  .includes(:google_calendar)
+                                  .includes(:course_calendar)
                                   .order(created_at: :desc)
       else
                              []
@@ -147,7 +147,7 @@ module Admin
     def force_calendar_sync
       authorize @user, :force_calendar_sync?
 
-      unless GoogleCalendar.for_user(@user).exists?
+      unless CourseCalendar.for_user(@user).exists?
         redirect_to admin_user_path(@user), alert: "User does not have a Google Calendar set up."
         return
       end

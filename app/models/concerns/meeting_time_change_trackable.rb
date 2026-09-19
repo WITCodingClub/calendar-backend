@@ -36,14 +36,14 @@ module MeetingTimeChangeTrackable
     return unless has_enrollments
 
     # Mark all users enrolled in this course as needing a calendar sync.
-    # Select the same way NightlyCalendarSyncJob does, by the google_calendars
+    # Select the same way NightlyCalendarSyncJob does, by the course_calendars
     # association. The old predicate looked for a course_calendar_id key in the
     # OAuth credential metadata. Nothing writes that key, so it matched no one
     # and no data change ever marked a calendar.
     # Using update_all for performance with bulk updates
     # First get distinct user IDs, then update them (Rails 8.2 compatibility)
     user_ids = User.joins(:enrollments)
-                   .joins(:google_calendars)
+                   .joins(:course_calendars)
                    .where(enrollments: { course_id: course_id })
                    .distinct
                    .pluck(:id)

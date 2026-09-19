@@ -140,11 +140,11 @@ module Api
         id    = params[:meeting_time_id]
         scope = Course::MeetingTime.eager_load(course: :faculties)
         @preferenceable = id.to_s.include?("_") ? scope.find_by_public_id!(id) : scope.find(id)
-      elsif params[:google_calendar_event_id]
-        id    = params[:google_calendar_event_id]
-        scope = GoogleCalendarEvent.eager_load(meeting_time: { course: :faculties })
+      elsif calendar_event_param
+        id    = calendar_event_param
+        scope = CalendarEvent.eager_load(meeting_time: { course: :faculties })
         @preferenceable = id.to_s.include?("_") ? scope.find_by_public_id!(id) : scope.find(id)
-        # A GoogleCalendarEvent belongs to a specific user's calendar; enforce
+        # A CalendarEvent belongs to a specific user's calendar; enforce
         # ownership here so another user's event id can't leak preference data.
         authorize @preferenceable, :show?
       else
@@ -155,13 +155,19 @@ module Api
     def sync_updated_event
       meeting_time = case @preferenceable
       when Course::MeetingTime   then @preferenceable
-      when GoogleCalendarEvent   then @preferenceable.meeting_time
+      when CalendarEvent   then @preferenceable.meeting_time
       end
 
       return unless meeting_time
-      return unless current_user.google_credential
+      return unless current_user.google_credential || current_user.course_calendars.microsoft.exists?
 
       GoogleCalendarSyncJob.perform_later(current_user, force: true)
+    end
+
+    # calendar_event_id comes from /calendar_events/:id. The published extension
+    # still calls the legacy /google_calendar_events/:id path.
+    def calendar_event_param
+      params[:calendar_event_id] || params[:google_calendar_event_id]
     end
 
     def transform_reminder_settings(settings)

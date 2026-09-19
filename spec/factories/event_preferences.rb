@@ -33,8 +33,8 @@ FactoryBot.define do
     association :preferenceable, factory: :course_meeting_time
     reminder_settings { [] }
 
-    trait :for_google_calendar_event do
-      association :preferenceable, factory: :google_calendar_event
+    trait :for_calendar_event do
+      association :preferenceable, factory: :calendar_event
     end
   end
 end

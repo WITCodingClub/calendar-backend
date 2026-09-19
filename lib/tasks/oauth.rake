@@ -126,11 +126,11 @@ namespace :oauth do
     puts "  Created: #{credential.created_at}"
     puts "  Updated: #{credential.updated_at}"
 
-    if credential.google_calendar
+    if credential.course_calendar
       puts "\nAssociated Google Calendar:"
-      puts "  Calendar ID: #{credential.google_calendar.google_calendar_id}"
-      puts "  Summary: #{credential.google_calendar.summary}"
-      puts "  Events count: #{credential.google_calendar.google_calendar_events.count}"
+      puts "  Calendar ID: #{credential.course_calendar.external_calendar_id}"
+      puts "  Summary: #{credential.course_calendar.summary}"
+      puts "  Events count: #{credential.course_calendar.calendar_events.count}"
     else
       puts "\nNo associated Google Calendar"
     end

@@ -46,7 +46,7 @@ class EventPreference < ApplicationRecord
   validate :at_least_one_preference_set
 
   scope :for_meeting_times,          -> { where(preferenceable_type: "Course::MeetingTime") }
-  scope :for_google_calendar_events, -> { where(preferenceable_type: "GoogleCalendarEvent") }
+  scope :for_calendar_events, -> { where(preferenceable_type: "CalendarEvent") }
 
   private
 

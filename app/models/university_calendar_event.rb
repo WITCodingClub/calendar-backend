@@ -42,7 +42,7 @@ class UniversityCalendarEvent < ApplicationRecord
   set_public_id_prefix :uce, min_hash_length: 12
 
   belongs_to :term, optional: true
-  has_many :google_calendar_events, dependent: :nullify
+  has_many :calendar_events, dependent: :nullify
 
   CATEGORIES = %w[holiday term_dates registration deadline study_day finals graduation academic campus_event meeting exhibit announcement other].freeze
 

@@ -22,7 +22,7 @@
               <p class="text-sm font-medium text-on-surface truncate"><%= cred.email %></p>
               <% if cred.token_revoked? || cred.needs_reauth? %>
                 <span class="m3-badge-error">Needs re-auth</span>
-              <% elsif cred.google_calendar.present? %>
+              <% elsif cred.course_calendar.present? %>
                 <span class="m3-badge-secondary">Calendar connected</span>
               <% end %>
             </div>
@@ -36,7 +36,7 @@
               </p>
             <% end %>
           </div>
-          <% if @credentials.size > 1 %>
+          <% if @can_disconnect %>
             <%= button_to "Disconnect",
                 dashboard_connected_account_path(cred.public_id),
                 method: :delete,
@@ -51,4 +51,51 @@
   <div class="m3-card p-4 text-sm text-on-surface-variant">
     <p><strong class="text-on-surface">Add another account</strong> to sync multiple Google Calendars — useful if you use separate work and personal Google accounts.</p>
   </div>
+
+  <% if @microsoft_enabled %>
+    <section class="space-y-3" id="outlook-calendar">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-on-surface">Outlook Calendar</h2>
+        <% if @microsoft_credentials.empty? %>
+          <%= link_to "Connect Outlook", @microsoft_connect_url, class: "m3-btn-tonal", data: { turbo: false } %>
+        <% end %>
+      </div>
+
+      <% if @microsoft_credentials.empty? %>
+        <div class="m3-card p-4 text-sm text-on-surface-variant">
+          Connect your WIT Microsoft 365 account to sync your courses to a "WIT Courses" calendar in Outlook.
+        </div>
+      <% else %>
+        <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+          <% @microsoft_credentials.each do |cred| %>
+            <% status = microsoft_calendar_status(cred) %>
+            <div class="px-5 py-4 flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <p class="text-sm font-medium text-on-surface truncate"><%= cred.email %></p>
+                  <span class="<%= status[:badge] %>"><%= status[:label] %></span>
+                </div>
+                <p class="text-xs text-on-surface-variant mt-0.5">Added <%= cred.created_at.strftime("%b %d, %Y") %></p>
+                <% if cred.course_calendar&.last_synced_at %>
+                  <p class="text-xs text-on-surface-variant">Last synced <%= cred.course_calendar.last_synced_at.strftime("%b %d, %Y") %></p>
+                <% end %>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <% if status[:reconnect] %>
+                  <%= link_to "Reconnect", @microsoft_connect_url, class: "m3-btn-tonal text-xs px-4 py-2", data: { turbo: false } %>
+                <% end %>
+                <% if @can_disconnect %>
+                  <%= button_to "Disconnect",
+                      dashboard_connected_account_path(cred.public_id),
+                      method: :delete,
+                      data: { turbo_confirm: "Disconnect #{cred.email}? The WIT Courses calendar is removed from Outlook." },
+                      class: "m3-btn-danger text-xs px-4 py-2" %>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </section>
+  <% end %>
 </div>

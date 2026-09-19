@@ -18,7 +18,7 @@ module AppMetrics
       Rails.application.executor.wrap do
         measure("users")            { Yabeda.calendar.users.set({}, User.count) }
         measure("active_sessions")  { Yabeda.calendar.active_sessions.set({}, UserSession.active.count) }
-        measure("google_calendars") { Yabeda.calendar.google_calendars.set({}, GoogleCalendar.count) }
+        measure("google_calendars") { Yabeda.calendar.google_calendars.set({}, CourseCalendar.google.count) }
 
         JOB_COUNTS.each do |state, count|
           measure("jobs #{state}") { Yabeda.calendar.jobs.set({ state: state }, count.call) }

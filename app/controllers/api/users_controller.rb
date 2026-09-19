@@ -143,9 +143,9 @@ module Api
 
       authorize credential, :destroy?
 
-      google_calendar = current_user.google_credential&.google_calendar
+      course_calendar = current_user.google_credential&.course_calendar
 
-      if google_calendar.nil?
+      if course_calendar.nil?
         render json: { error: "No Google Calendar found" }, status: :not_found
         return
       end
@@ -180,13 +180,13 @@ module Api
     def list_oauth_credentials
       authorize current_user, :show?
 
-      credentials = current_user.oauth_credentials.includes(:google_calendar).map do |c|
+      credentials = current_user.oauth_credentials.includes(:course_calendar).map do |c|
         {
           id:           c.public_id,
           email:        c.email,
           provider:     c.provider,
-          has_calendar: c.google_calendar.present?,
-          calendar_id:  c.google_calendar&.google_calendar_id,
+          has_calendar: c.course_calendar.present?,
+          calendar_id:  c.course_calendar&.external_calendar_id,
           created_at:   c.created_at,
           needs_reauth: c.needs_reauth?,
           token_revoked: c.token_revoked?

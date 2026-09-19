@@ -1,0 +1,9 @@
+{
+  "token_type": "Bearer",
+  "scope": "openid email profile offline_access Calendars.ReadWrite MailboxSettings.ReadWrite",
+  "expires_in": 3599,
+  "ext_expires_in": 3599,
+  "access_token": "synthetic-access-token",
+  "refresh_token": "synthetic-refresh-token",
+  "id_token": "eyJhbGciOiJub25lIn0.eyJhdWQiOiJ0ZXN0LWNsaWVudC1pZCIsImlzcyI6Imh0dHBzOi8vbG9naW4ubWljcm9zb2Z0b25saW5lLmNvbS8wMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMGEvdjIuMCIsIm9pZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMSIsInRpZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwYSIsInByZWZlcnJlZF91c2VybmFtZSI6InN0dWRlbnRAZXhhbXBsZS5lZHUiLCJlbWFpbCI6InN0dWRlbnRAZXhhbXBsZS5lZHUiLCJuYW1lIjoiVGVzdCBTdHVkZW50In0."
+}

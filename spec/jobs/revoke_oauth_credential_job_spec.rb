@@ -16,7 +16,7 @@ RSpec.describe RevokeOauthCredentialJob do
   end
 
   before do
-    create(:google_calendar, oauth_credential: credential, google_calendar_id: calendar_id)
+    create(:course_calendar, oauth_credential: credential, external_calendar_id: calendar_id)
     stub_google_service_account
     stub_request(:delete, google_acl_url(calendar_id, "revoked@example.test")).to_return(status: 204)
     stub_request(:delete, google_calendar_list_url(calendar_id)).to_return do

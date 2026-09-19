@@ -16,12 +16,12 @@ RSpec.describe CleanupOrphanedOauthCredentialsJob do
   end
 
   it "keeps the course calendar and the sessions" do
-    calendar = create(:google_calendar, oauth_credential: expired)
+    calendar = create(:course_calendar, oauth_credential: expired)
     token = api_token_for(user)
 
     described_class.perform_now
 
-    expect(GoogleCalendar.exists?(calendar.id)).to be(true)
+    expect(CourseCalendar.exists?(calendar.id)).to be(true)
     expect(UserSession.find_by(jti: JsonWebTokenService.decode(token)[:jti])).to be_active
   end
 
