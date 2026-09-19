@@ -18,7 +18,7 @@ module Api
         university_event_categories: config.university_event_categories || [],
         show_historic_terms: config.show_historic_terms,
         enrolled_terms: config.enrolled_terms || [],
-        available_university_event_categories: UniversityCalendarEvent::CATEGORIES.map do |category|
+        available_university_event_categories: UniversityCalendarEvent::SYNCABLE_CATEGORIES.map do |category|
           {
             id: category,
             name: category.titleize,
@@ -51,7 +51,7 @@ module Api
       end
 
       unless params[:university_event_categories].nil?
-        categories = Array(params[:university_event_categories]).map(&:to_s) & UniversityCalendarEvent::CATEGORIES
+        categories = Array(params[:university_event_categories]).map(&:to_s) & UniversityCalendarEvent::SYNCABLE_CATEGORIES
         config.university_event_categories = categories
       end
 

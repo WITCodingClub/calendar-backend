@@ -40,6 +40,12 @@ class UserExtensionConfig < ApplicationRecord
 
   after_update :sync_calendar_if_settings_changed
 
+  # The selected categories that still sync, without holidays, which every user gets.
+  # A category that no longer syncs can stay stored from before, so filter it out here.
+  def synced_university_event_categories
+    (university_event_categories || []) & (UniversityCalendarEvent::SYNCABLE_CATEGORIES - [ "holiday" ])
+  end
+
   private
 
   def sync_calendar_if_settings_changed

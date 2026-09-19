@@ -44,7 +44,7 @@ module Api
 
       counts = UniversityCalendarEvent.group(:category).count
       render json: {
-        categories: UniversityCalendarEvent::CATEGORIES.map do |cat|
+        categories: UniversityCalendarEvent::SYNCABLE_CATEGORIES.map do |cat|
           { id: cat, name: cat.titleize, count: counts[cat] || 0 }
         end
       }
