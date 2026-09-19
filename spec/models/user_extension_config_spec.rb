@@ -54,21 +54,35 @@ RSpec.describe UserExtensionConfig, type: :model do
     before do
       config.update!(
         sync_university_events: true,
-        university_event_categories: %w[campus_event deadline]
+        university_event_categories: %w[registration deadline]
       )
     end
 
     it "preserves selected event types when sync is disabled" do
       config.update!(sync_university_events: false)
 
-      expect(config.reload.university_event_categories).to eq(%w[campus_event deadline])
+      expect(config.reload.university_event_categories).to eq(%w[registration deadline])
     end
 
     it "retains selected event types after disabling and re-enabling sync" do
       config.update!(sync_university_events: false)
       config.update!(sync_university_events: true)
 
-      expect(config.reload.university_event_categories).to eq(%w[campus_event deadline])
+      expect(config.reload.university_event_categories).to eq(%w[registration deadline])
+    end
+  end
+
+  describe "#synced_university_event_categories" do
+    it "leaves out holidays and categories that no longer sync" do
+      config.university_event_categories = %w[holiday deadline campus_event finals]
+
+      expect(config.synced_university_event_categories).to eq(%w[deadline finals])
+    end
+
+    it "is empty when no categories are stored" do
+      config.university_event_categories = nil
+
+      expect(config.synced_university_event_categories).to eq([])
     end
   end
 
