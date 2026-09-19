@@ -15,10 +15,12 @@ module Catalog
     DAYS = Course::MeetingTime.day_of_weeks.freeze
 
     FILTERS = %i[
-      term_uid subject course_number crns pub_ids q schedule_types
+      term_uid subject course_number crns pub_ids q semantic schedule_types
       meets_on free_days begins_after ends_before
       credit_hours instructor include_cancelled
     ].freeze
+
+    DEFAULT_ORDER = "courses.subject ASC, courses.course_number ASC, courses.section_number ASC"
 
     def initialize(scope = Course.all)
       @scope = scope
@@ -36,7 +38,6 @@ module Catalog
       relation = apply_course_number(relation, filters[:course_number])
       relation = apply_crns(relation, filters[:crns])
       relation = apply_pub_ids(relation, filters[:pub_ids])
-      relation = apply_search(relation, filters[:q])
       relation = apply_schedule_types(relation, filters[:schedule_types])
       relation = apply_credit_hours(relation, filters[:credit_hours])
       relation = apply_instructor(relation, filters[:instructor])
@@ -45,7 +46,9 @@ module Catalog
       relation = apply_begins_after(relation, filters[:begins_after])
       relation = apply_ends_before(relation, filters[:ends_before])
 
-      relation.order("courses.subject ASC, courses.course_number ASC, courses.section_number ASC")
+      # The text filter comes last, because a semantic search ranks whatever
+      # the other filters left and replaces the default order.
+      apply_text(relation, filters[:q], semantic: truthy?(filters[:semantic]))
     end
 
     # Eager-loads everything the serializers and GraphQL types read.
@@ -119,6 +122,18 @@ module Catalog
       end
 
       relation.where(id: ids)
+    end
+
+    # Ranks by meaning when the caller asked for it and the vectors are there,
+    # and by the literal words otherwise. A semantic search that cannot reach
+    # the API falls back to the keyword search rather than failing.
+    def apply_text(relation, query, semantic:)
+      return relation.order(DEFAULT_ORDER) if query.blank?
+
+      ranked = semantic ? SemanticSearch.ranked_scope(relation, query) : nil
+      return ranked if ranked
+
+      apply_search(relation, query).order(DEFAULT_ORDER)
     end
 
     def apply_search(relation, query)

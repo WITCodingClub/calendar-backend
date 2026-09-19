@@ -49,6 +49,7 @@ module Api
             crns:              array_param(:crn),
             pub_ids:           array_param(:pub_id),
             q:                 params[:q],
+            semantic:          params[:semantic],
             schedule_types:    array_param(:schedule_type),
             meets_on:          array_param(:meets_on),
             free_days:         array_param(:free_days),

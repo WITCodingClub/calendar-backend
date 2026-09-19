@@ -204,6 +204,36 @@ RSpec.describe "Api::Graphql", type: :request do
     end
   end
 
+  describe "semantic search", :semantic_search do
+    before { stub_openai_embeddings([ embedding_vector(0.0) ]) }
+
+    it "ranks sections by meaning" do
+      give_embedding(comp1000, 0.05)
+      give_embedding(math1750, 0.95)
+
+      result = gql('{ sections(filter: { q: "learn to program", semantic: true }, first: 10) { nodes { crn } } }')
+
+      expect(result["errors"]).to be_nil
+      expect(result["data"]["sections"]["nodes"].map { |n| n["crn"] }).to eq([ 10_001, 20_001 ])
+    end
+
+    it "ranks instructors by meaning" do
+      give_embedding(ada, 0.05)
+      give_embedding(grace, 0.95)
+
+      result = gql('{ instructors(q: "teaches computing", semantic: true, first: 10) { nodes { name } } }')
+
+      expect(result["data"]["instructors"]["nodes"].map { |n| n["name"] }).to eq([ "Ada Byron", "Grace Hop" ])
+    end
+
+    it "falls back to the literal match when semantic is not asked for" do
+      result = gql('{ instructors(q: "byron", first: 10) { nodes { name } } }')
+
+      expect(result["data"]["instructors"]["nodes"].map { |n| n["name"] }).to eq([ "Ada Byron" ])
+      expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+    end
+  end
+
   describe "errors" do
     it "rejects an invalid enum value at validation time" do
       result = gql('{ sections(filter: { meetsOn: [FUNDAY] }) { totalCount } }')
