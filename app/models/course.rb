@@ -8,6 +8,8 @@
 #  course_number     :integer          not null
 #  credit_hours      :integer
 #  crn               :integer          not null
+#  embedding         :vector(1536)
+#  embedding_digest  :string(64)
 #  end_date          :date             not null
 #  grade_mode        :string
 #  is_section_linked :boolean          default(FALSE), not null
@@ -28,6 +30,7 @@
 #
 #  index_courses_on_course_and_link_identifier  (term_id,subject,course_number,link_identifier)
 #  index_courses_on_crn_and_term_id             (crn,term_id) UNIQUE
+#  index_courses_on_embedding                   (embedding) USING hnsw
 #  index_courses_on_status                      (status)
 #  index_courses_on_term_id                     (term_id)
 #
@@ -37,6 +40,7 @@
 #
 class Course < ApplicationRecord
   include CourseChangeTrackable
+  include Embeddable
   include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :crs
@@ -70,6 +74,19 @@ class Course < ApplicationRecord
     return nil unless schedule_type
 
     Course::ScheduleType.new(schedule_type).readable_description
+  end
+
+  # What a section means to a student, in one sentence. Banner gives no course
+  # description, so the title and the subject carry the meaning. The term is
+  # left out on purpose: the same course in two terms should read the same, and
+  # callers filter by term themselves.
+  def embedding_text
+    [
+      "#{prefix}#{course_number} #{title}",
+      subject,
+      schedule_type_description,
+      credit_hours ? "#{credit_hours} credit hours" : nil
+    ].compact_blank.join(". ")
   end
 
   def prefix

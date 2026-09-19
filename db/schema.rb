@@ -10,10 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
+  enable_extension "vector"
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -258,6 +259,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.datetime "created_at", null: false
     t.integer "credit_hours"
     t.integer "crn", null: false
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
     t.date "end_date", null: false
     t.string "grade_mode"
     t.boolean "is_section_linked", default: false, null: false
@@ -273,6 +276,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
+    t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["status"], name: "index_courses_on_status"
     t.index ["term_id", "subject", "course_number", "link_identifier"], name: "index_courses_on_course_and_link_identifier"
     t.index ["term_id"], name: "index_courses_on_term_id"
@@ -352,6 +356,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.jsonb "directory_raw_data"
     t.string "display_name"
     t.string "email", null: false
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
     t.string "employee_type"
     t.string "first_name", null: false
     t.string "last_name", null: false
@@ -369,6 +375,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.index ["directory_last_synced_at"], name: "index_faculties_on_directory_last_synced_at"
     t.index ["directory_raw_data"], name: "index_faculties_on_directory_raw_data", using: :gin
     t.index ["email"], name: "index_faculties_on_email", unique: true
+    t.index ["embedding"], name: "index_faculties_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["employee_type"], name: "index_faculties_on_employee_type"
     t.index ["rmp_id"], name: "index_faculties_on_rmp_id", unique: true
     t.index ["rmp_raw_data"], name: "index_faculties_on_rmp_raw_data", using: :gin
@@ -592,6 +599,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.string "course_name"
     t.datetime "created_at", null: false
     t.integer "difficulty_rating"
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
     t.bigint "faculty_id", null: false
     t.string "grade"
     t.integer "helpful_rating"
@@ -604,6 +613,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.integer "thumbs_up_total", default: 0
     t.datetime "updated_at", null: false
     t.boolean "would_take_again"
+    t.index ["embedding"], name: "index_rmp_ratings_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["faculty_id"], name: "index_rmp_ratings_on_faculty_id"
     t.index ["rmp_id"], name: "index_rmp_ratings_on_rmp_id", unique: true
   end
