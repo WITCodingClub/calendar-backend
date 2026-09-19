@@ -27,6 +27,17 @@ not change never reaches the API, so a second run costs one table scan.
 | `Faculty`   | Name, title, department, school                     |
 | `RmpRating` | The review comment, with the course it is about     |
 
+Where the vectors are read:
+
+- `/api/v1/catalog/sections` and `/api/v1/catalog/instructors` with
+  `semantic=true`, and the same switch on the GraphQL `sections` and
+  `instructors` queries.
+- `/api/v1/catalog/sections/:crn/similar` and
+  `/api/v1/catalog/instructors/:pub_id/similar`.
+- `/api/v1/catalog/reviews` with `semantic=true`, and the GraphQL `reviews`
+  query.
+- The admin review list, which has a "By meaning" box next to its search.
+
 ## Model
 
 `text-embedding-3-small`, 1536 dimensions, cosine distance. The whole catalog
