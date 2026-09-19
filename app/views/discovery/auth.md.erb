@@ -85,8 +85,6 @@ When the server refuses a token, it returns `401` with one of these codes:
 | `AUTH_INVALID` | The token is not valid or has expired. | Ask the person to sign in again. |
 | `AUTH_REVOKED` | The person ended the session. | Ask the person to sign in again. Do not retry with the same token. |
 
-The personal API can be in beta. If the account does not have beta access, the server returns `403` with the error `Access denied. This feature is currently in beta testing.` A new token does not change this. Stop and tell the person.
-
 The person can see and end their sessions:
 
 - `GET <%= api_user_sessions_url %>`

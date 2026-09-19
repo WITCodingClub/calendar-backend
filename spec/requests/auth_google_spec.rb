@@ -8,7 +8,6 @@ RSpec.describe "Signing in to the dashboard with Google", type: :request do
   let(:email) { "webui@wit.edu" }
 
   before do
-    Flipper.enable(FlipperFlags::V1)
     OmniAuth.config.test_mode = true
     OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new(
       provider:    "google_oauth2",
@@ -22,7 +21,6 @@ RSpec.describe "Signing in to the dashboard with Google", type: :request do
   after do
     OmniAuth.config.mock_auth[:google_oauth2] = nil
     OmniAuth.config.test_mode = false
-    Flipper.disable(FlipperFlags::V1)
   end
 
   it "sets a remember cookie" do

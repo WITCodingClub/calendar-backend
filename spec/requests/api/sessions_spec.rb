@@ -7,10 +7,6 @@ RSpec.describe "Api::Sessions", type: :request do
   let(:token) { api_token_for(user) }
   let(:headers) { { "Authorization" => "Bearer #{token}" } }
 
-  before { Flipper.enable(FlipperFlags::V1) }
-
-  after { Flipper.disable(FlipperFlags::V1) }
-
   def json = JSON.parse(response.body)
   def session_for(raw) = UserSession.find_by(jti: JsonWebTokenService.decode(raw)[:jti])
 

@@ -12,7 +12,7 @@ RSpec.describe "Api::ExtensionEvents", type: :request do
   end
 
   describe "POST /api/extension_events" do
-    it "counts a known event without a token or the beta flag" do
+    it "counts a known event without a token" do
       expect { post_events(events: [ "schedule_import_succeeded" ], version: "4.0.1", browser: "chrome") }
         .to change { count_for("schedule_import_succeeded") }.by(1)
 

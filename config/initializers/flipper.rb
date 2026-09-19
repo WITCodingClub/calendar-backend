@@ -12,8 +12,6 @@ require Rails.root.join("app/lib/flipper_user_actor_adapter")
 # Flags are created disabled by default; Flipper.add is idempotent and never
 # resets an already-enabled flag.
 FLIPPER_FLAGS = {
-  FlipperFlags::V1               => "API access gate: v1 (launched 2025-10-04)",
-  FlipperFlags::V2               => "API access gate: v2 (launched 2025-11-12)",
   FlipperFlags::ENV_SWITCHER     => "Allows switching between dev/staging/production environments",
   FlipperFlags::DEBUG_MODE       => "Enables verbose debug logging and diagnostic output",
   FlipperFlags::FINALS_RETROACTIVE => "Enables retroactive finals schedule processing for past terms",

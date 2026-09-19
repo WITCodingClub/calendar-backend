@@ -24,10 +24,6 @@ RSpec.describe "Signing in to the dashboard with a passkey", type: :request do
     for_user.passkeys.last
   end
 
-  before { Flipper.enable(FlipperFlags::V1) }
-
-  after { Flipper.disable(FlipperFlags::V1) }
-
   it "offers the passkey button on the sign-in page" do
     get "/users/sign_in"
 

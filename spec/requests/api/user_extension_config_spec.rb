@@ -10,10 +10,7 @@ RSpec.describe "Api::UserExtensionConfig", type: :request do
 
   before do
     allow(GoogleCalendarSyncJob).to receive(:perform_later)
-    Flipper.enable(FlipperFlags::V1)
   end
-
-  after { Flipper.disable(FlipperFlags::V1) }
 
   describe "PUT /api/user/extension_config" do
     it "saves custom default colors in lowercase" do

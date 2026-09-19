@@ -15,10 +15,7 @@ RSpec.describe "Disconnecting an OAuth credential through the API", type: :reque
   before do
     # The API refuses to disconnect the last credential.
     create(:oauth_credential, user: user)
-    Flipper.enable(FlipperFlags::V1)
   end
-
-  after { Flipper.disable(FlipperFlags::V1) }
 
   it "revokes the Google grant with the refresh token after the credential is gone" do
     stub_request(:post, google_revoke_url).to_return(status: 200, body: "{}")
