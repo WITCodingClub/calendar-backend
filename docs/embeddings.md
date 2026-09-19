@@ -43,6 +43,11 @@ width and a full re-embed. Old vectors are not comparable to new ones.
 is false, the jobs log and return, and search falls back to keyword matching.
 The key lives in the `wit-calendar-env` agenix secret on alastor.
 
+Search by meaning needs the key **and** the `semantic_search` Flipper flag. The
+flag is global: turn it on for everybody, not per actor. Turn it off to stop
+every query embedding at once, for example if the API bill surprises you. The
+catalog then answers with keyword results, and no request fails.
+
 ## Postgres
 
 The `vector` extension must be installed on the server.

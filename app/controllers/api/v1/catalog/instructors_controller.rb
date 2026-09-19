@@ -16,7 +16,7 @@ module Api
           scope = apply_search(scope)
 
           total  = scope.count
-          people = scope.order(:last_name, :first_name).page(page).per(per_page)
+          people = scope.page(page).per(per_page)
 
           render_collection(
             people.map { |faculty| ::Catalog::InstructorSerializer.new(faculty).as_json },
@@ -44,14 +44,20 @@ module Api
                  .select("faculties.id")
         end
 
+        # Ranks by meaning when the caller asks for it, and by the literal
+        # words otherwise. A semantic search that cannot reach the API falls
+        # back to the name match rather than failing.
         def apply_search(scope)
-          return scope if params[:q].blank?
+          return scope.order(:last_name, :first_name) if params[:q].blank?
+
+          ranked = ::Catalog::SemanticSearch.ranked_scope(scope, params[:q]) if boolean_param(:semantic)
+          return ranked if ranked
 
           query = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q].to_s.strip)}%"
           scope.where(
             "faculties.first_name ILIKE :q OR faculties.last_name ILIKE :q OR faculties.display_name ILIKE :q",
             q: query
-          )
+          ).order(:last_name, :first_name)
         end
       end
     end
