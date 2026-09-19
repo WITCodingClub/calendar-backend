@@ -44,7 +44,13 @@ class UniversityCalendarEvent < ApplicationRecord
   belongs_to :term, optional: true
   has_many :calendar_events, dependent: :nullify
 
+  # Every category the importer can store. Admins can see and filter events in all of them.
   CATEGORIES = %w[holiday term_dates registration deadline study_day finals graduation academic campus_event meeting exhibit announcement other].freeze
+
+  # The categories a person can sync. The feed puts too much clutter in campus_event,
+  # meeting, exhibit, announcement, and other, so they stay in the database but never
+  # sync (issue #621).
+  SYNCABLE_CATEGORIES = %w[holiday term_dates registration deadline study_day finals graduation academic].freeze
 
   # Shown to users who pick which categories to sync, in the extension and on the dashboard.
   CATEGORY_DESCRIPTIONS = {
@@ -55,11 +61,7 @@ class UniversityCalendarEvent < ApplicationRecord
     "study_day"    => "Study days (no-class days before finals)",
     "finals"       => "Final exam schedules and exam periods",
     "graduation"   => "Commencement ceremonies and graduation events",
-    "academic"     => "Other academic events and calendar announcements",
-    "campus_event" => "Campus activities, concerts, and student events",
-    "meeting"      => "University meetings and administrative events",
-    "exhibit"      => "Art exhibits, displays, and gallery events",
-    "announcement" => "Important university announcements and notices"
+    "academic"     => "Other academic events and calendar announcements"
   }.freeze
 
   def self.category_description(category)
