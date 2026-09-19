@@ -88,6 +88,11 @@ Exchange works out free and busy time from the primary calendar only. The Schedu
 
 - At the first connection: send `placement` with `POST /api/user/microsoft_calendar`. The value goes into the signed state, and the callback uses it.
 - Later: `PATCH /api/user/microsoft_calendar` with `placement`, or the button in the "Outlook Calendar" section of the dashboard. Both start `MicrosoftGraphCalendarPlacementJob` and answer before the move is complete. The API answers 202.
+- `GET /api/user/oauth_credentials` gives the current `placement` of each connection, so a client can show it. The value is `nil` while the connection has no calendar.
+
+## Disconnect
+
+`DELETE /api/user/oauth_credentials/:id` removes one connection. The last Google credential stays, because it signs the person in and it is the only way the app reaches a Google calendar. Every Microsoft credential can go, even the only connection, because a person can sign in with a passkey or with Microsoft and use Outlook alone. The `removable` field of each row in the list says which rows the client may offer to disconnect.
 
 ### The move
 

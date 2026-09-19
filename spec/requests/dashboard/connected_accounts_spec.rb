@@ -28,6 +28,29 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
       expect(OauthCredential.exists?(credential.id)).to be(false)
     end
 
+    # A person who signed in with a passkey or with Microsoft can have an
+    # Outlook connection and no Google account.
+    it "disconnects an Outlook connection that is the only account" do
+      credential = create(:oauth_credential, :microsoft, user: user)
+
+      delete dashboard_connected_account_path(credential.public_id)
+
+      follow_redirect!
+      expect(response.body).to include("Account disconnected.")
+      expect(OauthCredential.exists?(credential.id)).to be(false)
+    end
+
+    it "keeps the last Google account" do
+      credential = create(:oauth_credential, user: user)
+      create(:oauth_credential, :microsoft, user: user)
+
+      delete dashboard_connected_account_path(credential.public_id)
+
+      follow_redirect!
+      expect(response.body).to include("Cannot disconnect your only Google account.")
+      expect(OauthCredential.exists?(credential.id)).to be(true)
+    end
+
     it "does not remove a credential that belongs to another user" do
       create(:oauth_credential, user: user)
       other_credential = create(:oauth_credential, user: create(:user))

@@ -234,6 +234,22 @@ RSpec.describe OauthCredential, type: :model do
     end
   end
 
+  describe "#removable?" do
+    let(:user) { create(:user) }
+
+    it "keeps the last Google credential and lets every other one go" do
+      google    = create(:oauth_credential, user: user)
+      microsoft = create(:oauth_credential, :microsoft, user: user)
+
+      expect(google.removable?).to be(false)
+      expect(microsoft.removable?).to be(true)
+
+      second_google = create(:oauth_credential, user: user, email: Faker::Internet.email)
+      expect(google.removable?).to be(true)
+      expect(second_google.removable?).to be(true)
+    end
+  end
+
   describe "disconnecting a Google credential" do
     it "does not call Microsoft Graph" do
       credential = create(:oauth_credential)
