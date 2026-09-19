@@ -91,7 +91,17 @@ class OauthCredential < ApplicationRecord
     token_revoked? || refresh_token.blank?
   end
 
-  private
+  # Whether the person can disconnect this credential.
+  #
+  # A Google credential carries the sign-in of the account and the only way
+  # the app can reach a Google calendar, so the last one stays. A Microsoft
+  # credential only syncs a calendar, and a person who connected Outlook alone
+  # must be able to remove it.
+  def removable?
+    return true unless google?
+
+    user.oauth_credentials.google.where.not(id: id).exists?
+  end
 
   def google?
     provider == "google"
@@ -100,6 +110,8 @@ class OauthCredential < ApplicationRecord
   def microsoft?
     provider == "microsoft"
   end
+
+  private
 
   # A Graph failure must not block the disconnect, so it is logged only. When
   # the events are in the person's primary calendar, only the events go.

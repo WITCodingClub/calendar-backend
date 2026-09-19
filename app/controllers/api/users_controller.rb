@@ -187,6 +187,9 @@ module Api
           provider:     c.provider,
           has_calendar: c.course_calendar.present?,
           calendar_id:  c.course_calendar&.external_calendar_id,
+          # Where the course events go. Microsoft only, nil without a calendar.
+          placement:    c.course_calendar&.placement,
+          removable:    c.removable?,
           created_at:   c.created_at,
           needs_reauth: c.needs_reauth?,
           token_revoked: c.token_revoked?
@@ -215,8 +218,8 @@ module Api
 
       authorize credential, :destroy?
 
-      if current_user.oauth_credentials.one?
-        render json: { error: "Cannot disconnect the last OAuth credential." }, status: :unprocessable_content
+      unless credential.removable?
+        render json: { error: "Cannot disconnect your last Google account." }, status: :unprocessable_content
         return
       end
 

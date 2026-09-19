@@ -6,7 +6,9 @@ class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
 
     credentials = current_user.oauth_credentials.includes(:course_calendar).order(:created_at).to_a
     @credentials = credentials.select { |credential| credential.provider == "google" }
-    @can_disconnect = credentials.size > 1
+    # The last Google account stays, because it signs the person in. An
+    # Outlook connection can always go.
+    @can_disconnect = @credentials.size > 1
     @add_account_url = add_account_url
 
     # The Outlook section shows only while the Microsoft Graph provider is on
@@ -34,9 +36,9 @@ class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
 
     authorize credential, :destroy?
 
-    if current_user.oauth_credentials.one?
+    unless credential.removable?
       redirect_to dashboard_connected_accounts_path,
-                  alert: "Cannot disconnect your only connected account."
+                  alert: "Cannot disconnect your only Google account."
       return
     end
 
