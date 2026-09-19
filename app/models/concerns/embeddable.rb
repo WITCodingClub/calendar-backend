@@ -13,6 +13,11 @@
 module Embeddable
   extend ActiveSupport::Concern
 
+  # How many neighbours a "what is like this?" request returns, and the most
+  # it may ask for. Both the API and the GraphQL schema read these.
+  DEFAULT_SIMILAR_LIMIT = 10
+  MAX_SIMILAR_LIMIT     = 50
+
   included do
     has_neighbors :embedding
 
@@ -59,7 +64,7 @@ module Embeddable
   end
 
   # The records closest to this one, itself excluded.
-  def similar(limit: 10)
+  def similar(limit: DEFAULT_SIMILAR_LIMIT)
     return self.class.none if embedding.nil?
 
     self.class.nearest_to(embedding, limit: limit).where.not(id: id)
