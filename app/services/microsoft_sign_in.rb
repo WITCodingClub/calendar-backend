@@ -5,8 +5,9 @@
 #
 # It reads the same Entra app registration as the Microsoft Graph calendar
 # provider (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MICROSOFT_TENANT_ID).
-# It asks only for the sign-in scopes, so it does not need the tenant admin
-# consent that Graph calendar access needs. See docs/microsoft-sign-in.md.
+# It asks only for the sign-in scopes. It still needs admin consent in the WIT
+# tenant, because the club owns the registration and WIT lets a person consent
+# only to a verified or WIT-registered app. See docs/microsoft-sign-in.md.
 module MicrosoftSignIn
   PROVIDER      = "microsoft"
   REQUEST_PATH  = "/auth/microsoft"
