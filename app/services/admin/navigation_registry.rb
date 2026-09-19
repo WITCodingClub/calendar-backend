@@ -54,18 +54,20 @@ module Admin
             description: "View Rate My Professor ratings", keywords: [ "rate my professor" ], read_only: true }
         ]
       },
+      # `external: true` marks a mounted engine with its own layout. The admin
+      # nav opens it in a new tab, so the admin dashboard stays open.
       {
         id: :system_tools, title: "System Tools", min_role: :super_admin,
         items: [
-          { id: :jobs, title: "Background Jobs", path: :admin_mission_control_jobs_path,
+          { id: :jobs, title: "Background Jobs", path: :admin_mission_control_jobs_path, external: true,
             description: "Monitor and manage background jobs", keywords: [ "jobs", "queues", "workers", "solid_queue" ], min_role: :super_admin },
-          { id: :feature_flags, title: "Feature Flags", path: "/admin/flipper",
+          { id: :feature_flags, title: "Feature Flags", path: "/admin/flipper", external: true,
             description: "Toggle feature flags with Flipper", keywords: [ "flipper", "flags", "features" ], min_role: :super_admin },
-          { id: :sql, title: "SQL Queries", path: :admin_blazer_path,
+          { id: :sql, title: "SQL Queries", path: :admin_blazer_path, external: true,
             description: "Run ad-hoc SQL queries with Blazer", keywords: [ "blazer", "sql", "queries", "database" ], min_role: :super_admin },
-          { id: :database, title: "Database", path: :admin_pg_hero_path,
+          { id: :database, title: "Database", path: :admin_pg_hero_path, external: true,
             description: "PostgreSQL insights and performance via PgHero", keywords: [ "postgres", "pghero", "database", "queries" ], min_role: :super_admin },
-          { id: :console_audits, title: "Console Audits", path: :admin_audits1984_path,
+          { id: :console_audits, title: "Console Audits", path: :admin_audits1984_path, external: true,
             description: "Audit trail of Rails console sessions", keywords: [ "audits", "console", "security" ], min_role: :owner },
           { id: :service_account, title: "Service Account", path: :admin_service_account_index_path,
             description: "Manage Google service account OAuth", keywords: [ "service account", "oauth", "google" ], min_role: :owner }

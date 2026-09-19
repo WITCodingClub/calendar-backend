@@ -16,7 +16,8 @@ module Admin
               description: item[:description],
               path:        resolve_path(item[:path]),
               keywords:    item[:keywords] || [],
-              read_only:   item[:read_only] || false
+              read_only:   item[:read_only] || false,
+              external:    item[:external] || false
             }
           end
         }
