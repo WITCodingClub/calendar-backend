@@ -15,10 +15,6 @@ RSpec.describe "Api::Passkeys", type: :request do
 
   def unrelated_challenge = SecureRandom.urlsafe_base64(32)
 
-  before { Flipper.enable(FlipperFlags::V1) }
-
-  after { Flipper.disable(FlipperFlags::V1) }
-
   def json = JSON.parse(response.body)
 
   # Runs the full registration ceremony and returns the stored passkey.

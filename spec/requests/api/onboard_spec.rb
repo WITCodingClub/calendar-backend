@@ -3,10 +3,6 @@
 require "rails_helper"
 
 RSpec.describe "Api::Users onboarding", type: :request do
-  before { Flipper.enable(FlipperFlags::V1) }
-
-  after { Flipper.disable(FlipperFlags::V1) }
-
   def json = JSON.parse(response.body)
 
   def verification(email:, verified: true, success: true, error: nil)

@@ -12,10 +12,6 @@ RSpec.describe "The passkey page", type: :request do
   let(:headers) { { "Authorization" => "Bearer #{token}" } }
   let(:client) { WebAuthn::FakeClient.new(ORIGIN) }
 
-  before { Flipper.enable(FlipperFlags::V1) }
-
-  after { Flipper.disable(FlipperFlags::V1) }
-
   def json = JSON.parse(response.body)
 
   describe "GET /passkey" do

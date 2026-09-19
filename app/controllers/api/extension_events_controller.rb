@@ -5,7 +5,6 @@ module Api
   # request carries no token, and nothing in it identifies a student.
   class ExtensionEventsController < ApiController
     skip_before_action :authenticate_user_from_token!
-    skip_before_action :check_beta_access
 
     def create
       ExtensionUsage.record(

@@ -48,10 +48,6 @@ RSpec.describe "POST /api/user/processed_events", type: :request do
     count
   end
 
-  before { Flipper.enable(FlipperFlags::V1) }
-
-  after { Flipper.disable(FlipperFlags::V1) }
-
   it "loads rooms and buildings once, no matter how many classes there are" do
     enroll_in(%w[11111 22222 33333])
 

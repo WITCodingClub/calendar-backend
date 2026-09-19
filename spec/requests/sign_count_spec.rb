@@ -7,9 +7,6 @@ RSpec.describe "sign count behaviour", type: :request do
   let(:client) { WebAuthn::FakeClient.new("http://localhost:3000") }
   def json = JSON.parse(response.body)
 
-  before { Flipper.enable(FlipperFlags::V1) }
-  after  { Flipper.disable(FlipperFlags::V1) }
-
   it "records a use even when the authenticator never increments its counter" do
     post "/api/user/passkeys/handoff", headers: headers
     code = json["code"]

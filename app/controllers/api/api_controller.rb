@@ -4,11 +4,8 @@ module Api
   class ApiController < ActionController::API
     include Pundit::Authorization
     include JsonWebTokenAuthenticatable
-    include FeatureFlagGated
     include PublicIdLookupable
     include PreferenceSerializable
-
-    self.gated_feature_key = :v1
 
     # Ensure all responses are JSON
     rescue_from StandardError, with: :render_internal_server_error

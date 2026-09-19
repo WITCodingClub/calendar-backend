@@ -14,10 +14,7 @@ RSpec.describe "Event preference colors", type: :request do
 
   before do
     allow(GoogleCalendarSyncJob).to receive(:perform_later)
-    Flipper.enable(FlipperFlags::V1)
   end
-
-  after { Flipper.disable(FlipperFlags::V1) }
 
   it "saves a custom color and returns it as hex" do
     put url, params: { event_preference: { color_id: "#1A2B3C" } }, headers: headers, as: :json

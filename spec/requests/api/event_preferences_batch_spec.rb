@@ -50,10 +50,6 @@ RSpec.describe "POST /api/meeting_times/preferences", type: :request do
     count
   end
 
-  before { Flipper.enable(FlipperFlags::V1) }
-
-  after { Flipper.disable(FlipperFlags::V1) }
-
   it "answers for each meeting time exactly as the single endpoint does" do
     meeting_times = enroll_in(%w[11111 22222])
     create(:calendar_preference, user: user, title_template: "{{course_code}} {{title}}", color_id: 5)

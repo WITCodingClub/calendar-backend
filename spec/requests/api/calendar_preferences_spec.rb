@@ -11,10 +11,7 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
 
   before do
     allow(GoogleCalendarSyncJob).to receive(:perform_later)
-    Flipper.enable(FlipperFlags::V1)
   end
-
-  after { Flipper.disable(FlipperFlags::V1) }
 
   describe "PATCH /api/calendar_preferences/uni_cal" do
     it "sets a custom color for every university event" do
