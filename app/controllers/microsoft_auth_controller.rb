@@ -9,6 +9,9 @@
 class MicrosoftAuthController < ApplicationController
   SESSION_KEY = :microsoft_graph_oauth
 
+  # The Microsoft account at the callback is not the person's own WIT account.
+  class WrongAccountError < StandardError; end
+
   before_action :load_state
 
   # GET /auth/microsoft_graph?state=...
@@ -36,6 +39,8 @@ class MicrosoftAuthController < ApplicationController
     GoogleCalendarSyncJob.perform_later(@user, force: true) if @user.enrollments.any?
 
     redirect_to "/oauth/success?email=#{CGI.escape(credential.email)}&calendar_id=#{CGI.escape(calendar_id)}"
+  rescue WrongAccountError
+    redirect_to "/oauth/failure?error=#{CGI.escape("Sign in with your own WIT Microsoft account (#{@user.email}).")}"
   rescue MicrosoftGraph::Error, ActionController::ParameterMissing, ActiveRecord::RecordInvalid => e
     Rails.logger.error("Microsoft calendar OAuth error: #{e.class}: #{e.message}")
     redirect_to "/oauth/failure?error=#{CGI.escape('Could not connect the Microsoft calendar. Please try again.')}"
@@ -56,6 +61,7 @@ class MicrosoftAuthController < ApplicationController
     uid    = claims["oid"].presence || claims["sub"].presence
     email  = claims["email"].presence || claims["preferred_username"].presence
     raise MicrosoftGraph::AuthError, "Microsoft returned no account id or email" if uid.blank? || email.blank?
+    raise WrongAccountError unless own_account?(email)
 
     credential = @user.oauth_credentials.find_or_initialize_by(provider: "microsoft", uid: uid)
     credential.email            = email
@@ -66,6 +72,21 @@ class MicrosoftAuthController < ApplicationController
     credential.metadata         = (credential.metadata || {}).except("token_revoked", "token_revoked_at", "revocation_reason")
     credential.save!
     credential
+  end
+
+  # The state names the person, but nothing proves that the browser at the
+  # callback belongs to them: the extension opens this flow in a tab that has
+  # no session. A person could send their own start URL to someone else, and
+  # that person's mailbox would land on the sender's account. So the Microsoft
+  # account must be the person's own WIT account. The Google flow makes the
+  # same check with the email in its state.
+  #
+  # Development skips the check, so a personal Outlook.com account can test
+  # the provider before WIT IT grants consent.
+  def own_account?(email)
+    return true if Rails.env.development?
+
+    email.to_s.strip.casecmp?(@user.email.to_s)
   end
 
   def redirect_uri

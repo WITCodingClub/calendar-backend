@@ -63,8 +63,9 @@ Turn on the flag for one test account first in the Flipper UI (`/admin/flipper`)
 
 1. The extension calls `POST /api/user/microsoft_calendar`. The response holds `oauth_url`.
 2. The browser opens `oauth_url`. The app sends the person to Microsoft with PKCE.
-3. Microsoft returns to `/auth/microsoft_graph/callback`. The app stores the tokens in `oauth_credentials` with `provider = "microsoft"`.
-4. The app creates a "WIT Courses" calendar in the mailbox and starts a sync.
+3. Microsoft returns to `/auth/microsoft_graph/callback`. The Microsoft account must be the person's own WIT account: its email must equal the email of the WIT-Calendar account. The extension opens this flow in a tab with no session, so the state alone does not prove who is at the browser. Without this rule, a person could send their start URL to someone else and get that person's mailbox on their own account. Development skips the rule, so a personal Outlook.com account can test the provider.
+4. The app stores the tokens in `oauth_credentials` with `provider = "microsoft"`.
+5. The app creates a "WIT Courses" calendar in the mailbox and starts a sync.
 
 While the provider is off, all three endpoints answer 404.
 

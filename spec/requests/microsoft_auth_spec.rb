@@ -3,7 +3,9 @@
 require "rails_helper"
 
 RSpec.describe "Connecting a Microsoft calendar", type: :request do
-  let(:user)  { create(:user) }
+  # The token fixtures name this account. The callback accepts only the
+  # person's own account, so the person has the same email.
+  let(:user)  { create(:user, email: "student@example.edu") }
   let(:state) { MicrosoftGraph::OauthState.generate(user_id: user.id) }
 
   after { Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR) }
@@ -52,6 +54,38 @@ RSpec.describe "Connecting a Microsoft calendar", type: :request do
         access_token: "synthetic-access-token", refresh_token: "synthetic-refresh-token"
       )
       expect(credential.course_calendar).to have_attributes(provider: "microsoft", external_calendar_id: "AAMkSyntheticCalendarNew")
+    end
+
+    # A person can send their own start URL to someone else. That person's
+    # mailbox must not land on the sender's account.
+    it "refuses a Microsoft account that is not the person's own" do
+      sender = create(:user)
+      Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, sender)
+      sender_state = MicrosoftGraph::OauthState.generate(user_id: sender.id)
+      stub_request(:post, MicrosoftGraphHelpers::TOKEN_URL).to_return(graph_json_response("token_success"))
+
+      get "/auth/microsoft_graph", params: { state: sender_state }
+      get "/auth/microsoft_graph/callback", params: { state: sender_state, code: "auth-code" }
+
+      expect(response.location).to include("/oauth/failure")
+      expect(CGI.unescape(response.location)).to include(sender.email)
+      expect(sender.oauth_credentials.microsoft).to be_empty
+      expect(a_request(:any, /graph\.microsoft\.com/)).not_to have_been_made
+    end
+
+    it "matches the account email without case" do
+      # An unsigned synthetic ID token, like the fixture, with the email in upper case.
+      claims   = { "oid" => "00000000-0000-0000-0000-000000000001", "email" => "STUDENT@EXAMPLE.EDU" }
+      id_token = [ { "alg" => "none" }, claims ].map { |part| Base64.urlsafe_encode64(part.to_json, padding: false) }.join(".") + "."
+      body     = JSON.parse(graph_fixture("token_success")).merge("id_token" => id_token)
+      stub_request(:post, MicrosoftGraphHelpers::TOKEN_URL)
+        .to_return(status: 200, body: body.to_json, headers: { "Content-Type" => "application/json" })
+      stub_request(:post, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/calendars").to_return(graph_json_response("calendar_created"))
+
+      get "/auth/microsoft_graph", params: { state: state }
+      get "/auth/microsoft_graph/callback", params: { state: state, code: "auth-code" }
+
+      expect(user.oauth_credentials.microsoft).to be_present
     end
 
     it "refuses a callback that did not start in this browser" do
