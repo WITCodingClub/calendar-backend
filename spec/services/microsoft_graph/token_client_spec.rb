@@ -70,6 +70,17 @@ RSpec.describe MicrosoftGraph::TokenClient, :microsoft_graph do
       expect(credential.token_expires_at).to be_within(1.minute).of(1.hour.from_now)
     end
 
+    it "uses the token that a refresh in another process got while it waited for the row" do
+      credential = create(:oauth_credential, :microsoft, access_token: "old-access-token", token_expires_at: 1.minute.ago)
+      OauthCredential.find(credential.id).update!(access_token: "token-from-the-other-refresh", token_expires_at: 1.hour.from_now)
+
+      token_client.refresh!(credential)
+
+      expect(a_request(:post, MicrosoftGraphHelpers::TOKEN_URL)).not_to have_been_made
+      expect(credential.access_token).to eq("token-from-the-other-refresh")
+      expect(credential.reload).not_to be_token_revoked
+    end
+
     it "refuses a credential without a refresh token" do
       credential = create(:oauth_credential, :microsoft, refresh_token: nil)
 

@@ -50,16 +50,27 @@ module MicrosoftGraph
     # The credential is marked revoked, like a Google token that
     # RefreshOauthTokensJob cannot refresh, so the dashboard asks for a new
     # sign-in.
+    # Microsoft gives a new refresh token with each refresh. Two refreshes of
+    # one credential at the same time (a sync and RefreshOauthTokensJob) can
+    # make the slower one use a token that is already replaced. Microsoft then
+    # answers invalid_grant, and a good connection gets marked revoked. So the
+    # row is locked, and a refresh that waited uses the token the other one got.
     def refresh!(credential)
-      raise AuthError, "credential has no refresh token" if credential.refresh_token.blank?
+      token_before_lock = credential.access_token
 
-      token = request_token(grant_type: "refresh_token", refresh_token: credential.refresh_token)
-      credential.update!(
-        access_token:     token.access_token,
-        refresh_token:    token.refresh_token.presence || credential.refresh_token,
-        token_expires_at: token.expires_at
-      )
-      token
+      # with_lock reads the row again, so the values below are the newest ones.
+      credential.with_lock do
+        raise AuthError, "credential has no refresh token" if credential.refresh_token.blank?
+        next if credential.access_token != token_before_lock && !credential.token_expired?
+
+        token = request_token(grant_type: "refresh_token", refresh_token: credential.refresh_token)
+        credential.update!(
+          access_token:     token.access_token,
+          refresh_token:    token.refresh_token.presence || credential.refresh_token,
+          token_expires_at: token.expires_at
+        )
+        token
+      end
     rescue AuthError => e
       mark_revoked(credential) if e.body.is_a?(Hash) && e.body["error"] == "invalid_grant"
       raise
