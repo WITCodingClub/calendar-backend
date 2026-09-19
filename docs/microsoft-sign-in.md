@@ -6,18 +6,33 @@ This page is about sign-in only. Calendar sync to a Microsoft 365 mailbox is a s
 
 ## Register the app in Entra ID
 
-Use the same app registration as the Microsoft Graph calendar provider. One registration serves both.
+The club owns the app registration. It is in the club's own Entra tenant, not in the WIT tenant. WIT IT does not register or operate anything. IT only grants admin consent, which makes an enterprise application in the WIT tenant. This is the usual model for a vendor application.
 
-1. Open the app registration in the Entra admin center.
-2. Add the redirect URI `https://calendar.witcc.dev/auth/microsoft/callback`. For local work, add `http://localhost:3000/auth/microsoft/callback`.
-3. Add the delegated permissions `openid`, `email`, and `profile`. The sign-in does not call Microsoft Graph, so it does not need `User.Read`. Microsoft can still add `User.Read` to the consent screen.
-4. Create a client secret, if the registration does not have one.
+The production registration is "WIT Calendar", with the client id `11846a97-8d14-4328-ab5d-3add1fb6aa64`. A client id is not a secret. One registration serves this sign-in and the Microsoft Graph calendar provider.
+
+To make a registration for a different environment:
+
+1. In the Entra admin center of the club tenant, create an app registration.
+2. For "Supported account types", select "Accounts in any organizational directory". A single-tenant registration in the club tenant cannot sign in a WIT account.
+3. Add the web redirect URI `https://calendar.witcc.dev/auth/microsoft/callback`. For local work, add `http://localhost:3000/auth/microsoft/callback`.
+4. Add the delegated permissions `openid`, `email`, and `profile`. The sign-in does not call Microsoft Graph, so it does not need `User.Read`. Microsoft can still add `User.Read` to the consent screen.
+5. Set the publisher domain to a domain that the tenant has verified, for example `witcc.dev`. The consent screen shows it.
+6. Create a client secret. Put the value in the secret store, not in the repo. A secret expires after 24 months at most, so record the expiry date.
+7. Add a second maintainer as an owner of the registration.
 
 ## Consent
 
-The sign-in asks only for `openid email profile`. These scopes, and `User.Read`, are usually low-impact, and many tenants let users consent to them. The WIT tenant consent policy is not verified. The sign-in can still need approval from WIT IT. If Microsoft shows "Approval required" or `AADSTS65001`, ask IT to grant consent for these scopes.
+The sign-in needs admin consent from WIT IT. The sign-in asks only for `openid email profile`, but the scopes do not decide this. The WIT tenant lets a person consent only to an app from a verified publisher or to an app that is registered in the WIT tenant. This app is neither, so Microsoft shows "Approval required" or `AADSTS65001` until IT grants consent.
 
-The sign-in does not ask for calendar scopes. Calendar access needs tenant admin consent, and the sign-in must work without it.
+An admin of the WIT tenant grants consent with this URL. One consent covers this sign-in and the calendar provider, because both use one registration:
+
+```
+https://login.microsoftonline.com/<WIT tenant id>/adminconsent?client_id=<client id>
+```
+
+After the consent, Microsoft sends the admin to a callback URL of the app. While the features are off, that page answers 404. The consent is still complete.
+
+The sign-in does not ask for calendar scopes. A person who only signs in gives the app no calendar access.
 
 ## Configure the app
 
@@ -27,7 +42,7 @@ Set these environment variables. Keep the real values in the secret store, not i
 | --- | --- | --- |
 | `MICROSOFT_CLIENT_ID` | Yes | `YOUR_MICROSOFT_CLIENT_ID` |
 | `MICROSOFT_CLIENT_SECRET` | Yes | `YOUR_MICROSOFT_CLIENT_SECRET` |
-| `MICROSOFT_TENANT_ID` | Yes | `YOUR_WIT_TENANT_ID` (a GUID) |
+| `MICROSOFT_TENANT_ID` | Yes | The WIT tenant id (a GUID), not the club tenant id. People sign in through the WIT authority. |
 
 `MICROSOFT_TENANT_ID` defaults to `organizations`, and the calendar provider can use that default. Sign-in cannot. The strategy checks the ID token issuer against the tenant, and the app trusts an email only from the WIT tenant. While the tenant is not a GUID, the sign-in counts as not configured.
 
