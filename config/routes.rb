@@ -272,7 +272,7 @@ Rails.application.routes.draw do
       post "service_account/revoke",    to: "service_account#revoke",    as: :service_account_revoke
 
       mount MissionControl::Jobs::Engine, at: "jobs"
-      mount Flipper::UI.app(Flipper),     at: "flipper"
+      mount Flipper::UI.app(Flipper) { |builder| builder.use FlipperUserActorAdapter::UnknownActorRedirect }, at: "flipper"
       mount Blazer::Engine,               at: "blazer"
       mount PgHero::Engine,               at: "pghero"
       mount Audits1984::Engine,           at: "audits"

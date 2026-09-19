@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require Rails.root.join("app/lib/flipper_flags")
+require Rails.root.join("app/lib/flipper_user_actor_adapter")
 
 # Canonical list of every Flipper flag used in the app. Add a flag here before
 # calling Flipper.enabled? anywhere — this ensures it appears in the Flipper UI
@@ -24,13 +25,12 @@ Rails.application.configure do
 end
 
 Flipper.configure do |config|
+  config.use FlipperUserActorAdapter
   config.use Flipper::Adapters::ActiveSupportCacheStore, Rails.cache, 5.minutes
 end
 
 Flipper::UI.configure do |config|
-  config.actor_names_source = ->(actor_ids) {
-    User.where(id: actor_ids).pluck(:id, :email).to_h
-  }
+  config.actor_names_source = ->(actor_ids) { FlipperActorNames.call(actor_ids) }
 end
 
 Flipper.register(:users) do |actor, _context|
