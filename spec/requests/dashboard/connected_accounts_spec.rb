@@ -180,7 +180,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
     end
 
     it "refuses a Google account" do
-      google = user.oauth_credentials.google.first
+      google = create(:oauth_credential, user: user)
 
       expect { patch calendar_placement_dashboard_connected_account_path(google.public_id), params: { placement: "primary" } }
         .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
