@@ -10,6 +10,12 @@ RSpec.describe ExtensionUsage do
       expect(counted).to eq(2)
     end
 
+    it "counts the event that the Outlook connect flow sends" do
+      counted = described_class.record(events: %w[outlook_calendar_connected], version: "5.0.1", browser: "chrome")
+
+      expect(counted).to eq(1)
+    end
+
     it "counts no more than the per-request limit" do
       stub_const("ExtensionUsage::MAX_EVENTS_PER_REQUEST", 3)
 
