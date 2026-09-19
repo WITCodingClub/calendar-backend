@@ -28,9 +28,7 @@ Flipper.configure do |config|
 end
 
 Flipper::UI.configure do |config|
-  config.actor_names_source = ->(actor_ids) {
-    User.where(id: actor_ids).pluck(:id, :email).to_h
-  }
+  config.actor_names_source = ->(actor_ids) { FlipperActorNames.call(actor_ids) }
 end
 
 Flipper.register(:users) do |actor, _context|
