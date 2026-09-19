@@ -5,12 +5,7 @@ require "rails_helper"
 RSpec.describe "Api::MicrosoftCalendars", type: :request do
   let(:user) { create(:user) }
 
-  before { Flipper.enable(FlipperFlags::V1) }
-
-  after do
-    Flipper.disable(FlipperFlags::V1)
-    Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR)
-  end
+  after { Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR) }
 
   describe "POST /api/user/microsoft_calendar" do
     it "answers 404 while the provider is off" do

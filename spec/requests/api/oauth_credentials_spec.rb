@@ -5,10 +5,6 @@ require "rails_helper"
 RSpec.describe "Api::Users OAuth credentials", type: :request do
   let(:user) { create(:user) }
 
-  before { Flipper.enable(FlipperFlags::V1) }
-
-  after { Flipper.disable(FlipperFlags::V1) }
-
   describe "GET /api/user/oauth_credentials" do
     it "lists a Microsoft credential with its provider and calendar" do
       create(:oauth_credential, user: user)
