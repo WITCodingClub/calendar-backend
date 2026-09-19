@@ -36,5 +36,6 @@ A spec that declares `fixtures :buildings` inserts those rows outside the test t
 - The test database connection comes from `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, and `POSTGRES_PASSWORD`.
 - Set `HASHID_SALT` to any value. Without it, boot reads credentials and needs `config/master.key`.
 - In a new worktree, run `bin/rails tailwindcss:build` first. Request specs fail without the built CSS.
+- The test database needs the `vector` extension (`brew install pgvector`). Without it, `db:test:prepare` fails on the embedding columns. See `docs/embeddings.md`.
 - `bin/rails db:test:prepare && bundle exec rspec`
 - SimpleCov writes line and branch coverage to `coverage/index.html` after each run. Check it to find untested code.

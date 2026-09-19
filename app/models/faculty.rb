@@ -10,6 +10,8 @@
 #  directory_raw_data       :jsonb
 #  display_name             :string
 #  email                    :string           not null
+#  embedding                :vector(1536)
+#  embedding_digest         :string(64)
 #  employee_type            :string
 #  first_name               :string           not null
 #  last_name                :string           not null
@@ -30,6 +32,7 @@
 #  index_faculties_on_directory_last_synced_at  (directory_last_synced_at)
 #  index_faculties_on_directory_raw_data        (directory_raw_data) USING gin
 #  index_faculties_on_email                     (email) UNIQUE
+#  index_faculties_on_embedding                 (embedding) USING hnsw
 #  index_faculties_on_employee_type             (employee_type)
 #  index_faculties_on_lower_email               (lower((email)::text))
 #  index_faculties_on_rmp_id                    (rmp_id) UNIQUE
@@ -37,6 +40,7 @@
 #  index_faculties_on_school                    (school)
 #
 class Faculty < ApplicationRecord
+  include Embeddable
   include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :fac
@@ -80,6 +84,13 @@ class Faculty < ApplicationRecord
 
   def u_name
     { fwd: "#{first_name[0]}. #{last_name}", rev: "#{last_name}, #{first_name[0]}." }
+  end
+
+  # Who this person is, in the words a student would use to look for them. The
+  # directory fields are the stable part; ratings change every term, so they
+  # stay out of the vector.
+  def embedding_text
+    [ full_name, title, department, school ].compact_blank.join(". ")
   end
 
   def rmp_stats
