@@ -207,8 +207,8 @@ message:
 
 `GET /api/v1/catalog/subjects` accepts `term_uid`.
 
-`GET /api/v1/catalog/instructors` accepts `term_uid`, `q`, `page`, and
-`per_page`.
+`GET /api/v1/catalog/instructors` accepts `term_uid`, `q`, `semantic`, `page`,
+and `per_page`.
 
 `GET /api/v1/catalog/sections/:crn` accepts `term_uid`. Use it when one CRN
 occurs in more than one term. This endpoint also returns cancelled sections, so
@@ -227,6 +227,7 @@ All filters are optional. Give a list as a comma-separated value, for example
 | `crn` | `10001,10002` | Keep these CRNs |
 | `pub_id` | `crs_kw7coe30` | Keep these sections by public id |
 | `q` | `algorithms` | Search the title, subject, and number |
+| `semantic` | `true` | Rank `q` by meaning instead of by the literal words |
 | `schedule_type` | `lecture` or `LEC` | Keep these schedule types |
 | `credit_hours` | `4` | Keep these credit hours |
 | `instructor` | `byron` | Match the instructor name |
@@ -245,6 +246,26 @@ section is dropped if **any** of its meetings breaks the rule. This is what a
 student wants: one Friday afternoon lab still ruins a free Friday.
 
 An unknown filter value returns HTTP 400. An unknown query parameter is ignored.
+
+### Search by meaning
+
+`q` matches the literal words. Add `semantic=true` to rank by meaning instead,
+so `intro to programming` reaches `Computer Science I`. The same switch works
+on `/api/v1/catalog/instructors`.
+
+```bash
+curl "https://calendar.witcc.dev/api/v1/catalog/sections?q=learn+to+program&semantic=true&term_uid=202710"
+```
+
+Points to know:
+
+- Results come back ranked, nearest first, not sorted by subject and number.
+- Every other filter still applies. The ranking covers what the filters left.
+- A section stays out until it has been embedded, which happens nightly.
+- Semantic requests are limited to 30 per minute per IP. The keyword search
+  keeps the standard 300 per minute.
+- The server falls back to the keyword search when semantic search is off. The
+  request never fails because of it.
 
 ### Example
 
@@ -277,7 +298,7 @@ value into a string, and GraphQL then rejects booleans and numbers.
 | `subjects` | `termUid` | Subjects with section counts |
 | `sections` | `filter`, plus Relay arguments | A connection of sections |
 | `section` | `crn`, `termUid` | One section, cancelled ones included |
-| `instructors` | `termUid`, `q`, plus Relay arguments | A connection of faculty |
+| `instructors` | `termUid`, `q`, `semantic`, plus Relay arguments | A connection of faculty |
 
 `sections` and `instructors` are Relay connections. Both add `totalCount`, so a
 client can show "50 of 1174" without a second request.

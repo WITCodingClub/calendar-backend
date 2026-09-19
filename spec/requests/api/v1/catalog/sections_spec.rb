@@ -170,6 +170,35 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
     end
   end
 
+  describe "semantic search", :semantic_search do
+    before do
+      give_embedding(comp1000, 0.05)
+      give_embedding(math1750, 0.95)
+      stub_openai_embeddings([ embedding_vector(0.0) ])
+    end
+
+    it "ranks the sections that mean what the query means" do
+      get "/api/v1/catalog/sections", params: { q: "learn to program", semantic: "true" }
+
+      expect(response).to have_http_status(:ok)
+      expect(crns).to eq([ 10_001, 20_001 ])
+      expect(json["meta"]["total_count"]).to eq(2)
+    end
+
+    it "reports the filters it used" do
+      get "/api/v1/catalog/sections", params: { q: "learn to program", semantic: "true" }
+
+      expect(json["meta"]["filters"]).to include("q" => "learn to program", "semantic" => "true")
+    end
+
+    it "searches the literal words when semantic is not asked for" do
+      get "/api/v1/catalog/sections", params: { q: "Course 1000" }
+
+      expect(crns).to eq([ 10_001 ])
+      expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+    end
+  end
+
   describe "pagination" do
     it "honours page and per_page" do
       get "/api/v1/catalog/sections", params: { page: 2, per_page: 2 }
