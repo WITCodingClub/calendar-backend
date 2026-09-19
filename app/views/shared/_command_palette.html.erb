@@ -30,6 +30,7 @@
         <% Admin::NavigationRegistry.items_for_user(current_user).each do |item| %>
           <% item_path = item[:path].is_a?(Symbol) ? send(item[:path]) : item[:path] rescue '#' %>
           <a href="<%= item_path %>"
+             <% if item[:external] %>target="_blank" rel="noopener"<% end %>
              class="command-palette-item flex items-center gap-3 px-4 py-2.5 hover:bg-surface-container-high cursor-pointer transition-colors"
              data-label="<%= item[:title].downcase %>">
             <div class="w-7 h-7 flex items-center justify-center rounded-md bg-primary-container text-on-primary-container text-xs font-bold flex-shrink-0">
