@@ -68,7 +68,7 @@ The extension sends `POST /api/extension_events` with a JSON body:
 To add an event:
 
 1. Add the name to `ExtensionUsage::EVENTS` here, and deploy.
-2. Add the same name to `TELEMETRY_EVENTS` in the extension (`client/src/lib/telemetry.ts`), and call `track`.
+2. Add the same name to `TELEMETRY_EVENTS` in the extension (`src/lib/telemetry.ts`), and call `track`.
 
 If the extension ships first, the backend ignores the new name until step 1 is deployed.
 
