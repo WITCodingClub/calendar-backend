@@ -4,21 +4,38 @@ The app can sync course events to a calendar in a person's Microsoft 365 mailbox
 
 ## Admin consent is required first
 
-The WIT Entra tenant does not let users consent to Graph calendar scopes themselves. An IT admin must grant tenant-wide admin consent for the app registration before anyone can connect. Without that consent, Microsoft stops the sign-in with `AADSTS65001` or an "Approval required" page.
+The WIT Entra tenant does not let a person consent to this app. An admin of the WIT tenant must grant tenant-wide admin consent before anyone can connect. Without that consent, Microsoft stops the sign-in with `AADSTS65001` or an "Approval required" page.
 
 Do not turn on the flag for real users until IT confirms the consent.
 
-## Register the app in Entra ID
+## The app registration
 
-1. Create a web app registration in the Entra admin center.
-2. Add the redirect URI `https://calendar.witcc.dev/auth/microsoft_graph/callback`. For local work, add `http://localhost:3000/auth/microsoft_graph/callback`.
-3. Add the delegated Microsoft Graph permissions:
+The club owns the app registration. It is in the club's own Entra tenant, not in the WIT tenant. WIT IT does not register or operate anything. IT only grants admin consent, which makes an enterprise application in the WIT tenant. IT can review, limit or delete that enterprise application at any time. This is the usual model for a vendor application.
+
+The production registration is "WIT Calendar", with the client id `11846a97-8d14-4328-ab5d-3add1fb6aa64`. A client id is not a secret. The same registration serves "Sign in with Microsoft" (`docs/microsoft-sign-in.md`).
+
+To make a registration for a different environment:
+
+1. In the Entra admin center of the club tenant, create an app registration.
+2. For "Supported account types", select "Accounts in any organizational directory". A single-tenant registration in the club tenant cannot reach a WIT mailbox.
+3. Add the web redirect URI `https://calendar.witcc.dev/auth/microsoft_graph/callback`. For local work, add `http://localhost:3000/auth/microsoft_graph/callback`.
+4. Add the delegated Microsoft Graph permissions:
    - `Calendars.ReadWrite`
    - `MailboxSettings.ReadWrite` (reads and creates the Outlook categories that color events)
    - `offline_access`
    - `openid`, `email`, `profile` (sign-in only, no Graph data)
-4. Create a client secret.
-5. Ask an IT admin to grant admin consent for the permissions.
+5. Do not add an application permission. An application permission gives access to each mailbox in a tenant, and this provider acts only for a person who connects.
+6. Set the publisher domain to a domain that the tenant has verified, for example `witcc.dev`.
+7. Create a client secret. Put the value in the secret store, not in the repo. A secret expires after 24 months at most, so record the expiry date.
+8. Add a second maintainer as an owner of the registration.
+
+An admin of the WIT tenant grants consent with this URL:
+
+```
+https://login.microsoftonline.com/<WIT tenant id>/adminconsent?client_id=<client id>
+```
+
+After the consent, Microsoft sends the admin to a callback URL of the app. While the provider is off, that page answers 404. The consent is still complete.
 
 ## Configure the app
 
@@ -28,7 +45,7 @@ Set these environment variables. Keep the real values in the secret store, not i
 | --- | --- | --- |
 | `MICROSOFT_CLIENT_ID` | Yes | `YOUR_MICROSOFT_CLIENT_ID` |
 | `MICROSOFT_CLIENT_SECRET` | Yes | `YOUR_MICROSOFT_CLIENT_SECRET` |
-| `MICROSOFT_TENANT_ID` | No | The WIT tenant id. The default is `organizations`. |
+| `MICROSOFT_TENANT_ID` | In production | The WIT tenant id (a GUID), not the club tenant id. It limits connections to WIT accounts. The default is `organizations`. For a local test with a personal Outlook.com account, use `common` and a registration that allows personal accounts. |
 | `MICROSOFT_REDIRECT_URI` | No | The registered callback URL. The default is the request host plus `/auth/microsoft_graph/callback`. |
 
 The Cloudflare Worker must send `/auth/microsoft_graph` and `/auth/microsoft_graph/callback` to Rails, like `/auth/google_oauth2/callback`.
