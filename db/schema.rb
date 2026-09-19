@@ -643,6 +643,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_220000) do
     t.index ["user_id"], name: "index_security_events_on_user_id"
   end
 
+  create_table "sign_in_identities", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.datetime "last_signed_in_at"
+    t.string "provider", null: false
+    t.string "tenant_id", null: false
+    t.string "uid", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["provider", "tenant_id", "uid"], name: "index_sign_in_identities_on_provider_and_tenant_id_and_uid", unique: true
+    t.index ["user_id"], name: "index_sign_in_identities_on_user_id"
+  end
+
   create_table "solid_queue_batch_executions", force: :cascade do |t|
     t.bigint "batch_id", null: false
     t.datetime "created_at", null: false
@@ -1016,6 +1029,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_220000) do
   add_foreign_key "rooms", "buildings"
   add_foreign_key "security_events", "oauth_credentials"
   add_foreign_key "security_events", "users"
+  add_foreign_key "sign_in_identities", "users"
   add_foreign_key "solid_queue_batch_executions", "solid_queue_batches", column: "batch_id", on_delete: :cascade
   add_foreign_key "solid_queue_batch_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

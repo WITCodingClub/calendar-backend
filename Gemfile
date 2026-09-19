@@ -45,6 +45,7 @@ gem "webauthn", "~> 3.4"
 
 # Google OAuth + Calendar API
 gem "omniauth-google-oauth2"
+gem "omniauth-entra-id", "~> 3.1"
 gem "omniauth-rails_csrf_protection"
 gem "google-apis-calendar_v3"
 gem "googleauth"

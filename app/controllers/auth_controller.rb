@@ -67,20 +67,11 @@ class AuthController < ApplicationController
       return
     end
 
-    user = User.find_or_initialize_by(email: email)
-
-    if user.new_record?
-      user.first_name = auth.info.first_name.presence || email.split("@").first
-      user.last_name  = auth.info.last_name.presence || ""
-      user.password   = SecureRandom.hex(24)
-      user.skip_confirmation!
-      user.save!
-    else
-      user.first_name ||= auth.info.first_name
-      user.last_name  ||= auth.info.last_name
-      user.skip_confirmation! unless user.confirmed?
-      user.save! if user.changed?
-    end
+    user = User.find_or_provision_for_sign_in!(
+      email:      email,
+      first_name: auth.info.first_name,
+      last_name:  auth.info.last_name
+    )
 
     # Only persist the Google credential when calendar scopes were granted
     # (minimal-scope logins omit refresh_token and have no calendar scope).

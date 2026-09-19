@@ -61,6 +61,30 @@ class User < ApplicationRecord
     email.to_s.strip.match?(WIT_EMAIL_REGEX)
   end
 
+  # Finds or creates the account for a @wit.edu address that a sign-in provider
+  # has verified. The Google and Microsoft dashboard sign-ins both call this, so
+  # both follow one rule. The caller checks the domain and the verification.
+  def self.find_or_provision_for_sign_in!(email:, first_name:, last_name:)
+    # Devise stores emails in lower case, so a mixed-case address from a
+    # provider must find the same account.
+    user = find_or_initialize_by(email: email.to_s.strip.downcase)
+
+    if user.new_record?
+      user.first_name = first_name.presence || email.split("@").first
+      user.last_name  = last_name.presence || ""
+      user.password   = SecureRandom.hex(24)
+      user.skip_confirmation!
+      user.save!
+    else
+      user.first_name ||= first_name
+      user.last_name  ||= last_name
+      user.skip_confirmation! unless user.confirmed?
+      user.save! if user.changed?
+    end
+
+    user
+  end
+
   # No :registerable — accounts are provisioned only via Google OAuth
   # (see AuthController#handle_user_login, which enforces the @wit.edu gate).
   # Self-service password signup would bypass that domain restriction.
@@ -84,6 +108,7 @@ class User < ApplicationRecord
   has_many :security_events, dependent: :destroy
   has_many :passkeys, dependent: :destroy
   has_many :user_sessions, dependent: :destroy
+  has_many :sign_in_identities, dependent: :destroy
 
   has_many :sent_friendships, class_name: "Friendship", foreign_key: :requester_id,
            dependent: :destroy, inverse_of: :requester

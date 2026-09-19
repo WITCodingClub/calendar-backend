@@ -58,6 +58,7 @@ RSpec.describe User, type: :model do
     it { is_expected.to have_one(:user_extension_config).dependent(:destroy) }
     it { is_expected.to have_many(:security_events).dependent(:destroy) }
     it { is_expected.to have_many(:passkeys).dependent(:destroy) }
+    it { is_expected.to have_many(:sign_in_identities).dependent(:destroy) }
     it { is_expected.to have_many(:user_sessions).dependent(:destroy) }
     it { is_expected.to have_many(:sent_friendships).class_name("Friendship").with_foreign_key(:requester_id).dependent(:destroy) }
     it { is_expected.to have_many(:received_friendships).class_name("Friendship").with_foreign_key(:addressee_id).dependent(:destroy) }
@@ -128,6 +129,23 @@ RSpec.describe User, type: :model do
     it "rejects a blank address" do
       expect(described_class.wit_email?(nil)).to be(false)
       expect(described_class.wit_email?("")).to be(false)
+    end
+  end
+
+  describe ".find_or_provision_for_sign_in!" do
+    it "finds the account when a provider sends the email in mixed case" do
+      user = create(:user, email: "mixed.case@wit.edu")
+
+      found = described_class.find_or_provision_for_sign_in!(email: " Mixed.Case@WIT.edu ", first_name: "Synthetic", last_name: "Person")
+
+      expect(found).to eq(user)
+    end
+
+    it "creates a confirmed account for a new address" do
+      user = described_class.find_or_provision_for_sign_in!(email: "new.person@wit.edu", first_name: nil, last_name: nil)
+
+      expect(user).to be_persisted.and be_confirmed
+      expect(user).to have_attributes(email: "new.person@wit.edu", first_name: "new.person")
     end
   end
 end

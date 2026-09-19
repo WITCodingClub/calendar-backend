@@ -288,4 +288,44 @@ RSpec.describe "Discovery files", type: :request do
       expect(response.headers["Cache-Control"]).to include("public")
     end
   end
+
+  describe "GET /auth.md and Microsoft sign-in" do
+    after { Flipper.disable(FlipperFlags::MICROSOFT_SIGN_IN) }
+
+    it "names only Google as the proof of the address while Microsoft sign-in is off" do
+      configure_microsoft_sign_in
+
+      get "/auth.md", headers: crawler
+
+      expect(response.body).to include(
+        "Each account belongs to one person with a verified `@wit.edu` address.",
+        "The person proves the address with a WIT Google account."
+      )
+      expect(response.body).not_to include("Microsoft")
+      expect(response.body).not_to include("`@wit.edu` Google account")
+    end
+
+    it "names Microsoft sign-in, the tenant rule, and the missing API credential while it is on" do
+      configure_microsoft_sign_in
+      Flipper.enable(FlipperFlags::MICROSOFT_SIGN_IN)
+
+      get "/auth.md", headers: crawler
+
+      expect(response.body).to include(
+        "The person proves the address with a WIT Google account or a WIT Microsoft account.",
+        "A Microsoft account must belong to a member of the WIT tenant.",
+        "The service refuses guest accounts.",
+        "Sign in with Microsoft opens a session on the web dashboard only. It does not give an API credential."
+      )
+    end
+
+    it "says nothing about Microsoft when the flag is on but the client is not configured" do
+      configure_microsoft_sign_in(client_id: nil)
+      Flipper.enable(FlipperFlags::MICROSOFT_SIGN_IN)
+
+      get "/auth.md", headers: crawler
+
+      expect(response.body).not_to include("Microsoft")
+    end
+  end
 end
