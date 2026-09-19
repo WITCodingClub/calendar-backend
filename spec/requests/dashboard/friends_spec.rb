@@ -72,6 +72,87 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
   end
 
+  describe "GET /dashboard/friends" do
+    it "links each friend to their schedule" do
+      create(:friendship, :accepted, requester: current_user, addressee: other_user)
+
+      get dashboard_friends_path
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(dashboard_friend_path(other_user.public_id))
+    end
+  end
+
+  describe "GET /dashboard/friends/requests" do
+    # The show route would also match this path, so this guards the route order.
+    it "still renders the requests page" do
+      get requests_dashboard_friends_path
+
+      expect(response).to have_http_status(:ok)
+    end
+  end
+
+  describe "GET /dashboard/friends/:id" do
+    let(:term)   { create(:term) }
+    let(:course) { create(:course, term: term, subject: "MATH", course_number: 2300, title: "Linear Algebra") }
+
+    before do
+      create(:course_meeting_time, course: course)
+      create(:enrollment, user: other_user, course: course)
+    end
+
+    it "shows an accepted friend's courses" do
+      create(:friendship, :accepted, requester: other_user, addressee: current_user)
+
+      get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid, view: "list" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(ERB::Util.html_escape("#{other_user.full_name}'s Schedule"))
+      expect(response.body).to include("MATH 2300")
+      expect(response.body).to include("Linear Algebra")
+    end
+
+    it "keeps the week navigation on the friend's page" do
+      create(:friendship, :accepted, requester: current_user, addressee: other_user)
+
+      get dashboard_friend_path(other_user.public_id),
+          params: { term_uid: term.uid, view: "week", week_start: "2026-09-14" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(
+        ERB::Util.html_escape(dashboard_friend_path(other_user.public_id, view: "week", term_uid: term.uid, week_start: "2026-09-21"))
+      )
+      expect(response.body).to include("MATH 2300")
+    end
+
+    it "does not show the signed-in user's own courses" do
+      create(:friendship, :accepted, requester: current_user, addressee: other_user)
+      own_course = create(:course, term: term, subject: "HIST", course_number: 1100)
+      create(:enrollment, user: current_user, course: own_course)
+
+      get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid, view: "list" }
+
+      expect(response.body).to include("MATH 2300")
+      expect(response.body).not_to include("HIST 1100")
+    end
+
+    it "refuses a user with only a pending request" do
+      create(:friendship, requester: current_user, addressee: other_user)
+
+      get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid }
+
+      expect(response).to redirect_to(dashboard_friends_path)
+      expect(flash[:alert]).to eq("Friend not found.")
+    end
+
+    it "refuses a user who is not a friend" do
+      get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid }
+
+      expect(response).to redirect_to(dashboard_friends_path)
+      expect(flash[:alert]).to eq("Friend not found.")
+    end
+  end
+
   describe "POST /dashboard/friends/:id/accept" do
     it "accepts an incoming request" do
       friendship = create(:friendship, requester: other_user, addressee: current_user)

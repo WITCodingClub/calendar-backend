@@ -175,7 +175,7 @@ Rails.application.routes.draw do
       resource  :notifications,        only: [ :show, :update ] do
         patch :university_events
       end
-      resources :friends, only: [ :index, :create, :destroy ] do
+      resources :friends, only: [ :index, :show, :create, :destroy ] do
         member     { post :accept; post :decline }
         collection { get :requests }
       end

@@ -1,12 +1,25 @@
 # frozen_string_literal: true
 
 class Dashboard::FriendsController < Dashboard::ApplicationController
+  include ScheduleLoading
+
   def index
     authorize current_user, :show?
 
     @friends  = current_user.friends.order(:first_name, :last_name)
     @incoming = current_user.incoming_friend_requests.includes(:requester).pending
     @outgoing = current_user.outgoing_friend_requests.includes(:addressee).pending
+  end
+
+  def show
+    authorize current_user, :show?
+
+    # Scoping to accepted friends is the access check: a pending request or a
+    # stranger's id finds nothing.
+    @friend = current_user.friends.find_by_public_id(params[:id])
+    return redirect_to dashboard_friends_path, alert: "Friend not found." unless @friend
+
+    @schedule = build_schedule_for(@friend)
   end
 
   def requests
