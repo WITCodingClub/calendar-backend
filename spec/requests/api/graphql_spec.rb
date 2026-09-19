@@ -204,6 +204,62 @@ RSpec.describe "Api::Graphql", type: :request do
     end
   end
 
+  describe "reviews" do
+    let!(:group_work) do
+      create(:rmp_rating, faculty: ada, course_name: "COMP1050", clarity_rating: 5,
+                          rating_tags: "Group projects--Caring", comment: "Lots of group projects.",
+                          rating_date: 2.days.ago)
+    end
+
+    let!(:tough_exams) do
+      create(:rmp_rating, faculty: ada, clarity_rating: 2, comment: "The exams are brutal.",
+                          rating_date: 1.day.ago)
+    end
+
+    it "returns reviews with their instructor and their source" do
+      result = gql('{ reviews(first: 10) { totalCount nodes { comment tags source instructor { name } } } }')
+
+      expect(result["errors"]).to be_nil
+      expect(result["data"]["reviews"]["totalCount"]).to eq(2)
+
+      newest = result["data"]["reviews"]["nodes"].first
+      expect(newest["comment"]).to eq("The exams are brutal.")
+      expect(newest["source"]).to eq("ratemyprofessors.com")
+      expect(newest["instructor"]["name"]).to eq("Ada Byron")
+    end
+
+    it "keeps one instructor's reviews" do
+      create(:rmp_rating, faculty: grace, comment: "Someone else's class.")
+
+      result = gql("{ reviews(instructor: \"#{ada.public_id}\", first: 10) { totalCount } }")
+
+      expect(result["data"]["reviews"]["totalCount"]).to eq(2)
+    end
+
+    it "splits the tags Rate My Professors joins together" do
+      result = gql('{ reviews(sentiment: "positive", first: 10) { nodes { tags } } }')
+
+      expect(result["data"]["reviews"]["nodes"].first["tags"]).to eq([ "Group projects", "Caring" ])
+    end
+
+    it "reports an unknown instructor as a GraphQL error" do
+      result = gql('{ reviews(instructor: "fac_nobody", first: 10) { totalCount } }')
+
+      expect(result["errors"].first["message"]).to match(/Unknown instructor/)
+    end
+
+    it "ranks by meaning when asked", :semantic_search do
+      give_embedding(group_work, 0.05)
+      give_embedding(tough_exams, 0.95)
+      stub_openai_embeddings([ embedding_vector(0.0) ])
+
+      result = gql('{ reviews(q: "team assignments", semantic: true, first: 10) { nodes { comment } } }')
+
+      expect(result["data"]["reviews"]["nodes"].map { |r| r["comment"] })
+        .to eq([ "Lots of group projects.", "The exams are brutal." ])
+    end
+  end
+
   describe "similar" do
     it "returns the sections closest to one section" do
       give_embedding(comp1000, 0.00)
