@@ -37,9 +37,11 @@ RSpec.describe "Api::Users OAuth credentials", type: :request do
       expect(response).to have_http_status(:ok)
     end
 
-    it "ends the session when a Google account is disconnected" do
-      create(:oauth_credential, user: user)
-      google  = create(:oauth_credential, user: user, email: Faker::Internet.email)
+    # Only the Google account that signed the person in ends the sessions. The
+    # factory gives a credential the person's own email, which is that account.
+    it "ends the session when the Google sign-in account is disconnected" do
+      google  = create(:oauth_credential, user: user)
+      create(:oauth_credential, user: user, email: Faker::Internet.email)
       headers = auth_headers_for(user)
 
       delete "/api/user/oauth_credentials/#{google.public_id}", headers: headers

@@ -127,6 +127,10 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
   end
 
   describe "DELETE /dashboard/connected_accounts/:id", :microsoft_graph do
+    # The Google account that the person onboarded with. Without a second
+    # account, the dashboard refuses the disconnect.
+    before { create(:oauth_credential, user: user) }
+
     it "removes the Outlook calendar and then the Microsoft account" do
       credential = create(:oauth_credential, :microsoft, user: user)
       create(:course_calendar, :microsoft, oauth_credential: credential, external_calendar_id: "AAMkSyntheticCalendar1")
