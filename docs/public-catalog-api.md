@@ -203,7 +203,9 @@ message:
 | `GET /api/v1/catalog/sections` | Sections, with filters |
 | `GET /api/v1/catalog/sections/:crn` | One section by CRN |
 | `GET /api/v1/catalog/instructors` | Faculty who teach at least one section |
+| `GET /api/v1/catalog/sections/:crn/similar` | Sections like this one |
 | `GET /api/v1/catalog/instructors/:pub_id` | One instructor |
+| `GET /api/v1/catalog/instructors/:pub_id/similar` | Instructors like this one |
 
 `GET /api/v1/catalog/subjects` accepts `term_uid`.
 
@@ -267,6 +269,23 @@ Points to know:
 - The server falls back to the keyword search when semantic search is off. The
   request never fails because of it.
 
+### What is like this one?
+
+`/similar` ranks the records closest in meaning to one record, nearest first.
+
+```bash
+curl "https://calendar.witcc.dev/api/v1/catalog/sections/17294/similar?limit=5"
+curl "https://calendar.witcc.dev/api/v1/catalog/instructors/fac_kw7coe30/similar"
+```
+
+Points to know:
+
+- `limit` is 10 by default and 50 at most.
+- Similar sections stay inside the section's own term, and the other sections
+  of the same course are left out.
+- Similar instructors are people who teach at least one section.
+- The list is empty until the record has been embedded, which happens nightly.
+
 ### Example
 
 Find Computer Science sections in Fall 2026 that keep Friday free and do not
@@ -299,6 +318,10 @@ value into a string, and GraphQL then rejects booleans and numbers.
 | `sections` | `filter`, plus Relay arguments | A connection of sections |
 | `section` | `crn`, `termUid` | One section, cancelled ones included |
 | `instructors` | `termUid`, `q`, `semantic`, plus Relay arguments | A connection of faculty |
+
+`SectionType.similar(limit:)` and `InstructorType.similar(limit:)` return the
+records closest in meaning to that record. Both cost more than a plain field,
+because each one runs its own search.
 
 `sections` and `instructors` are Relay connections. Both add `totalCount`, so a
 client can show "50 of 1174" without a second request.

@@ -204,6 +204,34 @@ RSpec.describe "Api::Graphql", type: :request do
     end
   end
 
+  describe "similar" do
+    it "returns the sections closest to one section" do
+      give_embedding(comp1000, 0.00)
+      give_embedding(comp2000, 0.10)
+      give_embedding(math1750, 0.90)
+
+      result = gql("{ section(crn: 10001) { similar(limit: 5) { crn } } }")
+
+      expect(result["errors"]).to be_nil
+      expect(result["data"]["section"]["similar"].map { |s| s["crn"] }).to eq([ 10_002 ])
+    end
+
+    it "returns the instructors closest to one instructor" do
+      give_embedding(ada, 0.00)
+      give_embedding(grace, 0.10)
+
+      result = gql("{ instructors(q: \"byron\", first: 1) { nodes { similar { name } } } }")
+
+      expect(result["data"]["instructors"]["nodes"].first["similar"].map { |i| i["name"] }).to eq([ "Grace Hop" ])
+    end
+
+    it "is empty for a section with no vector" do
+      result = gql("{ section(crn: 10001) { similar { crn } } }")
+
+      expect(result["data"]["section"]["similar"]).to be_empty
+    end
+  end
+
   describe "semantic search", :semantic_search do
     before { stub_openai_embeddings([ embedding_vector(0.0) ]) }
 

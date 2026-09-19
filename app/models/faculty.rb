@@ -93,6 +93,16 @@ class Faculty < ApplicationRecord
     [ full_name, title, department, school ].compact_blank.join(". ")
   end
 
+  # Instructors whose subject looks like this one's, nearest first. Only
+  # people who teach are offered, because the catalog only shows those.
+  def similar_instructors(limit: Embeddable::DEFAULT_SIMILAR_LIMIT)
+    return Faculty.none if embedding.nil?
+
+    Faculty.nearest_to(embedding, limit: limit)
+           .where(id: Faculty.joins(:courses).select("faculties.id"))
+           .where.not(id: id)
+  end
+
   def rmp_stats
     return nil unless rating_distribution
 

@@ -110,6 +110,55 @@ RSpec.describe Course, type: :model do
     end
   end
 
+  describe "#similar_sections" do
+    let(:spring_term) { create(:term, uid: 202_620, year: 2026, season: :spring) }
+
+    def section(subject: "COMP", number: 1000, term_for: term, angle: 0.5)
+      give_embedding(create(:course, term: term_for, subject: subject, course_number: number), angle)
+    end
+
+    it "returns the closest sections first" do
+      source = section(number: 1000, angle: 0.0)
+      near   = section(number: 2000, angle: 0.10)
+      far    = section(number: 3000, angle: 0.90)
+
+      expect(source.similar_sections).to eq([ near, far ])
+    end
+
+    it "leaves out the other sections of the same course" do
+      source = section(number: 1000, angle: 0.0)
+      section(number: 1000, angle: 0.01)
+
+      expect(source.similar_sections).to be_empty
+    end
+
+    it "stays inside the term the student is looking at" do
+      source = section(number: 1000, angle: 0.0)
+      section(number: 2000, term_for: spring_term, angle: 0.01)
+
+      expect(source.similar_sections).to be_empty
+    end
+
+    it "leaves out cancelled sections" do
+      source = section(number: 1000, angle: 0.0)
+      section(number: 2000, angle: 0.01).update!(status: :cancelled)
+
+      expect(source.similar_sections).to be_empty
+    end
+
+    it "stops at the limit" do
+      source = section(number: 1000, angle: 0.0)
+      section(number: 2000, angle: 0.10)
+      section(number: 3000, angle: 0.20)
+
+      expect(source.similar_sections(limit: 1).length).to eq(1)
+    end
+
+    it "returns nothing until the section has a vector" do
+      expect(create(:course, term: term).similar_sections).to be_empty
+    end
+  end
+
   describe "#link_slot and #link_key" do
     it "splits the Banner identifier into the slot and the key" do
       lecture = course(section_number: "1A", link_identifier: "A1")

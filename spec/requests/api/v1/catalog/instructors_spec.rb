@@ -31,6 +31,35 @@ RSpec.describe "Api::V1::Catalog::Instructors", type: :request do
     end
   end
 
+  describe "GET /api/v1/catalog/instructors/:pub_id/similar" do
+    before do
+      give_embedding(ada, 0.00)
+      give_embedding(grace, 0.10)
+    end
+
+    it "returns the closest instructors who teach, nearest first" do
+      get "/api/v1/catalog/instructors/#{ada.public_id}/similar"
+
+      expect(response).to have_http_status(:ok)
+      expect(json["data"].map { |i| i["name"] }).to eq([ "Grace Hop" ])
+      expect(json["meta"]).to eq("pub_id" => ada.public_id, "limit" => 10)
+    end
+
+    it "returns an empty list for an instructor with no vector" do
+      ada.update_columns(embedding: nil, embedding_digest: nil) # rubocop:disable Rails/SkipsModelValidations
+
+      get "/api/v1/catalog/instructors/#{ada.public_id}/similar"
+
+      expect(json["data"]).to be_empty
+    end
+
+    it "returns 404 for an instructor that does not exist" do
+      get "/api/v1/catalog/instructors/fac_missing/similar"
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe "semantic search", :semantic_search do
     before do
       give_embedding(ada, 0.05)
