@@ -43,7 +43,7 @@
 
       <!-- Bottom: user + sign out -->
       <div class="border-t border-outline-variant p-2 xl:p-3 space-y-1">
-        <% if current_user.admin_access? %>
+        <% admin_tool do %>
           <%= render "layouts/user_nav_item", path: admin_root_path, label: "Admin", icon: "shield" %>
         <% end %>
         <div class="hidden xl:flex items-center gap-2 px-3 py-2 rounded-2xl">
@@ -99,7 +99,8 @@
         <%= render "layouts/user_bottom_nav_item", path: dashboard_calendar_preferences_path, label: "Prefs", icon: "adjustments" %>
         <%= render "layouts/user_bottom_nav_item", path: dashboard_connected_accounts_path, label: "Accounts", icon: "link" %>
         <%= render "layouts/user_bottom_nav_item", path: dashboard_friends_path, label: "Friends", icon: "users" %>
-        <% if current_user.admin_access? %>
+        <%# The wrapper takes the item's place in the flex row. %>
+        <% admin_tool("flex-1 flex") do %>
           <%= render "layouts/user_bottom_nav_item", path: admin_root_path, label: "Admin", icon: "shield" %>
         <% end %>
       </nav>

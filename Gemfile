@@ -53,6 +53,9 @@ gem "googleauth"
 # Authorization
 gem "pundit"
 
+# Admin-only blocks in views (admin_tool)
+gem "admin_tools", "~> 1.0"
+
 # Recurrence rules (for Google Calendar event sync)
 gem "ice_cube"
 
