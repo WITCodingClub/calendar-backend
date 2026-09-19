@@ -2,6 +2,7 @@
 
 require Rails.root.join("app/lib/flipper_flags")
 require Rails.root.join("app/lib/flipper_user_actor_adapter")
+require Rails.root.join("app/lib/flipper_groups")
 
 # Canonical list of every Flipper flag used in the app. Add a flag here before
 # calling Flipper.enabled? anywhere — this ensures it appears in the Flipper UI
@@ -33,21 +34,9 @@ Flipper::UI.configure do |config|
   config.actor_names_source = ->(actor_ids) { FlipperActorNames.call(actor_ids) }
 end
 
-Flipper.register(:users) do |actor, _context|
-  actor.is_a?(User)
-end
-
-Flipper.register(:admins) do |actor, _context|
-  actor.is_a?(User) && actor.admin_access?
-end
-
-Flipper.register(:super_admins) do |actor, _context|
-  actor.is_a?(User) && (actor.super_admin? || actor.owner?)
-end
-
-Flipper.register(:owners) do |actor, _context|
-  actor.is_a?(User) && actor.owner?
-end
+# Group gates. FlipperGroups unwraps the actor that Flipper passes a group
+# block, so a group matches the user behind it.
+FlipperGroups.register_all
 
 # Ensure every flag in FLIPPER_FLAGS exists in the store so the Flipper UI
 # always shows the full list, even in fresh environments.

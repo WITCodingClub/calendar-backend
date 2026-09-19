@@ -59,5 +59,13 @@ FactoryBot.define do
     trait :admin do
       access_level { :admin }
     end
+
+    trait :super_admin do
+      access_level { :super_admin }
+    end
+
+    trait :owner do
+      access_level { :owner }
+    end
   end
 end
