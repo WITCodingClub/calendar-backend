@@ -10,6 +10,8 @@
 #  comment              :text
 #  course_name          :string
 #  difficulty_rating    :integer
+#  embedding            :vector(1536)
+#  embedding_digest     :string(64)
 #  grade                :string
 #  helpful_rating       :integer
 #  is_for_credit        :boolean
@@ -26,6 +28,7 @@
 #
 # Indexes
 #
+#  index_rmp_ratings_on_embedding   (embedding) USING hnsw
 #  index_rmp_ratings_on_faculty_id  (faculty_id)
 #  index_rmp_ratings_on_rmp_id      (rmp_id) UNIQUE
 #

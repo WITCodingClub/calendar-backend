@@ -12,6 +12,8 @@ require "rails_helper"
 #  directory_raw_data       :jsonb
 #  display_name             :string
 #  email                    :string           not null
+#  embedding                :vector(1536)
+#  embedding_digest         :string(64)
 #  employee_type            :string
 #  first_name               :string           not null
 #  last_name                :string           not null
@@ -32,6 +34,7 @@ require "rails_helper"
 #  index_faculties_on_directory_last_synced_at  (directory_last_synced_at)
 #  index_faculties_on_directory_raw_data        (directory_raw_data) USING gin
 #  index_faculties_on_email                     (email) UNIQUE
+#  index_faculties_on_embedding                 (embedding) USING hnsw
 #  index_faculties_on_employee_type             (employee_type)
 #  index_faculties_on_lower_email               (lower((email)::text))
 #  index_faculties_on_rmp_id                    (rmp_id) UNIQUE
@@ -53,4 +56,20 @@ RSpec.describe Faculty, type: :model do
   it { is_expected.to validate_presence_of(:first_name) }
   it { is_expected.to validate_presence_of(:last_name) }
   it { is_expected.to validate_uniqueness_of(:rmp_id).allow_nil }
+
+  describe "#embedding_text" do
+    it "reads the directory facts a student would search by" do
+      faculty = create(:faculty, first_name: "Ada", last_name: "Lovelace", display_name: nil,
+                                 title: "Professor", department: "Computer Science", school: "School of Computing")
+
+      expect(faculty.embedding_text).to eq("Ada Lovelace. Professor. Computer Science. School of Computing")
+    end
+
+    it "leaves out the fields the directory has not filled" do
+      faculty = create(:faculty, first_name: "Ada", last_name: "Lovelace", middle_name: nil, display_name: nil,
+                                 title: nil, department: nil, school: nil)
+
+      expect(faculty.embedding_text).to eq("Ada Lovelace")
+    end
+  end
 end

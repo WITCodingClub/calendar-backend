@@ -85,6 +85,10 @@ gem "faraday-retry"
 # JWT for OAuth state signing and RISC webhook validation
 gem "jwt"
 
+# Vector search over course, instructor and review embeddings (docs/embeddings.md)
+gem "pgvector"
+gem "neighbor"
+
 # Pagination
 gem "kaminari"
 

@@ -8,6 +8,8 @@
 #  course_number     :integer          not null
 #  credit_hours      :integer
 #  crn               :integer          not null
+#  embedding         :vector(1536)
+#  embedding_digest  :string(64)
 #  end_date          :date             not null
 #  grade_mode        :string
 #  is_section_linked :boolean          default(FALSE), not null
@@ -28,6 +30,7 @@
 #
 #  index_courses_on_course_and_link_identifier  (term_id,subject,course_number,link_identifier)
 #  index_courses_on_crn_and_term_id             (crn,term_id) UNIQUE
+#  index_courses_on_embedding                   (embedding) USING hnsw
 #  index_courses_on_status                      (status)
 #  index_courses_on_term_id                     (term_id)
 #
@@ -87,6 +90,24 @@ RSpec.describe Course, type: :model do
            schedule_type: schedule_type,
            link_identifier: link_identifier,
            is_section_linked: link_identifier.present?)
+  end
+
+  describe "#embedding_text" do
+    it "reads the section the way a student would describe it" do
+      section = create(:course, term: term, subject: "Computer Science (COMP)", course_number: 1050,
+                                title: "Computer Science II", schedule_type: "LEC", credit_hours: 4)
+
+      expect(section.embedding_text).to eq(
+        "COMP1050 Computer Science II. Computer Science (COMP). lecture. 4 credit hours"
+      )
+    end
+
+    it "leaves out the credit hours Banner has not published" do
+      section = create(:course, term: term, subject: "COMP", course_number: 1000,
+                                title: "Computer Science I", credit_hours: nil)
+
+      expect(section.embedding_text).to eq("COMP1000 Computer Science I. COMP. lecture")
+    end
   end
 
   describe "#link_slot and #link_key" do
