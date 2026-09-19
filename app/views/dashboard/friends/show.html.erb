@@ -1,0 +1,15 @@
+<% content_for :title, "#{@friend.full_name}'s Schedule" %>
+
+<div class="space-y-4">
+  <%= link_to dashboard_friends_path,
+      class: "inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-on-surface transition-colors" do %>
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    Friends
+  <% end %>
+
+  <%= render "dashboard/schedules/calendar",
+      schedule: @schedule,
+      title: "#{@friend.full_name}'s Schedule",
+      path_for: ->(**query) { dashboard_friend_path(@friend.public_id, query) },
+      empty_hint: "#{@friend.full_name} has not imported a schedule for this term." %>
+</div>

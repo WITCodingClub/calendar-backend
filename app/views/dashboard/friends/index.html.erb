@@ -28,10 +28,12 @@
       <% @friends.each do |friend| %>
         <div class="px-5 py-3 flex items-center justify-between gap-3">
           <div>
-            <p class="text-sm font-medium text-on-surface"><%= friend.full_name %></p>
+            <%= link_to friend.full_name, dashboard_friend_path(friend.public_id),
+                class: "text-sm font-medium text-on-surface hover:text-primary transition-colors" %>
             <p class="text-xs text-on-surface-variant"><%= friend.email %></p>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-3">
+            <%= link_to "View schedule", dashboard_friend_path(friend.public_id), class: "m3-btn-text text-xs" %>
             <%= button_to "Remove",
                 dashboard_friend_path(friend.public_id),
                 method: :delete,
