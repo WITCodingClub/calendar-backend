@@ -101,12 +101,13 @@ class OauthCredential < ApplicationRecord
     provider == "microsoft"
   end
 
-  # A Graph failure must not block the disconnect, so it is logged only.
+  # A Graph failure must not block the disconnect, so it is logged only. When
+  # the events are in the person's primary calendar, only the events go.
   def delete_microsoft_calendar
     calendar = course_calendar
     return if calendar.nil? || calendar.external_calendar_id.blank?
 
-    MicrosoftGraphCalendarService.new(user, credential: self).delete_calendar(calendar.external_calendar_id)
+    MicrosoftGraphCalendarService.new(user, credential: self).remove_course_events(calendar)
   rescue => e
     Rails.logger.error({ message: "Could not delete the Outlook calendar on disconnect",
                          oauth_credential_id: id, error: e.class.name }.to_json)

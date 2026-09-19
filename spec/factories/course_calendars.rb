@@ -35,5 +35,11 @@ FactoryBot.define do
       association :oauth_credential, :microsoft
       sequence(:external_calendar_id) { |n| "AAMkFactoryCalendar#{n}" }
     end
+
+    # The person's own main Microsoft calendar, which the app never deletes.
+    trait :primary do
+      microsoft
+      placement { "primary" }
+    end
   end
 end

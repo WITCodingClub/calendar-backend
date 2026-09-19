@@ -31,10 +31,14 @@ class MicrosoftGraphCalendarService
     CourseCalendar.microsoft.find_by(oauth_credential_id: credential.id)
   end
 
-  def create_or_get_course_calendar
+  # `placement` applies only when the person has no calendar row yet. Use
+  # #change_placement to move a calendar that exists.
+  def create_or_get_course_calendar(placement: nil)
     raise MicrosoftGraph::AuthError, "No Microsoft credential found for user" unless credential
 
-    calendar = course_calendar
+    calendar  = course_calendar
+    placement = calendar&.placement || placement.presence || "separate"
+    return use_primary_calendar(calendar) if placement == "primary"
 
     if calendar
       begin
@@ -47,21 +51,54 @@ class MicrosoftGraphCalendarService
       end
     end
 
-    remote = client.post("me/calendars", { name: calendar_name })
-    attributes = {
-      external_calendar_id: remote.fetch("id"),
-      summary:              remote["name"],
-      time_zone:            LOCAL_TIME_ZONE,
-      last_synced_at:       nil
-    }
+    save_calendar(calendar, create_separate_calendar, placement: "separate")
+  end
 
-    if calendar
-      calendar.update!(attributes)
+  # Moves the course events between a calendar of their own and the person's
+  # primary calendar. The old events are deleted here. The caller starts a
+  # forced sync, which creates them again in the new place. Edits the person
+  # made in Outlook do not survive the move.
+  #
+  # A failed step can run again: the primary calendar id is read before
+  # anything is deleted, a delete of a missing event or calendar counts as
+  # done, and the move stops while an event delete has failed. One gap stays:
+  # if the process dies after Graph creates the separate calendar and before
+  # the row is saved, the next run creates a second, empty "WIT Courses"
+  # calendar. The service does not look for a calendar by name, because it
+  # could then adopt, and later delete, a calendar that the person made.
+  def change_placement(placement)
+    placement = placement.to_s
+    raise ArgumentError, "unknown placement #{placement}" unless CourseCalendar::PLACEMENTS.value?(placement)
+
+    calendar = course_calendar
+    return create_or_get_course_calendar(placement: placement) unless calendar
+    return calendar.external_calendar_id if calendar.placement == placement
+
+    if placement == "primary"
+      remote = fetch_primary_calendar
+      delete_calendar(calendar.external_calendar_id)
+      calendar.calendar_events.delete_all
     else
-      calendar = CourseCalendar.create!(attributes.merge(provider: "microsoft", oauth_credential: credential))
+      delete_tracked_events(calendar)
+      # A row that stays points at an event in the primary calendar. After the
+      # move, the sync would find that row and update the old event in place.
+      # So the move stops here, and the job tries again.
+      if calendar.calendar_events.exists?
+        raise MicrosoftGraph::Error, "could not delete every course event from the primary calendar"
+      end
+
+      remote = create_separate_calendar
     end
 
-    calendar.external_calendar_id
+    save_calendar(calendar, remote, placement: placement)
+  end
+
+  # Removes what the app put in the mailbox: the whole calendar when it is the
+  # app's own, or only the tracked events when they are in the primary calendar.
+  def remove_course_events(calendar)
+    return delete_tracked_events(calendar) if calendar.primary_placement?
+
+    delete_calendar(calendar.external_calendar_id)
   end
 
   def update_calendar_events(events, force: false)
@@ -111,7 +148,13 @@ class MicrosoftGraphCalendarService
     delete_quietly(moved_id) if moved_id.present? && moved_id != event_id
   end
 
+  # Never deletes a calendar that a row tracks as the person's primary calendar.
   def delete_calendar(calendar_id)
+    if CourseCalendar.microsoft.primary_placement.exists?(external_calendar_id: calendar_id)
+      Rails.logger.error("Refused to delete a primary Microsoft calendar")
+      return
+    end
+
     client.delete("me/calendars/#{escape(calendar_id)}")
   rescue MicrosoftGraph::NotFoundError
     Rails.logger.info("Microsoft calendar #{calendar_id} already absent")
@@ -125,6 +168,48 @@ class MicrosoftGraphCalendarService
 
   def empty_stats
     { created: 0, updated: 0, skipped: 0 }
+  end
+
+  # The primary calendar always exists, so there is nothing to create. Its id
+  # is read again each time, because it is the only link to the mailbox.
+  def use_primary_calendar(calendar)
+    save_calendar(calendar, fetch_primary_calendar, placement: "primary")
+  end
+
+  def fetch_primary_calendar
+    client.get("me/calendar", params: { "$select" => "id,name" })
+  end
+
+  def create_separate_calendar
+    client.post("me/calendars", { name: calendar_name })
+  end
+
+  def save_calendar(calendar, remote, placement:)
+    attributes = {
+      external_calendar_id: remote.fetch("id"),
+      summary:              remote["name"],
+      time_zone:            LOCAL_TIME_ZONE,
+      placement:            placement
+    }
+
+    if calendar.nil?
+      calendar = CourseCalendar.create!(attributes.merge(provider: "microsoft", oauth_credential: credential))
+    elsif calendar.external_calendar_id != attributes[:external_calendar_id] || calendar.placement != placement
+      calendar.update!(attributes.merge(last_synced_at: nil))
+    end
+
+    calendar.external_calendar_id
+  end
+
+  # One failed delete must not stop the others, so it is logged and the row
+  # stays. A row that stays is tried again on the next call.
+  def delete_tracked_events(calendar)
+    calendar.calendar_events.find_each do |row|
+      delete_remote_event(row)
+    rescue MicrosoftGraph::Error => e
+      Rails.logger.error({ message: "Could not delete a Microsoft event", user_id: user&.id,
+                           calendar_event_id: row.id, error: e.class.name }.to_json)
+    end
   end
 
   def upsert_events(calendar, events, existing, force:)
@@ -209,6 +294,8 @@ class MicrosoftGraphCalendarService
     if remote_categories.nil?
       payload[:categories] = [ category ] if category
     else
+      # After a read, the person's own free or busy choice stays.
+      payload.delete(:showAs)
       own = Array(remote_categories).reject { |name| MicrosoftGraph::CategoryCache.app_category?(name) }
       payload[:categories] = own + [ category ].compact
     end

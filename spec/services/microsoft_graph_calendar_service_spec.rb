@@ -76,6 +76,24 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
       expect(calendar.calendar_events).to be_empty
     end
 
+    it "tracks the primary calendar and creates nothing when the person asks for it" do
+      credential
+      stub_request(:get, "#{graph}/me/calendar").with(query: hash_including({})).to_return(graph_json_response("calendar_primary"))
+
+      expect(service.create_or_get_course_calendar(placement: "primary")).to eq("AAMkSyntheticPrimaryCalendar")
+      expect(CourseCalendar.find_by!(oauth_credential: credential)).to have_attributes(placement: "primary", external_calendar_id: "AAMkSyntheticPrimaryCalendar")
+      expect(a_request(:post, "#{graph}/me/calendars")).not_to have_been_made
+    end
+
+    it "keeps the placement of a calendar that exists" do
+      calendar
+      stub_request(:get, "#{graph}/me/calendars/AAMkSyntheticCalendar1").with(query: hash_including({}))
+        .to_return(graph_json_response("calendar_found"))
+
+      expect(service.create_or_get_course_calendar(placement: "primary")).to eq("AAMkSyntheticCalendar1")
+      expect(calendar.reload).to be_separate_placement
+    end
+
     it "needs a Microsoft credential" do
       expect { service.create_or_get_course_calendar }.to raise_error(MicrosoftGraph::AuthError)
     end
@@ -96,6 +114,7 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
 
       expect(stats).to eq(created: 1, updated: 0, skipped: 0)
       expect(create_stub).to have_been_requested.once
+      expect(a_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events").with(body: hash_including("showAs" => "busy"))).to have_been_made
       expect(calendar.calendar_events.sole).to have_attributes(
         meeting_time_id: meeting_time.id, external_event_id: created_event_id, external_ical_uid: created_ical_uid
       )
@@ -227,6 +246,19 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
       expect(stats).to eq(created: 0, updated: 1, skipped: 0)
       expect(patch).to have_been_requested
       expect(row.reload).to have_attributes(user_edited_fields: nil, start_time: zone.local(2026, 9, 14, 9, 0))
+    end
+
+    it "sends no showAs after it reads the event, so the person's free or busy choice stays" do
+      stub_event_fetch(start: outlook_time(8), end: outlook_time(9, 15))
+      sent  = nil
+      patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}")
+              .with { |request| sent = JSON.parse(request.body) }
+              .to_return(graph_json_response("event_updated"))
+
+      service.update_calendar_events([ class_event ])
+
+      expect(patch).to have_been_requested
+      expect(sent).not_to have_key("showAs")
     end
 
     it "keeps a title and a time the person changed" do
@@ -389,7 +421,110 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
     end
   end
 
+  describe "#change_placement" do
+    let(:primary_calendar) do
+      create(:course_calendar, :primary, oauth_credential: credential, external_calendar_id: "AAMkSyntheticPrimaryCalendar")
+    end
+
+    it "moves to the primary calendar: reads its id first, then deletes the separate calendar and its rows" do
+      create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time)
+      order = []
+      stub_request(:get, "#{graph}/me/calendar").with(query: hash_including({})).to_return do
+        order << :read_primary
+        graph_json_response("calendar_primary")
+      end
+      stub_request(:delete, "#{graph}/me/calendars/AAMkSyntheticCalendar1").to_return do
+        order << :delete_separate
+        { status: 204 }
+      end
+
+      expect(service.change_placement("primary")).to eq("AAMkSyntheticPrimaryCalendar")
+
+      expect(order).to eq(%i[read_primary delete_separate])
+      expect(calendar.reload).to have_attributes(placement: "primary", external_calendar_id: "AAMkSyntheticPrimaryCalendar", last_synced_at: nil)
+      expect(calendar.calendar_events).to be_empty
+    end
+
+    it "keeps the separate calendar when the primary calendar cannot be read" do
+      calendar
+      stub_request(:get, "#{graph}/me/calendar").with(query: hash_including({})).to_return(graph_json_response("error_forbidden", status: 403))
+
+      expect { service.change_placement("primary") }.to raise_error(MicrosoftGraph::Error)
+
+      expect(calendar.reload).to be_separate_placement
+      expect(a_request(:delete, "#{graph}/me/calendars/AAMkSyntheticCalendar1")).not_to have_been_made
+    end
+
+    it "moves to a separate calendar: deletes each tracked event, never the primary calendar" do
+      row = create(:calendar_event, course_calendar: primary_calendar, meeting_time: meeting_time, external_event_id: "AAMkSyntheticEvent1")
+      delete_event = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticEvent1").to_return(status: 204)
+      stub_request(:post, "#{graph}/me/calendars").to_return(graph_json_response("calendar_created"))
+
+      expect(service.change_placement("separate")).to eq("AAMkSyntheticCalendarNew")
+
+      expect(delete_event).to have_been_requested
+      expect(a_request(:delete, %r{/me/calendars/})).not_to have_been_made
+      expect(CalendarEvent.exists?(row.id)).to be(false)
+      expect(primary_calendar.reload).to have_attributes(placement: "separate", external_calendar_id: "AAMkSyntheticCalendarNew")
+    end
+
+    it "stops the move while an event delete has failed, so the sync never updates the old event" do
+      create(:calendar_event, course_calendar: primary_calendar, meeting_time: meeting_time, external_event_id: "AAMkSyntheticEventFails")
+      stub_request(:delete, "#{graph}/me/events/AAMkSyntheticEventFails").to_return(status: 500, body: "{}")
+
+      expect { service.change_placement("separate") }.to raise_error(MicrosoftGraph::Error)
+
+      expect(primary_calendar.reload).to be_primary_placement
+      expect(a_request(:post, "#{graph}/me/calendars")).not_to have_been_made
+    end
+
+    it "does nothing when the placement is already the one asked for" do
+      calendar
+
+      expect(service.change_placement("separate")).to eq("AAMkSyntheticCalendar1")
+      expect(a_request(:any, /graph\.microsoft\.com/)).not_to have_been_made
+    end
+
+    it "refuses a placement it does not know" do
+      calendar
+
+      expect { service.change_placement("shared") }.to raise_error(ArgumentError)
+    end
+  end
+
+  describe "#remove_course_events" do
+    it "deletes only the tracked events of a primary calendar, and carries on after a failure" do
+      primary = create(:course_calendar, :primary, oauth_credential: credential, external_calendar_id: "AAMkSyntheticPrimaryCalendar")
+      failed  = create(:calendar_event, course_calendar: primary, external_event_id: "AAMkSyntheticEventFails")
+      removed = create(:calendar_event, course_calendar: primary, external_event_id: "AAMkSyntheticEvent1")
+      stub_request(:delete, "#{graph}/me/events/AAMkSyntheticEventFails").to_return(status: 500, body: "{}")
+      stub_request(:delete, "#{graph}/me/events/AAMkSyntheticEvent1").to_return(status: 204)
+
+      expect { service.remove_course_events(primary) }.not_to raise_error
+
+      expect(CalendarEvent.exists?(removed.id)).to be(false)
+      expect(CalendarEvent.exists?(failed.id)).to be(true)
+      expect(a_request(:delete, %r{/me/calendars/})).not_to have_been_made
+    end
+
+    it "deletes the whole calendar when it is the app's own" do
+      delete = stub_request(:delete, "#{graph}/me/calendars/AAMkSyntheticCalendar1").to_return(status: 204)
+
+      service.remove_course_events(calendar)
+
+      expect(delete).to have_been_requested
+    end
+  end
+
   describe "#delete_calendar" do
+    it "refuses to delete a calendar that is tracked as a primary calendar" do
+      create(:course_calendar, :primary, oauth_credential: credential, external_calendar_id: "AAMkSyntheticPrimaryCalendar")
+
+      service.delete_calendar("AAMkSyntheticPrimaryCalendar")
+
+      expect(a_request(:any, /graph\.microsoft\.com/)).not_to have_been_made
+    end
+
     it "treats a missing calendar as deleted" do
       credential
       stub_request(:delete, "#{graph}/me/calendars/AAMkSyntheticCalendar1").to_return(graph_json_response("error_not_found", status: 404))

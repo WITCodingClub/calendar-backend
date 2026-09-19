@@ -177,6 +177,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_220000) do
     t.string "external_calendar_id", null: false
     t.datetime "last_synced_at"
     t.bigint "oauth_credential_id", null: false
+    t.string "placement", default: "separate", null: false
     t.string "provider", default: "google", null: false
     t.string "summary"
     t.string "time_zone"

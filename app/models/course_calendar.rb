@@ -7,6 +7,7 @@
 #  id                   :bigint           not null, primary key
 #  description          :text
 #  last_synced_at       :datetime
+#  placement            :string           default("separate"), not null
 #  provider             :string           default("google"), not null
 #  summary              :string
 #  time_zone            :string
@@ -39,7 +40,14 @@ class CourseCalendar < ApplicationRecord
 
   PROVIDERS = { google: "google", microsoft: "microsoft" }.freeze
 
+  # Where the course events live. "separate" is a calendar that the app makes
+  # and owns. "primary" is the person's own main calendar, which is the only
+  # one Exchange reads for free and busy time. The app must never delete a
+  # primary calendar, only the events it put there.
+  PLACEMENTS = { separate: "separate", primary: "primary" }.freeze
+
   enum :provider, PROVIDERS, validate: true
+  enum :placement, PLACEMENTS, validate: true, suffix: true
 
   belongs_to :oauth_credential
   has_many :calendar_events, foreign_key: :calendar_id, inverse_of: :course_calendar, dependent: :destroy
@@ -48,6 +56,7 @@ class CourseCalendar < ApplicationRecord
   validates :external_calendar_id, presence: true, uniqueness: { scope: :provider }
   # One course calendar per OAuth credential — the app treats this as a has_one.
   validates :oauth_credential_id, uniqueness: true
+  validate :primary_placement_is_microsoft_only
 
   before_destroy :enqueue_remote_calendar_deletion
 
@@ -68,8 +77,16 @@ class CourseCalendar < ApplicationRecord
 
   private
 
+  # A Google course calendar belongs to the service account, so the person's
+  # primary Google calendar is out of reach.
+  def primary_placement_is_microsoft_only
+    errors.add(:placement, "can be primary only for a Microsoft calendar") if primary_placement? && !microsoft?
+  end
+
+  # The primary calendar is the person's own, so it stays. Each event row
+  # deletes its own Outlook event when `dependent: :destroy` removes it.
   def enqueue_remote_calendar_deletion
-    return if skip_remote_deletion || external_calendar_id.blank?
+    return if skip_remote_deletion || external_calendar_id.blank? || primary_placement?
 
     if microsoft?
       MicrosoftGraphCalendarDeleteJob.perform_later(oauth_credential_id, external_calendar_id)
