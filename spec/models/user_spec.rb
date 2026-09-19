@@ -131,4 +131,21 @@ RSpec.describe User, type: :model do
       expect(described_class.wit_email?("")).to be(false)
     end
   end
+
+  describe ".find_or_provision_for_sign_in!" do
+    it "finds the account when a provider sends the email in mixed case" do
+      user = create(:user, email: "mixed.case@wit.edu")
+
+      found = described_class.find_or_provision_for_sign_in!(email: " Mixed.Case@WIT.edu ", first_name: "Synthetic", last_name: "Person")
+
+      expect(found).to eq(user)
+    end
+
+    it "creates a confirmed account for a new address" do
+      user = described_class.find_or_provision_for_sign_in!(email: "new.person@wit.edu", first_name: nil, last_name: nil)
+
+      expect(user).to be_persisted.and be_confirmed
+      expect(user).to have_attributes(email: "new.person@wit.edu", first_name: "new.person")
+    end
+  end
 end

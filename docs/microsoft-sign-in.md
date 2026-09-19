@@ -102,7 +102,11 @@ sequenceDiagram
 4. With no identity, the email decides the account, like the Google sign-in. The first sign-in creates the account. A matching account gets linked. The app trusts the email only for a member of the WIT tenant, because WIT owns `wit.edu` in that tenant.
 5. A guest account in the WIT tenant has an `idp` claim that names another identity provider. Its email comes from outside WIT, so the app refuses it and links nothing.
 
-Identities live in `sign_in_identities`, not in `oauth_credentials`. They hold no tokens.
+The app links an account by email with no second check. This gives the WIT tenant the same trust that the Google sign-in gives WIT Google Workspace: WIT IT decides who holds a `@wit.edu` address. A member cannot change their own `mail` or UPN value. If WIT gives an old address to a new person, that person gets the old account, with both providers.
+
+Two Microsoft rules support this. The UPN domain of a member is always a domain that the tenant has verified. For a multi-tenant registration made after June 2023, Microsoft leaves out an `email` claim whose domain the tenant has not verified. Do not turn off `removeUnverifiedEmailClaim` on the registration.
+
+Identities live in `sign_in_identities`, not in `oauth_credentials`. They hold no tokens. The tenant id and the account id are stored in lower case.
 
 ## Sessions
 

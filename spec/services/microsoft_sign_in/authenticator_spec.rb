@@ -25,6 +25,14 @@ RSpec.describe MicrosoftSignIn::Authenticator do
     expect(result.user).to eq(user)
   end
 
+  it "finds the identity again when Microsoft sends the ids in upper case" do
+    first = described_class.call(microsoft_auth_hash(email: email, oid: oid)).user
+
+    expect { described_class.call(microsoft_auth_hash(email: email, oid: oid.upcase)) }
+      .not_to change(SignInIdentity, :count)
+    expect(SignInIdentity.sole).to have_attributes(user: first, uid: oid)
+  end
+
   it "falls back to preferred_username when the email claim is empty" do
     auth = microsoft_auth_hash(email: email, oid: oid)
     auth.info.email = nil

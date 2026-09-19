@@ -65,7 +65,9 @@ class User < ApplicationRecord
   # has verified. The Google and Microsoft dashboard sign-ins both call this, so
   # both follow one rule. The caller checks the domain and the verification.
   def self.find_or_provision_for_sign_in!(email:, first_name:, last_name:)
-    user = find_or_initialize_by(email: email)
+    # Devise stores emails in lower case, so a mixed-case address from a
+    # provider must find the same account.
+    user = find_or_initialize_by(email: email.to_s.strip.downcase)
 
     if user.new_record?
       user.first_name = first_name.presence || email.split("@").first

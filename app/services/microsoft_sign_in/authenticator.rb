@@ -89,12 +89,14 @@ module MicrosoftSignIn
       idp.present? && !idp.downcase.include?(tenant_id.downcase)
     end
 
+    # GUIDs compare without case, but the identity lookup and its unique index
+    # compare with case. So both ids are stored and looked up in lower case.
     def tenant_id
-      claims["tid"].to_s
+      claims["tid"].to_s.downcase
     end
 
     def object_id_claim
-      claims["oid"].to_s
+      claims["oid"].to_s.downcase
     end
 
     def email
