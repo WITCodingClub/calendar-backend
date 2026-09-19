@@ -6,6 +6,30 @@
     <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
   </div>
 
+
+  <div class="mb-4">
+    <%= form_with(url: admin_rmp_ratings_path, method: :get, class: "flex flex-wrap gap-2 items-center") do |f| %>
+      <%= f.text_field :q,
+          value: @query,
+          placeholder: "Search the comments...",
+          class: "m3-input flex-1 px-4 py-2 border border-outline-variant rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50" %>
+      <label class="flex items-center gap-2 text-sm text-on-surface-variant">
+        <%= f.check_box :semantic, checked: @semantic, class: "rounded border-outline-variant" %>
+        By meaning
+      </label>
+      <%= f.submit "Search", class: "m3-btn-filled px-6 py-2 rounded cursor-pointer" %>
+      <% if @query.present? %>
+        <%= link_to "Clear", admin_rmp_ratings_path, class: "m3-btn-outlined px-6 py-2 rounded inline-flex items-center" %>
+      <% end %>
+    <% end %>
+    <% if @query.present? && @semantic && !Catalog::SemanticSearch.available? %>
+      <p class="mt-2 text-sm text-on-surface-variant">
+        Search by meaning is off, so these are the literal matches. Turn on the
+        <code>semantic_search</code> flag and set <code>OPENAI_API_KEY</code>.
+      </p>
+    <% end %>
+  </div>
+
   <div class="m3-card shadow-sm rounded-xl overflow-hidden">
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-outline-variant">
@@ -13,6 +37,7 @@
           <tr>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Faculty</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Course</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Comment</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Clarity</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Difficulty</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Helpful</th>
@@ -31,6 +56,7 @@
                 <% end %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= rating.course_name || "N/A" %></td>
+              <td class="px-6 py-4 text-sm text-on-surface max-w-md"><%= truncate(rating.comment, length: 140) %></td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= rating.clarity_rating || "N/A" %></td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= rating.difficulty_rating || "N/A" %></td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= rating.helpful_rating || "N/A" %></td>

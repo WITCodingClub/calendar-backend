@@ -48,6 +48,16 @@ module Types
       directive Directives::ListSize, **CONNECTION_LIST_SIZE
     end
 
+    field :reviews, ReviewType.connection_type, null: false,
+          description: "Rate My Professors reviews of WIT instructors" do
+      argument :instructor, String, required: false, description: "An instructor public id"
+      argument :q, String, required: false, description: "Free text over the comment and the course"
+      argument :semantic, Boolean, required: false, default_value: false,
+               description: "Rank q by meaning instead of by the literal words"
+      argument :sentiment, String, required: false, description: "\"positive\" or \"negative\""
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE
+    end
+
     def terms
       Term.reverse_chronological
     end
@@ -80,6 +90,13 @@ module Types
       )
 
       ::Catalog::SectionQuery.with_associations(relation).first
+    end
+
+    def reviews(instructor: nil, q: nil, semantic: false, sentiment: nil)
+      filters  = { instructor: instructor, q: q, semantic: semantic, sentiment: sentiment }.compact
+      relation = ::Catalog::ReviewQuery.new.call(**filters)
+
+      ::Catalog::ReviewQuery.with_associations(relation)
     end
 
     def instructors(term_uid: nil, q: nil, semantic: false)

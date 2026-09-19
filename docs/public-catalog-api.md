@@ -206,6 +206,7 @@ message:
 | `GET /api/v1/catalog/sections/:crn/similar` | Sections like this one |
 | `GET /api/v1/catalog/instructors/:pub_id` | One instructor |
 | `GET /api/v1/catalog/instructors/:pub_id/similar` | Instructors like this one |
+| `GET /api/v1/catalog/reviews` | Rate My Professors reviews |
 
 `GET /api/v1/catalog/subjects` accepts `term_uid`.
 
@@ -269,6 +270,27 @@ Points to know:
 - The server falls back to the keyword search when semantic search is off. The
   request never fails because of it.
 
+### Reviews
+
+`GET /api/v1/catalog/reviews` returns Rate My Professors reviews of WIT
+instructors, newest first. Only reviews that carry a comment are returned.
+
+| Filter | Example | Effect |
+| --- | --- | --- |
+| `instructor` | `fac_kw7coe30` | Keep one instructor's reviews |
+| `q` | `group projects` | Search the comment and the course name |
+| `semantic` | `true` | Rank `q` by meaning instead of by the literal words |
+| `sentiment` | `positive` | Keep only positive or only negative reviews |
+| `page`, `per_page` | `2`, `50` | Page through the result. 25 by default, 100 at most |
+
+```bash
+curl "https://calendar.witcc.dev/api/v1/catalog/reviews?q=lots+of+group+projects&semantic=true"
+```
+
+The text of a review belongs to the student who wrote it on
+ratemyprofessors.com. Every review, and the `meta` of every page, names that
+source. Credit it and link back when you show this text.
+
 ### What is like this one?
 
 `/similar` ranks the records closest in meaning to one record, nearest first.
@@ -318,6 +340,7 @@ value into a string, and GraphQL then rejects booleans and numbers.
 | `sections` | `filter`, plus Relay arguments | A connection of sections |
 | `section` | `crn`, `termUid` | One section, cancelled ones included |
 | `instructors` | `termUid`, `q`, `semantic`, plus Relay arguments | A connection of faculty |
+| `reviews` | `instructor`, `q`, `semantic`, `sentiment`, plus Relay arguments | A connection of reviews |
 
 `SectionType.similar(limit:)` and `InstructorType.similar(limit:)` return the
 records closest in meaning to that record. Both cost more than a plain field,
