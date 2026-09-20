@@ -12,7 +12,7 @@ gem "jbuilder"
 
 # json 3 changed JSON.parse to take one argument, which breaks
 # ActiveSupport::JSON.decode in Rails 8.1. Remove this pin when Rails supports json 3.
-gem "json", "< 3"
+gem "json", "< 4"
 
 # Renders the public API reference from the markdown file in docs/
 gem "redcarpet"
