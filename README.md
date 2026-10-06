@@ -1,4 +1,4 @@
-# Getting Started
+# Getting Started 
 
 You can set up the app on your own machine with mise, or in GitHub Codespaces.
 
