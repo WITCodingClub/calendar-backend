@@ -47,6 +47,14 @@ RSpec.describe "Admin pages", type: :request do
     end
   end
 
+  describe "the dashboard" do
+    it "renders" do
+      get admin_root_path
+
+      expect_admin_page("Dashboard")
+    end
+  end
+
   describe "users" do
     let(:student) { create(:user, first_name: "Sam", last_name: "Student") }
 

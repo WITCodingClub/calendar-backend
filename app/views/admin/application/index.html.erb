@@ -1,52 +1,112 @@
-<% content_for :title, "Admin Dashboard" %>
+<%= render "admin/shared/page_header", title: "Dashboard", subtitle: "The state of WIT Calendar at a glance." %>
 
-<div class="flex justify-between items-center mb-6">
-  <h1 class="text-2xl font-bold text-on-surface">Admin Dashboard</h1>
-</div>
+<% counts = @dashboard.counts %>
+<%= render "admin/shared/stats" do %>
+  <%= render "admin/shared/stat", label: "Users", value: counts[:users], path: admin_users_path, hint: "#{number_with_delimiter(@dashboard.sign_ups_this_week)} new this week" %>
+  <%= render "admin/shared/stat", label: "Calendars", value: counts[:calendars], path: admin_calendars_path %>
+  <%= render "admin/shared/stat", label: "Courses", value: counts[:courses], path: admin_courses_path %>
+  <%= render "admin/shared/stat", label: "Faculty", value: counts[:faculty], path: admin_faculties_path %>
+  <%= render "admin/shared/stat", label: "Terms", value: counts[:terms], path: admin_terms_path %>
+  <%= render "admin/shared/stat", label: "RMP ratings", value: counts[:rmp_ratings], path: admin_rmp_ratings_path %>
+  <%= render "admin/shared/stat", label: "Final exams", value: counts[:final_exams], path: admin_finals_schedules_path %>
+  <%= render "admin/shared/stat", label: "University events", value: counts[:university_events], path: admin_university_calendar_events_path %>
+<% end %>
 
-<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 mb-8">
-  <%= render "shared/stat_card", title: "Users",           count: @users_count,            path: admin_users_path %>
-  <%= render "shared/stat_card", title: "Courses",         count: @courses_count,          path: admin_courses_path %>
-  <%= render "shared/stat_card", title: "Faculty",         count: @faculties_count,        path: admin_faculties_path %>
-  <%= render "shared/stat_card", title: "Terms",           count: @terms_count,            path: admin_terms_path %>
-  <%= render "shared/stat_card", title: "Calendars",       count: @course_calendars_count, path: admin_calendars_path %>
-  <%= render "shared/stat_card", title: "RMP Ratings",     count: @rmp_ratings_count,      path: admin_rmp_ratings_path %>
-  <%= render "shared/stat_card", title: "Finals",          count: @finals_schedules_count, path: admin_finals_schedules_path %>
-  <%= render "shared/stat_card", title: "Uni Events",      count: @university_events_count, path: admin_university_calendar_events_path %>
-</div>
+<% if @dashboard.attention.any? %>
+  <section aria-labelledby="attention-heading" class="mb-6 px-4 py-3 rounded-xl <%= AdminHelper::BADGE_TONES[:warning] %>">
+    <h2 id="attention-heading" class="flex items-center gap-2 text-sm font-semibold"><%= admin_icon(:exclamation, css_class: "w-5 h-5") %> Needs attention</h2>
+    <ul class="mt-2 flex flex-wrap gap-2">
+      <% @dashboard.attention.each do |entry| %>
+        <li>
+          <%= link_to public_send(entry[:path]), class: "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface/60 text-sm hover:bg-surface" do %>
+            <span class="font-semibold tabular-nums"><%= number_with_delimiter(entry[:count]) %></span> <%= entry[:label] %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>
 
-<div class="m3-card">
-  <div class="px-4 py-4 border-b border-outline-variant">
-    <h3 class="text-sm font-semibold text-on-surface-variant uppercase tracking-wide">Quick Actions</h3>
-  </div>
-  <div class="p-2">
-    <%= link_to admin_users_path, class: "m3-list-item" do %>
-      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-      </svg>
-      Manage Users
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+  <div class="xl:col-span-2 space-y-6">
+    <% health = @dashboard.sync_health %>
+    <% status_badge = { ok: [ "Healthy", :success ], warning: [ "Some stale", :warning ], danger: [ "Many stale", :danger ] }.fetch(@dashboard.sync_status) %>
+    <%= render "admin/shared/card", title: "Calendar sync health", subtitle: "The sync runs every six hours. A calendar with no sync for a day is stale.", actions: admin_badge(*status_badge), id: "sync-health" do %>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <%= render "admin/shared/stat", label: "Synced in last day", value: health[:healthy], tone: :success %>
+        <%= render "admin/shared/stat", label: "Stale", value: health[:stale], tone: (health[:stale].positive? ? :warning : nil), hint: "#{number_with_delimiter(health[:never_synced])} never synced" %>
+        <%= render "admin/shared/stat", label: "Users waiting", value: health[:users_needing_sync], hint: "Flagged for the next sync" %>
+        <%= render "admin/shared/stat", label: "Revoked credentials", value: health[:revoked_credentials], tone: (health[:revoked_credentials].positive? ? :danger : nil) %>
+        <%= render "admin/shared/stat", label: "Last sync", value: health[:last_synced_at] ? "#{time_ago_in_words(health[:last_synced_at])} ago" : "Never" %>
+      </div>
     <% end %>
-    <%= link_to admin_calendars_path, class: "m3-list-item" do %>
-      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-      Manage Calendars
-    <% end %>
-    <%= link_to missing_rmp_ids_admin_faculties_path, class: "m3-list-item" do %>
-      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-      </svg>
-      Fill Missing RMP IDs
-      <% if @missing_rmp_ids_count&.> 0 %>
-        <span class="ml-auto m3-badge-error"><%= @missing_rmp_ids_count %></span>
+
+    <% jobs_item = Admin::NavigationRegistry.item_for(current_user, :jobs) %>
+    <% jobs_link = capture do %>
+      <% if jobs_item %>
+        <%= link_to "Open job dashboard", admin_nav_path(jobs_item), target: "_blank", rel: "noopener", class: "m3-btn-text" %>
       <% end %>
     <% end %>
-    <% if policy(:course_catalog).index? %>
-      <%= link_to admin_course_catalog_path, class: "m3-list-item" do %>
-        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        Fetch Course Catalog
+    <%= render "admin/shared/card", title: "Failed jobs", subtitle: "#{number_with_delimiter(@dashboard.failed_jobs_count)} failed, newest first", actions: jobs_link, flush: true, id: "failed-jobs" do %>
+      <% if @dashboard.recent_failed_jobs.any? %>
+        <ul class="divide-y divide-outline-variant">
+          <% @dashboard.recent_failed_jobs.each do |failure| %>
+            <li class="px-4 sm:px-6 py-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <% if jobs_item %>
+                  <%= link_to failure.job.class_name, admin_mission_control_jobs.application_job_path("calendar", failure.job.active_job_id, anchor: "error"), target: "_blank", rel: "noopener", class: "font-medium text-primary hover:underline" %>
+                <% else %>
+                  <span class="font-medium"><%= failure.job.class_name %></span>
+                <% end %>
+                <span class="text-xs text-on-surface-variant" title="<%= l(failure.created_at, format: :long) %>"><%= time_ago_in_words(failure.created_at) %> ago</span>
+              </div>
+              <p class="mt-1 text-xs text-error font-mono break-words"><%= failure.exception_class %>: <%= truncate(failure.message.to_s, length: 160) %></p>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <div class="px-4 py-8">
+          <%= render "admin/shared/empty_state", icon: :check_circle, message: "No failed jobs." %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+
+  <div class="space-y-6">
+    <%= render "admin/shared/card", title: "Recent sign-ups", actions: link_to("All users", admin_users_path, class: "m3-btn-text"), flush: true, id: "recent-sign-ups" do %>
+      <% if @dashboard.recent_sign_ups.any? %>
+        <ul class="divide-y divide-outline-variant">
+          <% @dashboard.recent_sign_ups.each do |user| %>
+            <li class="flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5">
+              <div class="min-w-0">
+                <%= link_to user.full_name, admin_user_path(user), class: "block text-sm font-medium text-primary hover:underline truncate" %>
+                <p class="text-xs text-on-surface-variant truncate"><%= user.email %></p>
+              </div>
+              <span class="text-xs text-on-surface-variant whitespace-nowrap"><%= time_ago_in_words(user.created_at) %> ago</span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <div class="px-4 py-8"><%= render "admin/shared/empty_state", message: "No users yet." %></div>
+      <% end %>
+    <% end %>
+
+    <% tools = %i[jobs feature_flags database sql console_audits].filter_map { |id| Admin::NavigationRegistry.item_for(current_user, id) } %>
+    <% if tools.any? %>
+      <%= render "admin/shared/card", title: "Tools", subtitle: "Each tool opens in a new tab.", flush: true, id: "tools" do %>
+        <ul class="p-2">
+          <% tools.each do |item| %>
+            <li>
+              <%= link_to admin_nav_path(item), target: "_blank", rel: "noopener", class: "flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-container-high" do %>
+                <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary-container text-on-primary-container shrink-0"><%= admin_icon(item[:icon], css_class: "w-4 h-4") %></span>
+                <span class="min-w-0">
+                  <span class="block text-sm font-medium text-on-surface"><%= item[:title] %></span>
+                  <span class="block text-xs text-on-surface-variant truncate"><%= item[:description] %></span>
+                </span>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
       <% end %>
     <% end %>
   </div>
