@@ -20,12 +20,21 @@ RSpec.describe FriendMeeting do
     it { is_expected.to validate_length_of(:location).is_at_most(FriendMeeting::TITLE_MAX_LENGTH) }
     it { is_expected.to validate_presence_of(:start_time) }
     it { is_expected.to validate_presence_of(:end_time) }
+    it { is_expected.to validate_length_of(:guest_name).is_at_most(FriendMeeting::GUEST_NAME_MAX_LENGTH) }
+    it { is_expected.to allow_value("guest@example.com", nil).for(:guest_email) }
+    it { is_expected.not_to allow_value("not-an-email").for(:guest_email) }
 
     it do
       expect(subject).to define_enum_for(:frequency)
         .with_values(one_time: "one_time", weekly: "weekly")
         .backed_by_column_of_type(:string)
         .validating
+    end
+
+    context "when the meeting has a guest" do
+      subject { build(:friend_meeting, :with_guest) }
+
+      it { is_expected.to validate_presence_of(:guest_name) }
     end
 
     context "when the meeting repeats weekly" do
@@ -99,6 +108,18 @@ RSpec.describe FriendMeeting do
       meeting.update!(invite_friends: true)
 
       expect(meeting.invitees).to eq([ friend ])
+    end
+
+    it "always lists the guest from a meeting link, after any friends" do
+      meeting.update!(invite_friends: true, guest_name: "Sample Guest", guest_email: "guest@example.com")
+
+      expect(meeting.invitees).to eq([ friend, FriendMeeting::Guest.new(email: "guest@example.com", full_name: "Sample Guest") ])
+    end
+
+    it "invites the guest even when the person did not ask to invite friends" do
+      meeting.update!(guest_name: "Sample Guest", guest_email: "guest@example.com")
+
+      expect(meeting.invitees.map(&:email)).to eq([ "guest@example.com" ])
     end
   end
 

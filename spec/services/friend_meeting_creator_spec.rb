@@ -59,6 +59,37 @@ RSpec.describe FriendMeetingCreator do
     expect(meeting).to have_attributes(frequency: "weekly", term: term, repeat_until: Date.new(2026, 12, 18))
   end
 
+  describe "a guest from a one-time meeting link" do
+    let(:guest) { { name: " Sample Guest ", email: " Guest@Example.com " } }
+
+    it "makes a meeting with no friends, keeps the guest, and invites the guest" do
+      meeting = nil
+
+      expect { meeting = create_meeting(friend_ids: [], guest: guest) }.to have_enqueued_job(FriendMeetingPublishJob)
+
+      expect(meeting).to have_attributes(guest_name: "Sample Guest", guest_email: "guest@example.com", invite_friends: false)
+      expect(meeting.attendees).to be_empty
+      expect(meeting.invitees.map(&:email)).to eq([ "guest@example.com" ])
+    end
+
+    it "still refuses a user id that is not a friend" do
+      stranger = create(:user)
+
+      expect { create_meeting(friend_ids: [ stranger.public_id ], guest: guest) }
+        .to raise_error(described_class::Error, /accepted friends/)
+    end
+
+    it "starts the publish job only after the caller's transaction commits" do
+      FriendMeeting.transaction do
+        create_meeting(friend_ids: [], guest: guest)
+
+        expect(enqueued_jobs).to be_empty
+      end
+
+      expect(FriendMeetingPublishJob).to have_been_enqueued.once
+    end
+  end
+
   describe "requests that cannot become a meeting" do
     it "refuses a weekly meeting when no term holds its first day" do
       expect { create_meeting(frequency: "weekly") }.to raise_error(described_class::Error, /current term/)

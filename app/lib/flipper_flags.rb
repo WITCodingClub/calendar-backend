@@ -9,6 +9,7 @@ module FlipperFlags
   MICROSOFT_GRAPH_CALENDAR = :microsoft_graph_calendar
   FRIEND_MEETING_EVENTS = :friend_meeting_events
   FRIENDS_AVAILABILITY_ONLY = :friends_availability_only
+  MEETING_LINKS = :meeting_links
 
   MAP = {
     envSwitcher: ENV_SWITCHER,
@@ -18,7 +19,8 @@ module FlipperFlags
     microsoftSignIn: MICROSOFT_SIGN_IN,
     microsoftGraphCalendar: MICROSOFT_GRAPH_CALENDAR,
     friendMeetingEvents: FRIEND_MEETING_EVENTS,
-    friendsAvailabilityOnly: FRIENDS_AVAILABILITY_ONLY
+    friendsAvailabilityOnly: FRIENDS_AVAILABILITY_ONLY,
+    meetingLinks: MEETING_LINKS
   }.freeze
 
   ALL_FLAGS = %i[
@@ -30,5 +32,6 @@ module FlipperFlags
     microsoftGraphCalendar
     friendMeetingEvents
     friendsAvailabilityOnly
+    meetingLinks
   ].freeze
 end

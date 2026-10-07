@@ -1,0 +1,16 @@
+<% content_for :title, "Meeting Booked" %>
+<% starts = @meeting.local_start %>
+<% ends = @meeting.end_time.in_time_zone(FriendMeeting::LOCAL_TIME_ZONE) %>
+
+<div class="m3-card p-8 space-y-4">
+  <h1 class="text-2xl font-bold text-on-surface">Your meeting is booked</h1>
+  <div class="text-on-surface">
+    <p class="font-medium"><%= @meeting.title %></p>
+    <p><%= starts.strftime("%A, %B %-d, %Y") %></p>
+    <p><%= starts.strftime("%-l:%M %p") %> to <%= ends.strftime("%-l:%M %p %Z") %></p>
+  </div>
+  <p class="text-sm text-on-surface-variant">
+    <%= @owner.full_name %> has the meeting in their calendar.
+    We sent a confirmation to <%= @meeting.guest_email %>.
+  </p>
+</div>

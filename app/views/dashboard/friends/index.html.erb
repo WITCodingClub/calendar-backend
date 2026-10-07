@@ -12,6 +12,16 @@
     <% end %>
   </div>
 
+  <% if Flipper.enabled?(FlipperFlags::MEETING_LINKS, current_user) %>
+    <%= link_to dashboard_meeting_links_path, class: "m3-card p-4 flex items-center justify-between gap-3 hover:bg-surface-container-high transition-colors" do %>
+      <div>
+        <p class="text-sm font-medium text-on-surface">Meeting links</p>
+        <p class="text-xs text-on-surface-variant">Let a person who is not your friend book one time with you.</p>
+      </div>
+      <span class="m3-btn-text text-sm">Open</span>
+    <% end %>
+  <% end %>
+
   <!-- Add friend -->
   <%= form_with url: dashboard_friends_path, method: :post, class: "m3-card p-4 flex gap-2" do |f| %>
     <%= f.text_field :friend_id,

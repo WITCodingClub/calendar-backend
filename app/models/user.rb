@@ -116,6 +116,9 @@ class User < ApplicationRecord
            dependent: :destroy, inverse_of: :addressee
   has_many :friend_meetings, dependent: :destroy
   has_many :friend_meeting_attendees, dependent: :delete_all
+  has_many :meeting_links, dependent: :destroy
+  has_many :guest_meeting_links, class_name: "MeetingLink", foreign_key: :guest_user_id,
+           dependent: :nullify, inverse_of: :guest_user
 
   before_create :generate_calendar_token
   after_create :create_user_extension_config

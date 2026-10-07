@@ -140,4 +140,44 @@ RSpec.describe Rack::Attack do
       expect(discriminator("api/ip", "/api/user/onboard")).to eq("1.2.3.4")
     end
   end
+
+  describe "meeting link throttles" do
+    def discriminator(name, path, method: "GET")
+      request = Rack::Attack::Request.new(Rack::MockRequest.env_for(path, method: method, "REMOTE_ADDR" => "1.2.3.4"))
+      described_class.throttles.fetch(name).block.call(request)
+    end
+
+    it "limits page views of a meeting link by IP address" do
+      expect(described_class.throttles.fetch("meet/ip")).to have_attributes(limit: 30, period: 60)
+      expect(discriminator("meet/ip", "/meet/sample-token")).to eq("1.2.3.4")
+      expect(discriminator("meet/ip", "/meet/sample-token/sign_in")).to eq("1.2.3.4")
+      expect(discriminator("meet/ip", "/meeting")).to be_nil
+    end
+
+    it "gives picks a tighter budget than page views" do
+      expect(described_class.throttles.fetch("meet/pick/ip")).to have_attributes(limit: 5, period: 600)
+      expect(discriminator("meet/pick/ip", "/meet/sample-token", method: "POST")).to eq("1.2.3.4")
+      expect(discriminator("meet/pick/ip", "/meet/sample-token")).to be_nil
+    end
+
+    it "limits one link across IP addresses, with a digest of the token as the key" do
+      key = discriminator("meet/token", "/meet/sample-token")
+
+      expect(key).to eq("meet:#{OpenSSL::Digest::SHA256.hexdigest('sample-token')}")
+      expect(key).not_to include("sample-token")
+    end
+
+    it "answers 429 once a guest uses up the pick budget" do
+      Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+      env = { "REMOTE_ADDR" => "5.6.7.8", "HTTP_USER_AGENT" => "Mozilla/5.0" }
+      app = Rails.application
+
+      statuses = Array.new(6) { app.call(Rack::MockRequest.env_for("/meet/sample-token", method: "POST", **env)).first }
+
+      expect(statuses.last).to eq(429)
+      expect(statuses.first(5)).to all(satisfy { |status| status != 429 })
+    ensure
+      Rack::Attack.cache.store = Rails.cache
+    end
+  end
 end

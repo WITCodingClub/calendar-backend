@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_07_100300) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -438,6 +438,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100300) do
     t.datetime "created_at", null: false
     t.datetime "end_time", null: false
     t.string "frequency", default: "one_time", null: false
+    t.string "guest_email"
+    t.string "guest_name"
     t.boolean "invite_friends", default: false, null: false
     t.string "location"
     t.date "repeat_until"
@@ -464,6 +466,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100300) do
     t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
     t.index ["requester_id", "status"], name: "index_friendships_on_requester_id_and_status"
     t.index ["requester_id"], name: "index_friendships_on_requester_id"
+  end
+
+  create_table "meeting_links", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "duration_minutes", null: false
+    t.date "ends_on", null: false
+    t.datetime "expires_at", null: false
+    t.bigint "friend_meeting_id"
+    t.bigint "guest_user_id"
+    t.datetime "revoked_at"
+    t.date "starts_on", null: false
+    t.string "title"
+    t.string "token_digest", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "used_at"
+    t.bigint "user_id", null: false
+    t.index ["friend_meeting_id"], name: "index_meeting_links_on_friend_meeting_id"
+    t.index ["guest_user_id"], name: "index_meeting_links_on_guest_user_id"
+    t.index ["token_digest"], name: "index_meeting_links_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_meeting_links_on_user_id"
   end
 
   create_table "oauth_access_grants", force: :cascade do |t|
@@ -1053,6 +1075,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100300) do
   add_foreign_key "friend_meetings", "users"
   add_foreign_key "friendships", "users", column: "addressee_id"
   add_foreign_key "friendships", "users", column: "requester_id"
+  add_foreign_key "meeting_links", "friend_meetings", on_delete: :nullify
+  add_foreign_key "meeting_links", "users"
+  add_foreign_key "meeting_links", "users", column: "guest_user_id", on_delete: :nullify
   add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"
   add_foreign_key "oauth_access_grants", "users", column: "resource_owner_id"
   add_foreign_key "oauth_access_tokens", "oauth_applications", column: "application_id"

@@ -2,6 +2,8 @@
 
 The extension suggests times when a person and some friends are free. The person picks one time, and the app makes a calendar event from it. This is part of friends v6.
 
+A one-time meeting link uses the same path for a person who is not a friend. See [meeting-links.md](meeting-links.md).
+
 ## The flag
 
 The Flipper flag `friend_meeting_events` is off by default. Friends v6 waits on a privacy policy update, so do not turn on the flag for real users until that update is live. While the flag is off, the route answers 404.

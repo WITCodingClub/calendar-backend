@@ -7,6 +7,8 @@
 #  id             :bigint           not null, primary key
 #  end_time       :datetime         not null
 #  frequency      :string           default("one_time"), not null
+#  guest_email    :string
+#  guest_name     :string
 #  invite_friends :boolean          default(FALSE), not null
 #  location       :string
 #  repeat_until   :date
@@ -42,6 +44,12 @@ FactoryBot.define do
 
     trait :invite_friends do
       invite_friends { true }
+    end
+
+    # A meeting from a one-time meeting link. Synthetic guest, no real person.
+    trait :with_guest do
+      guest_name { "Sample Guest" }
+      sequence(:guest_email) { |n| "guest#{n}@example.com" }
     end
   end
 end

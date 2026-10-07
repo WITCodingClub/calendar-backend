@@ -7,6 +7,8 @@
 #  id             :bigint           not null, primary key
 #  end_time       :datetime         not null
 #  frequency      :string           default("one_time"), not null
+#  guest_email    :string
+#  guest_name     :string
 #  invite_friends :boolean          default(FALSE), not null
 #  location       :string
 #  repeat_until   :date
@@ -46,6 +48,13 @@ class FriendMeeting < ApplicationRecord
 
   FREQUENCIES = { one_time: "one_time", weekly: "weekly" }.freeze
 
+  GUEST_NAME_MAX_LENGTH = 100
+
+  # A person who is not a user of the app. A one-time meeting link (#652)
+  # adds one. It answers to the same email and full_name calls as a User, so
+  # the provider services and the ICS feed invite it like a friend.
+  Guest = Data.define(:email, :full_name)
+
   enum :frequency, FREQUENCIES, validate: true
 
   belongs_to :user
@@ -59,6 +68,9 @@ class FriendMeeting < ApplicationRecord
   validates :location, length: { maximum: TITLE_MAX_LENGTH }
   validates :start_time, :end_time, presence: true
   validates :term, :repeat_until, presence: true, if: :weekly?
+  validates :guest_name, length: { maximum: GUEST_NAME_MAX_LENGTH }
+  validates :guest_email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_nil: true
+  validates :guest_name, presence: true, if: :guest_email?
   validate :end_time_after_start_time
   validate :repeat_until_on_or_after_start
 
@@ -96,9 +108,11 @@ class FriendMeeting < ApplicationRecord
     start_time.in_time_zone(LOCAL_TIME_ZONE)
   end
 
-  # The friends that get an invitation. Empty unless the person asked for it.
+  # The people that get an invitation: the friends, if the person asked for
+  # it, and the guest from a meeting link, who always gets one.
   def invitees
-    invite_friends? ? attendees.to_a : []
+    friends = invite_friends? ? attendees.to_a : []
+    guest_email? ? friends + [ Guest.new(email: guest_email, full_name: guest_name) ] : friends
   end
 
   private

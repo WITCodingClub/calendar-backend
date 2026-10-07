@@ -7,6 +7,8 @@
 #  id             :bigint           not null, primary key
 #  end_time       :datetime         not null
 #  frequency      :string           default("one_time"), not null
+#  guest_email    :string
+#  guest_name     :string
 #  invite_friends :boolean          default(FALSE), not null
 #  location       :string
 #  repeat_until   :date

@@ -1,0 +1,91 @@
+<% content_for :title, "Book a Time" %>
+
+<div class="m3-card p-6 sm:p-8 space-y-6">
+  <div class="space-y-1">
+    <p class="text-sm text-on-surface-variant">One-time meeting link</p>
+    <h1 class="text-2xl font-bold text-on-surface">Book a time with <%= @owner.full_name %></h1>
+    <% if @link.title.present? %>
+      <p class="text-on-surface"><%= @link.title %></p>
+    <% end %>
+    <p class="text-sm text-on-surface-variant">
+      <%= @link.duration_minutes %> minutes. Times are in Eastern Time. You can book one time.
+    </p>
+  </div>
+
+  <% if @owner_view %>
+    <div class="m3-alert-notice">
+      This is your own link. Share it with the person you want to meet. They see the times below.
+    </div>
+  <% elsif @guest %>
+    <p class="text-sm text-on-surface-variant">
+      You are signed in as <%= @guest.email %>, so the list shows only the times when you are both free.
+    </p>
+  <% else %>
+    <p class="text-sm text-on-surface-variant">
+      Have a WIT Calendar account?
+      <%= link_to "Sign in", meeting_link_sign_in_path(params[:token]), class: "text-primary underline", data: { turbo: false } %>
+      to see only the times when you are both free.
+    </p>
+  <% end %>
+
+  <% if @error.present? %>
+    <div class="m3-alert-error" role="alert"><%= @error %></div>
+  <% end %>
+
+  <% if @slots_by_day.empty? %>
+    <div class="m3-card-low p-6 text-center text-on-surface-variant">
+      No free times are left in this link's date range.
+    </div>
+  <% else %>
+    <%= form_with url: book_meeting_link_path(params[:token]), method: :post, class: "space-y-6",
+        data: { controller: "slot-picker" } do |f| %>
+      <fieldset class="space-y-3">
+        <legend class="m3-label mb-2">Pick a time</legend>
+        <% @slots_by_day.each_with_index do |(date, slots), index| %>
+          <%= tag.details open: index.zero?, class: "rounded-xl border border-outline-variant" do %>
+            <summary class="cursor-pointer select-none px-4 py-3 text-sm font-medium text-on-surface">
+              <%= date.strftime("%A, %B %-d") %>
+              <span class="text-on-surface-variant font-normal">(<%= pluralize(slots.size, "time") %>)</span>
+            </summary>
+            <div class="flex flex-wrap gap-2 px-4 pb-4">
+              <% slots.each do |slot| %>
+                <label class="cursor-pointer">
+                  <%= f.radio_button :start_time, slot.start_time.iso8601,
+                      required: true,
+                      disabled: @owner_view,
+                      class: "peer sr-only",
+                      checked: params[:start_time] == slot.start_time.iso8601,
+                      data: { action: "slot-picker#choose", slot_picker_label_param: "#{date.strftime('%A, %B %-d')} at #{slot.start_time.strftime('%-l:%M %p')}" } %>
+                  <span class="inline-block rounded-full border border-outline-variant px-3 py-1.5 text-sm text-on-surface peer-checked:bg-primary peer-checked:text-on-primary peer-checked:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary">
+                    <%= slot.start_time.strftime("%-l:%M %p") %>
+                  </span>
+                </label>
+              <% end %>
+            </div>
+          <% end %>
+        <% end %>
+      </fieldset>
+
+      <% unless @owner_view %>
+        <div class="space-y-4">
+          <div>
+            <%= f.label :name, "Your name", class: "m3-label" %>
+            <%= f.text_field :name, value: params[:name].presence || @guest&.full_name, required: true,
+                maxlength: FriendMeeting::GUEST_NAME_MAX_LENGTH, autocomplete: "name", class: "m3-input w-full" %>
+          </div>
+          <div>
+            <%= f.label :email, "Your email", class: "m3-label" %>
+            <%= f.email_field :email, value: params[:email].presence || @guest&.email, required: true,
+                autocomplete: "email", class: "m3-input w-full" %>
+            <p class="text-xs text-on-surface-variant mt-1">The invitation goes to this address.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-sm text-on-surface-variant" data-slot-picker-target="summary" aria-live="polite">No time picked yet.</p>
+          <%= f.submit "Book this time", class: "m3-btn-filled", data: { turbo_submits_with: "Booking..." } %>
+        </div>
+      <% end %>
+    <% end %>
+  <% end %>
+</div>

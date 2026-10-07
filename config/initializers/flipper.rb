@@ -20,7 +20,8 @@ FLIPPER_FLAGS = {
   FlipperFlags::MICROSOFT_SIGN_IN => "Sign in with Microsoft. Global only: enable it fully, not per actor",
   FlipperFlags::MICROSOFT_GRAPH_CALENDAR => "Microsoft Graph calendar sync. Needs Entra admin consent first",
   FlipperFlags::FRIEND_MEETING_EVENTS => "Friends v6: make a calendar event from a suggested meeting time. Waits on the privacy policy update",
-  FlipperFlags::FRIENDS_AVAILABILITY_ONLY => "Friends can share only busy blocks. Needs the privacy policy update (calendar-website#20)"
+  FlipperFlags::FRIENDS_AVAILABILITY_ONLY => "Friends can share only busy blocks. Needs the privacy policy update (calendar-website#20)",
+  FlipperFlags::MEETING_LINKS => "One-time meeting links for people who are not friends. Checked for the link owner. Waits on the privacy policy update"
 }.freeze
 
 Rails.application.configure do
