@@ -153,6 +153,102 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
   end
 
+  describe "GET /dashboard/friends/:id with availability-only sharing" do
+    let(:term)   { create(:term) }
+    let(:course) { create(:course, term: term, subject: "MATH", course_number: 2300, title: "Linear Algebra") }
+    let!(:friendship) { create(:friendship, :accepted, requester: current_user, addressee: other_user) }
+
+    before do
+      create(:course_meeting_time, course: course, day_of_week: :monday, begin_time: 900, end_time: 1015)
+      create(:enrollment, user: other_user, course: course)
+    end
+
+    after { Flipper.disable(FlipperFlags::FRIENDS_AVAILABILITY_ONLY) }
+
+    it "shows busy blocks and no courses when the friend shares only availability" do
+      friendship.update_visibility_for!(other_user, :availability_only)
+
+      get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid, view: "list", week_start: "2026-10-05" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include(ERB::Util.html_escape("#{other_user.full_name}'s Availability"))
+      expect(response.body).to include("Busy 09:00 to 10:15")
+      expect(response.body).not_to include("MATH 2300")
+      expect(response.body).not_to include("Linear Algebra")
+    end
+
+    it "still shows the friend's courses when only the signed-in user limits sharing" do
+      friendship.update_visibility_for!(current_user, :availability_only)
+
+      get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid, view: "list" }
+
+      expect(response.body).to include("Linear Algebra")
+    end
+
+    it "hides the sharing form while the flag is off" do
+      get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid }
+
+      expect(response.body).not_to include(visibility_dashboard_friend_path(other_user.public_id))
+    end
+
+    it "shows the sharing form with the flag on" do
+      Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+
+      get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid }
+
+      expect(response.body).to include(visibility_dashboard_friend_path(other_user.public_id))
+      expect(response.body).to include("Only when I am busy")
+    end
+  end
+
+  describe "PATCH /dashboard/friends/:id/visibility" do
+    let!(:friendship) { create(:friendship, :accepted, requester: other_user, addressee: current_user) }
+
+    after { Flipper.disable(FlipperFlags::FRIENDS_AVAILABILITY_ONLY) }
+
+    it "answers 404 while the flag is off" do
+      patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "availability_only" }
+
+      expect(response).to have_http_status(:not_found)
+      expect(friendship.reload).to be_addressee_full
+    end
+
+    context "with the flag on" do
+      before { Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user) }
+
+      it "sets the signed-in user's own level" do
+        patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "availability_only" }
+
+        expect(response).to redirect_to(dashboard_friend_path(other_user.public_id))
+        expect(flash[:notice]).to eq("Grace can see only when you are busy.")
+        expect(friendship.reload).to be_addressee_availability_only
+        expect(friendship).to be_requester_full
+      end
+
+      it "sets the level back to full" do
+        friendship.update_visibility_for!(current_user, :availability_only)
+
+        patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "full" }
+
+        expect(flash[:notice]).to eq("Grace can see your full schedule.")
+        expect(friendship.reload).to be_addressee_full
+      end
+
+      it "refuses an unknown level" do
+        patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "hidden" }
+
+        expect(flash[:alert]).to eq("Choose a valid sharing level.")
+        expect(friendship.reload).to be_addressee_full
+      end
+
+      it "refuses a user who is not a friend" do
+        patch visibility_dashboard_friend_path(create_user("Alan").public_id), params: { visibility: "full" }
+
+        expect(flash[:alert]).to eq("Friend not found.")
+      end
+    end
+  end
+
   describe "POST /dashboard/friends/:id/accept" do
     it "accepts an incoming request" do
       friendship = create(:friendship, requester: other_user, addressee: current_user)

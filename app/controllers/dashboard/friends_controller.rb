@@ -19,7 +19,38 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     @friend = current_user.friends.find_by_public_id(params[:id])
     return redirect_to dashboard_friends_path, alert: "Friend not found." unless @friend
 
-    @schedule = build_schedule_for(@friend)
+    @friendship = Friendship.accepted.between(current_user, @friend).first
+    @can_set_visibility = availability_only_enabled?
+
+    # The friend's own setting decides what this page shows. A friend who
+    # shares only availability gets busy blocks, never the course list.
+    if @friendship.full_schedule_visible_to?(current_user)
+      @schedule = build_schedule_for(@friend)
+    else
+      @week_start  = availability_week_start
+      @busy_blocks = BusyBlocks.new(@friend, from: @week_start, to: @week_start + 6).call
+      render :availability
+    end
+  end
+
+  # PATCH /dashboard/friends/:id/visibility
+  #
+  # Sets how much of the current user's own schedule this friend can see.
+  def visibility
+    authorize current_user, :update?
+    return head(:not_found) unless availability_only_enabled?
+
+    friend = current_user.friends.find_by_public_id(params[:id])
+    return redirect_to dashboard_friends_path, alert: "Friend not found." unless friend
+
+    level = params[:visibility].to_s
+    unless Friendship::VISIBILITIES.key?(level.to_sym)
+      return redirect_to dashboard_friend_path(friend.public_id), alert: "Choose a valid sharing level."
+    end
+
+    Friendship.accepted.between(current_user, friend).first.update_visibility_for!(current_user, level)
+    message = level == "full" ? "#{friend.first_name} can see your full schedule." : "#{friend.first_name} can see only when you are busy."
+    redirect_to dashboard_friend_path(friend.public_id), notice: message
   end
 
   def requests
@@ -79,5 +110,17 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
 
     current_user.remove_friend(friend)
     redirect_to dashboard_friends_path, notice: "#{friend.first_name} removed."
+  end
+
+  private
+
+  def availability_only_enabled?
+    Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+  end
+
+  def availability_week_start
+    Date.iso8601(params[:week_start].to_s).beginning_of_week(:monday)
+  rescue Date::Error
+    Time.zone.today.beginning_of_week(:monday)
   end
 end

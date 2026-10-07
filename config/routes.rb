@@ -140,6 +140,9 @@ Rails.application.routes.draw do
     post   "friends/:friend_id/processed_events",       to: "friends#processed_events"
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
     post   "friends/meetings",                          to: "friend_meetings#create"
+    get    "friends/:friend_id/visibility",             to: "friends#visibility"
+    patch  "friends/:friend_id/visibility",             to: "friends#update_visibility"
+    get    "friends/:friend_id/busy_blocks",            to: "friends#busy_blocks"
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
     get "terms/active",          to: "misc#get_active_terms"
@@ -196,7 +199,7 @@ Rails.application.routes.draw do
         patch :university_events
       end
       resources :friends, only: [ :index, :show, :create, :destroy ] do
-        member     { post :accept; post :decline }
+        member     { post :accept; post :decline; patch :visibility }
         collection { get :requests }
       end
       resource :settings, only: [ :show ]
