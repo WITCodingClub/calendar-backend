@@ -13,9 +13,7 @@ module Api
         return
       end
 
-      courses_array = courses.map do |course|
-        course.is_a?(ActionController::Parameters) ? course.to_unsafe_h : course.to_h
-      end
+      courses_array = plain_hashes(courses)
 
       CourseProcessorService.new(courses_array, current_user).call
 
@@ -29,6 +27,37 @@ module Api
       render json: { error: "Failed to process courses" }, status: :internal_server_error
     end
 
+    # POST /api/process_courses/batch
+    #
+    # Body: { "terms": [ { "term": "202710", "courses": [ ... ] }, ... ] }
+    # Each "courses" array has the same shape as the body of
+    # POST /api/process_courses. The first term is processed now. The other
+    # terms go to a background job and come back as "pending".
+    def process_courses_batch
+      skip_authorization
+
+      terms = params[:terms]
+
+      unless terms.is_a?(Array) && terms.any?
+        render json: { error: "No terms provided" }, status: :bad_request
+        return
+      end
+
+      if terms.size > CourseBatchProcessorService::MAX_TERMS
+        render json: { error: "A batch can have at most #{CourseBatchProcessorService::MAX_TERMS} terms" },
+               status: :bad_request
+        return
+      end
+
+      entries = terms.map do |entry|
+        entry.is_a?(ActionController::Parameters) ? entry.to_unsafe_h : entry
+      end
+
+      results = CourseBatchProcessorService.new(entries, current_user).call
+
+      render json: CourseBatchResultSerializer.new(current_user, results).as_json, status: :ok
+    end
+
     # POST /api/courses/reprocess
     def reprocess
       skip_authorization
@@ -40,9 +69,7 @@ module Api
         return
       end
 
-      courses_array = courses.map do |course|
-        course.is_a?(ActionController::Parameters) ? course.to_unsafe_h : course.to_h
-      end
+      courses_array = plain_hashes(courses)
 
       result = CourseReprocessService.new(courses_array, current_user).call
 
@@ -57,6 +84,14 @@ module Api
     rescue => e
       Rails.logger.error("Error reprocessing courses: #{e.message}")
       render json: { error: "Failed to reprocess courses" }, status: :internal_server_error
+    end
+
+    private
+
+    def plain_hashes(courses)
+      courses.map do |course|
+        course.is_a?(ActionController::Parameters) ? course.to_unsafe_h : course.to_h
+      end
     end
   end
 end

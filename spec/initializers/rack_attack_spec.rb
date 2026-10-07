@@ -185,4 +185,18 @@ RSpec.describe Rack::Attack do
       expect { described_class::FailOpenStore.new(store).read("key") }.to raise_error(ArgumentError)
     end
   end
+
+  describe "process courses throttle" do
+    def discriminator(path)
+      request = Rack::Attack::Request.new(
+        Rack::MockRequest.env_for(path, method: "POST", "HTTP_AUTHORIZATION" => "Bearer #{api_token_for(user)}")
+      )
+      described_class.throttles.fetch("api/process-courses").block.call(request)
+    end
+
+    it "counts single and batch requests against the same budget" do
+      expect(discriminator("/api/process_courses")).to eq("process-courses:#{user.id}")
+      expect(discriminator("/api/process_courses/batch")).to eq("process-courses:#{user.id}")
+    end
+  end
 end

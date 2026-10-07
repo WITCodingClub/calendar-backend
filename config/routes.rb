@@ -148,7 +148,8 @@ Rails.application.routes.draw do
     get "terms/current_and_next", to: "misc#get_current_and_next_terms"
 
     # Course processing
-    post "process_courses",    to: "courses#process_courses"
+    post "process_courses",       to: "courses#process_courses"
+    post "process_courses/batch", to: "courses#process_courses_batch"
     post "courses/reprocess",  to: "courses#reprocess"
 
     # Calendar preferences (global + per event-type + per university calendar category)

@@ -235,6 +235,12 @@ class CourseProcessorService < ApplicationService
     processed_courses
   end
 
+  # Checks the payload shape without calling Banner or writing anything.
+  # Raises ArgumentError when the payload is not valid.
+  def validate!
+    validate_courses_data!
+  end
+
   private
 
   # Banner answers one section per request, with two round trips each, and a

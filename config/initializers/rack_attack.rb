@@ -138,9 +138,13 @@ class Rack::Attack
     req.ip if req.path.start_with?("/api/v1/catalog") && req.GET["semantic"].present?
   end
 
+  # The batch path shares this budget. A batch counts as one request, and it
+  # processes only its first term inside the request.
+  PROCESS_COURSES_PATHS = [ "/api/process_courses", "/api/process_courses/batch" ].freeze
+
   throttle("api/process-courses", limit: 5, period: 1.minute) do |req|
     user_id = extract_user_id_from_jwt(req)
-    "process-courses:#{user_id}" if req.path == "/api/process_courses" && req.post? && user_id
+    "process-courses:#{user_id}" if PROCESS_COURSES_PATHS.include?(req.path) && req.post? && user_id
   end
 
   throttle("api/preview-template", limit: 10, period: 1.minute) do |req|
