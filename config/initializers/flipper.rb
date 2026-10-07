@@ -18,7 +18,8 @@ FLIPPER_FLAGS = {
   FlipperFlags::FINALS_RETROACTIVE => "Enables retroactive finals schedule processing for past terms",
   FlipperFlags::BYPASS_RATE_LIMITS => "Bypasses rate limiting for trusted users and admins",
   FlipperFlags::MICROSOFT_SIGN_IN => "Sign in with Microsoft. Global only: enable it fully, not per actor",
-  FlipperFlags::MICROSOFT_GRAPH_CALENDAR => "Microsoft Graph calendar sync. Needs Entra admin consent first"
+  FlipperFlags::MICROSOFT_GRAPH_CALENDAR => "Microsoft Graph calendar sync. Needs Entra admin consent first",
+  FlipperFlags::FRIEND_MEETING_EVENTS => "Friends v6: make a calendar event from a suggested meeting time. Waits on the privacy policy update"
 }.freeze
 
 Rails.application.configure do

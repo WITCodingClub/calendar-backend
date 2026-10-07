@@ -149,6 +149,7 @@ class CalendarsController < ApplicationController
 
     add_final_exam_events(cal, final_exams)
     add_university_events(cal)
+    add_friend_meeting_events(cal)
 
     cal
   end
@@ -167,6 +168,29 @@ class CalendarsController < ApplicationController
         e.dtstamp     = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
         e.last_modified = Icalendar::Values::DateTime.new(final_exam.updated_at, tzid: "America/New_York")
         e.sequence    = (final_exam.updated_at.to_i / 60)
+      end
+    end
+  end
+
+  # Meetings that the person made from a suggested time. A feed cannot send
+  # invitations, so the friends are listed as attendees only when the person
+  # asked to invite them.
+  def add_friend_meeting_events(cal)
+    @user.friend_meetings.not_ended.includes(:attendees).find_each do |meeting|
+      cal.event do |e|
+        e.dtstart  = Icalendar::Values::DateTime.new(meeting.local_start, tzid: "America/New_York")
+        e.dtend    = Icalendar::Values::DateTime.new(meeting.end_time.in_time_zone("America/New_York"), tzid: "America/New_York")
+        e.summary  = meeting.title
+        e.location = meeting.location if meeting.location.present?
+        e.rrule    = meeting.recurrence.first.delete_prefix("RRULE:") if meeting.weekly?
+        e.uid      = "friend-meeting-#{meeting.public_id}@calendar-util.wit.edu"
+        e.dtstamp  = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
+        e.last_modified = Icalendar::Values::DateTime.new(meeting.updated_at, tzid: "America/New_York")
+        e.sequence = (meeting.updated_at.to_i / 60)
+
+        meeting.invitees.each do |friend|
+          e.append_attendee(Icalendar::Values::CalAddress.new("mailto:#{friend.email}", cn: friend.full_name))
+        end
       end
     end
   end

@@ -1,0 +1,15 @@
+{
+  "kind": "calendar#event",
+  "etag": "\"3300000000000000\"",
+  "id": "syntheticmeetingevent1",
+  "status": "confirmed",
+  "htmlLink": "https://www.google.com/calendar/event?eid=c3ludGhldGlj",
+  "summary": "Synthetic Study Group",
+  "location": "Synthetic Library",
+  "creator": { "email": "factory.user1@wit.edu" },
+  "organizer": { "email": "synthetic-course-calendar@group.calendar.google.com", "displayName": "WIT Courses" },
+  "start": { "dateTime": "2026-09-15T15:00:00-04:00", "timeZone": "America/New_York" },
+  "end": { "dateTime": "2026-09-15T16:00:00-04:00", "timeZone": "America/New_York" },
+  "iCalUID": "syntheticmeetingevent1@google.com",
+  "sequence": 0
+}

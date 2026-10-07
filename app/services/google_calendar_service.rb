@@ -54,7 +54,7 @@ class GoogleCalendarService
 
     calendar_id = course_calendar.external_calendar_id
 
-    all_existing_events = course_calendar.calendar_events.to_a
+    all_existing_events = course_calendar.calendar_events.schedule_events.to_a
     existing_events     = {}
     duplicates_to_delete = []
 
@@ -146,7 +146,7 @@ class GoogleCalendarService
     final_exam_ids      = events.filter_map { |e| e[:final_exam_id] }
     university_event_ids = events.filter_map { |e| e[:university_calendar_event_id] }
 
-    base_query = course_calendar.calendar_events
+    base_query = course_calendar.calendar_events.schedule_events
     conditions = []
     conditions << base_query.where(meeting_time_id: meeting_time_ids)         if meeting_time_ids.any?
     conditions << base_query.where(final_exam_id: final_exam_ids)             if final_exam_ids.any?
@@ -203,6 +203,48 @@ class GoogleCalendarService
     end
 
     db_events.size
+  end
+
+  # Puts a FriendMeeting in the course calendar and tracks it with a
+  # CalendarEvent row. With invite: true and invitees, Google sends each
+  # invitee an invitation. Returns the row, or nil when the person has no
+  # Google course calendar.
+  def create_friend_meeting_event(meeting, invite: true)
+    course_calendar = CourseCalendar.google.for_user(user).first
+    return nil unless course_calendar
+
+    calendar_id  = course_calendar.external_calendar_id
+    event_data   = meeting.event_data
+    invitees     = invite ? meeting.invitees : []
+    google_event = build_google_event(event_data)
+    if invitees.any?
+      google_event.attendees = invitees.map do |friend|
+        Google::Apis::CalendarV3::EventAttendee.new(email: friend.email, display_name: friend.full_name)
+      end
+    end
+
+    service       = user_calendar_service
+    send_updates  = invitees.any? ? "all" : "none"
+    created_event = with_rate_limit_handling { service.insert_event(calendar_id, google_event, send_updates: send_updates) }
+
+    course_calendar.calendar_events.create!(
+      friend_meeting:    meeting,
+      external_event_id: created_event.id,
+      summary:           event_data[:summary],
+      location:          event_data[:location],
+      start_time:        event_data[:start_time],
+      end_time:          event_data[:end_time],
+      recurrence:        event_data[:recurrence],
+      event_data_hash:   CalendarEvent.generate_data_hash(event_data),
+      last_synced_at:    Time.current
+    )
+  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
+    raise if e.is_a?(ActiveRecord::RecordInvalid) && !e.record.errors.of_kind?(:friend_meeting_id, :taken)
+
+    # A concurrent publish already tracks this meeting, so the event just
+    # created is a duplicate. Remove it rather than leave it on the calendar.
+    with_rate_limit_handling { service.delete_event(calendar_id, created_event.id, send_updates: "none") } if created_event&.id
+    nil
   end
 
   def list_calendars

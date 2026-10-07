@@ -34,6 +34,7 @@ class Term < ApplicationRecord
   has_many :enrollments, through: :courses
   has_many :final_exams, dependent: :destroy
   has_many :university_calendar_events, dependent: :nullify
+  has_many :friend_meetings, dependent: :nullify
 
   validates :uid, presence: true, uniqueness: true
 

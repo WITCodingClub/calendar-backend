@@ -62,6 +62,8 @@ RSpec.describe User, type: :model do
     it { is_expected.to have_many(:user_sessions).dependent(:destroy) }
     it { is_expected.to have_many(:sent_friendships).class_name("Friendship").with_foreign_key(:requester_id).dependent(:destroy) }
     it { is_expected.to have_many(:received_friendships).class_name("Friendship").with_foreign_key(:addressee_id).dependent(:destroy) }
+    it { is_expected.to have_many(:friend_meetings).dependent(:destroy) }
+    it { is_expected.to have_many(:friend_meeting_attendees).dependent(:delete_all) }
 
     it { is_expected.to validate_presence_of(:email) }
     it { is_expected.to validate_uniqueness_of(:email).case_insensitive }

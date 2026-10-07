@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_07_100300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -132,6 +132,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.string "external_event_id", null: false
     t.string "external_ical_uid"
     t.bigint "final_exam_id"
+    t.bigint "friend_meeting_id"
     t.datetime "last_synced_at"
     t.string "location"
     t.bigint "meeting_time_id"
@@ -142,6 +143,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.datetime "updated_at", null: false
     t.jsonb "user_edited_fields"
     t.index ["calendar_id", "final_exam_id"], name: "idx_calendar_events_unique_final_exam", unique: true, where: "(final_exam_id IS NOT NULL)"
+    t.index ["calendar_id", "friend_meeting_id"], name: "idx_calendar_events_unique_friend_meeting", unique: true, where: "(friend_meeting_id IS NOT NULL)"
     t.index ["calendar_id", "meeting_time_id"], name: "idx_calendar_events_on_calendar_id_meeting_time_id"
     t.index ["calendar_id", "meeting_time_id"], name: "idx_calendar_events_unique_meeting_time", unique: true, where: "(meeting_time_id IS NOT NULL)"
     t.index ["calendar_id", "university_calendar_event_id"], name: "idx_calendar_events_unique_university", unique: true, where: "(university_calendar_event_id IS NOT NULL)"
@@ -149,6 +151,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.index ["external_event_id"], name: "index_calendar_events_on_external_event_id"
     t.index ["external_ical_uid"], name: "index_calendar_events_on_external_ical_uid"
     t.index ["final_exam_id"], name: "index_calendar_events_on_final_exam_id"
+    t.index ["friend_meeting_id"], name: "index_calendar_events_on_friend_meeting_id"
     t.index ["last_synced_at"], name: "index_calendar_events_on_last_synced_at"
     t.index ["meeting_time_id"], name: "index_calendar_events_on_meeting_time_id"
     t.index ["university_calendar_event_id"], name: "index_calendar_events_on_university_calendar_event_id"
@@ -420,6 +423,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
     t.datetime "updated_at", null: false
     t.text "value"
     t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
+  end
+
+  create_table "friend_meeting_attendees", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "friend_meeting_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["friend_meeting_id", "user_id"], name: "idx_friend_meeting_attendees_unique", unique: true
+    t.index ["user_id"], name: "index_friend_meeting_attendees_on_user_id"
+  end
+
+  create_table "friend_meetings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "end_time", null: false
+    t.string "frequency", default: "one_time", null: false
+    t.boolean "invite_friends", default: false, null: false
+    t.string "location"
+    t.date "repeat_until"
+    t.datetime "start_time", null: false
+    t.bigint "term_id"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["term_id"], name: "index_friend_meetings_on_term_id"
+    t.index ["user_id"], name: "index_friend_meetings_on_user_id"
   end
 
   create_table "friendships", force: :cascade do |t|
@@ -1000,6 +1028,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_events", "calendars"
   add_foreign_key "calendar_events", "course_meeting_times", column: "meeting_time_id"
+  add_foreign_key "calendar_events", "friend_meetings"
   add_foreign_key "calendar_preferences", "users"
   add_foreign_key "calendars", "oauth_credentials"
   add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
@@ -1016,6 +1045,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_230000) do
   add_foreign_key "final_exams", "terms"
   add_foreign_key "finals_schedules", "terms"
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
+  add_foreign_key "friend_meeting_attendees", "friend_meetings"
+  add_foreign_key "friend_meeting_attendees", "users"
+  add_foreign_key "friend_meetings", "terms"
+  add_foreign_key "friend_meetings", "users"
   add_foreign_key "friendships", "users", column: "addressee_id"
   add_foreign_key "friendships", "users", column: "requester_id"
   add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"

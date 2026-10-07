@@ -7,6 +7,7 @@ module FlipperFlags
   BYPASS_RATE_LIMITS = :bypass_rate_limits
   MICROSOFT_SIGN_IN = :microsoft_sign_in
   MICROSOFT_GRAPH_CALENDAR = :microsoft_graph_calendar
+  FRIEND_MEETING_EVENTS = :friend_meeting_events
 
   MAP = {
     envSwitcher: ENV_SWITCHER,
@@ -14,7 +15,8 @@ module FlipperFlags
     finalsRetroactive: FINALS_RETROACTIVE,
     bypassRateLimits: BYPASS_RATE_LIMITS,
     microsoftSignIn: MICROSOFT_SIGN_IN,
-    microsoftGraphCalendar: MICROSOFT_GRAPH_CALENDAR
+    microsoftGraphCalendar: MICROSOFT_GRAPH_CALENDAR,
+    friendMeetingEvents: FRIEND_MEETING_EVENTS
   }.freeze
 
   ALL_FLAGS = %i[
@@ -24,5 +26,6 @@ module FlipperFlags
     bypassRateLimits
     microsoftSignIn
     microsoftGraphCalendar
+    friendMeetingEvents
   ].freeze
 end

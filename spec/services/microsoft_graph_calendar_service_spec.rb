@@ -532,4 +532,77 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
       expect { service.delete_calendar("AAMkSyntheticCalendar1") }.not_to raise_error
     end
   end
+
+  describe "#create_friend_meeting_event" do
+    let(:friend) { create(:user, first_name: "Sample", last_name: "Friend", email: "sample.friend@wit.edu") }
+    let(:meeting) do
+      create(:friend_meeting, :invite_friends, user: user, title: "Synthetic Study Group", location: "Synthetic Library",
+                                               start_time: zone.local(2026, 9, 15, 15), end_time: zone.local(2026, 9, 15, 16))
+    end
+    let(:attendees) { [ { "emailAddress" => { "address" => "sample.friend@wit.edu", "name" => "Sample Friend" }, "type" => "required" } ] }
+
+    before { create(:friend_meeting_attendee, friend_meeting: meeting, user: friend) }
+
+    it "returns nil when the person has no Microsoft course calendar" do
+      credential
+
+      expect(service.create_friend_meeting_event(meeting)).to be_nil
+    end
+
+    it "creates the event in the separate calendar with the friends as attendees, and tracks both Graph ids" do
+      calendar
+      create_stub = stub_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events")
+                    .with(body: hash_including("subject" => "Synthetic Study Group", "showAs" => "busy", "attendees" => attendees))
+                    .to_return(graph_json_response("meeting_created", status: 201))
+
+      row = service.create_friend_meeting_event(meeting)
+
+      expect(create_stub).to have_been_requested.once
+      expect(row).to have_attributes(friend_meeting_id: meeting.id, external_event_id: "AAMkSyntheticMeeting1",
+                                     external_ical_uid: JSON.parse(graph_fixture("meeting_created"))["iCalUId"])
+    end
+
+    it "creates the event in the primary calendar when the placement is primary" do
+      create(:course_calendar, :primary, oauth_credential: credential, external_calendar_id: "AAMkSyntheticPrimary")
+      create_stub = stub_request(:post, "#{graph}/me/calendars/AAMkSyntheticPrimary/events")
+                    .to_return(graph_json_response("meeting_created", status: 201))
+
+      service.create_friend_meeting_event(meeting)
+
+      expect(create_stub).to have_been_requested.once
+    end
+
+    it "sends no attendees when asked not to invite" do
+      calendar
+      create_stub = stub_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events").with do |request|
+        !JSON.parse(request.body).key?("attendees")
+      end.to_return(graph_json_response("meeting_created", status: 201))
+
+      service.create_friend_meeting_event(meeting, invite: false)
+
+      expect(create_stub).to have_been_requested.once
+    end
+
+    it "sends a weekly meeting as a weekly series that ends on the last day of the term" do
+      calendar
+      meeting.update!(frequency: "weekly", term: create(:term), repeat_until: Date.new(2026, 12, 18))
+      create_stub = stub_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events").with do |request|
+        recurrence = JSON.parse(request.body)["recurrence"]
+        recurrence.dig("pattern", "daysOfWeek") == [ "tuesday" ] && recurrence.dig("range", "endDate") == "2026-12-18"
+      end.to_return(graph_json_response("meeting_created", status: 201))
+
+      service.create_friend_meeting_event(meeting)
+
+      expect(create_stub).to have_been_requested.once
+    end
+
+    it "keeps the meeting row when the course sync runs" do
+      row = create(:calendar_event, :for_friend_meeting, course_calendar: calendar, friend_meeting: meeting,
+                                                         external_event_id: "AAMkSyntheticMeeting1", end_time: zone.local(2026, 12, 1, 10))
+
+      service.update_calendar_events([])
+
+      expect(CalendarEvent.exists?(row.id)).to be(true)
+    end
+  end
 end

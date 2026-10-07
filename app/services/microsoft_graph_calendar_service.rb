@@ -105,7 +105,7 @@ class MicrosoftGraphCalendarService
     calendar = course_calendar
     return empty_stats unless calendar
 
-    existing     = calendar.calendar_events.to_a.index_by { |row| build_event_key(row) }
+    existing     = calendar.calendar_events.schedule_events.to_a.index_by { |row| build_event_key(row) }
     current_keys = events.filter_map { |event| build_event_key_from_hash(event) }
 
     existing.except(*current_keys).each_value do |row|
@@ -123,7 +123,7 @@ class MicrosoftGraphCalendarService
     calendar = course_calendar
     return empty_stats unless calendar
 
-    rows = calendar.calendar_events
+    rows = calendar.calendar_events.schedule_events
     existing = rows.where(meeting_time_id: events.filter_map { |e| e[:meeting_time_id] })
                    .or(rows.where(final_exam_id: events.filter_map { |e| e[:final_exam_id] }))
                    .or(rows.where(university_calendar_event_id: events.filter_map { |e| e[:university_calendar_event_id] }))
@@ -138,6 +138,37 @@ class MicrosoftGraphCalendarService
 
     db_events.each { |row| delete_remote_event(row) }
     db_events.size
+  end
+
+  # Puts a FriendMeeting in the course calendar, which is the person's own
+  # calendar or their primary one, as the placement says. With invite: true
+  # and invitees, Exchange sends each invitee an invitation. Returns the row,
+  # or nil when the person has no Microsoft course calendar.
+  def create_friend_meeting_event(meeting, invite: true)
+    calendar = course_calendar
+    return nil unless calendar
+
+    data     = meeting.event_data
+    invitees = invite ? meeting.invitees : []
+    payload  = MicrosoftGraph::EventPayload.build(data)
+    if invitees.any?
+      payload[:attendees] = invitees.map do |friend|
+        { emailAddress: { address: friend.email, name: friend.full_name }, type: "required" }
+      end
+    end
+
+    remote = client.post("me/calendars/#{escape(calendar.external_calendar_id)}/events", payload)
+
+    calendar.calendar_events.create!(
+      row_attributes(data).merge(friend_meeting: meeting, external_event_id: remote["id"], external_ical_uid: remote["iCalUId"])
+    )
+  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
+    raise if e.is_a?(ActiveRecord::RecordInvalid) && !e.record.errors.of_kind?(:friend_meeting_id, :taken)
+
+    # A concurrent publish already tracks this meeting, so the event just
+    # created is a duplicate. Remove it rather than leave it on the calendar.
+    delete_quietly(remote["id"]) if remote
+    nil
   end
 
   # Deletes one remote event. A missing event counts as deleted.

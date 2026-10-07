@@ -139,6 +139,7 @@ Rails.application.routes.draw do
     delete "friends/:friend_id",                        to: "friends#unfriend"
     post   "friends/:friend_id/processed_events",       to: "friends#processed_events"
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
+    post   "friends/meetings",                          to: "friend_meetings#create"
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
     get "terms/active",          to: "misc#get_active_terms"

@@ -114,6 +114,8 @@ class User < ApplicationRecord
            dependent: :destroy, inverse_of: :requester
   has_many :received_friendships, class_name: "Friendship", foreign_key: :addressee_id,
            dependent: :destroy, inverse_of: :addressee
+  has_many :friend_meetings, dependent: :destroy
+  has_many :friend_meeting_attendees, dependent: :delete_all
 
   before_create :generate_calendar_token
   after_create :create_user_extension_config

@@ -10,6 +10,7 @@
 #   #update_calendar_events(events, force:)  -> { created:, updated:, skipped: }
 #   #update_specific_events(events, force:)  -> { created:, updated:, skipped: }
 #   #delete_events(calendar_event_rows)      -> Integer
+#   #create_friend_meeting_event(meeting, invite:) -> CalendarEvent or nil
 #
 # GoogleCalendarService and MicrosoftGraphCalendarService implement it.
 module CalendarProviders

@@ -93,6 +93,10 @@ module CourseScheduleSyncable
     # keeps every past event, so this is the only place they get deleted.
     prune_unwanted_university_events
 
+    # Put back any friend meeting whose calendar was made again, for example
+    # after a Microsoft placement move.
+    FriendMeetingPublisher.new(self, services: services).publish_missing
+
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
       # rubocop:disable Rails/SkipsModelValidations
