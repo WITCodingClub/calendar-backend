@@ -7,12 +7,20 @@ RSpec.describe "Dashboard::Friends", type: :request do
     create(:user, first_name: first_name)
   end
 
+  # The model refuses a past expiry date, and time travel ends the sign-in
+  # session, so move the date into the past without validation.
+  def expire!(friendship)
+    friendship.update_column(:expires_at, 1.minute.ago)
+  end
+
   include ActiveJob::TestHelper
 
   let(:current_user) { create(:user, :with_processed_courses, first_name: "Ada") }
   let(:other_user)   { create_user("Grace") }
 
   before { sign_in current_user }
+
+  after { Flipper.disable(FlipperFlags::FRIEND_EXPIRY) }
 
   describe "POST /dashboard/friends" do
     it "creates a pending request to the given public id" do
@@ -69,6 +77,145 @@ RSpec.describe "Dashboard::Friends", type: :request do
       }.not_to change(Friendship, :count)
 
       expect(flash[:alert]).to eq("You already have a request or friendship with Grace.")
+    end
+  end
+
+  describe "POST /dashboard/friends with an end date" do
+    let(:end_date) { 10.days.from_now.to_date }
+
+    it "refuses an end date while the flag is off" do
+      expect {
+        post dashboard_friends_path, params: { friend_id: other_user.public_id, expires_on: end_date.iso8601 }
+      }.not_to change(Friendship, :count)
+
+      expect(flash[:alert]).to eq("Temporary friendships are not available.")
+    end
+
+    context "with the flag on" do
+      before { Flipper.enable_actor(FlipperFlags::FRIEND_EXPIRY, current_user) }
+
+      it "ends the friendship at the end of the chosen day" do
+        post dashboard_friends_path, params: { friend_id: other_user.public_id, expires_on: end_date.iso8601 }
+
+        expect(flash[:notice]).to eq("Friend request sent to Grace.")
+        expect(Friendship.last.expires_at).to be_within(1.second).of(end_date.in_time_zone.end_of_day)
+      end
+
+      it "sends a permanent request when the end date is empty" do
+        post dashboard_friends_path, params: { friend_id: other_user.public_id, expires_on: "" }
+
+        expect(Friendship.last.expires_at).to be_nil
+      end
+
+      it "refuses an end date that is today or earlier" do
+        expect {
+          post dashboard_friends_path, params: { friend_id: other_user.public_id, expires_on: 1.day.ago.to_date.iso8601 }
+        }.not_to change(Friendship, :count)
+
+        expect(flash[:alert]).to eq("Pick an end date after today.")
+      end
+
+      it "refuses a value that is not a date" do
+        post dashboard_friends_path, params: { friend_id: other_user.public_id, expires_on: "soon" }
+
+        expect(flash[:alert]).to eq("Pick a valid end date.")
+      end
+    end
+  end
+
+  describe "PATCH /dashboard/friends/:id/expiry" do
+    let!(:friendship) { create(:friendship, :accepted, :temporary, requester: other_user, addressee: current_user) }
+
+    it "refuses the change while the flag is off" do
+      patch expiry_dashboard_friend_path(other_user.public_id), params: { permanent: "1" }
+
+      expect(flash[:alert]).to eq("Friend not found.")
+      expect(friendship.reload.expires_at).to be_present
+    end
+
+    context "with the flag on" do
+      before { Flipper.enable_actor(FlipperFlags::FRIEND_EXPIRY, current_user) }
+
+      it "extends the end date" do
+        new_date = 60.days.from_now.to_date
+
+        patch expiry_dashboard_friend_path(other_user.public_id), params: { expires_on: new_date.iso8601 }
+
+        expect(flash[:notice]).to eq("Your friendship with Grace now ends on #{new_date.to_fs(:long)}.")
+        expect(friendship.reload.expires_at).to be_within(1.second).of(new_date.in_time_zone.end_of_day)
+      end
+
+      it "makes the friendship permanent" do
+        patch expiry_dashboard_friend_path(other_user.public_id), params: { permanent: "Make permanent" }
+
+        expect(flash[:notice]).to eq("Grace is now a permanent friend.")
+        expect(friendship.reload.expires_at).to be_nil
+      end
+
+      it "refuses a date in the past" do
+        patch expiry_dashboard_friend_path(other_user.public_id), params: { expires_on: 1.day.ago.to_date.iso8601 }
+
+        expect(flash[:alert]).to eq("Pick an end date after today.")
+      end
+
+      it "refuses a value that is not a date" do
+        patch expiry_dashboard_friend_path(other_user.public_id), params: { expires_on: "" }
+
+        expect(flash[:alert]).to eq("Pick a valid end date.")
+      end
+
+      it "refuses a user who is not a friend" do
+        patch expiry_dashboard_friend_path(create_user("Alan").public_id), params: { permanent: "1" }
+
+        expect(flash[:alert]).to eq("Friend not found.")
+      end
+    end
+  end
+
+  describe "GET /dashboard/friends with expiry" do
+    it "shows the end date of a temporary friend" do
+      friendship = create(:friendship, :accepted, :temporary, requester: current_user, addressee: other_user)
+
+      get dashboard_friends_path
+
+      expect(response.body).to include("Ends on #{friendship.expires_at.to_date.to_fs(:long)}")
+    end
+
+    it "shows the end date controls only with the flag on" do
+      create(:friendship, :accepted, :temporary, requester: current_user, addressee: other_user)
+
+      get dashboard_friends_path
+      expect(response.body).not_to include("Make permanent")
+      expect(response.body).not_to include("End date (optional)")
+
+      Flipper.enable_actor(FlipperFlags::FRIEND_EXPIRY, current_user)
+      get dashboard_friends_path
+      expect(response.body).to include("Make permanent")
+      expect(response.body).to include("End date (optional)")
+    end
+
+    it "leaves out a friend after the end date, and refuses their schedule" do
+      expire!(create(:friendship, :accepted, :temporary, requester: current_user, addressee: other_user))
+
+      get dashboard_friends_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("No friends yet.")
+      expect(response.body).not_to include(dashboard_friend_path(other_user.public_id))
+
+      get dashboard_friend_path(other_user.public_id)
+      expect(flash[:alert]).to eq("Friend not found.")
+    end
+
+    it "shows the end date on a request and hides an expired request" do
+      request = create(:friendship, :temporary, requester: other_user, addressee: current_user)
+
+      get requests_dashboard_friends_path
+      expect(response.body).to include("Ends on #{request.expires_at.to_date.to_fs(:long)}")
+
+      expire!(request)
+      get requests_dashboard_friends_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("No incoming requests.")
     end
   end
 

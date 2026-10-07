@@ -43,5 +43,21 @@ RSpec.describe FriendshipMailer, type: :mailer do
 
       expect(mail.text_part.body.to_s).to include("Hi,")
     end
+
+    it "leaves out an end date for a permanent request" do
+      expect(mail.text_part.body.to_s).not_to include("This friendship ends on")
+    end
+
+    context "with an expiry date" do
+      let(:friendship) do
+        build(:friendship, requester: requester, addressee: addressee,
+                           expires_at: Time.zone.local(2099, 12, 1, 23, 59))
+      end
+
+      it "gives the end date in both parts" do
+        expect(mail.html_part.body.to_s).to include("This friendship ends on December 01, 2099.")
+        expect(mail.text_part.body.to_s).to include("This friendship ends on December 01, 2099.")
+      end
+    end
   end
 end

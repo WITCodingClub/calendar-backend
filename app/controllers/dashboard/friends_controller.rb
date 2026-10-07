@@ -12,7 +12,10 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
   def index
     authorize current_user, :show?
 
-    @friends  = current_user.friends.order(:first_name, :last_name)
+    @friendships = current_user.accepted_friendships.includes(:requester, :addressee)
+                                 .sort_by { |f| friend_sort_key(f.friend_for(current_user)) }
+    @friends = @friendships.map { |f| f.friend_for(current_user) }
+    @friend_expiry_enabled = friend_expiry_enabled?
     @incoming = current_user.incoming_friend_requests.includes(:requester).pending
     @outgoing = current_user.outgoing_friend_requests.includes(:addressee).pending
 
@@ -84,6 +87,14 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     friendship = Friendship.new(requester: current_user, addressee: addressee)
     friendship.requester_visibility = level if level
 
+    if params[:expires_on].present?
+      return redirect_to dashboard_friends_path, alert: "Temporary friendships are not available." unless friend_expiry_enabled?
+
+      friendship.expires_at = parse_expires_on
+      return redirect_to dashboard_friends_path, alert: "Pick a valid end date." if friendship.expires_at.nil?
+      return redirect_to dashboard_friends_path, alert: "Pick an end date after today." unless friendship.expires_at.future?
+    end
+
     # The self check above covers the only other validation, so a failure here
     # means a request or friendship already exists in one direction or the other.
     if friendship.save
@@ -116,6 +127,37 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
 
     fr.destroy!
     redirect_to friend_requests_return_path, notice: "Request declined."
+  end
+
+  # PATCH /dashboard/friends/:id/expiry
+  #
+  # Sets a new end date on the friendship, or makes it permanent when the
+  # "permanent" param is present.
+  def expiry
+    friend     = current_user.friends.find_by_public_id(params[:id])
+    friendship = friend && Friendship.accepted_between(current_user, friend)
+
+    unless friendship && friend_expiry_enabled?
+      skip_authorization
+      return redirect_to dashboard_friends_path, alert: "Friend not found."
+    end
+
+    authorize friendship, :update_expiry?
+
+    if params[:permanent].present?
+      friendship.update!(expires_at: nil)
+      return redirect_to dashboard_friends_path, notice: "#{friend.first_name} is now a permanent friend."
+    end
+
+    expires_at = parse_expires_on
+    return redirect_to dashboard_friends_path, alert: "Pick a valid end date." if expires_at.nil?
+
+    if friendship.update(expires_at: expires_at)
+      redirect_to dashboard_friends_path,
+                  notice: "Your friendship with #{friend.first_name} now ends on #{expires_at.to_date.to_fs(:long)}."
+    else
+      redirect_to dashboard_friends_path, alert: "Pick an end date after today."
+    end
   end
 
   def destroy
@@ -159,5 +201,21 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
 
     @groups = policy_scope(FriendGroup).includes(:user, memberships: { friendship: %i[requester addressee] }).order(:name)
     @groups_by_friend = FriendGroup.by_friend_id_for(current_user)
+  end
+
+  def friend_expiry_enabled?
+    Flipper.enabled?(FlipperFlags::FRIEND_EXPIRY, current_user)
+  end
+
+  # The form sends a date. The friendship ends at the end of that day in the
+  # app time zone. Returns nil when the value is not a date.
+  def parse_expires_on
+    Date.iso8601(params[:expires_on].to_s).in_time_zone.end_of_day
+  rescue Date::Error
+    nil
+  end
+
+  def friend_sort_key(user)
+    [ user.first_name.to_s, user.last_name.to_s ]
   end
 end

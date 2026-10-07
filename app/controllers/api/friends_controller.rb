@@ -10,7 +10,7 @@ module Api
       authorize :friendship, :index?
 
       flag_on     = Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
-      friendships = Friendship.accepted_for(current_user).includes(:requester, :addressee)
+      friendships = current_user.accepted_friendships.includes(:requester, :addressee)
       # Each friend gets a "groups" key only while the friend groups flag is on.
       # The groups for the whole list load in one pass, not one query per friend.
       groups_by_friend = FriendGroup.by_friend_id_for(current_user) if FriendGroup.enabled_for?(current_user)
@@ -20,7 +20,8 @@ module Api
         FriendSerializer.new(
           friend,
           visibility: index_visibility(friendship, flag_on),
-          groups: groups_by_friend && groups_by_friend[friend.id]
+          groups: groups_by_friend && groups_by_friend[friend.id],
+          expires_at: friendship.expires_at
         ).as_json
       end
 
@@ -30,23 +31,13 @@ module Api
     def requests
       authorize :friendship, :requests?
 
-      incoming = current_user.incoming_friend_requests.includes(:requester).map do |fr|
-        {
-          request_id: fr.public_id,
-          from:       { id: fr.requester.public_id, name: fr.requester.full_name },
-          created_at: fr.created_at.iso8601
-        }
-      end
+      incoming = current_user.incoming_friend_requests.includes(:requester)
+      outgoing = current_user.outgoing_friend_requests.includes(:addressee)
 
-      outgoing = current_user.outgoing_friend_requests.includes(:addressee).map do |fr|
-        {
-          request_id: fr.public_id,
-          to:         { id: fr.addressee.public_id, name: fr.addressee.full_name },
-          created_at: fr.created_at.iso8601
-        }
-      end
-
-      render json: { incoming: incoming, outgoing: outgoing }, status: :ok
+      render json: {
+        incoming: FriendshipSerializer.render_requests(incoming, current_user),
+        outgoing: FriendshipSerializer.render_requests(outgoing, current_user)
+      }, status: :ok
     end
 
     def create_request
@@ -59,10 +50,47 @@ module Api
       friendship = Friendship.new(requester: current_user, addressee: friend_user)
       friendship.requester_visibility = level if level
 
+      if params[:expires_at].present?
+        return render_friend_expiry_disabled unless friend_expiry_enabled?
+
+        friendship.expires_at = parse_expires_at
+        return if performed?
+      end
+
       authorize friendship, :create?
       friendship.save!
 
-      render json: { request_id: friendship.public_id }, status: :created
+      render json: { request_id: friendship.public_id, expires_at: friendship.expires_at&.iso8601 }, status: :created
+    end
+
+    # PATCH /api/friends/:friend_id/expiry
+    #
+    # Sets a new expiry date on the friendship or the pending request with this
+    # user. Send "expires_at": null to make it permanent.
+    def update_expiry
+      return render_friend_expiry_disabled unless friend_expiry_enabled?
+
+      friend_user = find_by_any_id!(User, params[:friend_id])
+      friendship  = Friendship.unexpired.between(current_user, friend_user).first
+
+      if friendship.nil?
+        render json: { error: "Friendship not found" }, status: :not_found
+        return
+      end
+
+      authorize friendship, :update_expiry?
+
+      unless params.key?(:expires_at)
+        render json: { error: "expires_at is required. Send null to make the friendship permanent." },
+               status: :bad_request
+        return
+      end
+
+      friendship.expires_at = params[:expires_at].blank? ? nil : parse_expires_at
+      return if performed?
+
+      friendship.save!
+      render json: FriendshipSerializer.new(friendship, current_user).as_json, status: :ok
     end
 
     def accept
@@ -78,7 +106,8 @@ module Api
 
       render json: {
         friendship_id: friendship.public_id,
-        friend:        { id: friend.public_id.delete_prefix("usr_"), name: friend.full_name }
+        friend:        { id: friend.public_id.delete_prefix("usr_"), name: friend.full_name },
+        expires_at:    friendship.expires_at&.iso8601
       }, status: :ok
     end
 
@@ -303,6 +332,24 @@ module Api
 
     def find_friendship_with(friend_user)
       Friendship.accepted_between(current_user, friend_user)
+    end
+
+    def friend_expiry_enabled?
+      Flipper.enabled?(FlipperFlags::FRIEND_EXPIRY, current_user)
+    end
+
+    def render_friend_expiry_disabled
+      render json: { error: "Temporary friendships are not enabled" }, status: :not_found
+    end
+
+    # Reads params[:expires_at] as an ISO 8601 time. Renders 400 and returns nil
+    # when the value does not parse.
+    def parse_expires_at
+      Time.zone.iso8601(params[:expires_at].to_s)
+    rescue ArgumentError
+      render json: { error: "expires_at must be an ISO 8601 time, for example 2026-12-01T05:00:00Z" },
+             status: :bad_request
+      nil
     end
 
     def find_term_by_uid

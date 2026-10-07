@@ -4,6 +4,9 @@ Hi<%= " #{@addressee.first_name}" if @addressee.first_name.present? %>,
 
 <%= @requester.full_name %> sent you a friend request on WIT Calendar.
 Friends can see each other's class schedules.
+<% if @friendship.temporary? %>
+This friendship ends on <%= @friendship.expires_at.to_date.to_fs(:long) %>.
+<% end %>
 
 Review the request: <%= @requests_url %>
 

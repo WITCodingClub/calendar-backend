@@ -26,6 +26,12 @@ production:
     queue: low
     schedule: every hour at minute 42
 
+  # Expired friendships already grant nothing. This only deletes the rows.
+  remove_expired_friendships:
+    class: RemoveExpiredFriendshipsJob
+    queue: low
+    schedule: every hour at minute 27
+
   # ---------------------------------------------------------------------------
   # EVERY 6 HOURS
   # ---------------------------------------------------------------------------

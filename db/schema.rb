@@ -442,12 +442,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
     t.bigint "addressee_id", null: false
     t.integer "addressee_visibility", default: 0, null: false
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
     t.bigint "requester_id", null: false
     t.integer "requester_visibility", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index "LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)", name: "index_friendships_on_unordered_pair", unique: true
     t.index ["addressee_id", "status"], name: "index_friendships_on_addressee_id_and_status"
+    t.index ["expires_at"], name: "index_friendships_on_expires_at", where: "(expires_at IS NOT NULL)"
     t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
     t.index ["requester_id", "status"], name: "index_friendships_on_requester_id_and_status"
   end
