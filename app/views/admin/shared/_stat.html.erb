@@ -5,7 +5,7 @@
    }.fetch(local_assigns[:tone]&.to_sym, "text-on-surface") %>
 <% body = capture do %>
   <p class="text-xs font-medium text-on-surface-variant uppercase tracking-wide truncate"><%= label %></p>
-  <p class="mt-1 text-2xl font-bold tabular-nums <%= number_class %>"><%= value.is_a?(Numeric) ? number_with_delimiter(value) : value %></p>
+  <p class="mt-1 font-bold tabular-nums <%= value.is_a?(Numeric) ? "text-2xl" : "text-lg" %> <%= number_class %>"><%= value.is_a?(Numeric) ? number_with_delimiter(value) : value %></p>
   <% if local_assigns[:hint].present? %>
     <p class="mt-0.5 text-xs text-on-surface-variant truncate"><%= hint %></p>
   <% end %>
