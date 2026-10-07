@@ -1,0 +1,9 @@
+<%# Rendered by AdminHelper#admin_details. %>
+<dl class="grid grid-cols-1 gap-x-6 gap-y-4 <%= columns == 3 ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2" if columns > 1 %>">
+  <% list.items.each do |item| %>
+    <div class="min-w-0 <%= "sm:col-span-full" if item.wide %>">
+      <dt class="text-xs font-medium text-on-surface-variant uppercase tracking-wide"><%= item.label %></dt>
+      <dd class="mt-1 text-sm text-on-surface break-words"><%= admin_block_content(item.block) %></dd>
+    </div>
+  <% end %>
+</dl>
