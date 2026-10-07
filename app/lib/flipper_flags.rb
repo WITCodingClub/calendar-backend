@@ -9,6 +9,7 @@ module FlipperFlags
   MICROSOFT_GRAPH_CALENDAR = :microsoft_graph_calendar
   FRIENDS_AVAILABILITY_ONLY = :friends_availability_only
   SEMANTIC_SEARCH = :semantic_search
+  FRIEND_GROUPS = :friend_groups
 
   MAP = {
     envSwitcher: ENV_SWITCHER,
@@ -17,7 +18,8 @@ module FlipperFlags
     bypassRateLimits: BYPASS_RATE_LIMITS,
     microsoftSignIn: MICROSOFT_SIGN_IN,
     microsoftGraphCalendar: MICROSOFT_GRAPH_CALENDAR,
-    friendsAvailabilityOnly: FRIENDS_AVAILABILITY_ONLY
+    friendsAvailabilityOnly: FRIENDS_AVAILABILITY_ONLY,
+    friendGroups: FRIEND_GROUPS
   }.freeze
 
   ALL_FLAGS = %i[
@@ -28,5 +30,6 @@ module FlipperFlags
     microsoftSignIn
     microsoftGraphCalendar
     friendsAvailabilityOnly
+    friendGroups
   ].freeze
 end

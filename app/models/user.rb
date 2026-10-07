@@ -114,6 +114,7 @@ class User < ApplicationRecord
            dependent: :destroy, inverse_of: :requester
   has_many :received_friendships, class_name: "Friendship", foreign_key: :addressee_id,
            dependent: :destroy, inverse_of: :addressee
+  has_many :friend_groups, dependent: :destroy
 
   before_create :generate_calendar_token
   after_create :create_user_extension_config
@@ -176,22 +177,23 @@ class User < ApplicationRecord
   end
 
   def friend_of?(other_user)
-    return false if other_user.nil? || other_user.id == id
+    accepted_friendship_with(other_user).present?
+  end
 
-    Friendship.accepted.exists?(
+  # The accepted friendship between this user and other_user, or nil.
+  def accepted_friendship_with(other_user)
+    return nil if other_user.nil? || other_user.id == id
+
+    Friendship.accepted.find_by(
       "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
       id, other_user.id, other_user.id, id
     )
   end
 
   # Returns true when a friendship was removed, false when there was none.
+  # Its friend group memberships go with it.
   def remove_friend(other_user)
-    return false if other_user.nil? || other_user.id == id
-
-    friendship = Friendship.accepted.find_by(
-      "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
-      id, other_user.id, other_user.id, id
-    )
+    friendship = accepted_friendship_with(other_user)
     return false if friendship.nil?
 
     friendship.destroy!

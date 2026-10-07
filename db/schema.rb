@@ -421,6 +421,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
     t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
   end
 
+  create_table "friend_group_memberships", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "friend_group_id", null: false
+    t.bigint "friendship_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["friend_group_id", "friendship_id"], name: "index_friend_group_memberships_on_group_and_friendship", unique: true
+    t.index ["friendship_id"], name: "index_friend_group_memberships_on_friendship_id"
+  end
+
+  create_table "friend_groups", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index "user_id, lower((name)::text)", name: "index_friend_groups_on_user_id_and_lower_name", unique: true
+  end
+
   create_table "friendships", force: :cascade do |t|
     t.bigint "addressee_id", null: false
     t.integer "addressee_visibility", default: 0, null: false
@@ -1012,6 +1029,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
   add_foreign_key "final_exams", "terms"
   add_foreign_key "finals_schedules", "terms"
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
+  add_foreign_key "friend_group_memberships", "friend_groups", on_delete: :cascade
+  add_foreign_key "friend_group_memberships", "friendships", on_delete: :cascade
+  add_foreign_key "friend_groups", "users", on_delete: :cascade
   add_foreign_key "friendships", "users", column: "addressee_id"
   add_foreign_key "friendships", "users", column: "requester_id"
   add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"

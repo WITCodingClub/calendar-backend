@@ -15,6 +15,8 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     @friends  = current_user.friends.order(:first_name, :last_name)
     @incoming = current_user.incoming_friend_requests.includes(:requester).pending
     @outgoing = current_user.outgoing_friend_requests.includes(:addressee).pending
+
+    load_friend_groups
   end
 
   def show
@@ -147,5 +149,15 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     Date.iso8601(params[:week_start].to_s).beginning_of_week(:monday)
   rescue Date::Error
     Time.zone.today.beginning_of_week(:monday)
+  end
+
+  # Groups show only while the friend_groups flag is on. Each list loads in a
+  # fixed number of queries, however many friends and groups there are.
+  def load_friend_groups
+    @groups_enabled = FriendGroup.enabled_for?(current_user)
+    return unless @groups_enabled
+
+    @groups = policy_scope(FriendGroup).includes(memberships: { friendship: %i[requester addressee] }).order(:name)
+    @groups_by_friend = FriendGroup.by_friend_id_for(current_user)
   end
 end
