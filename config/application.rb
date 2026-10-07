@@ -26,6 +26,13 @@ module Calendar
     # do not point it back at wit.edu.
     config.x.mailer_from = ENV.fetch("MAILER_FROM", "WIT Calendar <noreply@send.witcc.dev>")
 
+    # The Chrome Web Store page of the extension. The website (calendar-website,
+    # src/lib/server/pages.ts) links to the same page.
+    config.x.extension_install_url = ENV.fetch(
+      "EXTENSION_INSTALL_URL",
+      "https://chromewebstore.google.com/detail/wit-calendar/aceelinogfcceklkpacakdeddnaakicj"
+    )
+
     config.mission_control.jobs.base_controller_class = "Admin::ApplicationController"
     config.mission_control.jobs.http_basic_auth_enabled = false
 

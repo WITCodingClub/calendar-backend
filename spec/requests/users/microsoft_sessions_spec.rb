@@ -124,7 +124,7 @@ RSpec.describe "Signing in to the dashboard with Microsoft", type: :request do
 
       expect { get callback_path }.not_to change(UserSession, :count)
 
-      get dashboard_root_path
+      get dashboard_settings_path
       expect(response).to have_http_status(:ok)
     end
 

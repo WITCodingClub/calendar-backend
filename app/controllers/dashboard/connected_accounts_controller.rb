@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
+  # An account page. It works before the user processes any courses.
+  skip_before_action :require_processed_courses
+
   def index
     authorize current_user, :show?
 

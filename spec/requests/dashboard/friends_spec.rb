@@ -9,7 +9,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
 
   include ActiveJob::TestHelper
 
-  let(:current_user) { create_user("Ada") }
+  let(:current_user) { create(:user, :with_processed_courses, first_name: "Ada") }
   let(:other_user)   { create_user("Grace") }
 
   before { sign_in current_user }

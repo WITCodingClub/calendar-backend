@@ -69,6 +69,16 @@ RSpec.describe User, type: :model do
     it { is_expected.to define_enum_for(:access_level).with_values(user: 0, admin: 1, super_admin: 2, owner: 3).backed_by_column_of_type(:integer).with_default(:user) }
   end
 
+  describe "#processed_courses?" do
+    it "is false before the extension processes any courses" do
+      expect(create(:user).processed_courses?).to be(false)
+    end
+
+    it "is true when the user has an enrollment in any term" do
+      expect(create(:user, :with_processed_courses).processed_courses?).to be(true)
+    end
+  end
+
   describe "#remove_friend" do
     let(:user)   { create(:user) }
     let(:friend) { create(:user) }

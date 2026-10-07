@@ -34,7 +34,7 @@ RSpec.describe "Signing in to the dashboard with Google", type: :request do
     get "/auth/google_oauth2/callback"
 
     travel(User.timeout_in + 1.minute) do
-      get dashboard_root_path
+      get dashboard_settings_path
       expect(response).to have_http_status(:ok)
     end
   end

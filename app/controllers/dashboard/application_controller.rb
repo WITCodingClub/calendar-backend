@@ -3,5 +3,21 @@
 class Dashboard::ApplicationController < ApplicationController
   layout "user"
   before_action :authenticate_user!
+  before_action :require_processed_courses
   after_action  :verify_authorized
+
+  private
+
+  # Most dashboard pages are empty until the extension processes the user's
+  # courses (#644). Send those users to the onboarding page. Account pages
+  # skip this check, so a user can still manage or remove the account.
+  def require_processed_courses
+    return if onboarding_complete?
+
+    redirect_to dashboard_onboarding_path
+  end
+
+  def onboarding_complete?
+    current_user.admin_access? || current_user.processed_courses?
+  end
 end

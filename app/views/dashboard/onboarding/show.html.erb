@@ -1,0 +1,47 @@
+<% content_for :title, "Get started" %>
+
+<div class="max-w-xl mx-auto space-y-6">
+  <div class="space-y-1">
+    <h1 class="text-2xl font-bold text-on-surface">Get started</h1>
+    <p class="text-sm text-on-surface-variant">
+      Your dashboard shows your courses after the WIT Calendar extension processes them.
+      You have not processed any courses yet.
+    </p>
+  </div>
+
+  <ol class="m3-card divide-y divide-outline-variant overflow-hidden">
+    <li class="px-5 py-4 flex gap-4">
+      <span class="w-7 h-7 flex-shrink-0 rounded-full bg-primary-container text-on-primary-container text-sm font-bold flex items-center justify-center">1</span>
+      <div class="space-y-2">
+        <p class="text-sm font-medium text-on-surface">Install the extension</p>
+        <p class="text-xs text-on-surface-variant">Add WIT Calendar to Chrome from the Chrome Web Store.</p>
+        <%= link_to "Install the extension",
+            @extension_install_url,
+            target: "_blank",
+            rel: "noopener",
+            class: "m3-btn-filled text-sm inline-flex" %>
+      </div>
+    </li>
+    <li class="px-5 py-4 flex gap-4">
+      <span class="w-7 h-7 flex-shrink-0 rounded-full bg-primary-container text-on-primary-container text-sm font-bold flex items-center justify-center">2</span>
+      <div class="space-y-1">
+        <p class="text-sm font-medium text-on-surface">Open the extension and sign in</p>
+        <p class="text-xs text-on-surface-variant">
+          Use the same account as this dashboard: <span class="font-medium text-on-surface"><%= current_user.email %></span>.
+        </p>
+      </div>
+    </li>
+    <li class="px-5 py-4 flex gap-4">
+      <span class="w-7 h-7 flex-shrink-0 rounded-full bg-primary-container text-on-primary-container text-sm font-bold flex items-center justify-center">3</span>
+      <div class="space-y-1">
+        <p class="text-sm font-medium text-on-surface">Process your courses</p>
+        <p class="text-xs text-on-surface-variant">Follow the steps in the extension to process the courses for your term.</p>
+      </div>
+    </li>
+  </ol>
+
+  <div class="flex flex-wrap gap-2">
+    <%= link_to "I processed my courses", dashboard_root_path, class: "m3-btn-tonal text-sm" %>
+    <%= link_to "Settings", dashboard_settings_path, class: "m3-btn-text text-sm" %>
+  </div>
+</div>

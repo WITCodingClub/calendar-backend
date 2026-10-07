@@ -10,6 +10,7 @@ RSpec.describe "Dashboard::CalendarPreferences", type: :request do
 
   before do
     allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    create(:enrollment, user: user)
     sign_in user
   end
 

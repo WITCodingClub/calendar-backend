@@ -6,7 +6,7 @@ require "webauthn/fake_client"
 RSpec.describe "Signing in to the dashboard with a passkey", type: :request do
   include ActiveSupport::Testing::TimeHelpers
 
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :with_processed_courses) }
   let(:client) { WebAuthn::FakeClient.new("http://localhost:3000") }
 
   def json = JSON.parse(response.body)
