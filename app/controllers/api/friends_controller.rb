@@ -2,6 +2,8 @@
 
 module Api
   class FriendsController < ApiController
+    before_action :require_availability_only_flag, only: [ :visibility, :update_visibility, :busy_blocks ]
+
     def index
       authorize :friendship, :index?
 
@@ -102,6 +104,17 @@ module Api
 
       authorize friendship, :view_schedule?
 
+      # The friend's own setting decides. This check does not depend on the
+      # flag: a level that was set while the flag was on stays in force.
+      unless policy(friendship).view_full_schedule?
+        render json: {
+          error:      "This friend shares only availability",
+          code:       "AVAILABILITY_ONLY",
+          visibility: "availability_only"
+        }, status: :forbidden
+        return
+      end
+
       term = find_term_by_uid
       return if performed?
 
@@ -127,7 +140,102 @@ module Api
       render json: { processed: processed }, status: :ok
     end
 
+    # GET /api/friends/:friend_id/visibility
+    def visibility
+      friendship = find_accepted_friendship!
+      return if performed?
+
+      authorize friendship, :view_schedule?
+      render json: FriendshipVisibilitySerializer.new(friendship, viewer: current_user).as_json, status: :ok
+    end
+
+    # PATCH /api/friends/:friend_id/visibility
+    #
+    # Sets the level for the current user's own schedule toward this friend.
+    def update_visibility
+      friendship = find_accepted_friendship!
+      return if performed?
+
+      authorize friendship, :update_visibility?
+
+      level = params.require(:visibility).to_s
+      unless Friendship::VISIBILITIES.key?(level.to_sym)
+        render json: { error: "visibility must be one of: #{Friendship::VISIBILITIES.keys.join(", ")}" },
+               status: :unprocessable_content
+        return
+      end
+
+      friendship.update_visibility_for!(current_user, level)
+      render json: FriendshipVisibilitySerializer.new(friendship, viewer: current_user).as_json, status: :ok
+    end
+
+    # GET /api/friends/:friend_id/busy_blocks?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+    #
+    # The times the friend is in class, with no course data. Every accepted
+    # friend can read it, whatever the friend's visibility level.
+    def busy_blocks
+      friendship = find_accepted_friendship!
+      return if performed?
+
+      authorize friendship, :view_availability?
+
+      from, to = busy_blocks_range
+      return if performed?
+
+      friend = friendship.friend_for(current_user)
+      blocks = BusyBlocks.new(friend, from: from, to: to).call
+      render json: BusyBlocksSerializer.new(blocks, from: from, to: to).as_json, status: :ok
+    end
+
     private
+
+    # Answers 404 while the flag is off for the current user, so the routes
+    # look absent until the privacy policy update ships.
+    def require_availability_only_flag
+      return if Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+
+      render json: { error: "Not found" }, status: :not_found
+    end
+
+    def find_accepted_friendship!
+      friend_user = find_by_any_id!(User, params[:friend_id])
+      friendship  = find_friendship_with(friend_user)
+      return friendship if friendship
+
+      render json: { error: "You are not friends with this user" }, status: :forbidden
+      nil
+    end
+
+    # start_date defaults to today and end_date to six days after start_date.
+    def busy_blocks_range
+      from = parse_date_param(:start_date) || Time.zone.today
+      return if performed?
+
+      to = parse_date_param(:end_date) || (from + 6)
+      return if performed?
+
+      if to < from
+        render json: { error: "end_date must not be before start_date" }, status: :bad_request
+        return
+      end
+
+      if (to - from).to_i + 1 > BusyBlocks::MAX_DAYS
+        render json: { error: "The range must be #{BusyBlocks::MAX_DAYS} days or fewer" }, status: :bad_request
+        return
+      end
+
+      [ from, to ]
+    end
+
+    def parse_date_param(name)
+      value = params[name]
+      return nil if value.blank?
+
+      Date.iso8601(value.to_s)
+    rescue Date::Error
+      render json: { error: "#{name} must be a date in YYYY-MM-DD format" }, status: :bad_request
+      nil
+    end
 
     def resolve_friend_user
       has_id    = params[:friend_id].present?
