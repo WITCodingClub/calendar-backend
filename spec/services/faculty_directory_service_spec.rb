@@ -31,6 +31,30 @@ RSpec.describe FacultyDirectoryService, type: :service do
       expect(faculty[:profile_url]).to eq("https://wit.edu/directory/ada-byron")
     end
 
+    context "with a real cache store" do
+      before { allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new) }
+
+      it "serves a repeated page from the cache" do
+        stub_page(page: 0, fixture: "page_single.html")
+
+        2.times { described_class.new(page: 0, fetch_all: false).call }
+
+        expect(WebMock).to have_requested(:get, base_url).with(query: hash_including("page" => "0")).once
+      end
+
+      it "fetches the page again and overwrites the cache when force is true" do
+        stub_page(page: 0, fixture: "page_empty.html")
+        described_class.new(page: 0, fetch_all: false).call
+        stub_page(page: 0, fixture: "page_single.html")
+
+        described_class.new(page: 0, fetch_all: false, force: true).call
+        cached = described_class.new(page: 0, fetch_all: false).call
+
+        expect(cached[:faculty].map { |f| f[:email] }).to eq([ "byrona@wit.edu" ])
+        expect(WebMock).to have_requested(:get, base_url).with(query: hash_including("page" => "0")).twice
+      end
+    end
+
     it "skips cards with no email address" do
       stub_page(page: 0, fixture: "page_no_email.html")
 

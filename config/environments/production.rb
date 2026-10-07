@@ -46,13 +46,16 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Keep the cache in memory. Production is one Puma process that also runs the
-  # jobs (SOLID_QUEUE_IN_PUMA), and the container starts with an empty tmp on
-  # every restart, so the file store it fell back to shared nothing more. It
-  # only added a disk read or write to every request for Rack::Attack counters
-  # and Flipper. If the app ever runs more than one process, move to a shared
-  # store, or rate limits start to count per process.
-  config.cache_store = :memory_store, { size: 64.megabytes }
+  # Keep the cache in Solid Cache, in the calendar_production_cache database
+  # (config/cache.yml, db/cache_schema.rb). Production is one Puma process that
+  # also runs the jobs (SOLID_QUEUE_IN_PUMA), so a memory store was accurate,
+  # but every deploy started it empty: Rack::Attack counters, Flipper gates,
+  # and the Rate My Professor and faculty directory pages all reset. Solid
+  # Cache keeps them across deploys and stays correct if a second process
+  # (Puma workers or a separate jobs container) comes later.
+  # Solid Cache has no delete_matched. Overwrite keys with fetch(force: true)
+  # or put a version in the key instead.
+  config.cache_store = :solid_cache_store
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   config.active_job.queue_adapter = :solid_queue
