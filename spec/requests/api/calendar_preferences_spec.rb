@@ -25,6 +25,33 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
       expect(university_preference.color_id).to eq("#1a2b3c")
     end
 
+    it "returns no university wide preference until the user saves one" do
+      get "/api/calendar_preferences", headers: headers
+
+      expect(json["uni_cal_global"]).to be_nil
+    end
+
+    it "lists the saved color of the university wide preference as hex" do
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+
+      get "/api/calendar_preferences", headers: headers
+
+      expect(json["uni_cal_global"]["color_id"]).to eq("#1a2b3c")
+    end
+
+    it "ends category colors from old extension builds that would hide the new color" do
+      category = create(:calendar_preference, :uni_cal_category, user: user, event_type: "holiday", color_id: "#d50000")
+
+      patch "/api/calendar_preferences/uni_cal",
+            params: { calendar_preference: { color_id: "#1a2b3c" } },
+            headers: headers,
+            as: :json
+
+      expect(category.reload.color_id).to be_nil
+      expect(json["color_id"]).to eq("#1a2b3c")
+      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
+    end
+
     it "takes the legacy color id that old extension versions send" do
       patch "/api/calendar_preferences/uni_cal",
             params: { calendar_preference: { color_id: "8" } },
