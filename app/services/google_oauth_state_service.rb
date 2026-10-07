@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
 class GoogleOauthStateService
-  def self.generate_state(user_id:, email:)
+  # email is optional. With an email, the callback accepts only that account.
+  # Without one, the person picks any Google account.
+  def self.generate_state(user_id:, email: nil)
     payload = {
       user_id: user_id,
-      email: email,
+      email: email.presence,
       nonce: SecureRandom.hex(16),
       exp: 1.hour.from_now.to_i
     }

@@ -38,16 +38,20 @@ class AuthController < ApplicationController
     raise "Invalid or expired state parameter" unless state_data
 
     user         = User.find(state_data["user_id"])
-    target_email = state_data["email"]
+    target_email = state_data["email"].presence
+    chosen_email = auth.info.email.to_s.strip
 
-    unless auth.info.email == target_email
-      raise "OAuth email (#{auth.info.email}) does not match expected email (#{target_email})"
+    # A state with an email is the old request shape: only that account is
+    # accepted. A state without an email accepts any Google account.
+    if target_email && chosen_email != target_email
+      raise "OAuth email (#{chosen_email}) does not match expected email (#{target_email})"
     end
 
-    credential = user.oauth_credentials.find_or_initialize_by(provider: "google", email: target_email)
-    credential.uid             = auth.uid
-    credential.access_token    = auth.credentials.token
-    credential.refresh_token   = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
+    credential = find_google_credential_for(user, auth, chosen_email)
+    credential.email            = chosen_email
+    credential.uid              = auth.uid
+    credential.access_token     = auth.credentials.token
+    credential.refresh_token    = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
     credential.token_expires_at = Time.zone.at(auth.credentials.expires_at) if auth.credentials.expires_at
     credential.save!
 
@@ -56,7 +60,19 @@ class AuthController < ApplicationController
 
     GoogleCalendarSyncJob.perform_later(user, force: false) if user.enrollments.any?
 
-    redirect_to "/oauth/success?email=#{CGI.escape(target_email)}&calendar_id=#{calendar_id}"
+    redirect_to "/oauth/success?email=#{CGI.escape(chosen_email)}&calendar_id=#{calendar_id}"
+  end
+
+  # Returns this user's credential for the chosen Google account, or a new one.
+  # An account that belongs to another user is never linked.
+  def find_google_credential_for(user, auth, chosen_email)
+    existing = OauthCredential.find_by(provider: "google", uid: auth.uid)
+
+    if existing && existing.user_id != user.id
+      raise "That Google account is already connected to another user"
+    end
+
+    existing || user.oauth_credentials.find_or_initialize_by(provider: "google", email: chosen_email)
   end
 
   def handle_user_login(auth)
