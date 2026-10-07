@@ -81,4 +81,47 @@ RSpec.describe "GET /calendar/:calendar_token", type: :request do
     expect(response).to have_http_status(:ok)
     expect(three_count).to eq(one_count)
   end
+
+  describe "HTTP caching" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    it "sends the same ETag for the same data, even at a later time" do
+      user = student_in(%w[11111])
+
+      get "/calendar/#{user.calendar_token}"
+      first_etag = response.headers["ETag"]
+      travel 5.minutes do
+        get "/calendar/#{user.calendar_token}"
+      end
+
+      expect(first_etag).to be_present
+      expect(response.headers["ETag"]).to eq(first_etag)
+    end
+
+    it "answers 304 with no body when the client already has the current feed" do
+      user = student_in(%w[11111])
+      get "/calendar/#{user.calendar_token}"
+
+      get "/calendar/#{user.calendar_token}", headers: { "If-None-Match" => response.headers["ETag"] }
+
+      expect(response).to have_http_status(:not_modified)
+      expect(response.body).to be_empty
+      expect(response.headers["Cache-Control"]).to include("max-age=3600")
+    end
+
+    it "sends the full feed with a new ETag after a class changes" do
+      user = student_in(%w[11111])
+      get "/calendar/#{user.calendar_token}"
+      old_etag = response.headers["ETag"]
+
+      travel 1.minute do
+        Course.find_by!(crn: 11111).update!(title: "Advanced Data Structures")
+        get "/calendar/#{user.calendar_token}", headers: { "If-None-Match" => old_etag }
+      end
+
+      expect(response).to have_http_status(:ok)
+      expect(response.headers["ETag"]).not_to eq(old_etag)
+      expect(response.body).to include("Advanced Data Structures")
+    end
+  end
 end

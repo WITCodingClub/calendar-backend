@@ -50,7 +50,7 @@ module Catalog
 
     # Eager-loads everything the serializers and GraphQL types read.
     def self.with_associations(relation)
-      relation.includes(:term, :faculties, :final_exam, meeting_times: { rooms: :building })
+      relation.includes(:term, { faculties: :rating_distribution }, :final_exam, meeting_times: { rooms: :building })
     end
 
     # Converts an "HH:MM", "HHMM", or integer time into the HHMM integer the

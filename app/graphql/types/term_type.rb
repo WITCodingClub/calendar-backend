@@ -12,8 +12,10 @@ module Types
     field :end_date, GraphQL::Types::ISO8601Date, null: true
     field :section_count, Integer, null: false
 
+    # One grouped count for every term in the query, not one count per term.
     def section_count
-      Course.active.where(term_id: object.id).count
+      counts = context[:term_section_counts] ||= Course.active.group(:term_id).count
+      counts.fetch(object.id, 0)
     end
   end
 end
