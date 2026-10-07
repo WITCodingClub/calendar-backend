@@ -1,0 +1,1 @@
+<%= admin_badge(user.access_level_text, { "owner" => :danger, "super_admin" => :warning, "admin" => :info }.fetch(user.access_level, :neutral)) %>

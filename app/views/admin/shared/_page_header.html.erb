@@ -4,7 +4,7 @@
 <% content_for(:title, title) unless content_for?(:title) %>
 <div class="mb-6">
   <% if local_assigns[:back] %>
-    <%= link_to back[1], class: "inline-flex items-center gap-1 mb-2 text-sm text-on-surface-variant hover:text-primary" do %>
+    <%= link_to back[1], data: { turbo_frame: "_top" }, class: "inline-flex items-center gap-1 mb-2 text-sm text-on-surface-variant hover:text-primary" do %>
       <%= admin_icon(:chevron_left, css_class: "w-4 h-4") %>
       <%= back[0] %>
     <% end %>

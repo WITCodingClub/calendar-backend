@@ -85,11 +85,12 @@ module AdminHelper
   #     <% t.column("Created", align: :right) { |user| l(user.created_at.to_date) } %>
   #   <% end %>
   #
-  # A Kaminari collection gets the pagination footer.
-  def admin_table(rows, empty: "Nothing to show yet.", id: nil, paginate: true, &block)
+  # A Kaminari collection gets the pagination footer. Pass `card: false` for a
+  # table that sits inside an admin/shared/card.
+  def admin_table(rows, empty: "Nothing to show yet.", id: nil, paginate: true, card: true, &block)
     table = AdminTableBuilder.new
     capture(table, &block)
-    render "admin/shared/data_table", table: table, rows: rows, empty: empty, id: id,
+    render "admin/shared/data_table", table: table, rows: rows, empty: empty, id: id, card: card,
                                       paginate: paginate && rows.respond_to?(:total_pages)
   end
 

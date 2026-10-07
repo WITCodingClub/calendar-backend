@@ -1,405 +1,187 @@
-<% content_for :title, "User Details" %>
+<%= render "admin/shared/page_header", title: @user.full_name, subtitle: @user.email, back: [ "Users", admin_users_path ] do %>
+  <% if policy(@user).edit? %>
+    <%= link_to edit_admin_user_path(@user), class: "m3-btn-outlined" do %>
+      <%= admin_icon(:pencil, css_class: "w-4 h-4") %> Edit
+    <% end %>
+  <% end %>
+  <% if policy(@user).force_calendar_sync? && CourseCalendar.for_user(@user).exists? %>
+    <%= button_to force_calendar_sync_admin_user_path(@user),
+        method: :post,
+        form: { data: { turbo_confirm: "Force sync calendar for #{@user.email}? This will update all events regardless of changes." } },
+        class: "m3-btn-tonal" do %>
+      <%= admin_icon(:refresh, css_class: "w-4 h-4") %> Force calendar sync
+    <% end %>
+  <% end %>
+  <% if policy(@user).destroy? %>
+    <%= render "delete_confirmation_modal", user: @user, button_text: "Delete user" %>
+  <% end %>
+<% end %>
 
-<div class="flex justify-between items-center mb-6">
-  <h1 class="text-2xl font-bold text-on-surface">User Details</h1>
-  <%= link_to "Back to Users", admin_users_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-</div>
-
-<div class="m3-card shadow-sm rounded-xl overflow-hidden">
-  <div class="px-6 py-5">
-    <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-      <div>
-        <dt class="text-sm font-medium text-on-surface-variant">First Name</dt>
-        <dd class="mt-1 text-sm text-on-surface"><%= @user.first_name %></dd>
-      </div>
-      <div>
-        <dt class="text-sm font-medium text-on-surface-variant">Last Name</dt>
-        <dd class="mt-1 text-sm text-on-surface"><%= @user.last_name %></dd>
-      </div>
-      <div>
-        <dt class="text-sm font-medium text-on-surface-variant">Email</dt>
-        <dd class="mt-1 text-sm text-on-surface"><%= @user.email %></dd>
-      </div>
-      <div>
-        <dt class="text-sm font-medium text-on-surface-variant">User ID</dt>
-        <dd class="mt-1 flex items-center gap-2">
-          <code class="text-sm bg-surface-container-high px-2 py-1 rounded font-mono text-on-surface"><%= @user.public_id %></code>
-          <button type="button"
-                  data-copy="<%= @user.public_id %>"
-                  onclick="navigator.clipboard.writeText(this.dataset.copy); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
-                  class="text-xs text-primary hover:text-primary font-medium">
-            Copy
-          </button>
-        </dd>
-      </div>
+<div class="space-y-6">
+  <%= render "admin/shared/card", title: "Account" do %>
+    <%= admin_details(columns: 3) do |d| %>
+      <% d.item("First name") { @user.first_name } %>
+      <% d.item("Last name") { @user.last_name } %>
+      <% d.item("Email") { @user.email } %>
+      <% d.item("User ID") do %>
+        <span class="inline-flex flex-wrap items-center gap-2">
+          <code class="px-2 py-0.5 rounded bg-surface-container-high font-mono text-xs"><%= @user.public_id %></code>
+          <%= render "admin/shared/copy_button", value: @user.public_id %>
+        </span>
+      <% end %>
       <% if policy(@user).view_access_level? %>
-        <div>
-          <dt class="text-sm font-medium text-on-surface-variant">Access Level</dt>
-          <dd class="mt-1">
-            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary-container text-primary">
-              <%= @user.access_level_text %>
-            </span>
-          </dd>
-        </div>
+        <% d.item("Access level") { render "access_badge", user: @user } %>
       <% end %>
-      <div class="sm:col-span-2">
-        <dt class="text-sm font-medium text-on-surface-variant">ICS Calendar URL</dt>
-        <dd class="mt-1 flex items-center gap-2">
-          <% if @user.calendar_token.present? %>
-            <code class="text-xs bg-surface-container-high px-2 py-1 rounded font-mono text-on-surface break-all"><%= @user.cal_url %></code>
-            <button type="button"
-                    data-copy="<%= @user.cal_url %>"
-                  onclick="navigator.clipboard.writeText(this.dataset.copy); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);"
-                    class="text-xs text-primary hover:text-primary font-medium">
-              Copy
-            </button>
-          <% else %>
-            <span class="text-on-surface-variant">No calendar token</span>
-          <% end %>
-        </dd>
-      </div>
-      <div>
-        <dt class="text-sm font-medium text-on-surface-variant">Last Calendar Sync</dt>
-        <dd class="mt-1 text-sm text-on-surface">
-          <% if @user.last_calendar_sync_at %>
-            <span title="<%= @user.last_calendar_sync_at.strftime("%B %d, %Y at %I:%M %p") %>">
-              <%= time_ago_in_words(@user.last_calendar_sync_at) %> ago
-            </span>
-            <% if @user.calendar_needs_sync %>
-              <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-secondary-container text-on-secondary-container">Needs Sync</span>
-            <% end %>
-          <% else %>
-            <span class="text-on-surface-variant">Never synced</span>
-          <% end %>
-        </dd>
-      </div>
-      <div>
-        <dt class="text-sm font-medium text-on-surface-variant">Created At</dt>
-        <dd class="mt-1 text-sm text-on-surface"><%= @user.created_at.strftime("%B %d, %Y at %I:%M %p") %></dd>
-      </div>
-    </dl>
-
-    <div class="mt-6 flex gap-3 flex-wrap">
-      <% if policy(@user).edit? %>
-        <%= link_to "Edit User", edit_admin_user_path(@user), class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-      <% end %>
-      <% if policy(@user).force_calendar_sync? && CourseCalendar.for_user(@user).exists? %>
-        <%= button_to "Force Calendar Sync", force_calendar_sync_admin_user_path(@user),
-            method: :post,
-            data: { turbo_confirm: "Force sync calendar for #{@user.email}? This will update all events regardless of changes." },
-            class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer bg-tertiary-container text-primary" %>
-      <% end %>
-      <% if policy(@user).destroy? %>
-        <%= render "delete_confirmation_modal",
-            user: @user,
-            button_text: "Delete User",
-            button_class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer bg-error-container text-on-error-container" %>
-      <% end %>
-    </div>
-  </div>
-</div>
-
-<!-- Friends Section -->
-<div class="mt-8 m3-card shadow-sm rounded-xl overflow-hidden">
-  <div class="px-6 py-5">
-    <details class="group" open>
-      <summary class="flex justify-between items-center cursor-pointer list-none">
-        <h2 class="text-xl font-bold text-on-surface">Friends (<%= @friends.size %>)</h2>
-        <svg class="w-5 h-5 text-on-surface-variant transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </summary>
-      <div class="mt-4">
-        <% if policy(@user).manage_friendships? %>
-          <div class="mb-4 p-4 bg-surface-container rounded-xl">
-            <h3 class="text-sm font-medium text-on-surface-variant mb-2">Add Friend</h3>
-            <%= form_with url: add_friend_admin_user_path(@user), method: :post, class: "flex gap-2 items-end" do |f| %>
-              <div class="flex-1">
-                <label class="block text-xs text-on-surface-variant mb-1">Email or user ID</label>
-                <%= f.text_field :friend_id, placeholder: "email@wit.edu or usr_abc123", class: "w-full px-3 py-2 text-sm border border-outline-variant rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50" %>
-              </div>
-              <%= f.submit "Add Friend", class: "px-4 py-2 text-sm bg-primary text-white rounded-md hover:opacity-90 cursor-pointer" %>
-            <% end %>
-          </div>
-        <% end %>
-
-        <% if @friends.any? %>
-          <div class="space-y-2">
-            <% @friends.each do |friend| %>
-              <div class="flex items-center justify-between py-2 px-3 bg-surface rounded border border-outline-variant">
-                <div>
-                  <div class="font-medium text-on-surface"><%= friend.full_name %></div>
-                  <div class="text-xs text-on-surface-variant"><%= friend.email %></div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <code class="text-xs bg-surface-container-high px-2 py-1 rounded font-mono text-on-surface-variant"><%= friend.public_id %></code>
-                  <%= link_to "View", admin_user_path(friend), class: "text-xs text-primary hover:text-primary" %>
-                  <% if policy(@user).manage_friendships? %>
-                    <%= button_to "Remove", remove_friend_admin_user_path(@user, friend_id: friend.public_id),
-                        method: :delete,
-                        data: { turbo_confirm: "Remove #{friend.full_name} as a friend?" },
-                        class: "text-xs text-on-error-container hover:opacity-80" %>
-                  <% end %>
-                </div>
-              </div>
-            <% end %>
-          </div>
+      <% d.item("Last calendar sync") do %>
+        <% if @user.last_calendar_sync_at %>
+          <span title="<%= l(@user.last_calendar_sync_at, format: :long) %>"><%= time_ago_in_words(@user.last_calendar_sync_at) %> ago</span>
         <% else %>
-          <p class="text-sm text-on-surface-variant">No friends yet.</p>
+          <span class="text-on-surface-variant">Never synced</span>
         <% end %>
-
-        <% if @incoming_requests.any? || @outgoing_requests.any? %>
-          <div class="mt-4 pt-4 border-t border-outline-variant">
-            <h3 class="text-sm font-medium text-on-surface-variant mb-2">Pending Requests</h3>
-            <% if @incoming_requests.any? %>
-              <div class="mb-2">
-                <span class="text-xs text-on-surface-variant">Incoming:</span>
-                <% @incoming_requests.each do |fr| %>
-                  <span class="ml-2 inline-flex items-center gap-1 px-2 py-1 bg-secondary-container text-on-secondary-container text-xs rounded">
-                    <%= fr.requester.full_name %>
-                    <code class="text-[10px] text-on-secondary-container"><%= fr.requester.public_id %></code>
-                  </span>
-                <% end %>
-              </div>
-            <% end %>
-            <% if @outgoing_requests.any? %>
-              <div>
-                <span class="text-xs text-on-surface-variant">Outgoing:</span>
-                <% @outgoing_requests.each do |fr| %>
-                  <span class="ml-2 inline-flex items-center gap-1 px-2 py-1 bg-tertiary-container text-on-tertiary-container text-xs rounded">
-                    <%= fr.addressee.full_name %>
-                    <code class="text-[10px] text-on-tertiary-container"><%= fr.addressee.public_id %></code>
-                  </span>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
+        <% if @user.calendar_needs_sync %>
+          <%= admin_badge("Needs sync", :warning) %>
         <% end %>
-      </div>
-    </details>
-  </div>
-</div>
+      <% end %>
+      <% d.item("Signed up") { l(@user.created_at, format: :long) } %>
+      <% d.item("ICS calendar URL", wide: true) do %>
+        <% if @user.calendar_token.present? %>
+          <span class="flex flex-wrap items-center gap-2">
+            <code class="px-2 py-0.5 rounded bg-surface-container-high font-mono text-xs break-all"><%= @user.cal_url %></code>
+            <%= render "admin/shared/copy_button", value: @user.cal_url %>
+          </span>
+        <% else %>
+          <span class="text-on-surface-variant">No calendar token</span>
+        <% end %>
+      <% end %>
+    <% end %>
+  <% end %>
 
-<!-- Sessions Section -->
-<% if policy(@user).view_sessions? %>
-  <div class="mt-8 m3-card shadow-sm rounded-xl overflow-hidden">
-    <div class="px-6 py-5">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-bold text-on-surface">Signed-in Devices</h2>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <% if policy(@user).view_sessions? %>
+      <% session_actions = capture do %>
         <% if @sessions.any? %>
-          <%= button_to "End all sessions",
-                        revoke_all_sessions_admin_user_path(@user),
-                        method: :delete,
-                        form: { data: { turbo_confirm: "End every session for this account? They will have to sign in again." } },
-                        class: "text-sm px-3 py-1.5 rounded-full bg-error-container text-on-error-container hover:opacity-90" %>
+          <%= button_to "End all sessions", revoke_all_sessions_admin_user_path(@user),
+              method: :delete,
+              form: { data: { turbo_confirm: "End every session for this account? They will have to sign in again." } },
+              class: "m3-btn-text text-error" %>
         <% end %>
-      </div>
+      <% end %>
+      <%= render "admin/shared/card", title: "Signed-in devices", subtitle: "#{@sessions.size} active", actions: session_actions do %>
+        <% if @sessions.any? %>
+          <ul class="divide-y divide-outline-variant -my-2">
+            <% @sessions.each do |session| %>
+              <li class="flex items-start justify-between gap-3 py-3">
+                <div class="min-w-0 text-sm">
+                  <p class="text-on-surface"><%= session.device_label %></p>
+                  <p class="text-xs text-on-surface-variant">
+                    <%= session.source == "passkey" ? "Passkey#{" · #{session.passkey.nickname}" if session.passkey}" : "Google sign-in" %>
+                    <% if session.ip_address.present? %> · <%= session.ip_address %><% end %>
+                  </p>
+                  <p class="text-xs text-on-surface-variant">
+                    Started <%= session.created_at.to_date %>
+                    <% if session.last_seen_at %> · last seen <%= time_ago_in_words(session.last_seen_at) %> ago<% end %>
+                  </p>
+                </div>
+                <%= button_to "End", revoke_session_admin_user_path(@user, session_id: session.id),
+                    method: :delete,
+                    form: { data: { turbo_confirm: "End this session?" } },
+                    class: "m3-btn-outlined px-3 py-1" %>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <%= render "admin/shared/empty_state", message: "No active sessions." %>
+        <% end %>
+      <% end %>
+    <% end %>
 
-      <% if @sessions.any? %>
-        <div class="space-y-3">
-          <% @sessions.each do |session| %>
-            <div class="flex items-center justify-between bg-surface-container-low rounded-lg p-3">
-              <div class="flex flex-col gap-1">
-                <span class="text-sm text-on-surface"><%= session.device_label %></span>
-                <span class="text-xs text-on-surface-variant">
-                  <%= session.source == "passkey" ? "Passkey#{" · #{session.passkey.nickname}" if session.passkey}" : "Google sign-in" %>
-                  <% if session.ip_address.present? %> · <%= session.ip_address %><% end %>
-                </span>
-                <span class="text-xs text-on-surface-variant/70">
-                  Started <%= session.created_at.to_date %>
-                  <% if session.last_seen_at %> · last seen <%= time_ago_in_words(session.last_seen_at) %> ago<% end %>
-                </span>
+    <%= render "admin/shared/card", title: "Friends", subtitle: "#{@friends.size} accepted" do %>
+      <% if policy(@user).manage_friendships? %>
+        <%= form_with url: add_friend_admin_user_path(@user), method: :post, class: "mb-4 flex flex-col sm:flex-row gap-2 sm:items-end" do |f| %>
+          <div class="flex-1">
+            <%= f.label :friend_id, "Add a friend by email or user ID", class: "m3-label" %>
+            <%= f.text_field :friend_id, placeholder: "email@wit.edu or usr_abc123", class: "m3-input" %>
+          </div>
+          <%= f.submit "Add friend", class: "m3-btn-tonal justify-center cursor-pointer" %>
+        <% end %>
+      <% end %>
+
+      <% if @friends.any? %>
+        <ul class="divide-y divide-outline-variant">
+          <% @friends.each do |friend| %>
+            <li class="flex flex-wrap items-center justify-between gap-2 py-2">
+              <div class="min-w-0">
+                <%= link_to friend.full_name, admin_user_path(friend), class: "text-sm font-medium text-primary hover:underline" %>
+                <p class="text-xs text-on-surface-variant break-all"><%= friend.email %></p>
               </div>
-              <%= button_to "End",
-                            revoke_session_admin_user_path(@user, session_id: session.id),
-                            method: :delete,
-                            form: { data: { turbo_confirm: "End this session?" } },
-                            class: "text-sm px-3 py-1.5 rounded-full bg-surface-container-high text-on-surface hover:opacity-90" %>
-            </div>
+              <% if policy(@user).manage_friendships? %>
+                <%= button_to "Remove", remove_friend_admin_user_path(@user, friend_id: friend.public_id),
+                    method: :delete,
+                    form: { data: { turbo_confirm: "Remove #{friend.full_name} as a friend?" } },
+                    class: "m3-btn-text text-error" %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <%= render "admin/shared/empty_state", message: "No friends yet." %>
+      <% end %>
+
+      <% if @incoming_requests.any? || @outgoing_requests.any? %>
+        <div class="mt-4 pt-4 border-t border-outline-variant space-y-2 text-xs">
+          <p class="font-medium text-on-surface-variant uppercase tracking-wide">Pending requests</p>
+          <% @incoming_requests.each do |request| %>
+            <p><%= admin_badge("Incoming", :warning) %> <%= request.requester.full_name %> <code class="text-on-surface-variant"><%= request.requester.public_id %></code></p>
+          <% end %>
+          <% @outgoing_requests.each do |request| %>
+            <p><%= admin_badge("Outgoing", :info) %> <%= request.addressee.full_name %> <code class="text-on-surface-variant"><%= request.addressee.public_id %></code></p>
           <% end %>
         </div>
-      <% else %>
-        <p class="text-sm text-on-surface-variant italic">No active sessions.</p>
       <% end %>
-    </div>
+    <% end %>
   </div>
-<% end %>
 
-<!-- OAuth Credentials Section -->
-<% if policy(@user).view_oauth_credentials? && @oauth_credentials.any? %>
-  <div class="mt-8 m3-card shadow-sm rounded-xl overflow-hidden">
-    <div class="px-6 py-5">
-      <h2 class="text-xl font-bold text-on-surface mb-4">OAuth Credentials</h2>
-      <div class="space-y-4">
+  <% if policy(@user).view_oauth_credentials? && @oauth_credentials.any? %>
+    <%= render "admin/shared/card", title: "Connected accounts", subtitle: "OAuth credentials for calendar sync", flush: true do %>
+      <ul class="divide-y divide-outline-variant">
         <% @oauth_credentials.each do |credential| %>
-          <div class="border border-outline-variant rounded-xl p-4">
-            <div class="flex justify-between items-start">
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-2">
-                  <h3 class="text-lg font-medium text-on-surface"><%= credential.email %></h3>
-                  <span class="px-2 py-1 text-xs font-medium rounded-full bg-tertiary-container text-on-tertiary-container">
-                    <%= credential.provider.capitalize %>
-                  </span>
-                </div>
-                <dl class="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <dt class="font-medium text-on-surface-variant">Created</dt>
-                    <dd class="text-on-surface"><%= credential.created_at.strftime("%b %d, %Y") %></dd>
-                  </div>
-                  <div>
-                    <dt class="font-medium text-on-surface-variant">Last Updated</dt>
-                    <dd class="text-on-surface"><%= credential.updated_at.strftime("%b %d, %Y") %></dd>
-                  </div>
-                  <div>
-                    <dt class="font-medium text-on-surface-variant">Token Expires</dt>
-                    <dd class="text-on-surface">
-                      <% if credential.token_expires_at %>
-                        <%= credential.token_expires_at.strftime("%b %d, %Y at %I:%M %p") %>
-                        <% if credential.token_expires_at < Time.current %>
-                          <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-error-container text-on-error-container">Expired</span>
-                        <% elsif credential.token_expires_at < 1.day.from_now %>
-                          <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-secondary-container text-on-secondary-container">Expiring Soon</span>
-                        <% end %>
-                      <% else %>
-                        <span class="text-on-surface-variant">No expiration</span>
-                      <% end %>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt class="font-medium text-on-surface-variant">Google Calendar</dt>
-                    <dd class="text-on-surface">
-                      <% if credential.course_calendar %>
-                        <span class="text-on-tertiary-container">✓ Connected</span>
-                        <div class="text-xs text-on-surface-variant mt-1"><%= credential.course_calendar.summary %></div>
-                      <% else %>
-                        <span class="text-on-surface-variant">Not connected</span>
-                      <% end %>
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-              <div class="ml-4 flex flex-col gap-2">
-                <% if policy(credential).refresh? %>
-                  <%= button_to "Refresh Token", refresh_oauth_credential_admin_user_path(@user, credential_id: credential.id),
-                      method: :post,
-                      class: "text-xs px-3 py-1 bg-tertiary-container text-on-tertiary-container rounded hover:opacity-90 border border-outline-variant" %>
+          <li class="px-4 sm:px-6 py-4 flex flex-col md:flex-row md:items-start gap-4">
+            <div class="flex-1 min-w-0">
+              <p class="flex flex-wrap items-center gap-2">
+                <span class="font-medium text-on-surface break-all"><%= credential.email %></span>
+                <%= admin_badge(credential.provider.capitalize, :info) %>
+                <% if credential.token_expires_at && credential.token_expires_at < Time.current %>
+                  <%= admin_badge("Expired", :danger) %>
+                <% elsif credential.token_expires_at && credential.token_expires_at < 1.day.from_now %>
+                  <%= admin_badge("Expiring soon", :warning) %>
                 <% end %>
-                <% if policy(credential).revoke? %>
-                  <%= button_to "Revoke", revoke_oauth_credential_admin_user_path(@user, credential_id: credential.id),
-                      method: :delete,
-                      data: { turbo_confirm: "Are you sure? This will disconnect #{credential.email} from the calendar system." },
-                      class: "text-xs px-3 py-1 bg-error-container text-on-error-container rounded hover:opacity-90 border border-error" %>
+              </p>
+              <div class="mt-3">
+                <%= admin_details(columns: 3) do |d| %>
+                  <% d.item("Connected") { credential.created_at.strftime("%b %-d, %Y") } %>
+                  <% d.item("Token expires") { credential.token_expires_at&.strftime("%b %-d, %Y %-l:%M %p") || "No expiration" } %>
+                  <% d.item("Calendar") { credential.course_calendar&.summary || "Not connected" } %>
                 <% end %>
               </div>
             </div>
-          </div>
-        <% end %>
-      </div>
-    </div>
-  </div>
-<% end %>
-
-<!-- Enrollments Section -->
-<% if policy(@user).view_enrollments? && @enrollments_by_term.any? %>
-  <div class="mt-8 m3-card shadow-sm rounded-xl overflow-hidden">
-    <div class="px-6 py-5">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold text-on-surface">Enrollments</h2>
-        <% if @enrollments_by_term.size > 1 %>
-          <select id="enrollments-term-select" class="px-3 py-1 text-sm border border-outline-variant rounded-md shadow-sm bg-surface text-primary">
-            <%= options_for_select(@enrollments_by_term.keys.map { |term| [ term.name, term.id ] },
-                                   @enrollments_by_term.keys.first&.id) %>
-          </select>
-        <% end %>
-      </div>
-      <div id="enrollments-container">
-        <% @enrollments_by_term.each_with_index do |(term, enrollments), index| %>
-          <div class="enrollment-term <%= index > 0 ? 'hidden' : '' %>" data-term-id="<%= term.id %>">
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-outline-variant">
-                <thead class="bg-surface-container">
-                  <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Course</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Title</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Instructor</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Credits</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Schedule</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-outline-variant">
-                  <% enrollments.each do |enrollment| %>
-                    <tr>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">
-                        <% if enrollment.course %>
-                          <%= enrollment.course.subject %> <%= enrollment.course.course_number %>
-                          <% if enrollment.course.section_number.present? %>
-                            <span class="text-on-surface-variant">(<%= enrollment.course.section_number %>)</span>
-                          <% end %>
-                        <% else %>
-                          <span class="text-on-surface-variant">Course not found</span>
-                        <% end %>
-                      </td>
-                      <td class="px-6 py-4 text-sm text-on-surface">
-                        <% if enrollment.course %>
-                          <%= titleize_with_roman_numerals(enrollment.course.title) %>
-                        <% else %>
-                          <span class="text-on-surface-variant">--</span>
-                        <% end %>
-                      </td>
-                      <td class="px-6 py-4 text-sm text-on-surface">
-                        <% if enrollment.course&.faculties&.any? %>
-                          <%= enrollment.course.faculties.map(&:display_name).join(", ") %>
-                        <% else %>
-                          <span class="text-on-surface-variant">No instructor</span>
-                        <% end %>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
-                        <%= enrollment.course&.credit_hours || "—" %>
-                      </td>
-                      <td class="px-6 py-4 text-sm text-on-surface">
-                        <% if enrollment.course&.meeting_times&.any? %>
-                          <% enrollment.course.filtered_meeting_times.each do |mt| %>
-                            <div class="mb-1 last:mb-0">
-                              <% if mt.day_of_week.present? %>
-                                <span class="font-medium"><%= mt.day_of_week.capitalize %></span>
-                                <% if mt.begin_time && mt.end_time %>
-                                  <%= mt.formatted_time_range %>
-                                <% end %>
-                                <% if mt.building_room.present? %>
-                                  <span class="text-on-surface-variant">(<%= mt.building_room %>)</span>
-                                <% end %>
-                              <% end %>
-                            </div>
-                          <% end %>
-                        <% else %>
-                          <span class="text-on-surface-variant">No schedule</span>
-                        <% end %>
-                      </td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
+            <div class="admin-actions flex flex-wrap gap-2">
+              <% if policy(credential).refresh? %>
+                <%= button_to "Refresh token", refresh_oauth_credential_admin_user_path(@user, credential_id: credential.id), method: :post, class: "m3-btn-outlined" %>
+              <% end %>
+              <% if policy(credential).revoke? %>
+                <%= button_to "Revoke", revoke_oauth_credential_admin_user_path(@user, credential_id: credential.id),
+                    method: :delete,
+                    form: { data: { turbo_confirm: "Are you sure? This will disconnect #{credential.email} from the calendar system." } },
+                    class: "m3-btn-danger" %>
+              <% end %>
             </div>
-          </div>
+          </li>
         <% end %>
-      </div>
-    </div>
-  </div>
+      </ul>
+    <% end %>
+  <% end %>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const sel = document.getElementById('enrollments-term-select');
-      if (sel) {
-        sel.addEventListener('change', function() {
-          document.querySelectorAll('.enrollment-term').forEach(el => el.classList.add('hidden'));
-          const target = document.querySelector(`.enrollment-term[data-term-id="${this.value}"]`);
-          if (target) target.classList.remove('hidden');
-        });
-      }
-    });
-  </script>
-
-  <div class="mt-6">
-    <%= render "week_calendar", terms: @enrollments_by_term.keys, enrollments_by_term: @enrollments_by_term %>
-  </div>
-<% end %>
+  <% if policy(@user).view_enrollments? && @enrollments_by_term.any? %>
+    <%= render "enrollments", enrollments_by_term: @enrollments_by_term %>
+  <% end %>
+</div>

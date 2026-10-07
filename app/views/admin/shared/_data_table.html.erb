@@ -1,6 +1,6 @@
 <%# Rendered by AdminHelper#admin_table. On a small screen the rows stack into
     cards, and each cell shows its column name from data-label. %>
-<div class="m3-card overflow-hidden" <%= tag.attributes(id: id) %>>
+<div class="<%= card ? "m3-card overflow-hidden" : "overflow-hidden" %>" <%= tag.attributes(id: id) %>>
   <div class="overflow-x-auto">
     <table class="admin-table min-w-full text-sm">
       <thead class="bg-surface-container-high">

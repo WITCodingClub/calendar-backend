@@ -1,93 +1,47 @@
-<% content_for :title, "Upload Finals Schedule" %>
+<%= render "admin/shared/page_header", title: "Upload Finals Schedule", back: [ "Finals schedules", admin_finals_schedules_path ] %>
 
-<div class="container mx-auto px-4 py-8">
-  <div class="mb-6">
-    <%= link_to "← Back to Finals Schedules", admin_finals_schedules_path, class: "text-sm font-medium text-primary hover:underline" %>
-  </div>
+<%= render "admin/shared/card", css_class: "max-w-2xl" do %>
+  <%= form_with model: [ :admin, @finals_schedule ], class: "space-y-6" do |f| %>
+    <%= render "admin/shared/form_errors", record: @finals_schedule %>
 
-  <div class="max-w-2xl">
-    <h1 class="text-2xl font-bold mb-6 text-on-surface">Upload Finals Schedule</h1>
-
-    <div class="m3-card shadow-sm rounded-xl overflow-hidden">
-      <div class="px-6 py-6">
-        <%= form_with model: [:admin, @finals_schedule], class: "space-y-6" do |f| %>
-          <% if @finals_schedule.errors.any? %>
-            <div class="bg-error-container border border-error rounded-xl p-4">
-              <h3 class="text-sm font-semibold text-on-error-container mb-2">Please fix the following errors:</h3>
-              <ul class="list-disc list-inside text-sm text-on-error-container">
-                <% @finals_schedule.errors.full_messages.each do |message| %>
-                  <li><%= message %></li>
-                <% end %>
-              </ul>
-            </div>
-          <% end %>
-
-          <div data-controller="term-filter">
-            <%= f.label :term_id, "Term", class: "block text-sm font-medium text-on-surface-variant mb-2" %>
-
-            <input type="text" autocomplete="off"
-                   placeholder="Type to filter terms..."
-                   data-term-filter-target="search"
-                   data-action="input->term-filter#filter"
-                   class="w-full px-4 py-2 mb-2 border border-outline-variant rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-surface">
-
-            <div class="border border-outline-variant rounded-md max-h-64 overflow-y-auto bg-surface">
-              <%= f.hidden_field :term_id, data: { term_filter_target: "input" } %>
-
-              <% @terms.each do |term| %>
-                <label class="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-surface-container border-b border-outline-variant last:border-b-0"
-                       data-term-filter-target="option"
-                       data-term-name="<%= term.name.downcase %>">
-                  <div class="flex items-center gap-2">
-                    <input type="radio"
-                           name="finals_schedule[term_id]"
-                           value="<%= term.id %>"
-                           data-action="change->term-filter#select"
-                           class="h-4 w-4 border-outline-variant focus:ring-2 focus:ring-opacity-50"
-                           style="accent-color: var(--color-primary, #6750a4);">
-                    <span class="text-sm font-medium text-on-surface"><%= term.name %></span>
-                  </div>
-                  <% if term.past? %>
-                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-secondary-container text-on-secondary-container">Retroactive</span>
-                  <% elsif term.active? %>
-                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-tertiary-container text-on-tertiary-container">Current</span>
-                  <% elsif term.upcoming? %>
-                    <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-tertiary-container text-on-tertiary-container">Upcoming</span>
-                  <% end %>
-                </label>
-              <% end %>
-
-              <% if @terms.empty? %>
-                <div class="px-4 py-3 text-sm text-on-surface-variant">No terms available.</div>
-              <% end %>
-
-              <div class="px-4 py-3 text-sm text-on-surface-variant hidden" data-term-filter-target="noResults">
-                No matching terms found.
-              </div>
-            </div>
-
-            <p class="mt-2 text-sm text-on-surface-variant">Select the term this finals schedule is for.</p>
-          </div>
-
-          <div>
-            <%= f.label :pdf_file, "PDF File", class: "block text-sm font-medium text-on-surface-variant mb-2" %>
-            <%= f.file_field :pdf_file,
-                accept: "application/pdf",
-                required: true,
-                class: "w-full px-4 py-2 border border-outline-variant rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-opacity-50 bg-surface" %>
-            <p class="mt-2 text-sm text-on-surface-variant">
-              Upload the finals schedule PDF. The system will parse it to extract exam dates, times, and locations.
-            </p>
-          </div>
-
-          <div class="flex gap-3">
-            <%= f.button type: "submit", class: "m3-btn-outlined px-6 py-2 rounded inline-flex items-center" do %>
-              Upload and Process
+    <fieldset data-controller="term-filter">
+      <legend class="m3-label">Term</legend>
+      <label class="sr-only" for="term-filter-search">Filter terms</label>
+      <input id="term-filter-search" type="search" autocomplete="off" placeholder="Type to filter terms"
+             data-term-filter-target="search" data-action="input->term-filter#filter"
+             class="m3-input mb-2">
+      <div class="max-h-64 overflow-y-auto rounded-lg border border-outline-variant divide-y divide-outline-variant">
+        <% @terms.each do |term| %>
+          <label class="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer hover:bg-surface-container-high"
+                 data-term-filter-target="option" data-term-name="<%= term.name.downcase %>">
+            <span class="flex items-center gap-2">
+              <%= f.radio_button :term_id, term.id, class: "h-4 w-4 accent-primary" %>
+              <span class="text-sm font-medium"><%= term.name %></span>
+            </span>
+            <% if term.past? %>
+              <%= admin_badge("Retroactive", :warning) %>
+            <% elsif term.active? %>
+              <%= admin_badge("Current", :success) %>
+            <% elsif term.upcoming? %>
+              <%= admin_badge("Upcoming", :info) %>
             <% end %>
-            <%= link_to "Cancel", admin_finals_schedules_path, class: "px-6 py-2 rounded inline-flex items-center text-on-surface-variant hover:text-on-surface" %>
-          </div>
+          </label>
         <% end %>
+        <% if @terms.empty? %>
+          <p class="px-4 py-3 text-sm text-on-surface-variant">No terms available.</p>
+        <% end %>
+        <p class="px-4 py-3 text-sm text-on-surface-variant" data-term-filter-target="noResults" hidden>No matching terms found.</p>
       </div>
+      <p class="mt-1 text-xs text-on-surface-variant">Select the term this finals schedule is for.</p>
+    </fieldset>
+
+    <%= render "admin/shared/form_field", form: f, attribute: :pdf_file, label: "PDF file", hint: "The app reads exam dates, times, and locations from the PDF." do %>
+      <%= f.file_field :pdf_file, accept: "application/pdf", required: true, class: "m3-input" %>
+    <% end %>
+
+    <div class="flex flex-col-reverse sm:flex-row gap-2">
+      <%= link_to "Cancel", admin_finals_schedules_path, class: "m3-btn-outlined justify-center" %>
+      <%= f.button "Upload and process", type: "submit", class: "m3-btn-filled justify-center" %>
     </div>
-  </div>
-</div>
+  <% end %>
+<% end %>

@@ -1,92 +1,35 @@
-<% content_for :title, "Directory Sync Status" %>
+<%= render "admin/shared/page_header", title: "Directory Sync Status", back: [ "Faculty", admin_faculties_path ] do %>
+  <%= render "directory_sync_button" %>
+<% end %>
 
-<div class="container mx-auto px-2 pb-8">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-on-surface">Directory Sync Status</h1>
-    <div class="flex gap-2">
-      <% if policy(Faculty).sync_directory? %>
-        <%= button_to "Sync Now", sync_directory_admin_faculties_path,
-            method: :post,
-            class: "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm cursor-pointer",
-            form: { class: "inline-flex" },
-            data: { turbo_confirm: "This will sync all 800+ faculty/staff from the WIT directory. Continue?" } %>
+<%= render "admin/shared/stats", columns: 6 do %>
+  <%= render "admin/shared/stat", label: "Total records", value: @total_count %>
+  <%= render "admin/shared/stat", label: "Synced", value: @synced_count, tone: :success %>
+  <%= render "admin/shared/stat", label: "Not synced", value: @unsynced_count, tone: (@unsynced_count.positive? ? :warning : nil) %>
+  <%= render "admin/shared/stat", label: "Faculty", value: @faculty_count %>
+  <%= render "admin/shared/stat", label: "Staff", value: @staff_count %>
+  <%= render "admin/shared/stat", label: "Coverage", value: @total_count.positive? ? number_to_percentage(@synced_count * 100.0 / @total_count, precision: 0) : "0%" %>
+<% end %>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <%= render "admin/shared/card", title: "Sync information" do %>
+    <%= admin_details(columns: 1) do |d| %>
+      <% d.item("Last directory sync") do %>
+        <% if @last_sync %>
+          <%= l(@last_sync, format: :long) %> <span class="text-on-surface-variant">(<%= time_ago_in_words(@last_sync) %> ago)</span>
+        <% else %>
+          <%= admin_badge("Never synced", :warning) %>
+        <% end %>
       <% end %>
-      <%= link_to "All Faculty", admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-      <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-    </div>
-  </div>
+      <% d.item("Source") { link_to "wit.edu/faculty-staff-directory", "https://wit.edu/faculty-staff-directory", target: "_blank", rel: "noopener noreferrer", class: "text-primary hover:underline" } %>
+    <% end %>
+  <% end %>
 
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-    <div class="m3-card p-4 text-center rounded-xl">
-      <p class="text-2xl font-bold text-primary"><%= @total_count %></p>
-      <p class="text-xs text-on-surface-variant uppercase">Total Records</p>
+  <%= render "admin/shared/card", title: "About directory sync" do %>
+    <div class="text-sm text-on-surface-variant space-y-2">
+      <p>The sync reads the WIT faculty directory: full name, job title, email, phone, office, department, school, and photo.</p>
+      <p><strong class="text-on-surface">Automatic:</strong> when a course import adds a new faculty member, the app reads that person's directory entry.</p>
+      <p><strong class="text-on-surface">Manual:</strong> "Sync directory" refreshes every faculty and staff record.</p>
     </div>
-    <div class="m3-card p-4 text-center rounded-xl">
-      <p class="text-2xl font-bold text-on-tertiary-container"><%= @synced_count %></p>
-      <p class="text-xs text-on-surface-variant uppercase">Synced</p>
-    </div>
-    <div class="m3-card p-4 text-center rounded-xl">
-      <p class="text-2xl font-bold text-on-secondary-container"><%= @unsynced_count %></p>
-      <p class="text-xs text-on-surface-variant uppercase">Not Synced</p>
-    </div>
-    <div class="m3-card p-4 text-center rounded-xl">
-      <p class="text-2xl font-bold text-primary"><%= @faculty_count %></p>
-      <p class="text-xs text-on-surface-variant uppercase">Faculty</p>
-    </div>
-    <div class="m3-card p-4 text-center rounded-xl">
-      <p class="text-2xl font-bold text-on-surface-variant"><%= @staff_count %></p>
-      <p class="text-xs text-on-surface-variant uppercase">Staff</p>
-    </div>
-    <div class="m3-card p-4 text-center rounded-xl">
-      <p class="text-2xl font-bold text-primary"><%= @total_count > 0 ? number_to_percentage((@synced_count.to_f / @total_count) * 100, precision: 0) : "0%" %></p>
-      <p class="text-xs text-on-surface-variant uppercase">Coverage</p>
-    </div>
-  </div>
-
-  <div class="m3-card shadow-sm rounded-xl p-6 mb-6">
-    <h2 class="text-xl font-bold text-on-surface mb-4">Sync Information</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Last Directory Sync</h3>
-        <p class="mt-1 text-sm text-on-surface">
-          <% if @last_sync %>
-            <%= @last_sync.strftime("%B %d, %Y at %I:%M %p") %>
-            <span class="text-on-surface-variant">(<%= time_ago_in_words(@last_sync) %> ago)</span>
-          <% else %>
-            <span class="text-on-secondary-container">Never synced</span>
-          <% end %>
-        </p>
-      </div>
-      <div>
-        <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Source</h3>
-        <p class="mt-1 text-sm">
-          <a href="https://wit.edu/faculty-staff-directory" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">
-            wit.edu/faculty-staff-directory
-          </a>
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <div class="m3-card shadow-sm rounded-xl p-6">
-    <h2 class="text-xl font-bold text-on-surface mb-4">About Directory Sync</h2>
-    <div class="prose prose-sm text-on-surface-variant">
-      <p>The directory sync pulls faculty and staff information from the WIT Faculty Directory, including:</p>
-      <ul class="list-disc list-inside mt-2 space-y-1">
-        <li>Full name (including middle names)</li>
-        <li>Job title</li>
-        <li>Email address</li>
-        <li>Phone number</li>
-        <li>Office location</li>
-        <li>Department and School</li>
-        <li>Profile photo</li>
-      </ul>
-      <p class="mt-4">
-        <strong>Automatic sync:</strong> When a new faculty member is added from LeopardWeb (course data), their directory information is automatically fetched.
-      </p>
-      <p class="mt-2">
-        <strong>Manual sync:</strong> Use the "Sync Now" button to refresh all faculty/staff data from the directory.
-      </p>
-    </div>
-  </div>
+  <% end %>
 </div>
