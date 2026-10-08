@@ -48,7 +48,11 @@
       <% end %>
     <% end %>
     <%= render "admin/shared/card", title: "Failed jobs", subtitle: "#{number_with_delimiter(@dashboard.failed_jobs_count)} failed, newest first", actions: jobs_link, flush: true, id: "failed-jobs" do %>
-      <% if @dashboard.recent_failed_jobs.any? %>
+      <% if !@dashboard.show_job_errors? && @dashboard.failed_jobs_count.positive? %>
+        <div class="px-4 py-8">
+          <%= render "admin/shared/empty_state", icon: :exclamation, message: "Only super admins can see the job errors." %>
+        </div>
+      <% elsif @dashboard.recent_failed_jobs.any? %>
         <ul class="divide-y divide-outline-variant">
           <% @dashboard.recent_failed_jobs.each do |failure| %>
             <li class="px-4 sm:px-6 py-3">

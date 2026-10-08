@@ -54,6 +54,21 @@ RSpec.describe "Admin dashboard", type: :request do
   context "when an admin is signed in" do
     before { sign_in create(:user, :admin) }
 
+    # Job errors can hold user data and tokens. Before #655 only super admins
+    # could see them, in the job dashboard.
+    it "shows the failed job count but not the job errors" do
+      job = SolidQueue::Job.create!(queue_name: "default", class_name: "GoogleCalendarSyncJob", arguments: {}, active_job_id: SecureRandom.uuid)
+      SolidQueue::FailedExecution.create!(job: job, error: { exception_class: "Signet::AuthorizationError", message: "invalid_grant", backtrace: [] })
+
+      get admin_root_path
+
+      failed = page.at_css("#failed-jobs")
+      expect(failed.text).to include("1 failed")
+      expect(failed.text).not_to include("invalid_grant")
+      expect(failed.text).not_to include("Signet::AuthorizationError")
+      expect(failed.text).not_to include("GoogleCalendarSyncJob")
+    end
+
     it "hides the tools that need a higher access level" do
       get admin_root_path
 

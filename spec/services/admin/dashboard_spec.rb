@@ -37,6 +37,15 @@ RSpec.describe Admin::Dashboard do
       expect(dashboard.recent_failed_jobs.first).to eq(newest)
       expect(dashboard.recent_failed_jobs.first.job.class_name).to eq("NewJob")
     end
+
+    it "returns no failures to a plain admin, who sees only the count" do
+      failed_job(class_name: "NewJob", message: "boom")
+      admin_dashboard = described_class.new(create(:user, :admin))
+
+      expect(admin_dashboard.failed_jobs_count).to eq(1)
+      expect(admin_dashboard.show_job_errors?).to be(false)
+      expect(admin_dashboard.recent_failed_jobs).to be_empty
+    end
   end
 
   describe "#recent_sign_ups" do

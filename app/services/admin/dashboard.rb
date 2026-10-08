@@ -62,7 +62,15 @@ module Admin
       @failed_jobs_count ||= SolidQueue::FailedExecution.count
     end
 
+    # Job errors can hold user data and tokens, so only a super admin sees
+    # them. Other admins see the count.
+    def show_job_errors?
+      @user.super_admin_access?
+    end
+
     def recent_failed_jobs
+      return [] unless show_job_errors?
+
       @recent_failed_jobs ||= SolidQueue::FailedExecution.includes(:job).order(created_at: :desc).limit(RECENT_FAILED_JOBS).to_a
     end
 

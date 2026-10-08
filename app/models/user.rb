@@ -134,6 +134,10 @@ class User < ApplicationRecord
     admin? || super_admin? || owner?
   end
 
+  def super_admin_access?
+    super_admin? || owner?
+  end
+
   def access_level_text
     access_level.to_s.humanize
   end
