@@ -143,12 +143,18 @@ RSpec.describe "Admin pages", type: :request do
   describe "buildings" do
     it "renders the index with a room count for each building" do
       create_list(:room, 2, building: building)
-      create(:room)
+      other = create(:room).building
 
       get admin_buildings_path
 
       expect_admin_page("Buildings")
-      expect(page.css("td[data-label='Rooms']").map { |td| td.text.strip }).to contain_exactly("2", "1")
+      # Building fixtures from other specs stay in the table, so read only the
+      # rows of the buildings made here.
+      rooms = [ building, other ].to_h do |made|
+        row = page.css("tr").find { |tr| tr.at_css("code")&.text == made.abbreviation }
+        [ made.abbreviation, row.at_css("td[data-label='Rooms']").text.strip ]
+      end
+      expect(rooms).to eq(building.abbreviation => "2", other.abbreviation => "1")
     end
   end
 
