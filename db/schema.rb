@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_100200) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_100300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -209,6 +209,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100200) do
     t.index ["term_id"], name: "index_brightspace_course_offerings_on_term_id"
   end
 
+  create_table "brightspace_deadline_changes", force: :cascade do |t|
+    t.bigint "assignment_id", null: false
+    t.string "field", null: false
+    t.datetime "previous_at"
+    t.datetime "current_at"
+    t.datetime "detected_at", null: false
+    t.datetime "notified_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assignment_id"], name: "index_brightspace_deadline_changes_on_assignment_id"
+    t.index ["notified_at"], name: "index_brightspace_deadline_changes_unnotified", where: "(notified_at IS NULL)"
+  end
+
   create_table "brightspace_grade_categories", force: :cascade do |t|
     t.bigint "course_offering_id", null: false
     t.string "source_id", null: false
@@ -326,6 +339,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100200) do
     t.datetime "updated_at", null: false
     t.jsonb "user_edited_fields"
     t.string "external_ical_uid"
+    t.bigint "brightspace_assignment_id"
+    t.index ["brightspace_assignment_id"], name: "index_calendar_events_on_brightspace_assignment_id"
+    t.index ["calendar_id", "brightspace_assignment_id"], name: "idx_calendar_events_unique_brightspace_assignment", unique: true, where: "(brightspace_assignment_id IS NOT NULL)"
     t.index ["calendar_id", "final_exam_id"], name: "idx_calendar_events_unique_final_exam", unique: true, where: "(final_exam_id IS NOT NULL)"
     t.index ["calendar_id", "meeting_time_id"], name: "idx_calendar_events_on_calendar_id_meeting_time_id"
     t.index ["calendar_id", "meeting_time_id"], name: "idx_calendar_events_unique_meeting_time", unique: true, where: "(meeting_time_id IS NOT NULL)"
@@ -1223,6 +1239,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100200) do
   add_foreign_key "brightspace_course_offerings", "brightspace_connections", column: "connection_id"
   add_foreign_key "brightspace_course_offerings", "courses"
   add_foreign_key "brightspace_course_offerings", "terms"
+  add_foreign_key "brightspace_deadline_changes", "brightspace_assignments", column: "assignment_id"
   add_foreign_key "brightspace_grade_categories", "brightspace_course_offerings", column: "course_offering_id"
   add_foreign_key "brightspace_grade_items", "brightspace_assignments", column: "assignment_id"
   add_foreign_key "brightspace_grade_items", "brightspace_course_offerings", column: "course_offering_id"
@@ -1233,6 +1250,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100200) do
   add_foreign_key "brightspace_syllabus_preferences", "brightspace_course_offerings", column: "course_offering_id"
   add_foreign_key "brightspace_syllabus_preferences", "users"
   add_foreign_key "brightspace_syncs", "brightspace_connections", column: "connection_id"
+  add_foreign_key "calendar_events", "brightspace_assignments"
   add_foreign_key "calendar_events", "calendars"
   add_foreign_key "calendar_events", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "calendar_preferences", "users"

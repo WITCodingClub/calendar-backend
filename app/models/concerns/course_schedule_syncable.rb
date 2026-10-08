@@ -87,6 +87,8 @@ module CourseScheduleSyncable
     university_events = build_university_events_for_sync(time_scope: :future)
     events.concat(university_events)
 
+    events.concat(build_brightspace_events_for_sync(time_scope: :future))
+
     result = CalendarProviders.merge_stats(services.map { |service| service.update_calendar_events(events, force: force) })
 
     # Remove past university events the user no longer wants. update_calendar_events
@@ -597,12 +599,57 @@ module CourseScheduleSyncable
     finals
   end
 
+  # Build deadline events for Brightspace work. Only the active connection
+  # syncs, so a disconnect removes its future events on the next sync. A class
+  # preference can turn sync off or leave out kinds. Work with no deadline,
+  # and removed work, gets no event. The event sits at the effective deadline
+  # with no length, so it never blocks free time.
+  # time_scope: :future (default) — deadlines from now on
+  #             :past             — deadlines before now (historical backfill)
+  def build_brightspace_events_for_sync(time_scope: :future)
+    return [] unless Brightspace.enabled_for?(self)
+
+    connection = brightspace_connections.active.first
+    return [] unless connection
+
+    preferences = Brightspace::ClassPreference.where(user: self).index_by(&:course_offering_id)
+    effective   = Brightspace::Assignment::EFFECTIVE_DUE_AT_SQL
+    scope = Brightspace::Assignment.not_removed.with_preferences
+                                   .where(course_offering_id: connection.course_offerings.select(:id))
+                                   .where("#{effective} IS NOT NULL")
+                                   .includes(:preference, :course_offering)
+    scope = case time_scope
+    when :future then scope.where("#{effective} >= ?", Time.current)
+    when :past   then scope.where("#{effective} < ?", Time.current)
+    else              scope
+    end
+
+    scope.filter_map do |assignment|
+      preference = preferences[assignment.course_offering_id]
+      next if preference && !preference.effective_sync_enabled
+      next if preference && !preference.effective_included_kinds.include?(assignment.kind)
+
+      due_at = assignment.effective_due_at
+      {
+        summary: assignment.title,
+        description: assignment.course_offering.title,
+        location: nil,
+        start_time: due_at,
+        end_time: due_at,
+        brightspace_assignment_id: assignment.id,
+        all_day: false,
+        recurrence: nil
+      }
+    end
+  end
+
   # Backfill past finals and university events — called by GoogleCalendarHistoricalSyncJob.
   # Uses update_specific_events (upsert only, no deletions) since past events are stable.
   def sync_historical_events(force: false)
     services = CalendarProviders.services_for(self)
     events  = build_finals_events_for_sync(time_scope: :past)
     events.concat(build_university_events_for_sync(time_scope: :past))
+    events.concat(build_brightspace_events_for_sync(time_scope: :past))
     return if events.empty?
 
     CalendarProviders.merge_stats(services.map { |service| service.update_specific_events(events, force: force) })

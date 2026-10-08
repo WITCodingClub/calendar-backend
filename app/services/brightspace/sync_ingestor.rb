@@ -39,7 +39,9 @@ module Brightspace
         raise Conflict.new("The snapshot is for a different Brightspace account than the linked one", code: "CONNECTION_MISMATCH")
       end
 
-      connection.with_lock do
+      @assignments_changed = false
+
+      result = connection.with_lock do
         existing = connection.syncs.find_by(snapshot_id: payload.snapshot_id)
         if existing
           raise Conflict.new("snapshot_id was already used with different data", code: "SNAPSHOT_CONFLICT") if existing.payload_digest != digest
@@ -65,6 +67,9 @@ module Brightspace
 
         Result.new(body: body, sync: sync, replayed: false)
       end
+
+      Brightspace.queue_calendar_sync(@user) if @assignments_changed
+      result
     end
 
     private
@@ -134,7 +139,21 @@ module Brightspace
 
     def import_assignments(offering, items, complete:)
       existing = offering.assignments.index_by { |row| [ row.kind, row.source_id ] }
-      upsert_rows(offering.assignments, existing, items, complete: complete) { |item| [ item[:kind], item[:source_id] ] }
+      changed  = upsert_rows(offering.assignments, existing, items, complete: complete,
+                             before_save: method(:record_deadline_changes)) { |item| [ item[:kind], item[:source_id] ] }
+      @assignments_changed ||= changed
+      changed
+    end
+
+    # Records each date that moved on an assignment that existed before, so a
+    # notifier can tell the user.
+    def record_deadline_changes(row)
+      return if row.new_record?
+
+      (Brightspace::DeadlineChange::FIELDS & row.changed).each do |field|
+        previous, current = row.changes[field]
+        row.deadline_changes.build(field: field, previous_at: previous, current_at: current, detected_at: @now)
+      end
     end
 
     def import_announcements(offering, items, complete:)
@@ -186,7 +205,7 @@ module Brightspace
 
     # Writes each item to its row, and marks unlisted rows as removed when the
     # section is complete. Returns true when any row changed.
-    def upsert_rows(association, existing, items, complete:, &key_for)
+    def upsert_rows(association, existing, items, complete:, before_save: nil, &key_for)
       changed = false
       seen    = []
 
@@ -197,6 +216,7 @@ module Brightspace
 
         next unless row.changed?
 
+        before_save&.call(row)
         row.save!
         changed = true
       end

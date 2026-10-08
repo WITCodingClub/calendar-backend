@@ -16,6 +16,7 @@
 #  user_edited_fields           :jsonb
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
+#  brightspace_assignment_id    :bigint
 #  calendar_id                  :bigint           not null
 #  external_event_id            :string           not null
 #  final_exam_id                :bigint
@@ -25,9 +26,11 @@
 # Indexes
 #
 #  idx_calendar_events_on_calendar_id_meeting_time_id     (calendar_id,meeting_time_id)
+#  idx_calendar_events_unique_brightspace_assignment      (calendar_id,brightspace_assignment_id) UNIQUE WHERE (brightspace_assignment_id IS NOT NULL)
 #  idx_calendar_events_unique_final_exam                  (calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
 #  idx_calendar_events_unique_meeting_time                (calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
 #  idx_calendar_events_unique_university                  (calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
+#  index_calendar_events_on_brightspace_assignment_id     (brightspace_assignment_id)
 #  index_calendar_events_on_external_event_id             (external_event_id)
 #  index_calendar_events_on_external_ical_uid             (external_ical_uid)
 #  index_calendar_events_on_final_exam_id                 (final_exam_id)
@@ -37,6 +40,7 @@
 #
 # Foreign Keys
 #
+#  fk_rails_...  (brightspace_assignment_id => brightspace_assignments.id)
 #  fk_rails_...  (calendar_id => calendars.id)
 #  fk_rails_...  (meeting_time_id => course_meeting_times.id)
 #
@@ -49,6 +53,7 @@ class CalendarEvent < ApplicationRecord
   belongs_to :meeting_time, class_name: "Course::MeetingTime", optional: true
   belongs_to :final_exam, optional: true
   belongs_to :university_calendar_event, optional: true
+  belongs_to :brightspace_assignment, class_name: "Brightspace::Assignment", optional: true, inverse_of: :calendar_events
   has_one :event_preference, as: :preferenceable, dependent: :destroy
   has_one :oauth_credential, through: :course_calendar
   has_one :user, through: :oauth_credential
@@ -58,6 +63,7 @@ class CalendarEvent < ApplicationRecord
   validates :meeting_time_id, uniqueness: { scope: :calendar_id }, if: :meeting_time_id?
   validates :final_exam_id, uniqueness: { scope: :calendar_id }, if: :final_exam?
   validates :university_calendar_event_id, uniqueness: { scope: :calendar_id }, if: :university_event?
+  validates :brightspace_assignment_id, uniqueness: { scope: :calendar_id }, if: :brightspace_assignment?
 
   serialize :recurrence, coder: JSON
 
@@ -78,17 +84,21 @@ class CalendarEvent < ApplicationRecord
   scope :finals_only,                -> { where.not(final_exam_id: nil) }
   scope :courses_only,               -> { where.not(meeting_time_id: nil) }
   scope :university_events_only,     -> { where.not(university_calendar_event_id: nil) }
+  scope :brightspace_assignments_only, -> { where.not(brightspace_assignment_id: nil) }
   scope :user_edited,                -> { where.not(user_edited_fields: nil) }
   scope :not_user_edited,            -> { where(user_edited_fields: nil) }
-  scope :orphaned,                   -> { where(meeting_time_id: nil, final_exam_id: nil, university_calendar_event_id: nil) }
+  scope :orphaned,                   lambda {
+    where(meeting_time_id: nil, final_exam_id: nil, university_calendar_event_id: nil, brightspace_assignment_id: nil)
+  }
 
   def final_exam?     = final_exam_id.present?
   def meeting_time?   = meeting_time_id.present?
   def university_event? = university_calendar_event_id.present?
-  def orphaned?       = meeting_time_id.nil? && final_exam_id.nil? && university_calendar_event_id.nil?
+  def brightspace_assignment? = brightspace_assignment_id.present?
+  def orphaned? = [ meeting_time_id, final_exam_id, university_calendar_event_id, brightspace_assignment_id ].all?(&:nil?)
 
   def syncable
-    meeting_time || final_exam || university_calendar_event
+    meeting_time || final_exam || university_calendar_event || brightspace_assignment
   end
 
   def self.generate_data_hash(event_data)
@@ -181,9 +191,9 @@ class CalendarEvent < ApplicationRecord
   end
 
   def only_one_event_type_associated
-    event_types = [ meeting_time_id, final_exam_id, university_calendar_event_id ].compact
+    event_types = [ meeting_time_id, final_exam_id, university_calendar_event_id, brightspace_assignment_id ].compact
     return unless event_types.size != 1
 
-    errors.add(:base, "Must be associated with exactly one of: meeting_time, final_exam, or university_calendar_event")
+    errors.add(:base, "Must be associated with exactly one of: meeting_time, final_exam, university_calendar_event, or brightspace_assignment")
   end
 end

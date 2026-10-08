@@ -147,12 +147,14 @@ class GoogleCalendarService
     meeting_time_ids    = events.filter_map { |e| e[:meeting_time_id] }
     final_exam_ids      = events.filter_map { |e| e[:final_exam_id] }
     university_event_ids = events.filter_map { |e| e[:university_calendar_event_id] }
+    assignment_ids       = events.filter_map { |e| e[:brightspace_assignment_id] }
 
     base_query = course_calendar.calendar_events
     conditions = []
     conditions << base_query.where(meeting_time_id: meeting_time_ids)         if meeting_time_ids.any?
     conditions << base_query.where(final_exam_id: final_exam_ids)             if final_exam_ids.any?
     conditions << base_query.where(university_calendar_event_id: university_event_ids) if university_event_ids.any?
+    conditions << base_query.where(brightspace_assignment_id: assignment_ids)            if assignment_ids.any?
 
     query = conditions.reduce { |q, c| q.or(c) } || base_query
 
@@ -453,6 +455,8 @@ class GoogleCalendarService
       event_attributes[:final_exam_id] = course_event[:final_exam_id]
     elsif course_event[:university_calendar_event_id]
       event_attributes[:university_calendar_event_id] = course_event[:university_calendar_event_id]
+    elsif course_event[:brightspace_assignment_id]
+      event_attributes[:brightspace_assignment_id] = course_event[:brightspace_assignment_id]
     end
 
     course_calendar.calendar_events.create!(event_attributes)

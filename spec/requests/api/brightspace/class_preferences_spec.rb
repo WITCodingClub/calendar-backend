@@ -43,6 +43,15 @@ RSpec.describe "Brightspace class preference API", type: :request do
     expect(json["version"]).not_to eq(offering.version)
   end
 
+  it "queues a forced calendar sync" do
+    create(:oauth_credential, user: user)
+    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+
+    put path, params: { class_preference: { calendar: { sync_enabled: false } } }, headers: headers, as: :json
+
+    expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
+  end
+
   it "changes only the fields in the body" do
     create(:brightspace_class_preference, course_offering: offering, title_template: "Keep", grade_mode: "syllabus",
                                           reminder_settings: [ { "time" => "30", "type" => "minutes", "method" => "popup" } ])

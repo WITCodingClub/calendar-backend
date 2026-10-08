@@ -79,6 +79,16 @@ RSpec.describe "Brightspace connection API", type: :request do
       expect(offering.reload).to be_persisted
     end
 
+    it "queues a calendar sync, which removes the account's deadlines" do
+      create(:brightspace_connection, user: user)
+      create(:oauth_credential, user: user)
+      allow(GoogleCalendarSyncJob).to receive(:perform_later)
+
+      delete "/api/user/brightspace_connection", headers: headers
+
+      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: false)
+    end
+
     it "answers 404 when nothing is linked" do
       delete "/api/user/brightspace_connection", headers: headers
 

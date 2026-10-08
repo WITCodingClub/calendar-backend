@@ -59,7 +59,18 @@ module Brightspace
       }
       return json unless @detail
 
-      json.merge(description: @assignment.description, feedback: @assignment.feedback)
+      json.merge(
+        description:      @assignment.description,
+        feedback:         @assignment.feedback,
+        deadline_changes: @assignment.deadline_changes.order(detected_at: :desc, id: :desc).limit(20).map do |change|
+          {
+            field:       change.field,
+            previous_at: iso(change.previous_at),
+            current_at:  iso(change.current_at),
+            detected_at: iso(change.detected_at)
+          }
+        end
+      )
     end
 
     private

@@ -20,6 +20,16 @@ RSpec.describe BusyBlocks do
     described_class.new(user, from: from, to: to).call.map { |b| [ b.date.iso8601, b.start, b.end ] }
   end
 
+  # Brightspace data is private to the user. Friends read busy blocks, so a
+  # deadline must never show there.
+  it "leaves out Brightspace deadlines" do
+    Flipper.enable_actor(FlipperFlags::BRIGHTSPACE, user)
+    offering = create(:brightspace_course_offering, connection: create(:brightspace_connection, user: user))
+    create(:brightspace_assignment, course_offering: offering, due_at: Time.zone.local(2026, 10, 6, 23, 59))
+
+    expect(blocks).to eq([])
+  end
+
   it "lists one block for each class meeting in the range" do
     enroll(day_of_week: :monday, begin_time: 900, end_time: 1015)
     enroll(day_of_week: :wednesday, begin_time: 1300, end_time: 1445)

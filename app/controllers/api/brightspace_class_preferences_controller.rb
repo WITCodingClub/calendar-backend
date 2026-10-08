@@ -25,6 +25,9 @@ module Api
       authorize preference
       preference.assign_attributes(class_preference_params)
       preference.save!
+      # Templates can change every deadline event of the class, so the sync
+      # rewrites them all.
+      Brightspace.queue_calendar_sync(current_user, force: true) if preference.saved_changes?
       render_preference
     end
 

@@ -16,6 +16,7 @@
 #  user_edited_fields           :jsonb
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
+#  brightspace_assignment_id    :bigint
 #  calendar_id                  :bigint           not null
 #  external_event_id            :string           not null
 #  final_exam_id                :bigint
@@ -25,9 +26,11 @@
 # Indexes
 #
 #  idx_calendar_events_on_calendar_id_meeting_time_id     (calendar_id,meeting_time_id)
+#  idx_calendar_events_unique_brightspace_assignment      (calendar_id,brightspace_assignment_id) UNIQUE WHERE (brightspace_assignment_id IS NOT NULL)
 #  idx_calendar_events_unique_final_exam                  (calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
 #  idx_calendar_events_unique_meeting_time                (calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
 #  idx_calendar_events_unique_university                  (calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
+#  index_calendar_events_on_brightspace_assignment_id     (brightspace_assignment_id)
 #  index_calendar_events_on_external_event_id             (external_event_id)
 #  index_calendar_events_on_external_ical_uid             (external_ical_uid)
 #  index_calendar_events_on_final_exam_id                 (final_exam_id)
@@ -37,6 +40,7 @@
 #
 # Foreign Keys
 #
+#  fk_rails_...  (brightspace_assignment_id => brightspace_assignments.id)
 #  fk_rails_...  (calendar_id => calendars.id)
 #  fk_rails_...  (meeting_time_id => course_meeting_times.id)
 #
@@ -58,6 +62,11 @@ FactoryBot.define do
     trait :for_university_event do
       meeting_time { nil }
       association :university_calendar_event, strategy: :create
+    end
+
+    trait :for_brightspace_assignment do
+      meeting_time { nil }
+      association :brightspace_assignment, strategy: :create
     end
 
     trait :microsoft do

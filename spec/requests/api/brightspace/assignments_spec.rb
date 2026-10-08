@@ -97,6 +97,18 @@ RSpec.describe "Brightspace assignments API", type: :request do
       )
     end
 
+    it "lists the deadline changes" do
+      assignment = create(:brightspace_assignment, course_offering: offering)
+      create(:brightspace_deadline_change, assignment: assignment, field: "due_at",
+                                           previous_at: Time.utc(2026, 10, 9), current_at: Time.utc(2026, 10, 10))
+
+      get "/api/assignments/#{assignment.public_id}", headers: headers
+
+      expect(json["assignment"]["deadline_changes"]).to contain_exactly(
+        hash_including("field" => "due_at", "previous_at" => "2026-10-09T00:00:00Z", "current_at" => "2026-10-10T00:00:00Z")
+      )
+    end
+
     it "answers 404 for another user's assignment" do
       get "/api/assignments/#{create(:brightspace_assignment).public_id}", headers: headers
 
@@ -125,6 +137,15 @@ RSpec.describe "Brightspace assignments API", type: :request do
       expect(json["assignment_preference"]).to eq("progress" => "done", "due_at_override" => "2026-10-08T22:00:00Z")
       expect(json["version"]).not_to eq(version)
       expect(assignment.reload.submission_status).to eq("not_submitted")
+    end
+
+    it "queues a calendar sync, so the event moves" do
+      create(:oauth_credential, user: user)
+      allow(GoogleCalendarSyncJob).to receive(:perform_later)
+
+      put path, params: { assignment_preference: { due_at_override: "2026-10-08T22:00:00Z" } }, headers: headers, as: :json
+
+      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: false)
     end
 
     it "changes only the fields in the body, and null clears the override" do
