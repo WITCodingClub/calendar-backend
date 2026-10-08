@@ -6,7 +6,7 @@ RSpec.describe "Dashboard::MeetingLinks", type: :request do
   include ActiveSupport::Testing::TimeHelpers
 
   let(:zone) { Time.zone }
-  let(:user) { create(:user) }
+  let(:user) { create(:user, :with_processed_courses) }
   let(:form) { { title: "Project check-in", starts_on: "2026-10-08", ends_on: "2026-10-16", duration_minutes: "30", expires_on: "2026-10-12" } }
 
   around { |example| travel_to(zone.local(2026, 10, 7, 12)) { example.run } }
