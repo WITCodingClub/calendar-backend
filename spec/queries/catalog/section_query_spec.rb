@@ -103,6 +103,53 @@ RSpec.describe Catalog::SectionQuery do
     end
   end
 
+  describe "semantic" do
+    context "with search on", :semantic_search do
+      before do
+        give_embedding(comp1000, 0.05)
+        give_embedding(comp2000, 0.50)
+        give_embedding(math1750, 0.95)
+        stub_openai_embeddings([ embedding_vector(0.0) ])
+      end
+
+      it "ranks by meaning instead of by subject and number" do
+        expect(crns_for(q: "learn to program", semantic: true)).to eq([ 10_001, 10_002, 20_001 ])
+      end
+
+      it "ranks only the sections the other filters left" do
+        expect(crns_for(q: "learn to program", semantic: true, term_uid: 202_620)).to eq([ 20_001 ])
+      end
+
+      it "leaves out sections that have no vector yet" do
+        expect(crns_for(q: "learn to program", semantic: true)).not_to include(10_003)
+      end
+
+      it "keeps the keyword search when the caller does not ask for meaning" do
+        expect(crns_for(q: "Course 1000")).to eq([ 10_001 ])
+        expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+      end
+
+      it "returns nothing when no section matches the filters" do
+        expect(crns_for(q: "learn to program", semantic: true, subject: "PHYS")).to be_empty
+      end
+    end
+
+    context "with search off", :embeddings do
+      it "falls back to the keyword search" do
+        expect(crns_for(q: "Course 1000", semantic: true)).to eq([ 10_001 ])
+        expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+      end
+    end
+
+    context "when the API fails", :semantic_search do
+      it "falls back to the keyword search" do
+        stub_request(:post, EmbeddingService::API_URL).to_return(status: 500, body: "{}")
+
+        expect(crns_for(q: "Course 1000", semantic: true)).to eq([ 10_001 ])
+      end
+    end
+  end
+
   describe "schedule_types" do
     it "accepts the enum key" do
       expect(crns_for(schedule_types: "lecture").size).to eq(4)

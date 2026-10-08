@@ -16,7 +16,6 @@
 #
 # Indexes
 #
-#  index_rooms_on_building_id             (building_id)
 #  index_rooms_on_building_id_and_number  (building_id,number) UNIQUE
 #  index_rooms_on_twenty_five_live_id     (twenty_five_live_id) UNIQUE
 #
