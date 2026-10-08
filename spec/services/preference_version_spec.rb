@@ -148,7 +148,7 @@ RSpec.describe PreferenceVersion do
     expect(described_class.for(user)).to eq(version)
   end
 
-  [ :SYSTEM_DEFAULTS, :FINAL_EXAM_DEFAULTS, :UNI_CAL_DEFAULTS, :UNI_CAL_TIMED_REMINDERS ].each do |constant|
+  [ :SYSTEM_DEFAULTS, :FINAL_EXAM_DEFAULTS, :UNI_CAL_DEFAULTS, :UNI_CAL_ALL_DAY_REMINDERS, :UNI_CAL_TIMED_REMINDERS ].each do |constant|
     it "detects a change to resolver #{constant}" do
       version = described_class.for(user)
       original = PreferenceResolver.const_get(constant)
