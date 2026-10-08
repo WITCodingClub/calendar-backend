@@ -46,11 +46,24 @@ class PreferenceResolver
     visibility: "default"
   }.freeze
 
+  # A Brightspace deadline. Only the global course defaults are skipped: their
+  # templates name course fields that a deadline does not have.
+  ASSIGNMENT_DEFAULTS = {
+    title_template: "{{title}}",
+    description_template: "{{class_title}}\n{{source_url}}",
+    location_template: "",
+    reminder_settings: [ { "time" => "1", "type" => "days", "method" => "popup" } ],
+    color_id: GoogleColors::BANANA,
+    visibility: "default"
+  }.freeze
+
+  ASSIGNMENT_EVENT_TYPE = "brightspace_assignment"
+
   # Every default constant that resolve_field can return. PreferenceVersion
   # hashes these, so a deploy that changes one gives each user a new version.
   # Add a new default constant here.
   def self.defaults
-    [ SYSTEM_DEFAULTS, FINAL_EXAM_DEFAULTS, UNI_CAL_DEFAULTS, UNI_CAL_ALL_DAY_REMINDERS, UNI_CAL_TIMED_REMINDERS ]
+    [ SYSTEM_DEFAULTS, FINAL_EXAM_DEFAULTS, UNI_CAL_DEFAULTS, UNI_CAL_ALL_DAY_REMINDERS, UNI_CAL_TIMED_REMINDERS, ASSIGNMENT_DEFAULTS ]
   end
 
   def initialize(user)
@@ -111,11 +124,13 @@ class PreferenceResolver
     uni_cal = university_calendar_event?(event)
 
     rows = [ @event_preferences[[ event.class.name, event.id ]] ]
+    assignment = brightspace_assignment_for(event)
+    rows << class_preferences[assignment.course_offering_id] if assignment
     rows << @calendar_preferences[[ "uni_cal_category", uni_cal_category ]] if uni_cal_category.present?
     rows << @calendar_preferences[[ "uni_cal_global", nil ]] if uni_cal
     rows << @calendar_preferences[[ "event_type", event_type ]] if event_type.present?
-    rows << @calendar_preferences[[ "global", nil ]] unless uni_cal
-    rows << @user.user_extension_config unless uni_cal
+    rows << @calendar_preferences[[ "global", nil ]] unless uni_cal || assignment
+    rows << @user.user_extension_config unless uni_cal || assignment
 
     rows.compact.map(&:updated_at).max
   end
@@ -147,11 +162,24 @@ class PreferenceResolver
       return [ [], "dnd_override" ]
     end
 
+    assignment = brightspace_assignment_for(event)
+    return [ [], "finished" ] if field == :reminder_settings && assignment&.finished?
+
     event_pref = @event_preferences[[ event.class.name, event.id ]]
     if event_pref.present?
       value = event_pref.public_send(field)
       if field == :reminder_settings ? !value.nil? : value.present?
         return [ value, "individual" ]
+      end
+    end
+
+    if assignment
+      class_pref = class_preferences[assignment.course_offering_id]
+      if class_pref.present?
+        value = class_pref.public_send(field)
+        if field == :reminder_settings ? !value.nil? : value.present?
+          return [ value, "brightspace_class" ]
+        end
       end
     end
 
@@ -189,7 +217,7 @@ class PreferenceResolver
     end
 
     global_pref = @calendar_preferences[[ "global", nil ]]
-    if global_pref.present? && !university_calendar_event?(event)
+    if global_pref.present? && !university_calendar_event?(event) && assignment.nil?
       value = global_pref.public_send(field)
       if field == :reminder_settings ? !value.nil? : value.present?
         return [ value, "global" ]
@@ -206,11 +234,27 @@ class PreferenceResolver
       "final_exam"
     when Course::MeetingTime
       event.course&.schedule_type
+    when Brightspace::Assignment
+      ASSIGNMENT_EVENT_TYPE
     when CalendarEvent
       return "final_exam" if event.final_exam_id.present?
+      return ASSIGNMENT_EVENT_TYPE if event.brightspace_assignment_id.present?
 
       event.meeting_time&.course&.schedule_type
     end
+  end
+
+  def brightspace_assignment_for(event)
+    case event
+    when Brightspace::Assignment then event
+    when CalendarEvent then event.brightspace_assignment
+    end
+  end
+
+  # Loaded on the first deadline, so a resolver for course events runs no
+  # extra query.
+  def class_preferences
+    @class_preferences ||= Brightspace::ClassPreference.where(user: @user).index_by(&:course_offering_id)
   end
 
   def extract_uni_cal_category(event)
@@ -232,6 +276,7 @@ class PreferenceResolver
 
   def system_default_for(field, event, event_type)
     return FINAL_EXAM_DEFAULTS[field] if event_type == "final_exam"
+    return ASSIGNMENT_DEFAULTS[field] if event_type == ASSIGNMENT_EVENT_TYPE
 
     uni_cal_event = university_calendar_event_for(event)
     if uni_cal_event.present?

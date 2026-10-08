@@ -208,11 +208,13 @@ Shows the current connection (the active one, or the last one when none is activ
 sequenceDiagram
     participant E as Extension
     participant A as API
+    participant J as Jobs
     E->>A: POST /api/user/brightspace_connection { host, learner_id }
     A-->>E: 200 { connection }
     loop each collection
         E->>A: POST /api/brightspace/sync { snapshot_id, classes }
         A-->>E: 200 { sync_id, changed_classes }
+        A->>J: queue calendar sync when work changed
     end
     E->>A: GET /api/brightspace/status
     A-->>E: 200 { connection, classes[].sections }
@@ -457,3 +459,49 @@ A scenario:
 - Confirming does not change the grade settings and does not create calendar events.
 
 Response: `{ syllabus_preference, version }`.
+
+## Calendar sync
+
+Deadlines go to the user's calendar through the normal calendar sync (`GoogleCalendarSyncJob`, for Google and Microsoft). Only the active connection syncs, and only while the flag is on for the user.
+
+- Each assignment with an effective deadline gets one event, keyed on the assignment (`calendar_events.brightspace_assignment_id`). A changed deadline moves that event. It never adds a second one.
+- The event starts and ends at `effective_due_at`, so it has no length and never blocks free time. `opens_at` and `closes_at` never become the event time.
+- Removed work, work with no deadline, and a disconnected account lose their future events on the next sync. Past events stay, as for other event types.
+- A class preference with `sync_enabled: false` removes the events of the class. `included_kinds` limits the kinds.
+- A sync that changes work, a saved assignment or class preference, and a link or disconnect queue a calendar sync. A class preference queues a forced sync, because templates can change every event of the class.
+- Friends never see deadlines: busy blocks and `processed_events` read only registration courses.
+
+### Preferences
+
+Deadline events use the same preference system as course events, with one more level. The resolver takes the first value that is set:
+
+1. The individual event preference.
+2. The class preference (`brightspace_class`).
+3. The calendar preference for the event type `brightspace_assignment` (`PUT /api/calendar_preferences/brightspace_assignment`).
+4. The deadline defaults: title `{{title}}`, description `{{class_title}}` and `{{source_url}}`, color banana, and a reminder 1 day before.
+
+The global course preference does not apply, because its templates name course fields that a deadline does not have.
+
+When Brightspace reports the work as `submitted`, `graded`, or `exempt`, or the user marks it `done`, the event keeps no reminders. The source is `finished`.
+
+Templates for deadlines can use `title`, `class_title`, `assignment_kind`, `source_url`, `due_date`, `start_time`, `day`, `term`, and the course fields of a mapped course (`course_code`, `subject`, `course_number`, `section_number`, `crn`).
+
+### Deadline changes
+
+When a sync moves `due_at`, `user_due_at`, `opens_at`, or `closes_at` of existing work, the backend records a `Brightspace::DeadlineChange`. `notified_at` stays `null` until a notification goes out (`DeadlineChange.pending_notification`). `GET /api/assignments/:id` lists the 20 latest changes:
+
+```json
+"deadline_changes": [
+  { "field": "due_at", "previous_at": "2026-10-09T03:59:00Z", "current_at": "2026-10-10T03:59:00Z", "detected_at": "..." }
+]
+```
+
+```mermaid
+flowchart LR
+    S[POST /api/brightspace/sync] -->|work changed| J[GoogleCalendarSyncJob]
+    P[PUT assignment or class preference] --> J
+    D[DELETE brightspace_connection] --> J
+    J --> B[build_brightspace_events_for_sync]
+    B --> R[PreferenceResolver]
+    R --> G[Google or Microsoft event at effective_due_at]
+```

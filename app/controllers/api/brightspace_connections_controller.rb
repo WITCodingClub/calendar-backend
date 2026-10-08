@@ -20,13 +20,15 @@ module Api
       authorize Brightspace::Connection.new(user: current_user)
 
       connection = Brightspace::Connection.link!(user: current_user, host: host.to_s, learner_id: learner_id.to_s)
+      Brightspace.queue_calendar_sync(current_user)
 
       render json: { connection: Brightspace::ConnectionSerializer.new(connection).as_json }
     end
 
     # DELETE /api/user/brightspace_connection
     #
-    # Stops imports and calendar sync for the account. The imported data stays,
+    # Stops imports and calendar sync for the account, and removes its future
+    # deadline events from the calendar. The imported data stays,
     # and linking the same account again brings it back.
     def destroy
       connection = current_user.brightspace_connections.active.first
@@ -34,6 +36,8 @@ module Api
 
       authorize connection
       connection.disconnect!
+      # The sync deletes the future deadline events of the account.
+      Brightspace.queue_calendar_sync(current_user)
 
       head :no_content
     end

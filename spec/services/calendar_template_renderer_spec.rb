@@ -3,6 +3,21 @@
 require "rails_helper"
 
 RSpec.describe CalendarTemplateRenderer do
+  describe ".build_context_from_brightspace_assignment" do
+    it "fills the deadline variables and validates them in a template" do
+      offering   = create(:brightspace_course_offering, title: "Data Structures")
+      assignment = create(:brightspace_assignment, course_offering: offering, kind: "quiz", title: "Quiz 3",
+                                                   source_url: "https://brightspace.example.edu/q/3")
+
+      context = described_class.build_context_from_brightspace_assignment(assignment)
+      template = "{{class_title}} {{assignment_kind}}: {{title}} {{source_url}}"
+
+      expect(described_class.validate_template(template)).to be(true)
+      expect(described_class.new.render(template, context)).to eq("Data Structures Quiz: Quiz 3 https://brightspace.example.edu/q/3")
+      expect(context).to include(event_type: "brightspace_assignment", course_code: "")
+    end
+  end
+
   let(:course) { create(:course, start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 10, 20)) }
 
   let(:meeting_time) do

@@ -12,6 +12,7 @@ class CalendarTemplateRenderer
     exam_date exam_date_short exam_time_of_day duration
     event_type is_final_exam combined_crns
     summary description category organization academic_term
+    class_title assignment_kind source_url due_date
   ].freeze
 
   def self.validate_template(template_string)
@@ -180,6 +181,52 @@ class CalendarTemplateRenderer
       exam_time_of_day: "",
       duration: "",
       combined_crns: ""
+    }
+  end
+
+  # A Brightspace deadline. course_code and the course fields come from the
+  # mapped registration course, and are empty for a class without one.
+  def self.build_context_from_brightspace_assignment(assignment)
+    offering = assignment.course_offering
+    course   = offering.course
+    due_at   = assignment.effective_due_at&.in_time_zone
+
+    {
+      title: assignment.title,
+      summary: assignment.title,
+      description: "",
+      class_title: offering.title,
+      assignment_kind: assignment.kind.titleize,
+      source_url: assignment.source_url || "",
+      due_date: due_at&.strftime("%B %d, %Y") || "",
+      start_time: due_at ? format_datetime(due_at) : "",
+      end_time: "",
+      day: due_at&.strftime("%A") || "",
+      day_abbr: due_at&.strftime("%a") || "",
+      course_code: course ? "#{course.subject}-#{course.course_number}-#{course.section_number}" : "",
+      subject: course&.subject || "",
+      course_number: course&.course_number || "",
+      section_number: course&.section_number || "",
+      crn: course&.crn || "",
+      term: offering.term&.name || "",
+      location: "",
+      room: "",
+      building: "",
+      faculty: "",
+      faculty_email: "",
+      all_faculty: "",
+      schedule_type: "",
+      schedule_type_short: "",
+      event_type: "brightspace_assignment",
+      is_final_exam: false,
+      exam_date: "",
+      exam_date_short: "",
+      exam_time_of_day: "",
+      duration: "",
+      combined_crns: "",
+      category: "",
+      organization: "",
+      academic_term: offering.term&.name || ""
     }
   end
 

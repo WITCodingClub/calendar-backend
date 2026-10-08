@@ -257,6 +257,54 @@ RSpec.describe Brightspace::SyncIngestor do
     end
   end
 
+  describe "deadline changes and the calendar" do
+    before { allow(GoogleCalendarSyncJob).to receive(:perform_later) }
+
+    it "records each deadline that moved" do
+      ingest
+      next_snapshot
+      klass["assignments"][0]["due_at"] = "2026-10-10T03:59:00Z"
+      klass["assignments"][0]["user_due_at"] = "2026-10-12T03:59:00Z"
+
+      ingest
+
+      changes = offering.assignments.find_by!(source_id: "56789").deadline_changes
+      expect(changes.pluck(:field, :previous_at, :current_at)).to contain_exactly(
+        [ "due_at", Time.utc(2026, 10, 9, 3, 59), Time.utc(2026, 10, 10, 3, 59) ],
+        [ "user_due_at", nil, Time.utc(2026, 10, 12, 3, 59) ]
+      )
+    end
+
+    it "records nothing for new work or a title change" do
+      ingest
+      next_snapshot
+      klass["assignments"][0]["title"] = "Renamed"
+
+      ingest
+
+      expect(Brightspace::DeadlineChange.count).to eq(0)
+    end
+
+    it "queues a calendar sync when work changed and the user has a calendar" do
+      create(:oauth_credential, user: user)
+
+      ingest
+
+      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: false).once
+    end
+
+    it "queues nothing without a calendar, or without changed work" do
+      ingest
+      expect(GoogleCalendarSyncJob).not_to have_received(:perform_later)
+
+      create(:oauth_credential, user: user)
+      next_snapshot
+      klass["announcements"][0]["title"] = "Changed"
+      ingest
+      expect(GoogleCalendarSyncJob).not_to have_received(:perform_later)
+    end
+  end
+
   it "stores nothing when a row is invalid" do
     allow_any_instance_of(Brightspace::Announcement).to receive(:valid?).and_return(false) # rubocop:disable RSpec/AnyInstance
 

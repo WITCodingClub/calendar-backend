@@ -47,6 +47,10 @@ module Brightspace
     belongs_to :course_offering, class_name: "Brightspace::CourseOffering", inverse_of: :assignments
     has_many :grade_items, class_name: "Brightspace::GradeItem", dependent: :nullify, inverse_of: :assignment
     has_one :preference, class_name: "Brightspace::AssignmentPreference", dependent: :destroy, inverse_of: :assignment
+    has_many :deadline_changes, class_name: "Brightspace::DeadlineChange", dependent: :destroy, inverse_of: :assignment
+    # The sync deletes the remote event of a removed assignment. A row that
+    # stays without its assignment is an orphan for the cleanup job.
+    has_many :calendar_events, foreign_key: :brightspace_assignment_id, dependent: :nullify, inverse_of: :brightspace_assignment
 
     validates :kind, inclusion: { in: KINDS }
     validates :source_id, presence: true, length: { maximum: 64 },
@@ -77,6 +81,12 @@ module Brightspace
 
     def progress
       preference&.progress || "not_started"
+    end
+
+    # Brightspace confirms that the work is in, or the user marked it done.
+    # Reminders for pending work stop then.
+    def finished?
+      %w[submitted graded exempt].include?(submission_status) || progress == "done"
     end
   end
 end

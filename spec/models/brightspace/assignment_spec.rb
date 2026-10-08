@@ -38,6 +38,9 @@ RSpec.describe Brightspace::Assignment, type: :model do
 
   it { is_expected.to belong_to(:course_offering) }
   it { is_expected.to have_many(:grade_items).dependent(:nullify) }
+  it { is_expected.to have_one(:preference).dependent(:destroy) }
+  it { is_expected.to have_many(:deadline_changes).dependent(:destroy) }
+  it { is_expected.to have_many(:calendar_events).dependent(:nullify) }
 
   it { is_expected.to validate_inclusion_of(:kind).in_array(described_class::KINDS) }
   it { is_expected.to validate_presence_of(:source_id) }
@@ -58,6 +61,19 @@ RSpec.describe Brightspace::Assignment, type: :model do
       assignment = build(:brightspace_assignment, user_due_at: nil)
 
       expect(assignment.brightspace_due_at).to eq(assignment.due_at)
+    end
+  end
+
+  describe "#finished?" do
+    it "is true once Brightspace confirms a submission" do
+      expect(build(:brightspace_assignment, submission_status: "submitted")).to be_finished
+      expect(build(:brightspace_assignment, submission_status: "not_submitted")).not_to be_finished
+    end
+
+    it "is true when the user marked the work done" do
+      preference = create(:brightspace_assignment_preference, progress: "done")
+
+      expect(preference.assignment).to be_finished
     end
   end
 

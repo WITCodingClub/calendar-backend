@@ -25,6 +25,8 @@ module Api
     def update
       authorize preference
       preference.update!(preference_params)
+      # A new deadline moves the event, and done work loses its reminders.
+      Brightspace.queue_calendar_sync(current_user) if preference.saved_changes?
       render_preference
     end
 

@@ -14,4 +14,12 @@ module Brightspace
   def self.enabled_for?(user)
     Flipper.enabled?(FlipperFlags::BRIGHTSPACE, user)
   end
+
+  # Queues a calendar sync when the user has a calendar to sync to. The sync
+  # adds, moves, and deletes deadline events.
+  def self.queue_calendar_sync(user, force: false)
+    return unless user.google_credential || user.course_calendars.microsoft.exists?
+
+    GoogleCalendarSyncJob.perform_later(user, force: force)
+  end
 end

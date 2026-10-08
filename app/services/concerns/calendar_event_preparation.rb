@@ -13,6 +13,8 @@ module CalendarEventPreparation
       "mt_#{e.meeting_time_id}"
     elsif e.final_exam_id
       "fe_#{e.final_exam_id}"
+    elsif e.brightspace_assignment_id
+      "ba_#{e.brightspace_assignment_id}"
     else
       "ue_#{e.university_calendar_event_id}"
     end
@@ -25,6 +27,8 @@ module CalendarEventPreparation
       "fe_#{e[:final_exam_id]}"
     elsif e[:university_calendar_event_id]
       "ue_#{e[:university_calendar_event_id]}"
+    elsif e[:brightspace_assignment_id]
+      "ba_#{e[:brightspace_assignment_id]}"
     end
   end
 
@@ -35,8 +39,10 @@ module CalendarEventPreparation
       FinalExam.includes(course: :faculties).find_by(id: event[:final_exam_id])
     elsif event[:university_calendar_event_id]
       UniversityCalendarEvent.find_by(id: event[:university_calendar_event_id])
+    elsif event[:brightspace_assignment_id]
+      Brightspace::Assignment.includes(:preference, course_offering: :course).find_by(id: event[:brightspace_assignment_id])
     else
-      raise "Unknown event type — missing meeting_time_id, final_exam_id, or university_calendar_event_id"
+      raise "Unknown event type — missing meeting_time_id, final_exam_id, university_calendar_event_id, or brightspace_assignment_id"
     end
   end
 
@@ -53,6 +59,8 @@ module CalendarEventPreparation
                 CalendarTemplateRenderer.build_context_from_final_exam(syncable)
     when UniversityCalendarEvent
                 CalendarTemplateRenderer.build_context_from_university_calendar_event(syncable)
+    when Brightspace::Assignment
+                CalendarTemplateRenderer.build_context_from_brightspace_assignment(syncable)
     else
                 CalendarTemplateRenderer.build_context_from_meeting_time(syncable)
     end

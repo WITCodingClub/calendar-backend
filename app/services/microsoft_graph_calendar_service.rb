@@ -127,6 +127,7 @@ class MicrosoftGraphCalendarService
     existing = rows.where(meeting_time_id: events.filter_map { |e| e[:meeting_time_id] })
                    .or(rows.where(final_exam_id: events.filter_map { |e| e[:final_exam_id] }))
                    .or(rows.where(university_calendar_event_id: events.filter_map { |e| e[:university_calendar_event_id] }))
+                   .or(rows.where(brightspace_assignment_id: events.filter_map { |e| e[:brightspace_assignment_id] }))
                    .index_by { |row| build_event_key(row) }
 
     upsert_events(calendar, events, existing, force: force)
@@ -412,7 +413,7 @@ class MicrosoftGraphCalendarService
   end
 
   def syncable_ids(event)
-    event.slice(:meeting_time_id, :final_exam_id, :university_calendar_event_id).compact.first(1).to_h
+    event.slice(:meeting_time_id, :final_exam_id, :university_calendar_event_id, :brightspace_assignment_id).compact.first(1).to_h
   end
 
   def event_path(event_id)
