@@ -71,6 +71,9 @@ module Api
     # this user. Send "expires_at": null for a permanent friendship. A sooner
     # date applies at once. A later date, or null, becomes a proposal that the
     # other user must accept. "expiry_change" in the response says which.
+    #
+    # The API cannot accept, decline, or withdraw a proposal (#719). The other
+    # user gets an email and answers on the web dashboard.
     def update_expiry
       return render_friend_expiry_disabled unless friend_expiry_enabled?
 
@@ -91,36 +94,6 @@ module Api
       change = friendship.change_expiry!(to: expires_at, by: current_user)
       render json: FriendshipSerializer.new(friendship, current_user).as_json.merge(expiry_change: change.to_s),
              status: :ok
-    end
-
-    # POST /api/friends/:friend_id/expiry/accept
-    #
-    # Accepts the other user's proposal. The proposer cannot accept it.
-    def accept_expiry
-      return render_friend_expiry_disabled unless friend_expiry_enabled?
-
-      friendship = find_unexpired_friendship_or_request
-      return if performed?
-
-      authorize friendship, :accept_expiry?
-      friendship.accept_expiry_proposal!(by: current_user)
-
-      render json: FriendshipSerializer.new(friendship, current_user).as_json, status: :ok
-    end
-
-    # POST /api/friends/:friend_id/expiry/decline
-    #
-    # Declines the other user's proposal, or withdraws your own.
-    def decline_expiry
-      return render_friend_expiry_disabled unless friend_expiry_enabled?
-
-      friendship = find_unexpired_friendship_or_request
-      return if performed?
-
-      authorize friendship, :decline_expiry?
-      friendship.decline_expiry_proposal!(by: current_user)
-
-      render json: FriendshipSerializer.new(friendship, current_user).as_json, status: :ok
     end
 
     def accept

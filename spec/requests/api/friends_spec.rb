@@ -231,7 +231,8 @@ RSpec.describe "Api::Friends", type: :request do
           "expires_at"      => current.iso8601,
           "expiry_proposal" => {
             "expires_at" => expires_at.iso8601, "permanent" => false,
-            "proposed_by" => user.public_id, "can_accept" => false
+            "proposed_by" => user.public_id, "can_accept" => false,
+            "review_url" => "http://example.com/dashboard/friends"
           },
           "friend"          => { "id" => friend.public_id, "name" => "Grace Hopper" },
           "expiry_change"   => "proposed"
@@ -318,10 +319,16 @@ RSpec.describe "Api::Friends", type: :request do
     end
   end
 
-  describe "POST /api/friends/:friend_id/expiry/accept and /decline" do
+  describe "answering an expiry proposal" do
     let!(:friendship) { create(:friendship, :accepted, :temporary, requester: friend, addressee: user) }
 
-    it "answers 404 while the flag is off" do
+    before do
+      enable_friend_expiry(user)
+      enable_friend_expiry(friend)
+    end
+
+    # #719: the other user answers on the web dashboard, not in the extension.
+    it "has no API route to accept or decline a proposal" do
       friendship.change_expiry!(to: nil, by: friend)
 
       post "/api/friends/#{friend.public_id}/expiry/accept", headers: headers
@@ -329,85 +336,41 @@ RSpec.describe "Api::Friends", type: :request do
 
       post "/api/friends/#{friend.public_id}/expiry/decline", headers: headers
       expect(response).to have_http_status(:not_found)
+
       expect(friendship.reload.expiry_proposal?).to be(true)
+      expect(friendship.expires_at).to be_present
     end
 
-    context "with the flag on" do
-      before do
-        enable_friend_expiry(user)
-        enable_friend_expiry(friend)
-      end
+    it "shows the other user can_accept and the dashboard page to answer on" do
+      friendship.change_expiry!(to: nil, by: friend)
 
-      it "lets the other user accept a permanent proposal" do
-        friendship.change_expiry!(to: nil, by: friend)
+      get "/api/friends", headers: headers
 
-        post "/api/friends/#{friend.public_id}/expiry/accept", headers: headers
+      expect(body["friends"].first["expiry_proposal"]).to include(
+        "proposed_by" => friend.public_id, "can_accept" => true,
+        "review_url"  => "http://example.com/dashboard/friends"
+      )
+    end
 
-        expect(response).to have_http_status(:ok)
-        expect(body["expires_at"]).to be_nil
-        expect(body["expiry_proposal"]).to be_nil
-        expect(friendship.reload.expires_at).to be_nil
-      end
+    it "points a proposal on a pending request to the requests page" do
+      stranger = create(:user)
+      request  = create(:friendship, :temporary, requester: user, addressee: stranger)
+      request.change_expiry!(to: nil, by: stranger)
 
-      it "shows can_accept to the other user" do
-        friendship.change_expiry!(to: nil, by: friend)
+      get "/api/friends/requests", headers: headers
 
-        get "/api/friends", headers: headers
+      expect(body["outgoing"].first["expiry_proposal"]).to include(
+        "can_accept" => true, "review_url" => "http://example.com/dashboard/friends/requests"
+      )
+    end
 
-        expect(body["friends"].first["expiry_proposal"]).to include("proposed_by" => friend.public_id, "can_accept" => true)
-      end
+    it "shows the new end date after the other user accepts on the dashboard" do
+      friendship.change_expiry!(to: nil, by: user)
+      friendship.accept_expiry_proposal!(by: friend)
 
-      it "refuses the proposer with 403" do
-        friendship.change_expiry!(to: nil, by: user)
+      get "/api/friends", headers: headers
 
-        post "/api/friends/#{friend.public_id}/expiry/accept", headers: headers
-
-        expect(response).to have_http_status(:forbidden)
-        expect(friendship.reload.expires_at).to be_present
-      end
-
-      it "refuses with 403 when there is no proposal" do
-        post "/api/friends/#{friend.public_id}/expiry/accept", headers: headers
-
-        expect(response).to have_http_status(:forbidden)
-      end
-
-      it "lets the other user decline, and keeps the date" do
-        friendship.change_expiry!(to: nil, by: friend)
-
-        post "/api/friends/#{friend.public_id}/expiry/decline", headers: headers
-
-        expect(response).to have_http_status(:ok)
-        expect(body["expiry_proposal"]).to be_nil
-        expect(friendship.reload.expires_at).to be_present
-      end
-
-      it "lets the proposer withdraw the proposal" do
-        friendship.change_expiry!(to: nil, by: user)
-
-        post "/api/friends/#{friend.public_id}/expiry/decline", headers: headers
-
-        expect(response).to have_http_status(:ok)
-        expect(friendship.reload.expiry_proposal?).to be(false)
-      end
-
-      it "lets the requester accept the addressee's counter-proposal on a pending request" do
-        stranger = create(:user)
-        request  = create(:friendship, :temporary, requester: user, addressee: stranger)
-        request.change_expiry!(to: nil, by: stranger)
-
-        post "/api/friends/#{stranger.public_id}/expiry/accept", headers: headers
-
-        expect(response).to have_http_status(:ok)
-        expect(body["status"]).to eq("pending")
-        expect(request.reload.expires_at).to be_nil
-      end
-
-      it "answers 404 for a user with no friendship" do
-        post "/api/friends/#{create(:user).public_id}/expiry/accept", headers: headers
-
-        expect(response).to have_http_status(:not_found)
-      end
+      expect(body["friends"].first).to include("expires_at" => nil, "expiry_proposal" => nil)
     end
   end
 

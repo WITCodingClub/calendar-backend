@@ -87,7 +87,24 @@ RSpec.describe FriendshipMailer, type: :mailer do
       mail = mail_for("proposed")
 
       expect(mail.subject).to eq("Ada Lovelace proposed a new end date for your friendship")
-      expect(mail.text_part.body.to_s).to include("proposed a new end date: January 31, 2100. Nothing changes until you accept it.")
+      expect(mail.text_part.body.to_s).to include(
+        "proposed a new end date: January 31, 2100. Nothing changes until you accept it on the WIT Calendar dashboard."
+      )
+    end
+
+    # #719: the recipient answers on the dashboard, not in the extension.
+    it "links a proposal to the dashboard page where the recipient answers it" do
+      friendship.update!(proposed_by: requester, proposed_permanent: true)
+      mail = mail_for("proposed")
+
+      expect(mail.text_part.body.to_s).to include("Accept or decline the proposal: http://example.com/dashboard/friends")
+      expect(mail.html_part.body.to_s).to include(">Accept or decline the proposal</a>")
+    end
+
+    it "links a proposal on a pending request to the requests page" do
+      friendship.update!(status: :pending, proposed_by: requester, proposed_permanent: true)
+
+      expect(mail_for("proposed").text_part.body.to_s).to include("http://example.com/dashboard/friends/requests")
     end
 
     it "names a permanent proposal" do

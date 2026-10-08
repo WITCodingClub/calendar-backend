@@ -1,18 +1,5 @@
-<%# A sooner end date applies at once. A later date, or permanent, is a proposal that the friend must accept. %>
+<%# A sooner end date applies at once. A later date, or permanent, is a proposal that the friend must accept in _expiry_proposal. %>
 <div class="mt-2 space-y-2">
-  <% if friendship.expiry_proposal? %>
-    <% proposed = friendship.proposed_permanent? ? "a permanent friendship" : friendship.proposed_expires_at.to_date.to_fs(:long) %>
-    <div class="flex items-center gap-2">
-      <% if friendship.proposed_by_id == current_user.id %>
-        <p class="text-xs text-on-surface-variant">You proposed <%= proposed %>. <%= friend.first_name %> must accept it.</p>
-        <%= button_to "Withdraw", decline_expiry_dashboard_friend_path(friend.public_id), method: :post, class: "m3-btn-text text-xs" %>
-      <% else %>
-        <p class="text-xs text-on-surface-variant"><%= friend.first_name %> proposed <%= proposed %>.</p>
-        <%= button_to "Accept", accept_expiry_dashboard_friend_path(friend.public_id), method: :post, class: "m3-btn-text text-xs" %>
-        <%= button_to "Decline", decline_expiry_dashboard_friend_path(friend.public_id), method: :post, class: "m3-btn-text text-xs" %>
-      <% end %>
-    </div>
-  <% end %>
   <%= form_with url: expiry_dashboard_friend_path(friend.public_id), method: :patch, class: "flex items-center gap-2" do |f| %>
     <%= f.date_field :expires_on,
         value: friendship.expires_at&.to_date,

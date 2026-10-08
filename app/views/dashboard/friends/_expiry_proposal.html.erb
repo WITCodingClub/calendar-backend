@@ -1,0 +1,12 @@
+<%# An open proposal for a later end date. The other user answers it here, not in the extension (#719). This shows with the flag on or off, because the proposal email links to this page. %>
+<% proposed = friendship.proposed_permanent? ? "a permanent friendship" : friendship.proposed_expires_at.to_date.to_fs(:long) %>
+<div class="mt-2 flex items-center gap-2">
+  <% if friendship.proposed_by_id == current_user.id %>
+    <p class="text-xs text-on-surface-variant">You proposed <%= proposed %>. <%= friend.first_name %> must accept it.</p>
+    <%= button_to "Withdraw", decline_expiry_dashboard_friend_path(friend.public_id), method: :post, class: "m3-btn-text text-xs" %>
+  <% else %>
+    <p class="text-xs text-on-surface-variant"><%= friend.first_name %> proposed <%= proposed %>.</p>
+    <%= button_to "Accept", accept_expiry_dashboard_friend_path(friend.public_id), method: :post, class: "m3-btn-text text-xs" %>
+    <%= button_to "Decline", decline_expiry_dashboard_friend_path(friend.public_id), method: :post, class: "m3-btn-text text-xs" %>
+  <% end %>
+</div>
