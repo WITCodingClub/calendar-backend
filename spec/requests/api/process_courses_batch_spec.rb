@@ -72,6 +72,59 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
     expect(user.enrollments.where(term: spring)).to exist
   end
 
+  describe "processing status" do
+    def status_of(term)
+      TermProcessingStatus.find_by(user: user, term: term)
+    end
+
+    it "marks the first term processed and the queued terms pending" do
+      post_batch([ term_entry(202710), term_entry(202720) ])
+
+      expect(status_of(fall).status).to eq("processed")
+      expect(status_of(spring).status).to eq("pending")
+    end
+
+    it "marks a queued term processed after its job runs" do
+      perform_enqueued_jobs(only: ProcessTermCoursesJob) do
+        post_batch([ term_entry(202710), term_entry(202720) ])
+      end
+
+      expect(status_of(spring).status).to eq("processed")
+    end
+
+    it "fails the first term when Banner returns no details for any course" do
+      allow(LeopardWebService).to receive(:get_class_details).and_return(nil)
+
+      post_batch([ term_entry(202710) ])
+
+      expect(term_results.first).to eq(
+        "term" => "202710", "status" => "failed", "error" => "No course details found for term 202710"
+      )
+      expect(status_of(fall)).to have_attributes(status: "failed", error_code: "no_course_details")
+    end
+
+    it "marks the first term failed when Banner is down" do
+      allow(LeopardWebService).to receive(:get_class_details)
+        .and_raise(LeopardWebService::RequestError.new("Banner is down", status: 503))
+
+      post_batch([ term_entry(202710) ])
+
+      expect(status_of(fall)).to have_attributes(status: "failed", error_code: "banner_unavailable")
+    end
+
+    it "queues the first term when a job for that term is still in flight" do
+      create(:term_processing_status, user: user, term: fall, status: "processing")
+
+      expect { post_batch([ term_entry(202710), term_entry(202720) ]) }
+        .to have_enqueued_job(ProcessTermCoursesJob).with(user, fall, anything)
+
+      expect(term_results).to eq([
+        { "term" => "202710", "status" => "pending" },
+        { "term" => "202720", "status" => "processed", "course_count" => 1 }
+      ])
+    end
+  end
+
   it "fills in a missing course term from its entry" do
     post_batch([ { term: "202710", courses: [ { crn: "11111", courseNumber: "2000" } ] } ])
 

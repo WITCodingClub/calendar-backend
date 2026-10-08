@@ -8,6 +8,11 @@
 # Banner for each CRN (#683), and doing that for every term would hold a Puma
 # thread for too long. The extension polls /api/user/is_processed for the
 # pending terms.
+#
+# A term that already has a job in flight (status "pending" or "processing")
+# is never processed inside the request. It goes to the job queue again, so
+# the request and a job never process the same term for the same user at the
+# same time. The job's per-user concurrency key runs the queued jobs in order.
 class CourseBatchProcessorService < ApplicationService
   MAX_TERMS = 12
 
@@ -31,35 +36,34 @@ class CourseBatchProcessorService < ApplicationService
     processed_inline = false
 
     entries.map do |entry|
-      term_uid, courses, error = prepare(entry)
+      term_uid, term, courses, error = prepare(entry)
       next Result.new(term: term_uid, status: FAILED, error: error) if error
 
       unless seen.add?(term_uid)
         next Result.new(term: term_uid, status: FAILED, error: "Term #{term_uid} appears more than once in the batch")
       end
 
-      if processed_inline
-        ProcessTermCoursesJob.perform_later(user, courses)
-        next Result.new(term: term_uid, status: PENDING)
+      if processed_inline || in_flight?(term)
+        next enqueue(term_uid, term, courses)
       end
 
       processed_inline = true
-      process_now(term_uid, courses)
+      process_now(term_uid, term, courses)
     end
   end
 
   private
 
-  # Returns [term_uid, courses, error]. Courses without a term get the term of
+  # Returns [term_uid, term, courses, error]. Courses without a term get the term of
   # their entry, so the extension does not have to repeat it.
   def prepare(entry)
-    return [ nil, nil, "Each term entry must be an object" ] unless entry.is_a?(Hash)
+    return [ nil, nil, nil, "Each term entry must be an object" ] unless entry.is_a?(Hash)
 
     term_uid = entry[:term].to_s
-    return [ term_uid.presence, nil, "Term entry is missing a numeric term" ] unless term_uid.match?(/\A\d+\z/)
+    return [ term_uid.presence, nil, nil, "Term entry is missing a numeric term" ] unless term_uid.match?(/\A\d+\z/)
 
     courses = entry[:courses]
-    return [ term_uid, nil, "Term #{term_uid} has no courses" ] unless courses.is_a?(Array) && courses.any?
+    return [ term_uid, nil, nil, "Term #{term_uid} has no courses" ] unless courses.is_a?(Array) && courses.any?
 
     courses = courses.map do |course|
       next course unless course.is_a?(Hash)
@@ -70,24 +74,55 @@ class CourseBatchProcessorService < ApplicationService
     end
 
     if courses.any? { |course| course.is_a?(Hash) && course[:term].to_s != term_uid }
-      return [ term_uid, nil, "All courses in term #{term_uid} must belong to that term" ]
+      return [ term_uid, nil, nil, "All courses in term #{term_uid} must belong to that term" ]
     end
 
-    return [ term_uid, nil, "Term #{term_uid} not found" ] unless Term.exists?(uid: term_uid)
+    term = Term.find_by(uid: term_uid)
+    return [ term_uid, nil, nil, "Term #{term_uid} not found" ] unless term
 
     CourseProcessorService.new(courses, user).validate!
-    [ term_uid, courses, nil ]
+    [ term_uid, term, courses, nil ]
   rescue ArgumentError => e
-    [ term_uid, nil, e.message ]
+    [ term_uid, nil, nil, e.message ]
   end
 
-  def process_now(term_uid, courses)
+  def in_flight?(term)
+    TermProcessingStatus.exists?(user: user, term: term, status: %w[pending processing])
+  end
+
+  def enqueue(term_uid, term, courses)
+    TermProcessingStatus.record!(user, term, :pending)
+    ProcessTermCoursesJob.perform_later(user, term, courses)
+    Result.new(term: term_uid, status: PENDING)
+  end
+
+  def process_now(term_uid, term, courses)
+    TermProcessingStatus.record!(user, term, :processing)
+
+    # CourseProcessorService marks the term processed when it enrolls at least
+    # one course.
     processed = CourseProcessorService.new(courses, user).call
+    if processed.empty?
+      return fail_term(term_uid, term, :no_course_details, "No course details found for term #{term_uid}")
+    end
+
     Result.new(term: term_uid, status: PROCESSED, course_count: processed.size)
-  rescue ArgumentError, InvalidTermError => e
-    Result.new(term: term_uid, status: FAILED, error: e.message)
+  rescue InvalidTermError => e
+    fail_term(term_uid, term, :term_not_found, e.message)
+  rescue *ProcessTermCoursesJob::RETRYABLE_ERRORS => e
+    log_failure(term_uid, e)
+    fail_term(term_uid, term, :banner_unavailable, "Failed to process courses")
   rescue => e
-    Rails.logger.error("[CourseBatchProcessorService] Term #{term_uid} failed: #{e.class} - #{e.message}")
-    Result.new(term: term_uid, status: FAILED, error: "Failed to process courses")
+    log_failure(term_uid, e)
+    fail_term(term_uid, term, :internal_error, "Failed to process courses")
+  end
+
+  def fail_term(term_uid, term, error_code, message)
+    TermProcessingStatus.record!(user, term, :failed, error_code: error_code)
+    Result.new(term: term_uid, status: FAILED, error: message)
+  end
+
+  def log_failure(term_uid, error)
+    Rails.logger.error("[CourseBatchProcessorService] Term #{term_uid} failed: #{error.class} - #{error.message}")
   end
 end

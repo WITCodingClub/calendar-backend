@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_07_100700) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -816,6 +816,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
     t.index ["faculty_id", "rmp_legacy_id"], name: "index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id", unique: true
   end
 
+  create_table "term_processing_statuses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "error_code"
+    t.string "status", null: false
+    t.bigint "term_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["term_id"], name: "index_term_processing_statuses_on_term_id"
+    t.index ["user_id", "term_id"], name: "index_term_processing_statuses_on_user_id_and_term_id", unique: true
+  end
+
   create_table "terms", force: :cascade do |t|
     t.boolean "catalog_import_failed", default: false, null: false
     t.string "catalog_import_job_id"
@@ -1037,6 +1048,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
+  add_foreign_key "term_processing_statuses", "terms"
+  add_foreign_key "term_processing_statuses", "users"
   add_foreign_key "university_calendar_events", "terms"
   add_foreign_key "user_extension_configs", "users"
   add_foreign_key "user_sessions", "passkeys"

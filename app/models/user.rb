@@ -99,6 +99,7 @@ class User < ApplicationRecord
 
   has_many :enrollments, dependent: :destroy
   has_many :courses, through: :enrollments
+  has_many :term_processing_statuses, dependent: :delete_all
   has_many :oauth_credentials, dependent: :destroy
   has_many :course_calendars, through: :oauth_credentials
   has_many :calendar_events, through: :course_calendars

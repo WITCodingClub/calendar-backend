@@ -15,6 +15,7 @@ class CourseProcessorService < ApplicationService
     validate_courses_data!
 
     processed_courses = []
+    enrolled_terms = Set.new
 
     grouped_courses = courses.group_by { |c| [ c[:crn], c[:term] ] }
 
@@ -181,6 +182,7 @@ class CourseProcessorService < ApplicationService
         FacultyIngestService.call(course: course, raw_faculty: faculty_data)
 
         Enrollment.find_or_create_by!(user: user, course: course, term: term)
+        enrolled_terms << term
 
         course = Course.includes(:faculties, meeting_times: [ rooms: :building ]).find(course.id)
 
@@ -227,6 +229,10 @@ class CourseProcessorService < ApplicationService
         }
       end
     end
+
+    # Mark a term processed only after all of its courses are done, so
+    # /api/user/is_processed never reports a half-enrolled term.
+    enrolled_terms.each { |term| TermProcessingStatus.record!(user, term, :processed) }
 
     if CourseCalendar.for_user(user).exists?
       GoogleCalendarSyncJob.perform_later(user, force: false)
