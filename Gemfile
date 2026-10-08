@@ -114,6 +114,11 @@ group :development, :test do
   gem "factory_bot_rails"
   gem "faker"
   gem "dotenv-rails"
+
+  # N+1 query detection (#654). Prosopite needs pg_query to fingerprint
+  # PostgreSQL queries. See config/initializers/prosopite.rb.
+  gem "prosopite"
+  gem "pg_query"
 end
 
 group :development do

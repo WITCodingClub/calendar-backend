@@ -9,7 +9,7 @@ class CalendarsController < ApplicationController
     @user = User.find_by!(calendar_token: params[:calendar_token])
 
     @courses = @user.courses
-                    .includes(:term, meeting_times: [ { rooms: :building }, { course: [ :faculties, :term ] } ])
+                    .includes(:term, meeting_times: [ :meeting_time_rooms, { rooms: :building }, { course: [ :faculties, :term ] } ])
 
     @final_exams = FinalExam.where(course_id: @courses.map(&:id))
                             .where(exam_date: Time.zone.today..)
@@ -17,13 +17,16 @@ class CalendarsController < ApplicationController
 
     respond_to do |format|
       format.ics do
-        calendar = generate_ical(@courses, @final_exams)
+        body = generate_ical(@courses, @final_exams).to_ical
 
         response.headers["Cache-Control"]      = "max-age=3600, must-revalidate"
         response.headers["X-Published-TTL"]    = "PT1H"
         response.headers["Refresh-Interval"]   = "3600"
 
-        render plain: calendar.to_ical, content_type: "text/calendar"
+        # The body has no per-request timestamps (DTSTAMP is the last change
+        # of each event), so the same data gives the same ETag. A calendar
+        # client that sends If-None-Match gets a 304 with no body.
+        render plain: body, content_type: "text/calendar" if stale?(etag: body)
       end
     end
   end
@@ -138,9 +141,11 @@ class CalendarsController < ApplicationController
           e.color = color_hex
           e.append_custom_property("X-APPLE-CALENDAR-COLOR", color_hex)
 
-          e.dtstamp = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
-
-          last_modified = [ course.updated_at, meeting_time.updated_at ].max
+          # RFC 5545 3.8.7.2: without a METHOD property, DTSTAMP is the time
+          # the event last changed. Time.current would change the body (and
+          # the ETag) on every request.
+          last_modified = meeting_time_last_modified(course, meeting_time)
+          e.dtstamp = Icalendar::Values::DateTime.new(last_modified, tzid: "America/New_York")
           e.last_modified = Icalendar::Values::DateTime.new(last_modified, tzid: "America/New_York")
           e.sequence      = (last_modified.to_i / 60)
         end
@@ -164,7 +169,7 @@ class CalendarsController < ApplicationController
         e.description = final_exam.course_code
         e.location    = final_exam.location_with_names if final_exam.location.present?
         e.uid         = "final-exam-#{final_exam.id}@calendar-util.wit.edu"
-        e.dtstamp     = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
+        e.dtstamp     = Icalendar::Values::DateTime.new(final_exam.updated_at, tzid: "America/New_York")
         e.last_modified = Icalendar::Values::DateTime.new(final_exam.updated_at, tzid: "America/New_York")
         e.sequence    = (final_exam.updated_at.to_i / 60)
       end
@@ -226,7 +231,7 @@ class CalendarsController < ApplicationController
       e.description = event.description if event.description.present?
       e.location    = event.location    if event.location.present?
       e.uid         = "university-#{event.ics_uid}@calendar-util.wit.edu"
-      e.dtstamp     = Icalendar::Values::DateTime.new(Time.current,    tzid: "America/New_York")
+      e.dtstamp     = Icalendar::Values::DateTime.new(event.updated_at, tzid: "America/New_York")
       e.last_modified = Icalendar::Values::DateTime.new(event.updated_at, tzid: "America/New_York")
       e.sequence    = (event.updated_at.to_i / 60)
       e.categories  = [ event.category.titleize ] if event.category.present?
@@ -256,17 +261,37 @@ class CalendarsController < ApplicationController
     end
   end
 
+  # The last change to anything that the class event shows. A calendar client
+  # keeps its copy until LAST-MODIFIED or SEQUENCE goes up, so a new title
+  # template, color, holiday, or room must move it too. Every row here is
+  # already loaded, so this runs no query.
+  def meeting_time_last_modified(course, meeting_time)
+    [
+      course.updated_at,
+      meeting_time.updated_at,
+      @preference_resolver.last_changed_at_for(meeting_time),
+      *meeting_time.course.faculties.map(&:updated_at),
+      *meeting_time.meeting_time_rooms.map(&:updated_at),
+      *meeting_time.rooms.map(&:updated_at),
+      *meeting_time.rooms.filter_map { |room| room.building&.updated_at },
+      *holidays_for_meeting_time(meeting_time).map(&:updated_at)
+    ].compact.max
+  end
+
+  def holidays_for_meeting_time(meeting_time)
+    cache_key = [ meeting_time.start_date, meeting_time.end_date ]
+    @holidays_cache[cache_key] ||= UniversityCalendarEvent.no_class_days_between(
+      meeting_time.start_date,
+      meeting_time.end_date
+    ).to_a
+  end
+
   def build_holiday_exdates_for_meeting_time(meeting_time, start_time)
     target_wday = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
     return [] if target_wday.nil?
 
-    cache_key = [ meeting_time.start_date, meeting_time.end_date ]
-    holidays  = @holidays_cache[cache_key] ||= UniversityCalendarEvent.no_class_days_between(
-      meeting_time.start_date,
-      meeting_time.end_date
-    ).to_a
-
-    exdates = []
+    holidays = holidays_for_meeting_time(meeting_time)
+    exdates  = []
 
     holidays.each do |holiday|
       is_multi_day = holiday.end_time && holiday.start_time.to_date != holiday.end_time.to_date
