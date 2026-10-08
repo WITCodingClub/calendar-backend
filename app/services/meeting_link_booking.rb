@@ -2,9 +2,14 @@
 
 # Books the one time that a meeting link allows.
 #
-# The link row is locked (SELECT ... FOR UPDATE) for the whole booking, so two
-# guests who pick at the same moment cannot both book: the second waits, then
-# finds the link used. The meeting itself is made by FriendMeetingCreator, with
+# The owner's user row and then the link row are locked (SELECT ... FOR
+# UPDATE) for the whole booking. Two guests who pick at the same moment wait
+# for each other: on one link the second finds the link used, and on two
+# links of the same owner the second finds the slot taken, because the slot
+# check runs inside the lock and reads the owner's meetings. Every booking
+# takes the owner lock first, so two bookings cannot deadlock.
+#
+# The meeting itself is made by FriendMeetingCreator, with
 # the guest as the one invitee, so it reaches the owner's calendars by the same
 # path as a meeting with friends.
 #
@@ -31,6 +36,7 @@ class MeetingLinkBooking < ApplicationService
     start = parse_start
 
     MeetingLink.transaction do
+      User.lock.find(@link.user_id)
       link = MeetingLink.lock.find(@link.id)
       raise Gone unless link.usable? && Flipper.enabled?(FlipperFlags::MEETING_LINKS, link.user)
 

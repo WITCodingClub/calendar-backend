@@ -142,3 +142,65 @@ RSpec.describe MeetingLinkBooking, "with two guests at once" do
     expect(link.reload.friend_meeting).to be_present
   end
 end
+
+# Two guests pick the same time on two links of the same owner. Each link
+# row is its own lock, so only a lock on the owner stops a double booking.
+RSpec.describe MeetingLinkBooking, "with two links of one owner at once" do
+  self.use_transactional_tests = false
+
+  let!(:owner) { create(:user) }
+  let(:day)    { 2.days.from_now.to_date.next_weekday }
+  let!(:links) { create_list(:meeting_link, 2, user: owner, starts_on: day, ends_on: day) }
+
+  before { Flipper.enable_actor(FlipperFlags::MEETING_LINKS, owner) }
+
+  after do
+    Flipper.disable(FlipperFlags::MEETING_LINKS)
+    MeetingLink.where(user: owner).delete_all
+    FriendMeeting.where(user: owner).destroy_all
+    owner.destroy!
+  end
+
+  # Each booking waits after it finds the slot free, so without the owner
+  # lock both bookings would see the slot free before either saves.
+  def slow_down_slot_checks
+    allow(MeetingLinkSlots).to receive(:new).and_wrap_original do |original, *args, **options|
+      slots = original.call(*args, **options)
+      allow(slots).to receive(:find).and_wrap_original do |find, *find_args|
+        found = find.call(*find_args)
+        sleep 0.3
+        found
+      end
+      slots
+    end
+  end
+
+  it "books the slot once and tells the second guest to pick another time" do
+    start   = MeetingLinkSlots.new(links.first).call.first.start_time.iso8601
+    ready   = Queue.new
+    go      = Queue.new
+    results = Queue.new
+    slow_down_slot_checks
+
+    threads = links.each_with_index.map do |link, index|
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          ready << true
+          go.pop
+          described_class.call(link: MeetingLink.find(link.id), start_time: start,
+                               guest_name: "Sample Guest #{index}", guest_email: "guest#{index}@example.com")
+          results << :booked
+        rescue described_class::Invalid
+          results << :taken
+        end
+      end
+    end
+
+    2.times { ready.pop }
+    2.times { go << true }
+    threads.each(&:join)
+
+    expect(Array.new(results.size) { results.pop }).to contain_exactly(:booked, :taken)
+    expect(FriendMeeting.where(user: owner).count).to eq(1)
+  end
+end
