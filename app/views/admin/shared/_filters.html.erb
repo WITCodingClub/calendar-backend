@@ -1,0 +1,46 @@
+<%# A GET form for an index page: an optional search box, optional selects and
+    checkboxes, and a Clear link when any filter is on. The admin-filters
+    controller submits it while the admin types or picks a value.
+
+    Locals:
+      url:     the index path.
+      search:  the search placeholder, or nil for no search box.
+      selects: [{ name:, label:, options: [[text, value], ...], blank: "All ..." }]
+      checks:  [{ name:, label: }]
+      frame:   the id of a Turbo frame to load the results into. %>
+<% selects = local_assigns.fetch(:selects, []) %>
+<% checks = local_assigns.fetch(:checks, []) %>
+<% search = local_assigns[:search] %>
+<% frame = local_assigns[:frame] %>
+<% names = [ ("search" if search), *selects.pluck(:name), *checks.pluck(:name) ].compact.map(&:to_s) %>
+<% active = names.any? { |name| params[name].present? && params[name] != "0" } %>
+<%= form_with url: url, method: :get,
+    class: "mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end",
+    data: { controller: "admin-filters", turbo_frame: frame, turbo_action: ("advance" if frame) }.compact do |f| %>
+  <% if search %>
+    <div class="relative flex-1 sm:min-w-64">
+      <%= f.label :search, search, class: "sr-only" %>
+      <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-on-surface-variant"><%= admin_icon(:search, css_class: "w-4 h-4") %></span>
+      <%= f.search_field :search, value: params[:search], placeholder: search, autocomplete: "off",
+          class: "m3-input pl-9", data: { action: "input->admin-filters#submitLater" } %>
+    </div>
+  <% end %>
+  <% selects.each do |select| %>
+    <div class="sm:w-56">
+      <%= f.label select[:name], select[:label], class: "m3-label" %>
+      <%= f.select select[:name], options_for_select(select[:options], params[select[:name]]),
+          { include_blank: select[:blank] }, class: "m3-select", data: { action: "change->admin-filters#submit" } %>
+    </div>
+  <% end %>
+  <% checks.each do |check| %>
+    <label class="flex items-center gap-2 py-2 text-sm text-on-surface-variant">
+      <%= f.check_box check[:name], { checked: params[check[:name]] == "1", data: { action: "change->admin-filters#submit" } }, "1", "0" %>
+      <%= check[:label] %>
+    </label>
+  <% end %>
+  <%# Without JavaScript the admin presses Enter or this button. %>
+  <noscript><%= f.submit "Apply", class: "m3-btn-tonal" %></noscript>
+  <% if active %>
+    <%= link_to "Clear", url, class: "m3-btn-text justify-center", data: { turbo_frame: frame }.compact %>
+  <% end %>
+<% end %>

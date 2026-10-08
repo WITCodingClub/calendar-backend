@@ -5,6 +5,7 @@ module Admin
     PER_PAGE = 7
 
     def index
+      @rmp_ratings = RmpRating.includes(:faculty).order(created_at: :desc).page(params[:page]).per(25)
       @query    = params[:q].to_s.strip
       @semantic = ActiveModel::Type::Boolean.new.cast(params[:semantic]).present?
 

@@ -1,153 +1,54 @@
-<% content_for :title, "Search Rate My Professor" %>
+<% service = RateMyProfessorService.new %>
+<% directory_url = service.faculty_directory_url(first_name: @faculty.first_name, last_name: @faculty.last_name) %>
+<% rmp_url = service.add_professor_url %>
 
-<div class="container mx-auto px-2 pb-8">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-on-surface">Search Rate My Professor</h1>
-    <div class="flex gap-2">
-      <%= link_to "Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-      <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-    </div>
-  </div>
+<%= render "admin/shared/page_header",
+    title: "Search Rate My Professor",
+    subtitle: "#{@faculty.full_name} · #{@faculty.email || 'no email'} · #{pluralize(@faculty.courses.count, 'course')}",
+    back: [ "Missing RMP IDs", missing_rmp_ids_admin_faculties_path ] %>
 
-  <div class="m3-card shadow-sm rounded-xl mb-4 p-6">
-    <h2 class="text-xl font-semibold mb-2 text-on-surface">Searching for: <%= @faculty.full_name %></h2>
-    <p class="text-on-surface-variant mb-1"><strong>Email:</strong> <%= @faculty.email || "N/A" %></p>
-    <p class="text-on-surface-variant"><strong>Courses:</strong> <%= @faculty.courses.count %></p>
-  </div>
-
+<div class="space-y-4">
   <% if @teachers.empty? %>
-    <div class="m3-card shadow-sm rounded-xl p-8">
-      <div class="text-on-secondary-container text-lg font-semibold mb-2 text-center">No Results Found</div>
-      <p class="text-on-surface-variant mb-4 text-center">No matching professors found on Rate My Professor for "<%= @faculty.full_name %>".</p>
-
-      <div class="bg-tertiary-container border border-outline-variant rounded-xl p-6 mb-4">
-        <h3 class="font-semibold text-on-surface mb-3">Submit this professor to RMP:</h3>
-        <div class="space-y-3">
-          <div class="bg-surface rounded p-3 border border-outline-variant">
-            <p class="text-sm text-on-surface-variant mb-2"><strong>Step 1:</strong> Open the WIT Faculty Directory</p>
-            <% service = RateMyProfessorService.new %>
-            <% directory_url = service.faculty_directory_url(first_name: @faculty.first_name, last_name: @faculty.last_name) %>
-            <%= link_to directory_url, directory_url, target: "_blank", rel: "noopener noreferrer",
-                class: "text-primary hover:text-primary underline text-sm break-all" %>
-          </div>
-          <div class="bg-surface rounded p-3 border border-outline-variant">
-            <p class="text-sm text-on-surface-variant mb-2"><strong>Step 2:</strong> Open RMP Add Professor Form</p>
-            <% rmp_url = service.add_professor_url %>
-            <%= link_to rmp_url, rmp_url, target: "_blank", rel: "noopener noreferrer",
-                class: "text-primary hover:text-primary underline text-sm break-all" %>
-          </div>
-          <div class="bg-surface rounded p-3 border border-outline-variant">
-            <p class="text-sm text-on-surface-variant"><strong>Step 3:</strong> Copy information from the directory page to the RMP form</p>
-            <ul class="list-disc list-inside text-sm text-on-surface-variant mt-2 ml-2">
-              <li>Name: <strong><%= @faculty.full_name %></strong></li>
-              <li>School: Wentworth Institute of Technology</li>
-              <li>Copy the directory URL from Step 1</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div class="text-center">
-        <%= link_to "Back to Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-      </div>
+    <div class="m3-card px-4 py-8">
+      <%= render "admin/shared/empty_state", icon: :search, message: "Rate My Professor has no match for “#{@faculty.full_name}”." %>
     </div>
   <% else %>
-    <div class="m3-card shadow-sm rounded-xl mb-4 p-4">
-      <p class="text-on-surface">Found <span class="font-bold"><%= @teachers.count %></span> result(s) on Rate My Professor</p>
-    </div>
-
-    <div class="space-y-4">
-      <% @teachers.each_with_index do |edge, index| %>
-        <% teacher = edge["node"] %>
-        <% school = teacher.dig("school", "name") || "Unknown School" %>
-        <% department = teacher["department"] || "Unknown Department" %>
-        <% is_exact_match = teacher["firstName"]&.downcase&.strip == @faculty.first_name&.downcase&.strip &&
-                            teacher["lastName"]&.downcase&.strip == @faculty.last_name&.downcase&.strip %>
-
-        <div class="m3-card shadow-sm rounded-xl p-6 <%= 'ring-2 ring-primary' if is_exact_match %>">
-          <% if is_exact_match %>
-            <div class="mb-2">
-              <span class="inline-block bg-tertiary-container text-on-tertiary-container text-xs font-semibold px-2 py-1 rounded">Exact Name Match</span>
-            </div>
-          <% end %>
-
-          <div class="flex justify-between items-start">
-            <div class="flex-1">
-              <h3 class="text-xl font-semibold mb-2 text-on-surface"><%= teacher["firstName"] %> <%= teacher["lastName"] %></h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                <div>
-                  <p class="text-sm text-on-surface-variant"><strong>School:</strong> <%= school %></p>
-                  <p class="text-sm text-on-surface-variant"><strong>Department:</strong> <%= department %></p>
-                  <p class="text-sm text-on-surface-variant mt-2">
-                    <strong>RMP ID:</strong>
-                    <code class="bg-surface-container-high px-2 py-1 rounded text-xs"><%= teacher["id"] %></code>
-                  </p>
-                </div>
-                <div>
-                  <p class="text-sm text-on-surface-variant">
-                    <strong>Rating:</strong>
-                    <% if teacher["avgRating"] %>
-                      <span class="font-semibold <%= teacher["avgRating"] >= 4.0 ? 'text-on-tertiary-container' : teacher["avgRating"] >= 3.0 ? 'text-on-secondary-container' : 'text-on-error-container' %>">
-                        <%= teacher["avgRating"] %> / 5.0
-                      </span>
-                      (<%= teacher["numRatings"] || 0 %> ratings)
-                    <% else %>
-                      N/A
-                    <% end %>
-                  </p>
-                  <p class="text-sm text-on-surface-variant">
-                    <strong>Difficulty:</strong>
-                    <% if teacher["avgDifficulty"] %>
-                      <%= teacher["avgDifficulty"] %> / 5.0
-                    <% else %>
-                      N/A
-                    <% end %>
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div class="ml-4">
-              <%= button_to "Assign This ID",
-                  assign_rmp_id_admin_faculty_path(@faculty, rmp_id: teacher["id"]),
-                  method: :post,
-                  class: "bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm cursor-pointer whitespace-nowrap",
-                  form: { class: "inline-flex" },
-                  data: { turbo_confirm: "Assign RMP ID '#{teacher['id']}' to #{@faculty.full_name}?" } %>
+    <p class="text-sm text-on-surface-variant"><%= pluralize(@teachers.size, "result") %> on Rate My Professor.</p>
+    <% @teachers.each do |edge| %>
+      <% teacher = edge["node"] %>
+      <% exact = teacher["firstName"]&.downcase&.strip == @faculty.first_name&.downcase&.strip &&
+                 teacher["lastName"]&.downcase&.strip == @faculty.last_name&.downcase&.strip %>
+      <section class="m3-card p-4 sm:p-6 <%= "ring-2 ring-primary" if exact %>">
+        <div class="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div class="flex-1 min-w-0">
+            <h2 class="flex flex-wrap items-center gap-2 text-lg font-semibold text-on-surface">
+              <%= teacher["firstName"] %> <%= teacher["lastName"] %>
+              <%= admin_badge("Exact name match", :success) if exact %>
+            </h2>
+            <div class="mt-3">
+              <%= admin_details(columns: 3) do |d| %>
+                <% d.item("School") { teacher.dig("school", "name") || "Unknown school" } %>
+                <% d.item("Department") { teacher["department"] || "Unknown department" } %>
+                <% d.item("RMP ID") { tag.code(teacher["id"], class: "text-xs") } %>
+                <% d.item("Rating") { teacher["avgRating"] ? "#{teacher['avgRating']} / 5.0 (#{teacher['numRatings'] || 0} ratings)" : "N/A" } %>
+                <% d.item("Difficulty") { teacher["avgDifficulty"] ? "#{teacher['avgDifficulty']} / 5.0" : "N/A" } %>
+              <% end %>
             </div>
           </div>
+          <%= button_to "Assign this ID", assign_rmp_id_admin_faculty_path(@faculty, rmp_id: teacher["id"]),
+              method: :post,
+              form: { data: { turbo_confirm: "Assign RMP ID '#{teacher['id']}' to #{@faculty.full_name}?" } },
+              class: "m3-btn-filled justify-center" %>
         </div>
-      <% end %>
-    </div>
+      </section>
+    <% end %>
+  <% end %>
 
-    <div class="mt-6">
-      <div class="m3-card shadow-sm rounded-xl p-6">
-        <p class="text-on-surface mb-4 font-semibold text-center">None of these results match?</p>
-        <div class="bg-tertiary-container border border-outline-variant rounded-xl p-4 mb-4">
-          <h3 class="font-semibold text-on-surface mb-3 text-sm">Submit this professor to RMP:</h3>
-          <div class="space-y-2">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-on-surface-variant w-16">Step 1:</span>
-              <% service = RateMyProfessorService.new %>
-              <% directory_url = service.faculty_directory_url(first_name: @faculty.first_name, last_name: @faculty.last_name) %>
-              <%= link_to "Open WIT Directory →", directory_url, target: "_blank", rel: "noopener noreferrer",
-                  class: "text-primary hover:text-primary underline text-sm" %>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-on-surface-variant w-16">Step 2:</span>
-              <% rmp_url = service.add_professor_url %>
-              <%= link_to "Open RMP Form →", rmp_url, target: "_blank", rel: "noopener noreferrer",
-                  class: "text-primary hover:text-primary underline text-sm" %>
-            </div>
-            <div class="flex items-start gap-2">
-              <span class="text-xs font-semibold text-on-surface-variant w-16">Step 3:</span>
-              <span class="text-xs text-on-surface-variant">Copy info: <strong><%= @faculty.full_name %></strong>, Wentworth, and directory URL</span>
-            </div>
-          </div>
-        </div>
-        <div class="text-center">
-          <%= link_to "Back to Missing RMP IDs", missing_rmp_ids_admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-        </div>
-      </div>
-    </div>
+  <%= render "admin/shared/card", title: (@teachers.empty? ? "Add this professor to RMP" : "None of these match?") do %>
+    <ol class="list-decimal list-inside space-y-2 text-sm text-on-surface-variant">
+      <li>Open the <%= link_to "WIT faculty directory entry", directory_url, target: "_blank", rel: "noopener noreferrer", class: "text-primary underline" %>.</li>
+      <li>Open the <%= link_to "RMP add professor form", rmp_url, target: "_blank", rel: "noopener noreferrer", class: "text-primary underline" %>.</li>
+      <li>Copy into the form: <strong class="text-on-surface"><%= @faculty.full_name %></strong>, Wentworth Institute of Technology, and the directory URL.</li>
+    </ol>
   <% end %>
 </div>

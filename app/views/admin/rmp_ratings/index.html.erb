@@ -1,5 +1,14 @@
-<% content_for :title, "Rate My Professor Ratings" %>
+<%= render "admin/shared/page_header", title: "Rate My Professor Ratings", subtitle: "Ratings read from Rate My Professor, newest first." %>
 
+<%= admin_table(@rmp_ratings, empty: "No ratings yet.") do |t| %>
+  <% t.column("Faculty") { |rating| link_to(rating.faculty.full_name, admin_faculty_path(rating.faculty), class: "font-medium text-primary hover:underline") if rating.faculty } %>
+  <% t.column("Course") { |rating| rating.course_name } %>
+  <% t.column("Clarity", align: :right) { |rating| rating.clarity_rating&.to_s } %>
+  <% t.column("Difficulty", align: :right) { |rating| rating.difficulty_rating&.to_s } %>
+  <% t.column("Helpful", align: :right) { |rating| rating.helpful_rating&.to_s } %>
+  <% t.column("Would take again") { |rating| rating.would_take_again.nil? ? nil : admin_badge(rating.would_take_again ? "Yes" : "No", rating.would_take_again ? :success : :neutral) } %>
+  <% t.column("Added") { |rating| rating.created_at.strftime("%b %-d, %Y") } %>
+<% end %>
 <div class="container mx-auto px-2 pb-8">
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold text-on-surface">Rate My Professor Ratings</h1>

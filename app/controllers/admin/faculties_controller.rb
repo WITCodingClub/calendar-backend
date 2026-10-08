@@ -13,7 +13,15 @@ module Admin
         )
       end
 
-      @faculties = @faculties.page(params[:page]).per(15)
+      @faculties = @faculties.where(employee_type: params[:employee_type]) if params[:employee_type].present?
+      @faculties = @faculties.page(params[:page]).per(25)
+
+      @stats = {
+        total:   Faculty.count,
+        faculty: Faculty.faculty_only.count,
+        staff:   Faculty.staff_only.count,
+        synced:  Faculty.where.not(directory_last_synced_at: nil).count
+      }
     end
 
     def show
@@ -26,6 +34,7 @@ module Admin
                                  .order("terms.year DESC, terms.season DESC")
                                  .group_by(&:term)
 
+      @course_count = @courses_by_term.values.sum(&:size)
       @rmp_ratings = @faculty.rmp_ratings.order(created_at: :desc) if @faculty.rmp_id.present?
     end
 
@@ -37,7 +46,9 @@ module Admin
         @faculties = @faculties.where("first_name ILIKE ? OR last_name ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
       end
 
-      @faculties = @faculties.page(params[:page]).per(4)
+      @faculties = @faculties.page(params[:page]).per(25)
+      # One grouped count for the page, not one count for each row (#689).
+      @course_counts = CourseFaculty.where(faculty_id: @faculties.map(&:id)).group(:faculty_id).count
     end
 
     def search_rmp

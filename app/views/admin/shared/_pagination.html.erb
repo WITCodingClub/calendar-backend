@@ -1,0 +1,42 @@
+<%# Page links for a Kaminari collection. The count shows on every page; the
+    links show only when there is more than one page. %>
+<% total = collection.total_count %>
+<% first = total.zero? ? 0 : collection.offset_value + 1 %>
+<% last = [ collection.offset_value + collection.limit_value, total ].min %>
+<nav aria-label="Pagination" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-outline-variant bg-surface-container-low text-sm text-on-surface-variant">
+  <p>Showing <%= number_with_delimiter(first) %>–<%= number_with_delimiter(last) %> of <%= number_with_delimiter(total) %></p>
+  <% if collection.total_pages > 1 %>
+    <% current = collection.current_page %>
+    <ul class="flex items-center gap-1">
+      <li>
+        <% if collection.first_page? %>
+          <span class="flex items-center p-2 rounded-full opacity-40"><%= admin_icon(:chevron_left, css_class: "w-4 h-4") %><span class="sr-only">Previous page</span></span>
+        <% else %>
+          <%= link_to admin_page_url(current - 1), rel: "prev", class: "flex items-center p-2 rounded-full hover:bg-surface-container-high" do %>
+            <%= admin_icon(:chevron_left, css_class: "w-4 h-4") %><span class="sr-only">Previous page</span>
+          <% end %>
+        <% end %>
+      </li>
+      <% admin_page_window(current, collection.total_pages).each do |page| %>
+        <li class="<%= "hidden sm:block" unless page == current %>">
+          <% if page.nil? %>
+            <span class="px-2">…</span>
+          <% elsif page == current %>
+            <span aria-current="page" class="flex items-center justify-center min-w-8 h-8 px-2 rounded-full bg-primary-container text-on-primary-container font-semibold"><%= page %></span>
+          <% else %>
+            <%= link_to page, admin_page_url(page), class: "flex items-center justify-center min-w-8 h-8 px-2 rounded-full hover:bg-surface-container-high" %>
+          <% end %>
+        </li>
+      <% end %>
+      <li>
+        <% if collection.last_page? %>
+          <span class="flex items-center p-2 rounded-full opacity-40"><%= admin_icon(:chevron_right, css_class: "w-4 h-4") %><span class="sr-only">Next page</span></span>
+        <% else %>
+          <%= link_to admin_page_url(current + 1), rel: "next", class: "flex items-center p-2 rounded-full hover:bg-surface-container-high" do %>
+            <%= admin_icon(:chevron_right, css_class: "w-4 h-4") %><span class="sr-only">Next page</span>
+          <% end %>
+        <% end %>
+      </li>
+    </ul>
+  <% end %>
+</nav>

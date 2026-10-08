@@ -1,178 +1,81 @@
-<% content_for :title, @faculty.full_name %>
+<%= render "admin/shared/page_header", title: @faculty.full_name, subtitle: @faculty.title, back: [ "Faculty", admin_faculties_path ] %>
 
-<div class="container mx-auto px-2 pb-8">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-3xl font-bold text-on-surface"><%= @faculty.full_name %></h1>
-    <div class="flex gap-2">
-      <%= link_to "All Faculty", admin_faculties_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-      <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-    </div>
-  </div>
-
-  <div class="m3-card shadow-sm rounded-xl p-6 mb-6">
-    <div class="flex flex-col md:flex-row gap-6">
-      <div class="flex-shrink-0">
-        <% if @faculty.photo_url.present? %>
-          <%= image_tag @faculty.photo_url, alt: @faculty.full_name, class: "h-32 w-32 rounded-xl object-cover shadow" %>
-        <% else %>
-          <div class="h-32 w-32 rounded-xl bg-surface-container-high flex items-center justify-center shadow">
-            <span class="text-on-surface-variant text-3xl font-bold"><%= @faculty.initials %></span>
-          </div>
+<div class="space-y-6">
+  <%= render "admin/shared/card" do %>
+    <div class="flex flex-col sm:flex-row gap-6">
+      <%= render "avatar", faculty: @faculty, size: "h-24 w-24 text-2xl" %>
+      <div class="flex-1">
+        <%= admin_details(columns: 3) do |d| %>
+          <% d.item("Email") { mail_to(@faculty.email, @faculty.email, class: "text-primary hover:underline") if @faculty.email } %>
+          <% d.item("Phone") { @faculty.phone } %>
+          <% d.item("Office") { @faculty.office_location } %>
+          <% d.item("Department") { @faculty.department } %>
+          <% d.item("School") { @faculty.school } %>
+          <% d.item("Type") { render "type_badge", faculty: @faculty } %>
+          <% d.item("Directory sync") do %>
+            <% if @faculty.directory_last_synced_at %>
+              <%= admin_badge("Synced #{time_ago_in_words(@faculty.directory_last_synced_at)} ago", :success) %>
+            <% else %>
+              <%= admin_badge("Not synced", :warning) %>
+            <% end %>
+          <% end %>
         <% end %>
       </div>
-      <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Title</h3>
-          <p class="mt-1 text-sm text-on-surface"><%= @faculty.title || "Not available" %></p>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Email</h3>
-          <p class="mt-1 text-sm text-on-surface">
-            <%= mail_to @faculty.email, @faculty.email, class: "hover:underline text-primary" if @faculty.email %>
-          </p>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Phone</h3>
-          <p class="mt-1 text-sm text-on-surface"><%= @faculty.phone || "Not available" %></p>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Office</h3>
-          <p class="mt-1 text-sm text-on-surface"><%= @faculty.office_location || "Not available" %></p>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Department</h3>
-          <p class="mt-1 text-sm text-on-surface"><%= @faculty.department || "Not available" %></p>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">School</h3>
-          <p class="mt-1 text-sm text-on-surface"><%= @faculty.school || "Not available" %></p>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Type</h3>
-          <p class="mt-1">
-            <% case @faculty.employee_type %>
-              <% when "faculty" %>
-                <span class="px-2 py-1 text-xs font-medium rounded-full bg-tertiary-container text-on-tertiary-container">Faculty</span>
-              <% when "staff" %>
-                <span class="px-2 py-1 text-xs font-medium rounded-full bg-surface-container-high text-on-surface">Staff</span>
-              <% else %>
-                <span class="px-2 py-1 text-xs font-medium rounded-full bg-secondary-container text-on-secondary-container">Unknown</span>
-            <% end %>
-          </p>
-        </div>
-        <div>
-          <h3 class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">Directory Sync</h3>
-          <p class="mt-1 text-sm text-on-surface">
-            <% if @faculty.directory_last_synced_at %>
-              <span class="text-on-tertiary-container">Synced <%= time_ago_in_words(@faculty.directory_last_synced_at) %> ago</span>
-            <% else %>
-              <span class="text-on-secondary-container">Not synced</span>
-            <% end %>
-          </p>
-        </div>
-      </div>
     </div>
-  </div>
+  <% end %>
 
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-    <div class="m3-card p-4 text-center rounded-xl">
-      <p class="text-2xl font-bold text-primary"><%= @faculty.courses.count %></p>
-      <p class="text-xs text-on-surface-variant uppercase">Courses</p>
-    </div>
+  <%= render "admin/shared/stats" do %>
+    <%= render "admin/shared/stat", label: "Courses", value: @course_count %>
     <% if @rmp_ratings.present? %>
-      <div class="m3-card p-4 text-center rounded-xl">
-        <p class="text-2xl font-bold text-primary"><%= @rmp_ratings.count %></p>
-        <p class="text-xs text-on-surface-variant uppercase">RMP Ratings</p>
-      </div>
-      <div class="m3-card p-4 text-center rounded-xl">
-        <% avg_rating = @rmp_ratings.average(:clarity_rating) %>
-        <p class="text-2xl font-bold text-primary"><%= avg_rating ? number_with_precision(avg_rating, precision: 1) : "N/A" %></p>
-        <p class="text-xs text-on-surface-variant uppercase">Avg Rating</p>
-      </div>
-      <div class="m3-card p-4 text-center rounded-xl">
-        <% avg_difficulty = @rmp_ratings.average(:difficulty_rating) %>
-        <p class="text-2xl font-bold text-primary"><%= avg_difficulty ? number_with_precision(avg_difficulty, precision: 1) : "N/A" %></p>
-        <p class="text-xs text-on-surface-variant uppercase">Avg Difficulty</p>
-      </div>
+      <% avg_rating = @rmp_ratings.average(:clarity_rating) %>
+      <% avg_difficulty = @rmp_ratings.average(:difficulty_rating) %>
+      <%= render "admin/shared/stat", label: "RMP ratings", value: @rmp_ratings.size %>
+      <%= render "admin/shared/stat", label: "Avg rating", value: avg_rating ? number_with_precision(avg_rating, precision: 1) : "N/A" %>
+      <%= render "admin/shared/stat", label: "Avg difficulty", value: avg_difficulty ? number_with_precision(avg_difficulty, precision: 1) : "N/A" %>
     <% end %>
-  </div>
+  <% end %>
 
   <% if @faculty.rmp_id.present? || policy(@faculty).search_rmp? %>
-    <div class="m3-card shadow-sm rounded-xl p-6 mb-6">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold text-on-surface">Rate My Professor</h2>
-        <% if @faculty.rmp_id.present? %>
-          <%= link_to "Search RMP", search_rmp_admin_faculty_path(@faculty), class: "text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded" if policy(@faculty).search_rmp? %>
-        <% else %>
-          <div class="flex gap-2">
-            <% if policy(@faculty).auto_fill_rmp_id? %>
-              <%= button_to "Auto Search", auto_fill_rmp_id_admin_faculty_path(@faculty), method: :post,
-                  class: "text-sm px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded",
-                  form: { class: "inline-flex" } %>
-            <% end %>
-            <% if policy(@faculty).search_rmp? %>
-              <%= link_to "Manual Search", search_rmp_admin_faculty_path(@faculty), class: "m3-btn-outlined text-sm px-4 py-2 rounded inline-block" %>
-            <% end %>
-          </div>
-        <% end %>
-      </div>
+    <% rmp_actions = capture do %>
+      <% if @faculty.rmp_id.blank? && policy(@faculty).auto_fill_rmp_id? %>
+        <%= button_to "Auto search", auto_fill_rmp_id_admin_faculty_path(@faculty), method: :post, class: "m3-btn-tonal" %>
+      <% end %>
+      <% if policy(@faculty).search_rmp? %>
+        <%= link_to (@faculty.rmp_id.present? ? "Search RMP" : "Manual search"), search_rmp_admin_faculty_path(@faculty), class: "m3-btn-outlined" %>
+      <% end %>
+    <% end %>
+    <%= render "admin/shared/card", title: "Rate My Professor", actions: rmp_actions do %>
       <p class="text-sm text-on-surface-variant">
         <% if @faculty.rmp_id.present? %>
-          RMP ID: <span class="font-mono"><%= @faculty.rmp_id %></span>
+          RMP ID: <code class="font-mono"><%= @faculty.rmp_id %></code>
         <% else %>
           Not linked to Rate My Professor.
         <% end %>
       </p>
-    </div>
+    <% end %>
   <% end %>
 
-  <div class="space-y-6">
-    <h2 class="text-2xl font-bold text-on-surface">Courses by Semester</h2>
-    <% if @courses_by_term.empty? %>
-      <p class="text-on-surface-variant">No courses found.</p>
-    <% else %>
-      <% @courses_by_term.each do |term, courses| %>
-        <div class="m3-card shadow-sm rounded-xl overflow-hidden">
-          <div class="px-6 py-4 bg-surface-container-high">
-            <h3 class="text-lg font-bold text-on-surface"><%= term.name %></h3>
-            <p class="text-sm text-on-surface-variant"><%= courses.count %> course(s)</p>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-outline-variant">
-              <thead class="bg-surface-container">
-                <tr>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Course</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Name</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Section</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Meeting Times</th>
-                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Credits</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-outline-variant">
-                <% courses.each do |course| %>
-                  <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">
-                      <%= course.subject %> <%= course.course_number %>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-on-surface"><%= course.title %></td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= course.section_number || "N/A" %></td>
-                    <td class="px-6 py-4 text-sm text-on-surface">
-                      <% if course.meeting_times.any? %>
-                        <% course.meeting_times.each do |mt| %>
-                          <div><%= mt.day_of_week&.capitalize %> <%= mt.formatted_time_range %> <%= mt.building_room.presence && "(#{mt.building_room})" %></div>
-                        <% end %>
-                      <% else %>
-                        <span class="text-on-surface-variant">No meeting times</span>
-                      <% end %>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= course.credit_hours || "N/A" %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-        </div>
+  <% if @courses_by_term.empty? %>
+    <div class="m3-card px-4 py-10">
+      <%= render "admin/shared/empty_state", message: "No courses found." %>
+    </div>
+  <% else %>
+    <% @courses_by_term.each do |term, courses| %>
+      <%= render "admin/shared/card", title: term.name, subtitle: pluralize(courses.size, "course"), flush: true do %>
+        <%= admin_table(courses, card: false) do |t| %>
+          <% t.column("Course") do |course| %>
+            <%= link_to "#{course.subject} #{course.course_number}", admin_course_path(course), class: "font-medium text-primary hover:underline whitespace-nowrap" %>
+            <div class="text-xs text-on-surface-variant">Section <%= course.section_number %></div>
+          <% end %>
+          <% t.column("Title") { |course| course.title } %>
+          <% t.column("Meeting times") do |course| %>
+            <% course.meeting_times.each do |mt| %>
+              <div class="whitespace-nowrap"><%= mt.day_of_week&.capitalize %> <%= mt.formatted_time_range %> <%= "(#{mt.building_room})" if mt.building_room.present? %></div>
+            <% end %>
+          <% end %>
+          <% t.column("Credits", align: :right) { |course| course.credit_hours&.to_s } %>
+        <% end %>
       <% end %>
     <% end %>
-  </div>
+  <% end %>
 </div>

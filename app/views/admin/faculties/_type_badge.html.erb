@@ -1,0 +1,8 @@
+<% case faculty.employee_type %>
+<% when "faculty" %>
+  <%= admin_badge("Faculty", :success) %>
+<% when "staff" %>
+  <%= admin_badge("Staff", :neutral) %>
+<% else %>
+  <%= admin_badge("Unknown", :warning) %>
+<% end %>

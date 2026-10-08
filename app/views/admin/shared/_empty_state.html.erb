@@ -1,0 +1,5 @@
+<div class="flex flex-col items-center gap-2 text-center text-on-surface-variant">
+  <%= admin_icon(local_assigns.fetch(:icon, :inbox), css_class: "w-8 h-8 opacity-60") %>
+  <p class="text-sm"><%= message %></p>
+  <%= yield if block_given? %>
+</div>

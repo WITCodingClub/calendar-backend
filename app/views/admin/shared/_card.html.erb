@@ -1,0 +1,20 @@
+<%# A titled section of a page. Pass `actions:` (captured HTML) for buttons in
+    the card header, and `flush: true` when the body is a table. %>
+<section class="m3-card overflow-hidden <%= local_assigns[:css_class] %>" <%= tag.attributes(id: local_assigns[:id]) %>>
+  <% if local_assigns[:title] %>
+    <div class="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 border-b border-outline-variant bg-surface-container-high/50">
+      <div>
+        <h2 class="text-base font-semibold text-on-surface"><%= title %></h2>
+        <% if local_assigns[:subtitle].present? %>
+          <p class="text-xs text-on-surface-variant"><%= subtitle %></p>
+        <% end %>
+      </div>
+      <% if local_assigns[:actions].present? %>
+        <div class="admin-actions flex flex-wrap gap-2"><%= actions %></div>
+      <% end %>
+    </div>
+  <% end %>
+  <div class="<%= "px-4 sm:px-6 py-4" unless local_assigns[:flush] %>">
+    <%= yield %>
+  </div>
+</section>

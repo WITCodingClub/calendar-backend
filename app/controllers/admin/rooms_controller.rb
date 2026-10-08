@@ -3,7 +3,11 @@
 module Admin
   class RoomsController < Admin::ApplicationController
     def index
-      @rooms = Room.includes(:building).order("buildings.name, rooms.number").page(params[:page]).per(50)
+      @rooms = Room.includes(:building).references(:building).order("buildings.name, rooms.number")
+      @rooms = @rooms.where("rooms.number ILIKE ?", "%#{Room.sanitize_sql_like(params[:search].strip)}%") if params[:search].present?
+      @rooms = @rooms.where(building_id: params[:building_id]) if params[:building_id].present?
+      @rooms = @rooms.page(params[:page]).per(50)
+      @buildings = Building.order(:name)
     end
 
     def show

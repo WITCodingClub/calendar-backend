@@ -64,6 +64,10 @@ class CourseCalendar < ApplicationRecord
   # later, so destroying the row does not enqueue a delete job.
   attr_accessor :skip_remote_deletion
 
+  # The nightly job syncs every calendar every six hours. A calendar with no
+  # sync for a day has missed four runs, so the admin pages flag it.
+  STALE_AFTER = 1.day
+
   scope :for_user, ->(user) { joins(:oauth_credential).where(oauth_credentials: { user_id: user.id }) }
   scope :stale, ->(time_ago = 1.hour) { where("last_synced_at IS NULL OR last_synced_at < ?", time_ago.ago) }
 
