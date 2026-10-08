@@ -78,6 +78,7 @@ Rails.application.routes.draw do
         get "sections",         to: "sections#index"
         get "sections/:crn",    to: "sections#show", as: :section, constraints: { crn: /\d+/ }
         get "sections/:crn/similar", to: "sections#similar", as: :similar_sections, constraints: { crn: /\d+/ }
+        get "reviews",          to: "reviews#index"
         get "instructors",      to: "instructors#index"
         get "instructors/:pub_id", to: "instructors#show", as: :instructor
         get "instructors/:pub_id/similar", to: "instructors#similar", as: :similar_instructors

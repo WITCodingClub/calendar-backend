@@ -13,7 +13,7 @@ module Api
       # Declared first. rescue_from tries the last handler first, so the
       # specific handlers below still win.
       rescue_from StandardError, with: :render_internal_error
-      rescue_from ::Catalog::SectionQuery::FilterError, with: :render_bad_request
+      rescue_from ::Catalog::FilterError, with: :render_bad_request
       rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
 
       private

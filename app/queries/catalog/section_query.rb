@@ -7,7 +7,7 @@ module Catalog
   # behaviour stays identical across the two surfaces. Every filter is optional
   # and unknown values raise FilterError, which callers turn into a 400.
   class SectionQuery
-    class FilterError < StandardError; end
+    class FilterError < ::Catalog::FilterError; end
 
     MAX_PER_PAGE     = 200
     DEFAULT_PER_PAGE = 50
