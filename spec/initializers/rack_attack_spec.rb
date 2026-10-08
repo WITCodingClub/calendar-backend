@@ -168,6 +168,7 @@ RSpec.describe Rack::Attack do
     end
 
     it "answers 429 once a guest uses up the pick budget" do
+      original_store = Rack::Attack.cache.store
       Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
       env = { "REMOTE_ADDR" => "5.6.7.8", "HTTP_USER_AGENT" => "Mozilla/5.0" }
       app = Rails.application
@@ -177,7 +178,9 @@ RSpec.describe Rack::Attack do
       expect(statuses.last).to eq(429)
       expect(statuses.first(5)).to all(satisfy { |status| status != 429 })
     ensure
-      Rack::Attack.cache.store = Rails.cache
+      # Put back the FailOpenStore from the initializer. Rails.cache alone
+      # breaks the "cache store" examples that run after this one.
+      Rack::Attack.cache.store = original_store
     end
   end
 
