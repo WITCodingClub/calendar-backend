@@ -34,7 +34,7 @@ require "rails_helper"
 #  index_faculties_on_directory_last_synced_at  (directory_last_synced_at)
 #  index_faculties_on_directory_raw_data        (directory_raw_data) USING gin
 #  index_faculties_on_email                     (email) UNIQUE
-#  index_faculties_on_embedding                 (embedding) USING hnsw
+#  index_faculties_on_embedding                 (embedding vector_cosine_ops) USING hnsw
 #  index_faculties_on_employee_type             (employee_type)
 #  index_faculties_on_lower_email               (lower((email)::text))
 #  index_faculties_on_rmp_id                    (rmp_id) UNIQUE

@@ -30,7 +30,7 @@ require "rails_helper"
 #
 # Indexes
 #
-#  index_rmp_ratings_on_embedding   (embedding) USING hnsw
+#  index_rmp_ratings_on_embedding   (embedding vector_cosine_ops) USING hnsw
 #  index_rmp_ratings_on_faculty_id  (faculty_id)
 #  index_rmp_ratings_on_rmp_id      (rmp_id) UNIQUE
 #

@@ -257,8 +257,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
     t.datetime "created_at", null: false
     t.integer "credit_hours"
     t.integer "crn", null: false
-    t.vector "embedding", limit: 1536
-    t.string "embedding_digest", limit: 64
     t.date "end_date", null: false
     t.string "grade_mode"
     t.boolean "is_section_linked", default: false, null: false
@@ -273,6 +271,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
     t.bigint "term_id", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
     t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["status"], name: "index_courses_on_status"
@@ -349,8 +349,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
     t.jsonb "directory_raw_data"
     t.string "display_name"
     t.string "email", null: false
-    t.vector "embedding", limit: 1536
-    t.string "embedding_digest", limit: 64
     t.string "employee_type"
     t.string "first_name", null: false
     t.string "last_name", null: false
@@ -363,6 +361,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
     t.string "school"
     t.string "title"
     t.datetime "updated_at", null: false
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
     t.index "lower((email)::text)", name: "index_faculties_on_lower_email"
     t.index ["department"], name: "index_faculties_on_department"
     t.index ["directory_last_synced_at"], name: "index_faculties_on_directory_last_synced_at"
@@ -586,8 +586,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
     t.string "course_name"
     t.datetime "created_at", null: false
     t.integer "difficulty_rating"
-    t.vector "embedding", limit: 1536
-    t.string "embedding_digest", limit: 64
     t.bigint "faculty_id", null: false
     t.string "grade"
     t.integer "helpful_rating"
@@ -600,6 +598,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_19_233100) do
     t.integer "thumbs_up_total", default: 0
     t.datetime "updated_at", null: false
     t.boolean "would_take_again"
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
     t.index ["embedding"], name: "index_rmp_ratings_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["faculty_id"], name: "index_rmp_ratings_on_faculty_id"
     t.index ["rmp_id"], name: "index_rmp_ratings_on_rmp_id", unique: true
