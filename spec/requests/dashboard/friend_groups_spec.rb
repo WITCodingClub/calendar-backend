@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "Dashboard friend groups", type: :request do
-  let(:user)   { create(:user) }
+  let(:user)   { create(:user, :with_processed_courses) }
   let(:friend) { create(:user, first_name: "Grace", last_name: "Hopper") }
 
   before do
