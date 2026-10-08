@@ -4,6 +4,9 @@ module Api
   class FriendsController < ApiController
     include BusyBlocksParams
 
+    EXPIRES_AT_FORMAT_ERROR = "expires_at must be a date (2026-12-01, the end of that day in America/New_York) " \
+                              "or an ISO 8601 time with a UTC offset (2026-12-01T17:00:00-05:00)"
+
     before_action :require_availability_only_flag, only: [ :update_visibility ]
 
     def index
@@ -20,9 +23,8 @@ module Api
         FriendSerializer.new(
           friend,
           visibility: index_visibility(friendship, flag_on),
-          groups: groups_by_friend && groups_by_friend[friend.id],
-          expires_at: friendship.expires_at
-        ).as_json
+          groups: groups_by_friend && groups_by_friend[friend.id]
+        ).as_json.merge(FriendshipSerializer.new(friendship, current_user).expiry_json)
       end
 
       render json: { friends: friends }, status: :ok
@@ -65,18 +67,15 @@ module Api
 
     # PATCH /api/friends/:friend_id/expiry
     #
-    # Sets a new expiry date on the friendship or the pending request with this
-    # user. Send "expires_at": null to make it permanent.
+    # Asks for a new end date on the friendship or the pending request with
+    # this user. Send "expires_at": null for a permanent friendship. A sooner
+    # date applies at once. A later date, or null, becomes a proposal that the
+    # other user must accept. "expiry_change" in the response says which.
     def update_expiry
       return render_friend_expiry_disabled unless friend_expiry_enabled?
 
-      friend_user = find_by_any_id!(User, params[:friend_id])
-      friendship  = Friendship.unexpired.between(current_user, friend_user).first
-
-      if friendship.nil?
-        render json: { error: "Friendship not found" }, status: :not_found
-        return
-      end
+      friendship = find_unexpired_friendship_or_request
+      return if performed?
 
       authorize friendship, :update_expiry?
 
@@ -86,10 +85,41 @@ module Api
         return
       end
 
-      friendship.expires_at = params[:expires_at].blank? ? nil : parse_expires_at
+      expires_at = params[:expires_at].nil? ? nil : parse_expires_at
       return if performed?
 
-      friendship.save!
+      change = friendship.change_expiry!(to: expires_at, by: current_user)
+      render json: FriendshipSerializer.new(friendship, current_user).as_json.merge(expiry_change: change.to_s),
+             status: :ok
+    end
+
+    # POST /api/friends/:friend_id/expiry/accept
+    #
+    # Accepts the other user's proposal. The proposer cannot accept it.
+    def accept_expiry
+      return render_friend_expiry_disabled unless friend_expiry_enabled?
+
+      friendship = find_unexpired_friendship_or_request
+      return if performed?
+
+      authorize friendship, :accept_expiry?
+      friendship.accept_expiry_proposal!(by: current_user)
+
+      render json: FriendshipSerializer.new(friendship, current_user).as_json, status: :ok
+    end
+
+    # POST /api/friends/:friend_id/expiry/decline
+    #
+    # Declines the other user's proposal, or withdraws your own.
+    def decline_expiry
+      return render_friend_expiry_disabled unless friend_expiry_enabled?
+
+      friendship = find_unexpired_friendship_or_request
+      return if performed?
+
+      authorize friendship, :decline_expiry?
+      friendship.decline_expiry_proposal!(by: current_user)
+
       render json: FriendshipSerializer.new(friendship, current_user).as_json, status: :ok
     end
 
@@ -102,13 +132,8 @@ module Api
 
       friendship.addressee_visibility = level if level
       friendship.accepted!
-      friend = friendship.friend_for(current_user)
 
-      render json: {
-        friendship_id: friendship.public_id,
-        friend:        { id: friend.public_id.delete_prefix("usr_"), name: friend.full_name },
-        expires_at:    friendship.expires_at&.iso8601
-      }, status: :ok
+      render json: FriendshipSerializer.new(friendship, current_user).as_json, status: :ok
     end
 
     def decline
@@ -342,13 +367,22 @@ module Api
       render json: { error: "Temporary friendships are not enabled" }, status: :not_found
     end
 
-    # Reads params[:expires_at] as an ISO 8601 time. Renders 400 and returns nil
-    # when the value does not parse.
+    def find_unexpired_friendship_or_request
+      friend_user = find_by_any_id!(User, params[:friend_id])
+      friendship  = Friendship.unexpired.between(current_user, friend_user).first
+      return friendship if friendship
+
+      render json: { error: "Friendship not found" }, status: :not_found
+      nil
+    end
+
+    # Reads params[:expires_at] with FriendshipExpiryTime, the rule the
+    # dashboard also uses. Renders 400 and returns nil for any other value.
     def parse_expires_at
-      Time.zone.iso8601(params[:expires_at].to_s)
-    rescue ArgumentError
-      render json: { error: "expires_at must be an ISO 8601 time, for example 2026-12-01T05:00:00Z" },
-             status: :bad_request
+      expires_at = FriendshipExpiryTime.parse(params[:expires_at])
+      return expires_at if expires_at
+
+      render json: { error: EXPIRES_AT_FORMAT_ERROR }, status: :bad_request
       nil
     end
 

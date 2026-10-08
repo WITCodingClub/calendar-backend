@@ -451,7 +451,8 @@ RSpec.describe "Api::FriendGroups", type: :request do
 
       get "/api/friends", headers: headers
 
-      expect(response.parsed_body["friends"].first.keys).to contain_exactly("id", "name", "visibility")
+      expect(response.parsed_body["friends"].first.keys).to contain_exactly("id", "name", "visibility", "expires_at",
+                                                                          "expiry_proposal")
     end
 
     context "when the flag is on" do

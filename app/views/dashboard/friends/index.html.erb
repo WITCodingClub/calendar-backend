@@ -57,17 +57,7 @@
               <p class="text-xs text-on-surface-variant">Ends on <%= friendship.expires_at.to_date.to_fs(:long) %></p>
             <% end %>
             <% if @friend_expiry_enabled %>
-              <%= form_with url: expiry_dashboard_friend_path(friend.public_id), method: :patch, class: "mt-2 flex items-center gap-2" do |f| %>
-                <%= f.date_field :expires_on,
-                    value: friendship.expires_at&.to_date,
-                    min: Date.current + 1,
-                    "aria-label": "End date for #{friend.first_name}",
-                    class: "m3-input text-xs" %>
-                <%= f.submit "Set end date", class: "m3-btn-text text-xs" %>
-                <% if friendship.temporary? %>
-                  <%= f.submit "Make permanent", name: "permanent", class: "m3-btn-text text-xs" %>
-                <% end %>
-              <% end %>
+              <%= render "expiry_controls", friendship: friendship, friend: friend %>
             <% end %>
           </div>
           <div class="flex items-center gap-3">

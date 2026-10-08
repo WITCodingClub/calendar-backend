@@ -4,8 +4,12 @@
 #
 #   FriendshipSerializer.new(friendship, viewer).as_json          # the friendship
 #   FriendshipSerializer.new(friendship, viewer).as_request       # GET /api/friends/requests
+#   FriendshipSerializer.new(friendship, viewer).expiry_json      # expiry keys in GET /api/friends
 #
 # expires_at is an ISO 8601 time, or nil for a permanent friendship.
+# expiry_proposal is nil, or the later end date one user proposed:
+#
+#   { expires_at: "...", permanent: false, proposed_by: "usr_...", can_accept: true }
 class FriendshipSerializer
   def self.render_requests(friendships, viewer)
     friendships.map { |f| new(f, viewer).as_request }
@@ -18,21 +22,28 @@ class FriendshipSerializer
 
   def as_json(*)
     {
-      friendship_id: @friendship.public_id,
-      status:        @friendship.status,
-      expires_at:    expires_at,
-      friend:        user_json(friend)
+      friendship_id:   @friendship.public_id,
+      status:          @friendship.status,
+      expires_at:      expires_at,
+      expiry_proposal: expiry_proposal,
+      friend:          user_json(friend)
     }
+  end
+
+  # The expiry keys of one friend in GET /api/friends.
+  def expiry_json
+    { expires_at: expires_at, expiry_proposal: expiry_proposal }
   end
 
   def as_request
     key = @friendship.requester?(@viewer) ? :to : :from
 
     {
-      request_id: @friendship.public_id,
-      key         => user_json(friend),
-      created_at: @friendship.created_at.iso8601,
-      expires_at: expires_at
+      :request_id      => @friendship.public_id,
+      key              => user_json(friend),
+      :created_at      => @friendship.created_at.iso8601,
+      :expires_at      => expires_at,
+      :expiry_proposal => expiry_proposal
     }
   end
 
@@ -41,6 +52,20 @@ class FriendshipSerializer
   def friend = @friendship.friend_for(@viewer)
 
   def expires_at = @friendship.expires_at&.iso8601
+
+  # No query: the proposer is always the viewer or the friend.
+  def expiry_proposal
+    return nil unless @friendship.expiry_proposal?
+
+    proposed_by_viewer = @friendship.proposed_by_id == @viewer.id
+
+    {
+      expires_at:  @friendship.proposed_expires_at&.iso8601,
+      permanent:   @friendship.proposed_permanent?,
+      proposed_by: (proposed_by_viewer ? @viewer : friend).public_id,
+      can_accept:  !proposed_by_viewer
+    }
+  end
 
   def user_json(user)
     { id: user.public_id, name: user.full_name }

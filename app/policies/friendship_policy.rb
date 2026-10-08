@@ -10,12 +10,21 @@ class FriendshipPolicy < ApplicationPolicy
   def cancel?   = participant_as?(:requester) && record.pending?
   def destroy?  = user && (record.requester_id == user.id || record.addressee_id == user.id)
 
-  # Either side can extend the date, shorten it, or make the friendship
-  # permanent, while the friendship or request has not expired.
+  # Either side can ask for a new end date while the friendship or request has
+  # not expired. A sooner date applies at once. A later date, or a permanent
+  # friendship, only becomes a proposal (Friendship#change_expiry!).
   def update_expiry?
-    return false unless user && !record.expired?
+    participant? && !record.expired?
+  end
 
-    record.requester_id == user.id || record.addressee_id == user.id
+  # Only the other user can accept a proposal. The proposer cannot.
+  def accept_expiry?
+    update_expiry? && record.expiry_proposal? && record.proposed_by_id != user.id
+  end
+
+  # The other user declines a proposal, or the proposer withdraws it.
+  def decline_expiry?
+    update_expiry? && record.expiry_proposal?
   end
 
   # An expired friendship grants nothing, even before the cleanup job deletes
@@ -39,6 +48,12 @@ class FriendshipPolicy < ApplicationPolicy
   end
 
   private
+
+  def participant?
+    return false unless user
+
+    record.requester_id == user.id || record.addressee_id == user.id
+  end
 
   def participant_as?(role)
     return false unless user
