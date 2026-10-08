@@ -198,5 +198,22 @@ RSpec.describe Rack::Attack do
       expect(discriminator("/api/process_courses")).to eq("process-courses:#{user.id}")
       expect(discriminator("/api/process_courses/batch")).to eq("process-courses:#{user.id}")
     end
+
+    it "counts the path variants that the router also accepts" do
+      %w[
+        /api/process_courses.json
+        /api/process_courses/batch.json
+        /api/process_courses/
+        /api/process_courses/batch/
+        /api//process_courses/batch
+      ].each do |path|
+        expect(discriminator(path)).to eq("process-courses:#{user.id}"), "expected #{path} to be throttled"
+      end
+    end
+
+    it "does not count other paths" do
+      expect(discriminator("/api/process_courses/other")).to be_nil
+      expect(discriminator("/api/courses/reprocess")).to be_nil
+    end
   end
 end
