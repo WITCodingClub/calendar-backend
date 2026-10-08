@@ -252,7 +252,7 @@ RSpec.describe "Discovery files", type: :request do
     end
 
     it "lists every token error code that the API returns" do
-      source = Rails.root.join("app/controllers/concerns/json_web_token_authenticatable.rb").read
+      source = Rails.root.join("app/controllers/concerns/api/token_authentication.rb").read
       codes  = source.scan(/code: "(AUTH_[A-Z_]+)"/).flatten.uniq
 
       expect(codes).not_to be_empty

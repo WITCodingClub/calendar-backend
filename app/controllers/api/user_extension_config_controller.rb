@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module Api
-  class UserExtensionConfigController < ApiController
+  class UserExtensionConfigController < BaseController
+    authenticate_with_token
+
     # GET /api/user/extension_config
     def get
       config = current_user.user_extension_config || UserExtensionConfig.new(user: current_user)

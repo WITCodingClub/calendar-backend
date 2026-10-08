@@ -4,7 +4,9 @@ module Api
   # Meetings that a person makes from a time that the extension suggested.
   # The work is in FriendMeetingCreator, FriendMeetingUpdater, and
   # FriendMeetingPublisher, which the one-time meeting link also uses.
-  class FriendMeetingsController < ApiController
+  class FriendMeetingsController < BaseController
+    authenticate_with_token
+
     MAX_RANGE = 366.days
 
     before_action :require_friend_meeting_events

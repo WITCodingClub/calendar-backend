@@ -4,10 +4,12 @@ module Api
   module V1
     # Base for the public, unauthenticated catalog API.
     #
-    # Deliberately does NOT inherit from Api::ApiController: that base requires
-    # a JWT and sits behind a feature flag. Everything under this controller is
-    # read-only course schedule data with no user data of any kind.
-    class PublicController < ActionController::API
+    # Everything under this controller is read-only course schedule data with no
+    # user data of any kind, so no action calls authenticate_with_token, and
+    # responses get public cache headers. The rescue_from handlers below replace
+    # the ones in Api::BaseController: the StandardError handler is declared
+    # here, so it is checked before any handler of the parent class.
+    class PublicController < Api::BaseController
       CACHE_MAX_AGE = 1.hour
 
       # Declared first. rescue_from tries the last handler first, so the

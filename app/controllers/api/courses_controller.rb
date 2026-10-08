@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module Api
-  class CoursesController < ApiController
+  class CoursesController < BaseController
+    authenticate_with_token
+
     # POST /api/process_courses
     def process_courses
       skip_authorization

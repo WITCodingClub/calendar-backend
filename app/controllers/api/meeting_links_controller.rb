@@ -3,7 +3,9 @@
 module Api
   # One-time meeting links (#652) for the extension. The owner makes, lists,
   # and revokes links here. The guest uses the public page, MeetingLinksController.
-  class MeetingLinksController < ApiController
+  class MeetingLinksController < BaseController
+    authenticate_with_token
+
     before_action :require_meeting_links
 
     # GET /api/meeting_links

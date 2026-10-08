@@ -14,9 +14,8 @@ module Api
   # extension: the credential is bound to WEBAUTHN_RP_ID either way, and keeping
   # the prompt on the site keeps the reported origin stable across browsers and
   # builds. See config/initializers/webauthn.rb.
-  class PasskeysController < ApiController
-    skip_before_action :authenticate_user_from_token!,
-                       only: [ :authentication_options, :authenticate, :exchange ]
+  class PasskeysController < BaseController
+    authenticate_with_token except: [ :authentication_options, :authenticate, :exchange ]
 
     # The page runs the ceremony but holds no JWT, so the extension mints a
     # handoff and the page spends it. Falls through to the normal token check
