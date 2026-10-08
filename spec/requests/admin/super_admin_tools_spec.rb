@@ -13,6 +13,11 @@ RSpec.describe "Admin super admin tools", type: :request do
   # dashboard stops here, before the dashboard reads the queues.
   ReachedJobDashboard = Class.new(StandardError)
 
+  # PgHero reads pg_stat_statements, which the CI database does not preload. A
+  # failed read aborts the test transaction. So a request that gets to PgHero
+  # stops here, before PgHero reads the stats.
+  ReachedPgHero = Class.new(StandardError)
+
   before do
     stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar/releases/latest")
       .to_return(status: 200, body: { tag_name: "v0.0.0" }.to_json)
@@ -20,6 +25,7 @@ RSpec.describe "Admin super admin tools", type: :request do
     MissionControl::Jobs.applications.each do |application|
       application.servers.each { |server| allow(server).to receive(:activating).and_raise(ReachedJobDashboard) }
     end
+    allow_any_instance_of(PgHero::HomeController).to receive(:index).and_raise(ReachedPgHero) # rubocop:disable RSpec/AnyInstance
   end
 
   def open_tool(path)
@@ -53,7 +59,11 @@ RSpec.describe "Admin super admin tools", type: :request do
         expect { open_tool("/admin/jobs") }.to raise_error(ReachedJobDashboard)
       end
 
-      (TOOL_PATHS - [ "/admin/jobs" ]).each do |path|
+      it "gets to PgHero" do
+        expect { open_tool("/admin/pghero") }.to raise_error(ReachedPgHero)
+      end
+
+      (TOOL_PATHS - %w[/admin/jobs /admin/pghero]).each do |path|
         it "opens #{path}" do
           open_tool(path)
 

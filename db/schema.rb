@@ -552,18 +552,42 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100000) do
     t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
   end
 
+  create_table "friend_group_memberships", force: :cascade do |t|
+    t.bigint "friend_group_id", null: false
+    t.bigint "friendship_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["friend_group_id", "friendship_id"], name: "index_friend_group_memberships_on_group_and_friendship", unique: true
+    t.index ["friendship_id"], name: "index_friend_group_memberships_on_friendship_id"
+  end
+
+  create_table "friend_groups", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "user_id, lower((name)::text)", name: "index_friend_groups_on_user_id_and_lower_name", unique: true
+  end
+
   create_table "friendships", force: :cascade do |t|
     t.bigint "addressee_id", null: false
-    t.integer "addressee_visibility", default: 0, null: false
     t.datetime "created_at", null: false
     t.bigint "requester_id", null: false
-    t.integer "requester_visibility", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
+    t.integer "requester_visibility", default: 0, null: false
+    t.integer "addressee_visibility", default: 0, null: false
+    t.datetime "expires_at"
+    t.datetime "proposed_expires_at"
+    t.boolean "proposed_permanent", default: false, null: false
+    t.bigint "proposed_by_id"
     t.index "LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)", name: "index_friendships_on_unordered_pair", unique: true
     t.index ["addressee_id", "status"], name: "index_friendships_on_addressee_id_and_status"
+    t.index ["expires_at"], name: "index_friendships_on_expires_at", where: "(expires_at IS NOT NULL)"
+    t.index ["proposed_by_id"], name: "index_friendships_on_proposed_by_id"
     t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
     t.index ["requester_id", "status"], name: "index_friendships_on_requester_id_and_status"
+    t.check_constraint "proposed_by_id IS NULL AND proposed_expires_at IS NULL AND proposed_permanent = false OR proposed_by_id IS NOT NULL AND (proposed_expires_at IS NULL) = proposed_permanent", name: "friendships_expiry_proposal_shape"
   end
 
   create_table "oauth_access_grants", force: :cascade do |t|
@@ -949,6 +973,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100000) do
     t.index ["faculty_id", "rmp_legacy_id"], name: "index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id", unique: true
   end
 
+  create_table "term_processing_statuses", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "term_id", null: false
+    t.string "status", null: false
+    t.string "error_code"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["term_id"], name: "index_term_processing_statuses_on_term_id"
+    t.index ["user_id", "term_id"], name: "index_term_processing_statuses_on_user_id_and_term_id", unique: true
+  end
+
   create_table "terms", force: :cascade do |t|
     t.boolean "catalog_import_failed", default: false, null: false
     t.string "catalog_import_job_id"
@@ -1155,7 +1190,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100000) do
   add_foreign_key "final_exams", "terms"
   add_foreign_key "finals_schedules", "terms"
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
+  add_foreign_key "friend_group_memberships", "friend_groups", on_delete: :cascade
+  add_foreign_key "friend_group_memberships", "friendships", on_delete: :cascade
+  add_foreign_key "friend_groups", "users", on_delete: :cascade
   add_foreign_key "friendships", "users", column: "addressee_id"
+  add_foreign_key "friendships", "users", column: "proposed_by_id"
   add_foreign_key "friendships", "users", column: "requester_id"
   add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"
   add_foreign_key "oauth_access_grants", "users", column: "resource_owner_id"
@@ -1182,6 +1221,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100000) do
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
+  add_foreign_key "term_processing_statuses", "terms"
+  add_foreign_key "term_processing_statuses", "users"
   add_foreign_key "university_calendar_events", "terms"
   add_foreign_key "user_extension_configs", "users"
   add_foreign_key "user_sessions", "passkeys"

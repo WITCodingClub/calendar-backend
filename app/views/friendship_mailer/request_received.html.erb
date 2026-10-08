@@ -9,6 +9,10 @@
   Friends can see each other's class schedules.
 </p>
 
+<% if @friendship.temporary? %>
+  <p>This friendship ends on <%= @friendship.expires_at.to_date.to_fs(:long) %>.</p>
+<% end %>
+
 <p style="margin-top: 16px;">
   <a href="<%= @requests_url %>">Review the request</a>
 </p>

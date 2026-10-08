@@ -243,6 +243,42 @@ RSpec.describe "Friends availability-only sharing", type: :request do
     end
   end
 
+  describe "GET /api/friends" do
+    def listed_friend = json["friends"].find { |row| row["id"] == friend.public_id }
+
+    it "sends both levels for each friend while the flag is on" do
+      enable_flag
+      friendship.update_visibility_for!(viewer, :availability_only)
+
+      get "/api/friends", headers: headers
+
+      expect(response).to have_http_status(:ok)
+      expect(listed_friend["visibility"]).to eq("mine" => "availability_only", "theirs" => "full")
+    end
+
+    it "sends both levels while the flag is off and the friend shares only availability" do
+      friendship.update_visibility_for!(friend, :availability_only)
+
+      get "/api/friends", headers: headers
+
+      expect(listed_friend["visibility"]).to eq("mine" => "full", "theirs" => "availability_only")
+    end
+
+    it "sends a null visibility while the flag is off and the friend shares the full schedule" do
+      get "/api/friends", headers: headers
+
+      expect(listed_friend).to include("name" => friend.full_name, "visibility" => nil)
+    end
+
+    it "lists only accepted friends" do
+      create(:friendship, requester: create(:user), addressee: viewer)
+
+      get "/api/friends", headers: headers
+
+      expect(json["friends"].pluck("id")).to eq([ friend.public_id ])
+    end
+  end
+
   describe "GET /api/friends/:friend_id/visibility" do
     it "answers 404 while the flag is off" do
       get "/api/friends/#{friend.public_id}/visibility", headers: headers
