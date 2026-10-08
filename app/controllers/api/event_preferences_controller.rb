@@ -25,12 +25,12 @@ module Api
       ids = Array(params[:meeting_time_ids]).map(&:to_s).compact_blank.uniq
 
       if ids.empty?
-        render json: { error: "meeting_time_ids is required" }, status: :bad_request
+        render_error "meeting_time_ids is required", status: :bad_request
         return
       end
 
       if ids.size > MAX_BATCH_SIZE
-        render json: { error: "At most #{MAX_BATCH_SIZE} meeting_time_ids per request" }, status: :bad_request
+        render_error "At most #{MAX_BATCH_SIZE} meeting_time_ids per request", status: :bad_request
         return
       end
 
@@ -85,7 +85,8 @@ module Api
           notifications_disabled: fresh_resolver.notifications_disabled?
         }
       else
-        render json: { errors: preference.errors.full_messages }, status: :unprocessable_content
+        render_error preference.errors.full_messages.join(", "), status: :unprocessable_content,
+                     errors: preference.errors.full_messages
       end
     end
 
@@ -155,7 +156,7 @@ module Api
         # ownership here so another user's event id can't leak preference data.
         authorize @preferenceable, :show?
       else
-        render json: { error: "Preferenceable not specified" }, status: :bad_request
+        render_error "Preferenceable not specified", status: :bad_request
       end
     end
 

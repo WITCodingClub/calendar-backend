@@ -51,7 +51,7 @@ module Api
     def require_meeting_links
       return if Flipper.enabled?(FlipperFlags::MEETING_LINKS, current_user)
 
-      render json: { error: "Meeting links are not enabled" }, status: :not_found
+      render_error "Meeting links are not enabled", status: :not_found
     end
 
     def parse_date(value, name)

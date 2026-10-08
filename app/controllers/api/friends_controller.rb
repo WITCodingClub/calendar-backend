@@ -85,8 +85,7 @@ module Api
       authorize friendship, :update_expiry?
 
       unless params.key?(:expires_at)
-        render json: { error: "expires_at is required. Send null to make the friendship permanent." },
-               status: :bad_request
+        render_error "expires_at is required. Send null to make the friendship permanent.", status: :bad_request
         return
       end
 
@@ -131,7 +130,7 @@ module Api
       friendship = Friendship.accepted_between(current_user, friend_user)
 
       if friendship.nil?
-        render json: { error: "Friendship not found" }, status: :not_found
+        render_error "Friendship not found", status: :not_found
         return
       end
 
@@ -202,8 +201,8 @@ module Api
 
       level = params.require(:visibility).to_s
       unless Friendship.valid_visibility?(level)
-        render json: { error: "visibility must be one of: #{Friendship::VISIBILITIES.keys.join(", ")}" },
-               status: :unprocessable_content
+        render_error "visibility must be one of: #{Friendship::VISIBILITIES.keys.join(", ")}",
+                     status: :unprocessable_content
         return
       end
 
@@ -237,7 +236,7 @@ module Api
     def require_availability_only_flag
       return if Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
 
-      render json: { error: "Not found" }, status: :not_found
+      render_error "Not found", status: :not_found
     end
 
     # A read route works when the flag is on for the viewer. It also works when
@@ -248,7 +247,7 @@ module Api
       return true if Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
       return true unless friendship.full_schedule_visible_to?(current_user)
 
-      render json: { error: "Not found" }, status: :not_found
+      render_error "Not found", status: :not_found
       false
     end
 
@@ -271,7 +270,7 @@ module Api
     end
 
     def render_not_friends
-      render json: { error: "You are not friends with this user", code: "NOT_FRIENDS" }, status: :forbidden
+      render_error "You are not friends with this user", status: :forbidden, code: "NOT_FRIENDS"
     end
 
     # The friend's own setting decides. This check does not depend on any flag:
@@ -280,11 +279,10 @@ module Api
     def render_availability_only_unless_full(friendship)
       return false if policy(friendship).view_full_schedule?
 
-      render json: {
-        error:      "This friend shares only availability",
-        code:       "AVAILABILITY_ONLY",
-        visibility: "availability_only"
-      }, status: :forbidden
+      render_error "This friend shares only availability",
+                   status: :forbidden,
+                   code: "AVAILABILITY_ONLY",
+                   visibility: "availability_only"
       true
     end
 
@@ -300,8 +298,8 @@ module Api
       level = params[:visibility].to_s
       return level if Friendship.valid_visibility?(level)
 
-      render json: { error: "visibility must be one of: #{Friendship::VISIBILITIES.keys.join(", ")}" },
-             status: :unprocessable_content
+      render_error "visibility must be one of: #{Friendship::VISIBILITIES.keys.join(", ")}",
+                   status: :unprocessable_content
       nil
     end
 
@@ -310,12 +308,12 @@ module Api
       has_email = params[:friend_email].present?
 
       if has_id && has_email
-        render json: { error: "Provide either friend_id or friend_email, not both" }, status: :bad_request
+        render_error "Provide either friend_id or friend_email, not both", status: :bad_request
         return
       end
 
       unless has_id || has_email
-        render json: { error: "friend_id or friend_email is required" }, status: :bad_request
+        render_error "friend_id or friend_email is required", status: :bad_request
         return
       end
 
@@ -339,7 +337,7 @@ module Api
     end
 
     def render_friend_expiry_disabled
-      render json: { error: "Temporary friendships are not enabled" }, status: :not_found
+      render_error "Temporary friendships are not enabled", status: :not_found
     end
 
     def find_unexpired_friendship_or_request
@@ -347,7 +345,7 @@ module Api
       friendship  = Friendship.unexpired.between(current_user, friend_user).first
       return friendship if friendship
 
-      render json: { error: "Friendship not found" }, status: :not_found
+      render_error "Friendship not found", status: :not_found
       nil
     end
 
@@ -357,7 +355,7 @@ module Api
       expires_at = FriendshipExpiryTime.parse(params[:expires_at])
       return expires_at if expires_at
 
-      render json: { error: EXPIRES_AT_FORMAT_ERROR }, status: :bad_request
+      render_error EXPIRES_AT_FORMAT_ERROR, status: :bad_request
       nil
     end
 
@@ -365,13 +363,13 @@ module Api
       term_uid = params[:term_uid]
 
       if term_uid.blank?
-        render json: { error: "term_uid is required" }, status: :bad_request
+        render_error "term_uid is required", status: :bad_request
         return nil
       end
 
       term = Term.find_by(uid: term_uid)
       if term.nil?
-        render json: { error: "Term not found" }, status: :not_found
+        render_error "Term not found", status: :not_found
         return nil
       end
 

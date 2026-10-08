@@ -11,7 +11,7 @@ module Api
       courses = params[:courses] || params[:_json]
 
       if courses.blank?
-        render json: { error: "No courses provided" }, status: :bad_request
+        render_error "No courses provided", status: :bad_request
         return
       end
 
@@ -26,7 +26,7 @@ module Api
     rescue => e
       Rails.logger.error("Error processing courses: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
-      render json: { error: "Failed to process courses" }, status: :internal_server_error
+      render_error "Failed to process courses", status: :internal_server_error
     end
 
     # POST /api/process_courses/batch
@@ -41,13 +41,12 @@ module Api
       terms = params[:terms]
 
       unless terms.is_a?(Array) && terms.any?
-        render json: { error: "No terms provided" }, status: :bad_request
+        render_error "No terms provided", status: :bad_request
         return
       end
 
       if terms.size > CourseBatchProcessorService::MAX_TERMS
-        render json: { error: "A batch can have at most #{CourseBatchProcessorService::MAX_TERMS} terms" },
-               status: :bad_request
+        render_error "A batch can have at most #{CourseBatchProcessorService::MAX_TERMS} terms", status: :bad_request
         return
       end
 
@@ -67,7 +66,7 @@ module Api
       courses = params[:courses] || params[:_json]
 
       if courses.blank?
-        render json: { error: "No courses provided" }, status: :bad_request
+        render_error "No courses provided", status: :bad_request
         return
       end
 
@@ -82,10 +81,10 @@ module Api
         processed_courses:   result[:processed_courses]
       }, status: :ok
     rescue ArgumentError => e
-      render json: { error: e.message }, status: :bad_request
+      render_error e.message, status: :bad_request
     rescue => e
       Rails.logger.error("Error reprocessing courses: #{e.message}")
-      render json: { error: "Failed to reprocess courses" }, status: :internal_server_error
+      render_error "Failed to reprocess courses", status: :internal_server_error
     end
 
     private

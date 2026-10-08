@@ -24,7 +24,7 @@ RSpec.describe "Api::MeetingLinks", type: :request do
     post "/api/meeting_links", params: params, headers: headers, as: :json
 
     expect(response).to have_http_status(:not_found)
-    expect(response.parsed_body).to eq("error" => "Meeting links are not enabled")
+    expect(response.parsed_body).to eq("error" => "Meeting links are not enabled", "code" => "NOT_FOUND")
     expect(MeetingLink.count).to eq(0)
   end
 

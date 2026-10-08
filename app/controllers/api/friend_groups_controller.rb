@@ -106,14 +106,15 @@ module Api
     end
 
     def render_unknown_friends(error)
-      render json: { error: "Friend not found: #{error.ids.join(', ')}", invalid_member_ids: error.ids },
-             status: :unprocessable_content
+      render_error "Friend not found: #{error.ids.join(', ')}",
+                   status: :unprocessable_content,
+                   invalid_member_ids: error.ids
     end
 
     def require_friend_groups
       return if FriendGroup.enabled_for?(current_user)
 
-      render json: { error: "Friend groups are not enabled" }, status: :not_found
+      render_error "Friend groups are not enabled", status: :not_found
     end
 
     # Scoping to the user's own groups is the access check: another user's

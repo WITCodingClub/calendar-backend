@@ -6,17 +6,12 @@ module Api
     #
     # Everything under this controller is read-only course schedule data with no
     # user data of any kind, so no action calls authenticate_with_token, and
-    # responses get public cache headers. The rescue_from handlers below replace
-    # the ones in Api::BaseController: the StandardError handler is declared
-    # here, so it is checked before any handler of the parent class.
+    # responses get public cache headers. Errors use the format of
+    # Api::ErrorRendering, which docs/public-catalog-api.md documents.
     class PublicController < Api::BaseController
       CACHE_MAX_AGE = 1.hour
 
-      # Declared first. rescue_from tries the last handler first, so the
-      # specific handlers below still win.
-      rescue_from StandardError, with: :render_internal_error
-      rescue_from ::Catalog::FilterError, with: :render_bad_request
-      rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
+      rescue_from ::Catalog::FilterError, with: :render_invalid_filter
 
       private
 
@@ -34,22 +29,8 @@ module Api
         expires_in CACHE_MAX_AGE, public: true
       end
 
-      def render_bad_request(exception)
-        render json: { error: exception.message, code: "INVALID_FILTER" }, status: :bad_request
-      end
-
-      def render_not_found(exception = nil)
-        render json: { error: exception&.message || "Not found", code: "NOT_FOUND" }, status: :not_found
-      end
-
-      # An unexpected error still returns the documented error object, so a
-      # client can branch on the code. The message stays generic, and the
-      # details go to the log.
-      def render_internal_error(exception)
-        Rails.logger.error("Catalog API error: #{exception.class} - #{exception.message}")
-        Rails.error.report(exception)
-
-        render json: { error: "Internal server error", code: "INTERNAL_ERROR" }, status: :internal_server_error
+      def render_invalid_filter(exception)
+        render_error exception.message, status: :bad_request, code: "INVALID_FILTER"
       end
 
       # Page size is capped so one request cannot pull the whole catalog.

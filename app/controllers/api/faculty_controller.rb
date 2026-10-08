@@ -8,14 +8,14 @@ module Api
       rmp_id = params[:rmp_id]
 
       if rmp_id.blank?
-        render json: { error: "rmp_id parameter is required" }, status: :bad_request
+        render_error "rmp_id parameter is required", status: :bad_request
         return
       end
 
       faculty = Faculty.find_by(rmp_id: rmp_id)
 
       if faculty.nil?
-        render json: { error: "Faculty not found" }, status: :not_found
+        render_error "Faculty not found", status: :not_found
         return
       end
 
@@ -33,7 +33,7 @@ module Api
       }, status: :ok
     rescue => e
       Rails.logger.error("Error fetching RMP data for rmp_id #{rmp_id}: #{e.message}")
-      render json: { error: "Failed to fetch RMP data" }, status: :internal_server_error
+      render_error "Failed to fetch RMP data", status: :internal_server_error
     end
   end
 end

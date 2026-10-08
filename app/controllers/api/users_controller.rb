@@ -40,35 +40,34 @@ module Api
 
       if exchange_error
         Rails.logger.warn("Onboard code exchange failed: #{exchange_error}")
-        render json: { error: "Could not complete Google sign-in" }, status: :unauthorized
+        render_error "Could not complete Google sign-in", status: :unauthorized
         return
       end
 
       if access_token.blank?
-        render json: { error: "google_auth_code or google_access_token is required" }, status: :bad_request
+        render_error "google_auth_code or google_access_token is required", status: :bad_request
         return
       end
 
       verification = GoogleTokenVerifier.verify_access_token(access_token)
       unless verification.success?
         Rails.logger.warn("Onboard token verification failed: #{verification.error}")
-        render json: { error: "Invalid Google token" }, status: :unauthorized
+        render_error "Invalid Google token", status: :unauthorized
         return
       end
 
       unless verification.email_verified?
-        render json: { error: "Google has not verified this email address" }, status: :forbidden
+        render_error "Google has not verified this email address", status: :forbidden
         return
       end
 
       wit_email = verification.email
 
       unless User.wit_email?(wit_email)
-        render json: {
-          error: "Sign in with your @#{User::WIT_EMAIL_DOMAIN} Google account. " \
-                 "You can connect a personal Google account for calendar sync afterwards.",
-          code:  "WIT_ACCOUNT_REQUIRED"
-        }, status: :forbidden
+        render_error "Sign in with your @#{User::WIT_EMAIL_DOMAIN} Google account. " \
+                     "You can connect a personal Google account for calendar sync afterwards.",
+                     status: :forbidden,
+                     code: "WIT_ACCOUNT_REQUIRED"
         return
       end
 
@@ -80,7 +79,7 @@ module Api
     rescue => e
       Rails.logger.error("Error in onboarding user: #{e.message}")
       Rails.logger.error(e.backtrace.join("\n"))
-      render json: { error: "Failed to onboard user" }, status: :internal_server_error
+      render_error "Failed to onboard user", status: :internal_server_error
     end
 
     # POST /api/user/gcal
@@ -104,7 +103,7 @@ module Api
       end
     rescue => e
       Rails.logger.error("Error requesting Google Calendar for user #{current_user.id}: #{e.message}")
-      render json: { error: "Failed to request Google Calendar" }, status: :internal_server_error
+      render_error "Failed to request Google Calendar", status: :internal_server_error
     end
 
     # POST /api/user/gcal/add_email
@@ -112,12 +111,12 @@ module Api
       email = params[:email].to_s.strip
 
       if email.blank?
-        render json: { error: "email is required" }, status: :bad_request
+        render_error "email is required", status: :bad_request
         return
       end
 
       unless current_user.google_credential
-        render json: { error: "Complete Google OAuth for at least one email first." }, status: :unprocessable_content
+        render_error "Complete Google OAuth for at least one email first.", status: :unprocessable_content
         return
       end
 
@@ -136,7 +135,7 @@ module Api
       render json: { message: "Calendar shared with email", calendar_id: calendar_id }, status: :ok
     rescue => e
       Rails.logger.error("Error adding email to Google Calendar for user #{current_user.id}: #{e.message}")
-      render json: { error: "Failed to add email to Google Calendar" }, status: :internal_server_error
+      render_error "Failed to add email to Google Calendar", status: :internal_server_error
     end
 
     # DELETE /api/user/gcal/remove_email
@@ -144,14 +143,14 @@ module Api
       email = params[:email].to_s.strip
 
       if email.blank?
-        render json: { error: "email is required" }, status: :bad_request
+        render_error "email is required", status: :bad_request
         return
       end
 
       credential = current_user.oauth_credentials.find_by(email: email, provider: "google")
 
       if credential.nil?
-        render json: { error: "email not found or not associated with Google Calendar" }, status: :not_found
+        render_error "email not found or not associated with Google Calendar", status: :not_found
         return
       end
 
@@ -160,7 +159,7 @@ module Api
       course_calendar = current_user.google_credential&.course_calendar
 
       if course_calendar.nil?
-        render json: { error: "No Google Calendar found" }, status: :not_found
+        render_error "No Google Calendar found", status: :not_found
         return
       end
 
@@ -169,7 +168,7 @@ module Api
       render json: { message: "email removed from Google Calendar association" }, status: :ok
     rescue => e
       Rails.logger.error("Error removing email from Google Calendar for user #{current_user.id}: #{e.message}")
-      render json: { error: "Failed to remove email from Google Calendar" }, status: :internal_server_error
+      render_error "Failed to remove email from Google Calendar", status: :internal_server_error
     end
 
     # GET /api/user/id
@@ -218,7 +217,7 @@ module Api
       credential_id = params[:credential_id]
 
       if credential_id.blank?
-        render json: { error: "credential_id is required" }, status: :bad_request
+        render_error "credential_id is required", status: :bad_request
         return
       end
 
@@ -226,14 +225,14 @@ module Api
       credential = nil unless credential&.user_id == current_user.id
 
       if credential.nil?
-        render json: { error: "OAuth credential not found" }, status: :not_found
+        render_error "OAuth credential not found", status: :not_found
         return
       end
 
       authorize credential, :destroy?
 
       unless credential.removable?
-        render json: { error: "Cannot disconnect your last Google account." }, status: :unprocessable_content
+        render_error "Cannot disconnect your last Google account.", status: :unprocessable_content
         return
       end
 
@@ -241,7 +240,7 @@ module Api
       render json: { message: "OAuth credential disconnected successfully" }, status: :ok
     rescue => e
       Rails.logger.error("Error disconnecting OAuth credential for user #{current_user.id}: #{e.message}")
-      render json: { error: "Failed to disconnect OAuth credential" }, status: :internal_server_error
+      render_error "Failed to disconnect OAuth credential", status: :internal_server_error
     end
 
     # POST /api/user/is_processed
@@ -250,13 +249,13 @@ module Api
 
       term_uid = params[:term_uid]
       if term_uid.blank?
-        render json: { error: "term_uid is required" }, status: :bad_request
+        render_error "term_uid is required", status: :bad_request
         return
       end
 
       term = Term.find_by(uid: term_uid)
       if term.nil?
-        render json: { error: "Term not found" }, status: :not_found
+        render_error "Term not found", status: :not_found
         return
       end
 
@@ -271,13 +270,13 @@ module Api
 
       term_uid = params[:term_uid]
       if term_uid.blank?
-        render json: { error: "term_uid is required" }, status: :bad_request
+        render_error "term_uid is required", status: :bad_request
         return
       end
 
       term = Term.find_by(uid: term_uid)
       if term.nil?
-        render json: { error: "Term not found" }, status: :not_found
+        render_error "Term not found", status: :not_found
         return
       end
 
@@ -311,19 +310,19 @@ module Api
     def flag_is_enabled
       feature_name = params[:flag_name]
       if feature_name.blank?
-        render json: { error: "flag_name is required" }, status: :bad_request
+        render_error "flag_name is required", status: :bad_request
         return
       end
 
       feature_sym = feature_name.to_sym
       unless FlipperFlags::ALL_FLAGS.include?(feature_sym)
-        render json: { error: "Unknown feature flag", feature_name: feature_name }, status: :not_found
+        render_error "Unknown feature flag", status: :not_found, feature_name: feature_name
         return
       end
 
       flipper_key = FlipperFlags::MAP[feature_sym]
       if flipper_key.nil?
-        render json: { error: "Invalid flag mapping", feature_name: feature_name }, status: :unprocessable_content
+        render_error "Invalid flag mapping", status: :unprocessable_content, feature_name: feature_name
         return
       end
 
@@ -361,12 +360,12 @@ module Api
 
       if duration_provided
         if duration_seconds < 0
-          render json: { error: "Duration cannot be negative" }, status: :bad_request
+          render_error "Duration cannot be negative", status: :bad_request
           return
         end
 
         if duration_seconds > 100.years.to_i
-          render json: { error: "Duration cannot exceed 100 years" }, status: :bad_request
+          render_error "Duration cannot exceed 100 years", status: :bad_request
           return
         end
       end
@@ -384,7 +383,7 @@ module Api
       }, status: :ok
     rescue => e
       Rails.logger.error("Error disabling notifications for user #{current_user.id}: #{e.message}")
-      render json: { error: "Failed to disable notifications" }, status: :internal_server_error
+      render_error "Failed to disable notifications", status: :internal_server_error
     end
 
     # POST /api/user/notifications/enable
@@ -402,7 +401,7 @@ module Api
       }, status: :ok
     rescue => e
       Rails.logger.error("Error enabling notifications for user #{current_user.id}: #{e.message}")
-      render json: { error: "Failed to enable notifications" }, status: :internal_server_error
+      render_error "Failed to enable notifications", status: :internal_server_error
     end
 
     private
