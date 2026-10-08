@@ -43,15 +43,25 @@ class CourseDataSyncJob < ApplicationJob
     synced_count = 0
     error_count  = 0
 
+    # Courses in a term share buildings and rooms, so one Locations serves them
+    # all. Marks are sent once for each batch of courses, not once for each
+    # course. A deploy that stops the job mid-term then loses at most one batch.
+    @locations = MeetingTimesIngestService::Locations.new
+
     MeetingTimeChangeTrackable.with_enrollment_cache do
-      term.courses.includes(:meeting_times, meeting_times: { rooms: :building }).find_each(batch_size: 50) do |course|
-        if sync_course_data(course, term_uid)
-          synced_count += 1
+      term.courses.includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
+          .find_in_batches(batch_size: 50) do |courses|
+        CalendarSyncMarker.batch do
+          courses.each do |course|
+            if sync_course_data(course, term_uid)
+              synced_count += 1
+            end
+            sleep 0.1
+          rescue => e
+            error_count += 1
+            Rails.logger.error "[CourseDataSyncJob] Failed to sync course #{course.crn}: #{e.message}"
+          end
         end
-        sleep 0.1
-      rescue => e
-        error_count += 1
-        Rails.logger.error "[CourseDataSyncJob] Failed to sync course #{course.crn}: #{e.message}"
       end
     end
 
@@ -101,7 +111,9 @@ class CourseDataSyncJob < ApplicationJob
 
     touched_ids = MeetingTimesIngestService.call(
       course: course,
-      raw_meeting_times: MeetingTimesIngestService.normalize_leopard_web(raw)
+      raw_meeting_times: MeetingTimesIngestService.normalize_leopard_web(raw),
+      locations: @locations,
+      existing_meeting_times: course.meeting_times.to_a
     )
     return false if touched_ids.empty?
 

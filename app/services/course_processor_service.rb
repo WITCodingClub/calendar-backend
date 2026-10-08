@@ -55,6 +55,17 @@ class CourseProcessorService < ApplicationService
     existing_meeting_times = Course::MeetingTime.where(course_id: existing_course_ids)
                                                 .includes(:meeting_time_rooms)
                                                 .group_by(&:course_id)
+    existing_course_faculties = CourseFaculty.where(course_id: existing_course_ids).group_by(&:course_id)
+
+    # Banner is the authority on who teaches a section. The posted schedule
+    # is only a fallback for the rare section Banner answers with no
+    # faculty, and only when it carries a real address: a guessed
+    # first.last@wit.edu creates a second instructor who never matches the
+    # real record.
+    faculty_by_key = grouped_courses.each_with_object({}) do |(key, course_meetings), acc|
+      acc[key] = class_details[key][:faculty].presence || posted_faculty(course_meetings.first) if class_details[key]
+    end
+    faculty = FacultyIngestService.preload(faculty_by_key.values)
 
     # course_id => whether the course has any enrollment. Both change trackers
     # read it, so a save sends no EXISTS query.
@@ -79,14 +90,6 @@ class CourseProcessorService < ApplicationService
 
           schedule_type_match = detailed_course_info[:schedule_type].to_s.match(/\(([^)]+)\)/)
           meeting_times = meeting_times_by_key[key]
-
-          # Banner is the authority on who teaches a section. The posted schedule
-          # is only a fallback for the rare section Banner answers with no
-          # faculty, and only when it carries a real address: a guessed
-          # first.last@wit.edu creates a second instructor who never matches the
-          # real record.
-          faculty_data = detailed_course_info[:faculty].presence ||
-                         posted_faculty(course_meetings.first)
 
           start_date = nil
           end_date = nil
@@ -151,7 +154,12 @@ class CourseProcessorService < ApplicationService
             )
           )
 
-          FacultyIngestService.call(course: course, raw_faculty: faculty_data)
+          FacultyIngestService.call(
+            course: course,
+            raw_faculty: faculty_by_key[key],
+            faculty: faculty,
+            existing_course_faculties: existing_course_faculties.fetch(course.id, [])
+          )
 
           processed << [ course.id, term ]
           enrolled_terms << term

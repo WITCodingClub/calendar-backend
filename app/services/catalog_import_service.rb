@@ -20,7 +20,13 @@ class CatalogImportService < ApplicationService
 
     term_uids = unique_courses.map { |c| c["term"] || c["termEffective"] }.compact.uniq
 
-    missing = term_uids.reject { |uid| Term.exists?(uid: uid) }
+    # Load what every course shares once: the terms, the instructors, and the
+    # buildings and rooms as the courses name them (#729).
+    @terms = Term.where(uid: term_uids).index_by { |t| t.uid.to_s }
+    @faculty = FacultyIngestService.preload(unique_courses.map { |c| c["faculty"] || [] })
+    @locations = MeetingTimesIngestService::Locations.new
+
+    missing = term_uids.reject { |uid| @terms.key?(uid.to_s) }
     if missing.any?
       raise ArgumentError, "Terms not found in database: #{missing.join(', ')}. Create them before importing."
     end
@@ -44,7 +50,7 @@ class CatalogImportService < ApplicationService
     end
 
     term_uids.each do |term_uid|
-      term = Term.find_by(uid: term_uid)
+      term = @terms[term_uid.to_s]
       next unless term && processed_count > 0
 
       term.update!(
@@ -75,7 +81,7 @@ class CatalogImportService < ApplicationService
     crn = course_data["courseReferenceNumber"] || course_data["crn"]
     term_uid = course_data["term"] || course_data["termEffective"]
 
-    term = Term.find_by(uid: term_uid)
+    term = @terms[term_uid.to_s]
     unless term
       raise "Term with UID #{term_uid} not found. Please create the term first."
     end
@@ -181,7 +187,8 @@ class CatalogImportService < ApplicationService
     if meeting_times.any?
       kept_ids = MeetingTimesIngestService.call(
         course: course,
-        raw_meeting_times: meeting_times
+        raw_meeting_times: meeting_times,
+        locations: @locations
       )
 
       # Remove meeting times that no longer exist upstream (e.g. Banner changed a
@@ -194,7 +201,7 @@ class CatalogImportService < ApplicationService
 
     faculty_data = course_data["faculty"] || []
     if faculty_data.any?
-      FacultyIngestService.call(course: course, raw_faculty: faculty_data)
+      FacultyIngestService.call(course: course, raw_faculty: faculty_data, faculty: @faculty)
     else
       Rails.logger.warn("No faculty data found for course CRN #{crn}")
     end

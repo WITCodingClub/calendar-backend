@@ -156,6 +156,25 @@ RSpec.describe CourseProcessorService do
       expect(result.flat_map { |c| c[:meeting_times].pluck(:begin_time) }.uniq).to eq([ "9:00 AM" ])
     end
 
+    it "attaches each course's instructors without one query for each course" do
+      allow(LeopardWebService).to receive(:get_class_details) { |course_reference_number:, **|
+        details_for(course_reference_number).merge(
+          faculty: [
+            { "displayName" => "Shared Teacher", "emailAddress" => "shared@example.edu", "primaryIndicator" => true },
+            { "displayName" => "Teacher #{course_reference_number}", "emailAddress" => "t#{course_reference_number}@example.edu" }
+          ]
+        )
+      }
+      expect { Prosopite.scan { process! } }.not_to raise_error
+
+      # The second run finds every instructor and join row already saved.
+      expect { Prosopite.scan { process! } }.not_to raise_error
+
+      expect(Course.where(crn: crns).map { |c| c.faculties.map(&:email) })
+        .to all(include("shared@example.edu"))
+      expect(Faculty.where(email: "shared@example.edu").count).to eq(1)
+    end
+
     it "writes nothing when one course names an unknown term" do
       courses_payload << { crn: "44444", term: "209910", courseNumber: "2000" }
 
