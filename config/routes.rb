@@ -77,8 +77,11 @@ Rails.application.routes.draw do
         get "subjects",         to: "subjects#index"
         get "sections",         to: "sections#index"
         get "sections/:crn",    to: "sections#show", as: :section, constraints: { crn: /\d+/ }
+        get "sections/:crn/similar", to: "sections#similar", as: :similar_sections, constraints: { crn: /\d+/ }
+        get "reviews",          to: "reviews#index"
         get "instructors",      to: "instructors#index"
         get "instructors/:pub_id", to: "instructors#show", as: :instructor
+        get "instructors/:pub_id/similar", to: "instructors#similar", as: :similar_instructors
       end
     end
   end
@@ -157,6 +160,8 @@ Rails.application.routes.draw do
       collection { post :preview }
     end
 
+    get "user/preferences/version", to: "preference_versions#show"
+
     # Per-event preferences (meeting time or calendar event)
     post "meeting_times/preferences", to: "event_preferences#batch_show"
     resources :meeting_times, only: [] do
@@ -186,6 +191,7 @@ Rails.application.routes.draw do
   authenticate :user do
     namespace :dashboard do
       root to: "overview#index"
+      resource  :onboarding,           only: [ :show ], controller: "onboarding"
       resource  :schedule,             only: [ :show ]
       resources :calendar_preferences, only: [ :index, :update ] do
         patch :university_events, on: :collection
@@ -294,11 +300,16 @@ Rails.application.routes.draw do
       get  "service_account/authorize", to: "service_account#authorize", as: :service_account_authorize
       post "service_account/revoke",    to: "service_account#revoke",    as: :service_account_revoke
 
-      mount MissionControl::Jobs::Engine, at: "jobs"
-      mount Flipper::UI.app(Flipper) { |builder| builder.use FlipperUserActorAdapter::UnknownActorRedirect }, at: "flipper"
-      mount Blazer::Engine,               at: "blazer"
-      mount PgHero::Engine,               at: "pghero"
-      mount Audits1984::Engine,           at: "audits"
+      # These tools can run jobs, change flags, read any row, or show console
+      # sessions, so they need a super admin. Other admins get the fallback
+      # below, which sends them away.
+      constraints SuperAdminConstraint.new do
+        mount MissionControl::Jobs::Engine, at: "jobs"
+        mount Flipper::UI.app(Flipper) { |builder| builder.use FlipperUserActorAdapter::UnknownActorRedirect }, at: "flipper"
+        mount Blazer::Engine,               at: "blazer"
+        mount PgHero::Engine,               at: "pghero"
+        mount Audits1984::Engine,           at: "audits"
+      end
     end
   end
 

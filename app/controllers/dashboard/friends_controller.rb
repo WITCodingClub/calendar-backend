@@ -3,6 +3,12 @@
 class Dashboard::FriendsController < Dashboard::ApplicationController
   include ScheduleLoading
 
+  # FriendshipMailer links to the requests page. A user with no processed
+  # courses must be able to answer a request from that email (#644), so the
+  # requests page and its actions skip the onboarding gate. The friends list
+  # and a friend's schedule stay gated.
+  skip_before_action :require_processed_courses, only: %i[requests accept decline]
+
   def index
     authorize current_user, :show?
 
@@ -90,24 +96,24 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     authorize current_user, :update?
 
     fr = current_user.incoming_friend_requests.find_by(id: params[:id])
-    return redirect_to dashboard_friends_path, alert: "Request not found." unless fr
+    return redirect_to friend_requests_return_path, alert: "Request not found." unless fr
 
     level = requested_visibility
     return redirect_to dashboard_friends_path, alert: "Choose a valid sharing level." if level == false
 
     fr.addressee_visibility = level if level
     fr.accepted!
-    redirect_to dashboard_friends_path, notice: "#{fr.requester.first_name} added as a friend."
+    redirect_to friend_requests_return_path, notice: "#{fr.requester.first_name} added as a friend."
   end
 
   def decline
     authorize current_user, :update?
 
     fr = current_user.incoming_friend_requests.find_by(id: params[:id])
-    return redirect_to dashboard_friends_path, alert: "Request not found." unless fr
+    return redirect_to friend_requests_return_path, alert: "Request not found." unless fr
 
     fr.destroy!
-    redirect_to dashboard_friends_path, notice: "Request declined."
+    redirect_to friend_requests_return_path, notice: "Request declined."
   end
 
   def destroy

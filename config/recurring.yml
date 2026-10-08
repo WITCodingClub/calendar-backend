@@ -59,6 +59,13 @@ production:
     queue: low
     schedule: every day at 4:30am
 
+  # Embeds the sections the catalog sync just wrote, and any instructor or
+  # review text that changed. Text that did not change never reaches the API.
+  backfill_embeddings:
+    class: BackfillEmbeddingsJob
+    queue: low
+    schedule: every day at 4:45am
+
   cleanup_orphaned_calendar_events:
     class: CleanupOrphanedCalendarEventsJob
     queue: low

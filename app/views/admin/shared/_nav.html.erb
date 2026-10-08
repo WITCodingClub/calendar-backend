@@ -1,0 +1,29 @@
+<%# The section links. The desktop sidebar and the small-screen drawer both
+    render this partial, so they always list the same sections. %>
+<nav aria-label="Admin sections" class="flex-1 overflow-y-auto px-3 py-3 space-y-5">
+  <% categories.each do |category| %>
+    <div>
+      <p class="px-3 mb-1 text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider"><%= category[:title] %></p>
+      <ul class="space-y-0.5">
+        <% category[:items].each do |item| %>
+          <% path = admin_nav_path(item) %>
+          <% active = !item[:external] && admin_nav_active?(path) %>
+          <li>
+            <%= link_to path,
+                target: ("_blank" if item[:external]),
+                rel: ("noopener" if item[:external]),
+                "aria-current": ("page" if active),
+                class: [
+                  "flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors",
+                  active ? "bg-primary-container text-on-primary-container font-semibold" : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                ] do %>
+              <%= admin_icon(item[:icon] || :chevron_right, css_class: "w-5 h-5 shrink-0") %>
+              <span class="truncate"><%= item[:title] %></span>
+              <%= render "shared/new_tab_icon" if item[:external] %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+</nav>

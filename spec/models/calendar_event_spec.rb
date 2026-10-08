@@ -7,6 +7,7 @@
 #  id                           :bigint           not null, primary key
 #  end_time                     :datetime
 #  event_data_hash              :string
+#  external_ical_uid            :string
 #  last_synced_at               :datetime
 #  location                     :string
 #  recurrence                   :text
@@ -15,28 +16,28 @@
 #  user_edited_fields           :jsonb
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
+#  calendar_id                  :bigint           not null
+#  external_event_id            :string           not null
 #  final_exam_id                :bigint
-#  external_calendar_id           :bigint           not null
-#  external_event_id              :string           not null
 #  meeting_time_id              :bigint
 #  university_calendar_event_id :bigint
 #
 # Indexes
 #
-#  idx_gcal_events_unique_final_exam                             (external_calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
-#  idx_gcal_events_unique_meeting_time                           (external_calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
-#  idx_gcal_events_unique_university                             (external_calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
-#  idx_on_external_calendar_id_meeting_time_id                     (external_calendar_id,meeting_time_id)
+#  idx_calendar_events_on_calendar_id_meeting_time_id     (calendar_id,meeting_time_id)
+#  idx_calendar_events_unique_final_exam                  (calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
+#  idx_calendar_events_unique_meeting_time                (calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
+#  idx_calendar_events_unique_university                  (calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
+#  index_calendar_events_on_external_event_id             (external_event_id)
+#  index_calendar_events_on_external_ical_uid             (external_ical_uid)
 #  index_calendar_events_on_final_exam_id                 (final_exam_id)
-#  index_calendar_events_on_external_calendar_id            (external_calendar_id)
-#  index_calendar_events_on_external_event_id               (external_event_id)
 #  index_calendar_events_on_last_synced_at                (last_synced_at)
 #  index_calendar_events_on_meeting_time_id               (meeting_time_id)
 #  index_calendar_events_on_university_calendar_event_id  (university_calendar_event_id)
 #
 # Foreign Keys
 #
-#  fk_rails_...  (external_calendar_id => course_calendars.id)
+#  fk_rails_...  (calendar_id => calendars.id)
 #  fk_rails_...  (meeting_time_id => course_meeting_times.id)
 #
 

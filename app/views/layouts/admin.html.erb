@@ -11,61 +11,52 @@
   <%= javascript_importmap_tags %>
 </head>
 <%# The sidebar and command palette controllers live on body so the header
-    buttons, the small-screen overlay, and the palette are all in their scope. %>
+    buttons, the small-screen drawer, and the palette are all in their scope. %>
 <body class="h-full bg-surface text-on-surface"
       data-controller="admin-sidebar command-palette"
       data-action="keydown.esc@window->admin-sidebar#close turbo:before-cache@document->admin-sidebar#close">
   <%# Cloudflare Email Obfuscation turns addresses into "[email protected]" and
       only decodes them on a full page load. Admins need the real addresses. %>
   <!--email_off-->
-  <%= render "shared/flash_messages" %>
+  <a href="#admin-main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded-full focus:bg-primary focus:text-on-primary">Skip to content</a>
   <%= render "shared/command_palette" %>
+  <%= render "admin/shared/sidebar" %>
 
-  <div class="flex h-full min-h-screen">
-    <%= render "shared/admin_sidebar" %>
+  <div class="min-h-full flex flex-col lg:pl-64">
+    <header class="sticky top-0 z-20 h-14 flex items-center gap-2 sm:gap-3 px-3 sm:px-6 border-b border-outline-variant bg-surface-container/95 backdrop-blur">
+      <button type="button"
+              class="lg:hidden p-2 -ml-1 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
+              aria-label="Open navigation"
+              data-action="click->admin-sidebar#open">
+        <%= admin_icon(:menu, css_class: "w-6 h-6") %>
+      </button>
 
-    <!-- Main content -->
-    <div class="flex-1 flex flex-col min-w-0 lg:ml-64">
-      <!-- Top bar -->
-      <header class="sticky top-0 z-20 bg-surface-container border-b border-outline-variant px-4 py-3 flex items-center justify-between">
-        <!-- Mobile menu button -->
-        <button type="button"
-                class="lg:hidden p-2 rounded-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
-                aria-label="Open navigation"
-                data-action="click->admin-sidebar#open">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+      <button type="button"
+              class="flex-1 sm:flex-none sm:w-72 flex items-center gap-2 px-3 py-1.5 text-sm text-on-surface-variant border border-outline-variant rounded-full hover:bg-surface-container-high transition"
+              aria-label="Search admin pages"
+              data-action="click->command-palette#open">
+        <%= admin_icon(:search, css_class: "w-4 h-4 shrink-0") %>
+        <span class="flex-1 text-left">Search…</span>
+        <kbd class="hidden sm:inline text-xs bg-surface-container-high px-1.5 py-0.5 rounded border border-outline-variant">⌘K</kbd>
+      </button>
 
-        <!-- Command palette trigger -->
-        <button type="button"
-                class="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-on-surface-variant border border-outline-variant rounded-lg hover:bg-surface-container-high transition"
-                data-action="click->command-palette#open">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <span>Search...</span>
-          <kbd class="text-xs bg-surface-container-high px-1.5 py-0.5 rounded border border-outline-variant">⌘K</kbd>
-        </button>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="hidden md:block text-sm text-on-surface font-medium truncate max-w-48"><%= current_user&.full_name %></span>
+        <%= link_to destroy_user_session_path,
+            data: { turbo_method: :delete },
+            class: "flex items-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-full text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition" do %>
+          <%= admin_icon(:logout, css_class: "w-5 h-5 sm:w-4 sm:h-4") %>
+          <span class="sr-only sm:not-sr-only">Sign out</span>
+        <% end %>
+      </div>
+    </header>
 
-        <!-- User info + sign out -->
-        <div class="flex items-center gap-3">
-          <span class="text-sm text-on-surface font-medium"><%= current_user&.full_name %></span>
-          <%= link_to "Sign out",
-              destroy_user_session_path,
-              data: { turbo_method: :delete },
-              class: "text-sm text-on-surface-variant hover:text-primary transition" %>
-        </div>
-      </header>
+    <main id="admin-main" class="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <%= render "admin/shared/flash" %>
+      <%= yield %>
+    </main>
 
-      <!-- Page content -->
-      <main class="flex-1 p-6 overflow-x-auto">
-        <%= yield %>
-      </main>
-
-      <%= render "shared/version_footer" %>
-    </div>
+    <%= render "shared/version_footer" %>
   </div>
   <!--/email_off-->
 </body>

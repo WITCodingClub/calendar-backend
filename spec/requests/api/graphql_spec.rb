@@ -204,6 +204,120 @@ RSpec.describe "Api::Graphql", type: :request do
     end
   end
 
+  describe "reviews" do
+    let!(:group_work) do
+      create(:rmp_rating, faculty: ada, course_name: "COMP1050", clarity_rating: 5,
+                          rating_tags: "Group projects--Caring", comment: "Lots of group projects.",
+                          rating_date: 2.days.ago)
+    end
+
+    let!(:tough_exams) do
+      create(:rmp_rating, faculty: ada, clarity_rating: 2, comment: "The exams are brutal.",
+                          rating_date: 1.day.ago)
+    end
+
+    it "returns reviews with their instructor and their source" do
+      result = gql('{ reviews(first: 10) { totalCount nodes { comment tags source instructor { name } } } }')
+
+      expect(result["errors"]).to be_nil
+      expect(result["data"]["reviews"]["totalCount"]).to eq(2)
+
+      newest = result["data"]["reviews"]["nodes"].first
+      expect(newest["comment"]).to eq("The exams are brutal.")
+      expect(newest["source"]).to eq("ratemyprofessors.com")
+      expect(newest["instructor"]["name"]).to eq("Ada Byron")
+    end
+
+    it "keeps one instructor's reviews" do
+      create(:rmp_rating, faculty: grace, comment: "Someone else's class.")
+
+      result = gql("{ reviews(instructor: \"#{ada.public_id}\", first: 10) { totalCount } }")
+
+      expect(result["data"]["reviews"]["totalCount"]).to eq(2)
+    end
+
+    it "splits the tags Rate My Professors joins together" do
+      result = gql('{ reviews(sentiment: "positive", first: 10) { nodes { tags } } }')
+
+      expect(result["data"]["reviews"]["nodes"].first["tags"]).to eq([ "Group projects", "Caring" ])
+    end
+
+    it "reports an unknown instructor as a GraphQL error" do
+      result = gql('{ reviews(instructor: "fac_nobody", first: 10) { totalCount } }')
+
+      expect(result["errors"].first["message"]).to match(/Unknown instructor/)
+    end
+
+    it "ranks by meaning when asked", :semantic_search do
+      give_embedding(group_work, 0.05)
+      give_embedding(tough_exams, 0.95)
+      stub_openai_embeddings([ embedding_vector(0.0) ])
+
+      result = gql('{ reviews(q: "team assignments", semantic: true, first: 10) { nodes { comment } } }')
+
+      expect(result["data"]["reviews"]["nodes"].map { |r| r["comment"] })
+        .to eq([ "Lots of group projects.", "The exams are brutal." ])
+    end
+  end
+
+  describe "similar" do
+    it "returns the sections closest to one section" do
+      give_embedding(comp1000, 0.00)
+      give_embedding(comp2000, 0.10)
+      give_embedding(math1750, 0.90)
+
+      result = gql("{ section(crn: 10001) { similar(limit: 5) { crn } } }")
+
+      expect(result["errors"]).to be_nil
+      expect(result["data"]["section"]["similar"].map { |s| s["crn"] }).to eq([ 10_002 ])
+    end
+
+    it "returns the instructors closest to one instructor" do
+      give_embedding(ada, 0.00)
+      give_embedding(grace, 0.10)
+
+      result = gql("{ instructors(q: \"byron\", first: 1) { nodes { similar { name } } } }")
+
+      expect(result["data"]["instructors"]["nodes"].first["similar"].map { |i| i["name"] }).to eq([ "Grace Hop" ])
+    end
+
+    it "is empty for a section with no vector" do
+      result = gql("{ section(crn: 10001) { similar { crn } } }")
+
+      expect(result["data"]["section"]["similar"]).to be_empty
+    end
+  end
+
+  describe "semantic search", :semantic_search do
+    before { stub_openai_embeddings([ embedding_vector(0.0) ]) }
+
+    it "ranks sections by meaning" do
+      give_embedding(comp1000, 0.05)
+      give_embedding(math1750, 0.95)
+
+      result = gql('{ sections(filter: { q: "learn to program", semantic: true }, first: 10) { nodes { crn } } }')
+
+      expect(result["errors"]).to be_nil
+      expect(result["data"]["sections"]["nodes"].map { |n| n["crn"] }).to eq([ 10_001, 20_001 ])
+    end
+
+    it "ranks instructors by meaning" do
+      give_embedding(ada, 0.05)
+      give_embedding(grace, 0.95)
+
+      result = gql('{ instructors(q: "teaches computing", semantic: true, first: 10) { nodes { name } } }')
+
+      expect(result["data"]["instructors"]["nodes"].map { |n| n["name"] }).to eq([ "Ada Byron", "Grace Hop" ])
+    end
+
+    it "falls back to the literal match when semantic is not asked for" do
+      result = gql('{ instructors(q: "byron", first: 10) { nodes { name } } }')
+
+      expect(result["data"]["instructors"]["nodes"].map { |n| n["name"] }).to eq([ "Ada Byron" ])
+      expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+    end
+  end
+
   describe "errors" do
     it "rejects an invalid enum value at validation time" do
       result = gql('{ sections(filter: { meetsOn: [FUNDAY] }) { totalCount } }')

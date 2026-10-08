@@ -92,6 +92,39 @@ RSpec.describe RateMyProfessorService, type: :service do
     end
   end
 
+  context "with a real cache store" do
+    before { allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new) }
+
+    it "serves the second teacher lookup from the cache" do
+      stub_graphql("TeacherRatingsPageQuery", fixture: "teacher_details.json")
+
+      2.times { service.get_teacher_details("VGVhY2hlci0xMjM0NTY=") }
+
+      expect(WebMock).to have_requested(:post, base_url).once
+    end
+
+    it "sends the request again and overwrites the cache when force is true" do
+      stub_graphql("TeacherRatingsPageQuery", body: { data: { node: { firstName: "Old" } } }.to_json)
+      service.get_teacher_details("VGVhY2hlci0xMjM0NTY=")
+      stub_graphql("TeacherRatingsPageQuery", fixture: "teacher_details.json")
+
+      service.get_teacher_details("VGVhY2hlci0xMjM0NTY=", force: true)
+      cached = service.get_teacher_details("VGVhY2hlci0xMjM0NTY=")
+
+      expect(cached.dig("data", "node", "firstName")).to eq("Ada")
+      expect(WebMock).to have_requested(:post, base_url).twice
+    end
+
+    it "fetches every ratings page again when force is true" do
+      stub_graphql("RatingsListQuery", fixture: "ratings_empty.json")
+      service.get_all_ratings("VGVhY2hlci0xMjM0NTY=")
+
+      service.get_all_ratings("VGVhY2hlci0xMjM0NTY=", force: true)
+
+      expect(WebMock).to have_requested(:post, base_url).twice
+    end
+  end
+
   describe "#get_ratings" do
     it "returns one page of ratings" do
       stub_graphql("RatingsListQuery", fixture: "ratings_page1.json")

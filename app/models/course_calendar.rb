@@ -18,9 +18,9 @@
 #
 # Indexes
 #
-#  index_calendars_on_last_synced_at                        (last_synced_at)
-#  index_calendars_on_oauth_credential_id_unique            (oauth_credential_id) UNIQUE
-#  index_calendars_on_provider_and_external_calendar_id     (provider,external_calendar_id) UNIQUE
+#  index_calendars_on_last_synced_at                     (last_synced_at)
+#  index_calendars_on_oauth_credential_id_unique         (oauth_credential_id) UNIQUE
+#  index_calendars_on_provider_and_external_calendar_id  (provider,external_calendar_id) UNIQUE
 #
 # Foreign Keys
 #
@@ -63,6 +63,10 @@ class CourseCalendar < ApplicationRecord
   # Set when the remote calendar was already deleted, or cannot be deleted
   # later, so destroying the row does not enqueue a delete job.
   attr_accessor :skip_remote_deletion
+
+  # The nightly job syncs every calendar every six hours. A calendar with no
+  # sync for a day has missed four runs, so the admin pages flag it.
+  STALE_AFTER = 1.day
 
   scope :for_user, ->(user) { joins(:oauth_credential).where(oauth_credentials: { user_id: user.id }) }
   scope :stale, ->(time_ago = 1.hour) { where("last_synced_at IS NULL OR last_synced_at < ?", time_ago.ago) }

@@ -1,0 +1,11 @@
+<%# The validation errors of a record, above its form. %>
+<% if record.errors.any? %>
+  <div role="alert" class="mb-6 px-4 py-3 rounded-xl bg-error-container text-on-error-container text-sm">
+    <p class="font-semibold"><%= pluralize(record.errors.count, "error") %> stopped the save:</p>
+    <ul class="mt-1 list-disc list-inside">
+      <% record.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>

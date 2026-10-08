@@ -43,6 +43,18 @@ module Types
           description: "Faculty who teach at least one section" do
       argument :term_uid, Integer, required: false
       argument :q, String, required: false
+      argument :semantic, Boolean, required: false, default_value: false,
+               description: "Rank q by meaning instead of by the literal name"
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE
+    end
+
+    field :reviews, ReviewType.connection_type, null: false,
+          description: "Rate My Professors reviews of WIT instructors" do
+      argument :instructor, String, required: false, description: "An instructor public id"
+      argument :q, String, required: false, description: "Free text over the comment and the course"
+      argument :semantic, Boolean, required: false, default_value: false,
+               description: "Rank q by meaning instead of by the literal words"
+      argument :sentiment, String, required: false, description: "\"positive\" or \"negative\""
       directive Directives::ListSize, **CONNECTION_LIST_SIZE
     end
 
@@ -80,7 +92,14 @@ module Types
       ::Catalog::SectionQuery.with_associations(relation).first
     end
 
-    def instructors(term_uid: nil, q: nil)
+    def reviews(instructor: nil, q: nil, semantic: false, sentiment: nil)
+      filters  = { instructor: instructor, q: q, semantic: semantic, sentiment: sentiment }.compact
+      relation = ::Catalog::ReviewQuery.new.call(**filters)
+
+      ::Catalog::ReviewQuery.with_associations(relation)
+    end
+
+    def instructors(term_uid: nil, q: nil, semantic: false)
       scope = Faculty.where(id: Faculty.joins(:courses).select("faculties.id"))
                      .includes(:rating_distribution)
 
@@ -92,15 +111,16 @@ module Types
         )
       end
 
-      if q.present?
-        query = "%#{ActiveRecord::Base.sanitize_sql_like(q.strip)}%"
-        scope = scope.where(
-          "faculties.first_name ILIKE :q OR faculties.last_name ILIKE :q OR faculties.display_name ILIKE :q",
-          q: query
-        )
-      end
+      return scope.order(:last_name, :first_name) if q.blank?
 
-      scope.order(:last_name, :first_name)
+      ranked = semantic ? ::Catalog::SemanticSearch.ranked_scope(scope, q) : nil
+      return ranked if ranked
+
+      query = "%#{ActiveRecord::Base.sanitize_sql_like(q.strip)}%"
+      scope.where(
+        "faculties.first_name ILIKE :q OR faculties.last_name ILIKE :q OR faculties.display_name ILIKE :q",
+        q: query
+      ).order(:last_name, :first_name)
     end
 
     private

@@ -4,6 +4,8 @@ module Api
   module V1
     module Catalog
       # GET /api/v1/catalog/instructors
+      # GET /api/v1/catalog/instructors/:pub_id
+      # GET /api/v1/catalog/instructors/:pub_id/similar
       class InstructorsController < Api::V1::PublicController
         def index
           page, per_page = pagination
@@ -16,7 +18,7 @@ module Api
           scope = apply_search(scope)
 
           total  = scope.count
-          people = scope.order(:last_name, :first_name).page(page).per(per_page)
+          people = scope.page(page).per(per_page)
 
           render_collection(
             people.map { |faculty| ::Catalog::InstructorSerializer.new(faculty).as_json },
@@ -30,13 +32,35 @@ module Api
         end
 
         def show
-          faculty = Faculty.includes(:rating_distribution).find_by_public_id(params[:pub_id])
-          raise ActiveRecord::RecordNotFound, "No instructor #{params[:pub_id]}" if faculty.nil?
+          render_resource(::Catalog::InstructorSerializer.new(find_instructor).as_json)
+        end
 
-          render_resource(::Catalog::InstructorSerializer.new(faculty).as_json)
+        # Instructors who teach something close to what this one teaches. The
+        # list is empty until the instructor has a vector, which the nightly
+        # backfill writes.
+        def similar
+          faculty = find_instructor
+          people  = faculty.similar_instructors(limit: similar_limit).includes(:rating_distribution)
+
+          render_collection(
+            people.map { |person| ::Catalog::InstructorSerializer.new(person).as_json },
+            meta: { pub_id: faculty.public_id, limit: similar_limit }
+          )
         end
 
         private
+
+        def find_instructor
+          faculty = Faculty.includes(:rating_distribution).find_by_public_id(params[:pub_id])
+          raise ActiveRecord::RecordNotFound, "No instructor #{params[:pub_id]}" if faculty.nil?
+
+          faculty
+        end
+
+        def similar_limit
+          @similar_limit ||= (params[:limit].presence&.to_i || Embeddable::DEFAULT_SIMILAR_LIMIT)
+                            .clamp(1, Embeddable::MAX_SIMILAR_LIMIT)
+        end
 
         def faculty_ids_for_term
           Faculty.joins(:courses)
@@ -44,14 +68,20 @@ module Api
                  .select("faculties.id")
         end
 
+        # Ranks by meaning when the caller asks for it, and by the literal
+        # words otherwise. A semantic search that cannot reach the API falls
+        # back to the name match rather than failing.
         def apply_search(scope)
-          return scope if params[:q].blank?
+          return scope.order(:last_name, :first_name) if params[:q].blank?
+
+          ranked = ::Catalog::SemanticSearch.ranked_scope(scope, params[:q]) if boolean_param(:semantic)
+          return ranked if ranked
 
           query = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q].to_s.strip)}%"
           scope.where(
             "faculties.first_name ILIKE :q OR faculties.last_name ILIKE :q OR faculties.display_name ILIKE :q",
             q: query
-          )
+          ).order(:last_name, :first_name)
         end
       end
     end

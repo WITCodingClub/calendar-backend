@@ -170,6 +170,81 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
     end
   end
 
+  describe "GET /api/v1/catalog/sections/:crn/similar" do
+    before do
+      give_embedding(comp1000, 0.00)
+      give_embedding(comp2000, 0.10)
+      give_embedding(comp2000b, 0.11)
+      give_embedding(math1750, 0.90)
+    end
+
+    it "returns the closest sections of the same term, nearest first" do
+      get "/api/v1/catalog/sections/10001/similar"
+
+      expect(response).to have_http_status(:ok)
+      expect(crns).to eq([ 10_002, 10_003 ])
+      expect(json["meta"]).to eq("crn" => 10_001, "limit" => 10)
+    end
+
+    it "honours the limit" do
+      get "/api/v1/catalog/sections/10001/similar", params: { limit: 1 }
+
+      expect(crns).to eq([ 10_002 ])
+      expect(json["meta"]["limit"]).to eq(1)
+    end
+
+    it "caps the limit" do
+      get "/api/v1/catalog/sections/10001/similar", params: { limit: 5000 }
+
+      expect(json["meta"]["limit"]).to eq(50)
+    end
+
+    it "returns an empty list for a section with no vector" do
+      comp1000.update_columns(embedding: nil, embedding_digest: nil) # rubocop:disable Rails/SkipsModelValidations
+
+      get "/api/v1/catalog/sections/10001/similar"
+
+      expect(response).to have_http_status(:ok)
+      expect(json["data"]).to be_empty
+    end
+
+    it "returns 404 for a CRN that does not exist" do
+      get "/api/v1/catalog/sections/99999/similar"
+
+      expect(response).to have_http_status(:not_found)
+      expect(json["code"]).to eq("NOT_FOUND")
+    end
+  end
+
+  describe "semantic search", :semantic_search do
+    before do
+      give_embedding(comp1000, 0.05)
+      give_embedding(math1750, 0.95)
+      stub_openai_embeddings([ embedding_vector(0.0) ])
+    end
+
+    it "ranks the sections that mean what the query means" do
+      get "/api/v1/catalog/sections", params: { q: "learn to program", semantic: "true" }
+
+      expect(response).to have_http_status(:ok)
+      expect(crns).to eq([ 10_001, 20_001 ])
+      expect(json["meta"]["total_count"]).to eq(2)
+    end
+
+    it "reports the filters it used" do
+      get "/api/v1/catalog/sections", params: { q: "learn to program", semantic: "true" }
+
+      expect(json["meta"]["filters"]).to include("q" => "learn to program", "semantic" => "true")
+    end
+
+    it "searches the literal words when semantic is not asked for" do
+      get "/api/v1/catalog/sections", params: { q: "Course 1000" }
+
+      expect(crns).to eq([ 10_001 ])
+      expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+    end
+  end
+
   describe "pagination" do
     it "honours page and per_page" do
       get "/api/v1/catalog/sections", params: { page: 2, per_page: 2 }

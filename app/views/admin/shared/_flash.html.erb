@@ -1,0 +1,20 @@
+<%# Flash messages at the top of the admin page. Errors stay until closed;
+    other messages close after eight seconds. %>
+<% messages = flash.to_hash.select { |_type, message| message.is_a?(String) && message.present? } %>
+<% if messages.any? %>
+  <div id="admin-flash" class="space-y-2 mb-6">
+    <% messages.each do |type, message| %>
+      <% style = admin_flash_style(type) %>
+      <div role="<%= style[:role] %>"
+           class="flex items-start gap-3 px-4 py-3 rounded-xl text-sm <%= AdminHelper::BADGE_TONES.fetch(style[:tone]) %>"
+           data-controller="flash-message"
+           data-flash-message-timeout-value="<%= style[:timeout] %>">
+        <%= admin_icon(style[:icon], css_class: "w-5 h-5 shrink-0") %>
+        <p class="flex-1"><%= message %></p>
+        <button type="button" class="shrink-0 opacity-70 hover:opacity-100" aria-label="Close message" data-action="click->flash-message#dismiss">
+          <%= admin_icon(:x, css_class: "w-4 h-4") %>
+        </button>
+      </div>
+    <% end %>
+  </div>
+<% end %>

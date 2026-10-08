@@ -1,16 +1,13 @@
 <footer class="border-t border-outline-variant px-6 py-3">
   <% version_info = VersionService.call rescue nil %>
   <p class="text-xs text-on-surface-variant text-center">
-    <% if version_info %>
-      WIT Calendar
-      <% if version_info[:version] %>
-        v<%= version_info[:version] %>
-      <% end %>
-      <% if version_info[:update_available] %>
-        <span class="ml-2 px-1.5 py-0.5 bg-secondary-container text-on-secondary-container rounded text-[10px] font-medium">Update available</span>
-      <% end %>
-    <% else %>
-      WIT Calendar
+    WIT Calendar
+    <%# VersionService returns the running version under :current. %>
+    <% if version_info&.dig(:current).present? %>
+      <%= version_info[:current] %>
+    <% end %>
+    <% if version_info&.dig(:update_available) %>
+      <span class="ml-2 px-1.5 py-0.5 bg-secondary-container text-on-secondary-container rounded text-[10px] font-medium">Update available</span>
     <% end %>
   </p>
 </footer>

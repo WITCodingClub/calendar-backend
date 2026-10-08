@@ -10,7 +10,7 @@ RSpec.describe "Dashboard admin nav", type: :request do
   end
 
   it "hides the Admin nav items from a user" do
-    sign_in create(:user)
+    sign_in create(:user, :with_processed_courses)
 
     get dashboard_root_path
 

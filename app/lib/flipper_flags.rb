@@ -8,6 +8,7 @@ module FlipperFlags
   MICROSOFT_SIGN_IN = :microsoft_sign_in
   MICROSOFT_GRAPH_CALENDAR = :microsoft_graph_calendar
   FRIENDS_AVAILABILITY_ONLY = :friends_availability_only
+  SEMANTIC_SEARCH = :semantic_search
 
   MAP = {
     envSwitcher: ENV_SWITCHER,

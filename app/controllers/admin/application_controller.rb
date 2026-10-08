@@ -8,15 +8,7 @@ module Admin
     before_action :authenticate_admin!
 
     def index
-      @users_count            = User.count
-      @courses_count          = Course.count
-      @faculties_count        = Faculty.count
-      @terms_count            = Term.count
-      @course_calendars_count = CourseCalendar.count
-      @rmp_ratings_count      = RmpRating.count
-      @missing_rmp_ids_count  = Faculty.where(rmp_id: nil).count
-      @finals_schedules_count = FinalExam.count
-      @university_events_count = UniversityCalendarEvent.count
+      @dashboard = Admin::Dashboard.new(current_user)
     end
 
     private
