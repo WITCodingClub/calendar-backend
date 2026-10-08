@@ -40,6 +40,20 @@ RSpec.describe "Public meeting link page", type: :request do
       expect(response.body).to include("Sign in")
     end
 
+    it "keeps the token out of the log, for the page and for a booking" do
+      io     = StringIO.new
+      logger = ActiveSupport::Logger.new(io)
+      Rails.logger.broadcast_to(logger)
+
+      get path
+      post path, params: pick
+
+      expect(io.string).to include('Started GET "/meet/[FILTERED]"').and include('Started POST "/meet/[FILTERED]"')
+      expect(io.string).not_to include(link.token)
+    ensure
+      Rails.logger.stop_broadcasting_to(logger)
+    end
+
     it "keeps the token away from other sites and search engines" do
       get path
 
