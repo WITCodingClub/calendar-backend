@@ -189,8 +189,11 @@ class CalendarsController < ApplicationController
         e.location = meeting.location if meeting.location.present?
         e.rrule    = meeting.recurrence.first.delete_prefix("RRULE:") if meeting.weekly?
         e.uid      = "friend-meeting-#{meeting.public_id}@calendar-util.wit.edu"
-        e.dtstamp  = Icalendar::Values::DateTime.new(Time.current, tzid: "America/New_York")
-        e.last_modified = Icalendar::Values::DateTime.new(meeting.updated_at, tzid: "America/New_York")
+        # From updated_at, not the request time, so an unchanged meeting gives
+        # the same feed body (and ETag) on every request.
+        changed_at      = meeting.updated_at.in_time_zone("America/New_York")
+        e.dtstamp       = Icalendar::Values::DateTime.new(changed_at, tzid: "America/New_York")
+        e.last_modified = Icalendar::Values::DateTime.new(changed_at, tzid: "America/New_York")
         e.sequence = (meeting.updated_at.to_i / 60)
 
         meeting.invitees.each do |friend|

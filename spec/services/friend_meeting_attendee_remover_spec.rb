@@ -34,15 +34,22 @@ RSpec.describe FriendMeetingAttendeeRemover do
     expect(enqueued_jobs.size).to eq(2)
   end
 
-  it "leaves past and cancelled meetings and other people alone" do
-    past      = meeting_for(user, friend, start_time: zone.local(2026, 10, 1, 15), end_time: zone.local(2026, 10, 1, 16))
-    cancelled = meeting_for(user, friend, cancelled_at: Time.current)
+  it "takes the ex-friend off past meetings too, so they cannot read them, and updates no event there" do
+    past = meeting_for(user, friend, invite_friends: true, start_time: zone.local(2026, 10, 1, 15), end_time: zone.local(2026, 10, 1, 16))
+
+    expect { described_class.call(user.id, friend.id) }.not_to have_enqueued_job(FriendMeetingUpdateJob)
+
+    expect(past.attendees).to be_empty
+    expect(FriendMeetingPolicy::Scope.new(friend, FriendMeeting).resolve).not_to include(past)
+  end
+
+  it "leaves other people alone" do
     unrelated = meeting_for(user, other, invite_friends: true)
+    strangers = meeting_for(other, friend)
 
     described_class.call(user.id, friend.id)
 
-    expect(past.attendees).to eq([ friend ])
-    expect(cancelled.attendees).to eq([ friend ])
     expect(unrelated.attendees).to eq([ other ])
+    expect(strangers.attendees).to eq([ friend ])
   end
 end

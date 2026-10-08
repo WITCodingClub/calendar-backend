@@ -12,6 +12,10 @@
 # and a meeting that comes back later comes back without attendees, so the
 # friends get no second invitation.
 class FriendMeetingPublisher
+  # The provider refused the person's token. A retry cannot help until the
+  # person connects the account again.
+  AUTH_ERRORS = [ MicrosoftGraph::AuthError, Google::Apis::AuthorizationError ].freeze
+
   attr_reader :user
 
   def initialize(user, services: nil)
@@ -60,22 +64,46 @@ class FriendMeetingPublisher
   end
 
   # Deletes every provider event of a cancelled meeting, then the meeting. A
-  # provider sends a cancellation to each friend who got an invitation. A
-  # failed delete raises, and the meeting stays cancelled until a retry.
+  # provider sends a cancellation to each friend who got an invitation.
+  #
+  # A failed delete keeps its row and the cancelled meeting, so a retry, the
+  # hourly FriendMeetingRemovalSweepJob, or a reconnect can finish. A refused
+  # token is recorded on the publication and not raised, because only a
+  # reconnect helps. Any other error is raised for the job to retry.
   def remove(meeting)
     errors = []
+    kept   = false
 
     meeting.calendar_events.includes(:course_calendar).find_each do |row|
-      service = targets[row.course_calendar.provider]&.first
+      provider = row.course_calendar.provider
+      service  = targets[provider]&.first
       service ? service.delete_friend_meeting_event(row) : row.destroy!
+    rescue *AUTH_ERRORS => e
+      log_failure("Could not delete a friend meeting event: token refused", meeting, provider, e)
+      meeting.publication_for(provider)&.mark_failed!(e.class.name)
+      kept = true
     rescue StandardError => e
-      log_failure("Could not delete a friend meeting event", meeting, row.course_calendar.provider, e)
+      log_failure("Could not delete a friend meeting event", meeting, provider, e)
+      meeting.publication_for(provider)&.mark_failed!(e.class.name)
       errors << e
     end
 
     raise errors.first if errors.any?
 
-    meeting.destroy!
+    meeting.destroy! unless kept
+  end
+
+  # After the person connects an account again: finish each cancelled meeting
+  # that still has provider events, then put back each missing event. Errors
+  # are logged, so one meeting does not stop the others.
+  def resume
+    user.friend_meetings.where.not(cancelled_at: nil).find_each do |meeting|
+      remove(meeting)
+    rescue StandardError => e
+      log_failure("Friend meeting removal failed on reconnect", meeting, nil, e)
+    end
+
+    publish_missing
   end
 
   # Puts back every meeting that has not ended and is missing from a picked
@@ -98,7 +126,12 @@ class FriendMeetingPublisher
 
     meeting.publications.calendars.order(:id).each do |publication|
       service, calendar = targets[publication.provider]
-      next publication.mark_failed!("no #{publication.provider} course calendar") unless calendar
+      unless calendar
+        # A disconnected provider stays `removed` until the person connects
+        # it again.
+        publication.mark_failed!("no #{publication.provider} course calendar") unless publication.removed?
+        next
+      end
 
       yield publication, service, calendar
     rescue StandardError => e

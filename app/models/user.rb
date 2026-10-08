@@ -117,6 +117,11 @@ class User < ApplicationRecord
   has_many :friend_meetings, dependent: :destroy
   has_many :friend_meeting_attendees, dependent: :delete_all
 
+  # Friend meetings go before the OAuth credentials: their provider deletes
+  # need the tokens, and they send the friends a cancellation. prepend runs
+  # this before every dependent destroy above.
+  before_destroy :remove_friend_meetings, prepend: true
+
   before_create :generate_calendar_token
   after_create :create_user_extension_config
 
@@ -198,6 +203,20 @@ class User < ApplicationRecord
   end
 
   private
+
+  # Deletes each meeting's provider events while the credentials still exist.
+  # A failure must not block the account deletion, so it is logged; the
+  # meeting rows then go with `dependent: :destroy`.
+  def remove_friend_meetings
+    publisher = FriendMeetingPublisher.new(self)
+
+    friend_meetings.find_each do |meeting|
+      publisher.remove(meeting)
+    rescue StandardError => e
+      Rails.logger.error({ message: "Could not remove a friend meeting on account deletion", user_id: id,
+                           friend_meeting_id: meeting.id, error: e.class.name }.to_json)
+    end
+  end
 
   def create_user_extension_config
     UserExtensionConfig.create(user: self)

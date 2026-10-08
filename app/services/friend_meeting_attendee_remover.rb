@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-# Takes two people who are no longer friends off each other's future
-# meetings. When the owner sent invitations, a job updates the provider
-# events, and the provider sends the removed person a cancellation.
+# Takes two people who are no longer friends off each other's meetings, past
+# ones too, so neither can read the other's meetings any more. For a future
+# meeting whose owner sent invitations, a job updates the provider events,
+# and the provider sends the removed person a cancellation.
 #
 # Friendship calls it when an accepted friendship is destroyed. An expired
 # friendship must call it too.
@@ -21,12 +22,10 @@ class FriendMeetingAttendeeRemover < ApplicationService
   private
 
   def remove(owner_id, attendee_id)
-    meetings = FriendMeeting.live.not_ended.where(user_id: owner_id)
-                            .where(id: FriendMeetingAttendee.where(user_id: attendee_id).select(:friend_meeting_id))
+    rows     = FriendMeetingAttendee.where(user_id: attendee_id, friend_meeting_id: FriendMeeting.where(user_id: owner_id).select(:id))
+    meetings = FriendMeeting.live.not_ended.where(invite_friends: true, id: rows.select(:friend_meeting_id)).to_a
 
-    meetings.find_each do |meeting|
-      meeting.friend_meeting_attendees.where(user_id: attendee_id).delete_all
-      FriendMeetingUpdateJob.perform_later(meeting) if meeting.invite_friends?
-    end
+    rows.delete_all
+    meetings.each { |meeting| FriendMeetingUpdateJob.perform_later(meeting) }
   end
 end

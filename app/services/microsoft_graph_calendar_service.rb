@@ -102,11 +102,21 @@ class MicrosoftGraphCalendarService
   # app's own, or only the tracked events when they are in the primary
   # calendar. Friend meetings are always in the primary calendar, so they go
   # one by one.
+  #
+  # Deleting a meeting event sends its friends a cancellation, so each meeting
+  # whose event went is marked `removed`, and the next publish after a
+  # reconnect sends the invitations again.
   def remove_course_events(calendar)
-    return delete_tracked_events(calendar.calendar_events) if calendar.primary_placement?
+    meeting_ids = calendar.calendar_events.friend_meetings_only.pluck(:friend_meeting_id)
 
-    delete_tracked_events(calendar.calendar_events.friend_meetings_only)
-    delete_calendar(calendar.external_calendar_id)
+    if calendar.primary_placement?
+      delete_tracked_events(calendar.calendar_events)
+    else
+      delete_tracked_events(calendar.calendar_events.friend_meetings_only)
+      delete_calendar(calendar.external_calendar_id)
+    end
+
+    mark_meetings_removed(calendar, meeting_ids)
   end
 
   def update_calendar_events(events, force: false)
@@ -264,6 +274,11 @@ class MicrosoftGraphCalendarService
     end
 
     calendar.external_calendar_id
+  end
+
+  def mark_meetings_removed(calendar, meeting_ids)
+    gone = meeting_ids - calendar.calendar_events.friend_meetings_only.pluck(:friend_meeting_id)
+    FriendMeetingPublication.where(friend_meeting_id: gone, provider: "microsoft").find_each(&:mark_removed!)
   end
 
   # One failed delete must not stop the others, so it is logged and the row
