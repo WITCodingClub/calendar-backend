@@ -283,7 +283,10 @@ class RateMyProfessorService < ApplicationService
   def make_request(query:, operation_name:, variables:)
     connection = Faraday.new(url: BASE_URL) do |faraday|
       faraday.request :json
-      faraday.response :json
+      # json 3 rejects duplicate keys by default. The RateMyProfessors API
+      # response can repeat a key (the teacher query asks for `id` twice), so
+      # keep the last value as json 2 did.
+      faraday.response :json, parser_options: { allow_duplicate_key: true }
       faraday.adapter Faraday.default_adapter
     end
 
