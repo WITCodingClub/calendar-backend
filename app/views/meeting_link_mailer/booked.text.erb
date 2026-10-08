@@ -1,0 +1,20 @@
+Your meeting is booked
+
+Hi <%= @meeting.guest_name %>,
+
+You booked a meeting with <%= @owner.full_name %>.
+
+<%= @meeting.title %>
+<%= @starts.strftime("%A, %B %-d, %Y") %>
+<%= @starts.strftime("%-l:%M %p") %> to <%= @ends.strftime("%-l:%M %p %Z") %>
+
+<% if @invited -%>
+You will also get a calendar invitation for this meeting.
+<% else -%>
+Add this meeting to your calendar. You will not get a separate calendar invitation.
+<% end -%>
+
+To change or cancel the meeting, reply to this email.
+
+--
+WIT Calendar

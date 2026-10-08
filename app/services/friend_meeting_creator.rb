@@ -3,8 +3,13 @@
 # Makes a FriendMeeting from a time that the person picked, and starts the job
 # that puts it in their calendars.
 #
-# The API route for suggested meeting times calls it, and the one-time meeting
-# link (#652) will too, so every check lives here and not in a controller.
+# The API route for suggested meeting times calls it, and so does the
+# one-time meeting link (#652), so every check lives here and not in a
+# controller.
+#
+# A meeting link passes a guest: { name:, email: } and no friends. The guest
+# is not a user of the app, so no friend check applies to it. The guest always
+# gets the invitation, whatever invite_friends says.
 #
 # With an idempotency key, a second call with the same key for the same person
 # returns the first meeting. It makes no new meeting and starts no job, so no
@@ -19,7 +24,7 @@ class FriendMeetingCreator < ApplicationService
   UTC_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})\z/
 
   def initialize(user:, title:, start_time:, end_time:, friend_ids:, location: nil,
-                 frequency: nil, invite_friends: false, idempotency_key: nil, destinations: nil)
+                 frequency: nil, invite_friends: false, idempotency_key: nil, destinations: nil, guest: nil)
     @user            = user
     @title           = title
     @start_time      = start_time
@@ -30,6 +35,7 @@ class FriendMeetingCreator < ApplicationService
     @invite_friends  = ActiveModel::Type::Boolean.new.cast(invite_friends) || false
     @idempotency_key = idempotency_key.to_s.strip.presence
     @destinations    = destinations
+    @guest           = guest
   end
 
   def call
@@ -48,7 +54,9 @@ class FriendMeetingCreator < ApplicationService
       end_time:        self.class.parse_time(@end_time, "end_time"),
       frequency:       @frequency,
       invite_friends:  @invite_friends,
-      idempotency_key: @idempotency_key
+      idempotency_key: @idempotency_key,
+      guest_name:      @guest && @guest[:name].to_s.strip,
+      guest_email:     @guest && @guest[:email].to_s.strip.downcase
     )
     self.class.assign_term(meeting) if meeting.weekly?
 
@@ -58,7 +66,11 @@ class FriendMeetingCreator < ApplicationService
       create_publications(meeting, destinations)
     end
 
-    FriendMeetingPublishJob.perform_later(meeting) if meeting.publications.any?(&:calendar?)
+    # A meeting link calls this inside its own transaction. The job must not
+    # run before that commits, or it finds no meeting.
+    if meeting.publications.any?(&:calendar?)
+      ActiveRecord.after_all_transactions_commit { FriendMeetingPublishJob.perform_later(meeting) }
+    end
     meeting
   rescue ActiveRecord::RecordNotUnique
     # A request with the same key won the race.
@@ -99,9 +111,12 @@ class FriendMeetingCreator < ApplicationService
   end
 
   # Every id must be a friend whose request was accepted. One that is not
-  # stops the request, so a person can never invite a stranger.
+  # stops the request, so a person can never invite a stranger by user id.
+  # Only a meeting link, which brings its own guest, can list no friends.
   def resolve_friends
     ids = Array(@friend_ids).map(&:to_s).map(&:strip).compact_blank.uniq
+    return [] if ids.empty? && @guest
+
     raise Error, "friend_ids must list at least one friend" if ids.empty?
     raise Error, "friend_ids can list no more than #{FriendMeeting::MAX_ATTENDEES} friends" if ids.size > FriendMeeting::MAX_ATTENDEES
 
@@ -128,9 +143,10 @@ class FriendMeetingCreator < ApplicationService
   end
 
   # Invitations go out from the first picked provider that can send them. The
-  # ICS feed cannot, so it never does.
+  # ICS feed cannot, so it never does. A guest always gets one.
   def create_publications(meeting, destinations)
-    sender = (destinations & FriendMeetingPublication::CALENDAR_PROVIDERS).first if meeting.invite_friends?
+    invites = meeting.invite_friends? || meeting.guest_email?
+    sender  = (destinations & FriendMeetingPublication::CALENDAR_PROVIDERS).first if invites
 
     destinations.each do |provider|
       meeting.publications.create!(

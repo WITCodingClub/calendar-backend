@@ -1,0 +1,89 @@
+<% content_for :title, "Meeting Links" %>
+
+<div class="max-w-2xl mx-auto space-y-6">
+  <%= link_to dashboard_friends_path,
+      class: "inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-on-surface transition-colors" do %>
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    Friends
+  <% end %>
+
+  <div class="space-y-1">
+    <h1 class="text-2xl font-bold text-on-surface">Meeting Links</h1>
+    <p class="text-sm text-on-surface-variant">
+      Make a link for a person who is not your friend, such as a professor or a project partner.
+      They pick one time when you are free, and the meeting goes in your calendar.
+      They see only your free times, never your courses.
+    </p>
+  </div>
+
+  <% if @new_url.present? %>
+    <div class="m3-card p-4 space-y-2" id="new-meeting-link">
+      <p class="text-sm font-medium text-on-surface">Your new link. Copy it now: it is shown only once.</p>
+      <input type="text" readonly autocomplete="off" value="<%= @new_url %>" class="m3-input w-full font-mono text-xs" aria-label="New meeting link">
+    </div>
+  <% end %>
+
+  <%= form_with model: @link, url: dashboard_meeting_links_path, method: :post, class: "m3-card p-4 space-y-4" do |f| %>
+    <h2 class="text-lg font-semibold text-on-surface">New link</h2>
+    <div>
+      <%= f.label :title, "Title (optional)", class: "m3-label" %>
+      <%= f.text_field :title, maxlength: MeetingLink::TITLE_MAX_LENGTH, placeholder: "Office hours question", class: "m3-input w-full" %>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <%= f.label :starts_on, "First day", class: "m3-label" %>
+        <%= f.date_field :starts_on, required: true, class: "m3-input w-full" %>
+      </div>
+      <div>
+        <%= f.label :ends_on, "Last day", class: "m3-label" %>
+        <%= f.date_field :ends_on, required: true, class: "m3-input w-full" %>
+      </div>
+      <div>
+        <%= f.label :duration_minutes, "Meeting length", class: "m3-label" %>
+        <%= f.select :duration_minutes, MeetingLink::DURATIONS.map { |m| [ "#{m} minutes", m ] }, {}, class: "m3-select w-full" %>
+      </div>
+      <div>
+        <%= f.label :expires_on, "Link expires (optional)", class: "m3-label" %>
+        <%= f.date_field :expires_on, class: "m3-input w-full" %>
+      </div>
+    </div>
+    <p class="text-xs text-on-surface-variant">
+      The range can be up to <%= MeetingLink::MAX_RANGE_DAYS %> days. The link offers weekday times from 8:00 AM to 9:00 PM.
+      With no expiry date, the link works until the end of the last day.
+    </p>
+    <%= f.submit "Make link", class: "m3-btn-filled" %>
+  <% end %>
+
+  <% if @links.empty? %>
+    <div class="m3-card p-8 text-center text-on-surface-variant">No meeting links yet.</div>
+  <% else %>
+    <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+      <% @links.each do |link| %>
+        <div class="px-5 py-3 flex flex-wrap items-start justify-between gap-3">
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-on-surface"><%= link.title.presence || "Meeting link" %></p>
+            <p class="text-xs text-on-surface-variant">
+              <%= link.starts_on.strftime("%b %-d") %> to <%= link.ends_on.strftime("%b %-d") %>,
+              <%= link.duration_minutes %> minutes. Expires <%= link.expires_at.strftime("%b %-d, %-l:%M %p") %>.
+            </p>
+            <% if (meeting = link.friend_meeting) %>
+              <p class="text-xs text-on-surface">
+                Booked by <%= meeting.guest_name %> (<%= meeting.guest_email %>) for
+                <%= meeting.local_start.strftime("%a, %b %-d at %-l:%M %p") %>.
+              </p>
+            <% end %>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="m3-badge <%= link.status == 'active' ? 'm3-badge-primary' : 'm3-badge-secondary' %>"><%= link.status.capitalize %></span>
+            <% if link.status == "active" %>
+              <%= button_to "Revoke", dashboard_meeting_link_path(link.public_id),
+                  method: :delete,
+                  data: { turbo_confirm: "Revoke this link? It stops working at once." },
+                  class: "text-xs text-on-surface-variant hover:text-error transition-colors" %>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title><%= browser_title("Book a Time") %></title>
+  <%= render "layouts/favicon" %>
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+  <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
+  <%= javascript_importmap_tags %>
+</head>
+<body class="min-h-full bg-background text-on-background px-4 py-10">
+  <%# Stop Cloudflare Email Obfuscation, see layouts/admin.html.erb. %>
+  <!--email_off-->
+  <main class="mx-auto w-full max-w-xl">
+    <%= yield %>
+  </main>
+  <!--/email_off-->
+</body>
+</html>

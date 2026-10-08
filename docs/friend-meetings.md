@@ -2,6 +2,8 @@
 
 The extension suggests times when a person and some friends are free. The person picks one time, and the app makes a calendar event from it. This is part of friends v6.
 
+A one-time meeting link uses the same path for a person who is not a friend. See [meeting-links.md](meeting-links.md).
+
 ## The flag
 
 The Flipper flag `friend_meeting_events` is off by default. Friends v6 waits on a privacy policy update, so do not turn on the flag for real users until that update is live. While the flag is off for a person, every route below answers 404 for that person.
@@ -81,6 +83,7 @@ The create, show, and update routes answer `{ "meeting": { ... } }`:
   "can_leave": false,
   "owner": { "id": "usr_owner", "name": "Sample Owner" },
   "friends": [{ "id": "usr_abc123", "name": "Sample Friend" }],
+  "guest": null,
   "destinations": ["google", "ics"],
   "publications": [
     { "provider": "google", "status": "queued", "invitation_status": "queued" },
@@ -92,6 +95,7 @@ The create, show, and update routes answer `{ "meeting": { ... } }`:
 - `start_time` and `end_time` are the first occurrence. `recurrence` is `null` for a one-time meeting.
 - `role` is `owner` or `invitee`. Only the owner gets `can_edit` and `can_delete`. Only an invitee gets `can_leave`.
 - `destinations` and `publications` are empty for an invitee, because they are the owner's own calendars.
+- `guest` is the person who booked a one-time meeting link, as `{ "name", "email" }`, or `null`. Only the owner sees it. The guest always gets the invitation.
 
 ### Publication status
 

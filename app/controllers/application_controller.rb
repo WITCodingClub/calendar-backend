@@ -8,8 +8,13 @@ class ApplicationController < ActionController::Base
 
   rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
 
+  # A guest who signed in from a meeting link goes back to that link. The
+  # session holds only a /meet/ path, which MeetingLinksController sets.
   def after_sign_in_path_for(resource)
-    current_user.admin_access? ? admin_root_path : dashboard_root_path
+    return_to = session.delete(MeetingLinksController::RETURN_TO_KEY).to_s
+    return return_to if return_to.start_with?("/meet/")
+
+    resource.admin_access? ? admin_root_path : dashboard_root_path
   end
 
   def admin_unauthorized

@@ -23,7 +23,8 @@ FLIPPER_FLAGS = {
   FlipperFlags::SEMANTIC_SEARCH => "Catalog search by meaning. Global only: it needs OPENAI_API_KEY too",
   FlipperFlags::FRIEND_MEETING_EVENTS => "Friends v6: make a calendar event from a suggested meeting time. Waits on the privacy policy update",
   FlipperFlags::FRIEND_GROUPS => "Friend groups in the API and dashboard. Off until the privacy policy update",
-  FlipperFlags::FRIEND_EXPIRY => "Set, extend, or remove an expiry date on a friendship. Needs the privacy policy update first"
+  FlipperFlags::FRIEND_EXPIRY => "Set, extend, or remove an expiry date on a friendship. Needs the privacy policy update first",
+  FlipperFlags::MEETING_LINKS => "One-time meeting links for people who are not friends. Checked for the link owner. Waits on the privacy policy update"
 }.freeze
 
 Rails.application.configure do

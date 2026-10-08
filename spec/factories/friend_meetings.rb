@@ -8,6 +8,8 @@
 #  cancelled_at    :datetime
 #  end_time        :datetime         not null
 #  frequency       :string           default("one_time"), not null
+#  guest_email     :string
+#  guest_name      :string
 #  idempotency_key :string
 #  invite_friends  :boolean          default(FALSE), not null
 #  location        :string
@@ -53,12 +55,19 @@ FactoryBot.define do
       invite_friends { true }
     end
 
+    # A meeting from a one-time meeting link. Synthetic guest, no real person.
+    trait :with_guest do
+      guest_name { "Sample Guest" }
+      sequence(:guest_email) { |n| "guest#{n}@example.com" }
+    end
+
     trait :cancelled do
       cancelled_at { Time.current }
     end
 
     after(:create) do |meeting, context|
-      sender = (context.destinations & FriendMeetingPublication::CALENDAR_PROVIDERS).first if meeting.invite_friends?
+      invites = meeting.invite_friends? || meeting.guest_email?
+      sender  = (context.destinations & FriendMeetingPublication::CALENDAR_PROVIDERS).first if invites
       context.destinations.each do |provider|
         create(:friend_meeting_publication, friend_meeting: meeting, provider: provider,
                                             status:            provider == "ics" ? "published" : "queued",

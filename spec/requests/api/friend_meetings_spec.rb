@@ -81,6 +81,7 @@ RSpec.describe "Api::FriendMeetings", type: :request do
           "can_leave"      => false,
           "owner"          => { "id" => user.public_id, "name" => user.full_name },
           "friends"        => [ { "id" => friend.public_id, "name" => "Sample Friend" } ],
+          "guest"          => nil,
           "destinations"   => %w[google ics],
           "publications"   => [
             { "provider" => "google", "status" => "queued", "invitation_status" => "queued" },

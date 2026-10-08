@@ -183,6 +183,29 @@ class Rack::Attack
   end
 
   # ===========================================================================
+  # MEETING LINK THROTTLES
+  # ===========================================================================
+
+  # The public one-time meeting link page (/meet/:token). A guest needs a few
+  # page views. A tight budget keeps anyone from guessing tokens, and a booking
+  # sends an email and makes a calendar event, so picks get less.
+  MEETING_LINK_PATH = %r{\A/meet/[^/]+(?:/sign_in)?\z}
+
+  throttle("meet/ip", limit: 30, period: 1.minute) do |req|
+    req.ip if MEETING_LINK_PATH.match?(req.path)
+  end
+
+  throttle("meet/pick/ip", limit: 5, period: 10.minutes) do |req|
+    req.ip if req.post? && MEETING_LINK_PATH.match?(req.path)
+  end
+
+  # One link gets a fixed budget, whatever the number of IP addresses. The
+  # cache key holds a digest, so the cache never stores a working token.
+  throttle("meet/token", limit: 60, period: 1.hour) do |req|
+    "meet:#{OpenSSL::Digest::SHA256.hexdigest(req.path.split('/')[2])}" if MEETING_LINK_PATH.match?(req.path)
+  end
+
+  # ===========================================================================
   # ADMIN THROTTLES
   # ===========================================================================
 

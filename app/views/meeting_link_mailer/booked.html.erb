@@ -1,0 +1,21 @@
+<h2>Your meeting is booked</h2>
+
+<p>Hi <%= @meeting.guest_name %>,</p>
+
+<p>
+  You booked a meeting with <strong><%= @owner.full_name %></strong>.
+</p>
+
+<p>
+  <strong><%= @meeting.title %></strong><br>
+  <%= @starts.strftime("%A, %B %-d, %Y") %><br>
+  <%= @starts.strftime("%-l:%M %p") %> to <%= @ends.strftime("%-l:%M %p %Z") %>
+</p>
+
+<p>
+  <%= @invited ? "You will also get a calendar invitation for this meeting." : "Add this meeting to your calendar. You will not get a separate calendar invitation." %>
+</p>
+
+<p style="margin-top: 16px; color: #6b7280; font-size: 12px;">
+  To change or cancel the meeting, reply to this email.
+</p>

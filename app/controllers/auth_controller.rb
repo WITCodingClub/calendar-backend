@@ -120,7 +120,6 @@ class AuthController < ApplicationController
     user.remember_me = true
     sign_in(:user, user)
 
-    redirect_to user.admin_access? ? admin_root_path : dashboard_root_path,
-                notice: "Welcome, #{user.first_name}!"
+    redirect_to after_sign_in_path_for(user), notice: "Welcome, #{user.first_name}!"
   end
 end

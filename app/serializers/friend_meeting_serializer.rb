@@ -8,6 +8,8 @@
 #  cancelled_at    :datetime
 #  end_time        :datetime         not null
 #  frequency       :string           default("one_time"), not null
+#  guest_email     :string
+#  guest_name      :string
 #  idempotency_key :string
 #  invite_friends  :boolean          default(FALSE), not null
 #  location        :string
@@ -63,6 +65,7 @@ class FriendMeetingSerializer
       can_leave:      !owner,
       owner:          person(@meeting.user),
       friends:        @meeting.attendees.map { |friend| person(friend) },
+      guest:          owner ? guest : nil,
       destinations:   owner ? @meeting.destinations : [],
       publications:   owner ? publications : []
     }
@@ -78,6 +81,13 @@ class FriendMeetingSerializer
         invitation_status: publication.invitation_status
       }
     end
+  end
+
+  # The person who booked a one-time meeting link, or nil.
+  def guest
+    return nil unless @meeting.guest_email?
+
+    { name: @meeting.guest_name, email: @meeting.guest_email }
   end
 
   def person(user) = { id: user.public_id, name: user.full_name }

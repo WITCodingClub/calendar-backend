@@ -61,6 +61,11 @@ Rails.application.routes.draw do
   post   "/oauth/confirm", to: "oauth#link"
   delete "/oauth/confirm", to: "oauth#cancel"
 
+  # One-time meeting link page (public, token-gated). A guest picks one time.
+  get  "/meet/:token", to: "meeting_links#show",   as: :meeting_link
+  post "/meet/:token", to: "meeting_links#create", as: :book_meeting_link
+  get  "/meet/:token/sign_in", to: "meeting_links#start_sign_in", as: :meeting_link_sign_in
+
   # ICS calendar feed (public, token-gated)
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
 
@@ -168,6 +173,11 @@ Rails.application.routes.draw do
     patch  "friends/:friend_id/visibility",             to: "friends#update_visibility"
     get    "friends/:friend_id/busy_blocks",            to: "friends#busy_blocks"
 
+    # One-time meeting links for people who are not friends (#652).
+    get    "meeting_links",                             to: "meeting_links#index"
+    post   "meeting_links",                             to: "meeting_links#create"
+    delete "meeting_links/:id",                         to: "meeting_links#destroy"
+
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
     get "terms/active",          to: "misc#get_active_terms"
     get "terms/current_and_next", to: "misc#get_current_and_next_terms"
@@ -234,6 +244,7 @@ Rails.application.routes.draw do
         member     { post :accept; post :decline; patch :visibility; patch :expiry; post :accept_expiry; post :decline_expiry }
         collection { get :requests }
       end
+      resources :meeting_links, only: [ :index, :create, :destroy ]
       resource :settings, only: [ :show ]
     end
   end

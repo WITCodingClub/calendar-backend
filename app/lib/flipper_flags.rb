@@ -12,6 +12,7 @@ module FlipperFlags
   FRIEND_MEETING_EVENTS = :friend_meeting_events
   FRIEND_GROUPS = :friend_groups
   FRIEND_EXPIRY = :friend_expiry
+  MEETING_LINKS = :meeting_links
 
   MAP = {
     envSwitcher: ENV_SWITCHER,
@@ -23,7 +24,8 @@ module FlipperFlags
     friendsAvailabilityOnly: FRIENDS_AVAILABILITY_ONLY,
     friendMeetingEvents: FRIEND_MEETING_EVENTS,
     friendGroups: FRIEND_GROUPS,
-    friendExpiry: FRIEND_EXPIRY
+    friendExpiry: FRIEND_EXPIRY,
+    meetingLinks: MEETING_LINKS
   }.freeze
 
   ALL_FLAGS = %i[
@@ -37,5 +39,6 @@ module FlipperFlags
     friendMeetingEvents
     friendGroups
     friendExpiry
+    meetingLinks
   ].freeze
 end
