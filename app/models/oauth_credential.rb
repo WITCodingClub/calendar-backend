@@ -68,6 +68,8 @@ class OauthCredential < ApplicationRecord
   # RefreshOauthTokensJob flags a grant that Google refused. A new access token
   # only comes from a working grant, so saving one takes the flag away.
   before_update :clear_revoked_flag, if: :will_save_change_to_access_token?
+  # A new token can finish friend meeting work that a refused token stopped.
+  after_commit :resume_friend_meetings, on: %i[create update], if: :saved_change_to_access_token?
 
   scope :for_provider, ->(provider) { where(provider: provider) }
   scope :google,        -> { for_provider("google") }
@@ -162,6 +164,17 @@ class OauthCredential < ApplicationRecord
 
   # The refresh token ends the whole grant. Google does not revoke an access
   # token that has expired.
+  # Most people have no friend meeting work waiting, so this costs two
+  # indexed queries and starts no job.
+  def resume_friend_meetings
+    return unless user
+
+    meetings = user.friend_meetings
+    waiting  = meetings.where.not(cancelled_at: nil).exists? ||
+               FriendMeetingPublication.where(friend_meeting_id: meetings.select(:id), status: %w[failed removed]).exists?
+    FriendMeetingResumeJob.perform_later(user) if waiting
+  end
+
   def enqueue_google_token_revocation
     RevokeGoogleTokenJob.perform_later(refresh_token.presence || access_token)
   end

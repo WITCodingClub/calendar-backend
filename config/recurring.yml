@@ -15,6 +15,13 @@ production:
   # HOURLY
   # ---------------------------------------------------------------------------
 
+  # Finishes friend meetings whose owner deleted them and whose provider
+  # events are still there.
+  friend_meeting_removal_sweep:
+    class: FriendMeetingRemovalSweepJob
+    queue: low
+    schedule: every hour at minute 27
+
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     queue: low

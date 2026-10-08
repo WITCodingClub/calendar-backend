@@ -104,12 +104,14 @@ Each place has one row in `publications`.
 | `queued` | A background job writes the event soon. |
 | `published` | The event is in the calendar. The ICS row is `published` at once. |
 | `failed` | The last try failed. The job tries again, and each course sync puts back a missing event. A provider that is no longer connected also shows `failed`. |
+| `removed` | The person disconnected the provider, and the app deleted the event. The event comes back after the person connects the provider again. |
 
 | `invitation_status` | Meaning |
 | --- | --- |
 | `not_requested` | This place does not send the invitations. |
 | `queued` | This place sends the invitations, and they did not go out yet. |
 | `sent` | The provider sent the invitations. |
+| `cancelled` | A disconnect deleted the event, so the friends got a cancellation. A reconnect sends the invitations again. |
 | `failed` | The last try failed before the invitations went out. |
 
 ## List meetings
@@ -145,9 +147,19 @@ Each place has one row in `publications`.
 
 `DELETE /api/friends/meetings/:id` answers `204`. The meeting is gone from every route and the ICS feed at once. A job then deletes each provider event, and the provider sends each invited friend a cancellation. No later sync puts the meeting back.
 
+- The job retries network, server, rate limit, and permission errors with a growing wait.
+- `FriendMeetingRemovalSweepJob` runs every hour. It starts the job again for each meeting that was cancelled over an hour ago and still exists.
+- When the provider refuses the token, the event row stays and its publication shows `failed`. The removal finishes when the person connects the account again.
+
+When a person deletes their account, the app deletes the provider events of their meetings first, while the tokens still work, so the friends get a cancellation.
+
 ## Friends who are no longer friends
 
-When a person removes a friend, the app takes each of them off the other's future meetings. When the owner sent invitations, a job updates the provider event, and the provider sends the removed person a cancellation.
+When a person removes a friend, the app takes each of them off the other's meetings, past meetings too, so neither can read the other's meetings any more. For a future meeting whose owner sent invitations, a job updates the provider event, and the provider sends the removed person a cancellation.
+
+## Disconnect and reconnect
+
+When a person disconnects Microsoft, the app deletes the meeting events from the primary calendar, and Exchange sends the friends a cancellation. The Microsoft publication then shows `removed`, and its invitation status shows `cancelled`. The meeting stays. After the person connects Microsoft again, the next sync puts the event back and sends the invitations again. A new token also starts `FriendMeetingResumeJob`, which finishes any removal that a refused token stopped.
 
 ## Where the event goes
 

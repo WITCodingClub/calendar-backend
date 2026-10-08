@@ -36,6 +36,19 @@ RSpec.describe "GET /calendar/:calendar_token friend meetings", type: :request d
     expect(event.attendee).to be_empty
   end
 
+  it "stamps a meeting with its last change, so an unchanged feed is the same on each request" do
+    meeting = meeting_with_friend
+    meeting.update_columns(updated_at: zone.local(2026, 10, 2, 9, 30)) # rubocop:disable Rails/SkipsModelValidations
+
+    first  = feed_events.sole
+    travel 5.minutes
+    second = feed_events.sole
+
+    expect(first.dtstamp).to eq(zone.local(2026, 10, 2, 9, 30))
+    expect(first.last_modified).to eq(zone.local(2026, 10, 2, 9, 30))
+    expect(second.dtstamp).to eq(first.dtstamp)
+  end
+
   it "lists the friends as attendees when the person asked to invite them" do
     meeting_with_friend(invite_friends: true)
 

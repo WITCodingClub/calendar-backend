@@ -15,7 +15,7 @@ RSpec.describe FriendMeetingPublication do
     end
 
     it do
-      expect(subject).to define_enum_for(:status).with_values(queued: "queued", published: "published", failed: "failed")
+      expect(subject).to define_enum_for(:status).with_values(queued: "queued", published: "published", failed: "failed", removed: "removed")
                                                  .backed_by_column_of_type(:string).validating
     end
   end
@@ -34,6 +34,9 @@ RSpec.describe FriendMeetingPublication do
 
       publication.mark_published!(invitations_sent: true)
       expect(publication).to have_attributes(invitation_status: "sent", status: "published", last_error: nil)
+
+      publication.mark_removed!
+      expect(publication).to have_attributes(invitation_status: "cancelled", status: "removed", invitations_sent_at: nil)
     end
   end
 end

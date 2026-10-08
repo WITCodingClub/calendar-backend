@@ -250,6 +250,20 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
       expect(FriendMeeting.exists?(meeting.id)).to be(false)
     end
 
+    it "keeps the row and records a refused token without raising, so a reconnect can finish" do
+      google_calendar
+      meeting.update!(cancelled_at: Time.current)
+      row = create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: google_calendar,
+                                                         external_event_id: "gcal_synthetic_meeting")
+      stub_request(:delete, "#{google_events_url}/gcal_synthetic_meeting").with(query: hash_including({}))
+        .to_return(google_error(401))
+
+      expect { described_class.new(user).remove(meeting) }.not_to raise_error
+      expect(CalendarEvent.exists?(row.id)).to be(true)
+      expect(meeting.reload).to be_cancelled
+      expect(publication("google")).to have_attributes(status: "failed", last_error: "Google::Apis::AuthorizationError")
+    end
+
     it "keeps the cancelled meeting when a delete fails, so a retry can finish" do
       google_calendar
       meeting.update!(cancelled_at: Time.current)
@@ -258,6 +272,48 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
 
       expect { described_class.new(user).remove(meeting) }.to raise_error(Google::Apis::ServerError)
       expect(meeting.reload).to be_cancelled
+    end
+  end
+
+  describe "#resume" do
+    let(:destinations) { %w[google ics] }
+
+    it "finishes a cancelled meeting and puts back a missing event" do
+      google_calendar
+      cancelled = create(:friend_meeting, :cancelled, user: user, destinations: %w[google])
+      create(:calendar_event, :for_friend_meeting, friend_meeting: cancelled, course_calendar: google_calendar,
+                                                   external_event_id: "gcal_cancelled")
+      delete = stub_request(:delete, "#{google_events_url}/gcal_cancelled").with(query: hash_including({})).to_return(status: 204)
+      insert = stub_request(:post, google_events_url).with(query: hash_including({})).to_return(google_created)
+
+      described_class.new(user).resume
+
+      expect(delete).to have_been_requested.once
+      expect(FriendMeeting.exists?(cancelled.id)).to be(false)
+      expect(insert).to have_been_requested.once
+      expect(meeting.calendar_events.count).to eq(1)
+    end
+  end
+
+  describe "a Microsoft disconnect" do
+    let(:destinations) { %w[microsoft] }
+
+    it "keeps the publication removed while the calendar is gone, then invites again after a reconnect" do
+      Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user)
+      publication("microsoft").update!(status: "published", invitations_sent_at: 1.day.ago)
+      publication("microsoft").mark_removed!
+
+      described_class.new(user).publish(meeting)
+      expect(publication("microsoft")).to have_attributes(status: "removed", invitation_status: "cancelled")
+
+      microsoft_calendar
+      invite = stub_request(:post, microsoft_events_url).with { |request| attendees_in(request).present? }
+                                                        .to_return(graph_json_response("meeting_created", status: 201))
+
+      described_class.new(user).publish_missing
+
+      expect(invite).to have_been_requested.once
+      expect(publication("microsoft")).to have_attributes(status: "published", invitation_status: "sent")
     end
   end
 end
