@@ -260,8 +260,9 @@ module Api
         return
       end
 
-      processed = current_user.enrollments.exists?(term_id: term.id)
-      render json: { processed: processed }, status: :ok
+      status_row = current_user.term_processing_statuses.find_by(term: term)
+      enrolled = status_row.nil? && current_user.enrollments.exists?(term_id: term.id)
+      render json: TermProcessingStatusSerializer.new(status_row, enrolled: enrolled).as_json, status: :ok
     end
 
     # POST /api/user/processed_events

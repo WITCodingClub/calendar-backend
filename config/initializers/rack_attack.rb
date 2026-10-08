@@ -138,9 +138,18 @@ class Rack::Attack
     req.ip if req.path.start_with?("/api/v1/catalog") && req.GET["semantic"].present?
   end
 
+  # The batch path shares this budget. A batch counts as one request, and it
+  # processes only its first term inside the request.
+  #
+  # The router also accepts a format suffix ("/api/process_courses.json"), a
+  # trailing slash, and repeated slashes. Normalize the path the same way the
+  # router does, so these variants use the same budget.
+  PROCESS_COURSES_PATH = %r{\A/api/process_courses(?:/batch)?(?:\.[^/.?]+)?\z}
+
   throttle("api/process-courses", limit: 5, period: 1.minute) do |req|
-    user_id = extract_user_id_from_jwt(req)
-    "process-courses:#{user_id}" if req.path == "/api/process_courses" && req.post? && user_id
+    path = ActionDispatch::Journey::Router::Utils.normalize_path(req.path)
+    user_id = extract_user_id_from_jwt(req) if req.post? && PROCESS_COURSES_PATH.match?(path)
+    "process-courses:#{user_id}" if user_id
   end
 
   throttle("api/preview-template", limit: 10, period: 1.minute) do |req|
