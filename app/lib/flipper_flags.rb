@@ -11,6 +11,7 @@ module FlipperFlags
   SEMANTIC_SEARCH = :semantic_search
   FRIEND_GROUPS = :friend_groups
   FRIEND_EXPIRY = :friend_expiry
+  BRIGHTSPACE = :brightspace
 
   MAP = {
     envSwitcher: ENV_SWITCHER,
@@ -21,7 +22,8 @@ module FlipperFlags
     microsoftGraphCalendar: MICROSOFT_GRAPH_CALENDAR,
     friendsAvailabilityOnly: FRIENDS_AVAILABILITY_ONLY,
     friendGroups: FRIEND_GROUPS,
-    friendExpiry: FRIEND_EXPIRY
+    friendExpiry: FRIEND_EXPIRY,
+    brightspace: BRIGHTSPACE
   }.freeze
 
   ALL_FLAGS = %i[
@@ -34,5 +36,6 @@ module FlipperFlags
     friendsAvailabilityOnly
     friendGroups
     friendExpiry
+    brightspace
   ].freeze
 end

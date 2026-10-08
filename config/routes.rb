@@ -200,6 +200,14 @@ Rails.application.routes.draw do
       end
     end
 
+    # Brightspace import and class pages, behind the brightspace flag.
+    # See docs/brightspace.md.
+    get    "user/brightspace_connection", to: "brightspace_connections#show"
+    post   "user/brightspace_connection", to: "brightspace_connections#create"
+    delete "user/brightspace_connection", to: "brightspace_connections#destroy"
+    post   "brightspace/sync",            to: "brightspace_syncs#create"
+    get    "brightspace/status",          to: "brightspace_syncs#status"
+
     match "*path", to: "catch_all#not_found", via: :all
   end
 

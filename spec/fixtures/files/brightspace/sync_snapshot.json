@@ -1,0 +1,90 @@
+{
+  "snapshot_id": "8b451fe1-5c9c-44c6-86c6-846ac9a0a250",
+  "host": "brightspace.example.edu",
+  "learner_id": "98765",
+  "collected_at": "2026-10-06T17:00:00Z",
+  "classes": [
+    {
+      "source_id": "12414",
+      "title": "Data Structures",
+      "complete_sections": ["assignments", "announcements", "grades"],
+      "assignments": [
+        {
+          "source_id": "56789",
+          "kind": "assignment",
+          "title": "Lab 4: Linked lists",
+          "description": "Build a singly linked list.",
+          "due_at": "2026-10-09T03:59:00Z",
+          "opens_at": null,
+          "closes_at": "2026-10-10T03:59:00Z",
+          "user_due_at": null,
+          "source_url": "https://brightspace.example.edu/d2l/lms/dropbox/user/folder_submit_files.d2l?db=56789",
+          "submission_status": "not_submitted"
+        },
+        {
+          "source_id": "4410",
+          "kind": "quiz",
+          "title": "Quiz 3",
+          "due_at": "2026-10-12T15:00:00Z",
+          "source_url": "https://brightspace.example.edu/d2l/lms/quizzing/user/quiz_summary.d2l?qi=4410",
+          "submission_status": "submitted",
+          "submitted_at": "2026-10-05T14:00:00Z"
+        }
+      ],
+      "announcements": [
+        {
+          "source_id": "301",
+          "title": "Lab 4 posted",
+          "body": "Lab 4 is now open.",
+          "posted_at": "2026-10-02T12:00:00Z"
+        }
+      ],
+      "grades": {
+        "reported_total": { "points_earned": 41.5, "points_possible": 50, "percent": 83.0, "letter": "B" },
+        "categories": [
+          { "source_id": "900", "name": "Labs", "weight": 40, "drop_lowest": 1, "drop_highest": null, "extra_credit": false },
+          { "source_id": "901", "name": "Quizzes", "weight": 20 }
+        ],
+        "items": [
+          {
+            "source_id": "7001",
+            "name": "Lab 3",
+            "category_source_id": "900",
+            "points_earned": 9.5,
+            "points_possible": 10,
+            "grading_status": "graded"
+          },
+          {
+            "source_id": "7002",
+            "name": "Lab 4: Linked lists",
+            "category_source_id": "900",
+            "assignment_source_id": "56789",
+            "assignment_kind": "assignment",
+            "points_earned": null,
+            "points_possible": 10,
+            "grading_status": "ungraded"
+          },
+          {
+            "source_id": "7003",
+            "name": "Quiz 2",
+            "category_source_id": "901",
+            "points_earned": 0,
+            "points_possible": 10,
+            "grading_status": "graded"
+          }
+        ]
+      },
+      "syllabus": {
+        "source_id": "content-55",
+        "url": "https://brightspace.example.edu/d2l/le/content/12414/viewContent/55/View",
+        "title": "Course Syllabus",
+        "revision": "2026-09-01T00:00:00Z",
+        "extracted": {
+          "categories": [
+            { "name": "Labs", "weight": 40, "source_ref": "page 2" }
+          ]
+        }
+      }
+    }
+  ]
+}
