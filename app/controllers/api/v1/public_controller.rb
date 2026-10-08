@@ -59,6 +59,10 @@ module Api
         [ page, per_page ]
       end
 
+      def boolean_param(key)
+        ActiveModel::Type::Boolean.new.cast(params[key]).present?
+      end
+
       def array_param(key)
         value = params[key]
         return nil if value.blank?

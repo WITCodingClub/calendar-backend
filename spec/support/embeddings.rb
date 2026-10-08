@@ -63,4 +63,15 @@ RSpec.configure do |config|
   config.around(:each, :embeddings) do |example|
     with_openai_configured { example.run }
   end
+
+  # Semantic search also needs its flag. The flag is a row, so it is written in
+  # a before hook: an around hook runs outside the example's transaction, and
+  # the example would not see the row. The after hook clears the Flipper cache,
+  # which no transaction rolls back.
+  config.around(:each, :semantic_search) do |example|
+    with_openai_configured { example.run }
+  end
+
+  config.before(:each, :semantic_search) { Flipper.enable(FlipperFlags::SEMANTIC_SEARCH) }
+  config.after(:each, :semantic_search)  { Flipper.disable(FlipperFlags::SEMANTIC_SEARCH) }
 end

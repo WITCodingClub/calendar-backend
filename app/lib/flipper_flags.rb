@@ -7,6 +7,7 @@ module FlipperFlags
   BYPASS_RATE_LIMITS = :bypass_rate_limits
   MICROSOFT_SIGN_IN = :microsoft_sign_in
   MICROSOFT_GRAPH_CALENDAR = :microsoft_graph_calendar
+  SEMANTIC_SEARCH = :semantic_search
 
   MAP = {
     envSwitcher: ENV_SWITCHER,
