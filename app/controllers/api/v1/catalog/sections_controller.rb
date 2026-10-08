@@ -5,6 +5,7 @@ module Api
     module Catalog
       # GET /api/v1/catalog/sections
       # GET /api/v1/catalog/sections/:crn
+      # GET /api/v1/catalog/sections/:crn/similar
       class SectionsController < Api::V1::PublicController
         def index
           page, per_page = pagination
@@ -28,18 +29,40 @@ module Api
         end
 
         def show
-          relation = ::Catalog::SectionQuery.new.call(
-            crns:              [ params[:crn] ],
-            term_uid:          params[:term_uid],
-            include_cancelled: true
-          )
-          course = ::Catalog::SectionQuery.with_associations(relation).first
-          raise ActiveRecord::RecordNotFound, "No section with CRN #{params[:crn]}" if course.nil?
+          course = find_section(params[:crn], params[:term_uid], with_associations: true)
 
           render_resource(::Catalog::SectionSerializer.new(course).as_json)
         end
 
+        # Sections that teach something close to this one. The list is empty
+        # until the section has a vector, which the nightly backfill writes.
+        def similar
+          course   = find_section(params[:crn], params[:term_uid])
+          relation = ::Catalog::SectionQuery.with_associations(course.similar_sections(limit: similar_limit))
+
+          render_collection(
+            relation.map { |section| ::Catalog::SectionSerializer.new(section).as_json },
+            meta: { crn: course.crn, limit: similar_limit }
+          )
+        end
+
         private
+
+        def find_section(crn, term_uid, with_associations: false)
+          relation = ::Catalog::SectionQuery.new.call(
+            crns:              [ crn ],
+            term_uid:          term_uid,
+            include_cancelled: true
+          )
+          relation = ::Catalog::SectionQuery.with_associations(relation) if with_associations
+
+          relation.first || raise(ActiveRecord::RecordNotFound, "No section with CRN #{crn}")
+        end
+
+        def similar_limit
+          @similar_limit ||= (params[:limit].presence&.to_i || Embeddable::DEFAULT_SIMILAR_LIMIT)
+                            .clamp(1, Embeddable::MAX_SIMILAR_LIMIT)
+        end
 
         def filters
           {

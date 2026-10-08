@@ -4,6 +4,8 @@ module Api
   module V1
     module Catalog
       # GET /api/v1/catalog/instructors
+      # GET /api/v1/catalog/instructors/:pub_id
+      # GET /api/v1/catalog/instructors/:pub_id/similar
       class InstructorsController < Api::V1::PublicController
         def index
           page, per_page = pagination
@@ -30,13 +32,35 @@ module Api
         end
 
         def show
-          faculty = Faculty.includes(:rating_distribution).find_by_public_id(params[:pub_id])
-          raise ActiveRecord::RecordNotFound, "No instructor #{params[:pub_id]}" if faculty.nil?
+          render_resource(::Catalog::InstructorSerializer.new(find_instructor).as_json)
+        end
 
-          render_resource(::Catalog::InstructorSerializer.new(faculty).as_json)
+        # Instructors who teach something close to what this one teaches. The
+        # list is empty until the instructor has a vector, which the nightly
+        # backfill writes.
+        def similar
+          faculty = find_instructor
+          people  = faculty.similar_instructors(limit: similar_limit).includes(:rating_distribution)
+
+          render_collection(
+            people.map { |person| ::Catalog::InstructorSerializer.new(person).as_json },
+            meta: { pub_id: faculty.public_id, limit: similar_limit }
+          )
         end
 
         private
+
+        def find_instructor
+          faculty = Faculty.includes(:rating_distribution).find_by_public_id(params[:pub_id])
+          raise ActiveRecord::RecordNotFound, "No instructor #{params[:pub_id]}" if faculty.nil?
+
+          faculty
+        end
+
+        def similar_limit
+          @similar_limit ||= (params[:limit].presence&.to_i || Embeddable::DEFAULT_SIMILAR_LIMIT)
+                            .clamp(1, Embeddable::MAX_SIMILAR_LIMIT)
+        end
 
         def faculty_ids_for_term
           Faculty.joins(:courses)
