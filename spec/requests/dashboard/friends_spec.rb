@@ -211,13 +211,55 @@ RSpec.describe "Dashboard::Friends", type: :request do
   describe "POST /dashboard/friends/:id/accept_expiry and decline_expiry" do
     let!(:friendship) { create(:friendship, :accepted, :temporary, requester: other_user, addressee: current_user) }
 
-    it "refuses while the flag is off" do
-      friendship.change_expiry!(to: nil, by: other_user)
+    # The proposal email links here, so a user without the flag can answer.
+    context "with the flag off" do
+      it "shows the proposal with Accept and Decline, but no end date controls" do
+        friendship.change_expiry!(to: nil, by: other_user)
 
-      post accept_expiry_dashboard_friend_path(other_user.public_id)
+        get dashboard_friends_path
 
-      expect(flash[:alert]).to eq("Friend not found.")
-      expect(friendship.reload.expires_at).to be_present
+        expect(response.body).to include("Grace proposed a permanent friendship.")
+        expect(response.body).to include(accept_expiry_dashboard_friend_path(other_user.public_id))
+        expect(response.body).not_to include("Set end date")
+      end
+
+      it "shows the proposal on a pending request" do
+        alan    = create_user("Alan")
+        request = create(:friendship, :temporary, requester: alan, addressee: current_user)
+        request.change_expiry!(to: nil, by: alan)
+
+        get requests_dashboard_friends_path
+
+        expect(response.body).to include("Alan proposed a permanent friendship.")
+        expect(response.body).to include(accept_expiry_dashboard_friend_path(alan.public_id))
+      end
+
+      it "accepts the friend's proposal" do
+        friendship.change_expiry!(to: nil, by: other_user)
+
+        post accept_expiry_dashboard_friend_path(other_user.public_id)
+
+        expect(flash[:notice]).to eq("Grace is now a permanent friend.")
+        expect(friendship.reload.expires_at).to be_nil
+      end
+
+      it "declines the friend's proposal" do
+        friendship.change_expiry!(to: nil, by: other_user)
+
+        post decline_expiry_dashboard_friend_path(other_user.public_id)
+
+        expect(friendship.reload.expiry_proposal?).to be(false)
+        expect(friendship.expires_at).to be_present
+      end
+
+      it "still refuses the proposer" do
+        friendship.change_expiry!(to: nil, by: current_user)
+
+        post accept_expiry_dashboard_friend_path(other_user.public_id)
+
+        expect(friendship.reload.expires_at).to be_present
+        expect(flash[:alert]).to be_present
+      end
     end
 
     context "with the flag on" do

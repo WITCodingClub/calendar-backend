@@ -156,8 +156,6 @@ Rails.application.routes.draw do
     delete "friends/groups/:group_id/members/:friend_id", to: "friend_groups#remove_member"
     delete "friends/:friend_id",                        to: "friends#unfriend"
     patch  "friends/:friend_id/expiry",                 to: "friends#update_expiry"
-    post   "friends/:friend_id/expiry/accept",          to: "friends#accept_expiry"
-    post   "friends/:friend_id/expiry/decline",         to: "friends#decline_expiry"
     post   "friends/:friend_id/processed_events",       to: "friends#processed_events"
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
     get    "friends/:friend_id/visibility",             to: "friends#visibility"

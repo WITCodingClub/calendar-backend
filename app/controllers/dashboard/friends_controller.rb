@@ -154,8 +154,11 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
   end
 
   # POST /dashboard/friends/:id/accept_expiry
+  #
+  # Works with the flag off. The proposal email links here, and the proposer
+  # already had the flag.
   def accept_expiry
-    friend, friendship = find_expiry_friendship
+    friend, friendship = find_expiry_friendship(require_flag: false)
     return if performed?
 
     authorize friendship, :accept_expiry?
@@ -171,9 +174,10 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
 
   # POST /dashboard/friends/:id/decline_expiry
   #
-  # Declines the friend's proposal, or withdraws your own.
+  # Declines the friend's proposal, or withdraws your own. Works with the
+  # flag off, the same as accept_expiry.
   def decline_expiry
-    _friend, friendship = find_expiry_friendship
+    _friend, friendship = find_expiry_friendship(require_flag: false)
     return if performed?
 
     authorize friendship, :decline_expiry?
@@ -237,12 +241,12 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
   end
 
   # The friendship or pending request with the user in params[:id], when the
-  # flag is on. Redirects when there is none.
-  def find_expiry_friendship
+  # flag is on or +require_flag+ is false. Redirects when there is none.
+  def find_expiry_friendship(require_flag: true)
     friend     = User.find_by_public_id(params[:id])
     friendship = Friendship.unexpired.between(current_user, friend).first if friend && friend.id != current_user.id
 
-    unless friendship && friend_expiry_enabled?
+    unless friendship && (!require_flag || friend_expiry_enabled?)
       skip_authorization
       redirect_to dashboard_friends_path, alert: "Friend not found."
       return

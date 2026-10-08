@@ -9,7 +9,11 @@
 # expires_at is an ISO 8601 time, or nil for a permanent friendship.
 # expiry_proposal is nil, or the later end date one user proposed:
 #
-#   { expires_at: "...", permanent: false, proposed_by: "usr_...", can_accept: true }
+#   { expires_at: "...", permanent: false, proposed_by: "usr_...", can_accept: true,
+#     review_url: "https://.../dashboard/friends" }
+#
+# The API cannot answer a proposal (#719). review_url is the dashboard page
+# where the other user accepts or declines it, and the proposer withdraws it.
 # == Schema Information
 #
 # Table name: friendships
@@ -95,8 +99,17 @@ class FriendshipSerializer
       expires_at:  @friendship.proposed_expires_at&.iso8601,
       permanent:   @friendship.proposed_permanent?,
       proposed_by: (proposed_by_viewer ? @viewer : friend).public_id,
-      can_accept:  !proposed_by_viewer
+      can_accept:  !proposed_by_viewer,
+      review_url:  review_url
     }
+  end
+
+  # A pending request shows on the requests page, a friend on the friends page.
+  def review_url
+    helpers = Rails.application.routes.url_helpers
+    options = Rails.application.config.action_controller.default_url_options || {}
+
+    @friendship.pending? ? helpers.requests_dashboard_friends_url(**options) : helpers.dashboard_friends_url(**options)
   end
 
   def user_json(user)

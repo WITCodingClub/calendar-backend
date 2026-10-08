@@ -24,7 +24,8 @@ class FriendshipMailer < ApplicationMailer
     @actor       = actor
     @recipient   = friendship.friend_for(actor)
     @event       = event
-    @friends_url = dashboard_friends_url
+    @friends_url = friendship.pending? ? requests_dashboard_friends_url : dashboard_friends_url
+    @link_text   = event == "proposed" ? "Accept or decline the proposal" : "Manage your friends"
     @summary     = expiry_summary
 
     mail(to: @recipient.email, subject: expiry_subject)
@@ -40,7 +41,7 @@ class FriendshipMailer < ApplicationMailer
       "#{name} made your friendship end sooner. It now ends on #{long_date(@friendship.expires_at)}."
     when "proposed"
       proposal = @friendship.proposed_permanent? ? "a permanent friendship" : "a new end date: #{long_date(@friendship.proposed_expires_at)}"
-      "#{name} proposed #{proposal}. Nothing changes until you accept it."
+      "#{name} proposed #{proposal}. Nothing changes until you accept it on the WIT Calendar dashboard."
     when "proposal_accepted"
       result = @friendship.temporary? ? "now ends on #{long_date(@friendship.expires_at)}" : "is now permanent"
       "#{name} accepted your proposal. The friendship #{result}."
