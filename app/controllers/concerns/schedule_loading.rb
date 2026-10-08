@@ -67,7 +67,7 @@ module ScheduleLoading
                   .where(term_id: term.id)
                   .includes(course: [
                     :faculties,
-                    { meeting_times: [ :event_preference, { course: :faculties } ] }
+                    { meeting_times: [ :event_preference, { rooms: :building }, { course: :faculties } ] }
                   ])
 
     # The schedule owner's preferences give the colors and titles, so a friend's

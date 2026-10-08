@@ -134,6 +134,17 @@ class User < ApplicationRecord
     admin? || super_admin? || owner?
   end
 
+  # True once the extension has processed the user's courses for any term.
+  # POST /api/process_courses enrolls the user, and /api/user/is_processed
+  # checks the same enrollments for one term.
+  def processed_courses?
+    enrollments.exists?
+  end 
+  
+  def super_admin_access?
+    super_admin? || owner?
+  end
+
   def access_level_text
     access_level.to_s.humanize
   end

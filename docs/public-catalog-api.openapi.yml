@@ -46,6 +46,8 @@ tags:
     description: Course sections, one for each CRN
   - name: instructors
     description: Faculty who teach at least one section
+  - name: reviews
+    description: Rate My Professors reviews of WIT instructors
 
 paths:
   /api/v1/catalog/terms:
@@ -174,6 +176,13 @@ paths:
           in: query
           description: Search the title, subject, and course number.
           schema: { type: string }
+        - name: semantic
+          in: query
+          description: >-
+            Rank `q` by meaning instead of by the literal words. Results come
+            back nearest first. Falls back to the literal match when semantic
+            search is off.
+          schema: { type: boolean, default: false }
         - name: schedule_type
           in: query
           description: Keep these schedule types, by name or by code, for example `lecture` or `LEC`.
@@ -276,6 +285,46 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
+  /api/v1/catalog/sections/{crn}/similar:
+    get:
+      tags: [sections]
+      operationId: listSimilarSections
+      summary: List sections that teach something close to this one
+      description: |
+        Ranked by meaning, nearest first. Results stay inside the section's own
+        term, and the other sections of the same course are left out. The list
+        is empty until the section has been embedded, which happens nightly.
+      parameters:
+        - name: crn
+          in: path
+          required: true
+          schema: { type: integer, examples: [17294] }
+        - $ref: "#/components/parameters/TermUid"
+        - $ref: "#/components/parameters/SimilarLimit"
+      responses:
+        "200":
+          description: Sections like this one, nearest first
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Section" }
+                  meta:
+                    type: object
+                    properties:
+                      crn: { type: integer }
+                      limit: { type: integer }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
   /api/v1/catalog/instructors:
     get:
       tags: [instructors]
@@ -287,6 +336,12 @@ paths:
           in: query
           description: Match the first, last, or display name.
           schema: { type: string }
+        - name: semantic
+          in: query
+          description: >-
+            Rank `q` by meaning instead of by the literal name. Falls back to
+            the literal match when semantic search is off.
+          schema: { type: boolean, default: false }
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PerPage"
       responses:
@@ -335,8 +390,118 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
+  /api/v1/catalog/instructors/{pub_id}/similar:
+    get:
+      tags: [instructors]
+      operationId: listSimilarInstructors
+      summary: List instructors who teach something close to what this one teaches
+      description: |
+        Ranked by meaning, nearest first. The list is empty until the
+        instructor has been embedded, which happens nightly.
+      parameters:
+        - name: pub_id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/SimilarLimit"
+      responses:
+        "200":
+          description: Instructors like this one, nearest first
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Instructor" }
+                  meta:
+                    type: object
+                    properties:
+                      pub_id: { type: string }
+                      limit: { type: integer }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/reviews:
+    get:
+      tags: [reviews]
+      operationId: listReviews
+      summary: List Rate My Professors reviews
+      description: |
+        Reviews of WIT instructors, newest first. Only reviews that carry a
+        comment are returned. The text belongs to the student who wrote it on
+        ratemyprofessors.com, and every payload names that source.
+
+        `semantic=true` ranks by meaning, so "lots of group projects" finds the
+        reviews that say so in other words.
+      parameters:
+        - name: instructor
+          in: query
+          description: Keep the reviews of one instructor, by public id.
+          schema: { type: string }
+        - name: q
+          in: query
+          description: Search the comment and the course name.
+          schema: { type: string }
+        - name: semantic
+          in: query
+          description: >-
+            Rank `q` by meaning instead of by the literal words. Falls back to
+            the literal match when semantic search is off.
+          schema: { type: boolean, default: false }
+        - name: sentiment
+          in: query
+          description: Keep only positive or only negative reviews.
+          schema: { type: string, enum: [positive, negative] }
+        - $ref: "#/components/parameters/Page"
+        - name: per_page
+          in: query
+          description: Reviews per page, 1 to 100.
+          schema: { type: integer, default: 25, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: One page of reviews
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Review" }
+                  meta:
+                    allOf:
+                      - $ref: "#/components/schemas/PageMeta"
+                      - type: object
+                        properties:
+                          source:
+                            type: string
+                            description: Where the review text comes from.
+                          filters:
+                            type: object
+                            description: The filters that the request applied.
+                            additionalProperties: true
+        "400": { $ref: "#/components/responses/InvalidFilter" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
 components:
   parameters:
+    SimilarLimit:
+      name: limit
+      in: query
+      description: How many neighbours to return, 1 to 50.
+      schema: { type: integer, default: 10, minimum: 1, maximum: 50 }
     TermUid:
       name: term_uid
       in: query
@@ -551,6 +716,29 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Rmp"
             - type: "null"
+
+    Review:
+      type: object
+      required: [pub_id, comment, source]
+      properties:
+        pub_id: { type: string }
+        instructor:
+          oneOf:
+            - $ref: "#/components/schemas/Instructor"
+            - type: "null"
+        course_name: { type: [string, "null"] }
+        comment: { type: string }
+        clarity_rating: { type: [integer, "null"] }
+        difficulty_rating: { type: [integer, "null"] }
+        would_take_again: { type: [boolean, "null"] }
+        sentiment: { type: string, enum: [positive, neutral, negative] }
+        tags:
+          type: array
+          items: { type: string }
+        thumbs_up: { type: [integer, "null"] }
+        thumbs_down: { type: [integer, "null"] }
+        rated_on: { type: [string, "null"], format: date }
+        source: { type: string, examples: ["ratemyprofessors.com"] }
 
     Rmp:
       type: object

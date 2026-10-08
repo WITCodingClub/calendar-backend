@@ -4,18 +4,18 @@
 #
 # Table name: friendships
 #
-#  id           :bigint           not null, primary key
-#  status       :integer          default(0), not null
-#  created_at   :datetime         not null
-#  updated_at   :datetime         not null
-#  addressee_id :bigint           not null
-#  requester_id :bigint           not null
+#  id                   :bigint           not null, primary key
+#  addressee_visibility :integer          default(0), not null
+#  requester_visibility :integer          default(0), not null
+#  status               :integer          default(0), not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  addressee_id         :bigint           not null
+#  requester_id         :bigint           not null
 #
 # Indexes
 #
-#  index_friendships_on_addressee_id                   (addressee_id)
 #  index_friendships_on_addressee_id_and_status        (addressee_id,status)
-#  index_friendships_on_requester_id                   (requester_id)
 #  index_friendships_on_requester_id_and_addressee_id  (requester_id,addressee_id) UNIQUE
 #  index_friendships_on_requester_id_and_status        (requester_id,status)
 #  index_friendships_on_unordered_pair                 (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)) UNIQUE

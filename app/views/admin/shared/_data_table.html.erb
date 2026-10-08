@@ -1,0 +1,38 @@
+<%# Rendered by AdminHelper#admin_table. On a small screen the rows stack into
+    cards, and each cell shows its column name from data-label. %>
+<div class="<%= card ? "m3-card overflow-hidden" : "overflow-hidden" %>" <%= tag.attributes(id: id) %>>
+  <div class="overflow-x-auto">
+    <table class="admin-table min-w-full text-sm">
+      <thead class="bg-surface-container-high">
+        <tr>
+          <% table.columns.each do |column| %>
+            <th scope="col" class="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-on-surface-variant whitespace-nowrap <%= column.align == :right ? "text-right" : "text-left" %>"><%= column.label %></th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-outline-variant">
+        <% if rows.any? %>
+          <% rows.each do |row| %>
+            <tr class="hover:bg-surface-container-high/50 transition-colors <%= table.row_class_block&.call(row) %>">
+              <% table.columns.each do |column| %>
+                <td data-label="<%= column.label %>"
+                    class="px-4 py-3 align-top text-on-surface <%= "admin-table-primary" if column.primary %> <%= column.align == :right ? "text-right" : "text-left" %> <%= column.css_class %>">
+                  <%= admin_block_content(column.block, row) %>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr class="admin-table-empty">
+            <td colspan="<%= table.columns.size %>" class="px-4 py-10">
+              <%= render "admin/shared/empty_state", message: empty %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <% if paginate %>
+    <%= render "admin/shared/pagination", collection: rows %>
+  <% end %>
+</div>

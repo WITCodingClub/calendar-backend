@@ -289,3 +289,57 @@ html, body {
     @apply px-4 pt-4 pb-1 text-xs font-semibold text-on-surface-variant uppercase tracking-wider;
   }
 }
+
+/* ── Admin small-screen rules ──
+   These sit outside @layer, so they win over the utility classes on the same
+   cells. Utilities live in a cascade layer, and unlayered styles beat every
+   layer. */
+
+/* Admin tables (admin/shared/data_table). Below the sm breakpoint each row
+   becomes a card: the primary cell is the card title, and every other cell
+   shows its column name from data-label. The page never scrolls sideways. */
+@media (width < 40rem) {
+  .admin-table thead {
+    @apply sr-only;
+  }
+  .admin-table,
+  .admin-table tbody,
+  .admin-table tr,
+  .admin-table td {
+    @apply block w-full;
+  }
+  .admin-table tbody tr {
+    @apply px-4 py-3;
+  }
+  .admin-table tbody td {
+    @apply flex items-start justify-between gap-4 px-0 py-1 text-right;
+  }
+  .admin-table tbody td::before {
+    content: attr(data-label);
+    @apply shrink-0 text-left text-xs font-medium uppercase tracking-wide text-on-surface-variant pt-0.5;
+  }
+  .admin-table tbody td.admin-table-primary {
+    @apply block text-left text-base pb-2;
+  }
+  .admin-table tbody td.admin-table-primary::before,
+  .admin-table tbody tr.admin-table-empty td::before {
+    content: none;
+  }
+  .admin-table tbody tr.admin-table-empty td {
+    @apply block;
+  }
+}
+
+/* Page and card actions wrap, and on a phone each button fills the row so
+   it is easy to tap. */
+@media (width < 40rem) {
+  .admin-actions > *,
+  .admin-actions > form > button,
+  .admin-actions > form > input[type="submit"] {
+    @apply w-full justify-center;
+  }
+  .admin-table .admin-actions > *,
+  .admin-table .admin-actions > form > button {
+    @apply w-auto;
+  }
+}

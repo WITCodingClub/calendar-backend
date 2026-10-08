@@ -18,7 +18,6 @@ require "rails_helper"
 #
 # Indexes
 #
-#  index_finals_schedules_on_term_id                 (term_id)
 #  index_finals_schedules_on_term_id_and_created_at  (term_id,created_at)
 #  index_finals_schedules_on_uploaded_by_id          (uploaded_by_id)
 #

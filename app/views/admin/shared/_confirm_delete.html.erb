@@ -1,0 +1,35 @@
+<%# A delete button that opens a dialog. The admin types `confirm_text` to
+    turn on the delete button. Locals: url, confirm_text, title, body,
+    button_text, button_class, submit_text. %>
+<% dialog_id = "confirm-#{url.parameterize}" %>
+<div data-controller="type-to-confirm" data-type-to-confirm-expected-value="<%= confirm_text %>" class="inline-block">
+  <button type="button" data-action="click->type-to-confirm#open"
+          class="<%= local_assigns.fetch(:button_class, "m3-btn-danger") %>">
+    <%= local_assigns.fetch(:button_text, "Delete") %>
+  </button>
+  <dialog data-type-to-confirm-target="dialog"
+          data-action="click->type-to-confirm#backdropClose"
+          aria-labelledby="<%= dialog_id %>"
+          class="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl p-0 bg-surface-container-high text-on-surface backdrop:bg-scrim/50">
+    <div class="p-6 space-y-4 text-left">
+      <div class="flex items-start gap-3">
+        <span class="p-2 rounded-full bg-error-container text-on-error-container"><%= admin_icon(:exclamation) %></span>
+        <div>
+          <h2 id="<%= dialog_id %>" class="text-lg font-semibold"><%= title %></h2>
+          <p class="mt-1 text-sm text-on-surface-variant"><%= body %></p>
+        </div>
+      </div>
+      <%= form_with url: url, method: :delete, data: { turbo_frame: "_top" } do |f| %>
+        <label class="m3-label" for="<%= dialog_id %>-input">Type <code class="px-1 rounded bg-surface-container-highest"><%= confirm_text %></code> to confirm</label>
+        <input id="<%= dialog_id %>-input" type="text" autocomplete="off" class="m3-input"
+               data-type-to-confirm-target="input" data-action="input->type-to-confirm#check">
+        <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" class="m3-btn-outlined justify-center" data-action="click->type-to-confirm#close">Cancel</button>
+          <%= f.submit local_assigns.fetch(:submit_text, "Delete"), disabled: true,
+              class: "m3-btn-danger justify-center disabled:opacity-50 disabled:cursor-not-allowed",
+              data: { type_to_confirm_target: "submit" } %>
+        </div>
+      <% end %>
+    </div>
+  </dialog>
+</div>

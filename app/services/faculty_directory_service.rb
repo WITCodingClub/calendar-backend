@@ -7,13 +7,16 @@ class FacultyDirectoryService < ApplicationService
   BASE_URL = "https://wit.edu/faculty-staff-directory"
   RESULTS_PER_PAGE = 12
 
-  attr_reader :page, :fetch_all, :employee_type, :search
+  attr_reader :page, :fetch_all, :employee_type, :search, :force
 
-  def initialize(page: nil, fetch_all: true, employee_type: "All", search: nil)
+  # force: true skips the cached pages, fetches each page again, and writes
+  # the new result to the cache. The full sync job uses it to get fresh data.
+  def initialize(page: nil, fetch_all: true, employee_type: "All", search: nil, force: false)
     @page = page
     @fetch_all = fetch_all
     @employee_type = employee_type
     @search = search
+    @force = force
     super()
   end
 
@@ -68,7 +71,7 @@ class FacultyDirectoryService < ApplicationService
   def fetch_single_page(page_num)
     cache_key = "faculty_directory:page:#{page_num}:#{employee_type}:#{search}"
 
-    Rails.cache.fetch(cache_key, expires_in: 1.hour) do
+    Rails.cache.fetch(cache_key, expires_in: 1.hour, force: force) do
       params = {
         page: page_num,
         employee_type: employee_type
