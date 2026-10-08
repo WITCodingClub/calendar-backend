@@ -2,16 +2,22 @@
 
 # Books the one time that a meeting link allows.
 #
-# The owner's user row and then the link row are locked (SELECT ... FOR
-# UPDATE) for the whole booking. Two guests who pick at the same moment wait
-# for each other: on one link the second finds the link used, and on two
-# links of the same owner the second finds the slot taken, because the slot
-# check runs inside the lock and reads the owner's meetings. Every booking
-# takes the owner lock first, so two bookings cannot deadlock.
+# The booking locks (SELECT ... FOR UPDATE) the user rows of the owner and of
+# a signed-in guest, in id order, and then the link row, for the whole
+# booking. Two guests who pick at the same moment wait for each other: on one
+# link the second finds the link used, and on two links of the same owner the
+# second finds the slot taken, because the slot check runs inside the lock
+# and reads the owner's meetings.
 #
-# The meeting itself is made by FriendMeetingCreator, with
-# the guest as the one invitee, so it reaches the owner's calendars by the same
-# path as a meeting with friends.
+# The guest row is locked too, because saving the link checks its foreign
+# key, which takes a key share lock on the guest row. Without it, two people
+# who book each other's links at the same moment could deadlock. With every
+# booking locking user rows in id order, they wait instead. If Postgres still
+# reports a deadlock, the booking raises Invalid and the guest can try again.
+#
+# The meeting itself is made by FriendMeetingCreator, with the guest as the
+# one invitee, so it reaches the owner's calendars by the same path as a
+# meeting with friends.
 #
 # Raises Gone when the link cannot be used, and Invalid when the request is
 # wrong. A Gone error says nothing about why, so the page cannot tell a guest
@@ -36,7 +42,7 @@ class MeetingLinkBooking < ApplicationService
     start = parse_start
 
     MeetingLink.transaction do
-      User.lock.find(@link.user_id)
+      User.where(id: [ @link.user_id, @guest_user&.id ].compact.uniq).order(:id).lock.to_a
       link = MeetingLink.lock.find(@link.id)
       raise Gone unless link.usable? && Flipper.enabled?(FlipperFlags::MEETING_LINKS, link.user)
 
@@ -58,6 +64,8 @@ class MeetingLinkBooking < ApplicationService
     end
   rescue FriendMeetingCreator::Error, ActiveRecord::RecordInvalid => e
     raise Invalid, e.message
+  rescue ActiveRecord::Deadlocked
+    raise Invalid, "Another booking happened at the same moment. Pick your time again."
   end
 
   private

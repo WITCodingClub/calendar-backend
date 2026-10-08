@@ -85,6 +85,13 @@ RSpec.describe MeetingLinkBooking do
     expect { book(start_time: "tomorrow") }.to raise_error(described_class::Invalid, "Pick a time.")
   end
 
+  it "turns a deadlock into a request to pick again, and leaves the link usable" do
+    allow(FriendMeetingCreator).to receive(:call).and_raise(ActiveRecord::Deadlocked)
+
+    expect { book }.to raise_error(described_class::Invalid, /Pick your time again/)
+    expect(link.reload).to be_usable
+  end
+
   it "needs a name and a valid email" do
     expect { book(guest_name: " ") }.to raise_error(described_class::Invalid, "Enter your name.")
     expect { book(guest_name: "x" * 101) }.to raise_error(described_class::Invalid, /100 characters/)
@@ -202,5 +209,69 @@ RSpec.describe MeetingLinkBooking, "with two links of one owner at once" do
 
     expect(Array.new(results.size) { results.pop }).to contain_exactly(:booked, :taken)
     expect(FriendMeeting.where(user: owner).count).to eq(1)
+  end
+end
+
+# Two signed-in people book each other's links at the same moment. Saving the
+# link takes a key share lock on the guest's user row (the foreign key), so
+# a booking that locked only its owner could deadlock with the other one.
+RSpec.describe MeetingLinkBooking, "with two people booking each other at once" do
+  self.use_transactional_tests = false
+
+  let!(:first_person)  { create(:user) }
+  let!(:second_person) { create(:user) }
+  let(:day)            { 2.days.from_now.to_date.next_weekday }
+  let!(:first_link)    { create(:meeting_link, user: first_person, starts_on: day, ends_on: day) }
+  let!(:second_link)   { create(:meeting_link, user: second_person, starts_on: day, ends_on: day) }
+
+  before { [ first_person, second_person ].each { |person| Flipper.enable_actor(FlipperFlags::MEETING_LINKS, person) } }
+
+  after do
+    Flipper.disable(FlipperFlags::MEETING_LINKS)
+    people = [ first_person, second_person ]
+    MeetingLink.where(user: people).delete_all
+    FriendMeeting.where(user: people).destroy_all
+    people.each(&:destroy!)
+  end
+
+  def slow_down_slot_checks
+    allow(MeetingLinkSlots).to receive(:new).and_wrap_original do |original, *args, **options|
+      slots = original.call(*args, **options)
+      allow(slots).to receive(:find).and_wrap_original do |find, *find_args|
+        found = find.call(*find_args)
+        sleep 0.3
+        found
+      end
+      slots
+    end
+  end
+
+  it "books both without a deadlock" do
+    slots   = MeetingLinkSlots.new(first_link).call
+    ready   = Queue.new
+    go      = Queue.new
+    results = Queue.new
+    slow_down_slot_checks
+
+    bookings = [ [ second_link, first_person, slots.first ], [ first_link, second_person, slots.last ] ]
+    threads  = bookings.each_with_index.map do |(link, guest, slot), index|
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          ready << true
+          go.pop
+          described_class.call(link: MeetingLink.find(link.id), start_time: slot.start_time.iso8601, guest_user: guest,
+                               guest_name: "Sample Guest #{index}", guest_email: "guest#{index}@example.com")
+          results << :booked
+        rescue StandardError => e
+          results << e.class
+        end
+      end
+    end
+
+    2.times { ready.pop }
+    2.times { go << true }
+    threads.each(&:join)
+
+    expect(Array.new(results.size) { results.pop }).to eq(%i[booked booked])
   end
 end
