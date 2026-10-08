@@ -7,6 +7,10 @@
     Friends
   <% end %>
 
+  <% if @can_set_visibility %>
+    <%= render "visibility_form", friend: @friend, friendship: @friendship %>
+  <% end %>
+
   <%= render "dashboard/schedules/calendar",
       schedule: @schedule,
       title: "#{@friend.full_name}'s Schedule",
