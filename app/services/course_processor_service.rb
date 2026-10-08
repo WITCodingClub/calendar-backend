@@ -14,7 +14,8 @@ class CourseProcessorService < ApplicationService
   def call
     validate_courses_data!
 
-    processed_courses = []
+    processed = []
+    touched_meeting_time_ids = []
     enrolled_terms = Set.new
 
     grouped_courses = courses.group_by { |c| [ c[:crn], c[:term] ] }
@@ -31,203 +32,192 @@ class CourseProcessorService < ApplicationService
 
     class_details = fetch_class_details(grouped_courses.keys)
 
+    # Check every term before the first write. Enrollments and the removal of
+    # old meeting times happen after the loop, so a raise inside it would leave
+    # courses without an enrollment.
+    grouped_courses.each_key do |crn_and_term|
+      term_uid = crn_and_term.last
+      next if class_details[crn_and_term].nil? || term_cache.key?(term_uid.to_s)
+
+      raise InvalidTermError.new(
+        term_uid,
+        "Term with UID #{term_uid} not found. Please ensure EnsureFutureTermsJob has run."
+      )
+    end
+
+    # Load what the loop below reads for each course in one query each, so a
+    # request with many courses does not send the same query for each (#723).
+    meeting_times_by_key = grouped_courses.each_with_object({}) do |(key, course_meetings), acc|
+      acc[key] = meeting_times_for(course_meetings, class_details[key]) if class_details[key]
+    end
+
+    existing_course_ids = course_cache.values.map(&:id)
+    existing_meeting_times = Course::MeetingTime.where(course_id: existing_course_ids)
+                                                .includes(:meeting_time_rooms)
+                                                .group_by(&:course_id)
+
+    # course_id => whether the course has any enrollment. Both change trackers
+    # read it, so a save sends no EXISTS query.
+    enrollment_flags = existing_course_ids.index_with(false)
+    Enrollment.where(course_id: existing_course_ids).distinct.pluck(:course_id).each { |id| enrollment_flags[id] = true }
+
     Term.with_deferred_date_updates do
-      grouped_courses.each do |key, course_meetings|
-        course_data = course_meetings.first
-        detailed_course_info = class_details[key]
+      locations = MeetingTimesIngestService::Locations.new
+      locations.preload(meeting_times_by_key.values.flatten)
 
-        unless detailed_course_info
-          Rails.logger.warn("[CourseProcessorService] No class details returned for CRN #{course_data[:crn]} in term #{course_data[:term]}, skipping")
-          next
-        end
+      with_enrollment_flags(enrollment_flags) do
+        grouped_courses.each do |key, course_meetings|
+          course_data = course_meetings.first
+          detailed_course_info = class_details[key]
 
-        term = term_cache[course_data[:term].to_s]
-
-        unless term
-          raise InvalidTermError.new(
-            course_data[:term],
-            "Term with UID #{course_data[:term]} not found. Please ensure EnsureFutureTermsJob has run."
-          )
-        end
-
-        schedule_type_match = detailed_course_info[:schedule_type].to_s.match(/\(([^)]+)\)/)
-
-        # Prefer structured meeting times from getFacultyMeetingTimes — correct room/time data
-        # with no timezone ambiguity. Fall back to parsing raw Banner calendar timestamps only
-        # if structured data is unavailable.
-        meeting_times = if detailed_course_info[:meeting_times].present?
-          MeetingTimesIngestService.normalize_leopard_web(detailed_course_info[:meeting_times])
-        else
-          time_groups = course_meetings.group_by do |meeting|
-            start_value = meeting[:start] || meeting["start"]
-            end_value = meeting[:end] || meeting["end"]
-
-            start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
-            end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
-
-            [ start_time.strftime("%H:%M"), end_time.strftime("%H:%M") ]
+          unless detailed_course_info
+            Rails.logger.warn("[CourseProcessorService] No class details returned for CRN #{course_data[:crn]} in term #{course_data[:term]}, skipping")
+            next
           end
 
-          time_groups.map do |time_key, meetings|
-            days = {
-              "sunday"    => false,
-              "monday"    => false,
-              "tuesday"   => false,
-              "wednesday" => false,
-              "thursday"  => false,
-              "friday"    => false,
-              "saturday"  => false
-            }
+          term = term_cache.fetch(course_data[:term].to_s)
 
-            start_dates = []
-            end_dates = []
+          schedule_type_match = detailed_course_info[:schedule_type].to_s.match(/\(([^)]+)\)/)
+          meeting_times = meeting_times_by_key[key]
 
-            meetings.each do |meeting|
-              start_value = meeting[:start] || meeting["start"]
-              end_value = meeting[:end] || meeting["end"]
+          # Banner is the authority on who teaches a section. The posted schedule
+          # is only a fallback for the rare section Banner answers with no
+          # faculty, and only when it carries a real address: a guessed
+          # first.last@wit.edu creates a second instructor who never matches the
+          # real record.
+          faculty_data = detailed_course_info[:faculty].presence ||
+                         posted_faculty(course_meetings.first)
 
-              start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
-              end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
+          start_date = nil
+          end_date = nil
+          if meeting_times.any?
+            first_mt = meeting_times.first
+            start_date = parse_date(first_mt["startDate"])
+            end_date = parse_date(first_mt["endDate"])
+          end
 
-              day_of_week = start_time.wday
-              day_names = %w[sunday monday tuesday wednesday thursday friday saturday]
-              days[day_names[day_of_week]] = true
+          course = course_cache[[ course_data[:crn].to_s, term.id ]]
+          if course.nil?
+            course = Course.new(crn: course_data[:crn], term: term)
+            course.title          = titleize_with_roman_numerals(detailed_course_info[:title])
+            course.start_date     = start_date
+            course.end_date       = end_date
+            course.subject        = detailed_course_info[:subject]
+            course.course_number  = course_data[:courseNumber]
+            course.schedule_type  = schedule_type_match ? schedule_type_match[1] : nil
+            course.section_number = normalize_section_number(detailed_course_info[:section_number])
+            course.credit_hours   = schedule_type_match && schedule_type_match[1] == "LAB" ? nil : detailed_course_info[:credit_hours]
+            course.grade_mode     = detailed_course_info[:grade_mode]
+            course.seats_available = detailed_course_info[:seats_available]
+            course.seats_capacity  = detailed_course_info[:seats_capacity]
+            course.save!
+            enrollment_flags[course.id] = false
+          end
 
-              start_dates << start_time.strftime("%m/%d/%Y")
-              end_dates << end_time.strftime("%m/%d/%Y")
+          if course.persisted? && !course.new_record?
+            update_attrs = {}
+            update_attrs[:start_date] = start_date if start_date.present?
+            update_attrs[:end_date] = end_date if end_date.present?
+
+            if detailed_course_info[:title].present?
+              new_title = titleize_with_roman_numerals(detailed_course_info[:title])
+              update_attrs[:title] = new_title if course.title != new_title
             end
 
-            start_date = start_dates.min
-            end_date = end_dates.max
-            begin_time, end_time = time_key
+            update_attrs[:seats_available] = detailed_course_info[:seats_available] unless detailed_course_info[:seats_available].nil?
+            update_attrs[:seats_capacity]  = detailed_course_info[:seats_capacity]  unless detailed_course_info[:seats_capacity].nil?
 
-            {
-              "startDate"           => start_date,
-              "endDate"             => end_date,
-              "beginTime"           => begin_time,
-              "endTime"             => end_time,
-              "building"            => meetings.first[:building] || meetings.first["building"] || "TBD",
-              "buildingDescription" => meetings.first[:buildingDescription] || meetings.first["buildingDescription"] || "To Be Determined",
-              "room"                => meetings.first[:room] || meetings.first["room"] || "TBD"
-            }.merge(days)
-          end
-        end
-
-        # Banner is the authority on who teaches a section. The posted schedule
-        # is only a fallback for the rare section Banner answers with no
-        # faculty, and only when it carries a real address: a guessed
-        # first.last@wit.edu creates a second instructor who never matches the
-        # real record.
-        faculty_data = detailed_course_info[:faculty].presence ||
-                       posted_faculty(course_meetings.first)
-
-        start_date = nil
-        end_date = nil
-        if meeting_times.any?
-          first_mt = meeting_times.first
-          start_date = parse_date(first_mt["startDate"])
-          end_date = parse_date(first_mt["endDate"])
-        end
-
-        course = course_cache[[ course_data[:crn].to_s, term.id ]]
-        if course.nil?
-          course = Course.new(crn: course_data[:crn], term: term)
-          course.title          = titleize_with_roman_numerals(detailed_course_info[:title])
-          course.start_date     = start_date
-          course.end_date       = end_date
-          course.subject        = detailed_course_info[:subject]
-          course.course_number  = course_data[:courseNumber]
-          course.schedule_type  = schedule_type_match ? schedule_type_match[1] : nil
-          course.section_number = normalize_section_number(detailed_course_info[:section_number])
-          course.credit_hours   = schedule_type_match && schedule_type_match[1] == "LAB" ? nil : detailed_course_info[:credit_hours]
-          course.grade_mode     = detailed_course_info[:grade_mode]
-          course.seats_available = detailed_course_info[:seats_available]
-          course.seats_capacity  = detailed_course_info[:seats_capacity]
-          course.save!
-        end
-
-        if course.persisted? && !course.new_record?
-          update_attrs = {}
-          update_attrs[:start_date] = start_date if start_date.present?
-          update_attrs[:end_date] = end_date if end_date.present?
-
-          if detailed_course_info[:title].present?
-            new_title = titleize_with_roman_numerals(detailed_course_info[:title])
-            update_attrs[:title] = new_title if course.title != new_title
+            course.update!(update_attrs) if update_attrs.any?
           end
 
-          update_attrs[:seats_available] = detailed_course_info[:seats_available] unless detailed_course_info[:seats_available].nil?
-          update_attrs[:seats_capacity]  = detailed_course_info[:seats_capacity]  unless detailed_course_info[:seats_capacity].nil?
-
-          course.update!(update_attrs) if update_attrs.any?
-        end
-
-        orphan_exam = orphan_exam_cache[[ course.crn.to_s, term.id ]]
-        if orphan_exam
-          orphan_exam.update!(course: course)
-          Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
-        end
-
-        # Upsert in place so meeting time IDs stay stable — destroying them
-        # cascades to calendar_events tracking rows, which strands the
-        # real events in Google Calendar and duplicates them on the next sync.
-        # Only rows absent from the upload are removed; their calendar events
-        # are nullified and cleaned up by CleanupOrphanedCalendarEventsJob.
-        touched_meeting_time_ids = MeetingTimesIngestService.call(
-          course: course,
-          raw_meeting_times: meeting_times
-        )
-        course.meeting_times.where.not(id: touched_meeting_time_ids).destroy_all
-
-        FacultyIngestService.call(course: course, raw_faculty: faculty_data)
-
-        Enrollment.find_or_create_by!(user: user, course: course, term: term)
-        enrolled_terms << term
-
-        course = Course.includes(:faculties, meeting_times: [ rooms: :building ]).find(course.id)
-
-        processed_courses << {
-          id: course.id,
-          title: course.title,
-          crn: course.crn,
-          subject: course.subject,
-          course_number: course.course_number,
-          schedule_type: course.schedule_type,
-          instructors: course.faculties.map do |faculty|
-            {
-              name: faculty.display_name,
-              first_name: faculty.first_name,
-              last_name: faculty.last_name,
-              email: faculty.email
-            }
-          end,
-          term: {
-            uid: term.uid,
-            season: term.season,
-            year: term.year
-          },
-          meeting_times: course.meeting_times.map do |mt|
-            {
-              begin_time: mt.fmt_begin_time,
-              end_time: mt.fmt_end_time,
-              start_date: mt.start_date,
-              end_date: mt.end_date,
-              day_of_week: mt.day_of_week,
-              location: {
-                building: if mt.building
-                              {
-                                name: mt.building.name,
-                                abbreviation: mt.building.abbreviation
-                              }
-                          else
-                              nil
-                          end,
-                rooms: mt.rooms.map(&:formatted_number)
-              }
-            }
+          orphan_exam = orphan_exam_cache[[ course.crn.to_s, term.id ]]
+          if orphan_exam
+            orphan_exam.update!(course: course)
+            Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
           end
-        }
+
+          # Upsert in place so meeting time IDs stay stable — destroying them
+          # cascades to calendar_events tracking rows, which strands the
+          # real events in Google Calendar and duplicates them on the next sync.
+          # Only rows absent from the upload are removed, after the loop; their
+          # calendar events are nullified and cleaned up by
+          # CleanupOrphanedCalendarEventsJob.
+          touched_meeting_time_ids.concat(
+            MeetingTimesIngestService.call(
+              course: course,
+              raw_meeting_times: meeting_times,
+              locations: locations,
+              existing_meeting_times: existing_meeting_times.fetch(course.id, [])
+            )
+          )
+
+          FacultyIngestService.call(course: course, raw_faculty: faculty_data)
+
+          processed << [ course.id, term ]
+          enrolled_terms << term
+        end
+
+        processed_course_ids = processed.map(&:first)
+        Course::MeetingTime.where(course_id: processed_course_ids).where.not(id: touched_meeting_time_ids)
+                         .includes(:meeting_time_rooms, :event_preference).destroy_all
       end
+    end
+
+    if processed.any?
+      # The unique index on (user_id, course_id, term_id) skips enrollments
+      # that already exist, so the uniqueness validation is not needed here.
+      Enrollment.insert_all( # rubocop:disable Rails/SkipsModelValidations
+        processed.map { |course_id, term| { user_id: user.id, course_id: course_id, term_id: term.id } },
+        unique_by: :index_enrollments_on_user_class_term
+      )
+    end
+
+    courses_by_id = Course.includes(:faculties, meeting_times: [ rooms: :building ])
+                          .where(id: processed.map(&:first))
+                          .index_by(&:id)
+    processed_courses = processed.map do |course_id, term|
+      course = courses_by_id.fetch(course_id)
+      {
+        id: course.id,
+        title: course.title,
+        crn: course.crn,
+        subject: course.subject,
+        course_number: course.course_number,
+        schedule_type: course.schedule_type,
+        instructors: course.faculties.map do |faculty|
+          {
+            name: faculty.display_name,
+            first_name: faculty.first_name,
+            last_name: faculty.last_name,
+            email: faculty.email
+          }
+        end,
+        term: {
+          uid: term.uid,
+          season: term.season,
+          year: term.year
+        },
+        meeting_times: course.meeting_times.map do |mt|
+          {
+            begin_time: mt.fmt_begin_time,
+            end_time: mt.fmt_end_time,
+            start_date: mt.start_date,
+            end_date: mt.end_date,
+            day_of_week: mt.day_of_week,
+            location: {
+              building: if mt.building
+                            {
+                              name: mt.building.name,
+                              abbreviation: mt.building.abbreviation
+                            }
+                        else
+                            nil
+                        end,
+              rooms: mt.rooms.map(&:formatted_number)
+            }
+          }
+        end
+      }
     end
 
     # Mark a term processed only after all of its courses are done, so
@@ -293,6 +283,77 @@ class CourseProcessorService < ApplicationService
 
       unless course_data[:term].to_s.match?(/^\d+$/)
         raise ArgumentError, "course at index #{index} has invalid term UID: #{course_data[:term]}"
+      end
+    end
+  end
+
+  # Prefer structured meeting times from getFacultyMeetingTimes — correct room/time data
+  # with no timezone ambiguity. Fall back to parsing raw Banner calendar timestamps only
+  # if structured data is unavailable.
+  def meeting_times_for(course_meetings, detailed_course_info)
+    if detailed_course_info[:meeting_times].present?
+      MeetingTimesIngestService.normalize_leopard_web(detailed_course_info[:meeting_times])
+    else
+      time_groups = course_meetings.group_by do |meeting|
+        start_value = meeting[:start] || meeting["start"]
+        end_value = meeting[:end] || meeting["end"]
+
+        start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
+        end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
+
+        [ start_time.strftime("%H:%M"), end_time.strftime("%H:%M") ]
+      end
+
+      time_groups.map do |time_key, meetings|
+        days = {
+          "sunday"    => false,
+          "monday"    => false,
+          "tuesday"   => false,
+          "wednesday" => false,
+          "thursday"  => false,
+          "friday"    => false,
+          "saturday"  => false
+        }
+
+        start_dates = []
+        end_dates = []
+
+        meetings.each do |meeting|
+          start_value = meeting[:start] || meeting["start"]
+          end_value = meeting[:end] || meeting["end"]
+
+          start_time = start_value.is_a?(String) ? Time.zone.parse(start_value) : start_value.to_time
+          end_time = end_value.is_a?(String) ? Time.zone.parse(end_value) : end_value.to_time
+
+          day_of_week = start_time.wday
+          day_names = %w[sunday monday tuesday wednesday thursday friday saturday]
+          days[day_names[day_of_week]] = true
+
+          start_dates << start_time.strftime("%m/%d/%Y")
+          end_dates << end_time.strftime("%m/%d/%Y")
+        end
+
+        start_date = start_dates.min
+        end_date = end_dates.max
+        begin_time, end_time = time_key
+
+        {
+          "startDate"           => start_date,
+          "endDate"             => end_date,
+          "beginTime"           => begin_time,
+          "endTime"             => end_time,
+          "building"            => meetings.first[:building] || meetings.first["building"] || "TBD",
+          "buildingDescription" => meetings.first[:buildingDescription] || meetings.first["buildingDescription"] || "To Be Determined",
+          "room"                => meetings.first[:room] || meetings.first["room"] || "TBD"
+        }.merge(days)
+      end
+    end
+  end
+
+  def with_enrollment_flags(flags, &)
+    CalendarSyncMarker.batch do
+      CourseChangeTrackable.with_enrollment_cache(flags) do
+        MeetingTimeChangeTrackable.with_enrollment_cache(flags, &)
       end
     end
   end

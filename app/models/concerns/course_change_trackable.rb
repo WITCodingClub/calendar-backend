@@ -7,8 +7,12 @@ module CourseChangeTrackable
 
   # Wrap bulk course-save operations in this block to batch-check enrollment existence
   # per course once rather than once per course save (avoids N+1).
-  def self.with_enrollment_cache
-    Thread.current[ENROLLMENT_CACHE_KEY] = {}
+  #
+  # Pass a hash of course_id => true/false to start with flags that the caller
+  # loaded for many courses in one query. The block then sends no EXISTS query
+  # for those courses.
+  def self.with_enrollment_cache(flags = {})
+    Thread.current[ENROLLMENT_CACHE_KEY] = flags
     yield
   ensure
     Thread.current[ENROLLMENT_CACHE_KEY] = nil
@@ -16,7 +20,8 @@ module CourseChangeTrackable
 
   included do
     # Mark all enrolled users' calendars as needing sync when course details change
-    after_save :mark_enrolled_users_for_sync, if: :saved_change_to_relevant_attributes?
+    # A new course has no enrollments yet, so the check can only find none.
+    after_update :mark_enrolled_users_for_sync, if: :saved_change_to_relevant_attributes?
     after_destroy :mark_enrolled_users_for_sync
   end
 
@@ -35,17 +40,7 @@ module CourseChangeTrackable
     end
     return unless has_enrollments
 
-    # Select the same way NightlyCalendarSyncJob does, by the course_calendars
-    # association. The old predicate looked for a course_calendar_id key in the
-    # OAuth credential metadata. Nothing writes that key, so it matched no one
-    # and no data change ever marked a calendar.
-    user_ids = User.joins(:enrollments)
-                   .joins(:course_calendars)
-                   .where(enrollments: { course_id: id })
-                   .distinct
-                   .pluck(:id)
-
-    User.where(id: user_ids).update_all(calendar_needs_sync: true) if user_ids.any? # rubocop:disable Rails/SkipsModelValidations
+    CalendarSyncMarker.mark(id)
   end
 
   private

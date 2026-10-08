@@ -90,6 +90,80 @@ RSpec.describe CourseProcessorService do
     expect(CalendarEvent.orphaned).to include(event)
   end
 
+  # Prosopite raises in Prosopite.scan when the same query runs once for each
+  # course (#723).
+  describe "with several courses" do
+    let(:crns) { %w[11111 22222 33333] }
+    let(:courses_payload) { crns.map { |crn| { crn: crn, term: "202710", courseNumber: "2000" } } }
+
+    # Each section meets in its own building, so a lookup for each course
+    # would send a different query each time.
+    def details_for(crn)
+      class_details.merge(
+        meeting_times: [
+          {
+            "building"             => "ZQ#{crn.first}",
+            "building_description" => "Hall #{crn.first}",
+            "room"                 => "#{crn.first}01",
+            "startDate"            => "09/08/2026",
+            "endDate"              => "12/15/2026",
+            "startTime"            => "1300",
+            "endTime"              => "1445",
+            "days"                 => { "monday" => true, "wednesday" => true }
+          }
+        ]
+      )
+    end
+
+    before do
+      allow(LeopardWebService).to receive(:get_class_details) { |course_reference_number:, **| details_for(course_reference_number) }
+    end
+
+    it "creates every course without one query for each course" do
+      expect { Prosopite.scan { process! } }.not_to raise_error
+
+      expect(user.enrollments.count).to eq(3)
+      expect(Building.where(abbreviation: %w[ZQ1 ZQ2 ZQ3]).count).to eq(3)
+    end
+
+    it "updates every course without one query for each course" do
+      process!
+      classmate = create(:user)
+      create(:course_calendar, oauth_credential: create(:oauth_credential, user: classmate))
+      Course.where(crn: crns).find_each { |course| create(:enrollment, user: classmate, course: course, term: term) }
+
+      allow(LeopardWebService).to receive(:get_class_details) { |course_reference_number:, **|
+        details_for(course_reference_number).merge(title: "Algorithms")
+      }
+      expect { Prosopite.scan { process! } }.not_to raise_error
+
+      expect(Course.where(crn: crns).pluck(:title)).to all(eq("Algorithms"))
+      expect(classmate.reload.calendar_needs_sync).to be(true)
+    end
+
+    it "replaces moved meeting times and returns each course with its new times" do
+      process!
+      old_ids = Course::MeetingTime.where(course: Course.where(crn: crns)).ids
+
+      result = nil
+      allow(LeopardWebService).to receive(:get_class_details) { |course_reference_number:, **|
+        details_for(course_reference_number).tap { |d| d[:meeting_times].first["startTime"] = "0900" }
+      }
+      expect { Prosopite.scan { result = process! } }.not_to raise_error
+
+      expect(Course::MeetingTime.where(id: old_ids)).not_to exist
+      expect(result.map { |c| c[:crn].to_s }).to eq(crns)
+      expect(result.flat_map { |c| c[:meeting_times].pluck(:begin_time) }.uniq).to eq([ "9:00 AM" ])
+    end
+
+    it "writes nothing when one course names an unknown term" do
+      courses_payload << { crn: "44444", term: "209910", courseNumber: "2000" }
+
+      expect { process! }.to raise_error(InvalidTermError)
+      expect(Course.where(crn: crns)).not_to exist
+    end
+  end
+
   describe "instructors" do
     let(:banner_faculty) do
       [ { "displayName" => "Elijah Sanderson", "emailAddress" => "sandersone1@wit.edu",
