@@ -99,7 +99,8 @@ class CleanupUntrackedGoogleEventsJob < ApplicationJob
     Rails.logger.info "[CleanupUntrackedGoogleEventsJob] Deleted #{event.id} " \
                       "(#{event.summary.inspect}) from calendar #{calendar.id}"
   rescue Google::Apis::ClientError => e
-    raise unless e.status_code == 404
+    # 410 Gone: the event was already deleted.
+    raise unless [ 404, 410 ].include?(e.status_code)
   end
 
   # The service account created and owns every app-managed calendar, so it can

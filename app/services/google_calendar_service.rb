@@ -218,7 +218,7 @@ class GoogleCalendarService
     service = service_account_calendar_service
     with_rate_limit_handling { service.delete_event(calendar_id, external_event_id) }
   rescue Google::Apis::ClientError => e
-    raise unless e.status_code == 404
+    raise unless event_already_deleted?(e)
 
     Rails.logger.info("Event #{external_event_id} already absent from calendar #{calendar_id}")
   end
@@ -543,13 +543,20 @@ class GoogleCalendarService
     :updated
   end
 
+  # Google answers 404 for an event it never had, and 410 Gone for an event
+  # that was already deleted, for example by the user in Google Calendar.
+  # A delete has nothing left to do in both cases.
+  def event_already_deleted?(error)
+    [ 404, 410 ].include?(error.status_code)
+  end
+
   def delete_event_from_calendar(service, course_calendar, db_event)
     calendar_id = course_calendar.external_calendar_id
     with_rate_limit_handling { service.delete_event(calendar_id, db_event.external_event_id) }
     db_event.skip_remote_deletion = true
     db_event.destroy
   rescue Google::Apis::ClientError => e
-    raise unless e.status_code == 404
+    raise unless event_already_deleted?(e)
 
     Rails.logger.warn({ message: "Event not found in Google Calendar, removing from database",
                         user_id: user.id, external_event_id: db_event.external_event_id }.to_json)
