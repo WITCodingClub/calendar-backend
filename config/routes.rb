@@ -153,6 +153,8 @@ Rails.application.routes.draw do
       collection { post :preview }
     end
 
+    get "user/preferences/version", to: "preference_versions#show"
+
     # Per-event preferences (meeting time or calendar event)
     post "meeting_times/preferences", to: "event_preferences#batch_show"
     resources :meeting_times, only: [] do

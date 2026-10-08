@@ -14,6 +14,14 @@ RSpec.describe FacultyDirectorySyncJob, type: :job do
     expect { described_class.perform_now }.to raise_error(/Failed to fetch faculty directory/)
   end
 
+  it "asks the directory service for fresh pages, not cached ones" do
+    allow(FacultyDirectoryService).to receive(:call).and_return(directory_result(faculty: []))
+
+    described_class.perform_now
+
+    expect(FacultyDirectoryService).to have_received(:call).with(force: true)
+  end
+
   it "creates a new faculty record from a directory entry with a full name and email" do
     allow(FacultyDirectoryService).to receive(:call).and_return(
       directory_result(faculty: [
