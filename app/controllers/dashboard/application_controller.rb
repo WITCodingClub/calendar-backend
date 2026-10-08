@@ -14,6 +14,9 @@ class Dashboard::ApplicationController < ApplicationController
   def require_processed_courses
     return if onboarding_complete?
 
+    # Keep a notice or alert from the previous redirect (for example the
+    # sign-in "Welcome" notice), so the onboarding page shows it.
+    flash.keep
     redirect_to dashboard_onboarding_path
   end
 

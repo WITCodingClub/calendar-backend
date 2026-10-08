@@ -40,6 +40,15 @@
     </li>
   </ol>
 
+  <% if @pending_friend_requests_count.positive? %>
+    <div class="m3-card px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+      <p class="text-sm text-on-surface">
+        You have <%= pluralize(@pending_friend_requests_count, "friend request") %>.
+      </p>
+      <%= link_to "Review requests", requests_dashboard_friends_path, class: "m3-btn-tonal text-sm" %>
+    </div>
+  <% end %>
+
   <div class="flex flex-wrap gap-2">
     <%= link_to "I processed my courses", dashboard_root_path, class: "m3-btn-tonal text-sm" %>
     <%= link_to "Settings", dashboard_settings_path, class: "m3-btn-text text-sm" %>

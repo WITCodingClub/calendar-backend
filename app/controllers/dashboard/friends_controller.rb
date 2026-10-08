@@ -3,6 +3,12 @@
 class Dashboard::FriendsController < Dashboard::ApplicationController
   include ScheduleLoading
 
+  # FriendshipMailer links to the requests page. A user with no processed
+  # courses must be able to answer a request from that email (#644), so the
+  # requests page and its actions skip the onboarding gate. The friends list
+  # and a friend's schedule stay gated.
+  skip_before_action :require_processed_courses, only: %i[requests accept decline]
+
   def index
     authorize current_user, :show?
 
@@ -55,20 +61,20 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     authorize current_user, :update?
 
     fr = current_user.incoming_friend_requests.find_by(id: params[:id])
-    return redirect_to dashboard_friends_path, alert: "Request not found." unless fr
+    return redirect_to after_request_path, alert: "Request not found." unless fr
 
     fr.accepted!
-    redirect_to dashboard_friends_path, notice: "#{fr.requester.first_name} added as a friend."
+    redirect_to after_request_path, notice: "#{fr.requester.first_name} added as a friend."
   end
 
   def decline
     authorize current_user, :update?
 
     fr = current_user.incoming_friend_requests.find_by(id: params[:id])
-    return redirect_to dashboard_friends_path, alert: "Request not found." unless fr
+    return redirect_to after_request_path, alert: "Request not found." unless fr
 
     fr.destroy!
-    redirect_to dashboard_friends_path, notice: "Request declined."
+    redirect_to after_request_path, notice: "Request declined."
   end
 
   def destroy
@@ -79,5 +85,13 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
 
     current_user.remove_friend(friend)
     redirect_to dashboard_friends_path, notice: "#{friend.first_name} removed."
+  end
+
+  private
+
+  # The friends page is gated for a user with no processed courses, so send
+  # that user back to the requests page instead.
+  def after_request_path
+    onboarding_complete? ? dashboard_friends_path : requests_dashboard_friends_path
   end
 end

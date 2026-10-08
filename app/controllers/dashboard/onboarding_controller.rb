@@ -10,10 +10,12 @@ class Dashboard::OnboardingController < Dashboard::ApplicationController
     authorize current_user, :show?
 
     if onboarding_complete?
+      flash.keep
       redirect_to dashboard_root_path
       return
     end
 
     @extension_install_url = Rails.configuration.x.extension_install_url
+    @pending_friend_requests_count = current_user.incoming_friend_requests.pending.count
   end
 end
