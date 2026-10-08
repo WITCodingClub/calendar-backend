@@ -48,6 +48,14 @@ sequenceDiagram
 
 All routes need the usual API token.
 
+### GET /api/friends
+
+Each friend in the list has a `visibility` object with `mine` and `theirs`, in the same shape as the route below. The client then shows the sharing state of every friend with one request. `visibility` is `null` when the route below would answer 404: the flag is off for the user and the friend shares `full`.
+
+```json
+{ "friends": [ { "id": "usr_...", "name": "...", "visibility": { "mine": "full", "theirs": "availability_only" } } ] }
+```
+
 ### GET /api/friends/:friend_id/visibility
 
 Returns both levels, as seen by the signed-in user. `mine` is the level the user set for their own schedule. `theirs` is the level the friend set. `theirs` decides what the user can read.

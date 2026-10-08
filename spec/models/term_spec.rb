@@ -34,6 +34,7 @@ RSpec.describe Term, type: :model do
     it { is_expected.to have_many(:courses).dependent(:destroy) }
     it { is_expected.to have_many(:enrollments).through(:courses) }
     it { is_expected.to have_many(:final_exams).dependent(:destroy) }
+    it { is_expected.to have_many(:term_processing_statuses).dependent(:delete_all) }
     it { is_expected.to have_many(:university_calendar_events).dependent(:nullify) }
 
     it { is_expected.to validate_presence_of(:uid) }

@@ -20,5 +20,9 @@ if defined?(Prosopite)
 
     # Queries that gems send on their own admin pages. The app cannot preload them.
     Prosopite.ignore_queries = [ /"(console1984|audits1984)_/ ]
+
+    # Course processing still sends some queries once for each course, such as
+    # the enrollment and building checks (#723).
+    Prosopite.allow_stack_paths = [ "app/services/course_processor_service.rb" ]
   end
 end
