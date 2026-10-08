@@ -192,4 +192,43 @@ RSpec.describe GoogleCalendarService do
         .not_to raise_error
     end
   end
+
+  describe "#delete_events" do
+    let(:user) { create(:user) }
+    let(:credential) do
+      create(:oauth_credential, user: user, access_token: "synthetic-user-token",
+                                refresh_token: "synthetic-user-refresh",
+                                token_expires_at: 1.hour.from_now)
+    end
+    let(:course_calendar) do
+      create(:course_calendar, oauth_credential: credential, external_calendar_id: "synthetic-course-calendar")
+    end
+    let!(:db_event) do
+      create(:calendar_event, :for_university_event, course_calendar: course_calendar,
+                                                     external_event_id: "synthetic-event")
+    end
+    let(:event_url) { "#{GoogleApiStubs::GOOGLE_CALENDAR_API}/calendars/synthetic-course-calendar/events/synthetic-event" }
+
+    it "deletes the event from Google and the database" do
+      removal = stub_request(:delete, event_url)
+        .with(headers: { "Authorization" => "Bearer synthetic-user-token" })
+        .to_return(status: 204)
+
+      described_class.new(user).delete_events([ db_event ])
+
+      expect(removal).to have_been_requested.once
+      expect(CalendarEvent.exists?(db_event.id)).to be(false)
+    end
+
+    # Google answers 410 Gone for an event the user already deleted. Before
+    # this was handled, the error stopped every later sync for the user.
+    it "treats an event that Google already deleted as done" do
+      stub_request(:delete, event_url)
+        .to_return(status: 410, body: { error: { code: 410, message: "Resource has been deleted" } }.to_json,
+                   headers: { "Content-Type" => "application/json" })
+
+      expect { described_class.new(user).delete_events([ db_event ]) }.not_to raise_error
+      expect(CalendarEvent.exists?(db_event.id)).to be(false)
+    end
+  end
 end
