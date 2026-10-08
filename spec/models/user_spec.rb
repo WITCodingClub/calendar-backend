@@ -50,6 +50,7 @@ RSpec.describe User, type: :model do
 
     it { is_expected.to have_many(:enrollments).dependent(:destroy) }
     it { is_expected.to have_many(:courses).through(:enrollments) }
+    it { is_expected.to have_many(:term_processing_statuses).dependent(:delete_all) }
     it { is_expected.to have_many(:oauth_credentials).dependent(:destroy) }
     it { is_expected.to have_many(:course_calendars).through(:oauth_credentials) }
     it { is_expected.to have_many(:calendar_events).through(:course_calendars) }
