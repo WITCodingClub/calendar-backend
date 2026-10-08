@@ -53,7 +53,7 @@ RSpec.describe CatalogSchema do
     end
 
     it "sizes each connection by first or last, and by the largest page without them" do
-      %w[sections instructors].each do |name|
+      %w[sections instructors reviews].each do |name|
         expect(applied(described_class.query.fields.fetch(name), Directives::ListSize)).to eq(
           slicing_arguments:            %w[first last],
           sized_fields:                 %w[edges nodes],

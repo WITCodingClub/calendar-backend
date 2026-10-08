@@ -4,18 +4,18 @@
 #
 # Table name: friendships
 #
-#  id           :bigint           not null, primary key
-#  status       :integer          default(0), not null
-#  created_at   :datetime         not null
-#  updated_at   :datetime         not null
-#  addressee_id :bigint           not null
-#  requester_id :bigint           not null
+#  id                   :bigint           not null, primary key
+#  addressee_visibility :integer          default(0), not null
+#  requester_visibility :integer          default(0), not null
+#  status               :integer          default(0), not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  addressee_id         :bigint           not null
+#  requester_id         :bigint           not null
 #
 # Indexes
 #
-#  index_friendships_on_addressee_id                   (addressee_id)
 #  index_friendships_on_addressee_id_and_status        (addressee_id,status)
-#  index_friendships_on_requester_id                   (requester_id)
 #  index_friendships_on_requester_id_and_addressee_id  (requester_id,addressee_id) UNIQUE
 #  index_friendships_on_requester_id_and_status        (requester_id,status)
 #  index_friendships_on_unordered_pair                 (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)) UNIQUE
@@ -33,7 +33,14 @@ class Friendship < ApplicationRecord
   belongs_to :requester, class_name: "User"
   belongs_to :addressee, class_name: "User"
 
+  # How much of a user's own schedule the other side of the friendship can see.
+  # "full" sends the course list. "availability_only" sends only busy blocks.
+  # Each side sets the level for its own schedule, so the two can differ.
+  VISIBILITIES = { full: 0, availability_only: 1 }.freeze
+
   enum :status, { pending: 0, accepted: 1 }, default: :pending
+  enum :requester_visibility, VISIBILITIES, default: :full, prefix: :requester
+  enum :addressee_visibility, VISIBILITIES, default: :full, prefix: :addressee
 
   validates :requester_id, uniqueness: { scope: :addressee_id, message: "friendship already exists" }
   validate :cannot_friend_self
@@ -43,10 +50,21 @@ class Friendship < ApplicationRecord
   scope :pending_for,    ->(user) { pending.where(addressee: user) }
   scope :outgoing_from,  ->(user) { pending.where(requester: user) }
   scope :accepted_for,   ->(user) { accepted.involving(user) }
+  scope :between,        lambda { |user, other|
+    where(requester: user, addressee: other).or(where(requester: other, addressee: user))
+  }
+
+  # The one place that finds the accepted friendship of two users. A merge with
+  # the expiry work (#671) changes only this method.
+  def self.accepted_between(user, other)
+    accepted.between(user, other).first
+  end
 
   after_create_commit :email_addressee_about_request, if: :pending?
   # Ex-friends come off each other's future meetings.
   after_destroy_commit :remove_from_friend_meetings, if: :accepted?
+
+  def self.valid_visibility?(level) = VISIBILITIES.key?(level.to_s.to_sym)
 
   def friend_for(user)
     requester_id == user.id ? addressee : requester
@@ -54,6 +72,26 @@ class Friendship < ApplicationRecord
 
   def requester?(user) = requester_id == user.id
   def addressee?(user) = addressee_id == user.id
+
+  # The level that +user+ set for their own schedule toward the other side.
+  def visibility_set_by(user)
+    requester?(user) ? requester_visibility : addressee_visibility
+  end
+
+  # Sets the level for +user+'s own schedule. Raises ArgumentError for a level
+  # that is not in VISIBILITIES.
+  def update_visibility_for!(user, level)
+    raise ArgumentError, "unknown visibility: #{level.inspect}" unless VISIBILITIES.key?(level.to_s.to_sym)
+
+    column = requester?(user) ? :requester_visibility : :addressee_visibility
+    update!(column => level.to_s)
+  end
+
+  # True when +viewer+ can see the course list of the other side. The other
+  # side's own setting decides, not the viewer's.
+  def full_schedule_visible_to?(viewer)
+    visibility_set_by(friend_for(viewer)) == "full"
+  end
 
   private
 

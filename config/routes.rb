@@ -55,6 +55,12 @@ Rails.application.routes.draw do
   get "/oauth/success", to: "oauth#success"
   get "/oauth/failure", to: "oauth#failure"
 
+  # A Google account linked from a browser with no session waits here for the
+  # person to confirm it.
+  get    "/oauth/confirm", to: "oauth#confirm", as: :oauth_confirm
+  post   "/oauth/confirm", to: "oauth#link"
+  delete "/oauth/confirm", to: "oauth#cancel"
+
   # ICS calendar feed (public, token-gated)
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
 
@@ -77,8 +83,11 @@ Rails.application.routes.draw do
         get "subjects",         to: "subjects#index"
         get "sections",         to: "sections#index"
         get "sections/:crn",    to: "sections#show", as: :section, constraints: { crn: /\d+/ }
+        get "sections/:crn/similar", to: "sections#similar", as: :similar_sections, constraints: { crn: /\d+/ }
+        get "reviews",          to: "reviews#index"
         get "instructors",      to: "instructors#index"
         get "instructors/:pub_id", to: "instructors#show", as: :instructor
+        get "instructors/:pub_id/similar", to: "instructors#similar", as: :similar_instructors
       end
     end
   end
@@ -92,6 +101,7 @@ Rails.application.routes.draw do
     post "user/gcal",                              to: "users#request_g_cal"
     post "user/gcal/add_email",                    to: "users#add_email_to_g_cal"
     delete "user/gcal/remove_email",               to: "users#remove_email_from_g_cal"
+    get "user/busy_blocks",                        to: "users#busy_blocks"
     get "user/id",                                   to: "users#get_id"
     get "user/email",                              to: "users#get_email"
     get "user/ics_url",                            to: "users#get_ics_url"
@@ -144,6 +154,9 @@ Rails.application.routes.draw do
     delete "friends/:friend_id",                        to: "friends#unfriend"
     post   "friends/:friend_id/processed_events",       to: "friends#processed_events"
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
+    get    "friends/:friend_id/visibility",             to: "friends#visibility"
+    patch  "friends/:friend_id/visibility",             to: "friends#update_visibility"
+    get    "friends/:friend_id/busy_blocks",            to: "friends#busy_blocks"
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
     get "terms/active",          to: "misc#get_active_terms"
@@ -157,6 +170,8 @@ Rails.application.routes.draw do
     resources :calendar_preferences, only: [ :index, :show, :update, :destroy ] do
       collection { post :preview }
     end
+
+    get "user/preferences/version", to: "preference_versions#show"
 
     # Per-event preferences (meeting time or calendar event)
     post "meeting_times/preferences", to: "event_preferences#batch_show"
@@ -187,6 +202,7 @@ Rails.application.routes.draw do
   authenticate :user do
     namespace :dashboard do
       root to: "overview#index"
+      resource  :onboarding,           only: [ :show ], controller: "onboarding"
       resource  :schedule,             only: [ :show ]
       resources :calendar_preferences, only: [ :index, :update ] do
         patch :university_events, on: :collection
@@ -200,7 +216,7 @@ Rails.application.routes.draw do
         patch :university_events
       end
       resources :friends, only: [ :index, :show, :create, :destroy ] do
-        member     { post :accept; post :decline }
+        member     { post :accept; post :decline; patch :visibility }
         collection { get :requests }
       end
       resource :settings, only: [ :show ]
@@ -295,11 +311,16 @@ Rails.application.routes.draw do
       get  "service_account/authorize", to: "service_account#authorize", as: :service_account_authorize
       post "service_account/revoke",    to: "service_account#revoke",    as: :service_account_revoke
 
-      mount MissionControl::Jobs::Engine, at: "jobs"
-      mount Flipper::UI.app(Flipper) { |builder| builder.use FlipperUserActorAdapter::UnknownActorRedirect }, at: "flipper"
-      mount Blazer::Engine,               at: "blazer"
-      mount PgHero::Engine,               at: "pghero"
-      mount Audits1984::Engine,           at: "audits"
+      # These tools can run jobs, change flags, read any row, or show console
+      # sessions, so they need a super admin. Other admins get the fallback
+      # below, which sends them away.
+      constraints SuperAdminConstraint.new do
+        mount MissionControl::Jobs::Engine, at: "jobs"
+        mount Flipper::UI.app(Flipper) { |builder| builder.use FlipperUserActorAdapter::UnknownActorRedirect }, at: "flipper"
+        mount Blazer::Engine,               at: "blazer"
+        mount PgHero::Engine,               at: "pghero"
+        mount Audits1984::Engine,           at: "audits"
+      end
     end
   end
 

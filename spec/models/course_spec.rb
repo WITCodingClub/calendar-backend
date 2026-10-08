@@ -8,6 +8,8 @@
 #  course_number     :integer          not null
 #  credit_hours      :integer
 #  crn               :integer          not null
+#  embedding         :vector(1536)
+#  embedding_digest  :string(64)
 #  end_date          :date             not null
 #  grade_mode        :string
 #  is_section_linked :boolean          default(FALSE), not null
@@ -28,8 +30,8 @@
 #
 #  index_courses_on_course_and_link_identifier  (term_id,subject,course_number,link_identifier)
 #  index_courses_on_crn_and_term_id             (crn,term_id) UNIQUE
+#  index_courses_on_embedding                   (embedding vector_cosine_ops) USING hnsw
 #  index_courses_on_status                      (status)
-#  index_courses_on_term_id                     (term_id)
 #
 # Foreign Keys
 #
@@ -87,6 +89,73 @@ RSpec.describe Course, type: :model do
            schedule_type: schedule_type,
            link_identifier: link_identifier,
            is_section_linked: link_identifier.present?)
+  end
+
+  describe "#embedding_text" do
+    it "reads the section the way a student would describe it" do
+      section = create(:course, term: term, subject: "Computer Science (COMP)", course_number: 1050,
+                                title: "Computer Science II", schedule_type: "LEC", credit_hours: 4)
+
+      expect(section.embedding_text).to eq(
+        "COMP1050 Computer Science II. Computer Science (COMP). lecture. 4 credit hours"
+      )
+    end
+
+    it "leaves out the credit hours Banner has not published" do
+      section = create(:course, term: term, subject: "COMP", course_number: 1000,
+                                title: "Computer Science I", credit_hours: nil)
+
+      expect(section.embedding_text).to eq("COMP1000 Computer Science I. COMP. lecture")
+    end
+  end
+
+  describe "#similar_sections" do
+    let(:spring_term) { create(:term, uid: 202_620, year: 2026, season: :spring) }
+
+    def section(subject: "COMP", number: 1000, term_for: term, angle: 0.5)
+      give_embedding(create(:course, term: term_for, subject: subject, course_number: number), angle)
+    end
+
+    it "returns the closest sections first" do
+      source = section(number: 1000, angle: 0.0)
+      near   = section(number: 2000, angle: 0.10)
+      far    = section(number: 3000, angle: 0.90)
+
+      expect(source.similar_sections).to eq([ near, far ])
+    end
+
+    it "leaves out the other sections of the same course" do
+      source = section(number: 1000, angle: 0.0)
+      section(number: 1000, angle: 0.01)
+
+      expect(source.similar_sections).to be_empty
+    end
+
+    it "stays inside the term the student is looking at" do
+      source = section(number: 1000, angle: 0.0)
+      section(number: 2000, term_for: spring_term, angle: 0.01)
+
+      expect(source.similar_sections).to be_empty
+    end
+
+    it "leaves out cancelled sections" do
+      source = section(number: 1000, angle: 0.0)
+      section(number: 2000, angle: 0.01).update!(status: :cancelled)
+
+      expect(source.similar_sections).to be_empty
+    end
+
+    it "stops at the limit" do
+      source = section(number: 1000, angle: 0.0)
+      section(number: 2000, angle: 0.10)
+      section(number: 3000, angle: 0.20)
+
+      expect(source.similar_sections(limit: 1).length).to eq(1)
+    end
+
+    it "returns nothing until the section has a vector" do
+      expect(create(:course, term: term).similar_sections).to be_empty
+    end
   end
 
   describe "#link_slot and #link_key" do

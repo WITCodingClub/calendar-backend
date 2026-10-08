@@ -1,100 +1,59 @@
-<% content_for :title, "Course Catalog Import" %>
+<%= render "admin/shared/page_header", title: "Course Catalog", subtitle: "Import course data from LeopardWeb for each term. Provision a term that is only in the API before you import it." %>
 
-<div class="container mx-auto px-4 py-8">
-  <div class="mb-6">
-    <%= link_to "← Back to Admin", admin_root_path, class: "text-sm font-medium text-primary hover:underline" %>
-  </div>
-
-  <h1 class="text-2xl font-bold mb-2 text-on-surface">Course Catalog Import</h1>
-  <p class="text-on-surface-variant mb-6">Import course data from LeopardWeb for each term. Terms marked as "API only" need to be provisioned first.</p>
-
-  <%= turbo_frame_tag "import-statuses",
-      data: { controller: "auto-refresh", "auto-refresh-interval-value": 5000, "auto-refresh-url-value": request.path } do %>
-    <div class="m3-card shadow-sm rounded-xl overflow-hidden">
-      <table class="min-w-full divide-y divide-outline-variant">
-        <thead class="bg-surface-container-high">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Term</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Term Code</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Source</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Import Status</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-outline-variant">
-          <% @combined_terms.each do |term_data| %>
-            <tr class="hover:bg-surface-container">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span class="font-medium text-on-surface"><%= term_data[:description] %></span>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <code class="text-sm bg-surface-container-high px-2 py-1 rounded"><%= term_data[:uid] %></code>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <% if term_data[:in_database] && term_data[:from_api] %>
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-tertiary-container text-on-tertiary-container">In DB + API</span>
-                <% elsif term_data[:in_database] %>
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-tertiary-container text-on-tertiary-container">In DB only</span>
-                <% else %>
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-container text-on-secondary-container">API only (not in DB)</span>
-                <% end %>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <% if term_data[:db_term]&.catalog_importing? %>
-                  <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-container text-on-primary-container">
-                    <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                    </svg>
-                    Importing…
-                  </span>
-                <% elsif term_data[:db_term]&.catalog_import_failed? %>
-                  <% job_id = term_data[:db_term].catalog_import_job_id %>
-                  <% mc_path = job_id ? admin_mission_control_jobs.application_job_path("calendar", job_id, anchor: "error") : admin_mission_control_jobs.root_path %>
-                  <%= link_to mc_path, class: "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-error-container text-on-error-container hover:underline" do %>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                    </svg>
-                    Failed
-                  <% end %>
-                <% elsif term_data[:db_term]&.catalog_imported? %>
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-tertiary-container text-on-tertiary-container">
-                    Imported <%= time_ago_in_words(term_data[:db_term].catalog_imported_at) %> ago
-                  </span>
-                <% elsif term_data[:in_database] %>
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-container-high text-on-surface-variant">Not imported</span>
-                <% else %>
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-container-high text-on-surface-variant">—</span>
-                <% end %>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <% if term_data[:in_database] && term_data[:from_api] %>
-                  <% importing = term_data[:db_term]&.catalog_importing? %>
-                  <%= button_to importing ? "Importing…" : (term_data[:db_term]&.catalog_imported? ? "Re-import" : "Import"),
-                      admin_course_catalog_import_path(term_uid: term_data[:uid]),
-                      method: :post,
-                      disabled: importing,
-                      class: "m3-btn-outlined px-4 py-2 rounded text-sm #{"opacity-50 cursor-not-allowed" if importing}",
-                      data: importing ? {} : { turbo_confirm: "Import courses for #{term_data[:description]}?" } %>
-                <% else %>
-                  <%= button_to "Provision",
-                      admin_course_catalog_provision_path(term_uid: term_data[:uid], description: term_data[:description]),
-                      method: :post,
-                      class: "px-4 py-2 rounded text-sm bg-yellow-500 hover:bg-yellow-600 text-white",
-                      data: { turbo_confirm: "Create term #{term_data[:description]} in database?" } %>
-                <% end %>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
+<%# The frame reloads every five seconds, so a running import updates in place. %>
+<%= turbo_frame_tag "import-statuses",
+    data: { controller: "auto-refresh", "auto-refresh-interval-value": 5000, "auto-refresh-url-value": request.path } do %>
+  <%= admin_table(@combined_terms, empty: "LeopardWeb returned no terms, and the database has none.") do |t| %>
+    <% t.column("Term") do |term_data| %>
+      <span class="font-medium"><%= term_data[:description] %></span>
+      <div class="text-xs text-on-surface-variant"><code><%= term_data[:uid] %></code></div>
+    <% end %>
+    <% t.column("Source") do |term_data| %>
+      <% if term_data[:in_database] && term_data[:from_api] %>
+        <%= admin_badge("In DB + API", :success) %>
+      <% elsif term_data[:in_database] %>
+        <%= admin_badge("In DB only", :neutral) %>
+      <% else %>
+        <%= admin_badge("API only", :warning) %>
+      <% end %>
+    <% end %>
+    <% t.column("Import status") do |term_data| %>
+      <% db_term = term_data[:db_term] %>
+      <% if db_term&.catalog_importing? %>
+        <%= admin_badge("Importing…", :info) %>
+      <% elsif db_term&.catalog_import_failed? %>
+        <% job_id = db_term.catalog_import_job_id %>
+        <%= link_to (job_id ? admin_mission_control_jobs.application_job_path("calendar", job_id, anchor: "error") : admin_mission_control_jobs.root_path),
+            data: { turbo_frame: "_top" }, class: "hover:underline" do %>
+          <%= admin_badge("Failed", :danger) %>
+        <% end %>
+      <% elsif db_term&.catalog_imported? %>
+        <%= admin_badge("Imported #{time_ago_in_words(db_term.catalog_imported_at)} ago", :success) %>
+      <% elsif term_data[:in_database] %>
+        <%= admin_badge("Not imported") %>
+      <% end %>
+    <% end %>
+    <% t.column("Actions", align: :right, primary: false) do |term_data| %>
+      <% if term_data[:in_database] && term_data[:from_api] %>
+        <% importing = term_data[:db_term]&.catalog_importing? %>
+        <%= button_to (importing ? "Importing…" : (term_data[:db_term]&.catalog_imported? ? "Re-import" : "Import")),
+            admin_course_catalog_import_path(term_uid: term_data[:uid]),
+            method: :post,
+            disabled: importing,
+            form: { data: { turbo_frame: "_top", turbo_confirm: ("Import courses for #{term_data[:description]}?" unless importing) }.compact },
+            class: "m3-btn-outlined disabled:opacity-50 disabled:cursor-not-allowed" %>
+      <% elsif !term_data[:in_database] %>
+        <%= button_to "Provision",
+            admin_course_catalog_provision_path(term_uid: term_data[:uid], description: term_data[:description]),
+            method: :post,
+            form: { data: { turbo_frame: "_top", turbo_confirm: "Create term #{term_data[:description]} in database?" } },
+            class: "m3-btn-tonal" %>
+      <% end %>
+    <% end %>
   <% end %>
+<% end %>
 
-  <div class="mt-6 p-4 rounded-xl bg-tertiary-container border border-outline-variant">
-    <p class="text-sm text-on-tertiary-container">
-      <strong>Note:</strong> Course imports run in the background and may take a few minutes.
-      Check <%= link_to "Mission Control", admin_mission_control_jobs_path, class: "underline font-medium" %> for job status.
-    </p>
-  </div>
-</div>
+<p class="mt-4 flex items-start gap-2 text-sm text-on-surface-variant">
+  <%= admin_icon(:information, css_class: "w-5 h-5 shrink-0") %>
+  <span>Imports run in the background and can take a few minutes. <%= link_to "Background Jobs", admin_mission_control_jobs_path, target: "_blank", rel: "noopener", class: "text-primary underline" %> shows the job status.</span>
+</p>

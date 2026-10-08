@@ -1,0 +1,25 @@
+<%# The top of every admin page: an optional back link, the title, an optional
+    subtitle, and the page actions from the block. It also sets the browser
+    title when the view did not set one. %>
+<% content_for(:title, title) unless content_for?(:title) %>
+<div class="mb-6">
+  <% if local_assigns[:back] %>
+    <%= link_to back[1], data: { turbo_frame: "_top" }, class: "inline-flex items-center gap-1 mb-2 text-sm text-on-surface-variant hover:text-primary" do %>
+      <%= admin_icon(:chevron_left, css_class: "w-4 h-4") %>
+      <%= back[0] %>
+    <% end %>
+  <% end %>
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <h1 class="text-2xl font-bold text-on-surface break-words"><%= title %></h1>
+      <% if local_assigns[:subtitle].present? %>
+        <p class="mt-1 text-sm text-on-surface-variant"><%= subtitle %></p>
+      <% end %>
+    </div>
+    <% if block_given? %>
+      <div class="admin-actions flex flex-wrap gap-2 sm:justify-end sm:shrink-0">
+        <%= yield %>
+      </div>
+    <% end %>
+  </div>
+</div>

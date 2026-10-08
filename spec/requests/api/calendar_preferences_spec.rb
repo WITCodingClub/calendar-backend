@@ -25,6 +25,47 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
       expect(university_preference.color_id).to eq("#1a2b3c")
     end
 
+    it "returns no university wide preference until the user saves one" do
+      get "/api/calendar_preferences", headers: headers
+
+      expect(json["uni_cal_global"]).to be_nil
+    end
+
+    it "lists the saved color of the university wide preference as hex" do
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+
+      get "/api/calendar_preferences", headers: headers
+
+      expect(json["uni_cal_global"]["color_id"]).to eq("#1a2b3c")
+    end
+
+    it "ends category colors from old extension builds that would hide the new color" do
+      category = create(:calendar_preference, :uni_cal_category, user: user, event_type: "holiday", color_id: "#d50000")
+
+      patch "/api/calendar_preferences/uni_cal",
+            params: { calendar_preference: { color_id: "#1a2b3c" } },
+            headers: headers,
+            as: :json
+
+      expect(category.reload.color_id).to be_nil
+      expect(json["color_id"]).to eq("#1a2b3c")
+      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
+    end
+
+    it "ends category colors and syncs when the user picks the color again" do
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+      # An old extension build wrote this after the color was picked.
+      category = create(:calendar_preference, :uni_cal_category, user: user, event_type: "holiday", color_id: "#d50000")
+
+      patch "/api/calendar_preferences/uni_cal",
+            params: { calendar_preference: { color_id: "#1a2b3c" } },
+            headers: headers,
+            as: :json
+
+      expect(category.reload.color_id).to be_nil
+      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true).once
+    end
+
     it "takes the legacy color id that old extension versions send" do
       patch "/api/calendar_preferences/uni_cal",
             params: { calendar_preference: { color_id: "8" } },
@@ -89,6 +130,23 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
       expect(json["scope"]).to eq("uni_cal_category")
       expect(json["event_type"]).to eq("holiday")
       expect(university_preference).to be_nil
+    end
+
+    # Extension builds before #498 set the university color with one
+    # uni_cal:<category> PATCH per category, sent only color_id, and did not
+    # read the status. A 422 here would drop the color without a message, so
+    # the API keeps the color. The next save of a uni_cal color clears it.
+    it "keeps taking a category color, as old extension builds send it" do
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+
+      patch "/api/calendar_preferences/uni_cal:holiday",
+            params: { calendar_preference: { color_id: "#d50000" } },
+            headers: headers,
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(json["color_id"]).to eq("#d50000")
+      expect(university_preference.color_id).to eq("#1a2b3c")
     end
   end
 

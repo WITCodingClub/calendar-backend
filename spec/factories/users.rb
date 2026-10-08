@@ -67,5 +67,11 @@ FactoryBot.define do
     trait :owner do
       access_level { :owner }
     end
+
+    # The extension processed the user's courses for a term. Without it, the
+    # dashboard sends the user to the onboarding page.
+    trait :with_processed_courses do
+      after(:create) { |user| create(:enrollment, user: user) }
+    end
   end
 end

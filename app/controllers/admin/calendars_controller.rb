@@ -5,11 +5,16 @@ module Admin
     def index
       @calendars = policy_scope(CourseCalendar)
                    .includes(:oauth_credential, :user)
-                   .left_joins(:calendar_events)
-                   .select("calendars.*, MAX(calendar_events.updated_at) as max_event_updated_at")
-                   .group("calendars.id")
                    .order(updated_at: :desc)
-                   .page(params[:page]).per(7)
+
+      if params[:search].present?
+        query = "%#{CourseCalendar.sanitize_sql_like(params[:search].strip)}%"
+        @calendars = @calendars.joins(oauth_credential: :user)
+                               .where("users.email ILIKE :q OR oauth_credentials.email ILIKE :q", q: query)
+      end
+      @calendars = @calendars.where(provider: params[:provider]) if params[:provider].present?
+
+      @calendars = @calendars.page(params[:page]).per(25)
     end
 
     def destroy

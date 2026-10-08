@@ -8,6 +8,8 @@
 #  course_number     :integer          not null
 #  credit_hours      :integer
 #  crn               :integer          not null
+#  embedding         :vector(1536)
+#  embedding_digest  :string(64)
 #  end_date          :date             not null
 #  grade_mode        :string
 #  is_section_linked :boolean          default(FALSE), not null
@@ -28,8 +30,8 @@
 #
 #  index_courses_on_course_and_link_identifier  (term_id,subject,course_number,link_identifier)
 #  index_courses_on_crn_and_term_id             (crn,term_id) UNIQUE
+#  index_courses_on_embedding                   (embedding vector_cosine_ops) USING hnsw
 #  index_courses_on_status                      (status)
-#  index_courses_on_term_id                     (term_id)
 #
 # Foreign Keys
 #
@@ -37,6 +39,7 @@
 #
 class Course < ApplicationRecord
   include CourseChangeTrackable
+  include Embeddable
   include EncodedIds::HashidIdentifiable
 
   set_public_id_prefix :crs
@@ -70,6 +73,19 @@ class Course < ApplicationRecord
     return nil unless schedule_type
 
     Course::ScheduleType.new(schedule_type).readable_description
+  end
+
+  # What a section means to a student, in one sentence. Banner gives no course
+  # description, so the title and the subject carry the meaning. The term is
+  # left out on purpose: the same course in two terms should read the same, and
+  # callers filter by term themselves.
+  def embedding_text
+    [
+      "#{prefix}#{course_number} #{title}",
+      subject,
+      schedule_type_description,
+      credit_hours ? "#{credit_hours} credit hours" : nil
+    ].compact_blank.join(". ")
   end
 
   def prefix
@@ -116,6 +132,20 @@ class Course < ApplicationRecord
           .where.not(id: id)
           .where.not(link_identifier: nil)
           .where("LEFT(link_identifier, 1) <> ?", link_slot)
+  end
+
+  # Sections that teach something close to this one, nearest first.
+  #
+  # Same term, because a student picks from what is offered now. The other
+  # sections of this same course are left out: they carry the same words, so
+  # they would fill the list with what the student is already looking at.
+  def similar_sections(limit: Embeddable::DEFAULT_SIMILAR_LIMIT)
+    return Course.none if embedding.nil?
+
+    Course.nearest_to(embedding, limit: limit)
+          .active
+          .where(term_id: term_id)
+          .where.not(subject: subject, course_number: course_number)
   end
 
   # Returns deduplicated meeting times, preferring non-TBD locations when there are duplicates.

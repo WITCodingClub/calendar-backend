@@ -31,7 +31,7 @@ class CatalogSchema < GraphQL::Schema
 
   # Filter errors are the client's fault, not a server bug, so surface the
   # message instead of a generic "Internal error".
-  rescue_from(::Catalog::SectionQuery::FilterError) do |err|
+  rescue_from(::Catalog::FilterError) do |err|
     raise GraphQL::ExecutionError, err.message
   end
 

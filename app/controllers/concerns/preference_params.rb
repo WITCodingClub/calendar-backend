@@ -19,6 +19,11 @@ module PreferenceParams
   #   "global"            -> class defaults
   #   "uni_cal"           -> every university calendar event
   #   "uni_cal:holiday"   -> one university calendar category
+  #
+  # A uni_cal:<category> row still takes color_id, because extension builds
+  # before #498 write the university color that way and ignore the response.
+  # The color is not permanent: the next save of a uni_cal color clears every
+  # category color (see CalendarPreference#clear_category_colors).
   #   "lecture"           -> one course schedule type
   def calendar_preference_for_scope(scope_param)
     scope_param = scope_param.to_s

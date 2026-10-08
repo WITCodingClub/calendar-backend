@@ -1,50 +1,17 @@
-<% content_for :title, "Google Calendar Events" %>
+<%= render "admin/shared/page_header", title: "Calendar Events", subtitle: "Events the app wrote to user calendars, newest first." %>
 
-<div class="container mx-auto px-2 pb-8">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-on-surface">Google Calendar Events</h1>
-    <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-  </div>
-
-  <div class="m3-card shadow-sm rounded-xl overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-outline-variant">
-        <thead class="bg-surface-container-high">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Event ID</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Calendar</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Meeting Time</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Event Data Hash</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Created</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-outline-variant">
-          <% @calendar_events.each do |event| %>
-            <tr>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-on-surface font-mono"><%= event.external_event_id&.first(20) || "N/A" %>...</div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
-                <%= event.course_calendar&.summary || "N/A" %>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
-                <%= event.meeting_time_id || "N/A" %>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface font-mono">
-                <%= event.event_data_hash&.first(12) || "N/A" %>...
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
-                <%= event.created_at.strftime("%b %d, %Y") %>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-    <% if @calendar_events.respond_to?(:total_pages) %>
-      <div class="px-6 py-4 border-t border-outline-variant bg-surface-container-low">
-        <%= paginate @calendar_events %>
-      </div>
+<%= admin_table(@calendar_events, empty: "No calendar events yet.") do |t| %>
+  <% t.column("Event ID") { |event| tag.span(event.external_event_id&.truncate(24), title: event.external_event_id, class: "font-mono text-xs") } %>
+  <% t.column("Calendar") { |event| event.course_calendar&.summary } %>
+  <% t.column("Source") do |event| %>
+    <% if event.meeting_time_id %>
+      <%= admin_badge("Class", :info) %>
+    <% elsif event.final_exam_id %>
+      <%= admin_badge("Final exam", :warning) %>
+    <% elsif event.university_calendar_event_id %>
+      <%= admin_badge("University event", :success) %>
     <% end %>
-  </div>
-</div>
+  <% end %>
+  <% t.column("Data hash") { |event| tag.span(event.event_data_hash&.first(12), class: "font-mono text-xs text-on-surface-variant") } %>
+  <% t.column("Created") { |event| event.created_at.strftime("%b %-d, %Y") } %>
+<% end %>

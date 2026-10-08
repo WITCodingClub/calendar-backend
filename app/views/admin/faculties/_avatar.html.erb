@@ -1,0 +1,6 @@
+<% size = local_assigns.fetch(:size, "h-10 w-10 text-sm") %>
+<% if faculty.photo_url.present? %>
+  <%= image_tag faculty.photo_url, alt: "", class: "#{size} rounded-full object-cover shrink-0" %>
+<% else %>
+  <span class="<%= size %> rounded-full bg-surface-container-high text-on-surface-variant font-medium flex items-center justify-center shrink-0" aria-hidden="true"><%= faculty.initials %></span>
+<% end %>

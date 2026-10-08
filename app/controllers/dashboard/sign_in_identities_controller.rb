@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class Dashboard::SignInIdentitiesController < Dashboard::ApplicationController
+  # An account page. It works before the user processes any courses.
+  skip_before_action :require_processed_courses
+
   # Unlinks a Microsoft account from sign-in. It ends no session: the current
   # session, and the sessions that Google or a passkey opened, stay signed in.
   def destroy

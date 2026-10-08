@@ -86,6 +86,32 @@ RSpec.describe "POST /api/meeting_times/preferences", type: :request do
     expect(three_count).to eq(one_count)
   end
 
+  it "returns the preference version that the data was read under" do
+    meeting_time = enroll_in(%w[11111]).first
+    create(:calendar_preference, user: user, title_template: "Mine: {{title}}")
+
+    post "/api/meeting_times/preferences",
+         params: { meeting_time_ids: [ meeting_time.public_id ] }, headers: headers, as: :json
+
+    expect(response).to have_http_status(:ok)
+    expect(json["version"]).to eq(PreferenceVersion.for(user))
+  end
+
+  it "reads the version before the preferences, so a write between them is not hidden" do
+    meeting_time = enroll_in(%w[11111]).first
+    preference = create(:calendar_preference, user: user, title_template: "Before: {{title}}")
+    old_version = PreferenceVersion.for(user)
+    allow(PreferenceVersion).to receive(:for).and_wrap_original do |original, *args|
+      original.call(*args).tap { preference.update_columns(title_template: "After: {{title}}") }
+    end
+
+    post "/api/meeting_times/preferences",
+         params: { meeting_time_ids: [ meeting_time.public_id ] }, headers: headers, as: :json
+
+    expect(json["version"]).to eq(old_version)
+    expect(json.dig("preferences", meeting_time.public_id, "preview", "title")).to eq("After: Data Structures")
+  end
+
   it "lists ids that match no meeting time instead of failing" do
     meeting_time = enroll_in(%w[11111]).first
 

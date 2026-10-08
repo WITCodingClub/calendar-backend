@@ -110,6 +110,24 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe "#processed_courses?" do
+    it "is false before the extension processes any courses" do
+      expect(create(:user).processed_courses?).to be(false)
+    end
+
+    it "is true when the user has an enrollment in any term" do
+      expect(create(:user, :with_processed_courses).processed_courses?).to be(true)
+    end
+  end
+
+  describe "#super_admin_access?" do
+    it "is true for a super admin and an owner only" do
+      levels = %i[user admin super_admin owner].index_with { |level| build(:user, access_level: level).super_admin_access? }
+
+      expect(levels).to eq(user: false, admin: false, super_admin: true, owner: true)
+    end
+  end
+
   describe "#remove_friend" do
     let(:user)   { create(:user) }
     let(:friend) { create(:user) }
