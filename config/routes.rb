@@ -146,6 +146,7 @@ Rails.application.routes.draw do
     get    "friends/meetings/:id",                      to: "friend_meetings#show"
     patch  "friends/meetings/:id",                      to: "friend_meetings#update"
     delete "friends/meetings/:id",                      to: "friend_meetings#destroy"
+    delete "friends/meetings/:id/attendance",           to: "friend_meetings#leave"
     get    "friends/requests",                          to: "friends#requests"
     post   "friends/requests",                          to: "friends#create_request"
     post   "friends/requests/:request_id/accept",       to: "friends#accept"

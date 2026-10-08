@@ -60,6 +60,7 @@ class FriendMeetingSerializer
       role:           owner ? "owner" : "invitee",
       can_edit:       owner,
       can_delete:     owner,
+      can_leave:      !owner,
       owner:          person(@meeting.user),
       friends:        @meeting.attendees.map { |friend| person(friend) },
       destinations:   owner ? @meeting.destinations : [],

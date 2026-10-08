@@ -19,8 +19,9 @@ All routes use the extension's bearer token.
 | `GET /api/friends/meetings/:id` | owner, invitee | One meeting. |
 | `PATCH /api/friends/meetings/:id` | owner | Change the title, place, or time of the whole series. |
 | `DELETE /api/friends/meetings/:id` | owner | Delete the meeting and its provider events. |
+| `DELETE /api/friends/meetings/:id/attendance` | invitee | Leave the meeting. |
 
-A meeting that the person cannot see answers 404. An invitee who tries to change or delete a meeting gets 403.
+A meeting that the person cannot see answers 404. An invitee who tries to change or delete a meeting gets 403. An owner who tries to leave their own meeting gets 403.
 
 ## Make a meeting
 
@@ -77,6 +78,7 @@ The create, show, and update routes answer `{ "meeting": { ... } }`:
   "role": "owner",
   "can_edit": true,
   "can_delete": true,
+  "can_leave": false,
   "owner": { "id": "usr_owner", "name": "Sample Owner" },
   "friends": [{ "id": "usr_abc123", "name": "Sample Friend" }],
   "destinations": ["google", "ics"],
@@ -88,7 +90,7 @@ The create, show, and update routes answer `{ "meeting": { ... } }`:
 ```
 
 - `start_time` and `end_time` are the first occurrence. `recurrence` is `null` for a one-time meeting.
-- `role` is `owner` or `invitee`. Only the owner gets `can_edit` and `can_delete`.
+- `role` is `owner` or `invitee`. Only the owner gets `can_edit` and `can_delete`. Only an invitee gets `can_leave`.
 - `destinations` and `publications` are empty for an invitee, because they are the owner's own calendars.
 
 ### Publication status
@@ -148,6 +150,12 @@ Each place has one row in `publications`.
 - When the provider refuses the token, the event row stays and its publication shows `failed`. The removal finishes when the person connects the account again.
 
 When a person deletes their account, the app deletes the provider events of their meetings first, while the tokens still work, so the friends get a cancellation.
+
+## Invitations and leaving a meeting
+
+There is no accept step in the app. An invited friend sees the meeting at once, and it counts as busy time in their busy blocks. The provider invitation (Google or Microsoft) is the RSVP.
+
+`DELETE /api/friends/meetings/:id/attendance` answers `204`. The friend leaves the meeting. It is gone from their list, their busy blocks, and their ICS feed at once. For a meeting that has not ended, a job updates the provider events, so the owner sees that the friend left. A second call answers 404, because the friend can no longer see the meeting.
 
 ## Friends who are no longer friends
 
