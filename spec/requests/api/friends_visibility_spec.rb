@@ -467,4 +467,19 @@ RSpec.describe "Friends availability-only sharing", type: :request do
       expect(pending.reload).to be_pending
     end
   end
+
+  describe "GET /api/friends/:friend_id/busy_blocks with a saved friend meeting" do
+    it "sends the meeting time with no meeting details to a friend who sees only availability" do
+      friendship.update_visibility_for!(friend, :availability_only)
+      create(:friend_meeting, user: friend, title: "Qzvplorth Planning", location: "Wexmoor Annex",
+                              start_time: Time.zone.local(2026, 10, 6, 15), end_time: Time.zone.local(2026, 10, 6, 16))
+
+      get "/api/friends/#{friend.public_id}/busy_blocks",
+          params: { start_date: "2026-10-06", end_date: "2026-10-06" }, headers: headers
+
+      expect(response).to have_http_status(:ok)
+      expect(json["busy"]).to eq([ { "date" => "2026-10-06", "weekday" => "tuesday", "start" => "15:00", "end" => "16:00" } ])
+      expect(response.body).not_to include("Qzvplorth", "Wexmoor", "fmt_")
+    end
+  end
 end

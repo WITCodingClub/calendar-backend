@@ -69,7 +69,7 @@ RSpec.describe BusyBlocks do
     expect(described_class.new(user, from: monday, to: sunday).call.map(&:weekday)).to eq(%w[friday])
   end
 
-  it "runs one query for each source (meetings, no-class days, finals), however many classes there are" do
+  it "runs one query for each source (meetings, no-class days, finals, friend meetings), however many classes there are" do
     3.times { |i| enroll(day_of_week: :monday, begin_time: 900 + (i * 200), end_time: 1000 + (i * 200)) }
 
     queries = []
@@ -78,7 +78,7 @@ RSpec.describe BusyBlocks do
       described_class.new(user, from: monday, to: sunday).call
     end
 
-    expect(queries.length).to eq(3)
+    expect(queries.length).to eq(4)
     expect(queries.grep(/course_meeting_times/).length).to eq(1)
   end
 
@@ -155,6 +155,64 @@ RSpec.describe BusyBlocks do
       allow(described_class).to receive(:sources).and_return([ extra ])
 
       expect(blocks).to eq([ [ "2026-10-05", "18:00", "19:00" ] ])
+    end
+  end
+
+  describe "friend meetings" do
+    let(:zone) { Time.zone }
+
+    it "adds a meeting that the user owns" do
+      create(:friend_meeting, user: user, start_time: zone.local(2026, 10, 6, 15), end_time: zone.local(2026, 10, 6, 16, 30))
+
+      expect(blocks).to eq([ [ "2026-10-06", "15:00", "16:30" ] ])
+    end
+
+    it "adds a meeting that invited the user" do
+      meeting = create(:friend_meeting, :invite_friends, start_time: zone.local(2026, 10, 7, 12), end_time: zone.local(2026, 10, 7, 13))
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: user)
+
+      expect(blocks).to eq([ [ "2026-10-07", "12:00", "13:00" ] ])
+    end
+
+    it "ignores a meeting that lists the user but sent no invitations" do
+      meeting = create(:friend_meeting, start_time: zone.local(2026, 10, 7, 12), end_time: zone.local(2026, 10, 7, 13))
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: user)
+
+      expect(blocks).to be_empty
+    end
+
+    it "ignores a cancelled meeting" do
+      create(:friend_meeting, :cancelled, user: user, start_time: zone.local(2026, 10, 6, 15), end_time: zone.local(2026, 10, 6, 16))
+
+      expect(blocks).to be_empty
+    end
+
+    it "repeats a weekly meeting on each week until repeat_until" do
+      create(:friend_meeting, :weekly, user: user, start_time: zone.local(2026, 10, 1, 18), end_time: zone.local(2026, 10, 1, 19),
+                                       repeat_until: Date.new(2026, 10, 15))
+
+      expect(blocks(from: monday, to: monday + 20).map(&:first)).to eq(%w[2026-10-08 2026-10-15])
+    end
+
+    it "keeps a meeting on a day with no classes" do
+      create(:university_calendar_event, category: "holiday",
+                                         start_time: zone.local(2026, 10, 6), end_time: zone.local(2026, 10, 6, 23))
+      create(:friend_meeting, user: user, start_time: zone.local(2026, 10, 6, 15), end_time: zone.local(2026, 10, 6, 16))
+
+      expect(blocks).to eq([ [ "2026-10-06", "15:00", "16:00" ] ])
+    end
+
+    it "splits a meeting that goes past midnight across both dates" do
+      create(:friend_meeting, user: user, start_time: zone.local(2026, 10, 6, 23), end_time: zone.local(2026, 10, 7, 1))
+
+      expect(blocks).to eq([ [ "2026-10-06", "23:00", "24:00" ], [ "2026-10-07", "00:00", "01:00" ] ])
+    end
+
+    it "merges a meeting with a class that it overlaps" do
+      enroll(day_of_week: :monday, begin_time: 900, end_time: 1015)
+      create(:friend_meeting, user: user, start_time: zone.local(2026, 10, 5, 10), end_time: zone.local(2026, 10, 5, 11))
+
+      expect(blocks).to eq([ [ "2026-10-05", "09:00", "11:00" ] ])
     end
   end
 end
