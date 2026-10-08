@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_100100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -125,6 +125,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100000) do
     t.index ["course_offering_id"], name: "index_brightspace_announcements_on_course_offering_id"
   end
 
+  create_table "brightspace_assignment_preferences", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "assignment_id", null: false
+    t.string "progress", default: "not_started", null: false
+    t.datetime "due_at_override"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assignment_id"], name: "index_brightspace_assignment_preferences_on_assignment_id", unique: true
+    t.index ["user_id"], name: "index_brightspace_assignment_preferences_on_user_id"
+  end
+
   create_table "brightspace_assignments", force: :cascade do |t|
     t.bigint "course_offering_id", null: false
     t.string "kind", null: false
@@ -144,6 +155,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100000) do
     t.datetime "updated_at", null: false
     t.index ["course_offering_id", "kind", "source_id"], name: "index_brightspace_assignments_on_source", unique: true
     t.index ["course_offering_id"], name: "index_brightspace_assignments_on_course_offering_id"
+  end
+
+  create_table "brightspace_class_preferences", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "course_offering_id", null: false
+    t.boolean "sync_enabled"
+    t.string "included_kinds", array: true
+    t.text "title_template"
+    t.text "description_template"
+    t.text "location_template"
+    t.string "color_id"
+    t.string "visibility"
+    t.jsonb "reminder_settings"
+    t.string "grade_mode"
+    t.jsonb "grade_categories"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_offering_id"], name: "index_brightspace_class_preferences_on_course_offering_id", unique: true
+    t.index ["user_id"], name: "index_brightspace_class_preferences_on_user_id"
   end
 
   create_table "brightspace_connections", force: :cascade do |t|
@@ -1161,7 +1191,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100000) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "brightspace_announcements", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_assignment_preferences", "brightspace_assignments", column: "assignment_id"
+  add_foreign_key "brightspace_assignment_preferences", "users"
   add_foreign_key "brightspace_assignments", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_class_preferences", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_class_preferences", "users"
   add_foreign_key "brightspace_connections", "users"
   add_foreign_key "brightspace_course_offerings", "brightspace_connections", column: "connection_id"
   add_foreign_key "brightspace_course_offerings", "courses"

@@ -208,6 +208,14 @@ Rails.application.routes.draw do
     post   "brightspace/sync",            to: "brightspace_syncs#create"
     get    "brightspace/status",          to: "brightspace_syncs#status"
 
+    resources :classes, only: [ :index, :show ], controller: "brightspace_classes" do
+      get :assignments, on: :member
+      resource :preference, controller: "brightspace_class_preferences", only: [ :show, :update ]
+    end
+    resources :assignments, only: [ :index, :show ], controller: "brightspace_assignments" do
+      resource :preference, controller: "brightspace_assignment_preferences", only: [ :show, :update ]
+    end
+
     match "*path", to: "catch_all#not_found", via: :all
   end
 
