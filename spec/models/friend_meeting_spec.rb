@@ -2,6 +2,38 @@
 
 require "rails_helper"
 
+# == Schema Information
+#
+# Table name: friend_meetings
+#
+#  id              :bigint           not null, primary key
+#  cancelled_at    :datetime
+#  end_time        :datetime         not null
+#  frequency       :string           default("one_time"), not null
+#  guest_email     :string
+#  guest_name      :string
+#  idempotency_key :string
+#  invite_friends  :boolean          default(FALSE), not null
+#  location        :string
+#  repeat_until    :date
+#  start_time      :datetime         not null
+#  title           :string           not null
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  term_id         :bigint
+#  user_id         :bigint           not null
+#
+# Indexes
+#
+#  idx_friend_meetings_unique_idempotency_key  (user_id,idempotency_key) UNIQUE WHERE (idempotency_key IS NOT NULL)
+#  index_friend_meetings_on_term_id            (term_id)
+#  index_friend_meetings_on_user_id            (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (term_id => terms.id)
+#  fk_rails_...  (user_id => users.id)
+#
 RSpec.describe FriendMeeting do
   include ActiveSupport::Testing::TimeHelpers
 

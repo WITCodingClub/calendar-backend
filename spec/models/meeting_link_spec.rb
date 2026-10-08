@@ -2,6 +2,38 @@
 
 require "rails_helper"
 
+# == Schema Information
+#
+# Table name: meeting_links
+#
+#  id                :bigint           not null, primary key
+#  duration_minutes  :integer          not null
+#  ends_on           :date             not null
+#  expires_at        :datetime         not null
+#  revoked_at        :datetime
+#  starts_on         :date             not null
+#  title             :string
+#  token_digest      :string           not null
+#  used_at           :datetime
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#  friend_meeting_id :bigint
+#  guest_user_id     :bigint
+#  user_id           :bigint           not null
+#
+# Indexes
+#
+#  index_meeting_links_on_friend_meeting_id  (friend_meeting_id)
+#  index_meeting_links_on_guest_user_id      (guest_user_id)
+#  index_meeting_links_on_token_digest       (token_digest) UNIQUE
+#  index_meeting_links_on_user_id            (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (friend_meeting_id => friend_meetings.id) ON DELETE => nullify
+#  fk_rails_...  (guest_user_id => users.id) ON DELETE => nullify
+#  fk_rails_...  (user_id => users.id)
+#
 RSpec.describe MeetingLink do
   include ActiveSupport::Testing::TimeHelpers
 
