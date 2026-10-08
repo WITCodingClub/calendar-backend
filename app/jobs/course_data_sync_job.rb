@@ -44,23 +44,22 @@ class CourseDataSyncJob < ApplicationJob
     error_count  = 0
 
     # Courses in a term share buildings and rooms, so one Locations serves them
-    # all. Marks are sent once for each batch of courses, not once for each
-    # course. A deploy that stops the job mid-term then loses at most one batch.
+    # all. Enrollment flags are loaded and marks are sent once for each batch of
+    # courses, not once for each course.
     @locations = MeetingTimesIngestService::Locations.new
 
-    MeetingTimeChangeTrackable.with_enrollment_cache do
-      term.courses.includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
-          .find_in_batches(batch_size: 50) do |courses|
-        CalendarSyncMarker.batch do
-          courses.each do |course|
-            if sync_course_data(course, term_uid)
-              synced_count += 1
-            end
-            sleep 0.1
-          rescue => e
-            error_count += 1
-            Rails.logger.error "[CourseDataSyncJob] Failed to sync course #{course.crn}: #{e.message}"
+    term.courses.includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
+        .find_in_batches(batch_size: 50) do |courses|
+      flags = CalendarSyncMarker.enrollment_flags(courses.map(&:id))
+      CalendarSyncMarker.batch_with_enrollment_flags(flags) do
+        courses.each do |course|
+          if sync_course_data(course, term_uid)
+            synced_count += 1
           end
+          sleep 0.1
+        rescue => e
+          error_count += 1
+          Rails.logger.error "[CourseDataSyncJob] Failed to sync course #{course.crn}: #{e.message}"
         end
       end
     end
