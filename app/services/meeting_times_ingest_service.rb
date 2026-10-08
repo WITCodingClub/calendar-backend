@@ -3,13 +3,83 @@
 class MeetingTimesIngestService < ApplicationService
   attr_reader :course, :raw_meeting_times
 
+  # Buildings and rooms by key, shared by the ingests of several courses.
+  # A caller that ingests many courses calls preload once with the meeting
+  # times of all of them and passes the same object to each ingest. Each
+  # course then sends no query for a building or room that is already here.
+  class Locations
+    attr_reader :buildings, :rooms
+
+    def initialize
+      @buildings = {}
+      @rooms = {}
+    end
+
+    # Loads the buildings and rooms that the meeting times name, in one query
+    # each, and creates the ones that do not exist. A meeting time with no
+    # building is skipped: it gets the TBD building or none, which depends on
+    # whether its course is online.
+    def preload(raw_meeting_times)
+      entries = Array(raw_meeting_times).filter_map do |mt|
+        abbr = (mt["building"] || mt[:building]).to_s.strip
+        next if abbr.blank?
+
+        [ abbr, (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip, (mt["room"] || mt[:room]).to_s.strip ]
+      end
+      load(entries)
+    end
+
+    # Each entry is [building abbreviation, building description, room string].
+    # Sends queries only for the buildings and rooms that are not loaded yet.
+    def load(entries)
+      missing_abbrs = entries.map(&:first).uniq - buildings.keys
+      if missing_abbrs.any?
+        Building.where(abbreviation: missing_abbrs).each { |b| buildings[b.abbreviation] = b }
+
+        entries.uniq(&:first).each do |abbr, desc, _room|
+          # Insert first: the query above found no row, so a lookup would only repeat it.
+          buildings[abbr] ||= Building.create_or_find_by!(abbreviation: abbr) do |b|
+            b.name = desc.presence || abbr
+          end
+        end
+      end
+
+      missing_rooms = entries.flat_map { |abbr, _desc, room|
+        building = buildings[abbr]
+        MeetingTimesIngestService.parse_room_numbers(room).map { |room_num| [ room_num, building ] }
+      }.uniq { |room_num, building| [ room_num, building.id ] }
+                             .reject { |room_num, building| rooms.key?([ room_num, building.id ]) }
+      return if missing_rooms.empty?
+
+      Room.where(building_id: missing_rooms.map { |_, building| building.id }.uniq, number: missing_rooms.map(&:first).uniq)
+          .includes(:building)
+          .each { |r| rooms[[ r.number, r.building_id ]] = r }
+
+      missing_rooms.each do |room_num, building|
+        rooms[[ room_num, building.id ]] ||= Room.create!(number: room_num, building: building)
+      end
+    end
+  end
+
+  # Options:
+  # - locations: a Locations object shared with the ingests of other courses.
+  # - existing_meeting_times: the course's meeting times, loaded by the caller
+  #   with their meeting_time_rooms. Without it, the ingest loads them itself.
   def initialize(course:, raw_meeting_times:, **options)
     @course = course
     @raw_meeting_times = Array(raw_meeting_times)
     @compute_hours_week = options.fetch(:compute_hours_week, true)
-    @building_cache = {}
-    @room_cache = {}
+    @locations = options[:locations] || Locations.new
+    @existing_meeting_times = options[:existing_meeting_times]
     super()
+  end
+
+  # "112/114" names two rooms. A blank room string means room "0".
+  def self.parse_room_numbers(room_str)
+    return [ "0" ] if room_str.blank?
+
+    parts = room_str.to_s.strip.split("/").map(&:strip).reject(&:blank?)
+    parts.empty? ? [ "0" ] : parts
   end
 
   # Banner's getFacultyMeetingTimes payload uses its own key names. Reshape it
@@ -52,61 +122,19 @@ class MeetingTimesIngestService < ApplicationService
   ONLINE_SCHEDULE_TYPES = %w[online online_blended online_sync_lab online_sync_lecture].freeze
 
   def preload_buildings_and_rooms
-    building_data = @raw_meeting_times.filter_map { |mt|
+    entries = @raw_meeting_times.filter_map do |mt|
       abbr = (mt["building"] || mt[:building]).to_s.strip
       desc = (mt["buildingDescription"] || mt[:buildingDescription]).to_s.strip
       next if abbr.blank? && online_course?
 
       abbr = "TBD" if abbr.blank?
       desc = "To Be Determined" if abbr == "TBD" && desc.blank?
-      [ abbr, desc ]
-    }.uniq { |abbr, _| abbr }
-    abbrs = building_data.map(&:first).uniq
-
-    @building_cache = Building.where(abbreviation: abbrs).index_by(&:abbreviation)
-
-    building_data.each do |abbr, name|
-      next if @building_cache.key?(abbr)
-
-      @building_cache[abbr] = Building.find_or_create_by!(abbreviation: abbr) do |b|
-        b.name = name.presence || abbr
-      end
+      [ abbr, desc, (mt["room"] || mt[:room]).to_s.strip ]
     end
+    @locations.load(entries)
 
-    return if @building_cache.empty?
-
-    needed_rooms = @raw_meeting_times.each_with_object([]) { |mt, acc|
-      raw_abbr = (mt["building"] || mt[:building]).to_s.strip
-      abbr = if raw_abbr.blank?
-               online_course? ? next : "TBD"
-      else
-               raw_abbr
-      end
-      building = @building_cache[abbr]
-      next unless building
-
-      parse_room_numbers((mt["room"] || mt[:room]).to_s.strip).each do |room_num|
-        acc << [ room_num, building.id, building ]
-      end
-    }.uniq { |room_num, building_id, _| [ room_num, building_id ] }
-
-    building_ids = needed_rooms.map { |_, bid, _| bid }.uniq
-    room_numbers = needed_rooms.map { |rnum, _, _| rnum }.uniq
-
-    @room_cache = Room.where(building_id: building_ids, number: room_numbers)
-                      .includes(:building)
-                      .index_by { |r| [ r.number, r.building_id ] }
-
-    needed_rooms.each do |room_num, building_id, building|
-      next if @room_cache.key?([ room_num, building_id ])
-
-      room = Room.create!(number: room_num, building: building)
-      @room_cache[[ room_num, building_id ]] = room
-    end
-
-    @meeting_time_cache = Course::MeetingTime.where(course_id: course.id)
-                                             .includes(:meeting_time_rooms)
-                                             .index_by { |mt| [ mt.start_date, mt.end_date, mt.begin_time, mt.end_time, mt.day_of_week_before_type_cast ] }
+    existing = @existing_meeting_times || Course::MeetingTime.where(course_id: course.id).includes(:meeting_time_rooms)
+    @meeting_time_cache = existing.index_by { |mt| [ mt.start_date, mt.end_date, mt.begin_time, mt.end_time, mt.day_of_week_before_type_cast ] }
   end
 
   def ingest_one(mt)
@@ -147,14 +175,14 @@ class MeetingTimesIngestService < ApplicationService
       building_name = "To Be Determined"
     end
 
-    building = @building_cache[building_abbr] ||= Building.find_or_create_by!(abbreviation: building_abbr) do |b|
+    building = @locations.buildings[building_abbr] ||= Building.find_or_create_by!(abbreviation: building_abbr) do |b|
       b.name = building_name.presence || building_abbr
     end
 
     room_str = (mt["room"] || mt[:room]).to_s.strip
-    rooms_for_mt = parse_room_numbers(room_str).map { |room_num|
+    rooms_for_mt = self.class.parse_room_numbers(room_str).map { |room_num|
       cache_key = [ room_num, building.id ]
-      @room_cache[cache_key] ||= Room.find_or_create_by!(number: room_num, building: building)
+      @locations.rooms[cache_key] ||= Room.find_or_create_by!(number: room_num, building: building)
     }
 
     meeting_schedule_type = map_schedule_type(mt["meetingScheduleType"] || mt[:meetingScheduleType] || mt["scheduleType"] || mt[:scheduleType])
@@ -183,21 +211,20 @@ class MeetingTimesIngestService < ApplicationService
       }
 
       cache_key = [ start_dt, end_dt, begin_hhmm, end_hhmm, day_num ]
-      meeting_time = @meeting_time_cache&.[](cache_key) || Course::MeetingTime.new(lookup_attrs)
+      meeting_time = @meeting_time_cache[cache_key] || Course::MeetingTime.new(lookup_attrs)
       meeting_time.assign_attributes(update_attrs)
       meeting_time.save!
 
-      desired_room_ids = rooms_for_mt.map(&:id).to_set
-      existing_room_ids = meeting_time.meeting_time_rooms.map(&:room_id).to_set
+      # A meeting time created just now has no rooms yet, so skip the query.
+      desired_rooms = rooms_for_mt.index_by(&:id)
+      existing_links = meeting_time.previously_new_record? ? [] : meeting_time.meeting_time_rooms.to_a
 
-      (existing_room_ids - desired_room_ids).each do |rid|
-        meeting_time.meeting_time_rooms.find_by(room_id: rid)&.destroy
-      end
-      (desired_room_ids - existing_room_ids).each do |rid|
-        meeting_time.meeting_time_rooms.create!(room_id: rid)
+      existing_links.reject { |link| desired_rooms.key?(link.room_id) }.each(&:destroy)
+      (desired_rooms.keys - existing_links.map(&:room_id)).each do |rid|
+        meeting_time.meeting_time_rooms.create!(room: desired_rooms[rid])
       end
 
-      @meeting_time_cache[cache_key] = meeting_time if @meeting_time_cache
+      @meeting_time_cache[cache_key] = meeting_time
       @touched_meeting_time_ids << meeting_time.id
     end
   end
@@ -266,13 +293,6 @@ class MeetingTimesIngestService < ApplicationService
     else
       false
     end
-  end
-
-  def parse_room_numbers(room_str)
-    return [ "0" ] if room_str.blank?
-
-    parts = room_str.to_s.strip.split("/").map(&:strip).reject(&:blank?)
-    parts.empty? ? [ "0" ] : parts
   end
 
   def map_schedule_type(val)
