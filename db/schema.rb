@@ -442,14 +442,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
     t.bigint "addressee_id", null: false
     t.integer "addressee_visibility", default: 0, null: false
     t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.bigint "proposed_by_id"
+    t.datetime "proposed_expires_at"
+    t.boolean "proposed_permanent", default: false, null: false
     t.bigint "requester_id", null: false
     t.integer "requester_visibility", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index "LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)", name: "index_friendships_on_unordered_pair", unique: true
     t.index ["addressee_id", "status"], name: "index_friendships_on_addressee_id_and_status"
+    t.index ["expires_at"], name: "index_friendships_on_expires_at", where: "(expires_at IS NOT NULL)"
+    t.index ["proposed_by_id"], name: "index_friendships_on_proposed_by_id"
     t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
     t.index ["requester_id", "status"], name: "index_friendships_on_requester_id_and_status"
+    t.check_constraint "proposed_by_id IS NULL AND proposed_expires_at IS NULL AND proposed_permanent = false OR proposed_by_id IS NOT NULL AND (proposed_expires_at IS NULL) = proposed_permanent", name: "friendships_expiry_proposal_shape"
   end
 
   create_table "oauth_access_grants", force: :cascade do |t|
@@ -1044,6 +1051,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
   add_foreign_key "friend_group_memberships", "friendships", on_delete: :cascade
   add_foreign_key "friend_groups", "users", on_delete: :cascade
   add_foreign_key "friendships", "users", column: "addressee_id"
+  add_foreign_key "friendships", "users", column: "proposed_by_id"
   add_foreign_key "friendships", "users", column: "requester_id"
   add_foreign_key "oauth_access_grants", "oauth_applications", column: "application_id"
   add_foreign_key "oauth_access_grants", "users", column: "resource_owner_id"

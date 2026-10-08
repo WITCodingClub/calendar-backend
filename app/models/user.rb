@@ -167,6 +167,7 @@ class User < ApplicationRecord
     update!(notifications_disabled_until: nil)
   end
 
+  # Only accepted, unexpired friendships count. See Friendship.active.
   def friends
     friend_ids = accepted_friendships
                  .pluck(:requester_id, :addressee_id)
@@ -180,10 +181,10 @@ class User < ApplicationRecord
     accepted_friendship_with(other_user).present?
   end
 
-  # The friendships that count as a friendship for this user. This is the ONE
-  # place that decides "is this an accepted friendship". Every check goes
-  # through here: accepted_friendship_with, the membership validation,
-  # FriendGroup#members, and FriendGroup.by_friend_id_for.
+  # The friendships that count as a friendship for this user: accepted and not
+  # expired. This is the ONE place that decides "is this an accepted
+  # friendship". Every check goes through here: accepted_friendship_with, the
+  # membership validation, FriendGroup#members, and FriendGroup.by_friend_id_for.
   def accepted_friendships
     Friendship.accepted_for(self)
   end

@@ -1,0 +1,13 @@
+<h2>Friendship end date</h2>
+
+<p>
+  Hi<%= " #{@recipient.first_name}" if @recipient.first_name.present? %>,
+</p>
+
+<p>
+  <%= @summary %>
+</p>
+
+<p style="margin-top: 16px;">
+  <a href="<%= @friends_url %>">Manage your friends</a>
+</p>
