@@ -134,6 +134,7 @@ class CatalogImportService < ApplicationService
     is_section_linked = ActiveModel::Type::Boolean.new.cast(course_data["isSectionLinked"]) || false
 
     seats = seat_counts(course_data)
+    credit_hours = credit_hours_for(course_data)
 
     course = Course.find_or_create_by!(crn: crn, term: term) do |c|
       c.title = titleize_with_roman_numerals(course_data["courseTitle"] || "Untitled Course")
@@ -141,8 +142,7 @@ class CatalogImportService < ApplicationService
       c.course_number = course_data["courseNumber"]
       c.schedule_type = schedule_type_key
       c.section_number = normalize_section_number(course_data["sequenceNumber"] || course_data["sectionNumber"])
-      raw_hours = raw_code == "LAB" ? nil : course_data["creditHours"]
-      c.credit_hours = raw_hours.to_i.positive? ? raw_hours : nil
+      c.credit_hours = credit_hours
       c.grade_mode = nil
       c.start_date = start_date
       c.end_date = end_date
@@ -161,6 +161,7 @@ class CatalogImportService < ApplicationService
       raw_title = course_data["courseTitle"] || "Untitled Course"
       new_title = titleize_with_roman_numerals(raw_title)
       update_attrs[:title] = new_title if course.title != new_title
+      update_attrs[:credit_hours] = credit_hours if course.credit_hours != credit_hours
 
       # Re-importing a term is how existing rows learn their link identifier,
       # so these have to be written on update and not only on create.
@@ -224,6 +225,17 @@ class CatalogImportService < ApplicationService
       capacity: capacity.nil? ? nil : capacity.to_i,
       available: available.nil? ? nil : available.to_i
     }
+  end
+
+  # Banner sends creditHours for current terms, but older terms (2022 and 2023)
+  # send it as null and put the fixed value in creditHourLow. A section linked
+  # to a lecture, such as a lab, reports 0, and the lecture carries the
+  # credits. Some labs stand alone and carry credits (ARCH studios are 6), so
+  # the schedule type does not decide this. Store nil for 0.
+  def credit_hours_for(course_data)
+    hours = course_data["creditHours"]
+    hours = course_data["creditHourLow"] if hours.nil? && course_data["creditHourIndicator"].blank?
+    hours.to_i.positive? ? hours.to_i : nil
   end
 
   def validate_courses_data!

@@ -120,6 +120,46 @@ RSpec.describe CatalogImportService do
     Course.find_by!(crn: 12345, term: term)
   end
 
+  describe "credit hours" do
+    it "stores creditHours from Banner" do
+      described_class.call([ catalog_course ])
+
+      expect(imported_course.credit_hours).to eq(4)
+    end
+
+    it "uses creditHourLow when an older term sends creditHours as null" do
+      described_class.call([ catalog_course("creditHours" => nil, "creditHourLow" => 4, "creditHourIndicator" => nil) ])
+
+      expect(imported_course.credit_hours).to eq(4)
+    end
+
+    it "ignores creditHourLow for a variable-credit section" do
+      described_class.call([ catalog_course("creditHours" => nil, "creditHourLow" => 0, "creditHourHigh" => 4,
+                                            "creditHourIndicator" => "TO") ])
+
+      expect(imported_course.credit_hours).to be_nil
+    end
+
+    it "stores nil for a linked lab that reports 0" do
+      described_class.call([ catalog_course("scheduleTypeDescription" => "Laboratory (LAB)", "creditHours" => 0) ])
+
+      expect(imported_course.credit_hours).to be_nil
+    end
+
+    it "keeps the credits of a lab that stands alone" do
+      described_class.call([ catalog_course("scheduleTypeDescription" => "Laboratory (LAB)", "creditHours" => 6) ])
+
+      expect(imported_course.credit_hours).to eq(6)
+    end
+
+    it "fills credits on a re-import of an existing course" do
+      described_class.call([ catalog_course("creditHours" => nil) ])
+      described_class.call([ catalog_course("creditHours" => nil, "creditHourLow" => 4) ])
+
+      expect(imported_course.credit_hours).to eq(4)
+    end
+  end
+
   describe "seat counts" do
     it "stores seat counts from the catalog payload on a new course" do
       described_class.call([ catalog_course ])
