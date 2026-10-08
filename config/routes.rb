@@ -187,6 +187,7 @@ Rails.application.routes.draw do
   authenticate :user do
     namespace :dashboard do
       root to: "overview#index"
+      resource  :onboarding,           only: [ :show ], controller: "onboarding"
       resource  :schedule,             only: [ :show ]
       resources :calendar_preferences, only: [ :index, :update ] do
         patch :university_events, on: :collection
