@@ -216,3 +216,150 @@ sequenceDiagram
     E->>A: GET /api/brightspace/status
     A-->>E: 200 { connection, classes[].sections }
 ```
+
+## Classes and assignments
+
+The read routes show the data of the current connection: the active one, or the last one when none is active. A record of another user, or of an older connection, answers 404. Raw database ids answer 404.
+
+The list routes take `page` and `per_page` (default 25, at most 100), and return `meta` in the same shape as `/api/university_calendar_events`:
+
+```json
+{ "current_page": 1, "total_pages": 1, "total_count": 3, "per_page": 25 }
+```
+
+`term_id` is the backend term public id (`trm_...`), not the `term_uid` of the schedule routes. An unknown term gives an empty list. `term` objects come from `TermSerializer`.
+
+### Effective deadline
+
+`effective_due_at` is the first of these that is set:
+
+1. The user's `due_at_override`.
+2. The individual Brightspace deadline, `user_due_at`.
+3. The class deadline, `due_at`.
+
+Lists order by `effective_due_at`, then by id. Work with no deadline comes last. Removed work is not listed.
+
+### GET /api/classes
+
+Query: `term_id`, `page`, `per_page`.
+
+```json
+{
+  "classes": [{
+    "id": "bcl_...",
+    "source_id": "12414",
+    "course_id": "crs_...",
+    "term": { "name": "Fall 2026", "id": 202610, "pub_id": "trm_...", "start_date": "...", "end_date": "..." },
+    "title": "Data Structures",
+    "next_deadline": { "assignment_id": "bas_...", "kind": "assignment", "title": "Lab 4", "effective_due_at": "..." },
+    "version": "...",
+    "sync": { "last_synced_at": "...", "last_collected_at": "...", "has_errors": false }
+  }],
+  "meta": { "current_page": 1, "total_pages": 1, "total_count": 1, "per_page": 25 }
+}
+```
+
+`course_id` and `term` are `null` for a class that is not mapped. `next_deadline` is the first work that is not removed, not marked `done`, and not past.
+
+### GET /api/classes/:id
+
+```json
+{
+  "class": { "...": "the class list item" },
+  "upcoming_assignments": [{ "...": "an assignment list item" }],
+  "announcements": [{ "id": "ban_...", "source_id": "301", "title": "...", "body": "...", "source_url": null, "posted_at": "..." }],
+  "preferences": { "calendar": { "...": "..." }, "grades": { "...": "..." } },
+  "sync": { "assignments": { "last_collected_at": "...", "complete": true, "error": null, "failed_at": null } }
+}
+```
+
+`upcoming_assignments` holds at most 10 entries: not past, not `done`. `announcements` holds the 20 latest.
+
+### GET /api/classes/:id/assignments and GET /api/assignments
+
+Query: `status`, `due_before`, `page`, `per_page`. `/api/assignments` also takes `term_id`.
+
+- `status` filters on the personal progress: `not_started`, `in_progress`, or `done`. Work with no preference is `not_started`. Another value answers 400.
+- `due_before` is an ISO 8601 time. It is an exclusive cutoff on `effective_due_at`. A bad time answers 400.
+
+```json
+{
+  "assignments": [{
+    "id": "bas_...",
+    "class_id": "bcl_...",
+    "source_id": "56789",
+    "kind": "assignment",
+    "title": "Lab 4: Linked lists",
+    "source_url": "https://brightspace.example.edu/d2l/...",
+    "due_at": "2026-10-09T03:59:00Z",
+    "opens_at": null,
+    "closes_at": null,
+    "user_due_at": null,
+    "effective_due_at": "2026-10-09T03:59:00Z",
+    "submission_status": "not_submitted",
+    "submitted_at": null,
+    "removed_at": null,
+    "preference": { "progress": "not_started", "due_at_override": null }
+  }],
+  "meta": { "...": "..." }
+}
+```
+
+### GET /api/assignments/:id
+
+Returns `{ assignment }`: the list item plus `description` and `feedback`. A removed assignment still answers, with `removed_at` set.
+
+## Preferences
+
+Updates take `PUT` or `PATCH`. Both change only the fields in the body. Each response has the `version` of the class, which a saved preference also changes.
+
+### GET and PUT /api/assignments/:id/preference
+
+```json
+{ "assignment_preference": { "progress": "in_progress", "due_at_override": "2026-10-08T22:00:00Z" } }
+```
+
+- `progress`: `not_started`, `in_progress`, or `done`. `done` never changes the Brightspace `submission_status`.
+- `due_at_override`: an ISO 8601 time, or `null` to clear it. A bad time answers 422.
+
+Response: `{ assignment_preference, version }`. Without a saved preference, GET returns `not_started` and `null`.
+
+### GET and PUT /api/classes/:id/preference
+
+```json
+{
+  "class_preference": {
+    "calendar": {
+      "sync_enabled": true,
+      "included_kinds": ["assignment", "quiz"],
+      "title_template": "{{title}}",
+      "description_template": null,
+      "location_template": null,
+      "color_id": "#d50000",
+      "visibility": "default",
+      "reminder_settings": [{ "time": "1", "type": "days", "method": "notification" }]
+    },
+    "grades": {
+      "mode": "custom",
+      "categories": [{
+        "category_id": "bgc_...", "name": "Labs", "weight": 40,
+        "drop_lowest": 1, "drop_highest": null, "extra_credit": false,
+        "item_ids": ["bgi_..."]
+      }]
+    }
+  }
+}
+```
+
+Calendar fields:
+
+- `sync_enabled` defaults to `true`. `included_kinds` defaults to every kind. Send `null` to go back to the default.
+- The template, color, and visibility fields work as in `calendar_preference`. A `null` field inherits.
+- `reminder_settings` uses the reminder entries `{ time, type, method }`. `type` is `minutes`, `hours`, or `days`. `notification` and `popup` mean the same. A field left out stays. `"default"` inherits. `[]` turns reminders off.
+
+Grade fields:
+
+- `mode`: `brightspace` (the default), `syllabus`, or `custom`.
+- `categories` is the grading-rule format. Each entry names an imported category with `category_id`, or a new one with `name`. `item_ids` maps grade items into the category. Every id must belong to the class. The allowed keys are `category_id`, `name`, `weight`, `drop_lowest`, `drop_highest`, `extra_credit`, and `item_ids`.
+
+Response: `{ class_preference, version }`. GET without a saved preference returns the defaults.

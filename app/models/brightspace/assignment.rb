@@ -46,6 +46,7 @@ module Brightspace
 
     belongs_to :course_offering, class_name: "Brightspace::CourseOffering", inverse_of: :assignments
     has_many :grade_items, class_name: "Brightspace::GradeItem", dependent: :nullify, inverse_of: :assignment
+    has_one :preference, class_name: "Brightspace::AssignmentPreference", dependent: :destroy, inverse_of: :assignment
 
     validates :kind, inclusion: { in: KINDS }
     validates :source_id, presence: true, length: { maximum: 64 },
@@ -53,9 +54,29 @@ module Brightspace
     validates :title, presence: true, length: { maximum: 500 }
     validates :submission_status, inclusion: { in: SUBMISSION_STATUSES }, allow_nil: true
 
+    # SQL for the effective deadline. It needs a LEFT JOIN of the preferences
+    # (see .with_preferences).
+    EFFECTIVE_DUE_AT_SQL = "COALESCE(brightspace_assignment_preferences.due_at_override, " \
+                           "brightspace_assignments.user_due_at, brightspace_assignments.due_at)"
+
+    scope :with_preferences, -> { left_joins(:preference) }
+    scope :by_effective_due_at, lambda {
+      with_preferences.order(Arel.sql("#{EFFECTIVE_DUE_AT_SQL} ASC NULLS LAST"), :id)
+    }
+
     # The deadline that applies to this student before any personal override.
     def brightspace_due_at
       user_due_at || due_at
+    end
+
+    # A personal override first, then the individual Brightspace deadline,
+    # then the class deadline.
+    def effective_due_at
+      preference&.due_at_override || brightspace_due_at
+    end
+
+    def progress
+      preference&.progress || "not_started"
     end
   end
 end

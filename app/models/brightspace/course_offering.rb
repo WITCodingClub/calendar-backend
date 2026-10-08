@@ -49,6 +49,7 @@ module Brightspace
       has_many :grade_categories, class_name: "Brightspace::GradeCategory"
       has_many :grade_items,      class_name: "Brightspace::GradeItem"
       has_one  :syllabus,         class_name: "Brightspace::Syllabus"
+      has_one  :preference,       class_name: "Brightspace::ClassPreference"
     end
 
     validates :source_id, presence: true, length: { maximum: 64 }, uniqueness: { scope: :connection_id }
@@ -62,10 +63,14 @@ module Brightspace
       "#{hashid}.#{data_version}"
     end
 
-    # Raises the version in SQL, so two writers never lose a raise.
+    # Raises the version in SQL, so two writers never lose a raise. A class
+    # that is gone has no version to raise.
     def bump_version!
-      self.class.where(id: id).update_all("data_version = data_version + 1, updated_at = NOW()") # rubocop:disable Rails/SkipsModelValidations
-      reload
+      rows = self.class.where(id: id)
+      return if rows.update_all("data_version = data_version + 1, updated_at = NOW()").zero? # rubocop:disable Rails/SkipsModelValidations
+
+      self.data_version = rows.pick(:data_version)
+      clear_attribute_change(:data_version)
     end
 
     def section_state(section)
