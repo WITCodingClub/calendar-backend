@@ -183,10 +183,8 @@ module Admin
         return
       end
 
-      existing = Friendship.where(
-        "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
-        @user.id, friend.id, friend.id, @user.id
-      ).first
+      # An expired row does not count. Friendship removes it before the create.
+      existing = Friendship.unexpired.between(@user, friend).first
 
       if existing
         if existing.accepted?
