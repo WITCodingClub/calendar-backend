@@ -11,10 +11,17 @@ module Api
 
       flag_on     = Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
       friendships = Friendship.accepted_for(current_user).includes(:requester, :addressee)
+      # Each friend gets a "groups" key only while the friend groups flag is on.
+      # The groups for the whole list load in one pass, not one query per friend.
+      groups_by_friend = FriendGroup.by_friend_id_for(current_user) if FriendGroup.enabled_for?(current_user)
 
       friends = friendships.map do |friendship|
         friend = friendship.friend_for(current_user)
-        { id: friend.public_id, name: friend.full_name, visibility: index_visibility(friendship, flag_on) }
+        FriendSerializer.new(
+          friend,
+          visibility: index_visibility(friendship, flag_on),
+          groups: groups_by_friend && groups_by_friend[friend.id]
+        ).as_json
       end
 
       render json: { friends: friends }, status: :ok

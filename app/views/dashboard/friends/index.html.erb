@@ -36,6 +36,13 @@
             <%= link_to friend.full_name, dashboard_friend_path(friend.public_id),
                 class: "text-sm font-medium text-on-surface hover:text-primary transition-colors" %>
             <p class="text-xs text-on-surface-variant"><%= friend.email %></p>
+            <% if @groups_enabled && @groups_by_friend[friend.id].any? %>
+              <ul class="mt-1 flex flex-wrap gap-1" aria-label="Groups">
+                <% @groups_by_friend[friend.id].each do |group| %>
+                  <li class="m3-badge-primary"><%= group.name %></li>
+                <% end %>
+              </ul>
+            <% end %>
           </div>
           <div class="flex items-center gap-3">
             <%= link_to "View schedule", dashboard_friend_path(friend.public_id), class: "m3-btn-text text-xs" %>
@@ -48,5 +55,9 @@
         </div>
       <% end %>
     </div>
+  <% end %>
+
+  <% if @groups_enabled %>
+    <%= render "groups", groups: @groups, friends: @friends %>
   <% end %>
 </div>

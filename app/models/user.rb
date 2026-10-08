@@ -115,6 +115,7 @@ class User < ApplicationRecord
            dependent: :destroy, inverse_of: :requester
   has_many :received_friendships, class_name: "Friendship", foreign_key: :addressee_id,
            dependent: :destroy, inverse_of: :addressee
+  has_many :friend_groups, dependent: :destroy
 
   before_create :generate_calendar_token
   after_create :create_user_extension_config
@@ -140,8 +141,8 @@ class User < ApplicationRecord
   # checks the same enrollments for one term.
   def processed_courses?
     enrollments.exists?
-  end 
-  
+  end
+
   def super_admin_access?
     super_admin? || owner?
   end
@@ -167,34 +168,54 @@ class User < ApplicationRecord
   end
 
   def friends
-    friend_ids = Friendship.accepted
-                           .involving(self)
-                           .pluck(:requester_id, :addressee_id)
-                           .flatten
-                           .uniq
-                           .reject { |fid| fid == id }
+    friend_ids = accepted_friendships
+                 .pluck(:requester_id, :addressee_id)
+                 .flatten
+                 .uniq
+                 .reject { |fid| fid == id }
     User.where(id: friend_ids)
   end
 
   def friend_of?(other_user)
-    return false if other_user.nil? || other_user.id == id
+    accepted_friendship_with(other_user).present?
+  end
 
-    Friendship.accepted.exists?(
+  # The friendships that count as a friendship for this user. This is the ONE
+  # place that decides "is this an accepted friendship". Every check goes
+  # through here: accepted_friendship_with, the membership validation,
+  # FriendGroup#members, and FriendGroup.by_friend_id_for.
+  def accepted_friendships
+    Friendship.accepted_for(self)
+  end
+
+  # The ids of accepted_friendships. The list loads once per user object, so a
+  # list of groups does not run one query per group. reload clears it.
+  def accepted_friendship_ids
+    @accepted_friendship_ids ||= accepted_friendships.pluck(:id).to_set
+  end
+
+  def reload(*)
+    @accepted_friendship_ids = nil
+    super
+  end
+
+  # The accepted friendship between this user and other_user, or nil.
+  def accepted_friendship_with(other_user)
+    return nil if other_user.nil? || other_user.id == id
+
+    accepted_friendships.find_by(
       "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
       id, other_user.id, other_user.id, id
     )
   end
 
   # Returns true when a friendship was removed, false when there was none.
+  # Its friend group memberships go with it.
   def remove_friend(other_user)
-    return false if other_user.nil? || other_user.id == id
-
-    friendship = Friendship.accepted.find_by(
-      "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
-      id, other_user.id, other_user.id, id
-    )
+    friendship = accepted_friendship_with(other_user)
     return false if friendship.nil?
 
+    @accepted_friendship_ids = nil
     friendship.destroy!
     true
   end

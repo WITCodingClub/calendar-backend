@@ -32,6 +32,8 @@ class Friendship < ApplicationRecord
 
   belongs_to :requester, class_name: "User"
   belongs_to :addressee, class_name: "User"
+  # The database also removes these rows on delete (on_delete: :cascade).
+  has_many :friend_group_memberships, dependent: :delete_all
 
   # How much of a user's own schedule the other side of the friendship can see.
   # "full" sends the course list. "availability_only" sends only busy blocks.
@@ -67,6 +69,13 @@ class Friendship < ApplicationRecord
   def friend_for(user)
     requester_id == user.id ? addressee : requester
   end
+
+  # The id of the other user, without loading either user row.
+  def friend_id_for(user)
+    requester_id == user.id ? addressee_id : requester_id
+  end
+
+  def involves?(user_id) = requester_id == user_id || addressee_id == user_id
 
   def requester?(user) = requester_id == user.id
   def addressee?(user) = addressee_id == user.id

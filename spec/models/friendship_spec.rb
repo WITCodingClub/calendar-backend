@@ -35,6 +35,7 @@ RSpec.describe Friendship, type: :model do
 
     it { is_expected.to belong_to(:requester).class_name("User") }
     it { is_expected.to belong_to(:addressee).class_name("User") }
+    it { is_expected.to have_many(:friend_group_memberships).dependent(:delete_all) }
 
     it { is_expected.to validate_uniqueness_of(:requester_id).scoped_to(:addressee_id).with_message("friendship already exists") }
 
@@ -118,6 +119,35 @@ RSpec.describe Friendship, type: :model do
 
       expect(described_class.between(requester, addressee)).to contain_exactly(friendship)
       expect(described_class.between(addressee, requester)).to contain_exactly(friendship)
+    end
+  end
+
+  describe "#friend_id_for" do
+    it "returns the other user's id from either side" do
+      friendship = create(:friendship, requester: requester, addressee: addressee)
+
+      expect(friendship.friend_id_for(requester)).to eq(addressee.id)
+      expect(friendship.friend_id_for(addressee)).to eq(requester.id)
+    end
+  end
+
+  describe "#involves?" do
+    it "is true only for the two users in the friendship" do
+      friendship = create(:friendship, requester: requester, addressee: addressee)
+
+      expect(friendship.involves?(requester.id)).to be(true)
+      expect(friendship.involves?(addressee.id)).to be(true)
+      expect(friendship.involves?(create(:user).id)).to be(false)
+    end
+  end
+
+  describe "removal" do
+    it "removes the friendship's group memberships, also on a delete that skips callbacks" do
+      membership = create(:friend_group_membership)
+
+      membership.friendship.delete
+
+      expect(FriendGroupMembership.exists?(membership.id)).to be(false)
     end
   end
 end

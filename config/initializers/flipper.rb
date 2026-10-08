@@ -20,7 +20,8 @@ FLIPPER_FLAGS = {
   FlipperFlags::MICROSOFT_SIGN_IN => "Sign in with Microsoft. Global only: enable it fully, not per actor",
   FlipperFlags::MICROSOFT_GRAPH_CALENDAR => "Microsoft Graph calendar sync. Needs Entra admin consent first",
   FlipperFlags::FRIENDS_AVAILABILITY_ONLY => "Friends can share only busy blocks. Needs the privacy policy update (calendar-website#20)",
-  FlipperFlags::SEMANTIC_SEARCH => "Catalog search by meaning. Global only: it needs OPENAI_API_KEY too"
+  FlipperFlags::SEMANTIC_SEARCH => "Catalog search by meaning. Global only: it needs OPENAI_API_KEY too",
+  FlipperFlags::FRIEND_GROUPS => "Friend groups in the API and dashboard. Off until the privacy policy update"
 }.freeze
 
 Rails.application.configure do

@@ -146,6 +146,14 @@ Rails.application.routes.draw do
     post   "friends/requests/:request_id/accept",       to: "friends#accept"
     post   "friends/requests/:request_id/decline",      to: "friends#decline"
     delete "friends/requests/:request_id",              to: "friends#cancel_request"
+    # Friend groups. Every route answers 404 while the friend_groups flag is off.
+    get    "friends/groups",                            to: "friend_groups#index"
+    post   "friends/groups",                            to: "friend_groups#create"
+    get    "friends/groups/:group_id",                  to: "friend_groups#show"
+    patch  "friends/groups/:group_id",                  to: "friend_groups#update"
+    delete "friends/groups/:group_id",                  to: "friend_groups#destroy"
+    post   "friends/groups/:group_id/members",          to: "friend_groups#add_member"
+    delete "friends/groups/:group_id/members/:friend_id", to: "friend_groups#remove_member"
     delete "friends/:friend_id",                        to: "friends#unfriend"
     post   "friends/:friend_id/processed_events",       to: "friends#processed_events"
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
@@ -210,6 +218,10 @@ Rails.application.routes.draw do
       resource  :ics_feed,             only: [ :show ]
       resource  :notifications,        only: [ :show, :update ] do
         patch :university_events
+      end
+      # Before resources :friends, so "groups" is not read as a friend id.
+      resources :friend_groups, path: "friends/groups", only: [ :create, :update, :destroy ] do
+        resources :members, controller: "friend_group_members", only: [ :create, :destroy ]
       end
       resources :friends, only: [ :index, :show, :create, :destroy ] do
         member     { post :accept; post :decline; patch :visibility }
