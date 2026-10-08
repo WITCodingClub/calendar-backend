@@ -54,6 +54,7 @@ The 409 codes:
 - `NOT_CONNECTED`: a sync arrived, but no Brightspace account is linked.
 - `CONNECTION_MISMATCH`: the `host` and `learner_id` of a sync are not those of the linked account.
 - `SNAPSHOT_CONFLICT`: a `snapshot_id` came back with different data.
+- `SYLLABUS_REVISION_MISMATCH`: a syllabus confirmation names a revision that is not the stored one.
 
 ## Connection
 
@@ -363,3 +364,96 @@ Grade fields:
 - `categories` is the grading-rule format. Each entry names an imported category with `category_id`, or a new one with `name`. `item_ids` maps grade items into the category. Every id must belong to the class. The allowed keys are `category_id`, `name`, `weight`, `drop_lowest`, `drop_highest`, `extra_credit`, and `item_ids`.
 
 Response: `{ class_preference, version }`. GET without a saved preference returns the defaults.
+
+## Grades
+
+### GET /api/classes/:id/grades
+
+```json
+{
+  "reported_total": { "points_earned": 41.5, "points_possible": 50.0, "percent": 83.0, "letter": "B" },
+  "categories": [{
+    "id": "bgc_...", "source_id": "900", "name": "Labs", "weight": 40.0,
+    "drop_lowest": 1, "drop_highest": null, "extra_credit": false
+  }],
+  "items": [{
+    "id": "bgi_...", "source_id": "7002", "category_id": "bgc_...", "assignment_id": "bas_...",
+    "name": "Lab 4", "points_earned": null, "points_possible": 10.0, "weight": null,
+    "grading_status": "ungraded", "extra_credit": null, "feedback": null, "graded_at": null
+  }],
+  "preferences": { "mode": "brightspace", "categories": [] },
+  "scenarios": [],
+  "version": "..."
+}
+```
+
+- These are the grades as Brightspace reports them. The backend does no grade calculation, and no user setting changes these values.
+- A `graded` item with `points_earned: 0` is a zero. An `ungraded` item has `points_earned: null`. A `null` weight or rule is unknown.
+- `preferences` is the `grades` part of the class preference.
+- Removed categories and items are not listed.
+
+### Grade scenarios
+
+A scenario stores inputs: hypothetical points for grade items, and optional category rules in the grading-rule format. It never replaces the imported grades. A class can have at most 50 scenarios.
+
+| Route | Answer |
+| --- | --- |
+| `GET /api/classes/:id/grade_scenarios` | 200 `{ scenarios }` |
+| `POST /api/classes/:id/grade_scenarios` | 201 `{ scenario, version }` |
+| `PUT /api/classes/:id/grade_scenarios/:scenario_id` | 200 `{ scenario, version }` |
+| `DELETE /api/classes/:id/grade_scenarios/:scenario_id` | 204 |
+
+```json
+{
+  "grade_scenario": {
+    "name": "Ace the final",
+    "scores": [{ "item_id": "bgi_...", "points": 9.5 }],
+    "category_overrides": [{ "category_id": "bgc_...", "weight": 50 }]
+  }
+}
+```
+
+A scenario:
+
+```json
+{ "id": "bgs_...", "class_id": "bcl_...", "name": "...", "scores": [], "category_overrides": null, "updated_at": "..." }
+```
+
+`scores` can hold at most 500 entries, one for each grade item of the class. `points` is a number of 0 or more, or `null`. An update changes only the fields in the body.
+
+## Syllabus
+
+### GET /api/classes/:id/syllabus
+
+```json
+{
+  "source": {
+    "source_id": "content-55",
+    "url": "https://brightspace.example.edu/d2l/le/content/12414/viewContent/55/View",
+    "title": "Course Syllabus",
+    "revision": "2026-09-01T00:00:00Z",
+    "removed_at": null
+  },
+  "extracted": { "categories": [{ "name": "Labs", "weight": 40, "source_ref": "page 2" }] },
+  "confirmed": {
+    "source_revision": "2026-09-01T00:00:00Z",
+    "confirmed": { "categories": [{ "name": "Labs", "weight": 45, "source_ref": "page 2" }] },
+    "confirmed_at": "..."
+  },
+  "version": "..."
+}
+```
+
+`source` and `extracted` are `null` when no syllabus was imported. `confirmed` is `null` until the user confirms the rules. The confirmed rules are private to the user and stay through later imports. When `confirmed.source_revision` is not `source.revision`, the source changed after the user confirmed it.
+
+### PUT /api/classes/:id/syllabus/preference
+
+```json
+{ "syllabus_preference": { "source_revision": "2026-09-01T00:00:00Z", "confirmed": { "...": "..." } } }
+```
+
+- `source_revision` must be the revision of the stored syllabus. Else the answer is 409 with `code: "SYLLABUS_REVISION_MISMATCH"`, so the user can review the new source first.
+- `confirmed` is an object of at most 200 KB, in any shape. Keep the source references in it.
+- Confirming does not change the grade settings and does not create calendar events.
+
+Response: `{ syllabus_preference, version }`.

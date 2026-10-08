@@ -113,6 +113,8 @@ class User < ApplicationRecord
   has_many :brightspace_connections, class_name: "Brightspace::Connection", dependent: :destroy
   has_many :brightspace_assignment_preferences, class_name: "Brightspace::AssignmentPreference", dependent: :destroy
   has_many :brightspace_class_preferences, class_name: "Brightspace::ClassPreference", dependent: :destroy
+  has_many :brightspace_syllabus_preferences, class_name: "Brightspace::SyllabusPreference", dependent: :destroy
+  has_many :brightspace_grade_scenarios, class_name: "Brightspace::GradeScenario", dependent: :destroy
 
   has_many :sent_friendships, class_name: "Friendship", foreign_key: :requester_id,
            dependent: :destroy, inverse_of: :requester

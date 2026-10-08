@@ -55,6 +55,20 @@ module Api
       }
     end
 
+    # GET /api/classes/:id/grades
+    def grades
+      offering = find_brightspace_class!(params[:id])
+
+      render json: Brightspace::GradesSerializer.new(offering).as_json
+    end
+
+    # GET /api/classes/:id/syllabus
+    def syllabus
+      offering = find_brightspace_class!(params[:id])
+
+      render json: Brightspace::SyllabusSerializer.new(offering).as_json
+    end
+
     private
 
     def class_json(offering, next_deadline)
