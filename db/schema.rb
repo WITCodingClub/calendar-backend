@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -109,6 +109,137 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
     t.string "status"
     t.datetime "updated_at", null: false
     t.index ["creator_id"], name: "index_blazer_queries_on_creator_id"
+  end
+
+  create_table "brightspace_announcements", force: :cascade do |t|
+    t.bigint "course_offering_id", null: false
+    t.string "source_id", null: false
+    t.string "title", null: false
+    t.text "body"
+    t.string "source_url"
+    t.datetime "posted_at"
+    t.datetime "removed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_offering_id", "source_id"], name: "index_brightspace_announcements_on_source", unique: true
+    t.index ["course_offering_id"], name: "index_brightspace_announcements_on_course_offering_id"
+  end
+
+  create_table "brightspace_assignments", force: :cascade do |t|
+    t.bigint "course_offering_id", null: false
+    t.string "kind", null: false
+    t.string "source_id", null: false
+    t.string "title", null: false
+    t.text "description"
+    t.string "source_url"
+    t.datetime "due_at"
+    t.datetime "opens_at"
+    t.datetime "closes_at"
+    t.datetime "user_due_at"
+    t.string "submission_status"
+    t.datetime "submitted_at"
+    t.text "feedback"
+    t.datetime "removed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_offering_id", "kind", "source_id"], name: "index_brightspace_assignments_on_source", unique: true
+    t.index ["course_offering_id"], name: "index_brightspace_assignments_on_course_offering_id"
+  end
+
+  create_table "brightspace_connections", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "host", null: false
+    t.string "learner_id", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "connected_at", null: false
+    t.datetime "disconnected_at"
+    t.datetime "last_synced_at"
+    t.datetime "reconnect_required_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "host", "learner_id"], name: "index_brightspace_connections_on_identity", unique: true
+    t.index ["user_id"], name: "index_brightspace_connections_on_user_id"
+    t.index ["user_id"], name: "index_brightspace_connections_one_active_per_user", unique: true, where: "((status)::text = 'active'::text)"
+  end
+
+  create_table "brightspace_course_offerings", force: :cascade do |t|
+    t.bigint "connection_id", null: false
+    t.bigint "course_id"
+    t.bigint "term_id"
+    t.string "source_id", null: false
+    t.string "title", null: false
+    t.integer "data_version", default: 1, null: false
+    t.jsonb "sections", default: {}, null: false
+    t.jsonb "reported_total"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["connection_id", "source_id"], name: "idx_on_connection_id_source_id_cec08f631c", unique: true
+    t.index ["connection_id"], name: "index_brightspace_course_offerings_on_connection_id"
+    t.index ["course_id"], name: "index_brightspace_course_offerings_on_course_id"
+    t.index ["term_id"], name: "index_brightspace_course_offerings_on_term_id"
+  end
+
+  create_table "brightspace_grade_categories", force: :cascade do |t|
+    t.bigint "course_offering_id", null: false
+    t.string "source_id", null: false
+    t.string "name", null: false
+    t.decimal "weight", precision: 8, scale: 4
+    t.integer "drop_lowest"
+    t.integer "drop_highest"
+    t.boolean "extra_credit"
+    t.datetime "removed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_offering_id", "source_id"], name: "index_brightspace_grade_categories_on_source", unique: true
+    t.index ["course_offering_id"], name: "index_brightspace_grade_categories_on_course_offering_id"
+  end
+
+  create_table "brightspace_grade_items", force: :cascade do |t|
+    t.bigint "course_offering_id", null: false
+    t.bigint "grade_category_id"
+    t.bigint "assignment_id"
+    t.string "source_id", null: false
+    t.string "name", null: false
+    t.decimal "points_earned", precision: 10, scale: 4
+    t.decimal "points_possible", precision: 10, scale: 4
+    t.decimal "weight", precision: 8, scale: 4
+    t.string "grading_status", null: false
+    t.boolean "extra_credit"
+    t.text "feedback"
+    t.datetime "graded_at"
+    t.datetime "removed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assignment_id"], name: "index_brightspace_grade_items_on_assignment_id"
+    t.index ["course_offering_id", "source_id"], name: "index_brightspace_grade_items_on_source", unique: true
+    t.index ["course_offering_id"], name: "index_brightspace_grade_items_on_course_offering_id"
+    t.index ["grade_category_id"], name: "index_brightspace_grade_items_on_grade_category_id"
+  end
+
+  create_table "brightspace_syllabi", force: :cascade do |t|
+    t.bigint "course_offering_id", null: false
+    t.string "source_id"
+    t.string "source_url"
+    t.string "title"
+    t.string "revision", null: false
+    t.jsonb "extracted", default: {}, null: false
+    t.datetime "removed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_offering_id"], name: "index_brightspace_syllabi_on_course_offering_id", unique: true
+  end
+
+  create_table "brightspace_syncs", force: :cascade do |t|
+    t.bigint "connection_id", null: false
+    t.string "snapshot_id", null: false
+    t.string "payload_digest", null: false
+    t.datetime "collected_at", null: false
+    t.string "status", null: false
+    t.jsonb "result", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["connection_id", "snapshot_id"], name: "index_brightspace_syncs_on_connection_id_and_snapshot_id", unique: true
+    t.index ["connection_id"], name: "index_brightspace_syncs_on_connection_id"
   end
 
   create_table "buildings", force: :cascade do |t|
@@ -278,7 +409,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
     t.index ["status"], name: "index_courses_on_status"
     t.index ["term_id", "subject", "course_number", "link_identifier"], name: "index_courses_on_course_and_link_identifier"
     t.check_constraint "credit_hours IS NULL OR credit_hours > 0", name: "courses_credit_hours_positive"
-    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying, 'HYB'::character varying, 'IND'::character varying, 'LAB'::character varying, 'LEC'::character varying, 'ONL'::character varying, 'ONB'::character varying, 'OLB'::character varying, 'OLC'::character varying, 'RLB'::character varying, 'RLC'::character varying, 'SAB'::character varying, 'SAD'::character varying]::text[])", name: "courses_schedule_type_valid"
+    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying::text, 'HYB'::character varying::text, 'IND'::character varying::text, 'LAB'::character varying::text, 'LEC'::character varying::text, 'ONL'::character varying::text, 'ONB'::character varying::text, 'OLB'::character varying::text, 'OLC'::character varying::text, 'RLB'::character varying::text, 'RLC'::character varying::text, 'SAB'::character varying::text, 'SAD'::character varying::text])", name: "courses_schedule_type_valid"
     t.check_constraint "seats_available IS NULL OR seats_capacity IS NULL OR seats_available <= seats_capacity", name: "courses_seats_available_le_capacity"
     t.check_constraint "seats_capacity IS NULL OR seats_capacity >= 0", name: "courses_seats_capacity_non_negative"
     t.check_constraint "start_date IS NULL OR end_date IS NULL OR end_date >= start_date", name: "courses_end_date_on_or_after_start_date"
@@ -994,6 +1125,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "brightspace_announcements", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_assignments", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_connections", "users"
+  add_foreign_key "brightspace_course_offerings", "brightspace_connections", column: "connection_id"
+  add_foreign_key "brightspace_course_offerings", "courses"
+  add_foreign_key "brightspace_course_offerings", "terms"
+  add_foreign_key "brightspace_grade_categories", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_grade_items", "brightspace_assignments", column: "assignment_id"
+  add_foreign_key "brightspace_grade_items", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_grade_items", "brightspace_grade_categories", column: "grade_category_id"
+  add_foreign_key "brightspace_syllabi", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_syncs", "brightspace_connections", column: "connection_id"
   add_foreign_key "calendar_events", "calendars"
   add_foreign_key "calendar_events", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "calendar_preferences", "users"
