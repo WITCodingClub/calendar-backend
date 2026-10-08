@@ -161,6 +161,7 @@ Rails.application.routes.draw do
     post   "friends/groups/:group_id/members",          to: "friend_groups#add_member"
     delete "friends/groups/:group_id/members/:friend_id", to: "friend_groups#remove_member"
     delete "friends/:friend_id",                        to: "friends#unfriend"
+    patch  "friends/:friend_id/expiry",                 to: "friends#update_expiry"
     post   "friends/:friend_id/processed_events",       to: "friends#processed_events"
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
     get    "friends/:friend_id/visibility",             to: "friends#visibility"
@@ -230,7 +231,7 @@ Rails.application.routes.draw do
         resources :members, controller: "friend_group_members", only: [ :create, :destroy ]
       end
       resources :friends, only: [ :index, :show, :create, :destroy ] do
-        member     { post :accept; post :decline; patch :visibility }
+        member     { post :accept; post :decline; patch :visibility; patch :expiry; post :accept_expiry; post :decline_expiry }
         collection { get :requests }
       end
       resource :settings, only: [ :show ]

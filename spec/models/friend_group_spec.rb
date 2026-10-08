@@ -2,6 +2,24 @@
 
 require "rails_helper"
 
+# == Schema Information
+#
+# Table name: friend_groups
+#
+#  id         :bigint           not null, primary key
+#  name       :string           not null
+#  created_at :datetime         not null
+#  updated_at :datetime         not null
+#  user_id    :bigint           not null
+#
+# Indexes
+#
+#  index_friend_groups_on_user_id_and_lower_name  (user_id, lower((name)::text)) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id) ON DELETE => cascade
+#
 RSpec.describe FriendGroup, type: :model do
   describe "associations and validations" do
     subject { create(:friend_group) }

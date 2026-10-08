@@ -221,6 +221,31 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe "expired friendships" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    let(:user)   { create(:user) }
+    let(:friend) { create(:user) }
+
+    before { create(:friendship, :accepted, :temporary, requester: user, addressee: friend) }
+
+    it "counts the friend before the expiry date" do
+      expect(user.friends).to contain_exactly(friend)
+      expect(user.friend_of?(friend)).to be(true)
+      expect(friend.accepted_friendship_with(user)).to be_present
+    end
+
+    it "does not count the friend after the expiry date" do
+      travel 8.days do
+        expect(user.friends).to be_empty
+        expect(friend.friends).to be_empty
+        expect(user.friend_of?(friend)).to be(false)
+        expect(user.accepted_friendship_with(friend)).to be_nil
+        expect(user.remove_friend(friend)).to be(false)
+      end
+    end
+  end
+
   describe ".wit_email?" do
     it "accepts an address on the WIT domain" do
       expect(described_class.wit_email?("lovelacea@wit.edu")).to be(true)
