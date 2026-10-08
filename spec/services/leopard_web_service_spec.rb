@@ -247,4 +247,29 @@ RSpec.describe LeopardWebService, type: :service do
       expect(service.call).to eq({ title: "Calculus 2A" })
     end
   end
+
+  describe ".get_active_terms" do
+    let(:terms_url) { %r{\Ahttps://selfservice\.wit\.edu/StudentRegistrationSsb/ssb/courseSearch/getTerms} }
+
+    before { allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new) }
+
+    it "asks Banner once and keeps a good answer" do
+      stub = stub_request(:get, terms_url)
+             .to_return(status: 200, body: [ { code: "202710", description: "Fall 2026" } ].to_json,
+                        headers: { "Content-Type" => "application/json" })
+
+      2.times { described_class.get_active_terms }
+
+      expect(described_class.get_active_terms[:success]).to be(true)
+      expect(stub).to have_been_requested.once
+    end
+
+    it "does not keep a failed answer" do
+      stub = stub_request(:get, terms_url).to_return(status: 400, body: "")
+
+      2.times { described_class.get_active_terms }
+
+      expect(stub).to have_been_requested.twice
+    end
+  end
 end

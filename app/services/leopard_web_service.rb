@@ -81,8 +81,19 @@ class LeopardWebService < ApplicationService
     ).call
   end
 
+  ACTIVE_TERMS_CACHE_KEY = "leopard_web/active_terms"
+
+  # Banner's term list changes a few times a year. The admin catalog page and
+  # Term#registration_start ask for it on each call, and the request can take
+  # up to 30 seconds, so keep a good answer for ten minutes. A failed answer is
+  # not kept.
   def self.get_active_terms
-    new(action: :get_active_terms).call
+    cached = Rails.cache.read(ACTIVE_TERMS_CACHE_KEY)
+    return cached if cached
+
+    result = new(action: :get_active_terms).call
+    Rails.cache.write(ACTIVE_TERMS_CACHE_KEY, result, expires_in: 10.minutes) if result[:success]
+    result
   end
 
   private

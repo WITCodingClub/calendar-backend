@@ -82,6 +82,30 @@ RSpec.describe Term, type: :model do
         expect(described_class.current_and_future.to_a).to eq([ spring_next, fall ])
       end
     end
+
+    it "uses the current term that the caller passes" do
+      travel_to Date.new(2026, 10, 1) do
+        fall        = create_term(year: 2026, season: :fall)
+        spring_next = create_term(year: 2027, season: :spring)
+        allow(described_class).to receive(:current).and_call_original
+
+        expect(described_class.current_and_future(fall).to_a).to eq([ spring_next, fall ])
+        expect(described_class).not_to have_received(:current)
+      end
+    end
+  end
+
+  describe ".next" do
+    it "uses the current term that the caller passes" do
+      travel_to Date.new(2026, 10, 1) do
+        fall        = create_term(year: 2026, season: :fall)
+        spring_next = create_term(year: 2027, season: :spring)
+        allow(described_class).to receive(:current).and_call_original
+
+        expect(described_class.next(fall)).to eq(spring_next)
+        expect(described_class).not_to have_received(:current)
+      end
+    end
   end
 
   describe ".enrolled_for" do

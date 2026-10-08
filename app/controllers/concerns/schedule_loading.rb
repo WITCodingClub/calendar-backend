@@ -15,13 +15,14 @@ module ScheduleLoading
 
   def build_schedule_for(user)
     enrolled_terms = Term.enrolled_for(user)
-    terms = enrolled_terms.current_and_future
+    current_term = Term.current
+    terms = enrolled_terms.current_and_future(current_term)
     terms = enrolled_terms.reverse_chronological.limit(6) if terms.empty?
 
     selected_term = if params[:term_uid].present?
                       terms.find_by(uid: params[:term_uid])
     else
-                      terms.find_by(id: Term.current&.id) || terms.first
+                      terms.find_by(id: current_term&.id) || terms.first
     end
 
     today = Time.zone.today

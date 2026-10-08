@@ -19,14 +19,14 @@ class VersionService < ApplicationService
     call
   end
 
-  def current_version
-    @current_version ||= begin
-      version = `git describe --tags --always 2>/dev/null`.strip
-      version.presence || current_sha
-    end
+  # The admin layout renders this on every page. The running code does not
+  # change until the process restarts, so start git once per process, not once
+  # per page.
+  def self.current_version
+    @current_version ||= `git describe --tags --always 2>/dev/null`.strip.presence || current_sha
   end
 
-  def current_sha
+  def self.current_sha
     @current_sha ||= begin
       revision_file = Rails.root.join("REVISION")
       if revision_file.exist?
@@ -37,8 +37,13 @@ class VersionService < ApplicationService
     end
   end
 
+  def current_version = self.class.current_version
+  def current_sha = self.class.current_sha
+
+  # race_condition_ttl lets one request refresh an expired entry while the
+  # others keep the old value, so a slow GitHub blocks one page, not every page.
   def latest_version
-    @latest_version ||= Rails.cache.fetch(CACHE_KEY, expires_in: CACHE_DURATION) do
+    @latest_version ||= Rails.cache.fetch(CACHE_KEY, expires_in: CACHE_DURATION, race_condition_ttl: 30.seconds) do
       fetch_latest_release_from_github
     end
   end

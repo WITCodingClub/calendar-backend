@@ -281,7 +281,9 @@ class RateMyProfessorService < ApplicationService
   private
 
   def make_request(query:, operation_name:, variables:)
-    connection = Faraday.new(url: BASE_URL) do |faraday|
+    # The admin RMP search calls this inside a request, and the weekly jobs
+    # share three worker threads. Without timeouts, a slow RMP holds either one.
+    connection = Faraday.new(url: BASE_URL, request: { open_timeout: 5, timeout: 15 }) do |faraday|
       faraday.request :json
       # json 3 rejects duplicate keys by default. The RateMyProfessors API
       # response can repeat a key (the teacher query asks for `id` twice), so
