@@ -423,8 +423,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
 
   create_table "friendships", force: :cascade do |t|
     t.bigint "addressee_id", null: false
+    t.integer "addressee_visibility", default: 0, null: false
     t.datetime "created_at", null: false
     t.bigint "requester_id", null: false
+    t.integer "requester_visibility", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index "LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)", name: "index_friendships_on_unordered_pair", unique: true
