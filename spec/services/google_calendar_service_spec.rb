@@ -78,6 +78,20 @@ RSpec.describe GoogleCalendarService do
     end
   end
 
+  describe "#update_calendar_events" do
+    let(:user) { create(:user) }
+    let(:credential) { create(:oauth_credential, user: user, token_expires_at: 1.hour.from_now) }
+    let!(:course_calendar) { create(:course_calendar, oauth_credential: credential, last_synced_at: nil) }
+
+    # The admin calendars page reads last_synced_at. Before this, only the
+    # events got a sync time, so every Google calendar showed "Never synced".
+    it "records the sync time on the calendar" do
+      described_class.new(user).update_calendar_events([])
+
+      expect(course_calendar.reload.last_synced_at).to be_within(1.minute).of(Time.current)
+    end
+  end
+
   describe "#update_event_in_calendar" do
     let(:user) { create(:user) }
     let(:service) { described_class.new(user) }

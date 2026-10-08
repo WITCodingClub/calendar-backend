@@ -117,6 +117,8 @@ class GoogleCalendarService
       end
     end
 
+    course_calendar.mark_synced!
+
     total_processed  = stats[:created] + stats[:updated] + stats[:skipped]
     skip_percentage  = total_processed > 0 ? (stats[:skipped].to_f / total_processed * 100).round(2) : 0
 
