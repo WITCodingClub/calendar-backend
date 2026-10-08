@@ -52,6 +52,20 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
       expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
     end
 
+    it "ends category colors and syncs when the user picks the color again" do
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+      # An old extension build wrote this after the color was picked.
+      category = create(:calendar_preference, :uni_cal_category, user: user, event_type: "holiday", color_id: "#d50000")
+
+      patch "/api/calendar_preferences/uni_cal",
+            params: { calendar_preference: { color_id: "#1a2b3c" } },
+            headers: headers,
+            as: :json
+
+      expect(category.reload.color_id).to be_nil
+      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true).once
+    end
+
     it "takes the legacy color id that old extension versions send" do
       patch "/api/calendar_preferences/uni_cal",
             params: { calendar_preference: { color_id: "8" } },

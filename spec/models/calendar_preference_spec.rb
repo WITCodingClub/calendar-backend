@@ -125,9 +125,20 @@ RSpec.describe CalendarPreference, type: :model do
 
     it "does the same when the color of an existing row changes" do
       preference = create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
-      holiday.update!(color_id: "#d50000")
+      # The row is cleared on the create above, so put the stale color back.
+      holiday.update_column(:color_id, "#d50000") # rubocop:disable Rails/SkipsModelValidations
 
       preference.update!(color_id: "#abcdef")
+
+      expect(holiday.reload.color_id).to be_nil
+    end
+
+    it "does the same when the user picks the color the row already has" do
+      preference = create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+      # The row is cleared on the create above, so put the stale color back.
+      holiday.update_column(:color_id, "#d50000") # rubocop:disable Rails/SkipsModelValidations
+
+      preference.update!(color_id: "#1a2b3c")
 
       expect(holiday.reload.color_id).to be_nil
     end

@@ -56,7 +56,9 @@ class CalendarPreference < ApplicationRecord
   after_update :sync_calendar_if_preferences_changed
   # A category row sits above the university wide row in PreferenceResolver, so
   # a category color from an old extension build hides the color the person
-  # picks now. Picking a university wide color ends those overrides.
+  # picks now. Every save of a university wide color ends those overrides, also
+  # a save of the same color, because an old build can write category colors
+  # again between two saves.
   after_save :clear_category_colors, if: :university_wide_color_set?
 
   scope :for_event_type,       ->(type) { where(scope: :event_type, event_type: type) }
@@ -79,10 +81,12 @@ class CalendarPreference < ApplicationRecord
   end
 
   def university_wide_color_set?
-    scope_uni_cal_global? && color_id.present? && saved_change_to_color_id?
+    scope_uni_cal_global? && color_id.present?
   end
 
   def clear_category_colors
+    # No sync is queued here: every controller that saves a preference queues
+    # a forced sync after the save, also when no field changed.
     user.calendar_preferences.for_uni_cal_category_scope.where.not(color_id: nil)
         .update_all(color_id: nil, updated_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
   end
