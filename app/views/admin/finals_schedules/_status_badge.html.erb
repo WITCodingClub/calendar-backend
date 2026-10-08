@@ -1,12 +1,1 @@
-<%
-  badge_classes = case status
-                  when "pending"    then "bg-secondary-container text-on-secondary-container"
-                  when "processing" then "bg-tertiary-container text-on-tertiary-container"
-                  when "completed"  then "bg-tertiary-container text-on-tertiary-container"
-                  when "failed"     then "bg-error-container text-on-error-container"
-                  else                   "bg-surface-container-high text-on-surface"
-                  end
-%>
-<span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full <%= badge_classes %>">
-  <%= status.titleize %>
-</span>
+<%= admin_badge(status.titleize, { "pending" => :warning, "processing" => :info, "completed" => :success, "failed" => :danger }.fetch(status, :neutral)) %>

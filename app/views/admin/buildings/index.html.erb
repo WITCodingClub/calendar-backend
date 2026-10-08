@@ -1,150 +1,78 @@
-<% content_for :title, "Buildings" %>
-
 <%
   badges = {
-    match: [ "Matches", "bg-tertiary-container text-on-tertiary-container" ],
-    mismatch: [ "Mismatch", "bg-secondary-container text-on-secondary-container" ],
-    syncing: [ "Syncing…", "bg-primary-container text-on-primary-container" ],
-    never_synced: [ "Never synced", "bg-surface-container-high text-on-surface-variant" ],
-    stale: [ "Sync out of date", "bg-surface-container-high text-on-surface-variant" ],
-    not_in_25live: [ "Not in 25Live", "bg-surface-container-high text-on-surface-variant" ]
+    match: [ "Matches", :success ],
+    mismatch: [ "Mismatch", :warning ],
+    syncing: [ "Syncing…", :info ],
+    never_synced: [ "Never synced", :neutral ],
+    stale: [ "Sync out of date", :neutral ],
+    not_in_25live: [ "Not in 25Live", :neutral ]
   }
   statuses = @buildings.to_h { |b| [ b, b.twenty_five_live_status(sync_in_progress: @sync_in_progress) ] }
+  total = statuses.size
+  synced = statuses.values.count { |s| s == :match || s == :mismatch }
+  mismatched = statuses.values.count(:mismatch)
+  missing = statuses.values.count(:not_in_25live)
+  awaiting = total - synced - missing
 %>
 
-<div class="container mx-auto px-4 py-8">
-  <div class="mb-6">
-    <%= link_to "← Back to Admin", admin_root_path, class: "text-sm font-medium text-primary hover:underline" %>
-  </div>
-
-  <div class="flex items-start justify-between mb-6">
-    <div>
-      <h1 class="text-2xl font-bold mb-1 text-on-surface">Buildings</h1>
-      <p class="text-on-surface-variant">Compare LeopardWeb building names against 25Live formal names and resolve discrepancies.</p>
-      <p class="text-sm text-on-surface-variant mt-1">
-        <% if @last_checked_at %>
-          Last 25Live sync: <%= time_ago_in_words(@last_checked_at) %> ago
-        <% else %>
-          No 25Live sync has run yet.
-        <% end %>
-      </p>
-    </div>
-    <div class="flex gap-2">
-      <%= button_to (@sync_in_progress ? "Sync Running…" : "Sync 25Live Spaces"), sync_admin_buildings_path,
-          method: :post,
-          class: "m3-btn-outlined px-4 py-2 rounded text-sm disabled:opacity-50",
-          disabled: @sync_in_progress,
-          data: { turbo_confirm: "Queue a 25Live space sync? This will run in the background." } %>
-      <% if policy(Building).apply_all? %>
-        <% mismatched_count = statuses.values.count(:mismatch) %>
-        <%= button_to "Apply All 25Live Names (#{mismatched_count})",
-            apply_all_admin_buildings_path,
-            method: :post,
-            class: "px-4 py-2 rounded text-sm bg-green-600 hover:bg-green-700 text-white disabled:opacity-50",
-            disabled: mismatched_count.zero?,
-            data: { turbo_confirm: "Apply 25Live formal names to all #{mismatched_count} mismatched building(s)?" } %>
-      <% end %>
-    </div>
-  </div>
-
-  <% if @sync_in_progress %>
-    <div class="mb-6 p-4 rounded-xl bg-primary-container border border-outline-variant">
-      <p class="text-sm text-on-primary-container">A 25Live sync is running. It takes a few minutes. Reload the page when it finishes.</p>
-    </div>
-  <% elsif statuses.values.any? { |s| s == :never_synced || s == :stale } %>
-    <div class="mb-6 p-4 rounded-xl bg-secondary-container border border-outline-variant">
-      <p class="text-sm text-on-secondary-container">Some buildings have no recent 25Live sync. Run a sync to see if 25Live has them.</p>
-    </div>
+<%= render "admin/shared/page_header",
+    title: "Buildings",
+    subtitle: (@last_checked_at ? "Last 25Live sync: #{time_ago_in_words(@last_checked_at)} ago" : "No 25Live sync has run yet.") do %>
+  <%= button_to (@sync_in_progress ? "Sync Running…" : "Sync 25Live Spaces"), sync_admin_buildings_path,
+      method: :post,
+      disabled: @sync_in_progress,
+      form: { data: { turbo_confirm: "Queue a 25Live space sync? This will run in the background." } },
+      class: "m3-btn-outlined disabled:opacity-50" %>
+  <% if policy(Building).apply_all? %>
+    <%= button_to "Apply All 25Live Names (#{mismatched})", apply_all_admin_buildings_path,
+        method: :post,
+        disabled: mismatched.zero?,
+        form: { data: { turbo_confirm: "Apply 25Live formal names to all #{mismatched} mismatched building(s)?" } },
+        class: "m3-btn-filled disabled:opacity-50" %>
   <% end %>
+<% end %>
 
-  <%# Summary stats %>
-  <% total      = statuses.size %>
-  <% synced     = statuses.values.count { |s| s == :match || s == :mismatch } %>
-  <% mismatched = statuses.values.count(:mismatch) %>
-  <% missing    = statuses.values.count(:not_in_25live) %>
-  <% awaiting   = total - synced - missing %>
-  <% last_count, last_label = awaiting > 0 ? [ awaiting, "Awaiting Sync" ] : [ missing, "Not in 25Live" ] %>
+<% if @sync_in_progress %>
+  <p role="status" class="mb-6 px-4 py-3 rounded-xl text-sm <%= AdminHelper::BADGE_TONES[:info] %>">A 25Live sync is running. It takes a few minutes. Reload the page when it finishes.</p>
+<% elsif statuses.values.any? { |s| s == :never_synced || s == :stale } %>
+  <p class="mb-6 px-4 py-3 rounded-xl text-sm <%= AdminHelper::BADGE_TONES[:warning] %>">Some buildings have no recent 25Live sync. Run a sync to see if 25Live has them.</p>
+<% end %>
 
-  <div class="grid grid-cols-4 gap-4 mb-6">
-    <div class="m3-card rounded-xl p-4 text-center">
-      <div class="text-2xl font-bold text-on-surface"><%= total %></div>
-      <div class="text-xs text-on-surface-variant uppercase tracking-wider mt-1">Total Buildings</div>
-    </div>
-    <div class="m3-card rounded-xl p-4 text-center">
-      <div class="text-2xl font-bold text-on-tertiary-container"><%= synced %></div>
-      <div class="text-xs text-on-surface-variant uppercase tracking-wider mt-1">Have 25Live Name</div>
-    </div>
-    <div class="m3-card rounded-xl p-4 text-center">
-      <div class="text-2xl font-bold <%= mismatched > 0 ? "text-on-secondary-container" : "text-on-surface-variant" %>"><%= mismatched %></div>
-      <div class="text-xs text-on-surface-variant uppercase tracking-wider mt-1">Name Mismatch</div>
-    </div>
-    <div class="m3-card rounded-xl p-4 text-center">
-      <div class="text-2xl font-bold text-on-surface-variant"><%= last_count %></div>
-      <div class="text-xs text-on-surface-variant uppercase tracking-wider mt-1"><%= last_label %></div>
-    </div>
-  </div>
+<%= render "admin/shared/stats" do %>
+  <%= render "admin/shared/stat", label: "Total buildings", value: total %>
+  <%= render "admin/shared/stat", label: "Have 25Live name", value: synced, tone: :success %>
+  <%= render "admin/shared/stat", label: "Name mismatch", value: mismatched, tone: (mismatched.positive? ? :warning : nil) %>
+  <% if awaiting.positive? %>
+    <%= render "admin/shared/stat", label: "Awaiting sync", value: awaiting %>
+  <% else %>
+    <%= render "admin/shared/stat", label: "Not in 25Live", value: missing %>
+  <% end %>
+<% end %>
 
-  <div class="m3-card shadow-sm rounded-xl overflow-hidden">
-    <table class="min-w-full divide-y divide-outline-variant">
-      <thead class="bg-surface-container-high">
-        <tr>
-          <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Code</th>
-          <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Current Name (LeopardWeb)</th>
-          <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Formal Name (25Live)</th>
-          <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Rooms</th>
-          <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Status</th>
-          <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Actions</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-outline-variant">
-        <% @buildings.each do |building| %>
-          <% status = statuses[building] %>
-          <% label, badge_class = badges.fetch(status) %>
-          <tr class="hover:bg-surface-container <%= "bg-secondary-container/20" if status == :mismatch %>">
-            <td class="px-4 py-3 whitespace-nowrap">
-              <code class="text-sm bg-surface-container-high px-2 py-1 rounded"><%= building.abbreviation %></code>
-            </td>
-            <td class="px-4 py-3">
-              <span class="<%= "font-medium text-on-secondary-container" if status == :mismatch %>">
-                <%= building.name %>
-              </span>
-            </td>
-            <td class="px-4 py-3">
-              <% if building.formal_name.present? %>
-                <span class="<%= "font-medium text-on-tertiary-container" if status == :mismatch %>">
-                  <%= building.formal_name %>
-                </span>
-              <% else %>
-                <span class="text-on-surface-variant italic text-sm"><%= status == :not_in_25live ? "None" : "Not synced" %></span>
-              <% end %>
-            </td>
-            <td class="px-4 py-3 text-sm text-on-surface-variant">
-              <%= building.rooms.size %>
-            </td>
-            <td class="px-4 py-3 whitespace-nowrap">
-              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= badge_class %>"><%= label %></span>
-            </td>
-            <td class="px-4 py-3 whitespace-nowrap">
-              <% if status == :mismatch %>
-                <%= button_to "Apply 25Live Name",
-                    apply_formal_name_admin_building_path(building),
-                    method: :post,
-                    class: "m3-btn-outlined px-3 py-1.5 rounded text-xs",
-                    data: { turbo_confirm: "Update \"#{building.abbreviation}\" name from \"#{building.name}\" to \"#{building.formal_name}\"?" } %>
-              <% end %>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
+<%= admin_table(@buildings, empty: "No buildings yet. A course import adds them.") do |t| %>
+  <% t.row_class { |building| "bg-secondary-container/20" if statuses[building] == :mismatch } %>
+  <% t.column("Code") { |building| tag.code(building.abbreviation, class: "px-2 py-0.5 rounded bg-surface-container-high text-xs") } %>
+  <% t.column("Current name (LeopardWeb)") { |building| building.name } %>
+  <% t.column("Formal name (25Live)") do |building| %>
+    <% if building.formal_name.present? %>
+      <%= building.formal_name %>
+    <% else %>
+      <span class="text-on-surface-variant italic"><%= statuses[building] == :not_in_25live ? "None" : "Not synced" %></span>
+    <% end %>
+  <% end %>
+  <% t.column("Rooms", align: :right) { |building| building.rooms.size.to_s } %>
+  <% t.column("Status") { |building| admin_badge(*badges.fetch(statuses[building])) } %>
+  <% t.column("Actions", align: :right, primary: false) do |building| %>
+    <% if statuses[building] == :mismatch %>
+      <%= button_to "Apply 25Live Name", apply_formal_name_admin_building_path(building),
+          method: :post,
+          form: { data: { turbo_confirm: "Update \"#{building.abbreviation}\" name from \"#{building.name}\" to \"#{building.formal_name}\"?" } },
+          class: "m3-btn-outlined px-3 py-1" %>
+    <% end %>
+  <% end %>
+<% end %>
 
-  <div class="mt-6 p-4 rounded-xl bg-tertiary-container border border-outline-variant">
-    <p class="text-sm text-on-tertiary-container">
-      <strong>How it works:</strong>
-      When you run a sync, we fetch all spaces from the 25Live API and populate the <em>Formal Name</em> field using the 25Live building name.
-      Applying a 25Live name updates the building's display name used in Google Calendar event locations.
-      The TBD and online placeholder buildings are not shown, because 25Live has no building for them.
-    </p>
-  </div>
-</div>
+<p class="mt-4 flex items-start gap-2 text-sm text-on-surface-variant">
+  <%= admin_icon(:information, css_class: "w-5 h-5 shrink-0") %>
+  <span>A sync reads every space from the 25Live API and fills the formal name from the 25Live building. Applying a 25Live name changes the building name in calendar event locations. The TBD and online placeholder buildings are not shown, because 25Live has no building for them.</span>
+</p>

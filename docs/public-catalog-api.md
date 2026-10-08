@@ -203,12 +203,15 @@ message:
 | `GET /api/v1/catalog/sections` | Sections, with filters |
 | `GET /api/v1/catalog/sections/:crn` | One section by CRN |
 | `GET /api/v1/catalog/instructors` | Faculty who teach at least one section |
+| `GET /api/v1/catalog/sections/:crn/similar` | Sections like this one |
 | `GET /api/v1/catalog/instructors/:pub_id` | One instructor |
+| `GET /api/v1/catalog/instructors/:pub_id/similar` | Instructors like this one |
+| `GET /api/v1/catalog/reviews` | Rate My Professors reviews |
 
 `GET /api/v1/catalog/subjects` accepts `term_uid`.
 
-`GET /api/v1/catalog/instructors` accepts `term_uid`, `q`, `page`, and
-`per_page`.
+`GET /api/v1/catalog/instructors` accepts `term_uid`, `q`, `semantic`, `page`,
+and `per_page`.
 
 `GET /api/v1/catalog/sections/:crn` accepts `term_uid`. Use it when one CRN
 occurs in more than one term. This endpoint also returns cancelled sections, so
@@ -227,6 +230,7 @@ All filters are optional. Give a list as a comma-separated value, for example
 | `crn` | `10001,10002` | Keep these CRNs |
 | `pub_id` | `crs_kw7coe30` | Keep these sections by public id |
 | `q` | `algorithms` | Search the title, subject, and number |
+| `semantic` | `true` | Rank `q` by meaning instead of by the literal words |
 | `schedule_type` | `lecture` or `LEC` | Keep these schedule types |
 | `credit_hours` | `4` | Keep these credit hours |
 | `instructor` | `byron` | Match the instructor name |
@@ -245,6 +249,64 @@ section is dropped if **any** of its meetings breaks the rule. This is what a
 student wants: one Friday afternoon lab still ruins a free Friday.
 
 An unknown filter value returns HTTP 400. An unknown query parameter is ignored.
+
+### Search by meaning
+
+`q` matches the literal words. Add `semantic=true` to rank by meaning instead,
+so `intro to programming` reaches `Computer Science I`. The same switch works
+on `/api/v1/catalog/instructors`.
+
+```bash
+curl "https://calendar.witcc.dev/api/v1/catalog/sections?q=learn+to+program&semantic=true&term_uid=202710"
+```
+
+Points to know:
+
+- Results come back ranked, nearest first, not sorted by subject and number.
+- Every other filter still applies. The ranking covers what the filters left.
+- A section stays out until it has been embedded, which happens nightly.
+- Semantic requests are limited to 30 per minute per IP. The keyword search
+  keeps the standard 300 per minute.
+- The server falls back to the keyword search when semantic search is off. The
+  request never fails because of it.
+
+### Reviews
+
+`GET /api/v1/catalog/reviews` returns Rate My Professors reviews of WIT
+instructors, newest first. Only reviews that carry a comment are returned.
+
+| Filter | Example | Effect |
+| --- | --- | --- |
+| `instructor` | `fac_kw7coe30` | Keep one instructor's reviews |
+| `q` | `group projects` | Search the comment and the course name |
+| `semantic` | `true` | Rank `q` by meaning instead of by the literal words |
+| `sentiment` | `positive` | Keep only positive or only negative reviews |
+| `page`, `per_page` | `2`, `50` | Page through the result. 25 by default, 100 at most |
+
+```bash
+curl "https://calendar.witcc.dev/api/v1/catalog/reviews?q=lots+of+group+projects&semantic=true"
+```
+
+The text of a review belongs to the student who wrote it on
+ratemyprofessors.com. Every review, and the `meta` of every page, names that
+source. Credit it and link back when you show this text.
+
+### What is like this one?
+
+`/similar` ranks the records closest in meaning to one record, nearest first.
+
+```bash
+curl "https://calendar.witcc.dev/api/v1/catalog/sections/17294/similar?limit=5"
+curl "https://calendar.witcc.dev/api/v1/catalog/instructors/fac_kw7coe30/similar"
+```
+
+Points to know:
+
+- `limit` is 10 by default and 50 at most.
+- Similar sections stay inside the section's own term, and the other sections
+  of the same course are left out.
+- Similar instructors are people who teach at least one section.
+- The list is empty until the record has been embedded, which happens nightly.
 
 ### Example
 
@@ -277,7 +339,12 @@ value into a string, and GraphQL then rejects booleans and numbers.
 | `subjects` | `termUid` | Subjects with section counts |
 | `sections` | `filter`, plus Relay arguments | A connection of sections |
 | `section` | `crn`, `termUid` | One section, cancelled ones included |
-| `instructors` | `termUid`, `q`, plus Relay arguments | A connection of faculty |
+| `instructors` | `termUid`, `q`, `semantic`, plus Relay arguments | A connection of faculty |
+| `reviews` | `instructor`, `q`, `semantic`, `sentiment`, plus Relay arguments | A connection of reviews |
+
+`SectionType.similar(limit:)` and `InstructorType.similar(limit:)` return the
+records closest in meaning to that record. Both cost more than a plain field,
+because each one runs its own search.
 
 `sections` and `instructors` are Relay connections. Both add `totalCount`, so a
 client can show "50 of 1174" without a second request.

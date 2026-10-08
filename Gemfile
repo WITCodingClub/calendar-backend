@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-gem "rails", "~> 8.1.3"
+gem "rails", "~> 8.1.4"
 gem "propshaft"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
@@ -12,7 +12,7 @@ gem "jbuilder"
 
 # json 3 changed JSON.parse to take one argument, which breaks
 # ActiveSupport::JSON.decode in Rails 8.1. Remove this pin when Rails supports json 3.
-gem "json", "< 3"
+gem "json", "< 4"
 
 # Renders the public API reference from the markdown file in docs/
 gem "redcarpet"
@@ -84,6 +84,10 @@ gem "faraday-retry"
 
 # JWT for OAuth state signing and RISC webhook validation
 gem "jwt"
+
+# Vector search over course, instructor and review embeddings (docs/embeddings.md)
+gem "pgvector"
+gem "neighbor"
 
 # Pagination
 gem "kaminari"

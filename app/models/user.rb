@@ -139,6 +139,10 @@ class User < ApplicationRecord
   # checks the same enrollments for one term.
   def processed_courses?
     enrollments.exists?
+  end 
+  
+  def super_admin_access?
+    super_admin? || owner?
   end
 
   def access_level_text

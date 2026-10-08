@@ -3,7 +3,9 @@
 module Admin
   class TermsController < Admin::ApplicationController
     def index
-      @terms = Term.reverse_chronological.page(params[:page]).per(10)
+      @terms = Term.reverse_chronological.page(params[:page]).per(25)
+      # One grouped count for the page, not one count for each row.
+      @course_counts = Course.where(term_id: @terms.map(&:id)).group(:term_id).count
     end
 
     def show

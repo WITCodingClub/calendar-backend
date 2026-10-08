@@ -1,0 +1,57 @@
+<%# Enrollments for one term at a time. The term-switch controller shows the
+    panel for the term picked in the select. %>
+<div data-controller="term-switch">
+  <% term_select = capture do %>
+    <% if enrollments_by_term.size > 1 %>
+      <label class="sr-only" for="enrollments-term">Term</label>
+      <select id="enrollments-term" class="m3-select py-1" data-term-switch-target="select" data-action="change->term-switch#show">
+        <%= options_for_select(enrollments_by_term.keys.map { |term| [ term.name, term.id ] }, enrollments_by_term.keys.first&.id) %>
+      </select>
+    <% end %>
+  <% end %>
+  <%= render "admin/shared/card", title: "Enrollments", actions: term_select, flush: true do %>
+    <% enrollments_by_term.each_with_index do |(term, enrollments), index| %>
+      <div data-term-switch-target="panel" data-term-id="<%= term.id %>" <%= tag.attributes(hidden: index.positive?) %>>
+        <%= admin_table(enrollments, card: false) do |t| %>
+          <% t.column("Course") do |enrollment| %>
+            <% if enrollment.course %>
+              <span class="font-medium"><%= enrollment.course.subject %> <%= enrollment.course.course_number %></span>
+              <% if enrollment.course.section_number.present? %>
+                <span class="text-on-surface-variant">(<%= enrollment.course.section_number %>)</span>
+              <% end %>
+              <div class="text-xs text-on-surface-variant"><%= titleize_with_roman_numerals(enrollment.course.title) %></div>
+            <% else %>
+              <span class="text-on-surface-variant">Course not found</span>
+            <% end %>
+          <% end %>
+          <% t.column("Instructor") { |enrollment| enrollment.course&.faculties&.map(&:display_name)&.join(", ") } %>
+          <% t.column("Credits") { |enrollment| enrollment.course&.credit_hours } %>
+          <% t.column("Schedule") do |enrollment| %>
+            <% (enrollment.course&.filtered_meeting_times || []).each do |mt| %>
+              <% next if mt.day_of_week.blank? %>
+              <div class="whitespace-nowrap">
+                <span class="font-medium"><%= mt.day_of_week.capitalize.first(3) %></span>
+                <%= mt.formatted_time_range if mt.begin_time && mt.end_time %>
+                <% if mt.building_room.present? %><span class="text-on-surface-variant">· <%= mt.building_room %></span><% end %>
+              </div>
+            <% end %>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+
+    <details class="group border-t border-outline-variant">
+      <summary class="flex items-center gap-2 px-4 sm:px-6 py-3 cursor-pointer text-sm font-medium text-on-surface hover:bg-surface-container-high">
+        <%= admin_icon(:chevron_right, css_class: "w-4 h-4 transition-transform group-open:rotate-90") %>
+        Weekly schedule
+      </summary>
+      <div class="px-4 sm:px-6 pb-4">
+        <% enrollments_by_term.each_with_index do |(term, enrollments), index| %>
+          <div data-term-switch-target="panel" data-term-id="<%= term.id %>" <%= tag.attributes(hidden: index.positive?) %>>
+            <%= render "week_calendar", enrollments: enrollments, term: term %>
+          </div>
+        <% end %>
+      </div>
+    </details>
+  <% end %>
+</div>

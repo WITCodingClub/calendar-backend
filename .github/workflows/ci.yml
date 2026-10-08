@@ -69,7 +69,9 @@ jobs:
 
     services:
       postgres:
-        image: postgres
+        # pgvector, for the embedding columns. CI keeps the official image:
+        # collation only matters for the production data directory.
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
