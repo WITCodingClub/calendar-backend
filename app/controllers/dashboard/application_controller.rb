@@ -23,4 +23,11 @@ class Dashboard::ApplicationController < ApplicationController
   def onboarding_complete?
     current_user.admin_access? || current_user.processed_courses?
   end
+
+  # Where to go after a user answers a friend request. The friends page is
+  # gated for a user with no processed courses, so send that user back to the
+  # requests page instead.
+  def friend_requests_return_path
+    onboarding_complete? ? dashboard_friends_path : requests_dashboard_friends_path
+  end
 end

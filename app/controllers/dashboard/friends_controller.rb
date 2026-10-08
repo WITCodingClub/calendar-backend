@@ -61,20 +61,20 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     authorize current_user, :update?
 
     fr = current_user.incoming_friend_requests.find_by(id: params[:id])
-    return redirect_to after_request_path, alert: "Request not found." unless fr
+    return redirect_to friend_requests_return_path, alert: "Request not found." unless fr
 
     fr.accepted!
-    redirect_to after_request_path, notice: "#{fr.requester.first_name} added as a friend."
+    redirect_to friend_requests_return_path, notice: "#{fr.requester.first_name} added as a friend."
   end
 
   def decline
     authorize current_user, :update?
 
     fr = current_user.incoming_friend_requests.find_by(id: params[:id])
-    return redirect_to after_request_path, alert: "Request not found." unless fr
+    return redirect_to friend_requests_return_path, alert: "Request not found." unless fr
 
     fr.destroy!
-    redirect_to after_request_path, notice: "Request declined."
+    redirect_to friend_requests_return_path, notice: "Request declined."
   end
 
   def destroy
@@ -85,13 +85,5 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
 
     current_user.remove_friend(friend)
     redirect_to dashboard_friends_path, notice: "#{friend.first_name} removed."
-  end
-
-  private
-
-  # The friends page is gated for a user with no processed courses, so send
-  # that user back to the requests page instead.
-  def after_request_path
-    onboarding_complete? ? dashboard_friends_path : requests_dashboard_friends_path
   end
 end
