@@ -46,6 +46,12 @@ RSpec.describe MeetingLinkSlots do
     expect(starts_on(thursday + 1).first).to eq("09:00")
   end
 
+  it "offers the time of a meeting that the owner deleted" do
+    create(:friend_meeting, :cancelled, user: owner, start_time: zone.local(2026, 10, 9, 8), end_time: zone.local(2026, 10, 9, 9))
+
+    expect(starts_on(thursday + 1).first).to eq("08:00")
+  end
+
   it "leaves out a friend meeting that the owner was added to, on each week it repeats" do
     meeting = create(:friend_meeting, :weekly, start_time: zone.local(2026, 10, 1, 8), end_time: zone.local(2026, 10, 1, 9),
                                                repeat_until: Date.new(2026, 12, 1))

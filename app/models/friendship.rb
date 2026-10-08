@@ -57,6 +57,8 @@ class Friendship < ApplicationRecord
   }
 
   after_create_commit :email_addressee_about_request, if: :pending?
+  # Ex-friends come off each other's future meetings.
+  after_destroy_commit :remove_from_friend_meetings, if: :accepted?
 
   def friend_for(user)
     requester_id == user.id ? addressee : requester
@@ -91,6 +93,10 @@ class Friendship < ApplicationRecord
   # real request that the addressee has to answer.
   def email_addressee_about_request
     FriendshipMailer.request_received(self).deliver_later
+  end
+
+  def remove_from_friend_meetings
+    FriendMeetingAttendeeRemover.call(requester_id, addressee_id)
   end
 
   def cannot_friend_self

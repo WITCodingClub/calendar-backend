@@ -434,12 +434,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.index ["user_id"], name: "index_friend_meeting_attendees_on_user_id"
   end
 
+  create_table "friend_meeting_publications", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "friend_meeting_id", null: false
+    t.datetime "invitations_sent_at"
+    t.string "last_error"
+    t.string "provider", null: false
+    t.boolean "sends_invitations", default: false, null: false
+    t.string "status", default: "queued", null: false
+    t.datetime "updated_at", null: false
+    t.index ["friend_meeting_id", "provider"], name: "idx_friend_meeting_publications_unique", unique: true
+  end
+
   create_table "friend_meetings", force: :cascade do |t|
+    t.datetime "cancelled_at"
     t.datetime "created_at", null: false
     t.datetime "end_time", null: false
     t.string "frequency", default: "one_time", null: false
     t.string "guest_email"
     t.string "guest_name"
+    t.string "idempotency_key"
     t.boolean "invite_friends", default: false, null: false
     t.string "location"
     t.date "repeat_until"
@@ -449,6 +463,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["term_id"], name: "index_friend_meetings_on_term_id"
+    t.index ["user_id", "idempotency_key"], name: "idx_friend_meetings_unique_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["user_id"], name: "index_friend_meetings_on_user_id"
   end
 
@@ -1071,6 +1086,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
   add_foreign_key "friend_meeting_attendees", "friend_meetings"
   add_foreign_key "friend_meeting_attendees", "users"
+  add_foreign_key "friend_meeting_publications", "friend_meetings"
   add_foreign_key "friend_meetings", "terms"
   add_foreign_key "friend_meetings", "users"
   add_foreign_key "friendships", "users", column: "addressee_id"

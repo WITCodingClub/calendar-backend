@@ -9,8 +9,9 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
   let(:graph)  { MicrosoftGraphHelpers::GRAPH_URL }
   let(:user)   { create(:user) }
   let(:friend) { create(:user, first_name: "Sample", last_name: "Friend", email: "sample.friend@wit.edu") }
+  let(:destinations) { %w[google microsoft ics] }
   let(:meeting) do
-    create(:friend_meeting, :invite_friends, user: user, title: "Synthetic Study Group",
+    create(:friend_meeting, :invite_friends, user: user, title: "Synthetic Study Group", destinations: destinations,
                                              start_time: zone.local(2026, 9, 15, 15), end_time: zone.local(2026, 9, 15, 16))
   end
 
@@ -22,7 +23,7 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
   end
 
   let(:google_events_url)    { "#{GoogleApiStubs::GOOGLE_CALENDAR_API}/calendars/synthetic-course-calendar/events" }
-  let(:microsoft_events_url) { "#{graph}/me/calendars/AAMkSyntheticCalendar1/events" }
+  let(:microsoft_events_url) { "#{graph}/me/calendar/events" }
   let(:google_created) do
     { status: 200, body: file_fixture("google_calendar/event_created.json").read, headers: { "Content-Type" => "application/json" } }
   end
@@ -41,6 +42,12 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
 
   def attendees_in(request)
     JSON.parse(request.body)["attendees"]
+  end
+
+  def publication(provider) = meeting.publications.find_by!(provider: provider)
+
+  def google_error(status)
+    { status: status, body: { error: { code: status, message: "Synthetic error" } }.to_json, headers: { "Content-Type" => "application/json" } }
   end
 
   describe "#calendar_providers" do
@@ -68,6 +75,49 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
       expect(google).to have_been_requested.once
       expect(microsoft).to have_been_requested.once
       expect(meeting.calendar_events.pluck(:calendar_id)).to contain_exactly(google_calendar.id, microsoft_calendar.id)
+      expect(publication("google")).to have_attributes(status: "published", invitation_status: "sent")
+      expect(publication("microsoft")).to have_attributes(status: "published", invitation_status: "not_requested")
+    end
+
+    context "when the person picked only Microsoft" do
+      let(:destinations) { %w[microsoft] }
+
+      it "writes only to Microsoft, which sends the invitations" do
+        with_both_calendars
+        microsoft = stub_request(:post, microsoft_events_url).with { |request| attendees_in(request).present? }
+                                                             .to_return(graph_json_response("meeting_created", status: 201))
+
+        described_class.new(user).publish(meeting)
+
+        expect(microsoft).to have_been_requested.once
+        expect(a_request(:post, google_events_url).with(query: hash_including({}))).not_to have_been_made
+      end
+    end
+
+    it "never sends the invitations twice" do
+      google_calendar
+      publication("google").update!(invitations_sent_at: 1.day.ago)
+      insert = stub_request(:post, google_events_url).with(query: { "sendUpdates" => "none" }) { |request| attendees_in(request).nil? }
+                                                     .to_return(google_created)
+
+      described_class.new(user).publish(meeting)
+
+      expect(insert).to have_been_requested.once
+    end
+
+    it "does nothing for a cancelled meeting" do
+      google_calendar
+      meeting.update!(cancelled_at: Time.current)
+
+      described_class.new(user).publish(meeting)
+
+      expect(a_request(:post, google_events_url).with(query: hash_including({}))).not_to have_been_made
+    end
+
+    it "marks a picked calendar that is no longer connected as failed" do
+      described_class.new(user).publish(meeting)
+
+      expect(publication("google")).to have_attributes(status: "failed", invitation_status: "failed")
     end
 
     it "skips a calendar that already has the meeting, so a retry is safe" do
@@ -81,18 +131,22 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
 
     it "still tries the other calendar when one provider fails, then raises the error" do
       with_both_calendars
-      stub_request(:post, google_events_url).with(query: hash_including({}))
-        .to_return(status: 500, body: { error: { code: 500, message: "Synthetic error" } }.to_json,
-                   headers: { "Content-Type" => "application/json" })
+      stub_request(:post, google_events_url).with(query: hash_including({})).to_return(google_error(500))
       microsoft = stub_request(:post, microsoft_events_url).to_return(graph_json_response("meeting_created", status: 201))
 
       expect { described_class.new(user).publish(meeting) }.to raise_error(Google::Apis::ServerError)
       expect(microsoft).to have_been_requested.once
+      expect(publication("google")).to have_attributes(status: "failed", last_error: "Google::Apis::ServerError")
+      expect(publication("microsoft")).to be_published
     end
 
-    it "makes no request for a person who uses only the ICS feed" do
-      expect { described_class.new(user).publish(meeting) }.not_to raise_error
-      expect(meeting.calendar_events).to be_empty
+    context "when the person uses only the ICS feed" do
+      let(:destinations) { %w[ics] }
+
+      it "makes no request" do
+        expect { described_class.new(user).publish(meeting) }.not_to raise_error
+        expect(meeting.calendar_events).to be_empty
+      end
     end
   end
 
@@ -118,11 +172,92 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
 
     it "logs a failure and does not raise it, so the course sync carries on" do
       google_calendar
-      stub_request(:post, google_events_url).with(query: hash_including({}))
-        .to_return(status: 500, body: { error: { code: 500, message: "Synthetic error" } }.to_json,
-                   headers: { "Content-Type" => "application/json" })
+      stub_request(:post, google_events_url).with(query: hash_including({})).to_return(google_error(500))
 
       expect { described_class.new(user).publish_missing }.not_to raise_error
+    end
+
+    it "puts a meeting back without attendees after the invitations went out" do
+      google_calendar
+      publication("google").update!(invitations_sent_at: 1.day.ago, status: "published")
+      insert = stub_request(:post, google_events_url).with(query: { "sendUpdates" => "none" }) { |request| attendees_in(request).nil? }
+                                                     .to_return(google_created)
+
+      described_class.new(user).publish_missing
+
+      expect(insert).to have_been_requested.once
+    end
+
+    it "costs one query for a person with no meetings" do
+      other = create(:user)
+      queries = []
+      callback = ->(*, payload) { queries << payload[:sql] unless payload[:name] == "SCHEMA" }
+
+      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+        described_class.new(other, services: []).publish_missing
+      end
+
+      expect(queries.size).to eq(1)
+      expect(queries.first).to match(/SELECT 1 AS one FROM "friend_meetings"/)
+    end
+  end
+
+  describe "#update" do
+    before { google_calendar }
+
+    let(:row) do
+      create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: google_calendar,
+                                                   external_event_id: "gcal_synthetic_meeting")
+    end
+    let(:destinations) { %w[google ics] }
+
+    it "writes the change with the friends when this calendar sent the invitations" do
+      row
+      publication("google").update!(invitations_sent_at: 1.day.ago)
+      put = stub_request(:put, "#{google_events_url}/gcal_synthetic_meeting").with(query: { "sendUpdates" => "all" })
+                                                                              .to_return(google_created)
+
+      described_class.new(user).update(meeting)
+
+      expect(put).to have_been_requested.once
+      expect(publication("google")).to be_published
+    end
+
+    it "makes the event when the calendar does not have it yet" do
+      insert = stub_request(:post, google_events_url).with(query: { "sendUpdates" => "all" }).to_return(google_created)
+
+      described_class.new(user).update(meeting)
+
+      expect(insert).to have_been_requested.once
+      expect(publication("google").invitation_status).to eq("sent")
+    end
+  end
+
+  describe "#remove" do
+    let(:destinations) { %w[google microsoft ics] }
+
+    it "deletes each provider event with a cancellation, then the meeting" do
+      with_both_calendars
+      create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: google_calendar, external_event_id: "gcal_synthetic_meeting")
+      create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: microsoft_calendar, external_event_id: "AAMkSyntheticMeeting1")
+      google    = stub_request(:delete, "#{google_events_url}/gcal_synthetic_meeting").with(query: { "sendUpdates" => "all" }).to_return(status: 204)
+      microsoft = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticMeeting1").to_return(status: 204)
+
+      described_class.new(user).remove(meeting)
+
+      expect(google).to have_been_requested.once
+      expect(microsoft).to have_been_requested.once
+      expect(FriendMeeting.exists?(meeting.id)).to be(false)
+    end
+
+    it "keeps the cancelled meeting when a delete fails, so a retry can finish" do
+      google_calendar
+      meeting.update!(cancelled_at: Time.current)
+      create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: google_calendar, external_event_id: "gcal_synthetic_meeting")
+      stub_request(:delete, "#{google_events_url}/gcal_synthetic_meeting").with(query: hash_including({})).to_return(google_error(500))
+
+      expect { described_class.new(user).remove(meeting) }.to raise_error(Google::Apis::ServerError)
+      expect(meeting.reload).to be_cancelled
     end
   end
 end

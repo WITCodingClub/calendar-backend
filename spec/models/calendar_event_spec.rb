@@ -174,5 +174,21 @@ RSpec.describe CalendarEvent, type: :model do
       expect { event.friend_meeting.destroy }.to have_enqueued_job(GoogleCalendarEventDeleteJob).with("cal_123", "google-meeting")
       expect(CalendarEvent.exists?(event.id)).to be(false)
     end
+
+    # A Microsoft meeting is in the primary calendar, so deleting the app's
+    # own calendar does not remove it.
+    it "deletes a Microsoft meeting event on its own when its separate course calendar goes" do
+      event = create(:calendar_event, :microsoft, :for_friend_meeting, external_event_id: "AAMkSyntheticMeeting1")
+
+      expect { event.course_calendar.destroy }.to have_enqueued_job(MicrosoftGraphEventDeleteJob)
+        .with(event.course_calendar.oauth_credential_id, "AAMkSyntheticMeeting1", event.external_ical_uid)
+    end
+
+    it "leaves a Google meeting event to the calendar delete" do
+      event = create(:calendar_event, :for_friend_meeting, course_calendar: calendar)
+
+      expect { calendar.destroy }.not_to have_enqueued_job(GoogleCalendarEventDeleteJob)
+      expect(CalendarEvent.exists?(event.id)).to be(false)
+    end
   end
 end

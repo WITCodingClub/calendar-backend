@@ -29,7 +29,13 @@ RSpec.describe FriendMeetingCreator do
     described_class.call(**attributes, **overrides)
   end
 
+  def connect_google
+    credential = create(:oauth_credential, user: user)
+    create(:course_calendar, oauth_credential: credential)
+  end
+
   it "makes a one-time meeting with the friends and starts the publish job" do
+    connect_google
     meeting = nil
 
     expect { meeting = create_meeting(location: " Synthetic Library ") }
@@ -62,6 +68,8 @@ RSpec.describe FriendMeetingCreator do
   describe "a guest from a one-time meeting link" do
     let(:guest) { { name: " Sample Guest ", email: " Guest@Example.com " } }
 
+    before { connect_google }
+
     it "makes a meeting with no friends, keeps the guest, and invites the guest" do
       meeting = nil
 
@@ -70,6 +78,7 @@ RSpec.describe FriendMeetingCreator do
       expect(meeting).to have_attributes(guest_name: "Sample Guest", guest_email: "guest@example.com", invite_friends: false)
       expect(meeting.attendees).to be_empty
       expect(meeting.invitees.map(&:email)).to eq([ "guest@example.com" ])
+      expect(meeting.publication_for("google")).to be_sends_invitations
     end
 
     it "still refuses a user id that is not a friend" do
@@ -87,6 +96,76 @@ RSpec.describe FriendMeetingCreator do
       end
 
       expect(FriendMeetingPublishJob).to have_been_enqueued.once
+    end
+  end
+
+  describe "destinations" do
+    it "sends the meeting to every connected calendar and the ICS feed by default" do
+      connect_google
+
+      meeting = create_meeting(invite_friends: true)
+
+      expect(meeting.publications.order(:id).map { |p| [ p.provider, p.status, p.sends_invitations ] })
+        .to eq([ [ "google", "queued", true ], [ "ics", "published", false ] ])
+    end
+
+    it "makes only the ICS row and starts no job for a person who uses only the feed" do
+      meeting = nil
+
+      expect { meeting = create_meeting }.not_to have_enqueued_job(FriendMeetingPublishJob)
+      expect(meeting.destinations).to eq([ "ics" ])
+    end
+
+    it "keeps the places that the person picked, in order" do
+      connect_google
+
+      meeting = create_meeting(destinations: [ "ICS", "google" ], invite_friends: true)
+
+      expect(meeting.destinations).to eq(%w[ics google])
+      expect(meeting.publication_for("google")).to be_sends_invitations
+    end
+
+    it "refuses a place that is not connected" do
+      expect { create_meeting(destinations: [ "microsoft" ]) }
+        .to raise_error(described_class::Error, "destinations can list only ics; not microsoft")
+    end
+
+    it "refuses an empty list" do
+      expect { create_meeting(destinations: []) }.to raise_error(described_class::Error, /at least one place/)
+    end
+  end
+
+  describe "idempotency key" do
+    it "returns the first meeting for a retry with the same key, and makes nothing new" do
+      connect_google
+      first = create_meeting(idempotency_key: "synthetic-key-1", invite_friends: true)
+      clear_enqueued_jobs
+
+      retried = create_meeting(idempotency_key: "synthetic-key-1", invite_friends: true, title: "Changed")
+
+      expect(retried).to eq(first)
+      expect(retried).not_to be_previously_new_record
+      expect(FriendMeeting.count).to eq(1)
+      expect(enqueued_jobs).to be_empty
+    end
+
+    it "makes a new meeting for another key, or for another person with the same key" do
+      create_meeting(idempotency_key: "synthetic-key-1")
+      other = create(:user)
+      create(:friendship, :accepted, requester: other, addressee: friend)
+
+      create_meeting(idempotency_key: "synthetic-key-2")
+      create_meeting(user: other, idempotency_key: "synthetic-key-1")
+
+      expect(FriendMeeting.count).to eq(3)
+    end
+
+    it "returns the meeting that won a race for the same key" do
+      first = create_meeting(idempotency_key: "synthetic-key-1")
+      creator = described_class.new(**attributes, idempotency_key: "synthetic-key-1")
+      allow(creator).to receive(:find_existing).and_return(nil, first)
+
+      expect(creator.call).to eq(first)
     end
   end
 

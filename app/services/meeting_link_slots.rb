@@ -76,8 +76,8 @@ class MeetingLinkSlots
   # The person's own friend meetings and the ones they were added to. A
   # weekly meeting is busy on its day each week until it stops repeating.
   def meeting_blocks(user)
-    meetings = FriendMeeting.not_ended.where(user: user)
-                            .or(FriendMeeting.not_ended.where(id: user.friend_meeting_attendees.select(:friend_meeting_id)))
+    meetings = FriendMeeting.live.not_ended.where(user: user)
+                            .or(FriendMeeting.live.not_ended.where(id: user.friend_meeting_attendees.select(:friend_meeting_id)))
 
     meetings.flat_map do |meeting|
       length = meeting.end_time - meeting.start_time

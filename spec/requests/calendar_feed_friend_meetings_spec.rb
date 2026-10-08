@@ -18,7 +18,7 @@ RSpec.describe "GET /calendar/:calendar_token friend meetings", type: :request d
   end
 
   def meeting_with_friend(**attributes)
-    meeting = create(:friend_meeting, user: user, title: "Synthetic Study Group",
+    meeting = create(:friend_meeting, user: user, title: "Synthetic Study Group", destinations: %w[ics],
                                       start_time: zone.local(2026, 10, 13, 15), end_time: zone.local(2026, 10, 13, 16), **attributes)
     create(:friend_meeting_attendee, friend_meeting: meeting, user: friend)
     meeting
@@ -46,8 +46,32 @@ RSpec.describe "GET /calendar/:calendar_token friend meetings", type: :request d
   end
 
   it "leaves out a meeting that has ended" do
-    create(:friend_meeting, user: user, start_time: zone.local(2026, 10, 1, 15), end_time: zone.local(2026, 10, 1, 16))
+    create(:friend_meeting, user: user, destinations: %w[ics], start_time: zone.local(2026, 10, 1, 15), end_time: zone.local(2026, 10, 1, 16))
 
     expect(feed_events).to be_empty
+  end
+
+  it "leaves out a meeting that the person did not send to the feed" do
+    create(:friend_meeting, user: user, destinations: %w[google], start_time: zone.local(2026, 10, 13, 15), end_time: zone.local(2026, 10, 13, 16))
+
+    expect(feed_events).to be_empty
+  end
+
+  it "leaves out a meeting that the person deleted" do
+    meeting_with_friend(cancelled_at: Time.current)
+
+    expect(feed_events).to be_empty
+  end
+
+  it "reads friend_meetings once, with a cheap query, for a person with no meetings" do
+    queries = []
+    callback = lambda do |*, payload|
+      queries << payload[:sql] if payload[:name] != "SCHEMA" && payload[:sql].include?("FROM \"friend_meetings\"")
+    end
+
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { feed_events }
+
+    expect(queries.size).to eq(1)
+    expect(queries.first).to match(/SELECT 1 AS one FROM "friend_meetings"/)
   end
 end

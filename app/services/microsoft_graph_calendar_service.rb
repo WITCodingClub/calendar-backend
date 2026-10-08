@@ -46,8 +46,9 @@ class MicrosoftGraphCalendarService
         return calendar.external_calendar_id
       rescue MicrosoftGraph::NotFoundError
         # The person deleted the calendar in Outlook, and its events went with
-        # it. The tracking rows point at nothing, so they go too.
-        calendar.calendar_events.delete_all
+        # it. The tracking rows point at nothing, so they go too. Friend
+        # meetings live in the primary calendar, so their rows stay.
+        calendar.calendar_events.schedule_events.delete_all
       end
     end
 
@@ -58,6 +59,10 @@ class MicrosoftGraphCalendarService
   # primary calendar. The old events are deleted here. The caller starts a
   # forced sync, which creates them again in the new place. Edits the person
   # made in Outlook do not survive the move.
+  #
+  # Friend meetings are not part of the move. They always live in the
+  # primary calendar (see #create_friend_meeting_event), so the friends get
+  # no cancellation and no second invitation.
   #
   # A failed step can run again: the primary calendar id is read before
   # anything is deleted, a delete of a missing event or calendar counts as
@@ -77,13 +82,13 @@ class MicrosoftGraphCalendarService
     if placement == "primary"
       remote = fetch_primary_calendar
       delete_calendar(calendar.external_calendar_id)
-      calendar.calendar_events.delete_all
+      calendar.calendar_events.schedule_events.delete_all
     else
-      delete_tracked_events(calendar)
+      delete_tracked_events(calendar.calendar_events.schedule_events)
       # A row that stays points at an event in the primary calendar. After the
       # move, the sync would find that row and update the old event in place.
       # So the move stops here, and the job tries again.
-      if calendar.calendar_events.exists?
+      if calendar.calendar_events.schedule_events.exists?
         raise MicrosoftGraph::Error, "could not delete every course event from the primary calendar"
       end
 
@@ -94,10 +99,13 @@ class MicrosoftGraphCalendarService
   end
 
   # Removes what the app put in the mailbox: the whole calendar when it is the
-  # app's own, or only the tracked events when they are in the primary calendar.
+  # app's own, or only the tracked events when they are in the primary
+  # calendar. Friend meetings are always in the primary calendar, so they go
+  # one by one.
   def remove_course_events(calendar)
-    return delete_tracked_events(calendar) if calendar.primary_placement?
+    return delete_tracked_events(calendar.calendar_events) if calendar.primary_placement?
 
+    delete_tracked_events(calendar.calendar_events.friend_meetings_only)
     delete_calendar(calendar.external_calendar_id)
   end
 
@@ -140,24 +148,26 @@ class MicrosoftGraphCalendarService
     db_events.size
   end
 
-  # Puts a FriendMeeting in the course calendar, which is the person's own
-  # calendar or their primary one, as the placement says. With invite: true
-  # and invitees, Exchange sends each invitee an invitation. Returns the row,
-  # or nil when the person has no Microsoft course calendar.
+  # Puts a FriendMeeting in the person's primary calendar, whatever the
+  # placement of the course events. The row still belongs to the course
+  # calendar, which tracks it.
+  #
+  # Graph cannot move an event between calendars, and deleting a meeting with
+  # attendees sends them a cancellation. In the primary calendar, a placement
+  # move or a course calendar that the person deleted never touches the
+  # meeting, so friends never get a cancellation and a new invitation for
+  # nothing. Exchange also reads free and busy time from the primary calendar
+  # only.
+  #
+  # With invite: true and invitees, Exchange sends each invitee an
+  # invitation. Returns the row, or nil when the person has no Microsoft
+  # course calendar.
   def create_friend_meeting_event(meeting, invite: true)
     calendar = course_calendar
     return nil unless calendar
 
-    data     = meeting.event_data
-    invitees = invite ? meeting.invitees : []
-    payload  = MicrosoftGraph::EventPayload.build(data)
-    if invitees.any?
-      payload[:attendees] = invitees.map do |friend|
-        { emailAddress: { address: friend.email, name: friend.full_name }, type: "required" }
-      end
-    end
-
-    remote = client.post("me/calendars/#{escape(calendar.external_calendar_id)}/events", payload)
+    data   = meeting.event_data
+    remote = client.post("me/calendar/events", friend_meeting_payload(meeting, attendees: invite))
 
     calendar.calendar_events.create!(
       row_attributes(data).merge(friend_meeting: meeting, external_event_id: remote["id"], external_ical_uid: remote["iCalUId"])
@@ -169,6 +179,30 @@ class MicrosoftGraphCalendarService
     # created is a duplicate. Remove it rather than leave it on the calendar.
     delete_quietly(remote["id"]) if remote
     nil
+  end
+
+  # Writes the meeting's current title, place, time, and (with attendees:
+  # true) friends over the event. Exchange sends the friends an update, and a
+  # cancellation to a friend who is no longer on the list. An event that is
+  # gone is made again, without attendees.
+  def update_friend_meeting_event(row, meeting, attendees:)
+    data     = meeting.event_data
+    event_id = patch_event(row, row.external_event_id, friend_meeting_payload(meeting, attendees: attendees))
+
+    if event_id.blank?
+      row.skip_remote_deletion = true
+      row.destroy!
+      return create_friend_meeting_event(meeting, invite: false)
+    end
+
+    row.update!(row_attributes(data).merge(external_event_id: event_id))
+    row
+  end
+
+  # Deletes the event of a meeting that its owner cancelled. Exchange sends a
+  # cancellation to each attendee of the event.
+  def delete_friend_meeting_event(row)
+    delete_remote_event(row)
   end
 
   # Deletes one remote event. A missing event counts as deleted.
@@ -234,8 +268,8 @@ class MicrosoftGraphCalendarService
 
   # One failed delete must not stop the others, so it is logged and the row
   # stays. A row that stays is tried again on the next call.
-  def delete_tracked_events(calendar)
-    calendar.calendar_events.find_each do |row|
+  def delete_tracked_events(rows)
+    rows.find_each do |row|
       delete_remote_event(row)
     rescue MicrosoftGraph::Error => e
       Rails.logger.error({ message: "Could not delete a Microsoft event", user_id: user&.id,
@@ -428,6 +462,18 @@ class MicrosoftGraphCalendarService
 
       response.fetch("value", []).each { |occurrence| delete_quietly(occurrence["id"]) }
     end
+  end
+
+  # With attendees: true the event lists the invited friends. Without, the
+  # key is left out, so a PATCH keeps the attendees that the event has.
+  def friend_meeting_payload(meeting, attendees:)
+    payload = MicrosoftGraph::EventPayload.build(meeting.event_data)
+    return payload unless attendees
+
+    payload[:attendees] = meeting.invitees.map do |friend|
+      { emailAddress: { address: friend.email, name: friend.full_name }, type: "required" }
+    end
+    payload
   end
 
   def row_attributes(data)

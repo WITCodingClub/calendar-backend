@@ -23,6 +23,8 @@ RSpec.describe MeetingLinkBooking do
   end
 
   it "makes the meeting in the owner's name with the guest, uses up the link, and sends the email after commit" do
+    create(:course_calendar, oauth_credential: create(:oauth_credential, user: owner))
+
     expect { book }
       .to have_enqueued_job(FriendMeetingPublishJob)
       .and have_enqueued_mail(MeetingLinkMailer, :booked)

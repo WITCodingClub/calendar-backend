@@ -58,7 +58,7 @@ RSpec.describe CourseScheduleSyncable, type: :model do
     it "keeps a friend meeting row and puts back a meeting that is missing from the calendar" do
       tracked = create(:calendar_event, :for_friend_meeting, course_calendar: calendar,
                                                              external_event_id: "gcal_meeting", end_time: 1.week.from_now)
-      missing = create(:friend_meeting, user: user)
+      missing = create(:friend_meeting, user: user, destinations: %w[google])
       allow(google_service).to receive(:insert_event)
         .and_return(Google::Apis::CalendarV3::Event.new(id: "gcal_missing_meeting"))
       tracked.friend_meeting.update!(user: user)
