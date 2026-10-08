@@ -10,10 +10,33 @@
 class FacultyIngestService < ApplicationService
   attr_reader :course, :raw_faculty
 
-  def initialize(course:, raw_faculty:)
+  # Options, for a caller that ingests many courses:
+  # - faculty: a hash of lowercased email => Faculty, shared with the ingests of
+  #   other courses. See preload.
+  # - existing_course_faculties: the course's join rows, loaded by the caller.
+  #   Without it, the ingest loads them itself.
+  def initialize(course:, raw_faculty:, **options)
     @course = course
     @raw_faculty = Array(raw_faculty)
+    @faculty_cache = options[:faculty] || {}
+    @existing_course_faculties = options[:existing_course_faculties]
     super()
+  end
+
+  # Loads the instructors that the raw faculty lists name into cache, keyed by
+  # lowercased email, in one query. Sends no query for an email that is already
+  # in cache.
+  def self.preload(raw_faculty_lists, cache = {})
+    emails = raw_faculty_lists.flat_map { |raw| new(course: nil, raw_faculty: raw).entry_emails }.uniq - cache.keys
+    return cache if emails.empty?
+
+    Faculty.where("LOWER(email) IN (?)", emails).order(:id).each do |faculty|
+      cache[faculty.email.downcase] ||= faculty
+    end
+    # Keep a nil for each email with no row, so a later call creates the
+    # instructor instead of looking for it again.
+    emails.each { |email| cache[email] = nil unless cache.key?(email) }
+    cache
   end
 
   # Returns true when the section's instructor list or primary instructor
@@ -27,15 +50,17 @@ class FacultyIngestService < ApplicationService
     entries = normalized_entries
     return false if entries.empty?
 
-    before = fingerprint
+    joins = @existing_course_faculties || CourseFaculty.where(course_id: course.id).to_a
+    before = fingerprint(joins)
 
-    attached_ids = entries.map { |entry| attach(entry) }
-    course.course_faculties.where.not(faculty_id: attached_ids).destroy_all
+    self.class.preload([ raw_faculty ], @faculty_cache)
+    kept = entries.map { |entry| attach(joins, entry) }
+    (joins - kept).each(&:destroy)
 
     course.course_faculties.reset
     course.faculties.reset
 
-    return false if before == fingerprint
+    return false if before == fingerprint(kept)
 
     # A new instructor changes the event description, and nothing else notices:
     # CourseChangeTrackable only watches columns on courses.
@@ -43,12 +68,16 @@ class FacultyIngestService < ApplicationService
     true
   end
 
+  def entry_emails
+    normalized_entries.pluck(:email)
+  end
+
   private
 
-  def fingerprint
-    CourseFaculty.where(course_id: course.id)
-                 .in_banner_order
-                 .pluck(:faculty_id, :primary_indicator)
+  # The order of CourseFaculty.in_banner_order, read from the loaded rows.
+  def fingerprint(joins)
+    joins.sort_by { |join| [ join.primary_indicator ? 0 : 1, join.id ] }
+         .map { |join| [ join.faculty_id, join.primary_indicator ] }
   end
 
   # Banner sends "Sanderson, Elijah" from the catalog search and "Elijah
@@ -76,30 +105,30 @@ class FacultyIngestService < ApplicationService
     }.uniq { |entry| entry[:email] }
   end
 
-  def attach(entry)
+  def attach(joins, entry)
     faculty = find_or_create_faculty(entry)
 
-    join = course.course_faculties.find_or_initialize_by(faculty_id: faculty.id)
+    join = joins.find { |existing| existing.faculty_id == faculty.id } ||
+           CourseFaculty.new(course: course, faculty: faculty)
     join.primary_indicator = entry[:primary]
     join.save! if join.new_record? || join.changed?
 
-    faculty.id
+    join
   end
 
   # Banner sends lowercase addresses, but rows written before this service ran
-  # can carry any casing. Match on the lowered address so a re-import updates
-  # the existing instructor instead of creating a second one.
+  # can carry any casing. preload matches on the lowered address so a re-import
+  # updates the existing instructor instead of creating a second one.
   def find_or_create_faculty(entry)
-    existing = Faculty.find_by("LOWER(email) = ?", entry[:email])
-    return existing if existing
-
-    Faculty.create!(
-      email: entry[:email],
-      first_name: entry[:first_name],
-      last_name: entry[:last_name]
-    )
-  rescue ActiveRecord::RecordNotUnique
-    Faculty.find_by!("LOWER(email) = ?", entry[:email])
+    @faculty_cache[entry[:email]] ||= begin
+      Faculty.create!(
+        email: entry[:email],
+        first_name: entry[:first_name],
+        last_name: entry[:last_name]
+      )
+    rescue ActiveRecord::RecordNotUnique
+      Faculty.find_by!("LOWER(email) = ?", entry[:email])
+    end
   end
 
   def fetch(member, string_key, symbol_key)
