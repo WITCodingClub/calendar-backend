@@ -10,6 +10,38 @@
 # expiry_proposal is nil, or the later end date one user proposed:
 #
 #   { expires_at: "...", permanent: false, proposed_by: "usr_...", can_accept: true }
+# == Schema Information
+#
+# Table name: friendships
+#
+#  id                   :bigint           not null, primary key
+#  addressee_visibility :integer          default(0), not null
+#  expires_at           :datetime
+#  proposed_expires_at  :datetime
+#  proposed_permanent   :boolean          default(FALSE), not null
+#  requester_visibility :integer          default(0), not null
+#  status               :integer          default(0), not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  addressee_id         :bigint           not null
+#  proposed_by_id       :bigint
+#  requester_id         :bigint           not null
+#
+# Indexes
+#
+#  index_friendships_on_addressee_id_and_status        (addressee_id,status)
+#  index_friendships_on_expires_at                     (expires_at) WHERE (expires_at IS NOT NULL)
+#  index_friendships_on_proposed_by_id                 (proposed_by_id)
+#  index_friendships_on_requester_id_and_addressee_id  (requester_id,addressee_id) UNIQUE
+#  index_friendships_on_requester_id_and_status        (requester_id,status)
+#  index_friendships_on_unordered_pair                 (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (addressee_id => users.id)
+#  fk_rails_...  (proposed_by_id => users.id)
+#  fk_rails_...  (requester_id => users.id)
+#
 class FriendshipSerializer
   def self.render_requests(friendships, viewer)
     friendships.map { |f| new(f, viewer).as_request }

@@ -422,34 +422,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
   end
 
   create_table "friend_group_memberships", force: :cascade do |t|
-    t.datetime "created_at", null: false
     t.bigint "friend_group_id", null: false
     t.bigint "friendship_id", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["friend_group_id", "friendship_id"], name: "index_friend_group_memberships_on_group_and_friendship", unique: true
     t.index ["friendship_id"], name: "index_friend_group_memberships_on_friendship_id"
   end
 
   create_table "friend_groups", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "name", null: false
-    t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index "user_id, lower((name)::text)", name: "index_friend_groups_on_user_id_and_lower_name", unique: true
   end
 
   create_table "friendships", force: :cascade do |t|
     t.bigint "addressee_id", null: false
-    t.integer "addressee_visibility", default: 0, null: false
     t.datetime "created_at", null: false
-    t.datetime "expires_at"
-    t.bigint "proposed_by_id"
-    t.datetime "proposed_expires_at"
-    t.boolean "proposed_permanent", default: false, null: false
     t.bigint "requester_id", null: false
-    t.integer "requester_visibility", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
+    t.integer "requester_visibility", default: 0, null: false
+    t.integer "addressee_visibility", default: 0, null: false
+    t.datetime "expires_at"
+    t.datetime "proposed_expires_at"
+    t.boolean "proposed_permanent", default: false, null: false
+    t.bigint "proposed_by_id"
     t.index "LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)", name: "index_friendships_on_unordered_pair", unique: true
     t.index ["addressee_id", "status"], name: "index_friendships_on_addressee_id_and_status"
     t.index ["expires_at"], name: "index_friendships_on_expires_at", where: "(expires_at IS NOT NULL)"
@@ -843,12 +843,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
   end
 
   create_table "term_processing_statuses", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "error_code"
-    t.string "status", null: false
-    t.bigint "term_id", null: false
-    t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.bigint "term_id", null: false
+    t.string "status", null: false
+    t.string "error_code"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["term_id"], name: "index_term_processing_statuses_on_term_id"
     t.index ["user_id", "term_id"], name: "index_term_processing_statuses_on_user_id_and_term_id", unique: true
   end
