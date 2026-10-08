@@ -66,4 +66,28 @@ RSpec.describe CalendarSyncMarker do
       expect(user.reload.calendar_needs_sync).to be(true)
     end
   end
+
+  describe ".enrollment_flags" do
+    it "flags the courses that have an enrollment" do
+      empty = create(:course)
+
+      expect(described_class.enrollment_flags([ course.id, empty.id ])).to eq(course.id => true, empty.id => false)
+    end
+  end
+
+  describe ".batch_with_enrollment_flags" do
+    it "sends no enrollment check for a flagged course" do
+      meeting_time = create(:course_meeting_time, course: course)
+      flags = described_class.enrollment_flags([ course.id ])
+
+      queries = []
+      counter = ->(*, payload) { queries << payload[:sql] }
+      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") do
+        described_class.batch_with_enrollment_flags(flags) { meeting_time.update!(begin_time: meeting_time.begin_time - 100) }
+      end
+
+      expect(queries.grep(/FROM "enrollments"/).grep_v(/JOIN/)).to be_empty
+      expect(user.reload.calendar_needs_sync).to be(true)
+    end
+  end
 end

@@ -69,14 +69,13 @@ class CourseProcessorService < ApplicationService
 
     # course_id => whether the course has any enrollment. Both change trackers
     # read it, so a save sends no EXISTS query.
-    enrollment_flags = existing_course_ids.index_with(false)
-    Enrollment.where(course_id: existing_course_ids).distinct.pluck(:course_id).each { |id| enrollment_flags[id] = true }
+    enrollment_flags = CalendarSyncMarker.enrollment_flags(existing_course_ids)
 
     Term.with_deferred_date_updates do
       locations = MeetingTimesIngestService::Locations.new
       locations.preload(meeting_times_by_key.values.flatten)
 
-      with_enrollment_flags(enrollment_flags) do
+      CalendarSyncMarker.batch_with_enrollment_flags(enrollment_flags) do
         grouped_courses.each do |key, course_meetings|
           course_data = course_meetings.first
           detailed_course_info = class_details[key]
@@ -358,13 +357,6 @@ class CourseProcessorService < ApplicationService
     end
   end
 
-  def with_enrollment_flags(flags, &)
-    CalendarSyncMarker.batch do
-      CourseChangeTrackable.with_enrollment_cache(flags) do
-        MeetingTimeChangeTrackable.with_enrollment_cache(flags, &)
-      end
-    end
-  end
 
   def posted_faculty(meeting)
     return [] if meeting.blank?

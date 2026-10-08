@@ -296,6 +296,7 @@ class MicrosoftGraphCalendarService
     resolver = PreferenceResolver.new(user)
     renderer = CalendarTemplateRenderer.new
     stats    = empty_stats
+    preload_syncables(events)
 
     events.each do |event|
       row  = existing[build_event_key_from_hash(event)]

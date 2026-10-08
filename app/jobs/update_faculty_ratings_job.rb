@@ -69,22 +69,29 @@ class UpdateFacultyRatingsJob < ApplicationJob
                         faculty_id: faculty.id, faculty_name: faculty.full_name, ratings_count: all_ratings.count }.to_json)
   end
 
+  # Each store method loads the faculty's rows once and matches them in memory,
+  # so a professor with many ratings does not send a lookup for each (#654).
   def store_related_professors(faculty, related_teachers)
+    existing = faculty.related_professors.index_by(&:rmp_id)
+    matches  = Faculty.where(rmp_id: related_teachers.map { |r| r["id"].to_s }).index_by(&:rmp_id)
+
     related_teachers.each do |related|
-      related_prof = faculty.related_professors.find_or_initialize_by(rmp_id: related["id"])
+      related_prof = existing[related["id"].to_s] || faculty.related_professors.build(rmp_id: related["id"])
       related_prof.assign_attributes(
         first_name: related["firstName"],
         last_name:  related["lastName"],
         avg_rating: related["avgRating"]
       )
+      related_prof.related_faculty_id ||= matches[related["id"].to_s]&.id
       related_prof.save!
-      related_prof.try_match_faculty!
     end
   end
 
   def store_ratings(faculty, ratings)
+    existing = faculty.rmp_ratings.index_by(&:rmp_id)
+
     ratings.each do |rating|
-      rmp_rating = faculty.rmp_ratings.find_or_initialize_by(rmp_id: rating["legacyId"].to_s)
+      rmp_rating = existing[rating["legacyId"].to_s] || faculty.rmp_ratings.build(rmp_id: rating["legacyId"].to_s)
       rmp_rating.assign_attributes(
         clarity_rating:       rating["clarityRating"],
         difficulty_rating:    rating["difficultyRating"],
@@ -125,8 +132,10 @@ class UpdateFacultyRatingsJob < ApplicationJob
   end
 
   def store_teacher_rating_tags(faculty, tags_data)
+    existing = faculty.teacher_rating_tags.index_by(&:rmp_legacy_id)
+
     tags_data.each do |tag|
-      rating_tag = faculty.teacher_rating_tags.find_or_initialize_by(rmp_legacy_id: tag["legacyId"])
+      rating_tag = existing[tag["legacyId"].to_i] || faculty.teacher_rating_tags.build(rmp_legacy_id: tag["legacyId"])
       rating_tag.assign_attributes(
         tag_name:  tag["tagName"],
         tag_count: tag["tagCount"] || 0

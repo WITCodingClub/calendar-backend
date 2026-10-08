@@ -94,6 +94,26 @@ RSpec.describe UpdateFacultyRatingsJob, type: :job do
       expect(faculty.rmp_raw_data["metadata"]["total_ratings_fetched"]).to eq(2)
     end
 
+    # Prosopite raises in Prosopite.scan when the same query runs once for each
+    # rating or tag (#654).
+    it "stores and then updates the ratings and tags without one query for each" do
+      stub_request(:post, base_url)
+        .with(body: hash_including("operationName" => "RatingsListQuery", "variables" => hash_including("cursor" => nil)))
+        .to_return(status: 200, body: file_fixture("rate_my_professor/ratings_page1.json").read,
+                   headers: { "Content-Type" => "application/json" })
+      stub_request(:post, base_url)
+        .with(body: hash_including("operationName" => "RatingsListQuery", "variables" => hash_including("cursor" => "cursor-1")))
+        .to_return(status: 200, body: file_fixture("rate_my_professor/ratings_page2.json").read,
+                   headers: { "Content-Type" => "application/json" })
+
+      expect { Prosopite.scan { described_class.perform_now(faculty.id) } }.not_to raise_error
+      expect { Prosopite.scan { described_class.perform_now(faculty.id) } }.not_to raise_error
+
+      expect(faculty.rmp_ratings.count).to eq(2)
+      expect(faculty.teacher_rating_tags.count).to eq(2)
+      expect(faculty.related_professors.count).to eq(1)
+    end
+
     it "links a related professor to an existing faculty record with the same rmp_id" do
       related_faculty = create(:faculty, rmp_id: "VGVhY2hlci02NTQzMjE=")
       stub_graphql("RatingsListQuery", fixture: "ratings_empty.json")
