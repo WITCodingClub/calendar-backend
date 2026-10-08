@@ -1,8 +1,24 @@
 # frozen_string_literal: true
 
 class Rack::Attack
-  # Use Rails.cache (Solid Cache in production, memory store in dev/test)
-  Rack::Attack.cache.store = Rails.cache
+  # Rack::Attack reads the cache on every request and rescues only Redis and
+  # Dalli errors. Solid Cache rescues only timeouts and lost connections, so a
+  # missing table or another database error would fail every request. This
+  # wrapper reports the error and fails open: the request goes through without
+  # a limit until the cache works again.
+  class FailOpenStore < SimpleDelegator
+    %i[read write increment delete].each do |method_name|
+      define_method(method_name) do |*args, **options|
+        __getobj__.public_send(method_name, *args, **options)
+      rescue ActiveRecord::ActiveRecordError => error
+        Rails.error.report(error, handled: true, severity: :warning, source: "rack_attack.cache")
+        nil
+      end
+    end
+  end
+
+  # Use Rails.cache (Solid Cache in production, null store in test)
+  Rack::Attack.cache.store = FailOpenStore.new(Rails.cache)
 
   # Public, unauthenticated catalog API. Kept as one predicate so the throttle
   # and blocklist rules below cannot drift apart.
