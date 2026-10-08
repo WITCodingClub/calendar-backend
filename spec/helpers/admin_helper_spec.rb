@@ -89,6 +89,38 @@ RSpec.describe AdminHelper do
     end
   end
 
+  describe "#admin_page_url" do
+    def page_url_for(query, page)
+      helper.request.path_parameters = { controller: "admin/users", action: "index" }
+      helper.request.env["PATH_INFO"] = "/admin/users"
+      helper.request.env["QUERY_STRING"] = query
+      helper.admin_page_url(page)
+    end
+
+    it "keeps the filters and sets the page" do
+      expect(page_url_for("search=ada&access_level=admin&page=2", 3)).to eq("/admin/users?access_level=admin&page=3&search=ada")
+    end
+
+    it "drops the page number for the first page" do
+      expect(page_url_for("search=ada&page=4", 1)).to eq("/admin/users?search=ada")
+    end
+
+    it "keeps nested filter values" do
+      expect(page_url_for("filter%5Bterm%5D=5", 2)).to eq("/admin/users?filter%5Bterm%5D=5&page=2")
+    end
+
+    # url_for reads these keys as link options, not as query values.
+    %w[script_name host protocol port only_path domain subdomain anchor params].each do |key|
+      it "stays on this host and path when the query has #{key}" do
+        url = page_url_for("#{key}=%2F%2Fevil.example&only_path=false", 2)
+
+        expect(url).to start_with("/admin/users?")
+        expect(url).not_to include("//evil.example")
+        expect(URI.parse(url).host).to be_nil
+      end
+    end
+  end
+
   describe "#admin_flash_style" do
     it "keeps an alert open until the admin closes it" do
       expect(helper.admin_flash_style("alert")).to include(tone: :danger, timeout: 0, role: "alert")

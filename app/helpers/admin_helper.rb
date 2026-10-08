@@ -128,8 +128,14 @@ module AdminHelper
 
   # The URL of the current page with a different page number. Filters and
   # search stay in the query string.
+  #
+  # The query goes into the query string only. Do not pass it to url_for:
+  # url_for reads keys such as script_name, host, and anchor as link options,
+  # so a crafted query could point the page links to a different host.
   def admin_page_url(page)
-    url_for(request.query_parameters.merge("page" => (page if page > 1)).compact)
+    query = request.query_parameters.except("page")
+    query["page"] = page if page > 1
+    query.empty? ? request.path : "#{request.path}?#{query.to_query}"
   end
 
   # Flash keys map to a tone and an icon. An error stays until it is closed.
