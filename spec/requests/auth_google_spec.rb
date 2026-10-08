@@ -51,4 +51,26 @@ RSpec.describe "Signing in to the dashboard with Google", type: :request do
       expect(URI(response.location).path).to eq(new_user_session_path)
     end
   end
+  context "when calendar scopes are granted and the Google account is on another user" do
+    before do
+      OmniAuth.config.mock_auth[:google_oauth2] = OmniAuth::AuthHash.new(
+        provider:    "google_oauth2",
+        uid:         "google-uid-123",
+        info:        { email: email, first_name: "Web", last_name: "User" },
+        credentials: { token: "access-token", expires_at: 1.hour.from_now.to_i },
+        extra:       { raw_info: { granted_scopes: "email profile calendar" } }
+      )
+    end
+
+    it "signs the person in and keeps the other user's credential" do
+      other = create(:oauth_credential, uid: "google-uid-123")
+
+      get "/auth/google_oauth2/callback"
+
+      expect(response).to redirect_to(dashboard_root_path)
+      expect(flash[:alert]).to include("connected to another user")
+      expect(other.reload.access_token).to eq("factory-access-token")
+      expect(User.find_by(email: email).oauth_credentials).to be_empty
+    end
+  end
 end

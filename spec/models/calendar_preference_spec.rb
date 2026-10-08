@@ -108,4 +108,53 @@ RSpec.describe CalendarPreference, type: :model do
       expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
     end
   end
+
+  describe "picking a university wide color" do
+    let!(:holiday) { create(:calendar_preference, :uni_cal_category, user: user, event_type: "holiday", color_id: "#d50000") }
+    let!(:registration) do
+      create(:calendar_preference, :uni_cal_category, user: user, event_type: "registration", color_id: "#0b8043",
+                                                      title_template: "{{summary}}")
+    end
+
+    it "ends the category colors that would hide it, and keeps their other fields" do
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+
+      expect(holiday.reload.color_id).to be_nil
+      expect(registration.reload).to have_attributes(color_id: nil, title_template: "{{summary}}")
+    end
+
+    it "does the same when the color of an existing row changes" do
+      preference = create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+      # The row is cleared on the create above, so put the stale color back.
+      holiday.update_column(:color_id, "#d50000") # rubocop:disable Rails/SkipsModelValidations
+
+      preference.update!(color_id: "#abcdef")
+
+      expect(holiday.reload.color_id).to be_nil
+    end
+
+    it "does the same when the user picks the color the row already has" do
+      preference = create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+      # The row is cleared on the create above, so put the stale color back.
+      holiday.update_column(:color_id, "#d50000") # rubocop:disable Rails/SkipsModelValidations
+
+      preference.update!(color_id: "#1a2b3c")
+
+      expect(holiday.reload.color_id).to be_nil
+    end
+
+    it "leaves category colors of another user alone" do
+      other = create(:calendar_preference, :uni_cal_category, user: create(:user), color_id: "#d50000")
+
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+
+      expect(other.reload.color_id).to eq("#d50000")
+    end
+
+    it "leaves category colors alone when the row has no color" do
+      create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
+
+      expect(holiday.reload.color_id).to eq("#d50000")
+    end
+  end
 end

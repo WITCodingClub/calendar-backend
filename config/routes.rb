@@ -55,6 +55,12 @@ Rails.application.routes.draw do
   get "/oauth/success", to: "oauth#success"
   get "/oauth/failure", to: "oauth#failure"
 
+  # A Google account linked from a browser with no session waits here for the
+  # person to confirm it.
+  get    "/oauth/confirm", to: "oauth#confirm", as: :oauth_confirm
+  post   "/oauth/confirm", to: "oauth#link"
+  delete "/oauth/confirm", to: "oauth#cancel"
+
   # ICS calendar feed (public, token-gated)
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
 
@@ -95,6 +101,7 @@ Rails.application.routes.draw do
     post "user/gcal",                              to: "users#request_g_cal"
     post "user/gcal/add_email",                    to: "users#add_email_to_g_cal"
     delete "user/gcal/remove_email",               to: "users#remove_email_from_g_cal"
+    get "user/busy_blocks",                        to: "users#busy_blocks"
     get "user/id",                                   to: "users#get_id"
     get "user/email",                              to: "users#get_email"
     get "user/ics_url",                            to: "users#get_ics_url"
@@ -142,6 +149,9 @@ Rails.application.routes.draw do
     delete "friends/:friend_id",                        to: "friends#unfriend"
     post   "friends/:friend_id/processed_events",       to: "friends#processed_events"
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
+    get    "friends/:friend_id/visibility",             to: "friends#visibility"
+    patch  "friends/:friend_id/visibility",             to: "friends#update_visibility"
+    get    "friends/:friend_id/busy_blocks",            to: "friends#busy_blocks"
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
     get "terms/active",          to: "misc#get_active_terms"
@@ -202,7 +212,7 @@ Rails.application.routes.draw do
         patch :university_events
       end
       resources :friends, only: [ :index, :show, :create, :destroy ] do
-        member     { post :accept; post :decline }
+        member     { post :accept; post :decline; patch :visibility }
         collection { get :requests }
       end
       resource :settings, only: [ :show ]

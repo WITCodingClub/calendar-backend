@@ -1,0 +1,27 @@
+<% content_for :title, "Confirm Account" %>
+
+<div class="m3-card p-8 w-full max-w-sm text-center">
+  <h1 class="text-xl font-semibold text-on-surface mb-3">Connect this Google account?</h1>
+
+  <p class="text-sm text-on-surface-variant">
+    Google account
+    <br>
+    <span class="text-primary font-medium break-all"><%= @google_email %></span>
+  </p>
+
+  <p class="text-sm text-on-surface-variant mt-3">
+    WIT Calendar account
+    <br>
+    <span class="text-primary font-medium break-all"><%= @user_email %></span>
+  </p>
+
+  <p class="text-xs text-on-surface-variant mt-4">
+    The WIT Calendar account gets access to the calendars of the Google account.
+    If the WIT Calendar account is not yours, select Cancel.
+  </p>
+
+  <div class="mt-6 flex flex-col gap-2">
+    <%= button_to "Connect", oauth_confirm_path, method: :post, class: "m3-btn-filled w-full", form: { data: { turbo: false } } %>
+    <%= button_to "Cancel", oauth_confirm_path, method: :delete, class: "m3-btn-tonal w-full", form: { data: { turbo: false } } %>
+  </div>
+</div>

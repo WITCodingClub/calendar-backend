@@ -77,6 +77,9 @@ RSpec.describe User, type: :model do
 
     it "is true when the user has an enrollment in any term" do
       expect(create(:user, :with_processed_courses).processed_courses?).to be(true)
+    end
+  end
+
   describe "#super_admin_access?" do
     it "is true for a super admin and an owner only" do
       levels = %i[user admin super_admin owner].index_with { |level| build(:user, access_level: level).super_admin_access? }

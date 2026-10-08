@@ -2,11 +2,11 @@
 
 module Admin
   class RmpRatingsController < Admin::ApplicationController
-    PER_PAGE = 7
+    PER_PAGE = 25
 
     def index
-      @rmp_ratings = RmpRating.includes(:faculty).order(created_at: :desc).page(params[:page]).per(25)
-      @query    = params[:q].to_s.strip
+      # The shared admin filters send `search`. `q` is the older name.
+      @query    = (params[:search].presence || params[:q]).to_s.strip
       @semantic = ActiveModel::Type::Boolean.new.cast(params[:semantic]).present?
 
       @rmp_ratings = scope.page(params[:page]).per(PER_PAGE)

@@ -4,12 +4,14 @@
 #
 # Table name: friendships
 #
-#  id           :bigint           not null, primary key
-#  status       :integer          default(0), not null
-#  created_at   :datetime         not null
-#  updated_at   :datetime         not null
-#  addressee_id :bigint           not null
-#  requester_id :bigint           not null
+#  id                   :bigint           not null, primary key
+#  addressee_visibility :integer          default(0), not null
+#  requester_visibility :integer          default(0), not null
+#  status               :integer          default(0), not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  addressee_id         :bigint           not null
+#  requester_id         :bigint           not null
 #
 # Indexes
 #

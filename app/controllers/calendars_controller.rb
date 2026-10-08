@@ -236,6 +236,13 @@ class CalendarsController < ApplicationController
       e.sequence    = (event.updated_at.to_i / 60)
       e.categories  = [ event.category.titleize ] if event.category.present?
 
+      # The same color the Google and Outlook sync gives the event.
+      color_hex = GoogleColors.normalize(@preference_resolver.resolve_for(event)[:color_id])
+      if color_hex
+        e.color = color_hex
+        e.append_custom_property("X-APPLE-CALENDAR-COLOR", color_hex)
+      end
+
       if event.category == "holiday"
         e.append_custom_property("X-MICROSOFT-CDO-ALLDAYEVENT", "TRUE")
         e.append_custom_property("X-MICROSOFT-CDO-BUSYSTATUS", "FREE")

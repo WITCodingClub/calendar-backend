@@ -33,30 +33,52 @@ class AuthController < ApplicationController
     false
   end
 
+  # The state names the user who asked for the link. Nothing in the state
+  # proves that the browser at the callback belongs to that user: the state
+  # URL can be opened anywhere. So:
+  #
+  # - The state works once (GoogleOauthStateService.consume_state).
+  # - A browser signed in as that user (the dashboard) links at once.
+  # - A browser signed in as another user links nothing.
+  # - A browser with no session (the extension tab) gets a confirm page that
+  #   names both accounts. Only a CSRF-protected POST from that page saves the
+  #   tokens (OauthController#link).
   def handle_calendar_oauth(auth)
-    state_data    = GoogleOauthStateService.verify_state(params[:state])
+    state_data = GoogleOauthStateService.consume_state(params[:state])
     raise "Invalid or expired state parameter" unless state_data
 
     user         = User.find(state_data["user_id"])
-    target_email = state_data["email"]
+    target_email = state_data["email"].presence
+    chosen_email = auth.info.email.to_s.strip
 
-    unless auth.info.email == target_email
-      raise "OAuth email (#{auth.info.email}) does not match expected email (#{target_email})"
+    # A state with an email is the old request shape: only that account is
+    # accepted. A state without an email accepts any Google account.
+    if target_email && chosen_email != target_email
+      raise "OAuth email (#{chosen_email}) does not match expected email (#{target_email})"
     end
 
-    credential = user.oauth_credentials.find_or_initialize_by(provider: "google", email: target_email)
-    credential.uid             = auth.uid
-    credential.access_token    = auth.credentials.token
-    credential.refresh_token   = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
-    credential.token_expires_at = Time.zone.at(auth.credentials.expires_at) if auth.credentials.expires_at
-    credential.save!
+    if current_user && current_user != user
+      raise "You are signed in as a different user. Sign out, then try again."
+    end
 
-    service     = GoogleCalendarService.new(user)
-    calendar_id = service.create_or_get_course_calendar
+    linker = GoogleAccountLinkService.new(user)
+    tokens = {
+      uid:           auth.uid,
+      email:         chosen_email,
+      access_token:  auth.credentials.token,
+      refresh_token: auth.credentials.refresh_token,
+      expires_at:    auth.credentials.expires_at
+    }
 
-    GoogleCalendarSyncJob.perform_later(user, force: false) if user.enrollments.any?
-
-    redirect_to "/oauth/success?email=#{CGI.escape(target_email)}&calendar_id=#{calendar_id}"
+    if current_user
+      calendar_id = linker.connect!(**tokens)
+      redirect_to "/oauth/success?email=#{CGI.escape(chosen_email)}&calendar_id=#{calendar_id}"
+    else
+      linker.check!(uid: auth.uid, email: chosen_email)
+      GoogleAccountLinkService.discard_pending(session[:pending_google_link])
+      session[:pending_google_link] = GoogleAccountLinkService.store_pending(tokens.merge(user_id: user.id))
+      redirect_to oauth_confirm_path
+    end
   end
 
   def handle_user_login(auth)
@@ -77,12 +99,20 @@ class AuthController < ApplicationController
     # (minimal-scope logins omit refresh_token and have no calendar scope).
     granted_scopes = auth.credentials&.token && auth.extra&.raw_info&.fetch("granted_scopes", "")
     if granted_scopes.to_s.include?("calendar")
-      credential = user.oauth_credentials.find_or_initialize_by(provider: "google", email: email)
-      credential.uid              = auth.uid
-      credential.access_token     = auth.credentials.token
-      credential.refresh_token    = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
-      credential.token_expires_at = Time.zone.at(auth.credentials.expires_at) if auth.credentials.expires_at
-      credential.save!
+      begin
+        GoogleAccountLinkService.new(user).link!(
+          uid:           auth.uid,
+          email:         email,
+          access_token:  auth.credentials.token,
+          refresh_token: auth.credentials.refresh_token,
+          expires_at:    auth.credentials.expires_at
+        )
+      rescue GoogleAccountLinkService::Conflict => e
+        # Signing in needs only the verified WIT email. A credential that
+        # cannot be saved must not block it.
+        Rails.logger.warn("Google sign-in for user #{user.id} did not save calendar access: #{e.message}")
+        flash[:alert] = "Signed in. Calendar access was not saved. #{e.message}."
+      end
     end
 
     # Without a remember cookie, :timeoutable signs the person out after 30

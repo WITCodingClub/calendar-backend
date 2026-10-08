@@ -27,4 +27,25 @@ RSpec.describe "ICS calendar feed university events", type: :request do
     expect(summaries).to include("SUMMARY:Registration Opens")
     expect(summaries).not_to include("SUMMARY:Career Fair")
   end
+
+  describe "colors" do
+    before do
+      user.user_extension_config.update!(sync_university_events: true, university_event_categories: %w[registration])
+    end
+
+    def color_lines
+      get "/calendar/#{user.calendar_token}.ics"
+      response.body.split("\r\n").grep(/COLOR/)
+    end
+
+    it "gives a university event Graphite while the user has not picked a color" do
+      expect(color_lines).to contain_exactly("COLOR:#{GoogleColors::GRAPHITE}", "X-APPLE-CALENDAR-COLOR:#{GoogleColors::GRAPHITE}")
+    end
+
+    it "gives a university event the university wide color the user picked" do
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+
+      expect(color_lines).to contain_exactly("COLOR:#1a2b3c", "X-APPLE-CALENDAR-COLOR:#1a2b3c")
+    end
+  end
 end
