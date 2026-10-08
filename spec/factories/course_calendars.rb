@@ -7,6 +7,7 @@
 #  id                   :bigint           not null, primary key
 #  description          :text
 #  last_synced_at       :datetime
+#  placement            :string           default("separate"), not null
 #  provider             :string           default("google"), not null
 #  summary              :string
 #  time_zone            :string
@@ -17,9 +18,9 @@
 #
 # Indexes
 #
-#  index_calendars_on_last_synced_at                        (last_synced_at)
-#  index_calendars_on_oauth_credential_id_unique            (oauth_credential_id) UNIQUE
-#  index_calendars_on_provider_and_external_calendar_id     (provider,external_calendar_id) UNIQUE
+#  index_calendars_on_last_synced_at                     (last_synced_at)
+#  index_calendars_on_oauth_credential_id_unique         (oauth_credential_id) UNIQUE
+#  index_calendars_on_provider_and_external_calendar_id  (provider,external_calendar_id) UNIQUE
 #
 # Foreign Keys
 #

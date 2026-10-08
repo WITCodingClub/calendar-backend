@@ -24,17 +24,16 @@
 #
 # Indexes
 #
-#  idx_calendar_events_on_calendar_id_meeting_time_id    (calendar_id,meeting_time_id)
-#  idx_calendar_events_unique_final_exam                 (calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
-#  idx_calendar_events_unique_meeting_time               (calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
-#  idx_calendar_events_unique_university                 (calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
-#  index_calendar_events_on_calendar_id                  (calendar_id)
-#  index_calendar_events_on_external_event_id            (external_event_id)
-#  index_calendar_events_on_external_ical_uid            (external_ical_uid)
-#  index_calendar_events_on_final_exam_id                (final_exam_id)
-#  index_calendar_events_on_last_synced_at               (last_synced_at)
-#  index_calendar_events_on_meeting_time_id              (meeting_time_id)
-#  index_calendar_events_on_university_calendar_event_id (university_calendar_event_id)
+#  idx_calendar_events_on_calendar_id_meeting_time_id     (calendar_id,meeting_time_id)
+#  idx_calendar_events_unique_final_exam                  (calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
+#  idx_calendar_events_unique_meeting_time                (calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
+#  idx_calendar_events_unique_university                  (calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
+#  index_calendar_events_on_external_event_id             (external_event_id)
+#  index_calendar_events_on_external_ical_uid             (external_ical_uid)
+#  index_calendar_events_on_final_exam_id                 (final_exam_id)
+#  index_calendar_events_on_last_synced_at                (last_synced_at)
+#  index_calendar_events_on_meeting_time_id               (meeting_time_id)
+#  index_calendar_events_on_university_calendar_event_id  (university_calendar_event_id)
 #
 # Foreign Keys
 #
