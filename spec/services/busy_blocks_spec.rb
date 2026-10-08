@@ -69,7 +69,7 @@ RSpec.describe BusyBlocks do
     expect(described_class.new(user, from: monday, to: sunday).call.map(&:weekday)).to eq(%w[friday])
   end
 
-  it "reads the schedule in one query, however many classes there are" do
+  it "runs one query for each source (meetings, no-class days, finals), however many classes there are" do
     3.times { |i| enroll(day_of_week: :monday, begin_time: 900 + (i * 200), end_time: 1000 + (i * 200)) }
 
     queries = []
@@ -78,7 +78,8 @@ RSpec.describe BusyBlocks do
       described_class.new(user, from: monday, to: sunday).call
     end
 
-    expect(queries.length).to eq(1)
+    expect(queries.length).to eq(3)
+    expect(queries.grep(/course_meeting_times/).length).to eq(1)
   end
 
   it "refuses a range that ends before it starts" do
@@ -89,5 +90,71 @@ RSpec.describe BusyBlocks do
     expect {
       described_class.new(user, from: monday, to: monday + described_class::MAX_DAYS)
     }.to raise_error(ArgumentError)
+  end
+
+  describe "no-class days" do
+    before { enroll(day_of_week: :monday, begin_time: 900, end_time: 1015) }
+
+    it "removes meetings on a holiday" do
+      create(:university_calendar_event, category: "holiday",
+                                         start_time: Time.zone.local(2026, 10, 12), end_time: Time.zone.local(2026, 10, 12, 23))
+
+      expect(blocks(from: monday, to: monday + 7).map(&:first)).to eq(%w[2026-10-05])
+    end
+
+    it "removes meetings on each day of a multi-day break" do
+      create(:university_calendar_event, category: "study_day",
+                                         start_time: Time.zone.local(2026, 10, 5), end_time: Time.zone.local(2026, 10, 9))
+
+      expect(blocks).to eq([])
+    end
+
+    it "keeps meetings on a day with an event of another category" do
+      create(:university_calendar_event, category: "campus_event",
+                                         start_time: Time.zone.local(2026, 10, 5), end_time: Time.zone.local(2026, 10, 5, 12))
+
+      expect(blocks.length).to eq(1)
+    end
+  end
+
+  describe "final exams" do
+    let(:course) { enroll(day_of_week: :monday, begin_time: 900, end_time: 1015) }
+
+    it "adds the final exam of an enrolled course" do
+      create(:final_exam, term: term, course: course, exam_date: Date.new(2026, 10, 8), start_time: 1300, end_time: 1500)
+
+      expect(blocks).to include([ "2026-10-08", "13:00", "15:00" ])
+    end
+
+    it "keeps the final exam on a finals-period day with no classes" do
+      create(:university_calendar_event, category: "finals",
+                                         start_time: Time.zone.local(2026, 10, 5), end_time: Time.zone.local(2026, 10, 9))
+      create(:final_exam, term: term, course: course, exam_date: Date.new(2026, 10, 8), start_time: 1300, end_time: 1500)
+
+      expect(blocks).to eq([ [ "2026-10-08", "13:00", "15:00" ] ])
+    end
+
+    it "ignores the final exam of a course the user is not enrolled in" do
+      create(:final_exam, term: term, course: create(:course, term: term), exam_date: Date.new(2026, 10, 8))
+
+      expect(blocks).to eq([])
+    end
+
+    it "ignores a final exam outside the range" do
+      create(:final_exam, term: term, course: course, exam_date: Date.new(2026, 12, 17))
+
+      expect(blocks.map(&:first)).to eq(%w[2026-10-05])
+    end
+  end
+
+  describe ".sources" do
+    it "includes the busy time of a source that is added to the list" do
+      extra = Class.new do
+        def self.call(_user, from, _to) = [ BusyBlocks::Interval.new(date: from, begin_time: 1800, end_time: 1900) ]
+      end
+      allow(described_class).to receive(:sources).and_return([ extra ])
+
+      expect(blocks).to eq([ [ "2026-10-05", "18:00", "19:00" ] ])
+    end
   end
 end

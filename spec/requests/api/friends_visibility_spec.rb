@@ -74,13 +74,67 @@ RSpec.describe "Friends availability-only sharing", type: :request do
     end
   end
 
+  describe "POST /api/friends/:friend_id/processed_events for a user who is not a friend" do
+    it "answers 403 with the code NOT_FRIENDS" do
+      stranger = create(:user)
+
+      post "/api/friends/#{stranger.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
+
+      expect(response).to have_http_status(:forbidden)
+      expect(json).to eq("error" => "You are not friends with this user", "code" => "NOT_FRIENDS")
+    end
+  end
+
+  describe "POST /api/friends/:friend_id/is_processed" do
+    it "answers for a friend who shares the full schedule" do
+      post "/api/friends/#{friend.public_id}/is_processed", params: { term_uid: term.uid }, headers: headers
+
+      expect(response).to have_http_status(:ok)
+      expect(json).to eq("processed" => true)
+    end
+
+    it "answers 403 AVAILABILITY_ONLY when the friend shares only availability" do
+      friendship.update_visibility_for!(friend, :availability_only)
+
+      post "/api/friends/#{friend.public_id}/is_processed", params: { term_uid: term.uid }, headers: headers
+
+      expect(response).to have_http_status(:forbidden)
+      expect(json).to eq(
+        "error" => "This friend shares only availability", "code" => "AVAILABILITY_ONLY", "visibility" => "availability_only"
+      )
+    end
+
+    it "answers 403 NOT_FRIENDS for a user who is not a friend" do
+      post "/api/friends/#{create(:user).public_id}/is_processed", params: { term_uid: term.uid }, headers: headers
+
+      expect(response).to have_http_status(:forbidden)
+      expect(json["code"]).to eq("NOT_FRIENDS")
+    end
+  end
+
   describe "GET /api/friends/:friend_id/busy_blocks" do
     let(:params) { { start_date: "2026-10-05", end_date: "2026-10-11" } }
 
-    it "answers 404 while the flag is off" do
+    it "answers 404 while the flag is off and the friend shares the full schedule" do
       get "/api/friends/#{friend.public_id}/busy_blocks", params: params, headers: headers
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "answers 200 while the viewer's flag is off and the friend shares only availability" do
+      friendship.update_visibility_for!(friend, :availability_only)
+
+      get "/api/friends/#{friend.public_id}/busy_blocks", params: params, headers: headers
+
+      expect(response).to have_http_status(:ok)
+      expect(json["busy"].length).to eq(1)
+    end
+
+    it "answers 403 NOT_FRIENDS for a user who is not a friend, with the flag off" do
+      get "/api/friends/#{create(:user).public_id}/busy_blocks", params: params, headers: headers
+
+      expect(response).to have_http_status(:forbidden)
+      expect(json["code"]).to eq("NOT_FRIENDS")
     end
 
     context "with the flag on" do
@@ -137,6 +191,7 @@ RSpec.describe "Friends availability-only sharing", type: :request do
         get "/api/friends/#{stranger.public_id}/busy_blocks", params: params, headers: headers
 
         expect(response).to have_http_status(:forbidden)
+        expect(json["code"]).to eq("NOT_FRIENDS")
         expect(response.body).not_to include("busy")
       end
 
@@ -193,6 +248,15 @@ RSpec.describe "Friends availability-only sharing", type: :request do
       get "/api/friends/#{friend.public_id}/visibility", headers: headers
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "answers 200 while the viewer's flag is off and the friend shares only availability" do
+      friendship.update_visibility_for!(friend, :availability_only)
+
+      get "/api/friends/#{friend.public_id}/visibility", headers: headers
+
+      expect(response).to have_http_status(:ok)
+      expect(json).to eq("friend_id" => friend.public_id, "mine" => "full", "theirs" => "availability_only")
     end
 
     it "sends both levels as seen by the viewer" do
@@ -256,6 +320,115 @@ RSpec.describe "Friends availability-only sharing", type: :request do
 
         expect(response).to have_http_status(:forbidden)
       end
+    end
+  end
+
+  describe "GET /api/user/busy_blocks" do
+    let(:params) { { start_date: "2026-10-05", end_date: "2026-10-11" } }
+
+    before do
+      create(:enrollment, user: viewer, course: course)
+      create(:university_calendar_event, category: "holiday", summary: "Holiday",
+                                         start_time: Time.zone.local(2026, 10, 12), end_time: Time.zone.local(2026, 10, 12, 23))
+    end
+
+    it "sends the busy blocks of the signed-in user, with no flag" do
+      get "/api/user/busy_blocks", params: params, headers: headers
+
+      expect(response).to have_http_status(:ok)
+      expect(json["busy"]).to eq([ { "date" => "2026-10-05", "weekday" => "monday", "start" => "09:00", "end" => "10:15" } ])
+    end
+
+    it "removes a no-class day" do
+      get "/api/user/busy_blocks", params: { start_date: "2026-10-12", end_date: "2026-10-12" }, headers: headers
+
+      expect(json["busy"]).to eq([])
+    end
+
+    it "refuses a date that is not YYYY-MM-DD" do
+      get "/api/user/busy_blocks", params: { start_date: "nope" }, headers: headers
+
+      expect(response).to have_http_status(:bad_request)
+    end
+
+    it "needs a token" do
+      get "/api/user/busy_blocks", params: params
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
+  describe "POST /api/friends/requests with a visibility" do
+    let(:other) { create(:user) }
+
+    it "starts the sender's own side at the chosen level when the flag is on" do
+      enable_flag
+      post "/api/friends/requests", params: { friend_id: other.public_id, visibility: "availability_only" }, headers: headers
+
+      expect(response).to have_http_status(:created)
+      created = Friendship.find_by!(requester: viewer, addressee: other)
+      expect(created).to be_requester_availability_only
+      expect(created).to be_addressee_full
+    end
+
+    it "defaults to full with no param" do
+      post "/api/friends/requests", params: { friend_id: other.public_id }, headers: headers
+
+      expect(Friendship.find_by!(requester: viewer, addressee: other)).to be_requester_full
+    end
+
+    it "answers 404 and creates nothing while the flag is off" do
+      expect {
+        post "/api/friends/requests", params: { friend_id: other.public_id, visibility: "availability_only" }, headers: headers
+      }.not_to change(Friendship, :count)
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "refuses an unknown level" do
+      enable_flag
+
+      expect {
+        post "/api/friends/requests", params: { friend_id: other.public_id, visibility: "hidden" }, headers: headers
+      }.not_to change(Friendship, :count)
+
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+  end
+
+  describe "POST /api/friends/requests/:request_id/accept with a visibility" do
+    let(:other)   { create(:user) }
+    let!(:pending) { create(:friendship, requester: other, addressee: viewer) }
+
+    it "sets only the accepting user's own side when the flag is on" do
+      enable_flag
+      post "/api/friends/requests/#{pending.public_id}/accept", params: { visibility: "availability_only" }, headers: headers
+
+      expect(response).to have_http_status(:ok)
+      expect(pending.reload).to be_accepted
+      expect(pending).to be_addressee_availability_only
+      expect(pending).to be_requester_full
+    end
+
+    it "defaults to full with no param" do
+      post "/api/friends/requests/#{pending.public_id}/accept", headers: headers
+
+      expect(pending.reload).to be_addressee_full
+    end
+
+    it "answers 404 and leaves the request pending while the flag is off" do
+      post "/api/friends/requests/#{pending.public_id}/accept", params: { visibility: "availability_only" }, headers: headers
+
+      expect(response).to have_http_status(:not_found)
+      expect(pending.reload).to be_pending
+    end
+
+    it "refuses an unknown level and leaves the request pending" do
+      enable_flag
+      post "/api/friends/requests/#{pending.public_id}/accept", params: { visibility: "hidden" }, headers: headers
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(pending.reload).to be_pending
     end
   end
 end

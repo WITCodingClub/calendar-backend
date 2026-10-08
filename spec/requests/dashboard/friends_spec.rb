@@ -272,6 +272,57 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
   end
 
+  describe "choosing a level when sending or accepting a request" do
+    after { Flipper.disable(FlipperFlags::FRIENDS_AVAILABILITY_ONLY) }
+
+    it "sets the sender's side when the flag is on" do
+      Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+
+      post dashboard_friends_path, params: { friend_id: other_user.public_id, visibility: "availability_only" }
+
+      expect(Friendship.last).to be_requester_availability_only
+      expect(Friendship.last).to be_addressee_full
+    end
+
+    it "refuses the level and sends no request while the flag is off" do
+      expect {
+        post dashboard_friends_path, params: { friend_id: other_user.public_id, visibility: "availability_only" }
+      }.not_to change(Friendship, :count)
+
+      expect(flash[:alert]).to eq("Choose a valid sharing level.")
+    end
+
+    it "sets the accepting user's side when the flag is on" do
+      Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      friendship = create(:friendship, requester: other_user, addressee: current_user)
+
+      post accept_dashboard_friend_path(friendship.id), params: { visibility: "availability_only" }
+
+      expect(friendship.reload).to be_accepted
+      expect(friendship).to be_addressee_availability_only
+      expect(friendship).to be_requester_full
+    end
+
+    it "leaves the request pending while the flag is off" do
+      friendship = create(:friendship, requester: other_user, addressee: current_user)
+
+      post accept_dashboard_friend_path(friendship.id), params: { visibility: "availability_only" }
+
+      expect(friendship.reload).to be_pending
+    end
+
+    it "shows the level choice on the requests page only with the flag on" do
+      create(:friendship, requester: other_user, addressee: current_user)
+
+      get requests_dashboard_friends_path
+      expect(response.body).not_to include("Share only when I am busy")
+
+      Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      get requests_dashboard_friends_path
+      expect(response.body).to include("Share only when I am busy")
+    end
+  end
+
   describe "POST /dashboard/friends/:id/decline" do
     it "deletes an incoming request" do
       friendship = create(:friendship, requester: other_user, addressee: current_user)

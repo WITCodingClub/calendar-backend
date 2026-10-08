@@ -2,7 +2,9 @@
 
 module Api
   class FriendsController < ApiController
-    before_action :require_availability_only_flag, only: [ :visibility, :update_visibility, :busy_blocks ]
+    include BusyBlocksParams
+
+    before_action :require_availability_only_flag, only: [ :update_visibility ]
 
     def index
       authorize :friendship, :index?
@@ -40,7 +42,11 @@ module Api
       friend_user = resolve_friend_user
       return if performed?
 
+      level = requested_visibility
+      return if performed?
+
       friendship = Friendship.new(requester: current_user, addressee: friend_user)
+      friendship.requester_visibility = level if level
 
       authorize friendship, :create?
       friendship.save!
@@ -52,6 +58,10 @@ module Api
       friendship = find_by_any_id!(Friendship, params[:request_id])
       authorize friendship, :accept?
 
+      level = requested_visibility
+      return if performed?
+
+      friendship.addressee_visibility = level if level
       friendship.accepted!
       friend = friendship.friend_for(current_user)
 
@@ -78,10 +88,7 @@ module Api
     def unfriend
       friend_user = find_by_any_id!(User, params[:friend_id])
 
-      friendship = Friendship.accepted
-                             .where("(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
-                                    current_user.id, friend_user.id, friend_user.id, current_user.id)
-                             .first
+      friendship = Friendship.accepted_between(current_user, friend_user)
 
       if friendship.nil?
         render json: { error: "Friendship not found" }, status: :not_found
@@ -98,22 +105,12 @@ module Api
       friendship  = find_friendship_with(friend_user)
 
       if friendship.nil?
-        render json: { error: "You are not friends with this user" }, status: :forbidden
+        render_not_friends
         return
       end
 
       authorize friendship, :view_schedule?
-
-      # The friend's own setting decides. This check does not depend on the
-      # flag: a level that was set while the flag was on stays in force.
-      unless policy(friendship).view_full_schedule?
-        render json: {
-          error:      "This friend shares only availability",
-          code:       "AVAILABILITY_ONLY",
-          visibility: "availability_only"
-        }, status: :forbidden
-        return
-      end
+      return if render_availability_only_unless_full(friendship)
 
       term = find_term_by_uid
       return if performed?
@@ -127,11 +124,14 @@ module Api
       friendship  = find_friendship_with(friend_user)
 
       if friendship.nil?
-        render json: { error: "You are not friends with this user" }, status: :forbidden
+        render_not_friends
         return
       end
 
       authorize friendship, :view_schedule?
+      # A friend who shares only availability must not learn whether the user
+      # has enrollments in a term.
+      return if render_availability_only_unless_full(friendship)
 
       term = find_term_by_uid
       return if performed?
@@ -146,6 +146,8 @@ module Api
       return if performed?
 
       authorize friendship, :view_schedule?
+      return unless readable_without_flag?(friendship)
+
       render json: FriendshipVisibilitySerializer.new(friendship, viewer: current_user).as_json, status: :ok
     end
 
@@ -159,7 +161,7 @@ module Api
       authorize friendship, :update_visibility?
 
       level = params.require(:visibility).to_s
-      unless Friendship::VISIBILITIES.key?(level.to_sym)
+      unless Friendship.valid_visibility?(level)
         render json: { error: "visibility must be one of: #{Friendship::VISIBILITIES.keys.join(", ")}" },
                status: :unprocessable_content
         return
@@ -178,6 +180,7 @@ module Api
       return if performed?
 
       authorize friendship, :view_availability?
+      return unless readable_without_flag?(friendship)
 
       from, to = busy_blocks_range
       return if performed?
@@ -197,43 +200,59 @@ module Api
       render json: { error: "Not found" }, status: :not_found
     end
 
+    # A read route works when the flag is on for the viewer. It also works when
+    # the friend shares only availability, whatever the flag of the viewer:
+    # processed_events answers 403 then, and the viewer needs this data. Else
+    # it answers 404. Returns true when the read may go on.
+    def readable_without_flag?(friendship)
+      return true if Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      return true unless friendship.full_schedule_visible_to?(current_user)
+
+      render json: { error: "Not found" }, status: :not_found
+      false
+    end
+
     def find_accepted_friendship!
       friend_user = find_by_any_id!(User, params[:friend_id])
       friendship  = find_friendship_with(friend_user)
       return friendship if friendship
 
-      render json: { error: "You are not friends with this user" }, status: :forbidden
+      render_not_friends
       nil
     end
 
-    # start_date defaults to today and end_date to six days after start_date.
-    def busy_blocks_range
-      from = parse_date_param(:start_date) || Time.zone.today
-      return if performed?
-
-      to = parse_date_param(:end_date) || (from + 6)
-      return if performed?
-
-      if to < from
-        render json: { error: "end_date must not be before start_date" }, status: :bad_request
-        return
-      end
-
-      if (to - from).to_i + 1 > BusyBlocks::MAX_DAYS
-        render json: { error: "The range must be #{BusyBlocks::MAX_DAYS} days or fewer" }, status: :bad_request
-        return
-      end
-
-      [ from, to ]
+    def render_not_friends
+      render json: { error: "You are not friends with this user", code: "NOT_FRIENDS" }, status: :forbidden
     end
 
-    def parse_date_param(name)
-      value = params[name]
-      return nil if value.blank?
+    # The friend's own setting decides. This check does not depend on any flag:
+    # a level that was set while the flag was on stays in force. Returns true
+    # when it rendered the 403.
+    def render_availability_only_unless_full(friendship)
+      return false if policy(friendship).view_full_schedule?
 
-      Date.iso8601(value.to_s)
-    rescue Date::Error
-      render json: { error: "#{name} must be a date in YYYY-MM-DD format" }, status: :bad_request
+      render json: {
+        error:      "This friend shares only availability",
+        code:       "AVAILABILITY_ONLY",
+        visibility: "availability_only"
+      }, status: :forbidden
+      true
+    end
+
+    # Reads the optional visibility param of a send or accept request. Returns
+    # the level, or nil when the param is absent. Renders an error and returns
+    # nil when the actor's flag is off (404) or the level is unknown (422).
+    def requested_visibility
+      return nil if params[:visibility].blank?
+
+      require_availability_only_flag
+      return nil if performed?
+
+      level = params[:visibility].to_s
+      return level if Friendship.valid_visibility?(level)
+
+      render json: { error: "visibility must be one of: #{Friendship::VISIBILITIES.keys.join(", ")}" },
+             status: :unprocessable_content
       nil
     end
 
@@ -263,10 +282,7 @@ module Api
     end
 
     def find_friendship_with(friend_user)
-      Friendship.accepted
-                .where("(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
-                       current_user.id, friend_user.id, friend_user.id, current_user.id)
-                .first
+      Friendship.accepted_between(current_user, friend_user)
     end
 
     def find_term_by_uid

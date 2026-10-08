@@ -56,7 +56,15 @@ class Friendship < ApplicationRecord
     where(requester: user, addressee: other).or(where(requester: other, addressee: user))
   }
 
+  # The one place that finds the accepted friendship of two users. A merge with
+  # the expiry work (#671) changes only this method.
+  def self.accepted_between(user, other)
+    accepted.between(user, other).first
+  end
+
   after_create_commit :email_addressee_about_request, if: :pending?
+
+  def self.valid_visibility?(level) = VISIBILITIES.key?(level.to_s.to_sym)
 
   def friend_for(user)
     requester_id == user.id ? addressee : requester

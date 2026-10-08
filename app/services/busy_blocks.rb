@@ -10,14 +10,28 @@
 # Blocks on one date that overlap or touch are merged into one block, so the
 # list does not show how many classes fill a block either.
 #
-# Times are wall-clock times in the app time zone (Time.zone). The service does
-# not remove holidays or other days with no classes: a block on such a day only
-# says "busy" when the user is free, which is the safe side.
+# Times are wall-clock times in the app time zone (Time.zone).
+#
+# Each kind of busy time comes from a source. A source is a class with
+# `.call(user, from, to)` that returns `BusyBlocks::Interval` values. The list
+# is in `BusyBlocks.sources`. To add a new kind of busy time (for example
+# meetings), write a source and add it to that list. The merge step, the
+# serializer, and both API routes then include it with no other change.
+#
+# - MeetingSource: class meetings, minus the days with no classes (holidays,
+#   study days, and the finals period).
+# - FinalExamSource: the final exams of the user.
 #
 #   BusyBlocks.new(user, from: Date.new(2026, 10, 5), to: Date.new(2026, 10, 9)).call
 #   # => [#<data BusyBlocks::Block date=2026-10-05, start="09:00", end="10:15">, ...]
 class BusyBlocks
   MAX_DAYS = 120
+
+  # One busy time from one source. +begin_time+ and +end_time+ are HHMM integers.
+  Interval = Data.define(:date, :begin_time, :end_time)
+
+  # The sources that make up the busy time of a user.
+  def self.sources = [ MeetingSource, FinalExamSource ]
 
   Block = Data.define(:date, :start, :end) do
     def weekday = date.strftime("%A").downcase
@@ -34,40 +48,17 @@ class BusyBlocks
 
   # Returns the blocks sorted by date, then start time.
   def call
-    by_weekday = meeting_rows.group_by(&:day_of_week)
+    by_date = self.class.sources.flat_map { |source| source.call(@user, @from, @to) }.group_by(&:date)
 
     (@from..@to).flat_map do |date|
-      rows = by_weekday.fetch(date.wday, []).select { |row| row.covers?(date) }
-      merge(rows.map { |row| [ row.begin_time, row.end_time ] }).map do |begin_time, end_time|
+      ranges = by_date.fetch(date, []).map { |interval| [ interval.begin_time, interval.end_time ] }
+      merge(ranges).map do |begin_time, end_time|
         Block.new(date: date, start: hhmm(begin_time), end: hhmm(end_time))
       end
     end
   end
 
   private
-
-  Row = Data.define(:day_of_week, :begin_time, :end_time, :start_date, :end_date) do
-    def covers?(date) = date.between?(start_date, end_date)
-  end
-
-  # One query, whatever the number of classes. It reads only the columns that a
-  # block needs, so no course record is loaded at all.
-  def meeting_rows
-    Course::MeetingTime
-      .joins(course: :enrollments)
-      .where(enrollments: { user_id: @user.id })
-      .where(start_date: ..@to.in_time_zone.end_of_day)
-      .where(end_date: @from.in_time_zone.beginning_of_day..)
-      .distinct
-      .pluck(Arel.sql("course_meeting_times.day_of_week"), :begin_time, :end_time,
-             Arel.sql("course_meeting_times.start_date"), Arel.sql("course_meeting_times.end_date"))
-      .map do |day_of_week, begin_time, end_time, start_date, end_date|
-        # Rails casts the enum column to its name ("monday"). Date#wday uses
-        # the same numbers as the enum (Sunday is 0).
-        Row.new(day_of_week: Course::MeetingTime.day_of_weeks.fetch(day_of_week), begin_time:, end_time:,
-                start_date: start_date.in_time_zone.to_date, end_date: end_date.in_time_zone.to_date)
-      end
-  end
 
   # Merges [begin, end] pairs (HHMM integers) that overlap or touch.
   def merge(ranges)
