@@ -5,7 +5,7 @@ class Dashboard::OverviewController < Dashboard::ApplicationController
     authorize current_user, :show?
 
     @current_term  = Term.current
-    @next_term     = Term.next
+    @next_term     = Term.next(@current_term)
     @enrollment_count = current_user.enrollments.where(term: @current_term).count if @current_term
     @has_calendar  = current_user.oauth_credentials.joins(:course_calendar).exists?
     @notifications_disabled = current_user.notifications_disabled?

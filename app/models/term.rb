@@ -103,8 +103,7 @@ class Term < ApplicationRecord
       .reverse_chronological
   }
 
-  scope :current_and_future, -> {
-    current_term = Term.current
+  scope :current_and_future, ->(current_term = Term.current) {
     return none unless current_term
 
     where("(year > ?) OR (year = ? AND #{season_position_sql} >= ?)",
@@ -194,8 +193,9 @@ class Term < ApplicationRecord
     reverse_chronological.first
   end
 
-  def self.next
-    current_term = current
+  # Pass the current term when the caller already has it. Term.current sends
+  # up to six queries, so the API and the dashboard ask for it only once.
+  def self.next(current_term = current)
     return nil unless current_term
 
     case current_term.season.to_sym

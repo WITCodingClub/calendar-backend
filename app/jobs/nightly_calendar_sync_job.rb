@@ -11,8 +11,10 @@ class NightlyCalendarSyncJob < ApplicationJob
     # Previously-synced users with a data change: force to bypass staleness cache
     needs_update = base.where(calendar_needs_sync: true).where.not(last_calendar_sync_at: nil)
 
-    total = first_time.count + needs_update.count
-    Rails.logger.info "Nightly Calendar Sync: Processing #{total} users (#{first_time.count} first-time, #{needs_update.count} updates)"
+    first_time_count = first_time.count
+    needs_update_count = needs_update.count
+    Rails.logger.info "Nightly Calendar Sync: Processing #{first_time_count + needs_update_count} users " \
+                      "(#{first_time_count} first-time, #{needs_update_count} updates)"
 
     first_time.find_each do |user|
       sync_user(user, force: false, backfill_historical: true)

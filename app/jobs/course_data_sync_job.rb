@@ -106,7 +106,9 @@ class CourseDataSyncJob < ApplicationJob
     # Google Calendar events that point at them.
     return false if raw.blank?
 
-    before = meeting_times_fingerprint(course)
+    # The batch preloads meeting times with their rooms and buildings, so the
+    # first fingerprint sends no query.
+    before = meeting_times_fingerprint(course.meeting_times)
 
     touched_ids = MeetingTimesIngestService.call(
       course: course,
@@ -119,11 +121,11 @@ class CourseDataSyncJob < ApplicationJob
     course.meeting_times.where.not(id: touched_ids).destroy_all
     course.meeting_times.reset
 
-    before != meeting_times_fingerprint(course)
+    before != meeting_times_fingerprint(course.meeting_times.includes(rooms: :building))
   end
 
-  def meeting_times_fingerprint(course)
-    course.meeting_times.includes(rooms: :building).map { |mt|
+  def meeting_times_fingerprint(meeting_times)
+    meeting_times.map { |mt|
       [
         mt.day_of_week,
         mt.begin_time,

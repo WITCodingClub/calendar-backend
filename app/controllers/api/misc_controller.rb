@@ -5,9 +5,10 @@ module Api
     skip_before_action :authenticate_user_from_token!, only: [ :get_active_terms, :get_current_and_next_terms ]
 
     def get_current_and_next_terms
+      current_term = Term.current
       render json: {
-        current_term: term_json(Term.current),
-        next_term:    term_json(Term.next)
+        current_term: term_json(current_term),
+        next_term:    term_json(Term.next(current_term))
       }, status: :ok
     end
 

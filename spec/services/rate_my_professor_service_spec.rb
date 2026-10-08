@@ -15,6 +15,16 @@ RSpec.describe RateMyProfessorService, type: :service do
       .to_return(status: status, body: response_body, headers: { "Content-Type" => "application/json" })
   end
 
+  it "sets timeouts, so a slow RateMyProfessors does not hold a thread" do
+    allow(Faraday).to receive(:new).and_call_original
+    stub_graphql("NewSearchTeachersQuery", fixture: "search_results.json")
+
+    service.search_professors("Ada Byron")
+
+    expect(Faraday).to have_received(:new)
+      .with(hash_including(url: base_url, request: { open_timeout: 5, timeout: 15 }))
+  end
+
   describe "#search_professors" do
     it "returns the matching teachers for a name search" do
       stub_graphql("NewSearchTeachersQuery", fixture: "search_results.json")
