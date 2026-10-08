@@ -24,7 +24,7 @@
               <span class="text-on-surface-variant">Course not found</span>
             <% end %>
           <% end %>
-          <% t.column("Instructor") { |enrollment| enrollment.course&.faculties&.map(&:display_name)&.join(", ") } %>
+          <% t.column("Instructor") { |enrollment| enrollment.course&.faculties&.map(&:full_name)&.join(", ") } %>
           <% t.column("Credits") { |enrollment| enrollment.course&.credit_hours } %>
           <% t.column("Schedule") do |enrollment| %>
             <% (enrollment.course&.filtered_meeting_times || []).each do |mt| %>
