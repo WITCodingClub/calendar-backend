@@ -1,4 +1,4 @@
-ActiveRecord::Schema[7.2].define(version: 1) do
+ActiveRecord::Schema[7.2].define(version: 2026_10_08_000000) do
   create_table "solid_cache_entries", force: :cascade do |t|
     t.binary "key", limit: 1024, null: false
     t.binary "value", limit: 536870912, null: false
