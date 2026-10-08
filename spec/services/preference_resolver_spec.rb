@@ -110,4 +110,37 @@ RSpec.describe PreferenceResolver do
       expect(described_class.new(user).resolve_for(university_event)[:reminder_settings]).to eq([])
     end
   end
+
+  describe "#last_changed_at_for" do
+    let(:old_time) { 2.days.ago.change(usec: 0) }
+    let(:new_time) { 1.hour.ago.change(usec: 0) }
+
+    # Each user gets an extension config, which gives the default colors.
+    before { user.user_extension_config.update_column(:updated_at, old_time) }
+
+    it "is the extension config change when no preference applies" do
+      expect(described_class.new(user).last_changed_at_for(meeting_time)).to eq(old_time)
+    end
+
+    it "is the latest change of the event preference and the calendar preferences on its path" do
+      create(:calendar_preference, user: user, color_id: "#a4bdfc", updated_at: old_time)
+      create(:event_preference, user: user, preferenceable: meeting_time, color_id: "#7ae7bf", updated_at: new_time)
+
+      expect(described_class.new(user).last_changed_at_for(meeting_time)).to eq(new_time)
+    end
+
+    it "ignores the preference of another event" do
+      create(:event_preference, user: user, color_id: "#7ae7bf", updated_at: new_time)
+
+      expect(described_class.new(user).last_changed_at_for(meeting_time)).to eq(old_time)
+    end
+
+    it "ignores class preferences for a university event" do
+      create(:calendar_preference, user: user, color_id: "#a4bdfc", updated_at: new_time)
+      user.user_extension_config.update_column(:updated_at, new_time)
+      create(:calendar_preference, :uni_cal_global, user: user, color_id: "#7ae7bf", updated_at: old_time)
+
+      expect(described_class.new(user).last_changed_at_for(university_event)).to eq(old_time)
+    end
+  end
 end
