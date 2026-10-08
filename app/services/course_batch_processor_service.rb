@@ -77,7 +77,7 @@ class CourseBatchProcessorService < ApplicationService
       return [ term_uid, nil, nil, "All courses in term #{term_uid} must belong to that term" ]
     end
 
-    term = Term.find_by(uid: term_uid)
+    term = terms_by_uid[term_uid]
     return [ term_uid, nil, nil, "Term #{term_uid} not found" ] unless term
 
     CourseProcessorService.new(courses, user).validate!
@@ -86,8 +86,17 @@ class CourseBatchProcessorService < ApplicationService
     [ term_uid, nil, nil, e.message ]
   end
 
+  # One query for all terms of the batch, not one per entry.
+  def terms_by_uid
+    @terms_by_uid ||= begin
+      uids = entries.filter_map { |entry| entry[:term].to_s if entry.is_a?(Hash) }.uniq
+      Term.where(uid: uids).index_by { |term| term.uid.to_s }
+    end
+  end
+
   def in_flight?(term)
-    TermProcessingStatus.exists?(user: user, term: term, status: %w[pending processing])
+    @in_flight_term_ids ||= TermProcessingStatus.where(user: user, term: terms_by_uid.values, status: %w[pending processing]).pluck(:term_id).to_set
+    @in_flight_term_ids.include?(term.id)
   end
 
   def enqueue(term_uid, term, courses)
