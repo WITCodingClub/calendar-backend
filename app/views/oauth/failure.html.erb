@@ -22,10 +22,12 @@
 </div>
 
 <script>
+  // Only a page of this app may read the result. The extension does not use
+  // this message: its service worker watches the tab URL.
   if (window.opener) {
     window.opener.postMessage({
       type: 'oauth-failure',
       error: <%= @error.to_s.to_json.html_safe %>
-    }, '*');
+    }, window.location.origin);
   }
 </script>

@@ -55,6 +55,12 @@ Rails.application.routes.draw do
   get "/oauth/success", to: "oauth#success"
   get "/oauth/failure", to: "oauth#failure"
 
+  # A Google account linked from a browser with no session waits here for the
+  # person to confirm it.
+  get    "/oauth/confirm", to: "oauth#confirm", as: :oauth_confirm
+  post   "/oauth/confirm", to: "oauth#link"
+  delete "/oauth/confirm", to: "oauth#cancel"
+
   # ICS calendar feed (public, token-gated)
   get "/calendar/:calendar_token", to: "calendars#show", as: :calendar, defaults: { format: :ics }
 
