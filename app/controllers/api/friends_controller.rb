@@ -9,8 +9,12 @@ module Api
     def index
       authorize :friendship, :index?
 
-      friends = current_user.friends.map do |friend|
-        { id: friend.public_id, name: friend.full_name }
+      flag_on     = Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      friendships = Friendship.accepted_for(current_user).includes(:requester, :addressee)
+
+      friends = friendships.map do |friendship|
+        friend = friendship.friend_for(current_user)
+        { id: friend.public_id, name: friend.full_name, visibility: index_visibility(friendship, flag_on) }
       end
 
       render json: { friends: friends }, status: :ok
@@ -210,6 +214,15 @@ module Api
 
       render json: { error: "Not found" }, status: :not_found
       false
+    end
+
+    # Both levels of one friendship for the friends list, so the client needs
+    # no visibility request for each friend. It follows readable_without_flag?:
+    # nil while the viewer's flag is off and the friend shares the full schedule.
+    def index_visibility(friendship, flag_on)
+      return nil unless flag_on || !friendship.full_schedule_visible_to?(current_user)
+
+      FriendshipVisibilitySerializer.new(friendship, viewer: current_user).as_json.except(:friend_id)
     end
 
     def find_accepted_friendship!
