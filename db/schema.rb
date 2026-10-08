@@ -10,10 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
+  enable_extension "vector"
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -44,11 +45,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   end
 
   create_table "audits1984_audits", force: :cascade do |t|
-    t.bigint "auditor_id", null: false
-    t.datetime "created_at", null: false
+    t.integer "status", default: 0, null: false
     t.text "notes"
     t.bigint "session_id", null: false
-    t.integer "status", default: 0, null: false
+    t.bigint "auditor_id", null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["auditor_id"], name: "index_audits1984_audits_on_auditor_id"
     t.index ["session_id"], name: "index_audits1984_audits_on_session_id"
@@ -115,9 +116,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.datetime "created_at", null: false
     t.string "formal_name"
     t.string "name", null: false
-    t.datetime "twenty_five_live_checked_at"
     t.integer "twenty_five_live_id"
     t.datetime "updated_at", null: false
+    t.datetime "twenty_five_live_checked_at"
     t.index ["abbreviation"], name: "index_buildings_on_abbreviation", unique: true
     t.index ["name"], name: "index_buildings_on_name", unique: true
     t.index ["twenty_five_live_id"], name: "index_buildings_on_twenty_five_live_id", unique: true
@@ -125,13 +126,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   end
 
   create_table "calendar_events", force: :cascade do |t|
-    t.bigint "calendar_id", null: false
     t.datetime "created_at", null: false
     t.datetime "end_time"
     t.string "event_data_hash"
-    t.string "external_event_id", null: false
-    t.string "external_ical_uid"
     t.bigint "final_exam_id"
+    t.bigint "calendar_id", null: false
+    t.string "external_event_id", null: false
     t.bigint "friend_meeting_id"
     t.datetime "last_synced_at"
     t.string "location"
@@ -142,12 +142,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.bigint "university_calendar_event_id"
     t.datetime "updated_at", null: false
     t.jsonb "user_edited_fields"
+    t.string "external_ical_uid"
     t.index ["calendar_id", "final_exam_id"], name: "idx_calendar_events_unique_final_exam", unique: true, where: "(final_exam_id IS NOT NULL)"
     t.index ["calendar_id", "friend_meeting_id"], name: "idx_calendar_events_unique_friend_meeting", unique: true, where: "(friend_meeting_id IS NOT NULL)"
     t.index ["calendar_id", "meeting_time_id"], name: "idx_calendar_events_on_calendar_id_meeting_time_id"
     t.index ["calendar_id", "meeting_time_id"], name: "idx_calendar_events_unique_meeting_time", unique: true, where: "(meeting_time_id IS NOT NULL)"
     t.index ["calendar_id", "university_calendar_event_id"], name: "idx_calendar_events_unique_university", unique: true, where: "(university_calendar_event_id IS NOT NULL)"
-    t.index ["calendar_id"], name: "index_calendar_events_on_calendar_id"
     t.index ["external_event_id"], name: "index_calendar_events_on_external_event_id"
     t.index ["external_ical_uid"], name: "index_calendar_events_on_external_ical_uid"
     t.index ["final_exam_id"], name: "index_calendar_events_on_final_exam_id"
@@ -170,7 +170,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.bigint "user_id", null: false
     t.string "visibility"
     t.index ["user_id", "scope", "event_type"], name: "index_calendar_prefs_on_user_scope_type", unique: true
-    t.index ["user_id"], name: "index_calendar_preferences_on_user_id"
     t.index ["user_id"], name: "index_calendar_prefs_one_global_per_user", unique: true, where: "(scope = 0)"
   end
 
@@ -180,11 +179,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.string "external_calendar_id", null: false
     t.datetime "last_synced_at"
     t.bigint "oauth_credential_id", null: false
-    t.string "placement", default: "separate", null: false
-    t.string "provider", default: "google", null: false
     t.string "summary"
     t.string "time_zone"
     t.datetime "updated_at", null: false
+    t.string "provider", default: "google", null: false
+    t.string "placement", default: "separate", null: false
     t.index ["last_synced_at"], name: "index_calendars_on_last_synced_at"
     t.index ["oauth_credential_id"], name: "index_calendars_on_oauth_credential_id_unique", unique: true
     t.index ["provider", "external_calendar_id"], name: "index_calendars_on_provider_and_external_calendar_id", unique: true
@@ -275,12 +274,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.bigint "term_id", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
+    t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["status"], name: "index_courses_on_status"
     t.index ["term_id", "subject", "course_number", "link_identifier"], name: "index_courses_on_course_and_link_identifier"
-    t.index ["term_id"], name: "index_courses_on_term_id"
     t.check_constraint "credit_hours IS NULL OR credit_hours > 0", name: "courses_credit_hours_positive"
-    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying::text, 'HYB'::character varying::text, 'IND'::character varying::text, 'LAB'::character varying::text, 'LEC'::character varying::text, 'ONL'::character varying::text, 'ONB'::character varying::text, 'OLB'::character varying::text, 'OLC'::character varying::text, 'RLB'::character varying::text, 'RLC'::character varying::text, 'SAB'::character varying::text, 'SAD'::character varying::text])", name: "courses_schedule_type_valid"
+    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying, 'HYB'::character varying, 'IND'::character varying, 'LAB'::character varying, 'LEC'::character varying, 'ONL'::character varying, 'ONB'::character varying, 'OLB'::character varying, 'OLC'::character varying, 'RLB'::character varying, 'RLC'::character varying, 'SAB'::character varying, 'SAD'::character varying]::text[])", name: "courses_schedule_type_valid"
     t.check_constraint "seats_available IS NULL OR seats_capacity IS NULL OR seats_available <= seats_capacity", name: "courses_seats_available_le_capacity"
     t.check_constraint "seats_capacity IS NULL OR seats_capacity >= 0", name: "courses_seats_capacity_non_negative"
     t.check_constraint "start_date IS NULL OR end_date IS NULL OR end_date >= start_date", name: "courses_end_date_on_or_after_start_date"
@@ -293,7 +294,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.boolean "primary_indicator", default: false, null: false
     t.index ["course_id", "faculty_id"], name: "index_courses_faculties_on_course_id_and_faculty_id", unique: true
     t.index ["course_id", "primary_indicator"], name: "index_courses_faculties_on_course_id_and_primary"
-    t.index ["course_id"], name: "index_courses_faculties_on_course_id"
     t.index ["faculty_id"], name: "index_courses_faculties_on_faculty_id"
   end
 
@@ -316,7 +316,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.index ["snapshot_created_at"], name: "index_enrollment_snapshots_on_snapshot_created_at"
     t.index ["term_id"], name: "index_enrollment_snapshots_on_term_id"
     t.index ["user_id", "term_id", "crn"], name: "idx_enrollment_snapshots_unique", unique: true
-    t.index ["user_id"], name: "index_enrollment_snapshots_on_user_id"
   end
 
   create_table "enrollments", force: :cascade do |t|
@@ -328,7 +327,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.index ["course_id"], name: "index_enrollments_on_course_id"
     t.index ["term_id"], name: "index_enrollments_on_term_id"
     t.index ["user_id", "course_id", "term_id"], name: "index_enrollments_on_user_class_term", unique: true
-    t.index ["user_id"], name: "index_enrollments_on_user_id"
   end
 
   create_table "event_preferences", force: :cascade do |t|
@@ -345,7 +343,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.string "visibility"
     t.index ["preferenceable_type", "preferenceable_id"], name: "index_event_preferences_on_preferenceable"
     t.index ["user_id", "preferenceable_type", "preferenceable_id"], name: "index_event_prefs_on_user_and_preferenceable", unique: true
-    t.index ["user_id"], name: "index_event_preferences_on_user_id"
   end
 
   create_table "faculties", force: :cascade do |t|
@@ -367,11 +364,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.string "school"
     t.string "title"
     t.datetime "updated_at", null: false
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
     t.index "lower((email)::text)", name: "index_faculties_on_lower_email"
     t.index ["department"], name: "index_faculties_on_department"
     t.index ["directory_last_synced_at"], name: "index_faculties_on_directory_last_synced_at"
     t.index ["directory_raw_data"], name: "index_faculties_on_directory_raw_data", using: :gin
     t.index ["email"], name: "index_faculties_on_email", unique: true
+    t.index ["embedding"], name: "index_faculties_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["employee_type"], name: "index_faculties_on_employee_type"
     t.index ["rmp_id"], name: "index_faculties_on_rmp_id", unique: true
     t.index ["rmp_raw_data"], name: "index_faculties_on_rmp_raw_data", using: :gin
@@ -405,7 +405,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.datetime "updated_at", null: false
     t.bigint "uploaded_by_id", null: false
     t.index ["term_id", "created_at"], name: "index_finals_schedules_on_term_id_and_created_at"
-    t.index ["term_id"], name: "index_finals_schedules_on_term_id"
     t.index ["uploaded_by_id"], name: "index_finals_schedules_on_uploaded_by_id"
   end
 
@@ -423,6 +422,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.datetime "updated_at", null: false
     t.text "value"
     t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
+  end
+
+  create_table "friend_group_memberships", force: :cascade do |t|
+    t.bigint "friend_group_id", null: false
+    t.bigint "friendship_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["friend_group_id", "friendship_id"], name: "index_friend_group_memberships_on_group_and_friendship", unique: true
+    t.index ["friendship_id"], name: "index_friend_group_memberships_on_friendship_id"
+  end
+
+  create_table "friend_groups", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "user_id, lower((name)::text)", name: "index_friend_groups_on_user_id_and_lower_name", unique: true
   end
 
   create_table "friend_meeting_attendees", force: :cascade do |t|
@@ -469,18 +485,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
 
   create_table "friendships", force: :cascade do |t|
     t.bigint "addressee_id", null: false
-    t.integer "addressee_visibility", default: 0, null: false
     t.datetime "created_at", null: false
     t.bigint "requester_id", null: false
-    t.integer "requester_visibility", default: 0, null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
+    t.integer "requester_visibility", default: 0, null: false
+    t.integer "addressee_visibility", default: 0, null: false
+    t.datetime "expires_at"
+    t.datetime "proposed_expires_at"
+    t.boolean "proposed_permanent", default: false, null: false
+    t.bigint "proposed_by_id"
     t.index "LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)", name: "index_friendships_on_unordered_pair", unique: true
     t.index ["addressee_id", "status"], name: "index_friendships_on_addressee_id_and_status"
-    t.index ["addressee_id"], name: "index_friendships_on_addressee_id"
+    t.index ["expires_at"], name: "index_friendships_on_expires_at", where: "(expires_at IS NOT NULL)"
+    t.index ["proposed_by_id"], name: "index_friendships_on_proposed_by_id"
     t.index ["requester_id", "addressee_id"], name: "index_friendships_on_requester_id_and_addressee_id", unique: true
     t.index ["requester_id", "status"], name: "index_friendships_on_requester_id_and_status"
-    t.index ["requester_id"], name: "index_friendships_on_requester_id"
+    t.check_constraint "proposed_by_id IS NULL AND proposed_expires_at IS NULL AND proposed_permanent = false OR proposed_by_id IS NOT NULL AND (proposed_expires_at IS NULL) = proposed_permanent", name: "friendships_expiry_proposal_shape"
   end
 
   create_table "meeting_links", force: :cascade do |t|
@@ -504,31 +525,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   end
 
   create_table "oauth_access_grants", force: :cascade do |t|
+    t.bigint "resource_owner_id", null: false
     t.bigint "application_id", null: false
+    t.string "token", null: false
+    t.integer "expires_in", null: false
+    t.text "redirect_uri", null: false
+    t.string "scopes", default: "", null: false
     t.string "code_challenge"
     t.string "code_challenge_method"
     t.datetime "created_at", null: false
-    t.integer "expires_in", null: false
-    t.text "redirect_uri", null: false
-    t.bigint "resource_owner_id", null: false
     t.datetime "revoked_at"
-    t.string "scopes", default: "", null: false
-    t.string "token", null: false
     t.index ["application_id"], name: "index_oauth_access_grants_on_application_id"
     t.index ["resource_owner_id"], name: "index_oauth_access_grants_on_resource_owner_id"
     t.index ["token"], name: "index_oauth_access_grants_on_token", unique: true
   end
 
   create_table "oauth_access_tokens", force: :cascade do |t|
-    t.bigint "application_id", null: false
-    t.datetime "created_at", null: false
-    t.integer "expires_in"
-    t.string "previous_refresh_token", default: "", null: false
-    t.string "refresh_token"
     t.bigint "resource_owner_id"
-    t.datetime "revoked_at"
-    t.string "scopes"
+    t.bigint "application_id", null: false
     t.string "token", null: false
+    t.string "refresh_token"
+    t.integer "expires_in"
+    t.string "scopes"
+    t.datetime "created_at", null: false
+    t.datetime "revoked_at"
+    t.string "previous_refresh_token", default: "", null: false
     t.index ["application_id"], name: "index_oauth_access_tokens_on_application_id"
     t.index ["refresh_token"], name: "index_oauth_access_tokens_on_refresh_token", unique: true
     t.index ["resource_owner_id"], name: "index_oauth_access_tokens_on_resource_owner_id"
@@ -536,13 +557,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   end
 
   create_table "oauth_applications", force: :cascade do |t|
-    t.boolean "confidential", default: true, null: false
-    t.datetime "created_at", null: false
     t.string "name", null: false
+    t.string "uid", null: false
+    t.string "secret", null: false
     t.text "redirect_uri", null: false
     t.string "scopes", default: "", null: false
-    t.string "secret", null: false
-    t.string "uid", null: false
+    t.boolean "confidential", default: true, null: false
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["uid"], name: "index_oauth_applications_on_uid", unique: true
   end
@@ -561,7 +582,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.index ["provider", "uid"], name: "index_oauth_credentials_on_provider_and_uid", unique: true
     t.index ["token_expires_at"], name: "index_oauth_credentials_on_token_expires_at"
     t.index ["user_id", "provider", "email"], name: "index_oauth_credentials_on_user_provider_email", unique: true
-    t.index ["user_id"], name: "index_oauth_credentials_on_user_id"
   end
 
   create_table "oauth_openid_requests", force: :cascade do |t|
@@ -593,7 +613,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.bigint "user_id", null: false
     t.index ["external_id"], name: "index_passkeys_on_external_id", unique: true
     t.index ["user_id", "nickname"], name: "index_passkeys_on_user_id_and_nickname", unique: true
-    t.index ["user_id"], name: "index_passkeys_on_user_id"
   end
 
   create_table "pghero_queries", force: :cascade do |t|
@@ -602,22 +621,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   end
 
   create_table "pghero_query_stats", force: :cascade do |t|
+    t.text "database"
+    t.text "user"
+    t.bigint "query_id"
+    t.bigint "query_hash"
+    t.float "total_time"
     t.bigint "calls"
     t.datetime "captured_at", precision: nil
-    t.text "database"
-    t.bigint "query_hash"
-    t.bigint "query_id"
-    t.float "total_time"
-    t.text "user"
     t.index ["database", "captured_at"], name: "index_pghero_query_stats_on_database_and_captured_at"
   end
 
   create_table "pghero_space_stats", force: :cascade do |t|
-    t.datetime "captured_at", precision: nil
     t.text "database"
-    t.text "relation"
     t.text "schema"
+    t.text "relation"
     t.bigint "size"
+    t.datetime "captured_at", precision: nil
     t.index ["database", "captured_at"], name: "index_pghero_space_stats_on_database_and_captured_at"
   end
 
@@ -648,7 +667,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.string "rmp_id", null: false
     t.datetime "updated_at", null: false
     t.index ["faculty_id", "rmp_id"], name: "index_related_professors_on_faculty_id_and_rmp_id", unique: true
-    t.index ["faculty_id"], name: "index_related_professors_on_faculty_id"
     t.index ["related_faculty_id"], name: "index_related_professors_on_related_faculty_id"
   end
 
@@ -671,6 +689,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.integer "thumbs_up_total", default: 0
     t.datetime "updated_at", null: false
     t.boolean "would_take_again"
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
+    t.index ["embedding"], name: "index_rmp_ratings_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["faculty_id"], name: "index_rmp_ratings_on_faculty_id"
     t.index ["rmp_id"], name: "index_rmp_ratings_on_rmp_id", unique: true
   end
@@ -685,7 +706,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.integer "twenty_five_live_id"
     t.datetime "updated_at", null: false
     t.index ["building_id", "number"], name: "index_rooms_on_building_id_and_number", unique: true
-    t.index ["building_id"], name: "index_rooms_on_building_id"
     t.index ["twenty_five_live_id"], name: "index_rooms_on_twenty_five_live_id", unique: true
     t.check_constraint "SUBSTRING(number FROM 1 FOR 1) !~ '^[0-9]$'::text OR SUBSTRING(number FROM 1 FOR 1) = floor::text", name: "rooms_floor_matches_number_prefix"
     t.check_constraint "capacity IS NULL OR capacity > 0", name: "rooms_capacity_positive"
@@ -715,40 +735,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   end
 
   create_table "sign_in_identities", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "email", null: false
-    t.datetime "last_signed_in_at"
+    t.bigint "user_id", null: false
     t.string "provider", null: false
     t.string "tenant_id", null: false
     t.string "uid", null: false
+    t.string "email", null: false
+    t.datetime "last_signed_in_at"
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
     t.index ["provider", "tenant_id", "uid"], name: "index_sign_in_identities_on_provider_and_tenant_id_and_uid", unique: true
     t.index ["user_id"], name: "index_sign_in_identities_on_user_id"
   end
 
   create_table "solid_queue_batch_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
     t.bigint "batch_id", null: false
     t.datetime "created_at", null: false
-    t.bigint "job_id", null: false
     t.index ["batch_id"], name: "index_solid_queue_batch_executions_on_batch_id"
     t.index ["job_id"], name: "index_solid_queue_batch_executions_on_job_id", unique: true
   end
 
   create_table "solid_queue_batches", force: :cascade do |t|
     t.string "active_job_batch_id"
-    t.integer "completed_jobs", default: 0, null: false
-    t.datetime "created_at", null: false
     t.string "description"
-    t.datetime "enqueued_at"
-    t.datetime "failed_at"
-    t.integer "failed_jobs", default: 0, null: false
-    t.datetime "finished_at"
-    t.text "metadata"
-    t.text "on_failure"
     t.text "on_finish"
     t.text "on_success"
+    t.text "on_failure"
+    t.text "metadata"
     t.integer "total_jobs", default: 0, null: false
+    t.integer "completed_jobs", default: 0, null: false
+    t.integer "failed_jobs", default: 0, null: false
+    t.datetime "enqueued_at"
+    t.datetime "finished_at"
+    t.datetime "failed_at"
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["active_job_batch_id"], name: "index_solid_queue_batches_on_active_job_batch_id", unique: true
     t.index ["finished_at"], name: "index_solid_queue_batches_on_finished_at"
@@ -784,7 +804,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   create_table "solid_queue_jobs", force: :cascade do |t|
     t.string "active_job_id"
     t.text "arguments"
-    t.bigint "batch_id"
     t.string "class_name", null: false
     t.string "concurrency_key"
     t.datetime "created_at", null: false
@@ -793,6 +812,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.string "queue_name", null: false
     t.datetime "scheduled_at"
     t.datetime "updated_at", null: false
+    t.bigint "batch_id"
     t.index ["active_job_id"], name: "index_solid_queue_jobs_on_active_job_id"
     t.index ["batch_id"], name: "index_solid_queue_jobs_on_batch_id"
     t.index ["class_name"], name: "index_solid_queue_jobs_on_class_name"
@@ -885,7 +905,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.string "tag_name", null: false
     t.datetime "updated_at", null: false
     t.index ["faculty_id", "rmp_legacy_id"], name: "index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id", unique: true
-    t.index ["faculty_id"], name: "index_teacher_rating_tags_on_faculty_id"
+  end
+
+  create_table "term_processing_statuses", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "term_id", null: false
+    t.string "status", null: false
+    t.string "error_code"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["term_id"], name: "index_term_processing_statuses_on_term_id"
+    t.index ["user_id", "term_id"], name: "index_term_processing_statuses_on_user_id_and_term_id", unique: true
   end
 
   create_table "terms", force: :cascade do |t|
@@ -1011,7 +1041,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
     t.index ["jti"], name: "index_user_sessions_on_jti", unique: true
     t.index ["passkey_id"], name: "index_user_sessions_on_passkey_id"
     t.index ["user_id", "revoked_at"], name: "index_user_sessions_on_user_id_and_revoked_at"
-    t.index ["user_id"], name: "index_user_sessions_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -1084,12 +1113,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   add_foreign_key "final_exams", "terms"
   add_foreign_key "finals_schedules", "terms"
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
+  add_foreign_key "friend_group_memberships", "friend_groups", on_delete: :cascade
+  add_foreign_key "friend_group_memberships", "friendships", on_delete: :cascade
+  add_foreign_key "friend_groups", "users", on_delete: :cascade
   add_foreign_key "friend_meeting_attendees", "friend_meetings"
   add_foreign_key "friend_meeting_attendees", "users"
   add_foreign_key "friend_meeting_publications", "friend_meetings"
   add_foreign_key "friend_meetings", "terms"
   add_foreign_key "friend_meetings", "users"
   add_foreign_key "friendships", "users", column: "addressee_id"
+  add_foreign_key "friendships", "users", column: "proposed_by_id"
   add_foreign_key "friendships", "users", column: "requester_id"
   add_foreign_key "meeting_links", "friend_meetings", on_delete: :nullify
   add_foreign_key "meeting_links", "users"
@@ -1119,6 +1152,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_07_100400) do
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
+  add_foreign_key "term_processing_statuses", "terms"
+  add_foreign_key "term_processing_statuses", "users"
   add_foreign_key "university_calendar_events", "terms"
   add_foreign_key "user_extension_configs", "users"
   add_foreign_key "user_sessions", "passkeys"

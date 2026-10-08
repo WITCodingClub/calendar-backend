@@ -19,7 +19,6 @@ require "rails_helper"
 # Indexes
 #
 #  index_passkeys_on_external_id           (external_id) UNIQUE
-#  index_passkeys_on_user_id               (user_id)
 #  index_passkeys_on_user_id_and_nickname  (user_id,nickname) UNIQUE
 #
 # Foreign Keys

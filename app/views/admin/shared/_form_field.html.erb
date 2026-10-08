@@ -1,0 +1,13 @@
+<%# One form field: the label, the input from the block, a hint, and the
+    errors for the attribute. Give inputs the m3-input or m3-select class. %>
+<% errors = form.object&.errors&.full_messages_for(attribute) || [] %>
+<div>
+  <%= form.label attribute, local_assigns[:label], class: "m3-label" %>
+  <%= yield %>
+  <% if local_assigns[:hint].present? %>
+    <p class="mt-1 text-xs text-on-surface-variant"><%= hint %></p>
+  <% end %>
+  <% errors.each do |message| %>
+    <p class="mt-1 text-xs text-error"><%= message %></p>
+  <% end %>
+</div>

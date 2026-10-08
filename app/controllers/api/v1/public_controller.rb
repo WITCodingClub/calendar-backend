@@ -13,7 +13,7 @@ module Api
       # Declared first. rescue_from tries the last handler first, so the
       # specific handlers below still win.
       rescue_from StandardError, with: :render_internal_error
-      rescue_from ::Catalog::SectionQuery::FilterError, with: :render_bad_request
+      rescue_from ::Catalog::FilterError, with: :render_bad_request
       rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
 
       private
@@ -57,6 +57,10 @@ module Api
         per_page = per_page.clamp(1, ::Catalog::SectionQuery::MAX_PER_PAGE)
 
         [ page, per_page ]
+      end
+
+      def boolean_param(key)
+        ActiveModel::Type::Boolean.new.cast(params[key]).present?
       end
 
       def array_param(key)

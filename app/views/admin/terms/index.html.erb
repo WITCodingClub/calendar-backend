@@ -1,44 +1,18 @@
-<% content_for :title, "Terms" %>
+<%= render "admin/shared/page_header", title: "Terms", subtitle: "Academic terms, newest first." %>
 
-<div class="container mx-auto px-2 pb-8">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-on-surface">Terms</h1>
-    <%= link_to "Back to Dashboard", admin_root_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-  </div>
-
-  <div class="m3-card shadow-sm rounded-xl overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-outline-variant">
-        <thead class="bg-surface-container-high">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Term</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Year</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Season</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">UID</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Created</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-outline-variant">
-          <% @terms.each do |term| %>
-            <tr class="hover:bg-surface-container cursor-pointer transition" data-href="<%= admin_term_path(term) %>" onclick="window.location = this.dataset.href">
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium">
-                  <%= link_to term.name, admin_term_path(term), class: "text-primary hover:underline" %>
-                </div>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= term.year %></td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= term.season&.capitalize %></td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= term.uid %></td>
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface"><%= term.created_at.strftime("%b %d, %Y") %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-    <% if @terms.respond_to?(:total_pages) %>
-      <div class="px-6 py-4 border-t border-outline-variant bg-surface-container-low">
-        <%= paginate @terms %>
-      </div>
+<%= admin_table(@terms, empty: "No terms yet.") do |t| %>
+  <% t.column("Term") { |term| link_to term.name, admin_term_path(term), class: "font-medium text-primary hover:underline" } %>
+  <% t.column("UID") { |term| tag.code(term.uid, class: "text-xs") } %>
+  <% t.column("Courses", align: :right) { |term| number_with_delimiter(@course_counts.fetch(term.id, 0)) } %>
+  <% t.column("Catalog") do |term| %>
+    <% if term.catalog_importing? %>
+      <%= admin_badge("Importing…", :info) %>
+    <% elsif term.catalog_import_failed? %>
+      <%= admin_badge("Import failed", :danger) %>
+    <% elsif term.catalog_imported? %>
+      <%= admin_badge("Imported", :success) %>
+    <% else %>
+      <%= admin_badge("Not imported") %>
     <% end %>
-  </div>
-</div>
+  <% end %>
+<% end %>

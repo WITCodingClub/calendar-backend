@@ -1,127 +1,40 @@
-<% content_for :title, "#{@course.subject} #{@course.course_number}" %>
+<%= render "admin/shared/page_header",
+    title: "#{@course.subject} #{@course.course_number}",
+    subtitle: @course.title,
+    back: [ "Courses", admin_courses_path ] %>
 
-<div class="container mx-auto px-2 pb-8">
-  <div class="flex justify-between items-center mb-6">
-    <div>
-      <h1 class="text-2xl font-bold text-on-surface"><%= @course.subject %> <%= @course.course_number %> - <%= @course.title %></h1>
-      <div class="flex gap-4 mt-1 text-sm text-on-surface-variant">
-        <span>CRN: <%= @course.crn %></span>
-        <span>Term: <%= link_to @course.term.name, admin_term_path(@course.term), class: "text-primary hover:underline" %></span>
-        <% if @course.credit_hours %>
-          <span>Credits: <%= @course.credit_hours %></span>
+<div class="space-y-6">
+  <%= render "admin/shared/card", title: "Details" do %>
+    <%= admin_details(columns: 3) do |d| %>
+      <% d.item("CRN") { @course.crn } %>
+      <% d.item("Term") { link_to @course.term.name, admin_term_path(@course.term), class: "text-primary hover:underline" } %>
+      <% d.item("Section") { @course.section_number } %>
+      <% d.item("Credits") { @course.credit_hours } %>
+      <% d.item("Instructors", wide: true) do %>
+        <% if @course.faculties.any? %>
+          <%= safe_join(@course.faculties.map { |f| link_to f.full_name, admin_faculty_path(f), class: "text-primary hover:underline" }, ", ") %>
+        <% else %>
+          TBA
         <% end %>
-      </div>
-    </div>
-    <%= link_to "Back to Courses", admin_courses_path, class: "m3-btn-outlined px-4 py-2 rounded text-sm cursor-pointer inline-block" %>
-  </div>
-
-  <div class="mb-8">
-    <h2 class="text-xl font-semibold mb-4 text-on-surface">Details</h2>
-    <div class="m3-card shadow-sm rounded-xl overflow-hidden p-6">
-      <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <dt class="text-sm font-medium text-on-surface-variant">Subject</dt>
-          <dd class="mt-1 text-sm text-on-surface"><%= @course.subject %></dd>
-        </div>
-        <div>
-          <dt class="text-sm font-medium text-on-surface-variant">Course Number</dt>
-          <dd class="mt-1 text-sm text-on-surface"><%= @course.course_number %></dd>
-        </div>
-        <div>
-          <dt class="text-sm font-medium text-on-surface-variant">Section</dt>
-          <dd class="mt-1 text-sm text-on-surface"><%= @course.section_number.presence || "N/A" %></dd>
-        </div>
-        <div class="md:col-span-2">
-          <dt class="text-sm font-medium text-on-surface-variant">Instructors</dt>
-          <dd class="mt-1 text-sm text-on-surface">
-            <% if @course.faculties.any? %>
-              <%= safe_join(@course.faculties.map { |f| link_to f.full_name, admin_faculty_path(f), class: "text-primary hover:underline" }, ", ") %>
-            <% else %>
-              TBA
-            <% end %>
-          </dd>
-        </div>
-      </dl>
-    </div>
-  </div>
-
-  <div class="mb-8">
-    <h2 class="text-xl font-semibold mb-4 text-on-surface">Meeting Times (<%= @course.meeting_times.count %>)</h2>
-    <% if @course.meeting_times.any? %>
-      <div class="m3-card shadow-sm rounded-xl overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-outline-variant">
-            <thead class="bg-surface-container-high">
-              <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Day</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Time</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Location</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Dates</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-outline-variant">
-              <% @course.meeting_times.each do |mt| %>
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">
-                    <%= mt.day_of_week&.capitalize || "TBA" %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
-                    <% if mt.begin_time && mt.end_time %>
-                      <%= mt.formatted_time_range %>
-                    <% else %>
-                      TBA
-                    <% end %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
-                    <%= mt.building_room.presence || "TBA" %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
-                    <% if mt.start_date && mt.end_date %>
-                      <%= mt.start_date.strftime("%m/%d") %> – <%= mt.end_date.strftime("%m/%d/%Y") %>
-                    <% else %>
-                      TBA
-                    <% end %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    <% else %>
-      <p class="text-on-surface-variant">No meeting times scheduled.</p>
+      <% end %>
     <% end %>
-  </div>
+  <% end %>
 
-  <div>
-    <h2 class="text-xl font-semibold mb-4 text-on-surface">Enrolled Students (<%= @course.enrollments.count %>)</h2>
-    <% if @course.enrollments.any? %>
-      <div class="m3-card shadow-sm rounded-xl overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-outline-variant">
-            <thead class="bg-surface-container-high">
-              <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Student</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Email</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-outline-variant">
-              <% @course.enrollments.includes(:user).each do |enrollment| %>
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    <%= link_to enrollment.user.full_name || "User ##{enrollment.user.id}", admin_user_path(enrollment.user), class: "text-primary hover:underline font-medium" %>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-on-surface">
-                    <%= enrollment.user.email %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    <% else %>
-      <p class="text-on-surface-variant">No students enrolled.</p>
+  <% meeting_times = @course.meeting_times.to_a %>
+  <%= render "admin/shared/card", title: "Meeting times", subtitle: pluralize(meeting_times.size, "meeting time"), flush: true do %>
+    <%= admin_table(meeting_times, card: false, empty: "No meeting times scheduled.") do |t| %>
+      <% t.column("Day") { |mt| mt.day_of_week&.capitalize || "TBA" } %>
+      <% t.column("Time") { |mt| mt.begin_time && mt.end_time ? mt.formatted_time_range : "TBA" } %>
+      <% t.column("Location") { |mt| mt.building_room.presence || "TBA" } %>
+      <% t.column("Dates") { |mt| "#{mt.start_date.strftime('%m/%d')} – #{mt.end_date.strftime('%m/%d/%Y')}" if mt.start_date && mt.end_date } %>
     <% end %>
-  </div>
+  <% end %>
+
+  <% enrollments = @course.enrollments.includes(:user).to_a %>
+  <%= render "admin/shared/card", title: "Enrolled students", subtitle: pluralize(enrollments.size, "student"), flush: true do %>
+    <%= admin_table(enrollments, card: false, empty: "No students enrolled.") do |t| %>
+      <% t.column("Student") { |enrollment| link_to enrollment.user.full_name, admin_user_path(enrollment.user), class: "font-medium text-primary hover:underline" } %>
+      <% t.column("Email") { |enrollment| enrollment.user.email } %>
+    <% end %>
+  <% end %>
 </div>

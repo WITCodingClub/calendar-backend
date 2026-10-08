@@ -180,4 +180,80 @@ RSpec.describe Rack::Attack do
       Rack::Attack.cache.store = Rails.cache
     end
   end
+
+  describe "cache store" do
+    # A store whose database table is missing, as when the cache database
+    # exists but solid_cache_entries does not.
+    let(:broken_store) do
+      Class.new do
+        %i[read write increment delete].each do |name|
+          define_method(name) { |*| raise ActiveRecord::StatementInvalid, "PG::UndefinedTable" }
+        end
+      end.new
+    end
+
+    let(:app) { ->(_env) { [ 200, {}, [ "ok" ] ] } }
+
+    around do |example|
+      original = described_class.cache.store
+      example.run
+    ensure
+      described_class.cache.store = original
+    end
+
+    it "wraps Rails.cache so a cache error does not stop the request" do
+      expect(described_class.cache.store).to be_a(described_class::FailOpenStore)
+      expect(described_class.cache.store.__getobj__).to be(Rails.cache)
+    end
+
+    it "lets the request through when the cache database raises" do
+      described_class.cache.store = described_class::FailOpenStore.new(broken_store)
+      allow(Rails.error).to receive(:report)
+
+      status, _headers, _body = described_class.new(app).call(
+        Rack::MockRequest.env_for("/api/user/email", "REMOTE_ADDR" => "203.0.113.9")
+      )
+
+      expect(status).to eq(200)
+      expect(Rails.error).to have_received(:report)
+        .with(an_instance_of(ActiveRecord::StatementInvalid), hash_including(handled: true)).at_least(:once)
+    end
+
+    it "does not hide errors that do not come from the database" do
+      store = Class.new { def read(*) = raise(ArgumentError, "bug") }.new
+
+      expect { described_class::FailOpenStore.new(store).read("key") }.to raise_error(ArgumentError)
+    end
+  end
+
+  describe "process courses throttle" do
+    def discriminator(path)
+      request = Rack::Attack::Request.new(
+        Rack::MockRequest.env_for(path, method: "POST", "HTTP_AUTHORIZATION" => "Bearer #{api_token_for(user)}")
+      )
+      described_class.throttles.fetch("api/process-courses").block.call(request)
+    end
+
+    it "counts single and batch requests against the same budget" do
+      expect(discriminator("/api/process_courses")).to eq("process-courses:#{user.id}")
+      expect(discriminator("/api/process_courses/batch")).to eq("process-courses:#{user.id}")
+    end
+
+    it "counts the path variants that the router also accepts" do
+      %w[
+        /api/process_courses.json
+        /api/process_courses/batch.json
+        /api/process_courses/
+        /api/process_courses/batch/
+        /api//process_courses/batch
+      ].each do |path|
+        expect(discriminator(path)).to eq("process-courses:#{user.id}"), "expected #{path} to be throttled"
+      end
+    end
+
+    it "does not count other paths" do
+      expect(discriminator("/api/process_courses/other")).to be_nil
+      expect(discriminator("/api/courses/reprocess")).to be_nil
+    end
+  end
 end

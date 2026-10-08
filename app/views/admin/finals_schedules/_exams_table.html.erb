@@ -1,0 +1,25 @@
+<%# The final exams of a term. A row with no matching course yet is marked. %>
+<%= admin_table(exams, card: false, paginate: false, empty: "No final exams found for this term.") do |t| %>
+  <% t.row_class { |exam| "bg-secondary-container/30" if exam.orphan? } %>
+  <% t.column("CRN") do |exam| %>
+    <span class="font-mono"><%= exam.crn %></span>
+    <%= admin_badge("No course yet", :warning, title: "No course found for this CRN yet") if exam.orphan? %>
+  <% end %>
+  <% t.column("Course") do |exam| %>
+    <% if exam.linked? %>
+      <span class="font-medium"><%= exam.course.subject %>-<%= exam.course.course_number %>-<%= exam.course.section_number %></span>
+      <div class="text-xs text-on-surface-variant"><%= exam.course.title %></div>
+    <% else %>
+      <span class="italic text-on-surface-variant">Links when the course is imported</span>
+    <% end %>
+  <% end %>
+  <% t.column("Date") { |exam| exam.exam_date.strftime("%a, %b %-d, %Y") } %>
+  <% t.column("Time") { |exam| "#{exam.formatted_start_time} – #{exam.formatted_end_time}" } %>
+  <% t.column("Location") do |exam| %>
+    <% if exam.respond_to?(:rooms_matched?) && exam.rooms_matched? %>
+      <span title="<%= exam.location %>"><%= exam.location_with_names %></span>
+    <% else %>
+      <%= exam.location.presence %>
+    <% end %>
+  <% end %>
+<% end %>

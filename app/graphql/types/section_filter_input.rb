@@ -12,6 +12,9 @@ module Types
     argument :pub_ids, [ String ], required: false,
              description: "Public ids, which stay unique across terms"
     argument :q, String, required: false, description: "Free text over title, subject, and number"
+    argument :semantic, Boolean, required: false, default_value: false,
+             description: "Rank q by meaning instead of by the literal words. " \
+                          "Falls back to the literal match when semantic search is off."
     argument :schedule_types, [ ScheduleTypeEnum ], required: false
     argument :meets_on, [ DayOfWeekEnum ], required: false,
              description: "Keep sections meeting on at least one of these days"

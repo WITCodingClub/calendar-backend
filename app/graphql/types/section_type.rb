@@ -29,6 +29,19 @@ module Types
     field :meeting_times, [ MeetingTimeType ], null: false
     field :final_exam, FinalExamType, null: true
 
+    # Each call runs its own vector query, so the field costs more than a
+    # column and says so. It is empty until the section has been embedded.
+    field :similar, [ SectionType ], null: false, complexity: 10,
+          description: "Sections in the same term that teach something close to this one" do
+      argument :limit, Integer, required: false, default_value: Embeddable::DEFAULT_SIMILAR_LIMIT
+      directive Directives::ListSize, slicing_arguments: [ "limit" ],
+                assumed_size: Embeddable::MAX_SIMILAR_LIMIT, require_one_slicing_argument: false
+    end
+
+    def similar(limit:)
+      object.similar_sections(limit: limit.clamp(1, Embeddable::MAX_SIMILAR_LIMIT))
+    end
+
     def course_code
       ::Catalog::SectionSerializer.course_code_for(object)
     end

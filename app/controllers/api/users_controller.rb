@@ -2,7 +2,22 @@
 
 module Api
   class UsersController < ApiController
+    include BusyBlocksParams
+
     skip_before_action :authenticate_user_from_token!, only: [ :onboard ]
+
+    # GET /api/user/busy_blocks?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+    #
+    # The busy blocks of the signed-in user, built by the same service as
+    # GET /api/friends/:friend_id/busy_blocks. The client can then compare both
+    # sides with the same logic. It sends the data of the user only.
+    def busy_blocks
+      from, to = busy_blocks_range
+      return if performed?
+
+      blocks = BusyBlocks.new(current_user, from: from, to: to).call
+      render json: BusyBlocksSerializer.new(blocks, from: from, to: to).as_json, status: :ok
+    end
 
     # POST /api/user/onboard
     #
@@ -69,24 +84,23 @@ module Api
     end
 
     # POST /api/user/gcal
+    #
+    # The email is optional. Without it, the person picks any Google account in
+    # the OAuth screen. With it, only that account is accepted, as in older
+    # extension builds.
     def request_g_cal
       email = params[:email].to_s.strip
 
-      if email.blank?
-        render json: { error: "email is required" }, status: :bad_request
-        return
-      end
-
-      if current_user.google_credential_for_email(email).present?
+      if email.present? && current_user.google_credential_for_email(email).present?
         service     = GoogleCalendarService.new(current_user)
         calendar_id = service.create_or_get_course_calendar
 
         render json: { message: "email already connected", calendar_id: calendar_id }, status: :ok
       else
-        state     = GoogleOauthStateService.generate_state(user_id: current_user.id, email: email)
+        state     = GoogleOauthStateService.generate_state(user_id: current_user.id, email: email.presence)
         oauth_url = "#{request.base_url}/auth/google_oauth2?state=#{CGI.escape(state)}"
 
-        render json: { message: "OAuth required", email: email, oauth_url: oauth_url }, status: :ok
+        render json: { message: "OAuth required", email: email.presence, oauth_url: oauth_url }, status: :ok
       end
     rescue => e
       Rails.logger.error("Error requesting Google Calendar for user #{current_user.id}: #{e.message}")
@@ -246,8 +260,9 @@ module Api
         return
       end
 
-      processed = current_user.enrollments.exists?(term_id: term.id)
-      render json: { processed: processed }, status: :ok
+      status_row = current_user.term_processing_statuses.find_by(term: term)
+      enrolled = status_row.nil? && current_user.enrollments.exists?(term_id: term.id)
+      render json: TermProcessingStatusSerializer.new(status_row, enrolled: enrolled).as_json, status: :ok
     end
 
     # POST /api/user/processed_events

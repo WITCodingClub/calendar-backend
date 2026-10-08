@@ -18,11 +18,11 @@ RSpec.describe FriendMeetingPolicy do
   end
 
   it "lets the owner see, change, and delete the meeting" do
-    expect(policy(owner)).to have_attributes(show?: true, update?: true, destroy?: true)
+    expect(policy(owner)).to have_attributes(show?: true, update?: true, destroy?: true, leave?: false)
   end
 
-  it "lets an invited friend only see the meeting" do
-    expect(policy(friend)).to have_attributes(show?: true, update?: false, destroy?: false)
+  it "lets an invited friend only see and leave the meeting" do
+    expect(policy(friend)).to have_attributes(show?: true, update?: false, destroy?: false, leave?: true)
   end
 
   it "hides the meeting from a friend that the owner did not invite" do
@@ -32,14 +32,14 @@ RSpec.describe FriendMeetingPolicy do
   end
 
   it "gives a stranger nothing" do
-    expect(policy(stranger)).to have_attributes(show?: false, update?: false, destroy?: false)
+    expect(policy(stranger)).to have_attributes(show?: false, update?: false, destroy?: false, leave?: false)
   end
 
   it "gives no one a cancelled meeting" do
     meeting.update!(cancelled_at: Time.current)
 
     expect(policy(owner)).to have_attributes(show?: false, update?: false, destroy?: false)
-    expect(policy(friend).show?).to be(false)
+    expect(policy(friend)).to have_attributes(show?: false, leave?: false)
   end
 
   describe FriendMeetingPolicy::Scope do

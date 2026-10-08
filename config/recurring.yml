@@ -33,6 +33,12 @@ production:
     queue: low
     schedule: every hour at minute 42
 
+  # Expired friendships already grant nothing. This only deletes the rows.
+  remove_expired_friendships:
+    class: RemoveExpiredFriendshipsJob
+    queue: low
+    schedule: every hour at minute 27
+
   # ---------------------------------------------------------------------------
   # EVERY 6 HOURS
   # ---------------------------------------------------------------------------
@@ -65,6 +71,13 @@ production:
     class: CleanupOrphanedOauthCredentialsJob
     queue: low
     schedule: every day at 4:30am
+
+  # Embeds the sections the catalog sync just wrote, and any instructor or
+  # review text that changed. Text that did not change never reaches the API.
+  backfill_embeddings:
+    class: BackfillEmbeddingsJob
+    queue: low
+    schedule: every day at 4:45am
 
   cleanup_orphaned_calendar_events:
     class: CleanupOrphanedCalendarEventsJob

@@ -1,8 +1,24 @@
 # frozen_string_literal: true
 
 class Rack::Attack
-  # Use Rails.cache (Solid Cache in production, memory store in dev/test)
-  Rack::Attack.cache.store = Rails.cache
+  # Rack::Attack reads the cache on every request and rescues only Redis and
+  # Dalli errors. Solid Cache rescues only timeouts and lost connections, so a
+  # missing table or another database error would fail every request. This
+  # wrapper reports the error and fails open: the request goes through without
+  # a limit until the cache works again.
+  class FailOpenStore < SimpleDelegator
+    %i[read write increment delete].each do |method_name|
+      define_method(method_name) do |*args, **options|
+        __getobj__.public_send(method_name, *args, **options)
+      rescue ActiveRecord::ActiveRecordError => error
+        Rails.error.report(error, handled: true, severity: :warning, source: "rack_attack.cache")
+        nil
+      end
+    end
+  end
+
+  # Use Rails.cache (Solid Cache in production, null store in test)
+  Rack::Attack.cache.store = FailOpenStore.new(Rails.cache)
 
   # Public, unauthenticated catalog API. Kept as one predicate so the throttle
   # and blocklist rules below cannot drift apart.
@@ -114,9 +130,26 @@ class Rack::Attack
     req.ip if PUBLIC_CATALOG_PATH.call(req)
   end
 
+  # A semantic search embeds the query, which costs an API call whenever the
+  # words are new. The cache absorbs the repeats; this limit absorbs the rest.
+  # Only the REST path is read here: GraphQL carries its query in the body, and
+  # the 300/min catalog limit above already covers it.
+  throttle("catalog/semantic", limit: 30, period: 1.minute) do |req|
+    req.ip if req.path.start_with?("/api/v1/catalog") && req.GET["semantic"].present?
+  end
+
+  # The batch path shares this budget. A batch counts as one request, and it
+  # processes only its first term inside the request.
+  #
+  # The router also accepts a format suffix ("/api/process_courses.json"), a
+  # trailing slash, and repeated slashes. Normalize the path the same way the
+  # router does, so these variants use the same budget.
+  PROCESS_COURSES_PATH = %r{\A/api/process_courses(?:/batch)?(?:\.[^/.?]+)?\z}
+
   throttle("api/process-courses", limit: 5, period: 1.minute) do |req|
-    user_id = extract_user_id_from_jwt(req)
-    "process-courses:#{user_id}" if req.path == "/api/process_courses" && req.post? && user_id
+    path = ActionDispatch::Journey::Router::Utils.normalize_path(req.path)
+    user_id = extract_user_id_from_jwt(req) if req.post? && PROCESS_COURSES_PATH.match?(path)
+    "process-courses:#{user_id}" if user_id
   end
 
   throttle("api/preview-template", limit: 10, period: 1.minute) do |req|

@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class Dashboard::NotificationsController < Dashboard::ApplicationController
+  # An account page. It works before the user processes any courses.
+  skip_before_action :require_processed_courses
+
   # Reminder offsets the university event picker offers, in the order shown.
   # Google fires a reminder relative to the start, and an all day event starts
   # at midnight, so the offsets read differently for those. The labels say so.

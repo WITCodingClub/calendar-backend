@@ -9,7 +9,9 @@ module Admin
         @courses = @courses.where("title ILIKE ? OR subject ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
       end
 
-      @courses = @courses.page(params[:page]).per(6)
+      @courses = @courses.where(term_id: params[:term_id]) if params[:term_id].present?
+      @courses = @courses.page(params[:page]).per(25)
+      @terms   = Term.reverse_chronological
     end
 
     def show

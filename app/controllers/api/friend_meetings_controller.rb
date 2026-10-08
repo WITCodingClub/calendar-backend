@@ -8,7 +8,7 @@ module Api
     MAX_RANGE = 366.days
 
     before_action :require_friend_meeting_events
-    before_action :set_meeting, only: %i[show update destroy]
+    before_action :set_meeting, only: %i[show update destroy leave]
 
     # GET /api/friends/meetings?start=&end=
     #
@@ -84,6 +84,19 @@ module Api
 
       @meeting.update!(cancelled_at: Time.current)
       FriendMeetingRemoveJob.perform_later(@meeting)
+      head :no_content
+    end
+
+    # DELETE /api/friends/meetings/:id/attendance
+    #
+    # An invited friend leaves the meeting. It is gone from their list, their
+    # busy blocks, and their ICS feed at once. For a meeting that has not ended,
+    # a job updates the provider events, so the owner sees that they left.
+    def leave
+      authorize @meeting, :leave?
+
+      @meeting.friend_meeting_attendees.where(user_id: current_user.id).delete_all
+      FriendMeetingUpdateJob.perform_later(@meeting) if FriendMeeting.not_ended.exists?(@meeting.id)
       head :no_content
     end
 

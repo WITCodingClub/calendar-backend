@@ -1,0 +1,6 @@
+<% if policy(Faculty).sync_directory? %>
+  <%= button_to "Sync directory", sync_directory_admin_faculties_path,
+      method: :post,
+      form: { data: { turbo_confirm: "This will sync all 800+ faculty/staff from the WIT directory. Continue?" } },
+      class: "m3-btn-tonal" %>
+<% end %>

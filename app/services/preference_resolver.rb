@@ -46,6 +46,13 @@ class PreferenceResolver
     visibility: "default"
   }.freeze
 
+  # Every default constant that resolve_field can return. PreferenceVersion
+  # hashes these, so a deploy that changes one gives each user a new version.
+  # Add a new default constant here.
+  def self.defaults
+    [ SYSTEM_DEFAULTS, FINAL_EXAM_DEFAULTS, UNI_CAL_DEFAULTS, UNI_CAL_ALL_DAY_REMINDERS, UNI_CAL_TIMED_REMINDERS ]
+  end
+
   def initialize(user)
     @user = user
     @cache = {}
@@ -91,6 +98,26 @@ class PreferenceResolver
 
   def get_event_preference(event)
     @event_preferences[[ event.class.name, event.id ]]
+  end
+
+  # The latest updated_at of the rows that resolve_for reads for this event:
+  # the event's own preference, each calendar preference on its lookup path,
+  # and the extension config (default colors). Nil when no row applies. It
+  # uses only the preloaded rows, so it runs no query. A deleted row cannot
+  # move it, so a removed preference shows only with the next other change.
+  def last_changed_at_for(event)
+    event_type = extract_event_type(event)
+    uni_cal_category = extract_uni_cal_category(event)
+    uni_cal = university_calendar_event?(event)
+
+    rows = [ @event_preferences[[ event.class.name, event.id ]] ]
+    rows << @calendar_preferences[[ "uni_cal_category", uni_cal_category ]] if uni_cal_category.present?
+    rows << @calendar_preferences[[ "uni_cal_global", nil ]] if uni_cal
+    rows << @calendar_preferences[[ "event_type", event_type ]] if event_type.present?
+    rows << @calendar_preferences[[ "global", nil ]] unless uni_cal
+    rows << @user.user_extension_config unless uni_cal
+
+    rows.compact.map(&:updated_at).max
   end
 
   private

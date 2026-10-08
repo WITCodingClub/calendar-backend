@@ -31,6 +31,10 @@ module Api
         return
       end
 
+      # Read the version before the preferences. A write between the two
+      # reads then gives an old version with new data, which the next version
+      # check corrects. The other order would label old data as current.
+      version       = PreferenceVersion.for(current_user)
       record_ids    = ids.index_with { |id| meeting_time_record_id(id) }
       meeting_times = Course::MeetingTime.includes(course: [ :faculties, :term ], rooms: :building)
                                          .where(id: record_ids.values.compact)
@@ -48,7 +52,7 @@ module Api
         end
       end
 
-      render json: { preferences: preferences, missing: missing }
+      render json: { preferences: preferences, missing: missing, version: version }
     end
 
     def update

@@ -9,7 +9,7 @@
   </div>
 
   <!-- Panel -->
-  <div class="fixed inset-x-0 top-20 z-50 mx-auto max-w-xl px-4 opacity-0 pointer-events-none transition-all duration-150"
+  <div class="fixed inset-x-0 top-16 sm:top-20 z-50 mx-auto max-w-xl px-4 opacity-0 pointer-events-none transition-all duration-150"
        data-command-palette-target="panel">
     <div class="m3-card rounded-xl overflow-hidden shadow-2xl">
       <!-- Search input -->
@@ -28,21 +28,23 @@
       <!-- Results -->
       <div class="max-h-80 overflow-y-auto py-2" data-command-palette-target="results">
         <% Admin::NavigationRegistry.items_for_user(current_user).each do |item| %>
-          <% item_path = item[:path].is_a?(Symbol) ? send(item[:path]) : item[:path] rescue '#' %>
-          <a href="<%= item_path %>"
-             <% if item[:external] %>target="_blank" rel="noopener"<% end %>
-             class="command-palette-item flex items-center gap-3 px-4 py-2.5 hover:bg-surface-container-high cursor-pointer transition-colors"
-             data-label="<%= item[:title].downcase %>">
-            <div class="w-7 h-7 flex items-center justify-center rounded-md bg-primary-container text-on-primary-container text-xs font-bold flex-shrink-0">
-              <%= item[:title][0] %>
-            </div>
-            <div>
-              <div class="text-sm font-medium text-on-surface"><%= item[:title] %></div>
+          <%# The filter matches the title, the description, and the keywords. %>
+          <% search_text = [ item[:title], item[:description], *item[:keywords] ].compact.join(" ").downcase %>
+          <%= link_to admin_nav_path(item),
+              target: ("_blank" if item[:external]),
+              rel: ("noopener" if item[:external]),
+              class: "command-palette-item flex items-center gap-3 px-4 py-2.5 hover:bg-surface-container-high cursor-pointer transition-colors",
+              data: { label: search_text } do %>
+            <span class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary-container text-on-primary-container shrink-0">
+              <%= admin_icon(item[:icon] || :chevron_right, css_class: "w-4 h-4") %>
+            </span>
+            <span class="min-w-0">
+              <span class="block text-sm font-medium text-on-surface"><%= item[:title] %></span>
               <% if item[:description] %>
-                <div class="text-xs text-on-surface-variant"><%= item[:description] %></div>
+                <span class="block text-xs text-on-surface-variant truncate"><%= item[:description] %></span>
               <% end %>
-            </div>
-          </a>
+            </span>
+          <% end %>
         <% end %>
       </div>
 

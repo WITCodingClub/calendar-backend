@@ -22,12 +22,30 @@
             <div>
               <p class="text-sm font-medium text-on-surface"><%= fr.requester.full_name %></p>
               <p class="text-xs text-on-surface-variant"><%= fr.requester.email %></p>
+              <% if fr.temporary? %>
+                <p class="text-xs text-on-surface-variant">Ends on <%= fr.expires_at.to_date.to_fs(:long) %></p>
+              <% end %>
+              <% if fr.expiry_proposal? %>
+                <%= render "expiry_proposal", friendship: fr, friend: fr.requester %>
+              <% end %>
+              <% if @friend_expiry_enabled %>
+                <%= render "expiry_controls", friendship: fr, friend: fr.requester %>
+              <% end %>
             </div>
             <div class="flex gap-2">
-              <%= button_to "Accept",
-                  accept_dashboard_friend_path(fr.id),
-                  method: :post,
-                  class: "m3-btn-filled text-xs px-4 py-2" %>
+              <% if Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user) %>
+                <%= form_with url: accept_dashboard_friend_path(fr.id), method: :post, class: "flex gap-2" do |f| %>
+                  <%= f.select :visibility,
+                      [ [ "Share full schedule", "full" ], [ "Share only when I am busy", "availability_only" ] ],
+                      {}, class: "m3-select w-auto text-xs" %>
+                  <%= f.submit "Accept", class: "m3-btn-filled text-xs px-4 py-2" %>
+                <% end %>
+              <% else %>
+                <%= button_to "Accept",
+                    accept_dashboard_friend_path(fr.id),
+                    method: :post,
+                    class: "m3-btn-filled text-xs px-4 py-2" %>
+              <% end %>
               <%= button_to "Decline",
                   decline_dashboard_friend_path(fr.id),
                   method: :post,
@@ -53,6 +71,15 @@
             <div>
               <p class="text-sm font-medium text-on-surface"><%= fr.addressee.full_name %></p>
               <p class="text-xs text-on-surface-variant"><%= fr.addressee.email %></p>
+              <% if fr.temporary? %>
+                <p class="text-xs text-on-surface-variant">Ends on <%= fr.expires_at.to_date.to_fs(:long) %></p>
+              <% end %>
+              <% if fr.expiry_proposal? %>
+                <%= render "expiry_proposal", friendship: fr, friend: fr.addressee %>
+              <% end %>
+              <% if @friend_expiry_enabled %>
+                <%= render "expiry_controls", friendship: fr, friend: fr.addressee %>
+              <% end %>
             </div>
             <span class="text-xs text-on-surface-variant">Pending</span>
           </div>

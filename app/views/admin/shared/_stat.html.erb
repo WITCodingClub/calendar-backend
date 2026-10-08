@@ -1,0 +1,17 @@
+<%# One number with a label. With `path:` the whole card is a link. `tone:`
+    colors the number (a key of AdminHelper::BADGE_TONES). %>
+<% number_class = {
+     danger: "text-error", warning: "text-secondary", success: "text-tertiary", info: "text-primary"
+   }.fetch(local_assigns[:tone]&.to_sym, "text-on-surface") %>
+<% body = capture do %>
+  <p class="text-xs font-medium text-on-surface-variant uppercase tracking-wide truncate"><%= label %></p>
+  <p class="mt-1 font-bold tabular-nums <%= value.is_a?(Numeric) ? "text-2xl" : "text-lg" %> <%= number_class %>"><%= value.is_a?(Numeric) ? number_with_delimiter(value) : value %></p>
+  <% if local_assigns[:hint].present? %>
+    <p class="mt-0.5 text-xs text-on-surface-variant truncate"><%= hint %></p>
+  <% end %>
+<% end %>
+<% if local_assigns[:path] %>
+  <%= link_to body, path, class: "m3-card block p-4 hover:bg-surface-container-high transition-colors" %>
+<% else %>
+  <div class="m3-card p-4"><%= body %></div>
+<% end %>

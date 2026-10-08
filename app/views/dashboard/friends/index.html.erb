@@ -23,24 +23,55 @@
   <% end %>
 
   <!-- Add friend -->
-  <%= form_with url: dashboard_friends_path, method: :post, class: "m3-card p-4 flex gap-2" do |f| %>
-    <%= f.text_field :friend_id,
-        placeholder: "Friend's user ID (usr_...)",
-        class: "m3-input flex-1" %>
-    <%= f.submit "Send request", class: "m3-btn-tonal" %>
+  <%= form_with url: dashboard_friends_path, method: :post, class: "m3-card p-4 space-y-3" do |f| %>
+    <div class="flex gap-2">
+      <%= f.text_field :friend_id,
+          placeholder: "Friend's user ID (usr_...)",
+          class: "m3-input flex-1" %>
+      <% if Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user) %>
+        <%= f.select :visibility,
+            [ [ "Share full schedule", "full" ], [ "Share only when I am busy", "availability_only" ] ],
+            {}, class: "m3-select w-auto" %>
+      <% end %>
+      <%= f.submit "Send request", class: "m3-btn-tonal" %>
+    </div>
+    <% if @friend_expiry_enabled %>
+      <div class="flex items-center gap-2">
+        <%= f.label :expires_on, "End date (optional)", class: "text-xs text-on-surface-variant" %>
+        <%= f.date_field :expires_on, min: Date.current + 1, class: "m3-input text-sm" %>
+      </div>
+      <p class="text-xs text-on-surface-variant">Leave the end date empty for a permanent friendship.</p>
+    <% end %>
   <% end %>
 
   <!-- Current friends -->
-  <% if @friends.empty? %>
+  <% if @friendships.empty? %>
     <div class="m3-card p-8 text-center text-on-surface-variant">No friends yet.</div>
   <% else %>
     <div class="m3-card divide-y divide-outline-variant overflow-hidden">
-      <% @friends.each do |friend| %>
+      <% @friendships.each do |friendship| %>
+        <% friend = friendship.friend_for(current_user) %>
         <div class="px-5 py-3 flex items-center justify-between gap-3">
           <div>
             <%= link_to friend.full_name, dashboard_friend_path(friend.public_id),
                 class: "text-sm font-medium text-on-surface hover:text-primary transition-colors" %>
             <p class="text-xs text-on-surface-variant"><%= friend.email %></p>
+            <% if @groups_enabled && @groups_by_friend[friend.id].any? %>
+              <ul class="mt-1 flex flex-wrap gap-1" aria-label="Groups">
+                <% @groups_by_friend[friend.id].each do |group| %>
+                  <li class="m3-badge-primary"><%= group.name %></li>
+                <% end %>
+              </ul>
+            <% end %>
+            <% if friendship.temporary? %>
+              <p class="text-xs text-on-surface-variant">Ends on <%= friendship.expires_at.to_date.to_fs(:long) %></p>
+            <% end %>
+            <% if friendship.expiry_proposal? %>
+              <%= render "expiry_proposal", friendship: friendship, friend: friend %>
+            <% end %>
+            <% if @friend_expiry_enabled %>
+              <%= render "expiry_controls", friendship: friendship, friend: friend %>
+            <% end %>
           </div>
           <div class="flex items-center gap-3">
             <%= link_to "View schedule", dashboard_friend_path(friend.public_id), class: "m3-btn-text text-xs" %>
@@ -53,5 +84,9 @@
         </div>
       <% end %>
     </div>
+  <% end %>
+
+  <% if @groups_enabled %>
+    <%= render "groups", groups: @groups, friends: @friends %>
   <% end %>
 </div>

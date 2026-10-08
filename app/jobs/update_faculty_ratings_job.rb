@@ -51,14 +51,13 @@ class UpdateFacultyRatingsJob < ApplicationJob
   end
 
   def fetch_and_store_ratings(faculty, service)
-    Rails.cache.delete("rmp:teacher:#{faculty.rmp_id}")
-    Rails.cache.delete_matched("rmp:ratings:#{faculty.rmp_id}:*")
-
-    teacher_data = service.get_teacher_details(faculty.rmp_id)
+    # force: true fetches fresh data and overwrites the cached pages. Solid
+    # Cache has no delete_matched, so the job cannot clear them by pattern.
+    teacher_data = service.get_teacher_details(faculty.rmp_id, force: true)
     teacher = teacher_data.dig("data", "node")
     return unless teacher
 
-    all_ratings = service.get_all_ratings(faculty.rmp_id)
+    all_ratings = service.get_all_ratings(faculty.rmp_id, force: true)
 
     store_raw_data(faculty, teacher_data, all_ratings)
     store_rating_distribution(faculty, teacher["ratingsDistribution"], teacher)

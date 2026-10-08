@@ -3,12 +3,12 @@
 require "rails_helper"
 
 RSpec.describe "Admin console audits", type: :request do
-  let(:admin) { create(:user, :admin, first_name: "Ada", last_name: "Lovelace") }
+  let(:admin) { create(:user, :super_admin, first_name: "Ada", last_name: "Lovelace") }
   let(:other_admin) { create(:user, :admin, first_name: "Grace", last_name: "Hopper") }
   let(:console_user) { Console1984::User.create!(username: "deploy") }
   let!(:console_session) { Console1984::Session.create!(user: console_user, reason: "Fix a stuck sync") }
 
-  context "when an admin is signed in" do
+  context "when a super admin is signed in" do
     before { sign_in admin }
 
     it "lists console sessions" do

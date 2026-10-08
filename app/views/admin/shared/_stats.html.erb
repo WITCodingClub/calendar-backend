@@ -1,0 +1,7 @@
+<%# A responsive row of stat cards. The block renders admin/shared/stat.
+    Tailwind finds class names in source, so the column classes are written
+    out in full. %>
+<% large_columns = { 3 => "lg:grid-cols-3", 4 => "lg:grid-cols-4", 5 => "lg:grid-cols-5", 6 => "lg:grid-cols-6" }.fetch(local_assigns.fetch(:columns, 4)) %>
+<div class="grid grid-cols-2 sm:grid-cols-3 <%= large_columns %> gap-3 mb-6">
+  <%= yield %>
+</div>

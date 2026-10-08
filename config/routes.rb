@@ -55,6 +55,12 @@ Rails.application.routes.draw do
   get "/oauth/success", to: "oauth#success"
   get "/oauth/failure", to: "oauth#failure"
 
+  # A Google account linked from a browser with no session waits here for the
+  # person to confirm it.
+  get    "/oauth/confirm", to: "oauth#confirm", as: :oauth_confirm
+  post   "/oauth/confirm", to: "oauth#link"
+  delete "/oauth/confirm", to: "oauth#cancel"
+
   # One-time meeting link page (public, token-gated). A guest picks one time.
   get  "/meet/:token", to: "meeting_links#show",   as: :meeting_link
   post "/meet/:token", to: "meeting_links#create", as: :book_meeting_link
@@ -82,8 +88,11 @@ Rails.application.routes.draw do
         get "subjects",         to: "subjects#index"
         get "sections",         to: "sections#index"
         get "sections/:crn",    to: "sections#show", as: :section, constraints: { crn: /\d+/ }
+        get "sections/:crn/similar", to: "sections#similar", as: :similar_sections, constraints: { crn: /\d+/ }
+        get "reviews",          to: "reviews#index"
         get "instructors",      to: "instructors#index"
         get "instructors/:pub_id", to: "instructors#show", as: :instructor
+        get "instructors/:pub_id/similar", to: "instructors#similar", as: :similar_instructors
       end
     end
   end
@@ -97,6 +106,7 @@ Rails.application.routes.draw do
     post "user/gcal",                              to: "users#request_g_cal"
     post "user/gcal/add_email",                    to: "users#add_email_to_g_cal"
     delete "user/gcal/remove_email",               to: "users#remove_email_from_g_cal"
+    get "user/busy_blocks",                        to: "users#busy_blocks"
     get "user/id",                                   to: "users#get_id"
     get "user/email",                              to: "users#get_email"
     get "user/ics_url",                            to: "users#get_ics_url"
@@ -141,12 +151,22 @@ Rails.application.routes.draw do
     get    "friends/meetings/:id",                      to: "friend_meetings#show"
     patch  "friends/meetings/:id",                      to: "friend_meetings#update"
     delete "friends/meetings/:id",                      to: "friend_meetings#destroy"
+    delete "friends/meetings/:id/attendance",           to: "friend_meetings#leave"
     get    "friends/requests",                          to: "friends#requests"
     post   "friends/requests",                          to: "friends#create_request"
     post   "friends/requests/:request_id/accept",       to: "friends#accept"
     post   "friends/requests/:request_id/decline",      to: "friends#decline"
     delete "friends/requests/:request_id",              to: "friends#cancel_request"
+    # Friend groups. Every route answers 404 while the friend_groups flag is off.
+    get    "friends/groups",                            to: "friend_groups#index"
+    post   "friends/groups",                            to: "friend_groups#create"
+    get    "friends/groups/:group_id",                  to: "friend_groups#show"
+    patch  "friends/groups/:group_id",                  to: "friend_groups#update"
+    delete "friends/groups/:group_id",                  to: "friend_groups#destroy"
+    post   "friends/groups/:group_id/members",          to: "friend_groups#add_member"
+    delete "friends/groups/:group_id/members/:friend_id", to: "friend_groups#remove_member"
     delete "friends/:friend_id",                        to: "friends#unfriend"
+    patch  "friends/:friend_id/expiry",                 to: "friends#update_expiry"
     post   "friends/:friend_id/processed_events",       to: "friends#processed_events"
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
     get    "friends/:friend_id/visibility",             to: "friends#visibility"
@@ -163,13 +183,16 @@ Rails.application.routes.draw do
     get "terms/current_and_next", to: "misc#get_current_and_next_terms"
 
     # Course processing
-    post "process_courses",    to: "courses#process_courses"
+    post "process_courses",       to: "courses#process_courses"
+    post "process_courses/batch", to: "courses#process_courses_batch"
     post "courses/reprocess",  to: "courses#reprocess"
 
     # Calendar preferences (global + per event-type + per university calendar category)
     resources :calendar_preferences, only: [ :index, :show, :update, :destroy ] do
       collection { post :preview }
     end
+
+    get "user/preferences/version", to: "preference_versions#show"
 
     # Per-event preferences (meeting time or calendar event)
     post "meeting_times/preferences", to: "event_preferences#batch_show"
@@ -200,6 +223,7 @@ Rails.application.routes.draw do
   authenticate :user do
     namespace :dashboard do
       root to: "overview#index"
+      resource  :onboarding,           only: [ :show ], controller: "onboarding"
       resource  :schedule,             only: [ :show ]
       resources :calendar_preferences, only: [ :index, :update ] do
         patch :university_events, on: :collection
@@ -212,8 +236,12 @@ Rails.application.routes.draw do
       resource  :notifications,        only: [ :show, :update ] do
         patch :university_events
       end
+      # Before resources :friends, so "groups" is not read as a friend id.
+      resources :friend_groups, path: "friends/groups", only: [ :create, :update, :destroy ] do
+        resources :members, controller: "friend_group_members", only: [ :create, :destroy ]
+      end
       resources :friends, only: [ :index, :show, :create, :destroy ] do
-        member     { post :accept; post :decline; patch :visibility }
+        member     { post :accept; post :decline; patch :visibility; patch :expiry; post :accept_expiry; post :decline_expiry }
         collection { get :requests }
       end
       resources :meeting_links, only: [ :index, :create, :destroy ]
@@ -309,11 +337,16 @@ Rails.application.routes.draw do
       get  "service_account/authorize", to: "service_account#authorize", as: :service_account_authorize
       post "service_account/revoke",    to: "service_account#revoke",    as: :service_account_revoke
 
-      mount MissionControl::Jobs::Engine, at: "jobs"
-      mount Flipper::UI.app(Flipper) { |builder| builder.use FlipperUserActorAdapter::UnknownActorRedirect }, at: "flipper"
-      mount Blazer::Engine,               at: "blazer"
-      mount PgHero::Engine,               at: "pghero"
-      mount Audits1984::Engine,           at: "audits"
+      # These tools can run jobs, change flags, read any row, or show console
+      # sessions, so they need a super admin. Other admins get the fallback
+      # below, which sends them away.
+      constraints SuperAdminConstraint.new do
+        mount MissionControl::Jobs::Engine, at: "jobs"
+        mount Flipper::UI.app(Flipper) { |builder| builder.use FlipperUserActorAdapter::UnknownActorRedirect }, at: "flipper"
+        mount Blazer::Engine,               at: "blazer"
+        mount PgHero::Engine,               at: "pghero"
+        mount Audits1984::Engine,           at: "audits"
+      end
     end
   end
 

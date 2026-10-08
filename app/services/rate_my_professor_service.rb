@@ -214,10 +214,12 @@ class RateMyProfessorService < ApplicationService
     end
   end
 
-  def get_teacher_details(teacher_id)
+  # force: true skips the cache, sends the request, and writes the new result
+  # to the cache. The same applies to #get_ratings and #get_all_ratings.
+  def get_teacher_details(teacher_id, force: false)
     cache_key = "rmp:teacher:#{teacher_id}"
 
-    Rails.cache.fetch(cache_key, expires_in: 12.hours) do
+    Rails.cache.fetch(cache_key, expires_in: 12.hours, force: force) do
       response = make_request(
         query: TEACHER_DETAILS_QUERY,
         operation_name: "TeacherRatingsPageQuery",
@@ -228,10 +230,10 @@ class RateMyProfessorService < ApplicationService
     end
   end
 
-  def get_ratings(teacher_id, count: 100, cursor: nil)
+  def get_ratings(teacher_id, count: 100, cursor: nil, force: false)
     cache_key = "rmp:ratings:#{teacher_id}:#{count}:#{cursor || 'start'}"
 
-    Rails.cache.fetch(cache_key, expires_in: 6.hours) do
+    Rails.cache.fetch(cache_key, expires_in: 6.hours, force: force) do
       response = make_request(
         query: RATINGS_QUERY,
         operation_name: "RatingsListQuery",
@@ -246,13 +248,13 @@ class RateMyProfessorService < ApplicationService
     end
   end
 
-  def get_all_ratings(teacher_id)
+  def get_all_ratings(teacher_id, force: false)
     all_ratings = []
     cursor = nil
     has_next_page = true
 
     while has_next_page
-      response = get_ratings(teacher_id, cursor: cursor)
+      response = get_ratings(teacher_id, cursor: cursor, force: force)
       ratings_data = response.dig("data", "node", "ratings")
 
       break unless ratings_data
@@ -281,7 +283,10 @@ class RateMyProfessorService < ApplicationService
   def make_request(query:, operation_name:, variables:)
     connection = Faraday.new(url: BASE_URL) do |faraday|
       faraday.request :json
-      faraday.response :json
+      # json 3 rejects duplicate keys by default. The RateMyProfessors API
+      # response can repeat a key (the teacher query asks for `id` twice), so
+      # keep the last value as json 2 did.
+      faraday.response :json, parser_options: { allow_duplicate_key: true }
       faraday.adapter Faraday.default_adapter
     end
 

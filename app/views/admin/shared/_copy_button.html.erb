@@ -1,0 +1,7 @@
+<%# A small button that copies `value` to the clipboard. %>
+<button type="button" data-controller="clipboard" data-clipboard-text-value="<%= value %>"
+        data-action="click->clipboard#copy"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-primary hover:bg-surface-container-high">
+  <%= admin_icon(:copy, css_class: "w-3.5 h-3.5") %>
+  <span data-clipboard-target="label">Copy</span>
+</button>

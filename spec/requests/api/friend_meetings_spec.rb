@@ -78,6 +78,7 @@ RSpec.describe "Api::FriendMeetings", type: :request do
           "role"           => "owner",
           "can_edit"       => true,
           "can_delete"     => true,
+          "can_leave"      => false,
           "owner"          => { "id" => user.public_id, "name" => user.full_name },
           "friends"        => [ { "id" => friend.public_id, "name" => "Sample Friend" } ],
           "guest"          => nil,
@@ -191,6 +192,7 @@ RSpec.describe "Api::FriendMeetings", type: :request do
 
       meeting = response.parsed_body["meetings"].sole
       expect(meeting).to include("id" => weekly.public_id, "role" => "invitee", "can_edit" => false, "can_delete" => false,
+                                 "can_leave" => true,
                                  "owner" => { "id" => user.public_id, "name" => user.full_name }, "publications" => [], "destinations" => [])
       expect(response.parsed_body["occurrences"].size).to eq(2)
     end
@@ -314,6 +316,70 @@ RSpec.describe "Api::FriendMeetings", type: :request do
 
       expect(response).to have_http_status(:not_found)
       expect(meeting.reload).not_to be_cancelled
+    end
+  end
+
+  describe "DELETE /api/friends/meetings/:id/attendance" do
+    let(:meeting) do
+      create(:friend_meeting, :invite_friends, user: user, destinations: %w[ics],
+                                               start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16))
+    end
+
+    before do
+      [ user, friend ].each { |person| Flipper.enable_actor(FlipperFlags::FRIEND_MEETING_EVENTS, person) }
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: friend)
+    end
+
+    def leave(person = friend)
+      delete "/api/friends/meetings/#{meeting.public_id}/attendance", headers: auth_headers_for(person)
+    end
+
+    it "takes the invited friend off the meeting and starts the update job" do
+      expect { leave }.to have_enqueued_job(FriendMeetingUpdateJob).with(meeting)
+
+      expect(response).to have_http_status(:no_content)
+      expect(meeting.attendees).to be_empty
+      expect(meeting.reload).not_to be_cancelled
+    end
+
+    it "removes the meeting from the friend's list and busy blocks" do
+      leave
+
+      get "/api/friends/meetings", params: { start: "2026-10-12", end: "2026-10-19" }, headers: auth_headers_for(friend)
+      expect(response.parsed_body["meetings"]).to be_empty
+
+      get "/api/user/busy_blocks", params: { start_date: "2026-10-14", end_date: "2026-10-14" }, headers: auth_headers_for(friend)
+      expect(response.parsed_body["busy"]).to be_empty
+    end
+
+    it "starts no job for a meeting that has ended" do
+      meeting.update_columns(start_time: zone.local(2026, 10, 1, 15), end_time: zone.local(2026, 10, 1, 16))
+
+      expect { leave }.not_to have_enqueued_job(FriendMeetingUpdateJob)
+      expect(meeting.attendees).to be_empty
+    end
+
+    it "answers 403 to the owner, who deletes the meeting instead" do
+      leave(user)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(meeting.attendees).to contain_exactly(friend)
+    end
+
+    it "answers 404 to a person who cannot see the meeting" do
+      stranger = create(:user)
+      Flipper.enable_actor(FlipperFlags::FRIEND_MEETING_EVENTS, stranger)
+
+      leave(stranger)
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "answers 404 to a friend who already left" do
+      leave
+      leave
+
+      expect(response).to have_http_status(:not_found)
     end
   end
 
