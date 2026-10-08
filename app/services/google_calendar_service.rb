@@ -93,6 +93,7 @@ class GoogleCalendarService
     preference_resolver = PreferenceResolver.new(user)
     template_renderer   = CalendarTemplateRenderer.new
     labels              = GoogleEventLabels.new(service, calendar_id)
+    preload_syncables(events)
 
     events.each do |event|
       event_key      = build_event_key_from_hash(event)
@@ -162,6 +163,7 @@ class GoogleCalendarService
     template_renderer   = CalendarTemplateRenderer.new
     labels              = GoogleEventLabels.new(service, course_calendar.external_calendar_id)
     stats = { created: 0, updated: 0, skipped: 0 }
+    preload_syncables(events)
 
     events.each do |event|
       event_key      = build_event_key_from_hash(event)

@@ -28,16 +28,30 @@ module CalendarEventPreparation
     end
   end
 
-  def resolve_syncable(event)
-    if event[:meeting_time_id]
-      Course::MeetingTime.includes(course: :faculties).find_by(id: event[:meeting_time_id])
-    elsif event[:final_exam_id]
-      FinalExam.includes(course: :faculties).find_by(id: event[:final_exam_id])
-    elsif event[:university_calendar_event_id]
-      UniversityCalendarEvent.find_by(id: event[:university_calendar_event_id])
-    else
-      raise "Unknown event type — missing meeting_time_id, final_exam_id, or university_calendar_event_id"
+  SYNCABLE_KEYS = {
+    meeting_time_id: -> { Course::MeetingTime.includes(rooms: :building, course: [ :faculties, :term ]) },
+    final_exam_id: -> { FinalExam.includes(course: [ :faculties, :term ]) },
+    university_calendar_event_id: -> { UniversityCalendarEvent.all }
+  }.freeze
+
+  # Loads the records behind all the events in one query for each kind, with
+  # the associations that the templates read. resolve_syncable then reads them
+  # from memory, so a sync does not send queries once for each event (#654).
+  def preload_syncables(events)
+    @syncables = SYNCABLE_KEYS.to_h do |key, scope|
+      ids = events.filter_map { |event| event[key] }.uniq
+      [ key, ids.any? ? scope.call.where(id: ids).index_by(&:id) : {} ]
     end
+  end
+
+  def resolve_syncable(event)
+    key = SYNCABLE_KEYS.keys.find { |k| event[k] }
+    raise "Unknown event type — missing meeting_time_id, final_exam_id, or university_calendar_event_id" unless key
+
+    loaded = @syncables&.fetch(key)
+    return loaded[event[key]] if loaded&.key?(event[key])
+
+    SYNCABLE_KEYS[key].call.find_by(id: event[key])
   end
 
   def apply_preferences_to_event(syncable, course_event, preference_resolver: nil, template_renderer: nil)

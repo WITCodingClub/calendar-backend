@@ -344,6 +344,17 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
     end
   end
 
+  # Prosopite raises in Prosopite.scan when the same query runs once for each
+  # event (#654).
+  it "loads the records behind several events without one query for each" do
+    calendar
+    stub_event_create
+    events = Array.new(3) { class_event.merge(meeting_time_id: create(:course_meeting_time).id) }
+
+    expect { Prosopite.scan { service.update_calendar_events(events) } }.not_to raise_error
+    expect(calendar.calendar_events.count).to eq(3)
+  end
+
   describe "event colors" do
     let(:categories_url) { "#{graph}/me/outlook/masterCategories" }
 
