@@ -30,6 +30,13 @@ RSpec.describe "Admin review search", type: :request do
     expect(response.body).not_to include("The exams are brutal.")
   end
 
+  it "reads the search box of the shared admin filters" do
+    get admin_rmp_ratings_path, params: { search: "group projects" }
+
+    expect(response.body).to include("Lots of group projects.")
+    expect(response.body).not_to include("The exams are brutal.")
+  end
+
   it "ranks by meaning when asked", :semantic_search do
     give_embedding(group_work, 0.05)
     give_embedding(tough_exams, 0.95)

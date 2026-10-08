@@ -131,6 +131,9 @@ RSpec.describe "Query budget for hot paths", type: :request do
   end
 
   describe "dashboard friends pages" do
+    # The onboarding gate (#644) sends a user with no courses away from these pages.
+    let(:user) { create(:user, :with_processed_courses) }
+
     before { sign_in user }
 
     it "renders the friends list for 55 friends with the same number of queries as 2" do
