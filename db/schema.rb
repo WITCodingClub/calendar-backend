@@ -424,6 +424,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
     t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
   end
 
+  create_table "friend_group_memberships", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "friend_group_id", null: false
+    t.bigint "friendship_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["friend_group_id", "friendship_id"], name: "index_friend_group_memberships_on_group_and_friendship", unique: true
+    t.index ["friendship_id"], name: "index_friend_group_memberships_on_friendship_id"
+  end
+
+  create_table "friend_groups", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index "user_id, lower((name)::text)", name: "index_friend_groups_on_user_id_and_lower_name", unique: true
+  end
+
   create_table "friend_meeting_attendees", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "friend_meeting_id", null: false
@@ -861,6 +878,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
     t.index ["faculty_id", "rmp_legacy_id"], name: "index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id", unique: true
   end
 
+  create_table "term_processing_statuses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "error_code"
+    t.string "status", null: false
+    t.bigint "term_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["term_id"], name: "index_term_processing_statuses_on_term_id"
+    t.index ["user_id", "term_id"], name: "index_term_processing_statuses_on_user_id_and_term_id", unique: true
+  end
+
   create_table "terms", force: :cascade do |t|
     t.boolean "catalog_import_failed", default: false, null: false
     t.string "catalog_import_job_id"
@@ -1056,6 +1084,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
   add_foreign_key "final_exams", "terms"
   add_foreign_key "finals_schedules", "terms"
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
+  add_foreign_key "friend_group_memberships", "friend_groups", on_delete: :cascade
+  add_foreign_key "friend_group_memberships", "friendships", on_delete: :cascade
+  add_foreign_key "friend_groups", "users", on_delete: :cascade
   add_foreign_key "friend_meeting_attendees", "friend_meetings"
   add_foreign_key "friend_meeting_attendees", "users"
   add_foreign_key "friend_meeting_publications", "friend_meetings"
@@ -1088,6 +1119,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
+  add_foreign_key "term_processing_statuses", "terms"
+  add_foreign_key "term_processing_statuses", "users"
   add_foreign_key "university_calendar_events", "terms"
   add_foreign_key "user_extension_configs", "users"
   add_foreign_key "user_sessions", "passkeys"

@@ -50,6 +50,7 @@ RSpec.describe User, type: :model do
 
     it { is_expected.to have_many(:enrollments).dependent(:destroy) }
     it { is_expected.to have_many(:courses).through(:enrollments) }
+    it { is_expected.to have_many(:term_processing_statuses).dependent(:delete_all) }
     it { is_expected.to have_many(:oauth_credentials).dependent(:destroy) }
     it { is_expected.to have_many(:course_calendars).through(:oauth_credentials) }
     it { is_expected.to have_many(:calendar_events).through(:course_calendars) }
@@ -62,6 +63,7 @@ RSpec.describe User, type: :model do
     it { is_expected.to have_many(:user_sessions).dependent(:destroy) }
     it { is_expected.to have_many(:sent_friendships).class_name("Friendship").with_foreign_key(:requester_id).dependent(:destroy) }
     it { is_expected.to have_many(:received_friendships).class_name("Friendship").with_foreign_key(:addressee_id).dependent(:destroy) }
+    it { is_expected.to have_many(:friend_groups).dependent(:destroy) }
     it { is_expected.to have_many(:friend_meetings).dependent(:destroy) }
     it { is_expected.to have_many(:friend_meeting_attendees).dependent(:delete_all) }
 
@@ -161,6 +163,61 @@ RSpec.describe User, type: :model do
     it "returns false for nil and for yourself" do
       expect(user.remove_friend(nil)).to be(false)
       expect(user.remove_friend(user)).to be(false)
+    end
+
+    it "removes the friend from the user's groups and keeps the groups" do
+      friendship = create(:friendship, :accepted, requester: user, addressee: friend)
+      group      = create(:friend_group, user: user)
+      create(:friend_group_membership, friend_group: group, friendship: friendship)
+
+      expect { user.remove_friend(friend) }.to change(FriendGroupMembership, :count).by(-1)
+      expect(group.reload.members).to be_empty
+    end
+  end
+
+  describe "#friend_of?" do
+    let(:user)   { create(:user) }
+    let(:friend) { create(:user) }
+
+    it "is true for an accepted friend in either direction" do
+      create(:friendship, :accepted, requester: friend, addressee: user)
+
+      expect(user.friend_of?(friend)).to be(true)
+      expect(friend.friend_of?(user)).to be(true)
+    end
+
+    it "is false for a pending request, a stranger, nil, and yourself" do
+      create(:friendship, requester: user, addressee: friend)
+
+      expect(user.friend_of?(friend)).to be(false)
+      expect(user.friend_of?(create(:user))).to be(false)
+      expect(user.friend_of?(nil)).to be(false)
+      expect(user.friend_of?(user)).to be(false)
+    end
+  end
+
+  describe "#accepted_friendship_with" do
+    let(:user)   { create(:user) }
+    let(:friend) { create(:user) }
+
+    it "finds the friendship in either direction" do
+      friendship = create(:friendship, :accepted, requester: friend, addressee: user)
+
+      expect(user.accepted_friendship_with(friend)).to eq(friendship)
+      expect(friend.accepted_friendship_with(user)).to eq(friendship)
+    end
+
+    it "ignores a pending request" do
+      create(:friendship, requester: user, addressee: friend)
+
+      expect(user.accepted_friendship_with(friend)).to be_nil
+    end
+
+    it "returns nil for nil and for yourself" do
+      create(:friendship, :accepted, requester: user, addressee: friend)
+
+      expect(user.accepted_friendship_with(nil)).to be_nil
+      expect(user.accepted_friendship_with(user)).to be_nil
     end
   end
 
