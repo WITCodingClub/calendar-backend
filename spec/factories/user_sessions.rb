@@ -24,7 +24,6 @@
 #  index_user_sessions_on_expires_at              (expires_at)
 #  index_user_sessions_on_jti                     (jti) UNIQUE
 #  index_user_sessions_on_passkey_id              (passkey_id)
-#  index_user_sessions_on_user_id                 (user_id)
 #  index_user_sessions_on_user_id_and_revoked_at  (user_id,revoked_at)
 #
 # Foreign Keys

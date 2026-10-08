@@ -11,7 +11,6 @@
 #
 # Indexes
 #
-#  index_courses_faculties_on_course_id                 (course_id)
 #  index_courses_faculties_on_course_id_and_faculty_id  (course_id,faculty_id) UNIQUE
 #  index_courses_faculties_on_course_id_and_primary     (course_id,primary_indicator)
 #  index_courses_faculties_on_faculty_id                (faculty_id)

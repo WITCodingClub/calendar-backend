@@ -1,0 +1,17 @@
+default: &default
+  store_options:
+    # Solid Cache removes the oldest entries first when the table is larger
+    # than max_size, and entries older than max_age.
+    max_age: <%= 14.days.to_i %>
+    max_size: <%= 256.megabytes %>
+    namespace: <%= Rails.env %>
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+
+production:
+  database: cache
+  <<: *default

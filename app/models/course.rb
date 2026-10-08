@@ -29,7 +29,6 @@
 #  index_courses_on_course_and_link_identifier  (term_id,subject,course_number,link_identifier)
 #  index_courses_on_crn_and_term_id             (crn,term_id) UNIQUE
 #  index_courses_on_status                      (status)
-#  index_courses_on_term_id                     (term_id)
 #
 # Foreign Keys
 #

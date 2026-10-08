@@ -46,6 +46,13 @@ class PreferenceResolver
     visibility: "default"
   }.freeze
 
+  # Every default constant that resolve_field can return. PreferenceVersion
+  # hashes these, so a deploy that changes one gives each user a new version.
+  # Add a new default constant here.
+  def self.defaults
+    [ SYSTEM_DEFAULTS, FINAL_EXAM_DEFAULTS, UNI_CAL_DEFAULTS, UNI_CAL_ALL_DAY_REMINDERS, UNI_CAL_TIMED_REMINDERS ]
+  end
+
   def initialize(user)
     @user = user
     @cache = {}

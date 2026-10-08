@@ -13,9 +13,7 @@
 #
 # Indexes
 #
-#  index_friendships_on_addressee_id                   (addressee_id)
 #  index_friendships_on_addressee_id_and_status        (addressee_id,status)
-#  index_friendships_on_requester_id                   (requester_id)
 #  index_friendships_on_requester_id_and_addressee_id  (requester_id,addressee_id) UNIQUE
 #  index_friendships_on_requester_id_and_status        (requester_id,status)
 #  index_friendships_on_unordered_pair                 (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id)) UNIQUE

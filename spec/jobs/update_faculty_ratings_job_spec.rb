@@ -104,6 +104,18 @@ RSpec.describe UpdateFacultyRatingsJob, type: :job do
       expect(related.related_faculty).to eq(related_faculty)
     end
 
+    it "fetches fresh teacher details and ratings, not the cached ones" do
+      allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new)
+      stub_graphql("RatingsListQuery", fixture: "ratings_empty.json")
+
+      2.times { described_class.perform_now(faculty.id) }
+
+      expect(WebMock).to have_requested(:post, base_url)
+        .with(body: hash_including("operationName" => "TeacherRatingsPageQuery")).twice
+      expect(WebMock).to have_requested(:post, base_url)
+        .with(body: hash_including("operationName" => "RatingsListQuery")).twice
+    end
+
     it "propagates the error when the ratings request times out" do
       stub_request(:post, base_url)
         .with(body: hash_including("operationName" => "RatingsListQuery"))
