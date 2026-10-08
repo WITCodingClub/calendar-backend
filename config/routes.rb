@@ -131,6 +131,11 @@ Rails.application.routes.draw do
 
     # Friends system
     get    "friends",                                   to: "friends#index"
+    get    "friends/meetings",                          to: "friend_meetings#index"
+    post   "friends/meetings",                          to: "friend_meetings#create"
+    get    "friends/meetings/:id",                      to: "friend_meetings#show"
+    patch  "friends/meetings/:id",                      to: "friend_meetings#update"
+    delete "friends/meetings/:id",                      to: "friend_meetings#destroy"
     get    "friends/requests",                          to: "friends#requests"
     post   "friends/requests",                          to: "friends#create_request"
     post   "friends/requests/:request_id/accept",       to: "friends#accept"
@@ -139,7 +144,6 @@ Rails.application.routes.draw do
     delete "friends/:friend_id",                        to: "friends#unfriend"
     post   "friends/:friend_id/processed_events",       to: "friends#processed_events"
     post   "friends/:friend_id/is_processed",           to: "friends#is_processed"
-    post   "friends/meetings",                          to: "friend_meetings#create"
 
     get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
     get "terms/active",          to: "misc#get_active_terms"

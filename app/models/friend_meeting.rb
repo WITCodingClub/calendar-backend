@@ -4,23 +4,26 @@
 #
 # Table name: friend_meetings
 #
-#  id             :bigint           not null, primary key
-#  end_time       :datetime         not null
-#  frequency      :string           default("one_time"), not null
-#  invite_friends :boolean          default(FALSE), not null
-#  location       :string
-#  repeat_until   :date
-#  start_time     :datetime         not null
-#  title          :string           not null
-#  created_at     :datetime         not null
-#  updated_at     :datetime         not null
-#  term_id        :bigint
-#  user_id        :bigint           not null
+#  id              :bigint           not null, primary key
+#  cancelled_at    :datetime
+#  end_time        :datetime         not null
+#  frequency       :string           default("one_time"), not null
+#  idempotency_key :string
+#  invite_friends  :boolean          default(FALSE), not null
+#  location        :string
+#  repeat_until    :date
+#  start_time      :datetime         not null
+#  title           :string           not null
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  term_id         :bigint
+#  user_id         :bigint           not null
 #
 # Indexes
 #
-#  index_friend_meetings_on_term_id  (term_id)
-#  index_friend_meetings_on_user_id  (user_id)
+#  idx_friend_meetings_unique_idempotency_key  (user_id,idempotency_key) UNIQUE WHERE (idempotency_key IS NOT NULL)
+#  index_friend_meetings_on_term_id            (term_id)
+#  index_friend_meetings_on_user_id            (user_id)
 #
 # Foreign Keys
 #
@@ -43,6 +46,7 @@ class FriendMeeting < ApplicationRecord
   MAX_DURATION     = 12.hours
   MAX_ATTENDEES    = 20
   TITLE_MAX_LENGTH = 200
+  IDEMPOTENCY_KEY_MAX_LENGTH = 255
 
   FREQUENCIES = { one_time: "one_time", weekly: "weekly" }.freeze
 
@@ -54,11 +58,13 @@ class FriendMeeting < ApplicationRecord
   has_many :attendees, through: :friend_meeting_attendees, source: :user
   # Each row deletes its own provider event when it is destroyed.
   has_many :calendar_events, dependent: :destroy
+  has_many :publications, class_name: "FriendMeetingPublication", dependent: :delete_all
 
   validates :title, presence: true, length: { maximum: TITLE_MAX_LENGTH }
   validates :location, length: { maximum: TITLE_MAX_LENGTH }
   validates :start_time, :end_time, presence: true
   validates :term, :repeat_until, presence: true, if: :weekly?
+  validates :idempotency_key, length: { maximum: IDEMPOTENCY_KEY_MAX_LENGTH }
   validate :end_time_after_start_time
   validate :repeat_until_on_or_after_start
 
@@ -67,6 +73,58 @@ class FriendMeeting < ApplicationRecord
     where(end_time: Time.current..)
       .or(where(frequency: "weekly", repeat_until: Time.zone.today..))
   }
+
+  # A meeting that the owner deleted stays until its provider events are gone.
+  # Every read and sync skips it, so nothing puts it back.
+  scope :live, -> { where(cancelled_at: nil) }
+
+  # The meetings that invited `user`: the owner asked to invite the friends,
+  # and `user` is one of them.
+  scope :inviting, lambda { |user|
+    where(invite_friends: true).where(id: FriendMeetingAttendee.where(user_id: user.id).select(:friend_meeting_id))
+  }
+
+  # Meetings with at least one occurrence that overlaps the range.
+  scope :overlapping, lambda { |range_start, range_end|
+    where(start_time: ...range_end)
+      .and(where(end_time: range_start..).or(where(frequency: "weekly", repeat_until: range_start.to_date..)))
+  }
+
+  def cancelled? = cancelled_at.present?
+
+  def owned_by?(person) = person.present? && user_id == person.id
+
+  def invited?(person)
+    person.present? && invite_friends? && friend_meeting_attendees.exists?(user_id: person.id)
+  end
+
+  def publication_for(provider)
+    publications.find { |publication| publication.provider == provider.to_s }
+  end
+
+  # The providers that the person picked, in their order.
+  def destinations
+    publications.sort_by(&:id).map(&:provider)
+  end
+
+  # Each occurrence that overlaps the range, as [start, end] pairs. A weekly
+  # meeting keeps its local wall time across a daylight saving change.
+  def occurrences_between(range_start, range_end)
+    duration = end_time - start_time
+    starts =
+      if weekly?
+        schedule = IceCube::Schedule.new(local_start, duration: duration)
+        schedule.add_recurrence_rule(IceCube::Rule.weekly.day(local_start.strftime("%A").downcase.to_sym).until(recurrence_until))
+        schedule.occurrences_between(range_start, range_end, spans: true)
+      else
+        [ local_start ]
+      end
+
+    starts.filter_map do |starts_at|
+      ends_at = starts_at + duration
+      [ starts_at, ends_at ] if starts_at < range_end && ends_at > range_start
+    end
+  end
 
   # The event hash that the provider services take, in the same shape as a
   # course event from CourseScheduleSyncable.
@@ -87,8 +145,7 @@ class FriendMeeting < ApplicationRecord
   def recurrence
     return nil unless weekly? && repeat_until && start_time
 
-    until_time = Time.find_zone!(LOCAL_TIME_ZONE).local(repeat_until.year, repeat_until.month, repeat_until.day, 23, 59, 59).utc
-    rule       = IceCube::Rule.weekly.day(local_start.strftime("%A").downcase.to_sym).until(until_time)
+    rule = IceCube::Rule.weekly.day(local_start.strftime("%A").downcase.to_sym).until(recurrence_until.utc)
     [ "RRULE:#{rule.to_ical}" ]
   end
 
@@ -102,6 +159,10 @@ class FriendMeeting < ApplicationRecord
   end
 
   private
+
+  def recurrence_until
+    Time.find_zone!(LOCAL_TIME_ZONE).local(repeat_until.year, repeat_until.month, repeat_until.day, 23, 59, 59)
+  end
 
   def end_time_after_start_time
     return if start_time.blank? || end_time.blank?

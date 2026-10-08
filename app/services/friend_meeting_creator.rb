@@ -6,6 +6,11 @@
 # The API route for suggested meeting times calls it, and the one-time meeting
 # link (#652) will too, so every check lives here and not in a controller.
 #
+# With an idempotency key, a second call with the same key for the same person
+# returns the first meeting. It makes no new meeting and starts no job, so no
+# friend gets a second invitation. The caller can tell the two apart with
+# `previously_new_record?`.
+#
 # Raises FriendMeetingCreator::Error for a request that cannot become a
 # meeting, and ActiveRecord::RecordInvalid when the meeting fails validation.
 class FriendMeetingCreator < ApplicationService
@@ -14,44 +19,84 @@ class FriendMeetingCreator < ApplicationService
   UTC_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})\z/
 
   def initialize(user:, title:, start_time:, end_time:, friend_ids:, location: nil,
-                 frequency: nil, invite_friends: false)
-    @user           = user
-    @title          = title
-    @start_time     = start_time
-    @end_time       = end_time
-    @friend_ids     = friend_ids
-    @location       = location
-    @frequency      = frequency.presence || FriendMeeting::FREQUENCIES[:one_time]
-    @invite_friends = ActiveModel::Type::Boolean.new.cast(invite_friends) || false
+                 frequency: nil, invite_friends: false, idempotency_key: nil, destinations: nil)
+    @user            = user
+    @title           = title
+    @start_time      = start_time
+    @end_time        = end_time
+    @friend_ids      = friend_ids
+    @location        = location
+    @frequency       = frequency.presence || FriendMeeting::FREQUENCIES[:one_time]
+    @invite_friends  = ActiveModel::Type::Boolean.new.cast(invite_friends) || false
+    @idempotency_key = idempotency_key.to_s.strip.presence
+    @destinations    = destinations
   end
 
   def call
+    existing = find_existing
+    return existing if existing
+
     raise Error, "frequency must be one_time or weekly" unless FriendMeeting::FREQUENCIES.value?(@frequency)
 
-    friends  = resolve_friends
-    starts   = parse_time(@start_time, "start_time")
-    ends     = parse_time(@end_time, "end_time")
-    meeting  = FriendMeeting.new(
-      user:           @user,
-      title:          @title.to_s.strip,
-      location:       @location.to_s.strip.presence,
-      start_time:     starts,
-      end_time:       ends,
-      frequency:      @frequency,
-      invite_friends: @invite_friends
+    friends      = resolve_friends
+    destinations = resolve_destinations
+    meeting      = FriendMeeting.new(
+      user:            @user,
+      title:           @title.to_s.strip,
+      location:        @location.to_s.strip.presence,
+      start_time:      self.class.parse_time(@start_time, "start_time"),
+      end_time:        self.class.parse_time(@end_time, "end_time"),
+      frequency:       @frequency,
+      invite_friends:  @invite_friends,
+      idempotency_key: @idempotency_key
     )
-    assign_term(meeting) if meeting.weekly?
+    self.class.assign_term(meeting) if meeting.weekly?
 
     FriendMeeting.transaction do
       meeting.save!
       friends.each { |friend| meeting.friend_meeting_attendees.create!(user: friend) }
+      create_publications(meeting, destinations)
     end
 
-    FriendMeetingPublishJob.perform_later(meeting)
+    FriendMeetingPublishJob.perform_later(meeting) if meeting.publications.any?(&:calendar?)
     meeting
+  rescue ActiveRecord::RecordNotUnique
+    # A request with the same key won the race.
+    find_existing || raise
+  end
+
+  # The offset is required: without it, the time would depend on the server's
+  # zone and not on the person's.
+  def self.parse_time(value, name)
+    value = value.to_s
+    raise ArgumentError unless value.match?(UTC_OFFSET)
+
+    Time.iso8601(value).in_time_zone
+  rescue ArgumentError
+    raise Error, "#{name} must be an ISO 8601 time with a UTC offset"
+  end
+
+  # A weekly meeting repeats until the end of the term that holds its first
+  # day. Between terms, that is the current term, which must not have ended.
+  def self.assign_term(meeting)
+    start_date = meeting.local_start.to_date
+    term       = Term.find_by_date(start_date) || Term.current
+
+    if term.nil? || term.end_date.nil? || term.end_date < start_date
+      raise Error, "a weekly meeting must start on or before the last day of the current term"
+    end
+
+    meeting.term         = term
+    meeting.repeat_until = term.end_date
   end
 
   private
+
+  def find_existing
+    return nil unless @idempotency_key
+
+    @user.friend_meetings.find_by(idempotency_key: @idempotency_key)
+  end
 
   # Every id must be a friend whose request was accepted. One that is not
   # stops the request, so a person can never invite a stranger.
@@ -67,28 +112,32 @@ class FriendMeetingCreator < ApplicationService
     end.uniq
   end
 
-  # The offset is required: without it, the time would depend on the server's
-  # zone and not on the person's.
-  def parse_time(value, name)
-    value = value.to_s
-    raise ArgumentError unless value.match?(UTC_OFFSET)
+  # Without a list, the meeting goes to every connected course calendar and
+  # the ICS feed. A list may name only those places.
+  def resolve_destinations
+    allowed = FriendMeetingPublisher.new(@user).calendar_providers + [ FriendMeetingPublication::PROVIDERS[:ics] ]
+    return allowed if @destinations.nil?
 
-    Time.iso8601(value).in_time_zone
-  rescue ArgumentError
-    raise Error, "#{name} must be an ISO 8601 time with a UTC offset"
+    picked = Array(@destinations).map { |name| name.to_s.strip.downcase }.compact_blank.uniq
+    raise Error, "destinations must list at least one place" if picked.empty?
+
+    unknown = picked - allowed
+    raise Error, "destinations can list only #{allowed.join(', ')}; not #{unknown.join(', ')}" if unknown.any?
+
+    picked
   end
 
-  # A weekly meeting repeats until the end of the term that holds its first
-  # day. Between terms, that is the current term, which must not have ended.
-  def assign_term(meeting)
-    start_date = meeting.local_start.to_date
-    term       = Term.find_by_date(start_date) || Term.current
+  # Invitations go out from the first picked provider that can send them. The
+  # ICS feed cannot, so it never does.
+  def create_publications(meeting, destinations)
+    sender = (destinations & FriendMeetingPublication::CALENDAR_PROVIDERS).first if meeting.invite_friends?
 
-    if term.nil? || term.end_date.nil? || term.end_date < start_date
-      raise Error, "a weekly meeting must start on or before the last day of the current term"
+    destinations.each do |provider|
+      meeting.publications.create!(
+        provider:          provider,
+        status:            provider == FriendMeetingPublication::PROVIDERS[:ics] ? "published" : "queued",
+        sends_invitations: provider == sender
+      )
     end
-
-    meeting.term         = term
-    meeting.repeat_until = term.end_date
   end
 end

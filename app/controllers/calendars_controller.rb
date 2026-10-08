@@ -172,11 +172,16 @@ class CalendarsController < ApplicationController
     end
   end
 
-  # Meetings that the person made from a suggested time. A feed cannot send
-  # invitations, so the friends are listed as attendees only when the person
-  # asked to invite them.
+  # Meetings that the person made from a suggested time and sent to the feed.
+  # A feed cannot send invitations, so the friends are listed as attendees
+  # only when the person asked to invite them. Most people have no meetings,
+  # so they pay for one indexed query.
   def add_friend_meeting_events(cal)
-    @user.friend_meetings.not_ended.includes(:attendees).find_each do |meeting|
+    return unless @user.friend_meetings.exists?
+
+    meetings = @user.friend_meetings.live.not_ended
+                    .where(id: FriendMeetingPublication.provider_ics.select(:friend_meeting_id))
+    meetings.includes(:attendees).find_each do |meeting|
       cal.event do |e|
         e.dtstart  = Icalendar::Values::DateTime.new(meeting.local_start, tzid: "America/New_York")
         e.dtend    = Icalendar::Values::DateTime.new(meeting.end_time.in_time_zone("America/New_York"), tzid: "America/New_York")

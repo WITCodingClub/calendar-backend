@@ -15,6 +15,8 @@ RSpec.describe FriendMeeting do
     it { is_expected.to have_many(:friend_meeting_attendees).dependent(:delete_all) }
     it { is_expected.to have_many(:attendees).through(:friend_meeting_attendees).source(:user) }
     it { is_expected.to have_many(:calendar_events).dependent(:destroy) }
+    it { is_expected.to have_many(:publications).class_name("FriendMeetingPublication").dependent(:delete_all) }
+    it { is_expected.to validate_length_of(:idempotency_key).is_at_most(FriendMeeting::IDEMPOTENCY_KEY_MAX_LENGTH) }
     it { is_expected.to validate_presence_of(:title) }
     it { is_expected.to validate_length_of(:title).is_at_most(FriendMeeting::TITLE_MAX_LENGTH) }
     it { is_expected.to validate_length_of(:location).is_at_most(FriendMeeting::TITLE_MAX_LENGTH) }
@@ -115,6 +117,50 @@ RSpec.describe FriendMeeting do
 
       expect(described_class.not_ended).to contain_exactly(future, ongoing)
       expect(described_class.not_ended).not_to include(ended, over)
+    end
+  end
+
+  describe "#occurrences_between" do
+    it "lists a one-time meeting once when it overlaps the range" do
+      meeting = build(:friend_meeting, start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16))
+
+      expect(meeting.occurrences_between(zone.local(2026, 10, 14, 15, 30), zone.local(2026, 10, 15)))
+        .to eq([ [ zone.local(2026, 10, 14, 15), zone.local(2026, 10, 14, 16) ] ])
+      expect(meeting.occurrences_between(zone.local(2026, 10, 15), zone.local(2026, 10, 16))).to be_empty
+    end
+
+    it "lists each weekly occurrence until repeat_until, at the same local time" do
+      meeting = build(:friend_meeting, frequency: "weekly", repeat_until: Date.new(2026, 11, 11),
+                                       start_time: zone.local(2026, 10, 28, 15), end_time: zone.local(2026, 10, 28, 16))
+
+      starts = meeting.occurrences_between(zone.local(2026, 10, 1), zone.local(2026, 12, 31)).map(&:first)
+
+      expect(starts).to eq([ zone.local(2026, 10, 28, 15), zone.local(2026, 11, 4, 15), zone.local(2026, 11, 11, 15) ])
+    end
+  end
+
+  describe "scopes" do
+    let(:owner)  { create(:user) }
+    let(:friend) { create(:user) }
+
+    it "finds the meetings that invited a person, and leaves out cancelled ones with .live" do
+      invited     = create(:friend_meeting, :invite_friends, user: owner)
+      not_invited = create(:friend_meeting, user: owner)
+      cancelled   = create(:friend_meeting, :invite_friends, :cancelled, user: owner)
+      [ invited, not_invited, cancelled ].each { |m| create(:friend_meeting_attendee, friend_meeting: m, user: friend) }
+
+      expect(described_class.inviting(friend)).to contain_exactly(invited, cancelled)
+      expect(described_class.live.inviting(friend)).to contain_exactly(invited)
+    end
+
+    it "finds a weekly meeting that started before the range by its repeat_until" do
+      travel_to(zone.local(2026, 10, 7, 12)) do
+        weekly = create(:friend_meeting, :weekly, start_time: zone.local(2026, 9, 2, 15), end_time: zone.local(2026, 9, 2, 16),
+                                                  repeat_until: Date.new(2026, 12, 18))
+        create(:friend_meeting, start_time: zone.local(2026, 9, 2, 15), end_time: zone.local(2026, 9, 2, 16))
+
+        expect(described_class.overlapping(zone.local(2026, 10, 12), zone.local(2026, 10, 19))).to contain_exactly(weekly)
+      end
     end
   end
 end

@@ -165,9 +165,11 @@ class CalendarEvent < ApplicationRecord
   # sync service already handled the remote delete, or when the whole calendar is
   # being torn down (delete_calendar cleans up its events server-side). A
   # primary calendar is never deleted, so its events are deleted one by one.
+  # A Microsoft friend meeting is always in the primary calendar, so it too
+  # is deleted on its own.
   def capture_remote_event_ref
     return if skip_remote_deletion
-    return if destroyed_by_association&.foreign_key.to_s == "calendar_id" && !course_calendar&.primary_placement?
+    return if destroyed_by_association&.foreign_key.to_s == "calendar_id" && !in_primary_calendar?
 
     calendar = course_calendar
     @remote_event_ref = {
@@ -177,6 +179,13 @@ class CalendarEvent < ApplicationRecord
       event_id:            external_event_id,
       ical_uid:            external_ical_uid
     }
+  end
+
+  def in_primary_calendar?
+    calendar = course_calendar
+    return false unless calendar
+
+    calendar.primary_placement? || (calendar.microsoft? && friend_meeting?)
   end
 
   def enqueue_remote_event_deletion
