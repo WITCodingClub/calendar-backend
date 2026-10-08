@@ -199,8 +199,15 @@ Rails.application.routes.draw do
     get    "brightspace/status",          to: "brightspace_syncs#status"
 
     resources :classes, only: [ :index, :show ], controller: "brightspace_classes" do
-      get :assignments, on: :member
+      member do
+        get :assignments
+        get :grades
+        get :syllabus
+      end
       resource :preference, controller: "brightspace_class_preferences", only: [ :show, :update ]
+      put   "syllabus/preference", to: "brightspace_syllabus_preferences#update"
+      patch "syllabus/preference", to: "brightspace_syllabus_preferences#update"
+      resources :grade_scenarios, controller: "brightspace_grade_scenarios", only: [ :index, :create, :update, :destroy ]
     end
     resources :assignments, only: [ :index, :show ], controller: "brightspace_assignments" do
       resource :preference, controller: "brightspace_assignment_preferences", only: [ :show, :update ]

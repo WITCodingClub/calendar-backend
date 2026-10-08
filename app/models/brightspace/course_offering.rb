@@ -50,6 +50,8 @@ module Brightspace
       has_many :grade_items,      class_name: "Brightspace::GradeItem"
       has_one  :syllabus,         class_name: "Brightspace::Syllabus"
       has_one  :preference,       class_name: "Brightspace::ClassPreference"
+      has_one  :syllabus_preference, class_name: "Brightspace::SyllabusPreference"
+      has_many :grade_scenarios,  class_name: "Brightspace::GradeScenario"
     end
 
     validates :source_id, presence: true, length: { maximum: 64 }, uniqueness: { scope: :connection_id }

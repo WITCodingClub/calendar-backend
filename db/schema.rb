@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_100100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_100200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -246,6 +246,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100100) do
     t.index ["grade_category_id"], name: "index_brightspace_grade_items_on_grade_category_id"
   end
 
+  create_table "brightspace_grade_scenarios", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "course_offering_id", null: false
+    t.string "name", null: false
+    t.jsonb "scores", default: [], null: false
+    t.jsonb "category_overrides"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_offering_id"], name: "index_brightspace_grade_scenarios_on_course_offering_id"
+    t.index ["user_id"], name: "index_brightspace_grade_scenarios_on_user_id"
+  end
+
   create_table "brightspace_syllabi", force: :cascade do |t|
     t.bigint "course_offering_id", null: false
     t.string "source_id"
@@ -257,6 +269,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["course_offering_id"], name: "index_brightspace_syllabi_on_course_offering_id", unique: true
+  end
+
+  create_table "brightspace_syllabus_preferences", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "course_offering_id", null: false
+    t.string "source_revision", null: false
+    t.jsonb "confirmed", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_offering_id"], name: "index_brightspace_syllabus_preferences_on_course_offering_id", unique: true
+    t.index ["user_id"], name: "index_brightspace_syllabus_preferences_on_user_id"
   end
 
   create_table "brightspace_syncs", force: :cascade do |t|
@@ -1169,7 +1192,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_100100) do
   add_foreign_key "brightspace_grade_items", "brightspace_assignments", column: "assignment_id"
   add_foreign_key "brightspace_grade_items", "brightspace_course_offerings", column: "course_offering_id"
   add_foreign_key "brightspace_grade_items", "brightspace_grade_categories", column: "grade_category_id"
+  add_foreign_key "brightspace_grade_scenarios", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_grade_scenarios", "users"
   add_foreign_key "brightspace_syllabi", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_syllabus_preferences", "brightspace_course_offerings", column: "course_offering_id"
+  add_foreign_key "brightspace_syllabus_preferences", "users"
   add_foreign_key "brightspace_syncs", "brightspace_connections", column: "connection_id"
   add_foreign_key "calendar_events", "calendars"
   add_foreign_key "calendar_events", "course_meeting_times", column: "meeting_time_id"
