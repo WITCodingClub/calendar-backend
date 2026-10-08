@@ -10,11 +10,13 @@ module Api
     before_action :require_friend_groups
     before_action :set_group, except: %i[index create]
 
+    rescue_from FriendGroup::UnknownFriends, with: :render_unknown_friends
+
     # GET /api/friends/groups
     def index
       authorize FriendGroup
 
-      groups = policy_scope(FriendGroup).includes(memberships: { friendship: %i[requester addressee] })
+      groups = policy_scope(FriendGroup).includes(:user, memberships: { friendship: %i[requester addressee] })
                                         .order(:name)
 
       render json: { groups: groups.map { |group| FriendGroupSerializer.new(group).as_json } }, status: :ok
@@ -26,19 +28,28 @@ module Api
       render_group
     end
 
-    # POST /api/friends/groups  { "name": "Study group" }
+    # POST /api/friends/groups  { "name": "Study group", "member_ids": ["usr_..."] }
+    #
+    # member_ids is optional. The group and its members save in one transaction.
     def create
-      group = current_user.friend_groups.new(name: params.require(:name))
+      group = current_user.friend_groups.new
       authorize group
-      group.save!
+      group.save_with_members!({ name: params.require(:name) }, friend_ids: member_ids)
 
       render_group(group, status: :created)
     end
 
-    # PATCH /api/friends/groups/:group_id  { "name": "Roommates" }
+    # PATCH /api/friends/groups/:group_id  { "name": "Roommates", "member_ids": ["usr_..."] }
+    #
+    # name and member_ids are both optional, but one must be there. When
+    # member_ids is there, it REPLACES the members. If any id is not an accepted
+    # friend, the answer is 422 and nothing changes.
     def update
       authorize @group
-      @group.update!(name: params.require(:name))
+      raise ActionController::ParameterMissing, :name unless params.key?(:name) || params.key?(:member_ids)
+
+      attributes = params.key?(:name) ? { name: params[:name] } : {}
+      @group.save_with_members!(attributes, friend_ids: member_ids)
 
       render_group
     end
@@ -79,6 +90,24 @@ module Api
 
     private
 
+    # nil when the request has no member_ids. Anything but a list of strings is a
+    # bad request.
+    def member_ids
+      return nil unless params.key?(:member_ids)
+
+      ids = params[:member_ids]
+      unless ids.is_a?(Array) && ids.all?(String)
+        raise ActionController::BadRequest, "member_ids must be a list of friend ids"
+      end
+
+      ids
+    end
+
+    def render_unknown_friends(error)
+      render json: { error: "Friend not found: #{error.ids.join(', ')}", invalid_member_ids: error.ids },
+             status: :unprocessable_content
+    end
+
     def require_friend_groups
       return if FriendGroup.enabled_for?(current_user)
 
@@ -102,7 +131,7 @@ module Api
 
     # Loads the group again with its members, so the answer shows the change.
     def render_group(group = @group, status: :ok)
-      group = FriendGroup.includes(memberships: { friendship: %i[requester addressee] }).find(group.id)
+      group = FriendGroup.includes(:user, memberships: { friendship: %i[requester addressee] }).find(group.id)
       render json: { group: FriendGroupSerializer.new(group).as_json }, status: status
     end
   end

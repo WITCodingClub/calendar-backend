@@ -2,14 +2,28 @@
 <section class="space-y-3" aria-labelledby="friend-groups-heading">
   <h2 id="friend-groups-heading" class="text-lg font-semibold text-on-surface">Groups</h2>
 
-  <%= form_with url: dashboard_friend_groups_path, method: :post, class: "m3-card p-4 flex gap-2" do |f| %>
-    <%= f.label :name, "New group name", class: "sr-only" %>
-    <%= f.text_field :name,
-        placeholder: "New group, for example Study group",
-        maxlength: FriendGroup::NAME_MAX_LENGTH,
-        required: true,
-        class: "m3-input flex-1" %>
-    <%= f.submit "Create group", class: "m3-btn-tonal" %>
+  <%= form_with url: dashboard_friend_groups_path, method: :post, class: "m3-card p-4 space-y-3" do |f| %>
+    <div class="flex gap-2">
+      <%= f.label :name, "New group name", class: "sr-only" %>
+      <%= f.text_field :name,
+          placeholder: "New group, for example Study group",
+          maxlength: FriendGroup::NAME_MAX_LENGTH,
+          required: true,
+          class: "m3-input flex-1" %>
+      <%= f.submit "Create group", class: "m3-btn-tonal" %>
+    </div>
+    <% if friends.any? %>
+      <fieldset class="flex flex-wrap gap-x-4 gap-y-1">
+        <legend class="sr-only">Friends to put in the new group</legend>
+        <%= hidden_field_tag "member_ids[]", "", id: nil %>
+        <% friends.each do |friend| %>
+          <label class="flex items-center gap-1 text-xs text-on-surface-variant">
+            <%= check_box_tag "member_ids[]", friend.public_id, false, id: "new_group_friend_#{friend.public_id}" %>
+            <%= friend.full_name %>
+          </label>
+        <% end %>
+      </fieldset>
+    <% end %>
   <% end %>
 
   <% if groups.empty? %>
@@ -21,7 +35,6 @@
       <% groups.each do |group| %>
         <% members = group.members %>
         <% member_ids = members.map(&:id) %>
-        <% addable = friends.reject { |friend| member_ids.include?(friend.id) } %>
         <div id="<%= dom_id(group) %>" class="px-5 py-4 space-y-3">
           <div class="flex items-center justify-between gap-3">
             <div>
@@ -52,23 +65,11 @@
             </ul>
           <% end %>
 
-          <div class="flex flex-wrap gap-2">
-            <% if addable.any? %>
-              <%= form_with url: dashboard_friend_group_members_path(group.public_id), method: :post, class: "flex gap-2 flex-1 min-w-48" do |f| %>
-                <%= f.label :friend_id, "Add a friend to #{group.name}", class: "sr-only", for: "add_friend_#{group.public_id}" %>
-                <%= f.select :friend_id,
-                    options_for_select(addable.map { |friend| [ friend.full_name, friend.public_id ] }),
-                    {},
-                    id: "add_friend_#{group.public_id}",
-                    class: "m3-select flex-1" %>
-                <%= f.submit "Add", class: "m3-btn-text text-xs" %>
-              <% end %>
-            <% end %>
-
-            <details class="text-xs">
-              <summary class="m3-btn-text text-xs cursor-pointer">Rename</summary>
-              <%= form_with url: dashboard_friend_group_path(group.public_id), method: :patch, class: "flex gap-2 mt-2" do |f| %>
-                <%= f.label :name, "New name for #{group.name}", class: "sr-only", for: "rename_#{group.public_id}" %>
+          <details class="text-xs">
+            <summary class="m3-btn-text text-xs cursor-pointer">Edit</summary>
+            <%= form_with url: dashboard_friend_group_path(group.public_id), method: :patch, class: "space-y-3 mt-2" do |f| %>
+              <div class="flex gap-2">
+                <%= f.label :name, "Name of #{group.name}", class: "sr-only", for: "rename_#{group.public_id}" %>
                 <%= f.text_field :name,
                     value: group.name,
                     maxlength: FriendGroup::NAME_MAX_LENGTH,
@@ -76,9 +77,20 @@
                     id: "rename_#{group.public_id}",
                     class: "m3-input flex-1" %>
                 <%= f.submit "Save", class: "m3-btn-tonal" %>
-              <% end %>
-            </details>
-          </div>
+              </div>
+              <fieldset class="flex flex-wrap gap-x-4 gap-y-1">
+                <legend class="sr-only">Friends in <%= group.name %></legend>
+                <%= hidden_field_tag "member_ids[]", "", id: nil %>
+                <% friends.each do |friend| %>
+                  <label class="flex items-center gap-1 text-xs text-on-surface-variant">
+                    <%= check_box_tag "member_ids[]", friend.public_id, member_ids.include?(friend.id),
+                        id: "group_#{group.public_id}_friend_#{friend.public_id}" %>
+                    <%= friend.full_name %>
+                  </label>
+                <% end %>
+              </fieldset>
+            <% end %>
+          </details>
         </div>
       <% end %>
     </div>

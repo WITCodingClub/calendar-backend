@@ -167,12 +167,11 @@ class User < ApplicationRecord
   end
 
   def friends
-    friend_ids = Friendship.accepted
-                           .involving(self)
-                           .pluck(:requester_id, :addressee_id)
-                           .flatten
-                           .uniq
-                           .reject { |fid| fid == id }
+    friend_ids = accepted_friendships
+                 .pluck(:requester_id, :addressee_id)
+                 .flatten
+                 .uniq
+                 .reject { |fid| fid == id }
     User.where(id: friend_ids)
   end
 
@@ -180,11 +179,30 @@ class User < ApplicationRecord
     accepted_friendship_with(other_user).present?
   end
 
+  # The friendships that count as a friendship for this user. This is the ONE
+  # place that decides "is this an accepted friendship". Every check goes
+  # through here: accepted_friendship_with, the membership validation,
+  # FriendGroup#members, and FriendGroup.by_friend_id_for.
+  def accepted_friendships
+    Friendship.accepted_for(self)
+  end
+
+  # The ids of accepted_friendships. The list loads once per user object, so a
+  # list of groups does not run one query per group. reload clears it.
+  def accepted_friendship_ids
+    @accepted_friendship_ids ||= accepted_friendships.pluck(:id).to_set
+  end
+
+  def reload(*)
+    @accepted_friendship_ids = nil
+    super
+  end
+
   # The accepted friendship between this user and other_user, or nil.
   def accepted_friendship_with(other_user)
     return nil if other_user.nil? || other_user.id == id
 
-    Friendship.accepted.find_by(
+    accepted_friendships.find_by(
       "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
       id, other_user.id, other_user.id, id
     )
@@ -196,6 +214,7 @@ class User < ApplicationRecord
     friendship = accepted_friendship_with(other_user)
     return false if friendship.nil?
 
+    @accepted_friendship_ids = nil
     friendship.destroy!
     true
   end

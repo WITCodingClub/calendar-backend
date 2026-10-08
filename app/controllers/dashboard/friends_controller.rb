@@ -157,7 +157,7 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     @groups_enabled = FriendGroup.enabled_for?(current_user)
     return unless @groups_enabled
 
-    @groups = policy_scope(FriendGroup).includes(memberships: { friendship: %i[requester addressee] }).order(:name)
+    @groups = policy_scope(FriendGroup).includes(:user, memberships: { friendship: %i[requester addressee] }).order(:name)
     @groups_by_friend = FriendGroup.by_friend_id_for(current_user)
   end
 end

@@ -17,6 +17,13 @@ RSpec.describe "Api::FriendGroups", type: :request do
 
   after { Flipper.disable(FlipperFlags::FRIEND_GROUPS) }
 
+  def query_count
+    count = 0
+    counter = ->(*, payload) { count += 1 unless payload[:name] == "SCHEMA" || payload[:cached] }
+    ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { yield }
+    count
+  end
+
   context "when the friend_groups flag is off" do
     it "answers 404 on every route" do
       group = create(:friend_group, user: user)
@@ -93,6 +100,59 @@ RSpec.describe "Api::FriendGroups", type: :request do
         expect(response.parsed_body.dig("group", "id")).to start_with("fgr_")
       end
 
+      it "creates the group with its members in one request" do
+        ada = befriend(create(:user, first_name: "Ada", last_name: "Lovelace"))
+        grace = befriend(create(:user, first_name: "Grace", last_name: "Hopper"))
+
+        post "/api/friends/groups", params: { name: "Study group", member_ids: [ grace.public_id, ada.public_id ] },
+                                    headers: headers, as: :json
+
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body.dig("group", "members").pluck("id")).to eq([ ada.public_id, grace.public_id ])
+      end
+
+      it "creates nothing and lists the bad ids when a member id is not a friend" do
+        friend   = befriend
+        stranger = create(:user)
+
+        expect {
+          post "/api/friends/groups", params: { name: "Study group", member_ids: [ friend.public_id, stranger.public_id, "usr_nope" ] },
+                                      headers: headers, as: :json
+        }.not_to change(FriendGroup, :count)
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["invalid_member_ids"]).to contain_exactly(stranger.public_id, "usr_nope")
+        expect(response.parsed_body["error"]).to include(stranger.public_id)
+      end
+
+      it "creates nothing when the name is invalid and members are given" do
+        friend = befriend
+
+        expect {
+          post "/api/friends/groups", params: { name: "x" * 51, member_ids: [ friend.public_id ] }, headers: headers, as: :json
+        }.not_to change(FriendGroupMembership, :count)
+
+        expect(response).to have_http_status(:unprocessable_content)
+      end
+
+      it "treats a pending request as a bad id" do
+        pending_user = create(:user)
+        create(:friendship, requester: pending_user, addressee: user)
+
+        post "/api/friends/groups", params: { name: "Study group", member_ids: [ pending_user.public_id ] },
+                                    headers: headers, as: :json
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(user.friend_groups).to be_empty
+      end
+
+      it "answers 400 when member_ids is not a list" do
+        post "/api/friends/groups", params: { name: "Study group", member_ids: "usr_abc" }, headers: headers, as: :json
+
+        expect(response).to have_http_status(:bad_request)
+        expect(user.friend_groups).to be_empty
+      end
+
       it "refuses a name the user already uses, in any case" do
         create(:friend_group, user: user, name: "Study group")
 
@@ -118,6 +178,145 @@ RSpec.describe "Api::FriendGroups", type: :request do
         expect(response).to have_http_status(:ok)
         expect(response.parsed_body.dig("group", "name")).to eq("Roommates")
         expect(group.reload.name).to eq("Roommates")
+      end
+
+      it "replaces the members and keeps the name when only member_ids is sent" do
+        keep = befriend(create(:user, first_name: "Ada", last_name: "Lovelace"))
+        drop = befriend(create(:user, first_name: "Bob", last_name: "Drop"))
+        add_new = befriend(create(:user, first_name: "Grace", last_name: "Hopper"))
+        group = create(:friend_group, user: user, name: "Study group")
+        add_to(group, keep)
+        add_to(group, drop)
+
+        patch "/api/friends/groups/#{group.public_id}", params: { member_ids: [ keep.public_id, add_new.public_id ] },
+                                                        headers: headers, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body.dig("group", "members").pluck("id")).to eq([ keep.public_id, add_new.public_id ])
+        expect(group.reload.name).to eq("Study group")
+        expect(user.friend_of?(drop)).to be(true)
+      end
+
+      it "applies the name and the members together" do
+        friend = befriend
+        group  = create(:friend_group, user: user, name: "Study group")
+
+        patch "/api/friends/groups/#{group.public_id}", params: { name: "Roommates", member_ids: [ friend.public_id ] },
+                                                        headers: headers, as: :json
+
+        expect(group.reload.name).to eq("Roommates")
+        expect(group.members).to eq([ friend ])
+      end
+
+      it "clears the members when member_ids is an empty list" do
+        group = create(:friend_group, user: user)
+        add_to(group, befriend)
+
+        patch "/api/friends/groups/#{group.public_id}", params: { member_ids: [] }, headers: headers, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(group.memberships.reload).to be_empty
+      end
+
+      it "ignores a repeated id" do
+        friend = befriend
+        group  = create(:friend_group, user: user)
+
+        patch "/api/friends/groups/#{group.public_id}", params: { member_ids: [ friend.public_id, friend.public_id ] },
+                                                        headers: headers, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(group.memberships.reload.count).to eq(1)
+      end
+
+      it "changes nothing and lists the bad ids when one id is not a friend" do
+        keep     = befriend
+        other    = befriend
+        stranger = create(:user)
+        group    = create(:friend_group, user: user, name: "Study group")
+        add_to(group, keep)
+
+        patch "/api/friends/groups/#{group.public_id}",
+              params: { name: "Roommates", member_ids: [ other.public_id, stranger.public_id ] },
+              headers: headers, as: :json
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["invalid_member_ids"]).to eq([ stranger.public_id ])
+        expect(group.reload.name).to eq("Study group")
+        expect(group.members).to eq([ keep ])
+      end
+
+      it "changes nothing when the name is invalid" do
+        keep  = befriend
+        other = befriend
+        group = create(:friend_group, user: user, name: "Study group")
+        add_to(group, keep)
+
+        patch "/api/friends/groups/#{group.public_id}", params: { name: "x" * 51, member_ids: [ other.public_id ] },
+                                                        headers: headers, as: :json
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(group.reload.members).to eq([ keep ])
+      end
+
+      it "does not accept another user's friend" do
+        theirs = create(:user)
+        create(:friendship, :accepted, requester: theirs, addressee: create(:user))
+        group = create(:friend_group, user: user)
+
+        patch "/api/friends/groups/#{group.public_id}", params: { member_ids: [ theirs.public_id ] },
+                                                        headers: headers, as: :json
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(group.memberships.reload).to be_empty
+      end
+
+      it "answers 400 when neither name nor member_ids is sent" do
+        group = create(:friend_group, user: user)
+
+        patch "/api/friends/groups/#{group.public_id}", params: {}, headers: headers, as: :json
+
+        expect(response).to have_http_status(:bad_request)
+      end
+
+      it "answers 400 when member_ids holds something other than ids" do
+        group = create(:friend_group, user: user)
+
+        patch "/api/friends/groups/#{group.public_id}", params: { member_ids: [ { id: 1 } ] },
+                                                        headers: headers, as: :json
+
+        expect(response).to have_http_status(:bad_request)
+      end
+
+      it "runs the same number of queries to replace 2 members and to replace 8" do
+        group = create(:friend_group, user: user)
+        friends = Array.new(8) { befriend }
+        patch "/api/friends/groups/#{group.public_id}", params: { member_ids: [ friends[0].public_id ] },
+                                                        headers: headers, as: :json # warm up
+
+        few = query_count do
+          patch "/api/friends/groups/#{group.public_id}", params: { member_ids: friends.first(2).map(&:public_id) },
+                                                          headers: headers, as: :json
+        end
+        many = query_count do
+          patch "/api/friends/groups/#{group.public_id}", params: { member_ids: friends.map(&:public_id) },
+                                                          headers: headers, as: :json
+        end
+
+        expect(response.parsed_body.dig("group", "members").size).to eq(8)
+        expect(many).to eq(few)
+      end
+
+      it "lists groups in a fixed number of queries" do
+        3.times { |i| add_to(create(:friend_group, user: user, name: "Group #{i}"), befriend) }
+        get "/api/friends/groups", headers: headers # warm up
+
+        few = query_count { get "/api/friends/groups", headers: headers }
+        6.times { |i| add_to(create(:friend_group, user: user, name: "More #{i}"), befriend) }
+        many = query_count { get "/api/friends/groups", headers: headers }
+
+        expect(response.parsed_body["groups"].size).to eq(9)
+        expect(many).to eq(few)
       end
 
       it "does not rename another user's group" do
@@ -247,13 +446,6 @@ RSpec.describe "Api::FriendGroups", type: :request do
   end
 
   describe "GET /api/friends" do
-    def query_count
-      count = 0
-      counter = ->(*, payload) { count += 1 unless payload[:name] == "SCHEMA" || payload[:cached] }
-      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { yield }
-      count
-    end
-
     it "leaves out groups while the flag is off" do
       befriend
 

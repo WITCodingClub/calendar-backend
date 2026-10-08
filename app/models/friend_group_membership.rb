@@ -33,7 +33,7 @@ class FriendGroupMembership < ApplicationRecord
 
   def friendship_belongs_to_group_owner
     return if friend_group.nil? || friendship.nil?
-    return if friendship.accepted? && friendship.involves?(friend_group.user_id)
+    return if friend_group.user.accepted_friendships.exists?(id: friendship.id)
 
     errors.add(:friendship, "must be an accepted friendship of the group owner")
   end

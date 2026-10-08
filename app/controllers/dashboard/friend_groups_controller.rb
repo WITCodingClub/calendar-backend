@@ -8,24 +8,17 @@ class Dashboard::FriendGroupsController < Dashboard::ApplicationController
   before_action :set_group, only: %i[update destroy]
 
   def create
-    group = current_user.friend_groups.new(name: params[:name])
+    group = current_user.friend_groups.new
     authorize group
 
-    if group.save
-      redirect_to dashboard_friends_path, notice: "Group \"#{group.name}\" created."
-    else
-      redirect_to dashboard_friends_path, alert: group.errors.full_messages.to_sentence
-    end
+    save_group(group, notice: "Group \"#{params[:name].to_s.squish}\" created.")
   end
 
+  # One Save applies the name and the members together.
   def update
     authorize @group
 
-    if @group.update(name: params[:name])
-      redirect_to dashboard_friends_path, notice: "Group renamed to \"#{@group.name}\"."
-    else
-      redirect_to dashboard_friends_path, alert: @group.errors.full_messages.to_sentence
-    end
+    save_group(@group, notice: "Group saved.")
   end
 
   def destroy
@@ -36,6 +29,20 @@ class Dashboard::FriendGroupsController < Dashboard::ApplicationController
   end
 
   private
+
+  # member_ids is nil when the form sends no member list. A form that shows the
+  # friend checkboxes always sends one, even if no box is checked.
+  def save_group(group, notice:)
+    ids = params[:member_ids].nil? ? nil : Array(params[:member_ids]).compact_blank
+    attributes = params.key?(:name) ? { name: params[:name] } : {}
+
+    group.save_with_members!(attributes, friend_ids: ids)
+    redirect_to dashboard_friends_path, notice: notice
+  rescue FriendGroup::UnknownFriends
+    redirect_to dashboard_friends_path, alert: "Some of those people are not your friends. Nothing was saved."
+  rescue ActiveRecord::RecordInvalid => e
+    redirect_to dashboard_friends_path, alert: e.record.errors.full_messages.to_sentence
+  end
 
   def set_group
     @group = find_group(params[:id])

@@ -63,7 +63,7 @@ RSpec.describe "Dashboard friend groups", type: :request do
         expect(friend_row_groups).to eq([ "Study group" ])
       end
 
-      it "offers only friends who are not in the group yet" do
+      it "checks the boxes of the friends who are in the group" do
         other = create(:user, first_name: "Ada", last_name: "Lovelace")
         create(:friendship, :accepted, requester: user, addressee: other)
         group = create(:friend_group, user: user)
@@ -71,8 +71,10 @@ RSpec.describe "Dashboard friend groups", type: :request do
 
         get dashboard_friends_path
 
-        select = Nokogiri::HTML(response.body).at_css("select#add_friend_#{group.public_id}")
-        expect(select.css("option").map(&:text)).to eq([ "Ada Lovelace" ])
+        doc = Nokogiri::HTML(response.body)
+        checked = ->(who) { doc.at_css("input#group_#{group.public_id}_friend_#{who.public_id}")["checked"] }
+        expect(checked.call(friend)).to be_present
+        expect(checked.call(other)).to be_nil
       end
     end
 
@@ -86,6 +88,20 @@ RSpec.describe "Dashboard friend groups", type: :request do
         expect(flash[:notice]).to eq("Group \"Roommates\" created.")
       end
 
+      it "creates the group with its members in one request" do
+        post dashboard_friend_groups_path, params: { name: "Roommates", member_ids: [ "", friend.public_id ] }
+
+        expect(user.friend_groups.find_by(name: "Roommates").members).to eq([ friend ])
+      end
+
+      it "creates nothing when a member id is not a friend" do
+        expect {
+          post dashboard_friend_groups_path, params: { name: "Roommates", member_ids: [ create(:user).public_id ] }
+        }.not_to change(FriendGroup, :count)
+
+        expect(flash[:alert]).to include("not your friends")
+      end
+
       it "reports an invalid name" do
         post dashboard_friend_groups_path, params: { name: "" }
 
@@ -95,13 +111,49 @@ RSpec.describe "Dashboard friend groups", type: :request do
     end
 
     describe "PATCH /dashboard/friends/groups/:id" do
-      it "renames the group" do
+      it "renames the group and keeps the members when the form sends no member list" do
         group = create(:friend_group, user: user, name: "Study group")
+        add_to(group)
 
         patch dashboard_friend_group_path(group.public_id), params: { name: "Lab partners" }
 
         expect(group.reload.name).to eq("Lab partners")
-        expect(flash[:notice]).to eq("Group renamed to \"Lab partners\".")
+        expect(group.members).to eq([ friend ])
+        expect(flash[:notice]).to eq("Group saved.")
+      end
+
+      it "applies the name and the members together" do
+        other = create(:user, first_name: "Ada", last_name: "Lovelace")
+        create(:friendship, :accepted, requester: user, addressee: other)
+        group = create(:friend_group, user: user, name: "Study group")
+        add_to(group)
+
+        patch dashboard_friend_group_path(group.public_id),
+              params: { name: "Lab partners", member_ids: [ "", other.public_id ] }
+
+        expect(group.reload.name).to eq("Lab partners")
+        expect(group.members).to eq([ other ])
+      end
+
+      it "clears the members when the form sends only the empty marker" do
+        group = create(:friend_group, user: user)
+        add_to(group)
+
+        patch dashboard_friend_group_path(group.public_id), params: { name: group.name, member_ids: [ "" ] }
+
+        expect(group.reload.members).to be_empty
+      end
+
+      it "changes nothing when one member id is not a friend" do
+        group = create(:friend_group, user: user, name: "Study group")
+        add_to(group)
+
+        patch dashboard_friend_group_path(group.public_id),
+              params: { name: "Lab partners", member_ids: [ create(:user).public_id ] }
+
+        expect(group.reload.name).to eq("Study group")
+        expect(group.members).to eq([ friend ])
+        expect(flash[:alert]).to include("Nothing was saved")
       end
 
       it "reports a name that is too long" do

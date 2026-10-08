@@ -91,4 +91,70 @@ RSpec.describe FriendGroup, type: :model do
       expect(group.reload.members).to eq([ amy, zed ])
     end
   end
+
+  describe "#save_with_members!" do
+    let(:group)  { create(:friend_group) }
+    let(:owner)  { group.user }
+    let(:friend) { create(:user).tap { |u| create(:friendship, :accepted, requester: u, addressee: owner) } }
+
+    it "replaces the members" do
+      old = create(:user).tap { |u| create(:friendship, :accepted, requester: u, addressee: owner) }
+      create(:friend_group_membership, friend_group: group, friendship: owner.accepted_friendship_with(old))
+
+      group.save_with_members!({}, friend_ids: [ friend.public_id ])
+
+      expect(group.reload.members).to eq([ friend ])
+    end
+
+    it "leaves the members alone when friend_ids is nil" do
+      create(:friend_group_membership, friend_group: group, friendship: owner.accepted_friendship_with(friend))
+
+      group.save_with_members!({ name: "Renamed" })
+
+      expect(group.reload.members).to eq([ friend ])
+    end
+
+    it "raises with the bad ids and changes nothing" do
+      stranger = create(:user)
+
+      expect { group.save_with_members!({ name: "Renamed" }, friend_ids: [ friend.public_id, stranger.public_id ]) }
+        .to raise_error(described_class::UnknownFriends) { |error| expect(error.ids).to eq([ stranger.public_id ]) }
+      expect(group.reload.name).not_to eq("Renamed")
+      expect(group.memberships).to be_empty
+    end
+  end
+
+  # Every check of "is this an accepted friendship" goes through
+  # User#accepted_friendships. When it answers none, all of them must agree.
+  describe "the one accepted-friendship rule" do
+    let(:group)  { create(:friend_group) }
+    let(:owner)  { group.user }
+    let(:friend) { create(:user).tap { |u| create(:friendship, :accepted, requester: u, addressee: owner) } }
+    let!(:membership) do
+      create(:friend_group_membership, friend_group: group, friendship: owner.accepted_friendship_with(friend))
+    end
+
+    before { allow_any_instance_of(User).to receive(:accepted_friendships).and_return(Friendship.none) } # rubocop:disable RSpec/AnyInstance
+
+    it "is followed by User#accepted_friendship_with" do
+      expect(owner.accepted_friendship_with(friend)).to be_nil
+    end
+
+    it "is followed by the membership validation" do
+      expect(membership.reload).not_to be_valid
+    end
+
+    it "is followed by #members" do
+      expect(described_class.find(group.id).members).to be_empty
+    end
+
+    it "is followed by .by_friend_id_for" do
+      expect(described_class.by_friend_id_for(owner)[friend.id]).to eq([])
+    end
+
+    it "is followed by member replacement" do
+      expect { group.save_with_members!({}, friend_ids: [ friend.public_id ]) }
+        .to raise_error(described_class::UnknownFriends)
+    end
+  end
 end
