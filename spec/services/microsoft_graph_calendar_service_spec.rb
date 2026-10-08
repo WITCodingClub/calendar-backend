@@ -532,4 +532,197 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
       expect { service.delete_calendar("AAMkSyntheticCalendar1") }.not_to raise_error
     end
   end
+
+  describe "friend meetings" do
+    let(:friend) { create(:user, first_name: "Sample", last_name: "Friend", email: "sample.friend@wit.edu") }
+    let(:meeting) do
+      create(:friend_meeting, :invite_friends, user: user, title: "Synthetic Study Group", location: "Synthetic Library",
+                                               start_time: zone.local(2026, 9, 15, 15), end_time: zone.local(2026, 9, 15, 16))
+    end
+    let(:attendees) { [ { "emailAddress" => { "address" => "sample.friend@wit.edu", "name" => "Sample Friend" }, "type" => "required" } ] }
+    let(:primary_events_url) { "#{graph}/me/calendar/events" }
+    let(:primary_calendar) do
+      create(:course_calendar, :primary, oauth_credential: credential, external_calendar_id: "AAMkSyntheticPrimaryCalendar")
+    end
+
+    before { create(:friend_meeting_attendee, friend_meeting: meeting, user: friend) }
+
+    def meeting_row(course_calendar)
+      create(:calendar_event, :for_friend_meeting, course_calendar: course_calendar, friend_meeting: meeting,
+                                                   external_event_id: "AAMkSyntheticMeeting1", end_time: zone.local(2026, 9, 15, 16))
+    end
+
+    describe "#create_friend_meeting_event" do
+      it "returns nil when the person has no Microsoft course calendar" do
+        credential
+
+        expect(service.create_friend_meeting_event(meeting)).to be_nil
+      end
+
+      it "creates the event in the primary calendar with the friends as attendees, and tracks both Graph ids" do
+        calendar
+        create_stub = stub_request(:post, primary_events_url)
+                      .with(body: hash_including("subject" => "Synthetic Study Group", "showAs" => "busy", "attendees" => attendees))
+                      .to_return(graph_json_response("meeting_created", status: 201))
+
+        row = service.create_friend_meeting_event(meeting)
+
+        expect(create_stub).to have_been_requested.once
+        expect(a_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events")).not_to have_been_made
+        expect(row).to have_attributes(friend_meeting_id: meeting.id, calendar_id: calendar.id, external_event_id: "AAMkSyntheticMeeting1",
+                                       external_ical_uid: JSON.parse(graph_fixture("meeting_created"))["iCalUId"])
+      end
+
+      it "uses the primary calendar when the course events are there too" do
+        primary_calendar
+        create_stub = stub_request(:post, primary_events_url).to_return(graph_json_response("meeting_created", status: 201))
+
+        service.create_friend_meeting_event(meeting)
+
+        expect(create_stub).to have_been_requested.once
+      end
+
+      it "sends no attendees when asked not to invite" do
+        calendar
+        create_stub = stub_request(:post, primary_events_url).with do |request|
+          !JSON.parse(request.body).key?("attendees")
+        end.to_return(graph_json_response("meeting_created", status: 201))
+
+        service.create_friend_meeting_event(meeting, invite: false)
+
+        expect(create_stub).to have_been_requested.once
+      end
+
+      it "sends a weekly meeting as a weekly series that ends on the last day of the term" do
+        calendar
+        meeting.update!(frequency: "weekly", term: create(:term), repeat_until: Date.new(2026, 12, 18))
+        create_stub = stub_request(:post, primary_events_url).with do |request|
+          recurrence = JSON.parse(request.body)["recurrence"]
+          recurrence.dig("pattern", "daysOfWeek") == [ "tuesday" ] && recurrence.dig("range", "endDate") == "2026-12-18"
+        end.to_return(graph_json_response("meeting_created", status: 201))
+
+        service.create_friend_meeting_event(meeting)
+
+        expect(create_stub).to have_been_requested.once
+      end
+
+      it "keeps the meeting row when the course sync runs" do
+        row = meeting_row(calendar)
+
+        service.update_calendar_events([])
+
+        expect(CalendarEvent.exists?(row.id)).to be(true)
+      end
+    end
+
+    describe "#update_friend_meeting_event" do
+      it "writes the meeting and its friends over the event" do
+        row = meeting_row(calendar)
+        meeting.update!(title: "Synthetic Review")
+        patch = stub_request(:patch, "#{graph}/me/events/AAMkSyntheticMeeting1")
+                .with(body: hash_including("subject" => "Synthetic Review", "attendees" => attendees))
+                .to_return(graph_json_response("event_updated"))
+
+        service.update_friend_meeting_event(row, meeting, attendees: true)
+
+        expect(patch).to have_been_requested.once
+        expect(row.reload.summary).to eq("Synthetic Review")
+      end
+
+      it "sends an empty attendee list after the last friend leaves, so Exchange cancels for them" do
+        row = meeting_row(calendar)
+        meeting.friend_meeting_attendees.delete_all
+        patch = stub_request(:patch, "#{graph}/me/events/AAMkSyntheticMeeting1")
+                .with(body: hash_including("attendees" => [])).to_return(graph_json_response("event_updated"))
+
+        service.update_friend_meeting_event(row, meeting.reload, attendees: true)
+
+        expect(patch).to have_been_requested.once
+      end
+
+      it "leaves the attendees alone when the event never had them" do
+        row = meeting_row(calendar)
+        patch = stub_request(:patch, "#{graph}/me/events/AAMkSyntheticMeeting1").with do |request|
+          !JSON.parse(request.body).key?("attendees")
+        end.to_return(graph_json_response("event_updated"))
+
+        service.update_friend_meeting_event(row, meeting, attendees: false)
+
+        expect(patch).to have_been_requested.once
+      end
+
+      it "makes a missing event again without attendees, so no friend gets a second invitation" do
+        row = meeting_row(calendar)
+        stub_request(:patch, "#{graph}/me/events/AAMkSyntheticMeeting1").to_return(graph_json_response("error_not_found", status: 404))
+        create_stub = stub_request(:post, primary_events_url).with { |request| !JSON.parse(request.body).key?("attendees") }
+                                                              .to_return(graph_json_response("meeting_created", status: 201))
+
+        service.update_friend_meeting_event(row, meeting, attendees: true)
+
+        expect(create_stub).to have_been_requested.once
+        expect(CalendarEvent.exists?(row.id)).to be(false)
+        expect(meeting.calendar_events.sole.external_event_id).to eq("AAMkSyntheticMeeting1")
+      end
+    end
+
+    describe "#delete_friend_meeting_event" do
+      it "deletes the event, which sends the attendees a cancellation, and the row" do
+        row    = meeting_row(calendar)
+        delete = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticMeeting1").to_return(status: 204)
+
+        service.delete_friend_meeting_event(row)
+
+        expect(delete).to have_been_requested.once
+        expect(CalendarEvent.exists?(row.id)).to be(false)
+      end
+    end
+
+    # Graph cannot move an event, and a deleted meeting sends a cancellation.
+    # A placement move must not touch a meeting, or friends get a cancellation
+    # and a new invitation.
+    describe "placement moves" do
+      it "keeps the meeting when the course events move to the primary calendar" do
+        row = meeting_row(calendar)
+        stub_request(:get, "#{graph}/me/calendar").with(query: hash_including({})).to_return(graph_json_response("calendar_primary"))
+        stub_request(:delete, "#{graph}/me/calendars/AAMkSyntheticCalendar1").to_return(status: 204)
+
+        service.change_placement("primary")
+
+        expect(CalendarEvent.exists?(row.id)).to be(true)
+        expect(a_request(:delete, %r{/me/events/})).not_to have_been_made
+      end
+
+      it "keeps the meeting when the course events move to a separate calendar" do
+        row = meeting_row(primary_calendar)
+        stub_request(:post, "#{graph}/me/calendars").to_return(graph_json_response("calendar_created"))
+
+        service.change_placement("separate")
+
+        expect(CalendarEvent.exists?(row.id)).to be(true)
+        expect(a_request(:delete, %r{/me/events/})).not_to have_been_made
+      end
+
+      it "keeps the meeting row when the person deleted the course calendar in Outlook" do
+        row = meeting_row(calendar)
+        stub_request(:get, "#{graph}/me/calendars/AAMkSyntheticCalendar1").with(query: hash_including({}))
+          .to_return(graph_json_response("error_not_found", status: 404))
+        stub_request(:post, "#{graph}/me/calendars").to_return(graph_json_response("calendar_created"))
+
+        service.create_or_get_course_calendar
+
+        expect(CalendarEvent.exists?(row.id)).to be(true)
+      end
+
+      it "deletes the meeting event on disconnect, because it is not in the app's calendar" do
+        row          = meeting_row(calendar)
+        delete_event = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticMeeting1").to_return(status: 204)
+        stub_request(:delete, "#{graph}/me/calendars/AAMkSyntheticCalendar1").to_return(status: 204)
+
+        service.remove_course_events(calendar)
+
+        expect(delete_event).to have_been_requested.once
+        expect(CalendarEvent.exists?(row.id)).to be(false)
+      end
+    end
+  end
 end

@@ -214,6 +214,22 @@ RSpec.describe OauthCredential, type: :model do
       expect(OauthCredential.exists?(credential.id)).to be(false)
     end
 
+    it "deletes a meeting event, which cancels the invitations, and marks the meeting removed for Microsoft" do
+      meeting = create(:friend_meeting, :invite_friends, user: credential.user, destinations: %w[microsoft])
+      meeting.publication_for("microsoft").mark_published!(invitations_sent: true)
+      create(:calendar_event, :for_friend_meeting, course_calendar: credential.course_calendar, friend_meeting: meeting,
+                                                   external_event_id: "AAMkSyntheticMeeting1")
+      delete_meeting = stub_request(:delete, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/events/AAMkSyntheticMeeting1").to_return(status: 204)
+      stub_request(:delete, calendar_url).to_return(status: 204)
+
+      credential.destroy!
+
+      expect(delete_meeting).to have_been_requested.once
+      expect(meeting.reload).not_to be_cancelled
+      expect(meeting.publication_for("microsoft"))
+        .to have_attributes(status: "removed", invitations_sent_at: nil, invitation_status: "cancelled")
+    end
+
     it "still disconnects when Graph fails" do
       stub_request(:delete, calendar_url).to_return(status: 503, body: "{}")
 
@@ -256,6 +272,33 @@ RSpec.describe OauthCredential, type: :model do
       credential.destroy!
 
       expect(a_request(:any, /graph\.microsoft\.com/)).not_to have_been_made
+    end
+  end
+
+  describe "a new token" do
+    include ActiveJob::TestHelper
+
+    let(:credential) { create(:oauth_credential) }
+
+    it "resumes friend meeting work that waits on the token" do
+      create(:friend_meeting, :cancelled, user: credential.user)
+
+      expect { credential.update!(access_token: "synthetic-new-token") }
+        .to have_enqueued_job(FriendMeetingResumeJob).with(credential.user)
+    end
+
+    it "resumes a meeting whose provider was removed" do
+      meeting = create(:friend_meeting, user: credential.user, destinations: %w[microsoft])
+      meeting.publication_for("microsoft").mark_removed!
+
+      expect { credential.update!(access_token: "synthetic-new-token") }.to have_enqueued_job(FriendMeetingResumeJob)
+    end
+
+    it "starts no job when no meeting work waits" do
+      create(:friend_meeting, user: credential.user, destinations: %w[ics])
+
+      expect { credential.update!(access_token: "synthetic-new-token") }.not_to have_enqueued_job(FriendMeetingResumeJob)
+      expect { credential.update!(email: "synthetic-other@wit.edu") }.not_to have_enqueued_job(FriendMeetingResumeJob)
     end
   end
 end

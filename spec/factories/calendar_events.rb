@@ -19,6 +19,7 @@
 #  calendar_id                  :bigint           not null
 #  external_event_id            :string           not null
 #  final_exam_id                :bigint
+#  friend_meeting_id            :bigint
 #  meeting_time_id              :bigint
 #  university_calendar_event_id :bigint
 #
@@ -26,11 +27,13 @@
 #
 #  idx_calendar_events_on_calendar_id_meeting_time_id     (calendar_id,meeting_time_id)
 #  idx_calendar_events_unique_final_exam                  (calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
+#  idx_calendar_events_unique_friend_meeting              (calendar_id,friend_meeting_id) UNIQUE WHERE (friend_meeting_id IS NOT NULL)
 #  idx_calendar_events_unique_meeting_time                (calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
 #  idx_calendar_events_unique_university                  (calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
 #  index_calendar_events_on_external_event_id             (external_event_id)
 #  index_calendar_events_on_external_ical_uid             (external_ical_uid)
 #  index_calendar_events_on_final_exam_id                 (final_exam_id)
+#  index_calendar_events_on_friend_meeting_id             (friend_meeting_id)
 #  index_calendar_events_on_last_synced_at                (last_synced_at)
 #  index_calendar_events_on_meeting_time_id               (meeting_time_id)
 #  index_calendar_events_on_university_calendar_event_id  (university_calendar_event_id)
@@ -38,6 +41,7 @@
 # Foreign Keys
 #
 #  fk_rails_...  (calendar_id => calendars.id)
+#  fk_rails_...  (friend_meeting_id => friend_meetings.id)
 #  fk_rails_...  (meeting_time_id => course_meeting_times.id)
 #
 FactoryBot.define do
@@ -58,6 +62,11 @@ FactoryBot.define do
     trait :for_university_event do
       meeting_time { nil }
       association :university_calendar_event, strategy: :create
+    end
+
+    trait :for_friend_meeting do
+      meeting_time { nil }
+      association :friend_meeting, strategy: :create
     end
 
     trait :microsoft do

@@ -9,6 +9,7 @@ module FlipperFlags
   MICROSOFT_GRAPH_CALENDAR = :microsoft_graph_calendar
   FRIENDS_AVAILABILITY_ONLY = :friends_availability_only
   SEMANTIC_SEARCH = :semantic_search
+  FRIEND_MEETING_EVENTS = :friend_meeting_events
   FRIEND_GROUPS = :friend_groups
   FRIEND_EXPIRY = :friend_expiry
 
@@ -20,6 +21,7 @@ module FlipperFlags
     microsoftSignIn: MICROSOFT_SIGN_IN,
     microsoftGraphCalendar: MICROSOFT_GRAPH_CALENDAR,
     friendsAvailabilityOnly: FRIENDS_AVAILABILITY_ONLY,
+    friendMeetingEvents: FRIEND_MEETING_EVENTS,
     friendGroups: FRIEND_GROUPS,
     friendExpiry: FRIEND_EXPIRY
   }.freeze
@@ -32,6 +34,7 @@ module FlipperFlags
     microsoftSignIn
     microsoftGraphCalendar
     friendsAvailabilityOnly
+    friendMeetingEvents
     friendGroups
     friendExpiry
   ].freeze

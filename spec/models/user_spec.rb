@@ -64,11 +64,52 @@ RSpec.describe User, type: :model do
     it { is_expected.to have_many(:sent_friendships).class_name("Friendship").with_foreign_key(:requester_id).dependent(:destroy) }
     it { is_expected.to have_many(:received_friendships).class_name("Friendship").with_foreign_key(:addressee_id).dependent(:destroy) }
     it { is_expected.to have_many(:friend_groups).dependent(:destroy) }
+    it { is_expected.to have_many(:friend_meetings).dependent(:destroy) }
+    it { is_expected.to have_many(:friend_meeting_attendees).dependent(:delete_all) }
 
     it { is_expected.to validate_presence_of(:email) }
     it { is_expected.to validate_uniqueness_of(:email).case_insensitive }
 
     it { is_expected.to define_enum_for(:access_level).with_values(user: 0, admin: 1, super_admin: 2, owner: 3).backed_by_column_of_type(:integer).with_default(:user) }
+  end
+
+  describe "deleting the account with friend meetings" do
+    let(:user)       { create(:user) }
+    let(:credential) { create(:oauth_credential, user: user, access_token: "synthetic-user-token", token_expires_at: 1.hour.from_now) }
+    let(:calendar)   { create(:course_calendar, oauth_credential: credential, external_calendar_id: "synthetic-course-calendar") }
+    let(:event_url)  { "#{GoogleApiStubs::GOOGLE_CALENDAR_API}/calendars/synthetic-course-calendar/events/gcal_synthetic_meeting" }
+
+    before { stub_google_service_account }
+
+    it "deletes each meeting event with the token, while the credential still exists, and cancels for the friends" do
+      meeting = create(:friend_meeting, :invite_friends, user: user, destinations: %w[google])
+      create(:calendar_event, :for_friend_meeting, course_calendar: calendar, friend_meeting: meeting, external_event_id: "gcal_synthetic_meeting")
+      credential_at_delete = nil
+      delete = stub_request(:delete, event_url).with(query: { "sendUpdates" => "all" },
+                                                     headers: { "Authorization" => "Bearer synthetic-user-token" })
+                                               .to_return do
+        credential_at_delete = OauthCredential.exists?(credential.id)
+        { status: 204 }
+      end
+      stub_request(:any, %r{googleapis\.com/calendar/v3/(?!calendars/synthetic-course-calendar/events)}).to_return(status: 204)
+
+      user.destroy!
+
+      expect(delete).to have_been_requested.once
+      expect(credential_at_delete).to be(true)
+      expect(FriendMeeting.exists?(meeting.id)).to be(false)
+    end
+
+    it "still deletes the account when a provider delete fails" do
+      meeting = create(:friend_meeting, user: user, destinations: %w[google])
+      create(:calendar_event, :for_friend_meeting, course_calendar: calendar, friend_meeting: meeting, external_event_id: "gcal_synthetic_meeting")
+      stub_request(:delete, event_url).with(query: hash_including({}))
+                                      .to_return(status: 500, body: "{}", headers: { "Content-Type" => "application/json" })
+      stub_request(:any, %r{googleapis\.com/calendar/v3/(?!calendars/synthetic-course-calendar/events)}).to_return(status: 204)
+
+      expect { user.destroy! }.not_to raise_error
+      expect(FriendMeeting.exists?(meeting.id)).to be(false)
+    end
   end
 
   describe "#processed_courses?" do

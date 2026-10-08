@@ -19,6 +19,7 @@
 #  calendar_id                  :bigint           not null
 #  external_event_id            :string           not null
 #  final_exam_id                :bigint
+#  friend_meeting_id            :bigint
 #  meeting_time_id              :bigint
 #  university_calendar_event_id :bigint
 #
@@ -26,11 +27,13 @@
 #
 #  idx_calendar_events_on_calendar_id_meeting_time_id     (calendar_id,meeting_time_id)
 #  idx_calendar_events_unique_final_exam                  (calendar_id,final_exam_id) UNIQUE WHERE (final_exam_id IS NOT NULL)
+#  idx_calendar_events_unique_friend_meeting              (calendar_id,friend_meeting_id) UNIQUE WHERE (friend_meeting_id IS NOT NULL)
 #  idx_calendar_events_unique_meeting_time                (calendar_id,meeting_time_id) UNIQUE WHERE (meeting_time_id IS NOT NULL)
 #  idx_calendar_events_unique_university                  (calendar_id,university_calendar_event_id) UNIQUE WHERE (university_calendar_event_id IS NOT NULL)
 #  index_calendar_events_on_external_event_id             (external_event_id)
 #  index_calendar_events_on_external_ical_uid             (external_ical_uid)
 #  index_calendar_events_on_final_exam_id                 (final_exam_id)
+#  index_calendar_events_on_friend_meeting_id             (friend_meeting_id)
 #  index_calendar_events_on_last_synced_at                (last_synced_at)
 #  index_calendar_events_on_meeting_time_id               (meeting_time_id)
 #  index_calendar_events_on_university_calendar_event_id  (university_calendar_event_id)
@@ -38,6 +41,7 @@
 # Foreign Keys
 #
 #  fk_rails_...  (calendar_id => calendars.id)
+#  fk_rails_...  (friend_meeting_id => friend_meetings.id)
 #  fk_rails_...  (meeting_time_id => course_meeting_times.id)
 #
 class CalendarEvent < ApplicationRecord
@@ -49,6 +53,7 @@ class CalendarEvent < ApplicationRecord
   belongs_to :meeting_time, class_name: "Course::MeetingTime", optional: true
   belongs_to :final_exam, optional: true
   belongs_to :university_calendar_event, optional: true
+  belongs_to :friend_meeting, optional: true
   has_one :event_preference, as: :preferenceable, dependent: :destroy
   has_one :oauth_credential, through: :course_calendar
   has_one :user, through: :oauth_credential
@@ -58,6 +63,7 @@ class CalendarEvent < ApplicationRecord
   validates :meeting_time_id, uniqueness: { scope: :calendar_id }, if: :meeting_time_id?
   validates :final_exam_id, uniqueness: { scope: :calendar_id }, if: :final_exam?
   validates :university_calendar_event_id, uniqueness: { scope: :calendar_id }, if: :university_event?
+  validates :friend_meeting_id, uniqueness: { scope: :calendar_id }, if: :friend_meeting?
 
   serialize :recurrence, coder: JSON
 
@@ -80,15 +86,20 @@ class CalendarEvent < ApplicationRecord
   scope :university_events_only,     -> { where.not(university_calendar_event_id: nil) }
   scope :user_edited,                -> { where.not(user_edited_fields: nil) }
   scope :not_user_edited,            -> { where(user_edited_fields: nil) }
-  scope :orphaned,                   -> { where(meeting_time_id: nil, final_exam_id: nil, university_calendar_event_id: nil) }
+  scope :orphaned,                   -> { where(meeting_time_id: nil, final_exam_id: nil, university_calendar_event_id: nil, friend_meeting_id: nil) }
+  # The rows that a course sync owns. A friend meeting row is not part of the
+  # schedule, so the sync must never reconcile it away.
+  scope :schedule_events,            -> { where(friend_meeting_id: nil) }
+  scope :friend_meetings_only,       -> { where.not(friend_meeting_id: nil) }
 
   def final_exam?     = final_exam_id.present?
   def meeting_time?   = meeting_time_id.present?
   def university_event? = university_calendar_event_id.present?
-  def orphaned?       = meeting_time_id.nil? && final_exam_id.nil? && university_calendar_event_id.nil?
+  def friend_meeting? = friend_meeting_id.present?
+  def orphaned?       = meeting_time_id.nil? && final_exam_id.nil? && university_calendar_event_id.nil? && friend_meeting_id.nil?
 
   def syncable
-    meeting_time || final_exam || university_calendar_event
+    meeting_time || final_exam || university_calendar_event || friend_meeting
   end
 
   def self.generate_data_hash(event_data)
@@ -153,9 +164,11 @@ class CalendarEvent < ApplicationRecord
   # sync service already handled the remote delete, or when the whole calendar is
   # being torn down (delete_calendar cleans up its events server-side). A
   # primary calendar is never deleted, so its events are deleted one by one.
+  # A Microsoft friend meeting is always in the primary calendar, so it too
+  # is deleted on its own.
   def capture_remote_event_ref
     return if skip_remote_deletion
-    return if destroyed_by_association&.foreign_key.to_s == "calendar_id" && !course_calendar&.primary_placement?
+    return if destroyed_by_association&.foreign_key.to_s == "calendar_id" && !in_primary_calendar?
 
     calendar = course_calendar
     @remote_event_ref = {
@@ -165,6 +178,13 @@ class CalendarEvent < ApplicationRecord
       event_id:            external_event_id,
       ical_uid:            external_ical_uid
     }
+  end
+
+  def in_primary_calendar?
+    calendar = course_calendar
+    return false unless calendar
+
+    calendar.primary_placement? || (calendar.microsoft? && friend_meeting?)
   end
 
   def enqueue_remote_event_deletion
@@ -181,9 +201,9 @@ class CalendarEvent < ApplicationRecord
   end
 
   def only_one_event_type_associated
-    event_types = [ meeting_time_id, final_exam_id, university_calendar_event_id ].compact
+    event_types = [ meeting_time_id, final_exam_id, university_calendar_event_id, friend_meeting_id ].compact
     return unless event_types.size != 1
 
-    errors.add(:base, "Must be associated with exactly one of: meeting_time, final_exam, or university_calendar_event")
+    errors.add(:base, "Must be associated with exactly one of: meeting_time, final_exam, university_calendar_event, or friend_meeting")
   end
 end

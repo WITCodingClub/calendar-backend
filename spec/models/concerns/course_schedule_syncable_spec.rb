@@ -55,6 +55,21 @@ RSpec.describe CourseScheduleSyncable, type: :model do
       expect(CalendarEvent.exists?(registration_gcal_event.id)).to be(false)
     end
 
+    it "keeps a friend meeting row and puts back a meeting that is missing from the calendar" do
+      tracked = create(:calendar_event, :for_friend_meeting, course_calendar: calendar,
+                                                             external_event_id: "gcal_meeting", end_time: 1.week.from_now)
+      missing = create(:friend_meeting, user: user, destinations: %w[google])
+      allow(google_service).to receive(:insert_event)
+        .and_return(Google::Apis::CalendarV3::Event.new(id: "gcal_missing_meeting"))
+      tracked.friend_meeting.update!(user: user)
+
+      user.sync_course_schedule(force: false)
+
+      expect(CalendarEvent.exists?(tracked.id)).to be(true)
+      expect(google_service).not_to have_received(:delete_event).with("cal_123", "gcal_meeting")
+      expect(missing.calendar_events.sole).to have_attributes(external_event_id: "gcal_missing_meeting", calendar_id: calendar.id)
+    end
+
     it "deletes a past event after the user unselects its category" do
       config.update!(university_event_categories: %w[deadline])
 

@@ -14,13 +14,15 @@
 #
 # Each kind of busy time comes from a source. A source is a class with
 # `.call(user, from, to)` that returns `BusyBlocks::Interval` values. The list
-# is in `BusyBlocks.sources`. To add a new kind of busy time (for example
-# meetings), write a source and add it to that list. The merge step, the
-# serializer, and both API routes then include it with no other change.
+# is in `BusyBlocks.sources`. To add a new kind of busy time, write a source
+# and add it to that list. The merge step, the serializer, and both API routes
+# then include it with no other change.
 #
 # - MeetingSource: class meetings, minus the days with no classes (holidays,
 #   study days, and the finals period).
 # - FinalExamSource: the final exams of the user.
+# - FriendMeetingSource: the saved friend meetings of the user, owned or
+#   invited. They stay busy on days with no classes.
 #
 #   BusyBlocks.new(user, from: Date.new(2026, 10, 5), to: Date.new(2026, 10, 9)).call
 #   # => [#<data BusyBlocks::Block date=2026-10-05, start="09:00", end="10:15">, ...]
@@ -31,7 +33,7 @@ class BusyBlocks
   Interval = Data.define(:date, :begin_time, :end_time)
 
   # The sources that make up the busy time of a user.
-  def self.sources = [ MeetingSource, FinalExamSource ]
+  def self.sources = [ MeetingSource, FinalExamSource, FriendMeetingSource ]
 
   Block = Data.define(:date, :start, :end) do
     def weekday = date.strftime("%A").downcase

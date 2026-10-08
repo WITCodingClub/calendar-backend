@@ -90,6 +90,8 @@ class Friendship < ApplicationRecord
   end
 
   after_create_commit :email_addressee_about_request, if: :pending?
+  # Ex-friends come off each other's future meetings.
+  after_destroy_commit :remove_from_friend_meetings, if: :accepted?
 
   def self.valid_visibility?(level) = VISIBILITIES.key?(level.to_s.to_sym)
 
@@ -210,6 +212,10 @@ class Friendship < ApplicationRecord
   # real request that the addressee has to answer.
   def email_addressee_about_request
     FriendshipMailer.request_received(self).deliver_later
+  end
+
+  def remove_from_friend_meetings
+    FriendMeetingAttendeeRemover.call(requester_id, addressee_id)
   end
 
   def remove_expired_pair

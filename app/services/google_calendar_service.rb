@@ -54,7 +54,7 @@ class GoogleCalendarService
 
     calendar_id = course_calendar.external_calendar_id
 
-    all_existing_events = course_calendar.calendar_events.to_a
+    all_existing_events = course_calendar.calendar_events.schedule_events.to_a
     existing_events     = {}
     duplicates_to_delete = []
 
@@ -148,7 +148,7 @@ class GoogleCalendarService
     final_exam_ids      = events.filter_map { |e| e[:final_exam_id] }
     university_event_ids = events.filter_map { |e| e[:university_calendar_event_id] }
 
-    base_query = course_calendar.calendar_events
+    base_query = course_calendar.calendar_events.schedule_events
     conditions = []
     conditions << base_query.where(meeting_time_id: meeting_time_ids)         if meeting_time_ids.any?
     conditions << base_query.where(final_exam_id: final_exam_ids)             if final_exam_ids.any?
@@ -205,6 +205,75 @@ class GoogleCalendarService
     end
 
     db_events.size
+  end
+
+  # Puts a FriendMeeting in the course calendar and tracks it with a
+  # CalendarEvent row. With invite: true and invitees, Google sends each
+  # invitee an invitation. Returns the row, or nil when the person has no
+  # Google course calendar.
+  def create_friend_meeting_event(meeting, invite: true)
+    course_calendar = CourseCalendar.google.for_user(user).first
+    return nil unless course_calendar
+
+    calendar_id   = course_calendar.external_calendar_id
+    event_data    = meeting.event_data
+    google_event  = friend_meeting_google_event(meeting, attendees: invite)
+    service       = user_calendar_service
+    send_updates  = google_event.attendees.present? ? "all" : "none"
+    created_event = with_rate_limit_handling { service.insert_event(calendar_id, google_event, send_updates: send_updates) }
+
+    course_calendar.calendar_events.create!(
+      friend_meeting_row_attributes(event_data).merge(friend_meeting: meeting, external_event_id: created_event.id)
+    )
+  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
+    raise if e.is_a?(ActiveRecord::RecordInvalid) && !e.record.errors.of_kind?(:friend_meeting_id, :taken)
+
+    # A concurrent publish already tracks this meeting, so the event just
+    # created is a duplicate. Remove it rather than leave it on the calendar.
+    with_rate_limit_handling { service.delete_event(calendar_id, created_event.id, send_updates: "none") } if created_event&.id
+    nil
+  end
+
+  # Writes the meeting's current title, place, time, and (with attendees:
+  # true) friends over the event. Google tells each friend about the change,
+  # and sends a cancellation to a friend who is no longer on the list. An
+  # event that is gone is made again, without attendees.
+  def update_friend_meeting_event(row, meeting, attendees:)
+    calendar_id  = row.course_calendar.external_calendar_id
+    google_event = friend_meeting_google_event(meeting, attendees: attendees)
+    service      = user_calendar_service
+
+    begin
+      with_rate_limit_handling do
+        service.update_event(calendar_id, row.external_event_id, google_event, send_updates: attendees ? "all" : "none")
+      end
+    rescue Google::Apis::ClientError => e
+      raise unless [ 404, 410 ].include?(e.status_code)
+
+      row.skip_remote_deletion = true
+      row.destroy!
+      return create_friend_meeting_event(meeting, invite: false)
+    end
+
+    row.update!(friend_meeting_row_attributes(meeting.event_data))
+    row
+  end
+
+  # Deletes the event of a meeting that its owner cancelled. Google sends a
+  # cancellation to each friend on the event. A missing event counts as
+  # deleted.
+  def delete_friend_meeting_event(row)
+    calendar_id = row.course_calendar.external_calendar_id
+    service     = user_calendar_service
+
+    begin
+      with_rate_limit_handling { service.delete_event(calendar_id, row.external_event_id, send_updates: "all") }
+    rescue Google::Apis::ClientError => e
+      raise unless [ 404, 410 ].include?(e.status_code)
+    end
+
+    row.skip_remote_deletion = true
+    row.destroy!
   end
 
   def list_calendars
@@ -673,6 +742,30 @@ class GoogleCalendarService
     when "days"  then (time_value * 1440).to_i
     else time_value.to_i
     end
+  end
+
+  # With attendees: true the event lists the invited friends. Without, it
+  # has none: an update replaces the whole event.
+  def friend_meeting_google_event(meeting, attendees:)
+    google_event = build_google_event(meeting.event_data)
+    return google_event unless attendees
+
+    google_event.attendees = meeting.invitees.map do |friend|
+      Google::Apis::CalendarV3::EventAttendee.new(email: friend.email, display_name: friend.full_name)
+    end
+    google_event
+  end
+
+  def friend_meeting_row_attributes(event_data)
+    {
+      summary:         event_data[:summary],
+      location:        event_data[:location],
+      start_time:      event_data[:start_time],
+      end_time:        event_data[:end_time],
+      recurrence:      event_data[:recurrence],
+      event_data_hash: CalendarEvent.generate_data_hash(event_data),
+      last_synced_at:  Time.current
+    }
   end
 
   def build_google_event(event_data, labels = nil)

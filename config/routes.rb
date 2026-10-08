@@ -141,6 +141,12 @@ Rails.application.routes.draw do
 
     # Friends system
     get    "friends",                                   to: "friends#index"
+    get    "friends/meetings",                          to: "friend_meetings#index"
+    post   "friends/meetings",                          to: "friend_meetings#create"
+    get    "friends/meetings/:id",                      to: "friend_meetings#show"
+    patch  "friends/meetings/:id",                      to: "friend_meetings#update"
+    delete "friends/meetings/:id",                      to: "friend_meetings#destroy"
+    delete "friends/meetings/:id/attendance",           to: "friend_meetings#leave"
     get    "friends/requests",                          to: "friends#requests"
     post   "friends/requests",                          to: "friends#create_request"
     post   "friends/requests/:request_id/accept",       to: "friends#accept"

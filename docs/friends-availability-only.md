@@ -99,7 +99,7 @@ Every accepted friend can read busy blocks, whatever the friend's level. While t
 
 - Times are wall-clock times in `time_zone`.
 - Blocks on one date that overlap or touch are merged into one block.
-- Class meetings do not appear on a day with no classes (a holiday, a study day, or the finals period). Final exams appear on their date.
+- Class meetings do not appear on a day with no classes (a holiday, a study day, or the finals period). Final exams appear on their date. Saved friend meetings (the meetings the user owns and the meetings that invited the user) appear on every date, also on a day with no classes. A cancelled meeting does not appear. An occurrence that goes past midnight ends at `24:00` on its first date.
 - 400: a date has the wrong format, `end_date` is before `start_date`, or the range is too long.
 - 403 `NOT_FRIENDS`: the user is not an accepted friend.
 
@@ -119,7 +119,7 @@ with status 403.
 
 ## Code
 
-- `BusyBlocks` (`app/services/busy_blocks.rb`) computes the blocks for one user and a date range. It loads no course record. Each kind of busy time is a source in `BusyBlocks.sources` (`MeetingSource`, `FinalExamSource`). A source is a class with `.call(user, from, to)` that returns `BusyBlocks::Interval` values. To add meetings (#674), add a source to that list. Other features, such as a one-time meeting link (#652), can use the service.
+- `BusyBlocks` (`app/services/busy_blocks.rb`) computes the blocks for one user and a date range. It loads no course record. Each kind of busy time is a source in `BusyBlocks.sources` (`MeetingSource`, `FinalExamSource`, `FriendMeetingSource`). A source is a class with `.call(user, from, to)` that returns `BusyBlocks::Interval` values. To add a new kind of busy time, add a source to that list. Other features, such as a one-time meeting link (#652), can use the service.
 - `Friendship.accepted_between(user, other)` is the one lookup of an accepted friendship. The API and the dashboard use it.
 - `BusyBlocksSerializer` and `FriendshipVisibilitySerializer` render the API answers.
 - `Friendship#visibility_set_by`, `#update_visibility_for!` and `#full_schedule_visible_to?` hold the rules.
