@@ -120,7 +120,42 @@ module FriendMeetings
       end
     end
 
+    # Takes each friend who declined the provider invitation off the meeting,
+    # the same as the leave route, so the meeting leaves their list and their
+    # busy blocks. Only the provider that sent the invitations has the
+    # answers. A tentative answer keeps the friend on the meeting.
+    #
+    # The provider event keeps the friend as declined, so the friend gets no
+    # cancellation. The course sync calls this, so a failure is reported and
+    # not raised.
+    def remove_declined
+      return unless user.friend_meetings.where(invite_friends: true).exists?
+
+      user.friend_meetings.live.not_ended.where(invite_friends: true).includes(:publications, :attendees).find_each do |meeting|
+        remove_declined_from(meeting)
+      rescue StandardError => e
+        Rails.error.report(e, handled: true, context: { user_id: user.id, friend_meeting_id: meeting.id })
+      end
+    end
+
     private
+
+    def remove_declined_from(meeting)
+      publication = meeting.publications.find { |candidate| candidate.sends_invitations? && candidate.invitations_sent_at }
+      service, calendar = targets[publication&.provider]
+      return unless calendar
+
+      row = meeting.calendar_events.find_by(calendar_id: calendar.id)
+      return unless row
+
+      declined = service.declined_attendee_emails(row)
+      ids      = meeting.attendees.select { |friend| declined.include?(friend.email.downcase) }.map(&:id)
+      return if ids.empty?
+
+      meeting.friend_meeting_attendees.where(user_id: ids).delete_all
+      Rails.logger.info({ message: "Removed friends who declined a meeting", user_id: user.id,
+                          friend_meeting_id: meeting.id, count: ids.size }.to_json)
+    end
 
     def each_publication(meeting)
       errors = []

@@ -75,9 +75,9 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
       expect { syncer.sync_schedule(force: true) }.not_to have_enqueued_job(CourseCalendars::HistoricalSyncJob)
     end
 
-    it "prunes unwanted university events and publishes missing friend meetings" do
+    it "prunes unwanted university events, publishes missing friend meetings, and removes declined friends" do
       pruner    = instance_double(CourseCalendars::UniversityEventPruner, call: 0)
-      publisher = instance_double(FriendMeetings::Publisher, publish_missing: nil)
+      publisher = instance_double(FriendMeetings::Publisher, publish_missing: nil, remove_declined: nil)
       allow(CourseCalendars::UniversityEventPruner).to receive(:new).with(user).and_return(pruner)
       allow(FriendMeetings::Publisher).to receive(:new).with(user, services: services).and_return(publisher)
 
@@ -85,6 +85,7 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
 
       expect(pruner).to have_received(:call)
       expect(publisher).to have_received(:publish_missing)
+      expect(publisher).to have_received(:remove_declined)
     end
 
     it "builds the events with the injected event builder" do

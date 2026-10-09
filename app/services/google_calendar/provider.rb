@@ -290,6 +290,21 @@ module GoogleCalendar
       row.destroy!
     end
 
+    # The emails, in lower case, of the attendees who declined the invitation
+    # to a meeting event. A tentative answer is not a decline. A missing event
+    # has none.
+    def declined_attendee_emails(row)
+      calendar_id = row.course_calendar.external_calendar_id
+      event       = with_rate_limit_handling { user_calendar_service.get_event(calendar_id, row.external_event_id) }
+
+      Array(event.attendees).select { |attendee| attendee.response_status == "declined" }
+                            .map { |attendee| attendee.email.to_s.downcase }
+    rescue Google::Apis::ClientError => e
+      raise unless [ 404, 410 ].include?(e.status_code)
+
+      []
+    end
+
     def list_calendars
       calendar_manager.list_calendars
     end

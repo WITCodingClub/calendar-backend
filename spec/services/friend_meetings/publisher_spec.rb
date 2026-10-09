@@ -202,6 +202,78 @@ RSpec.describe FriendMeetings::Publisher, :microsoft_graph do
     end
   end
 
+  describe "#remove_declined" do
+    let(:destinations) { %w[google ics] }
+    let(:maybe_friend) { create(:user, email: "maybe.friend@wit.edu") }
+    let(:event_url)    { "#{google_events_url}/gcal_synthetic_meeting" }
+    let(:responses) do
+      { status: 200, body: file_fixture("google_calendar/event_with_responses.json").read, headers: { "Content-Type" => "application/json" } }
+    end
+
+    before do
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: maybe_friend)
+      create(:calendar_event, :for_friend_meeting, friend_meeting: meeting, course_calendar: google_calendar,
+                                                   external_event_id: "gcal_synthetic_meeting")
+      publication("google").update!(invitations_sent_at: 1.day.ago, status: "published")
+    end
+
+    it "takes off a friend who declined, keeps a tentative friend, and sends no update" do
+      stub_request(:get, event_url).to_return(responses)
+
+      expect { described_class.new(user).remove_declined }.not_to have_enqueued_job(FriendMeetings::UpdateJob)
+
+      expect(meeting.attendees.reload).to contain_exactly(maybe_friend)
+      expect(FriendMeeting.inviting(friend)).not_to exist
+    end
+
+    it "reads nothing before the invitations went out" do
+      publication("google").update!(invitations_sent_at: nil)
+
+      described_class.new(user).remove_declined
+
+      expect(a_request(:get, event_url)).not_to have_been_made
+      expect(meeting.attendees.reload).to contain_exactly(friend, maybe_friend)
+    end
+
+    it "reads nothing for a meeting that did not invite the friends" do
+      meeting.update!(invite_friends: false)
+
+      described_class.new(user).remove_declined
+
+      expect(a_request(:get, event_url)).not_to have_been_made
+    end
+
+    it "reads nothing for a meeting that has ended" do
+      meeting.update_columns(start_time: zone.local(2026, 8, 1, 15), end_time: zone.local(2026, 8, 1, 16)) # rubocop:disable Rails/SkipsModelValidations
+
+      described_class.new(user).remove_declined
+
+      expect(a_request(:get, event_url)).not_to have_been_made
+    end
+
+    it "reports a failure and does not raise it, so the course sync carries on" do
+      stub_request(:get, event_url).to_return(google_error(500))
+      allow(Rails.error).to receive(:report)
+
+      expect { described_class.new(user).remove_declined }.not_to raise_error
+      expect(Rails.error).to have_received(:report)
+        .with(an_instance_of(Google::Apis::ServerError), handled: true, context: { user_id: user.id, friend_meeting_id: meeting.id })
+      expect(meeting.attendees.reload).to contain_exactly(friend, maybe_friend)
+    end
+
+    it "costs one query for a person with no meetings that invite friends" do
+      other = create(:user)
+      queries = []
+      callback = ->(*, payload) { queries << payload[:sql] unless payload[:name] == "SCHEMA" }
+
+      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+        described_class.new(other, services: []).remove_declined
+      end
+
+      expect(queries.size).to eq(1)
+    end
+  end
+
   describe "#update" do
     before { google_calendar }
 

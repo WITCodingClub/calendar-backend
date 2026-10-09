@@ -40,8 +40,11 @@ module CourseCalendars
       UniversityEventPruner.new(user).call
 
       # Put back any friend meeting whose calendar was made again, for example
-      # after a Microsoft placement move.
-      FriendMeetings::Publisher.new(user, services: services).publish_missing
+      # after a Microsoft placement move. Then take off each friend who
+      # declined the invitation in Google or Outlook.
+      publisher = FriendMeetings::Publisher.new(user, services: services)
+      publisher.publish_missing
+      publisher.remove_declined
 
       mark_synced(result, clear_needs_sync: true)
 

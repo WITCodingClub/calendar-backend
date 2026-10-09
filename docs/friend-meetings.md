@@ -139,7 +139,7 @@ Each place has one row in `publications`.
 - The occurrence id is the meeting id and the occurrence start in UTC. It stays the same until the owner moves the meeting.
 - A weekly meeting keeps its local time across a daylight saving change.
 - The route reads only the database, so it works for a person who uses only the ICS feed.
-- An invited friend sees a meeting when the owner set `invite_friends`. The friend does not accept in the app: the provider invitation handles the answer.
+- An invited friend sees a meeting when the owner set `invite_friends`. The friend does not accept in the app: the provider invitation handles the answer. See [A declined invitation](#a-declined-invitation).
 
 ## Change a meeting
 
@@ -161,6 +161,29 @@ There is no accept step in the app. An invited friend sees the meeting at once, 
 
 `DELETE /api/friends/meetings/:id/attendance` answers `204`. The friend leaves the meeting. It is gone from their list, their busy blocks, and their ICS feed at once. For a meeting that has not ended, a job updates the provider events, so the owner sees that the friend left. A second call answers 404, because the friend can no longer see the meeting.
 
+### A declined invitation
+
+A friend who declines the invitation in Google Calendar or Outlook also leaves the meeting. The owner's course sync reads the answers from the provider that sent the invitations, and removes each friend who declined. The sync runs at least every six hours, so the meeting can stay in the friend's list until then.
+
+| Provider answer | Result |
+| --- | --- |
+| Google `declined`, Microsoft `declined` | The friend leaves the meeting. |
+| `tentative` or `tentativelyAccepted` | The friend stays. The meeting still counts as busy time. |
+| `accepted`, `needsAction`, `none` | The friend stays. |
+
+- The app does not update the provider event after a decline. The event keeps the friend as declined, so the friend gets no cancellation.
+- The app reads only the answer for the whole series. A friend who declines one occurrence of a weekly meeting stays on the meeting.
+- The sync reads only meetings that have not ended and whose invitations went out.
+- A friend who uses only the ICS feed gets no invitation, so the leave route is the only way out.
+
+```mermaid
+flowchart LR
+  invite[Owner's provider sends the invitation] --> event[Owner's Google or Microsoft event]
+  event -->|friend declines| sync[Owner's course sync reads the answers]
+  sync --> remove[Remove the FriendMeetingAttendee row]
+  remove --> gone[The meeting leaves the friend's list, busy blocks, and ICS feed]
+```
+
 ## Friends who are no longer friends
 
 When a person removes a friend, the app takes each of them off the other's meetings, past meetings too, so neither can read the other's meetings any more. For a future meeting whose owner sent invitations, a job updates the provider event, and the provider sends the removed person a cancellation.
@@ -180,7 +203,7 @@ flowchart LR
   publisher --> google["Google: WIT Courses calendar"]
   publisher --> microsoft["Microsoft: primary calendar"]
   row --> ics["ICS feed"]
-  sync["Course sync"] -->|publish_missing| publisher
+  sync["Course sync"] -->|publish_missing, remove_declined| publisher
   patch["PATCH"] --> update[FriendMeetings::UpdateJob] --> publisher
   delete["DELETE"] --> remove[FriendMeetings::RemoveJob] --> publisher
 ```

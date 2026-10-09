@@ -200,7 +200,7 @@ RSpec.describe GoogleCalendar::Provider do
     end
   end
 
-  describe "#update_friend_meeting_event and #delete_friend_meeting_event" do
+  describe "an existing friend meeting event" do
     let(:zone)       { Time.find_zone!("America/New_York") }
     let(:user)       { create(:user) }
     let(:friend)     { create(:user, first_name: "Sample", last_name: "Friend", email: "sample.friend@wit.edu") }
@@ -275,6 +275,28 @@ RSpec.describe GoogleCalendar::Provider do
       described_class.new(user).delete_friend_meeting_event(row)
 
       expect(CalendarEvent.exists?(row.id)).to be(false)
+    end
+
+    it "reads the declined attendees with the person's token, and not the tentative ones" do
+      get = stub_request(:get, event_url).with(headers: { "Authorization" => "Bearer synthetic-user-token" })
+                                         .to_return(status: 200, body: file_fixture("google_calendar/event_with_responses.json").read,
+                                                    headers: { "Content-Type" => "application/json" })
+
+      expect(described_class.new(user).declined_attendee_emails(row)).to eq([ "sample.friend@wit.edu" ])
+      expect(get).to have_been_requested.once
+    end
+
+    it "finds no declined attendees on an event without attendees" do
+      stub_request(:get, event_url).to_return(json)
+
+      expect(described_class.new(user).declined_attendee_emails(row)).to eq([])
+    end
+
+    it "finds no declined attendees on an event that is gone" do
+      stub_request(:get, event_url).to_return(status: 404, body: { error: { code: 404, message: "Not Found" } }.to_json,
+                                              headers: { "Content-Type" => "application/json" })
+
+      expect(described_class.new(user).declined_attendee_emails(row)).to eq([])
     end
   end
 

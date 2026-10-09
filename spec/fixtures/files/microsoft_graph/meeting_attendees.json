@@ -1,0 +1,27 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('00000000-0000-0000-0000-000000000001')/events(attendees)/$entity",
+  "@odata.etag": "W/\"SyntheticEtag1\"",
+  "id": "AAMkSyntheticMeeting1",
+  "attendees": [
+    {
+      "type": "required",
+      "status": { "response": "declined", "time": "2026-09-10T14:00:00Z" },
+      "emailAddress": { "name": "Sample Friend", "address": "Sample.Friend@wit.edu" }
+    },
+    {
+      "type": "required",
+      "status": { "response": "tentativelyAccepted", "time": "2026-09-10T14:05:00Z" },
+      "emailAddress": { "name": "Maybe Friend", "address": "maybe.friend@wit.edu" }
+    },
+    {
+      "type": "required",
+      "status": { "response": "accepted", "time": "2026-09-10T14:10:00Z" },
+      "emailAddress": { "name": "Yes Friend", "address": "yes.friend@wit.edu" }
+    },
+    {
+      "type": "required",
+      "status": { "response": "none", "time": "0001-01-01T00:00:00Z" },
+      "emailAddress": { "name": "New Friend", "address": "new.friend@wit.edu" }
+    }
+  ]
+}
