@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe "Dashboard friend groups", type: :request do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:user)   { create(:user, :with_processed_courses) }
   let(:friend) { create(:user, first_name: "Grace", last_name: "Hopper") }
 
@@ -76,6 +78,27 @@ RSpec.describe "Dashboard friend groups", type: :request do
         expect(checked.call(friend)).to be_present
         expect(checked.call(other)).to be_nil
       end
+
+      it "shows the end date in the list and in the editor" do
+        group = create(:friend_group, user: user, name: "Study group", expires_at: Time.zone.parse("2099-12-01 23:59:59"))
+
+        get dashboard_friends_path
+
+        expect(response.body).to include("Ends on December 01, 2099")
+        expect(Nokogiri::HTML(response.body).at_css("input#group_#{group.public_id}_expires_on")["value"])
+          .to eq("2099-12-01")
+      end
+
+      it "hides an expired group before the cleanup job removes it" do
+        group = create(:friend_group, :temporary, user: user, name: "Old study group")
+        add_to(group)
+
+        travel 8.days do
+          get dashboard_friends_path
+        end
+
+        expect(response.body).not_to include("Old study group")
+      end
     end
 
     describe "POST /dashboard/friends/groups" do
@@ -107,6 +130,33 @@ RSpec.describe "Dashboard friend groups", type: :request do
 
         expect(response).to redirect_to(dashboard_friends_path)
         expect(flash[:alert]).to eq("Name can't be blank")
+      end
+
+      it "sets the end date to the end of that day in America/New_York" do
+        post dashboard_friend_groups_path, params: { name: "Roommates", expires_on: "2099-12-01" }
+
+        expect(user.friend_groups.find_by(name: "Roommates").expires_at)
+          .to eq(Time.zone.parse("2099-12-01 23:59:59 -05:00"))
+      end
+
+      it "creates a group with no end date when the date field is empty" do
+        post dashboard_friend_groups_path, params: { name: "Roommates", expires_on: "" }
+
+        expect(user.friend_groups.find_by(name: "Roommates").expires_at).to be_nil
+      end
+
+      it "creates nothing for an end date that is not valid" do
+        expect {
+          post dashboard_friend_groups_path, params: { name: "Roommates", expires_on: "soon" }
+        }.not_to change(FriendGroup, :count)
+
+        expect(flash[:alert]).to eq("That end date is not valid.")
+      end
+
+      it "reports an end date in the past" do
+        post dashboard_friend_groups_path, params: { name: "Roommates", expires_on: "2020-01-01" }
+
+        expect(flash[:alert]).to eq("Expires at must be in the future")
       end
     end
 
@@ -172,6 +222,22 @@ RSpec.describe "Dashboard friend groups", type: :request do
 
         expect(group.reload.name).to eq("Theirs")
         expect(flash[:alert]).to eq("Group not found.")
+      end
+
+      it "changes the end date" do
+        group = create(:friend_group, :temporary, user: user)
+
+        patch dashboard_friend_group_path(group.public_id), params: { name: group.name, expires_on: "2099-06-30" }
+
+        expect(group.reload.expires_at).to eq(Time.zone.parse("2099-06-30 23:59:59 -04:00"))
+      end
+
+      it "removes the end date when the field is empty" do
+        group = create(:friend_group, :temporary, user: user)
+
+        patch dashboard_friend_group_path(group.public_id), params: { name: group.name, expires_on: "" }
+
+        expect(group.reload.expires_at).to be_nil
       end
     end
 
