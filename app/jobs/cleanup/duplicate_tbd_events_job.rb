@@ -61,6 +61,7 @@ module Cleanup
               events_deleted += 1
             else
               Rails.logger.error "[Cleanup::DuplicateTbdEventsJob] Failed to delete #{event.external_event_id}: #{e.message}"
+              Rails.error.report(e, handled: true, context: { user_id: user.id, calendar_event_id: event.id })
             end
           end
         end

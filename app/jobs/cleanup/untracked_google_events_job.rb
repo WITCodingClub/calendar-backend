@@ -88,6 +88,7 @@ module Cleanup
         stats[:errors] += 1
         Rails.logger.error "[Cleanup::UntrackedGoogleEventsJob] Failed to delete #{event.id} " \
                            "from calendar #{calendar.id}: #{e.message}"
+        Rails.error.report(e, handled: true, context: { course_calendar_id: calendar.id, external_event_id: event.id })
       end
 
       Rails.logger.info "[Cleanup::UntrackedGoogleEventsJob] Calendar #{calendar.id}: " \

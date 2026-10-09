@@ -50,12 +50,14 @@ RSpec.describe Cleanup::OrphanedGoogleCalendarsJob do
     expect(described_class.perform_now).to eq(deleted: 0, skipped: 1, errors: 0)
   end
 
-  it "counts another client error and goes on to the next calendar" do
+  it "reports and counts another client error and goes on to the next calendar" do
+    error = Google::Apis::ClientError.new("forbidden", status_code: 403)
+    allow(Rails.error).to receive(:report)
     allow(provider).to receive(:list_calendars).and_return(listing("orphan-1", "orphan-2"))
-    allow(provider).to receive(:delete_calendar).with("orphan-1")
-                                                .and_raise(Google::Apis::ClientError.new("forbidden", status_code: 403))
+    allow(provider).to receive(:delete_calendar).with("orphan-1").and_raise(error)
 
     expect(described_class.perform_now).to eq(deleted: 1, skipped: 0, errors: 1)
+    expect(Rails.error).to have_received(:report).with(error, handled: true, context: { external_calendar_id: "orphan-1" })
   end
 
   it "reports an unexpected error, counts it, and goes on" do

@@ -71,6 +71,35 @@ RSpec.describe FinalsSchedules::Parser do
       expect(described_class.call(pdf_content: "%PDF", term: term)[:rooms_created]).to eq(0)
     end
 
+    it "creates a lettered room with its letter" do
+      stub_pdftotext("CRN\n10001\nEXAM-DATE\nMonday, May 4, 2026\nEXAM-TIME-OF-DAY\n8:00 AM - 10:00 AM\n" \
+                     "EXAM-ROOM\nZQXB 402A\n")
+
+      result = described_class.call(pdf_content: "%PDF", term: term)
+
+      expect(result[:rooms_created]).to eq(1)
+      expect(building.rooms.pluck(:number)).to eq([ "402A" ])
+    end
+
+    it "does not create a room that the catalog stores with leading zeros" do
+      create(:room, building: building, number: "101")
+      create(:room, building: building, number: "0102")
+
+      result = described_class.call(pdf_content: "%PDF", term: term)
+
+      expect(result[:rooms_created]).to eq(0)
+      expect(building.rooms.pluck(:number)).to contain_exactly("101", "0102")
+    end
+
+    it "returns the parser warnings with the errors" do
+      stub_pdftotext("CRN\n10001\nEXAM-DATE\nMonday, May 4, 2026\nEXAM-TIME-OF-DAY\nafter lunch\n")
+
+      result = described_class.call(pdf_content: "%PDF", term: term)
+
+      expect(result[:total]).to eq(0)
+      expect(result[:errors]).to contain_exactly(a_string_including("page skipped"))
+    end
+
     it "updates existing exams on a second run" do
       described_class.call(pdf_content: "%PDF", term: term)
 
@@ -90,12 +119,12 @@ RSpec.describe FinalsSchedules::Parser do
     end
 
     it "records a validation error when the entry cannot be saved" do
-      stub_pdftotext("CRN\n10001\nEXAM-DATE\nMonday, May 4, 2026\n")
+      stub_pdftotext("CRN\n10001\nEXAM-DATE\nMonday, May 4, 2026\nEXAM-TIME-OF-DAY\n10:00 AM - 8:00 AM\n")
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
       expect(result[:created]).to eq(0)
-      expect(result[:errors].first).to match(/Failed to save final exam for CRN 10001/)
+      expect(result[:errors]).to include(a_string_matching(/Failed to save final exam for CRN 10001/))
     end
 
     it "reports unexpected errors per entry and keeps going" do

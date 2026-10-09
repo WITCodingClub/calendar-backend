@@ -61,15 +61,19 @@ RSpec.describe Cleanup::OrphanedCalendarEventsJob do
     expect(CalendarEvent.exists?(orphan.id)).to be(false)
   end
 
-  it "still deletes the row when Google refuses with another client error" do
+  it "keeps the row and reports the error when Google refuses with another client error" do
     orphan = create_orphan(external_event_id: "evt-1")
     stub_request(:delete, delete_url).to_return(status: 403, body: { error: { code: 403, message: "Forbidden" } }.to_json,
                                                 headers: { "Content-Type" => "application/json" })
+    allow(Rails.error).to receive(:report)
 
     result = described_class.perform_now
 
-    expect(result).to eq(total: 1, deleted: 1, errors: 0)
-    expect(CalendarEvent.exists?(orphan.id)).to be(false)
+    # The row is the only pointer to the remote event, so the next run tries again.
+    expect(result).to eq(total: 1, deleted: 0, errors: 1)
+    expect(CalendarEvent.exists?(orphan.id)).to be(true)
+    expect(Rails.error).to have_received(:report)
+      .with(an_instance_of(Google::Apis::ClientError), handled: true, context: { calendar_event_id: orphan.id })
   end
 
   it "does not call Google for a calendar without an external id" do

@@ -33,6 +33,10 @@ class FinalExam < ApplicationRecord
 
   set_public_id_prefix :fex
 
+  # "WENT 210" or "WENT 2A": a building abbreviation, then a room number that
+  # can end in letters.
+  ROOM_PATTERN = /([A-Z]+)\s+(\d+[A-Z]*)/i
+
   belongs_to :term
   belongs_to :course, optional: true
   # Nullify, never destroy: see Course::MeetingTime — destroying tracking rows
@@ -146,25 +150,22 @@ class FinalExam < ApplicationRecord
     return [] if location.blank?
 
     parts = location.split(" / ").filter_map do |loc|
-      next unless loc =~ /([A-Z]+)\s+(\d+[A-Z]?)/i
+      next unless loc =~ ROOM_PATTERN
 
-      { abbrev: $1, room_num: $2.to_i.to_s }
+      { abbrev: $1, room_key: Room.number_key($2) }
     end
     return [] if parts.empty?
 
-    abbrevs = parts.pluck(:abbrev).uniq
-    buildings_by_abbrev = Building.where(abbreviation: abbrevs).index_by(&:abbreviation)
-    building_ids = buildings_by_abbrev.values.map(&:id)
-    room_numbers = parts.pluck(:room_num).uniq
-    rooms_by_key = Room.where(building_id: building_ids, number: room_numbers)
+    buildings_by_abbrev = Building.where(abbreviation: parts.pluck(:abbrev).uniq).index_by(&:abbreviation)
+    rooms_by_key = Room.where(building_id: buildings_by_abbrev.values.map(&:id))
                        .includes(:building)
-                       .index_by { |r| [ r.building_id, r.number.to_s ] }
+                       .index_by { |r| [ r.building_id, Room.number_key(r.number) ] }
 
     parts.filter_map do |p|
       building = buildings_by_abbrev[p[:abbrev]]
       next unless building
 
-      rooms_by_key[[ building.id, p[:room_num] ]]
+      rooms_by_key[[ building.id, p[:room_key] ]]
     end
   end
 

@@ -46,11 +46,11 @@ module Cleanup
           service.delete_event(calendar.external_calendar_id, event.external_event_id)
           Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Deleted event #{event.external_event_id} from Google Calendar"
         rescue Google::Apis::ClientError => e
-          if e.status_code == 404
-            Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Event #{event.external_event_id} already deleted from Google Calendar"
-          else
-            Rails.logger.warn "[Cleanup::OrphanedCalendarEventsJob] Failed to delete event #{event.external_event_id} from Google: #{e.message}"
-          end
+          # Any other error keeps the row, so the next run tries the remote
+          # event again. perform reports the error and counts it.
+          raise unless [ 404, 410 ].include?(e.status_code)
+
+          Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Event #{event.external_event_id} already deleted from Google Calendar"
         end
       end
 
