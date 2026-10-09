@@ -26,7 +26,7 @@
 </div>
 
 <%# The ceremony runs here so the origin the browser reports is this site's,
-    not the extension's. See PasskeysController. %>
+    not the extension's. See Auth::PasskeyCeremoniesController. %>
 <script type="module">
   const MODE         = <%= raw @mode.to_json %>;
   const REDIRECT_URI = <%= raw @redirect_uri.to_json %>;
