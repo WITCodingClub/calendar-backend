@@ -6,3 +6,14 @@ inherit_gem: { rubocop-rails-omakase: rubocop.yml }
 # # Use `[a, [b, c]]` not `[ a, [ b, c ] ]`
 # Layout/SpaceInsideArrayLiteralBrackets:
 #   Enabled: false
+
+# Define namespaced classes inside their modules (`module Admin` then
+# `class UsersController`), not as `class Admin::UsersController`. See
+# docs/architecture.md. Nested models reopen their parent model class, and the
+# Rack::Attack initializer reopens a gem class, so those keep the compact form.
+Style/ClassAndModuleChildren:
+  Enabled: true
+  EnforcedStyle: nested
+  Exclude:
+    - "app/models/**/*"
+    - "config/initializers/rack_attack.rb"
