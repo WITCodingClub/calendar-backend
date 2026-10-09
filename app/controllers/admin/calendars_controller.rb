@@ -19,7 +19,7 @@ module Admin
     end
 
     def destroy
-      calendar = CourseCalendar.find(params[:id])
+      calendar = policy_scope(CourseCalendar).find(params[:id])
       authorize calendar
 
       # The row's own callback deletes the remote calendar with the right

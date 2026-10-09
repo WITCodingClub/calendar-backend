@@ -81,7 +81,7 @@ module Admin
     private
 
     def set_finals_schedule
-      @finals_schedule = FinalsSchedule.find(params[:id])
+      @finals_schedule = policy_scope(FinalsSchedule).find(params[:id])
     end
 
     def attach_pdf_with_conventional_name(finals_schedule)
