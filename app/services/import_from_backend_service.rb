@@ -672,11 +672,7 @@ class ImportFromBackendService
     rows.each do |row|
       next if @dry_run && @stats[:flipper_features_would_upsert] += 1
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
-        INSERT INTO flipper_features (key, created_at, updated_at)
-        VALUES (#{conn.escape_literal(row['key'])}, NOW(), NOW())
-        ON CONFLICT (key) DO NOTHING
-      SQL
+      Flipper::Adapters::ActiveRecord::Feature.insert({ key: row["key"] })
       @stats[:flipper_features_upserted] += 1
     end
 
@@ -686,16 +682,7 @@ class ImportFromBackendService
     gate_rows.each do |row|
       next if @dry_run && @stats[:flipper_gates_would_upsert] += 1
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
-        INSERT INTO flipper_gates (feature_key, key, value, created_at, updated_at)
-        VALUES (
-          #{conn.escape_literal(row['feature_key'])},
-          #{conn.escape_literal(row['key'])},
-          #{row['value'] ? conn.escape_literal(row['value']) : 'NULL'},
-          NOW(), NOW()
-        )
-        ON CONFLICT (feature_key, key, value) WHERE value IS NOT NULL DO NOTHING
-      SQL
+      Flipper::Adapters::ActiveRecord::Gate.insert(row.slice("feature_key", "key", "value"))
       @stats[:flipper_gates_upserted] += 1
     end
 
@@ -729,20 +716,11 @@ class ImportFromBackendService
 
       new_creator_id = row["creator_id"] ? resolve_user_id(row["creator_id"]) : nil
 
-      result = ActiveRecord::Base.connection.execute(<<~SQL)
-        INSERT INTO blazer_queries (name, description, statement, data_source, status, creator_id, created_at, updated_at)
-        VALUES (
-          #{conn.escape_literal(row['name'] || '')},
-          #{row['description'] ? conn.escape_literal(row['description']) : 'NULL'},
-          #{row['statement'] ? conn.escape_literal(row['statement']) : 'NULL'},
-          #{row['data_source'] ? conn.escape_literal(row['data_source']) : 'NULL'},
-          #{row['status'] ? conn.escape_literal(row['status']) : 'NULL'},
-          #{new_creator_id || 'NULL'},
-          NOW(), NOW()
-        )
-        RETURNING id
-      SQL
-      query_id_map[row["id"].to_i] = result.first["id"].to_i
+      query = Blazer::Query.insert!(
+        row.slice("description", "statement", "data_source", "status")
+           .merge("name" => row["name"] || "", "creator_id" => new_creator_id)
+      )
+      query_id_map[row["id"].to_i] = query.first["id"]
       @stats[:blazer_queries_created] += 1
     end
 
@@ -758,16 +736,8 @@ class ImportFromBackendService
 
       new_creator_id = row["creator_id"] ? resolve_user_id(row["creator_id"]) : nil
 
-      result = ActiveRecord::Base.connection.execute(<<~SQL)
-        INSERT INTO blazer_dashboards (name, creator_id, created_at, updated_at)
-        VALUES (
-          #{conn.escape_literal(row['name'] || '')},
-          #{new_creator_id || 'NULL'},
-          NOW(), NOW()
-        )
-        RETURNING id
-      SQL
-      dashboard_id_map[row["id"].to_i] = result.first["id"].to_i
+      dashboard = Blazer::Dashboard.insert!({ name: row["name"] || "", creator_id: new_creator_id })
+      dashboard_id_map[row["id"].to_i] = dashboard.first["id"]
       @stats[:blazer_dashboards_created] += 1
     end
 
@@ -779,11 +749,7 @@ class ImportFromBackendService
       next unless new_dashboard_id && new_query_id
       next if @dry_run
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
-        INSERT INTO blazer_dashboard_queries (dashboard_id, query_id, position, created_at, updated_at)
-        VALUES (#{new_dashboard_id}, #{new_query_id}, #{row['position'] || 0}, NOW(), NOW())
-        ON CONFLICT DO NOTHING
-      SQL
+      Blazer::DashboardQuery.insert({ dashboard_id: new_dashboard_id, query_id: new_query_id, position: row["position"] || 0 })
     end
 
     # Checks
@@ -803,21 +769,12 @@ class ImportFromBackendService
 
       new_creator_id = row["creator_id"] ? resolve_user_id(row["creator_id"]) : nil
 
-      ActiveRecord::Base.connection.execute(<<~SQL)
-        INSERT INTO blazer_checks (query_id, creator_id, check_type, emails, schedule,
-                                   slack_channels, state, last_run_at, created_at, updated_at)
-        VALUES (
-          #{new_query_id},
-          #{new_creator_id || 'NULL'},
-          #{row['check_type'] ? conn.escape_literal(row['check_type']) : 'NULL'},
-          #{row['emails'] ? conn.escape_literal(row['emails']) : 'NULL'},
-          #{row['schedule'] ? conn.escape_literal(row['schedule']) : 'NULL'},
-          #{row['slack_channels'] ? conn.escape_literal(row['slack_channels']) : 'NULL'},
-          #{row['state'] ? conn.escape_literal(row['state']) : 'NULL'},
-          #{row['last_run_at'] ? conn.escape_literal(row['last_run_at']) : 'NULL'},
-          NOW(), NOW()
-        )
-      SQL
+      # The legacy timestamp has no zone and is stored in UTC. Rails would read a bare string in Time.zone.
+      last_run_at = row["last_run_at"] && Time.find_zone!("UTC").parse(row["last_run_at"])
+      Blazer::Check.insert!(
+        row.slice("check_type", "emails", "schedule", "slack_channels", "state")
+           .merge("query_id" => new_query_id, "creator_id" => new_creator_id, "last_run_at" => last_run_at)
+      )
       @stats[:blazer_checks_created] += 1
     end
 

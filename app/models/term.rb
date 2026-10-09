@@ -53,13 +53,15 @@ class Term < ApplicationRecord
     SEASON_CHRONOLOGICAL_POSITIONS.fetch(season_name.to_s)
   end
 
-  def self.season_position_sql
-    whens = seasons.map { |name, value| "WHEN #{value} THEN #{season_position(name)}" }
-    "CASE terms.season #{whens.join(' ')} END"
+  # CASE terms.season WHEN 1 THEN 1 ... END, built as an Arel node so no SQL string is interpolated.
+  def self.season_position_node
+    seasons.reduce(Arel::Nodes::Case.new(arel_table[:season])) do |node, (name, value)|
+      node.when(value).then(season_position(name))
+    end
   end
 
-  scope :chronological, -> { order(:year).order(Arel.sql("#{season_position_sql} ASC")) }
-  scope :reverse_chronological, -> { order(year: :desc).order(Arel.sql("#{season_position_sql} DESC")) }
+  scope :chronological, -> { order(:year).order(season_position_node.asc) }
+  scope :reverse_chronological, -> { order(year: :desc).order(season_position_node.desc) }
 
   scope :enrolled_for, ->(user) { where(id: Enrollment.where(user: user).select(:term_id)) }
 
@@ -108,7 +110,7 @@ class Term < ApplicationRecord
     return none unless current_term
 
     year = arel_table[:year]
-    later_season = Arel.sql(season_position_sql).gteq(season_position(current_term.season))
+    later_season = season_position_node.gteq(season_position(current_term.season))
 
     where(year.gt(current_term.year).or(year.eq(current_term.year).and(later_season)))
       .reverse_chronological
