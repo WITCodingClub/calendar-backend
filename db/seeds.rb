@@ -20,7 +20,7 @@ else
   # the constants below if the live sync fails (e.g. no credentials in CI).
   puts "Seeding 25Live data from API..."
   begin
-    External::TwentyFiveLiveService.call!
+    TwentyFiveLive::Client.call!
     puts "  Sync complete — #{TwentyFiveLive::Organization.count} orgs, #{TwentyFiveLive::EventCategory.count} categories, #{TwentyFiveLive::EventCustomAttribute.count} custom attributes"
   rescue => e
     puts "  API sync failed (#{e.message}), falling back to constants for categories and custom attributes"

@@ -22,7 +22,7 @@ RSpec.describe "Admin pages", type: :request do
     stub_request(:get, %r{\Ahttps://selfservice\.wit\.edu/StudentRegistrationSsb/ssb/courseSearch/getTerms})
       .to_return(status: 200, body: [ { code: "202620", description: "Spring 2026" } ].to_json,
                  headers: { "Content-Type" => "application/json" })
-    allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(false)
+    allow(TwentyFiveLive::SyncJob).to receive(:in_progress?).and_return(false)
     sign_in owner
   end
 

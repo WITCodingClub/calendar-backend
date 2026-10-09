@@ -121,7 +121,7 @@ production:
   # the constants we mirror. Weekly is enough: rooms are rebuilt between terms,
   # not between days.
   twenty_five_live_sync:
-    class: TwentyFiveLiveSyncJob
+    class: TwentyFiveLive::SyncJob
     queue: low
     schedule: every saturday at 2:30am
 

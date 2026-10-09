@@ -2,10 +2,10 @@
 
 require "rails_helper"
 
-RSpec.describe External::TwentyFiveLiveService, type: :service do
+RSpec.describe TwentyFiveLive::Client, type: :service do
   fixtures :buildings, :rooms
 
-  class StubbedService < External::TwentyFiveLiveService
+  class StubbedService < TwentyFiveLive::Client
     def initialize(responses = {})
       @responses = responses
     end
