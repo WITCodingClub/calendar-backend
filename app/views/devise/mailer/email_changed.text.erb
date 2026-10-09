@@ -1,0 +1,11 @@
+Your email address changed
+
+Hi,
+
+<% if @resource.try(:unconfirmed_email?) -%>
+The email address for your WIT Calendar account is changing to <%= @resource.unconfirmed_email %>.
+<% else -%>
+The email address for your WIT Calendar account is now <%= @resource.email %>.
+<% end -%>
+
+If you did not make this change, contact us at <%= Rails.application.config.x.contact_email %>.

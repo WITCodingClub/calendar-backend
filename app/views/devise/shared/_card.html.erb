@@ -1,0 +1,30 @@
+<%# The frame of every Devise page: the same card, logo, and messages as the
+    sign-in page. Render it as a layout:
+      render layout: "devise/shared/card", locals: { heading:, intro: } %>
+<div class="w-full max-w-sm">
+  <div class="m3-card p-8">
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-container mb-4">
+        <svg class="w-8 h-8 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold text-on-surface"><%= heading %></h1>
+      <% if local_assigns[:intro].present? %>
+        <p class="text-sm text-on-surface-variant mt-1"><%= intro %></p>
+      <% end %>
+    </div>
+
+    <% if flash[:alert].present? %>
+      <div class="m3-alert-error mb-4" role="alert"><%= flash[:alert] %></div>
+    <% end %>
+
+    <% if flash[:notice].present? %>
+      <div class="m3-alert-notice mb-4" role="status"><%= flash[:notice] %></div>
+    <% end %>
+
+    <%= yield %>
+
+    <%= render "devise/shared/links" %>
+  </div>
+</div>

@@ -47,6 +47,10 @@ module Calendar
     # do not point it back at wit.edu.
     config.x.mailer_from = ENV.fetch("MAILER_FROM", "WIT Calendar <noreply@send.witcc.dev>")
 
+    # Where people write to us: security reports and "this was not me" replies
+    # to account emails. contact@calendar.witcc.dev does not receive mail.
+    config.x.contact_email = "calendarwit@gmail.com"
+
     # The Chrome Web Store page of the extension. The website (calendar-website,
     # src/lib/server/pages.ts) links to the same page.
     config.x.extension_install_url = ENV.fetch(
