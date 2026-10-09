@@ -6,7 +6,11 @@
 class UniversityCalendarSyncJob < ApplicationJob
   queue_as :low
 
-  limits_concurrency to: 1, key: -> { "university_calendar_sync" }
+  # The concurrency group is part of every lock key, so it must not change when
+  # the class is renamed. Jobs in the queue hold locks under this name.
+  CONCURRENCY_GROUP = "UniversityCalendarSyncJob"
+
+  limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: -> { "university_calendar_sync" }
 
   def perform
     Rails.logger.info("Starting university calendar sync")

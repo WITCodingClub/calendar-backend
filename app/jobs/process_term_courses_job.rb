@@ -14,7 +14,11 @@ class ProcessTermCoursesJob < ApplicationJob
 
   RETRYABLE_ERRORS = [ LeopardWebService::RequestError, LeopardWebService::SessionError, Faraday::Error ].freeze
 
-  limits_concurrency to: 1, key: ->(user, _term, _courses) { "process_term_courses_user_#{user.id}" }
+  # The concurrency group is part of every lock key, so it must not change when
+  # the class is renamed. Jobs in the queue hold locks under this name.
+  CONCURRENCY_GROUP = "ProcessTermCoursesJob"
+
+  limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(user, _term, _courses) { "process_term_courses_user_#{user.id}" }
 
   # After the last attempt, record the failure and raise again, so the job
   # stays in the failed-jobs list.
