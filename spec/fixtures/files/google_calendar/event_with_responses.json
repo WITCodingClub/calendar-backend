@@ -1,0 +1,18 @@
+{
+  "kind": "calendar#event",
+  "etag": "\"3300000000000001\"",
+  "id": "gcal_synthetic_meeting",
+  "status": "confirmed",
+  "summary": "Synthetic Review",
+  "organizer": { "email": "synthetic-course-calendar@group.calendar.google.com", "displayName": "WIT Courses" },
+  "start": { "dateTime": "2026-09-15T15:00:00-04:00", "timeZone": "America/New_York" },
+  "end": { "dateTime": "2026-09-15T16:00:00-04:00", "timeZone": "America/New_York" },
+  "attendees": [
+    { "email": "Sample.Friend@wit.edu", "displayName": "Sample Friend", "responseStatus": "declined" },
+    { "email": "maybe.friend@wit.edu", "displayName": "Maybe Friend", "responseStatus": "tentative" },
+    { "email": "yes.friend@wit.edu", "displayName": "Yes Friend", "responseStatus": "accepted" },
+    { "email": "new.friend@wit.edu", "displayName": "New Friend", "responseStatus": "needsAction" }
+  ],
+  "iCalUID": "gcal_synthetic_meeting@google.com",
+  "sequence": 1
+}

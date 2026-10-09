@@ -676,6 +676,38 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
       end
     end
 
+    describe "#declined_attendee_emails" do
+      let(:event_url) { "#{graph}/me/events/AAMkSyntheticMeeting1" }
+
+      it "reads the declined attendees, and not the tentative ones" do
+        row = meeting_row(calendar)
+        get = stub_request(:get, event_url).with(query: { "$select" => "attendees" }).to_return(graph_json_response("meeting_attendees"))
+
+        expect(service.declined_attendee_emails(row)).to eq([ "sample.friend@wit.edu" ])
+        expect(get).to have_been_requested.once
+      end
+
+      it "finds an event that moved by its iCalUId" do
+        row = meeting_row(calendar)
+        row.update!(external_ical_uid: "040000008200E00074C5B7101A82E0080000000000000000000000000000000000000001")
+        stub_request(:get, event_url).with(query: hash_including({})).to_return(graph_json_response("error_not_found", status: 404))
+        stub_request(:get, "#{graph}/me/events").with(query: hash_including({})).to_return(graph_json_response("events_by_ical_uid"))
+        moved = stub_request(:get, "#{graph}/me/events/AAMkSyntheticEventMoved").with(query: { "$select" => "attendees" })
+                                                                                 .to_return(graph_json_response("meeting_attendees"))
+
+        expect(service.declined_attendee_emails(row)).to eq([ "sample.friend@wit.edu" ])
+        expect(moved).to have_been_requested.once
+      end
+
+      it "finds no declined attendees on an event that is gone" do
+        row = meeting_row(calendar)
+        stub_request(:get, event_url).with(query: hash_including({})).to_return(graph_json_response("error_not_found", status: 404))
+        stub_request(:get, "#{graph}/me/events").with(query: hash_including({})).to_return(graph_json_response("events_empty"))
+
+        expect(service.declined_attendee_emails(row)).to eq([])
+      end
+    end
+
     describe "#delete_friend_meeting_event" do
       it "deletes the event, which sends the attendees a cancellation, and the row" do
         row    = meeting_row(calendar)

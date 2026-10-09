@@ -216,6 +216,20 @@ module MicrosoftGraph
       delete_remote_event(row)
     end
 
+    # The emails, in lower case, of the attendees who declined the invitation
+    # to a meeting event. A tentative answer is not a decline. A missing event
+    # has none.
+    def declined_attendee_emails(row)
+      event = fetch_attendees(row.external_event_id)
+      if event.nil?
+        moved_id = find_event_id_by_ical_uid(row.external_ical_uid)
+        event    = fetch_attendees(moved_id) if moved_id.present?
+      end
+
+      Array(event&.dig("attendees")).select { |attendee| attendee.dig("status", "response") == "declined" }
+                                    .map { |attendee| attendee.dig("emailAddress", "address").to_s.downcase }
+    end
+
     # Deletes one remote event. A missing event counts as deleted.
     def delete_calendar_event(event_id, ical_uid = nil)
       client.delete(event_path(event_id))
@@ -402,6 +416,13 @@ module MicrosoftGraph
       rescue MicrosoftGraph::NotFoundError
         [ nil, nil ]
       end
+    end
+
+    # The event with only its attendees, or nil when it is gone.
+    def fetch_attendees(event_id)
+      client.get(event_path(event_id), params: { "$select" => "attendees" })
+    rescue MicrosoftGraph::NotFoundError
+      nil
     end
 
     def fetch_event(event_id)
