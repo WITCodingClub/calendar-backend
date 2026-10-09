@@ -9,7 +9,7 @@ require Rails.root.join("db/cache_migrate/20261008000000_create_solid_cache_entr
 # database that has schema_migrations, so this migration creates the table.
 # These examples run it inside the test transaction on the test database.
 RSpec.describe CreateSolidCacheEntries do
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   let(:connection) { ActiveRecord::Base.connection }
 

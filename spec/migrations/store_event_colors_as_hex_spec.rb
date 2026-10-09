@@ -7,7 +7,7 @@ require Rails.root.join("db/migrate/20260919210000_store_event_colors_as_hex")
 # migrates down to the integer columns first, inside the test transaction, and
 # builds the rows by hand, because the models expect the hex columns.
 RSpec.describe StoreEventColorsAsHex do
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   let(:connection) { ActiveRecord::Base.connection }
   let(:user) { create(:user) }

@@ -5,7 +5,7 @@ require Rails.root.join("db/migrate/20260919230000_remove_unsyncable_university_
 
 # The rows are set by hand, because the app no longer saves these categories.
 RSpec.describe RemoveUnsyncableUniversityEventCategories do
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   let(:connection) { ActiveRecord::Base.connection }
   let(:picked_campus) { create(:user) }

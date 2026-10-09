@@ -17,6 +17,12 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - A job with `limits_concurrency` names its group with a `CONCURRENCY_GROUP` string constant. Never change that string: Solid Queue puts it in every lock key, and jobs in the queue hold locks under it. `spec/jobs/concurrency_groups_spec.rb` checks this.
 - To rename a job class, leave a file at the old path that defines the old name, for example `OldNameJob = Domain::NewNameJob`. Jobs that were in the queue before the deploy still run. Change the enqueue calls and `config/recurring.yml` in the same PR. Remove the alias when `bin/rails jobs:unknown_class_names` on production lists no job with the old name.
 
+## Migrations
+
+- Every new migration must pass strong_migrations (`config/initializers/strong_migrations.rb`). Use `safety_assured` only with a comment that says why the step is safe.
+- Put data backfills in rake tasks, not in schema migrations. Production runs `bin/rails db:prepare` before Puma starts, so a slow or failing migration takes the site down. The one exception: a cleanup that a later step in the same migration needs, such as removing orphan rows before `validate_foreign_key`.
+- Add a foreign key in two migrations: `add_foreign_key ..., validate: false`, then `validate_foreign_key`.
+
 ## Specs
 
 ### Test data
