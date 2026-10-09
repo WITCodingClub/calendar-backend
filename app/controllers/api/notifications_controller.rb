@@ -4,7 +4,7 @@ module Api
   class NotificationsController < BaseController
     authenticate_with_token
 
-    # GET /api/user/notifications_status
+    # GET /api/user/notifications
     def show
       authorize current_user, :show?
       render json: {
@@ -13,7 +13,20 @@ module Api
       }, status: :ok
     end
 
-    # POST /api/user/notifications/disable
+    # PATCH /api/user/notifications
+    #
+    # Send "disabled": true to turn notifications off, with an optional
+    # "duration" in seconds, or "disabled": false to turn them on again.
+    def update
+      unless params.key?(:disabled)
+        render_error "disabled is required", status: :bad_request
+        return
+      end
+
+      ActiveModel::Type::Boolean.new.cast(params[:disabled]) ? disable : enable
+    end
+
+    # POST /api/user/notifications/disable (legacy, see config/routes/api_legacy.rb)
     def disable
       authorize current_user, :update?
 
@@ -48,7 +61,7 @@ module Api
       render_error "Failed to disable notifications", status: :internal_server_error
     end
 
-    # POST /api/user/notifications/enable
+    # POST /api/user/notifications/enable (legacy, see config/routes/api_legacy.rb)
     def enable
       authorize current_user, :update?
 

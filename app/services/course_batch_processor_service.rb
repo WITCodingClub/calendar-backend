@@ -6,7 +6,7 @@
 # others. Only the first term is processed inside the request. The other terms
 # go to ProcessTermCoursesJob and come back as "pending": process_courses calls
 # Banner for each CRN (#683), and doing that for every term would hold a Puma
-# thread for too long. The extension polls /api/user/is_processed for the
+# thread for too long. The extension polls /api/user/processed_events/status for the
 # pending terms.
 #
 # A term that already has a job in flight (status "pending" or "processing")

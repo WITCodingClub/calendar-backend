@@ -380,7 +380,7 @@ RSpec.describe "Api::Friends", type: :request do
     before { create(:friendship, :accepted, :temporary, requester: user, addressee: friend) }
 
     it "shows the friend's schedule before the expiry date" do
-      post "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
+      get "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
 
       expect(response).to have_http_status(:ok)
     end
@@ -389,10 +389,10 @@ RSpec.describe "Api::Friends", type: :request do
       travel 8.days do
         auth = auth_headers_for(user)
 
-        post "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: auth
+        get "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: auth
         expect(response).to have_http_status(:forbidden)
 
-        post "/api/friends/#{friend.public_id}/is_processed", params: { term_uid: term.uid }, headers: auth
+        get "/api/friends/#{friend.public_id}/processed_events/status", params: { term_uid: term.uid }, headers: auth
         expect(response).to have_http_status(:forbidden)
       end
     end

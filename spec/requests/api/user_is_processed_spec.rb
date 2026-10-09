@@ -2,12 +2,12 @@
 
 require "rails_helper"
 
-RSpec.describe "POST /api/user/is_processed", type: :request do
+RSpec.describe "GET /api/user/processed_events/status", type: :request do
   let(:user) { create(:user) }
   let(:term) { create(:term) }
 
   def post_is_processed(term_uid = term.uid)
-    post "/api/user/is_processed", params: { term_uid: term_uid }, headers: auth_headers_for(user), as: :json
+    get "/api/user/processed_events/status", params: { term_uid: term_uid }, headers: auth_headers_for(user), as: :json
   end
 
   it "reports a term with no enrollments and no status as not started" do
@@ -67,7 +67,7 @@ RSpec.describe "POST /api/user/is_processed", type: :request do
   end
 
   it "requires a term_uid" do
-    post "/api/user/is_processed", params: {}, headers: auth_headers_for(user), as: :json
+    get "/api/user/processed_events/status", params: {}, headers: auth_headers_for(user), as: :json
 
     expect(response).to have_http_status(:bad_request)
   end

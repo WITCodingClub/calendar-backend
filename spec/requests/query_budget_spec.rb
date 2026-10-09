@@ -68,7 +68,7 @@ RSpec.describe "Query budget for hot paths", type: :request do
     end
   end
 
-  describe "POST /api/friends/:friend_id/processed_events" do
+  describe "GET /api/friends/:friend_id/processed_events" do
     it "builds a friend's schedule with the same number of queries for 1 class and 6 classes" do
       friend = create(:user)
       create(:friendship, :accepted, requester: user, addressee: friend)
@@ -77,27 +77,27 @@ RSpec.describe "Query budget for hot paths", type: :request do
       params = { term_uid: term.uid }
 
       enroll(friend, 1)
-      post path, params: params, headers: headers
-      small = count_queries { post path, params: params, headers: headers }
+      get path, params: params, headers: headers
+      small = count_queries { get path, params: params, headers: headers }
 
       enroll(friend, 5)
-      large = count_queries { post path, params: params, headers: headers }
+      large = count_queries { get path, params: params, headers: headers }
 
       expect(response.parsed_body["classes"].size).to eq(6)
       expect(large).to eq(small)
     end
   end
 
-  describe "POST /api/user/processed_events" do
+  describe "GET /api/user/processed_events" do
     it "builds the user's schedule with the same number of queries for 1 class and 6 classes" do
       params = { term_uid: term.uid }
 
       enroll(user, 1)
-      post "/api/user/processed_events", params: params, headers: headers
-      small = count_queries { post "/api/user/processed_events", params: params, headers: headers }
+      get "/api/user/processed_events", params: params, headers: headers
+      small = count_queries { get "/api/user/processed_events", params: params, headers: headers }
 
       enroll(user, 5)
-      large = count_queries { post "/api/user/processed_events", params: params, headers: headers }
+      large = count_queries { get "/api/user/processed_events", params: params, headers: headers }
 
       expect(response).to have_http_status(:ok)
       expect(large).to eq(small)

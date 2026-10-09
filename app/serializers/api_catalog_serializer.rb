@@ -32,7 +32,7 @@ class ApiCatalogSerializer
 
   def graphql_api
     {
-      anchor:         api_graphql_url,
+      anchor:         api_v1_graphql_url,
       "service-desc": [ { href: api_graphql_schema_url, type: "text/plain" } ],
       "service-doc":  reference,
       status:         health

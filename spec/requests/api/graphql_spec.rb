@@ -10,7 +10,7 @@ RSpec.describe "Api::Graphql", type: :request do
   # Real clients POST JSON, so booleans and numbers keep their types. A
   # form-encoded post would turn every variable into a string.
   def gql(query, variables: nil)
-    post "/api/graphql", params: { query: query, variables: variables }, as: :json
+    post "/api/v1/graphql", params: { query: query, variables: variables }, as: :json
     json
   end
 
@@ -339,7 +339,7 @@ RSpec.describe "Api::Graphql", type: :request do
     end
 
     it "returns 400 for malformed variables JSON" do
-      post "/api/graphql", params: { query: "{ terms { uid } }", variables: "{not json" }
+      post "/api/v1/graphql", params: { query: "{ terms { uid } }", variables: "{not json" }
 
       expect(response).to have_http_status(:bad_request)
       expect(json["errors"].first["message"]).to match(/Invalid variables JSON/)

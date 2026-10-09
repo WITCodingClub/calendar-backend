@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Api
-  # POST /api/graphql — public catalog GraphQL endpoint.
+  # POST /api/v1/graphql — public catalog GraphQL endpoint.
   class GraphqlController < Api::V1::PublicController
     def execute
       result = CatalogSchema.execute(

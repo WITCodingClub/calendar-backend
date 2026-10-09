@@ -14,7 +14,7 @@ Do not use it for other schools, for live seat counts, for registration or enrol
 - [Plan a schedule around free days or times](<%= api_v1_catalog_sections_url(subject: "COMP", free_days: "friday", begins_after: "10:00") %>): Combine `meets_on`, `free_days`, `begins_after`, and `ends_before`.
 - [Find an instructor and their ratings](<%= api_v1_catalog_instructors_url(q: "smith") %>): Search by name with `q`. An instructor has Rate My Professors scores when ratings exist.
 - [Put a whole term in a spreadsheet](<%= sections_report_url %>): Use the CSV reports for Excel or Power BI. They need no code.
-- [Get nested data in one request](<%= api_graphql_url %>): Use GraphQL when REST would need many requests.
+- [Get nested data in one request](<%= api_v1_graphql_url %>): Use GraphQL when REST would need many requests.
 
 ## Docs
 
@@ -29,7 +29,7 @@ Do not use it for other schools, for live seat counts, for registration or enrol
 
 - [Terms](<%= api_v1_catalog_terms_url %>): JSON list of terms, newest first. Start here to get a `term_uid`.
 - [Sections](<%= api_v1_catalog_sections_url %>): JSON list of course sections. It accepts the filters in the reference.
-- [GraphQL](<%= api_graphql_url %>): POST endpoint for nested data in one request. It has no mutations.
+- [GraphQL](<%= api_v1_graphql_url %>): POST endpoint for nested data in one request. It has no mutations.
 - [Sections CSV](<%= sections_report_url %>): One row for each course section, for Excel and Power BI.
 
 ## Optional

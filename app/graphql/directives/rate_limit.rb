@@ -2,7 +2,7 @@
 
 module Directives
   # No published standard defines a rate limit directive. This one publishes
-  # the Rack::Attack throttle that covers /api/graphql.
+  # the Rack::Attack throttle that covers /api/v1/graphql.
   class RateLimit < GraphQL::Schema::Directive
     graphql_name "rateLimit"
     description "The server accepts at most max requests from one IP address in each window of " \

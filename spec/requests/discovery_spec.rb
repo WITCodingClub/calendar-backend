@@ -119,7 +119,7 @@ RSpec.describe "Discovery files", type: :request do
       expect(links).not_to be_empty
       links.each do |link|
         path   = URI(link).path
-        method = path == "/api/graphql" ? :post : :get
+        method = path == "/api/v1/graphql" ? :post : :get
         route  = Rails.application.routes.recognize_path(path, method: method)
 
         expect(route[:controller]).not_to eq("api/catch_all"), "#{link} has no route"
@@ -143,7 +143,7 @@ RSpec.describe "Discovery files", type: :request do
       get "/.well-known/api-catalog", headers: crawler
 
       expect(catalog["linkset"].pluck("anchor")).to eq(
-        [ "http://example.com/api/v1/catalog", "http://example.com/api/graphql" ]
+        [ "http://example.com/api/v1/catalog", "http://example.com/api/v1/graphql" ]
       )
     end
 
@@ -277,7 +277,7 @@ RSpec.describe "Discovery files", type: :request do
       expect(links).not_to be_empty
       links.each do |link|
         path   = URI(link).path
-        method = path == "/api/graphql" ? :post : :get
+        method = path == "/api/v1/graphql" ? :post : :get
         route  = Rails.application.routes.recognize_path(path, method: method)
 
         expect(route[:controller]).not_to eq("api/catch_all"), "#{link} has no route"

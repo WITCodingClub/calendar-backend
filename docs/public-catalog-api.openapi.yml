@@ -19,7 +19,7 @@ info:
     `RateLimit-Policy` and `RateLimit` headers from the IETF draft "RateLimit
     header fields for HTTP", so a client can slow down before it reaches the
     limit. A 429 response also sends `Retry-After`. The same data is also
-    available through GraphQL at `POST /api/graphql` and as CSV at
+    available through GraphQL at `POST /api/v1/graphql` and as CSV at
     `/reports/...`.
 
     Every 4xx and 5xx response has the `Error` body. Branch on its `code`.
@@ -56,6 +56,12 @@ paths:
       operationId: listTerms
       summary: List all terms, newest first
       description: Start here to get a `term_uid`.
+      parameters:
+        - name: active
+          in: query
+          required: false
+          description: With `true`, list only the terms that are in session today.
+          schema: { type: boolean }
       responses:
         "200":
           description: Every term
@@ -75,6 +81,50 @@ paths:
                     type: object
                     properties:
                       count: { type: integer }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/terms/current:
+    get:
+      tags: [terms]
+      operationId: getCurrentTerm
+      summary: Get the current term
+      responses:
+        "200":
+          description: The term
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Term" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/terms/next:
+    get:
+      tags: [terms]
+      operationId: getNextTerm
+      summary: Get the term after the current term
+      responses:
+        "200":
+          description: The term
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Term" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 

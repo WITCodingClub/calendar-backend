@@ -147,7 +147,7 @@ class User < ApplicationRecord
   end
 
   # True once the extension has processed the user's courses for any term.
-  # POST /api/process_courses enrolls the user, and /api/user/is_processed
+  # POST /api/process_courses enrolls the user, and /api/user/processed_events/status
   # checks the same enrollments for one term.
   def processed_courses?
     enrollments.exists?

@@ -35,9 +35,9 @@ RSpec.describe "Friends availability-only sharing", type: :request do
 
   def json = response.parsed_body
 
-  describe "POST /api/friends/:friend_id/processed_events" do
+  describe "GET /api/friends/:friend_id/processed_events" do
     it "sends the course list while the friend shares the full schedule" do
-      post "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
+      get "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
 
       expect(response).to have_http_status(:ok)
       expect(json["classes"].first["title"]).to eq("Secret Topology Seminar")
@@ -46,7 +46,7 @@ RSpec.describe "Friends availability-only sharing", type: :request do
     it "answers 403 with no course data when the friend shares only availability" do
       friendship.update_visibility_for!(friend, :availability_only)
 
-      post "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
+      get "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
 
       expect(response).to have_http_status(:forbidden)
       expect(json).to eq(
@@ -57,7 +57,7 @@ RSpec.describe "Friends availability-only sharing", type: :request do
     it "answers 403 while the flag is off, so a saved level stays in force" do
       friendship.update_visibility_for!(friend, :availability_only)
 
-      post "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
+      get "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
 
       expect(response).to have_http_status(:forbidden)
     end
@@ -65,29 +65,29 @@ RSpec.describe "Friends availability-only sharing", type: :request do
     it "uses the friend's level, not the viewer's own level" do
       friendship.update_visibility_for!(viewer, :availability_only)
 
-      post "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
+      get "/api/friends/#{friend.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
       expect(response).to have_http_status(:ok)
 
-      post "/api/friends/#{viewer.public_id}/processed_events",
+      get "/api/friends/#{viewer.public_id}/processed_events",
            params: { term_uid: term.uid }, headers: auth_headers_for(friend)
       expect(response).to have_http_status(:forbidden)
     end
   end
 
-  describe "POST /api/friends/:friend_id/processed_events for a user who is not a friend" do
+  describe "GET /api/friends/:friend_id/processed_events for a user who is not a friend" do
     it "answers 403 with the code NOT_FRIENDS" do
       stranger = create(:user)
 
-      post "/api/friends/#{stranger.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
+      get "/api/friends/#{stranger.public_id}/processed_events", params: { term_uid: term.uid }, headers: headers
 
       expect(response).to have_http_status(:forbidden)
       expect(json).to eq("error" => "You are not friends with this user", "code" => "NOT_FRIENDS")
     end
   end
 
-  describe "POST /api/friends/:friend_id/is_processed" do
+  describe "GET /api/friends/:friend_id/processed_events/status" do
     it "answers for a friend who shares the full schedule" do
-      post "/api/friends/#{friend.public_id}/is_processed", params: { term_uid: term.uid }, headers: headers
+      get "/api/friends/#{friend.public_id}/processed_events/status", params: { term_uid: term.uid }, headers: headers
 
       expect(response).to have_http_status(:ok)
       expect(json).to eq("processed" => true)
@@ -96,7 +96,7 @@ RSpec.describe "Friends availability-only sharing", type: :request do
     it "answers 403 AVAILABILITY_ONLY when the friend shares only availability" do
       friendship.update_visibility_for!(friend, :availability_only)
 
-      post "/api/friends/#{friend.public_id}/is_processed", params: { term_uid: term.uid }, headers: headers
+      get "/api/friends/#{friend.public_id}/processed_events/status", params: { term_uid: term.uid }, headers: headers
 
       expect(response).to have_http_status(:forbidden)
       expect(json).to eq(
@@ -105,7 +105,7 @@ RSpec.describe "Friends availability-only sharing", type: :request do
     end
 
     it "answers 403 NOT_FRIENDS for a user who is not a friend" do
-      post "/api/friends/#{create(:user).public_id}/is_processed", params: { term_uid: term.uid }, headers: headers
+      get "/api/friends/#{create(:user).public_id}/processed_events/status", params: { term_uid: term.uid }, headers: headers
 
       expect(response).to have_http_status(:forbidden)
       expect(json["code"]).to eq("NOT_FRIENDS")

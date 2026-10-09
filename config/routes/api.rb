@@ -4,11 +4,16 @@
 
 # Public catalog API (no auth, read-only course schedule data)
 namespace :api do
-  post "graphql", to: "graphql#execute"
+  # The GraphQL endpoint moved under /api/v1. 308 keeps the method and body.
+  post "graphql", to: redirect("/api/v1/graphql", status: 308)
 
   namespace :v1 do
+    post "graphql", to: "/api/graphql#execute"
+
     namespace :catalog do
       get "terms",            to: "terms#index"
+      get "terms/current",    to: "terms#current"
+      get "terms/next",       to: "terms#next"
       get "terms/:uid",       to: "terms#show", as: :term, constraints: { uid: /\d+/ }
       get "subjects",         to: "subjects#index"
       get "sections",         to: "sections#index"
@@ -28,13 +33,11 @@ namespace :api do
   post "extension_events",                       to: "extension_events#create"
 
   post "user/onboard",                           to: "onboardings#create"
-  post "user/gcal",                              to: "google_calendars#create"
-  post "user/gcal/add_email",                    to: "google_calendars#add_email"
-  delete "user/gcal/remove_email",               to: "google_calendars#remove_email"
+  get "user",                                    to: "profiles#show"
+  post "user/google_calendar",                   to: "google_calendars#create"
+  post "user/google_calendar/emails",            to: "google_calendars#add_email"
+  delete "user/google_calendar/emails",          to: "google_calendars#remove_email"
   get "user/busy_blocks",                        to: "busy_blocks#show"
-  get "user/id",                                   to: "profiles#pub_id"
-  get "user/email",                              to: "profiles#email"
-  get "user/ics_url",                            to: "profiles#ics_url"
   get "user/oauth_credentials",                  to: "oauth_credentials#index"
   delete "user/oauth_credentials/:credential_id", to: "oauth_credentials#destroy"
   post "user/microsoft_calendar",                to: "microsoft_calendars#create"
@@ -56,18 +59,16 @@ namespace :api do
   delete "user/sessions/:session_id", to: "sessions#destroy"
   post   "user/sessions/revoke_all",  to: "sessions#revoke_all"
 
-  post "user/is_processed",      to: "processed_events#processing_status"
-  post "user/processed_events",  to: "processed_events#index"
+  get "user/processed_events",         to: "processed_events#index"
+  get "user/processed_events/status",  to: "processed_events#processing_status"
 
   get "user/extension_config",           to: "extension_configs#show"
   put "user/extension_config",           to: "extension_configs#update"
 
-  get "user/flag_enabled",              to: "feature_flags#show"
   get "user/feature_flags",             to: "feature_flags#index"
 
-  get  "user/notifications_status",     to: "notifications#show"
-  post "user/notifications/disable",    to: "notifications#disable"
-  post "user/notifications/enable",     to: "notifications#enable"
+  get   "user/notifications",           to: "notifications#show"
+  patch "user/notifications",           to: "notifications#update"
 
   # Friends system
   get    "friends",                                   to: "friends#index"
@@ -92,8 +93,8 @@ namespace :api do
   delete "friends/groups/:group_id/members/:friend_id", to: "friends/groups#remove_member"
   delete "friends/:friend_id",                        to: "friends#destroy"
   patch  "friends/:friend_id/expiry",                 to: "friends#update_expiry"
-  post   "friends/:friend_id/processed_events",       to: "friends/schedules#processed_events"
-  post   "friends/:friend_id/is_processed",           to: "friends/schedules#processed"
+  get    "friends/:friend_id/processed_events",       to: "friends/schedules#processed_events"
+  get    "friends/:friend_id/processed_events/status", to: "friends/schedules#processed"
   get    "friends/:friend_id/visibility",             to: "friends/visibilities#show"
   patch  "friends/:friend_id/visibility",             to: "friends/visibilities#update"
   get    "friends/:friend_id/busy_blocks",            to: "friends/schedules#busy_blocks"
@@ -102,10 +103,6 @@ namespace :api do
   get    "meeting_links",                             to: "meeting_links#index"
   post   "meeting_links",                             to: "meeting_links#create"
   delete "meeting_links/:id",                         to: "meeting_links#destroy"
-
-  get "faculty/by_rmp", to: "faculty#get_info_by_rmp_id"
-  get "terms/active",          to: "terms#active"
-  get "terms/current_and_next", to: "terms#current_and_next"
 
   # Course processing
   post "process_courses",       to: "courses#process_courses"
@@ -127,10 +124,6 @@ namespace :api do
   resources :calendar_events, only: [] do
     resource :preference, controller: "event_preferences", only: [ :show, :update, :destroy ]
   end
-  # Legacy path. The published extension still calls it.
-  resources :google_calendar_events, only: [] do
-    resource :preference, controller: "event_preferences", only: [ :show, :update, :destroy ]
-  end
 
   # University calendar events
   resources :university_calendar_events, only: [ :index, :show ] do
@@ -140,6 +133,8 @@ namespace :api do
       post :sync
     end
   end
+
+  draw :api_legacy
 
   match "*path", to: "catch_all#not_found", via: :all
 end

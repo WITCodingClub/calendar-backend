@@ -16,7 +16,7 @@ module Api
       render json: { feature_flags: flags }, status: :ok
     end
 
-    # GET /api/user/flag_enabled
+    # GET /api/user/flag_enabled (legacy, see config/routes/api_legacy.rb)
     def show
       feature_name = params[:flag_name]
       if feature_name.blank?

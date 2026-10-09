@@ -6,7 +6,7 @@
 # many Banner lookups at the same time.
 #
 # The job keeps the term's TermProcessingStatus current, so the extension can
-# poll /api/user/is_processed: "processing" while it runs, "processed" when
+# poll /api/user/processed_events/status: "processing" while it runs, "processed" when
 # CourseProcessorService is done, and "failed" with an error code when the
 # term cannot be processed.
 class ProcessTermCoursesJob < ApplicationJob
