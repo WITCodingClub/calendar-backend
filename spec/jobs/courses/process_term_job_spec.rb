@@ -2,15 +2,15 @@
 
 require "rails_helper"
 
-RSpec.describe ProcessTermCoursesJob do
+RSpec.describe Courses::ProcessTermJob do
   let(:user) { create(:user) }
   let(:term) { create(:term) }
   let(:courses) { [ { "crn" => "11111", "term" => term.uid.to_s } ] }
 
   def stub_service(&block)
-    service = instance_double(CourseProcessorService)
+    service = instance_double(Courses::Processor)
     allow(service).to receive(:call, &block)
-    allow(CourseProcessorService).to receive(:new).and_return(service)
+    allow(Courses::Processor).to receive(:new).and_return(service)
     service
   end
 
@@ -23,7 +23,7 @@ RSpec.describe ProcessTermCoursesJob do
 
     described_class.perform_now(user, term, courses)
 
-    expect(CourseProcessorService).to have_received(:new).with(courses, user)
+    expect(Courses::Processor).to have_received(:new).with(courses, user)
     expect(service).to have_received(:call)
   end
 
@@ -48,27 +48,27 @@ RSpec.describe ProcessTermCoursesJob do
   end
 
   it "marks the term as failed and discards the job when the term does not exist" do
-    stub_service { raise InvalidTermError.new(term.uid) }
+    stub_service { raise Courses::InvalidTermError.new(term.uid) }
 
     expect { described_class.perform_now(user, term, courses) }.not_to raise_error
     expect(status_row).to have_attributes(status: "failed", error_code: "term_not_found")
   end
 
   it "retries the job when Banner fails" do
-    stub_service { raise LeopardWebService::RequestError.new("down", status: 503) }
+    stub_service { raise Catalog::LeopardWebClient::RequestError.new("down", status: 503) }
 
     expect { described_class.perform_now(user, term, courses) }.to have_enqueued_job(described_class)
     expect(status_row.status).to eq("processing")
   end
 
   it "marks the term as failed when Banner fails on every retry" do
-    stub_service { raise LeopardWebService::RequestError.new("down", status: 503) }
+    stub_service { raise Catalog::LeopardWebClient::RequestError.new("down", status: 503) }
 
     job = described_class.new(user, term, courses)
     2.times { job.perform_now }
     expect(status_row.status).to eq("processing")
 
-    expect { job.perform_now }.to raise_error(LeopardWebService::RequestError)
+    expect { job.perform_now }.to raise_error(Catalog::LeopardWebClient::RequestError)
 
     expect(status_row).to have_attributes(status: "failed", error_code: "banner_unavailable")
   end

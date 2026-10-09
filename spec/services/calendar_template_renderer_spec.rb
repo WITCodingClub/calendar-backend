@@ -6,7 +6,7 @@ RSpec.describe CalendarTemplateRenderer do
   let(:course) { create(:course, start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 10, 20)) }
 
   let(:meeting_time) do
-    MeetingTimesIngestService.call(
+    Catalog::MeetingTimesIngest.call(
       course: course,
       raw_meeting_times: [
         {

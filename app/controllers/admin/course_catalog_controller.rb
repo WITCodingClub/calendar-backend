@@ -5,7 +5,7 @@ module Admin
     def index
       authorize :course_catalog
 
-      api_result = LeopardWebService.get_active_terms
+      api_result = Catalog::LeopardWebClient.get_active_terms
       @api_terms = api_result[:success] ? api_result[:terms] : []
       @db_terms  = Term.reverse_chronological.index_by(&:uid)
 
@@ -24,7 +24,7 @@ module Admin
         return
       end
 
-      job = CatalogImportJob.perform_later(term.uid)
+      job = Catalog::ImportJob.perform_later(term.uid)
       term.update!(catalog_importing: true, catalog_import_failed: false, catalog_import_job_id: job.job_id)
       flash[:notice] = "Started importing courses for #{term.name} in the background."
       redirect_to admin_course_catalog_path

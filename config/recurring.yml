@@ -63,7 +63,7 @@ production:
     schedule: every day at 4am
 
   course_data_sync:
-    class: CourseDataSyncJob
+    class: Catalog::CourseDataSyncJob
     queue: low
     schedule: every day at 4am
 
@@ -141,6 +141,6 @@ production:
   # ---------------------------------------------------------------------------
 
   ensure_future_terms:
-    class: EnsureFutureTermsJob
+    class: Catalog::EnsureFutureTermsJob
     queue: low
     schedule: every month on the 1st at 2am

@@ -45,7 +45,7 @@ namespace :courses do
       begin
         print "Processing CRN #{course.crn} (#{course.title})... "
 
-        detailed_info = LeopardWebService.get_class_details(
+        detailed_info = Catalog::LeopardWebClient.get_class_details(
           term: course.term.uid,
           course_reference_number: course.crn
         )
@@ -68,7 +68,7 @@ namespace :courses do
           next
         end
 
-        MeetingTimesIngestService.call(course: course, raw_meeting_times: detailed_info[:meeting_times])
+        Catalog::MeetingTimesIngest.call(course: course, raw_meeting_times: detailed_info[:meeting_times])
         puts "Updated successfully"
         updated_count += 1
 

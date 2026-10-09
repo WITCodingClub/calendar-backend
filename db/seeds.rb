@@ -3,15 +3,15 @@
 # Development data.
 #
 # The catalog comes from a production export in db/seeds/catalog.json.gz. Make a
-# new one with `bin/rails catalog_snapshot:export` (see CatalogSnapshot). The
+# new one with `bin/rails catalog_snapshot:export` (see Catalog::Snapshot). The
 # export holds no student records, so seeds build fake people with factories.
 
-if CatalogSnapshot::SEED_PATH.exist?
+if Catalog::Snapshot::SEED_PATH.exist?
   if Course.exists?
     puts "The catalog already has courses. Skipping the catalog snapshot."
   else
     puts "Importing the catalog snapshot..."
-    CatalogSnapshot.import(CatalogSnapshot.read(CatalogSnapshot::SEED_PATH))
+    Catalog::Snapshot.import(Catalog::Snapshot.read(Catalog::Snapshot::SEED_PATH))
     puts "  #{Term.count} terms, #{Course.count} courses, #{Faculty.count} faculty"
   end
 else

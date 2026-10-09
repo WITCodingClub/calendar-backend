@@ -60,7 +60,7 @@ namespace :backfill do
 
       scope.find_each(batch_size: 50).with_index do |course, index|
         begin
-          info = LeopardWebService.get_enrollment_info(
+          info = Catalog::LeopardWebClient.get_enrollment_info(
             term: term.uid.to_s,
             course_reference_number: course.crn.to_s
           )
@@ -101,7 +101,7 @@ namespace :backfill do
 
     terms.each do |term|
       puts "\n#{term.name} (#{term.uid}): fetching the catalog..."
-      result = LeopardWebService.get_course_catalog(term: term.uid.to_s)
+      result = Catalog::LeopardWebClient.get_course_catalog(term: term.uid.to_s)
 
       unless result[:success]
         puts "  Catalog fetch failed: #{result[:error]}"
@@ -161,7 +161,7 @@ namespace :backfill do
     terms.each do |term|
       print "\n#{term.name} (#{term.uid}): "
 
-      result = LeopardWebService.get_course_catalog(term: term.uid.to_s)
+      result = Catalog::LeopardWebClient.get_course_catalog(term: term.uid.to_s)
 
       unless result[:success]
         puts "could not read the catalog: #{result[:error]}"

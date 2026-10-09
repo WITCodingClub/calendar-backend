@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe LeopardWebService, type: :service do
+RSpec.describe Catalog::LeopardWebClient, type: :service do
   # A trimmed copy of the section Banner returns for getEnrollmentInfo.
   ENROLLMENT_HTML = <<~HTML
     <section aria-labelledby="enrollmentInfo">
@@ -226,23 +226,23 @@ RSpec.describe LeopardWebService, type: :service do
     end
 
     it "still raises a meeting times failure for a section that exists" do
-      allow(service).to receive(:get_faculty_meeting_times).and_raise(LeopardWebService::RequestError, "Banner is down")
+      allow(service).to receive(:get_faculty_meeting_times).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
       allow(service).to receive(:get_enrollment_info).and_return(nil)
 
-      expect { service.call }.to raise_error(LeopardWebService::RequestError, "Banner is down")
+      expect { service.call }.to raise_error(Catalog::LeopardWebClient::RequestError, "Banner is down")
     end
 
     it "returns nil for a missing section, even when the other requests fail" do
       allow(service).to receive(:handle_response).and_return(nil)
-      allow(service).to receive(:get_faculty_meeting_times).and_raise(LeopardWebService::RequestError, "Banner is down")
-      allow(service).to receive(:get_enrollment_info).and_raise(LeopardWebService::RequestError, "Banner is down")
+      allow(service).to receive(:get_faculty_meeting_times).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
+      allow(service).to receive(:get_enrollment_info).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
 
       expect(service.call).to be_nil
     end
 
     it "keeps the details when only the enrollment request fails" do
       allow(service).to receive(:get_faculty_meeting_times).and_return(nil)
-      allow(service).to receive(:get_enrollment_info).and_raise(LeopardWebService::RequestError, "Banner is down")
+      allow(service).to receive(:get_enrollment_info).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
 
       expect(service.call).to eq({ title: "Calculus 2A" })
     end

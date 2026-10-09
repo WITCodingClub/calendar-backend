@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe CatalogSnapshot do
+RSpec.describe Catalog::Snapshot do
   # Through JSON, as in the real file.
   def export(**options) = JSON.parse(JSON.generate(described_class.export(**options)))
 

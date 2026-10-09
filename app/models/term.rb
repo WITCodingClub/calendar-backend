@@ -66,7 +66,7 @@ class Term < ApplicationRecord
   # Returns active term UIDs from LeopardWeb
   # @return [Array<Integer>] UIDs of terms LeopardWeb considers active, empty array on failure
   def self.active_uids
-    result = LeopardWebService.get_active_terms
+    result = Catalog::LeopardWebClient.get_active_terms
     return [] unless result[:success]
 
     result[:terms].map { |t| t[:code].to_i }
@@ -78,7 +78,7 @@ class Term < ApplicationRecord
   # Falls back to start_date when LeopardWeb is unavailable or does not list the term.
   # @return [Date, nil] the registration start date
   def registration_start
-    result = LeopardWebService.get_active_terms
+    result = Catalog::LeopardWebClient.get_active_terms
     if result[:success]
       active_codes = result[:terms].map { |t| (t[:code] || t["code"]).to_i }
       if active_codes.include?(uid)
@@ -90,7 +90,7 @@ class Term < ApplicationRecord
 
     start_date
   rescue => e
-    Rails.logger.warn("LeopardWebService unavailable for registration_start on #{name}: #{e.message}")
+    Rails.logger.warn("Catalog::LeopardWebClient unavailable for registration_start on #{name}: #{e.message}")
     start_date
   end
 

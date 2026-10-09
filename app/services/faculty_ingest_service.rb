@@ -6,7 +6,7 @@
 # The two importers used to only add. Nothing ever detached an instructor, so a
 # section that changed hands kept both people forever and the calendar rendered
 # whichever join row was oldest. Attaching and detaching in one place also keeps
-# CourseProcessorService and CatalogImportService from drifting apart.
+# Courses::Processor and Catalog::Importer from drifting apart.
 class FacultyIngestService < ApplicationService
   attr_reader :course, :raw_faculty
 
@@ -44,7 +44,7 @@ class FacultyIngestService < ApplicationService
   #
   # A blank payload means Banner told us nothing, not that the section lost its
   # instructor. Detaching on it would strip every section the moment a request
-  # failed, the same reasoning CourseDataSyncJob uses before pruning meeting
+  # failed, the same reasoning Catalog::CourseDataSyncJob uses before pruning meeting
   # times.
   def call
     entries = normalized_entries

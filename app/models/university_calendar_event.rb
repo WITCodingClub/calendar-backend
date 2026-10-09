@@ -143,7 +143,7 @@ class UniversityCalendarEvent < ApplicationRecord
   end
 
   def self.leopard_web_registration_open_date(year, season, term)
-    result = LeopardWebService.get_active_terms
+    result = Catalog::LeopardWebClient.get_active_terms
     return nil unless result[:success]
 
     target_uid = term&.uid || generated_term_uid(year, season)

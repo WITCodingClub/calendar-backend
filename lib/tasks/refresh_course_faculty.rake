@@ -35,7 +35,7 @@ namespace :courses do
 
       CourseChangeTrackable.with_enrollment_cache do
         term.courses.find_each(batch_size: 50) do |course|
-          details = LeopardWebService.get_class_details(term: uid, course_reference_number: course.crn)
+          details = Catalog::LeopardWebClient.get_class_details(term: uid, course_reference_number: course.crn)
 
           if details.nil? || details[:faculty].blank?
             puts "  CRN #{course.crn}: Banner reported no instructor, leaving as is"

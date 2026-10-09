@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe MeetingTimesIngestService do
+RSpec.describe Catalog::MeetingTimesIngest do
   let(:course) { create(:course) }
 
   let(:raw_meeting_times) do

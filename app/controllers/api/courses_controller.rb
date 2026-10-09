@@ -17,7 +17,7 @@ module Api
 
       courses_array = plain_hashes(courses)
 
-      CourseProcessorService.new(courses_array, current_user).call
+      Courses::Processor.new(courses_array, current_user).call
 
       render json: {
         user_pub: current_user.public_id,
@@ -45,8 +45,8 @@ module Api
         return
       end
 
-      if terms.size > CourseBatchProcessorService::MAX_TERMS
-        render_error "A batch can have at most #{CourseBatchProcessorService::MAX_TERMS} terms", status: :bad_request
+      if terms.size > Courses::BatchProcessor::MAX_TERMS
+        render_error "A batch can have at most #{Courses::BatchProcessor::MAX_TERMS} terms", status: :bad_request
         return
       end
 
@@ -54,7 +54,7 @@ module Api
         entry.is_a?(ActionController::Parameters) ? entry.to_unsafe_h : entry
       end
 
-      results = CourseBatchProcessorService.new(entries, current_user).call
+      results = Courses::BatchProcessor.new(entries, current_user).call
 
       render json: CourseBatchResultSerializer.new(current_user, results).as_json, status: :ok
     end
@@ -72,7 +72,7 @@ module Api
 
       courses_array = plain_hashes(courses)
 
-      result = CourseReprocessService.new(courses_array, current_user).call
+      result = Courses::Reprocessor.new(courses_array, current_user).call
 
       render json: {
         ics_url:             current_user.cal_url_with_extension,

@@ -1,0 +1,330 @@
+# frozen_string_literal: true
+
+module Catalog
+  class Importer < ApplicationService
+    include ApplicationHelper
+
+    attr_reader :catalog_courses
+
+    def initialize(catalog_courses)
+      @catalog_courses = catalog_courses
+      super()
+    end
+
+    def call
+      validate_courses_data!
+
+      processed_count = 0
+      failed_courses = []
+
+      unique_courses = catalog_courses.uniq { |c| [ c["courseReferenceNumber"], c["term"] ] }
+
+      term_uids = unique_courses.map { |c| c["term"] || c["termEffective"] }.compact.uniq
+
+      # Load what every course shares once: the terms, the instructors, and the
+      # buildings and rooms as the courses name them (#729).
+      @terms = Term.where(uid: term_uids).index_by { |t| t.uid.to_s }
+      @faculty = FacultyIngestService.preload(unique_courses.map { |c| c["faculty"] || [] })
+      @locations = Catalog::MeetingTimesIngest::Locations.new
+
+      missing = term_uids.reject { |uid| @terms.key?(uid.to_s) }
+      if missing.any?
+        raise ArgumentError, "Terms not found in database: #{missing.join(', ')}. Create them before importing."
+      end
+
+      unique_courses.each_with_index do |course_data, index|
+        begin
+          process_course(course_data)
+          processed_count += 1
+        rescue => e
+          Rails.logger.error("Failed to process course #{course_data['courseReferenceNumber']}: #{e.message}")
+          failed_courses << {
+            crn: course_data["courseReferenceNumber"],
+            term: course_data["term"],
+            error: e.message
+          }
+        end
+
+        if (index + 1) % 50 == 0
+          Rails.logger.info("Processed #{index + 1}/#{unique_courses.count} courses")
+        end
+      end
+
+      term_uids.each do |term_uid|
+        term = @terms[term_uid.to_s]
+        next unless term && processed_count > 0
+
+        term.update!(
+          catalog_imported: true,
+          catalog_imported_at: Time.current
+        )
+        Rails.logger.info("Marked term #{term_uid} (#{term.name}) as catalog_imported")
+      end
+
+      {
+        total: unique_courses.count,
+        processed: processed_count,
+        failed: failed_courses.count,
+        failed_courses: failed_courses
+      }
+    end
+
+    def call!
+      result = call
+      raise "Failed to process #{result[:failed]} courses" if result[:failed] > 0
+
+      result
+    end
+
+    private
+
+    def process_course(course_data)
+      crn = course_data["courseReferenceNumber"] || course_data["crn"]
+      term_uid = course_data["term"] || course_data["termEffective"]
+
+      term = @terms[term_uid.to_s]
+      unless term
+        raise "Term with UID #{term_uid} not found. Please create the term first."
+      end
+
+      schedule_type_desc = course_data["scheduleTypeDescription"] || course_data["scheduleType"]
+      schedule_type_match = schedule_type_desc.to_s.match(/\(([^)]+)\)/)
+      raw_code = schedule_type_match ? schedule_type_match[1] : nil
+      schedule_type_key = raw_code ? Course::ScheduleType.key_for_code(raw_code) : nil
+
+      raise "Unknown or missing schedule type '#{schedule_type_desc}' (extracted code: #{raw_code.inspect}) for CRN #{crn}" unless schedule_type_key
+
+      raw_meeting_times = []
+      if course_data["meetingsFaculty"].is_a?(Array)
+        course_data["meetingsFaculty"].each do |session|
+          meeting_time = session["meetingTime"]
+          raw_meeting_times << meeting_time if meeting_time.present?
+        end
+      end
+
+      meeting_times = deduplicate_meeting_times(raw_meeting_times)
+
+      start_date = nil
+      end_date = nil
+      if meeting_times.any?
+        first_meeting = meeting_times.first
+        parsed_start = parse_date(first_meeting["startDate"])
+        parsed_end = parse_date(first_meeting["endDate"])
+
+        if dates_valid_for_term?(parsed_start, parsed_end, term)
+          start_date = parsed_start
+          end_date = parsed_end
+        else
+          Rails.logger.warn("Invalid dates for term #{term.name}: #{parsed_start} to #{parsed_end}, using term defaults")
+          start_date = term.start_date
+          end_date = term.end_date
+        end
+      else
+        start_date = term.start_date
+        end_date = term.end_date
+      end
+
+      if start_date.nil? || end_date.nil?
+        raise "Cannot determine dates for CRN #{crn}: no meeting times and term #{term.uid} (#{term.name}) has no dates set"
+      end
+
+      # Banner says which sections must be taken together. Keep it: inferring the
+      # pairing from the sequence number works most of the time, but this is the
+      # registrar's own answer.
+      link_identifier   = course_data["linkIdentifier"].presence
+      is_section_linked = ActiveModel::Type::Boolean.new.cast(course_data["isSectionLinked"]) || false
+
+      seats = seat_counts(course_data)
+      credit_hours = credit_hours_for(course_data)
+
+      course = Course.find_or_create_by!(crn: crn, term: term) do |c|
+        c.title = titleize_with_roman_numerals(course_data["courseTitle"] || "Untitled Course")
+        c.subject = course_data["subject"] || course_data["subjectCode"]
+        c.course_number = course_data["courseNumber"]
+        c.schedule_type = schedule_type_key
+        c.section_number = normalize_section_number(course_data["sequenceNumber"] || course_data["sectionNumber"])
+        c.credit_hours = credit_hours
+        c.grade_mode = nil
+        c.start_date = start_date
+        c.end_date = end_date
+        c.term = term
+        c.link_identifier = link_identifier
+        c.is_section_linked = is_section_linked
+        c.seats_capacity = seats[:capacity]
+        c.seats_available = seats[:available]
+      end
+
+      if course.persisted? && !course.new_record?
+        update_attrs = {}
+        update_attrs[:start_date] = start_date if start_date.present?
+        update_attrs[:end_date] = end_date if end_date.present?
+
+        raw_title = course_data["courseTitle"] || "Untitled Course"
+        new_title = titleize_with_roman_numerals(raw_title)
+        update_attrs[:title] = new_title if course.title != new_title
+        update_attrs[:credit_hours] = credit_hours if course.credit_hours != credit_hours
+
+        # Re-importing a term is how existing rows learn their link identifier,
+        # so these have to be written on update and not only on create.
+        update_attrs[:link_identifier]   = link_identifier   if course.link_identifier != link_identifier
+        update_attrs[:is_section_linked] = is_section_linked if course.is_section_linked != is_section_linked
+
+        # Set both counts together or neither. The database checks that
+        # seats_available is not more than seats_capacity, so a half update can
+        # fail on a section whose capacity went down.
+        if seats[:capacity].present? && seats[:available].present?
+          update_attrs[:seats_capacity] = seats[:capacity]
+          update_attrs[:seats_available] = seats[:available]
+        end
+
+        course.update!(update_attrs) if update_attrs.any?
+      end
+
+      orphan_exam = FinalExam.orphan.find_by(crn: course.crn, term: term)
+      if orphan_exam
+        orphan_exam.update!(course: course)
+        Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
+      end
+
+      if meeting_times.any?
+        kept_ids = Catalog::MeetingTimesIngest.call(
+          course: course,
+          raw_meeting_times: meeting_times,
+          locations: @locations
+        )
+
+        # Remove meeting times that no longer exist upstream (e.g. Banner changed a
+        # section's day/time), but only when the ingest produced rows — never wipe
+        # the course from an empty result. Preserves untouched rows and their events.
+        course.meeting_times.where.not(id: kept_ids).destroy_all if kept_ids.any?
+      else
+        Rails.logger.warn("No meeting times found for course CRN #{crn}")
+      end
+
+      faculty_data = course_data["faculty"] || []
+      if faculty_data.any?
+        FacultyIngestService.call(course: course, raw_faculty: faculty_data, faculty: @faculty)
+      else
+        Rails.logger.warn("No faculty data found for course CRN #{crn}")
+      end
+
+      course
+    end
+
+    # Banner ships seat counts in the catalog payload we already fetch, so this
+    # costs no extra request. Before this, only the per-user upload path recorded
+    # seats, which left every catalog-imported term with no enrollment data.
+    #
+    # seats_available is maximumEnrollment minus enrollment, so an over-enrolled
+    # section reports a negative number. About 17% of sections do. Store what
+    # Banner reports: clamping to 0 makes an over-enrolled section read as full.
+    def seat_counts(course_data)
+      capacity = course_data["maximumEnrollment"]
+      available = course_data["seatsAvailable"]
+
+      {
+        capacity: capacity.nil? ? nil : capacity.to_i,
+        available: available.nil? ? nil : available.to_i
+      }
+    end
+
+    # Banner sends creditHours for current terms, but older terms (2022 and 2023)
+    # send it as null and put the fixed value in creditHourLow. A section linked
+    # to a lecture, such as a lab, reports 0, and the lecture carries the
+    # credits. Some labs stand alone and carry credits (ARCH studios are 6), so
+    # the schedule type does not decide this. Store nil for 0.
+    def credit_hours_for(course_data)
+      hours = course_data["creditHours"]
+      hours = course_data["creditHourLow"] if hours.nil? && course_data["creditHourIndicator"].blank?
+      hours.to_i.positive? ? hours.to_i : nil
+    end
+
+    def validate_courses_data!
+      raise ArgumentError, "catalog_courses cannot be nil" if catalog_courses.nil?
+      raise ArgumentError, "catalog_courses must be an array" unless catalog_courses.is_a?(Array)
+      raise ArgumentError, "catalog_courses cannot be empty" if catalog_courses.empty?
+
+      catalog_courses.each_with_index do |course_data, index|
+        unless course_data.is_a?(Hash)
+          raise ArgumentError, "course at index #{index} must be a hash"
+        end
+
+        crn = course_data["courseReferenceNumber"] || course_data["crn"]
+        if crn.blank?
+          available_keys = course_data.keys.first(15).join(", ")
+          raise ArgumentError, "course at index #{index} missing required field: courseReferenceNumber or crn. Available keys: #{available_keys}"
+        end
+
+        term_uid = course_data["term"] || course_data["termEffective"]
+        if term_uid.blank?
+          raise ArgumentError, "course at index #{index} missing required field: term or termEffective"
+        end
+
+        unless term_uid.to_s.match?(/^\d+$/)
+          raise ArgumentError, "course at index #{index} has invalid term UID: #{term_uid}"
+        end
+      end
+    end
+
+    def parse_date(date_string)
+      return nil if date_string.blank?
+
+      Date.strptime(date_string, "%m/%d/%Y")
+    rescue ArgumentError => e
+      Rails.logger.warn("Failed to parse date '#{date_string}': #{e.message}")
+      nil
+    end
+
+    def dates_valid_for_term?(start_date, end_date, term)
+      return false if start_date.nil? || end_date.nil?
+
+      term_year = term.year
+      start_year_valid = start_date.year.between?(term_year - 1, term_year)
+      end_year_valid = end_date.year.between?(term_year, term_year + 1)
+
+      start_year_valid && end_year_valid
+    end
+
+    def deduplicate_meeting_times(raw_meeting_times)
+      return [] if raw_meeting_times.blank?
+
+      grouped = raw_meeting_times.group_by { |mt| meeting_time_schedule_key(mt) }
+
+      grouped.map do |_key, entries|
+        next entries.first if entries.size == 1
+
+        with_location = entries.find { |mt| meeting_time_has_location?(mt) }
+        with_location || entries.first
+      end
+    end
+
+    def meeting_time_schedule_key(mt)
+      days = %w[sunday monday tuesday wednesday thursday friday saturday].map do |day|
+        mt[day] || mt[day.to_sym] ? 1 : 0
+      end.join
+
+      [
+        mt["startDate"] || mt[:startDate],
+        mt["endDate"] || mt[:endDate],
+        mt["beginTime"] || mt[:beginTime],
+        mt["endTime"] || mt[:endTime],
+        days
+      ]
+    end
+
+    def meeting_time_has_location?(mt)
+      building = (mt["building"] || mt[:building]).to_s.strip
+      room = (mt["room"] || mt[:room]).to_s.strip
+
+      return false if building.blank?
+      return false if building.downcase == "tbd"
+
+      if room.present?
+        return false if room == "0"
+        return false if room.downcase == "tbd"
+      end
+
+      true
+    end
+  end
+end

@@ -52,7 +52,7 @@ namespace :catalog do
     # If the scrape fails or returns no courses (e.g. LeopardWeb markup changed),
     # abort now so we never wipe a term's data with nothing to replace it.
     puts "\nStep 2: Fetching fresh catalog data from LeopardWeb (pre-flight)..."
-    result = LeopardWebService.get_course_catalog(term: term_uid)
+    result = Catalog::LeopardWebClient.get_course_catalog(term: term_uid)
     unless result[:success]
       raise "Aborting: failed to fetch catalog for term #{term.name}: #{result[:error]}. No data was deleted."
     end
@@ -95,7 +95,7 @@ namespace :catalog do
 
       # Re-import using the already-fetched data (no second HTTP call).
       puts "\nImporting fresh catalog data..."
-      CatalogImportService.new(fresh_courses).call!
+      Catalog::Importer.new(fresh_courses).call!
 
       # Step 4: Restore enrollments
       puts "\nStep 4: Restoring enrollments for term #{term.name}..."

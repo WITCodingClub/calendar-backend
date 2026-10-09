@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe CourseDataSyncJob do
+RSpec.describe Catalog::CourseDataSyncJob do
   include ActiveSupport::Testing::TimeHelpers
 
   let(:term) { create(:term, uid: 202710, season: :fall, year: 2026) }
@@ -14,7 +14,7 @@ RSpec.describe CourseDataSyncJob do
            start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15))
   end
 
-  # Banner's getFacultyMeetingTimes shape, as LeopardWebService returns it.
+  # Banner's getFacultyMeetingTimes shape, as Catalog::LeopardWebClient returns it.
   def banner_meeting_time(building: "IRAH", description: "Ira Allen Hall", room: "112")
     {
       "building"             => building,
@@ -48,9 +48,9 @@ RSpec.describe CourseDataSyncJob do
   end
 
   def stub_leopard_web(meeting_times, faculty: [])
-    allow(LeopardWebService).to receive(:get_active_terms)
+    allow(Catalog::LeopardWebClient).to receive(:get_active_terms)
       .and_return({ success: true, terms: [ { code: term.uid.to_s, description: term.name } ] })
-    allow(LeopardWebService).to receive(:get_class_details)
+    allow(Catalog::LeopardWebClient).to receive(:get_class_details)
       .with(term: term.uid, course_reference_number: course.crn)
       .and_return(class_details(meeting_times: meeting_times, faculty: faculty))
   end
@@ -60,9 +60,9 @@ RSpec.describe CourseDataSyncJob do
   end
 
   before do
-    MeetingTimesIngestService.call(
+    Catalog::MeetingTimesIngest.call(
       course: course,
-      raw_meeting_times: MeetingTimesIngestService.normalize_leopard_web([ banner_meeting_time ])
+      raw_meeting_times: Catalog::MeetingTimesIngest.normalize_leopard_web([ banner_meeting_time ])
     )
   end
 
@@ -110,8 +110,8 @@ RSpec.describe CourseDataSyncJob do
 
   describe "term selection" do
     it "syncs the running and upcoming terms, not every term Banner lists" do
-      allow(LeopardWebService).to receive(:get_active_terms).and_raise("Banner should not be asked")
-      allow(LeopardWebService).to receive(:get_class_details).and_return(nil)
+      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_raise("Banner should not be asked")
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(nil)
       job = described_class.new
 
       expect(job.send(:default_term_uids)).to include(term.uid)
