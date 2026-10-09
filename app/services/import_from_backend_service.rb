@@ -862,7 +862,7 @@ class ImportFromBackendService
       .pluck("faculties.id")
       .uniq
 
-    faculty_ids.each { |fid| UpdateFacultyRatingsJob.perform_later(fid) }
+    faculty_ids.each { |fid| Faculties::UpdateRatingsJob.perform_later(fid) }
     @stats[:faculty_rating_jobs_queued] = faculty_ids.size
 
     log "  sync_jobs=#{@stats[:sync_jobs_queued]} faculty_rating_jobs=#{@stats[:faculty_rating_jobs_queued]}"

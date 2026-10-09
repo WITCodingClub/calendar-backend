@@ -44,7 +44,7 @@ namespace :courses do
 
           before = course.faculties.map(&:full_name)
 
-          if FacultyIngestService.call(course: course, raw_faculty: details[:faculty])
+          if Faculties::Ingest.call(course: course, raw_faculty: details[:faculty])
             changed += 1
             puts "  CRN #{course.crn}: #{before.join(', ').presence || 'none'} -> #{course.faculties.map(&:full_name).join(', ')}"
           end

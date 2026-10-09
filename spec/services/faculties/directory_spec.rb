@@ -2,8 +2,8 @@
 
 require "rails_helper"
 
-RSpec.describe FacultyDirectoryService, type: :service do
-  let(:base_url) { FacultyDirectoryService::BASE_URL }
+RSpec.describe Faculties::Directory, type: :service do
+  let(:base_url) { Faculties::Directory::BASE_URL }
 
   def stub_page(page:, fixture:, status: 200, employee_type: "All")
     stub_request(:get, base_url)

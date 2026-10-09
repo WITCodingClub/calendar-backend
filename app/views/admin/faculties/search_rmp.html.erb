@@ -1,4 +1,4 @@
-<% service = RateMyProfessorService.new %>
+<% service = Faculties::RateMyProfessorClient.new %>
 <% directory_url = service.faculty_directory_url(first_name: @faculty.first_name, last_name: @faculty.last_name) %>
 <% rmp_url = service.add_professor_url %>
 

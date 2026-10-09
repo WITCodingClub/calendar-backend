@@ -24,7 +24,7 @@ module Catalog
       # Load what every course shares once: the terms, the instructors, and the
       # buildings and rooms as the courses name them (#729).
       @terms = Term.where(uid: term_uids).index_by { |t| t.uid.to_s }
-      @faculty = FacultyIngestService.preload(unique_courses.map { |c| c["faculty"] || [] })
+      @faculty = Faculties::Ingest.preload(unique_courses.map { |c| c["faculty"] || [] })
       @locations = Catalog::MeetingTimesIngest::Locations.new
 
       missing = term_uids.reject { |uid| @terms.key?(uid.to_s) }
@@ -203,7 +203,7 @@ module Catalog
 
       faculty_data = course_data["faculty"] || []
       if faculty_data.any?
-        FacultyIngestService.call(course: course, raw_faculty: faculty_data, faculty: @faculty)
+        Faculties::Ingest.call(course: course, raw_faculty: faculty_data, faculty: @faculty)
       else
         Rails.logger.warn("No faculty data found for course CRN #{crn}")
       end

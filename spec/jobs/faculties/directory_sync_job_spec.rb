@@ -2,28 +2,28 @@
 
 require "rails_helper"
 
-RSpec.describe FacultyDirectorySyncJob, type: :job do
+RSpec.describe Faculties::DirectorySyncJob, type: :job do
   def directory_result(faculty:, total_count: faculty.size)
     { success: true, faculty: faculty, total_count: total_count }
   end
 
   it "raises when the directory service reports a failure" do
-    allow(FacultyDirectoryService).to receive(:call)
+    allow(Faculties::Directory).to receive(:call)
       .and_return(success: false, error: "HTTP 500", faculty: [], total_count: 0)
 
     expect { described_class.perform_now }.to raise_error(/Failed to fetch faculty directory/)
   end
 
   it "asks the directory service for fresh pages, not cached ones" do
-    allow(FacultyDirectoryService).to receive(:call).and_return(directory_result(faculty: []))
+    allow(Faculties::Directory).to receive(:call).and_return(directory_result(faculty: []))
 
     described_class.perform_now
 
-    expect(FacultyDirectoryService).to have_received(:call).with(force: true)
+    expect(Faculties::Directory).to have_received(:call).with(force: true)
   end
 
   it "creates a new faculty record from a directory entry with a full name and email" do
-    allow(FacultyDirectoryService).to receive(:call).and_return(
+    allow(Faculties::Directory).to receive(:call).and_return(
       directory_result(faculty: [
         { display_name: "Ada Byron", title: "Professor", email: "byrona@wit.edu",
           department: "Computer Science", office_location: "Beatty 205", raw_html: "<div></div>" }
@@ -42,7 +42,7 @@ RSpec.describe FacultyDirectorySyncJob, type: :job do
   end
 
   it "skips a brand new entry when the display name cannot be split into a first and last name" do
-    allow(FacultyDirectoryService).to receive(:call).and_return(
+    allow(Faculties::Directory).to receive(:call).and_return(
       directory_result(faculty: [ { display_name: nil, email: "noname@wit.edu" } ])
     )
 
@@ -53,7 +53,7 @@ RSpec.describe FacultyDirectorySyncJob, type: :job do
   end
 
   it "skips a directory entry with no email address" do
-    allow(FacultyDirectoryService).to receive(:call).and_return(
+    allow(Faculties::Directory).to receive(:call).and_return(
       directory_result(faculty: [ { display_name: "No Email", email: nil } ])
     )
 
@@ -65,7 +65,7 @@ RSpec.describe FacultyDirectorySyncJob, type: :job do
   it "updates an existing faculty record when the directory has newer information" do
     faculty = create(:faculty, email: "byrona@wit.edu", first_name: "Ada", last_name: "Byron", department: nil)
 
-    allow(FacultyDirectoryService).to receive(:call).and_return(
+    allow(Faculties::Directory).to receive(:call).and_return(
       directory_result(faculty: [
         { display_name: "Ada Byron", email: "byrona@wit.edu", department: "Computer Science" }
       ])
@@ -87,7 +87,7 @@ RSpec.describe FacultyDirectorySyncJob, type: :job do
     faculty = create(:faculty, email: "byrona@wit.edu", first_name: "Ada", last_name: "Byron",
                                 department: "Computer Science", directory_last_synced_at: 2.days.ago)
 
-    allow(FacultyDirectoryService).to receive(:call).and_return(
+    allow(Faculties::Directory).to receive(:call).and_return(
       directory_result(faculty: [
         { display_name: "Ada Byron", email: "byrona@wit.edu", department: "Computer Science" }
       ])
@@ -100,7 +100,7 @@ RSpec.describe FacultyDirectorySyncJob, type: :job do
   end
 
   it "records an error and keeps going when one directory entry fails to save" do
-    allow(FacultyDirectoryService).to receive(:call).and_return(
+    allow(Faculties::Directory).to receive(:call).and_return(
       directory_result(faculty: [
         { display_name: "Ada Byron", email: "DUPLICATE@wit.edu" },
         { display_name: "Ada Byron Twice", email: "duplicate@wit.edu" }

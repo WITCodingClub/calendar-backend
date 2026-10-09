@@ -97,7 +97,7 @@ module Catalog
     # the calendar keeps naming the instructor who taught the section on the day
     # it was first imported.
     def sync_faculty(course, fresh_data)
-      FacultyIngestService.call(course: course, raw_faculty: fresh_data[:faculty])
+      Faculties::Ingest.call(course: course, raw_faculty: fresh_data[:faculty])
     end
 
     # The registrar moves sections between rooms after registration opens, and the

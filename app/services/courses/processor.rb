@@ -66,7 +66,7 @@ module Courses
       faculty_by_key = grouped_courses.each_with_object({}) do |(key, course_meetings), acc|
         acc[key] = class_details[key][:faculty].presence || posted_faculty(course_meetings.first) if class_details[key]
       end
-      faculty = FacultyIngestService.preload(faculty_by_key.values)
+      faculty = Faculties::Ingest.preload(faculty_by_key.values)
 
       # course_id => whether the course has any enrollment. Both change trackers
       # read it, so a save sends no EXISTS query.
@@ -154,7 +154,7 @@ module Courses
               )
             )
 
-            FacultyIngestService.call(
+            Faculties::Ingest.call(
               course: course,
               raw_faculty: faculty_by_key[key],
               faculty: faculty,

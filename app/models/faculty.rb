@@ -131,10 +131,10 @@ class Faculty < ApplicationRecord
            .distinct
   end
 
-  def update_ratings!      = UpdateFacultyRatingsJob.perform_later(id)
-  def update_ratings_now!  = UpdateFacultyRatingsJob.perform_now(id)
-  def sync_from_directory! = FacultyDirectoryLookupJob.perform_later(id)
-  def sync_from_directory_now! = FacultyDirectoryLookupJob.perform_now(id)
+  def update_ratings!      = Faculties::UpdateRatingsJob.perform_later(id)
+  def update_ratings_now!  = Faculties::UpdateRatingsJob.perform_now(id)
+  def sync_from_directory! = Faculties::DirectoryLookupJob.perform_later(id)
+  def sync_from_directory_now! = Faculties::DirectoryLookupJob.perform_now(id)
   def teaches_courses?     = courses.exists?
   def has_directory_data?  = directory_last_synced_at.present? || directory_raw_data.present?
   def needs_directory_data? = !has_directory_data?
@@ -207,7 +207,7 @@ class Faculty < ApplicationRecord
   end
 
   def self.sync_all_from_directory!
-    FacultyDirectorySyncJob.perform_later
+    Faculties::DirectorySyncJob.perform_later
   end
 
   private
@@ -219,7 +219,7 @@ class Faculty < ApplicationRecord
       return
     end
 
-    FacultyDirectoryLookupJob.perform_later(id)
+    Faculties::DirectoryLookupJob.perform_later(id)
   end
 
   def calculate_would_take_again_percent

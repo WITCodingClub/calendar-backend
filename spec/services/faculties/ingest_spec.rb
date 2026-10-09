@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FacultyIngestService do
+RSpec.describe Faculties::Ingest do
   let(:course) { create(:course) }
 
   let(:sanderson) do

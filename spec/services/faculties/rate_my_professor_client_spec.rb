@@ -2,10 +2,10 @@
 
 require "rails_helper"
 
-RSpec.describe RateMyProfessorService, type: :service do
+RSpec.describe Faculties::RateMyProfessorClient, type: :service do
   subject(:service) { described_class.new }
 
-  let(:base_url) { RateMyProfessorService::BASE_URL }
+  let(:base_url) { Faculties::RateMyProfessorClient::BASE_URL }
 
   def stub_graphql(operation_name, status: 200, body: nil, fixture: nil)
     response_body = body || file_fixture("rate_my_professor/#{fixture}").read
