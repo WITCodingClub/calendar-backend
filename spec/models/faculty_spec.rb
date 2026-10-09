@@ -145,4 +145,35 @@ RSpec.describe Faculty, type: :model do
       expect(faculty.embedding_text).to eq("Ada Lovelace")
     end
   end
+
+  describe "directory lookup after create" do
+    include ActiveJob::TestHelper
+
+    it "enqueues the lookup after the transaction commits" do
+      expect do
+        ActiveRecord::Base.transaction(requires_new: true) do
+          create(:faculty)
+
+          expect(Faculties::DirectoryLookupJob).not_to have_been_enqueued
+        end
+      end.to have_enqueued_job(Faculties::DirectoryLookupJob).with(a_kind_of(Integer))
+    end
+
+    it "does not enqueue the lookup when the transaction rolls back" do
+      expect do
+        ActiveRecord::Base.transaction(requires_new: true) do
+          create(:faculty)
+          raise ActiveRecord::Rollback
+        end
+      end.not_to have_enqueued_job(Faculties::DirectoryLookupJob)
+    end
+  end
+
+  describe "#update_photo_from_url!" do
+    it "returns false when the photo download times out" do
+      stub_request(:get, "https://photos.example.test/face.jpg").to_timeout
+
+      expect(create(:faculty).update_photo_from_url!("https://photos.example.test/face.jpg")).to be(false)
+    end
+  end
 end

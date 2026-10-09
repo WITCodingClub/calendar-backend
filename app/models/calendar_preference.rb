@@ -53,7 +53,7 @@ class CalendarPreference < ApplicationRecord
   validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
   validate :validate_template_syntax
 
-  after_update :sync_calendar_if_preferences_changed
+  after_update_commit :sync_calendar_if_preferences_changed
   # A category row sits above the university wide row in Preferences::Resolver, so
   # a category color from an old extension build hides the color the person
   # picks now. Every save of a university wide color ends those overrides, also
