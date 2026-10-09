@@ -98,6 +98,6 @@ class CourseCalendar < ApplicationRecord
       GoogleCalendar::DeleteJob.perform_later(external_calendar_id)
     end
   rescue => e
-    Rails.logger.error("Failed to enqueue calendar deletion for #{external_calendar_id}: #{e.message}")
+    Rails.error.report(e, handled: true, context: { course_calendar_id: id })
   end
 end

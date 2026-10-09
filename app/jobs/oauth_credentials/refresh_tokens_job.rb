@@ -70,7 +70,7 @@ module OauthCredentials
       )
       :revoked
     rescue => e
-      Rails.logger.error "[OauthCredentials::RefreshTokensJob] Failed to refresh credential #{credential.id} (#{credential.email}): #{e.message}"
+      Rails.error.report(e, handled: true, context: { oauth_credential_id: credential.id })
       :failure
     end
 
@@ -91,7 +91,7 @@ module OauthCredentials
         :failure
       end
     rescue => e
-      Rails.logger.error "[OauthCredentials::RefreshTokensJob] Failed to refresh Microsoft credential #{credential.id}: #{e.message}"
+      Rails.error.report(e, handled: true, context: { oauth_credential_id: credential.id })
       :failure
     end
   end

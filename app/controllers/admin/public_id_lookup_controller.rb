@@ -46,7 +46,7 @@ module Admin
         path:         send(mapping[:path_method], record)
       }
     rescue => e
-      Rails.logger.error("PublicIdLookup error: #{e.class}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { public_id: public_id })
       render json: { error: "Internal error: #{e.message}" }, status: :internal_server_error
     end
 

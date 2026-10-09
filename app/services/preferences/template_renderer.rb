@@ -281,7 +281,8 @@ module Preferences
         return "" unless faculty
 
         faculty.full_name
-      rescue
+      rescue => e
+        Rails.error.report(e, handled: true, context: { course_id: course.id })
         ""
       end
 
@@ -290,13 +291,15 @@ module Preferences
         return "" unless faculty
 
         faculty.email || ""
-      rescue
+      rescue => e
+        Rails.error.report(e, handled: true, context: { course_id: course.id })
         ""
       end
 
       def all_faculty_names(course)
         course.faculties.map(&:full_name).join(", ")
-      rescue
+      rescue => e
+        Rails.error.report(e, handled: true, context: { course_id: course.id })
         ""
       end
     end

@@ -27,6 +27,7 @@ module Admin
       calendar.destroy
       redirect_to admin_calendars_path, notice: "Calendar deleted successfully."
     rescue => e
+      Rails.error.report(e, handled: true, context: { course_calendar_id: params[:id] })
       redirect_to admin_calendars_path, alert: "Failed to delete calendar: #{e.message}"
     end
   end

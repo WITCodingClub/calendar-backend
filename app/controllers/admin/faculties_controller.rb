@@ -65,6 +65,7 @@ module Admin
         format.json { render json: { teachers: @teachers } }
       end
     rescue => e
+      Rails.error.report(e, handled: true, context: { faculty_id: params[:id] })
       respond_to do |format|
         format.html { redirect_to missing_rmp_ids_admin_faculties_path, alert: "Error searching: #{e.message}" }
         format.json { render json: { error: e.message }, status: :unprocessable_content }

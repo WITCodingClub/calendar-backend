@@ -26,7 +26,7 @@ module Api
       ActiveModel::Type::Boolean.new.cast(params[:disabled]) ? disable : enable
     end
 
-    # POST /api/user/notifications/disable (legacy, see config/routes/api_legacy.rb)
+    # POST /api/user/notifications/disable (legacy, see config/routes/api/legacy.rb)
     def disable
       authorize current_user, :update?
 
@@ -57,11 +57,11 @@ module Api
         notifications_disabled_until: current_user.notifications_disabled_until
       }, status: :ok
     rescue => e
-      Rails.logger.error("Error disabling notifications for user #{current_user.id}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to disable notifications", status: :internal_server_error
     end
 
-    # POST /api/user/notifications/enable (legacy, see config/routes/api_legacy.rb)
+    # POST /api/user/notifications/enable (legacy, see config/routes/api/legacy.rb)
     def enable
       authorize current_user, :update?
 
@@ -75,7 +75,7 @@ module Api
         notifications_disabled_until: nil
       }, status: :ok
     rescue => e
-      Rails.logger.error("Error enabling notifications for user #{current_user.id}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to enable notifications", status: :internal_server_error
     end
   end

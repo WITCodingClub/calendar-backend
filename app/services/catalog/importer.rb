@@ -37,7 +37,7 @@ module Catalog
           process_course(course_data)
           processed_count += 1
         rescue => e
-          Rails.logger.error("Failed to process course #{course_data['courseReferenceNumber']}: #{e.message}")
+          Rails.error.report(e, handled: true, context: { crn: course_data["courseReferenceNumber"], term: course_data["term"] })
           failed_courses << {
             crn: course_data["courseReferenceNumber"],
             term: course_data["term"],

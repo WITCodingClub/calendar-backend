@@ -48,11 +48,11 @@ flowchart TD
   R --> api[routes/api.rb]
   R --> dashboard[routes/dashboard.rb]
   R --> admin[routes/admin.rb]
-  api --> catalog[routes/api_catalog.rb]
-  api --> user[routes/api_user.rb]
-  api --> friends[routes/api_friends.rb]
-  api --> calendar[routes/api_calendar.rb]
-  api --> legacy[routes/api_legacy.rb]
+  api --> catalog[routes/api/catalog.rb]
+  api --> user[routes/api/user.rb]
+  api --> friends[routes/api/friends.rb]
+  api --> calendar[routes/api/calendar.rb]
+  api --> legacy[routes/api/legacy.rb]
   auth --> Auth["Auth:: controllers"]
   feeds --> Feeds["Feeds:: controllers"]
   webhooks --> Webhooks["Webhooks:: controllers"]
@@ -61,7 +61,7 @@ flowchart TD
   admin --> Admin["Admin:: controllers"]
 ```
 
-- **API route files:** `routes/api.rb` draws each `api_*.rb` file inside `namespace :api`. Put a new API route in the file for its area. The catch-all route stays last in `routes/api.rb`.
+- **API route files:** `routes/api.rb` draws each file in `routes/api/` inside `namespace :api`. Put a new API route in the file for its area. The catch-all route stays last in `routes/api.rb`.
 - **API:** every API controller inherits from `Api::BaseController`. `CLAUDE.md` has the rules for auth, errors, and old paths.
 - **Fixed URLs:** the OAuth callbacks, `/risc/events`, and `/calendar/:token` never change. Google, Microsoft, and calendar apps store them.
 

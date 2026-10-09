@@ -80,7 +80,7 @@ module Admin
         redirect_to admin_service_account_index_path
       end
     rescue => e
-      Rails.logger.error("Service account OAuth error: #{e.message}")
+      Rails.error.report(e, handled: true)
       flash[:alert] = "OAuth error: #{e.message}"
       redirect_to admin_service_account_index_path
     end
