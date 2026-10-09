@@ -1,7 +1,11 @@
-<p>Hello <%= @resource.email %>!</p>
+<h2>Unlock your account</h2>
 
-<p>Your account has been locked due to an excessive number of unsuccessful sign in attempts.</p>
+<p>Hi,</p>
 
-<p>Click the link below to unlock your account:</p>
+<p>We locked your WIT Calendar account (<strong><%= @resource.email %></strong>) after too many failed sign-in attempts.</p>
 
-<p><%= link_to 'Unlock my account', unlock_url(@resource, unlock_token: @token) %></p>
+<p style="margin-top: 16px;">
+  <%= link_to "Unlock my account", unlock_url(@resource, unlock_token: @token) %>
+</p>
+
+<p style="margin-top: 16px;">If you did not try to sign in, contact us at <%= mail_to Rails.application.config.x.contact_email %>.</p>

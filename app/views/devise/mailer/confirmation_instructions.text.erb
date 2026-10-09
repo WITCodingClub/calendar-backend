@@ -1,0 +1,9 @@
+Confirm your email address
+
+Hi,
+
+Confirm that <%= @email %> is your email address for WIT Calendar:
+
+<%= confirmation_url(@resource, confirmation_token: @token) %>
+
+If you did not ask for this, you can ignore this email.

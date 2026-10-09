@@ -1,9 +1,13 @@
-<p>Hello <%= @email %>!</p>
+<h2>Your email address changed</h2>
+
+<p>Hi,</p>
 
 <p>
   <% if @resource.try(:unconfirmed_email?) %>
-    We're contacting you to notify you that your email is being changed to <%= @resource.unconfirmed_email %>.
+    The email address for your WIT Calendar account is changing to <strong><%= @resource.unconfirmed_email %></strong>.
   <% else %>
-    We're contacting you to notify you that your email has been changed to <%= @resource.email %>.
+    The email address for your WIT Calendar account is now <strong><%= @resource.email %></strong>.
   <% end %>
 </p>
+
+<p style="margin-top: 16px;">If you did not make this change, contact us at <%= mail_to Rails.application.config.x.contact_email %>.</p>

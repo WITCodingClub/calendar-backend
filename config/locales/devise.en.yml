@@ -18,15 +18,15 @@ en:
       unconfirmed: "You have to confirm your email address before continuing."
     mailer:
       confirmation_instructions:
-        subject: "Confirmation instructions"
+        subject: "Confirm your email address for WIT Calendar"
       reset_password_instructions:
-        subject: "Reset password instructions"
+        subject: "Reset your WIT Calendar password"
       unlock_instructions:
-        subject: "Unlock instructions"
+        subject: "Unlock your WIT Calendar account"
       email_changed:
-        subject: "Email Changed"
+        subject: "Your WIT Calendar email address changed"
       password_change:
-        subject: "Password Changed"
+        subject: "Your WIT Calendar password changed"
     omniauth_callbacks:
       failure: "Could not authenticate you from %{kind} because \"%{reason}\"."
       success: "Successfully authenticated from %{kind} account."
