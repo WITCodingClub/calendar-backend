@@ -3,7 +3,7 @@
 namespace :university_calendar do
   desc "Sync university calendar events from the 25Live ICS feed"
   task sync: :environment do
-    result = UniversityCalendarIcsService.call
+    result = UniversityCalendar::IcsImport.call
     puts "Sync complete: #{result}"
   end
 
@@ -14,8 +14,8 @@ namespace :university_calendar do
 
     puts "Backfilling university calendar events from #{start_date} to #{end_date}..."
 
-    url    = UniversityCalendarIcsService.backfill_url(start_date, end_date)
-    result = UniversityCalendarIcsService.call(ics_url: url)
+    url    = UniversityCalendar::IcsImport.backfill_url(start_date, end_date)
+    result = UniversityCalendar::IcsImport.call(ics_url: url)
 
     puts "Backfill complete: #{result}"
   end

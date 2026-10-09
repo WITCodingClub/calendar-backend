@@ -37,8 +37,8 @@ module Feeds
     def generate_ical(courses, final_exams)
       require "icalendar"
 
-      @preference_resolver   = PreferenceResolver.new(@user)
-      @template_renderer     = CalendarTemplateRenderer.new
+      @preference_resolver   = Preferences::Resolver.new(@user)
+      @template_renderer     = Preferences::TemplateRenderer.new
       @holidays_cache        = preload_holidays_cache(courses)
       @ics_term_finals_cache         = {}
       @ics_term_finals_period_cache  = {}
@@ -93,7 +93,7 @@ module Feeds
             end
 
             prefs   = @preference_resolver.resolve_for(meeting_time)
-            context = CalendarTemplateRenderer.build_context_from_meeting_time(meeting_time)
+            context = Preferences::TemplateRenderer.build_context_from_meeting_time(meeting_time)
 
             e.summary = if prefs[:title_template].present?
                           @template_renderer.render(prefs[:title_template], context)

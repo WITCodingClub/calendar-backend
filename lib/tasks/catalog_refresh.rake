@@ -127,7 +127,7 @@ namespace :catalog do
 
     # Step 7: Clean up orphaned calendar events
     puts "\nStep 7: Cleaning up orphaned calendar events..."
-    result = CleanupOrphanedCalendarEventsJob.perform_now
+    result = Cleanup::OrphanedCalendarEventsJob.perform_now
     puts "Cleaned up #{result[:deleted]} orphaned events (#{result[:errors]} errors)."
 
     puts "\nCatalog refresh completed for term #{term.name}."

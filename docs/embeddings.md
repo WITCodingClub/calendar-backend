@@ -8,10 +8,10 @@ API answer "what is like this one?".
 
 1. A model includes `Embeddable` and defines `embedding_text`, the sentence
    that stands for the record.
-2. `BackfillEmbeddingsJob` finds the rows whose text has no vector, or whose
+2. `Embeddings::BackfillJob` finds the rows whose text has no vector, or whose
    text changed since the vector was made, and hands them to
-   `GenerateEmbeddingsJob` in batches of 100.
-3. `GenerateEmbeddingsJob` calls `EmbeddingService`, which sends the batch to
+   `Embeddings::GenerateJob` in batches of 100.
+3. `Embeddings::GenerateJob` calls `Embeddings::Generator`, which sends the batch to
    OpenAI and returns one vector per text.
 4. The vector and the SHA256 of the text go into the `embedding` and
    `embedding_digest` columns with `update_columns`. An embedding is derived
@@ -41,7 +41,7 @@ Where the vectors are read:
 ## Model
 
 `text-embedding-3-small`, 1536 dimensions, cosine distance. The whole catalog
-costs a few cents to embed. `EmbeddingService::MODEL` and `DIMENSIONS` are the
+costs a few cents to embed. `Embeddings::Generator::MODEL` and `DIMENSIONS` are the
 one place both the stored vectors and the query vectors read, so they cannot
 drift apart.
 
@@ -50,7 +50,7 @@ width and a full re-embed. Old vectors are not comparable to new ones.
 
 ## Configuration
 
-`OPENAI_API_KEY` turns the feature on. Without it `EmbeddingService.configured?`
+`OPENAI_API_KEY` turns the feature on. Without it `Embeddings::Generator.configured?`
 is false, the jobs log and return, and search falls back to keyword matching.
 The key lives in the `wit-calendar-env` agenix secret on alastor.
 
@@ -97,7 +97,7 @@ bin/rails embeddings:status
 WebMock blocks the OpenAI host, so specs stub the request:
 
 ```ruby
-stub_request(:post, EmbeddingService::API_URL)
+stub_request(:post, Embeddings::Generator::API_URL)
   .to_return(status: 200, body: file_fixture("openai/embeddings.json").read)
 ```
 

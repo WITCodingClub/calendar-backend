@@ -57,18 +57,18 @@ module CalendarEventPreparation
   def apply_preferences_to_event(syncable, course_event, preference_resolver: nil, template_renderer: nil)
     return course_event unless syncable
 
-    resolver = preference_resolver || PreferenceResolver.new(user)
-    renderer = template_renderer  || CalendarTemplateRenderer.new
+    resolver = preference_resolver || Preferences::Resolver.new(user)
+    renderer = template_renderer  || Preferences::TemplateRenderer.new
 
     prefs = resolver.resolve_for(syncable)
 
     context = case syncable
     when FinalExam
-                CalendarTemplateRenderer.build_context_from_final_exam(syncable)
+                Preferences::TemplateRenderer.build_context_from_final_exam(syncable)
     when UniversityCalendarEvent
-                CalendarTemplateRenderer.build_context_from_university_calendar_event(syncable)
+                Preferences::TemplateRenderer.build_context_from_university_calendar_event(syncable)
     else
-                CalendarTemplateRenderer.build_context_from_meeting_time(syncable)
+                Preferences::TemplateRenderer.build_context_from_meeting_time(syncable)
     end
 
     event_data = course_event.dup

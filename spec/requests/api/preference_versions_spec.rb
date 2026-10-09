@@ -10,7 +10,7 @@ RSpec.describe "GET /api/user/preferences/version", type: :request do
 
   it "returns only the signed-in user's opaque token and prohibits response caching" do
     create(:event_preference, user: user, title_template: "Private title")
-    expected_version = PreferenceVersion.for(user)
+    expected_version = Preferences::Version.for(user)
 
     get "/api/user/preferences/version", headers: headers
 
@@ -48,8 +48,8 @@ RSpec.describe "GET /api/user/preferences/version", type: :request do
     get "/api/user/preferences/version", params: { user_id: other_user.id }, headers: headers
 
     expect(response).to have_http_status(:ok)
-    expect(json).to eq("version" => PreferenceVersion.for(user))
-    expect(json["version"]).not_to eq(PreferenceVersion.for(other_user))
+    expect(json).to eq("version" => Preferences::Version.for(user))
+    expect(json["version"]).not_to eq(Preferences::Version.for(other_user))
   end
 
   it "requires authentication" do
@@ -74,8 +74,8 @@ RSpec.describe "GET /api/user/preferences/version", type: :request do
   it "does not resolve templates or enqueue calendar sync work" do
     create(:event_preference, user: user, title_template: "Saved title")
     request_headers = headers
-    expect(PreferenceResolver).not_to receive(:new)
-    expect(CalendarTemplateRenderer).not_to receive(:new)
+    expect(Preferences::Resolver).not_to receive(:new)
+    expect(Preferences::TemplateRenderer).not_to receive(:new)
     expect(CourseCalendars::SyncJob).not_to receive(:perform_later)
 
     get "/api/user/preferences/version", headers: request_headers

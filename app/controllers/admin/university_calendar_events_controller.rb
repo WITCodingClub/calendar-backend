@@ -44,7 +44,7 @@ module Admin
     def sync
       authorize UniversityCalendarEvent
 
-      UniversityCalendarSyncJob.perform_later
+      UniversityCalendar::SyncJob.perform_later
       redirect_to admin_university_calendar_events_path, notice: "University calendar sync queued successfully."
     end
 
@@ -59,7 +59,7 @@ module Admin
         return
       end
 
-      UniversityCalendarBackfillJob.perform_later(start_date.to_s, end_date.to_s)
+      UniversityCalendar::BackfillJob.perform_later(start_date.to_s, end_date.to_s)
       redirect_to admin_university_calendar_events_path,
                   notice: "Backfill queued for #{start_date.strftime('%b %d, %Y')} – #{end_date.strftime('%b %d, %Y')}."
     rescue Date::Error

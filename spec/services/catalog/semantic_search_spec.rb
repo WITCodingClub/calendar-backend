@@ -34,7 +34,7 @@ RSpec.describe Catalog::SemanticSearch do
 
       2.times { described_class.vector_for("intro to programming") }
 
-      expect(a_request(:post, EmbeddingService::API_URL)).to have_been_made.once
+      expect(a_request(:post, Embeddings::Generator::API_URL)).to have_been_made.once
     end
 
     it "reads the same cache entry whatever the case of the query" do
@@ -43,11 +43,11 @@ RSpec.describe Catalog::SemanticSearch do
 
     it "returns nil for a blank query, without calling the API" do
       expect(described_class.vector_for("  ")).to be_nil
-      expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+      expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
     end
 
     it "returns nil when the API fails, so the caller can fall back" do
-      stub_request(:post, EmbeddingService::API_URL).to_return(status: 500, body: "{}")
+      stub_request(:post, Embeddings::Generator::API_URL).to_return(status: 500, body: "{}")
 
       expect(described_class.vector_for("intro to programming")).to be_nil
     end
@@ -56,7 +56,7 @@ RSpec.describe Catalog::SemanticSearch do
   describe ".vector_for when search is off", :embeddings do
     it "returns nil without calling the API" do
       expect(described_class.vector_for("intro to programming")).to be_nil
-      expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+      expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
     end
   end
 
@@ -83,7 +83,7 @@ RSpec.describe Catalog::SemanticSearch do
     end
 
     it "returns nil when the query cannot be embedded, so the caller falls back" do
-      stub_request(:post, EmbeddingService::API_URL).to_return(status: 500, body: "{}")
+      stub_request(:post, Embeddings::Generator::API_URL).to_return(status: 500, body: "{}")
 
       expect(described_class.ranked_scope(Course.all, "anything")).to be_nil
     end

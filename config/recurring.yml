@@ -7,7 +7,7 @@ production:
   # ---------------------------------------------------------------------------
 
   pghero_capture_query_stats:
-    class: PgheroCaptureQueryStatsJob
+    class: Database::CaptureQueryStatsJob
     queue: low
     schedule: every 5 minutes
 
@@ -53,12 +53,12 @@ production:
   # ---------------------------------------------------------------------------
 
   cleanup_orphaned_calendar_records:
-    class: CleanupOrphanedCalendarRecordsJob
+    class: Cleanup::OrphanedCalendarRecordsJob
     queue: low
     schedule: every day at 3:30am
 
   cleanup_orphaned_google_calendars:
-    class: CleanupOrphanedGoogleCalendarsJob
+    class: Cleanup::OrphanedGoogleCalendarsJob
     queue: low
     schedule: every day at 4am
 
@@ -68,24 +68,24 @@ production:
     schedule: every day at 4am
 
   cleanup_orphaned_oauth_credentials:
-    class: CleanupOrphanedOauthCredentialsJob
+    class: Cleanup::OrphanedOauthCredentialsJob
     queue: low
     schedule: every day at 4:30am
 
   # Embeds the sections the catalog sync just wrote, and any instructor or
   # review text that changed. Text that did not change never reaches the API.
   backfill_embeddings:
-    class: BackfillEmbeddingsJob
+    class: Embeddings::BackfillJob
     queue: low
     schedule: every day at 4:45am
 
   cleanup_orphaned_calendar_events:
-    class: CleanupOrphanedCalendarEventsJob
+    class: Cleanup::OrphanedCalendarEventsJob
     queue: low
     schedule: every day at 5am
 
   pghero_space_stats:
-    class: PgheroCaptureSpaceStatsJob
+    class: Database::CaptureSpaceStatsJob
     queue: low
     schedule: every day at 5:30am
 
@@ -113,7 +113,7 @@ production:
 
   # Saturday: University data sync
   university_calendar_sync:
-    class: UniversityCalendarSyncJob
+    class: UniversityCalendar::SyncJob
     queue: low
     schedule: every saturday at 2am
 

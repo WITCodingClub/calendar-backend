@@ -113,10 +113,10 @@ namespace :cleanup do
     puts "\nQueued #{count} calendar syncs"
   end
 
-  desc "Run CleanupDuplicateTbdEventsJob to remove TBD duplicates from Google Calendars"
+  desc "Run Cleanup::DuplicateTbdEventsJob to remove TBD duplicates from Google Calendars"
   task cleanup_tbd_calendar_events: :environment do
-    puts "Running CleanupDuplicateTbdEventsJob for all users..."
-    CleanupDuplicateTbdEventsJob.perform_now
+    puts "Running Cleanup::DuplicateTbdEventsJob for all users..."
+    Cleanup::DuplicateTbdEventsJob.perform_now
     puts "Done. Check logs for details."
   end
 

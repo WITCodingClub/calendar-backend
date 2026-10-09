@@ -34,8 +34,8 @@ module Api
                       { meeting_times: [ :event_preference, { rooms: :building }, { course: :faculties } ] }
                     ])
 
-      preference_resolver = PreferenceResolver.new(current_user)
-      template_renderer   = CalendarTemplateRenderer.new
+      preference_resolver = Preferences::Resolver.new(current_user)
+      template_renderer   = Preferences::TemplateRenderer.new
 
       structured_data = enrollments.map do |enrollment|
         EnrolledCourseSerializer.new(

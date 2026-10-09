@@ -78,7 +78,7 @@ RSpec.describe "Api::V1::Catalog::Instructors", type: :request do
       get "/api/v1/catalog/instructors", params: { q: "byron" }
 
       expect(json["data"].map { |i| i["name"] }).to eq([ "Ada Byron" ])
-      expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+      expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
     end
   end
 

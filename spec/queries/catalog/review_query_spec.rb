@@ -98,7 +98,7 @@ RSpec.describe Catalog::ReviewQuery do
     context "with search off", :embeddings do
       it "falls back to the literal words" do
         expect(results(q: "group projects", semantic: true)).to eq([ group_work ])
-        expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+        expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
       end
     end
   end

@@ -24,7 +24,7 @@ module Catalog
     # Semantic search needs a key to embed the query and a flag to say it is
     # wanted. Without either, callers fall back to keyword search.
     def available?
-      EmbeddingService.configured? && Flipper.enabled?(FeatureFlags::SEMANTIC_SEARCH)
+      Embeddings::Generator.configured? && Flipper.enabled?(FeatureFlags::SEMANTIC_SEARCH)
     end
 
     # @param query [String]
@@ -36,9 +36,9 @@ module Catalog
       return nil if text.blank?
 
       Rails.cache.fetch(cache_key(text), expires_in: CACHE_TTL) do
-        EmbeddingService.new.embed(text)
+        Embeddings::Generator.new.embed(text)
       end
-    rescue EmbeddingService::Error => e
+    rescue Embeddings::Generator::Error => e
       # A search that returns the keyword results is better than a search that
       # returns an error, so the caller gets nil and falls back.
       Rails.logger.warn("[SemanticSearch] #{e.class}: #{e.message}")

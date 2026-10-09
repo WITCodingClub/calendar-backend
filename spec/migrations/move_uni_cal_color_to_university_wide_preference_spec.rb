@@ -48,11 +48,11 @@ RSpec.describe MoveUniCalColorToUniversityWidePreference do
       start_time: Time.zone.parse("2026-08-05"), end_time: Time.zone.parse("2026-08-05 23:59")
     )
 
-    expect(PreferenceResolver.new(user.reload).resolve_for(event)[:color_id]).to eq(GoogleCalendar::Colors::GRAPHITE)
+    expect(Preferences::Resolver.new(user.reload).resolve_for(event)[:color_id]).to eq(GoogleCalendar::Colors::GRAPHITE)
 
     migration.up
 
-    expect(PreferenceResolver.new(user.reload).resolve_for(event)[:color_id]).to eq(GoogleCalendar::Colors::LAVENDER)
+    expect(Preferences::Resolver.new(user.reload).resolve_for(event)[:color_id]).to eq(GoogleCalendar::Colors::LAVENDER)
   end
 
   it "keeps a category row that carries more than a color, minus the color" do

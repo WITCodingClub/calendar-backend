@@ -54,7 +54,7 @@ class CalendarPreference < ApplicationRecord
   validate :validate_template_syntax
 
   after_update :sync_calendar_if_preferences_changed
-  # A category row sits above the university wide row in PreferenceResolver, so
+  # A category row sits above the university wide row in Preferences::Resolver, so
   # a category color from an old extension build hides the color the person
   # picks now. Every save of a university wide color ends those overrides, also
   # a save of the same color, because an old build can write category colors
@@ -74,8 +74,8 @@ class CalendarPreference < ApplicationRecord
       value = send(field)
       next if value.blank?
 
-      CalendarTemplateRenderer.validate_template(value)
-    rescue CalendarTemplateRenderer::InvalidTemplateError => e
+      Preferences::TemplateRenderer.validate_template(value)
+    rescue Preferences::TemplateRenderer::InvalidTemplateError => e
       errors.add(field, "invalid syntax: #{e.message}")
     end
   end

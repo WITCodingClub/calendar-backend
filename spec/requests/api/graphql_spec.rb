@@ -314,7 +314,7 @@ RSpec.describe "Api::Graphql", type: :request do
       result = gql('{ instructors(q: "byron", first: 10) { nodes { name } } }')
 
       expect(result["data"]["instructors"]["nodes"].map { |n| n["name"] }).to eq([ "Ada Byron" ])
-      expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+      expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
     end
   end
 
