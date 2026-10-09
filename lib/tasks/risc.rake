@@ -38,6 +38,8 @@ namespace :risc do
     uri = URI.parse("https://risc.googleapis.com/v1beta/stream:update")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
+    http.open_timeout = Risc::Validator::OPEN_TIMEOUT
+    http.read_timeout = Risc::Validator::READ_TIMEOUT
 
     request = Net::HTTP::Post.new(uri.path)
     request["Content-Type"]  = "application/json"
@@ -73,6 +75,8 @@ namespace :risc do
     uri = URI.parse("https://risc.googleapis.com/v1beta/stream")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
+    http.open_timeout = Risc::Validator::OPEN_TIMEOUT
+    http.read_timeout = Risc::Validator::READ_TIMEOUT
 
     request = Net::HTTP::Get.new(uri.path)
     request["Authorization"] = "Bearer #{auth_token}"
@@ -104,6 +108,8 @@ namespace :risc do
     uri = URI.parse("https://risc.googleapis.com/v1beta/stream:verify")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
+    http.open_timeout = Risc::Validator::OPEN_TIMEOUT
+    http.read_timeout = Risc::Validator::READ_TIMEOUT
 
     request = Net::HTTP::Post.new(uri.path)
     request["Content-Type"]  = "application/json"
@@ -226,6 +232,8 @@ namespace :risc do
     uri = URI.parse("https://risc.googleapis.com/v1beta/stream/status:update")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
+    http.open_timeout = Risc::Validator::OPEN_TIMEOUT
+    http.read_timeout = Risc::Validator::READ_TIMEOUT
 
     request = Net::HTTP::Post.new(uri.path)
     request["Content-Type"]  = "application/json"

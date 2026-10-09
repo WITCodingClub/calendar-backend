@@ -440,7 +440,8 @@ module UniversityCalendar
     def extract_recurrence(ics_event)
       return nil if ics_event.rrule.blank?
 
-      ics_event.rrule.map(&:to_s)
+      # A Recur value is an OpenStruct, so to_s would store its inspect text.
+      ics_event.rrule.map { |rule| "RRULE:#{rule.value_ical}" }
     end
 
     def clean_description(description)

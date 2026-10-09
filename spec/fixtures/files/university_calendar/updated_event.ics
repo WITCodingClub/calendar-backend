@@ -1,0 +1,12 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Example Test//Synthetic Feed//EN
+BEGIN:VEVENT
+UID:robotics-showcase@example.test
+SUMMARY:Robotics Club Showcase
+DTSTART:20260915T190000Z
+DTEND:20260915T210000Z
+LOCATION:Example Hall Room 202
+X-TRUMBA-CUSTOMFIELD;NAME="Organization";ID=1;TYPE=SingleLine:Student Affairs
+END:VEVENT
+END:VCALENDAR
