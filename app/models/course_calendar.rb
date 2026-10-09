@@ -58,7 +58,7 @@ class CourseCalendar < ApplicationRecord
   validates :oauth_credential_id, uniqueness: true
   validate :primary_placement_is_microsoft_only
 
-  before_destroy :enqueue_remote_calendar_deletion
+  after_destroy_commit :enqueue_remote_calendar_deletion
 
   # Set when the remote calendar was already deleted, or cannot be deleted
   # later, so destroying the row does not enqueue a delete job.

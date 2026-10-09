@@ -100,4 +100,34 @@ RSpec.describe UserExtensionConfig, type: :model do
       expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true).twice
     end
   end
+
+  describe "enqueueing after commit" do
+    # Build the user and the config first, so the examples commit only the update.
+    before { config }
+
+    it "does not enqueue the sync before the transaction commits" do
+      ActiveRecord::Base.transaction(requires_new: true) do
+        config.update!(sync_university_events: true)
+
+        expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
+      end
+
+      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true).once
+    end
+
+    it "does not enqueue the sync when the transaction rolls back" do
+      ActiveRecord::Base.transaction(requires_new: true) do
+        config.update!(sync_university_events: true)
+        raise ActiveRecord::Rollback
+      end
+
+      expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
+    end
+
+    it "does not enqueue the sync when no watched setting changed" do
+      config.update!(military_time: true)
+
+      expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
+    end
+  end
 end

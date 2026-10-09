@@ -90,6 +90,29 @@ RSpec.describe CourseCalendar, type: :model do
       expect(MicrosoftGraph::CalendarDeleteJob).not_to have_been_enqueued
     end
 
+    it "enqueues the delete only after the transaction commits" do
+      calendar = create(:course_calendar, external_calendar_id: "cal@group.calendar.google.com")
+
+      expect do
+        ActiveRecord::Base.transaction(requires_new: true) do
+          calendar.destroy
+
+          expect(GoogleCalendar::DeleteJob).not_to have_been_enqueued
+        end
+      end.to have_enqueued_job(GoogleCalendar::DeleteJob).with("cal@group.calendar.google.com")
+    end
+
+    it "does not enqueue the delete when the transaction rolls back" do
+      calendar = create(:course_calendar, external_calendar_id: "cal@group.calendar.google.com")
+
+      expect do
+        ActiveRecord::Base.transaction(requires_new: true) do
+          calendar.destroy
+          raise ActiveRecord::Rollback
+        end
+      end.not_to have_enqueued_job(GoogleCalendar::DeleteJob)
+    end
+
     it "leaves the events of a separate calendar to the calendar delete" do
       calendar = create(:course_calendar, :microsoft)
       create(:calendar_event, course_calendar: calendar)

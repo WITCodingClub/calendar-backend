@@ -10,6 +10,8 @@ module GoogleSignIn
     queue_as :default
 
     REVOKE_URL = "https://oauth2.googleapis.com/revoke"
+    OPEN_TIMEOUT = 5
+    READ_TIMEOUT = 10
 
     class RevocationFailed < StandardError; end
 
@@ -23,7 +25,13 @@ module GoogleSignIn
     def perform(token)
       return if token.blank?
 
-      response = Net::HTTP.post_form(URI(REVOKE_URL), { "token" => token })
+      uri = URI(REVOKE_URL)
+      request = Net::HTTP::Post.new(uri)
+      request.set_form_data("token" => token)
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true,
+                                 open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) do |http|
+        http.request(request)
+      end
 
       case response.code
       when "200" then Rails.logger.info "[GoogleSignIn::RevokeTokenJob] Google revoked the grant"
