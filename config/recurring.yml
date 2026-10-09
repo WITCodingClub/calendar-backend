@@ -59,11 +59,6 @@ production:
   # NIGHTLY (3:30am–8am window, staggered 30 min apart)
   # ---------------------------------------------------------------------------
 
-  cleanup_orphaned_calendar_records:
-    class: Cleanup::OrphanedCalendarRecordsJob
-    queue: low
-    schedule: every day at 3:30am
-
   cleanup_orphaned_google_calendars:
     class: Cleanup::OrphanedGoogleCalendarsJob
     queue: low
