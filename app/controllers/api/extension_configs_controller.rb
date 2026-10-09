@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 module Api
-  class UserExtensionConfigController < BaseController
+  class ExtensionConfigsController < BaseController
     authenticate_with_token
 
     # GET /api/user/extension_config
-    def get
+    def show
       config = current_user.user_extension_config || UserExtensionConfig.new(user: current_user)
 
       authorize config, :show?
@@ -34,7 +34,7 @@ module Api
     end
 
     # PUT /api/user/extension_config
-    def set
+    def update
       config = UserExtensionConfig.find_or_initialize_by(user_id: current_user.id)
       authorize config, :update?
 

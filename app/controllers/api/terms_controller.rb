@@ -2,8 +2,8 @@
 
 module Api
   # Terms are catalog data, so no action here needs a token.
-  class MiscController < BaseController
-    def get_current_and_next_terms
+  class TermsController < BaseController
+    def current_and_next
       current_term = Term.current
       render json: {
         current_term: term_json(current_term),
@@ -11,7 +11,7 @@ module Api
       }, status: :ok
     end
 
-    def get_active_terms
+    def active
       render json: {
         active_terms: Term.active.map { |term| term_json(term) }
       }, status: :ok

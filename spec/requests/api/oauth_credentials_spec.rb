@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::Users OAuth credentials", type: :request do
+RSpec.describe "Api::OauthCredentials", type: :request do
   let(:user) { create(:user) }
 
   describe "GET /api/user/oauth_credentials" do
