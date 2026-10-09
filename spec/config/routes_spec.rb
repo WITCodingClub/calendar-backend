@@ -13,4 +13,21 @@ RSpec.describe "Route files" do
 
     expect(drawn).to match_array(files)
   end
+
+  # api_friends.rb draws the :friend_id routes last. If they move up, they
+  # catch "meetings", "requests", and "groups" as a friend id.
+  describe "friend routes" do
+    def recognize(method, path) = Rails.application.routes.recognize_path(path, method: method)
+
+    it "sends the fixed friend paths to their own controllers" do
+      expect(recognize(:delete, "/api/friends/meetings/abc")).to include(controller: "api/friends/meetings", action: "destroy")
+      expect(recognize(:delete, "/api/friends/requests/abc")).to include(controller: "api/friends/requests", action: "destroy")
+      expect(recognize(:get, "/api/friends/groups")).to include(controller: "api/friends/groups", action: "index")
+    end
+
+    it "sends any other segment to the friend routes as a friend id" do
+      expect(recognize(:delete, "/api/friends/abc")).to include(controller: "api/friends", action: "destroy", friend_id: "abc")
+      expect(recognize(:get, "/api/friends/abc/visibility")).to include(controller: "api/friends/visibilities", action: "show")
+    end
+  end
 end

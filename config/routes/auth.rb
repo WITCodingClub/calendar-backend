@@ -11,7 +11,6 @@ get "/auth/google_oauth2/callback", to: "auth/google#callback"
 get "/auth/microsoft_graph",          to: "auth/microsoft_graph#start",    as: :microsoft_graph_auth
 get "/auth/microsoft_graph/callback", to: "auth/microsoft_graph#callback", as: :microsoft_graph_auth_callback
 
-# OAuth result pages (opened by Chrome extension)
 # The passkey ceremony runs on this site, not in the extension, so the origin
 # the browser reports stays the same for every browser and build.
 get "/passkey", to: "auth/passkey_ceremonies#show"
@@ -27,6 +26,7 @@ get "/auth/microsoft/callback", to: "users/microsoft_sessions#create", as: :micr
 get "/auth/failure", to: "users/microsoft_sessions#failure",
                      constraints: ->(request) { request.params[:strategy] == MicrosoftSignIn::PROVIDER }
 
+# OAuth result pages (opened by Chrome extension)
 get "/oauth/success", to: "auth/oauth_results#success"
 get "/oauth/failure", to: "auth/oauth_results#failure"
 
