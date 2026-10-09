@@ -2,9 +2,8 @@
 
 # Stops a production boot that has no Active Record encryption key.
 #
-# Rails reads the keys lazily. With no key, a plain-text OAuth token still
-# reads (support_unencrypted_data is on), but the first save of a token raises
-# ActiveRecord::Encryption::Errors::Configuration. That breaks sign-in and
+# Rails reads the keys lazily. With no key, the app boots, but the first read
+# or save of a token raises ActiveRecord::Encryption::Errors::Configuration. That breaks sign-in and
 # token refresh with no sign at deploy time. A failed boot names the missing
 # env vars instead, and the container that runs `bin/rails db:prepare` stops
 # before it serves a request.

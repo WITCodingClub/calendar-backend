@@ -187,9 +187,9 @@ RSpec.describe OauthCredential, type: :model do
       expect(described_class.where.not(refresh_token: nil)).not_to include(credential)
     end
 
-    # Rows saved before the model encrypted its tokens hold plain text until
-    # the oauth_credentials:encrypt task runs. support_unencrypted_data reads them.
-    it "still reads a legacy plain-text row" do
+    # support_unencrypted_data is off, so a plain-text row left behind by the
+    # oauth_credentials:encrypt task fails loudly instead of reading as a token.
+    it "raises on a legacy plain-text row" do
       credential = create(:oauth_credential)
       # Raw SQL: update_columns would encrypt the values.
       OauthCredential.connection.update(OauthCredential.sanitize_sql_array([
@@ -197,8 +197,8 @@ RSpec.describe OauthCredential, type: :model do
         "synthetic-legacy-access", "synthetic-legacy-refresh", credential.id
       ]))
 
-      expect(OauthCredential.find(credential.id))
-        .to have_attributes(access_token: "synthetic-legacy-access", refresh_token: "synthetic-legacy-refresh")
+      expect { OauthCredential.find(credential.id).access_token }
+        .to raise_error(ActiveRecord::Encryption::Errors::Decryption)
     end
   end
 

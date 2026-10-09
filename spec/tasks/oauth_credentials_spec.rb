@@ -76,6 +76,14 @@ RSpec.describe "oauth_credentials rake tasks" do
       expect(legacy).to be_token_revoked
     end
 
+    it "turns support_unencrypted_data back off after the run" do
+      legacy_credential(access_token: "synthetic-legacy-access", refresh_token: nil)
+
+      expect { run_task("oauth_credentials:encrypt") }.to output(/Encrypted 1\./).to_stdout
+
+      expect(ActiveRecord::Encryption.config.support_unencrypted_data).to be(false)
+    end
+
     it "never prints a token" do
       legacy_credential(access_token: "synthetic-legacy-access", refresh_token: "synthetic-legacy-refresh")
 

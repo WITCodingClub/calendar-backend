@@ -32,9 +32,8 @@ class OauthCredential < ApplicationRecord
   set_public_id_prefix :oac
 
   # Blazer gives admins SQL access, so the tokens are stored as ciphertext.
-  # Non-deterministic: no code looks a credential up by its token value. A row
-  # from before this change reads as plain text until the
-  # `oauth_credentials:encrypt` task rewrites it (#713).
+  # Non-deterministic: no code looks a credential up by its token value. A
+  # plain-text row raises on read; `oauth_credentials:encrypt` rewrites it (#713).
   encrypts :access_token, :refresh_token
 
   belongs_to :user
