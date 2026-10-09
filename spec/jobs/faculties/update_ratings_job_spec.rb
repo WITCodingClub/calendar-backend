@@ -2,8 +2,8 @@
 
 require "rails_helper"
 
-RSpec.describe UpdateFacultyRatingsJob, type: :job do
-  let(:base_url) { RateMyProfessorService::BASE_URL }
+RSpec.describe Faculties::UpdateRatingsJob, type: :job do
+  let(:base_url) { Faculties::RateMyProfessorClient::BASE_URL }
 
   def stub_graphql(operation_name, fixture:)
     stub_request(:post, base_url)

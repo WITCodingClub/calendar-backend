@@ -127,7 +127,7 @@ production:
 
   # Sunday: RateMyProfessor maintenance (fill IDs first, then update ratings)
   fill_missing_rmp_ids:
-    class: FillMissingRmpIdsJob
+    class: Faculties::FillMissingRmpIdsJob
     queue: low
     schedule: every sunday at 2am
 

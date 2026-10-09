@@ -54,7 +54,7 @@ module Admin
     def search_rmp
       @faculty = Faculty.find(params[:id])
       authorize @faculty
-      service = RateMyProfessorService.new
+      service = Faculties::RateMyProfessorClient.new
 
       search_result = service.search_professors(@faculty.full_name, count: 10)
       @teachers = search_result.dig("data", "newSearch", "teachers", "edges") || []
@@ -83,7 +83,7 @@ module Admin
       end
 
       @faculty.update!(rmp_id: rmp_id)
-      UpdateFacultyRatingsJob.perform_later(@faculty.id)
+      Faculties::UpdateRatingsJob.perform_later(@faculty.id)
 
       respond_to do |format|
         format.html { redirect_to missing_rmp_ids_admin_faculties_path, notice: "RMP ID assigned. Fetching ratings in background..." }
@@ -100,7 +100,7 @@ module Admin
       @faculty = Faculty.find(params[:id])
       authorize @faculty
 
-      UpdateFacultyRatingsJob.perform_later(@faculty.id)
+      Faculties::UpdateRatingsJob.perform_later(@faculty.id)
 
       respond_to do |format|
         format.html { redirect_to missing_rmp_ids_admin_faculties_path, notice: "Searching for #{@faculty.full_name} on Rate My Professor..." }
@@ -111,13 +111,13 @@ module Admin
     def batch_auto_fill
       authorize Faculty
       missing = Faculty.with_courses.where(rmp_id: nil)
-      missing.find_each { |f| UpdateFacultyRatingsJob.perform_later(f.id) }
+      missing.find_each { |f| Faculties::UpdateRatingsJob.perform_later(f.id) }
       redirect_to missing_rmp_ids_admin_faculties_path, notice: "Enqueued auto-fill jobs for #{missing.count} faculty members"
     end
 
     def sync_directory
       authorize Faculty
-      FacultyDirectorySyncJob.perform_later
+      Faculties::DirectorySyncJob.perform_later
       redirect_to admin_faculties_path, notice: "Directory sync started. This may take a few minutes."
     end
 

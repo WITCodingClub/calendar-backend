@@ -36,13 +36,13 @@ namespace :faculty do
     not_found_count = 0
     error_count     = 0
     not_found_faculty = []
-    service = RateMyProfessorService.new
+    service = Faculties::RateMyProfessorClient.new
 
     missing.each_with_index do |faculty, index|
       print "[#{(index + 1).to_s.rjust(3)}/#{missing.count}] #{faculty.full_name.ljust(30)} ... "
 
       begin
-        UpdateFacultyRatingsJob.perform_now(faculty.id)
+        Faculties::UpdateRatingsJob.perform_now(faculty.id)
         faculty.reload
 
         if faculty.rmp_id.present?
@@ -85,7 +85,7 @@ namespace :faculty do
       next
     end
 
-    service = RateMyProfessorService.new
+    service = Faculties::RateMyProfessorClient.new
     puts "\nSearching Rate My Professor for: #{args[:name]}"
     puts "-" * 80
 
@@ -136,7 +136,7 @@ namespace :faculty do
       puts "\n✓ RMP ID assigned successfully!"
 
       puts "\nFetching ratings..."
-      UpdateFacultyRatingsJob.perform_now(faculty.id)
+      Faculties::UpdateRatingsJob.perform_now(faculty.id)
       faculty.reload
 
       stats = faculty.rmp_stats
@@ -165,7 +165,7 @@ namespace :faculty do
     faculty_with_ids.find_each.with_index do |faculty, index|
       print "[#{(index + 1).to_s.rjust(3)}/#{faculty_with_ids.count}] #{faculty.full_name.ljust(30)} ... "
       begin
-        UpdateFacultyRatingsJob.perform_now(faculty.id)
+        Faculties::UpdateRatingsJob.perform_now(faculty.id)
         puts "✓ Updated"
       rescue => e
         puts "✗ Error: #{e.message}"

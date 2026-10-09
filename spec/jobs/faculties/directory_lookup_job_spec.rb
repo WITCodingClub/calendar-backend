@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FacultyDirectoryLookupJob, type: :job do
+RSpec.describe Faculties::DirectoryLookupJob, type: :job do
   def directory_result(faculty:)
     { success: true, faculty: faculty, total_count: faculty.size }
   end
@@ -14,7 +14,7 @@ RSpec.describe FacultyDirectoryLookupJob, type: :job do
   it "skips the lookup when the faculty was synced within the last 24 hours" do
     faculty = create(:faculty, directory_last_synced_at: 1.hour.ago)
 
-    expect(FacultyDirectoryService).not_to receive(:new)
+    expect(Faculties::Directory).not_to receive(:new)
 
     described_class.perform_now(faculty.id)
   end
@@ -23,9 +23,9 @@ RSpec.describe FacultyDirectoryLookupJob, type: :job do
     faculty = create(:faculty, email: "byrona@wit.edu", last_name: "Byron", department: nil,
                                 directory_last_synced_at: nil)
 
-    allow(FacultyDirectoryService).to receive(:new)
+    allow(Faculties::Directory).to receive(:new)
       .with(search: "Byron", fetch_all: false)
-      .and_return(instance_double(FacultyDirectoryService, call: directory_result(faculty: [
+      .and_return(instance_double(Faculties::Directory, call: directory_result(faculty: [
         { display_name: "Ada Byron", email: "byrona@wit.edu", department: "Computer Science" }
       ])))
 
@@ -39,9 +39,9 @@ RSpec.describe FacultyDirectoryLookupJob, type: :job do
   it "stamps the sync time without changing data when no match is found" do
     faculty = create(:faculty, email: "byrona@wit.edu", last_name: "Byron", directory_last_synced_at: nil)
 
-    allow(FacultyDirectoryService).to receive(:new)
+    allow(Faculties::Directory).to receive(:new)
       .with(search: "Byron", fetch_all: false)
-      .and_return(instance_double(FacultyDirectoryService, call: directory_result(faculty: [])))
+      .and_return(instance_double(Faculties::Directory, call: directory_result(faculty: [])))
 
     described_class.perform_now(faculty.id)
 
@@ -51,9 +51,9 @@ RSpec.describe FacultyDirectoryLookupJob, type: :job do
   it "does not touch the faculty record when the directory search itself fails" do
     faculty = create(:faculty, email: "byrona@wit.edu", last_name: "Byron", directory_last_synced_at: nil)
 
-    allow(FacultyDirectoryService).to receive(:new)
+    allow(Faculties::Directory).to receive(:new)
       .with(search: "Byron", fetch_all: false)
-      .and_return(instance_double(FacultyDirectoryService, call: { success: false, error: "HTTP 500", faculty: [], total_count: 0 }))
+      .and_return(instance_double(Faculties::Directory, call: { success: false, error: "HTTP 500", faculty: [], total_count: 0 }))
 
     described_class.perform_now(faculty.id)
 
