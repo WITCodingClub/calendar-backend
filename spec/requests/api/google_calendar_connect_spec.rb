@@ -8,7 +8,7 @@ RSpec.describe "POST /api/user/google_calendar", type: :request do
 
   def state_from(oauth_url)
     state = Rack::Utils.parse_query(URI(oauth_url).query)["state"]
-    GoogleOauthStateService.verify_state(state)
+    GoogleSignIn::OauthState.verify_state(state)
   end
 
   it "starts the flow without an email, so the person picks any account" do

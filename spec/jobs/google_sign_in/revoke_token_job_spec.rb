@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe RevokeGoogleTokenJob do
+RSpec.describe GoogleSignIn::RevokeTokenJob do
   def stub_revoke(status:, body: "{}")
     stub_request(:post, google_revoke_url)
       .with(body: { "token" => "synthetic-refresh-token" })

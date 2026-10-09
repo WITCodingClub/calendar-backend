@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe RefreshOauthTokensJob do
+RSpec.describe OauthCredentials::RefreshTokensJob do
   let(:token_url) { MicrosoftGraphHelpers::TOKEN_URL }
 
   def stale_microsoft_credential(**attributes)

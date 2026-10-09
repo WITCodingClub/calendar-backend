@@ -48,10 +48,10 @@ module MicrosoftGraph
     # invalid_grant means Microsoft will not take the refresh token again: the
     # person revoked access, an admin removed consent, or the token expired.
     # The credential is marked revoked, like a Google token that
-    # RefreshOauthTokensJob cannot refresh, so the dashboard asks for a new
+    # OauthCredentials::RefreshTokensJob cannot refresh, so the dashboard asks for a new
     # sign-in.
     # Microsoft gives a new refresh token with each refresh. Two refreshes of
-    # one credential at the same time (a sync and RefreshOauthTokensJob) can
+    # one credential at the same time (a sync and OauthCredentials::RefreshTokensJob) can
     # make the slower one use a token that is already replaced. Microsoft then
     # answers invalid_grant, and a good connection gets marked revoked. So the
     # row is locked, and a refresh that waited uses the token the other one got.

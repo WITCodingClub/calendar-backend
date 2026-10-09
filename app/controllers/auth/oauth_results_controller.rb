@@ -30,12 +30,12 @@ module Auth
     # POST /oauth/confirm
     def link
       pending_id = session.delete(:pending_google_link)
-      GoogleAccountLinkService.discard_pending(pending_id)
+      GoogleSignIn::AccountLink.discard_pending(pending_id)
 
-      calendar_id = GoogleAccountLinkService.new(@user).connect!(**@pending.slice(:uid, :email, :access_token, :refresh_token, :expires_at))
+      calendar_id = GoogleSignIn::AccountLink.new(@user).connect!(**@pending.slice(:uid, :email, :access_token, :refresh_token, :expires_at))
 
       redirect_to "/oauth/success?email=#{CGI.escape(@pending[:email])}&calendar_id=#{calendar_id}"
-    rescue GoogleAccountLinkService::Conflict => e
+    rescue GoogleSignIn::AccountLink::Conflict => e
       redirect_to "/oauth/failure?error=#{CGI.escape(e.message)}"
     rescue => e
       Rails.logger.error("Google account link error: #{e.class}: #{e.message}")
@@ -44,7 +44,7 @@ module Auth
 
     # DELETE /oauth/confirm
     def cancel
-      GoogleAccountLinkService.discard_pending(session.delete(:pending_google_link))
+      GoogleSignIn::AccountLink.discard_pending(session.delete(:pending_google_link))
 
       redirect_to "/oauth/failure?error=#{CGI.escape('You cancelled the connection. No account was linked.')}"
     end
@@ -52,7 +52,7 @@ module Auth
     private
 
     def load_pending_link
-      @pending = GoogleAccountLinkService.read_pending(session[:pending_google_link])
+      @pending = GoogleSignIn::AccountLink.read_pending(session[:pending_google_link])
       @user    = @pending && User.find_by(id: @pending[:user_id])
       return if @user
 

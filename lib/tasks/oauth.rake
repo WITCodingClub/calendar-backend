@@ -19,7 +19,7 @@ namespace :oauth do
     puts "Provider: #{credential.provider}"
     puts "Created: #{credential.created_at}"
 
-    RevokeOauthCredentialJob.perform_now(credential.id)
+    OauthCredentials::RevokeJob.perform_now(credential.id)
     puts "✓ Revoked and deleted credential for #{email}"
   end
 
@@ -48,7 +48,7 @@ namespace :oauth do
 
     credentials.each do |credential|
       puts "\nRevoking #{credential.email}..."
-      RevokeOauthCredentialJob.perform_now(credential.id)
+      OauthCredentials::RevokeJob.perform_now(credential.id)
       puts "✓ Revoked and deleted credential for #{credential.email}"
     end
 
@@ -97,7 +97,7 @@ namespace :oauth do
     puts "  User: #{credential.user.email}"
     puts "  Provider: #{credential.provider}"
 
-    RevokeOauthCredentialJob.perform_now(credential.id)
+    OauthCredentials::RevokeJob.perform_now(credential.id)
     puts "✓ Revoked and deleted credential (ID: #{id})"
   end
 

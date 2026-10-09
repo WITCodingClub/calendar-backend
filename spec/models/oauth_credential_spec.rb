@@ -166,7 +166,7 @@ RSpec.describe OauthCredential, type: :model do
                                             "revocation_reason" => "invalid_grant" })
     end
 
-    # RefreshOauthTokensJob sets the flag. A new access token comes only from a
+    # OauthCredentials::RefreshTokensJob sets the flag. A new access token comes only from a
     # working grant, so a reconnect or a refresh must clear it.
     it "clears once a new access token is saved" do
       credential.update!(access_token: "synthetic-new-access-token")

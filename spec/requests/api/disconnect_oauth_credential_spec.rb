@@ -35,6 +35,6 @@ RSpec.describe "Disconnecting an OAuth credential through the API", type: :reque
 
     expect(response).to have_http_status(:ok)
     expect(a_request(:post, google_revoke_url)).not_to have_been_made
-    expect(enqueued_jobs.map { |job| job["job_class"] }).to include("RevokeGoogleTokenJob")
+    expect(enqueued_jobs.map { |job| job["job_class"] }).to include("GoogleSignIn::RevokeTokenJob")
   end
 end
