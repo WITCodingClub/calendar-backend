@@ -6,7 +6,7 @@ require Rails.root.join("db/migrate/20261007100600_clear_category_colors_under_u
 # The preference rows are built by hand, because the CalendarPreference model
 # now clears category colors itself when a university wide color is saved.
 RSpec.describe ClearCategoryColorsUnderUniversityWideColor do
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   let(:connection) { ActiveRecord::Base.connection }
   let(:user) { create(:user) }

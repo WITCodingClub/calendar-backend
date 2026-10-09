@@ -1,0 +1,27 @@
+[
+  {
+    "age": 10,
+    "type": "csp-violation",
+    "url": "https://calendar.witcc.dev/calendar/feed-token-123",
+    "user_agent": "Mozilla/5.0",
+    "body": {
+      "documentURL": "https://calendar.witcc.dev/calendar/feed-token-123",
+      "referrer": "",
+      "blockedURL": "inline",
+      "effectiveDirective": "script-src-elem",
+      "originalPolicy": "default-src 'self'; report-uri /api/csp_reports",
+      "sourceFile": "https://calendar.witcc.dev/calendar/feed-token-123",
+      "sample": "",
+      "disposition": "report",
+      "statusCode": 200,
+      "lineNumber": 4,
+      "columnNumber": 2
+    }
+  },
+  {
+    "age": 12,
+    "type": "deprecation",
+    "url": "https://calendar.witcc.dev/dashboard",
+    "body": { "id": "SomeDeprecation", "message": "Not a CSP report" }
+  }
+]

@@ -5,7 +5,7 @@ require Rails.root.join("db/migrate/20260919220000_remove_api_version_flipper_fl
 
 # The rows are built by hand, because FeatureFlags no longer names these flags.
 RSpec.describe RemoveApiVersionFlipperFlags do
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   let(:connection) { ActiveRecord::Base.connection }
 

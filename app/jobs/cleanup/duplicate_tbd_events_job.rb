@@ -68,7 +68,7 @@ module Cleanup
 
       Rails.logger.info "[Cleanup::DuplicateTbdEventsJob] Completed for user #{user.id}: #{events_deleted} events deleted"
     rescue => e
-      Rails.logger.error "[Cleanup::DuplicateTbdEventsJob] Error for user #{user.id}: #{e.message}"
+      Rails.error.report(e, handled: true, context: { user_id: user.id })
     end
 
     def tbd_location?(meeting_time)

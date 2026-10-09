@@ -21,13 +21,13 @@
   <p class="mt-6 text-xs text-on-surface-variant/60">Please close this window and try again.</p>
 </div>
 
-<script>
+<script nonce="<%= content_security_policy_nonce %>">
   // Only a page of this app may read the result. The extension does not use
   // this message: its service worker watches the tab URL.
   if (window.opener) {
     window.opener.postMessage({
       type: 'oauth-failure',
-      error: <%= @error.to_s.to_json.html_safe %>
+      error: <%= json_escape(@error.to_s.to_json).html_safe %>
     }, window.location.origin);
   }
 </script>

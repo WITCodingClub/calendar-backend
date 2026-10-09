@@ -19,6 +19,7 @@ RSpec.describe "Prometheus exporter" do
     expect(status).to eq(200)
     expect(headers["content-type"]).to start_with("text/plain")
     expect(text).to include("# TYPE calendar_extension_events_total counter")
+    expect(text).to include("# TYPE calendar_errors_reported_total counter")
     expect(text).to match(/^calendar_users \d+/)
     expect(text).to include("# TYPE activejob_executed_total counter")
   end

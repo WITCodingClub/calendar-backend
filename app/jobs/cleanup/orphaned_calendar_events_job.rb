@@ -24,7 +24,7 @@ module Cleanup
         delete_orphaned_event(event)
         deleted_count += 1
       rescue => e
-        Rails.logger.error "[Cleanup::OrphanedCalendarEventsJob] Error deleting event #{event.id}: #{e.message}"
+        Rails.error.report(e, handled: true, context: { calendar_event_id: event.id })
         error_count += 1
       end
 

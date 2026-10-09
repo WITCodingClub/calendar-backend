@@ -47,9 +47,22 @@ The host side lives in [jaspermayone/infra](https://github.com/jaspermayone/infr
 | `calendar_google_calendars` | gauge | | `AppMetrics` |
 | `calendar_jobs` | gauge | `state`: `ready`, `scheduled`, `claimed`, `blocked`, `failed` | `AppMetrics` |
 | `calendar_extension_events_total` | counter | `event`, `version`, `browser` | `ExtensionUsage` |
+| `calendar_csp_reports_total` | counter | `directive`: the violated directive, for example `script-src-elem`, or `other` | `CspReports` |
 | `calendar_api_legacy_requests_total` | counter | `route`: the old path, for example `GET user/email` | `Api::LegacyRouteCounting` |
+| `calendar_errors_reported_total` | counter | `error_class`, `handled`, `severity`, `source` | `ErrorReportSubscriber` |
 
-The request metrics skip the health checks (`/up` and OkComputer). The gauges are counted on each scrape. If one count fails, `AppMetrics` logs a warning and sets the others, so the scrape still succeeds.
+The request metrics skip the health checks (`/up` and OkComputer). The gauges are counted on each scrape. If one count fails, `AppMetrics` reports the error to `Rails.error` and sets the others, so the scrape still succeeds.
+
+## Reported errors
+
+`ErrorReportSubscriber` receives every error that reaches `Rails.error`:
+
+- An error that a rescue reports with `Rails.error.report(e, handled: true)`. These have `handled="true"`.
+- An error that nothing rescues in a request or a job. The Rails executor reports it with `handled="false"`, and the source `application.action_dispatch`, `application.solid_queue` or `application.active_support`.
+
+For each error, the subscriber adds one to `calendar_errors_reported_total` and writes one JSON log line with `"message":"error_reported"`. The log line has the error message, the context ids from the rescue, and the first lines of the backtrace. The counter labels have no message and no id, so the number of series stays small.
+
+To find the details of an error in the counter, search the logs for `error_reported` and the error class.
 
 ## Extension events
 
@@ -79,3 +92,18 @@ If the extension ships first, the backend ignores the new name until step 1 is d
 PROMETHEUS_EXPORTER_PORT=9394 bin/dev
 curl -s localhost:9394/metrics | grep '^calendar_'
 ```
+
+## Content Security Policy reports
+
+The Content Security Policy is in report-only mode (`config/initializers/content_security_policy.rb`). Browsers do not block anything. They send each violation to `POST /api/csp_reports`.
+
+- `calendar_csp_reports_total` counts the violations, by directive.
+- Each violation also writes one warning to the Rails log:
+
+  ```text
+  CSP violation: directive=script-src-elem blocked=https://cdn.example.com/x.js document=dashboard/schedules#show
+  ```
+
+  `blocked` is the URL without its query string, or a keyword such as `inline` or `eval`. `document` is the route of the page, not its path, because some paths hold a token.
+
+Turn enforcement on when the reports show no violation from the app's own pages.

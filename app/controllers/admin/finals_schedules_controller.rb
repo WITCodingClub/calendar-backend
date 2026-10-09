@@ -5,6 +5,7 @@ module Admin
     before_action :set_finals_schedule, only: [ :show, :destroy, :confirm_replace, :process_schedule ]
 
     def index
+      authorize FinalsSchedule
       @finals_schedules = policy_scope(FinalsSchedule)
                           .includes(:term, :uploaded_by)
                           .recent
@@ -80,7 +81,7 @@ module Admin
     private
 
     def set_finals_schedule
-      @finals_schedule = FinalsSchedule.find(params[:id])
+      @finals_schedule = policy_scope(FinalsSchedule).find(params[:id])
     end
 
     def attach_pdf_with_conventional_name(finals_schedule)

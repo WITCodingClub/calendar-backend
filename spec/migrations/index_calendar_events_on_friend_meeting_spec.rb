@@ -9,7 +9,7 @@ require Rails.root.join("db/migrate/20261007100310_index_calendar_events_on_frie
 RSpec.describe IndexCalendarEventsOnFriendMeeting do
   self.use_transactional_tests = false
 
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   let(:connection) { ActiveRecord::Base.connection }
   let(:names)      { described_class::INDEXES.keys }

@@ -8,7 +8,7 @@ require Rails.root.join("db/migrate/20260914120000_generalize_calendars_for_mult
 # it again. Postgres DDL is transactional, so the rollback at the end of the
 # example restores the schema.
 RSpec.describe GeneralizeCalendarsForMultipleProviders do
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   let(:connection) { ActiveRecord::Base.connection }
 
@@ -46,9 +46,16 @@ RSpec.describe GeneralizeCalendarsForMultipleProviders do
       VALUES (#{credential_id}, 'old-cal@group.calendar.google.com', 'WIT Courses', NOW(), NOW())
       RETURNING id
     SQL
+    # calendar_events.university_calendar_event_id has a foreign key, so the
+    # event needs a real parent row.
+    source_id = insert(<<~SQL)
+      INSERT INTO university_calendar_events (ics_uid, summary, start_time, end_time, created_at, updated_at)
+      VALUES ('old-uce-#{SecureRandom.hex(4)}', 'Synthetic event', NOW(), NOW(), NOW(), NOW())
+      RETURNING id
+    SQL
     event_id = insert(<<~SQL)
       INSERT INTO google_calendar_events (google_calendar_id, google_event_id, university_calendar_event_id, created_at, updated_at)
-      VALUES (#{calendar_id}, 'old-event-1', 1, NOW(), NOW())
+      VALUES (#{calendar_id}, 'old-event-1', #{source_id}, NOW(), NOW())
       RETURNING id
     SQL
     insert(<<~SQL)

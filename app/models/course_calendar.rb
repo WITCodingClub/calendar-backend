@@ -58,7 +58,7 @@ class CourseCalendar < ApplicationRecord
   validates :oauth_credential_id, uniqueness: true
   validate :primary_placement_is_microsoft_only
 
-  before_destroy :enqueue_remote_calendar_deletion
+  after_destroy_commit :enqueue_remote_calendar_deletion
 
   # Set when the remote calendar was already deleted, or cannot be deleted
   # later, so destroying the row does not enqueue a delete job.
@@ -98,6 +98,6 @@ class CourseCalendar < ApplicationRecord
       GoogleCalendar::DeleteJob.perform_later(external_calendar_id)
     end
   rescue => e
-    Rails.logger.error("Failed to enqueue calendar deletion for #{external_calendar_id}: #{e.message}")
+    Rails.error.report(e, handled: true, context: { course_calendar_id: id })
   end
 end

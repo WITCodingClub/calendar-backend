@@ -95,9 +95,12 @@ RSpec.describe "Public meeting link page", type: :request do
       expect(response.body).not_to include("Book this time")
     end
 
+    # A visitor with no session gets a new CSP nonce on each page.
+    def page = response.body.gsub(response.headers["Content-Security-Policy-Report-Only"][/'nonce-([^']+)'/, 1], "NONCE")
+
     it "gives the same 404 page for an unknown, expired, used, or revoked link, and when the owner has no flag" do
       get "/meet/not-a-real-token"
-      unknown = response.body
+      unknown = page
       expect(response).to have_http_status(:not_found)
       expect(unknown).to include("This link no longer works")
 
@@ -105,13 +108,13 @@ RSpec.describe "Public meeting link page", type: :request do
         create(:meeting_link, :revoked, user: owner) ].each do |gone|
         get "/meet/#{gone.token}"
         expect(response).to have_http_status(:not_found)
-        expect(response.body).to eq(unknown)
+        expect(page).to eq(unknown)
       end
 
       Flipper.disable(FeatureFlags::MEETING_LINKS)
       get path
       expect(response).to have_http_status(:not_found)
-      expect(response.body).to eq(unknown)
+      expect(page).to eq(unknown)
     end
   end
 

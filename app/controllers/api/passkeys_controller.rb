@@ -94,7 +94,8 @@ module Api
       PasskeyHandoff.consume(code: params[:handoff], purpose: "register") if params[:handoff].present?
 
       render json: { passkey: serialize(passkey) }, status: :created
-    rescue WebAuthn::Error => e
+    # ArgumentError: the gem raises it for a field that is not valid base64url.
+    rescue WebAuthn::Error, ArgumentError => e
       Rails.logger.warn("Passkey registration rejected: #{e.class} #{e.message}")
       render_error "Could not verify this passkey", status: :unprocessable_content
     end
@@ -169,7 +170,8 @@ module Api
         pub_id: user.public_id.delete_prefix("usr_"),
         jwt:    JsonWebTokenService.issue(user: user, source: "passkey", request: request, passkey: passkey)
       }, status: :ok
-    rescue WebAuthn::Error => e
+    # ArgumentError: the gem raises it for a field that is not valid base64url.
+    rescue WebAuthn::Error, ArgumentError => e
       Rails.logger.warn("Passkey sign-in rejected: #{e.class} #{e.message}")
       render_error "Could not verify this passkey", status: :unauthorized
     end
@@ -232,15 +234,21 @@ module Api
     # is open ended and nothing here consults it, so it stays out.
     CREDENTIAL_KEYS = [ :type, :id, :rawId, :authenticatorAttachment ].freeze
 
+    # The gem reads credential["response"] without a nil check, so a missing
+    # response has to fail here as a 400 and not as a NoMethodError.
     def registration_credential_params
-      params.require(:credential).permit(
+      credential = params.require(:credential)
+      credential.require(:response)
+      credential.permit(
         *CREDENTIAL_KEYS,
         response: [ :attestationObject, :clientDataJSON ]
       ).to_h
     end
 
     def assertion_credential_params
-      params.require(:credential).permit(
+      credential = params.require(:credential)
+      credential.require(:response)
+      credential.permit(
         *CREDENTIAL_KEYS,
         response: [ :authenticatorData, :clientDataJSON, :signature, :userHandle ]
       ).to_h

@@ -24,8 +24,7 @@ module Api
         ics_url:  current_user.cal_url_with_extension
       }, status: :ok
     rescue => e
-      Rails.logger.error("Error processing courses: #{e.message}")
-      Rails.logger.error(e.backtrace.join("\n"))
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to process courses", status: :internal_server_error
     end
 
@@ -83,7 +82,7 @@ module Api
     rescue ArgumentError => e
       render_error e.message, status: :bad_request
     rescue => e
-      Rails.logger.error("Error reprocessing courses: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to reprocess courses", status: :internal_server_error
     end
 

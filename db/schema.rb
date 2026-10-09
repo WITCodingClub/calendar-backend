@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_09_200100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -1096,13 +1096,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_08_223000) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_events", "calendars"
   add_foreign_key "calendar_events", "course_meeting_times", column: "meeting_time_id"
+  add_foreign_key "calendar_events", "final_exams", on_delete: :nullify
   add_foreign_key "calendar_events", "friend_meetings"
+  add_foreign_key "calendar_events", "university_calendar_events", on_delete: :nullify
   add_foreign_key "calendar_preferences", "users"
   add_foreign_key "calendars", "oauth_credentials"
   add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "course_meeting_time_rooms", "rooms"
   add_foreign_key "course_meeting_times", "courses"
   add_foreign_key "courses", "terms"
+  add_foreign_key "courses_faculties", "courses"
+  add_foreign_key "courses_faculties", "faculties"
   add_foreign_key "enrollment_snapshots", "terms"
   add_foreign_key "enrollment_snapshots", "users"
   add_foreign_key "enrollments", "courses"

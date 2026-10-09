@@ -4,7 +4,7 @@ require "rails_helper"
 require Rails.root.join("db/migrate/20261008223000_backfill_google_calendar_last_synced_at")
 
 RSpec.describe BackfillGoogleCalendarLastSyncedAt do
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   let(:connection) { ActiveRecord::Base.connection }
   let(:synced_at) { Time.zone.local(2026, 10, 7, 12, 0, 0) }

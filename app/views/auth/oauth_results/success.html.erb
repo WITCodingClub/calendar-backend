@@ -27,14 +27,14 @@
   </p>
 </div>
 
-<script>
+<script nonce="<%= content_security_policy_nonce %>">
   // Only a page of this app may read the result. The extension does not use
   // this message: its service worker watches the tab URL.
   if (window.opener) {
     window.opener.postMessage({
       type: 'oauth-success',
-      email: <%= @email.to_json.html_safe %>,
-      calendarId: <%= @calendar_id.to_s.to_json.html_safe %>
+      email: <%= json_escape(@email.to_json).html_safe %>,
+      calendarId: <%= json_escape(@calendar_id.to_s.to_json).html_safe %>
     }, window.location.origin);
   }
 

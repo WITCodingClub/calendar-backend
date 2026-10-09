@@ -4,7 +4,7 @@ require "rails_helper"
 require Rails.root.join("db/migrate/20260906180000_move_uni_cal_color_to_university_wide_preference")
 
 RSpec.describe MoveUniCalColorToUniversityWidePreference do
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   # The colors the old extension wrote: every category except study_day.
   EXTENSION_CATEGORIES = UniversityCalendarEvent::CATEGORIES - [ "study_day" ]

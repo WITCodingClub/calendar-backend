@@ -15,6 +15,11 @@
 #  index_courses_faculties_on_course_id_and_primary     (course_id,primary_indicator)
 #  index_courses_faculties_on_faculty_id                (faculty_id)
 #
+# Foreign Keys
+#
+#  fk_rails_...  (course_id => courses.id)
+#  fk_rails_...  (faculty_id => faculties.id)
+#
 class CourseFaculty < ApplicationRecord
   self.table_name = "courses_faculties"
 

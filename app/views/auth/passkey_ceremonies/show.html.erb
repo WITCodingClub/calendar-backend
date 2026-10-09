@@ -27,12 +27,12 @@
 
 <%# The ceremony runs here so the origin the browser reports is this site's,
     not the extension's. See Auth::PasskeyCeremoniesController. %>
-<script type="module">
-  const MODE         = <%= raw @mode.to_json %>;
-  const REDIRECT_URI = <%= raw @redirect_uri.to_json %>;
-  const STATE        = <%= raw @state.to_json %>;
-  const HANDOFF      = <%= raw @handoff.to_json %>;
-  const NICKNAME     = <%= raw @nickname.to_json %>;
+<script type="module" nonce="<%= content_security_policy_nonce %>">
+  const MODE         = <%= json_escape(@mode.to_json).html_safe %>;
+  const REDIRECT_URI = <%= json_escape(@redirect_uri.to_json).html_safe %>;
+  const STATE        = <%= json_escape(@state.to_json).html_safe %>;
+  const HANDOFF      = <%= json_escape(@handoff.to_json).html_safe %>;
+  const NICKNAME     = <%= json_escape(@nickname.to_json).html_safe %>;
 
   const status = document.getElementById('status');
   const retry  = document.getElementById('retry');

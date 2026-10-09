@@ -18,7 +18,7 @@
         <%= link_to "Install the extension",
             @extension_install_url,
             target: "_blank",
-            rel: "noopener",
+            rel: "noopener noreferrer",
             class: "m3-btn-filled text-sm inline-flex" %>
       </div>
     </li>
@@ -45,7 +45,7 @@
       <p class="text-sm text-on-surface">
         You have <%= pluralize(@pending_friend_requests_count, "friend request") %>.
       </p>
-      <%= link_to "Review requests", requests_dashboard_friends_path, class: "m3-btn-tonal text-sm" %>
+      <%= link_to "Review requests", dashboard_friends_requests_path, class: "m3-btn-tonal text-sm" %>
     </div>
   <% end %>
 

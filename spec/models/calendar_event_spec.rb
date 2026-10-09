@@ -41,8 +41,10 @@
 # Foreign Keys
 #
 #  fk_rails_...  (calendar_id => calendars.id)
+#  fk_rails_...  (final_exam_id => final_exams.id) ON DELETE => nullify
 #  fk_rails_...  (friend_meeting_id => friend_meetings.id)
 #  fk_rails_...  (meeting_time_id => course_meeting_times.id)
+#  fk_rails_...  (university_calendar_event_id => university_calendar_events.id) ON DELETE => nullify
 #
 
 require "rails_helper"

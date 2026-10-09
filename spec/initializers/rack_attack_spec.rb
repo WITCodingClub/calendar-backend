@@ -139,6 +139,13 @@ RSpec.describe Rack::Attack do
       expect(discriminator("api/ip", "/api/extension_events")).to be_nil
       expect(discriminator("api/ip", "/api/user/onboard")).to eq("1.2.3.4")
     end
+
+    it "counts CSP reports against their own budget, not the anonymous API limit" do
+      expect(described_class.throttles.fetch("api/csp-reports")).to have_attributes(limit: 60, period: 60)
+      expect(discriminator("api/csp-reports", "/api/csp_reports")).to eq("1.2.3.4")
+      expect(discriminator("api/csp-reports", "/api/user/onboard")).to be_nil
+      expect(discriminator("api/ip", "/api/csp_reports")).to be_nil
+    end
   end
 
   describe "meeting link throttles" do

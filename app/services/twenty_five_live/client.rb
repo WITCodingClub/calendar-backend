@@ -21,7 +21,7 @@ module TwentyFiveLive
     def call
       call!
     rescue => e
-      Rails.logger.error("[TwentyFiveLiveService] #{e.class}: #{e.message}")
+      Rails.error.report(e, handled: true)
       false
     end
 

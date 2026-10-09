@@ -72,33 +72,33 @@ RSpec.describe "Dashboard onboarding gate", type: :request do
       let!(:request) { create(:friendship, requester: requester, addressee: new_user) }
 
       it "still shows the friend requests page" do
-        get requests_dashboard_friends_path
+        get dashboard_friends_requests_path
 
         expect(response).to have_http_status(:ok)
         expect(response.body).to include(requester.email)
       end
 
       it "lets the user accept a request and returns to the requests page" do
-        post accept_dashboard_friend_path(request.id)
+        patch dashboard_friends_request_path(request.id)
 
         expect(request.reload).to be_accepted
-        expect(response).to redirect_to(requests_dashboard_friends_path)
+        expect(response).to redirect_to(dashboard_friends_requests_path)
         follow_redirect!
         expect(response.body).to include("Riley added as a friend.")
       end
 
       it "lets the user decline a request and returns to the requests page" do
-        post decline_dashboard_friend_path(request.id)
+        delete dashboard_friends_request_path(request.id)
 
         expect(Friendship.exists?(request.id)).to be(false)
-        expect(response).to redirect_to(requests_dashboard_friends_path)
+        expect(response).to redirect_to(dashboard_friends_requests_path)
       end
 
       it "shows the pending requests on the onboarding page" do
         get dashboard_onboarding_path
 
         expect(response.body).to include("You have 1 friend request.")
-        expect(response.body).to include(%(href="#{requests_dashboard_friends_path}"))
+        expect(response.body).to include(%(href="#{dashboard_friends_requests_path}"))
       end
 
       it "does not show a friend request card when no request is pending" do
@@ -152,7 +152,7 @@ RSpec.describe "Dashboard onboarding gate", type: :request do
     it "still returns to the friends page after it accepts a request" do
       request = create(:friendship, requester: create(:user), addressee: user)
 
-      post accept_dashboard_friend_path(request.id)
+      patch dashboard_friends_request_path(request.id)
 
       expect(response).to redirect_to(dashboard_friends_path)
     end

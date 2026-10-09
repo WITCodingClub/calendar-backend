@@ -3,6 +3,7 @@
 module Admin
   class CalendarsController < Admin::ApplicationController
     def index
+      authorize CourseCalendar
       @calendars = policy_scope(CourseCalendar)
                    .includes(:oauth_credential, :user)
                    .order(updated_at: :desc)
@@ -18,7 +19,7 @@ module Admin
     end
 
     def destroy
-      calendar = CourseCalendar.find(params[:id])
+      calendar = policy_scope(CourseCalendar).find(params[:id])
       authorize calendar
 
       # The row's own callback deletes the remote calendar with the right
@@ -26,6 +27,7 @@ module Admin
       calendar.destroy
       redirect_to admin_calendars_path, notice: "Calendar deleted successfully."
     rescue => e
+      Rails.error.report(e, handled: true, context: { course_calendar_id: params[:id] })
       redirect_to admin_calendars_path, alert: "Failed to delete calendar: #{e.message}"
     end
   end

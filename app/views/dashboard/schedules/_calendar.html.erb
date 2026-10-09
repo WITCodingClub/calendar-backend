@@ -14,14 +14,14 @@
     <div class="flex flex-wrap items-center gap-3">
       <%# Term selector %>
       <% if schedule.terms.any? %>
-        <form method="get" action="<%= path_for.call %>" class="flex items-center">
+        <form method="get" action="<%= path_for.call %>" class="flex items-center" data-controller="auto-submit">
           <input type="hidden" name="view" value="<%= schedule.view_mode %>">
           <% if schedule.view_mode == "week" %>
             <input type="hidden" name="week_start" value="<%= schedule.week_start.iso8601 %>">
           <% elsif schedule.view_mode == "month" %>
             <input type="hidden" name="month" value="<%= schedule.month_date.strftime("%Y-%m") %>">
           <% end %>
-          <select name="term_uid" onchange="this.form.submit()" class="m3-select w-auto">
+          <select name="term_uid" data-action="change->auto-submit#submit" class="m3-select w-auto">
             <%= options_for_select(schedule.terms.map { |term| [ term.name, term.uid ] }, schedule.selected_term&.uid) %>
           </select>
         </form>
