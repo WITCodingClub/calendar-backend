@@ -7,7 +7,7 @@ require Rails.root.join("db/queue_migrate/20260913000000_add_batches_to_solid_qu
 # pre-1.7 solid_queue_jobs table from db/schema.rb, and these examples migrate
 # it inside the test transaction. The table is built here if it is missing.
 RSpec.describe AddBatchesToSolidQueue do
-  subject(:migration) { described_class.new }
+  subject(:migration) { build_migration }
 
   let(:connection) { ActiveRecord::Base.connection }
 
