@@ -157,4 +157,28 @@ RSpec.describe CalendarPreference, type: :model do
       expect(holiday.reload.color_id).to eq("#d50000")
     end
   end
+
+  describe "enqueueing after commit" do
+    let!(:preference) { create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: []) }
+    let(:reminders) { [ { "time" => "1", "type" => "days", "method" => "popup" } ] }
+
+    it "does not enqueue the sync before the transaction commits" do
+      ActiveRecord::Base.transaction(requires_new: true) do
+        preference.update!(reminder_settings: reminders)
+
+        expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
+      end
+
+      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true).once
+    end
+
+    it "does not enqueue the sync when the transaction rolls back" do
+      ActiveRecord::Base.transaction(requires_new: true) do
+        preference.update!(reminder_settings: reminders)
+        raise ActiveRecord::Rollback
+      end
+
+      expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
+    end
+  end
 end
