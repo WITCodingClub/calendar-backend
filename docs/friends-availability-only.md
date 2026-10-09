@@ -15,7 +15,7 @@ The flag gates the actions that set a level. While the flag is off for the signe
 
 - `PATCH /api/friends/:friend_id/visibility` answers 404.
 - The `visibility` param on send and accept requests answers 404 (API) or an alert (dashboard). Nothing is created or accepted.
-- The dashboard does not show the sharing form or the level choice, and `PATCH /dashboard/friends/:id/visibility` answers 404.
+- The dashboard does not show the sharing form or the level choice, and `PATCH /dashboard/friends/:friend_id/visibility` answers 404.
 
 The read routes `GET /api/friends/:friend_id/visibility` and `GET /api/friends/:friend_id/busy_blocks` work when the friend shares `availability_only`, whatever the flag of the viewer. When the friend shares `full`, they answer 404 while the flag is off for the viewer. `GET /api/user/busy_blocks` reads only the data of the signed-in user and has no flag.
 

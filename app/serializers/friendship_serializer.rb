@@ -109,7 +109,7 @@ class FriendshipSerializer
     helpers = Rails.application.routes.url_helpers
     options = Rails.application.config.action_controller.default_url_options || {}
 
-    @friendship.pending? ? helpers.requests_dashboard_friends_url(**options) : helpers.dashboard_friends_url(**options)
+    @friendship.pending? ? helpers.dashboard_friends_requests_url(**options) : helpers.dashboard_friends_url(**options)
   end
 
   def user_json(user)

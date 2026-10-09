@@ -1,5 +1,5 @@
 <%# What the signed-in user shares with this friend. Only their own level. %>
-<%= form_with url: visibility_dashboard_friend_path(friend.public_id),
+<%= form_with url: dashboard_friend_visibility_path(friend.public_id),
     method: :patch,
     class: "m3-card px-5 py-4 flex flex-wrap items-center justify-between gap-3" do %>
   <label for="visibility" class="text-sm text-on-surface">

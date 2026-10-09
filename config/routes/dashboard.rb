@@ -23,9 +23,20 @@ authenticate :user do
     resources :friend_groups, path: "friends/groups", only: [ :create, :update, :destroy ] do
       resources :members, controller: "friend_group_members", only: [ :create, :destroy ]
     end
+    # Before resources :friends, so "requests" is not read as a friend id.
+    # FriendshipMailer and the extension link to GET /dashboard/friends/requests,
+    # so that path must not change.
+    namespace :friends do
+      # update accepts an incoming request. destroy declines it.
+      resources :requests, only: [ :index, :update, :destroy ]
+    end
     resources :friends, only: [ :index, :show, :create, :destroy ] do
-      member     { post :accept; post :decline; patch :visibility; patch :expiry; post :accept_expiry; post :decline_expiry }
-      collection { get :requests }
+      scope module: :friends do
+        resource :visibility,      only: [ :update ]
+        resource :expiry,          only: [ :update ]
+        # update accepts the friend's proposal. destroy declines or withdraws it.
+        resource :expiry_proposal, only: [ :update, :destroy ]
+      end
     end
     resources :meeting_links, only: [ :index, :create, :destroy ]
     resource :settings, only: [ :show ]
