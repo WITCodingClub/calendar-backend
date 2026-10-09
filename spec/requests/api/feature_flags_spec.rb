@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::Users feature flags", type: :request do
+RSpec.describe "Api::FeatureFlags", type: :request do
   let(:user) { create(:user) }
 
   it "lists only the flags in FlipperFlags" do

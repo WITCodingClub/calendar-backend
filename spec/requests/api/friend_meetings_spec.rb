@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::FriendMeetings", type: :request do
+RSpec.describe "Api::Friends::Meetings", type: :request do
   include ActiveJob::TestHelper
   include ActiveSupport::Testing::TimeHelpers
 

@@ -11,12 +11,12 @@ RSpec.describe "API authentication" do
   PUBLIC_ACTIONS = %w[
     api/extension_events#create
     api/graphql#execute
-    api/misc#get_active_terms
-    api/misc#get_current_and_next_terms
+    api/onboardings#create
     api/passkeys#authenticate
     api/passkeys#authentication_options
     api/passkeys#exchange
-    api/users#onboard
+    api/terms#active
+    api/terms#current_and_next
     api/v1/catalog/instructors#index
     api/v1/catalog/instructors#show
     api/v1/catalog/instructors#similar

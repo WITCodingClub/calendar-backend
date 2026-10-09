@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::Users onboarding", type: :request do
+RSpec.describe "Api::Onboardings", type: :request do
   def json = JSON.parse(response.body)
 
   def verification(email:, verified: true, success: true, error: nil)

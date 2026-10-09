@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Api::UserExtensionConfig", type: :request do
+RSpec.describe "Api::ExtensionConfigs", type: :request do
   let(:user) { create(:user) }
   let(:headers) { auth_headers_for(user) }
 
