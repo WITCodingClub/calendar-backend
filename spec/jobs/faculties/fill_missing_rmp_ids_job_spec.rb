@@ -3,52 +3,50 @@
 require "rails_helper"
 
 RSpec.describe Faculties::FillMissingRmpIdsJob, type: :job do
-  it "does nothing when every faculty with courses already has an rmp_id" do
-    faculty = create(:faculty, rmp_id: "already-has-one")
-    create(:course_faculty, faculty: faculty)
+  include ActiveSupport::Testing::TimeHelpers
 
-    expect(Faculties::UpdateRatingsJob).not_to receive(:perform_now)
+  around { |example| travel_to(Date.new(2026, 10, 1)) { example.run } }
+
+  let(:current_term) { create(:term, year: 2026, season: :fall) }
+
+  def teaching(faculty, term = current_term)
+    create(:course_faculty, faculty: faculty, course: create(:course, term: term))
+    faculty
+  end
+
+  it "enqueues Faculties::UpdateRatingsJob for each current faculty with no rmp_id" do
+    faculty = teaching(create(:faculty, rmp_id: nil))
+
+    expect { described_class.perform_now }
+      .to have_enqueued_job(Faculties::UpdateRatingsJob).with(faculty.id).exactly(:once)
+  end
+
+  it "does not search RateMyProfessor inside the job" do
+    teaching(create(:faculty, rmp_id: nil))
+    allow(Faculties::UpdateRatingsJob).to receive(:perform_now)
 
     described_class.perform_now
+
+    expect(Faculties::UpdateRatingsJob).not_to have_received(:perform_now)
   end
 
-  it "runs Faculties::UpdateRatingsJob for every faculty with courses and no rmp_id" do
-    faculty = create(:faculty, rmp_id: nil)
-    create(:course_faculty, faculty: faculty)
+  it "skips faculty who already have an rmp_id" do
+    teaching(create(:faculty, rmp_id: "already-has-one"))
 
-    allow_any_instance_of(described_class).to receive(:sleep)
-    allow(Faculties::UpdateRatingsJob).to receive(:perform_now) do |faculty_id|
-      Faculty.find(faculty_id).update!(rmp_id: "found-it")
-    end
-
-    described_class.perform_now
-
-    expect(Faculties::UpdateRatingsJob).to have_received(:perform_now).with(faculty.id)
-    expect(faculty.reload.rmp_id).to eq("found-it")
+    expect { described_class.perform_now }.not_to have_enqueued_job(Faculties::UpdateRatingsJob)
   end
 
-  it "keeps processing later faculty when one raises an error" do
-    faculty_a = create(:faculty, rmp_id: nil)
-    create(:course_faculty, faculty: faculty_a)
-    faculty_b = create(:faculty, rmp_id: nil)
-    create(:course_faculty, faculty: faculty_b)
+  it "skips faculty who teach only in past terms" do
+    teaching(create(:faculty, rmp_id: nil), create(:term, year: 2025, season: :spring))
+    current_term
 
-    allow_any_instance_of(described_class).to receive(:sleep)
-    call_count = 0
-    allow(Faculties::UpdateRatingsJob).to receive(:perform_now) do |_faculty_id|
-      call_count += 1
-      raise "RateMyProfessors is down" if call_count == 1
-    end
-
-    expect { described_class.perform_now }.not_to raise_error
-    expect(Faculties::UpdateRatingsJob).to have_received(:perform_now).twice
+    expect { described_class.perform_now }.not_to have_enqueued_job(Faculties::UpdateRatingsJob)
   end
 
-  it "does not process faculty who teach no courses" do
+  it "skips faculty who teach no courses" do
     create(:faculty, rmp_id: nil)
+    current_term
 
-    expect(Faculties::UpdateRatingsJob).not_to receive(:perform_now)
-
-    described_class.perform_now
+    expect { described_class.perform_now }.not_to have_enqueued_job(Faculties::UpdateRatingsJob)
   end
 end
