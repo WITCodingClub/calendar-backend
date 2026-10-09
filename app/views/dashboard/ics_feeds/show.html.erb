@@ -41,5 +41,9 @@
   <div class="m3-card p-4 text-sm text-on-surface-variant space-y-1">
     <p><strong class="text-on-surface">Keep this URL private</strong> — it grants read access to your full schedule without a password.</p>
     <p>Events update automatically every time you sync via the Chrome extension.</p>
+    <p>
+      The feed asks calendar apps to check for changes every hour, but each app sets its own schedule. Google Calendar can take up to a day.
+      For instant updates in Google Calendar or Outlook, <%= link_to "connect your account", dashboard_connected_accounts_path, class: "text-primary hover:underline" %> instead.
+    </p>
   </div>
 </div>

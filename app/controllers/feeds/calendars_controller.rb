@@ -14,9 +14,12 @@ module Feeds
         format.ics do
           body = feed.to_ical
 
-          response.headers["Cache-Control"]      = "max-age=3600, must-revalidate"
-          response.headers["X-Published-TTL"]    = "PT1H"
-          response.headers["Refresh-Interval"]   = "3600"
+          refresh = CourseCalendars::IcsFeed::REFRESH_INTERVAL
+          seconds = ActiveSupport::Duration.parse(refresh).to_i
+
+          response.headers["Cache-Control"]      = "max-age=#{seconds}, must-revalidate"
+          response.headers["X-Published-TTL"]    = refresh
+          response.headers["Refresh-Interval"]   = seconds.to_s
 
           # The body has no per-request timestamps (DTSTAMP is the last change
           # of each event), so the same data gives the same ETag. A calendar
