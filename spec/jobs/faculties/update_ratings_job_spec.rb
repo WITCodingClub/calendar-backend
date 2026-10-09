@@ -5,6 +5,11 @@ require "rails_helper"
 RSpec.describe Faculties::UpdateRatingsJob, type: :job do
   let(:base_url) { Faculties::RateMyProfessorClient::BASE_URL }
 
+  it "runs one job at a time for all faculty" do
+    expect(described_class.concurrency_limit).to eq(1)
+    expect(described_class.new(1).concurrency_key).to eq(described_class.new(2).concurrency_key)
+  end
+
   def stub_graphql(operation_name, fixture:)
     stub_request(:post, base_url)
       .with(body: hash_including("operationName" => operation_name))

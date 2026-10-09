@@ -67,7 +67,8 @@ class Rack::Attack
     user_id = extract_user_id_from_jwt(req)
     next false unless user_id
 
-    user = User.find_by(id: user_id)
+    # Api::TokenAuthentication uses this user, so the request loads it once.
+    user = req.env[JWT_USER_ENV_KEY] = User.find_by(id: user_id)
     user&.admin_access? || (user && Flipper.enabled?(FeatureFlags::BYPASS_RATE_LIMITS, user))
   end
 
@@ -262,6 +263,9 @@ class Rack::Attack
   # Up to five rules ask for the user on one API request. Decode the token once
   # and keep the answer on the request.
   JWT_USER_ID_ENV_KEY = "rack.attack.jwt_user_id"
+
+  # The user that the privileged-users safelist loaded for the token.
+  JWT_USER_ENV_KEY = "rack.attack.jwt_user"
 
   # Crawlers, bots, and clients with no User-Agent get no access to the app
   # pages. Agents may still read the files and docs written for them, and data

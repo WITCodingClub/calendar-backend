@@ -51,7 +51,7 @@ module Api
         return
       end
 
-      @current_user = @current_session.user
+      @current_user = user_loaded_by_rack_attack || @current_session.user
 
       if @current_user.nil?
         render_error "Authentication required", status: :unauthorized, code: "AUTH_INVALID"
@@ -59,6 +59,14 @@ module Api
       end
 
       @current_session.touch_last_seen!
+    end
+
+    # The Rack::Attack safelist for privileged users loads the user of the
+    # token on every API request. Use that record when it is the user of the
+    # session, so the request does not load the user a second time (#712).
+    def user_loaded_by_rack_attack
+      user = request.env[Rack::Attack::JWT_USER_ENV_KEY]
+      user if user && user.id == @current_session.user_id
     end
 
     def extract_token_from_header

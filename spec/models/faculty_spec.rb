@@ -57,6 +57,42 @@ RSpec.describe Faculty, type: :model do
   it { is_expected.to validate_presence_of(:last_name) }
   it { is_expected.to validate_uniqueness_of(:rmp_id).allow_nil }
 
+  describe "weekly RateMyProfessor refresh" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    around { |example| travel_to(Date.new(2026, 10, 1)) { example.run } }
+
+    let(:current_term) { create(:term, year: 2026, season: :fall) }
+    let(:next_term)    { create(:term, year: 2027, season: :spring) }
+    let(:past_term)    { create(:term, year: 2025, season: :spring) }
+
+    def teaching(term)
+      create(:faculty).tap { |faculty| create(:course_faculty, faculty: faculty, course: create(:course, term: term)) }
+    end
+
+    let!(:current_faculty) { teaching(current_term) }
+    let!(:future_faculty)  { teaching(next_term) }
+    let!(:past_faculty)    { teaching(past_term) }
+
+    it "selects faculty who teach in the current term or a later term" do
+      create(:faculty)
+
+      expect(described_class.teaching_current_or_future).to contain_exactly(current_faculty, future_faculty)
+    end
+
+    it "lists a faculty with courses in many current terms once" do
+      create(:course_faculty, faculty: current_faculty, course: create(:course, term: next_term))
+
+      expect(described_class.teaching_current_or_future.to_a.count(current_faculty)).to eq(1)
+    end
+
+    it "enqueues a ratings update only for current and future faculty" do
+      expect { described_class.update_all_ratings! }
+        .to have_enqueued_job(Faculties::UpdateRatingsJob).exactly(:twice)
+      expect(Faculties::UpdateRatingsJob).not_to have_been_enqueued.with(past_faculty.id)
+    end
+  end
+
   describe "#similar_instructors" do
     let(:term) { create(:term) }
 

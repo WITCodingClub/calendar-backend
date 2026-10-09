@@ -65,6 +65,13 @@ class Faculty < ApplicationRecord
   scope :by_department,       ->(dept) { where(department: dept) }
   scope :with_courses,        -> { joins(:courses).distinct }
   scope :without_courses,     -> { where.missing(:courses) }
+  # Faculty who teach a course in the current term or a later term. The weekly
+  # RateMyProfessor jobs refresh only these, not every professor who ever
+  # taught (#712).
+  scope :teaching_current_or_future, -> {
+    terms = Term.current_and_future.reorder(nil).select(:id)
+    where(id: CourseFaculty.joins(:course).where(courses: { term_id: terms }).select(:faculty_id))
+  }
   scope :with_directory_data, -> { where.not(directory_last_synced_at: nil) }
   scope :needs_directory_sync, -> {
     where(directory_last_synced_at: nil).or(where(directory_last_synced_at: ...7.days.ago))
@@ -203,7 +210,7 @@ class Faculty < ApplicationRecord
   end
 
   def self.update_all_ratings!
-    with_courses.find_each(&:update_ratings!)
+    teaching_current_or_future.find_each(&:update_ratings!)
   end
 
   def self.sync_all_from_directory!

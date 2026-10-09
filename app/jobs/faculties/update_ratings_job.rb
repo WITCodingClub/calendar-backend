@@ -4,6 +4,13 @@ module Faculties
   class UpdateRatingsJob < ApplicationJob
     queue_as :low
 
+    # The weekly refresh enqueues one job for each professor. One job at a
+    # time keeps the request rate to RateMyProfessor low, and the other jobs
+    # wait in the queue, not on a worker thread (#712).
+    CONCURRENCY_GROUP = "UpdateFacultyRatingsJob"
+
+    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(*) { "rate_my_professor" }
+
     def perform(faculty_id)
       faculty = Faculty.find(faculty_id)
 
