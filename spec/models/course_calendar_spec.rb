@@ -71,14 +71,14 @@ RSpec.describe CourseCalendar, type: :model do
     it "deletes a Google calendar through the service account job" do
       calendar = create(:course_calendar, external_calendar_id: "cal@group.calendar.google.com")
 
-      expect { calendar.destroy }.to have_enqueued_job(GoogleCalendarDeleteJob).with("cal@group.calendar.google.com")
+      expect { calendar.destroy }.to have_enqueued_job(GoogleCalendar::DeleteJob).with("cal@group.calendar.google.com")
     end
 
     it "deletes a Microsoft calendar with the owner's credential" do
       calendar = create(:course_calendar, :microsoft)
 
       expect { calendar.destroy }
-        .to have_enqueued_job(MicrosoftGraphCalendarDeleteJob).with(calendar.oauth_credential_id, calendar.external_calendar_id)
+        .to have_enqueued_job(MicrosoftGraph::CalendarDeleteJob).with(calendar.oauth_credential_id, calendar.external_calendar_id)
     end
 
     it "never deletes a primary calendar, and deletes each event in it" do
@@ -86,15 +86,15 @@ RSpec.describe CourseCalendar, type: :model do
       event    = create(:calendar_event, course_calendar: calendar)
 
       expect { calendar.destroy }
-        .to have_enqueued_job(MicrosoftGraphEventDeleteJob).with(calendar.oauth_credential_id, event.external_event_id, event.external_ical_uid)
-      expect(MicrosoftGraphCalendarDeleteJob).not_to have_been_enqueued
+        .to have_enqueued_job(MicrosoftGraph::EventDeleteJob).with(calendar.oauth_credential_id, event.external_event_id, event.external_ical_uid)
+      expect(MicrosoftGraph::CalendarDeleteJob).not_to have_been_enqueued
     end
 
     it "leaves the events of a separate calendar to the calendar delete" do
       calendar = create(:course_calendar, :microsoft)
       create(:calendar_event, course_calendar: calendar)
 
-      expect { calendar.destroy }.not_to have_enqueued_job(MicrosoftGraphEventDeleteJob)
+      expect { calendar.destroy }.not_to have_enqueued_job(MicrosoftGraph::EventDeleteJob)
     end
   end
 end

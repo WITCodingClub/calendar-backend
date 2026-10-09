@@ -43,7 +43,7 @@ namespace :calendar do
         if duplicates.any?
           puts "  Found #{duplicates.size} duplicate events to remove"
           fixed_users += 1
-          service = GoogleCalendarService.new(user)
+          service = GoogleCalendar::Provider.new(user)
 
           duplicates.each do |cal_event|
             begin
@@ -70,7 +70,7 @@ namespace :calendar do
         if user.enrollments.any?
           begin
             puts "  Triggering calendar resync..."
-            GoogleCalendarSyncJob.perform_later(user, force: true)
+            CourseCalendars::SyncJob.perform_later(user, force: true)
           rescue => e
             puts "  Error queueing sync job: #{e.message}"
           end

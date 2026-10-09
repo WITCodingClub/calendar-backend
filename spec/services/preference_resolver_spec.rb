@@ -10,7 +10,7 @@ RSpec.describe PreferenceResolver do
     create(:university_calendar_event, category: category, all_day: all_day)
   end
 
-  before { allow(GoogleCalendarSyncJob).to receive(:perform_later) }
+  before { allow(CourseCalendars::SyncJob).to receive(:perform_later) }
 
   describe "system defaults for university events" do
     it "reminds 15 hours before an all day event, which is 9AM the day before" do

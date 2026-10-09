@@ -13,13 +13,13 @@ namespace :calendar do
       end
 
       puts "Triggering full calendar rebuild..."
-      GoogleCalendarSyncJob.perform_now(user, force: true)
+      CourseCalendars::SyncJob.perform_now(user, force: true)
       puts "Done! Calendar should be restored."
     else
       puts "Emergency resync for ALL users..."
       User.joins(oauth_credentials: :course_calendar).find_each do |user|
         puts "Resyncing user #{user.id}..."
-        GoogleCalendarSyncJob.perform_later(user, force: true)
+        CourseCalendars::SyncJob.perform_later(user, force: true)
       end
       puts "All sync jobs queued!"
     end

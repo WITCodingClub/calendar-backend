@@ -21,11 +21,11 @@ RSpec.describe "Job concurrency groups" do
     end
   end
 
-  it "keeps the jobs that write a user's calendar in the group of GoogleCalendarSyncJob" do
+  it "keeps the jobs that write a user's calendar in the group of CourseCalendars::SyncJob" do
     writers = [ FriendMeetingPublishJob, FriendMeetingRemoveJob, FriendMeetingResumeJob,
-                FriendMeetingUpdateJob, MicrosoftGraphCalendarPlacementJob ]
+                FriendMeetingUpdateJob, MicrosoftGraph::CalendarPlacementJob ]
 
     expect(writers.map(&:concurrency_group).uniq).to eq([ "GoogleCalendarSyncJob" ])
-    expect(GoogleCalendarSyncJob.concurrency_group).to eq("GoogleCalendarSyncJob")
+    expect(CourseCalendars::SyncJob.concurrency_group).to eq("GoogleCalendarSyncJob")
   end
 end

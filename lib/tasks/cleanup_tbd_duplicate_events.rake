@@ -6,7 +6,7 @@ namespace :calendar do
     puts "Starting cleanup of duplicate TBD events in Google Calendar..."
     puts "=" * 60
 
-    service      = GoogleCalendarService.new
+    service      = GoogleCalendar::Provider.new
     calendar_svc = service.send(:service_account_calendar_service)
 
     users_with_calendars = User.joins(:course_calendars).distinct

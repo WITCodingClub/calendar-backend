@@ -180,7 +180,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
 
     it "starts the move" do
       expect { patch calendar_placement_dashboard_connected_account_path(credential.public_id), params: { placement: "primary" } }
-        .to have_enqueued_job(MicrosoftGraphCalendarPlacementJob).with(user, "primary")
+        .to have_enqueued_job(MicrosoftGraph::CalendarPlacementJob).with(user, "primary")
 
       expect(response).to redirect_to(dashboard_connected_accounts_path)
       expect(flash[:notice]).to include("moving")
@@ -188,7 +188,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
 
     it "refuses a placement it does not know" do
       expect { patch calendar_placement_dashboard_connected_account_path(credential.public_id), params: { placement: "shared" } }
-        .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
+        .not_to have_enqueued_job(MicrosoftGraph::CalendarPlacementJob)
 
       expect(flash[:alert]).to be_present
     end
@@ -197,7 +197,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
       other = create(:oauth_credential, :microsoft)
 
       expect { patch calendar_placement_dashboard_connected_account_path(other.public_id), params: { placement: "primary" } }
-        .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
+        .not_to have_enqueued_job(MicrosoftGraph::CalendarPlacementJob)
 
       expect(flash[:alert]).to eq("Credential not found.")
     end
@@ -206,14 +206,14 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
       google = create(:oauth_credential, user: user)
 
       expect { patch calendar_placement_dashboard_connected_account_path(google.public_id), params: { placement: "primary" } }
-        .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
+        .not_to have_enqueued_job(MicrosoftGraph::CalendarPlacementJob)
     end
 
     it "refuses while the provider is off" do
       Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR)
 
       expect { patch calendar_placement_dashboard_connected_account_path(credential.public_id), params: { placement: "primary" } }
-        .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
+        .not_to have_enqueued_job(MicrosoftGraph::CalendarPlacementJob)
     end
   end
 

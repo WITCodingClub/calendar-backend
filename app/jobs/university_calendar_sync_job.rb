@@ -56,7 +56,7 @@ class UniversityCalendarSyncJob < ApplicationJob
     User.joins(oauth_credentials: :course_calendar)
         .distinct
         .find_each do |user|
-          GoogleCalendarSyncJob.perform_later(user, force: true)
+          CourseCalendars::SyncJob.perform_later(user, force: true)
         end
   end
 
@@ -68,7 +68,7 @@ class UniversityCalendarSyncJob < ApplicationJob
         .joins(oauth_credentials: :course_calendar)
         .distinct
         .find_each do |user|
-          GoogleCalendarSyncJob.perform_later(user, force: true)
+          CourseCalendars::SyncJob.perform_later(user, force: true)
         end
   end
 

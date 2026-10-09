@@ -28,7 +28,7 @@ namespace :calendars do
       puts "Deleting calendar for user: #{user_email} (Calendar ID: #{calendar.external_calendar_id})"
 
       begin
-        GoogleCalendarService.new(calendar.oauth_credential.user).delete_calendar(calendar.external_calendar_id)
+        GoogleCalendar::Provider.new(calendar.oauth_credential.user).delete_calendar(calendar.external_calendar_id)
         calendar.calendar_events.destroy_all
         calendar.destroy!
         deleted_count += 1
@@ -85,7 +85,7 @@ namespace :calendars do
       puts "Creating calendar for user: #{user_email}"
 
       begin
-        service     = GoogleCalendarService.new(user)
+        service     = GoogleCalendar::Provider.new(user)
         calendar_id = service.create_or_get_course_calendar
 
         if calendar_id

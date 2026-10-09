@@ -8,7 +8,7 @@ RSpec.describe "ICS calendar feed university events", type: :request do
   let(:course) { create(:course, term: term) }
 
   before do
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
     create(:enrollment, user: user, course: course, term: term)
     create(:university_calendar_event, summary: "Registration Opens", category: "registration",
                                        start_time: Time.zone.local(2026, 10, 1, 9), end_time: Time.zone.local(2026, 10, 1, 10))
@@ -39,7 +39,7 @@ RSpec.describe "ICS calendar feed university events", type: :request do
     end
 
     it "gives a university event Graphite while the user has not picked a color" do
-      expect(color_lines).to contain_exactly("COLOR:#{GoogleColors::GRAPHITE}", "X-APPLE-CALENDAR-COLOR:#{GoogleColors::GRAPHITE}")
+      expect(color_lines).to contain_exactly("COLOR:#{GoogleCalendar::Colors::GRAPHITE}", "X-APPLE-CALENDAR-COLOR:#{GoogleCalendar::Colors::GRAPHITE}")
     end
 
     it "gives a university event the university wide color the user picked" do

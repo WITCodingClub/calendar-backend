@@ -105,7 +105,7 @@ namespace :cleanup do
 
     count = 0
     User.joins(:course_calendars).distinct.find_each do |user|
-      GoogleCalendarSyncJob.perform_later(user, force: true)
+      CourseCalendars::SyncJob.perform_later(user, force: true)
       count += 1
       print "." if count % 10 == 0
     end

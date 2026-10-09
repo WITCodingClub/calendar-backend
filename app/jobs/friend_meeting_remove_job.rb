@@ -10,13 +10,13 @@
 # FriendMeetingPublisher#remove records it on the publication, and a
 # reconnect finishes the removal (OauthCredential#resume_friend_meetings).
 #
-# It shares the concurrency group and key of GoogleCalendarSyncJob, like
+# It shares the concurrency group and key of CourseCalendars::SyncJob, like
 # FriendMeetingPublishJob, so it never runs at the same time as a publish or
 # a sync for the same person.
 class FriendMeetingRemoveJob < ApplicationJob
   queue_as :high
 
-  limits_concurrency to: 1, group: GoogleCalendarSyncJob::CONCURRENCY_GROUP,
+  limits_concurrency to: 1, group: CourseCalendars::SyncJob::CONCURRENCY_GROUP,
                      key: ->(meeting) { "google_calendar_sync_user_#{meeting.user_id}" }
 
   retry_on MicrosoftGraph::Error, Google::Apis::ServerError, Google::Apis::RateLimitError,

@@ -25,14 +25,14 @@ RSpec.describe "jobs rake tasks" do
   describe "jobs:unknown_class_names" do
     it "lists unfinished jobs whose class is no longer a job class, by name" do
       2.times { enqueue("OldNameSyncJob") }
-      enqueue("GoogleCalendarSyncJob")
+      enqueue("CourseCalendars::SyncJob")
       enqueue("FinishedOldNameJob", finished_at: Time.current)
 
       expect { run_task("jobs:unknown_class_names") }.to output("OldNameSyncJob: 2\n").to_stdout
     end
 
     it "says so when every unfinished job uses a current class name" do
-      enqueue("GoogleCalendarSyncJob")
+      enqueue("CourseCalendars::SyncJob")
 
       expect { run_task("jobs:unknown_class_names") }.to output(/Every unfinished job uses a current class name/).to_stdout
     end

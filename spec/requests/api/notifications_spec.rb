@@ -33,7 +33,7 @@ RSpec.describe "Api::Notifications", type: :request do
 
       expect do
         patch "/api/user/notifications", params: { disabled: false }, headers: headers, as: :json
-      end.to have_enqueued_job(GoogleCalendarSyncJob)
+      end.to have_enqueued_job(CourseCalendars::SyncJob)
 
       expect(response).to have_http_status(:ok)
       expect(user.reload.notifications_disabled?).to be(false)

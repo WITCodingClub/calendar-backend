@@ -846,7 +846,7 @@ class ImportFromBackendService
 
     oauth_user_ids.each do |uid|
       user = User.find_by(id: uid)
-      GoogleCalendarSyncJob.perform_later(user) if user
+      CourseCalendars::SyncJob.perform_later(user) if user
     end
     @stats[:sync_jobs_queued] = oauth_user_ids.size
 

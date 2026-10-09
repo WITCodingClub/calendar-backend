@@ -138,7 +138,7 @@ module Feeds
 
             e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
 
-            color_hex = GoogleColors.normalize(prefs[:color_id]) || meeting_time.event_color
+            color_hex = GoogleCalendar::Colors.normalize(prefs[:color_id]) || meeting_time.event_color
             e.color = color_hex
             e.append_custom_property("X-APPLE-CALENDAR-COLOR", color_hex)
 
@@ -270,7 +270,7 @@ module Feeds
         e.categories  = [ event.category.titleize ] if event.category.present?
 
         # The same color the Google and Outlook sync gives the event.
-        color_hex = GoogleColors.normalize(@preference_resolver.resolve_for(event)[:color_id])
+        color_hex = GoogleCalendar::Colors.normalize(@preference_resolver.resolve_for(event)[:color_id])
         if color_hex
           e.color = color_hex
           e.append_custom_property("X-APPLE-CALENDAR-COLOR", color_hex)

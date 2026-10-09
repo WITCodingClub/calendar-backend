@@ -6,7 +6,7 @@ class CleanupOrphanedGoogleCalendarsJob < ApplicationJob
   def perform
     Rails.logger.info "[CleanupOrphanedGoogleCalendarsJob] Starting cleanup of Google calendars not in database"
 
-    service = GoogleCalendarService.new
+    service = GoogleCalendar::Provider.new
     google_api_calendars = service.list_calendars
 
     db_calendar_ids = CourseCalendar.google.pluck(:external_calendar_id)

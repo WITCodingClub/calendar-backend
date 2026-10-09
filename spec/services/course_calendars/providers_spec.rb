@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe CalendarProviders do
+RSpec.describe CourseCalendars::Providers do
   let(:user) { create(:user) }
 
   after { Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR) }
@@ -15,11 +15,11 @@ RSpec.describe CalendarProviders do
     it "uses Google alone for a Google user, as before" do
       create(:oauth_credential, user: user)
 
-      expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendarService ])
+      expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendar::Provider ])
     end
 
     it "keeps the Google path for a person with no calendar yet" do
-      expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendarService ])
+      expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendar::Provider ])
     end
 
     it "ignores a Microsoft calendar while the provider is not configured" do
@@ -27,7 +27,7 @@ RSpec.describe CalendarProviders do
       create(:course_calendar, :microsoft, oauth_credential: create(:oauth_credential, :microsoft, user: user))
       enable_microsoft_for(user)
 
-      expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendarService ])
+      expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendar::Provider ])
     end
 
     context "when the provider is configured", :microsoft_graph do
@@ -36,14 +36,14 @@ RSpec.describe CalendarProviders do
         create(:course_calendar, :microsoft, oauth_credential: create(:oauth_credential, :microsoft, user: user))
         enable_microsoft_for(user)
 
-        expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendarService, MicrosoftGraphCalendarService ])
+        expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendar::Provider, MicrosoftGraph::CalendarProvider ])
       end
 
       it "uses Microsoft alone for a person without Google" do
         create(:course_calendar, :microsoft, oauth_credential: create(:oauth_credential, :microsoft, user: user))
         enable_microsoft_for(user)
 
-        expect(described_class.services_for(user).map(&:class)).to eq([ MicrosoftGraphCalendarService ])
+        expect(described_class.services_for(user).map(&:class)).to eq([ MicrosoftGraph::CalendarProvider ])
       end
 
       it "syncs nothing for a Microsoft-only person once the flag is off" do

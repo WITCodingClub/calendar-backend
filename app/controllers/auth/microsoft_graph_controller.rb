@@ -35,10 +35,10 @@ module Auth
                                          code_verifier: pending["code_verifier"],
                                          redirect_uri: redirect_uri)
       credential  = save_credential(token)
-      calendar_id = MicrosoftGraphCalendarService.new(@user, credential: credential)
+      calendar_id = MicrosoftGraph::CalendarProvider.new(@user, credential: credential)
                                                  .create_or_get_course_calendar(placement: @state["placement"])
 
-      GoogleCalendarSyncJob.perform_later(@user, force: true) if @user.enrollments.any?
+      CourseCalendars::SyncJob.perform_later(@user, force: true) if @user.enrollments.any?
 
       redirect_to "/oauth/success?email=#{CGI.escape(credential.email)}&calendar_id=#{CGI.escape(calendar_id)}"
     rescue WrongAccountError

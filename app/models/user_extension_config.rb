@@ -35,8 +35,8 @@ class UserExtensionConfig < ApplicationRecord
   # One config per user (the app treats this as a has_one).
   validates :user_id, uniqueness: true
 
-  normalizes :default_color_lecture, :default_color_lab, with: GoogleColors.method(:normalize_attribute)
-  validates :default_color_lecture, :default_color_lab, format: { with: GoogleColors::HEX_FORMAT }
+  normalizes :default_color_lecture, :default_color_lab, with: GoogleCalendar::Colors.method(:normalize_attribute)
+  validates :default_color_lecture, :default_color_lab, format: { with: GoogleCalendar::Colors::HEX_FORMAT }
 
   after_update :sync_calendar_if_settings_changed
 
@@ -52,6 +52,6 @@ class UserExtensionConfig < ApplicationRecord
     return unless saved_change_to_default_color_lecture? || saved_change_to_default_color_lab? ||
                   saved_change_to_sync_university_events? || saved_change_to_university_event_categories?
 
-    GoogleCalendarSyncJob.perform_later(user, force: true)
+    CourseCalendars::SyncJob.perform_later(user, force: true)
   end
 end

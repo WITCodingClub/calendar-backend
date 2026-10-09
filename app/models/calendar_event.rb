@@ -194,9 +194,9 @@ class CalendarEvent < ApplicationRecord
     return if ref[:calendar_id].blank? || ref[:event_id].blank?
 
     if ref[:provider] == "microsoft"
-      MicrosoftGraphEventDeleteJob.perform_later(ref[:oauth_credential_id], ref[:event_id], ref[:ical_uid])
+      MicrosoftGraph::EventDeleteJob.perform_later(ref[:oauth_credential_id], ref[:event_id], ref[:ical_uid])
     else
-      GoogleCalendarEventDeleteJob.perform_later(ref[:calendar_id], ref[:event_id])
+      GoogleCalendar::EventDeleteJob.perform_later(ref[:calendar_id], ref[:event_id])
     end
   end
 

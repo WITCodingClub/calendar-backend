@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe GoogleCalendarService do
+RSpec.describe GoogleCalendar::Provider do
   let(:service) { described_class.new }
 
   let(:event_data) do
@@ -40,7 +40,7 @@ RSpec.describe GoogleCalendarService do
   end
 
   describe "#build_google_event colors" do
-    let(:labels) { instance_double(GoogleEventLabels, available?: true, label_id_for: "11111111-2222-3333-4444-555555555555") }
+    let(:labels) { instance_double(GoogleCalendar::EventLabels, available?: true, label_id_for: "11111111-2222-3333-4444-555555555555") }
 
     it "gives a custom color through the label for that color" do
       google_event = service.send(:build_google_event, event_data.merge(color_id: "#1a2b3c"), labels)
@@ -118,7 +118,7 @@ RSpec.describe GoogleCalendarService do
     end
 
     it "asks Google to read the event label" do
-      labels = instance_double(GoogleEventLabels, available?: true, label_id_for: "11111111-2222-3333-4444-555555555555")
+      labels = instance_double(GoogleCalendar::EventLabels, available?: true, label_id_for: "11111111-2222-3333-4444-555555555555")
       allow(calendar_api).to receive(:update_event)
 
       service.send(:update_event_in_calendar, calendar_api, course_calendar, db_event,
@@ -142,7 +142,7 @@ RSpec.describe GoogleCalendarService do
 
       prepared = service.send(:apply_preferences_to_event, university_event, event_data)
 
-      expect(prepared[:color_id]).to eq(GoogleColors::GRAPE)
+      expect(prepared[:color_id]).to eq(GoogleCalendar::Colors::GRAPE)
     end
   end
 

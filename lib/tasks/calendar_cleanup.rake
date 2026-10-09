@@ -5,7 +5,7 @@ namespace :calendar do
   task list_orphaned_calendars: :environment do
     puts "Finding orphaned calendars...\n"
 
-    service         = GoogleCalendarService.new
+    service         = GoogleCalendar::Provider.new
     google_api_calendars = service.list_calendars
     db_calendar_ids = CourseCalendar.google.pluck(:external_calendar_id)
 
@@ -27,7 +27,7 @@ namespace :calendar do
   task cleanup_orphaned_calendars: :environment do
     puts "Finding orphaned calendars...\n"
 
-    service         = GoogleCalendarService.new
+    service         = GoogleCalendar::Provider.new
     google_api_calendars = service.list_calendars
     db_calendar_ids = CourseCalendar.google.pluck(:external_calendar_id)
 
@@ -113,7 +113,7 @@ namespace :calendar do
 
       begin
         puts "  Processing #{finals_events.count} finals for User #{user.id}..."
-        service = GoogleCalendarService.new(user)
+        service = GoogleCalendar::Provider.new(user)
         service.update_specific_events(finals_events, force: true)
         puts "✓ User #{user.id} (#{user.email}): Synced #{finals_events.count} finals"
         synced_count += 1

@@ -69,7 +69,7 @@ RSpec.describe "Api::MicrosoftCalendars", type: :request do
         create(:oauth_credential, :microsoft, user: user)
 
         expect { patch "/api/user/microsoft_calendar", params: { placement: "primary" }, headers: auth_headers_for(user) }
-          .to have_enqueued_job(MicrosoftGraphCalendarPlacementJob).with(user, "primary")
+          .to have_enqueued_job(MicrosoftGraph::CalendarPlacementJob).with(user, "primary")
 
         expect(response).to have_http_status(:accepted)
         expect(JSON.parse(response.body)).to include("placement" => "primary")
@@ -79,7 +79,7 @@ RSpec.describe "Api::MicrosoftCalendars", type: :request do
         create(:oauth_credential, :microsoft, user: user)
 
         expect { patch "/api/user/microsoft_calendar", params: { placement: "shared" }, headers: auth_headers_for(user) }
-          .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)
+          .not_to have_enqueued_job(MicrosoftGraph::CalendarPlacementJob)
 
         expect(response).to have_http_status(:unprocessable_content)
       end

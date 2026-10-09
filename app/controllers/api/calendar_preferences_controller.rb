@@ -34,7 +34,7 @@ module Api
       authorize @calendar_preference
 
       if @calendar_preference.update(calendar_preference_params)
-        GoogleCalendarSyncJob.perform_later(current_user, force: true)
+        CourseCalendars::SyncJob.perform_later(current_user, force: true)
         render json: CalendarPreferenceSerializer.new(@calendar_preference).as_json
       else
         render_error @calendar_preference.errors.full_messages.join(", "), status: :unprocessable_content,
@@ -45,7 +45,7 @@ module Api
     def destroy
       authorize @calendar_preference
       @calendar_preference.destroy
-      GoogleCalendarSyncJob.perform_later(current_user, force: true)
+      CourseCalendars::SyncJob.perform_later(current_user, force: true)
       head :no_content
     end
 

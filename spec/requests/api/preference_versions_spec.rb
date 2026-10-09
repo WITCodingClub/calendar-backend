@@ -76,7 +76,7 @@ RSpec.describe "GET /api/user/preferences/version", type: :request do
     request_headers = headers
     expect(PreferenceResolver).not_to receive(:new)
     expect(CalendarTemplateRenderer).not_to receive(:new)
-    expect(GoogleCalendarSyncJob).not_to receive(:perform_later)
+    expect(CourseCalendars::SyncJob).not_to receive(:perform_later)
 
     get "/api/user/preferences/version", headers: request_headers
 

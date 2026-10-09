@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe MicrosoftGraphCalendarDeleteJob, :microsoft_graph do
+RSpec.describe MicrosoftGraph::CalendarDeleteJob, :microsoft_graph do
   let(:credential) { create(:oauth_credential, :microsoft, token_expires_at: 1.hour.from_now) }
 
   it "deletes the calendar from the owner's mailbox" do

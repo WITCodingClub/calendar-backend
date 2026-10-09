@@ -1,13 +1,7 @@
 # frozen_string_literal: true
 
-class GoogleCalendarDeleteJob < ApplicationJob
-  queue_as :high
-
-  def perform(calendar_id)
-    GoogleCalendarService.new.delete_calendar(calendar_id)
-  rescue Google::Apis::ClientError => e
-    raise unless e.status_code == 404 && e.message.include?("notFound")
-
-    Rails.logger.info("Calendar #{calendar_id} already deleted or not found - treating as success")
-  end
-end
+# The old name of GoogleCalendar::DeleteJob. Jobs that were in the queue before
+# the rename still name this class. Remove this file when `bin/rails
+# jobs:unknown_class_names` on production no longer lists
+# GoogleCalendarDeleteJob.
+GoogleCalendarDeleteJob = GoogleCalendar::DeleteJob

@@ -15,7 +15,7 @@ module Api
       email = params[:email].to_s.strip
 
       if email.present? && current_user.google_credential_for_email(email).present?
-        service     = GoogleCalendarService.new(current_user)
+        service     = GoogleCalendar::Provider.new(current_user)
         calendar_id = service.create_or_get_course_calendar
 
         render json: { message: "email already connected", calendar_id: calendar_id }, status: :ok
@@ -53,7 +53,7 @@ module Api
         return
       end
 
-      service     = GoogleCalendarService.new(current_user)
+      service     = GoogleCalendar::Provider.new(current_user)
       calendar_id = service.create_or_get_course_calendar
 
       render json: { message: "Calendar shared with email", calendar_id: calendar_id }, status: :ok

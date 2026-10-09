@@ -9,7 +9,7 @@ RSpec.describe "Dashboard::CalendarPreferences", type: :request do
   let(:config) { user.user_extension_config.reload }
 
   before do
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
     create(:enrollment, user: user)
     sign_in user
   end
@@ -48,7 +48,7 @@ RSpec.describe "Dashboard::CalendarPreferences", type: :request do
       expect(response).to redirect_to(dashboard_calendar_preferences_path)
       expect(config.sync_university_events).to be(true)
       expect(config.university_event_categories).to contain_exactly("finals", "deadline")
-      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
+      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
     end
 
     it "turns off sync but keeps the chosen categories" do
@@ -90,7 +90,7 @@ RSpec.describe "Dashboard::CalendarPreferences", type: :request do
       patch university_events_dashboard_calendar_preferences_path,
             params: { sync_university_events: "0", university_event_categories: [ "" ] }
 
-      expect(GoogleCalendarSyncJob).not_to have_received(:perform_later)
+      expect(CourseCalendars::SyncJob).not_to have_received(:perform_later)
     end
   end
 end

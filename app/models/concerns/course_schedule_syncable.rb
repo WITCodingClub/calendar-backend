@@ -4,7 +4,7 @@ module CourseScheduleSyncable
   extend ActiveSupport::Concern
 
   def sync_course_schedule(force: false, backfill_historical: force)
-    services = CalendarProviders.services_for(self)
+    services = CourseCalendars::Providers.services_for(self)
 
     # Build events from enrollments - each course can have multiple meeting times
     # Each meeting_time now represents a single day of the week
@@ -80,14 +80,14 @@ module CourseScheduleSyncable
     end
 
     # Add final exams and university events — future/current only so the fast
-    # path completes quickly. Past events are deferred to GoogleCalendarHistoricalSyncJob.
+    # path completes quickly. Past events are deferred to CourseCalendars::HistoricalSyncJob.
     finals = build_finals_events_for_sync(time_scope: :future)
     events.concat(finals)
 
     university_events = build_university_events_for_sync(time_scope: :future)
     events.concat(university_events)
 
-    result = CalendarProviders.merge_stats(services.map { |service| service.update_calendar_events(events, force: force) })
+    result = CourseCalendars::Providers.merge_stats(services.map { |service| service.update_calendar_events(events, force: force) })
 
     # Remove past university events the user no longer wants. update_calendar_events
     # keeps every past event, so this is the only place they get deleted.
@@ -108,14 +108,14 @@ module CourseScheduleSyncable
     end
 
     # Backfill past events on force/nightly syncs (not routine quick_syncs).
-    GoogleCalendarHistoricalSyncJob.perform_later(self, force: force) if backfill_historical && result
+    CourseCalendars::HistoricalSyncJob.perform_later(self, force: force) if backfill_historical && result
 
     result
   end
 
   # Intelligent partial sync - only sync specific enrollments
   def sync_enrollments(enrollment_ids, force: false)
-    services = CalendarProviders.services_for(self)
+    services = CourseCalendars::Providers.services_for(self)
     events = []
 
     enrollments.where(id: enrollment_ids).includes(course: [ meeting_times: [ rooms: :building ] ]).find_each do |enrollment|
@@ -167,7 +167,7 @@ module CourseScheduleSyncable
     end
 
     # Only sync these specific events
-    result = CalendarProviders.merge_stats(services.map { |service| service.update_specific_events(events, force: force) })
+    result = CourseCalendars::Providers.merge_stats(services.map { |service| service.update_specific_events(events, force: force) })
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
@@ -184,7 +184,7 @@ module CourseScheduleSyncable
 
   # Sync a single meeting time immediately (for preference changes)
   def sync_meeting_time(meeting_time_id, force: true)
-    services = CalendarProviders.services_for(self)
+    services = CourseCalendars::Providers.services_for(self)
     meeting_time = Course::MeetingTime.includes(course: [ :faculties ], rooms: :building).find_by(id: meeting_time_id)
     return unless meeting_time
     return if meeting_time.day_of_week.blank?
@@ -231,7 +231,7 @@ module CourseScheduleSyncable
     }
 
     # Sync just this one event
-    result = CalendarProviders.merge_stats(services.map { |service| service.update_specific_events([ event ], force: force) })
+    result = CourseCalendars::Providers.merge_stats(services.map { |service| service.update_specific_events([ event ], force: force) })
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
@@ -534,7 +534,7 @@ module CourseScheduleSyncable
   # Holidays stay, because every user gets them.
   # @return [Integer] the number of events deleted
   def prune_unwanted_university_events
-    CalendarProviders.services_for(self).sum { |service| prune_unwanted_university_events_with(service) }
+    CourseCalendars::Providers.services_for(self).sum { |service| prune_unwanted_university_events_with(service) }
   end
 
   # @param service [#course_calendar, #delete_events] one provider service
@@ -601,20 +601,20 @@ module CourseScheduleSyncable
     finals
   end
 
-  # Backfill past finals and university events — called by GoogleCalendarHistoricalSyncJob.
+  # Backfill past finals and university events — called by CourseCalendars::HistoricalSyncJob.
   # Uses update_specific_events (upsert only, no deletions) since past events are stable.
   def sync_historical_events(force: false)
-    services = CalendarProviders.services_for(self)
+    services = CourseCalendars::Providers.services_for(self)
     events  = build_finals_events_for_sync(time_scope: :past)
     events.concat(build_university_events_for_sync(time_scope: :past))
     return if events.empty?
 
-    CalendarProviders.merge_stats(services.map { |service| service.update_specific_events(events, force: force) })
+    CourseCalendars::Providers.merge_stats(services.map { |service| service.update_specific_events(events, force: force) })
   end
 
   # Sync a single final exam immediately (for preference changes)
   def sync_final_exam(final_exam_id, force: true)
-    services = CalendarProviders.services_for(self)
+    services = CourseCalendars::Providers.services_for(self)
     final_exam = ::FinalExam.includes(course: :faculties).find_by(id: final_exam_id)
     return unless final_exam
     return unless final_exam.start_datetime && final_exam.end_datetime
@@ -630,7 +630,7 @@ module CourseScheduleSyncable
       recurrence: nil
     }
 
-    result = CalendarProviders.merge_stats(services.map { |service| service.update_specific_events([ event ], force: force) })
+    result = CourseCalendars::Providers.merge_stats(services.map { |service| service.update_specific_events([ event ], force: force) })
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
@@ -645,7 +645,7 @@ module CourseScheduleSyncable
     course_calendar = CourseCalendar.google.for_user(self).first
     return if course_calendar.blank?
 
-    google_service = GoogleCalendarService.new(self)
+    google_service = GoogleCalendar::Provider.new(self)
     service_account_service = google_service.send(:service_account_calendar_service)
 
     service_account_service.delete_calendar(course_calendar.external_calendar_id)
@@ -657,7 +657,7 @@ module CourseScheduleSyncable
   end
 
   def create_or_get_course_calendar
-    GoogleCalendarService.new(self).create_or_get_course_calendar
+    GoogleCalendar::Provider.new(self).create_or_get_course_calendar
   end
 
   # Check if this is a TBD/placeholder location that should be skipped

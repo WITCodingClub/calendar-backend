@@ -108,13 +108,13 @@ RSpec.describe CalendarEvent, type: :model do
     it "deletes a Google event through the service account job" do
       event = create(:calendar_event, course_calendar: calendar, external_event_id: "google-evt")
 
-      expect { event.destroy }.to have_enqueued_job(GoogleCalendarEventDeleteJob).with("cal_123", "google-evt")
+      expect { event.destroy }.to have_enqueued_job(GoogleCalendar::EventDeleteJob).with("cal_123", "google-evt")
     end
 
     it "deletes a Microsoft event with the owner's credential and its iCalUId" do
       event = create(:calendar_event, :microsoft, external_event_id: "AAMkSyntheticEvent1")
 
-      expect { event.destroy }.to have_enqueued_job(MicrosoftGraphEventDeleteJob)
+      expect { event.destroy }.to have_enqueued_job(MicrosoftGraph::EventDeleteJob)
         .with(event.course_calendar.oauth_credential_id, "AAMkSyntheticEvent1", event.external_ical_uid)
     end
 
@@ -170,7 +170,7 @@ RSpec.describe CalendarEvent, type: :model do
     it "deletes the remote event when the meeting is destroyed" do
       event = create(:calendar_event, :for_friend_meeting, course_calendar: calendar, external_event_id: "google-meeting")
 
-      expect { event.friend_meeting.destroy }.to have_enqueued_job(GoogleCalendarEventDeleteJob).with("cal_123", "google-meeting")
+      expect { event.friend_meeting.destroy }.to have_enqueued_job(GoogleCalendar::EventDeleteJob).with("cal_123", "google-meeting")
       expect(CalendarEvent.exists?(event.id)).to be(false)
     end
 
@@ -179,14 +179,14 @@ RSpec.describe CalendarEvent, type: :model do
     it "deletes a Microsoft meeting event on its own when its separate course calendar goes" do
       event = create(:calendar_event, :microsoft, :for_friend_meeting, external_event_id: "AAMkSyntheticMeeting1")
 
-      expect { event.course_calendar.destroy }.to have_enqueued_job(MicrosoftGraphEventDeleteJob)
+      expect { event.course_calendar.destroy }.to have_enqueued_job(MicrosoftGraph::EventDeleteJob)
         .with(event.course_calendar.oauth_credential_id, "AAMkSyntheticMeeting1", event.external_ical_uid)
     end
 
     it "leaves a Google meeting event to the calendar delete" do
       event = create(:calendar_event, :for_friend_meeting, course_calendar: calendar)
 
-      expect { calendar.destroy }.not_to have_enqueued_job(GoogleCalendarEventDeleteJob)
+      expect { calendar.destroy }.not_to have_enqueued_job(GoogleCalendar::EventDeleteJob)
       expect(CalendarEvent.exists?(event.id)).to be(false)
     end
   end

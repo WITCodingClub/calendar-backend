@@ -4,7 +4,7 @@ module MicrosoftGraph
   # Compares an Outlook event with the values the app last wrote to it, which
   # the calendar_events row keeps, and finds the fields the person changed.
   #
-  # The rules follow GoogleCalendarService#detect_user_edited_fields: summary,
+  # The rules follow GoogleCalendar::Provider#detect_user_edited_fields: summary,
   # location, start time and end time count, and a changed recurrence keeps the
   # whole event as the person left it. The description does not count. Google
   # marks any description as an edit, but the row does not store the

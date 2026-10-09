@@ -13,7 +13,7 @@ RSpec.describe RemoveUnsyncableUniversityEventCategories do
 
   before do
     migration.verbose = false
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
     set_categories(picked_campus, %w[deadline campus_event finals announcement])
     set_categories(picked_academic, %w[deadline finals])
   end

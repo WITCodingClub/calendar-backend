@@ -42,7 +42,7 @@ class OauthCredential < ApplicationRecord
   # A Microsoft calendar lives in the person's mailbox, and only this
   # credential's token can delete it. `has_one :course_calendar, dependent:
   # :destroy` runs before any before_destroy declared after it, and the
-  # MicrosoftGraphCalendarDeleteJob it enqueues runs after the credential is
+  # MicrosoftGraph::CalendarDeleteJob it enqueues runs after the credential is
   # gone. So this callback is prepended and deletes the calendar now.
   before_destroy :delete_microsoft_calendar, prepend: true, if: :microsoft?
 
@@ -120,7 +120,7 @@ class OauthCredential < ApplicationRecord
     calendar = course_calendar
     return if calendar.nil? || calendar.external_calendar_id.blank?
 
-    MicrosoftGraphCalendarService.new(user, credential: self).remove_course_events(calendar)
+    MicrosoftGraph::CalendarProvider.new(user, credential: self).remove_course_events(calendar)
   rescue => e
     Rails.logger.error({ message: "Could not delete the Outlook calendar on disconnect",
                          oauth_credential_id: id, error: e.class.name }.to_json)
@@ -142,7 +142,7 @@ class OauthCredential < ApplicationRecord
     calendar_id = CourseCalendar.google.for_user(user).pick(:external_calendar_id) if user
     return if calendar_id.blank?
 
-    service = GoogleCalendarService.new(user)
+    service = GoogleCalendar::Provider.new(user)
     report_google_failure("remove the course calendar from the calendar list") do
       service.remove_calendar_from_user_list_for_email(calendar_id, email)
     end

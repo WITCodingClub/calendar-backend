@@ -18,7 +18,7 @@ RSpec.describe MicrosoftGraph::CategoryCache, :microsoft_graph do
     stub_request(:post, "#{MicrosoftGraphHelpers::GRAPH_URL}/me/outlook/masterCategories")
       .to_return(graph_json_response("master_category_created", status: 201))
 
-    expect(cache.name_for(GoogleColors::TOMATO)).to eq("WIT Tomato")
+    expect(cache.name_for(GoogleCalendar::Colors::TOMATO)).to eq("WIT Tomato")
   end
 
   it "gives a custom color the category of the nearest palette color" do

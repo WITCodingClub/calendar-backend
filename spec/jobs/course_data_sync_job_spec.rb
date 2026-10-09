@@ -173,7 +173,7 @@ RSpec.describe CourseDataSyncJob do
     let(:user)       { create(:user) }
     let(:credential) { create(:oauth_credential, user: user) }
     # A user counts as having a calendar through this association, the same way
-    # NightlyCalendarSyncJob selects them.
+    # CourseCalendars::NightlySyncJob selects them.
     let!(:course_calendar) { create(:course_calendar, oauth_credential: credential) }
     let!(:enrollment) { create(:enrollment, user: user, course: course) }
 

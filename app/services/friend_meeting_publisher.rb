@@ -149,7 +149,7 @@ class FriendMeetingPublisher
   end
 
   def services
-    @services ||= CalendarProviders.services_for(user)
+    @services ||= CourseCalendars::Providers.services_for(user)
   end
 
   # { "google" => [service, calendar], ... } for each connected calendar.

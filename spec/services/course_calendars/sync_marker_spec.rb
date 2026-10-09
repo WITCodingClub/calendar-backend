@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe CalendarSyncMarker do
+RSpec.describe CourseCalendars::SyncMarker do
   let(:course) { create(:course) }
   let(:user) { create(:user) }
 

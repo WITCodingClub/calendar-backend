@@ -22,7 +22,7 @@ class Dashboard::CalendarPreferencesController < Dashboard::ApplicationControlle
     authorize @calendar_preference
 
     if @calendar_preference.update(calendar_preference_params)
-      GoogleCalendarSyncJob.perform_later(current_user, force: true)
+      CourseCalendars::SyncJob.perform_later(current_user, force: true)
       redirect_to dashboard_calendar_preferences_path, notice: "Preferences saved."
     else
       redirect_to dashboard_calendar_preferences_path,
