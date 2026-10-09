@@ -28,8 +28,7 @@ module Faculties
         fetch_single_page(page || 0)
       end
     rescue => e
-      Rails.logger.error("[Faculties::Directory] Error: #{e.message}")
-      Rails.logger.error(e.backtrace.first(10).join("\n"))
+      Rails.error.report(e, handled: true, context: { page: page })
       { success: false, error: e.message, faculty: [], total_count: 0 }
     end
 

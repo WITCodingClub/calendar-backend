@@ -26,7 +26,7 @@ module Api
         render json: { message: "OAuth required", email: email.presence, oauth_url: oauth_url }, status: :ok
       end
     rescue => e
-      Rails.logger.error("Error requesting Google Calendar for user #{current_user.id}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to request Google Calendar", status: :internal_server_error
     end
 
@@ -58,7 +58,7 @@ module Api
 
       render json: { message: "Calendar shared with email", calendar_id: calendar_id }, status: :ok
     rescue => e
-      Rails.logger.error("Error adding email to Google Calendar for user #{current_user.id}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to add email to Google Calendar", status: :internal_server_error
     end
 
@@ -91,7 +91,7 @@ module Api
 
       render json: { message: "email removed from Google Calendar association" }, status: :ok
     rescue => e
-      Rails.logger.error("Error removing email from Google Calendar for user #{current_user.id}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to remove email from Google Calendar", status: :internal_server_error
     end
   end

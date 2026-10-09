@@ -30,6 +30,10 @@ Yabeda.configure do
           comment: "Requests to an old API path in config/routes/api/legacy.rb, by path.",
           tags: %i[route]
 
+  counter :errors_reported_total,
+          comment: "Errors that reach Rails.error, handled (rescued and reported) or not.",
+          tags: %i[error_class handled severity source]
+
   gauge :users, comment: "Accounts in the database.", aggregation: :most_recent
   gauge :active_sessions, comment: "Sessions that are not revoked or expired.", aggregation: :most_recent
   gauge :google_calendars, comment: "Google calendars that the app syncs.", aggregation: :most_recent

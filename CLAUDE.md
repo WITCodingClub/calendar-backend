@@ -12,6 +12,12 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - When an extension API path changes, keep the old path in `config/routes/api/legacy.rb`. Remove it when `calendar_api_legacy_requests_total` for that path stays at zero after the extension release that stops calling it.
 - Render every API error with `render_error message, status: :not_found` (from `Api::ErrorRendering`). The body is `{ error, code }`. Pass `code:` only when a client needs a code more specific than the status gives.
 
+## Errors
+
+- A rescue that swallows an error (it logs, returns a fallback, or continues) reports it: `Rails.error.report(e, handled: true, context: { user_id: user.id })`. Put ids in the context, never tokens or personal data.
+- A rescue that raises the error again does not report it. The request and job executors report every error that leaves a request or a job.
+- `ErrorReportSubscriber` counts each report in `calendar_errors_reported_total` and logs it. See `docs/metrics.md`.
+
 ## Jobs
 
 - A job with `limits_concurrency` names its group with a `CONCURRENCY_GROUP` string constant. Never change that string: Solid Queue puts it in every lock key, and jobs in the queue hold locks under it. `spec/jobs/concurrency_groups_spec.rb` checks this.

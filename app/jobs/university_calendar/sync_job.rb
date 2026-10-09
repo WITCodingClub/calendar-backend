@@ -21,7 +21,7 @@ module UniversityCalendar
         TwentyFiveLive::Client.call
         Rails.logger.info("25Live reference data sync complete")
       rescue => e
-        Rails.logger.warn("25Live reference data sync failed (non-fatal): #{e.message}")
+        Rails.error.report(e, handled: true)
       end
 
       result = UniversityCalendar::IcsImport.call
@@ -86,7 +86,7 @@ module UniversityCalendar
         term.update!(updates) if updates.any?
         Rails.logger.info("Updated term #{term.name} with dates: #{updates}") if updates.any?
       rescue => e
-        Rails.logger.warn("Failed to extract dates for #{term.name}: #{e.message}")
+        Rails.error.report(e, handled: true, context: { term_id: term.id })
       end
     end
   end

@@ -103,7 +103,7 @@ module Risc
     rescue => e
       stale = Rails.cache.read("risc_configuration:stale")
       if stale.present?
-        Rails.logger.warn("[Risc::Validator] Using stale RISC configuration due to fetch error: #{e.message}")
+        Rails.error.report(e, handled: true, context: { fallback: "stale_risc_configuration" })
         return stale
       end
       raise
@@ -126,7 +126,7 @@ module Risc
     rescue => e
       stale = Rails.cache.read("risc_jwks:stale")
       if stale.present?
-        Rails.logger.warn("[Risc::Validator] Using stale JWKS due to fetch error: #{e.message}")
+        Rails.error.report(e, handled: true, context: { fallback: "stale_jwks" })
         return stale
       end
       raise

@@ -107,6 +107,7 @@ module FinalsSchedules
           errors << "Failed to save final exam for CRN #{entry[:crn]}: #{final_exam.errors.full_messages.join(', ')}"
         end
       rescue => e
+        Rails.error.report(e, handled: true, context: { crn: entry[:crn] })
         errors << "Error processing CRN #{entry[:crn]}: #{e.message}"
       end
 

@@ -123,7 +123,7 @@ module Courses
       log_failure(term_uid, e)
       fail_term(term_uid, term, :banner_unavailable, "Failed to process courses")
     rescue => e
-      log_failure(term_uid, e)
+      Rails.error.report(e, handled: true, context: { user_id: user.id, term_uid: term_uid })
       fail_term(term_uid, term, :internal_error, "Failed to process courses")
     end
 
