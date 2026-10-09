@@ -37,9 +37,17 @@ Rails.application.configure do
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
 
-  # Set localhost to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options     = { host: "localhost", port: 3000 }
-  config.action_controller.default_url_options = { host: "localhost", port: 3000 }
+  # The host for links built outside a request: mailers, meeting links,
+  # calendar feed URLs. Set APPLICATION_HOST (and APPLICATION_PROTOCOL=https)
+  # to share links through a tunnel, so they do not point at localhost.
+  link_options = if ENV["APPLICATION_HOST"].present?
+    { host: ENV["APPLICATION_HOST"], protocol: ENV.fetch("APPLICATION_PROTOCOL", "https") }
+  else
+    { host: "localhost", port: 3000 }
+  end
+  config.action_mailer.default_url_options     = link_options
+  config.action_controller.default_url_options = link_options
+  config.hosts << ENV["APPLICATION_HOST"] if ENV["APPLICATION_HOST"].present?
 
   config.action_mailer.delivery_method = :letter_opener
   config.action_mailer.perform_deliveries = true
