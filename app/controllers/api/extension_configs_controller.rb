@@ -29,7 +29,7 @@ module Api
         end
       }, status: :ok
     rescue => e
-      Rails.logger.error("Error fetching user extension config for user #{current_user.id}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to fetch user extension config", status: :internal_server_error
     end
 
@@ -66,7 +66,7 @@ module Api
                      details: config.errors.full_messages
       end
     rescue => e
-      Rails.logger.error("Error updating user extension config for user #{current_user.id}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to update user extension config", status: :internal_server_error
     end
   end

@@ -209,7 +209,7 @@ class Faculty < ApplicationRecord
     update_column(:photo_url, url) unless photo_url == url # rubocop:disable Rails/SkipsModelValidations
     true
   rescue => e
-    Rails.logger.warn("[Faculty] Failed to download photo for #{email}: #{e.message}")
+    Rails.error.report(e, handled: true, context: { faculty_id: id })
     false
   end
 

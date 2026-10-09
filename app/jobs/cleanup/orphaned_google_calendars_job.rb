@@ -31,7 +31,7 @@ module Cleanup
           error_count += 1
         end
       rescue => e
-        Rails.logger.error "[Cleanup::OrphanedGoogleCalendarsJob] Error deleting calendar #{cal.id}: #{e.message}"
+        Rails.error.report(e, handled: true, context: { external_calendar_id: cal.id })
         error_count += 1
       end
 

@@ -90,7 +90,7 @@ class Term < ApplicationRecord
 
     start_date
   rescue => e
-    Rails.logger.warn("Catalog::LeopardWebClient unavailable for registration_start on #{name}: #{e.message}")
+    Rails.error.report(e, handled: true, context: { term_id: id })
     start_date
   end
 

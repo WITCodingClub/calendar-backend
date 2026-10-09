@@ -159,7 +159,7 @@ class UniversityCalendarEvent < ApplicationRecord
 
     Time.zone.today
   rescue => e
-    Rails.logger.warn("Failed to determine LeopardWeb registration-open date for #{season} #{year}: #{e.message}")
+    Rails.error.report(e, handled: true, context: { year: year, season: season.to_s })
     nil
   end
 

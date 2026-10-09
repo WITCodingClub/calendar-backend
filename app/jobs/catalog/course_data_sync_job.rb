@@ -64,7 +64,7 @@ module Catalog
             sleep 0.1
           rescue => e
             error_count += 1
-            Rails.logger.error "[Catalog::CourseDataSyncJob] Failed to sync course #{course.crn}: #{e.message}"
+            Rails.error.report(e, handled: true, context: { course_id: course.id, crn: course.crn })
           end
         end
       end
@@ -145,7 +145,7 @@ module Catalog
     def fetch_fresh_course_data(crn, term_uid)
       Catalog::LeopardWebClient.get_class_details(term: term_uid, course_reference_number: crn)
     rescue => e
-      Rails.logger.error "[Catalog::CourseDataSyncJob] Failed to fetch data for CRN #{crn}: #{e.message}"
+      Rails.error.report(e, handled: true, context: { crn: crn, term_uid: term_uid })
       nil
     end
 

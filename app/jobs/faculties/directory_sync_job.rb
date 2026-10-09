@@ -63,6 +63,7 @@ module Faculties
         stats[:skipped] += 1
       end
     rescue => e
+      Rails.error.report(e, handled: true, context: { faculty_id: faculty&.id })
       Rails.logger.error({ message: "Faculties::DirectorySyncJob error processing faculty",
                            email: email, error: e.message, job_id: job_id }.to_json)
       stats[:errors] << { email: email, error: e.message }

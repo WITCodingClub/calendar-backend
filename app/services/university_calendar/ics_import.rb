@@ -72,7 +72,7 @@ module UniversityCalendar
         event_attrs_list << attrs if attrs
       rescue => e
         stats[:errors] << "Error processing event #{ics_event.uid}: #{e.message}"
-        Rails.logger.error("Failed to process ICS event: #{e.message}")
+        Rails.error.report(e, handled: true, context: { ics_uid: ics_event.uid.to_s })
       end
 
       preload_existing_events
@@ -86,7 +86,7 @@ module UniversityCalendar
         save_event(attrs, stats)
       rescue => e
         stats[:errors] << "Error saving event #{attrs[:ics_uid]}: #{e.message}"
-        Rails.logger.error("Failed to save event: #{e.message}")
+        Rails.error.report(e, handled: true, context: { ics_uid: attrs[:ics_uid] })
       end
 
       stats[:changed_categories] = stats[:changed_categories].to_a

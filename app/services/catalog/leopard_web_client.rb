@@ -159,7 +159,7 @@ module Catalog
           details[:seats_capacity]  = enrollment_data.dig(:enrollment, :maximum)
         end
       rescue => e
-        Rails.logger.warn("Catalog::LeopardWebClient: Failed to fetch enrollment info for CRN #{course_reference_number}: #{e.message}")
+        Rails.error.report(e, handled: true, context: { crn: course_reference_number, term: term })
       end
 
       details
@@ -414,6 +414,7 @@ module Catalog
     rescue ArgumentError
       raise
     rescue => e
+      Rails.error.report(e, handled: true, context: { term: term })
       {
         success: false,
         error: e.message,

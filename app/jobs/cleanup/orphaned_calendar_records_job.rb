@@ -48,7 +48,7 @@ module Cleanup
         deleted_count += 1
       rescue => e
         error_count += 1
-        Rails.logger.error "[Cleanup::OrphanedCalendarRecordsJob] Failed to delete calendar #{calendar.id}: #{e.message}"
+        Rails.error.report(e, handled: true, context: { course_calendar_id: calendar.id })
       end
 
       Rails.logger.info "[Cleanup::OrphanedCalendarRecordsJob] Completed: #{deleted_count} deleted, #{error_count} errors"
