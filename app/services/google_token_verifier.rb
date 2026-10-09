@@ -61,7 +61,7 @@ class GoogleTokenVerifier
   # The token may be issued to the web OAuth client (dashboard/calendar flow) or
   # the Chrome extension's own OAuth client. Both are accepted; add the
   # extension client id to GOOGLE_OAUTH_CLIENT_IDS (comma-separated). Mirrors the
-  # audience allowlist used by RiscValidationService.
+  # audience allowlist used by Risc::Validator.
   def allowed_client_ids
     @allowed_client_ids ||= begin
       ids = ENV["GOOGLE_OAUTH_CLIENT_IDS"].to_s.split(",").map(&:strip).reject(&:blank?)

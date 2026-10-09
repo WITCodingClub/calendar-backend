@@ -1,31 +1,6 @@
 # frozen_string_literal: true
 
-class ProcessRiscEventJob < ApplicationJob
-  queue_as :high
-
-  retry_on StandardError, wait: :polynomially_longer, attempts: 3
-  discard_on RiscValidationService::ValidationError
-
-  def perform(token)
-    validation_service = RiscValidationService.new
-    decoded_token = validation_service.validate_and_decode(token)
-    event_data    = validation_service.extract_event_data(decoded_token)
-
-    # Skip only a finished event. One that a failed attempt left unprocessed
-    # has to run again, or the retry does nothing.
-    if SecurityEvent.processed.exists?(jti: event_data[:jti])
-      Rails.logger.info("RISC event already processed: #{event_data[:jti]}")
-      return
-    end
-
-    result = RiscEventHandlerService.new(event_data).process
-    Rails.logger.info("RISC event processed: #{result}")
-  rescue RiscValidationService::ValidationError => e
-    Rails.logger.error("RISC validation error: #{e.message}")
-    raise
-  rescue => e
-    Rails.logger.error("Error processing RISC event: #{e.message}")
-    Rails.logger.error(e.backtrace.join("\n"))
-    raise
-  end
-end
+# The old name of Risc::ProcessEventJob. Jobs that were in the queue before the
+# rename still name this class. Remove this file when `bin/rails
+# jobs:unknown_class_names` on production no longer lists ProcessRiscEventJob.
+ProcessRiscEventJob = Risc::ProcessEventJob

@@ -2,8 +2,8 @@
 
 require "rails_helper"
 
-RSpec.describe ProcessRiscEventJob, type: :job do
-  CONFIGURATION_URL = RiscValidationService::RISC_CONFIGURATION_URL
+RSpec.describe Risc::ProcessEventJob, type: :job do
+  CONFIGURATION_URL = Risc::Validator::RISC_CONFIGURATION_URL
   JWKS_URL = "https://www.googleapis.com/service_accounts/v1/risc/v1/jwks"
   ISSUER = "https://accounts.google.com"
   AUDIENCE = "factory-test-client-id"
@@ -64,10 +64,10 @@ RSpec.describe ProcessRiscEventJob, type: :job do
 
   # Bug: SecurityEvent requires google_subject to be present, but a real RISC
   # verification ping (a health check with no affected account) has no
-  # "subject" object at all. RiscEventHandlerService#create_security_event
+  # "subject" object at all. Risc::EventHandler#create_security_event
   # always passes event_data[:google_subject] through, so SecurityEvent.create!
-  # raises ActiveRecord::RecordInvalid; RiscEventHandlerService#process rescues
-  # it and returns success: false, and ProcessRiscEventJob never inspects that
+  # raises ActiveRecord::RecordInvalid; Risc::EventHandler#process rescues
+  # it and returns success: false, and Risc::ProcessEventJob never inspects that
   # return value, so the job "succeeds" without ever recording the event or
   # raising. Not fixed here because it changes model validation or event
   # handling; documented as current behavior.
@@ -118,7 +118,7 @@ RSpec.describe ProcessRiscEventJob, type: :job do
     create(:security_event, :processed, jti: "already-seen-jti")
     token = build_token(event_type: SecurityEvent::TOKEN_REVOKED, subject: "some-subject", jti: "already-seen-jti")
 
-    expect(RiscEventHandlerService).not_to receive(:new)
+    expect(Risc::EventHandler).not_to receive(:new)
 
     described_class.perform_now(token)
   end
@@ -146,7 +146,7 @@ RSpec.describe ProcessRiscEventJob, type: :job do
   it "retries instead of raising when an unexpected error occurs while handling the event" do
     stub_google_risc_endpoints
     token = build_token(event_type: SecurityEvent::ACCOUNT_ENABLED, subject: "some-subject", jti: "retry-me-jti")
-    allow(RiscEventHandlerService).to receive(:new).and_raise(StandardError, "boom")
+    allow(Risc::EventHandler).to receive(:new).and_raise(StandardError, "boom")
 
     expect { described_class.perform_now(token) }.to have_enqueued_job(described_class).with(token)
   end

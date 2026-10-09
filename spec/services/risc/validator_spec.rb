@@ -2,8 +2,8 @@
 
 require "rails_helper"
 
-RSpec.describe RiscValidationService, type: :service do
-  CONFIGURATION_URL = RiscValidationService::RISC_CONFIGURATION_URL
+RSpec.describe Risc::Validator, type: :service do
+  CONFIGURATION_URL = Risc::Validator::RISC_CONFIGURATION_URL
   JWKS_URL = "https://www.googleapis.com/service_accounts/v1/risc/v1/jwks"
   ISSUER = "https://accounts.google.com"
   AUDIENCE = "factory-test-client-id"
@@ -66,7 +66,7 @@ RSpec.describe RiscValidationService, type: :service do
     it "raises when the RISC configuration endpoint answers with an error status" do
       stub_risc_configuration(status: 500, body: "boom")
 
-      expect { described_class.new }.to raise_error(RiscValidationService::ValidationError)
+      expect { described_class.new }.to raise_error(Risc::Validator::ValidationError)
     end
 
     it "raises when the RISC configuration body is not valid JSON" do
@@ -85,7 +85,7 @@ RSpec.describe RiscValidationService, type: :service do
       stub_risc_configuration
       stub_jwks(keys: [], status: 502)
 
-      expect { described_class.new }.to raise_error(RiscValidationService::ValidationError)
+      expect { described_class.new }.to raise_error(Risc::Validator::ValidationError)
     end
   end
 
@@ -110,22 +110,22 @@ RSpec.describe RiscValidationService, type: :service do
     it "raises KeyNotFoundError when the token has no kid header" do
       token = build_token(key_id: nil)
 
-      expect { service.validate_and_decode(token) }.to raise_error(RiscValidationService::KeyNotFoundError)
+      expect { service.validate_and_decode(token) }.to raise_error(Risc::Validator::KeyNotFoundError)
     end
 
     it "raises KeyNotFoundError when the kid does not match any JWKS key" do
       token = build_token(key_id: "unknown-key")
 
-      expect { service.validate_and_decode(token) }.to raise_error(RiscValidationService::KeyNotFoundError)
+      expect { service.validate_and_decode(token) }.to raise_error(Risc::Validator::KeyNotFoundError)
     end
 
     it "raises InvalidTokenError for a completely malformed token" do
-      expect { service.validate_and_decode("not-a-jwt") }.to raise_error(RiscValidationService::InvalidTokenError)
+      expect { service.validate_and_decode("not-a-jwt") }.to raise_error(Risc::Validator::InvalidTokenError)
     end
 
     # Bug: JWT::VerificationError, JWT::InvalidIssuerError and JWT::InvalidAudError are all
     # subclasses of JWT::DecodeError, and the `rescue JWT::DecodeError` clause comes first in
-    # RiscValidationService#validate_and_decode. It always catches these before the later,
+    # Risc::Validator#validate_and_decode. It always catches these before the later,
     # more specific rescue clauses run, so InvalidSignatureError, InvalidIssuerError and
     # InvalidAudienceError are unreachable dead code — every one of these failures surfaces as
     # InvalidTokenError instead. Harmless here because every caller only rescues the shared
@@ -133,19 +133,19 @@ RSpec.describe RiscValidationService, type: :service do
     it "raises InvalidTokenError, not InvalidSignatureError, for a bad signature" do
       token = build_token(key: other_rsa_key)
 
-      expect { service.validate_and_decode(token) }.to raise_error(RiscValidationService::InvalidTokenError)
+      expect { service.validate_and_decode(token) }.to raise_error(Risc::Validator::InvalidTokenError)
     end
 
     it "raises InvalidTokenError, not InvalidIssuerError, for the wrong issuer" do
       token = build_token(payload_overrides: { "iss" => "https://evil.example.com" })
 
-      expect { service.validate_and_decode(token) }.to raise_error(RiscValidationService::InvalidTokenError)
+      expect { service.validate_and_decode(token) }.to raise_error(Risc::Validator::InvalidTokenError)
     end
 
     it "raises InvalidTokenError, not InvalidAudienceError, for the wrong audience" do
       token = build_token(payload_overrides: { "aud" => "someone-elses-client-id" })
 
-      expect { service.validate_and_decode(token) }.to raise_error(RiscValidationService::InvalidTokenError)
+      expect { service.validate_and_decode(token) }.to raise_error(Risc::Validator::InvalidTokenError)
     end
   end
 
