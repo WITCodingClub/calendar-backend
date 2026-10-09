@@ -3,6 +3,8 @@
 module Admin
   class NavigationController < Admin::ApplicationController
     def index
+      authorize :admin, :access_admin_endpoints?
+
       categories = Admin::NavigationRegistry.categories_for(current_user)
 
       navigation_data = categories.map do |category|

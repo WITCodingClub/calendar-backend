@@ -5,6 +5,7 @@ module Admin
     before_action :set_finals_schedule, only: [ :show, :destroy, :confirm_replace, :process_schedule ]
 
     def index
+      authorize FinalsSchedule
       @finals_schedules = policy_scope(FinalsSchedule)
                           .includes(:term, :uploaded_by)
                           .recent

@@ -9,7 +9,8 @@ module Admin
       @has_oauth_token = Rails.application.credentials.dig(:google, :service_account_oauth_refresh_token).present?
     end
 
-    def authorize
+    # Not named authorize: that would replace Pundit authorize in this controller.
+    def start
       require "signet/oauth_2/client"
       require "google/apis/calendar_v3"
 
@@ -36,6 +37,9 @@ module Admin
     end
 
     def callback
+      # The action checks that the OAuth initiator is an owner. It has no record.
+      skip_authorization
+
       unless params[:state] == session[:oauth_state]
         flash[:alert] = "Invalid OAuth state. Please try again."
         redirect_to admin_service_account_index_path
@@ -97,10 +101,12 @@ module Admin
     end
 
     def require_owner!
-      return if current_user&.owner?
-
-      flash[:alert] = "Access denied. Owner role required."
-      redirect_to admin_root_path
+      if current_user&.owner?
+        authorize :service_account, :manage?
+      else
+        flash[:alert] = "Access denied. Owner role required."
+        redirect_to admin_root_path
+      end
     end
   end
 end

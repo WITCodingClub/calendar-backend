@@ -10,6 +10,8 @@ module Admin
     }.freeze
 
     def lookup
+      authorize :admin, :access_admin_endpoints?
+
       public_id = params[:public_id]&.strip&.downcase
 
       if public_id.blank?
@@ -49,6 +51,8 @@ module Admin
     end
 
     def redirect
+      authorize :admin, :access_admin_endpoints?
+
       public_id = params[:public_id]&.strip&.downcase
 
       if public_id.blank?

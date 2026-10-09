@@ -87,7 +87,7 @@ constraints AdminConstraint.new do
     get "go/:public_id",     to: "public_id_lookup#redirect", as: :redirect_public_id
 
     get  "service_account",           to: "service_account#index",     as: :service_account_index
-    get  "service_account/authorize", to: "service_account#authorize", as: :service_account_authorize
+    get  "service_account/authorize", to: "service_account#start", as: :service_account_authorize
     post "service_account/revoke",    to: "service_account#revoke",    as: :service_account_revoke
 
     # These tools can run jobs, change flags, read any row, or show console

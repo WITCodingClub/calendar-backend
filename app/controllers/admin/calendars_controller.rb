@@ -3,6 +3,7 @@
 module Admin
   class CalendarsController < Admin::ApplicationController
     def index
+      authorize CourseCalendar
       @calendars = policy_scope(CourseCalendar)
                    .includes(:oauth_credential, :user)
                    .order(updated_at: :desc)

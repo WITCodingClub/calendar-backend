@@ -3,6 +3,7 @@
 module Admin
   class FacultiesController < Admin::ApplicationController
     def index
+      authorize Faculty
       @faculties = policy_scope(Faculty).order(:last_name, :first_name)
 
       if params[:search].present?
