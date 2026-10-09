@@ -94,14 +94,14 @@ RSpec.describe "POST /api/meeting_times/preferences", type: :request do
          params: { meeting_time_ids: [ meeting_time.public_id ] }, headers: headers, as: :json
 
     expect(response).to have_http_status(:ok)
-    expect(json["version"]).to eq(PreferenceVersion.for(user))
+    expect(json["version"]).to eq(Preferences::Version.for(user))
   end
 
   it "reads the version before the preferences, so a write between them is not hidden" do
     meeting_time = enroll_in(%w[11111]).first
     preference = create(:calendar_preference, user: user, title_template: "Before: {{title}}")
-    old_version = PreferenceVersion.for(user)
-    allow(PreferenceVersion).to receive(:for).and_wrap_original do |original, *args|
+    old_version = Preferences::Version.for(user)
+    allow(Preferences::Version).to receive(:for).and_wrap_original do |original, *args|
       original.call(*args).tap { preference.update_columns(title_template: "After: {{title}}") }
     end
 

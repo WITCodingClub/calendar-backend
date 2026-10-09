@@ -294,8 +294,8 @@ module MicrosoftGraph
     end
 
     def upsert_events(calendar, events, existing, force:)
-      resolver = PreferenceResolver.new(user)
-      renderer = CalendarTemplateRenderer.new
+      resolver = Preferences::Resolver.new(user)
+      renderer = Preferences::TemplateRenderer.new
       stats    = empty_stats
       preload_syncables(events)
 

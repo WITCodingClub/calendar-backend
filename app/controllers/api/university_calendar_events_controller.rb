@@ -72,7 +72,7 @@ module Api
 
     def sync
       authorize UniversityCalendarEvent, :sync?
-      UniversityCalendarSyncJob.perform_later
+      UniversityCalendar::SyncJob.perform_later
       render json: { message: "University calendar sync queued" }
     end
 

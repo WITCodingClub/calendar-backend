@@ -54,8 +54,8 @@ class EventPreference < ApplicationRecord
       value = send(field)
       next if value.blank?
 
-      CalendarTemplateRenderer.validate_template(value)
-    rescue CalendarTemplateRenderer::InvalidTemplateError => e
+      Preferences::TemplateRenderer.validate_template(value)
+    rescue Preferences::TemplateRenderer::InvalidTemplateError => e
       errors.add(field, "invalid syntax: #{e.message}")
     end
   end

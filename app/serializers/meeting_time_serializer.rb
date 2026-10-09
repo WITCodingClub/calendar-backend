@@ -11,7 +11,7 @@ class MeetingTimeSerializer
 
   def as_json(*)
     preferences = @preference_resolver.resolve_actual_for(@mt)
-    context = CalendarTemplateRenderer.build_context_from_meeting_time(@mt)
+    context = Preferences::TemplateRenderer.build_context_from_meeting_time(@mt)
 
     rendered_title = if preferences[:title_template].present?
                        @template_renderer.render(preferences[:title_template], context)

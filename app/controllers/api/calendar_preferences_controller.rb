@@ -84,12 +84,12 @@ module Api
       end
 
       begin
-        CalendarTemplateRenderer.validate_template(template)
-        renderer = CalendarTemplateRenderer.new
-        context  = CalendarTemplateRenderer.build_context_from_meeting_time(meeting_time)
+        Preferences::TemplateRenderer.validate_template(template)
+        renderer = Preferences::TemplateRenderer.new
+        context  = Preferences::TemplateRenderer.build_context_from_meeting_time(meeting_time)
         rendered = renderer.render(template, context)
         render json: { rendered: rendered, valid: true }
-      rescue CalendarTemplateRenderer::InvalidTemplateError => e
+      rescue Preferences::TemplateRenderer::InvalidTemplateError => e
         render_error e.message, status: :unprocessable_content, valid: false
       end
     end

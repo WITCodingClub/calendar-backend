@@ -6,7 +6,7 @@ module Api
 
     def show
       response.set_header("Cache-Control", "private, no-store")
-      render json: { version: PreferenceVersion.for(current_user) }
+      render json: { version: Preferences::Version.for(current_user) }
     end
   end
 end

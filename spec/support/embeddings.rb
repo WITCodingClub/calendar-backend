@@ -23,7 +23,7 @@ module EmbeddingHelpers
   # vectors built from angles that are close together are close in cosine
   # distance, which is all a nearest-neighbour spec needs.
   def embedding_vector(angle)
-    vector    = Array.new(EmbeddingService::DIMENSIONS, 0.0)
+    vector    = Array.new(Embeddings::Generator::DIMENSIONS, 0.0)
     vector[0] = Math.cos(angle * Math::PI / 2)
     vector[1] = Math.sin(angle * Math::PI / 2)
     vector
@@ -39,14 +39,14 @@ module EmbeddingHelpers
   def openai_embeddings_body(vectors)
     {
       object: "list",
-      model:  EmbeddingService::MODEL,
+      model:  Embeddings::Generator::MODEL,
       data:   vectors.each_with_index.map { |vector, index| { object: "embedding", index: index, embedding: vector } },
       usage:  { prompt_tokens: 10 * vectors.length, total_tokens: 10 * vectors.length }
     }.to_json
   end
 
   def stub_openai_embeddings(vectors)
-    stub_request(:post, EmbeddingService::API_URL)
+    stub_request(:post, Embeddings::Generator::API_URL)
       .to_return(status: 200, body: openai_embeddings_body(vectors), headers: { "Content-Type" => "application/json" })
   end
 

@@ -8,10 +8,10 @@ namespace :cleanup do
     if ENV["USER_ID"].present?
       user = User.find(ENV["USER_ID"])
       puts "Cleaning up duplicate events for user #{user.id} (#{user.email})"
-      CleanupDuplicateTbdEventsJob.perform_now(user.id)
+      Cleanup::DuplicateTbdEventsJob.perform_now(user.id)
     else
       puts "Cleaning up duplicate events for all users..."
-      CleanupDuplicateTbdEventsJob.perform_now
+      Cleanup::DuplicateTbdEventsJob.perform_now
     end
 
     puts "Cleanup complete!"

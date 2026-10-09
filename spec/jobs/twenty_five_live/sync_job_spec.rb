@@ -43,7 +43,7 @@ RSpec.describe TwentyFiveLive::SyncJob, type: :job do
     end
 
     it "ignores unfinished jobs of other classes" do
-      create_job(class_name: "UniversityCalendarSyncJob")
+      create_job(class_name: "UniversityCalendar::SyncJob")
 
       expect(described_class.in_progress?).to be(false)
     end

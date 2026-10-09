@@ -241,7 +241,7 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       get "/api/v1/catalog/sections", params: { q: "Course 1000" }
 
       expect(crns).to eq([ 10_001 ])
-      expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+      expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
     end
   end
 

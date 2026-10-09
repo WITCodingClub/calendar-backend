@@ -7,8 +7,8 @@ module Courses
     def initialize(user, term)
       @user = user
       @term = term
-      @preference_resolver = PreferenceResolver.new(user)
-      @template_renderer = CalendarTemplateRenderer.new
+      @preference_resolver = Preferences::Resolver.new(user)
+      @template_renderer = Preferences::TemplateRenderer.new
     end
 
     def build
@@ -86,7 +86,7 @@ module Courses
       meeting_times.map do |mt|
         days = build_days_hash(mt.day_of_week)
         preferences = @preference_resolver.resolve_actual_for(mt)
-        context = CalendarTemplateRenderer.build_context_from_meeting_time(mt)
+        context = Preferences::TemplateRenderer.build_context_from_meeting_time(mt)
 
         rendered_title = render_title(preferences, context, mt)
         rendered_description = render_description(preferences, context)

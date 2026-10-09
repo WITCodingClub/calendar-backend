@@ -126,7 +126,7 @@ RSpec.describe Catalog::SectionQuery do
 
       it "keeps the keyword search when the caller does not ask for meaning" do
         expect(crns_for(q: "Course 1000")).to eq([ 10_001 ])
-        expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+        expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
       end
 
       it "returns nothing when no section matches the filters" do
@@ -137,13 +137,13 @@ RSpec.describe Catalog::SectionQuery do
     context "with search off", :embeddings do
       it "falls back to the keyword search" do
         expect(crns_for(q: "Course 1000", semantic: true)).to eq([ 10_001 ])
-        expect(a_request(:post, EmbeddingService::API_URL)).not_to have_been_made
+        expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
       end
     end
 
     context "when the API fails", :semantic_search do
       it "falls back to the keyword search" do
-        stub_request(:post, EmbeddingService::API_URL).to_return(status: 500, body: "{}")
+        stub_request(:post, Embeddings::Generator::API_URL).to_return(status: 500, body: "{}")
 
         expect(crns_for(q: "Course 1000", semantic: true)).to eq([ 10_001 ])
       end

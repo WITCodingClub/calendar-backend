@@ -144,7 +144,7 @@ module Courses
             # real events in Google Calendar and duplicates them on the next sync.
             # Only rows absent from the upload are removed, after the loop; their
             # calendar events are nullified and cleaned up by
-            # CleanupOrphanedCalendarEventsJob.
+            # Cleanup::OrphanedCalendarEventsJob.
             touched_meeting_time_ids.concat(
               Catalog::MeetingTimesIngest.call(
                 course: course,

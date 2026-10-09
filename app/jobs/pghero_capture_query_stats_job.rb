@@ -1,11 +1,7 @@
 # frozen_string_literal: true
 
-class PgheroCaptureQueryStatsJob < ApplicationJob
-  queue_as :low
-
-  def perform
-    PgHero.capture_query_stats
-  rescue PgHero::NotEnabled => e
-    Rails.logger.info("PgHero query stats not enabled: #{e.message}")
-  end
-end
+# The old name of Database::CaptureQueryStatsJob. Jobs that were in the queue
+# before the rename still name this class. Remove this file when `bin/rails
+# jobs:unknown_class_names` on production no longer lists
+# PgheroCaptureQueryStatsJob.
+PgheroCaptureQueryStatsJob = Database::CaptureQueryStatsJob

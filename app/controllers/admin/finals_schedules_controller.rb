@@ -49,7 +49,7 @@ module Admin
       if existing_exams.any?
         redirect_to confirm_replace_admin_finals_schedule_path(@finals_schedule)
       else
-        FinalsScheduleProcessJob.perform_later(@finals_schedule)
+        FinalsSchedules::ProcessJob.perform_later(@finals_schedule)
         redirect_to admin_finals_schedule_path(@finals_schedule),
                     notice: "Finals schedule uploaded successfully. Processing has started."
       end
@@ -65,7 +65,7 @@ module Admin
 
     def process_schedule
       authorize @finals_schedule
-      FinalsScheduleProcessJob.perform_later(@finals_schedule)
+      FinalsSchedules::ProcessJob.perform_later(@finals_schedule)
       redirect_to admin_finals_schedule_path(@finals_schedule),
                   notice: "Finals schedule processing started. Existing exams will be updated."
     end

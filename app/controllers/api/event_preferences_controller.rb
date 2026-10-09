@@ -10,7 +10,7 @@ module Api
     before_action :set_preferenceable, except: :batch_show
 
     def show
-      render json: preference_payload(PreferenceResolver.new(current_user), @preferenceable)
+      render json: preference_payload(Preferences::Resolver.new(current_user), @preferenceable)
     end
 
     MAX_BATCH_SIZE = 200
@@ -37,12 +37,12 @@ module Api
       # Read the version before the preferences. A write between the two
       # reads then gives an old version with new data, which the next version
       # check corrects. The other order would label old data as current.
-      version       = PreferenceVersion.for(current_user)
+      version       = Preferences::Version.for(current_user)
       record_ids    = ids.index_with { |id| meeting_time_record_id(id) }
       meeting_times = Course::MeetingTime.includes(course: [ :faculties, :term ], rooms: :building)
                                          .where(id: record_ids.values.compact)
                                          .index_by(&:id)
-      resolver      = PreferenceResolver.new(current_user)
+      resolver      = Preferences::Resolver.new(current_user)
 
       preferences = {}
       missing     = []
@@ -59,7 +59,7 @@ module Api
     end
 
     def update
-      resolver   = PreferenceResolver.new(current_user)
+      resolver   = Preferences::Resolver.new(current_user)
       preference = resolver.get_event_preference(@preferenceable)
       preference ||= EventPreference.new(user: current_user, preferenceable: @preferenceable)
 
@@ -68,9 +68,9 @@ module Api
       if preference.update(event_preference_params)
         sync_updated_event
 
-        fresh_resolver = PreferenceResolver.new(current_user)
+        fresh_resolver = Preferences::Resolver.new(current_user)
         resolved_data  = fresh_resolver.resolve_with_sources(@preferenceable)
-        context        = CalendarTemplateRenderer.build_context_from_meeting_time(@preferenceable)
+        context        = Preferences::TemplateRenderer.build_context_from_meeting_time(@preferenceable)
         preview        = generate_preview(resolved_data[:preferences], context)
 
         resolved_prefs = resolved_data[:preferences].dup
@@ -91,7 +91,7 @@ module Api
     end
 
     def destroy
-      resolver   = PreferenceResolver.new(current_user)
+      resolver   = Preferences::Resolver.new(current_user)
       preference = resolver.get_event_preference(@preferenceable)
 
       if preference
@@ -112,7 +112,7 @@ module Api
 
       authorize preference || EventPreference.new(user: current_user, preferenceable: preferenceable), :show?
 
-      context        = CalendarTemplateRenderer.build_context_from_meeting_time(preferenceable)
+      context        = Preferences::TemplateRenderer.build_context_from_meeting_time(preferenceable)
       preview        = generate_preview(resolved_data[:preferences], context)
 
       resolved_prefs = resolved_data[:preferences].dup
