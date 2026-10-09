@@ -8,8 +8,8 @@ module Api
     def index
       authorize current_user, :show?
       flags = {}
-      FlipperFlags::ALL_FLAGS.each do |flag_name|
-        flipper_key = FlipperFlags::MAP[flag_name]
+      FeatureFlags::ALL_FLAGS.each do |flag_name|
+        flipper_key = FeatureFlags::MAP[flag_name]
         next if flipper_key.nil?
         flags[flag_name] = Flipper[flipper_key].enabled?(current_user)
       end
@@ -25,12 +25,12 @@ module Api
       end
 
       feature_sym = feature_name.to_sym
-      unless FlipperFlags::ALL_FLAGS.include?(feature_sym)
+      unless FeatureFlags::ALL_FLAGS.include?(feature_sym)
         render_error "Unknown feature flag", status: :not_found, feature_name: feature_name
         return
       end
 
-      flipper_key = FlipperFlags::MAP[feature_sym]
+      flipper_key = FeatureFlags::MAP[feature_sym]
       if flipper_key.nil?
         render_error "Invalid flag mapping", status: :unprocessable_content, feature_name: feature_name
         return

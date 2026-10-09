@@ -5,10 +5,10 @@ require "rails_helper"
 RSpec.describe CalendarProviders do
   let(:user) { create(:user) }
 
-  after { Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR) }
+  after { Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR) }
 
   def enable_microsoft_for(person)
-    Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, person)
+    Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, person)
   end
 
   describe ".services_for" do

@@ -9,7 +9,7 @@ module Api
     def index
       authorize :friendship, :index?
 
-      flag_on     = Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      flag_on     = Flipper.enabled?(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
       friendships = current_user.accepted_friendships.includes(:requester, :addressee)
       # Each friend gets a "groups" key only while the friend groups flag is on.
       # The groups for the whole list load in one pass, not one query per friend.

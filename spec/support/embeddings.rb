@@ -72,6 +72,6 @@ RSpec.configure do |config|
     with_openai_configured { example.run }
   end
 
-  config.before(:each, :semantic_search) { Flipper.enable(FlipperFlags::SEMANTIC_SEARCH) }
-  config.after(:each, :semantic_search)  { Flipper.disable(FlipperFlags::SEMANTIC_SEARCH) }
+  config.before(:each, :semantic_search) { Flipper.enable(FeatureFlags::SEMANTIC_SEARCH) }
+  config.after(:each, :semantic_search)  { Flipper.disable(FeatureFlags::SEMANTIC_SEARCH) }
 end

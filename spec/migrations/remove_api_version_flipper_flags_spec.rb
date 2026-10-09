@@ -3,7 +3,7 @@
 require "rails_helper"
 require Rails.root.join("db/migrate/20260919220000_remove_api_version_flipper_flags")
 
-# The rows are built by hand, because FlipperFlags no longer names these flags.
+# The rows are built by hand, because FeatureFlags no longer names these flags.
 RSpec.describe RemoveApiVersionFlipperFlags do
   subject(:migration) { described_class.new }
 

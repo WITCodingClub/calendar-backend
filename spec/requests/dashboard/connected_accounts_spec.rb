@@ -7,7 +7,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
 
   before { sign_in user }
 
-  after { Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR) }
+  after { Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR) }
 
   def disconnect_path_for(credential)
     get dashboard_connected_accounts_path
@@ -82,7 +82,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
       end
 
       it "does not show the Outlook section when only the flag is on", :microsoft_graph do
-        Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user)
+        Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user)
 
         with_microsoft_client_unset { get dashboard_connected_accounts_path }
 
@@ -91,7 +91,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
     end
 
     context "when the Microsoft Graph provider is on", :microsoft_graph do
-      before { Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user) }
+      before { Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user) }
 
       it "links to the Microsoft sign-in with a signed state" do
         get dashboard_connected_accounts_path
@@ -176,7 +176,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
 
     let(:credential) { create(:oauth_credential, :microsoft, user: user) }
 
-    before { Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user) }
+    before { Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user) }
 
     it "starts the move" do
       expect { patch calendar_placement_dashboard_connected_account_path(credential.public_id), params: { placement: "primary" } }
@@ -210,7 +210,7 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
     end
 
     it "refuses while the provider is off" do
-      Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR)
+      Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR)
 
       expect { patch calendar_placement_dashboard_connected_account_path(credential.public_id), params: { placement: "primary" } }
         .not_to have_enqueued_job(MicrosoftGraphCalendarPlacementJob)

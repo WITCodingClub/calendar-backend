@@ -28,7 +28,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     create(:term, start_date: Date.new(2026, 9, 2), end_date: Date.new(2026, 12, 18))
   end
 
-  after { Flipper.disable(FlipperFlags::FRIEND_MEETING_EVENTS) }
+  after { Flipper.disable(FeatureFlags::FRIEND_MEETING_EVENTS) }
 
   def post_meeting(body = params)
     post "/api/friends/meetings", params: body, headers: auth_headers_for(user), as: :json
@@ -49,7 +49,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
   end
 
   context "when the flag is on for the person" do
-    before { Flipper.enable_actor(FlipperFlags::FRIEND_MEETING_EVENTS, user) }
+    before { Flipper.enable_actor(FeatureFlags::FRIEND_MEETING_EVENTS, user) }
 
     def connect_google
       credential = create(:oauth_credential, user: user)
@@ -159,8 +159,8 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     end
 
     before do
-      Flipper.enable_actor(FlipperFlags::FRIEND_MEETING_EVENTS, user)
-      Flipper.enable_actor(FlipperFlags::FRIEND_MEETING_EVENTS, friend)
+      Flipper.enable_actor(FeatureFlags::FRIEND_MEETING_EVENTS, user)
+      Flipper.enable_actor(FeatureFlags::FRIEND_MEETING_EVENTS, friend)
       create(:friend_meeting_attendee, friend_meeting: weekly, user: friend)
     end
 
@@ -237,7 +237,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     let(:stranger) { create(:user) }
 
     before do
-      [ user, friend, stranger ].each { |person| Flipper.enable_actor(FlipperFlags::FRIEND_MEETING_EVENTS, person) }
+      [ user, friend, stranger ].each { |person| Flipper.enable_actor(FeatureFlags::FRIEND_MEETING_EVENTS, person) }
       create(:friend_meeting_attendee, friend_meeting: meeting, user: friend)
     end
 
@@ -310,7 +310,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     end
 
     it "answers 404 while the flag is off" do
-      Flipper.disable_actor(FlipperFlags::FRIEND_MEETING_EVENTS, user)
+      Flipper.disable_actor(FeatureFlags::FRIEND_MEETING_EVENTS, user)
 
       delete "/api/friends/meetings/#{meeting.public_id}", headers: auth_headers_for(user)
 
@@ -326,7 +326,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     end
 
     before do
-      [ user, friend ].each { |person| Flipper.enable_actor(FlipperFlags::FRIEND_MEETING_EVENTS, person) }
+      [ user, friend ].each { |person| Flipper.enable_actor(FeatureFlags::FRIEND_MEETING_EVENTS, person) }
       create(:friend_meeting_attendee, friend_meeting: meeting, user: friend)
     end
 
@@ -368,7 +368,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
 
     it "answers 404 to a person who cannot see the meeting" do
       stranger = create(:user)
-      Flipper.enable_actor(FlipperFlags::FRIEND_MEETING_EVENTS, stranger)
+      Flipper.enable_actor(FeatureFlags::FRIEND_MEETING_EVENTS, stranger)
 
       leave(stranger)
 

@@ -44,7 +44,7 @@ class MeetingLinkBooking < ApplicationService
     MeetingLink.transaction do
       User.where(id: [ @link.user_id, @guest_user&.id ].compact.uniq).order(:id).lock.to_a
       link = MeetingLink.lock.find(@link.id)
-      raise Gone unless link.usable? && Flipper.enabled?(FlipperFlags::MEETING_LINKS, link.user)
+      raise Gone unless link.usable? && Flipper.enabled?(FeatureFlags::MEETING_LINKS, link.user)
 
       slot = MeetingLinkSlots.new(link, guest: @guest_user).find(start)
       raise Invalid, "That time is no longer free. Pick another time." unless slot

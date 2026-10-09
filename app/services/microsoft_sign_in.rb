@@ -39,7 +39,7 @@ module MicrosoftSignIn
   # global enable turns this on. Enabling the flag for a user or a group does
   # nothing here.
   def enabled?
-    configured? && Flipper.enabled?(FlipperFlags::MICROSOFT_SIGN_IN)
+    configured? && Flipper.enabled?(FeatureFlags::MICROSOFT_SIGN_IN)
   end
 
   # OmniAuth calls this for every request, so the cheap path check goes first.

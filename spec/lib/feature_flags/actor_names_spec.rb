@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FlipperActorNames do
+RSpec.describe FeatureFlags::ActorNames do
   let(:user) { create(:user) }
 
   describe ".call" do

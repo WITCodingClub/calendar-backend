@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe "Api::MicrosoftCalendars", type: :request do
   let(:user) { create(:user) }
 
-  after { Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR) }
+  after { Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR) }
 
   describe "POST /api/user/microsoft_calendar" do
     it "answers 404 while the provider is off" do
@@ -15,7 +15,7 @@ RSpec.describe "Api::MicrosoftCalendars", type: :request do
     end
 
     it "answers 404 when the flag is on but no Entra client is configured" do
-      Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user)
+      Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user)
 
       post "/api/user/microsoft_calendar", headers: auth_headers_for(user)
 
@@ -23,7 +23,7 @@ RSpec.describe "Api::MicrosoftCalendars", type: :request do
     end
 
     it "returns a start URL that carries a signed state", :microsoft_graph do
-      Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user)
+      Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user)
 
       post "/api/user/microsoft_calendar", headers: auth_headers_for(user)
 
@@ -35,7 +35,7 @@ RSpec.describe "Api::MicrosoftCalendars", type: :request do
     end
 
     it "carries the placement in the state, and drops a value it does not know", :microsoft_graph do
-      Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user)
+      Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user)
       state_for = lambda do |placement|
         post "/api/user/microsoft_calendar", params: { placement: placement }, headers: auth_headers_for(user)
         url = URI(JSON.parse(response.body)["oauth_url"])
@@ -63,7 +63,7 @@ RSpec.describe "Api::MicrosoftCalendars", type: :request do
     end
 
     context "when the provider is on", :microsoft_graph do
-      before { Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user) }
+      before { Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user) }
 
       it "starts the move and answers 202" do
         create(:oauth_credential, :microsoft, user: user)

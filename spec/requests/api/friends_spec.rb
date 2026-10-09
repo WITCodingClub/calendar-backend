@@ -10,10 +10,10 @@ RSpec.describe "Api::Friends", type: :request do
   let(:headers) { auth_headers_for(user) }
   let(:body)    { response.parsed_body }
 
-  after { Flipper.disable(FlipperFlags::FRIEND_EXPIRY) }
+  after { Flipper.disable(FeatureFlags::FRIEND_EXPIRY) }
 
   def enable_friend_expiry(actor = user)
-    Flipper.enable_actor(FlipperFlags::FRIEND_EXPIRY, actor)
+    Flipper.enable_actor(FeatureFlags::FRIEND_EXPIRY, actor)
   end
 
   describe "GET /api/friends" do

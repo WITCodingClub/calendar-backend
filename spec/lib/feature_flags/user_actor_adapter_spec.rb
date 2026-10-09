@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FlipperUserActorAdapter do
+RSpec.describe FeatureFlags::UserActorAdapter do
   let(:user) { create(:user) }
   let(:feature) { Flipper[:env_switcher] }
 
@@ -71,7 +71,7 @@ RSpec.describe FlipperUserActorAdapter do
 
   describe described_class::UnknownActorRedirect do
     it "sends the admin back to the add-actor form with the error" do
-      app = ->(_env) { raise FlipperUserActorAdapter::UnknownActor, "\"x\" matches no user." }
+      app = ->(_env) { raise FeatureFlags::UserActorAdapter::UnknownActor, "\"x\" matches no user." }
       env = Rack::MockRequest.env_for("/admin/flipper/features/env_switcher/actors", method: "POST")
 
       status, headers, = described_class.new(app).call(env)

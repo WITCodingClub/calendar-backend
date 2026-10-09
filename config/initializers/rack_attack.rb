@@ -68,7 +68,7 @@ class Rack::Attack
     next false unless user_id
 
     user = User.find_by(id: user_id)
-    user&.admin_access? || (user && Flipper.enabled?(FlipperFlags::BYPASS_RATE_LIMITS, user))
+    user&.admin_access? || (user && Flipper.enabled?(FeatureFlags::BYPASS_RATE_LIMITS, user))
   end
 
   # ===========================================================================

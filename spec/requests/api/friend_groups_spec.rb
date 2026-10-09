@@ -15,7 +15,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
     create(:friend_group_membership, friend_group: group, friendship: user.accepted_friendship_with(friend))
   end
 
-  after { Flipper.disable(FlipperFlags::FRIEND_GROUPS) }
+  after { Flipper.disable(FeatureFlags::FRIEND_GROUPS) }
 
   def query_count
     count = 0
@@ -42,7 +42,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
   end
 
   context "when the friend_groups flag is on for the user" do
-    before { Flipper.enable_actor(FlipperFlags::FRIEND_GROUPS, user) }
+    before { Flipper.enable_actor(FeatureFlags::FRIEND_GROUPS, user) }
 
     it "requires a token" do
       get "/api/friends/groups"
@@ -456,7 +456,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
     end
 
     context "when the flag is on" do
-      before { Flipper.enable_actor(FlipperFlags::FRIEND_GROUPS, user) }
+      before { Flipper.enable_actor(FeatureFlags::FRIEND_GROUPS, user) }
 
       it "lists each friend's groups" do
         in_group = befriend

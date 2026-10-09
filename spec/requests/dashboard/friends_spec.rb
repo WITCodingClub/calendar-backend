@@ -20,7 +20,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
 
   before { sign_in current_user }
 
-  after { Flipper.disable(FlipperFlags::FRIEND_EXPIRY) }
+  after { Flipper.disable(FeatureFlags::FRIEND_EXPIRY) }
 
   describe "POST /dashboard/friends" do
     it "creates a pending request to the given public id" do
@@ -92,7 +92,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
 
     context "with the flag on" do
-      before { Flipper.enable_actor(FlipperFlags::FRIEND_EXPIRY, current_user) }
+      before { Flipper.enable_actor(FeatureFlags::FRIEND_EXPIRY, current_user) }
 
       it "ends the friendship at the end of the chosen day" do
         post dashboard_friends_path, params: { friend_id: other_user.public_id, expires_on: end_date.iso8601 }
@@ -134,7 +134,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
 
     context "with the flag on" do
-      before { Flipper.enable_actor(FlipperFlags::FRIEND_EXPIRY, current_user) }
+      before { Flipper.enable_actor(FeatureFlags::FRIEND_EXPIRY, current_user) }
 
       it "only proposes a later end date, and keeps the current one" do
         current  = friendship.expires_at
@@ -263,7 +263,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
 
     context "with the flag on" do
-      before { Flipper.enable_actor(FlipperFlags::FRIEND_EXPIRY, current_user) }
+      before { Flipper.enable_actor(FeatureFlags::FRIEND_EXPIRY, current_user) }
 
       it "accepts the friend's permanent proposal" do
         friendship.change_expiry!(to: nil, by: other_user)
@@ -348,7 +348,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       expect(response.body).not_to include("Propose permanent")
       expect(response.body).not_to include("End date (optional)")
 
-      Flipper.enable_actor(FlipperFlags::FRIEND_EXPIRY, current_user)
+      Flipper.enable_actor(FeatureFlags::FRIEND_EXPIRY, current_user)
       get dashboard_friends_path
       expect(response.body).to include("Propose permanent")
       expect(response.body).to include("End date (optional)")
@@ -470,7 +470,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       create(:enrollment, user: other_user, course: course)
     end
 
-    after { Flipper.disable(FlipperFlags::FRIENDS_AVAILABILITY_ONLY) }
+    after { Flipper.disable(FeatureFlags::FRIENDS_AVAILABILITY_ONLY) }
 
     it "shows busy blocks and no courses when the friend shares only availability" do
       friendship.update_visibility_for!(other_user, :availability_only)
@@ -499,7 +499,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
 
     it "shows the sharing form with the flag on" do
-      Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
 
       get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid }
 
@@ -511,7 +511,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
   describe "PATCH /dashboard/friends/:id/visibility" do
     let!(:friendship) { create(:friendship, :accepted, requester: other_user, addressee: current_user) }
 
-    after { Flipper.disable(FlipperFlags::FRIENDS_AVAILABILITY_ONLY) }
+    after { Flipper.disable(FeatureFlags::FRIENDS_AVAILABILITY_ONLY) }
 
     it "answers 404 while the flag is off" do
       patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "availability_only" }
@@ -521,7 +521,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
 
     context "with the flag on" do
-      before { Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user) }
+      before { Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user) }
 
       it "sets the signed-in user's own level" do
         patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "availability_only" }
@@ -580,10 +580,10 @@ RSpec.describe "Dashboard::Friends", type: :request do
   end
 
   describe "choosing a level when sending or accepting a request" do
-    after { Flipper.disable(FlipperFlags::FRIENDS_AVAILABILITY_ONLY) }
+    after { Flipper.disable(FeatureFlags::FRIENDS_AVAILABILITY_ONLY) }
 
     it "sets the sender's side when the flag is on" do
-      Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
 
       post dashboard_friends_path, params: { friend_id: other_user.public_id, visibility: "availability_only" }
 
@@ -600,7 +600,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
 
     it "sets the accepting user's side when the flag is on" do
-      Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
       friendship = create(:friendship, requester: other_user, addressee: current_user)
 
       post accept_dashboard_friend_path(friendship.id), params: { visibility: "availability_only" }
@@ -624,7 +624,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       get requests_dashboard_friends_path
       expect(response.body).not_to include("Share only when I am busy")
 
-      Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
       get requests_dashboard_friends_path
       expect(response.body).to include("Share only when I am busy")
     end

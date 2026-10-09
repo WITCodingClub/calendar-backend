@@ -49,7 +49,7 @@ module Api
 
     # Off for everyone until the privacy policy covers meeting links.
     def require_meeting_links
-      return if Flipper.enabled?(FlipperFlags::MEETING_LINKS, current_user)
+      return if Flipper.enabled?(FeatureFlags::MEETING_LINKS, current_user)
 
       render_error "Meeting links are not enabled", status: :not_found
     end

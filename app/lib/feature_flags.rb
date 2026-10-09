@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module FlipperFlags
+module FeatureFlags
   ENV_SWITCHER = :env_switcher
   DEBUG_MODE = :debug_mode
   FINALS_RETROACTIVE = :finals_retroactive

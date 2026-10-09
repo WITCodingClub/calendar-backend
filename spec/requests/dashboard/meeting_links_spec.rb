@@ -13,7 +13,7 @@ RSpec.describe "Dashboard::MeetingLinks", type: :request do
 
   before { sign_in user }
 
-  after { Flipper.disable(FlipperFlags::MEETING_LINKS) }
+  after { Flipper.disable(FeatureFlags::MEETING_LINKS) }
 
   it "answers 404 while the flag is off" do
     get dashboard_meeting_links_path
@@ -31,7 +31,7 @@ RSpec.describe "Dashboard::MeetingLinks", type: :request do
   end
 
   context "when the flag is on for the person" do
-    before { Flipper.enable_actor(FlipperFlags::MEETING_LINKS, user) }
+    before { Flipper.enable_actor(FeatureFlags::MEETING_LINKS, user) }
 
     it "links to the page from the friends page" do
       get dashboard_friends_path

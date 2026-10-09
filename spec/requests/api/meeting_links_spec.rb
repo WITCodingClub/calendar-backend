@@ -12,7 +12,7 @@ RSpec.describe "Api::MeetingLinks", type: :request do
 
   around { |example| travel_to(zone.local(2026, 10, 7, 12)) { example.run } }
 
-  after { Flipper.disable(FlipperFlags::MEETING_LINKS) }
+  after { Flipper.disable(FeatureFlags::MEETING_LINKS) }
 
   it "answers 401 without a token" do
     get "/api/meeting_links"
@@ -29,7 +29,7 @@ RSpec.describe "Api::MeetingLinks", type: :request do
   end
 
   context "when the flag is on for the person" do
-    before { Flipper.enable_actor(FlipperFlags::MEETING_LINKS, user) }
+    before { Flipper.enable_actor(FeatureFlags::MEETING_LINKS, user) }
 
     describe "POST /api/meeting_links" do
       it "makes a link and returns its URL once" do

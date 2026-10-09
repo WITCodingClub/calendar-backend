@@ -8,10 +8,10 @@ RSpec.describe MicrosoftGraphCalendarPlacementJob, :microsoft_graph do
   let(:user)       { create(:user) }
   let(:credential) { create(:oauth_credential, :microsoft, user: user, token_expires_at: 1.hour.from_now) }
 
-  after { Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR) }
+  after { Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR) }
 
   context "when the provider is on for the person" do
-    before { Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user) }
+    before { Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user) }
 
     # A job spec that only calls a service may stub the service class.
     it "changes the placement and then starts a forced sync" do
