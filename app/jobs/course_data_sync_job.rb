@@ -7,7 +7,11 @@ class CourseDataSyncJob < ApplicationJob
 
   # SolidQueue calls this key with the job's arguments, so it has to accept them.
   # A bare -> {} raises ArgumentError on any enqueue that passes term_uids.
-  limits_concurrency to: 1, key: ->(*) { "course_data_sync" }
+  # The concurrency group is part of every lock key, so it must not change when
+  # the class is renamed. Jobs in the queue hold locks under this name.
+  CONCURRENCY_GROUP = "CourseDataSyncJob"
+
+  limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(*) { "course_data_sync" }
 
   def perform(term_uids: nil)
     term_uids ||= default_term_uids

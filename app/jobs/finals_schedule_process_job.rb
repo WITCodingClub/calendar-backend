@@ -3,7 +3,11 @@
 class FinalsScheduleProcessJob < ApplicationJob
   queue_as :default
 
-  limits_concurrency to: 1, key: ->(finals_schedule) { "finals_schedule_process_#{finals_schedule.term_id}" }
+  # The concurrency group is part of every lock key, so it must not change when
+  # the class is renamed. Jobs in the queue hold locks under this name.
+  CONCURRENCY_GROUP = "FinalsScheduleProcessJob"
+
+  limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(finals_schedule) { "finals_schedule_process_#{finals_schedule.term_id}" }
 
   def perform(finals_schedule)
     finals_schedule.update!(status: :processing)

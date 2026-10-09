@@ -9,7 +9,7 @@
 class FriendMeetingPublishJob < ApplicationJob
   queue_as :high
 
-  limits_concurrency to: 1, group: "GoogleCalendarSyncJob",
+  limits_concurrency to: 1, group: GoogleCalendarSyncJob::CONCURRENCY_GROUP,
                      key: ->(meeting) { "google_calendar_sync_user_#{meeting.user_id}" }
 
   retry_on MicrosoftGraph::Error, Google::Apis::ServerError, Google::Apis::RateLimitError,

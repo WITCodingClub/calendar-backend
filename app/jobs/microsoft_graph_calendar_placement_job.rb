@@ -10,7 +10,7 @@
 class MicrosoftGraphCalendarPlacementJob < ApplicationJob
   queue_as :high
 
-  limits_concurrency to: 1, group: "GoogleCalendarSyncJob",
+  limits_concurrency to: 1, group: GoogleCalendarSyncJob::CONCURRENCY_GROUP,
                      key: ->(user, _placement) { "google_calendar_sync_user_#{user.id}" }
 
   # A Graph failure stops the move before the row changes, so the job can run
