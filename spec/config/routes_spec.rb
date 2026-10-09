@@ -6,15 +6,17 @@ require "rails_helper"
 # draw call names adds no routes, and nothing else fails.
 RSpec.describe "Route files" do
   it "draws every file in config/routes exactly once" do
-    files = Rails.root.glob("config/routes/*.rb").map { |path| path.basename(".rb").to_s }
-    # A route file may draw another one, as api.rb draws api_legacy.rb.
-    sources = [ Rails.root.join("config/routes.rb"), *Rails.root.glob("config/routes/*.rb") ]
-    drawn   = sources.flat_map { |path| path.read.scan(/^\s*draw :(\w+)/).flatten }
+    root  = Rails.root.join("config/routes")
+    files = root.glob("**/*.rb").map { |path| path.relative_path_from(root).sub_ext("").to_s }
+    # A route file may draw another one, as api.rb draws api/legacy.rb. A file
+    # in a subfolder is drawn by its path as a string: draw "api/legacy".
+    sources = [ Rails.root.join("config/routes.rb"), *root.glob("**/*.rb") ]
+    drawn   = sources.flat_map { |path| path.read.scan(%r{^\s*draw (?::(\w+)|"([\w/]+)")}).flatten.compact }
 
     expect(drawn).to match_array(files)
   end
 
-  # api_friends.rb draws the :friend_id routes last. If they move up, they
+  # api/friends.rb draws the :friend_id routes last. If they move up, they
   # catch "meetings", "requests", and "groups" as a friend id.
   describe "friend routes" do
     def recognize(method, path) = Rails.application.routes.recognize_path(path, method: method)

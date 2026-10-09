@@ -27,7 +27,7 @@ Yabeda.configure do
           tags: %i[event version browser]
 
   counter :api_legacy_requests_total,
-          comment: "Requests to an old API path in config/routes/api_legacy.rb, by path.",
+          comment: "Requests to an old API path in config/routes/api/legacy.rb, by path.",
           tags: %i[route]
 
   gauge :users, comment: "Accounts in the database.", aggregation: :most_recent
