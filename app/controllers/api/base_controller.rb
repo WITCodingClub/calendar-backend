@@ -10,6 +10,6 @@ module Api
     include Api::ErrorRendering
     include Api::LegacyRouteCounting
     include Api::TokenAuthentication
-    include PublicIdLookupable
+    include Api::PublicIdLookupable
   end
 end

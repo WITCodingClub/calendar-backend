@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-namespace :calendars do
+namespace :calendar do
   desc "Delete all user Google calendars"
   task delete_all: :environment do
     puts "Starting calendar deletion process..."
@@ -113,10 +113,10 @@ namespace :calendars do
   desc "Delete and recreate all user Google calendars"
   task rebuild_all: :environment do
     puts "Starting complete calendar rebuild process..."
-    Rake::Task["calendars:delete_all"].invoke
+    Rake::Task["calendar:delete_all"].invoke
     puts "\nWaiting 5 seconds before recreation..."
     sleep 5
-    Rake::Task["calendars:recreate_all"].invoke
+    Rake::Task["calendar:recreate_all"].invoke
     puts "\nComplete calendar rebuild finished!"
   end
 end

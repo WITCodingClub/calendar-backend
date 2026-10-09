@@ -3,7 +3,7 @@
 # Development data.
 #
 # The catalog comes from a production export in db/seeds/catalog.json.gz. Make a
-# new one with `bin/rails catalog_snapshot:export` (see Catalog::Snapshot). The
+# new one with `bin/rails catalog:snapshot:export` (see Catalog::Snapshot). The
 # export holds no student records, so seeds build fake people with factories.
 
 if Catalog::Snapshot::SEED_PATH.exist?

@@ -42,7 +42,7 @@ class DiscoveryController < ActionController::Base
   def api_catalog
     response.headers["Link"] = %(<#{api_catalog_url}>; rel="api-catalog")
 
-    render json:         ApiCatalogSerializer.new(url_options).as_json,
+    render json:         Discovery::ApiCatalogSerializer.new(url_options).as_json,
            content_type: %(application/linkset+json; profile="#{API_CATALOG_PROFILE}")
   end
 

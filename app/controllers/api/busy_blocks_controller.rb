@@ -2,7 +2,7 @@
 
 module Api
   class BusyBlocksController < BaseController
-    include BusyBlocksParams
+    include Api::BusyBlocksParams
 
     authenticate_with_token
 

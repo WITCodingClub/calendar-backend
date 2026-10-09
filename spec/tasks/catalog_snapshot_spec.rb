@@ -3,7 +3,7 @@
 require "rails_helper"
 require "rake"
 
-RSpec.describe "catalog_snapshot rake tasks" do
+RSpec.describe "catalog:snapshot rake tasks" do
   before(:all) do
     Rails.application.load_tasks if Rake::Task.tasks.empty?
   end
@@ -22,11 +22,11 @@ RSpec.describe "catalog_snapshot rake tasks" do
       allow(ENV).to receive(:fetch).and_call_original
       allow(ENV).to receive(:fetch).with("FILE", anything).and_return(path)
 
-      expect { run_task("catalog_snapshot:export") }.to output(/Wrote #{Regexp.escape(path)}: 1 terms.*1 courses/).to_stdout
+      expect { run_task("catalog:snapshot:export") }.to output(/Wrote #{Regexp.escape(path)}: 1 terms.*1 courses/).to_stdout
 
       Catalog::Snapshot::TABLES.values.reverse_each { |model, _columns| model.constantize.delete_all }
 
-      expect { run_task("catalog_snapshot:import") }.to output(/Imported #{Regexp.escape(path)}/).to_stdout
+      expect { run_task("catalog:snapshot:import") }.to output(/Imported #{Regexp.escape(path)}/).to_stdout
       expect(Course.find(course.id).crn).to eq(course.crn)
     end
   end

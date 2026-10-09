@@ -33,9 +33,9 @@
 <% end %>
 
 <% if @sync_in_progress %>
-  <p role="status" class="mb-6 px-4 py-3 rounded-xl text-sm <%= AdminHelper::BADGE_TONES[:info] %>">A 25Live sync is running. It takes a few minutes. Reload the page when it finishes.</p>
+  <p role="status" class="mb-6 px-4 py-3 rounded-xl text-sm <%= Admin::ApplicationHelper::BADGE_TONES[:info] %>">A 25Live sync is running. It takes a few minutes. Reload the page when it finishes.</p>
 <% elsif statuses.values.any? { |s| s == :never_synced || s == :stale } %>
-  <p class="mb-6 px-4 py-3 rounded-xl text-sm <%= AdminHelper::BADGE_TONES[:warning] %>">Some buildings have no recent 25Live sync. Run a sync to see if 25Live has them.</p>
+  <p class="mb-6 px-4 py-3 rounded-xl text-sm <%= Admin::ApplicationHelper::BADGE_TONES[:warning] %>">Some buildings have no recent 25Live sync. Run a sync to see if 25Live has them.</p>
 <% end %>
 
 <%= render "admin/shared/stats" do %>

@@ -6,7 +6,7 @@ module Api
     # times. The friend's visibility level decides.
     class SchedulesController < Api::BaseController
       include Api::FriendLookup
-      include BusyBlocksParams
+      include Api::BusyBlocksParams
       include Api::TermLookup
 
       authenticate_with_token

@@ -1,7 +1,7 @@
 <%= render "admin/shared/page_header", title: "Authorization Successful", back: [ "Service account", admin_service_account_index_path ] %>
 
 <div class="max-w-3xl space-y-6">
-  <p role="status" class="px-4 py-3 rounded-xl text-sm <%= AdminHelper::BADGE_TONES[:success] %>">Google returned OAuth tokens for the service account.</p>
+  <p role="status" class="px-4 py-3 rounded-xl text-sm <%= Admin::ApplicationHelper::BADGE_TONES[:success] %>">Google returned OAuth tokens for the service account.</p>
 
   <%= render "admin/shared/card", title: "Refresh token" do %>
     <label class="m3-label" for="refresh-token-input">Copy this token into the credentials</label>
