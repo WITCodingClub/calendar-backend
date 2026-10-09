@@ -1,5 +1,5 @@
 <%# One number with a label. With `path:` the whole card is a link. `tone:`
-    colors the number (a key of AdminHelper::BADGE_TONES). %>
+    colors the number (a key of Admin::ApplicationHelper::BADGE_TONES). %>
 <% number_class = {
      danger: "text-error", warning: "text-secondary", success: "text-tertiary", info: "text-primary"
    }.fetch(local_assigns[:tone]&.to_sym, "text-on-surface") %>

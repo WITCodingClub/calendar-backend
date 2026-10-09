@@ -1,7 +1,7 @@
 <%= render "admin/shared/page_header", title: "Confirm Schedule Update", back: [ "Finals schedules", admin_finals_schedules_path ] %>
 
 <div class="max-w-4xl space-y-6">
-  <div class="px-4 py-3 rounded-xl text-sm <%= AdminHelper::BADGE_TONES[:warning] %>">
+  <div class="px-4 py-3 rounded-xl text-sm <%= Admin::ApplicationHelper::BADGE_TONES[:warning] %>">
     <p class="font-semibold">Existing finals found</p>
     <p><%= @finals_schedule.term&.name %> already has <strong><%= @existing_exams.size %></strong> final exams. Processing the new schedule updates the matching CRNs and adds new ones.</p>
   </div>

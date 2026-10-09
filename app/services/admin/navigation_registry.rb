@@ -2,7 +2,7 @@
 
 module Admin
   # The admin sections, in the order the sidebar and the command palette show
-  # them. `icon` is a name from AdminHelper::ICONS.
+  # them. `icon` is a name from Admin::ApplicationHelper::ICONS.
   class NavigationRegistry
     CATEGORIES = [
       {

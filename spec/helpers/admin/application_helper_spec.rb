@@ -3,7 +3,7 @@
 require "rails_helper"
 
 # The shared admin partials (issue #655) render through these helpers.
-RSpec.describe AdminHelper do
+RSpec.describe Admin::ApplicationHelper do
   def html(fragment)
     Nokogiri::HTML::DocumentFragment.parse(fragment)
   end
@@ -13,7 +13,7 @@ RSpec.describe AdminHelper do
       svg = html(helper.admin_icon(:users)).at_css("svg")
 
       expect(svg["aria-hidden"]).to eq("true")
-      expect(svg.at_css("path")["d"]).to eq(AdminHelper::ICONS[:users])
+      expect(svg.at_css("path")["d"]).to eq(Admin::ApplicationHelper::ICONS[:users])
     end
 
     it "raises for an unknown icon, so a typo fails a spec" do

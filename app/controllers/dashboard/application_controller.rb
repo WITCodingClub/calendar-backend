@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Dashboard::ApplicationController < ApplicationController
-  layout "user"
+  layout "dashboard"
   before_action :authenticate_user!
   before_action :require_processed_courses
   after_action  :verify_authorized
