@@ -43,6 +43,10 @@ class Rack::Attack
   # browser sends them without a token, so they get their own budget too.
   CSP_REPORTS_PATH = "/api/csp_reports"
 
+  # The ICS feed. Calendar apps fetch it from their own servers, and their
+  # User-Agents often say "bot" or nothing at all.
+  CALENDAR_FEED_PATH = "/calendar/"
+
   AGENT_READABLE_PATH = lambda do |req|
     AGENT_READABLE_PATHS.include?(req.path) ||
       req.path == "/docs" ||
@@ -187,12 +191,11 @@ class Rack::Attack
   # CALENDAR FEED THROTTLES
   # ===========================================================================
 
+  # One limit for each feed. There is no limit for each IP address: Google,
+  # Cozi, and other calendar apps fetch every subscriber's feed from a small
+  # set of servers, so a limit for each IP would stop all their feeds at once.
   throttle("calendar/token", limit: 60, period: 1.hour) do |req|
-    req.path.split("/").last if req.path.start_with?("/calendar/")
-  end
-
-  throttle("calendar/ip", limit: 100, period: 1.hour) do |req|
-    req.ip if req.path.start_with?("/calendar/")
+    req.path.split("/").last if req.path.start_with?(CALENDAR_FEED_PATH)
   end
 
   # ===========================================================================
@@ -278,8 +281,10 @@ class Rack::Attack
   # Crawlers, bots, and clients with no User-Agent get no access to the app
   # pages. Agents may still read the files and docs written for them, and data
   # tools, which often send no User-Agent, may still read the catalog API.
+  # Calendar apps may fetch the ICS feed.
   def self.suspicious_agent?(req)
     return false if AGENT_READABLE_PATH.call(req)
+    return false if req.path.start_with?(CALENDAR_FEED_PATH)
 
     ua = req.user_agent.to_s.downcase
     suspicious = ua.include?("scraper") ||

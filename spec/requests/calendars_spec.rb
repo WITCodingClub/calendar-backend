@@ -107,6 +107,8 @@ RSpec.describe "GET /calendar/:calendar_token", type: :request do
       expect(response).to have_http_status(:not_modified)
       expect(response.body).to be_empty
       expect(response.headers["Cache-Control"]).to include("max-age=3600")
+      expect(response.headers["X-Published-TTL"]).to eq("PT1H")
+      expect(response.headers["Refresh-Interval"]).to eq("3600")
     end
 
     it "sends the full feed with a new ETag after a class changes" do

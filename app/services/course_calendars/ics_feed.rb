@@ -16,6 +16,12 @@ module CourseCalendars
 
     TZID = "America/New_York"
 
+    # How often a calendar app should fetch the feed again, as an iCalendar
+    # duration. Apps that subscribe by URL, such as Cozi, Apple Calendar, and
+    # Outlook, read these properties in the body. Most ignore HTTP headers.
+    # Google Calendar ignores both and uses its own schedule.
+    REFRESH_INTERVAL = "PT1H"
+
     def initialize(user)
       @user    = user
       @courses = user.courses
@@ -40,6 +46,8 @@ module CourseCalendars
       cal.prodid = "-//WITCC//Course Calendar//EN"
       cal.append_custom_property("X-WR-CALNAME", "WIT Course Schedule")
       cal.append_custom_property("X-WR-CALDESC", "WIT Course Schedule Calendar for #{@user.full_name}")
+      cal.refresh_interval = REFRESH_INTERVAL # RFC 7986
+      cal.append_custom_property("X-PUBLISHED-TTL", REFRESH_INTERVAL) # Apple and Microsoft
       add_timezone(cal)
 
       @courses.each do |course|

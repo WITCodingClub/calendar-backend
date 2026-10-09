@@ -56,6 +56,12 @@ RSpec.describe Rack::Attack do
       expect(described_class.suspicious_agent?(request_to("/api/nope", "GPTBot/1.1"))).to be(true)
     end
 
+    [ "Cozi-iCalendar-FeedReader", "Google-Calendar-Importer", "SomeFeedBot/1.0", "" ].each do |user_agent|
+      it "lets the calendar app #{user_agent.inspect} fetch the ICS feed" do
+        expect(described_class.suspicious_agent?(request_to("/calendar/sample-token", user_agent))).to be(false)
+      end
+    end
+
     it "lets Googlebot and browsers read app pages" do
       expect(described_class.suspicious_agent?(request_to("/admin", "Googlebot/2.1"))).to be(false)
       expect(described_class.suspicious_agent?(request_to("/admin", "Mozilla/5.0 (Macintosh)"))).to be(false)
@@ -145,6 +151,43 @@ RSpec.describe Rack::Attack do
       expect(discriminator("api/csp-reports", "/api/csp_reports")).to eq("1.2.3.4")
       expect(discriminator("api/csp-reports", "/api/user/onboard")).to be_nil
       expect(discriminator("api/ip", "/api/csp_reports")).to be_nil
+    end
+  end
+
+  describe "calendar feed throttles" do
+    def discriminator(name, path, ip)
+      request = Rack::Attack::Request.new(Rack::MockRequest.env_for(path, "REMOTE_ADDR" => ip))
+      described_class.throttles.fetch(name).block.call(request)
+    end
+
+    it "limits each feed by its token" do
+      expect(described_class.throttles.fetch("calendar/token")).to have_attributes(limit: 60, period: 3600)
+      expect(discriminator("calendar/token", "/calendar/sample-token", "1.2.3.4")).to eq("sample-token")
+      expect(discriminator("calendar/token", "/dashboard", "1.2.3.4")).to be_nil
+    end
+
+    it "has no limit for each IP address, because calendar apps fetch every feed from a few servers" do
+      expect(described_class.throttles.keys.grep(%r{\Acalendar/})).to eq([ "calendar/token" ])
+    end
+
+    it "serves many feeds to one IP address without a 429" do
+      original_store = Rack::Attack.cache.store
+      Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+      users = create_list(:user, 3)
+      env = { "REMOTE_ADDR" => "5.6.7.8", "HTTP_USER_AGENT" => "Cozi-iCalendar-FeedReader" }
+
+      statuses = Array.new(120) do |i|
+        status, _headers, body = Rails.application.call(
+          Rack::MockRequest.env_for("/calendar/#{users[i % 3].calendar_token}", **env)
+        )
+        # Rails.cache keeps a local cache until the body closes.
+        body.close if body.respond_to?(:close)
+        status
+      end
+
+      expect(statuses).to all(eq(200))
+    ensure
+      Rack::Attack.cache.store = original_store
     end
   end
 

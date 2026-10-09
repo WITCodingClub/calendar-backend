@@ -35,6 +35,13 @@ RSpec.describe CourseCalendars::IcsFeed do
       expect(calendar.custom_property("x_wr_caldesc")).to eq([ "WIT Course Schedule Calendar for Empty Student" ])
       expect(calendar.timezones.map(&:tzid)).to eq([ "America/New_York" ])
     end
+
+    it "asks calendar apps to fetch the feed again every hour" do
+      body = described_class.new(user).to_ical
+
+      expect(body).to include("REFRESH-INTERVAL;VALUE=DURATION:PT1H")
+      expect(body).to include("X-PUBLISHED-TTL:PT1H")
+    end
   end
 
   describe "a class event" do
