@@ -105,6 +105,29 @@
     <% end %>
   </div>
 
+  <div id="emails" class="m3-card p-5">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h2 class="text-sm font-medium text-on-surface">Friend emails</h2>
+        <p class="text-xs text-on-surface-variant mt-0.5">
+          Emails about friend requests and friendship end dates.
+          <% if current_user.friend_emails? %>
+            Currently <span class="text-on-tertiary-container font-medium">on</span>.
+          <% else %>
+            Currently <span class="text-error font-medium">off</span>.
+          <% end %>
+        </p>
+      </div>
+
+      <%= button_to emails_dashboard_notifications_path,
+          method: :patch,
+          params: { friend_emails: !current_user.friend_emails? },
+          class: "#{current_user.friend_emails? ? 'm3-btn-outlined' : 'm3-btn-filled'} flex-shrink-0" do %>
+        <%= current_user.friend_emails? ? "Turn off" : "Turn on" %>
+      <% end %>
+    </div>
+  </div>
+
   <div class="m3-card p-4 text-sm text-on-surface-variant">
     Disabling notifications removes Google Calendar event reminders during your next sync. You can re-enable at any time.
   </div>

@@ -1,11 +1,9 @@
-<h2>Unlock your account</h2>
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; color: #1f1b13;">Unlock your account</h1>
 
-<p>Hi,</p>
+<p style="margin: 0 0 16px 0;">Hi,</p>
 
-<p>We locked your WIT Calendar account (<strong><%= @resource.email %></strong>) after too many failed sign-in attempts.</p>
+<p style="margin: 0 0 16px 0;">We locked your WIT Calendar account (<strong><%= @resource.email %></strong>) after too many failed sign-in attempts.</p>
 
-<p style="margin-top: 16px;">
-  <%= link_to "Unlock my account", unlock_url(@resource, unlock_token: @token) %>
-</p>
+<%= render "shared/mailer_button", url: unlock_url(@resource, unlock_token: @token), label: "Unlock my account" %>
 
-<p style="margin-top: 16px;">If you did not try to sign in, contact us at <%= mail_to Rails.application.config.x.contact_email %>.</p>
+<p style="margin: 0; font-size: 14px; color: #4d4639;">If you did not try to sign in, contact us at <%= mail_to Rails.application.config.x.contact_email, nil, style: "color: #735b0c;" %>.</p>

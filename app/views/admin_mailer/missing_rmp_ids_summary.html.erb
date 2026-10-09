@@ -1,26 +1,26 @@
-<h2>Faculty Missing RMP IDs — Weekly Summary</h2>
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; color: #1f1b13;">Faculty missing RMP IDs</h1>
 
-<p>There <%= @count == 1 ? "is" : "are" %> <strong><%= @count %></strong> faculty member<%= @count == 1 ? "" : "s" %> with courses who are missing Rate My Professor IDs.</p>
+<p style="margin: 0 0 16px 0;">
+  There <%= @count == 1 ? "is" : "are" %> <strong><%= @count %></strong> faculty member<%= @count == 1 ? "" : "s" %> with courses who <%= @count == 1 ? "is" : "are" %> missing Rate My Professor IDs.
+</p>
 
-<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
   <thead>
-    <tr style="background: #f3f4f6;">
-      <th style="text-align: left;">Name</th>
-      <th style="text-align: left;">Email</th>
-      <th style="text-align: left;">Courses</th>
+    <tr>
+      <th style="padding: 8px; text-align: left; font-size: 14px; border-bottom: 2px solid #d1c5b4;">Name</th>
+      <th style="padding: 8px; text-align: left; font-size: 14px; border-bottom: 2px solid #d1c5b4;">Email</th>
+      <th style="padding: 8px; text-align: left; font-size: 14px; border-bottom: 2px solid #d1c5b4;">Courses</th>
     </tr>
   </thead>
   <tbody>
     <% @faculties.each do |faculty| %>
       <tr>
-        <td><%= faculty.full_name %></td>
-        <td><%= faculty.email || "—" %></td>
-        <td><%= faculty.courses.size %></td>
+        <td style="padding: 8px; font-size: 14px; border-bottom: 1px solid #e9e1d4;"><%= faculty.full_name %></td>
+        <td style="padding: 8px; font-size: 14px; border-bottom: 1px solid #e9e1d4;"><%= faculty.email || "None" %></td>
+        <td style="padding: 8px; font-size: 14px; border-bottom: 1px solid #e9e1d4;"><%= faculty.courses.size %></td>
       </tr>
     <% end %>
   </tbody>
 </table>
 
-<p style="margin-top: 16px;">
-  <a href="<%= missing_rmp_ids_admin_faculties_url %>">View in Admin</a>
-</p>
+<%= render "shared/mailer_button", url: missing_rmp_ids_admin_faculties_url, label: "View in admin" %>

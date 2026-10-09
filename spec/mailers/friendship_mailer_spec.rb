@@ -32,6 +32,25 @@ RSpec.describe FriendshipMailer, type: :mailer do
       expect(text).to include("http://example.com/dashboard/friends/requests")
     end
 
+    it "puts the review link in a button" do
+      button = Nokogiri::HTML(mail.html_part.body.to_s).at_css("table[role=presentation] td a[href$='/dashboard/friends/requests']")
+
+      expect(button.text).to eq("Review the request")
+    end
+
+    it "links to the email settings in both parts" do
+      settings = "http://example.com/dashboard/notifications#emails"
+
+      expect(mail.html_part.body.to_s).to include(settings).and include("Change which emails you get")
+      expect(mail.text_part.body.to_s).to include("Change which emails you get: #{settings}")
+    end
+
+    it "sends nothing when the requestee turned friend emails off" do
+      addressee.update!(friend_emails: false)
+
+      expect(mail.message).to be_a(ActionMailer::Base::NullMail)
+    end
+
     it "falls back to the email address when the requester has no name" do
       requester.update!(first_name: nil, last_name: nil)
 
@@ -126,6 +145,12 @@ RSpec.describe FriendshipMailer, type: :mailer do
 
       expect(mail.subject).to eq("Ada Lovelace declined the new end date for your friendship")
       expect(mail.text_part.body.to_s).to include("The end date did not change.")
+    end
+
+    it "sends nothing when the recipient turned friend emails off" do
+      addressee.update!(friend_emails: false)
+
+      expect(mail_for("shortened").message).to be_a(ActionMailer::Base::NullMail)
     end
 
     it "refuses an unknown event" do

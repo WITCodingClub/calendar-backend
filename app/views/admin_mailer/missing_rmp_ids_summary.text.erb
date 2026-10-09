@@ -1,0 +1,9 @@
+Faculty missing RMP IDs
+
+There <%= @count == 1 ? "is" : "are" %> <%= @count %> faculty member<%= @count == 1 ? "" : "s" %> with courses who <%= @count == 1 ? "is" : "are" %> missing Rate My Professor IDs.
+
+<% @faculties.each do |faculty| -%>
+- <%= faculty.full_name %> (<%= faculty.email || "no email" %>), <%= pluralize(faculty.courses.size, "course") %>
+<% end -%>
+
+View in admin: <%= missing_rmp_ids_admin_faculties_url %>

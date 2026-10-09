@@ -1,1 +1,7 @@
-<%= yield %>
+<%= yield.rstrip %>
+
+--
+WIT Calendar, from the WIT Coding Club.
+<% if @preferences_url -%>
+Change which emails you get: <%= @preferences_url %>
+<% end -%>

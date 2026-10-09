@@ -1,8 +1,8 @@
-<h2>Your email address changed</h2>
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; color: #1f1b13;">Your email address changed</h1>
 
-<p>Hi,</p>
+<p style="margin: 0 0 16px 0;">Hi,</p>
 
-<p>
+<p style="margin: 0 0 16px 0;">
   <% if @resource.try(:unconfirmed_email?) %>
     The email address for your WIT Calendar account is changing to <strong><%= @resource.unconfirmed_email %></strong>.
   <% else %>
@@ -10,4 +10,4 @@
   <% end %>
 </p>
 
-<p style="margin-top: 16px;">If you did not make this change, contact us at <%= mail_to Rails.application.config.x.contact_email %>.</p>
+<p style="margin: 0; font-size: 14px; color: #4d4639;">If you did not make this change, contact us at <%= mail_to Rails.application.config.x.contact_email, nil, style: "color: #735b0c;" %>.</p>
