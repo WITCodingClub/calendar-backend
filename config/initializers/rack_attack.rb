@@ -64,8 +64,12 @@ class Rack::Attack
     [ "127.0.0.1", "::1" ].include?(req.ip) if Rails.env.development?
   end
 
+  # Exact paths: a prefix such as "/up" would also let "/upload" skip every
+  # limit and blocklist.
+  HEALTHCHECK_PATHS = [ "/up", "/up.json" ].freeze
+
   safelist("allow-healthchecks") do |req|
-    req.path.start_with?("/up", "/healthchecks", "/okcomputer")
+    HEALTHCHECK_PATHS.include?(req.path)
   end
 
   # Admins and users with the bypass flag skip per-user API limits
@@ -84,16 +88,11 @@ class Rack::Attack
   # BLOCKLISTS
   # ===========================================================================
 
+  # Blocks each scanner request, but does not ban the IP address. Many
+  # students share one campus address, so a ban for one student's scanner
+  # would lock the whole campus out. The req/ip throttle still slows a scanner.
   blocklist("block-suspicious-requests") do |req|
-    Rack::Attack::Fail2Ban.filter("pentesters-#{req.ip}", maxretry: 5, findtime: 10.minutes, bantime: 1.hour) do
-      CGI.unescape(req.query_string) =~ /\/etc\/passwd/ ||
-        req.path.include?("/etc/passwd") ||
-        req.path.include?("wp-admin") ||
-        req.path.include?("wp-login") ||
-        req.path.include?("phpMyAdmin") ||
-        req.path.include?(".env") ||
-        req.path.include?("..")
-    end
+    suspicious_request?(req)
   end
 
   blocklist("block-suspicious-agents") do |req|
@@ -106,15 +105,22 @@ class Rack::Attack
   # GLOBAL THROTTLES
   # ===========================================================================
 
+  # A request with a valid API token counts against api/user instead. Many
+  # students share one campus address, and their extension calls would use up
+  # one budget for all of them.
   throttle("req/ip", limit: 600, period: 5.minutes) do |req|
-    req.ip unless req.path.start_with?("/assets", "/packs", "/rails/active_storage")
+    next if req.path.start_with?("/assets", "/packs", "/rails/active_storage")
+
+    req.ip unless extract_user_id_from_jwt(req)
   end
 
   # ===========================================================================
   # OAUTH THROTTLES
   # ===========================================================================
 
-  throttle("oauth/callbacks", limit: 10, period: 1.minute) do |req|
+  # One sign-in uses at least two of these requests, and many students share
+  # one campus address. Google and Microsoft check the codes themselves.
+  throttle("oauth/callbacks", limit: 60, period: 1.minute) do |req|
     req.ip if req.path.start_with?("/auth/", "/oauth/")
   end
 
@@ -126,7 +132,8 @@ class Rack::Attack
     extract_user_id_from_jwt(req) if req.path.start_with?("/api/")
   end
 
-  throttle("api/ip", limit: 20, period: 1.minute) do |req|
+  # Sized for a campus address that many students share.
+  throttle("api/ip", limit: 60, period: 1.minute) do |req|
     if req.path.start_with?("/api/") && !PUBLIC_CATALOG_PATH.call(req) &&
        ![ EXTENSION_EVENTS_PATH, CSP_REPORTS_PATH ].include?(req.path) && !extract_user_id_from_jwt(req)
       req.ip
@@ -149,10 +156,16 @@ class Rack::Attack
 
   # A semantic search embeds the query, which costs an API call whenever the
   # words are new. The cache absorbs the repeats; this limit absorbs the rest.
-  # Only the REST path is read here: GraphQL carries its query in the body, and
-  # the 300/min catalog limit above already covers it.
+  # GraphQL carries its query in the body, so this rule cannot see it.
+  # Analyzers::SemanticSearchLimit runs this throttle again, through
+  # semantic_search_throttled?, when a GraphQL query asks for a search.
+  GRAPHQL_SEMANTIC_SEARCH_ENV_KEY = "calendar.graphql_semantic_search"
+
   throttle("catalog/semantic", limit: 30, period: 1.minute) do |req|
-    req.ip if req.path.start_with?("/api/v1/catalog") && req.GET["semantic"].present?
+    if req.env[GRAPHQL_SEMANTIC_SEARCH_ENV_KEY] ||
+       (req.path.start_with?("/api/v1/catalog") && req.GET["semantic"].present?)
+      req.ip
+    end
   end
 
   # The batch path shares this budget. A batch counts as one request, and it
@@ -170,21 +183,22 @@ class Rack::Attack
   end
 
   throttle("api/preview-template", limit: 10, period: 1.minute) do |req|
-    user_id = extract_user_id_from_jwt(req)
-    "preview:#{user_id}" if req.path == "/api/calendar_preferences/preview" && req.post? && user_id
+    user_id = extract_user_id_from_jwt(req) if req.post? && route_path(req) == "/api/calendar_preferences/preview"
+    "preview:#{user_id}" if user_id
   end
 
   # Passkey sign-in and onboarding both mint a token without one, so they carry
-  # no user to bucket by. Give them a tighter budget than the general anonymous
-  # API limit, which guessing a credential would otherwise sit comfortably under.
+  # no user to bucket by. Each one also calls Google or checks a signature.
+  # The budget must still let a campus address that many students share sign
+  # in during registration.
   UNAUTHENTICATED_TOKEN_PATHS = [
     "/api/user/onboard",
     "/api/user/passkeys/authentication_options",
     "/api/user/passkeys/authenticate"
   ].freeze
 
-  throttle("api/token-mint", limit: 10, period: 1.minute) do |req|
-    req.ip if req.post? && UNAUTHENTICATED_TOKEN_PATHS.include?(req.path)
+  throttle("api/token-mint", limit: 30, period: 1.minute) do |req|
+    req.ip if req.post? && UNAUTHENTICATED_TOKEN_PATHS.include?(route_path(req))
   end
 
   # ===========================================================================
@@ -194,8 +208,14 @@ class Rack::Attack
   # One limit for each feed. There is no limit for each IP address: Google,
   # Cozi, and other calendar apps fetch every subscriber's feed from a small
   # set of servers, so a limit for each IP would stop all their feeds at once.
+  # The cache key holds a digest, so the cache never stores a working token.
+  # The format suffix is dropped, so "/calendar/<token>.ics" uses the same
+  # budget as "/calendar/<token>".
   throttle("calendar/token", limit: 60, period: 1.hour) do |req|
-    req.path.split("/").last if req.path.start_with?(CALENDAR_FEED_PATH)
+    if req.path.start_with?(CALENDAR_FEED_PATH)
+      token = route_path(req).delete_prefix(CALENDAR_FEED_PATH)
+      "calendar:#{OpenSSL::Digest::SHA256.hexdigest(token)}" if token.present?
+    end
   end
 
   # ===========================================================================
@@ -225,13 +245,16 @@ class Rack::Attack
   # ADMIN THROTTLES
   # ===========================================================================
 
+  # Keyed by the signed-in user, not by the session cookie: the cookie store
+  # encrypts the session again on each response, so the cookie value changes
+  # on every request. A request with no signed-in user is keyed by IP address.
   throttle("admin/session", limit: 1000, period: 5.minutes) do |req|
-    req.cookies["_calendar_session"] if req.path.start_with?("/admin")
+    admin_actor(req) if req.path.start_with?("/admin")
   end
 
   throttle("admin/destructive", limit: 100, period: 1.minute) do |req|
     if req.path.start_with?("/admin") && (req.delete? || req.path.include?("revoke") || req.path.include?("destroy"))
-      req.cookies["_calendar_session"]
+      admin_actor(req)
     end
   end
 
@@ -240,22 +263,21 @@ class Rack::Attack
   # ===========================================================================
 
   self.throttled_responder = lambda do |request|
-    match_data = request.env["rack.attack.match_data"]
-    now = match_data[:epoch_time]
+    match_data  = request.env["rack.attack.match_data"]
+    retry_after = seconds_until_reset(match_data)
 
+    # RateLimitHeaders adds the RateLimit and RateLimit-Policy fields to an
+    # API 429, so this response sends only Retry-After.
     headers = {
-      "RateLimit-Limit"     => match_data[:limit].to_s,
-      "RateLimit-Remaining" => "0",
-      "RateLimit-Reset"     => (now + (match_data[:period] - (now % match_data[:period]))).to_s,
-      "Content-Type"        => "application/json",
-      "Retry-After"         => match_data[:period].to_s
+      "content-type" => "application/json",
+      "retry-after"  => retry_after.to_s
     }
 
     body = {
       error:       "Rate limit exceeded",
       code:        "RATE_LIMITED",
       message:     "Too many requests. Please try again later.",
-      retry_after: match_data[:period]
+      retry_after: retry_after
     }.to_json
 
     [ 429, headers, [ body ] ]
@@ -308,6 +330,50 @@ class Rack::Attack
     # A route constraint that needs a session, such as Devise's authenticate,
     # can raise here. That path is an app page, so keep blocking it.
     false
+  end
+
+  def self.suspicious_request?(req)
+    CGI.unescape(req.query_string).include?("/etc/passwd") ||
+      req.path.include?("/etc/passwd") ||
+      req.path.include?("wp-admin") ||
+      req.path.include?("wp-login") ||
+      req.path.include?("phpMyAdmin") ||
+      req.path.include?(".env") ||
+      req.path.include?("..")
+  end
+
+  # Throttles use fixed windows. A client may send again when the window that
+  # counted the request ends, not one whole period later.
+  def self.seconds_until_reset(match_data)
+    period = match_data[:period].to_i
+    period - (match_data[:epoch_time].to_i % period)
+  end
+
+  # The path as the router reads it: repeated and trailing slashes and the
+  # format suffix ("/api/user/onboard.json") removed, so these variants use the
+  # same budget as the plain path.
+  def self.route_path(req)
+    ActionDispatch::Journey::Router::Utils.normalize_path(req.path).sub(%r{\.[^/.]+\z}, "")
+  end
+
+  # Devise keeps the signed-in user id in the session. Reading it needs no
+  # database query.
+  def self.admin_actor(req)
+    user_id = Array(req.session["warden.user.user.key"]).dig(0, 0)
+    user_id ? "user:#{user_id}" : "ip:#{req.ip}"
+  rescue StandardError
+    "ip:#{req.ip}"
+  end
+
+  # Runs the catalog/semantic throttle for a GraphQL query that asks for a
+  # semantic search, so GraphQL and REST share one budget. The throttle data
+  # goes on the request, so the response also sends the RateLimit fields.
+  def self.semantic_search_throttled?(env)
+    req = Rack::Attack::Request.new(env)
+    return false if !enabled || configuration.safelisted?(req)
+
+    env[GRAPHQL_SEMANTIC_SEARCH_ENV_KEY] = true
+    throttles.fetch("catalog/semantic").matched_by?(req)
   end
 
   def self.extract_user_id_from_jwt(req)

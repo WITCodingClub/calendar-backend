@@ -44,7 +44,8 @@ module Types
       argument :term_uid, Integer, required: false
       argument :q, String, required: false
       argument :semantic, Boolean, required: false, default_value: false,
-               description: "Rank q by meaning instead of by the literal name"
+               description: "Rank q by meaning instead of by the literal name. " \
+                            "A query can run one semantic search."
       directive Directives::ListSize, **CONNECTION_LIST_SIZE
     end
 
@@ -53,7 +54,8 @@ module Types
       argument :instructor, String, required: false, description: "An instructor public id"
       argument :q, String, required: false, description: "Free text over the comment and the course"
       argument :semantic, Boolean, required: false, default_value: false,
-               description: "Rank q by meaning instead of by the literal words"
+               description: "Rank q by meaning instead of by the literal words. " \
+                            "A query can run one semantic search."
       argument :sentiment, String, required: false, description: "\"positive\" or \"negative\""
       directive Directives::ListSize, **CONNECTION_LIST_SIZE
     end

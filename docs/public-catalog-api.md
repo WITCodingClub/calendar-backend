@@ -268,7 +268,10 @@ Points to know:
 - Every other filter still applies. The ranking covers what the filters left.
 - A section stays out until it has been embedded, which happens nightly.
 - Semantic requests are limited to 30 per minute per IP. The keyword search
-  keeps the standard 300 per minute.
+  keeps the standard 300 per minute. A GraphQL query that runs a semantic
+  search uses the same 30 per minute.
+- A GraphQL query can run one semantic search. A query that asks for more gets
+  the error code `TOO_MANY_SEMANTIC_SEARCHES` and runs nothing.
 - The server falls back to the keyword search when semantic search is off. The
   request never fails because of it.
 
