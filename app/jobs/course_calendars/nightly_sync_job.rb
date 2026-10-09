@@ -42,8 +42,7 @@ module CourseCalendars
 
       Rails.logger.info "Successfully synced calendar for user #{user.id}"
     rescue => e
-      Rails.logger.error "Failed to sync calendar for user #{user.id}: #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
+      Rails.error.report(e, handled: true, context: { user_id: user.id })
     end
   end
 end

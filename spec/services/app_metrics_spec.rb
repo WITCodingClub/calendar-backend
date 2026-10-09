@@ -24,14 +24,17 @@ RSpec.describe AppMetrics do
     end
 
     # A scrape that raises would mark the whole app as down in Prometheus.
-    it "logs a count that fails and still sets the others" do
+    it "reports a count that fails and still sets the others" do
       allow(User).to receive(:count).and_raise(ActiveRecord::ConnectionNotEstablished, "db down")
-      allow(Rails.logger).to receive(:warn)
       create(:user_session)
 
-      expect { described_class.collect }.not_to raise_error
+      reports = capture_error_reports(ActiveRecord::ConnectionNotEstablished) do
+        expect { described_class.collect }.not_to raise_error
+      end
 
-      expect(Rails.logger).to have_received(:warn).with(/could not count users/)
+      expect(reports.size).to eq(1)
+      expect(reports.first).to be_handled
+      expect(reports.first.context).to include(metric: "users")
       expect(Yabeda.calendar.active_sessions.get).to eq(1)
     end
   end

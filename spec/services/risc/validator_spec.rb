@@ -81,6 +81,48 @@ RSpec.describe Risc::Validator, type: :service do
       expect { described_class.new }.to raise_error(Timeout::Error)
     end
 
+    it "raises when fetching the JWKS times out" do
+      stub_risc_configuration
+      stub_request(:get, JWKS_URL).to_timeout
+
+      expect { described_class.new }.to raise_error(Timeout::Error)
+    end
+
+    it "sets an open and a read timeout on both fetches" do
+      stub_risc_configuration
+      stub_jwks(keys: [ jwk_for(rsa_key, kid) ])
+      options = hash_including(open_timeout: described_class::OPEN_TIMEOUT, read_timeout: described_class::READ_TIMEOUT)
+      allow(Net::HTTP).to receive(:start).and_call_original
+
+      described_class.new
+
+      expect(Net::HTTP).to have_received(:start).with(anything, anything, options).twice
+    end
+
+    context "with a cache that keeps entries" do
+      before { allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new) }
+
+      it "falls back to the stale configuration when the fetch times out" do
+        stub_risc_configuration
+        stub_jwks(keys: [ jwk_for(rsa_key, kid) ])
+        described_class.new
+        Rails.cache.delete("risc_configuration")
+        stub_request(:get, CONFIGURATION_URL).to_timeout
+
+        expect { described_class.new }.not_to raise_error
+      end
+
+      it "falls back to the stale JWKS when the fetch times out" do
+        stub_risc_configuration
+        stub_jwks(keys: [ jwk_for(rsa_key, kid) ])
+        described_class.new
+        Rails.cache.delete("risc_jwks")
+        stub_request(:get, JWKS_URL).to_timeout
+
+        expect { described_class.new }.not_to raise_error
+      end
+    end
+
     it "raises when the JWKS endpoint answers with an error status" do
       stub_risc_configuration
       stub_jwks(keys: [], status: 502)

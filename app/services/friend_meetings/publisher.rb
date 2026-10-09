@@ -96,19 +96,19 @@ module FriendMeetings
 
     # After the person connects an account again: finish each cancelled meeting
     # that still has provider events, then put back each missing event. Errors
-    # are logged, so one meeting does not stop the others.
+    # are reported, so one meeting does not stop the others.
     def resume
       user.friend_meetings.where.not(cancelled_at: nil).find_each do |meeting|
         remove(meeting)
       rescue StandardError => e
-        log_failure("Friend meeting removal failed on reconnect", meeting, nil, e)
+        Rails.error.report(e, handled: true, context: { user_id: user.id, friend_meeting_id: meeting.id })
       end
 
       publish_missing
     end
 
     # Puts back every meeting that has not ended and is missing from a picked
-    # calendar. The course sync calls this, so a failure is logged and not
+    # calendar. The course sync calls this, so a failure is reported and not
     # raised. A person with no meetings costs one indexed query.
     def publish_missing
       return unless user.friend_meetings.exists?
@@ -116,7 +116,7 @@ module FriendMeetings
       user.friend_meetings.live.not_ended.includes(:publications).find_each do |meeting|
         publish(meeting)
       rescue StandardError => e
-        log_failure("Friend meeting publish failed during sync", meeting, nil, e)
+        Rails.error.report(e, handled: true, context: { user_id: user.id, friend_meeting_id: meeting.id })
       end
     end
 

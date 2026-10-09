@@ -14,8 +14,9 @@ RSpec.describe "Admin super admin tools", type: :request do
   ReachedJobDashboard = Class.new(StandardError)
 
   # PgHero reads pg_stat_statements, which the CI database does not preload. A
-  # failed read aborts the test transaction. So a request that gets to PgHero
-  # stops here, before PgHero reads the stats.
+  # failed read aborts the test transaction. Its before_actions read the
+  # database too (set_query_stats_enabled runs before index). So a request that
+  # gets to PgHero stops at check_api, its first filter, which reads nothing.
   ReachedPgHero = Class.new(StandardError)
 
   before do
@@ -25,7 +26,7 @@ RSpec.describe "Admin super admin tools", type: :request do
     MissionControl::Jobs.applications.each do |application|
       application.servers.each { |server| allow(server).to receive(:activating).and_raise(ReachedJobDashboard) }
     end
-    allow_any_instance_of(PgHero::HomeController).to receive(:index).and_raise(ReachedPgHero) # rubocop:disable RSpec/AnyInstance
+    allow_any_instance_of(PgHero::HomeController).to receive(:check_api).and_raise(ReachedPgHero) # rubocop:disable RSpec/AnyInstance
   end
 
   def open_tool(path)

@@ -17,6 +17,9 @@ module Risc
     RISC_CONFIGURATION_URL = "https://accounts.google.com/.well-known/risc-configuration"
     CACHE_DURATION = 1.hour
     STALE_BACKUP_DURATION = 7.days
+    # These fetches run in the request path. A slow Google must not hold a Puma thread for 60 s.
+    OPEN_TIMEOUT = 5
+    READ_TIMEOUT = 10
 
     def initialize
       @risc_config = fetch_risc_configuration
@@ -79,10 +82,17 @@ module Risc
 
     private
 
+    def get_response(uri)
+      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https",
+                      open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) do |http|
+        http.request(Net::HTTP::Get.new(uri))
+      end
+    end
+
     def fetch_risc_configuration
       Rails.cache.fetch("risc_configuration", expires_in: CACHE_DURATION) do
         uri = URI.parse(RISC_CONFIGURATION_URL)
-        response = Net::HTTP.get_response(uri)
+        response = get_response(uri)
 
         raise ValidationError, "Failed to fetch RISC configuration: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
@@ -93,7 +103,7 @@ module Risc
     rescue => e
       stale = Rails.cache.read("risc_configuration:stale")
       if stale.present?
-        Rails.logger.warn("[Risc::Validator] Using stale RISC configuration due to fetch error: #{e.message}")
+        Rails.error.report(e, handled: true, context: { fallback: "stale_risc_configuration" })
         return stale
       end
       raise
@@ -105,7 +115,7 @@ module Risc
 
       Rails.cache.fetch("risc_jwks", expires_in: CACHE_DURATION) do
         uri = URI.parse(jwks_uri)
-        response = Net::HTTP.get_response(uri)
+        response = get_response(uri)
 
         raise ValidationError, "Failed to fetch JWKS: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
@@ -116,7 +126,7 @@ module Risc
     rescue => e
       stale = Rails.cache.read("risc_jwks:stale")
       if stale.present?
-        Rails.logger.warn("[Risc::Validator] Using stale JWKS due to fetch error: #{e.message}")
+        Rails.error.report(e, handled: true, context: { fallback: "stale_jwks" })
         return stale
       end
       raise

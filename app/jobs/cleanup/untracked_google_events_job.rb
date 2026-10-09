@@ -31,7 +31,7 @@ module Cleanup
         totals.each_key { |key| totals[key] += stats[key] }
       rescue => e
         totals[:errors] += 1
-        Rails.logger.error "[Cleanup::UntrackedGoogleEventsJob] Failed for calendar #{calendar.id}: #{e.message}"
+        Rails.error.report(e, handled: true, context: { course_calendar_id: calendar.id })
       end
 
       Rails.logger.info "[Cleanup::UntrackedGoogleEventsJob] Completed (dry_run: #{dry_run}): #{totals.to_json}"

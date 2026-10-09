@@ -5,6 +5,8 @@ module Admin
     PER_PAGE = 25
 
     def index
+      authorize RmpRating
+
       # The shared admin filters send `search`. `q` is the older name.
       @query    = (params[:search].presence || params[:q]).to_s.strip
       @semantic = ActiveModel::Type::Boolean.new.cast(params[:semantic]).present?

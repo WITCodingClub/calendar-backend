@@ -44,6 +44,18 @@ RSpec.describe OauthCredentials::RefreshTokensJob do
       expect(credential.reload).not_to be_token_revoked
     end
 
+    it "reports an unexpected refresh error and does not raise" do
+      credential = stale_microsoft_credential
+      stub_request(:post, token_url).to_timeout
+
+      reports = capture_error_reports { described_class.perform_now }
+
+      expect(reports.size).to eq(1)
+      expect(reports.first).to be_handled
+      expect(reports.first.context).to include(oauth_credential_id: credential.id)
+      expect(credential.reload).not_to be_token_revoked
+    end
+
     it "leaves a Microsoft credential that was updated recently" do
       create(:oauth_credential, :microsoft)
 

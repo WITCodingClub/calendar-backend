@@ -48,8 +48,20 @@ The host side lives in [jaspermayone/infra](https://github.com/jaspermayone/infr
 | `calendar_jobs` | gauge | `state`: `ready`, `scheduled`, `claimed`, `blocked`, `failed` | `AppMetrics` |
 | `calendar_extension_events_total` | counter | `event`, `version`, `browser` | `ExtensionUsage` |
 | `calendar_api_legacy_requests_total` | counter | `route`: the old path, for example `GET user/email` | `Api::LegacyRouteCounting` |
+| `calendar_errors_reported_total` | counter | `error_class`, `handled`, `severity`, `source` | `ErrorReportSubscriber` |
 
-The request metrics skip the health checks (`/up` and OkComputer). The gauges are counted on each scrape. If one count fails, `AppMetrics` logs a warning and sets the others, so the scrape still succeeds.
+The request metrics skip the health checks (`/up` and OkComputer). The gauges are counted on each scrape. If one count fails, `AppMetrics` reports the error to `Rails.error` and sets the others, so the scrape still succeeds.
+
+## Reported errors
+
+`ErrorReportSubscriber` receives every error that reaches `Rails.error`:
+
+- An error that a rescue reports with `Rails.error.report(e, handled: true)`. These have `handled="true"`.
+- An error that nothing rescues in a request or a job. The Rails executor reports it with `handled="false"`, and the source `application.action_dispatch`, `application.solid_queue` or `application.active_support`.
+
+For each error, the subscriber adds one to `calendar_errors_reported_total` and writes one JSON log line with `"message":"error_reported"`. The log line has the error message, the context ids from the rescue, and the first lines of the backtrace. The counter labels have no message and no id, so the number of series stays small.
+
+To find the details of an error in the counter, search the logs for `error_reported` and the error class.
 
 ## Extension events
 

@@ -38,7 +38,7 @@ class UserExtensionConfig < ApplicationRecord
   normalizes :default_color_lecture, :default_color_lab, with: GoogleCalendar::Colors.method(:normalize_attribute)
   validates :default_color_lecture, :default_color_lab, format: { with: GoogleCalendar::Colors::HEX_FORMAT }
 
-  after_update :sync_calendar_if_settings_changed
+  after_update_commit :sync_calendar_if_settings_changed
 
   # The selected categories that still sync, without holidays, which every user gets.
   # A category that no longer syncs can stay stored from before, so filter it out here.

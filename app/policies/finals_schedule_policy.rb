@@ -6,6 +6,8 @@ class FinalsSchedulePolicy < ApplicationPolicy
   def create?  = admin?
   def new?     = admin?
   def update?  = admin?
+  def confirm_replace?   = admin?
+  def process_schedule?  = admin?
   def destroy? = super_admin?
 
   class Scope < ApplicationPolicy::Scope

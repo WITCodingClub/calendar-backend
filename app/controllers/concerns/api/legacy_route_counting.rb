@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Api
-  # Counts the requests to the old paths in config/routes/api_legacy.rb. The
+  # Counts the requests to the old paths in config/routes/api/legacy.rb. The
   # count shows in Grafana as calendar_api_legacy_requests_total, by path, so
   # we know when no extension build calls a path any more.
   module LegacyRouteCounting

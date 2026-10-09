@@ -53,8 +53,7 @@ module Risc
       Rails.logger.error("RISC event #{event_data[:jti]} left unprocessed: #{e.message}")
       raise
     rescue => e
-      Rails.logger.error("Error processing RISC event: #{e.message}")
-      Rails.logger.error(e.backtrace.join("\n"))
+      Rails.error.report(e, handled: true, context: { jti: event_data[:jti] })
 
       @security_event&.mark_processed!(error: e.message)
 
@@ -139,7 +138,7 @@ module Risc
         credential.destroy!
         Rails.logger.info("Revoked OAuth credential #{credential.id} for user #{user.id}")
       rescue => e
-        Rails.logger.error("Failed to revoke OAuth credential #{credential.id}: #{e.message}")
+        Rails.error.report(e, handled: true, context: { oauth_credential_id: credential.id })
         failures << "credential #{credential.id}: #{e.class}: #{e.message}"
       end
 

@@ -15,8 +15,7 @@ module Webhooks
       Risc::ProcessEventJob.perform_later(token)
       head :accepted
     rescue => e
-      Rails.logger.error("Error receiving RISC event: #{e.message}")
-      Rails.logger.error(e.backtrace.join("\n"))
+      Rails.error.report(e, handled: true)
       head :bad_request
     end
 

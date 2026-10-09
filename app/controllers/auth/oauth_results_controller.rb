@@ -38,7 +38,7 @@ module Auth
     rescue GoogleSignIn::AccountLink::Conflict => e
       redirect_to "/oauth/failure?error=#{CGI.escape(e.message)}"
     rescue => e
-      Rails.logger.error("Google account link error: #{e.class}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: @user.id })
       redirect_to "/oauth/failure?error=#{CGI.escape('Could not connect the Google account. Please try again.')}"
     end
 

@@ -4,13 +4,24 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 
 `docs/architecture.md` gives the rules for where code goes. Read it before you add a service, a job, or a controller.
 
+## Admin controllers
+
+- Every action in an `Admin::` controller calls `authorize` or `skip_authorization`. `Admin::ApplicationController` runs `verify_authorized` after each action, and `spec/requests/admin/authorization_spec.rb` requests every admin route to check it.
+- Use `skip_authorization` only for an action with no record that another check already guards. Add a one-line comment that says why. `policy_scope` alone does not count: call `authorize` as well.
+
 ## API controllers
 
 - Every API controller inherits from `Api::BaseController`. The base requires no token.
 - A controller that needs a signed-in user calls `authenticate_with_token` (all actions) or `authenticate_with_token except: [ ... ]` as its first callback.
 - `spec/requests/api/authentication_spec.rb` sends a request with no token to every `/api` route. A route must answer 401, unless its action is in `PUBLIC_ACTIONS`. Add a new public action to that list.
-- When an extension API path changes, keep the old path in `config/routes/api_legacy.rb`. Remove it when `calendar_api_legacy_requests_total` for that path stays at zero after the extension release that stops calling it.
+- When an extension API path changes, keep the old path in `config/routes/api/legacy.rb`. Remove it when `calendar_api_legacy_requests_total` for that path stays at zero after the extension release that stops calling it.
 - Render every API error with `render_error message, status: :not_found` (from `Api::ErrorRendering`). The body is `{ error, code }`. Pass `code:` only when a client needs a code more specific than the status gives.
+
+## Errors
+
+- A rescue that swallows an error (it logs, returns a fallback, or continues) reports it: `Rails.error.report(e, handled: true, context: { user_id: user.id })`. Put ids in the context, never tokens or personal data.
+- A rescue that raises the error again does not report it. The request and job executors report every error that leaves a request or a job.
+- `ErrorReportSubscriber` counts each report in `calendar_errors_reported_total` and logs it. See `docs/metrics.md`.
 
 ## Jobs
 

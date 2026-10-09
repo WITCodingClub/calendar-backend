@@ -14,8 +14,7 @@ module Auth
         handle_user_login(auth)
       end
     rescue => e
-      Rails.logger.error("Google OAuth error: #{e.message}")
-      Rails.logger.error(e.backtrace.join("\n"))
+      Rails.error.report(e, handled: true)
 
       if calendar_oauth_flow?
         redirect_to "/oauth/failure?error=#{CGI.escape(e.message)}"

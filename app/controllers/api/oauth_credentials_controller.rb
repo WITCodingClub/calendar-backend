@@ -54,7 +54,7 @@ module Api
       credential.destroy!
       render json: { message: "OAuth credential disconnected successfully" }, status: :ok
     rescue => e
-      Rails.logger.error("Error disconnecting OAuth credential for user #{current_user.id}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: current_user.id, oauth_credential_id: params[:credential_id] })
       render_error "Failed to disconnect OAuth credential", status: :internal_server_error
     end
   end
