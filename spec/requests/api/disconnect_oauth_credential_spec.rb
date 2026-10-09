@@ -37,4 +37,13 @@ RSpec.describe "Disconnecting an OAuth credential through the API", type: :reque
     expect(a_request(:post, google_revoke_url)).not_to have_been_made
     expect(enqueued_jobs.map { |job| job["job_class"] }).to include("GoogleSignIn::RevokeTokenJob")
   end
+
+  # Solid Queue stores job arguments in the database, so the token goes in encrypted.
+  it "does not put the plain token in the job arguments" do
+    delete "/api/user/oauth_credentials/#{personal_account.public_id}", headers: auth_headers_for(user)
+
+    revoke_job = enqueued_jobs.find { |job| job["job_class"] == "GoogleSignIn::RevokeTokenJob" }
+    expect(revoke_job["arguments"].to_json).not_to include("synthetic-refresh-token")
+    expect(revoke_job["arguments"].to_json).not_to include("synthetic-access-token")
+  end
 end

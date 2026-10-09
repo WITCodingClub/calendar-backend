@@ -19,6 +19,27 @@ module Calendar
     # Falls back to HASHID_SALT env var so CI can run without a master.key.
     config.hashid_salt = ENV.fetch("HASHID_SALT") { Rails.application.credentials.dig(:hashid, :salt) }
 
+    # Active Record encryption keys. OAuth tokens (OauthCredential) and audit
+    # notes use them. An env var wins. Without one, Rails reads the key from
+    # credentials (active_record_encryption.<key>). Do not set nil here: a nil
+    # in config hides the credentials value.
+    # config/initializers/active_record_encryption.rb stops a production boot
+    # that has no key.
+    ACTIVE_RECORD_ENCRYPTION_ENV = {
+      primary_key: "ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY",
+      deterministic_key: "ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY",
+      key_derivation_salt: "ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT"
+    }.freeze
+
+    ACTIVE_RECORD_ENCRYPTION_ENV.each do |key, env_var|
+      config.active_record.encryption[key] = ENV[env_var] if ENV[env_var].present?
+    end
+
+    # Rows written before OauthCredential encrypted its tokens hold plain text.
+    # This lets them still read until `bin/rails oauth_credentials:encrypt`
+    # rewrites them. Turn it off in a follow-up after the backfill (#713).
+    config.active_record.encryption.support_unencrypted_data = true
+
     config.active_job.queue_adapter = :solid_queue
 
     # Single source of truth for the sender address. Action Mailer and Devise
