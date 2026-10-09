@@ -13,6 +13,12 @@ RSpec.describe "Dashboard::Friends", type: :request do
     friendship.update_column(:expires_at, 1.minute.ago)
   end
 
+  # The HTTP methods of the forms that post to +path+. Accept (patch) and
+  # decline or withdraw (delete) share one expiry proposal path.
+  def form_methods(path)
+    Nokogiri::HTML(response.body).css("form[action='#{path}'] input[name='_method']").map { |input| input["value"] }
+  end
+
   include ActiveJob::TestHelper
 
   let(:current_user) { create(:user, :with_processed_courses, first_name: "Ada") }
@@ -123,11 +129,11 @@ RSpec.describe "Dashboard::Friends", type: :request do
     end
   end
 
-  describe "PATCH /dashboard/friends/:id/expiry" do
+  describe "PATCH /dashboard/friends/:friend_id/expiry" do
     let!(:friendship) { create(:friendship, :accepted, :temporary, requester: other_user, addressee: current_user) }
 
     it "refuses the change while the flag is off" do
-      patch expiry_dashboard_friend_path(other_user.public_id), params: { permanent: "1" }
+      patch dashboard_friend_expiry_path(other_user.public_id), params: { permanent: "1" }
 
       expect(flash[:alert]).to eq("Friend not found.")
       expect(friendship.reload.expires_at).to be_present
@@ -141,7 +147,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
         new_date = 60.days.from_now.to_date
 
         expect {
-          patch expiry_dashboard_friend_path(other_user.public_id), params: { expires_on: new_date.iso8601 }
+          patch dashboard_friend_expiry_path(other_user.public_id), params: { expires_on: new_date.iso8601 }
         }.to have_enqueued_mail(FriendshipMailer, :expiry_changed)
 
         expect(flash[:notice]).to eq("You proposed a new end date. Grace must accept it before it applies.")
@@ -153,7 +159,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       end
 
       it "does not make the friendship permanent alone, but proposes it" do
-        patch expiry_dashboard_friend_path(other_user.public_id), params: { permanent: "Propose permanent" }
+        patch dashboard_friend_expiry_path(other_user.public_id), params: { permanent: "Propose permanent" }
 
         expect(flash[:notice]).to eq("You proposed a new end date. Grace must accept it before it applies.")
         expect(friendship.reload.expires_at).to be_present
@@ -163,7 +169,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       it "applies a sooner end date at once, at the end of that day in New York" do
         new_date = 3.days.from_now.to_date
 
-        patch expiry_dashboard_friend_path(other_user.public_id), params: { expires_on: new_date.iso8601 }
+        patch dashboard_friend_expiry_path(other_user.public_id), params: { expires_on: new_date.iso8601 }
 
         expect(flash[:notice]).to eq("Your friendship with Grace now ends on #{new_date.to_fs(:long)}.")
         expect(friendship.reload.expires_at).to eq(
@@ -174,7 +180,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       it "says when the date did not change" do
         friendship.update!(expires_at: 5.days.from_now.to_date.in_time_zone.end_of_day.change(usec: 0))
 
-        patch expiry_dashboard_friend_path(other_user.public_id), params: { expires_on: 5.days.from_now.to_date.iso8601 }
+        patch dashboard_friend_expiry_path(other_user.public_id), params: { expires_on: 5.days.from_now.to_date.iso8601 }
 
         expect(flash[:notice]).to eq("The end date did not change.")
       end
@@ -183,32 +189,32 @@ RSpec.describe "Dashboard::Friends", type: :request do
         stranger = create_user("Alan")
         request  = create(:friendship, requester: current_user, addressee: stranger)
 
-        patch expiry_dashboard_friend_path(stranger.public_id), params: { expires_on: 5.days.from_now.to_date.iso8601 }
+        patch dashboard_friend_expiry_path(stranger.public_id), params: { expires_on: 5.days.from_now.to_date.iso8601 }
 
         expect(request.reload.expires_at).to be_present
       end
 
       it "refuses a date in the past" do
-        patch expiry_dashboard_friend_path(other_user.public_id), params: { expires_on: 1.day.ago.to_date.iso8601 }
+        patch dashboard_friend_expiry_path(other_user.public_id), params: { expires_on: 1.day.ago.to_date.iso8601 }
 
         expect(flash[:alert]).to eq("Pick an end date after today.")
       end
 
       it "refuses a value that is not a date" do
-        patch expiry_dashboard_friend_path(other_user.public_id), params: { expires_on: "" }
+        patch dashboard_friend_expiry_path(other_user.public_id), params: { expires_on: "" }
 
         expect(flash[:alert]).to eq("Pick a valid end date.")
       end
 
       it "refuses a user who is not a friend" do
-        patch expiry_dashboard_friend_path(create_user("Alan").public_id), params: { permanent: "1" }
+        patch dashboard_friend_expiry_path(create_user("Alan").public_id), params: { permanent: "1" }
 
         expect(flash[:alert]).to eq("Friend not found.")
       end
     end
   end
 
-  describe "POST /dashboard/friends/:id/accept_expiry and decline_expiry" do
+  describe "PATCH and DELETE /dashboard/friends/:friend_id/expiry_proposal" do
     let!(:friendship) { create(:friendship, :accepted, :temporary, requester: other_user, addressee: current_user) }
 
     # The proposal email links here, so a user without the flag can answer.
@@ -219,7 +225,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
         get dashboard_friends_path
 
         expect(response.body).to include("Grace proposed a permanent friendship.")
-        expect(response.body).to include(accept_expiry_dashboard_friend_path(other_user.public_id))
+        expect(form_methods(dashboard_friend_expiry_proposal_path(other_user.public_id))).to contain_exactly("patch", "delete")
         expect(response.body).not_to include("Set end date")
       end
 
@@ -228,16 +234,16 @@ RSpec.describe "Dashboard::Friends", type: :request do
         request = create(:friendship, :temporary, requester: alan, addressee: current_user)
         request.change_expiry!(to: nil, by: alan)
 
-        get requests_dashboard_friends_path
+        get dashboard_friends_requests_path
 
         expect(response.body).to include("Alan proposed a permanent friendship.")
-        expect(response.body).to include(accept_expiry_dashboard_friend_path(alan.public_id))
+        expect(form_methods(dashboard_friend_expiry_proposal_path(alan.public_id))).to contain_exactly("patch", "delete")
       end
 
       it "accepts the friend's proposal" do
         friendship.change_expiry!(to: nil, by: other_user)
 
-        post accept_expiry_dashboard_friend_path(other_user.public_id)
+        patch dashboard_friend_expiry_proposal_path(other_user.public_id)
 
         expect(flash[:notice]).to eq("Grace is now a permanent friend.")
         expect(friendship.reload.expires_at).to be_nil
@@ -246,7 +252,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       it "declines the friend's proposal" do
         friendship.change_expiry!(to: nil, by: other_user)
 
-        post decline_expiry_dashboard_friend_path(other_user.public_id)
+        delete dashboard_friend_expiry_proposal_path(other_user.public_id)
 
         expect(friendship.reload.expiry_proposal?).to be(false)
         expect(friendship.expires_at).to be_present
@@ -255,7 +261,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       it "still refuses the proposer" do
         friendship.change_expiry!(to: nil, by: current_user)
 
-        post accept_expiry_dashboard_friend_path(other_user.public_id)
+        patch dashboard_friend_expiry_proposal_path(other_user.public_id)
 
         expect(friendship.reload.expires_at).to be_present
         expect(flash[:alert]).to be_present
@@ -268,7 +274,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       it "accepts the friend's permanent proposal" do
         friendship.change_expiry!(to: nil, by: other_user)
 
-        post accept_expiry_dashboard_friend_path(other_user.public_id)
+        patch dashboard_friend_expiry_proposal_path(other_user.public_id)
 
         expect(flash[:notice]).to eq("Grace is now a permanent friend.")
         expect(friendship.reload.expires_at).to be_nil
@@ -278,7 +284,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
         later = 30.days.from_now.change(usec: 0)
         friendship.change_expiry!(to: later, by: other_user)
 
-        post accept_expiry_dashboard_friend_path(other_user.public_id)
+        patch dashboard_friend_expiry_proposal_path(other_user.public_id)
 
         expect(flash[:notice]).to eq("Your friendship with Grace now ends on #{later.to_date.to_fs(:long)}.")
         expect(friendship.reload.expires_at).to eq(later)
@@ -287,7 +293,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       it "refuses the proposer" do
         friendship.change_expiry!(to: nil, by: current_user)
 
-        post accept_expiry_dashboard_friend_path(other_user.public_id)
+        patch dashboard_friend_expiry_proposal_path(other_user.public_id)
 
         expect(friendship.reload.expires_at).to be_present
         expect(flash[:alert]).to be_present
@@ -296,7 +302,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       it "declines the friend's proposal and keeps the date" do
         friendship.change_expiry!(to: nil, by: other_user)
 
-        post decline_expiry_dashboard_friend_path(other_user.public_id)
+        delete dashboard_friend_expiry_proposal_path(other_user.public_id)
 
         expect(flash[:notice]).to eq("The proposal is closed. The end date did not change.")
         expect(friendship.reload.expiry_proposal?).to be(false)
@@ -309,7 +315,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
         get dashboard_friends_path
 
         expect(response.body).to include("Grace proposed a permanent friendship.")
-        expect(response.body).to include(accept_expiry_dashboard_friend_path(other_user.public_id))
+        expect(form_methods(dashboard_friend_expiry_proposal_path(other_user.public_id))).to contain_exactly("patch", "delete")
       end
 
       it "shows Withdraw, not Accept, to the proposer" do
@@ -318,14 +324,13 @@ RSpec.describe "Dashboard::Friends", type: :request do
         get dashboard_friends_path
 
         expect(response.body).to include("You proposed a permanent friendship.")
-        expect(response.body).not_to include(accept_expiry_dashboard_friend_path(other_user.public_id))
-        expect(response.body).to include(decline_expiry_dashboard_friend_path(other_user.public_id))
+        expect(form_methods(dashboard_friend_expiry_proposal_path(other_user.public_id))).to eq([ "delete" ])
       end
 
       it "shows the end date controls on the requests page" do
         create(:friendship, :temporary, requester: create_user("Alan"), addressee: current_user)
 
-        get requests_dashboard_friends_path
+        get dashboard_friends_requests_path
 
         expect(response.body).to include("Set end date")
       end
@@ -369,11 +374,11 @@ RSpec.describe "Dashboard::Friends", type: :request do
     it "shows the end date on a request and hides an expired request" do
       request = create(:friendship, :temporary, requester: other_user, addressee: current_user)
 
-      get requests_dashboard_friends_path
+      get dashboard_friends_requests_path
       expect(response.body).to include("Ends on #{request.expires_at.to_date.to_fs(:long)}")
 
       expire!(request)
-      get requests_dashboard_friends_path
+      get dashboard_friends_requests_path
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("No incoming requests.")
     end
@@ -393,7 +398,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
   describe "GET /dashboard/friends/requests" do
     # The show route would also match this path, so this guards the route order.
     it "still renders the requests page" do
-      get requests_dashboard_friends_path
+      get dashboard_friends_requests_path
 
       expect(response).to have_http_status(:ok)
     end
@@ -495,7 +500,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     it "hides the sharing form while the flag is off" do
       get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid }
 
-      expect(response.body).not_to include(visibility_dashboard_friend_path(other_user.public_id))
+      expect(response.body).not_to include(dashboard_friend_visibility_path(other_user.public_id))
     end
 
     it "shows the sharing form with the flag on" do
@@ -503,18 +508,18 @@ RSpec.describe "Dashboard::Friends", type: :request do
 
       get dashboard_friend_path(other_user.public_id), params: { term_uid: term.uid }
 
-      expect(response.body).to include(visibility_dashboard_friend_path(other_user.public_id))
+      expect(response.body).to include(dashboard_friend_visibility_path(other_user.public_id))
       expect(response.body).to include("Only when I am busy")
     end
   end
 
-  describe "PATCH /dashboard/friends/:id/visibility" do
+  describe "PATCH /dashboard/friends/:friend_id/visibility" do
     let!(:friendship) { create(:friendship, :accepted, requester: other_user, addressee: current_user) }
 
     after { Flipper.disable(FeatureFlags::FRIENDS_AVAILABILITY_ONLY) }
 
     it "answers 404 while the flag is off" do
-      patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "availability_only" }
+      patch dashboard_friend_visibility_path(other_user.public_id), params: { visibility: "availability_only" }
 
       expect(response).to have_http_status(:not_found)
       expect(friendship.reload).to be_addressee_full
@@ -524,7 +529,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       before { Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user) }
 
       it "sets the signed-in user's own level" do
-        patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "availability_only" }
+        patch dashboard_friend_visibility_path(other_user.public_id), params: { visibility: "availability_only" }
 
         expect(response).to redirect_to(dashboard_friend_path(other_user.public_id))
         expect(flash[:notice]).to eq("Grace can see only when you are busy.")
@@ -535,32 +540,32 @@ RSpec.describe "Dashboard::Friends", type: :request do
       it "sets the level back to full" do
         friendship.update_visibility_for!(current_user, :availability_only)
 
-        patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "full" }
+        patch dashboard_friend_visibility_path(other_user.public_id), params: { visibility: "full" }
 
         expect(flash[:notice]).to eq("Grace can see your full schedule.")
         expect(friendship.reload).to be_addressee_full
       end
 
       it "refuses an unknown level" do
-        patch visibility_dashboard_friend_path(other_user.public_id), params: { visibility: "hidden" }
+        patch dashboard_friend_visibility_path(other_user.public_id), params: { visibility: "hidden" }
 
         expect(flash[:alert]).to eq("Choose a valid sharing level.")
         expect(friendship.reload).to be_addressee_full
       end
 
       it "refuses a user who is not a friend" do
-        patch visibility_dashboard_friend_path(create_user("Alan").public_id), params: { visibility: "full" }
+        patch dashboard_friend_visibility_path(create_user("Alan").public_id), params: { visibility: "full" }
 
         expect(flash[:alert]).to eq("Friend not found.")
       end
     end
   end
 
-  describe "POST /dashboard/friends/:id/accept" do
+  describe "PATCH /dashboard/friends/requests/:id" do
     it "accepts an incoming request" do
       friendship = create(:friendship, requester: other_user, addressee: current_user)
 
-      post accept_dashboard_friend_path(friendship.id)
+      patch dashboard_friends_request_path(friendship.id)
 
       expect(response).to redirect_to(dashboard_friends_path)
       expect(flash[:notice]).to eq("Grace added as a friend.")
@@ -572,7 +577,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       third      = create_user("Alan")
       friendship = create(:friendship, requester: other_user, addressee: third)
 
-      post accept_dashboard_friend_path(friendship.id)
+      patch dashboard_friends_request_path(friendship.id)
 
       expect(flash[:alert]).to eq("Request not found.")
       expect(friendship.reload).to be_pending
@@ -603,7 +608,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
       Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
       friendship = create(:friendship, requester: other_user, addressee: current_user)
 
-      post accept_dashboard_friend_path(friendship.id), params: { visibility: "availability_only" }
+      patch dashboard_friends_request_path(friendship.id), params: { visibility: "availability_only" }
 
       expect(friendship.reload).to be_accepted
       expect(friendship).to be_addressee_availability_only
@@ -613,7 +618,7 @@ RSpec.describe "Dashboard::Friends", type: :request do
     it "leaves the request pending while the flag is off" do
       friendship = create(:friendship, requester: other_user, addressee: current_user)
 
-      post accept_dashboard_friend_path(friendship.id), params: { visibility: "availability_only" }
+      patch dashboard_friends_request_path(friendship.id), params: { visibility: "availability_only" }
 
       expect(friendship.reload).to be_pending
     end
@@ -621,20 +626,20 @@ RSpec.describe "Dashboard::Friends", type: :request do
     it "shows the level choice on the requests page only with the flag on" do
       create(:friendship, requester: other_user, addressee: current_user)
 
-      get requests_dashboard_friends_path
+      get dashboard_friends_requests_path
       expect(response.body).not_to include("Share only when I am busy")
 
       Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
-      get requests_dashboard_friends_path
+      get dashboard_friends_requests_path
       expect(response.body).to include("Share only when I am busy")
     end
   end
 
-  describe "POST /dashboard/friends/:id/decline" do
+  describe "DELETE /dashboard/friends/requests/:id" do
     it "deletes an incoming request" do
       friendship = create(:friendship, requester: other_user, addressee: current_user)
 
-      expect { post decline_dashboard_friend_path(friendship.id) }
+      expect { delete dashboard_friends_request_path(friendship.id) }
         .to change(Friendship, :count).by(-1)
 
       expect(flash[:notice]).to eq("Request declined.")

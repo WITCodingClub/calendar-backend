@@ -242,7 +242,7 @@ class User < ApplicationRecord
   private
 
   # Deletes each meeting's provider events while the credentials still exist.
-  # A failure must not block the account deletion, so it is logged; the
+  # A failure must not block the account deletion, so it is reported; the
   # meeting rows then go with `dependent: :destroy`.
   def remove_friend_meetings
     publisher = FriendMeetings::Publisher.new(self)
@@ -250,8 +250,7 @@ class User < ApplicationRecord
     friend_meetings.find_each do |meeting|
       publisher.remove(meeting)
     rescue StandardError => e
-      Rails.logger.error({ message: "Could not remove a friend meeting on account deletion", user_id: id,
-                           friend_meeting_id: meeting.id, error: e.class.name }.to_json)
+      Rails.error.report(e, handled: true, context: { user_id: id, friend_meeting_id: meeting.id })
     end
   end
 

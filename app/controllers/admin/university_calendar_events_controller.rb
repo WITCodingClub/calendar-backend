@@ -3,6 +3,7 @@
 module Admin
   class UniversityCalendarEventsController < Admin::ApplicationController
     def index
+      authorize UniversityCalendarEvent
       @university_calendar_events = policy_scope(UniversityCalendarEvent)
                                     .includes(:term)
                                     .order(start_time: :desc)

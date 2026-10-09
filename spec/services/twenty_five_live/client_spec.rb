@@ -28,6 +28,19 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
     { "spaces" => { "space" => spaces } }
   end
 
+  describe "#call" do
+    it "reports a 25Live error and returns false" do
+      stub_request(:get, "#{TwentyFiveLive::Client::BASE_URL}organizations.json").to_return(status: 503, body: "")
+
+      reports = capture_error_reports(TwentyFiveLive::Client::RequestError) do
+        expect(described_class.new.call).to be(false)
+      end
+
+      expect(reports.size).to eq(1)
+      expect(reports.first).to be_handled
+    end
+  end
+
   describe "#sync_spaces" do
     it "associates 25Live IDs and formal names to room and building" do
       StubbedService.new("spaces" => spaces_payload([ WENTWORTH_SPACE ])).send(:sync_spaces)

@@ -60,8 +60,7 @@ module Api
 
       render json: { pub_id: user.public_id.delete_prefix("usr_"), jwt: token }, status: :ok
     rescue => e
-      Rails.logger.error("Error in onboarding user: #{e.message}")
-      Rails.logger.error(e.backtrace.join("\n"))
+      Rails.error.report(e, handled: true)
       render_error "Failed to onboard user", status: :internal_server_error
     end
 

@@ -10,6 +10,7 @@ module Admin
     ]
 
     def index
+      authorize User
       @users = policy_scope(User).order(created_at: :desc)
 
       if params[:search].present?
@@ -141,6 +142,7 @@ module Admin
     rescue Signet::AuthorizationError => e
       redirect_to admin_user_path(@user), alert: "Failed to refresh token for #{credential.email}: #{e.message}"
     rescue => e
+      Rails.error.report(e, handled: true, context: { user_id: @user.id })
       redirect_to admin_user_path(@user), alert: "Failed to refresh token: #{e.message}"
     end
 
@@ -155,6 +157,7 @@ module Admin
       CourseCalendars::SyncJob.perform_later(@user, force: true)
       redirect_to admin_user_path(@user), notice: "Calendar sync queued for #{@user.email}."
     rescue => e
+      Rails.error.report(e, handled: true, context: { user_id: @user.id })
       redirect_to admin_user_path(@user), alert: "Failed to queue calendar sync: #{e.message}"
     end
 

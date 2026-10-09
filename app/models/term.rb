@@ -90,7 +90,7 @@ class Term < ApplicationRecord
 
     start_date
   rescue => e
-    Rails.logger.warn("Catalog::LeopardWebClient unavailable for registration_start on #{name}: #{e.message}")
+    Rails.error.report(e, handled: true, context: { term_id: id })
     start_date
   end
 
@@ -107,8 +107,10 @@ class Term < ApplicationRecord
   scope :current_and_future, ->(current_term = Term.current) {
     return none unless current_term
 
-    where("(year > ?) OR (year = ? AND #{season_position_sql} >= ?)",
-          current_term.year, current_term.year, season_position(current_term.season))
+    year = arel_table[:year]
+    later_season = Arel.sql(season_position_sql).gteq(season_position(current_term.season))
+
+    where(year.gt(current_term.year).or(year.eq(current_term.year).and(later_season)))
       .reverse_chronological
   }
 

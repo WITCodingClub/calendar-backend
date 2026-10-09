@@ -45,6 +45,9 @@ class Faculty < ApplicationRecord
 
   set_public_id_prefix :fac
 
+  PHOTO_OPEN_TIMEOUT = 5
+  PHOTO_READ_TIMEOUT = 10
+
   has_many :course_faculties, dependent: :destroy, inverse_of: :faculty
   has_many :courses, through: :course_faculties
   has_many :rmp_ratings, dependent: :destroy
@@ -57,7 +60,7 @@ class Faculty < ApplicationRecord
   validates :first_name, :last_name, presence: true
   validates :rmp_id, uniqueness: true, allow_nil: true
 
-  after_create :enqueue_directory_lookup, if: :needs_directory_data?
+  after_create_commit :enqueue_directory_lookup, if: :needs_directory_data?
 
   scope :faculty_only,        -> { where(employee_type: "faculty") }
   scope :staff_only,          -> { where(employee_type: "staff") }
@@ -197,7 +200,8 @@ class Faculty < ApplicationRecord
 
     downloaded_image = URI.parse(url).open(
       "User-Agent" => "WITCalendarBot/1.0",
-      read_timeout: 10
+      open_timeout: PHOTO_OPEN_TIMEOUT,
+      read_timeout: PHOTO_READ_TIMEOUT
     )
     filename = "#{email.split("@").first}_photo#{File.extname(URI.parse(url).path)}"
     filename = "#{email.split("@").first}_photo.jpg" if filename.end_with?("_photo")
@@ -205,7 +209,7 @@ class Faculty < ApplicationRecord
     update_column(:photo_url, url) unless photo_url == url # rubocop:disable Rails/SkipsModelValidations
     true
   rescue => e
-    Rails.logger.warn("[Faculty] Failed to download photo for #{email}: #{e.message}")
+    Rails.error.report(e, handled: true, context: { faculty_id: id })
     false
   end
 

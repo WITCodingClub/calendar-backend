@@ -33,7 +33,7 @@ module AppMetrics
     def measure(name)
       yield
     rescue StandardError => e
-      Rails.logger.warn("Metrics: could not count #{name}: #{e.class}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { metric: name })
     end
   end
 end

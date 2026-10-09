@@ -29,7 +29,7 @@ module Dashboard
     # gated for a user with no processed courses, so send that user back to the
     # requests page instead.
     def friend_requests_return_path
-      onboarding_complete? ? dashboard_friends_path : requests_dashboard_friends_path
+      onboarding_complete? ? dashboard_friends_path : dashboard_friends_requests_path
     end
   end
 end

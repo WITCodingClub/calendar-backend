@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-# config/routes/api_legacy.rb keeps old paths alive for published extension
+# config/routes/api/legacy.rb keeps old paths alive for published extension
 # builds. Each request to an old path adds one to
 # calendar_api_legacy_requests_total.
 RSpec.describe "Legacy API routes", type: :request do
