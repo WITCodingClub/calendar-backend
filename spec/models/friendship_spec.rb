@@ -408,6 +408,32 @@ RSpec.describe Friendship, type: :model do
       end
     end
 
+    # The new request deletes the old row before the cleanup job sees it, so the
+    # request must take the ex-friends off each other's meetings itself.
+    it "takes ex-friends off each other's meetings when a new request replaces an expired friendship" do
+      old     = create(:friendship, :accepted, :temporary, requester: requester, addressee: addressee)
+      meeting = create(:friend_meeting, user: old.requester)
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: old.addressee)
+
+      travel 8.days do
+        Friendship.create!(requester: addressee, addressee: requester)
+      end
+
+      expect(meeting.friend_meeting_attendees.reload).to be_empty
+    end
+
+    it "keeps attendees when a new request replaces an expired request that was never accepted" do
+      old     = create(:friendship, :temporary, requester: requester, addressee: addressee)
+      meeting = create(:friend_meeting, user: old.requester)
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: old.addressee)
+
+      travel 8.days do
+        Friendship.create!(requester: addressee, addressee: requester)
+      end
+
+      expect(meeting.friend_meeting_attendees.reload.size).to eq(1)
+    end
+
     it "keeps an unexpired friendship and refuses the new request" do
       create(:friendship, :accepted, :temporary, requester: requester, addressee: addressee)
 
