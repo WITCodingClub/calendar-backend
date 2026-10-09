@@ -14,6 +14,11 @@ export default class extends Controller {
     this.timer = setTimeout(() => { label.textContent = original }, 2000)
   }
 
+  // Selects the whole value of a read-only field, so it is easy to copy by hand.
+  select(event) {
+    event.currentTarget.select()
+  }
+
   disconnect() {
     clearTimeout(this.timer)
   }

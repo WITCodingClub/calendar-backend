@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= browser_title("500 Internal Server Error") %></title>
   <%= render "layouts/favicon" %>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com" nonce="<%= content_security_policy_nonce %>"></script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
   <div class="text-center px-6">

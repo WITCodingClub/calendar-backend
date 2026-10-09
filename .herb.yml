@@ -41,15 +41,6 @@ version: 0.10.4
 linter:
   enabled: true
 
-  rules:
-    # Nonces only mean something once a policy is enforced, and
-    # config/initializers/content_security_policy.rb is still entirely
-    # commented out. Turning CSP on touches inline scripts, importmap and
-    # Turbo, so it is its own piece of work rather than a lint fix. Re-enable
-    # this rule as part of that.
-    html-require-script-nonce:
-      enabled: false
-
   # A .text.erb template is plain text or markdown, not HTML. The HTML rules
   # would ask for &gt; in llms.txt, and that breaks the markdown.
   exclude:

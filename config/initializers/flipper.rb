@@ -38,6 +38,9 @@ end
 
 Flipper::UI.configure do |config|
   config.actor_names_source = ->(actor_ids) { FeatureFlags::ActorNames.call(actor_ids) }
+  # The version check fetches www.flippercloud.io from the browser, which the
+  # Content Security Policy does not allow. Dependabot reports new versions.
+  config.version_check_enabled = false
 end
 
 # Group gates. FeatureFlags::Groups unwraps the actor that Flipper passes a group

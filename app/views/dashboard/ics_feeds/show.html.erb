@@ -11,16 +11,17 @@
     <% if @ics_url.present? %>
       <div>
         <label class="m3-label">Your personal ICS URL</label>
-        <div class="flex gap-2">
+        <div class="flex gap-2" data-controller="clipboard" data-clipboard-text-value="<%= @ics_url %>">
           <input type="text" autocomplete="off"
                  value="<%= @ics_url %>"
                  readonly
                  class="m3-input font-mono text-xs flex-1"
                  id="ics-url-field"
-                 onclick="this.select()">
+                 data-action="click->clipboard#select">
           <button type="button"
                   class="m3-btn-tonal text-sm"
-                  onclick="navigator.clipboard.writeText(document.getElementById('ics-url-field').value); this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000);">
+                  data-action="click->clipboard#copy"
+                  data-clipboard-target="label">
             Copy
           </button>
         </div>
