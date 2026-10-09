@@ -15,6 +15,11 @@
 #  index_courses_faculties_on_course_id_and_primary     (course_id,primary_indicator)
 #  index_courses_faculties_on_faculty_id                (faculty_id)
 #
+# Foreign Keys
+#
+#  fk_rails_...  (course_id => courses.id)
+#  fk_rails_...  (faculty_id => faculties.id)
+#
 FactoryBot.define do
   factory :course_faculty, class: "CourseFaculty" do
     association :course
