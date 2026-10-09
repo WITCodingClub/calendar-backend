@@ -9,7 +9,9 @@ require "rails_helper"
 # and fails on that error. Each route gets a real record for its :id param, so
 # the request gets past the record lookup and reaches the authorization call.
 # The mounted engines (Mission Control, Flipper UI, PgHero, Blazer, Audits1984)
-# are not Admin:: controllers, so the spec skips them.
+# have no admin/ routes, so the spec skips them. Mission Control inherits from
+# Admin::JobsBaseController, which skips verify_authorized; see
+# spec/requests/admin/jobs_spec.rb.
 RSpec.describe "Admin authorization", type: :request do
   admin_routes = Rails.application.routes.routes.filter_map do |route|
     controller = route.defaults[:controller]

@@ -54,7 +54,7 @@ module Calendar
       "https://chromewebstore.google.com/detail/wit-calendar/aceelinogfcceklkpacakdeddnaakicj"
     )
 
-    config.mission_control.jobs.base_controller_class = "Admin::ApplicationController"
+    config.mission_control.jobs.base_controller_class = "Admin::JobsBaseController"
     config.mission_control.jobs.http_basic_auth_enabled = false
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do
