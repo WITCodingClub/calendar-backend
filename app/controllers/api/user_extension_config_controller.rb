@@ -30,7 +30,7 @@ module Api
       }, status: :ok
     rescue => e
       Rails.logger.error("Error fetching user extension config for user #{current_user.id}: #{e.message}")
-      render json: { error: "Failed to fetch user extension config" }, status: :internal_server_error
+      render_error "Failed to fetch user extension config", status: :internal_server_error
     end
 
     # PUT /api/user/extension_config
@@ -60,15 +60,14 @@ module Api
       if config.save
         render json: { pub_id: config.public_id, message: "User extension config updated successfully" }, status: :ok
       else
-        render json: {
-          pub_id: config.public_id,
-          error: "Failed to update user extension config",
-          details: config.errors.full_messages
-        }, status: :unprocessable_entity
+        render_error "Failed to update user extension config",
+                     status: :unprocessable_entity,
+                     pub_id: config.public_id,
+                     details: config.errors.full_messages
       end
     rescue => e
       Rails.logger.error("Error updating user extension config for user #{current_user.id}: #{e.message}")
-      render json: { error: "Failed to update user extension config" }, status: :internal_server_error
+      render_error "Failed to update user extension config", status: :internal_server_error
     end
   end
 end

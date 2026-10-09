@@ -37,7 +37,8 @@ module Api
         GoogleCalendarSyncJob.perform_later(current_user, force: true)
         render json: CalendarPreferenceSerializer.new(@calendar_preference).as_json
       else
-        render json: { errors: @calendar_preference.errors.full_messages }, status: :unprocessable_content
+        render_error @calendar_preference.errors.full_messages.join(", "), status: :unprocessable_content,
+                     errors: @calendar_preference.errors.full_messages
       end
     end
 
@@ -54,12 +55,12 @@ module Api
       meeting_time_id = params[:meeting_time_id]
 
       if template.blank?
-        render json: { error: "Template is required" }, status: :bad_request
+        render_error "Template is required", status: :bad_request
         return
       end
 
       if meeting_time_id.blank?
-        render json: { error: "meeting_time_id is required" }, status: :bad_request
+        render_error "meeting_time_id is required", status: :bad_request
         return
       end
 
@@ -71,14 +72,14 @@ module Api
       end
 
       unless meeting_time
-        render json: { error: "Meeting time not found" }, status: :not_found
+        render_error "Meeting time not found", status: :not_found
         return
       end
 
       unless Course::MeetingTime.joins(course: :enrollments)
                                 .where(enrollments: { user_id: current_user.id })
                                 .exists?(id: meeting_time.id)
-        render json: { error: "Meeting time not found" }, status: :not_found
+        render_error "Meeting time not found", status: :not_found
         return
       end
 
@@ -89,7 +90,7 @@ module Api
         rendered = renderer.render(template, context)
         render json: { rendered: rendered, valid: true }
       rescue CalendarTemplateRenderer::InvalidTemplateError => e
-        render json: { valid: false, error: e.message }, status: :unprocessable_content
+        render_error e.message, status: :unprocessable_content, valid: false
       end
     end
 

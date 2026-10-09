@@ -73,7 +73,7 @@ module Api
       # that same account — otherwise a leaked handle would let anyone attach
       # their own authenticator to someone else's account.
       if challenge.nil? || challenge.user_id != current_user.id
-        render json: { error: "Passkey registration expired. Start again." }, status: :unprocessable_content
+        render_error "Passkey registration expired. Start again.", status: :unprocessable_content
         return
       end
 
@@ -96,7 +96,7 @@ module Api
       render json: { passkey: serialize(passkey) }, status: :created
     rescue WebAuthn::Error => e
       Rails.logger.warn("Passkey registration rejected: #{e.class} #{e.message}")
-      render json: { error: "Could not verify this passkey" }, status: :unprocessable_content
+      render_error "Could not verify this passkey", status: :unprocessable_content
     end
 
     # DELETE /api/user/passkeys/:passkey_id
@@ -105,7 +105,7 @@ module Api
       passkey = nil unless passkey&.user_id == current_user.id
 
       if passkey.nil?
-        render json: { error: "Passkey not found" }, status: :not_found
+        render_error "Passkey not found", status: :not_found
         return
       end
 
@@ -136,7 +136,7 @@ module Api
       challenge = WebauthnChallenge.consume(handle: params[:handle], purpose: "authentication")
 
       if challenge.nil?
-        render json: { error: "Sign-in expired. Start again." }, status: :unauthorized
+        render_error "Sign-in expired. Start again.", status: :unauthorized
         return
       end
 
@@ -144,7 +144,7 @@ module Api
       passkey    = Passkey.find_by(external_id: credential.id)
 
       if passkey.nil?
-        render json: { error: "Unknown passkey" }, status: :unauthorized
+        render_error "Unknown passkey", status: :unauthorized
         return
       end
 
@@ -171,7 +171,7 @@ module Api
       }, status: :ok
     rescue WebAuthn::Error => e
       Rails.logger.warn("Passkey sign-in rejected: #{e.class} #{e.message}")
-      render json: { error: "Could not verify this passkey" }, status: :unauthorized
+      render_error "Could not verify this passkey", status: :unauthorized
     end
 
     # POST /api/user/passkeys/handoff
@@ -192,7 +192,7 @@ module Api
       user = PasskeyHandoff.consume(code: params[:code], purpose: "session")
 
       if user.nil?
-        render json: { error: "That sign-in link has expired. Start again." }, status: :unauthorized
+        render_error "That sign-in link has expired. Start again.", status: :unauthorized
         return
       end
 
@@ -213,7 +213,7 @@ module Api
       user = PasskeyHandoff.peek(code: code, purpose: "register")
 
       if user.nil?
-        render json: { error: "That registration link has expired. Start again." }, status: :unauthorized
+        render_error "That registration link has expired. Start again.", status: :unauthorized
         return
       end
 

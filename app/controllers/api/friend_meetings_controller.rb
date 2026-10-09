@@ -62,7 +62,7 @@ module Api
 
       render json: { meeting: serialize(meeting) }, status: meeting.previously_new_record? ? :created : :ok
     rescue FriendMeetingCreator::Error => e
-      render json: { error: e.message }, status: :unprocessable_content
+      render_error e.message, status: :unprocessable_content
     end
 
     # PATCH /api/friends/meetings/:id
@@ -74,7 +74,7 @@ module Api
       FriendMeetingUpdater.call(meeting: @meeting, changes: params.permit(*FriendMeetingUpdater::FIELDS).to_h)
       render json: { meeting: serialize(@meeting.reload) }
     rescue FriendMeetingCreator::Error => e
-      render json: { error: e.message }, status: :unprocessable_content
+      render_error e.message, status: :unprocessable_content
     end
 
     # DELETE /api/friends/meetings/:id
@@ -108,7 +108,7 @@ module Api
     def require_friend_meeting_events
       return if Flipper.enabled?(FlipperFlags::FRIEND_MEETING_EVENTS, current_user)
 
-      render json: { error: "Friend meeting events are not enabled" }, status: :not_found
+      render_error "Friend meeting events are not enabled", status: :not_found
     end
 
     # A meeting that the person cannot see answers 404, the same as one that

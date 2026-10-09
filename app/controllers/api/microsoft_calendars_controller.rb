@@ -28,12 +28,12 @@ module Api
       placement = params[:placement].to_s
 
       unless CourseCalendar::PLACEMENTS.value?(placement)
-        render json: { error: "placement must be separate or primary" }, status: :unprocessable_content
+        render_error "placement must be separate or primary", status: :unprocessable_content
         return
       end
 
       unless current_user.oauth_credentials.microsoft.exists?
-        render json: { error: "No Microsoft calendar is connected" }, status: :not_found
+        render_error "No Microsoft calendar is connected", status: :not_found
         return
       end
 
@@ -47,7 +47,7 @@ module Api
       authorize current_user, :show?
       return if MicrosoftGraph.enabled_for?(current_user)
 
-      render json: { error: "Microsoft calendar sync is not enabled" }, status: :not_found
+      render_error "Microsoft calendar sync is not enabled", status: :not_found
     end
   end
 end

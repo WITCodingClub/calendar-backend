@@ -20,7 +20,7 @@ module Api
       session = nil unless session&.user_id == current_user.id
 
       if session.nil?
-        render json: { error: "Session not found" }, status: :not_found
+        render_error "Session not found", status: :not_found
         return
       end
 

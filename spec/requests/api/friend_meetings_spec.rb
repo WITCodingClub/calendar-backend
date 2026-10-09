@@ -38,7 +38,7 @@ RSpec.describe "Api::FriendMeetings", type: :request do
     post_meeting
 
     expect(response).to have_http_status(:not_found)
-    expect(response.parsed_body).to eq("error" => "Friend meeting events are not enabled")
+    expect(response.parsed_body).to eq("error" => "Friend meeting events are not enabled", "code" => "NOT_FOUND")
     expect(FriendMeeting.count).to eq(0)
   end
 

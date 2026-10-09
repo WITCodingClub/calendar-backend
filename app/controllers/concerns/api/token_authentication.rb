@@ -31,14 +31,14 @@ module Api
       token = extract_token_from_header
 
       if token.blank?
-        render json: { success: false, error: "Authentication required", code: "AUTH_MISSING" }, status: :unauthorized
+        render_error "Authentication required", status: :unauthorized, code: "AUTH_MISSING"
         return
       end
 
       decoded = JsonWebTokenService.decode(token)
 
       if decoded.nil?
-        render json: { success: false, error: "Authentication required", code: "AUTH_INVALID" }, status: :unauthorized
+        render_error "Authentication required", status: :unauthorized, code: "AUTH_INVALID"
         return
       end
 
@@ -47,14 +47,14 @@ module Api
       @current_session = UserSession.find_by(jti: decoded[:jti])
 
       if @current_session.nil? || !@current_session.active?
-        render json: { success: false, error: "Session ended", code: "AUTH_REVOKED" }, status: :unauthorized
+        render_error "Session ended", status: :unauthorized, code: "AUTH_REVOKED"
         return
       end
 
       @current_user = @current_session.user
 
       if @current_user.nil?
-        render json: { success: false, error: "Authentication required", code: "AUTH_INVALID" }, status: :unauthorized
+        render_error "Authentication required", status: :unauthorized, code: "AUTH_INVALID"
         return
       end
 
