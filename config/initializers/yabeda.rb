@@ -26,6 +26,10 @@ Yabeda.configure do
           comment: "Anonymous usage events that the browser extension sends.",
           tags: %i[event version browser]
 
+  counter :csp_reports_total,
+          comment: "Content Security Policy violation reports from browsers, by directive.",
+          tags: %i[directive]
+
   counter :api_legacy_requests_total,
           comment: "Requests to an old API path in config/routes/api_legacy.rb, by path.",
           tags: %i[route]

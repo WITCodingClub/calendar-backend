@@ -14,6 +14,9 @@ namespace :api do
   # Anonymous usage counts from the extension, for Grafana. No token.
   post "extension_events", to: "extension_events#create"
 
+  # Content Security Policy violation reports from browsers. No token.
+  post "csp_reports", to: "csp_reports#create"
+
   # Old paths. Before the catch-all, so they still match.
   draw :api_legacy
 

@@ -1,0 +1,15 @@
+{
+  "csp-report": {
+    "document-uri": "https://calendar.witcc.dev/dashboard/ics_feed?token=secret-token",
+    "referrer": "",
+    "violated-directive": "script-src-elem",
+    "effective-directive": "script-src-elem",
+    "original-policy": "default-src 'self'; report-uri /api/csp_reports",
+    "disposition": "report",
+    "blocked-uri": "https://cdn.example.com/widget.js?key=secret-key",
+    "line-number": 12,
+    "source-file": "https://calendar.witcc.dev/dashboard/ics_feed",
+    "status-code": 200,
+    "script-sample": ""
+  }
+}

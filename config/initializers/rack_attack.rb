@@ -39,6 +39,10 @@ class Rack::Attack
   # API limit that sign-in needs.
   EXTENSION_EVENTS_PATH = "/api/extension_events"
 
+  # Content Security Policy reports. One page view can send several, and a
+  # browser sends them without a token, so they get their own budget too.
+  CSP_REPORTS_PATH = "/api/csp_reports"
+
   AGENT_READABLE_PATH = lambda do |req|
     AGENT_READABLE_PATHS.include?(req.path) ||
       req.path == "/docs" ||
@@ -120,13 +124,17 @@ class Rack::Attack
 
   throttle("api/ip", limit: 20, period: 1.minute) do |req|
     if req.path.start_with?("/api/") && !PUBLIC_CATALOG_PATH.call(req) &&
-       req.path != EXTENSION_EVENTS_PATH && !extract_user_id_from_jwt(req)
+       ![ EXTENSION_EVENTS_PATH, CSP_REPORTS_PATH ].include?(req.path) && !extract_user_id_from_jwt(req)
       req.ip
     end
   end
 
   throttle("api/extension-events", limit: 120, period: 1.minute) do |req|
     req.ip if req.path == EXTENSION_EVENTS_PATH
+  end
+
+  throttle("api/csp-reports", limit: 60, period: 1.minute) do |req|
+    req.ip if req.path == CSP_REPORTS_PATH
   end
 
   # The public catalog API is meant to be consumed anonymously, so it gets its

@@ -1,3 +1,10 @@
+<%# The inline script below carries the CSP nonce. A visitor with no session
+    gets a new nonce on each page, and Turbo keeps the policy of the page it
+    came from, so Turbo must load this page in full. %>
+<% content_for :head do %>
+  <meta name="turbo-visit-control" content="reload">
+<% end %>
+
 <div class="w-full max-w-sm">
   <div class="m3-card p-8">
     <!-- Logo / Title -->
@@ -74,7 +81,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="<%= content_security_policy_nonce %>">
   (function () {
     const button = document.getElementById('passkey-sign-in');
     const error  = document.getElementById('passkey-error');
@@ -111,7 +118,7 @@
       error.hidden = true;
       button.disabled = true;
       try {
-        const { handle, options } = await post(<%= passkey_session_options_path.to_json.html_safe %>);
+        const { handle, options } = await post(<%= json_escape(passkey_session_options_path.to_json).html_safe %>);
 
         const credential = await navigator.credentials.get({
           publicKey: {
@@ -124,7 +131,7 @@
         });
 
         const assertion = credential.response;
-        const result = await post(<%= passkey_session_path.to_json.html_safe %>, {
+        const result = await post(<%= json_escape(passkey_session_path.to_json).html_safe %>, {
           handle: handle,
           credential: {
             type: credential.type,

@@ -167,7 +167,7 @@
 
     <%# Draws the flowcharts. If the script does not load, each diagram stays on
         the page as readable source in its code block. %>
-    <script type="module">
+    <script type="module" nonce="<%= content_security_policy_nonce %>">
       const blocks = document.querySelectorAll("pre > code.mermaid");
       if (blocks.length > 0) {
         try {

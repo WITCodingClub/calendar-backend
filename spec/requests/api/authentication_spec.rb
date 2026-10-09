@@ -9,6 +9,7 @@ require "rails_helper"
 # action needs a line here, so review sees it.
 RSpec.describe "API authentication" do
   PUBLIC_ACTIONS = %w[
+    api/csp_reports#create
     api/extension_events#create
     api/graphql#execute
     api/onboardings#create
