@@ -35,10 +35,10 @@ module Calendar
       config.active_record.encryption[key] = ENV[env_var] if ENV[env_var].present?
     end
 
-    # Rows written before OauthCredential encrypted its tokens hold plain text.
-    # This lets them still read until `bin/rails oauth_credentials:encrypt`
-    # rewrites them. Turn it off in a follow-up after the backfill (#713).
-    config.active_record.encryption.support_unencrypted_data = true
+    # support_unencrypted_data stays at its default (false): an encrypted
+    # column that holds plain text raises on read. Production ran
+    # `bin/rails oauth_credentials:encrypt` on 2026-10-09 (#713). A local
+    # database with older rows needs the same task.
 
     config.active_job.queue_adapter = :solid_queue
 

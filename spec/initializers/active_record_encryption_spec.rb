@@ -72,6 +72,10 @@ RSpec.describe ActiveRecordEncryptionKeys do
 
   it "gives the test environment working keys, so specs need no setup" do
     expect(ActiveRecord::Encryption.config.primary_key).to be_present
-    expect(ActiveRecord::Encryption.config.support_unencrypted_data).to be(true)
+  end
+
+  # Production finished the backfill, so a plain-text token must fail loudly.
+  it "does not read plain-text data from encrypted columns" do
+    expect(ActiveRecord::Encryption.config.support_unencrypted_data).to be(false)
   end
 end
