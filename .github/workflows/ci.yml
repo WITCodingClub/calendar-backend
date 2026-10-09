@@ -24,6 +24,9 @@ jobs:
       - name: Scan for known security vulnerabilities in gems used
         run: bin/bundler-audit
 
+      - name: Scan for vulnerable JavaScript packages
+        run: bin/importmap audit
+
   lint:
     runs-on: ubuntu-latest
     env:
@@ -103,3 +106,24 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432
           HASHID_SALT: ci_test_salt
         run: bin/rails db:test:prepare && bundle exec rspec
+
+  zeitwerk:
+    runs-on: ubuntu-latest
+    env:
+      RAILS_ENV: test
+      HASHID_SALT: ci_test_salt
+
+    steps:
+      - name: Install packages
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libpq-dev libvips
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Check autoloading
+        run: bin/rails zeitwerk:check
