@@ -328,6 +328,21 @@ RSpec.describe FinalExam do
       expect(exam.location_with_names).to eq("Synthetic Hall 112")
     end
 
+    it "matches a room with a letter suffix" do
+      lettered = create(:room, building: building, number: "402A")
+      create(:room, building: building, number: "402")
+      exam = build(:final_exam, location: "ZZQ 402A")
+
+      expect(exam.matched_rooms).to eq([ lettered ])
+    end
+
+    it "matches a room that the catalog stores with leading zeros" do
+      padded = create(:room, building: building, number: "011")
+      exam = build(:final_exam, location: "ZZQ 11")
+
+      expect(exam.matched_rooms).to eq([ padded ])
+    end
+
     it "keeps the raw location when no room matches" do
       exam = build(:final_exam, location: "NOPE 112")
 

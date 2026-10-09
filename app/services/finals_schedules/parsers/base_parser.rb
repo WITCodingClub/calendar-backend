@@ -11,6 +11,12 @@ module FinalsSchedules
         raise NotImplementedError, "#{self.class}#parse must be implemented"
       end
 
+      # Problems that made the parser skip rows. The admin sees them with the
+      # other errors from an upload.
+      def warnings
+        @warnings ||= []
+      end
+
       private
 
       def preprocess_text(text)

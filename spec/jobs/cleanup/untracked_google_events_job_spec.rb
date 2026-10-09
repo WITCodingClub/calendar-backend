@@ -65,4 +65,16 @@ RSpec.describe Cleanup::UntrackedGoogleEventsJob do
 
     expect(result[:errors]).to eq(0)
   end
+
+  it "reports a failed delete and counts it" do
+    error = Google::Apis::ClientError.new("forbidden", status_code: 403)
+    allow(fake_service).to receive(:delete_event).and_raise(error)
+    allow(Rails.error).to receive(:report)
+
+    result = job.perform(calendar.id)
+
+    expect(result[:errors]).to eq(1)
+    expect(Rails.error).to have_received(:report)
+      .with(error, handled: true, context: { course_calendar_id: calendar.id, external_event_id: "orphan_1" })
+  end
 end

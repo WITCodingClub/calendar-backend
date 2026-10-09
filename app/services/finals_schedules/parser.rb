@@ -36,7 +36,7 @@ module FinalsSchedules
         linked:        results[:linked],
         orphan:        results[:orphan],
         rooms_created: results[:rooms_created],
-        errors:        results[:errors]
+        errors:        parser.warnings + results[:errors]
       }
     end
 
@@ -121,15 +121,17 @@ module FinalsSchedules
       rooms_created = 0
 
       location.split(" / ").each do |loc|
-        next unless loc =~ /([A-Z]+)\s+(\d+)([A-Z])?/i
+        next unless loc =~ FinalExam::ROOM_PATTERN
 
-        building = Building.find_by(abbreviation: $1)
+        abbrev = $1
+        number = $2.upcase
+        building = Building.find_by(abbreviation: abbrev)
         next unless building
-        next if building.rooms.exists?(number: $2.to_i)
+        next if building.rooms.any? { |room| Room.number_key(room.number) == Room.number_key(number) }
 
-        building.rooms.create!(number: $2.to_i)
+        building.rooms.create!(number: number)
         rooms_created += 1
-        Rails.logger.info("Created room #{$2} in #{building.name}")
+        Rails.logger.info("Created room #{number} in #{building.name}")
       end
 
       rooms_created

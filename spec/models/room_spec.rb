@@ -29,4 +29,16 @@ RSpec.describe Room, type: :model do
   it { is_expected.to belong_to(:building) }
   it { is_expected.to have_many(:meeting_time_rooms).class_name("Course::MeetingTimeRoom").dependent(:destroy) }
   it { is_expected.to have_many(:meeting_times).class_name("Course::MeetingTime").through(:meeting_time_rooms) }
+
+  describe ".number_key" do
+    it "removes leading zeros and keeps a letter suffix" do
+      expect(described_class.number_key("011")).to eq("11")
+      expect(described_class.number_key("007b")).to eq("7B")
+      expect(described_class.number_key("2A")).to eq("2A")
+    end
+
+    it "keeps a room zero" do
+      expect(described_class.number_key("000")).to eq("0")
+    end
+  end
 end

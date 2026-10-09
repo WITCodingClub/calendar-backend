@@ -99,12 +99,16 @@ RSpec.describe Cleanup::DuplicateTbdEventsJob do
     expect(CalendarEvent.exists?(tbd_event.id)).to be(false)
   end
 
-  it "keeps the row when Google refuses with another client error" do
-    allow(api_service).to receive(:delete_event).and_raise(Google::Apis::ClientError.new("forbidden", status_code: 403))
+  it "keeps the row and reports the error when Google refuses with another client error" do
+    error = Google::Apis::ClientError.new("forbidden", status_code: 403)
+    allow(api_service).to receive(:delete_event).and_raise(error)
+    allow(Rails.error).to receive(:report)
 
     described_class.perform_now(user.id)
 
     expect(CalendarEvent.exists?(tbd_event.id)).to be(true)
+    expect(Rails.error).to have_received(:report)
+      .with(error, handled: true, context: { user_id: user.id, calendar_event_id: tbd_event.id })
   end
 
   it "reports an unexpected error instead of raising it" do

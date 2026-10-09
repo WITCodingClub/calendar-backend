@@ -34,6 +34,12 @@ class Room < ApplicationRecord
 
   before_save :set_floor
 
+  # A key that compares room numbers from different sources. The catalog
+  # stores "011" and "007B", and the finals PDF prints "11" and "7B".
+  def self.number_key(number)
+    number.to_s.strip.upcase.sub(/\A0+(?=\d)/, "")
+  end
+
   def floor
     first_char = number.to_s[0].to_s
     first_char.match?(/\d/) ? first_char.to_i : 0

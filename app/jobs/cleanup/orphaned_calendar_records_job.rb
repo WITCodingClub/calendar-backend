@@ -1,8 +1,16 @@
 # frozen_string_literal: true
 
 module Cleanup
+  # Deletes course calendars whose credential has an expired access token and
+  # no refresh token.
+  #
+  # The job no longer looks for calendars without a credential, or credentials
+  # without a user. NOT NULL foreign keys on calendars.oauth_credential_id and
+  # oauth_credentials.user_id make those rows impossible.
   class OrphanedCalendarRecordsJob < ApplicationJob
     queue_as :low
+
+    REASON = "Expired token without refresh capability"
 
     def perform
       Rails.logger.info "[Cleanup::OrphanedCalendarRecordsJob] Starting orphaned calendar cleanup"
@@ -10,39 +18,14 @@ module Cleanup
       deleted_count = 0
       error_count = 0
 
-      orphaned_calendar_ids = []
-
-      # Find calendars with missing oauth credentials
-      orphaned_by_credential = CourseCalendar.where.missing(:oauth_credential).pluck(:id)
-      orphaned_calendar_ids.concat(orphaned_by_credential)
-
-      # Find calendars with expired credentials that cannot be refreshed
-      orphaned_by_expired_token = CourseCalendar.joins(:oauth_credential)
-                                                .where(oauth_credentials: { token_expires_at: ..Time.current })
-                                                .where(oauth_credentials: { refresh_token: nil })
-                                                .pluck(:id)
-      orphaned_calendar_ids.concat(orphaned_by_expired_token)
-
-      # Find calendars whose oauth credential has no user
-      orphaned_by_user_sql = <<~SQL.squish
-        SELECT calendars.id
-        FROM calendars
-        INNER JOIN oauth_credentials ON oauth_credentials.id = calendars.oauth_credential_id
-        LEFT OUTER JOIN users ON users.id = oauth_credentials.user_id
-        WHERE users.id IS NULL
-      SQL
-      orphaned_by_user = ActiveRecord::Base.connection.execute(orphaned_by_user_sql).to_a.pluck("id")
-      orphaned_calendar_ids.concat(orphaned_by_user)
-
-      orphaned_calendars = CourseCalendar.where(id: orphaned_calendar_ids.uniq)
-                                         .includes(:oauth_credential)
+      orphaned_calendars = CourseCalendar.joins(:oauth_credential)
+                                         .where(oauth_credentials: { token_expires_at: ..Time.current, refresh_token: nil })
 
       Rails.logger.info "[Cleanup::OrphanedCalendarRecordsJob] Found #{orphaned_calendars.size} orphaned calendars"
 
-      orphaned_calendars.each do |calendar|
-        reason = determine_orphan_reason(calendar)
+      orphaned_calendars.find_each do |calendar|
         Rails.logger.info "[Cleanup::OrphanedCalendarRecordsJob] Deleting calendar #{calendar.id} " \
-                          "(external_calendar_id: #{calendar.external_calendar_id}) - Reason: #{reason}"
+                          "(external_calendar_id: #{calendar.external_calendar_id}) - Reason: #{REASON}"
 
         calendar.destroy!
         deleted_count += 1
@@ -54,24 +37,6 @@ module Cleanup
       Rails.logger.info "[Cleanup::OrphanedCalendarRecordsJob] Completed: #{deleted_count} deleted, #{error_count} errors"
 
       { deleted: deleted_count, errors: error_count }
-    end
-
-    private
-
-    def determine_orphan_reason(calendar)
-      return "Missing OAuth credential" if calendar.oauth_credential.blank?
-
-      credential = calendar.oauth_credential
-
-      return "Missing user" unless credential.user_id.present? && User.exists?(credential.user_id)
-
-      if credential.token_expires_at.present? &&
-         credential.token_expires_at <= Time.current &&
-         credential.refresh_token.blank?
-        return "Expired token without refresh capability"
-      end
-
-      "Unknown reason"
     end
   end
 end

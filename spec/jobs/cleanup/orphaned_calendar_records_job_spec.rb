@@ -63,32 +63,4 @@ RSpec.describe Cleanup::OrphanedCalendarRecordsJob do
     expect(Rails.error).to have_received(:report)
       .with(an_instance_of(ActiveRecord::RecordNotDestroyed), handled: true, context: { course_calendar_id: broken.id })
   end
-
-  describe "#determine_orphan_reason" do
-    subject(:job) { described_class.new }
-
-    it "names an expired token without a refresh token" do
-      calendar = create(:course_calendar, oauth_credential: dead_credential)
-
-      expect(job.send(:determine_orphan_reason, calendar)).to eq("Expired token without refresh capability")
-    end
-
-    it "names a missing credential" do
-      expect(job.send(:determine_orphan_reason, build(:course_calendar, oauth_credential: nil)))
-        .to eq("Missing OAuth credential")
-    end
-
-    it "names a credential whose user is gone" do
-      calendar = create(:course_calendar)
-      calendar.oauth_credential.user_id = 0
-
-      expect(job.send(:determine_orphan_reason, calendar)).to eq("Missing user")
-    end
-
-    it "falls back to an unknown reason" do
-      calendar = create(:course_calendar, oauth_credential: create(:oauth_credential, :microsoft))
-
-      expect(job.send(:determine_orphan_reason, calendar)).to eq("Unknown reason")
-    end
-  end
 end
