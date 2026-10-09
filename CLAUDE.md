@@ -2,6 +2,8 @@
 
 Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs use RSpec.
 
+`docs/architecture.md` gives the rules for where code goes. Read it before you add a service, a job, or a controller.
+
 ## API controllers
 
 - Every API controller inherits from `Api::BaseController`. The base requires no token.
