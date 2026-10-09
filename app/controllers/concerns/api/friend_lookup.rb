@@ -72,10 +72,10 @@ module Api
       render_error "Temporary friendships are not enabled", status: :not_found
     end
 
-    # Reads params[:expires_at] with FriendshipExpiryTime, the rule the
+    # Reads params[:expires_at] with Friendships::ExpiryTime, the rule the
     # dashboard also uses. Renders 400 and returns nil for any other value.
     def parse_expires_at
-      expires_at = FriendshipExpiryTime.parse(params[:expires_at])
+      expires_at = Friendships::ExpiryTime.parse(params[:expires_at])
       return expires_at if expires_at
 
       render_error EXPIRES_AT_FORMAT_ERROR, status: :bad_request

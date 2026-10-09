@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FriendMeetingCreator do
+RSpec.describe FriendMeetings::Creator do
   include ActiveJob::TestHelper
   include ActiveSupport::Testing::TimeHelpers
 
@@ -39,7 +39,7 @@ RSpec.describe FriendMeetingCreator do
     meeting = nil
 
     expect { meeting = create_meeting(location: " Synthetic Library ") }
-      .to have_enqueued_job(FriendMeetingPublishJob)
+      .to have_enqueued_job(FriendMeetings::PublishJob)
 
     expect(meeting).to have_attributes(title: "Synthetic Study Group", location: "Synthetic Library", frequency: "one_time",
                                        start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16),
@@ -73,7 +73,7 @@ RSpec.describe FriendMeetingCreator do
     it "makes a meeting with no friends, keeps the guest, and invites the guest" do
       meeting = nil
 
-      expect { meeting = create_meeting(friend_ids: [], guest: guest) }.to have_enqueued_job(FriendMeetingPublishJob)
+      expect { meeting = create_meeting(friend_ids: [], guest: guest) }.to have_enqueued_job(FriendMeetings::PublishJob)
 
       expect(meeting).to have_attributes(guest_name: "Sample Guest", guest_email: "guest@example.com", invite_friends: false)
       expect(meeting.attendees).to be_empty
@@ -95,7 +95,7 @@ RSpec.describe FriendMeetingCreator do
         expect(enqueued_jobs).to be_empty
       end
 
-      expect(FriendMeetingPublishJob).to have_been_enqueued.once
+      expect(FriendMeetings::PublishJob).to have_been_enqueued.once
     end
   end
 
@@ -112,7 +112,7 @@ RSpec.describe FriendMeetingCreator do
     it "makes only the ICS row and starts no job for a person who uses only the feed" do
       meeting = nil
 
-      expect { meeting = create_meeting }.not_to have_enqueued_job(FriendMeetingPublishJob)
+      expect { meeting = create_meeting }.not_to have_enqueued_job(FriendMeetings::PublishJob)
       expect(meeting.destinations).to eq([ "ics" ])
     end
 

@@ -95,7 +95,7 @@ module CourseScheduleSyncable
 
     # Put back any friend meeting whose calendar was made again, for example
     # after a Microsoft placement move.
-    FriendMeetingPublisher.new(self, services: services).publish_missing
+    FriendMeetings::Publisher.new(self, services: services).publish_missing
 
     # Update last sync timestamp if sync was successful
     if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)

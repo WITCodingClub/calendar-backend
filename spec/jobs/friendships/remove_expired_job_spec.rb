@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe RemoveExpiredFriendshipsJob do
+RSpec.describe Friendships::RemoveExpiredJob do
   include ActiveSupport::Testing::TimeHelpers
 
   it "deletes expired friendships and requests, and keeps the rest" do

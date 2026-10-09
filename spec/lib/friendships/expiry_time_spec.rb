@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FriendshipExpiryTime do
+RSpec.describe Friendships::ExpiryTime do
   let(:new_york) { ActiveSupport::TimeZone["America/New_York"] }
 
   describe ".parse" do

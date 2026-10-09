@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FriendMeetingRemovalSweepJob do
+RSpec.describe FriendMeetings::RemovalSweepJob do
   include ActiveJob::TestHelper
 
   it "starts the remove job again for each meeting cancelled over an hour ago" do
@@ -14,13 +14,13 @@ RSpec.describe FriendMeetingRemovalSweepJob do
 
     described_class.perform_now
 
-    expect(FriendMeetingRemoveJob).to have_been_enqueued.with(stale).once
-    [ recent, live, refused ].each { |meeting| expect(FriendMeetingRemoveJob).not_to have_been_enqueued.with(meeting) }
+    expect(FriendMeetings::RemoveJob).to have_been_enqueued.with(stale).once
+    [ recent, live, refused ].each { |meeting| expect(FriendMeetings::RemoveJob).not_to have_been_enqueued.with(meeting) }
   end
 
   it "runs every hour in production" do
     schedule = YAML.load_file(Rails.root.join("config/recurring.yml")).dig("production", "friend_meeting_removal_sweep")
 
-    expect(schedule).to include("class" => "FriendMeetingRemovalSweepJob", "schedule" => "every hour at minute 27")
+    expect(schedule).to include("class" => "FriendMeetings::RemovalSweepJob", "schedule" => "every hour at minute 27")
   end
 end

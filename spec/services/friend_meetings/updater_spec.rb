@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FriendMeetingUpdater do
+RSpec.describe FriendMeetings::Updater do
   include ActiveJob::TestHelper
   include ActiveSupport::Testing::TimeHelpers
 
@@ -18,7 +18,7 @@ RSpec.describe FriendMeetingUpdater do
     meeting.publication_for("google").update!(status: "published")
 
     expect { described_class.call(meeting: meeting, changes: { "title" => " Synthetic Review ", "location" => "" }) }
-      .to have_enqueued_job(FriendMeetingUpdateJob).with(meeting)
+      .to have_enqueued_job(FriendMeetings::UpdateJob).with(meeting)
 
     expect(meeting.reload).to have_attributes(title: "Synthetic Review", location: nil, start_time: zone.local(2026, 10, 14, 15))
     expect(meeting.publications.order(:id).pluck(:provider, :status)).to eq([ %w[google queued], %w[ics published] ])
@@ -28,12 +28,12 @@ RSpec.describe FriendMeetingUpdater do
     feed_only = create(:friend_meeting, destinations: %w[ics])
 
     expect { described_class.call(meeting: feed_only, changes: { title: "Synthetic Review" }) }
-      .not_to have_enqueued_job(FriendMeetingUpdateJob)
+      .not_to have_enqueued_job(FriendMeetings::UpdateJob)
   end
 
   it "starts no job when nothing changed" do
     expect { described_class.call(meeting: meeting, changes: { title: "Synthetic Study Group" }) }
-      .not_to have_enqueued_job(FriendMeetingUpdateJob)
+      .not_to have_enqueued_job(FriendMeetings::UpdateJob)
   end
 
   it "moves a weekly meeting to the term that holds its new first day" do
@@ -48,8 +48,8 @@ RSpec.describe FriendMeetingUpdater do
   end
 
   it "refuses an empty change and a time without an offset" do
-    expect { described_class.call(meeting: meeting, changes: {}) }.to raise_error(FriendMeetingCreator::Error, /at least one/)
+    expect { described_class.call(meeting: meeting, changes: {}) }.to raise_error(FriendMeetings::Creator::Error, /at least one/)
     expect { described_class.call(meeting: meeting, changes: { start_time: "2026-10-14T15:00:00" }) }
-      .to raise_error(FriendMeetingCreator::Error, /UTC offset/)
+      .to raise_error(FriendMeetings::Creator::Error, /UTC offset/)
   end
 end

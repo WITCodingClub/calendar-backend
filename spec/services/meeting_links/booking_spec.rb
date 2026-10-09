@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe MeetingLinkBooking do
+RSpec.describe MeetingLinks::Booking do
   include ActiveJob::TestHelper
   include ActiveSupport::Testing::TimeHelpers
 
@@ -26,7 +26,7 @@ RSpec.describe MeetingLinkBooking do
     create(:course_calendar, oauth_credential: create(:oauth_credential, user: owner))
 
     expect { book }
-      .to have_enqueued_job(FriendMeetingPublishJob)
+      .to have_enqueued_job(FriendMeetings::PublishJob)
       .and have_enqueued_mail(MeetingLinkMailer, :booked)
 
     meeting = FriendMeeting.sole
@@ -86,7 +86,7 @@ RSpec.describe MeetingLinkBooking do
   end
 
   it "turns a deadlock into a request to pick again, and leaves the link usable" do
-    allow(FriendMeetingCreator).to receive(:call).and_raise(ActiveRecord::Deadlocked)
+    allow(FriendMeetings::Creator).to receive(:call).and_raise(ActiveRecord::Deadlocked)
 
     expect { book }.to raise_error(described_class::Invalid, /Pick your time again/)
     expect(link.reload).to be_usable
@@ -103,7 +103,7 @@ end
 # Two guests pick at the same moment. Each thread has its own database
 # connection, so this group runs outside the test transaction and removes its
 # own rows.
-RSpec.describe MeetingLinkBooking, "with two guests at once" do
+RSpec.describe MeetingLinks::Booking, "with two guests at once" do
   self.use_transactional_tests = false
 
   let!(:owner) { create(:user) }
@@ -121,7 +121,7 @@ RSpec.describe MeetingLinkBooking, "with two guests at once" do
   end
 
   it "books exactly one meeting" do
-    slots   = MeetingLinkSlots.new(link).call.first(2)
+    slots   = MeetingLinks::Slots.new(link).call.first(2)
     ready   = Queue.new
     go      = Queue.new
     results = Queue.new
@@ -152,7 +152,7 @@ end
 
 # Two guests pick the same time on two links of the same owner. Each link
 # row is its own lock, so only a lock on the owner stops a double booking.
-RSpec.describe MeetingLinkBooking, "with two links of one owner at once" do
+RSpec.describe MeetingLinks::Booking, "with two links of one owner at once" do
   self.use_transactional_tests = false
 
   let!(:owner) { create(:user) }
@@ -171,7 +171,7 @@ RSpec.describe MeetingLinkBooking, "with two links of one owner at once" do
   # Each booking waits after it finds the slot free, so without the owner
   # lock both bookings would see the slot free before either saves.
   def slow_down_slot_checks
-    allow(MeetingLinkSlots).to receive(:new).and_wrap_original do |original, *args, **options|
+    allow(MeetingLinks::Slots).to receive(:new).and_wrap_original do |original, *args, **options|
       slots = original.call(*args, **options)
       allow(slots).to receive(:find).and_wrap_original do |find, *find_args|
         found = find.call(*find_args)
@@ -183,7 +183,7 @@ RSpec.describe MeetingLinkBooking, "with two links of one owner at once" do
   end
 
   it "books the slot once and tells the second guest to pick another time" do
-    start   = MeetingLinkSlots.new(links.first).call.first.start_time.iso8601
+    start   = MeetingLinks::Slots.new(links.first).call.first.start_time.iso8601
     ready   = Queue.new
     go      = Queue.new
     results = Queue.new
@@ -215,7 +215,7 @@ end
 # Two signed-in people book each other's links at the same moment. Saving the
 # link takes a key share lock on the guest's user row (the foreign key), so
 # a booking that locked only its owner could deadlock with the other one.
-RSpec.describe MeetingLinkBooking, "with two people booking each other at once" do
+RSpec.describe MeetingLinks::Booking, "with two people booking each other at once" do
   self.use_transactional_tests = false
 
   let!(:first_person)  { create(:user) }
@@ -235,7 +235,7 @@ RSpec.describe MeetingLinkBooking, "with two people booking each other at once" 
   end
 
   def slow_down_slot_checks
-    allow(MeetingLinkSlots).to receive(:new).and_wrap_original do |original, *args, **options|
+    allow(MeetingLinks::Slots).to receive(:new).and_wrap_original do |original, *args, **options|
       slots = original.call(*args, **options)
       allow(slots).to receive(:find).and_wrap_original do |find, *find_args|
         found = find.call(*find_args)
@@ -247,7 +247,7 @@ RSpec.describe MeetingLinkBooking, "with two people booking each other at once" 
   end
 
   it "books both without a deadlock" do
-    slots   = MeetingLinkSlots.new(first_link).call
+    slots   = MeetingLinks::Slots.new(first_link).call
     ready   = Queue.new
     go      = Queue.new
     results = Queue.new

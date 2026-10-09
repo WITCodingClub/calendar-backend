@@ -150,7 +150,7 @@ Each place has one row in `publications`.
 `DELETE /api/friends/meetings/:id` answers `204`. The meeting is gone from every route and the ICS feed at once. A job then deletes each provider event, and the provider sends each invited friend a cancellation. No later sync puts the meeting back.
 
 - The job retries network, server, rate limit, and permission errors with a growing wait.
-- `FriendMeetingRemovalSweepJob` runs every hour. It starts the job again for each meeting that was cancelled over an hour ago and still exists.
+- `FriendMeetings::RemovalSweepJob` runs every hour. It starts the job again for each meeting that was cancelled over an hour ago and still exists.
 - When the provider refuses the token, the event row stays and its publication shows `failed`. The removal finishes when the person connects the account again.
 
 When a person deletes their account, the app deletes the provider events of their meetings first, while the tokens still work, so the friends get a cancellation.
@@ -167,22 +167,22 @@ When a person removes a friend, the app takes each of them off the other's meeti
 
 ## Disconnect and reconnect
 
-When a person disconnects Microsoft, the app deletes the meeting events from the primary calendar, and Exchange sends the friends a cancellation. The Microsoft publication then shows `removed`, and its invitation status shows `cancelled`. The meeting stays. After the person connects Microsoft again, the next sync puts the event back and sends the invitations again. A new token also starts `FriendMeetingResumeJob`, which finishes any removal that a refused token stopped.
+When a person disconnects Microsoft, the app deletes the meeting events from the primary calendar, and Exchange sends the friends a cancellation. The Microsoft publication then shows `removed`, and its invitation status shows `cancelled`. The meeting stays. After the person connects Microsoft again, the next sync puts the event back and sends the invitations again. A new token also starts `FriendMeetings::ResumeJob`, which finishes any removal that a refused token stopped.
 
 ## Where the event goes
 
 ```mermaid
 flowchart LR
-  route["POST /api/friends/meetings"] --> creator[FriendMeetingCreator]
+  route["POST /api/friends/meetings"] --> creator[FriendMeetings::Creator]
   creator --> row[(friend_meetings<br/>friend_meeting_publications)]
-  creator --> job[FriendMeetingPublishJob]
-  job --> publisher[FriendMeetingPublisher]
+  creator --> job[FriendMeetings::PublishJob]
+  job --> publisher[FriendMeetings::Publisher]
   publisher --> google["Google: WIT Courses calendar"]
   publisher --> microsoft["Microsoft: primary calendar"]
   row --> ics["ICS feed"]
   sync["Course sync"] -->|publish_missing| publisher
-  patch["PATCH"] --> update[FriendMeetingUpdateJob] --> publisher
-  delete["DELETE"] --> remove[FriendMeetingRemoveJob] --> publisher
+  patch["PATCH"] --> update[FriendMeetings::UpdateJob] --> publisher
+  delete["DELETE"] --> remove[FriendMeetings::RemoveJob] --> publisher
 ```
 
 - **Google**: the "WIT Courses" calendar, written with the person's own token.

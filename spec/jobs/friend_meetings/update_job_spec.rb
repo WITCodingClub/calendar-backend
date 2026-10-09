@@ -2,12 +2,12 @@
 
 require "rails_helper"
 
-RSpec.describe FriendMeetingUpdateJob do
+RSpec.describe FriendMeetings::UpdateJob do
   let(:meeting)   { create(:friend_meeting) }
-  let(:publisher) { instance_double(FriendMeetingPublisher, update: nil) }
+  let(:publisher) { instance_double(FriendMeetings::Publisher, update: nil) }
 
   it "runs the publisher for the meeting's owner" do
-    allow(FriendMeetingPublisher).to receive(:new).with(meeting.user).and_return(publisher)
+    allow(FriendMeetings::Publisher).to receive(:new).with(meeting.user).and_return(publisher)
 
     described_class.perform_now(meeting)
 

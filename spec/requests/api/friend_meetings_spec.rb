@@ -59,7 +59,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     it "makes the meeting, starts the publish job, and answers with the meeting" do
       connect_google
 
-      expect { post_meeting }.to have_enqueued_job(FriendMeetingPublishJob)
+      expect { post_meeting }.to have_enqueued_job(FriendMeetings::PublishJob)
 
       meeting = FriendMeeting.sole
       expect(response).to have_http_status(:created)
@@ -94,7 +94,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     it "sends the meeting only to the places in destinations" do
       connect_google
 
-      expect { post_meeting(params.merge(destinations: [ "ics" ])) }.not_to have_enqueued_job(FriendMeetingPublishJob)
+      expect { post_meeting(params.merge(destinations: [ "ics" ])) }.not_to have_enqueued_job(FriendMeetings::PublishJob)
 
       expect(response.parsed_body.dig("meeting", "destinations")).to eq([ "ics" ])
     end
@@ -114,7 +114,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
 
       expect do
         post "/api/friends/meetings", params: params, headers: headers, as: :json
-      end.not_to have_enqueued_job(FriendMeetingPublishJob)
+      end.not_to have_enqueued_job(FriendMeetings::PublishJob)
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body.dig("meeting", "id")).to eq(first_id)
@@ -261,7 +261,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
               params: { title: "Synthetic Review", location: "Synthetic Hall", start_time: "2026-10-15T10:00:00-04:00",
                         end_time: "2026-10-15T11:00:00-04:00" },
               headers: auth_headers_for(user), as: :json
-      end.to have_enqueued_job(FriendMeetingUpdateJob).with(meeting)
+      end.to have_enqueued_job(FriendMeetings::UpdateJob).with(meeting)
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body["meeting"]).to include("title" => "Synthetic Review", "location" => "Synthetic Hall",
@@ -290,7 +290,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     it "deletes the meeting for the owner at once and starts the remove job" do
       expect do
         delete "/api/friends/meetings/#{meeting.public_id}", headers: auth_headers_for(user)
-      end.to have_enqueued_job(FriendMeetingRemoveJob).with(meeting)
+      end.to have_enqueued_job(FriendMeetings::RemoveJob).with(meeting)
 
       expect(response).to have_http_status(:no_content)
       expect(meeting.reload).to be_cancelled
@@ -304,7 +304,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
       credential = create(:oauth_credential, user: user)
       create(:course_calendar, oauth_credential: credential)
 
-      FriendMeetingPublisher.new(user).publish_missing
+      FriendMeetings::Publisher.new(user).publish_missing
 
       expect(meeting.calendar_events).to be_empty
     end
@@ -335,7 +335,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     end
 
     it "takes the invited friend off the meeting and starts the update job" do
-      expect { leave }.to have_enqueued_job(FriendMeetingUpdateJob).with(meeting)
+      expect { leave }.to have_enqueued_job(FriendMeetings::UpdateJob).with(meeting)
 
       expect(response).to have_http_status(:no_content)
       expect(meeting.attendees).to be_empty
@@ -355,7 +355,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
     it "starts no job for a meeting that has ended" do
       meeting.update_columns(start_time: zone.local(2026, 10, 1, 15), end_time: zone.local(2026, 10, 1, 16))
 
-      expect { leave }.not_to have_enqueued_job(FriendMeetingUpdateJob)
+      expect { leave }.not_to have_enqueued_job(FriendMeetings::UpdateJob)
       expect(meeting.attendees).to be_empty
     end
 
@@ -391,7 +391,7 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
 
       expect do
         delete "/api/friends/#{friend.public_id}", headers: auth_headers_for(user)
-      end.to have_enqueued_job(FriendMeetingUpdateJob).with(meeting)
+      end.to have_enqueued_job(FriendMeetings::UpdateJob).with(meeting)
 
       expect(response).to have_http_status(:ok)
       expect(meeting.attendees).to be_empty

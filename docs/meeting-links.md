@@ -104,9 +104,9 @@ An unknown, expired, used, or revoked token gets the same 404 page, "This link n
 sequenceDiagram
   participant G as Guest
   participant P as /meet/:token
-  participant B as MeetingLinkBooking
-  participant C as FriendMeetingCreator
-  participant J as FriendMeetingPublishJob
+  participant B as MeetingLinks::Booking
+  participant C as FriendMeetings::Creator
+  participant J as FriendMeetings::PublishJob
   G->>P: POST start_time, name, email
   P->>B: call
   B->>B: lock the link row (SELECT FOR UPDATE)
