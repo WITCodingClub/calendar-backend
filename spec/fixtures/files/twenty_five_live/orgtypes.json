@@ -1,0 +1,4 @@
+{"organization_types":{"type":[
+{"type_id":10,"type_name":"Room Optimization","sort_order":1,"defn_state":1,"rate_group":{"rate_group_id":2,"rate_group_name":"Internal"}},
+{"type_id":77,"type_name":"Factory Type","sort_order":1,"defn_state":1,"rate_group":{"rate_group_id":{"nil":"true"},"rate_group_name":{"nil":"true"}}}
+]}}

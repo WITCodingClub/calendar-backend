@@ -4,6 +4,10 @@ require "simplecov"
 SimpleCov.start "rails" do
   enable_coverage :branch
   add_filter %w[/spec/ /config/ /db/ /vendor/]
+
+  # Only the full CI run enforces the floor. A local run of one spec file
+  # covers a small part of the app and would always fail it.
+  minimum_coverage line: 82, branch: 66 if ENV["CI"]
 end
 
 RSpec.configure do |config|
