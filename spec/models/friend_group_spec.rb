@@ -7,6 +7,7 @@ require "rails_helper"
 # Table name: friend_groups
 #
 #  id         :bigint           not null, primary key
+#  expires_at :datetime
 #  name       :string           not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
@@ -14,6 +15,7 @@ require "rails_helper"
 #
 # Indexes
 #
+#  index_friend_groups_on_expires_at              (expires_at) WHERE (expires_at IS NOT NULL)
 #  index_friend_groups_on_user_id_and_lower_name  (user_id, lower((name)::text)) UNIQUE
 #
 # Foreign Keys
@@ -21,6 +23,8 @@ require "rails_helper"
 #  fk_rails_...  (user_id => users.id) ON DELETE => cascade
 #
 RSpec.describe FriendGroup, type: :model do
+  include ActiveSupport::Testing::TimeHelpers
+
   describe "associations and validations" do
     subject { create(:friend_group) }
 
@@ -45,6 +49,51 @@ RSpec.describe FriendGroup, type: :model do
 
   it "has a public id with the fgr prefix" do
     expect(create(:friend_group).public_id).to start_with("fgr_")
+  end
+
+  describe "expiry" do
+    # A custom validation: no matcher checks a time against Time.current.
+    it "refuses an end date in the past" do
+      group = build(:friend_group, expires_at: 1.minute.ago)
+
+      expect(group).not_to be_valid
+      expect(group.errors[:expires_at]).to include("must be in the future")
+    end
+
+    it "allows no end date" do
+      expect(build(:friend_group, expires_at: nil)).to be_valid
+    end
+
+    it "splits groups into expired and unexpired" do
+      permanent = create(:friend_group)
+      later     = create(:friend_group, expires_at: 30.days.from_now)
+      ending    = create(:friend_group, :temporary)
+
+      travel 8.days do
+        expect(described_class.unexpired).to contain_exactly(permanent, later)
+        expect(described_class.expired).to contain_exactly(ending)
+        expect(ending).to be_expired
+        expect(later).not_to be_expired
+      end
+    end
+
+    it "removes an expired group with the same name, so the name can be used again" do
+      old = create(:friend_group, :temporary, name: "Study group")
+
+      travel 8.days do
+        group = create(:friend_group, user: old.user, name: "study GROUP")
+
+        expect(group).to be_persisted
+        expect(described_class.exists?(old.id)).to be(false)
+      end
+    end
+
+    it "still refuses a name that an unexpired group uses" do
+      old = create(:friend_group, :temporary, name: "Study group")
+
+      expect(build(:friend_group, user: old.user, name: "Study group")).not_to be_valid
+      expect(described_class.exists?(old.id)).to be(true)
+    end
   end
 
   describe ".enabled_for?" do
@@ -83,6 +132,16 @@ RSpec.describe FriendGroup, type: :model do
       result = described_class.by_friend_id_for(owner)
 
       expect(result[friendship.requester_id]).to eq([ study, roommates ])
+    end
+
+    it "leaves out an expired group" do
+      friendship = create(:friendship, :accepted, requester: create(:user), addressee: owner)
+      group      = create(:friend_group, :temporary, user: owner)
+      create(:friend_group_membership, friend_group: group, friendship: friendship)
+
+      travel_to(8.days.from_now) do
+        expect(described_class.by_friend_id_for(owner)[friendship.requester_id]).to eq([])
+      end
     end
 
     it "leaves out the groups of other users" do

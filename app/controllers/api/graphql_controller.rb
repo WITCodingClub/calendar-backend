@@ -8,10 +8,17 @@ module Api
         params[:query],
         variables:      prepare_variables(params[:variables]),
         operation_name: params[:operationName],
-        context:        {}
+        context:        { request: request }
       )
 
-      render json: result
+      # Analyzers::SemanticSearchLimit refused a semantic search because the
+      # IP address used up the catalog/semantic budget.
+      if request.env["rack.attack.matched"] == "catalog/semantic"
+        response.headers["Retry-After"] = Rack::Attack.seconds_until_reset(request.env["rack.attack.match_data"]).to_s
+        render json: result, status: :too_many_requests
+      else
+        render json: result
+      end
     rescue JSON::ParserError => e
       render json: { errors: [ { message: "Invalid variables JSON: #{e.message}" } ], data: nil },
              status: :bad_request

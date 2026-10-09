@@ -14,6 +14,9 @@ class CatalogSchema < GraphQL::Schema
   default_page_size 50
   default_max_page_size 200
 
+  # At most one semantic search per query, counted against the REST budget.
+  query_analyzer Analyzers::SemanticSearchLimit
+
   directives Directives::Cost, Directives::ListSize, Directives::QueryLimits, Directives::RateLimit
 
   # Machine-readable copies of the limits above, and of the Rack::Attack

@@ -76,7 +76,7 @@ The extension sends `POST /api/extension_events` with a JSON body:
 - `ExtensionUsage::EVENTS` lists the event names. The backend ignores other names.
 - A version that is not in the `4.0.1` format gets the label `unknown`. After 50 different versions, a new version gets `other`. A browser other than `chrome`, `firefox`, or `edge` gets `other`. These limits stop a client from making an unlimited number of series.
 - One request counts 50 events at most.
-- Rack::Attack allows 120 requests a minute from one IP address, in the `api/extension-events` throttle. The events do not use the 20-a-minute anonymous API budget, because many students share one campus address and sign-in needs that budget.
+- Rack::Attack allows 120 requests a minute from one IP address, in the `api/extension-events` throttle. The events do not use the anonymous API budget (`api/ip`), because many students share one campus address and sign-in needs that budget.
 - Students can turn the events off in the extension Settings. Firefox sends events only when the student allows the optional `technicalAndInteraction` data permission.
 
 To add an event:

@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe FriendGroupPolicy do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:owner) { create(:user) }
   let(:group) { create(:friend_group, user: owner) }
 
@@ -46,6 +48,15 @@ RSpec.describe FriendGroupPolicy do
 
       expect(described_class.new(owner, FriendGroup).resolve).to contain_exactly(group)
       expect(described_class.new(other_group.user, FriendGroup).resolve).to contain_exactly(other_group)
+    end
+
+    it "leaves out an expired group" do
+      ending = create(:friend_group, :temporary, user: owner)
+
+      travel_to(8.days.from_now) do
+        expect(described_class.new(owner, FriendGroup).resolve).to contain_exactly(group)
+      end
+      expect(described_class.new(owner, FriendGroup).resolve).to include(ending)
     end
 
     it "returns nothing without a user" do

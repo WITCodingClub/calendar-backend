@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe "Api::Friends::Groups", type: :request do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:user)    { create(:user) }
   let(:headers) { auth_headers_for(user) }
 
@@ -67,7 +69,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
           "id"      => study.public_id,
           "members" => [ { "id" => friend.public_id, "name" => "Grace Hopper" } ]
         )
-        expect(groups.last.keys).to contain_exactly("id", "name", "members", "created_at", "updated_at")
+        expect(groups.last.keys).to contain_exactly("id", "name", "members", "expires_at", "created_at", "updated_at")
       end
     end
 
@@ -166,6 +168,44 @@ RSpec.describe "Api::Friends::Groups", type: :request do
         post "/api/friends/groups", params: {}, headers: headers, as: :json
 
         expect(response).to have_http_status(:bad_request)
+      end
+
+      it "reads a date-only end date as the end of that day in America/New_York" do
+        post "/api/friends/groups", params: { name: "Study group", expires_at: "2099-12-01" },
+                                    headers: headers, as: :json
+
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body.dig("group", "expires_at")).to eq("2099-12-01T23:59:59-05:00")
+        expect(user.friend_groups.last.expires_at).to eq(Time.zone.parse("2099-12-01 23:59:59 -05:00"))
+      end
+
+      it "answers 400 for an end date with no UTC offset" do
+        expect {
+          post "/api/friends/groups", params: { name: "Study group", expires_at: "2099-12-01T12:00:00" },
+                                      headers: headers, as: :json
+        }.not_to change(FriendGroup, :count)
+
+        expect(response).to have_http_status(:bad_request)
+        expect(response.parsed_body["error"]).to eq(Api::FriendLookup::EXPIRES_AT_FORMAT_ERROR)
+      end
+
+      it "answers 422 for an end date in the past" do
+        post "/api/friends/groups", params: { name: "Study group", expires_at: "2020-01-01" },
+                                    headers: headers, as: :json
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body["error"]).to eq("Expires at must be in the future")
+      end
+
+      it "uses the name of an expired group again" do
+        old = create(:friend_group, :temporary, user: user, name: "Study group")
+
+        travel 8.days do
+          post "/api/friends/groups", params: { name: "Study group" }, headers: headers, as: :json
+        end
+
+        expect(response).to have_http_status(:created)
+        expect(FriendGroup.exists?(old.id)).to be(false)
       end
     end
 
@@ -326,6 +366,55 @@ RSpec.describe "Api::Friends::Groups", type: :request do
 
         expect(response).to have_http_status(:not_found)
         expect(group.reload.name).to eq("Theirs")
+      end
+
+      it "sets an end date when only expires_at is sent" do
+        group = create(:friend_group, user: user, name: "Study group")
+
+        patch "/api/friends/groups/#{group.public_id}", params: { expires_at: "2099-12-01T17:00:00Z" },
+                                                        headers: headers, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(group.reload.expires_at).to eq(Time.utc(2099, 12, 1, 17))
+        expect(group.name).to eq("Study group")
+      end
+
+      it "removes the end date when expires_at is null" do
+        group = create(:friend_group, :temporary, user: user)
+
+        patch "/api/friends/groups/#{group.public_id}", params: { expires_at: nil }, headers: headers, as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body.dig("group", "expires_at")).to be_nil
+        expect(group.reload.expires_at).to be_nil
+      end
+
+      it "keeps the end date when expires_at is not sent" do
+        group = create(:friend_group, :temporary, user: user)
+
+        expect {
+          patch "/api/friends/groups/#{group.public_id}", params: { name: "Roommates" }, headers: headers, as: :json
+        }.not_to(change { group.reload.expires_at })
+      end
+
+      it "answers 400 for an end date that is not a date" do
+        group = create(:friend_group, :temporary, user: user)
+
+        expect {
+          patch "/api/friends/groups/#{group.public_id}", params: { expires_at: "next week" }, headers: headers, as: :json
+        }.not_to(change { group.reload.expires_at })
+
+        expect(response).to have_http_status(:bad_request)
+      end
+
+      it "answers 404 for an expired group" do
+        group = create(:friend_group, :temporary, user: user)
+
+        travel 8.days do
+          patch "/api/friends/groups/#{group.public_id}", params: { expires_at: nil }, headers: headers, as: :json
+        end
+
+        expect(response).to have_http_status(:not_found)
       end
     end
 

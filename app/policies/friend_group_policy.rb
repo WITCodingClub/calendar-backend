@@ -14,10 +14,11 @@ class FriendGroupPolicy < ApplicationPolicy
   def manage_members? = owner_of_record?
 
   class Scope < ApplicationPolicy::Scope
+    # An expired group is gone for its owner too, so its id finds nothing.
     def resolve
       return scope.none unless user
 
-      scope.where(user: user)
+      scope.where(user: user).unexpired
     end
   end
 end

@@ -316,6 +316,74 @@ RSpec.describe "Api::Graphql", type: :request do
       expect(result["data"]["instructors"]["nodes"].map { |n| n["name"] }).to eq([ "Ada Byron" ])
       expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
     end
+
+    it "refuses a query that asks for more than one semantic search, before it embeds anything" do
+      result = gql(<<~GQL)
+        {
+          a: instructors(q: "teaches computing", semantic: true, first: 1) { nodes { name } }
+          b: reviews(q: "group projects", semantic: true, first: 1) { nodes { comment } }
+          c: sections(filter: { q: "learn to program", semantic: true }, first: 1) { nodes { crn } }
+        }
+      GQL
+
+      expect(result["data"]).to be_nil
+      expect(result["errors"].first["extensions"]).to include("code" => "TOO_MANY_SEMANTIC_SEARCHES")
+      expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
+    end
+
+    it "counts aliases inside a fragment" do
+      result = gql(<<~GQL)
+        { ...Search ...Search2 }
+        fragment Search on Query { a: instructors(q: "one", semantic: true, first: 1) { nodes { name } } }
+        fragment Search2 on Query { b: instructors(q: "two", semantic: true, first: 1) { nodes { name } } }
+      GQL
+
+      expect(result["errors"].first["extensions"]).to include("code" => "TOO_MANY_SEMANTIC_SEARCHES")
+    end
+
+    it "does not count semantic: true without words, because nothing is embedded" do
+      result = gql(<<~GQL)
+        {
+          a: instructors(semantic: true, first: 1) { nodes { name } }
+          b: instructors(q: "teaches computing", semantic: true, first: 1) { nodes { name } }
+        }
+      GQL
+
+      expect(result["errors"]).to be_nil
+    end
+
+    context "when the IP address has used up the semantic search budget" do
+      around do |example|
+        original = Rack::Attack.cache.store
+        Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+        example.run
+      ensure
+        Rack::Attack.cache.store = original
+      end
+
+      it "answers 429 with Retry-After and the RateLimit fields, and embeds nothing" do
+        limit = Rack::Attack.throttles.fetch("catalog/semantic").limit
+        limit.times { get "/api/v1/catalog/instructors", params: { q: "teaches computing", semantic: "true" } }
+        WebMock.reset_executed_requests!
+
+        result = gql('{ instructors(q: "something new", semantic: true, first: 1) { nodes { name } } }')
+
+        expect(response).to have_http_status(:too_many_requests)
+        expect(response.headers["Retry-After"].to_i).to be_between(1, 60)
+        expect(response.headers["ratelimit-policy"]).to include("\"catalog/semantic\"")
+        expect(result["errors"].first["extensions"]).to include("code" => "RATE_LIMITED")
+        expect(a_request(:post, Embeddings::Generator::API_URL)).not_to have_been_made
+      end
+
+      it "still serves a query with no semantic search" do
+        limit = Rack::Attack.throttles.fetch("catalog/semantic").limit
+        limit.times { get "/api/v1/catalog/instructors", params: { q: "teaches computing", semantic: "true" } }
+
+        gql('{ instructors(q: "byron", first: 1) { nodes { name } } }')
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
   end
 
   describe "errors" do
