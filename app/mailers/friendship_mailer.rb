@@ -7,7 +7,7 @@ class FriendshipMailer < ApplicationMailer
     @friendship = friendship
     @requester  = friendship.requester
     @addressee  = friendship.addressee
-    @requests_url = requests_dashboard_friends_url
+    @requests_url = dashboard_friends_requests_url
 
     mail(
       to: @addressee.email,
@@ -24,7 +24,7 @@ class FriendshipMailer < ApplicationMailer
     @actor       = actor
     @recipient   = friendship.friend_for(actor)
     @event       = event
-    @friends_url = friendship.pending? ? requests_dashboard_friends_url : dashboard_friends_url
+    @friends_url = friendship.pending? ? dashboard_friends_requests_url : dashboard_friends_url
     @link_text   = event == "proposed" ? "Accept or decline the proposal" : "Manage your friends"
     @summary     = expiry_summary
 

@@ -3,10 +3,10 @@
 <div class="mt-2 flex items-center gap-2">
   <% if friendship.proposed_by_id == current_user.id %>
     <p class="text-xs text-on-surface-variant">You proposed <%= proposed %>. <%= friend.first_name %> must accept it.</p>
-    <%= button_to "Withdraw", decline_expiry_dashboard_friend_path(friend.public_id), method: :post, class: "m3-btn-text text-xs" %>
+    <%= button_to "Withdraw", dashboard_friend_expiry_proposal_path(friend.public_id), method: :delete, class: "m3-btn-text text-xs" %>
   <% else %>
     <p class="text-xs text-on-surface-variant"><%= friend.first_name %> proposed <%= proposed %>.</p>
-    <%= button_to "Accept", accept_expiry_dashboard_friend_path(friend.public_id), method: :post, class: "m3-btn-text text-xs" %>
-    <%= button_to "Decline", decline_expiry_dashboard_friend_path(friend.public_id), method: :post, class: "m3-btn-text text-xs" %>
+    <%= button_to "Accept", dashboard_friend_expiry_proposal_path(friend.public_id), method: :patch, class: "m3-btn-text text-xs" %>
+    <%= button_to "Decline", dashboard_friend_expiry_proposal_path(friend.public_id), method: :delete, class: "m3-btn-text text-xs" %>
   <% end %>
 </div>
