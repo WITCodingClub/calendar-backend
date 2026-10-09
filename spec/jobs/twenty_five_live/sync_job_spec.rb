@@ -2,9 +2,9 @@
 
 require "rails_helper"
 
-RSpec.describe TwentyFiveLiveSyncJob, type: :job do
+RSpec.describe TwentyFiveLive::SyncJob, type: :job do
   describe ".in_progress?" do
-    def create_job(class_name: "TwentyFiveLiveSyncJob")
+    def create_job(class_name: "TwentyFiveLive::SyncJob")
       SolidQueue::Job.create!(
         class_name: class_name,
         queue_name: "default",

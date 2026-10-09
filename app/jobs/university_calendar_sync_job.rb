@@ -2,7 +2,7 @@
 
 # Syncs university calendar events from the 25Live ICS feed and also refreshes
 # 25Live reference data (organizations, event categories, resources) via
-# External::TwentyFiveLiveService. Scheduled to run daily at 3am via Solid Queue.
+# TwentyFiveLive::Client. Scheduled to run daily at 3am via Solid Queue.
 class UniversityCalendarSyncJob < ApplicationJob
   queue_as :low
 
@@ -17,7 +17,7 @@ class UniversityCalendarSyncJob < ApplicationJob
 
     # Refresh 25Live reference data (organizations, categories, resources)
     begin
-      External::TwentyFiveLiveService.call
+      TwentyFiveLive::Client.call
       Rails.logger.info("25Live reference data sync complete")
     rescue => e
       Rails.logger.warn("25Live reference data sync failed (non-fatal): #{e.message}")

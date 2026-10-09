@@ -12,7 +12,7 @@ RSpec.describe "Admin::Buildings", type: :request do
       .to_return(status: 200, body: { tag_name: "v0.0.0" }.to_json)
     create(:building, abbreviation: "TBD", name: "To Be Determined")
     create(:building, abbreviation: "ONLINE", name: "Online Section")
-    allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(false)
+    allow(TwentyFiveLive::SyncJob).to receive(:in_progress?).and_return(false)
     sign_in admin
   end
 
@@ -52,7 +52,7 @@ RSpec.describe "Admin::Buildings", type: :request do
 
     it "shows syncing while a sync job runs" do
       wentworth.update!(twenty_five_live_checked_at: 1.day.ago)
-      allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(true)
+      allow(TwentyFiveLive::SyncJob).to receive(:in_progress?).and_return(true)
 
       get admin_buildings_path
 
@@ -62,21 +62,21 @@ RSpec.describe "Admin::Buildings", type: :request do
   end
 
   describe "POST /admin/buildings/sync" do
-    before { allow(TwentyFiveLiveSyncJob).to receive(:perform_later) }
+    before { allow(TwentyFiveLive::SyncJob).to receive(:perform_later) }
 
     it "queues a sync" do
       post sync_admin_buildings_path
 
-      expect(TwentyFiveLiveSyncJob).to have_received(:perform_later)
+      expect(TwentyFiveLive::SyncJob).to have_received(:perform_later)
       expect(response).to redirect_to(admin_buildings_path)
     end
 
     it "does not queue a second sync while one runs" do
-      allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(true)
+      allow(TwentyFiveLive::SyncJob).to receive(:in_progress?).and_return(true)
 
       post sync_admin_buildings_path
 
-      expect(TwentyFiveLiveSyncJob).not_to have_received(:perform_later)
+      expect(TwentyFiveLive::SyncJob).not_to have_received(:perform_later)
       expect(response).to redirect_to(admin_buildings_path)
     end
   end

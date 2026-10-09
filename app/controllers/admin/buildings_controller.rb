@@ -5,19 +5,19 @@ module Admin
     def index
       authorize Building
       @buildings = Building.physical.includes(:rooms).order(:abbreviation)
-      @sync_in_progress = TwentyFiveLiveSyncJob.in_progress?
+      @sync_in_progress = TwentyFiveLive::SyncJob.in_progress?
       @last_checked_at = @buildings.filter_map(&:twenty_five_live_checked_at).max
     end
 
     def sync
       authorize Building, :sync?
 
-      if TwentyFiveLiveSyncJob.in_progress?
+      if TwentyFiveLive::SyncJob.in_progress?
         redirect_to admin_buildings_path, notice: "A 25Live space sync is already running."
         return
       end
 
-      TwentyFiveLiveSyncJob.perform_later
+      TwentyFiveLive::SyncJob.perform_later
       redirect_to admin_buildings_path, notice: "25Live space sync queued."
     end
 

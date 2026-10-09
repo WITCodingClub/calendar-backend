@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-module External
-  class TwentyFiveLiveService < ApplicationService
+module TwentyFiveLive
+  class Client < ApplicationService
     require "net/http"
 
     BASE_URL = "https://webservices.collegenet.com/r25ws/wrd/wit/run/"

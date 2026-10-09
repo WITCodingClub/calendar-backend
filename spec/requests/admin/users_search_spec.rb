@@ -11,7 +11,7 @@ RSpec.describe "Admin users search", type: :request do
   before do
     stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar/releases/latest")
       .to_return(status: 200, body: { tag_name: "v0.0.0" }.to_json)
-    allow(TwentyFiveLiveSyncJob).to receive(:in_progress?).and_return(false)
+    allow(TwentyFiveLive::SyncJob).to receive(:in_progress?).and_return(false)
     create(:user, email: "student@wit.edu")
     sign_in admin
   end
