@@ -9,7 +9,7 @@ RSpec.describe "Api::ExtensionConfigs", type: :request do
   def json = JSON.parse(response.body)
 
   before do
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
   end
 
   describe "GET /api/user/extension_config" do
@@ -49,7 +49,7 @@ RSpec.describe "Api::ExtensionConfigs", type: :request do
       put "/api/user/extension_config", params: { default_color_lab: "banana" }, headers: headers, as: :json
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(user.user_extension_config.reload.default_color_lab).to eq(GoogleColors::BANANA)
+      expect(user.user_extension_config.reload.default_color_lab).to eq(GoogleCalendar::Colors::BANANA)
     end
   end
 end

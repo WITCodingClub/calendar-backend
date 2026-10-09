@@ -81,13 +81,13 @@ A person chooses one of two placements. The `calendars.placement` column holds t
 Exchange works out free and busy time from the primary calendar only. The Scheduling Assistant does not read a second calendar, even a shared one. A person who wants a class to block a meeting request must use `primary`.
 
 - A timed event has `showAs: "busy"`. An all-day event has `showAs: "free"`. The app sets `showAs` on a create and on a forced sync. After it reads an event, it keeps the value that the person set.
-- The app never deletes a primary calendar. `MicrosoftGraphCalendarService#delete_calendar` refuses a calendar id that a row tracks as primary. A `CourseCalendar` row with the `primary` placement does not start `MicrosoftGraphCalendarDeleteJob`.
+- The app never deletes a primary calendar. `MicrosoftGraph::CalendarProvider#delete_calendar` refuses a calendar id that a row tracks as primary. A `CourseCalendar` row with the `primary` placement does not start `MicrosoftGraph::CalendarDeleteJob`.
 - Only a Microsoft calendar can be `primary`. The service account owns a Google course calendar, so the app cannot reach the person's main Google calendar.
 
 ### Choose the placement
 
 - At the first connection: send `placement` with `POST /api/user/microsoft_calendar`. The value goes into the signed state, and the callback uses it.
-- Later: `PATCH /api/user/microsoft_calendar` with `placement`, or the button in the "Outlook Calendar" section of the dashboard. Both start `MicrosoftGraphCalendarPlacementJob` and answer before the move is complete. The API answers 202.
+- Later: `PATCH /api/user/microsoft_calendar` with `placement`, or the button in the "Outlook Calendar" section of the dashboard. Both start `MicrosoftGraph::CalendarPlacementJob` and answer before the move is complete. The API answers 202.
 - `GET /api/user/oauth_credentials` gives the current `placement` of each connection, so a client can show it. The value is `nil` while the connection has no calendar.
 
 ## Disconnect
@@ -98,7 +98,7 @@ Exchange works out free and busy time from the primary calendar only. The Schedu
 
 ```mermaid
 flowchart TD
-    Start[MicrosoftGraphCalendarPlacementJob] --> Which{New placement}
+    Start[MicrosoftGraph::CalendarPlacementJob] --> Which{New placement}
     Which -->|primary| ReadP[GET /me/calendar]
     ReadP --> DelCal[DELETE the WIT Courses calendar]
     DelCal --> DropRows[Delete the tracking rows]
@@ -106,11 +106,11 @@ flowchart TD
     DelEvents --> NewCal[POST /me/calendars]
     DropRows --> Save[Store the calendar id and the placement]
     NewCal --> Save
-    Save --> Sync[GoogleCalendarSyncJob with force]
+    Save --> Sync[CourseCalendars::SyncJob with force]
     Sync --> Create[The sync creates the events in the new place]
 ```
 
-- The job uses the concurrency group and key of `GoogleCalendarSyncJob`. A move and a sync for one person do not run at the same time.
+- The job uses the concurrency group and key of `CourseCalendars::SyncJob`. A move and a sync for one person do not run at the same time.
 - A failed step can run again, and the job tries 5 times. The job reads the primary calendar id before it deletes anything. A delete of a missing event or calendar counts as done. A move to `separate` stops while an event delete has failed, because the sync would update the old event in the primary calendar.
 - One gap stays. If the process dies after Graph creates the separate calendar and before the row is saved, the next run creates a second, empty "WIT Courses" calendar. The app does not look for a calendar by name, because it could then adopt, and later delete, a calendar that the person made.
 - Edits that the person made to class events in Outlook do not survive a move. The dashboard tells the person this before the move.
@@ -120,10 +120,10 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-    participant Job as GoogleCalendarSyncJob
+    participant Job as CourseCalendars::SyncJob
     participant User as User#sync_course_schedule
-    participant Providers as CalendarProviders
-    participant MS as MicrosoftGraphCalendarService
+    participant Providers as CourseCalendars::Providers
+    participant MS as MicrosoftGraph::CalendarProvider
     participant Graph as Microsoft Graph
     participant DB as calendar_events
 

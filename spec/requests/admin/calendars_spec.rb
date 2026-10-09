@@ -18,7 +18,7 @@ RSpec.describe "Admin::Calendars", type: :request do
       calendar = create(:course_calendar)
 
       expect { delete admin_calendar_path(calendar) }
-        .to have_enqueued_job(GoogleCalendarDeleteJob).with(calendar.external_calendar_id).exactly(:once)
+        .to have_enqueued_job(GoogleCalendar::DeleteJob).with(calendar.external_calendar_id).exactly(:once)
 
       expect(CourseCalendar.exists?(calendar.id)).to be(false)
     end
@@ -27,9 +27,9 @@ RSpec.describe "Admin::Calendars", type: :request do
       calendar = create(:course_calendar, :microsoft)
 
       expect { delete admin_calendar_path(calendar) }
-        .to have_enqueued_job(MicrosoftGraphCalendarDeleteJob).with(calendar.oauth_credential_id, calendar.external_calendar_id)
+        .to have_enqueued_job(MicrosoftGraph::CalendarDeleteJob).with(calendar.oauth_credential_id, calendar.external_calendar_id)
 
-      expect(GoogleCalendarDeleteJob).not_to have_been_enqueued
+      expect(GoogleCalendar::DeleteJob).not_to have_been_enqueued
     end
   end
 end

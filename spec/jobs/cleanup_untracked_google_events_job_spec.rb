@@ -36,7 +36,7 @@ RSpec.describe CleanupUntrackedGoogleEventsJob do
     allow(fake_service).to receive(:list_events).and_return(
       instance_double(Google::Apis::CalendarV3::Events, items: listed_events, next_page_token: nil)
     )
-    job.rate_limit_config = GoogleApiRateLimiter::RateLimitConfig.new.tap { |c| c.batch_throttle_delay = 0 }
+    job.rate_limit_config = GoogleCalendar::RateLimiter::RateLimitConfig.new.tap { |c| c.batch_throttle_delay = 0 }
   end
 
   it "deletes only untracked events, keeping tracked events and edited instances of tracked series" do

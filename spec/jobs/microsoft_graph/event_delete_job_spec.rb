@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe MicrosoftGraphEventDeleteJob, :microsoft_graph do
+RSpec.describe MicrosoftGraph::EventDeleteJob, :microsoft_graph do
   let(:credential) { create(:oauth_credential, :microsoft, token_expires_at: 1.hour.from_now) }
 
   it "deletes the remote event with the owner's credential" do

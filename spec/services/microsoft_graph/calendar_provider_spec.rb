@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
+RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
   include ActiveSupport::Testing::TimeHelpers
 
   subject(:service) { described_class.new(user) }
@@ -185,7 +185,7 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
       stub_request(:get, "#{graph}/me/events").with(query: hash_including({})).to_return(graph_json_response("events_empty"))
       create_stub = stub_event_create
 
-      expect { service.update_calendar_events([ class_event ], force: true) }.not_to have_enqueued_job(MicrosoftGraphEventDeleteJob)
+      expect { service.update_calendar_events([ class_event ], force: true) }.not_to have_enqueued_job(MicrosoftGraph::EventDeleteJob)
 
       expect(create_stub).to have_been_requested
       expect(CalendarEvent.exists?(old_row.id)).to be(false)
@@ -198,7 +198,7 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
                                     external_event_id: "AAMkSyntheticEventDropped", end_time: zone.local(2026, 12, 1, 10))
       delete = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticEventDropped").to_return(status: 204)
 
-      expect { service.update_calendar_events([]) }.not_to have_enqueued_job(MicrosoftGraphEventDeleteJob)
+      expect { service.update_calendar_events([]) }.not_to have_enqueued_job(MicrosoftGraph::EventDeleteJob)
 
       expect(delete).to have_been_requested
       expect(CalendarEvent.exists?(row.id)).to be(false)
@@ -358,7 +358,7 @@ RSpec.describe MicrosoftGraphCalendarService, :microsoft_graph do
   describe "event colors" do
     let(:categories_url) { "#{graph}/me/outlook/masterCategories" }
 
-    before { user.user_extension_config.update!(default_color_lecture: GoogleColors::BANANA) }
+    before { user.user_extension_config.update!(default_color_lecture: GoogleCalendar::Colors::BANANA) }
 
     it "creates the category for a lecture color once and sets it on each new event" do
       calendar

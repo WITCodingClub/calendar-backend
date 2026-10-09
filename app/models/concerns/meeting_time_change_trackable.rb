@@ -39,7 +39,7 @@ module MeetingTimeChangeTrackable
     end
     return unless has_enrollments
 
-    CalendarSyncMarker.mark(course_id)
+    CourseCalendars::SyncMarker.mark(course_id)
   end
 
   private

@@ -8,7 +8,7 @@ RSpec.describe "ICS calendar feed colors", type: :request do
   let!(:meeting_time) { create(:course_meeting_time, course: course) }
 
   before do
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
     create(:enrollment, user: user, course: course)
   end
 

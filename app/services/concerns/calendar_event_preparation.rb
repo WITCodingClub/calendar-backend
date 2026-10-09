@@ -2,7 +2,7 @@
 
 # The provider-neutral half of a calendar sync: how an event is keyed to its
 # tracking row, which record it came from, and how the person's preferences
-# shape it. GoogleCalendarService and MicrosoftGraphCalendarService share it.
+# shape it. GoogleCalendar::Provider and MicrosoftGraph::CalendarProvider share it.
 module CalendarEventPreparation
   extend ActiveSupport::Concern
 
@@ -80,7 +80,7 @@ module CalendarEventPreparation
     event_data[:reminder_settings] = prefs[:reminder_settings] unless prefs[:reminder_settings].nil?
     # A lowercase "#rrggbb" hex, or nil. Each provider turns it into its own
     # kind of color: a Google event label, or an Outlook category.
-    event_data[:color_id]           = GoogleColors.normalize(prefs[:color_id])
+    event_data[:color_id]           = GoogleCalendar::Colors.normalize(prefs[:color_id])
     event_data[:visibility]         = prefs[:visibility] if prefs[:visibility].present?
 
     event_data

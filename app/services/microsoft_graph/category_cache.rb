@@ -49,10 +49,10 @@ module MicrosoftGraph
     # Outlook has only preset colors, so a custom color gets the category of
     # the nearest Google palette color. A legacy color id (1-11) also works.
     def name_for(color)
-      hex = GoogleColors.normalize(color)
+      hex = GoogleCalendar::Colors.normalize(color)
       return nil unless hex
 
-      name, preset = COLORS[GoogleColors.nearest_color_id(hex)]
+      name, preset = COLORS[GoogleCalendar::Colors.nearest_color_id(hex)]
       return nil unless name
 
       category = "#{PREFIX}#{name}"

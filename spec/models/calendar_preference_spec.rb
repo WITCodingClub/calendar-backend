@@ -31,7 +31,7 @@ require "rails_helper"
 RSpec.describe CalendarPreference, type: :model do
   let(:user) { create(:user) }
 
-  before { allow(GoogleCalendarSyncJob).to receive(:perform_later) }
+  before { allow(CourseCalendars::SyncJob).to receive(:perform_later) }
 
   describe "associations and validations" do
     subject { create(:calendar_preference) }
@@ -105,7 +105,7 @@ RSpec.describe CalendarPreference, type: :model do
 
       preference.update!(reminder_settings: [ { "time" => "1", "type" => "days", "method" => "popup" } ])
 
-      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
+      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
     end
   end
 

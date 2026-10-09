@@ -182,7 +182,7 @@ namespace :catalog do
     puts "Queueing calendar syncs for #{users.count} users in term #{term.name}..."
 
     users.find_each do |user|
-      GoogleCalendarSyncJob.perform_later(user)
+      CourseCalendars::SyncJob.perform_later(user)
       puts "  Queued sync for user #{user.id} (#{user.email})"
     end
 

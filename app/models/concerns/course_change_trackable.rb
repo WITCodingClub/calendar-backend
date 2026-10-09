@@ -40,7 +40,7 @@ module CourseChangeTrackable
     end
     return unless has_enrollments
 
-    CalendarSyncMarker.mark(id)
+    CourseCalendars::SyncMarker.mark(id)
   end
 
   private

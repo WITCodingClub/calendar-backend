@@ -44,7 +44,7 @@ production:
   # ---------------------------------------------------------------------------
 
   nightly_calendar_sync:
-    class: NightlyCalendarSyncJob
+    class: CourseCalendars::NightlySyncJob
     queue: low
     schedule: every 6 hours
 

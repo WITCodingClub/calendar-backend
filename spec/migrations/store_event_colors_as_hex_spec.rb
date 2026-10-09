@@ -47,7 +47,7 @@ RSpec.describe StoreEventColorsAsHex do
     migration.migrate(:up)
 
     ids.each do |color_id, id|
-      expect(color_of(:calendar_preferences, id)).to eq(GoogleColors::COLOR_IDS.fetch(color_id))
+      expect(color_of(:calendar_preferences, id)).to eq(GoogleCalendar::Colors::COLOR_IDS.fetch(color_id))
     end
   end
 
@@ -56,7 +56,7 @@ RSpec.describe StoreEventColorsAsHex do
 
     migration.migrate(:up)
 
-    expect(color_of(:event_preferences, id)).to eq(GoogleColors::TOMATO)
+    expect(color_of(:event_preferences, id)).to eq(GoogleCalendar::Colors::TOMATO)
   end
 
   it "keeps a preference without a color empty" do

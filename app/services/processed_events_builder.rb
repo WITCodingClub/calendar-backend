@@ -101,7 +101,7 @@ class ProcessedEventsBuilder
         calendar_config: {
           title: rendered_title,
           description: rendered_description,
-          color_id: GoogleColors.normalize(preferences[:color_id]) || mt.event_color,
+          color_id: GoogleCalendar::Colors.normalize(preferences[:color_id]) || mt.event_color,
           reminder_settings: preferences[:reminder_settings],
           visibility: preferences[:visibility]
         }

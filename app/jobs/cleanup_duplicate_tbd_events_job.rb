@@ -23,7 +23,7 @@ class CleanupDuplicateTbdEventsJob < ApplicationJob
     course_calendar = user.google_credential&.course_calendar
     return unless course_calendar
 
-    service = GoogleCalendarService.new(user)
+    service = GoogleCalendar::Provider.new(user)
     calendar_id = course_calendar.external_calendar_id
 
     google_events = course_calendar.calendar_events

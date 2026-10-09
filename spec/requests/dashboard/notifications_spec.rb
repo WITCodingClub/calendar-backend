@@ -8,7 +8,7 @@ RSpec.describe "Dashboard::Notifications", type: :request do
   def university_preference = user.calendar_preferences.find_by(scope: :uni_cal_global)
 
   before do
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
     sign_in user
   end
 
@@ -18,7 +18,7 @@ RSpec.describe "Dashboard::Notifications", type: :request do
 
       expect(response).to redirect_to(dashboard_notifications_path)
       expect(university_preference.reminder_settings).to eq([])
-      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
+      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
     end
 
     it "stores a custom reminder" do

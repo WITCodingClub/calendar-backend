@@ -69,7 +69,7 @@ class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
       return redirect_to dashboard_connected_accounts_path, alert: "Choose where your classes go."
     end
 
-    MicrosoftGraphCalendarPlacementJob.perform_later(current_user, placement)
+    MicrosoftGraph::CalendarPlacementJob.perform_later(current_user, placement)
     redirect_to dashboard_connected_accounts_path,
                 notice: "Your classes are moving. This can take a minute."
   end

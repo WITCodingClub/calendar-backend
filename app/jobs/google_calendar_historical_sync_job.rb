@@ -1,15 +1,7 @@
 # frozen_string_literal: true
 
-class GoogleCalendarHistoricalSyncJob < ApplicationJob
-  queue_as :low
-
-  # The concurrency group is part of every lock key, so it must not change when
-  # the class is renamed. Jobs in the queue hold locks under this name.
-  CONCURRENCY_GROUP = "GoogleCalendarHistoricalSyncJob"
-
-  limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(user, force: false) { "google_calendar_historical_user_#{user.id}" }
-
-  def perform(user, force: false)
-    user.sync_historical_events(force: force)
-  end
-end
+# The old name of CourseCalendars::HistoricalSyncJob. Jobs that were in the
+# queue before the rename still name this class. Remove this file when
+# `bin/rails jobs:unknown_class_names` on production no longer lists
+# GoogleCalendarHistoricalSyncJob.
+GoogleCalendarHistoricalSyncJob = CourseCalendars::HistoricalSyncJob

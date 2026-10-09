@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe GoogleEventLabels do
+RSpec.describe GoogleCalendar::EventLabels do
   subject(:labels) { described_class.new(calendar_service, "synthetic-course-calendar") }
 
   let(:calendar_url) { "#{GoogleApiStubs::GOOGLE_CALENDAR_API}/calendars/synthetic-course-calendar" }

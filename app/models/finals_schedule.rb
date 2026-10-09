@@ -54,7 +54,7 @@ class FinalsSchedule < ApplicationRecord
       .where(oauth_credentials: { provider: "google" })
       .distinct
 
-    users_to_sync.find_each { |user| GoogleCalendarSyncJob.perform_later(user, force: true) }
+    users_to_sync.find_each { |user| CourseCalendars::SyncJob.perform_later(user, force: true) }
 
     Rails.logger.info({
       message:   "Queued calendar re-sync after finals schedule import",

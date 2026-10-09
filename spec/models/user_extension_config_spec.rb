@@ -34,7 +34,7 @@ RSpec.describe UserExtensionConfig, type: :model do
   let(:config) { user.user_extension_config }
 
   before do
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
   end
 
   describe "associations and validations" do
@@ -90,14 +90,14 @@ RSpec.describe UserExtensionConfig, type: :model do
     it "enqueues a forced calendar sync when sync_university_events changes" do
       config.update!(sync_university_events: true)
 
-      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
+      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
     end
 
     it "enqueues a forced calendar sync when university_event_categories changes" do
       config.update!(sync_university_events: true)
       config.update!(university_event_categories: %w[finals])
 
-      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true).twice
+      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true).twice
     end
   end
 end

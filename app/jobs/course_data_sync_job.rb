@@ -54,8 +54,8 @@ class CourseDataSyncJob < ApplicationJob
 
     term.courses.includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
         .find_in_batches(batch_size: 50) do |courses|
-      flags = CalendarSyncMarker.enrollment_flags(courses.map(&:id))
-      CalendarSyncMarker.batch_with_enrollment_flags(flags) do
+      flags = CourseCalendars::SyncMarker.enrollment_flags(courses.map(&:id))
+      CourseCalendars::SyncMarker.batch_with_enrollment_flags(flags) do
         courses.each do |course|
           if sync_course_data(course, term_uid)
             synced_count += 1

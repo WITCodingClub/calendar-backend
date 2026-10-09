@@ -7,7 +7,7 @@ RSpec.describe PreferenceVersion do
 
   let(:user) { create(:user) }
 
-  before { allow(GoogleCalendarSyncJob).to receive(:perform_later) }
+  before { allow(CourseCalendars::SyncJob).to receive(:perform_later) }
 
   it "returns a stable opaque token for unchanged persisted inputs" do
     create(:event_preference, user: user)

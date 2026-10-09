@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe GoogleColors do
+RSpec.describe GoogleCalendar::Colors do
   describe ".normalize" do
     it "keeps a custom hex color, in lowercase" do
       expect(described_class.normalize(" #1A2B3C ")).to eq("#1a2b3c")

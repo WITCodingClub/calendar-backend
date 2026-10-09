@@ -152,7 +152,7 @@ module Admin
         return
       end
 
-      GoogleCalendarSyncJob.perform_later(@user, force: true)
+      CourseCalendars::SyncJob.perform_later(@user, force: true)
       redirect_to admin_user_path(@user), notice: "Calendar sync queued for #{@user.email}."
     rescue => e
       redirect_to admin_user_path(@user), alert: "Failed to queue calendar sync: #{e.message}"

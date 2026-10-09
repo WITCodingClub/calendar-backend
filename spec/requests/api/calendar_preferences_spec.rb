@@ -10,7 +10,7 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
   def university_preference = user.calendar_preferences.find_by(scope: :uni_cal_global)
 
   before do
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
   end
 
   describe "PATCH /api/calendar_preferences/uni_cal" do
@@ -49,7 +49,7 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
 
       expect(category.reload.color_id).to be_nil
       expect(json["color_id"]).to eq("#1a2b3c")
-      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true)
+      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true)
     end
 
     it "ends category colors and syncs when the user picks the color again" do
@@ -63,7 +63,7 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
             as: :json
 
       expect(category.reload.color_id).to be_nil
-      expect(GoogleCalendarSyncJob).to have_received(:perform_later).with(user, force: true).once
+      expect(CourseCalendars::SyncJob).to have_received(:perform_later).with(user, force: true).once
     end
 
     it "takes the legacy color id that old extension versions send" do
@@ -73,7 +73,7 @@ RSpec.describe "Api::CalendarPreferences", type: :request do
             as: :json
 
       expect(response).to have_http_status(:ok)
-      expect(json["color_id"]).to eq(GoogleColors::GRAPHITE)
+      expect(json["color_id"]).to eq(GoogleCalendar::Colors::GRAPHITE)
     end
 
     it "sets one reminder for every university event" do

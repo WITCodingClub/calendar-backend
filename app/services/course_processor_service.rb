@@ -69,13 +69,13 @@ class CourseProcessorService < ApplicationService
 
     # course_id => whether the course has any enrollment. Both change trackers
     # read it, so a save sends no EXISTS query.
-    enrollment_flags = CalendarSyncMarker.enrollment_flags(existing_course_ids)
+    enrollment_flags = CourseCalendars::SyncMarker.enrollment_flags(existing_course_ids)
 
     Term.with_deferred_date_updates do
       locations = MeetingTimesIngestService::Locations.new
       locations.preload(meeting_times_by_key.values.flatten)
 
-      CalendarSyncMarker.batch_with_enrollment_flags(enrollment_flags) do
+      CourseCalendars::SyncMarker.batch_with_enrollment_flags(enrollment_flags) do
         grouped_courses.each do |key, course_meetings|
           course_data = course_meetings.first
           detailed_course_info = class_details[key]
@@ -232,7 +232,7 @@ class CourseProcessorService < ApplicationService
     enrolled_terms.each { |term| TermProcessingStatus.record!(user, term, :processed) }
 
     if CourseCalendar.for_user(user).exists?
-      GoogleCalendarSyncJob.perform_later(user, force: false)
+      CourseCalendars::SyncJob.perform_later(user, force: false)
     end
 
     processed_courses

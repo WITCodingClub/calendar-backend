@@ -37,7 +37,7 @@ module Api
         return
       end
 
-      MicrosoftGraphCalendarPlacementJob.perform_later(current_user, placement)
+      MicrosoftGraph::CalendarPlacementJob.perform_later(current_user, placement)
       render json: { message: "Calendar placement change started", placement: placement }, status: :accepted
     end
 

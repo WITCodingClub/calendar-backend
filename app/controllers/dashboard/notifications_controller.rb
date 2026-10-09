@@ -30,11 +30,11 @@ class Dashboard::NotificationsController < Dashboard::ApplicationController
 
     if params[:disable] == "true"
       current_user.disable_notifications!
-      GoogleCalendarSyncJob.perform_later(current_user, force: true)
+      CourseCalendars::SyncJob.perform_later(current_user, force: true)
       redirect_to dashboard_notifications_path, notice: "Notifications disabled."
     else
       current_user.enable_notifications!
-      GoogleCalendarSyncJob.perform_later(current_user, force: true)
+      CourseCalendars::SyncJob.perform_later(current_user, force: true)
       redirect_to dashboard_notifications_path, notice: "Notifications enabled."
     end
   end
@@ -52,7 +52,7 @@ class Dashboard::NotificationsController < Dashboard::ApplicationController
     @university_event_preference.reminder_settings = reminders
 
     if @university_event_preference.save
-      GoogleCalendarSyncJob.perform_later(current_user, force: true)
+      CourseCalendars::SyncJob.perform_later(current_user, force: true)
       redirect_to dashboard_notifications_path, notice: "University event notifications saved."
     else
       redirect_to dashboard_notifications_path,

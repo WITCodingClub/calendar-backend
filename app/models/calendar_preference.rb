@@ -48,8 +48,8 @@ class CalendarPreference < ApplicationRecord
   validates :title_template, length: { maximum: 500 }, allow_blank: true
   validates :description_template, length: { maximum: 2000 }, allow_blank: true
   validates :location_template, length: { maximum: 500 }, allow_blank: true
-  normalizes :color_id, with: GoogleColors.method(:normalize_attribute)
-  validates :color_id, format: { with: GoogleColors::HEX_FORMAT }, allow_nil: true
+  normalizes :color_id, with: GoogleCalendar::Colors.method(:normalize_attribute)
+  validates :color_id, format: { with: GoogleCalendar::Colors::HEX_FORMAT }, allow_nil: true
   validates :visibility, inclusion: { in: %w[public private default] }, allow_blank: true
   validate :validate_template_syntax
 
@@ -96,6 +96,6 @@ class CalendarPreference < ApplicationRecord
                   saved_change_to_location_template? || saved_change_to_color_id? ||
                   saved_change_to_visibility? || saved_change_to_reminder_settings?
 
-    GoogleCalendarSyncJob.perform_later(user, force: true)
+    CourseCalendars::SyncJob.perform_later(user, force: true)
   end
 end

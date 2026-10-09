@@ -20,7 +20,7 @@ RSpec.describe Risc::EventHandler do
       create(:course_calendar, oauth_credential: credential)
       # Stands in for a bug in the disconnect path, which OauthCredential does
       # not rescue.
-      allow(GoogleCalendarService).to receive(:new).and_raise(StandardError, "synthetic failure")
+      allow(GoogleCalendar::Provider).to receive(:new).and_raise(StandardError, "synthetic failure")
     end
 
     it "raises so that the job retries, and does not report the credential as revoked" do

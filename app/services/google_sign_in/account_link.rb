@@ -66,8 +66,8 @@ module GoogleSignIn
     def connect!(**tokens)
       link!(**tokens)
 
-      calendar_id = GoogleCalendarService.new(user).create_or_get_course_calendar
-      GoogleCalendarSyncJob.perform_later(user, force: false) if user.enrollments.any?
+      calendar_id = GoogleCalendar::Provider.new(user).create_or_get_course_calendar
+      CourseCalendars::SyncJob.perform_later(user, force: false) if user.enrollments.any?
       calendar_id
     end
 

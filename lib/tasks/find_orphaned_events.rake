@@ -95,7 +95,7 @@ namespace :calendar do
       next unless user
 
       puts "Processing #{events.size} orphaned events for user #{user.id} (#{user.email})..."
-      service = GoogleCalendarService.new(user)
+      service = GoogleCalendar::Provider.new(user)
 
       events.each do |event|
         begin

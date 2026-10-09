@@ -35,8 +35,8 @@ RSpec.describe CourseScheduleSyncable, type: :model do
   let(:google_service) { instance_double(Google::Apis::CalendarV3::CalendarService) }
 
   before do
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
-    allow_any_instance_of(GoogleCalendarService).to receive(:user_calendar_service).and_return(google_service) # rubocop:disable RSpec/AnyInstance
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
+    allow_any_instance_of(GoogleCalendar::Provider).to receive(:user_calendar_service).and_return(google_service) # rubocop:disable RSpec/AnyInstance
     allow(google_service).to receive(:delete_event)
     config.update!(sync_university_events: true, university_event_categories: %w[registration])
   end
@@ -117,7 +117,7 @@ RSpec.describe CourseScheduleSyncable, type: :model do
   describe "#sync_course_schedule" do
     it "prunes unwanted past university events" do
       config.update!(sync_university_events: false)
-      allow_any_instance_of(GoogleCalendarService).to receive(:update_calendar_events).and_return( # rubocop:disable RSpec/AnyInstance
+      allow_any_instance_of(GoogleCalendar::Provider).to receive(:update_calendar_events).and_return( # rubocop:disable RSpec/AnyInstance
         { created: 0, updated: 0, skipped: 0 }
       )
 

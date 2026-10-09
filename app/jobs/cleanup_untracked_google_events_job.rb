@@ -12,7 +12,7 @@
 #
 # Run with dry_run: true first to log what would be deleted without deleting.
 class CleanupUntrackedGoogleEventsJob < ApplicationJob
-  include GoogleApiRateLimiter
+  include GoogleCalendar::RateLimiter
 
   queue_as :low
 

@@ -92,7 +92,7 @@ RSpec.describe OauthCredential, type: :model do
     end
 
     it "does not hide an error that is not a Google API failure" do
-      allow(GoogleCalendarService).to receive(:new).and_raise(NoMethodError, "undefined method for synthetic test")
+      allow(GoogleCalendar::Provider).to receive(:new).and_raise(NoMethodError, "undefined method for synthetic test")
 
       expect { owner.destroy! }.to raise_error(NoMethodError)
     end
@@ -194,7 +194,7 @@ RSpec.describe OauthCredential, type: :model do
         { status: 204 }
       end
 
-      expect { credential.destroy! }.not_to have_enqueued_job(MicrosoftGraphCalendarDeleteJob)
+      expect { credential.destroy! }.not_to have_enqueued_job(MicrosoftGraph::CalendarDeleteJob)
 
       expect(delete).to have_been_requested
       expect(rows_at_delete).to eq([ true, true ])

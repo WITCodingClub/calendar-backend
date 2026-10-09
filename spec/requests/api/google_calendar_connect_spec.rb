@@ -31,8 +31,8 @@ RSpec.describe "POST /api/user/google_calendar", type: :request do
 
   it "reports an email that is already connected" do
     credential = create(:oauth_credential, user: user, email: "linked@example.com")
-    service    = instance_double(GoogleCalendarService, create_or_get_course_calendar: "cal-1")
-    allow(GoogleCalendarService).to receive(:new).with(user).and_return(service)
+    service    = instance_double(GoogleCalendar::Provider, create_or_get_course_calendar: "cal-1")
+    allow(GoogleCalendar::Provider).to receive(:new).with(user).and_return(service)
 
     post "/api/user/google_calendar", params: { email: credential.email }, headers: headers
 

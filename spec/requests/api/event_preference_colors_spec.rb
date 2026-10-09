@@ -13,7 +13,7 @@ RSpec.describe "Event preference colors", type: :request do
   def json = JSON.parse(response.body)
 
   before do
-    allow(GoogleCalendarSyncJob).to receive(:perform_later)
+    allow(CourseCalendars::SyncJob).to receive(:perform_later)
   end
 
   it "saves a custom color and returns it as hex" do
@@ -32,7 +32,7 @@ RSpec.describe "Event preference colors", type: :request do
     put url, params: { event_preference: { color_id: 7 } }, headers: headers, as: :json
 
     expect(response).to have_http_status(:ok)
-    expect(json.dig("resolved", "color_id")).to eq(GoogleColors::PEACOCK)
+    expect(json.dig("resolved", "color_id")).to eq(GoogleCalendar::Colors::PEACOCK)
   end
 
   it "rejects a value that is not a color" do

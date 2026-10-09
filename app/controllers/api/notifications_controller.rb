@@ -67,7 +67,7 @@ module Api
 
       current_user.enable_notifications!
       current_user.update_column(:calendar_needs_sync, true) # rubocop:disable Rails/SkipsModelValidations
-      GoogleCalendarSyncJob.perform_later(current_user, force: true)
+      CourseCalendars::SyncJob.perform_later(current_user, force: true)
 
       render json: {
         message:                      "Notifications enabled",
