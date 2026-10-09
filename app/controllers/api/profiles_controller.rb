@@ -13,17 +13,5 @@ module Api
         ics_url: current_user.cal_url_with_extension
       }, status: :ok
     end
-
-    # GET /api/user/email (legacy, see config/routes/api_legacy.rb)
-    def email
-      authorize current_user, :show?
-      render json: { email: current_user.email }, status: :ok
-    end
-
-    # GET /api/user/ics_url (legacy, see config/routes/api_legacy.rb)
-    def ics_url
-      authorize current_user, :show?
-      render json: { ics_url: current_user.cal_url_with_extension }, status: :ok
-    end
   end
 end
