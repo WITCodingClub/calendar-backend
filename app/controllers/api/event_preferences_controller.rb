@@ -172,10 +172,9 @@ module Api
       CourseCalendars::SyncJob.perform_later(current_user, force: true)
     end
 
-    # calendar_event_id comes from /calendar_events/:id. The published extension
-    # still calls the legacy /google_calendar_events/:id path.
+    # calendar_event_id comes from /calendar_events/:id.
     def calendar_event_param
-      params[:calendar_event_id] || params[:google_calendar_event_id]
+      params[:calendar_event_id]
     end
 
     def transform_reminder_settings(settings)

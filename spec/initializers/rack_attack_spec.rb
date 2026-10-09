@@ -6,7 +6,7 @@ RSpec.describe Rack::Attack do
   let(:user) { create(:user) }
 
   def request_with(header)
-    Rack::Attack::Request.new(Rack::MockRequest.env_for("/api/user/email", "HTTP_AUTHORIZATION" => header))
+    Rack::Attack::Request.new(Rack::MockRequest.env_for("/api/user", "HTTP_AUTHORIZATION" => header))
   end
 
   describe ".suspicious_agent?" do
@@ -37,7 +37,7 @@ RSpec.describe Rack::Attack do
     end
 
     it "blocks a client with no User-Agent on an app page" do
-      expect(described_class.suspicious_agent?(request_to("/api/user/email", ""))).to be(true)
+      expect(described_class.suspicious_agent?(request_to("/api/user", ""))).to be(true)
     end
 
     it "does not treat a path that only starts with /docs as docs" do
@@ -214,7 +214,7 @@ RSpec.describe Rack::Attack do
       allow(Rails.error).to receive(:report)
 
       status, _headers, _body = described_class.new(app).call(
-        Rack::MockRequest.env_for("/api/user/email", "REMOTE_ADDR" => "203.0.113.9")
+        Rack::MockRequest.env_for("/api/user", "REMOTE_ADDR" => "203.0.113.9")
       )
 
       expect(status).to eq(200)

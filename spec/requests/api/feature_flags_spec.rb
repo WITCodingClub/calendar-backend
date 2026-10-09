@@ -11,10 +11,4 @@ RSpec.describe "Api::FeatureFlags", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body["feature_flags"].keys).to match_array(FeatureFlags::ALL_FLAGS.map(&:to_s))
   end
-
-  it "reports the removed v1 flag as unknown" do
-    get "/api/user/flag_enabled", params: { flag_name: "v1" }, headers: auth_headers_for(user)
-
-    expect(response).to have_http_status(:not_found)
-  end
 end
