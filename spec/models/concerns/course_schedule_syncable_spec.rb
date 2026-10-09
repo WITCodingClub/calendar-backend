@@ -2,6 +2,9 @@
 
 require "rails_helper"
 
+# Integration tests through User. The CourseCalendars classes have their own
+# specs for the details: ScheduleSyncer, EventBuilder, RecurrenceBuilder, and
+# UniversityEventPruner.
 RSpec.describe CourseScheduleSyncable, type: :model do
   let(:user)       { create(:user) }
   let(:credential) { create(:oauth_credential, user: user) }
@@ -32,11 +35,14 @@ RSpec.describe CourseScheduleSyncable, type: :model do
            end_time: past_registration.end_time)
   end
 
-  let(:google_service) { instance_double(Google::Apis::CalendarV3::CalendarService) }
+  let(:google_service)  { instance_double(Google::Apis::CalendarV3::CalendarService) }
+  let(:google_provider) { GoogleCalendar::Provider.new(user) }
 
   before do
     allow(CourseCalendars::SyncJob).to receive(:perform_later)
-    allow_any_instance_of(GoogleCalendar::Provider).to receive(:user_calendar_service).and_return(google_service) # rubocop:disable RSpec/AnyInstance
+    allow(GoogleCalendar::Provider).to receive(:new).and_call_original
+    allow(GoogleCalendar::Provider).to receive(:new).with(user).and_return(google_provider)
+    allow(google_provider).to receive(:user_calendar_service).and_return(google_service)
     allow(google_service).to receive(:delete_event)
     config.update!(sync_university_events: true, university_event_categories: %w[registration])
   end
@@ -115,15 +121,73 @@ RSpec.describe CourseScheduleSyncable, type: :model do
   end
 
   describe "#sync_course_schedule" do
+    before do
+      allow(google_provider).to receive(:update_calendar_events).and_return(created: 1, updated: 0, skipped: 0)
+    end
+
     it "prunes unwanted past university events" do
       config.update!(sync_university_events: false)
-      allow_any_instance_of(GoogleCalendar::Provider).to receive(:update_calendar_events).and_return( # rubocop:disable RSpec/AnyInstance
-        { created: 0, updated: 0, skipped: 0 }
-      )
 
       user.sync_course_schedule(force: false)
 
       expect(CalendarEvent.exists?(registration_gcal_event.id)).to be(false)
+    end
+
+    it "sends the course events to Google and records the sync" do
+      course = create(:course)
+      create(:enrollment, user: user, course: course)
+      meeting_time = create(:course_meeting_time, course: course)
+
+      expect(user.sync_course_schedule(force: false)).to eq(created: 1, updated: 0, skipped: 0)
+
+      expect(google_provider).to have_received(:update_calendar_events)
+        .with(including(a_hash_including(meeting_time_id: meeting_time.id)), force: false)
+      expect(user.reload.calendar_needs_sync).to be(false)
+    end
+
+    it "queues the historical backfill on a force sync" do
+      expect { user.force_sync }.to have_enqueued_job(CourseCalendars::HistoricalSyncJob).with(user, force: true)
+    end
+
+    it "does not queue the backfill on a quick sync" do
+      expect { user.quick_sync }.not_to have_enqueued_job(CourseCalendars::HistoricalSyncJob)
+    end
+  end
+
+  describe "#sync_historical_events" do
+    it "sends past finals to Google as specific events" do
+      course = create(:course)
+      create(:enrollment, user: user, course: course)
+      final_exam = create(:final_exam, course: course, term: course.term, exam_date: 1.week.ago.to_date)
+      allow(google_provider).to receive(:update_specific_events).and_return(created: 1, updated: 0, skipped: 0)
+
+      user.sync_historical_events(force: true)
+
+      expect(google_provider).to have_received(:update_specific_events)
+        .with(including(a_hash_including(final_exam_id: final_exam.id)), force: true)
+    end
+  end
+
+  describe "memoized lookups" do
+    it "keeps the final exam dates for the life of the user object" do
+      course = create(:course)
+      create(:final_exam, course: course, term: course.term, exam_date: Date.new(2026, 12, 10))
+      allow(FinalExam).to receive(:where).and_call_original
+
+      2.times { user.final_exam_date_for_course(course.id) }
+
+      expect(FinalExam).to have_received(:where).once
+    end
+  end
+
+  describe "helper delegators" do
+    it "answers the date and location helpers through the CourseCalendars builders" do
+      meeting_time = create(:course_meeting_time, day_of_week: :monday)
+
+      expect(user.find_first_meeting_date(meeting_time)).to eq(Date.new(2026, 9, 14))
+      expect(user.parse_time(Date.new(2026, 9, 14), 900)).to eq(Time.zone.local(2026, 9, 14, 9, 0))
+      expect(user.tbd_room?(build(:room, number: "0"))).to be(true)
+      expect(user.wanted_university_event_ids([ past_holiday.id ])).to eq([ past_holiday.id ])
     end
   end
 end
