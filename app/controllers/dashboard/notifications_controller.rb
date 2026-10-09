@@ -40,6 +40,15 @@ module Dashboard
       end
     end
 
+    # Turns the friend emails (friend requests and end date changes) on or off.
+    def emails
+      authorize current_user, :update?
+
+      enabled = ActiveModel::Type::Boolean.new.cast(params[:friend_emails]) == true
+      current_user.update!(friend_emails: enabled)
+      redirect_to dashboard_notifications_path, notice: "Friend emails #{enabled ? 'enabled' : 'disabled'}."
+    end
+
     # Sets the reminders for every university calendar event, apart from classes.
     def university_events
       authorize @university_event_preference, :update?

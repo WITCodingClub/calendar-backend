@@ -27,6 +27,11 @@ RSpec.describe MeetingLinkMailer, type: :mailer do
       end
     end
 
+    it "has no email settings link, because the guest has no account" do
+      expect(mail.html_part.body.to_s).not_to include("Change which emails you get")
+      expect(mail.text_part.body.to_s).not_to include("Change which emails you get")
+    end
+
     it "says that no calendar invitation comes when the owner uses only the ICS feed" do
       expect(mail.text_part.body.to_s).to include("You will not get a separate calendar invitation.")
     end

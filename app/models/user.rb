@@ -17,6 +17,7 @@
 #  encrypted_password           :string           default(""), not null
 #  failed_attempts              :integer          default(0), not null
 #  first_name                   :string
+#  friend_emails                :boolean          default(TRUE), not null
 #  last_calendar_sync_at        :datetime
 #  last_name                    :string
 #  last_sign_in_at              :datetime

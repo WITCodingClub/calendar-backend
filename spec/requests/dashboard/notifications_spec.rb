@@ -12,6 +12,31 @@ RSpec.describe "Dashboard::Notifications", type: :request do
     sign_in user
   end
 
+  describe "PATCH /dashboard/notifications/emails" do
+    it "turns friend emails off" do
+      patch emails_dashboard_notifications_path, params: { friend_emails: "false" }
+
+      expect(response).to redirect_to(dashboard_notifications_path)
+      expect(flash[:notice]).to eq("Friend emails disabled.")
+      expect(user.reload.friend_emails).to be(false)
+    end
+
+    it "turns friend emails on" do
+      user.update!(friend_emails: false)
+
+      patch emails_dashboard_notifications_path, params: { friend_emails: "true" }
+
+      expect(flash[:notice]).to eq("Friend emails enabled.")
+      expect(user.reload.friend_emails).to be(true)
+    end
+
+    it "shows the setting on the notifications page" do
+      get dashboard_notifications_path
+
+      expect(response.body).to include("Friend emails").and include("Turn off")
+    end
+  end
+
   describe "PATCH /dashboard/notifications/university_events" do
     it "turns off the reminders of university events" do
       patch university_events_dashboard_notifications_path, params: { mode: "off" }

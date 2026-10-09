@@ -18,6 +18,7 @@ authenticate :user do
     resource  :ics_feed,             only: [ :show ]
     resource  :notifications,        only: [ :show, :update ] do
       patch :university_events
+      patch :emails
     end
     # Before resources :friends, so "groups" is not read as a friend id.
     resources :friend_groups, path: "friends/groups", only: [ :create, :update, :destroy ] do

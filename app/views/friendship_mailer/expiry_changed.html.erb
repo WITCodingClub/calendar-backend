@@ -1,13 +1,11 @@
-<h2>Friendship end date</h2>
+<h1 style="margin: 0 0 16px 0; font-size: 22px; line-height: 1.3; color: #1f1b13;">Friendship end date</h1>
 
-<p>
+<p style="margin: 0 0 16px 0;">
   Hi<%= " #{@recipient.first_name}" if @recipient.first_name.present? %>,
 </p>
 
-<p>
+<p style="margin: 0 0 16px 0;">
   <%= @summary %>
 </p>
 
-<p style="margin-top: 16px;">
-  <a href="<%= @friends_url %>"><%= @link_text %></a>
-</p>
+<%= render "shared/mailer_button", url: @friends_url, label: @link_text %>

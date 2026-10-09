@@ -1,13 +1,19 @@
 # frozen_string_literal: true
 
+# Friend emails. A user turns them off with users.friend_emails on the
+# notifications page. The check runs when the email is built, so an email that
+# was queued before the user turned them off is not sent either.
 class FriendshipMailer < ApplicationMailer
   EXPIRY_EVENTS = %w[shortened proposed proposal_accepted proposal_declined].freeze
+
+  before_action { @preferences_url = dashboard_notifications_url(anchor: "emails") }
 
   def request_received(friendship)
     @friendship = friendship
     @requester  = friendship.requester
     @addressee  = friendship.addressee
     @requests_url = dashboard_friends_requests_url
+    return unless @addressee.friend_emails?
 
     mail(
       to: @addressee.email,
@@ -23,6 +29,8 @@ class FriendshipMailer < ApplicationMailer
     @friendship  = friendship
     @actor       = actor
     @recipient   = friendship.friend_for(actor)
+    return unless @recipient.friend_emails?
+
     @event       = event
     @friends_url = friendship.pending? ? dashboard_friends_requests_url : dashboard_friends_url
     @link_text   = event == "proposed" ? "Accept or decline the proposal" : "Manage your friends"
