@@ -31,12 +31,12 @@ RSpec.describe "GET /api/user/processed_events", type: :request do
 
   def enroll_in(crns)
     crns.each_with_index do |crn, index|
-      allow(LeopardWebService).to receive(:get_class_details)
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
         .with(term: "202710", course_reference_number: crn)
         .and_return(class_details((100 + index).to_s))
     end
 
-    CourseProcessorService.new(crns.map { |crn| { crn: crn, term: "202710", courseNumber: "2000" } }, user).call
+    Courses::Processor.new(crns.map { |crn| { crn: crn, term: "202710", courseNumber: "2000" } }, user).call
   end
 
   def queries_for(table)

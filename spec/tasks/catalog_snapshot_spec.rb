@@ -24,7 +24,7 @@ RSpec.describe "catalog_snapshot rake tasks" do
 
       expect { run_task("catalog_snapshot:export") }.to output(/Wrote #{Regexp.escape(path)}: 1 terms.*1 courses/).to_stdout
 
-      CatalogSnapshot::TABLES.values.reverse_each { |model, _columns| model.constantize.delete_all }
+      Catalog::Snapshot::TABLES.values.reverse_each { |model, _columns| model.constantize.delete_all }
 
       expect { run_task("catalog_snapshot:import") }.to output(/Imported #{Regexp.escape(path)}/).to_stdout
       expect(Course.find(course.id).crn).to eq(course.crn)

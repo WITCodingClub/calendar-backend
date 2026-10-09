@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe CourseProcessorService do
+RSpec.describe Courses::Processor do
   let(:user) { create(:user) }
   let!(:term) { create(:term, uid: 202710) }
 
@@ -34,7 +34,7 @@ RSpec.describe CourseProcessorService do
   let(:courses_payload) { [ { crn: "12345", term: "202710", courseNumber: "2000" } ] }
 
   before do
-    allow(LeopardWebService).to receive(:get_class_details).and_return(class_details)
+    allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(class_details)
   end
 
   def process!
@@ -116,7 +116,7 @@ RSpec.describe CourseProcessorService do
     end
 
     before do
-      allow(LeopardWebService).to receive(:get_class_details) { |course_reference_number:, **| details_for(course_reference_number) }
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) { |course_reference_number:, **| details_for(course_reference_number) }
     end
 
     it "creates every course without one query for each course" do
@@ -132,7 +132,7 @@ RSpec.describe CourseProcessorService do
       create(:course_calendar, oauth_credential: create(:oauth_credential, user: classmate))
       Course.where(crn: crns).find_each { |course| create(:enrollment, user: classmate, course: course, term: term) }
 
-      allow(LeopardWebService).to receive(:get_class_details) { |course_reference_number:, **|
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) { |course_reference_number:, **|
         details_for(course_reference_number).merge(title: "Algorithms")
       }
       expect { Prosopite.scan { process! } }.not_to raise_error
@@ -146,7 +146,7 @@ RSpec.describe CourseProcessorService do
       old_ids = Course::MeetingTime.where(course: Course.where(crn: crns)).ids
 
       result = nil
-      allow(LeopardWebService).to receive(:get_class_details) { |course_reference_number:, **|
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) { |course_reference_number:, **|
         details_for(course_reference_number).tap { |d| d[:meeting_times].first["startTime"] = "0900" }
       }
       expect { Prosopite.scan { result = process! } }.not_to raise_error
@@ -157,7 +157,7 @@ RSpec.describe CourseProcessorService do
     end
 
     it "attaches each course's instructors without one query for each course" do
-      allow(LeopardWebService).to receive(:get_class_details) { |course_reference_number:, **|
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) { |course_reference_number:, **|
         details_for(course_reference_number).merge(
           faculty: [
             { "displayName" => "Shared Teacher", "emailAddress" => "shared@example.edu", "primaryIndicator" => true },
@@ -178,7 +178,7 @@ RSpec.describe CourseProcessorService do
     it "writes nothing when one course names an unknown term" do
       courses_payload << { crn: "44444", term: "209910", courseNumber: "2000" }
 
-      expect { process! }.to raise_error(InvalidTermError)
+      expect { process! }.to raise_error(Courses::InvalidTermError)
       expect(Course.where(crn: crns)).not_to exist
     end
   end
@@ -190,7 +190,7 @@ RSpec.describe CourseProcessorService do
     end
 
     it "attaches the instructor Banner reports" do
-      allow(LeopardWebService).to receive(:get_class_details)
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
         .and_return(class_details.merge(faculty: banner_faculty))
 
       process!
@@ -199,7 +199,7 @@ RSpec.describe CourseProcessorService do
     end
 
     it "prefers Banner over the name the extension posted" do
-      allow(LeopardWebService).to receive(:get_class_details)
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
         .and_return(class_details.merge(faculty: banner_faculty))
       courses_payload.first.merge!(instructor: "Igor Minevich", instructorEmail: "minevichi@wit.edu")
 
@@ -209,12 +209,12 @@ RSpec.describe CourseProcessorService do
     end
 
     it "drops an instructor Banner no longer lists on re-import" do
-      allow(LeopardWebService).to receive(:get_class_details)
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
         .and_return(class_details.merge(faculty: [ { "displayName" => "Igor Minevich",
                                                      "emailAddress" => "minevichi@wit.edu" } ]))
       process!
 
-      allow(LeopardWebService).to receive(:get_class_details)
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
         .and_return(class_details.merge(faculty: banner_faculty))
       process!
 
@@ -246,7 +246,7 @@ RSpec.describe CourseProcessorService do
 
     it "asks Banner about every section at the same time" do
       in_flight = Queue.new
-      allow(LeopardWebService).to receive(:get_class_details) do |course_reference_number:, **|
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) do |course_reference_number:, **|
         in_flight << course_reference_number
         # Hold this request open until the other one starts. Asked one after
         # another, the second never starts and this times out.
@@ -263,12 +263,12 @@ RSpec.describe CourseProcessorService do
     end
 
     it "writes nothing when Banner fails for one section" do
-      allow(LeopardWebService).to receive(:get_class_details).and_return(class_details)
-      allow(LeopardWebService).to receive(:get_class_details)
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(class_details)
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
         .with(term: "202710", course_reference_number: "67890")
-        .and_raise(LeopardWebService::RequestError, "Banner is down")
+        .and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
 
-      expect { process! }.to raise_error(LeopardWebService::RequestError)
+      expect { process! }.to raise_error(Catalog::LeopardWebClient::RequestError)
       expect(Course.count).to eq(0)
     end
   end

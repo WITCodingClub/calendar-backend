@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe CatalogImportService do
+RSpec.describe Catalog::Importer do
   let!(:term) do
     create(:term, uid: 202710, season: :fall, year: 2026,
            start_date: Date.new(2026, 9, 8), end_date: Date.new(2026, 12, 15))

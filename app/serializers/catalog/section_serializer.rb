@@ -49,8 +49,8 @@ module Catalog
       { uid: @course.term.uid, name: @course.term.name }
     end
 
-    # Live enrollment numbers from Banner, by way of LeopardWebService. The
-    # catalog import sets them, and CourseDataSyncJob refreshes them every night.
+    # Live enrollment numbers from Banner, by way of Catalog::LeopardWebClient. The
+    # catalog import sets them, and Catalog::CourseDataSyncJob refreshes them every night.
     # They are therefore up to a day old. Do not present them as a real-time
     # seat count. Null when Banner did not return enrollment data for the CRN.
     def seats

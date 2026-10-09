@@ -42,7 +42,7 @@ RSpec.describe "backfill rake tasks" do
     it "writes the seat counts Banner reports" do
       target = course(crn: 11111)
 
-      allow(LeopardWebService).to receive(:get_enrollment_info)
+      allow(Catalog::LeopardWebClient).to receive(:get_enrollment_info)
         .with(term: "202710", course_reference_number: "11111")
         .and_return({ enrollment: { actual: 18, maximum: 24, seats_available: 6 } })
 
@@ -56,7 +56,7 @@ RSpec.describe "backfill rake tasks" do
     it "skips courses that already have seat counts" do
       course(crn: 22222, seats_capacity: 24, seats_available: 6)
 
-      expect(LeopardWebService).not_to receive(:get_enrollment_info)
+      expect(Catalog::LeopardWebClient).not_to receive(:get_enrollment_info)
 
       run_task("backfill:seats", "202710")
     end
@@ -64,7 +64,7 @@ RSpec.describe "backfill rake tasks" do
     it "leaves the row alone when Banner has no answer" do
       target = course(crn: 33333)
 
-      allow(LeopardWebService).to receive(:get_enrollment_info).and_return(nil)
+      allow(Catalog::LeopardWebClient).to receive(:get_enrollment_info).and_return(nil)
 
       run_task("backfill:seats", "202710")
 
@@ -75,10 +75,10 @@ RSpec.describe "backfill rake tasks" do
       first  = course(crn: 44444)
       second = course(crn: 55555)
 
-      allow(LeopardWebService).to receive(:get_enrollment_info)
+      allow(Catalog::LeopardWebClient).to receive(:get_enrollment_info)
         .with(term: "202710", course_reference_number: "44444")
         .and_raise(StandardError, "Banner is down")
-      allow(LeopardWebService).to receive(:get_enrollment_info)
+      allow(Catalog::LeopardWebClient).to receive(:get_enrollment_info)
         .with(term: "202710", course_reference_number: "55555")
         .and_return({ enrollment: { maximum: 30, seats_available: 2 } })
 
@@ -101,7 +101,7 @@ RSpec.describe "backfill rake tasks" do
     it "writes the identifier Banner reports" do
       lecture = course(crn: 16861, section_number: "1A")
 
-      allow(LeopardWebService).to receive(:get_course_catalog)
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
         .with(term: "202710")
         .and_return(catalog(
                       { "courseReferenceNumber" => "16861", "linkIdentifier" => "A1", "isSectionLinked" => true }
@@ -115,7 +115,7 @@ RSpec.describe "backfill rake tasks" do
     end
 
     it "ignores CRNs that are not in the database" do
-      allow(LeopardWebService).to receive(:get_course_catalog).and_return(catalog(
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog).and_return(catalog(
         { "courseReferenceNumber" => "99999", "linkIdentifier" => "A1", "isSectionLinked" => true }
       ))
 
@@ -125,7 +125,7 @@ RSpec.describe "backfill rake tasks" do
     it "does not touch the other columns" do
       lecture = course(crn: 16862, section_number: "1A", seats_capacity: 24, title: "General Chemistry")
 
-      allow(LeopardWebService).to receive(:get_course_catalog).and_return(catalog(
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog).and_return(catalog(
         { "courseReferenceNumber" => "16862", "linkIdentifier" => "A1", "isSectionLinked" => true }
       ))
 
@@ -139,7 +139,7 @@ RSpec.describe "backfill rake tasks" do
     it "reports a failed catalog fetch without raising" do
       course(crn: 16863, section_number: "1A")
 
-      allow(LeopardWebService).to receive(:get_course_catalog)
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
         .and_return({ success: false, error: "Banner is down", courses: [], total_count: 0 })
 
       expect { run_task("backfill:link_identifiers", "202710") }.not_to raise_error
@@ -167,7 +167,7 @@ RSpec.describe "backfill rake tasks" do
     it "writes both seat counts from one catalog request" do
       target = course(crn: 11111)
 
-      allow(LeopardWebService).to receive(:get_course_catalog)
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
         .with(term: "202710")
         .and_return(catalog(catalog_row(crn: 11111, capacity: 24, available: 6)))
 
@@ -181,7 +181,7 @@ RSpec.describe "backfill rake tasks" do
     it "keeps a negative count so an over-enrolled section is not read as full" do
       target = course(crn: 22222)
 
-      allow(LeopardWebService).to receive(:get_course_catalog)
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
         .and_return(catalog(catalog_row(crn: 22222, capacity: 0, available: -11)))
 
       run_task("backfill:seats_from_catalog", "202710")
@@ -194,7 +194,7 @@ RSpec.describe "backfill rake tasks" do
     it "refreshes counts that are already set but out of date" do
       target = course(crn: 33333, seats_capacity: 30, seats_available: 5)
 
-      allow(LeopardWebService).to receive(:get_course_catalog)
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
         .and_return(catalog(catalog_row(crn: 33333, capacity: 30, available: 1)))
 
       run_task("backfill:seats_from_catalog", "202710")
@@ -205,7 +205,7 @@ RSpec.describe "backfill rake tasks" do
     it "leaves a course alone when the catalog omits one of the two counts" do
       target = course(crn: 44444)
 
-      allow(LeopardWebService).to receive(:get_course_catalog)
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
         .and_return(catalog(catalog_row(crn: 44444, capacity: 30, available: nil)))
 
       run_task("backfill:seats_from_catalog", "202710")
@@ -216,7 +216,7 @@ RSpec.describe "backfill rake tasks" do
     it "leaves a course alone when the catalog does not list it" do
       target = course(crn: 55555)
 
-      allow(LeopardWebService).to receive(:get_course_catalog)
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
         .and_return(catalog(catalog_row(crn: 99999)))
 
       run_task("backfill:seats_from_catalog", "202710")
@@ -227,7 +227,7 @@ RSpec.describe "backfill rake tasks" do
     it "moves on to the next term when Banner does not answer" do
       target = course(crn: 66666)
 
-      allow(LeopardWebService).to receive(:get_course_catalog)
+      allow(Catalog::LeopardWebClient).to receive(:get_course_catalog)
         .and_return({ success: false, error: "Banner is down" })
 
       expect { run_task("backfill:seats_from_catalog", "202710") }.not_to raise_error

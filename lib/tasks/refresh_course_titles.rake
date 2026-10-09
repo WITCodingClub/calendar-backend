@@ -28,7 +28,7 @@ namespace :courses do
       puts "\n#{"=" * 50}"
       puts "Fetching courses for term #{uid} from LeopardWeb..."
 
-      result = LeopardWebService.get_course_catalog(term: uid)
+      result = Catalog::LeopardWebClient.get_course_catalog(term: uid)
 
       unless result[:success]
         puts "Failed to fetch courses: #{result[:error]}"

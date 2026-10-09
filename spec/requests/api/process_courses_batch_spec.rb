@@ -33,7 +33,7 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
   end
 
   before do
-    allow(LeopardWebService).to receive(:get_class_details).and_return(class_details)
+    allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(class_details)
   end
 
   def term_entry(uid, crns = [ "11111" ])
@@ -51,7 +51,7 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
   it "processes the first term now and queues the other terms" do
     expect do
       post_batch([ term_entry(202710, %w[11111 22222]), term_entry(202720), term_entry(202730) ])
-    end.to have_enqueued_job(ProcessTermCoursesJob).twice
+    end.to have_enqueued_job(Courses::ProcessTermJob).twice
 
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body).to include("user_pub" => user.public_id, "ics_url" => user.cal_url_with_extension)
@@ -65,7 +65,7 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
   end
 
   it "enrolls the user in the queued terms when the jobs run" do
-    perform_enqueued_jobs(only: ProcessTermCoursesJob) do
+    perform_enqueued_jobs(only: Courses::ProcessTermJob) do
       post_batch([ term_entry(202710), term_entry(202720) ])
     end
 
@@ -85,7 +85,7 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
     end
 
     it "marks a queued term processed after its job runs" do
-      perform_enqueued_jobs(only: ProcessTermCoursesJob) do
+      perform_enqueued_jobs(only: Courses::ProcessTermJob) do
         post_batch([ term_entry(202710), term_entry(202720) ])
       end
 
@@ -93,7 +93,7 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
     end
 
     it "fails the first term when Banner returns no details for any course" do
-      allow(LeopardWebService).to receive(:get_class_details).and_return(nil)
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(nil)
 
       post_batch([ term_entry(202710) ])
 
@@ -104,8 +104,8 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
     end
 
     it "marks the first term failed when Banner is down" do
-      allow(LeopardWebService).to receive(:get_class_details)
-        .and_raise(LeopardWebService::RequestError.new("Banner is down", status: 503))
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
+        .and_raise(Catalog::LeopardWebClient::RequestError.new("Banner is down", status: 503))
 
       post_batch([ term_entry(202710) ])
 
@@ -116,7 +116,7 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
       create(:term_processing_status, user: user, term: fall, status: "processing")
 
       expect { post_batch([ term_entry(202710), term_entry(202720) ]) }
-        .to have_enqueued_job(ProcessTermCoursesJob).with(user, fall, anything)
+        .to have_enqueued_job(Courses::ProcessTermJob).with(user, fall, anything)
 
       expect(term_results).to eq([
         { "term" => "202710", "status" => "pending" },
@@ -134,11 +134,11 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
 
   describe "partial failure" do
     it "reports a Banner failure on the first term and still queues the others" do
-      allow(LeopardWebService).to receive(:get_class_details)
-        .and_raise(LeopardWebService::RequestError.new("Banner is down", status: 503))
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
+        .and_raise(Catalog::LeopardWebClient::RequestError.new("Banner is down", status: 503))
 
       expect { post_batch([ term_entry(202710), term_entry(202720) ]) }
-        .to have_enqueued_job(ProcessTermCoursesJob).once
+        .to have_enqueued_job(Courses::ProcessTermJob).once
 
       expect(response).to have_http_status(:ok)
       expect(term_results).to eq([
@@ -202,11 +202,11 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
     end
 
     it "rejects more terms than the limit" do
-      entries = Array.new(CourseBatchProcessorService::MAX_TERMS + 1) { |i| term_entry(202710 + i) }
+      entries = Array.new(Courses::BatchProcessor::MAX_TERMS + 1) { |i| term_entry(202710 + i) }
       post_batch(entries)
 
       expect(response).to have_http_status(:bad_request)
-      expect(response.parsed_body["error"]).to eq("A batch can have at most #{CourseBatchProcessorService::MAX_TERMS} terms")
+      expect(response.parsed_body["error"]).to eq("A batch can have at most #{Courses::BatchProcessor::MAX_TERMS} terms")
     end
 
     it "rejects a request without a token" do

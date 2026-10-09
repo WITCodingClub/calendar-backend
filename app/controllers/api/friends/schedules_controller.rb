@@ -26,7 +26,7 @@ module Api
         term = find_term_by_uid
         return if performed?
 
-        result = ProcessedEventsBuilder.new(friend_user, term).build
+        result = Courses::ProcessedEventsBuilder.new(friend_user, term).build
         render json: result, status: :ok
       end
 

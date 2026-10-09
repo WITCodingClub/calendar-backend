@@ -27,11 +27,11 @@ RSpec.describe "GET /calendar/:calendar_token", type: :request do
     }
   end
 
-  before { allow(LeopardWebService).to receive(:get_class_details).and_return(class_details) }
+  before { allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(class_details) }
 
   def student_in(crns)
     user = create(:user)
-    CourseProcessorService.new(crns.map { |crn| { crn: crn, term: "202710", courseNumber: "2000" } }, user).call
+    Courses::Processor.new(crns.map { |crn| { crn: crn, term: "202710", courseNumber: "2000" } }, user).call
     user
   end
 
