@@ -23,7 +23,7 @@
 #  fk_rails_...  (user_id => users.id)
 #
 # The processing state of one term for one user. POST /api/process_courses/batch
-# writes it, and POST /api/user/is_processed reads it. A term is "processed"
+# writes it, and GET /api/user/processed_events/status reads it. A term is "processed"
 # only after all of its courses are done, so the extension never sees a term
 # that is half enrolled. A "failed" term has an error_code the extension can
 # show.

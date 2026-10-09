@@ -28,6 +28,13 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
              methods: [ :get, :options, :head ],
              credentials: false
 
+    resource "/api/v1/graphql",
+             headers: :any,
+             methods: [ :post, :options, :head ],
+             credentials: false
+
+    # The old path answers 308 to /api/v1/graphql. A browser follows the
+    # redirect only when this response also allows the origin.
     resource "/api/graphql",
              headers: :any,
              methods: [ :post, :options, :head ],

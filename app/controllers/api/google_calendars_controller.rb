@@ -6,7 +6,7 @@ module Api
   class GoogleCalendarsController < BaseController
     authenticate_with_token
 
-    # POST /api/user/gcal
+    # POST /api/user/google_calendar (legacy path: POST /api/user/gcal)
     #
     # The email is optional. Without it, the person picks any Google account in
     # the OAuth screen. With it, only that account is accepted, as in older
@@ -30,7 +30,7 @@ module Api
       render_error "Failed to request Google Calendar", status: :internal_server_error
     end
 
-    # POST /api/user/gcal/add_email
+    # POST /api/user/google_calendar/emails
     def add_email
       email = params[:email].to_s.strip
 
@@ -62,7 +62,7 @@ module Api
       render_error "Failed to add email to Google Calendar", status: :internal_server_error
     end
 
-    # DELETE /api/user/gcal/remove_email
+    # DELETE /api/user/google_calendar/emails
     def remove_email
       email = params[:email].to_s.strip
 

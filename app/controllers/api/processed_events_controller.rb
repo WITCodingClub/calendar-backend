@@ -7,7 +7,7 @@ module Api
 
     authenticate_with_token
 
-    # POST /api/user/is_processed
+    # GET /api/user/processed_events/status
     def processing_status
       authorize current_user, :show?
 
@@ -19,7 +19,7 @@ module Api
       render json: TermProcessingStatusSerializer.new(status_row, enrolled: enrolled).as_json, status: :ok
     end
 
-    # POST /api/user/processed_events
+    # GET /api/user/processed_events
     def index
       authorize current_user, :show?
 

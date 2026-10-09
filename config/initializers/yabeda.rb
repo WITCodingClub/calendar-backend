@@ -26,6 +26,10 @@ Yabeda.configure do
           comment: "Anonymous usage events that the browser extension sends.",
           tags: %i[event version browser]
 
+  counter :api_legacy_requests_total,
+          comment: "Requests to an old API path in config/routes/api_legacy.rb, by path.",
+          tags: %i[route]
+
   gauge :users, comment: "Accounts in the database.", aggregation: :most_recent
   gauge :active_sessions, comment: "Sessions that are not revoked or expired.", aggregation: :most_recent
   gauge :google_calendars, comment: "Google calendars that the app syncs.", aggregation: :most_recent

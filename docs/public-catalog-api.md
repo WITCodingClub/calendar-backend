@@ -20,7 +20,7 @@ The API has three surfaces over the same data:
 | Surface | Endpoint | Use it for |
 | --- | --- | --- |
 | REST | `GET /api/v1/catalog/...` | Simple requests, caching, curl |
-| GraphQL | `POST /api/graphql` | One request for nested data |
+| GraphQL | `POST /api/v1/graphql` | One request for nested data |
 | CSV reports | `GET /reports/...` | Excel and Power BI, no code |
 
 Both surfaces use the same filter object, `Catalog::SectionQuery`. A filter
@@ -197,7 +197,9 @@ message:
 
 | Method and path | Description |
 | --- | --- |
-| `GET /api/v1/catalog/terms` | All terms, newest first |
+| `GET /api/v1/catalog/terms` | All terms, newest first. `?active=true` lists only the terms in session today |
+| `GET /api/v1/catalog/terms/current` | The current term. 404 when there is none |
+| `GET /api/v1/catalog/terms/next` | The term after the current term. 404 when there is none |
 | `GET /api/v1/catalog/terms/:uid` | One term by its Banner code, e.g. `202710` |
 | `GET /api/v1/catalog/subjects` | Subjects with section counts |
 | `GET /api/v1/catalog/sections` | Sections, with filters |
@@ -319,10 +321,10 @@ curl "https://calendar.witcc.dev/api/v1/catalog/sections?term_uid=202710&subject
 
 ## GraphQL
 
-Send a POST request to `/api/graphql` with a JSON body:
+Send a POST request to `/api/v1/graphql` with a JSON body:
 
 ```bash
-curl -X POST https://calendar.witcc.dev/api/graphql \
+curl -X POST https://calendar.witcc.dev/api/v1/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ terms { uid name sectionCount } }"}'
 ```

@@ -9,7 +9,7 @@ module Api
     # Google and key the account to that verified @wit.edu address, so it proves
     # two things at once: the caller controls the Google identity, and only WIT
     # could have issued it. A personal Google account is linked afterwards, for
-    # calendar sync only (POST /api/user/gcal), and never becomes the identity.
+    # calendar sync only (POST /api/user/google_calendar), and never becomes the identity.
     #
     # The extension runs the PKCE flow and sends the authorization code, because
     # Google wants a client_secret at the token endpoint and a published

@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "POST /api/user/processed_events", type: :request do
+RSpec.describe "GET /api/user/processed_events", type: :request do
   let(:user) { create(:user) }
   let!(:term) { create(:term, uid: 202710) }
   let(:headers) { auth_headers_for(user) }
@@ -54,7 +54,7 @@ RSpec.describe "POST /api/user/processed_events", type: :request do
     room_queries = building_queries = nil
     room_queries = queries_for("rooms") do
       building_queries = queries_for("buildings") do
-        post "/api/user/processed_events", params: { term_uid: term.uid }, headers: headers
+        get "/api/user/processed_events", params: { term_uid: term.uid }, headers: headers
       end
     end
 

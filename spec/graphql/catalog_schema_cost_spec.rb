@@ -144,9 +144,9 @@ RSpec.describe CatalogSchema do
       )
     end
 
-    it "publishes the rate limit of the throttle that covers /api/graphql" do
+    it "publishes the rate limit of the throttle that covers /api/v1/graphql" do
       throttle = Rack::Attack.throttles.fetch("catalog/ip")
-      request  = Rack::Attack::Request.new(Rack::MockRequest.env_for("/api/graphql", method: "POST"))
+      request  = Rack::Attack::Request.new(Rack::MockRequest.env_for("/api/v1/graphql", method: "POST"))
       limit    = described_class.schema_directives.find { |d| d.is_a?(Directives::RateLimit) }.arguments.keyword_arguments
 
       expect(Rack::Attack::PUBLIC_CATALOG_PATH.call(request)).to be(true)

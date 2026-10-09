@@ -47,6 +47,7 @@ The host side lives in [jaspermayone/infra](https://github.com/jaspermayone/infr
 | `calendar_google_calendars` | gauge | | `AppMetrics` |
 | `calendar_jobs` | gauge | `state`: `ready`, `scheduled`, `claimed`, `blocked`, `failed` | `AppMetrics` |
 | `calendar_extension_events_total` | counter | `event`, `version`, `browser` | `ExtensionUsage` |
+| `calendar_api_legacy_requests_total` | counter | `route`: the old path, for example `GET user/email` | `Api::LegacyRouteCounting` |
 
 The request metrics skip the health checks (`/up` and OkComputer). The gauges are counted on each scrape. If one count fails, `AppMetrics` logs a warning and sets the others, so the scrape still succeeds.
 

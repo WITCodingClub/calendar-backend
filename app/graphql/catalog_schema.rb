@@ -17,7 +17,7 @@ class CatalogSchema < GraphQL::Schema
   directives Directives::Cost, Directives::ListSize, Directives::QueryLimits, Directives::RateLimit
 
   # Machine-readable copies of the limits above, and of the Rack::Attack
-  # throttle that covers /api/graphql. They read the real values, so the schema
+  # throttle that covers /api/v1/graphql. They read the real values, so the schema
   # cannot publish a limit that the server does not enforce.
   schema_directive Directives::QueryLimits,
                    max_cost:          max_complexity,

@@ -103,11 +103,11 @@ Every accepted friend can read busy blocks, whatever the friend's level. While t
 - 400: a date has the wrong format, `end_date` is before `start_date`, or the range is too long.
 - 403 `NOT_FRIENDS`: the user is not an accepted friend.
 
-### POST /api/friends/:friend_id/is_processed
+### GET /api/friends/:friend_id/processed_events/status
 
 For a friend who shares `availability_only`, the answer is the same 403 as for `processed_events`. Else a friend would learn whether the user has enrollments in a term.
 
-### POST /api/friends/:friend_id/processed_events
+### GET /api/friends/:friend_id/processed_events
 
 Unchanged for a friend who shares `full`. For a friend who shares `availability_only`:
 

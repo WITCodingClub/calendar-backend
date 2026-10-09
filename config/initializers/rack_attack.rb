@@ -22,8 +22,12 @@ class Rack::Attack
 
   # Public, unauthenticated catalog API. Kept as one predicate so the throttle
   # and blocklist rules below cannot drift apart.
+  # /api/graphql only redirects to /api/v1/graphql, but it counts too, so a
+  # client cannot use the redirect to skip the limit.
+  GRAPHQL_PATHS = [ "/api/v1/graphql", "/api/graphql" ].freeze
+
   PUBLIC_CATALOG_PATH = lambda do |req|
-    req.path.start_with?("/api/v1/catalog") || req.path == "/api/graphql"
+    req.path.start_with?("/api/v1/catalog") || GRAPHQL_PATHS.include?(req.path)
   end
 
   # Files and docs written for search engines and AI agents. robots.txt tells

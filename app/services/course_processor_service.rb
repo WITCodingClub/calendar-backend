@@ -228,7 +228,7 @@ class CourseProcessorService < ApplicationService
     end
 
     # Mark a term processed only after all of its courses are done, so
-    # /api/user/is_processed never reports a half-enrolled term.
+    # /api/user/processed_events/status never reports a half-enrolled term.
     enrolled_terms.each { |term| TermProcessingStatus.record!(user, term, :processed) }
 
     if CourseCalendar.for_user(user).exists?

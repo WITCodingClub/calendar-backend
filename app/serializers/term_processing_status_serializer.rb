@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Response of POST /api/user/is_processed.
+# Response of GET /api/user/processed_events/status.
 #
 # "processed" stays a boolean for older extension versions. It is true only
 # when the term is fully processed. "status" and "error_code" let the
