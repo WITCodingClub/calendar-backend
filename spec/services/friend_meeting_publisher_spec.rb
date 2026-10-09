@@ -32,10 +32,10 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
 
   before { create(:friend_meeting_attendee, friend_meeting: meeting, user: friend) }
 
-  after { Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR) }
+  after { Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR) }
 
   def with_both_calendars
-    Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user)
+    Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user)
     google_calendar
     microsoft_calendar
   end
@@ -299,7 +299,7 @@ RSpec.describe FriendMeetingPublisher, :microsoft_graph do
     let(:destinations) { %w[microsoft] }
 
     it "keeps the publication removed while the calendar is gone, then invites again after a reconnect" do
-      Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user)
+      Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user)
       publication("microsoft").update!(status: "published", invitations_sent_at: 1.day.ago)
       publication("microsoft").mark_removed!
 

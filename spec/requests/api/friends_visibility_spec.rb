@@ -27,10 +27,10 @@ RSpec.describe "Friends availability-only sharing", type: :request do
     create(:enrollment, user: friend, course: course)
   end
 
-  after { Flipper.disable(FlipperFlags::FRIENDS_AVAILABILITY_ONLY) }
+  after { Flipper.disable(FeatureFlags::FRIENDS_AVAILABILITY_ONLY) }
 
   def enable_flag(user = viewer)
-    Flipper.enable_actor(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, user)
+    Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, user)
   end
 
   def json = response.parsed_body

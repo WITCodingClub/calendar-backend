@@ -39,7 +39,7 @@ class FriendGroup < ApplicationRecord
   # The API routes and the dashboard UI for groups are off until the privacy
   # policy update. Flipper matches the user on "User;<id>".
   def self.enabled_for?(user)
-    user.present? && Flipper.enabled?(FlipperFlags::FRIEND_GROUPS, user)
+    user.present? && Flipper.enabled?(FeatureFlags::FRIEND_GROUPS, user)
   end
 
   # Returns { friend user id => [groups] } for every group the user owns, in two

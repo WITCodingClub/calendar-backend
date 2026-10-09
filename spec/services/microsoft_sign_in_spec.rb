@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe MicrosoftSignIn do
-  after { Flipper.disable(FlipperFlags::MICROSOFT_SIGN_IN) }
+  after { Flipper.disable(FeatureFlags::MICROSOFT_SIGN_IN) }
 
   describe ".configured?" do
     it "is true with a client id, a secret and a tenant id" do
@@ -42,21 +42,21 @@ RSpec.describe MicrosoftSignIn do
     end
 
     it "is true when the flag is fully on" do
-      Flipper.enable(FlipperFlags::MICROSOFT_SIGN_IN)
+      Flipper.enable(FeatureFlags::MICROSOFT_SIGN_IN)
 
       expect(described_class).to be_enabled
     end
 
     # Nobody is signed in before a sign-in, so the check has no actor.
     it "is false when the flag is on only for one user" do
-      Flipper.enable_actor(FlipperFlags::MICROSOFT_SIGN_IN, create(:user))
+      Flipper.enable_actor(FeatureFlags::MICROSOFT_SIGN_IN, create(:user))
 
       expect(described_class).not_to be_enabled
     end
 
     it "is false when the client is not configured, even with the flag on" do
       configure_microsoft_sign_in(client_id: nil)
-      Flipper.enable(FlipperFlags::MICROSOFT_SIGN_IN)
+      Flipper.enable(FeatureFlags::MICROSOFT_SIGN_IN)
 
       expect(described_class).not_to be_enabled
     end
@@ -65,7 +65,7 @@ RSpec.describe MicrosoftSignIn do
   describe ".request_phase?" do
     before do
       configure_microsoft_sign_in
-      Flipper.enable(FlipperFlags::MICROSOFT_SIGN_IN)
+      Flipper.enable(FeatureFlags::MICROSOFT_SIGN_IN)
     end
 
     it "is true for a POST to the request path" do

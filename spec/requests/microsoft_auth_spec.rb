@@ -8,7 +8,7 @@ RSpec.describe "Connecting a Microsoft calendar", type: :request do
   let(:user)  { create(:user, email: "student@example.edu") }
   let(:state) { MicrosoftGraph::OauthState.generate(user_id: user.id) }
 
-  after { Flipper.disable(FlipperFlags::MICROSOFT_GRAPH_CALENDAR) }
+  after { Flipper.disable(FeatureFlags::MICROSOFT_GRAPH_CALENDAR) }
 
   it "answers 404 while the provider is off" do
     get "/auth/microsoft_graph", params: { state: state }
@@ -17,7 +17,7 @@ RSpec.describe "Connecting a Microsoft calendar", type: :request do
   end
 
   context "when the provider is on", :microsoft_graph do
-    before { Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user) }
+    before { Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user) }
 
     it "answers 404 for a state that was not signed here" do
       get "/auth/microsoft_graph", params: { state: "forged" }
@@ -74,7 +74,7 @@ RSpec.describe "Connecting a Microsoft calendar", type: :request do
     # mailbox must not land on the sender's account.
     it "refuses a Microsoft account that is not the person's own" do
       sender = create(:user)
-      Flipper.enable_actor(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, sender)
+      Flipper.enable_actor(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, sender)
       sender_state = MicrosoftGraph::OauthState.generate(user_id: sender.id)
       stub_request(:post, MicrosoftGraphHelpers::TOKEN_URL).to_return(graph_json_response("token_success"))
 

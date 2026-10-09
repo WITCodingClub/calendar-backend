@@ -5,11 +5,11 @@ require "rails_helper"
 RSpec.describe "Api::FeatureFlags", type: :request do
   let(:user) { create(:user) }
 
-  it "lists only the flags in FlipperFlags" do
+  it "lists only the flags in FeatureFlags" do
     get "/api/user/feature_flags", headers: auth_headers_for(user)
 
     expect(response).to have_http_status(:ok)
-    expect(response.parsed_body["feature_flags"].keys).to match_array(FlipperFlags::ALL_FLAGS.map(&:to_s))
+    expect(response.parsed_body["feature_flags"].keys).to match_array(FeatureFlags::ALL_FLAGS.map(&:to_s))
   end
 
   it "reports the removed v1 flag as unknown" do

@@ -290,7 +290,7 @@ RSpec.describe "Discovery files", type: :request do
   end
 
   describe "GET /auth.md and Microsoft sign-in" do
-    after { Flipper.disable(FlipperFlags::MICROSOFT_SIGN_IN) }
+    after { Flipper.disable(FeatureFlags::MICROSOFT_SIGN_IN) }
 
     it "names only Google as the proof of the address while Microsoft sign-in is off" do
       configure_microsoft_sign_in
@@ -307,7 +307,7 @@ RSpec.describe "Discovery files", type: :request do
 
     it "names Microsoft sign-in, the tenant rule, and the missing API credential while it is on" do
       configure_microsoft_sign_in
-      Flipper.enable(FlipperFlags::MICROSOFT_SIGN_IN)
+      Flipper.enable(FeatureFlags::MICROSOFT_SIGN_IN)
 
       get "/auth.md", headers: crawler
 
@@ -321,7 +321,7 @@ RSpec.describe "Discovery files", type: :request do
 
     it "says nothing about Microsoft when the flag is on but the client is not configured" do
       configure_microsoft_sign_in(client_id: nil)
-      Flipper.enable(FlipperFlags::MICROSOFT_SIGN_IN)
+      Flipper.enable(FeatureFlags::MICROSOFT_SIGN_IN)
 
       get "/auth.md", headers: crawler
 

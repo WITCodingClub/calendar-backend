@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FlipperGroups do
+RSpec.describe FeatureFlags::Groups do
   let(:feature) { Flipper[:flipper_groups_spec] }
 
   # Flipper gives a group block a Flipper::Types::Actor wrapper, so each example

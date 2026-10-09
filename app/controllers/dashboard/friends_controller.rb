@@ -210,7 +210,7 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
   end
 
   def availability_only_enabled?
-    Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+    Flipper.enabled?(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
   end
 
   def availability_week_start
@@ -230,7 +230,7 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
   end
 
   def friend_expiry_enabled?
-    Flipper.enabled?(FlipperFlags::FRIEND_EXPIRY, current_user)
+    Flipper.enabled?(FeatureFlags::FRIEND_EXPIRY, current_user)
   end
 
   # The form sends a date. FriendshipExpiryTime reads it with the same rule as

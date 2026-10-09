@@ -16,9 +16,9 @@ RSpec.describe "Public meeting link page", type: :request do
   # Wednesday 2026-10-07, noon.
   around { |example| travel_to(zone.local(2026, 10, 7, 12)) { example.run } }
 
-  before { Flipper.enable_actor(FlipperFlags::MEETING_LINKS, owner) }
+  before { Flipper.enable_actor(FeatureFlags::MEETING_LINKS, owner) }
 
-  after { Flipper.disable(FlipperFlags::MEETING_LINKS) }
+  after { Flipper.disable(FeatureFlags::MEETING_LINKS) }
 
   def enroll(user, title:, crn:, day_of_week:, begin_time:, end_time:)
     course = create(:course, title: title, crn: crn, subject: "ZQXV", course_number: 4321)
@@ -108,7 +108,7 @@ RSpec.describe "Public meeting link page", type: :request do
         expect(response.body).to eq(unknown)
       end
 
-      Flipper.disable(FlipperFlags::MEETING_LINKS)
+      Flipper.disable(FeatureFlags::MEETING_LINKS)
       get path
       expect(response).to have_http_status(:not_found)
       expect(response.body).to eq(unknown)

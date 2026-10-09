@@ -45,6 +45,6 @@ module MicrosoftGraph
   def enabled_for?(user)
     return false unless user && configured?
 
-    Flipper.enabled?(FlipperFlags::MICROSOFT_GRAPH_CALENDAR, user)
+    Flipper.enabled?(FeatureFlags::MICROSOFT_GRAPH_CALENDAR, user)
   end
 end

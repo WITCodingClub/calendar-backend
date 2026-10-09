@@ -14,9 +14,9 @@ RSpec.describe MeetingLinkBooking do
   # Wednesday 2026-10-07, noon.
   around { |example| travel_to(zone.local(2026, 10, 7, 12)) { example.run } }
 
-  before { Flipper.enable_actor(FlipperFlags::MEETING_LINKS, owner) }
+  before { Flipper.enable_actor(FeatureFlags::MEETING_LINKS, owner) }
 
-  after { Flipper.disable(FlipperFlags::MEETING_LINKS) }
+  after { Flipper.disable(FeatureFlags::MEETING_LINKS) }
 
   def book(target = link, **overrides)
     described_class.call(link: target, start_time: start, guest_name: "Sample Guest", guest_email: "guest@example.com", **overrides)
@@ -66,7 +66,7 @@ RSpec.describe MeetingLinkBooking do
     expect { book(revoked) }.to raise_error(described_class::Gone)
     expect { book(expired) }.to raise_error(described_class::Gone)
 
-    Flipper.disable(FlipperFlags::MEETING_LINKS)
+    Flipper.disable(FeatureFlags::MEETING_LINKS)
     expect { book }.to raise_error(described_class::Gone)
     expect(FriendMeeting.count).to eq(0)
   end
@@ -111,10 +111,10 @@ RSpec.describe MeetingLinkBooking, "with two guests at once" do
     create(:meeting_link, user: owner, starts_on: 2.days.from_now.to_date.next_weekday, ends_on: 2.days.from_now.to_date.next_weekday)
   end
 
-  before { Flipper.enable_actor(FlipperFlags::MEETING_LINKS, owner) }
+  before { Flipper.enable_actor(FeatureFlags::MEETING_LINKS, owner) }
 
   after do
-    Flipper.disable(FlipperFlags::MEETING_LINKS)
+    Flipper.disable(FeatureFlags::MEETING_LINKS)
     MeetingLink.where(user: owner).delete_all
     FriendMeeting.where(user: owner).destroy_all
     owner.destroy!
@@ -159,10 +159,10 @@ RSpec.describe MeetingLinkBooking, "with two links of one owner at once" do
   let(:day)    { 2.days.from_now.to_date.next_weekday }
   let!(:links) { create_list(:meeting_link, 2, user: owner, starts_on: day, ends_on: day) }
 
-  before { Flipper.enable_actor(FlipperFlags::MEETING_LINKS, owner) }
+  before { Flipper.enable_actor(FeatureFlags::MEETING_LINKS, owner) }
 
   after do
-    Flipper.disable(FlipperFlags::MEETING_LINKS)
+    Flipper.disable(FeatureFlags::MEETING_LINKS)
     MeetingLink.where(user: owner).delete_all
     FriendMeeting.where(user: owner).destroy_all
     owner.destroy!
@@ -224,10 +224,10 @@ RSpec.describe MeetingLinkBooking, "with two people booking each other at once" 
   let!(:first_link)    { create(:meeting_link, user: first_person, starts_on: day, ends_on: day) }
   let!(:second_link)   { create(:meeting_link, user: second_person, starts_on: day, ends_on: day) }
 
-  before { [ first_person, second_person ].each { |person| Flipper.enable_actor(FlipperFlags::MEETING_LINKS, person) } }
+  before { [ first_person, second_person ].each { |person| Flipper.enable_actor(FeatureFlags::MEETING_LINKS, person) } }
 
   after do
-    Flipper.disable(FlipperFlags::MEETING_LINKS)
+    Flipper.disable(FeatureFlags::MEETING_LINKS)
     people = [ first_person, second_person ]
     MeetingLink.where(user: people).delete_all
     FriendMeeting.where(user: people).destroy_all

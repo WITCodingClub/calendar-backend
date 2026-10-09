@@ -75,7 +75,7 @@ class MeetingLinksController < ApplicationController
   end
 
   def usable?
-    @link.present? && @link.usable? && Flipper.enabled?(FlipperFlags::MEETING_LINKS, @link.user)
+    @link.present? && @link.usable? && Flipper.enabled?(FeatureFlags::MEETING_LINKS, @link.user)
   end
 
   def owner_viewing?

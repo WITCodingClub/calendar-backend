@@ -107,7 +107,7 @@ module Api
 
       # Off for everyone until the privacy policy covers friends v6.
       def require_friend_meeting_events
-        return if Flipper.enabled?(FlipperFlags::FRIEND_MEETING_EVENTS, current_user)
+        return if Flipper.enabled?(FeatureFlags::FRIEND_MEETING_EVENTS, current_user)
 
         render_error "Friend meeting events are not enabled", status: :not_found
       end

@@ -14,7 +14,7 @@ RSpec.describe "Signing in to the dashboard with Microsoft", type: :request do
   after do
     OmniAuth.config.mock_auth[:microsoft] = nil
     OmniAuth.config.test_mode = false
-    Flipper.disable(FlipperFlags::MICROSOFT_SIGN_IN)
+    Flipper.disable(FeatureFlags::MICROSOFT_SIGN_IN)
   end
 
   def mock_microsoft(**attributes)
@@ -24,7 +24,7 @@ RSpec.describe "Signing in to the dashboard with Microsoft", type: :request do
   context "when the flag is on and the client is configured" do
     before do
       configure_microsoft_sign_in
-      Flipper.enable(FlipperFlags::MICROSOFT_SIGN_IN)
+      Flipper.enable(FeatureFlags::MICROSOFT_SIGN_IN)
     end
 
     it "shows the button as a POST form next to Google" do
@@ -162,7 +162,7 @@ RSpec.describe "Signing in to the dashboard with Microsoft", type: :request do
   end
 
   context "when the client is not configured" do
-    before { Flipper.enable(FlipperFlags::MICROSOFT_SIGN_IN) }
+    before { Flipper.enable(FeatureFlags::MICROSOFT_SIGN_IN) }
 
     it "hides the button and answers 404 without a client id and secret" do
       configure_microsoft_sign_in(client_id: nil, client_secret: nil)

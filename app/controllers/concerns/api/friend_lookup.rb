@@ -13,7 +13,7 @@ module Api
     # Answers 404 while the flag is off for the current user, so the routes
     # look absent until the privacy policy update ships.
     def require_availability_only_flag
-      return if Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      return if Flipper.enabled?(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
 
       render_error "Not found", status: :not_found
     end
@@ -23,7 +23,7 @@ module Api
     # processed_events answers 403 then, and the viewer needs this data. Else
     # it answers 404. Returns true when the read may go on.
     def readable_without_flag?(friendship)
-      return true if Flipper.enabled?(FlipperFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      return true if Flipper.enabled?(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
       return true unless friendship.full_schedule_visible_to?(current_user)
 
       render_error "Not found", status: :not_found
@@ -65,7 +65,7 @@ module Api
     end
 
     def friend_expiry_enabled?
-      Flipper.enabled?(FlipperFlags::FRIEND_EXPIRY, current_user)
+      Flipper.enabled?(FeatureFlags::FRIEND_EXPIRY, current_user)
     end
 
     def render_friend_expiry_disabled

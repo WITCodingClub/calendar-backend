@@ -11,7 +11,7 @@ RSpec.describe "Dashboard friend groups", type: :request do
     sign_in user
   end
 
-  after { Flipper.disable(FlipperFlags::FRIEND_GROUPS) }
+  after { Flipper.disable(FeatureFlags::FRIEND_GROUPS) }
 
   def add_to(group, member = friend)
     create(:friend_group_membership, friend_group: group, friendship: user.accepted_friendship_with(member))
@@ -44,7 +44,7 @@ RSpec.describe "Dashboard friend groups", type: :request do
   end
 
   context "when the flag is on for the user" do
-    before { Flipper.enable_actor(FlipperFlags::FRIEND_GROUPS, user) }
+    before { Flipper.enable_actor(FeatureFlags::FRIEND_GROUPS, user) }
 
     describe "GET /dashboard/friends" do
       it "shows the groups, their members, and each friend's groups" do

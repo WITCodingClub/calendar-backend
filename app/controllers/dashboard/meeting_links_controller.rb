@@ -51,7 +51,7 @@ class Dashboard::MeetingLinksController < Dashboard::ApplicationController
   private
 
   def require_meeting_links
-    head :not_found unless Flipper.enabled?(FlipperFlags::MEETING_LINKS, current_user)
+    head :not_found unless Flipper.enabled?(FeatureFlags::MEETING_LINKS, current_user)
   end
 
   # The form asks for an expiry date. The link works until the end of that

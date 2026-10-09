@@ -24,7 +24,7 @@ module Catalog
     # Semantic search needs a key to embed the query and a flag to say it is
     # wanted. Without either, callers fall back to keyword search.
     def available?
-      EmbeddingService.configured? && Flipper.enabled?(FlipperFlags::SEMANTIC_SEARCH)
+      EmbeddingService.configured? && Flipper.enabled?(FeatureFlags::SEMANTIC_SEARCH)
     end
 
     # @param query [String]
