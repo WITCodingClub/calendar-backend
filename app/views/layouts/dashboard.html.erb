@@ -14,16 +14,17 @@
 <body class="h-full bg-background text-on-background">
   <%# Stop Cloudflare Email Obfuscation, see layouts/admin.html.erb. %>
   <!--email_off-->
+  <a href="#dashboard-main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded-full focus:bg-primary focus:text-on-primary">Skip to content</a>
   <%= render "shared/flash_messages" %>
 
   <div class="flex h-full min-h-screen">
 
     <!-- Desktop navigation rail -->
-    <nav class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-20 xl:w-64 z-30 bg-surface-container border-r border-outline-variant">
+    <nav aria-label="Main" class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-20 xl:w-64 z-30 bg-surface-container border-r border-outline-variant">
       <!-- Logo -->
       <div class="flex items-center gap-3 px-4 xl:px-5 py-4 border-b border-outline-variant">
         <div class="w-9 h-9 flex-shrink-0 rounded-xl bg-primary-container flex items-center justify-center">
-          <svg class="w-5 h-5 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg aria-hidden="true" focusable="false" class="w-5 h-5 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         </div>
@@ -47,7 +48,7 @@
           <%= render "layouts/dashboard_nav_item", path: admin_root_path, label: "Admin", icon: "shield" %>
         <% end %>
         <div class="hidden xl:flex items-center gap-2 px-3 py-2 rounded-2xl">
-          <div class="w-7 h-7 rounded-full bg-secondary-container flex items-center justify-center text-xs font-bold text-on-secondary-container flex-shrink-0">
+          <div aria-hidden="true" class="w-7 h-7 rounded-full bg-secondary-container flex items-center justify-center text-xs font-bold text-on-secondary-container flex-shrink-0">
             <%# Onboarding leaves first_name nil when a student has no preferred
                 name, and indexing nil takes the whole dashboard down. %>
             <%= (current_user.first_name.presence || current_user.email).first.upcase %>
@@ -57,11 +58,12 @@
             <p class="text-[10px] text-on-surface-variant truncate"><%= current_user.email %></p>
           </div>
         </div>
-        <%= link_to destroy_user_session_path,
-            data: { turbo_method: :delete },
+        <%= button_to destroy_user_session_path,
+            method: :delete,
             title: "Sign out",
-            class: "flex items-center gap-3 px-3 py-2 rounded-2xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
-          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            "aria-label": "Sign out",
+            class: "w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+          <svg aria-hidden="true" focusable="false" class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
           <span class="hidden xl:block">Sign out</span>
@@ -76,7 +78,7 @@
       <header class="lg:hidden sticky top-0 z-20 bg-surface-container border-b border-outline-variant px-4 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
-            <svg class="w-4 h-4 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" focusable="false" class="w-4 h-4 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
@@ -84,8 +86,8 @@
         </div>
         <div class="flex items-center gap-2">
           <span class="text-xs text-on-surface-variant"><%= current_user.first_name %></span>
-          <%= link_to destroy_user_session_path,
-              data: { turbo_method: :delete },
+          <%= button_to destroy_user_session_path,
+              method: :delete,
               class: "text-xs text-on-surface-variant hover:text-primary" do %>
             Sign out
           <% end %>
@@ -93,7 +95,7 @@
       </header>
 
       <!-- Mobile bottom nav -->
-      <nav class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-surface-container border-t border-outline-variant flex">
+      <nav aria-label="Main" class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-surface-container border-t border-outline-variant flex">
         <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_root_path, label: "Home", icon: "home" %>
         <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_schedule_path, label: "Schedule", icon: "calendar" %>
         <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_calendar_preferences_path, label: "Prefs", icon: "adjustments" %>
@@ -106,7 +108,7 @@
       </nav>
 
       <!-- Page content -->
-      <main class="flex-1 p-4 lg:p-6 pb-20 lg:pb-6 overflow-x-auto">
+      <main id="dashboard-main" tabindex="-1" class="focus:outline-none flex-1 p-4 lg:p-6 pb-20 lg:pb-6 overflow-x-auto">
         <%= yield %>
       </main>
     </div>

@@ -29,9 +29,10 @@
 
       <%# View toggle %>
       <% if schedule.selected_term %>
-        <div class="flex rounded-xl overflow-hidden border border-outline-variant text-sm">
+        <div role="group" aria-label="View" class="flex rounded-xl overflow-hidden border border-outline-variant text-sm">
           <% [["list", "List"], ["week", "Week"], ["month", "Month"]].each do |mode, label| %>
             <%= link_to path_for.call(view: mode, term_uid: schedule.selected_term.uid),
+              "aria-current": ("page" if schedule.view_mode == mode),
                 class: "px-3 py-1.5 font-medium transition-colors #{schedule.view_mode == mode ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:bg-surface-container-high'}" do %>
               <%= label %>
             <% end %>
@@ -110,8 +111,9 @@
     <%# Navigation %>
     <div class="flex items-center justify-between">
       <%= link_to path_for.call(view: "week", term_uid: schedule.selected_term.uid, week_start: prev_week.iso8601),
+          "aria-label": "Previous week",
           class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+        <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
         Prev
       <% end %>
 
@@ -125,9 +127,10 @@
       </div>
 
       <%= link_to path_for.call(view: "week", term_uid: schedule.selected_term.uid, week_start: next_week.iso8601),
+          "aria-label": "Next week",
           class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
         Next
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
       <% end %>
     </div>
 
@@ -260,8 +263,9 @@
     <%# Navigation %>
     <div class="flex items-center justify-between">
       <%= link_to path_for.call(view: "month", term_uid: schedule.selected_term.uid, month: prev_month.strftime("%Y-%m")),
+          "aria-label": "Previous month",
           class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+        <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
         Prev
       <% end %>
 
@@ -273,9 +277,10 @@
       </div>
 
       <%= link_to path_for.call(view: "month", term_uid: schedule.selected_term.uid, month: next_month.strftime("%Y-%m")),
+          "aria-label": "Next month",
           class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
         Next
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
       <% end %>
     </div>
 

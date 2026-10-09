@@ -206,27 +206,27 @@ html, body {
 
   /* Buttons */
   .m3-btn-filled {
-    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-primary text-on-primary text-sm font-medium transition-opacity hover:opacity-90 active:opacity-80;
+    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-primary text-on-primary text-sm font-medium transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
   .m3-btn-tonal {
-    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-secondary-container text-on-secondary-container text-sm font-medium transition-opacity hover:opacity-90 active:opacity-80;
+    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-secondary-container text-on-secondary-container text-sm font-medium transition-opacity hover:opacity-90 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
   .m3-btn-outlined {
-    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-outline text-on-surface text-sm font-medium bg-transparent transition-colors hover:bg-surface-container;
+    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-outline text-on-surface text-sm font-medium bg-transparent transition-colors hover:bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
   .m3-btn-text {
-    @apply inline-flex items-center gap-2 px-3 py-2.5 rounded-full text-primary text-sm font-medium bg-transparent transition-colors hover:bg-primary/8;
+    @apply inline-flex items-center gap-2 px-3 py-2.5 rounded-full text-primary text-sm font-medium bg-transparent transition-colors hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
   .m3-btn-danger {
-    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-error-container text-on-error-container text-sm font-medium transition-opacity hover:opacity-90;
+    @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-error-container text-on-error-container text-sm font-medium transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
   /* Inputs / selects */
   .m3-input {
-    @apply block w-full rounded-lg border border-outline-variant bg-surface-container-highest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary;
+    @apply block w-full rounded-lg border border-outline-variant bg-surface-container-highest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary;
   }
   .m3-select {
-    @apply block w-full rounded-lg border border-outline-variant bg-surface-container-highest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer;
+    @apply block w-full rounded-lg border border-outline-variant bg-surface-container-highest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary cursor-pointer;
   }
   .m3-label {
     @apply block text-xs font-medium text-on-surface-variant mb-1;
