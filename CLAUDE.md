@@ -9,6 +9,11 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - Every action in an `Admin::` controller calls `authorize` or `skip_authorization`. `Admin::ApplicationController` runs `verify_authorized` after each action, and `spec/requests/admin/authorization_spec.rb` requests every admin route to check it.
 - Use `skip_authorization` only for an action with no record that another check already guards. Add a one-line comment that says why. `policy_scope` alone does not count: call `authorize` as well.
 
+## Dashboard controllers
+
+- Every action in a `Dashboard::` controller calls `authorize` or `skip_authorization`. `Dashboard::ApplicationController` runs `verify_authorized` after each action, and `spec/requests/dashboard/authorization_spec.rb` requests every dashboard route to check it.
+- When a new route takes an `:id` param, add the record it finds to the `ids` map in that spec. With a fake id, the lookup halts the request and the check does not run.
+
 ## API controllers
 
 - Every API controller inherits from `Api::BaseController`. The base requires no token.
