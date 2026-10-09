@@ -1,0 +1,33 @@
+# frozen_string_literal: true
+
+module Risc
+  class ProcessEventJob < ApplicationJob
+    queue_as :high
+
+    retry_on StandardError, wait: :polynomially_longer, attempts: 3
+    discard_on Risc::Validator::ValidationError
+
+    def perform(token)
+      validation_service = Risc::Validator.new
+      decoded_token = validation_service.validate_and_decode(token)
+      event_data    = validation_service.extract_event_data(decoded_token)
+
+      # Skip only a finished event. One that a failed attempt left unprocessed
+      # has to run again, or the retry does nothing.
+      if SecurityEvent.processed.exists?(jti: event_data[:jti])
+        Rails.logger.info("RISC event already processed: #{event_data[:jti]}")
+        return
+      end
+
+      result = Risc::EventHandler.new(event_data).process
+      Rails.logger.info("RISC event processed: #{result}")
+    rescue Risc::Validator::ValidationError => e
+      Rails.logger.error("RISC validation error: #{e.message}")
+      raise
+    rescue => e
+      Rails.logger.error("Error processing RISC event: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+      raise
+    end
+  end
+end

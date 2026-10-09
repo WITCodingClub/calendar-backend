@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe RiscEventHandlerService do
+RSpec.describe Risc::EventHandler do
   let(:user) { create(:user) }
   let!(:credential) { create(:oauth_credential, user: user, uid: "synthetic-google-subject") }
   let(:event_data) do
