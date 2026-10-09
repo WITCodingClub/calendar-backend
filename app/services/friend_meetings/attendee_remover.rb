@@ -6,8 +6,9 @@ module FriendMeetings
   # meeting whose owner sent invitations, a job updates the provider events,
   # and the provider sends the removed person a cancellation.
   #
-  # Friendship calls it when an accepted friendship is destroyed. An expired
-  # friendship must call it too.
+  # Friendship calls it when an accepted friendship is destroyed, or when a new
+  # request replaces an expired accepted friendship. The expiry cleanup job
+  # calls it too.
   class AttendeeRemover < ApplicationService
     def initialize(user_id, other_user_id)
       @user_id       = user_id

@@ -221,7 +221,13 @@ class Friendship < ApplicationRecord
   def remove_expired_pair
     return if requester_id.nil? || addressee_id.nil?
 
-    Friendship.expired.between(requester_id, addressee_id).delete_all
+    expired = Friendship.expired.between(requester_id, addressee_id)
+    # delete_all skips remove_from_friend_meetings, and the cleanup job can no
+    # longer find the row, so take ex-friends off each other's meetings here.
+    if expired.accepted.exists?
+      FriendMeetings::AttendeeRemover.call(requester_id, addressee_id)
+    end
+    expired.delete_all
   end
 
   def cannot_friend_self
