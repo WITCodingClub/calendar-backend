@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 module Api
-  class EventPreferencesController < ApiController
+  class EventPreferencesController < BaseController
     include PreferenceParams
+    include PreferenceSerializable
+
+    authenticate_with_token
 
     before_action :set_preferenceable, except: :batch_show
 

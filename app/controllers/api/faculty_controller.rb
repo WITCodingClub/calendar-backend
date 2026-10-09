@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module Api
-  class FacultyController < ApiController
+  class FacultyController < BaseController
+    authenticate_with_token
+
     def get_info_by_rmp_id
       rmp_id = params[:rmp_id]
 

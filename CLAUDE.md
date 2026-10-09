@@ -2,6 +2,12 @@
 
 Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs use RSpec.
 
+## API controllers
+
+- Every API controller inherits from `Api::BaseController`. The base requires no token.
+- A controller that needs a signed-in user calls `authenticate_with_token` (all actions) or `authenticate_with_token except: [ ... ]` as its first callback.
+- `spec/requests/api/authentication_spec.rb` sends a request with no token to every `/api` route. A route must answer 401, unless its action is in `PUBLIC_ACTIONS`. Add a new public action to that list.
+
 ## Specs
 
 ### Test data

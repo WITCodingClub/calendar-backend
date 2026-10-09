@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
 module Api
-  class MiscController < ApiController
-    skip_before_action :authenticate_user_from_token!, only: [ :get_active_terms, :get_current_and_next_terms ]
-
+  # Terms are catalog data, so no action here needs a token.
+  class MiscController < BaseController
     def get_current_and_next_terms
       current_term = Term.current
       render json: {

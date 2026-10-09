@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
 module Api
-  class FriendsController < ApiController
+  class FriendsController < BaseController
     include BusyBlocksParams
+
+    authenticate_with_token
 
     EXPIRES_AT_FORMAT_ERROR = "expires_at must be a date (2026-12-01, the end of that day in America/New_York) " \
                               "or an ISO 8601 time with a UTC offset (2026-12-01T17:00:00-05:00)"

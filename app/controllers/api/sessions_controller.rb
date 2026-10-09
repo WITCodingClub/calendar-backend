@@ -2,7 +2,9 @@
 
 module Api
   # Lets someone see where their account is signed in, and end any of it.
-  class SessionsController < ApiController
+  class SessionsController < BaseController
+    authenticate_with_token
+
     # GET /api/user/sessions
     def index
       authorize UserSession.new(user: current_user), :index?

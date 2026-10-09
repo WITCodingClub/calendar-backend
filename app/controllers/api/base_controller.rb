@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
 module Api
-  class ApiController < ActionController::API
+  # Base for every API controller, public or signed in. Nothing here requires a
+  # token: a controller that needs a signed-in user calls
+  # authenticate_with_token (see Api::TokenAuthentication).
+  class BaseController < ActionController::API
     include Pundit::Authorization
-    include JsonWebTokenAuthenticatable
+    include Api::TokenAuthentication
     include PublicIdLookupable
-    include PreferenceSerializable
 
     # Ensure all responses are JSON
     rescue_from StandardError, with: :render_internal_server_error

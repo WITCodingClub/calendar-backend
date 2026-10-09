@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
 module Api
-  class CalendarPreferencesController < ApiController
+  class CalendarPreferencesController < BaseController
     include PreferenceParams
+
+    authenticate_with_token
 
     before_action :set_calendar_preference, only: [ :show, :update, :destroy ]
 

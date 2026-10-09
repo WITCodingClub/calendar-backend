@@ -6,7 +6,9 @@ module Api
   # Every action answers 404 while the friend_groups flag is off for the user.
   # Groups use public ids ("fgr_..."). Members are friends, named by their user
   # public id ("usr_..."), the same id that GET /api/friends returns.
-  class FriendGroupsController < ApiController
+  class FriendGroupsController < BaseController
+    authenticate_with_token
+
     before_action :require_friend_groups
     before_action :set_group, except: %i[index create]
 

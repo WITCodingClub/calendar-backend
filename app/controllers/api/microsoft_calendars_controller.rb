@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module Api
-  class MicrosoftCalendarsController < ApiController
+  class MicrosoftCalendarsController < BaseController
+    authenticate_with_token
+
     before_action :require_microsoft_graph
 
     # POST /api/user/microsoft_calendar

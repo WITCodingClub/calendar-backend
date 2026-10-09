@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module Api
-  class UniversityCalendarEventsController < ApiController
+  class UniversityCalendarEventsController < BaseController
+    authenticate_with_token
+
     before_action :set_event, only: [ :show ]
 
     def index

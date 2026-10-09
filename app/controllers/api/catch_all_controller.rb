@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module Api
-  class CatchAllController < ApiController
+  class CatchAllController < BaseController
+    authenticate_with_token
+
     def not_found
       render json: { error: "Not found" }, status: :not_found
     end
