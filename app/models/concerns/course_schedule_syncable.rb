@@ -1,244 +1,29 @@
 # frozen_string_literal: true
 
+# Calendar sync entry points on User. The work happens in CourseCalendars:
+#
+# - CourseCalendars::ScheduleSyncer sends the events to each provider.
+# - CourseCalendars::EventBuilder builds the course, final exam, and
+#   university events.
+# - CourseCalendars::RecurrenceBuilder builds the dates and recurrence lines.
+# - CourseCalendars::UniversityEventPruner deletes unwanted university events.
+#
+# These methods only delegate, so that every caller keeps working.
 module CourseScheduleSyncable
   extend ActiveSupport::Concern
 
   def sync_course_schedule(force: false, backfill_historical: force)
-    services = CourseCalendars::Providers.services_for(self)
-
-    # Build events from enrollments - each course can have multiple meeting times
-    # Each meeting_time now represents a single day of the week
-    events = []
-
-    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-
-    # Preload all holidays once over the full date range of all enrolled meeting times
-    # to avoid N+1 queries in holidays_for_meeting_time (one query per unique date range)
-    preload_holidays_for_user!
-
-    enrollments.includes(course: [ meeting_times: [ rooms: :building ] ]).find_each do |enrollment|
-      course = enrollment.course
-
-      # Filter meeting times to prefer valid locations over TBD duplicates
-      filtered_meeting_times = course.meeting_times.group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
-                                     .map do |key, meeting_times|
-                                       # If multiple meeting times exist for same day/time, prefer non-TBD over TBD
-                                       non_tbd = meeting_times.reject { |mt| (mt.building && tbd_building?(mt.building)) || (mt.room && tbd_room?(mt.room)) }
-                                       non_tbd.any? ? non_tbd.first : meeting_times.first
-      end
-
-      filtered_meeting_times.each do |meeting_time|
-        # Skip if day_of_week is not set
-        next if meeting_time.day_of_week.blank?
-
-        # Find the first date this class actually meets
-        first_meeting_date = find_first_meeting_date(meeting_time)
-        next unless first_meeting_date
-
-        # Convert integer times (e.g., 900 = 9:00 AM) to DateTime objects
-        start_time = parse_time(first_meeting_date, meeting_time.begin_time)
-        end_time = parse_time(first_meeting_date, meeting_time.end_time)
-        next unless start_time && end_time
-
-        # Build location string - handle TBD locations gracefully
-        non_tbd_rooms = meeting_time.rooms.reject { |r| tbd_room?(r) }
-        location = if non_tbd_rooms.any? && meeting_time.building &&
-                      !tbd_building?(meeting_time.building)
-                     # Valid rooms and building
-                     "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
-        elsif non_tbd_rooms.any?
-                     # Valid rooms, no building or invalid building
-                     non_tbd_rooms.map(&:formatted_number).join(" / ")
-        elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
-                     # TBD location - show "TBD" instead of ugly "To Be Determined 000"
-                     "TBD"
-        else
-                     # No location info
-                     nil
-        end
-
-        # Build course code from subject-number-section
-        course_code = [ course.subject, course.course_number, course.section_number ].compact.join("-")
-
-        # Build recurrence rule for weekly repeating events
-        recurrence_rule = build_recurrence_rule(meeting_time)
-        # Build recurrence with holiday exclusions
-        recurrence = build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
-
-        events << {
-          summary: course.title,
-          description: course_code,
-          location: location,
-          start_time: start_time,
-          end_time: end_time,
-          course_code: course_code,
-          meeting_time_id: meeting_time.id,
-          recurrence: recurrence,
-          all_day: meeting_time.all_day?
-        }
-      end
-    end
-
-    # Add final exams and university events — future/current only so the fast
-    # path completes quickly. Past events are deferred to CourseCalendars::HistoricalSyncJob.
-    finals = build_finals_events_for_sync(time_scope: :future)
-    events.concat(finals)
-
-    university_events = build_university_events_for_sync(time_scope: :future)
-    events.concat(university_events)
-
-    result = CourseCalendars::Providers.merge_stats(services.map { |service| service.update_calendar_events(events, force: force) })
-
-    # Remove past university events the user no longer wants. update_calendar_events
-    # keeps every past event, so this is the only place they get deleted.
-    prune_unwanted_university_events
-
-    # Put back any friend meeting whose calendar was made again, for example
-    # after a Microsoft placement move.
-    FriendMeetings::Publisher.new(self, services: services).publish_missing
-
-    # Update last sync timestamp if sync was successful
-    if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
-      # rubocop:disable Rails/SkipsModelValidations
-      update_columns(
-        last_calendar_sync_at: Time.current,
-        calendar_needs_sync: false
-      )
-      # rubocop:enable Rails/SkipsModelValidations
-    end
-
-    # Backfill past events on force/nightly syncs (not routine quick_syncs).
-    CourseCalendars::HistoricalSyncJob.perform_later(self, force: force) if backfill_historical && result
-
-    result
+    course_schedule_syncer.sync_schedule(force: force, backfill_historical: backfill_historical)
   end
 
   # Intelligent partial sync - only sync specific enrollments
   def sync_enrollments(enrollment_ids, force: false)
-    services = CourseCalendars::Providers.services_for(self)
-    events = []
-
-    enrollments.where(id: enrollment_ids).includes(course: [ meeting_times: [ rooms: :building ] ]).find_each do |enrollment|
-      course = enrollment.course
-
-      course.meeting_times.each do |meeting_time|
-        next if meeting_time.day_of_week.blank?
-
-        first_meeting_date = find_first_meeting_date(meeting_time)
-        next unless first_meeting_date
-
-        start_time = parse_time(first_meeting_date, meeting_time.begin_time)
-        end_time = parse_time(first_meeting_date, meeting_time.end_time)
-        next unless start_time && end_time
-
-        # Build location string - handle TBD locations gracefully
-        non_tbd_rooms = meeting_time.rooms.reject { |r| tbd_room?(r) }
-        location = if non_tbd_rooms.any? && meeting_time.building &&
-                      !tbd_building?(meeting_time.building)
-                     # Valid rooms and building
-                     "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
-        elsif non_tbd_rooms.any?
-                     # Valid rooms, no building or invalid building
-                     non_tbd_rooms.map(&:formatted_number).join(" / ")
-        elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
-                     # TBD location - show "TBD" instead of ugly "To Be Determined 000"
-                     "TBD"
-        else
-                     # No location info
-                     nil
-        end
-
-        course_code = [ course.subject, course.course_number, course.section_number ].compact.join("-")
-        recurrence_rule = build_recurrence_rule(meeting_time)
-        recurrence = build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
-
-        events << {
-          summary: course.title,
-          description: course_code,
-          location: location,
-          start_time: start_time,
-          end_time: end_time,
-          course_code: course_code,
-          meeting_time_id: meeting_time.id,
-          recurrence: recurrence,
-          all_day: meeting_time.all_day?
-        }
-      end
-    end
-
-    # Only sync these specific events
-    result = CourseCalendars::Providers.merge_stats(services.map { |service| service.update_specific_events(events, force: force) })
-
-    # Update last sync timestamp if sync was successful
-    if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
-      # rubocop:disable Rails/SkipsModelValidations
-      update_columns(
-        last_calendar_sync_at: Time.current,
-        calendar_needs_sync: false
-      )
-      # rubocop:enable Rails/SkipsModelValidations
-    end
-
-    result
+    course_schedule_syncer.sync_enrollments(enrollment_ids, force: force)
   end
 
   # Sync a single meeting time immediately (for preference changes)
   def sync_meeting_time(meeting_time_id, force: true)
-    services = CourseCalendars::Providers.services_for(self)
-    meeting_time = Course::MeetingTime.includes(course: [ :faculties ], rooms: :building).find_by(id: meeting_time_id)
-    return unless meeting_time
-    return if meeting_time.day_of_week.blank?
-
-    first_meeting_date = find_first_meeting_date(meeting_time)
-    return unless first_meeting_date
-
-    start_time = parse_time(first_meeting_date, meeting_time.begin_time)
-    end_time = parse_time(first_meeting_date, meeting_time.end_time)
-    return unless start_time && end_time
-
-    # Build location string - handle TBD locations gracefully
-    non_tbd_rooms = meeting_time.rooms.reject { |r| tbd_room?(r) }
-    location = if non_tbd_rooms.any? && meeting_time.building &&
-                  !tbd_building?(meeting_time.building)
-                 # Valid rooms and building
-                 "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
-    elsif non_tbd_rooms.any?
-                 # Valid rooms, no building or invalid building
-                 non_tbd_rooms.map(&:formatted_number).join(" / ")
-    elsif tbd_building?(meeting_time.building) || tbd_room?(meeting_time.room)
-                 # TBD location - show "TBD" instead of ugly "To Be Determined 000"
-                 "TBD"
-    else
-                 # No location info
-                 nil
-    end
-
-    course = meeting_time.course
-    course_code = [ course.subject, course.course_number, course.section_number ].compact.join("-")
-    recurrence_rule = build_recurrence_rule(meeting_time)
-    recurrence = build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
-
-    event = {
-      summary: course.title,
-      description: course_code,
-      location: location,
-      start_time: start_time,
-      end_time: end_time,
-      course_code: course_code,
-      meeting_time_id: meeting_time.id,
-      recurrence: recurrence,
-      all_day: meeting_time.all_day?
-    }
-
-    # Sync just this one event
-    result = CourseCalendars::Providers.merge_stats(services.map { |service| service.update_specific_events([ event ], force: force) })
-
-    # Update last sync timestamp if sync was successful
-    if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
-      update_column(:last_calendar_sync_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
-    end
-
-    result
+    course_schedule_syncer.sync_meeting_time(meeting_time_id, force: force)
   end
 
   # Quick sync - only update stale events (not synced in last hour)
@@ -251,393 +36,46 @@ module CourseScheduleSyncable
     sync_course_schedule(force: true)
   end
 
-  def find_first_meeting_date(meeting_time)
-    return nil if meeting_time.day_of_week.blank?
-
-    # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
-    # The enum value is already stored as the integer wday value
-    target_wday = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
-
-    # Start from the meeting start_date
-    current_date = meeting_time.start_date.to_date
-
-    # Find the first day that matches the meeting day (max 7 days search)
-    7.times do
-      return current_date if current_date.wday == target_wday
-
-      current_date += 1.day
-    end
-
-    nil
-  end
-
-  def parse_time(date, time_int)
-    return nil unless date && time_int
-
-    # Convert integer time (e.g., 900 = 9:00 AM, 1330 = 1:30 PM)
-    hours = time_int / 100
-    minutes = time_int % 100
-
-    # Create time in configured timezone (Eastern Time)
-    Time.zone.local(date.year, date.month, date.day, hours, minutes)
-  end
-
-  def build_recurrence_rule(meeting_time)
-    return nil if meeting_time.day_of_week.blank?
-
-    # Determine the end date for recurrence
-    # Use meeting_time.end_date, but stop before finals week if THIS COURSE has a final
-    recurrence_end = meeting_time.end_date.to_date
-
-    # Stop recurrence before finals week.
-    # Try course-specific final first; fall back to the term's earliest final so
-    # that courses with no linked exam still end at the start of finals week.
-    course = meeting_time.course
-    if course
-      course_final = final_exam_date_for_course(course.id)
-      if course_final && course_final < recurrence_end
-        recurrence_end = course_final - 1.day
-      else
-        term_finals_start = earliest_final_exam_date_for_term(course.term_id)
-        if term_finals_start && term_finals_start < recurrence_end
-          recurrence_end = term_finals_start - 1.day
-        end
-      end
-
-      # Also stop the day before Study Day (earliest finals-period UCE for the term).
-      # Study Day is a university-designated no-class day preceding finals week,
-      # so regular class recurrences should end the day before it begins.
-      study_day = earliest_finals_period_event_for_term(course.term_id)
-      if study_day && (study_day - 1.day) < recurrence_end
-        recurrence_end = study_day - 1.day
-      end
-    end
-
-    # Build weekly recurrence rule using ice_cube and export to iCalendar format.
-    # UNTIL must be end-of-day in the *local* zone expressed as UTC. Using bare
-    # Time.utc(...,23,59,59) drops the final occurrence of evening (Eastern)
-    # classes, whose start instant falls after midnight UTC.
-    until_time = Time.zone.local(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59).utc
-    rule = IceCube::Rule.weekly.day(meeting_time.day_of_week.to_sym).until(until_time)
-    "RRULE:#{rule.to_ical}"
-  end
-
-  # Memoized lookup of final exam date for a specific course
-  # Avoids N+1 queries when building recurrence rules for multiple meeting times
-  # Returns nil if the course doesn't have a final exam
-  def final_exam_date_for_course(course_id)
-    @course_final_dates ||= {}
-    return @course_final_dates[course_id] if @course_final_dates.key?(course_id)
-
-    @course_final_dates[course_id] = ::FinalExam.where(course_id: course_id)
-                                                .where.not(exam_date: nil)
-                                                .minimum(:exam_date)
-  end
-
-  # Memoized lookup of the earliest final exam date across an entire term.
-  # Used as a fallback so courses without a linked final still stop recurring
-  # at the start of finals week rather than running through to term end_date.
-  def earliest_final_exam_date_for_term(term_id)
-    @term_finals_start_dates ||= {}
-    return @term_finals_start_dates[term_id] if @term_finals_start_dates.key?(term_id)
-
-    @term_finals_start_dates[term_id] = ::FinalExam.where(term_id: term_id)
-                                                   .where.not(exam_date: nil)
-                                                   .minimum(:exam_date)
-  end
-
-  # Memoized lookup of the earliest finals-period university calendar event for a term.
-  # Matches UCEs with category "finals" and a summary containing "Final Exam Period" or
-  # "Study Day" — deliberately excludes announcement events like "Final Exam Schedule Online"
-  # which share the same category but are not actual no-class days.
-  def earliest_finals_period_event_for_term(term_id)
-    @term_finals_period_dates ||= {}
-    return @term_finals_period_dates[term_id] if @term_finals_period_dates.key?(term_id)
-
-    @term_finals_period_dates[term_id] = ::UniversityCalendarEvent
-                                         .where(term_id: term_id, category: "finals")
-                                         .where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%")
-                                         .minimum(:start_time)
-                                         &.to_date
-  end
-
-  # Build recurrence array with RRULE and EXDATE entries for holidays
-  # @param meeting_time [MeetingTime] The meeting time object
-  # @param recurrence_rule [String, nil] The RRULE string
-  # @param start_time [Time] The start time of the first meeting
-  # @return [Array<String>, nil] Array of recurrence rules including EXDATEs, or nil
-  def build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
-    return nil unless recurrence_rule
-
-    recurrence = [ recurrence_rule ]
-
-    # Get holiday dates that should be excluded from this meeting time
-    exdates = build_holiday_exdates(meeting_time, start_time)
-    recurrence.concat(exdates) if exdates.any?
-
-    recurrence
-  end
-
-  # Build EXDATE strings for holidays that fall on this meeting time's day
-  # @param meeting_time [MeetingTime] The meeting time object
-  # @param start_time [Time] The start time of meetings (for time component)
-  # @return [Array<String>] Array of EXDATE strings
-  def build_holiday_exdates(meeting_time, start_time)
-    return [] unless defined?(UniversityCalendarEvent)
-
-    # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
-    target_wday = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
-    return [] if target_wday.nil?
-
-    # Get all holidays during the course date range
-    holidays = holidays_for_meeting_time(meeting_time)
-    return [] if holidays.empty?
-
-    # Filter to holidays that have any day falling on this meeting day
-    matching_holidays = holidays.select do |holiday|
-      if holiday.end_time && holiday.start_time.to_date != holiday.end_time.to_date
-        # Multi-day event: check if any day in the range matches target weekday
-        (holiday.start_time.to_date..holiday.end_time.to_date).any? { |date| date.wday == target_wday }
-      else
-        # Single-day event: check if the day matches
-        holiday.start_time.wday == target_wday
-      end
-    end
-
-    # Build EXDATE strings for all matching dates
-    exdates = []
-    matching_holidays.each do |holiday|
-      if holiday.end_time && holiday.start_time.to_date != holiday.end_time.to_date
-        # Multi-day: add EXDATE for each matching weekday in the range
-        (holiday.start_time.to_date..holiday.end_time.to_date).each do |date|
-          exdates << format_exdate(date, start_time) if date.wday == target_wday
-        end
-      else
-        # Single-day: add one EXDATE
-        exdates << format_exdate(holiday.start_time.to_date, start_time)
-      end
-    end
-
-    exdates
-  end
-
-  # Get holidays that apply to a meeting time's date range.
-  # Filters from the preloaded set (populated by preload_holidays_for_user!) to avoid
-  # per-meeting-time DB queries when multiple meeting times have different date ranges.
-  # @param meeting_time [MeetingTime] The meeting time to get holidays for
-  # @return [Array<UniversityCalendarEvent>] Holiday events in the date range
-  def holidays_for_meeting_time(meeting_time)
-    @holidays_cache ||= {}
-    cache_key = [ meeting_time.start_date, meeting_time.end_date ]
-    return @holidays_cache[cache_key] if @holidays_cache.key?(cache_key)
-
-    if @all_holidays_preloaded
-      # Filter from the preloaded set in memory — no additional DB query
-      mt_start = meeting_time.start_date
-      mt_end   = meeting_time.end_date
-      @holidays_cache[cache_key] = @all_holidays_preloaded.select do |h|
-        h_start = h.start_time.to_date
-        h_end   = (h.end_time || h.start_time).to_date
-        h_end >= mt_start && h_start <= mt_end
-      end
-    else
-      @holidays_cache[cache_key] = UniversityCalendarEvent.no_class_days_between(
-        meeting_time.start_date,
-        meeting_time.end_date
-      ).to_a
-    end
-  end
-
-  # Preload all holidays for the full date range of this user's enrolled meeting times.
-  # Stores in @all_holidays_preloaded so holidays_for_meeting_time can filter in memory.
-  def preload_holidays_for_user!
-    return unless defined?(UniversityCalendarEvent)
-
-    # Collect start/end dates from all enrolled meeting times without re-querying later
-    dates = enrollments.joins(course: :meeting_times)
-                       .pluck("course_meeting_times.start_date", "course_meeting_times.end_date")
-    min_start = dates.map(&:first).compact.min
-    max_end   = dates.map(&:last).compact.max
-
-    @all_holidays_preloaded = if min_start && max_end
-                                UniversityCalendarEvent.no_class_days_between(min_start, max_end).to_a
-    else
-                                []
-    end
-  end
-
-  # Format an EXDATE string for Google Calendar
-  # Uses date-time format matching the event's start time
-  # @param date [Date] The date to exclude
-  # @param start_time [Time] The event start time (for hour/minute)
-  # @return [String] Formatted EXDATE string
-  def format_exdate(date, start_time)
-    # Build the exclusion datetime using the date and the meeting's time
-    exclusion_time = Time.zone.local(
-      date.year, date.month, date.day,
-      start_time.hour, start_time.min, 0
-    )
-
-    # Format as EXDATE with timezone
-    # Google Calendar expects: EXDATE;TZID=America/New_York:20241128T090000
-    timezone = Time.zone.tzinfo.name
-    formatted_time = exclusion_time.strftime("%Y%m%dT%H%M%S")
-    "EXDATE;TZID=#{timezone}:#{formatted_time}"
-  end
-
-  # Build university calendar events for sync.
-  # time_scope: :future (default) — upcoming/current events only (fast path)
-  #             :past             — events whose end_time is past (historical backfill)
-  #             :all              — no date filter
-  def build_university_events_for_sync(time_scope: :future)
-    events = []
-
-    UniversityCalendarEvent.holidays.merge(university_event_scope(time_scope)).find_each do |event|
-      events << {
-        summary: event.formatted_holiday_summary,
-        description: event.description,
-        location: event.location,
-        start_time: event.start_time,
-        end_time: event.end_time,
-        university_calendar_event_id: event.id,
-        all_day: true,
-        recurrence: nil
-      }
-    end
-
-    user_config = user_extension_config
-    if user_config&.sync_university_events
-      categories = user_config.synced_university_event_categories
-      unless categories.empty?
-        UniversityCalendarEvent.by_categories(categories).merge(university_event_scope(time_scope)).find_each do |event|
-          events << {
-            summary: event.summary,
-            description: event.description,
-            location: event.location,
-            start_time: event.start_time,
-            end_time: event.end_time,
-            university_calendar_event_id: event.id,
-            all_day: event.all_day || false,
-            recurrence: nil
-          }
-        end
-      end
-    end
-
-    events
-  end
-
-  # Delete synced university events that the user no longer wants, including
-  # past ones. A user who turns off sync_university_events, or who unselects a
-  # category, keeps the old events on the calendar without this step, because
-  # update_calendar_events never deletes an event that is fully in the past.
-  # Holidays stay, because every user gets them.
-  # @return [Integer] the number of events deleted
-  def prune_unwanted_university_events
-    CourseCalendars::Providers.services_for(self).sum { |service| prune_unwanted_university_events_with(service) }
-  end
-
-  # @param service [#course_calendar, #delete_events] one provider service
-  def prune_unwanted_university_events_with(service)
-    course_calendar = service.course_calendar
-    return 0 unless course_calendar
-
-    synced = course_calendar.calendar_events.university_events_only.to_a
-    return 0 if synced.empty?
-
-    wanted   = wanted_university_event_ids(synced.map(&:university_calendar_event_id).uniq).to_set
-    unwanted = synced.reject { |event| wanted.include?(event.university_calendar_event_id) }
-    return 0 if unwanted.empty?
-
-    service.delete_events(unwanted)
-  end
-
-  # Of the given university event ids, the ones this user's settings still want.
-  # @param candidate_ids [Array<Integer>] university calendar event ids to check
-  # @return [Array<Integer>] the wanted subset of candidate_ids
-  def wanted_university_event_ids(candidate_ids)
-    return [] if candidate_ids.empty?
-
-    candidates = UniversityCalendarEvent.where(id: candidate_ids)
-    ids = candidates.holidays.ids
-
-    user_config = user_extension_config
-    return ids unless user_config&.sync_university_events
-
-    categories = user_config.synced_university_event_categories
-    return ids if categories.empty?
-
-    ids | candidates.by_categories(categories).ids
-  end
-
-  # Build events for final exams of enrolled courses.
-  # time_scope: :future (default) — exams today or later (fast path)
-  #             :past             — exams before today (historical backfill)
-  #             :all              — no date filter
-  def build_finals_events_for_sync(time_scope: :future)
-    finals = []
-
-    enrolled_course_ids = enrollments.pluck(:course_id)
-    return finals if enrolled_course_ids.empty?
-
-    ::FinalExam.where(course_id: enrolled_course_ids)
-               .merge(final_exam_scope(time_scope))
-               .includes(course: :faculties)
-               .find_each do |final_exam|
-                 next unless final_exam.start_datetime && final_exam.end_datetime
-
-                 finals << {
-                   summary: "Final Exam: #{final_exam.course_title}",
-                   description: final_exam.course_code,
-                   location: final_exam.location_with_names,
-                   start_time: final_exam.start_datetime,
-                   end_time: final_exam.end_datetime,
-                   course_code: final_exam.course_code,
-                   final_exam_id: final_exam.id,
-                   recurrence: nil
-                 }
-    end
-
-    finals
-  end
-
   # Backfill past finals and university events — called by CourseCalendars::HistoricalSyncJob.
-  # Uses update_specific_events (upsert only, no deletions) since past events are stable.
   def sync_historical_events(force: false)
-    services = CourseCalendars::Providers.services_for(self)
-    events  = build_finals_events_for_sync(time_scope: :past)
-    events.concat(build_university_events_for_sync(time_scope: :past))
-    return if events.empty?
-
-    CourseCalendars::Providers.merge_stats(services.map { |service| service.update_specific_events(events, force: force) })
+    course_schedule_syncer.sync_historical(force: force)
   end
 
   # Sync a single final exam immediately (for preference changes)
   def sync_final_exam(final_exam_id, force: true)
-    services = CourseCalendars::Providers.services_for(self)
-    final_exam = ::FinalExam.includes(course: :faculties).find_by(id: final_exam_id)
-    return unless final_exam
-    return unless final_exam.start_datetime && final_exam.end_datetime
+    course_schedule_syncer.sync_final_exam(final_exam_id, force: force)
+  end
 
-    event = {
-      summary: "Final Exam: #{final_exam.course_title}",
-      description: final_exam.course_code,
-      location: final_exam.location_with_names,
-      start_time: final_exam.start_datetime,
-      end_time: final_exam.end_datetime,
-      course_code: final_exam.course_code,
-      final_exam_id: final_exam.id,
-      recurrence: nil
-    }
+  delegate :find_first_meeting_date, :parse_time, :build_recurrence_rule,
+           :final_exam_date_for_course, :earliest_final_exam_date_for_term,
+           :earliest_finals_period_event_for_term, :build_recurrence_with_exclusions,
+           :build_holiday_exdates, :holidays_for_meeting_time, :preload_holidays_for_user!,
+           :format_exdate,
+           to: :course_schedule_recurrence
 
-    result = CourseCalendars::Providers.merge_stats(services.map { |service| service.update_specific_events([ event ], force: force) })
+  delegate :tbd_location?, :tbd_building?, :tbd_room?, :final_exam_scope, :university_event_scope,
+           to: :course_schedule_events
 
-    # Update last sync timestamp if sync was successful
-    if result && (result[:created] > 0 || result[:updated] > 0 || result[:skipped] > 0)
-      update_column(:last_calendar_sync_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
-    end
+  def build_university_events_for_sync(time_scope: :future)
+    course_schedule_events.university_events(time_scope: time_scope)
+  end
 
-    result
+  def build_finals_events_for_sync(time_scope: :future)
+    course_schedule_events.finals_events(time_scope: time_scope)
+  end
+
+  # @return [Integer] the number of events deleted
+  def prune_unwanted_university_events
+    CourseCalendars::UniversityEventPruner.new(self).call
+  end
+
+  # @param service [#course_calendar, #delete_events] one provider service
+  def prune_unwanted_university_events_with(service)
+    CourseCalendars::UniversityEventPruner.new(self).prune_with(service)
+  end
+
+  def wanted_university_event_ids(candidate_ids)
+    CourseCalendars::UniversityEventPruner.new(self).wanted_ids(candidate_ids)
   end
 
   # Add a method to handle calendar deletion/cleanup
@@ -660,49 +98,20 @@ module CourseScheduleSyncable
     GoogleCalendar::Provider.new(self).create_or_get_course_calendar
   end
 
-  # Check if this is a TBD/placeholder location that should be skipped
-  def tbd_location?(building, room)
-    tbd_building?(building) || tbd_room?(room)
+  private
+
+  # One builder for each user object. The builders memoize the final exam,
+  # finals period, and holiday lookups, so these caches live as long as the
+  # user object, as they did before the move to CourseCalendars.
+  def course_schedule_recurrence
+    @course_schedule_recurrence ||= CourseCalendars::RecurrenceBuilder.new(self)
   end
 
-  # Check if building is TBD/placeholder
-  # LeopardWeb sends null/empty for unassigned locations, not "TBD" placeholders
-  def tbd_building?(building)
-    return false unless building
-
-    # Empty/blank building means location not yet assigned
-    building.name.blank? ||
-      building.abbreviation.blank? ||
-      building.name&.downcase&.include?("to be determined") ||
-      building.name&.downcase&.include?("tbd") ||
-      building.abbreviation&.downcase == "tbd"
+  def course_schedule_events
+    @course_schedule_events ||= CourseCalendars::EventBuilder.new(self, recurrence: course_schedule_recurrence)
   end
 
-  def final_exam_scope(time_scope)
-    case time_scope
-    when :future then FinalExam.where(exam_date: Time.zone.today..)
-    when :past   then FinalExam.where(exam_date: ...Time.zone.today)
-    else              FinalExam.all
-    end
-  end
-
-  def university_event_scope(time_scope)
-    case time_scope
-    when :future then UniversityCalendarEvent.where("end_time IS NULL OR end_time >= ?", Time.current)
-    when :past   then UniversityCalendarEvent.where("end_time < ?", Time.current)
-    else              UniversityCalendarEvent.all
-    end
-  end
-
-  # Check if room is TBD/placeholder (room 0 or room name contains TBD)
-  def tbd_room?(room)
-    return false unless room
-
-    # Room#number is a string column, so compare against the string "0".
-    room.number.to_s == "0"
-    # Note: Room model in production only has 'number', not 'name'
-    # If room.name is added later, uncomment these lines:
-    # room.name&.downcase&.include?("tbd") ||
-    # room.name&.downcase&.include?("to be determined")
+  def course_schedule_syncer
+    CourseCalendars::ScheduleSyncer.new(self, events: course_schedule_events)
   end
 end
