@@ -64,7 +64,7 @@ class OauthCredential < ApplicationRecord
   validates :access_token, presence: true
   validates :email, presence: true, format: { with: /\A[^@\s]+@[^@\s]+\z/, message: "must be a valid email address" }
 
-  # RefreshOauthTokensJob flags a grant that Google refused. A new access token
+  # OauthCredentials::RefreshTokensJob flags a grant that Google refused. A new access token
   # only comes from a working grant, so saving one takes the flag away.
   before_update :clear_revoked_flag, if: :will_save_change_to_access_token?
   # A new token can finish friend meeting work that a refused token stopped.
@@ -175,7 +175,7 @@ class OauthCredential < ApplicationRecord
   end
 
   def enqueue_google_token_revocation
-    RevokeGoogleTokenJob.perform_later(refresh_token.presence || access_token)
+    GoogleSignIn::RevokeTokenJob.perform_later(refresh_token.presence || access_token)
   end
 
   def clear_revoked_flag

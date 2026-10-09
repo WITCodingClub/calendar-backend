@@ -107,7 +107,7 @@ module Admin
       authorize @user, :revoke_oauth_credential?
       credential = @user.oauth_credentials.find(params[:credential_id])
 
-      RevokeOauthCredentialJob.perform_later(credential.id)
+      OauthCredentials::RevokeJob.perform_later(credential.id)
       redirect_to admin_user_path(@user), notice: "OAuth credential for #{credential.email} is being revoked."
     rescue ActiveRecord::RecordNotFound
       redirect_to admin_user_path(@user), alert: "OAuth credential not found."

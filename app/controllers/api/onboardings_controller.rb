@@ -15,7 +15,7 @@ module Api
     # Google wants a client_secret at the token endpoint and a published
     # extension cannot keep one. We finish the exchange here. A caller that
     # already holds an access token may send that instead.
-    # See GoogleAuthCodeExchanger and GoogleTokenVerifier.
+    # See GoogleSignIn::AuthCodeExchanger and GoogleSignIn::TokenVerifier.
     def create
       preferred_name = params[:preferred_name]
 
@@ -32,7 +32,7 @@ module Api
         return
       end
 
-      verification = GoogleTokenVerifier.verify_access_token(access_token)
+      verification = GoogleSignIn::TokenVerifier.verify_access_token(access_token)
       unless verification.success?
         Rails.logger.warn("Onboard token verification failed: #{verification.error}")
         render_error "Invalid Google token", status: :unauthorized
@@ -73,7 +73,7 @@ module Api
       code = params[:google_auth_code].presence
 
       if code
-        result = GoogleAuthCodeExchanger.exchange(
+        result = GoogleSignIn::AuthCodeExchanger.exchange(
           code:          code,
           code_verifier: params[:code_verifier],
           redirect_uri:  params[:redirect_uri]

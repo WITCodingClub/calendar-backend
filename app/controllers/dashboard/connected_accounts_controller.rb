@@ -78,7 +78,7 @@ class Dashboard::ConnectedAccountsController < Dashboard::ApplicationController
 
   def add_account_url
     # No email: the person picks any Google account.
-    state = GoogleOauthStateService.generate_state(user_id: current_user.id)
+    state = GoogleSignIn::OauthState.generate_state(user_id: current_user.id)
     "/auth/google_oauth2?state=#{CGI.escape(state)}"
   end
 

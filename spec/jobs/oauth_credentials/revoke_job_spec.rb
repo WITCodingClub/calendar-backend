@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe RevokeOauthCredentialJob do
+RSpec.describe OauthCredentials::RevokeJob do
   include ActiveJob::TestHelper
 
   let(:user) { create(:user) }
@@ -30,7 +30,7 @@ RSpec.describe RevokeOauthCredentialJob do
   end
 
   def perform_with_revocation
-    perform_enqueued_jobs(only: RevokeGoogleTokenJob) { described_class.perform_now(credential.id) }
+    perform_enqueued_jobs(only: GoogleSignIn::RevokeTokenJob) { described_class.perform_now(credential.id) }
   end
 
   it "removes the course calendar while the token still works, and revokes the token after" do

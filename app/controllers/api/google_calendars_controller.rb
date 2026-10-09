@@ -20,7 +20,7 @@ module Api
 
         render json: { message: "email already connected", calendar_id: calendar_id }, status: :ok
       else
-        state     = GoogleOauthStateService.generate_state(user_id: current_user.id, email: email.presence)
+        state     = GoogleSignIn::OauthState.generate_state(user_id: current_user.id, email: email.presence)
         oauth_url = "#{request.base_url}/auth/google_oauth2?state=#{CGI.escape(state)}"
 
         render json: { message: "OAuth required", email: email.presence, oauth_url: oauth_url }, status: :ok
@@ -47,7 +47,7 @@ module Api
       credential = current_user.oauth_credentials.find_by(email: email, provider: "google")
 
       unless credential
-        state     = GoogleOauthStateService.generate_state(user_id: current_user.id, email: email)
+        state     = GoogleSignIn::OauthState.generate_state(user_id: current_user.id, email: email)
         oauth_url = "#{request.base_url}/auth/google_oauth2?state=#{CGI.escape(state)}"
         render json: { message: "OAuth required for this email", email: email, oauth_url: oauth_url }, status: :ok
         return

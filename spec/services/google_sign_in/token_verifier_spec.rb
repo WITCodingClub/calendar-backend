@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe GoogleTokenVerifier do
+RSpec.describe GoogleSignIn::TokenVerifier do
   let(:client_id) { "wit-calendar.apps.googleusercontent.com" }
 
   def stub_tokeninfo(status:, body:)

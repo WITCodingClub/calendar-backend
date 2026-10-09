@@ -107,7 +107,7 @@ production:
 
   # Wednesday: OAuth maintenance
   refresh_oauth_tokens:
-    class: RefreshOauthTokensJob
+    class: OauthCredentials::RefreshTokensJob
     queue: low
     schedule: every wednesday at 2am
 

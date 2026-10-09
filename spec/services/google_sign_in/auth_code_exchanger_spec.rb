@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe GoogleAuthCodeExchanger do
+RSpec.describe GoogleSignIn::AuthCodeExchanger do
   let(:args) do
     { code: "auth-code", code_verifier: "verifier", redirect_uri: "https://ext.chromiumapp.org/" }
   end

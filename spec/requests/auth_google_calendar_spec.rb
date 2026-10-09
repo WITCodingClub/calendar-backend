@@ -36,7 +36,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
   end
 
   context "when the browser is signed in as the same user (dashboard)" do
-    let(:state) { GoogleOauthStateService.generate_state(user_id: user.id) }
+    let(:state) { GoogleSignIn::OauthState.generate_state(user_id: user.id) }
 
     before { sign_in user }
 
@@ -82,7 +82,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
   context "when the browser is signed in as a different user" do
     it "links nothing" do
       sign_in create(:user)
-      state = GoogleOauthStateService.generate_state(user_id: user.id)
+      state = GoogleSignIn::OauthState.generate_state(user_id: user.id)
 
       get "/auth/google_oauth2/callback", params: { state: state }
 
@@ -93,7 +93,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
   end
 
   context "when the browser has no session (extension)" do
-    let(:state) { GoogleOauthStateService.generate_state(user_id: user.id) }
+    let(:state) { GoogleSignIn::OauthState.generate_state(user_id: user.id) }
 
     it "asks the person to confirm before it saves tokens" do
       get "/auth/google_oauth2/callback", params: { state: state }
@@ -161,7 +161,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
     before { sign_in user }
 
     it "works only once" do
-      state = GoogleOauthStateService.generate_state(user_id: user.id)
+      state = GoogleSignIn::OauthState.generate_state(user_id: user.id)
       get "/auth/google_oauth2/callback", params: { state: state }
       user.oauth_credentials.destroy_all
 
@@ -184,7 +184,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
     before { sign_in user }
 
     it "links the account when the picked account matches" do
-      state = GoogleOauthStateService.generate_state(user_id: user.id, email: chosen_email)
+      state = GoogleSignIn::OauthState.generate_state(user_id: user.id, email: chosen_email)
 
       get "/auth/google_oauth2/callback", params: { state: state }
 
@@ -193,7 +193,7 @@ RSpec.describe "Adding a Google account to a user", type: :request do
     end
 
     it "rejects a different account" do
-      state = GoogleOauthStateService.generate_state(user_id: user.id, email: "expected@example.com")
+      state = GoogleSignIn::OauthState.generate_state(user_id: user.id, email: "expected@example.com")
 
       get "/auth/google_oauth2/callback", params: { state: state }
 

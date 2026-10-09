@@ -6,13 +6,13 @@ RSpec.describe "Api::Onboardings", type: :request do
   def json = JSON.parse(response.body)
 
   def verification(email:, verified: true, success: true, error: nil)
-    GoogleTokenVerifier::Result.new(
+    GoogleSignIn::TokenVerifier::Result.new(
       success: success, email: email, email_verified: verified, error: error
     )
   end
 
   def stub_google(result)
-    allow(GoogleTokenVerifier).to receive(:verify_access_token).and_return(result)
+    allow(GoogleSignIn::TokenVerifier).to receive(:verify_access_token).and_return(result)
   end
 
   describe "POST /api/user/onboard" do
@@ -111,10 +111,10 @@ RSpec.describe "Api::Onboardings", type: :request do
     end
 
     it "finishes the exchange the extension cannot, then onboards" do
-      allow(GoogleAuthCodeExchanger).to receive(:exchange)
+      allow(GoogleSignIn::AuthCodeExchanger).to receive(:exchange)
         .with(code: "auth-code", code_verifier: "verifier", redirect_uri: "https://ext.chromiumapp.org/")
-        .and_return(GoogleAuthCodeExchanger::Result.new(success: true, access_token: "ya29.token"))
-      allow(GoogleTokenVerifier).to receive(:verify_access_token)
+        .and_return(GoogleSignIn::AuthCodeExchanger::Result.new(success: true, access_token: "ya29.token"))
+      allow(GoogleSignIn::TokenVerifier).to receive(:verify_access_token)
         .with("ya29.token")
         .and_return(verification(email: "lovelacea@wit.edu"))
 
@@ -130,8 +130,8 @@ RSpec.describe "Api::Onboardings", type: :request do
     end
 
     it "refuses when Google will not trade the code" do
-      allow(GoogleAuthCodeExchanger).to receive(:exchange)
-        .and_return(GoogleAuthCodeExchanger::Result.new(success: false, error: "invalid_grant"))
+      allow(GoogleSignIn::AuthCodeExchanger).to receive(:exchange)
+        .and_return(GoogleSignIn::AuthCodeExchanger::Result.new(success: false, error: "invalid_grant"))
 
       post "/api/user/onboard", params: { google_auth_code: "spent-code", code_verifier: "v", redirect_uri: "https://x/" }
 
@@ -141,9 +141,9 @@ RSpec.describe "Api::Onboardings", type: :request do
     end
 
     it "prefers the code when a client in mid-rollout sends both" do
-      allow(GoogleAuthCodeExchanger).to receive(:exchange)
-        .and_return(GoogleAuthCodeExchanger::Result.new(success: true, access_token: "from-code"))
-      allow(GoogleTokenVerifier).to receive(:verify_access_token)
+      allow(GoogleSignIn::AuthCodeExchanger).to receive(:exchange)
+        .and_return(GoogleSignIn::AuthCodeExchanger::Result.new(success: true, access_token: "from-code"))
+      allow(GoogleSignIn::TokenVerifier).to receive(:verify_access_token)
         .with("from-code")
         .and_return(verification(email: "lovelacea@wit.edu"))
 
@@ -155,7 +155,7 @@ RSpec.describe "Api::Onboardings", type: :request do
       }
 
       expect(response).to have_http_status(:ok)
-      expect(GoogleTokenVerifier).to have_received(:verify_access_token).with("from-code")
+      expect(GoogleSignIn::TokenVerifier).to have_received(:verify_access_token).with("from-code")
     end
 
     it "issues a token that expires" do
