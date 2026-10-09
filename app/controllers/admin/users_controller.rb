@@ -10,6 +10,7 @@ module Admin
     ]
 
     def index
+      authorize User
       @users = policy_scope(User).order(created_at: :desc)
 
       if params[:search].present?

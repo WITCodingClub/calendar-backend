@@ -6,8 +6,12 @@ module Admin
 
     rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
     before_action :authenticate_admin!
+    after_action :verify_authorized
 
     def index
+      # The dashboard shows no record. authenticate_admin! already guards it.
+      skip_authorization
+
       @dashboard = Admin::Dashboard.new(current_user)
     end
 

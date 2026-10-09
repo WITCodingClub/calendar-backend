@@ -4,6 +4,11 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 
 `docs/architecture.md` gives the rules for where code goes. Read it before you add a service, a job, or a controller.
 
+## Admin controllers
+
+- Every action in an `Admin::` controller calls `authorize` or `skip_authorization`. `Admin::ApplicationController` runs `verify_authorized` after each action, and `spec/requests/admin/authorization_spec.rb` requests every admin route to check it.
+- Use `skip_authorization` only for an action with no record that another check already guards. Add a one-line comment that says why. `policy_scope` alone does not count: call `authorize` as well.
+
 ## API controllers
 
 - Every API controller inherits from `Api::BaseController`. The base requires no token.

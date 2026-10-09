@@ -3,6 +3,7 @@
 module Admin
   class CoursesController < Admin::ApplicationController
     def index
+      authorize Course
       @courses = policy_scope(Course).includes(:term, :faculties).order(created_at: :desc)
 
       if params[:search].present?

@@ -3,6 +3,8 @@
 module Admin
   class TermsController < Admin::ApplicationController
     def index
+      authorize Term
+
       @terms = Term.reverse_chronological.page(params[:page]).per(25)
       # One grouped count for the page, not one count for each row.
       @course_counts = Course.where(term_id: @terms.map(&:id)).group(:term_id).count
@@ -10,6 +12,7 @@ module Admin
 
     def show
       @term = Term.find_by_public_id!(params[:id]) # rubocop:disable Rails/DynamicFindBy
+      authorize @term
       @courses = @term.courses
                       .includes(:faculties, meeting_times: [ rooms: :building ])
                       .order(:title)
