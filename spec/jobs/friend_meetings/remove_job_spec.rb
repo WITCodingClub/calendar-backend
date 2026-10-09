@@ -2,13 +2,13 @@
 
 require "rails_helper"
 
-RSpec.describe FriendMeetingRemoveJob do
+RSpec.describe FriendMeetings::RemoveJob do
   let(:meeting)   { create(:friend_meeting) }
-  let(:publisher) { instance_double(FriendMeetingPublisher, remove: nil) }
+  let(:publisher) { instance_double(FriendMeetings::Publisher, remove: nil) }
 
   it "runs the publisher for the meeting's owner" do
     meeting.update!(cancelled_at: Time.current)
-    allow(FriendMeetingPublisher).to receive(:new).with(meeting.user).and_return(publisher)
+    allow(FriendMeetings::Publisher).to receive(:new).with(meeting.user).and_return(publisher)
 
     described_class.perform_now(meeting)
 
@@ -26,7 +26,7 @@ RSpec.describe FriendMeetingRemoveJob do
 
     let(:meeting) { create(:friend_meeting, :cancelled) }
 
-    before { allow(FriendMeetingPublisher).to receive(:new).and_return(publisher) }
+    before { allow(FriendMeetings::Publisher).to receive(:new).and_return(publisher) }
 
     [
       Google::Apis::TransmissionError.new("synthetic"),

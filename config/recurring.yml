@@ -18,7 +18,7 @@ production:
   # Finishes friend meetings whose owner deleted them and whose provider
   # events are still there.
   friend_meeting_removal_sweep:
-    class: FriendMeetingRemovalSweepJob
+    class: FriendMeetings::RemovalSweepJob
     queue: low
     schedule: every hour at minute 27
 
@@ -35,7 +35,7 @@ production:
 
   # Expired friendships already grant nothing. This only deletes the rows.
   remove_expired_friendships:
-    class: RemoveExpiredFriendshipsJob
+    class: Friendships::RemoveExpiredJob
     queue: low
     schedule: every hour at minute 27
 

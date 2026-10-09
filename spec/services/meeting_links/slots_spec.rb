@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe MeetingLinkSlots do
+RSpec.describe MeetingLinks::Slots do
   include ActiveSupport::Testing::TimeHelpers
 
   let(:zone)     { Time.zone }

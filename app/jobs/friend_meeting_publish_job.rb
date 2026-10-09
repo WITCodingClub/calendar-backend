@@ -1,22 +1,7 @@
 # frozen_string_literal: true
 
-# Puts a new FriendMeeting in the person's provider calendars.
-#
-# It shares the concurrency group and key of CourseCalendars::SyncJob, like
-# MicrosoftGraph::CalendarPlacementJob, so a publish and a sync for one person
-# never run at the same time. A retry skips each calendar that already has the
-# meeting.
-class FriendMeetingPublishJob < ApplicationJob
-  queue_as :high
-
-  limits_concurrency to: 1, group: CourseCalendars::SyncJob::CONCURRENCY_GROUP,
-                     key: ->(meeting) { "google_calendar_sync_user_#{meeting.user_id}" }
-
-  retry_on MicrosoftGraph::Error, Google::Apis::ServerError, Google::Apis::RateLimitError,
-           wait: :polynomially_longer, attempts: 5
-  discard_on MicrosoftGraph::AuthError, Google::Apis::AuthorizationError, ActiveJob::DeserializationError
-
-  def perform(meeting)
-    FriendMeetingPublisher.new(meeting.user).publish(meeting)
-  end
-end
+# The old name of FriendMeetings::PublishJob. Jobs that were in the queue before
+# the rename still name this class. Remove this file when `bin/rails
+# jobs:unknown_class_names` on production no longer lists
+# FriendMeetingPublishJob.
+FriendMeetingPublishJob = FriendMeetings::PublishJob

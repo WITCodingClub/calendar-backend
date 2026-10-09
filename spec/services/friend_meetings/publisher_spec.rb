@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FriendMeetingPublisher, :microsoft_graph do
+RSpec.describe FriendMeetings::Publisher, :microsoft_graph do
   include ActiveSupport::Testing::TimeHelpers
 
   let(:zone)   { Time.find_zone!("America/New_York") }

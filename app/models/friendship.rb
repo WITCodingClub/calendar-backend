@@ -55,7 +55,7 @@ class Friendship < ApplicationRecord
   enum :addressee_visibility, VISIBILITIES, default: :full, prefix: :addressee
 
   # A friendship with an expiry date in the past grants nothing, even before
-  # RemoveExpiredFriendshipsJob deletes the row. Every scope that finds a
+  # Friendships::RemoveExpiredJob deletes the row. Every scope that finds a
   # friend or a request filters on unexpired, so an expired row never shows.
   scope :unexpired, -> { where("friendships.expires_at IS NULL OR friendships.expires_at > ?", Time.current) }
   scope :expired,   -> { where(expires_at: ..Time.current) }
@@ -144,7 +144,7 @@ class Friendship < ApplicationRecord
   # later. To end the friendship at once, a user removes the friend.
 
   # An open proposal. An expired friendship has none: it grants nothing, and
-  # RemoveExpiredFriendshipsJob deletes the row.
+  # Friendships::RemoveExpiredJob deletes the row.
   def expiry_proposal? = proposed_by_id.present? && !expired?
 
   def proposed_expiry = proposed_permanent? ? nil : proposed_expires_at
@@ -215,7 +215,7 @@ class Friendship < ApplicationRecord
   end
 
   def remove_from_friend_meetings
-    FriendMeetingAttendeeRemover.call(requester_id, addressee_id)
+    FriendMeetings::AttendeeRemover.call(requester_id, addressee_id)
   end
 
   def remove_expired_pair

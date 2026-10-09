@@ -233,11 +233,11 @@ class Dashboard::FriendsController < Dashboard::ApplicationController
     Flipper.enabled?(FeatureFlags::FRIEND_EXPIRY, current_user)
   end
 
-  # The form sends a date. FriendshipExpiryTime reads it with the same rule as
+  # The form sends a date. Friendships::ExpiryTime reads it with the same rule as
   # the API: the end of that day in America/New_York. Returns nil for any
   # other value.
   def parse_expires_on
-    FriendshipExpiryTime.parse(params[:expires_on])
+    Friendships::ExpiryTime.parse(params[:expires_on])
   end
 
   # The friendship or pending request with the user in params[:id], when the

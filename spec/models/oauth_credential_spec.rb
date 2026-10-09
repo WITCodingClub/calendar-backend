@@ -284,21 +284,21 @@ RSpec.describe OauthCredential, type: :model do
       create(:friend_meeting, :cancelled, user: credential.user)
 
       expect { credential.update!(access_token: "synthetic-new-token") }
-        .to have_enqueued_job(FriendMeetingResumeJob).with(credential.user)
+        .to have_enqueued_job(FriendMeetings::ResumeJob).with(credential.user)
     end
 
     it "resumes a meeting whose provider was removed" do
       meeting = create(:friend_meeting, user: credential.user, destinations: %w[microsoft])
       meeting.publication_for("microsoft").mark_removed!
 
-      expect { credential.update!(access_token: "synthetic-new-token") }.to have_enqueued_job(FriendMeetingResumeJob)
+      expect { credential.update!(access_token: "synthetic-new-token") }.to have_enqueued_job(FriendMeetings::ResumeJob)
     end
 
     it "starts no job when no meeting work waits" do
       create(:friend_meeting, user: credential.user, destinations: %w[ics])
 
-      expect { credential.update!(access_token: "synthetic-new-token") }.not_to have_enqueued_job(FriendMeetingResumeJob)
-      expect { credential.update!(email: "synthetic-other@wit.edu") }.not_to have_enqueued_job(FriendMeetingResumeJob)
+      expect { credential.update!(access_token: "synthetic-new-token") }.not_to have_enqueued_job(FriendMeetings::ResumeJob)
+      expect { credential.update!(email: "synthetic-other@wit.edu") }.not_to have_enqueued_job(FriendMeetings::ResumeJob)
     end
   end
 end

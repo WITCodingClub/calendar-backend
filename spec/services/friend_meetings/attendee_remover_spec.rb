@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe FriendMeetingAttendeeRemover do
+RSpec.describe FriendMeetings::AttendeeRemover do
   include ActiveJob::TestHelper
   include ActiveSupport::Testing::TimeHelpers
 
@@ -25,8 +25,8 @@ RSpec.describe FriendMeetingAttendeeRemover do
     theirs      = meeting_for(friend, user, invite_friends: true)
 
     expect { described_class.call(user.id, friend.id) }
-      .to have_enqueued_job(FriendMeetingUpdateJob).with(invited)
-      .and have_enqueued_job(FriendMeetingUpdateJob).with(theirs)
+      .to have_enqueued_job(FriendMeetings::UpdateJob).with(invited)
+      .and have_enqueued_job(FriendMeetings::UpdateJob).with(theirs)
 
     expect(invited.attendees).to eq([ other ])
     expect(not_invited.attendees).to be_empty
@@ -37,7 +37,7 @@ RSpec.describe FriendMeetingAttendeeRemover do
   it "takes the ex-friend off past meetings too, so they cannot read them, and updates no event there" do
     past = meeting_for(user, friend, invite_friends: true, start_time: zone.local(2026, 10, 1, 15), end_time: zone.local(2026, 10, 1, 16))
 
-    expect { described_class.call(user.id, friend.id) }.not_to have_enqueued_job(FriendMeetingUpdateJob)
+    expect { described_class.call(user.id, friend.id) }.not_to have_enqueued_job(FriendMeetings::UpdateJob)
 
     expect(past.attendees).to be_empty
     expect(FriendMeetingPolicy::Scope.new(friend, FriendMeeting).resolve).not_to include(past)

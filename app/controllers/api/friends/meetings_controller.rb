@@ -3,8 +3,8 @@
 module Api
   module Friends
     # Meetings that a person makes from a time that the extension suggested.
-    # The work is in FriendMeetingCreator, FriendMeetingUpdater, and
-    # FriendMeetingPublisher, which the one-time meeting link also uses.
+    # The work is in FriendMeetings::Creator, FriendMeetings::Updater, and
+    # FriendMeetings::Publisher, which the one-time meeting link also uses.
     class MeetingsController < Api::BaseController
       authenticate_with_token
 
@@ -48,7 +48,7 @@ module Api
       def create
         authorize FriendMeeting, :create?
 
-        meeting = FriendMeetingCreator.call(
+        meeting = FriendMeetings::Creator.call(
           user:            current_user,
           title:           params.require(:title),
           start_time:      params.require(:start_time),
@@ -62,7 +62,7 @@ module Api
         )
 
         render json: { meeting: serialize(meeting) }, status: meeting.previously_new_record? ? :created : :ok
-      rescue FriendMeetingCreator::Error => e
+      rescue FriendMeetings::Creator::Error => e
         render_error e.message, status: :unprocessable_content
       end
 
@@ -72,9 +72,9 @@ module Api
       def update
         authorize @meeting, :update?
 
-        FriendMeetingUpdater.call(meeting: @meeting, changes: params.permit(*FriendMeetingUpdater::FIELDS).to_h)
+        FriendMeetings::Updater.call(meeting: @meeting, changes: params.permit(*FriendMeetings::Updater::FIELDS).to_h)
         render json: { meeting: serialize(@meeting.reload) }
-      rescue FriendMeetingCreator::Error => e
+      rescue FriendMeetings::Creator::Error => e
         render_error e.message, status: :unprocessable_content
       end
 
@@ -86,7 +86,7 @@ module Api
         authorize @meeting, :destroy?
 
         @meeting.update!(cancelled_at: Time.current)
-        FriendMeetingRemoveJob.perform_later(@meeting)
+        FriendMeetings::RemoveJob.perform_later(@meeting)
         head :no_content
       end
 
@@ -99,7 +99,7 @@ module Api
         authorize @meeting, :leave?
 
         @meeting.friend_meeting_attendees.where(user_id: current_user.id).delete_all
-        FriendMeetingUpdateJob.perform_later(@meeting) if FriendMeeting.not_ended.exists?(@meeting.id)
+        FriendMeetings::UpdateJob.perform_later(@meeting) if FriendMeeting.not_ended.exists?(@meeting.id)
         head :no_content
       end
 
@@ -136,8 +136,8 @@ module Api
         zone  = Time.find_zone!(FriendMeeting::LOCAL_TIME_ZONE)
         return zone.parse(Date.iso8601(value).to_s) if value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
 
-        FriendMeetingCreator.parse_time(value, name)
-      rescue Date::Error, FriendMeetingCreator::Error
+        FriendMeetings::Creator.parse_time(value, name)
+      rescue Date::Error, FriendMeetings::Creator::Error
         raise ActionController::BadRequest, "#{name} must be an ISO 8601 date or a time with a UTC offset"
       end
 

@@ -171,7 +171,7 @@ class OauthCredential < ApplicationRecord
     meetings = user.friend_meetings
     waiting  = meetings.where.not(cancelled_at: nil).exists? ||
                FriendMeetingPublication.where(friend_meeting_id: meetings.select(:id), status: %w[failed removed]).exists?
-    FriendMeetingResumeJob.perform_later(user) if waiting
+    FriendMeetings::ResumeJob.perform_later(user) if waiting
   end
 
   def enqueue_google_token_revocation

@@ -2,12 +2,12 @@
 
 require "rails_helper"
 
-RSpec.describe FriendMeetingResumeJob do
+RSpec.describe FriendMeetings::ResumeJob do
   let(:user)      { create(:user) }
-  let(:publisher) { instance_double(FriendMeetingPublisher, resume: nil) }
+  let(:publisher) { instance_double(FriendMeetings::Publisher, resume: nil) }
 
   it "resumes the person's meeting work" do
-    allow(FriendMeetingPublisher).to receive(:new).with(user).and_return(publisher)
+    allow(FriendMeetings::Publisher).to receive(:new).with(user).and_return(publisher)
 
     described_class.perform_now(user)
 

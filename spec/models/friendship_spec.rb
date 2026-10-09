@@ -134,20 +134,20 @@ RSpec.describe Friendship, type: :model do
   describe "removing a friend" do
     it "takes the ex-friends off each other's future meetings" do
       friendship = create(:friendship, :accepted)
-      allow(FriendMeetingAttendeeRemover).to receive(:call)
+      allow(FriendMeetings::AttendeeRemover).to receive(:call)
 
       friendship.destroy!
 
-      expect(FriendMeetingAttendeeRemover).to have_received(:call).with(friendship.requester_id, friendship.addressee_id)
+      expect(FriendMeetings::AttendeeRemover).to have_received(:call).with(friendship.requester_id, friendship.addressee_id)
     end
 
     it "does nothing when a pending request is cancelled" do
       friendship = create(:friendship)
-      allow(FriendMeetingAttendeeRemover).to receive(:call)
+      allow(FriendMeetings::AttendeeRemover).to receive(:call)
 
       friendship.destroy!
 
-      expect(FriendMeetingAttendeeRemover).not_to have_received(:call)
+      expect(FriendMeetings::AttendeeRemover).not_to have_received(:call)
     end
   end
 

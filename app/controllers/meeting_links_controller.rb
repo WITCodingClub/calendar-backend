@@ -32,7 +32,7 @@ class MeetingLinksController < ApplicationController
     return render_gone unless usable?
     return redirect_to(meeting_link_path(params[:token])) if owner_viewing?
 
-    MeetingLinkBooking.call(
+    MeetingLinks::Booking.call(
       link:        @link,
       start_time:  params[:start_time],
       guest_name:  params[:name],
@@ -42,9 +42,9 @@ class MeetingLinksController < ApplicationController
 
     session[BOOKED_KEY] = @link.id
     redirect_to meeting_link_path(params[:token])
-  rescue MeetingLinkBooking::Gone
+  rescue MeetingLinks::Booking::Gone
     render_gone
-  rescue MeetingLinkBooking::Invalid => e
+  rescue MeetingLinks::Booking::Invalid => e
     @error = e.message
     load_slots
     render :show, status: :unprocessable_content
@@ -90,7 +90,7 @@ class MeetingLinksController < ApplicationController
     @owner        = @link.user
     @owner_view   = owner_viewing?
     @guest        = current_user unless @owner_view
-    @slots_by_day = MeetingLinkSlots.new(@link, guest: @guest).call.group_by(&:date)
+    @slots_by_day = MeetingLinks::Slots.new(@link, guest: @guest).call.group_by(&:date)
   end
 
   def render_booked

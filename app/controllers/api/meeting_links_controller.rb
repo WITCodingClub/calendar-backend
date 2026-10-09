@@ -60,11 +60,11 @@ module Api
       raise ActionController::BadRequest, "#{name} must be an ISO 8601 date"
     end
 
-    # The offset is required, like FriendMeetingCreator, so the time does not
+    # The offset is required, like FriendMeetings::Creator, so the time does not
     # depend on the server's zone.
     def parse_time(value)
       return nil if value.blank?
-      raise ArgumentError unless value.to_s.match?(FriendMeetingCreator::UTC_OFFSET)
+      raise ArgumentError unless value.to_s.match?(FriendMeetings::Creator::UTC_OFFSET)
 
       Time.iso8601(value.to_s)
     rescue ArgumentError

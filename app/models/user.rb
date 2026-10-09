@@ -245,7 +245,7 @@ class User < ApplicationRecord
   # A failure must not block the account deletion, so it is logged; the
   # meeting rows then go with `dependent: :destroy`.
   def remove_friend_meetings
-    publisher = FriendMeetingPublisher.new(self)
+    publisher = FriendMeetings::Publisher.new(self)
 
     friend_meetings.find_each do |meeting|
       publisher.remove(meeting)
