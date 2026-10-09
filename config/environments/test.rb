@@ -55,8 +55,10 @@ Rails.application.configure do
   # Raise error when a before_action's only/except options reference missing actions.
   config.action_controller.raise_on_missing_callback_actions = true
 
-  # Throwaway keys so encrypted attributes (for example Audits1984 audit notes)
-  # work without credentials. Never reuse these outside the test environment.
+  # Throwaway keys so encrypted attributes (OAuth tokens, Audits1984 audit
+  # notes) work without credentials. They win over the env vars, so specs give
+  # the same result on every machine. Never reuse them outside the test
+  # environment.
   config.active_record.encryption.primary_key = "test-primary-key-not-a-secret"
   config.active_record.encryption.deterministic_key = "test-deterministic-key-not-a-secret"
   config.active_record.encryption.key_derivation_salt = "test-key-derivation-salt-not-a-secret"

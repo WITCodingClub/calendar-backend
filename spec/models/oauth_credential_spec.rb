@@ -158,6 +158,50 @@ RSpec.describe OauthCredential, type: :model do
     end
   end
 
+  describe "token encryption" do
+    it { is_expected.to encrypt(:access_token) }
+    it { is_expected.to encrypt(:refresh_token) }
+
+    def stored(credential, column)
+      OauthCredential.connection.select_value(
+        OauthCredential.where(id: credential.id).select(column).to_sql
+      )
+    end
+
+    it "stores both tokens as ciphertext and reads them back as plain text" do
+      credential = create(:oauth_credential, access_token: "synthetic-access-token",
+                                             refresh_token: "synthetic-refresh-token")
+
+      expect(stored(credential, :access_token)).not_to include("synthetic-access-token")
+      expect(stored(credential, :refresh_token)).not_to include("synthetic-refresh-token")
+      expect(ActiveRecord::Encryption.encryptor.encrypted?(stored(credential, :access_token))).to be(true)
+      expect(OauthCredential.find(credential.id))
+        .to have_attributes(access_token: "synthetic-access-token", refresh_token: "synthetic-refresh-token")
+    end
+
+    it "keeps a missing refresh token as NULL, so the refresh_token: nil queries still work" do
+      credential = create(:oauth_credential, refresh_token: nil)
+
+      expect(stored(credential, :refresh_token)).to be_nil
+      expect(described_class.where(refresh_token: nil)).to include(credential)
+      expect(described_class.where.not(refresh_token: nil)).not_to include(credential)
+    end
+
+    # Rows saved before the model encrypted its tokens hold plain text until
+    # the oauth_credentials:encrypt task runs. support_unencrypted_data reads them.
+    it "still reads a legacy plain-text row" do
+      credential = create(:oauth_credential)
+      # Raw SQL: update_columns would encrypt the values.
+      OauthCredential.connection.update(OauthCredential.sanitize_sql_array([
+        "UPDATE oauth_credentials SET access_token = ?, refresh_token = ? WHERE id = ?",
+        "synthetic-legacy-access", "synthetic-legacy-refresh", credential.id
+      ]))
+
+      expect(OauthCredential.find(credential.id))
+        .to have_attributes(access_token: "synthetic-legacy-access", refresh_token: "synthetic-legacy-refresh")
+    end
+  end
+
   describe "the revoked flag" do
     let(:credential) do
       create(:oauth_credential, refresh_token: "synthetic-refresh-token",

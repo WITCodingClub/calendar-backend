@@ -20,7 +20,15 @@ module GoogleSignIn
              Errno::ECONNREFUSED, Errno::ECONNRESET,
              wait: :polynomially_longer, attempts: 5
 
-    def perform(token)
+    # Solid Queue stores job arguments in solid_queue_jobs, and keeps the row
+    # after the job finishes. So the caller passes the token encrypted with
+    # the Active Record encryption key, not in plain text.
+    def self.seal(token)
+      ActiveRecord::Encryption.encryptor.encrypt(token) if token.present?
+    end
+
+    def perform(sealed_token)
+      token = unseal(sealed_token)
       return if token.blank?
 
       response = Net::HTTP.post_form(URI(REVOKE_URL), { "token" => token })
@@ -32,6 +40,16 @@ module GoogleSignIn
       else
         raise RevocationFailed, "Google did not revoke the token (HTTP #{response.code})"
       end
+    end
+
+    private
+
+    # A job enqueued before the deploy that added seal holds the plain token.
+    def unseal(value)
+      return value if value.blank?
+
+      encryptor = ActiveRecord::Encryption.encryptor
+      encryptor.encrypted?(value) ? encryptor.decrypt(value) : value
     end
   end
 end

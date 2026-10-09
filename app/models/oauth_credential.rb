@@ -31,6 +31,12 @@ class OauthCredential < ApplicationRecord
 
   set_public_id_prefix :oac
 
+  # Blazer gives admins SQL access, so the tokens are stored as ciphertext.
+  # Non-deterministic: no code looks a credential up by its token value. A row
+  # from before this change reads as plain text until the
+  # `oauth_credentials:encrypt` task rewrites it (#713).
+  encrypts :access_token, :refresh_token
+
   belongs_to :user
   has_one :course_calendar, dependent: :destroy
   has_many :security_events, dependent: :nullify
@@ -175,7 +181,9 @@ class OauthCredential < ApplicationRecord
   end
 
   def enqueue_google_token_revocation
-    GoogleSignIn::RevokeTokenJob.perform_later(refresh_token.presence || access_token)
+    GoogleSignIn::RevokeTokenJob.perform_later(
+      GoogleSignIn::RevokeTokenJob.seal(refresh_token.presence || access_token)
+    )
   end
 
   def clear_revoked_flag

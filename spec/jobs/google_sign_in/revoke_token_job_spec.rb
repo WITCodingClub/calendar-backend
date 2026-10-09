@@ -39,4 +39,32 @@ RSpec.describe GoogleSignIn::RevokeTokenJob do
   it "keeps the token out of the job logs" do
     expect(described_class.log_arguments?).to be(false)
   end
+
+  describe "a sealed token" do
+    it "revokes the token that seal encrypted" do
+      revoke = stub_revoke(status: 200)
+
+      described_class.perform_now(described_class.seal("synthetic-refresh-token"))
+
+      expect(revoke).to have_been_requested.once
+    end
+
+    it "keeps the plain token out of the stored job arguments" do
+      sealed = described_class.seal("synthetic-refresh-token")
+
+      expect(sealed).not_to include("synthetic-refresh-token")
+      expect(ActiveJob::Arguments.serialize([ sealed ]).to_json).not_to include("synthetic-refresh-token")
+    end
+
+    it "retries with the sealed token, not the plain one" do
+      stub_revoke(status: 503, body: file_fixture("google_oauth/revoke_server_error.json").read)
+      sealed = described_class.seal("synthetic-refresh-token")
+
+      expect { described_class.perform_now(sealed) }.to have_enqueued_job(described_class).with(sealed)
+    end
+
+    it "gives nil for a blank token" do
+      expect(described_class.seal(nil)).to be_nil
+    end
+  end
 end
