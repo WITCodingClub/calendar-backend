@@ -9,7 +9,7 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - Every API controller inherits from `Api::BaseController`. The base requires no token.
 - A controller that needs a signed-in user calls `authenticate_with_token` (all actions) or `authenticate_with_token except: [ ... ]` as its first callback.
 - `spec/requests/api/authentication_spec.rb` sends a request with no token to every `/api` route. A route must answer 401, unless its action is in `PUBLIC_ACTIONS`. Add a new public action to that list.
-- When an extension API path changes, keep the old path in `config/routes/api_legacy.rb`. Remove it when `calendar_api_legacy_requests_total` for that path stays at zero after the extension release that stops calling it.
+- When an extension API path changes, keep the old path in `config/routes/api/legacy.rb`. Remove it when `calendar_api_legacy_requests_total` for that path stays at zero after the extension release that stops calling it.
 - Render every API error with `render_error message, status: :not_found` (from `Api::ErrorRendering`). The body is `{ error, code }`. Pass `code:` only when a client needs a code more specific than the status gives.
 
 ## Jobs
