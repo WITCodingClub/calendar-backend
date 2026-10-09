@@ -61,23 +61,14 @@ jobs:
         env:
           DEPLOY_KEY: ${{ secrets.WIT_CALENDAR_DEPLOY_KEY }}
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
           IMAGE: ghcr.io/witcodingclub/calendar-backend:${{ env.DEPLOY_SHA }}
         run: |
-          if [ -z "$SERVER_KNOWN_HOSTS" ]; then
-            echo "::error::The SERVER_KNOWN_HOSTS secret is empty. Add the alastor host key lines to the repo secret SERVER_KNOWN_HOSTS."
-            exit 1
-          fi
-
           mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
           echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
           ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=yes \
+            -o StrictHostKeyChecking=no \
             -o ConnectTimeout=10 \
             wit-calendar-deploy@"$SERVER_HOST" \
             "echo '$IMAGE' > /var/lib/wit-calendar/image-ref && \
