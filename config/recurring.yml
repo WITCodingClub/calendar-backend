@@ -39,6 +39,13 @@ production:
     queue: low
     schedule: every hour at minute 27
 
+  # Expired friend groups are already hidden. This only deletes the rows. The
+  # friendships in them stay.
+  remove_expired_friend_groups:
+    class: FriendGroups::RemoveExpiredJob
+    queue: low
+    schedule: every hour at minute 29
+
   # ---------------------------------------------------------------------------
   # EVERY 6 HOURS
   # ---------------------------------------------------------------------------

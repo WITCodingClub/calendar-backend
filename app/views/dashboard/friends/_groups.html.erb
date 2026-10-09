@@ -12,6 +12,10 @@
           class: "m3-input flex-1" %>
       <%= f.submit "Create group", class: "m3-btn-tonal" %>
     </div>
+    <label class="flex items-center gap-2 text-xs text-on-surface-variant">
+      End date (optional)
+      <%= f.date_field :expires_on, min: Date.current + 1, class: "m3-input text-xs" %>
+    </label>
     <% if friends.any? %>
       <fieldset class="flex flex-wrap gap-x-4 gap-y-1">
         <legend class="sr-only">Friends to put in the new group</legend>
@@ -39,7 +43,12 @@
           <div class="flex items-center justify-between gap-3">
             <div>
               <p class="text-sm font-medium text-on-surface"><%= group.name %></p>
-              <p class="text-xs text-on-surface-variant"><%= pluralize(members.size, "friend") %></p>
+              <p class="text-xs text-on-surface-variant">
+                <%= pluralize(members.size, "friend") %>
+                <% if group.expires_at %>
+                  · Ends on <%= group.expires_at.to_date.to_fs(:long) %>
+                <% end %>
+              </p>
             </div>
             <%= button_to "Delete group",
                 dashboard_friend_group_path(group.public_id),
@@ -78,6 +87,15 @@
                     class: "m3-input flex-1" %>
                 <%= f.submit "Save", class: "m3-btn-tonal" %>
               </div>
+              <label class="flex items-center gap-2 text-xs text-on-surface-variant">
+                End date
+                <%= f.date_field :expires_on,
+                    value: group.expires_at&.to_date,
+                    min: Date.current + 1,
+                    id: "group_#{group.public_id}_expires_on",
+                    class: "m3-input text-xs" %>
+              </label>
+              <p class="text-xs text-on-surface-variant">Leave the end date empty to keep the group. When the date passes, the group is removed. Your friends stay.</p>
               <fieldset class="flex flex-wrap gap-x-4 gap-y-1">
                 <legend class="sr-only">Friends in <%= group.name %></legend>
                 <%= hidden_field_tag "member_ids[]", "", id: nil %>

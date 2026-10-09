@@ -5,6 +5,7 @@
 # Table name: friend_groups
 #
 #  id         :bigint           not null, primary key
+#  expires_at :datetime
 #  name       :string           not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
@@ -12,6 +13,7 @@
 #
 # Indexes
 #
+#  index_friend_groups_on_expires_at              (expires_at) WHERE (expires_at IS NOT NULL)
 #  index_friend_groups_on_user_id_and_lower_name  (user_id, lower((name)::text)) UNIQUE
 #
 # Foreign Keys
@@ -31,10 +33,21 @@ class FriendGroup < ApplicationRecord
   has_many :memberships, class_name: "FriendGroupMembership", dependent: :destroy, inverse_of: :friend_group
   has_many :friendships, through: :memberships
 
+  # A group with an end date in the past is gone for the owner, even before
+  # FriendGroups::RemoveExpiredJob deletes the row. FriendGroupPolicy::Scope
+  # reads only unexpired groups. The friendships in the group stay.
+  scope :unexpired, -> { where("friend_groups.expires_at IS NULL OR friend_groups.expires_at > ?", Time.current) }
+  scope :expired,   -> { where(expires_at: ..Time.current) }
+
   normalizes :name, with: ->(name) { name.squish }
+
+  # An expired group with the same name blocks a new one through the unique
+  # name index until the cleanup job runs, so remove it first.
+  before_validation :remove_expired_namesake, on: :create
 
   validates :name, presence: true, length: { maximum: NAME_MAX_LENGTH },
                    uniqueness: { scope: :user_id, case_sensitive: false }
+  validate :expires_at_in_future, if: :will_save_change_to_expires_at?
 
   # The API routes and the dashboard UI for groups are off until the privacy
   # policy update. Flipper matches the user on "User;<id>".
@@ -49,6 +62,7 @@ class FriendGroup < ApplicationRecord
     memberships = FriendGroupMembership.joins(:friend_group)
                                        .where(friend_groups: { user_id: user.id })
                                        .where(friendship_id: user.accepted_friendships.select(:id))
+                                       .merge(FriendGroup.unexpired)
                                        .includes(:friend_group, :friendship)
                                        .order("friend_groups.name")
 
@@ -91,7 +105,24 @@ class FriendGroup < ApplicationRecord
     self
   end
 
+  def expired?
+    expires_at.present? && expires_at <= Time.current
+  end
+
   private
+
+  def remove_expired_namesake
+    return if user_id.nil? || name.blank?
+
+    FriendGroup.expired.where(user_id: user_id).where("lower(name) = ?", name.downcase).delete_all
+  end
+
+  # nil means the group does not end. A date in the past would remove it at once.
+  def expires_at_in_future
+    return if expires_at.nil?
+
+    errors.add(:expires_at, "must be in the future") if expires_at <= Time.current
+  end
 
   # Two queries plus one preload, for any number of ids.
   def friendships_for_public_ids(friend_ids)
