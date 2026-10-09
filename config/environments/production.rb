@@ -68,9 +68,10 @@ Rails.application.configure do
   config.action_mailer.raise_delivery_errors = true
   config.action_mailer.perform_deliveries    = true
 
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options     = { host: ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev") }
-  config.action_controller.default_url_options = { host: ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev") }
+  # The host and protocol for links built outside a request: mailers, meeting
+  # links, calendar feed URLs. Without the protocol they start with http://.
+  config.action_mailer.default_url_options     = { host: ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev"), protocol: "https" }
+  config.action_controller.default_url_options = { host: ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev"), protocol: "https" }
 
   # Outgoing mail goes through Resend over SMTP. The user name is the literal
   # string "resend" for every account; the password is the API key, which

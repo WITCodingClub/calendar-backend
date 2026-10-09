@@ -78,6 +78,14 @@ RSpec.describe MeetingLink do
       expect(link.url).to eq("http://example.com/meet/#{link.token}")
       expect(described_class.find(link.id).url).to be_nil
     end
+
+    it "builds the URL from the configured host and protocol" do
+      options = { host: "calendar.witcc.dev", protocol: "https" }
+      allow(Rails.application.config.action_controller).to receive(:default_url_options).and_return(options)
+      link = create(:meeting_link)
+
+      expect(link.url).to eq("https://calendar.witcc.dev/meet/#{link.token}")
+    end
   end
 
   it "expires at the end of the last day when no expiry is given" do

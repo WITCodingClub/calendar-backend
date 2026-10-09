@@ -180,7 +180,13 @@ RSpec.describe Rack::Attack do
       env = { "REMOTE_ADDR" => "5.6.7.8", "HTTP_USER_AGENT" => "Mozilla/5.0" }
       app = Rails.application
 
-      statuses = Array.new(6) { app.call(Rack::MockRequest.env_for("/meet/sample-token", method: "POST", **env)).first }
+      statuses = Array.new(6) do
+        status, _headers, body = app.call(Rack::MockRequest.env_for("/meet/sample-token", method: "POST", **env))
+        # Rails.cache keeps a local cache until the body closes. An open body
+        # leaks it into later examples, such as the Risc::Validator spec.
+        body.close if body.respond_to?(:close)
+        status
+      end
 
       expect(statuses.last).to eq(429)
       expect(statuses.first(5)).to all(satisfy { |status| status != 429 })
