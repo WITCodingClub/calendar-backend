@@ -18,7 +18,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 |---|---|
 | `Catalog` | The course catalog: import, snapshot, LeopardWeb client, queries, serializers, semantic search |
 | `Courses` | A user's course list: enrollments, processed events |
-| `CourseCalendars` | Calendar sync for every provider: sync jobs, provider selection, sync markers |
+| `CourseCalendars` | Calendar sync for every provider: sync jobs, provider selection, sync markers, the ICS feed |
 | `GoogleCalendar` | Google Calendar: the provider, event labels, colors, rate limits, calendar jobs |
 | `MicrosoftGraph` | Microsoft Graph: the HTTP client, the calendar provider, calendar jobs |
 | `GoogleSignIn` | Google sign-in and account linking: token checks, code exchange, OAuth state |
