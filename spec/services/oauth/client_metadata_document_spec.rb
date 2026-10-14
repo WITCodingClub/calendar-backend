@@ -43,6 +43,15 @@ RSpec.describe Oauth::ClientMetadataDocument do
     expect(client).to have_received(:fetch).twice
   end
 
+  it "accepts claude.ai's document, which also lists the JWT bearer grant" do
+    document.merge!(
+      "grant_types"    => [ "authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:jwt-bearer" ],
+      "response_types" => [ "code" ]
+    )
+
+    expect(application).to be_persisted
+  end
+
   it "refuses a document that names another client_id" do
     document["client_id"] = "https://evil.example/metadata.json"
 
