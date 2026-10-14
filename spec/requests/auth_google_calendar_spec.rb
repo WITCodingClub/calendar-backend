@@ -68,6 +68,19 @@ RSpec.describe "Adding a Google account to a user", type: :request do
       expect(failure_message).to include("already connected to another user")
     end
 
+    it "shows a generic message and reports an unexpected error" do
+      allow_any_instance_of(GoogleSignIn::AccountLink).to receive(:connect!).and_raise(StandardError, "PG::Error secret detail") # rubocop:disable RSpec/AnyInstance
+      allow(Rails.error).to receive(:report)
+
+      get "/auth/google_oauth2/callback", params: { state: state }
+
+      expect(response.location).to include("/oauth/failure")
+      expect(failure_message).to include("Failed to connect your Google account")
+      expect(failure_message).not_to include("secret detail")
+      expect(Rails.error).to have_received(:report)
+        .with(an_instance_of(StandardError), handled: true, context: { user_id: user.id })
+    end
+
     it "fails with a clear message when the account's new email is on another credential of the user" do
       create(:oauth_credential, user: user, email: "old.address@example.com", uid: uid)
       create(:oauth_credential, user: user, email: chosen_email, uid: "a-different-uid")

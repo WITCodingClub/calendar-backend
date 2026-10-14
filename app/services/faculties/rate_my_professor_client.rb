@@ -5,6 +5,10 @@ module Faculties
     require "faraday"
     require "json"
 
+    # Raised for a non-2xx status or a body that is not a JSON object. Rails.cache.fetch
+    # does not store a block that raises, so a failed response is never cached.
+    class Error < StandardError; end
+
     BASE_URL = "https://www.ratemyprofessors.com/graphql"
     WENTWORTH_SCHOOL_ID = "U2Nob29sLTExNTg="
 
@@ -263,7 +267,7 @@ module Faculties
         edges = ratings_data["edges"] || []
         all_ratings.concat(edges.pluck("node"))
 
-        page_info = ratings_data["pageInfo"]
+        page_info = ratings_data["pageInfo"] || {}
         has_next_page = page_info["hasNextPage"]
         cursor = page_info["endCursor"]
       end
@@ -293,7 +297,7 @@ module Faculties
         faraday.adapter Faraday.default_adapter
       end
 
-      connection.post do |req|
+      response = connection.post do |req|
         req.headers["Content-Type"] = "application/json"
         req.headers["Accept"] = "*/*"
         req.headers["Authorization"] = "null"
@@ -306,6 +310,11 @@ module Faculties
           variables: variables
         }
       end
+
+      raise Error, "RateMyProfessors answered HTTP #{response.status}" unless response.success?
+      raise Error, "RateMyProfessors answered with a body that is not a JSON object" unless response.body.is_a?(Hash)
+
+      response
     end
   end
 end

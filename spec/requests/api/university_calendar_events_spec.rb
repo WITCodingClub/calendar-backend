@@ -89,12 +89,13 @@ RSpec.describe "Api::UniversityCalendarEvents", type: :request do
       expect(json["events"].pluck("summary")).to eq([ "In term" ])
     end
 
-    it "ignores an unknown term id" do
+    it "answers NOT_FOUND for an unknown term id" do
       event(summary: "Any")
 
       get "/api/university_calendar_events", params: { term_id: "term_unknown" }, headers: headers
 
-      expect(json["events"].size).to eq(1)
+      expect(response).to have_http_status(:not_found)
+      expect(json["code"]).to eq("NOT_FOUND")
     end
   end
 
@@ -157,12 +158,13 @@ RSpec.describe "Api::UniversityCalendarEvents", type: :request do
       expect(json["holidays"].pluck("summary")).to eq([ inside.summary ])
     end
 
-    it "ignores an unknown term id" do
+    it "answers NOT_FOUND for an unknown term id" do
       event(category: "holiday")
 
       get "/api/university_calendar_events/holidays", params: { term_id: "term_unknown" }, headers: headers
 
-      expect(json["holidays"].size).to eq(1)
+      expect(response).to have_http_status(:not_found)
+      expect(json["code"]).to eq("NOT_FOUND")
     end
 
     it "answers BAD_REQUEST for a bad date" do
