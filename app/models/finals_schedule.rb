@@ -12,7 +12,7 @@
 #  created_at     :datetime         not null
 #  updated_at     :datetime         not null
 #  term_id        :bigint           not null
-#  uploaded_by_id :bigint           not null
+#  uploaded_by_id :bigint
 #
 # Indexes
 #
@@ -28,7 +28,8 @@ class FinalsSchedule < ApplicationRecord
   include EncodedIds::HashidIdentifiable
 
   belongs_to :term
-  belongs_to :uploaded_by, class_name: "User"
+  # Optional: deleting the uploader's account keeps the schedule (User#uploaded_finals_schedules).
+  belongs_to :uploaded_by, class_name: "User", optional: true
 
   has_one_attached :pdf_file
 
@@ -40,7 +41,7 @@ class FinalsSchedule < ApplicationRecord
   }, default: :pending
 
   validates :term,        presence: true
-  validates :uploaded_by, presence: true
+  validates :uploaded_by, presence: true, on: :create
   validate  :pdf_file_is_pdf, if: -> { pdf_file.attached? }
 
   scope :recent,    -> { order(created_at: :desc) }

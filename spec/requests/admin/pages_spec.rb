@@ -246,6 +246,24 @@ RSpec.describe "Admin pages", type: :request do
       expect_admin_page("Finals Schedule: #{term.name}")
     end
 
+    it "renders the index with a schedule whose uploader was deleted" do
+      schedule.update_columns(uploaded_by_id: nil)
+
+      get admin_finals_schedules_path
+
+      expect_admin_page("Finals Schedules")
+      expect(response.body).to include("Deleted user")
+    end
+
+    it "renders the show page of a schedule whose uploader was deleted" do
+      schedule.update_columns(uploaded_by_id: nil)
+
+      get admin_finals_schedule_path(schedule)
+
+      expect_admin_page("Finals Schedule: #{term.name}")
+      expect(response.body).to include("Deleted user")
+    end
+
     it "renders the upload form" do
       get new_admin_finals_schedule_path
 

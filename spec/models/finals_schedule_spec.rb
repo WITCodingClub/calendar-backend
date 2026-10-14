@@ -14,7 +14,7 @@ require "rails_helper"
 #  created_at     :datetime         not null
 #  updated_at     :datetime         not null
 #  term_id        :bigint           not null
-#  uploaded_by_id :bigint           not null
+#  uploaded_by_id :bigint
 #
 # Indexes
 #
@@ -28,10 +28,17 @@ require "rails_helper"
 #
 RSpec.describe FinalsSchedule, type: :model do
   it { is_expected.to belong_to(:term) }
-  it { is_expected.to belong_to(:uploaded_by).class_name("User") }
 
   it { is_expected.to validate_presence_of(:term) }
-  it { is_expected.to validate_presence_of(:uploaded_by) }
+  it { is_expected.to validate_presence_of(:uploaded_by).on(:create) }
+
+  context "when saved" do
+    # The uploader is required only on create (see the presence matcher above).
+    # A saved schedule keeps working after its uploader's account is deleted.
+    subject { create(:finals_schedule) }
+
+    it { is_expected.to belong_to(:uploaded_by).class_name("User").optional }
+  end
 
   it do
     expect(subject).to define_enum_for(:status)

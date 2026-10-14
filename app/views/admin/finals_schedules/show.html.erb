@@ -18,7 +18,7 @@
       <%= render "admin/shared/card", title: "Upload" do %>
         <%= admin_details do |d| %>
           <% d.item("Status") { render "status_badge", status: @finals_schedule.status } %>
-          <% d.item("Uploaded by") { @finals_schedule.uploaded_by.email } %>
+          <% d.item("Uploaded by") { @finals_schedule.uploaded_by&.email || "Deleted user" } %>
           <% d.item("Uploaded") { @finals_schedule.created_at.strftime("%b %-d, %Y %-l:%M %p") } %>
           <% d.item("Processed") { @finals_schedule.processed_at&.strftime("%b %-d, %Y %-l:%M %p") } %>
           <% if @finals_schedule.pdf_file.attached? %>

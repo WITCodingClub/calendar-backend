@@ -127,6 +127,12 @@ class User < ApplicationRecord
   has_many :meeting_links, dependent: :destroy
   has_many :guest_meeting_links, class_name: "MeetingLink", foreign_key: :guest_user_id,
            dependent: :nullify, inverse_of: :guest_user
+  has_many :enrollment_snapshots, dependent: :delete_all
+  has_many :passkey_handoffs, dependent: :delete_all
+  has_many :webauthn_challenges, dependent: :delete_all
+  # A finals schedule belongs to the term, not to the admin who uploaded it.
+  has_many :uploaded_finals_schedules, class_name: "FinalsSchedule", foreign_key: :uploaded_by_id,
+           dependent: :nullify, inverse_of: :uploaded_by
 
   # Friend meetings go before the OAuth credentials: their provider deletes
   # need the tokens, and they send the friends a cancellation. prepend runs
