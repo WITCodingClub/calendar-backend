@@ -97,8 +97,10 @@ module GoogleCalendar
     end
 
     # Rails sets ExecutionContext[:controller] for the length of a request.
+    # Check the value, not the key: ExecutionContext.set with a block puts a
+    # missing key back as nil, so the key can be there outside a request.
     def in_web_request?
-      ActiveSupport::ExecutionContext.to_h.key?(:controller)
+      ActiveSupport::ExecutionContext.to_h[:controller].present?
     end
 
     def max_rate_limit_retries
