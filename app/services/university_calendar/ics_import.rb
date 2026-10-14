@@ -150,9 +150,11 @@ module UniversityCalendar
       is_all_day  = %w[holiday study_day].include?(category) || all_day_event?(ics_event)
 
       if is_all_day
-        original_end_date = end_time.to_date
+        last_day   = end_time.to_date
+        # A DATE value for DTEND is exclusive (RFC 5545), so the event ends the day before.
+        last_day  -= 1 if date_value?(ics_event.dtend) && last_day > start_time.to_date
         start_time = start_time.beginning_of_day
-        end_time   = original_end_date.end_of_day
+        end_time   = last_day.end_of_day
       end
 
       {
@@ -413,6 +415,11 @@ module UniversityCalendar
       end
     end
 
+    def date_value?(ics_time)
+      ics_time.is_a?(Icalendar::Values::Date) ||
+        (ics_time.respond_to?(:value) && ics_time.value.is_a?(Date) && !ics_time.value.is_a?(DateTime))
+    end
+
     def all_day_event?(ics_event)
       dtstart = ics_event.dtstart
       return true if dtstart.is_a?(Icalendar::Values::Date)
@@ -477,8 +484,10 @@ module UniversityCalendar
 
       return nil unless season
 
-      year = event_date.year
-      year -= 1 if season == :fall && event_date.month < 6
+      # A year in the term name wins. Without one, guess it from the event date.
+      named_year = academic_term_str.to_s[/\b(20\d{2})\b/, 1]
+      year = named_year&.to_i || event_date.year
+      year -= 1 if named_year.nil? && season == :fall && event_date.month < 6
 
       @term_cache[[ year, season ]]
     end
