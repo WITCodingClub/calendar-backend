@@ -7,7 +7,8 @@ namespace :catalog do
     from = ENV["FROM"]
     to   = ENV["TO"]
 
-    if ENV["DRY_RUN"].present?
+    # DRY_RUN=0 or false runs for real. Only a true value prints the plan.
+    if ActiveModel::Type::Boolean.new.cast(ENV["DRY_RUN"])
       # One request for the term list. The plan is the same one the job builds.
       plan = Catalog::BannerThrottle.with_budget(:job) { Catalog::ReimportPlan.new(from: from, to: to).call }
 
