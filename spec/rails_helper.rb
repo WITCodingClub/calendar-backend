@@ -22,4 +22,11 @@ RSpec.configure do |config|
   config.use_transactional_fixtures = true
   config.infer_spec_type_from_file_location!
   config.filter_rails_from_backtrace!
+
+  # In production the Rails executor clears ExecutionContext after each
+  # request and job. RSpec runs every example in one process, so clear it
+  # here. ExecutionContext.set with a block also puts back a key that was
+  # missing as nil, so a spec that set :controller would leak
+  # "controller" => nil into every later error report.
+  config.before { ActiveSupport::ExecutionContext.clear }
 end
