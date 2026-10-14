@@ -20,6 +20,32 @@
     <% end %>
   <% end %>
 
+  <% relations = Catalog::CourseRelations.new(@course) %>
+  <%= render "admin/shared/card", title: "Related courses" do %>
+    <%= admin_details(columns: 2) do |d| %>
+      <% d.item("Prerequisites", wide: true) do %>
+        <%= render "admin/courses/requisite", node: relations.prerequisites, relations: relations if relations.prerequisites %>
+      <% end %>
+      <% d.item("Corequisites") do %>
+        <%= safe_join(relations.corequisites.map { |ref| render("admin/courses/course_code", relations: relations, subject_code: ref["subject_code"], course_number: ref["course_number"]) }, ", ") %>
+      <% end %>
+      <% d.item("Prerequisite for") do %>
+        <%= safe_join(relations.unlocks.map { |unlocked| render("admin/courses/course_code", relations: relations, subject_code: unlocked.subject_code, course_number: unlocked.course_number) }, ", ") %>
+      <% end %>
+      <% d.item("Linked sections", wide: true) do %>
+        <% relations.linked_options.each_with_index do |group, index| %>
+          <div>
+            <% if relations.linked_options.size > 1 %><span class="text-xs text-on-surface-variant">Option <%= index + 1 %>:</span><% end %>
+            <%= safe_join(group.map { |section| link_to("#{section.prefix} #{section.course_number} (#{section.section_number}) · CRN #{section.crn}", admin_course_path(section), class: "text-primary hover:underline whitespace-nowrap", title: section.title) }, " + ") %>
+          </div>
+        <% end %>
+      <% end %>
+    <% end %>
+    <% if relations.catalog_course.nil? %>
+      <p class="mt-3 text-xs text-on-surface-variant">No catalog details for this course yet. Catalog::CourseDetailsSync stores the prerequisites and corequisites.</p>
+    <% end %>
+  <% end %>
+
   <% meeting_times = @course.meeting_times.to_a %>
   <%= render "admin/shared/card", title: "Meeting times", subtitle: pluralize(meeting_times.size, "meeting time"), flush: true do %>
     <%= admin_table(meeting_times, card: false, empty: "No meeting times scheduled.") do |t| %>

@@ -1,0 +1,7 @@
+<%# A course code that links to a section of that course when one exists. %>
+<% label = "#{subject_code} #{course_number}" %>
+<% if (section = relations.section_for(subject_code, course_number)) %>
+  <%= link_to label, admin_course_path(section), class: "text-primary hover:underline whitespace-nowrap", title: section.title %>
+<% else %>
+  <span class="whitespace-nowrap" title="No section of this course is in the system"><%= label %></span>
+<% end %>
