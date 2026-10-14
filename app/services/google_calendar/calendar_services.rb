@@ -57,7 +57,7 @@ module GoogleCalendar
           access_token:     credentials.access_token,
           token_expires_at: Time.zone.at(credentials.expires_at)
         )
-        user.instance_variable_set(:@google_credential, nil)
+        user.reset_google_credential
       end
 
       credentials
