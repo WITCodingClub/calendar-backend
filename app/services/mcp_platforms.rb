@@ -35,12 +35,15 @@ module McpPlatforms
   end
 
   def self.ranges
-    if @ranges.nil? || @ranges_loaded_at < MEMO_TTL.ago
-      @ranges = (ANTHROPIC_RANGES + Array(Rails.cache.read(OPENAI_CACHE_KEY))).map { |range| IPAddr.new(range) }.freeze
+    # reset! can run on another thread, so read the ivar once.
+    ranges = @ranges
+    if ranges.nil? || @ranges_loaded_at < MEMO_TTL.ago
+      ranges = (ANTHROPIC_RANGES + Array(Rails.cache.read(OPENAI_CACHE_KEY))).map { |range| IPAddr.new(range) }.freeze
       @ranges_loaded_at = Time.current
+      @ranges = ranges
     end
 
-    @ranges
+    ranges
   end
 
   def self.store_openai_ranges(prefixes)

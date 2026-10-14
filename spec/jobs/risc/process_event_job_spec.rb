@@ -150,4 +150,55 @@ RSpec.describe Risc::ProcessEventJob, type: :job do
 
     expect { described_class.perform_now(token) }.to have_enqueued_job(described_class).with(token)
   end
+
+  it "retries when a transient database error stops the event handler" do
+    stub_google_risc_endpoints
+    token = build_token(event_type: SecurityEvent::SESSIONS_REVOKED, subject: "some-subject", jti: "db-blip-jti")
+    allow(SecurityEvent).to receive(:find_or_initialize_by).and_raise(ActiveRecord::ConnectionNotEstablished)
+
+    expect { described_class.perform_now(token) }.to have_enqueued_job(described_class).with(token)
+  end
+
+  it "retries when the JWKS cannot be fetched and the cache is cold" do
+    stub_request(:get, CONFIGURATION_URL)
+      .to_return(status: 200, body: { issuer: ISSUER, jwks_uri: JWKS_URL }.to_json)
+    stub_request(:get, JWKS_URL).to_return(status: 503, body: "")
+    token = build_token(event_type: SecurityEvent::SESSIONS_REVOKED, subject: "some-subject", jti: "jwks-down-jti")
+
+    expect { described_class.perform_now(token) }.to have_enqueued_job(described_class).with(token)
+  end
+
+  it "retries when the configuration cannot be fetched and the cache is cold" do
+    stub_request(:get, CONFIGURATION_URL).to_return(status: 500, body: "")
+    token = build_token(event_type: SecurityEvent::SESSIONS_REVOKED, subject: "some-subject", jti: "config-down-jti")
+
+    expect { described_class.perform_now(token) }.to have_enqueued_job(described_class).with(token)
+  end
+
+  it "retries a failed fetch four times and raises on the fifth attempt" do
+    stub_request(:get, CONFIGURATION_URL).to_return(status: 500, body: "")
+    token = build_token(event_type: SecurityEvent::SESSIONS_REVOKED, subject: "some-subject", jti: "give-up-jti")
+    job = described_class.new(token)
+
+    4.times { expect { job.perform_now }.not_to raise_error }
+    expect { job.perform_now }.to raise_error(Risc::Validator::FetchError)
+  end
+
+  it "revokes the credentials when Google rotated its key since the JWKS was cached" do
+    stub_request(:get, CONFIGURATION_URL)
+      .to_return(status: 200, body: { issuer: ISSUER, jwks_uri: JWKS_URL }.to_json)
+    old_key = OpenSSL::PKey::RSA.generate(2048)
+    old_jwk = JSON.parse(JWT::JWK.new(old_key, kid: "old-key").export.to_json)
+    new_jwk = JSON.parse(JWT::JWK.new(rsa_key, kid: kid).export.to_json)
+    stub_request(:get, JWKS_URL).to_return({ status: 200, body: { keys: [ old_jwk ] }.to_json },
+                                            { status: 200, body: { keys: [ old_jwk, new_jwk ] }.to_json })
+    user = create(:user)
+    credential = create(:oauth_credential, user: user, uid: "rotated-subject")
+    token = build_token(event_type: SecurityEvent::SESSIONS_REVOKED, subject: "rotated-subject", jti: "rotated-jti")
+
+    described_class.perform_now(token)
+
+    expect(OauthCredential.exists?(credential.id)).to be(false)
+    expect(SecurityEvent.find_by(jti: "rotated-jti").processed).to be(true)
+  end
 end

@@ -40,4 +40,39 @@ RSpec.describe Risc::EventHandler do
     expect(OauthCredential.exists?(credential.id)).to be(false)
     expect(SecurityEvent.find_by(jti: "synthetic-sessions-revoked-jti").processed).to be(true)
   end
+
+  describe "when the database fails for a moment" do
+    [
+      ActiveRecord::ConnectionNotEstablished,
+      ActiveRecord::StatementTimeout,
+      ActiveRecord::LockWaitTimeout,
+      ActiveRecord::Deadlocked
+    ].each do |error_class|
+      it "raises #{error_class} from the event row so that the job retries" do
+        allow(SecurityEvent).to receive(:find_or_initialize_by).and_raise(error_class, "synthetic failure")
+        allow(Rails.error).to receive(:report)
+
+        expect { described_class.new(event_data).process }.to raise_error(error_class)
+
+        expect(Rails.error).not_to have_received(:report)
+      end
+    end
+
+    it "raises when the event cannot be marked processed, and does not record that as a handler error" do
+      allow_any_instance_of(SecurityEvent).to receive(:mark_processed!).and_raise(ActiveRecord::StatementTimeout) # rubocop:disable RSpec/AnyInstance
+
+      expect { described_class.new(event_data).process }.to raise_error(ActiveRecord::StatementTimeout)
+    end
+  end
+
+  it "records a handler failure that a retry cannot fix, reports it, and returns success false" do
+    # A verification ping has no subject, and the event row requires one.
+    data = event_data.merge(event_type: SecurityEvent::VERIFICATION, google_subject: nil)
+    allow(Rails.error).to receive(:report)
+
+    result = described_class.new(data).process
+
+    expect(result).to include(success: false)
+    expect(Rails.error).to have_received(:report).with(an_instance_of(ActiveRecord::RecordInvalid), handled: true, context: { jti: data[:jti] })
+  end
 end
