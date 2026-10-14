@@ -16,7 +16,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 
 | Namespace | What it holds |
 |---|---|
-| `Catalog` | The course catalog: import, snapshot, LeopardWeb client, queries, serializers, semantic search |
+| `Catalog` | The course catalog: import, snapshot, LeopardWeb client, queries, serializers, semantic search (upkeep: `docs/catalog-maintenance.md`) |
 | `Courses` | A user's course list: enrollments, processed events |
 | `CourseCalendars` | Calendar sync for every provider: sync jobs, provider selection, sync markers, the ICS feed |
 | `GoogleCalendar` | Google Calendar: the provider, event labels, colors, rate limits, calendar jobs |
