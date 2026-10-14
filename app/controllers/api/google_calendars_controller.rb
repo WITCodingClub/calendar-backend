@@ -87,6 +87,11 @@ module Api
         return
       end
 
+      unless credential.removable?
+        render_error "Cannot disconnect your last Google account.", status: :unprocessable_content
+        return
+      end
+
       credential.destroy!
 
       render json: { message: "email removed from Google Calendar association" }, status: :ok
