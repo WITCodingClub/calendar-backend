@@ -6,6 +6,15 @@ module Risc
     # retries it and does not skip it as already seen.
     class RevocationFailed < StandardError; end
 
+    # A database failure that a later attempt can clear. These reach the job, so
+    # `retry_on` runs and the revoke event is not dropped.
+    TRANSIENT_ERRORS = [
+      ActiveRecord::ConnectionNotEstablished,
+      ActiveRecord::QueryAborted, # statement timeout, cancelled query, lost connection
+      ActiveRecord::LockWaitTimeout,
+      ActiveRecord::TransactionRollbackError # deadlock, serialization failure
+    ].freeze
+
     attr_reader :event_data, :security_event
 
     def initialize(event_data)
@@ -49,6 +58,9 @@ module Risc
       @security_event.mark_processed!
 
       { success: true, **result }
+    rescue *TRANSIENT_ERRORS => e
+      Rails.logger.error("RISC event #{event_data[:jti]} left unprocessed: #{e.class}: #{e.message}")
+      raise
     rescue RevocationFailed => e
       Rails.logger.error("RISC event #{event_data[:jti]} left unprocessed: #{e.message}")
       raise
