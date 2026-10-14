@@ -12,7 +12,9 @@ module Catalog
     # the class is renamed. Jobs in the queue hold locks under this name.
     CONCURRENCY_GROUP = "CourseDataSyncJob"
 
-    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(*) { "course_data_sync" }
+    # A run covers every course of each active term and takes hours, so the lock
+    # lasts as long as the one of Catalog::CourseDetailsSyncJob.
+    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(*) { "course_data_sync" }, duration: 6.hours
 
     # Banner stopped answering, and Catalog::BannerThrottle holds every request
     # for a few minutes. Stop the run and start again after the cooldown,

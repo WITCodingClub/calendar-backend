@@ -14,8 +14,9 @@ module FriendMeetings
   # friends get no second invitation.
   class Publisher
     # The provider refused the person's token. A retry cannot help until the
-    # person connects the account again.
-    AUTH_ERRORS = [ MicrosoftGraph::AuthError, Google::Apis::AuthorizationError ].freeze
+    # person connects the account again. Signet::AuthorizationError covers a
+    # refused refresh token, which Google::Auth::AuthorizationError subclasses.
+    AUTH_ERRORS = [ MicrosoftGraph::AuthError, Google::Apis::AuthorizationError, Signet::AuthorizationError ].freeze
 
     attr_reader :user
 
@@ -81,7 +82,8 @@ module FriendMeetings
         service ? service.delete_friend_meeting_event(row) : row.destroy!
       rescue *AUTH_ERRORS => e
         log_failure("Could not delete a friend meeting event: token refused", meeting, provider, e)
-        meeting.publication_for(provider)&.mark_failed!(e.class.name)
+        # The listed class name, so the removal sweep finds it for any subclass.
+        meeting.publication_for(provider)&.mark_failed!(AUTH_ERRORS.find { |klass| e.is_a?(klass) }.name)
         kept = true
       rescue StandardError => e
         log_failure("Could not delete a friend meeting event", meeting, provider, e)

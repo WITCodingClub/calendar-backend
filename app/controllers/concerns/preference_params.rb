@@ -42,7 +42,7 @@ module PreferenceParams
   end
 
   def calendar_preference_params
-    permitted = params.require(:calendar_preference).permit(
+    permitted = require_object_param(:calendar_preference).permit(
       :title_template, :description_template, :location_template,
       :color_id, :visibility, reminder_settings: []
     )
@@ -52,8 +52,17 @@ module PreferenceParams
     permitted
   end
 
+  # params.require returns a String when a client sends a scalar. Reject it
+  # as a bad request, which the API and the web controllers answer with 400.
+  def require_object_param(key)
+    value = params.require(key)
+    return value if value.is_a?(ActionController::Parameters)
+
+    raise ActionController::BadRequest, "#{key} must be an object"
+  end
+
   def event_preference_params
-    permitted = params.require(:event_preference).permit(
+    permitted = require_object_param(:event_preference).permit(
       :title_template, :description_template, :location_template,
       :color_id, :visibility, reminder_settings: []
     )

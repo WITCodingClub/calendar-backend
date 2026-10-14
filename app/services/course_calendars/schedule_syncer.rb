@@ -33,7 +33,7 @@ module CourseCalendars
       desired.concat(events.finals_events(time_scope: :future))
       desired.concat(events.university_events(time_scope: :future))
 
-      result = Providers.merge_stats(services.map { |service| service.update_calendar_events(desired, force: force) })
+      result = each_provider(services) { |service| service.update_calendar_events(desired, force: force) }
 
       # Remove past university events the user no longer wants. update_calendar_events
       # keeps every past event, so this is the only place they get deleted.
@@ -60,7 +60,7 @@ module CourseCalendars
       desired = events.course_events(user.enrollments.where(id: enrollment_ids), prefer_valid_locations: false)
 
       # Only sync these specific events
-      result = Providers.merge_stats(services.map { |service| service.update_specific_events(desired, force: force) })
+      result = each_provider(services) { |service| service.update_specific_events(desired, force: force) }
       mark_synced(result, clear_needs_sync: true)
       result
     end
@@ -97,16 +97,38 @@ module CourseCalendars
       desired.concat(events.university_events(time_scope: :past))
       return if desired.empty?
 
-      Providers.merge_stats(services.map { |service| service.update_specific_events(desired, force: force) })
+      each_provider(services) { |service| service.update_specific_events(desired, force: force) }
     end
 
     private
 
     def sync_one(services, event, force:)
       # Sync just this one event
-      result = Providers.merge_stats(services.map { |service| service.update_specific_events([ event ], force: force) })
+      result = each_provider(services) { |service| service.update_specific_events([ event ], force: force) }
       mark_synced(result, clear_needs_sync: false)
       result
+    end
+
+    # Runs the block for each provider and adds up the stats. A provider that
+    # fails, for example with a revoked Google token, is reported and the others
+    # still run. When every provider fails, the first error is raised, so the
+    # job fails and the executor reports it.
+    def each_provider(services)
+      errors  = []
+      results = services.map do |service|
+        yield service
+      rescue StandardError => e
+        errors << [ e, service ]
+        nil
+      end
+
+      raised = errors.shift.first if errors.any? && errors.size == services.size
+      errors.each do |error, service|
+        Rails.error.report(error, handled: true, context: { user_id: user.id, provider: service.class.name })
+      end
+      raise raised if raised
+
+      Providers.merge_stats(results)
     end
 
     # Update last sync timestamp if sync was successful

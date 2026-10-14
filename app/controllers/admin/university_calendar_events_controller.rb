@@ -63,7 +63,7 @@ module Admin
       UniversityCalendar::BackfillJob.perform_later(start_date.to_s, end_date.to_s)
       redirect_to admin_university_calendar_events_path,
                   notice: "Backfill queued for #{start_date.strftime('%b %d, %Y')} – #{end_date.strftime('%b %d, %Y')}."
-    rescue Date::Error
+    rescue Date::Error, TypeError
       redirect_to admin_university_calendar_events_path, alert: "Invalid date format."
     end
   end

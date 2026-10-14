@@ -83,7 +83,7 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
 
         expect(event).to have_attributes(category: "holiday", all_day: true)
         expect(event.start_time).to eq(at(2026, 9, 7).beginning_of_day)
-        expect(event.end_time).to eq(at(2026, 9, 8).end_of_day.change(usec: 999_999))
+        expect(event.end_time).to eq(at(2026, 9, 7).end_of_day.change(usec: 999_999))
       end
 
       it "treats the Microsoft all-day flag as an all-day event" do
@@ -129,8 +129,8 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
 
         expect(event).to have_attributes(summary: "Study Day", category: "study_day", all_day: true)
         expect(event.start_time).to eq(at(2026, 12, 10).beginning_of_day)
-        # The feed's DATE end is exclusive, and the importer keeps it as the last day.
-        expect(event.end_time.to_date).to eq(Date.new(2026, 12, 12))
+        # The feed's DATE end is exclusive, so the importer stores the day before it as the last day.
+        expect(event.end_time.to_date).to eq(Date.new(2026, 12, 11))
         expect(UniversityCalendarEvent.exists?(ics_uid: "study-day-two@example.test")).to be(false)
       end
 
@@ -203,6 +203,29 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
 
         expect(event.term).to eq(fall_term)
         expect(event.summary).to eq("First Day of Classes")
+      end
+    end
+
+    context "with a term name that carries a year" do
+      let!(:fall_2025) { create(:term, year: 2025, season: :fall) }
+      let!(:spring_2026) { create(:term, year: 2026, season: :spring) }
+      let!(:spring_2027) { create(:term, year: 2027, season: :spring) }
+
+      before do
+        stub_feed("term_years.ics")
+        described_class.call
+      end
+
+      it "uses the year in the term name for a fall term named before it starts" do
+        expect(event_for("registration-fall-2026@example.test").term).to eq(fall_term)
+      end
+
+      it "uses the year in the term name for a spring term named in the fall" do
+        expect(event_for("registration-spring-2027@example.test").term).to eq(spring_2027)
+      end
+
+      it "guesses the year from the date when the term name has no year" do
+        expect(event_for("registration-fall-noyear@example.test").term).to eq(fall_2025)
       end
     end
 
