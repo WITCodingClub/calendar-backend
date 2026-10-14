@@ -18,8 +18,8 @@ RSpec.describe CourseCalendars::Providers do
       expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendar::Provider ])
     end
 
-    it "keeps the Google path for a person with no calendar yet" do
-      expect(described_class.services_for(user).map(&:class)).to eq([ GoogleCalendar::Provider ])
+    it "syncs nothing for a person with no Google credential and no Microsoft calendar" do
+      expect(described_class.services_for(user)).to be_empty
     end
 
     it "ignores a Microsoft calendar while the provider is not configured" do
