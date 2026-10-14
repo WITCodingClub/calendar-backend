@@ -41,4 +41,13 @@ RSpec.describe "catalog:reimport_all_terms" do
     expect { run_task }.to output(/Would import 2 terms, newest first:\n  202720\n  202710\n.*not in the database.*202730.*no longer lists.*201420/m).to_stdout
     expect(enqueued_jobs).to be_empty
   end
+
+  %w[0 false].each do |value|
+    it "queues the job when DRY_RUN is #{value}" do
+      ENV["DRY_RUN"] = value
+
+      expect { run_task }.to output(/one term at a time/).to_stdout
+      expect(Catalog::ReimportAllTermsJob).to have_been_enqueued
+    end
+  end
 end
