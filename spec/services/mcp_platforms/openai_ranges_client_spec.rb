@@ -5,14 +5,26 @@ require "rails_helper"
 RSpec.describe McpPlatforms::OpenaiRangesClient do
   let(:url) { described_class::URL }
 
-  def stub_body(body, status: 200)
-    stub_request(:get, url).to_return(status: status, body: body, headers: { "Content-Type" => "application/json" })
+  def stub_body(body, status: 200, content_type: "application/json")
+    stub_request(:get, url).to_return(status: status, body: body, headers: { "Content-Type" => content_type })
   end
 
   it "returns the IPv4 and IPv6 ranges" do
     stub_body(file_fixture("openai/chatgpt_connectors.json").read)
 
     expect(described_class.new.fetch).to eq([ "203.0.113.0/28", "198.51.100.7/32", "2001:db8:10::/48" ])
+  end
+
+  it "parses the list when OpenAI serves it as application/octet-stream" do
+    stub_body(file_fixture("openai/chatgpt_connectors.json").read, content_type: "application/octet-stream")
+
+    expect(described_class.new.fetch).to eq([ "203.0.113.0/28", "198.51.100.7/32", "2001:db8:10::/48" ])
+  end
+
+  it "turns a body that is not JSON into an error" do
+    stub_body("<html></html>", content_type: "text/html")
+
+    expect { described_class.new.fetch }.to raise_error(described_class::Error, /could not fetch/)
   end
 
   it "refuses an error status" do
