@@ -19,9 +19,10 @@ module McpTools
     def perform(crn:, term_uid: nil, limit: nil)
       course = find_section(crn, term_uid)
       limit  = limit_value(limit, default: Embeddable::DEFAULT_SIMILAR_LIMIT, max: Embeddable::MAX_SIMILAR_LIMIT)
-      similar = Catalog::SectionQuery.with_associations(course.similar_sections(limit: limit))
+      similar = Catalog::SectionQuery.with_associations(course.similar_sections(limit: limit)).to_a
+      catalog_courses = Catalog::CourseQuery.for_sections(similar)
 
-      { crn: course.crn, sections: similar.map { |section| Catalog::SectionSerializer.new(section).as_json } }
+      { crn: course.crn, sections: similar.map { |section| Catalog::SectionSerializer.new(section, catalog_courses: catalog_courses).as_json } }
     end
   end
 end

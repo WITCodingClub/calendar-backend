@@ -28,6 +28,10 @@ module Types
     field :instructors, [ InstructorType ], null: false, method: :faculties
     field :meeting_times, [ MeetingTimeType ], null: false
     field :final_exam, FinalExamType, null: true
+    field :course, CourseType, null: true,
+          description: "The course across terms, with the description and prerequisites. Null until Banner's details are loaded."
+    field :description, String, null: true, description: "The course description"
+    field :prerequisites, GraphQL::Types::JSON, null: true, description: "The course prerequisites, as on course"
 
     # Each call runs its own vector query, so the field costs more than a
     # column and says so. It is empty until the section has been embedded.
@@ -44,6 +48,19 @@ module Types
 
     def course_code
       ::Catalog::SectionSerializer.course_code_for(object)
+    end
+
+    def course
+      dataloader.with(Sources::CatalogCourseSource).load([ object.prefix, object.course_number ])
+    end
+
+    def description
+      course&.description
+    end
+
+    def prerequisites
+      catalog_course = course
+      catalog_course && ::Catalog::CourseSerializer.new(catalog_course).as_json[:prerequisites]
     end
 
     def schedule_type_code

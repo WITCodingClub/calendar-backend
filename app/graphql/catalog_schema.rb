@@ -17,6 +17,9 @@ class CatalogSchema < GraphQL::Schema
   # At most one semantic search per query, counted against the REST budget.
   query_analyzer Analyzers::SemanticSearchLimit
 
+  # Batches lookups such as each section's course (Sources::CatalogCourseSource).
+  use GraphQL::Dataloader
+
   directives Directives::Cost, Directives::ListSize, Directives::QueryLimits, Directives::RateLimit
 
   # Machine-readable copies of the limits above, and of the Rack::Attack

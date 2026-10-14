@@ -9,6 +9,8 @@ module McpTools
       ListSubjects,
       SearchSections,
       GetSection,
+      SearchCourses,
+      GetCourse,
       SimilarSections,
       SearchInstructors,
       GetInstructor,

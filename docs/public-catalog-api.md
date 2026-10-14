@@ -209,12 +209,30 @@ message:
 | `GET /api/v1/catalog/instructors/:pub_id` | One instructor |
 | `GET /api/v1/catalog/instructors/:pub_id/similar` | Instructors like this one |
 | `GET /api/v1/catalog/reviews` | Rate My Professors reviews |
+| `GET /api/v1/catalog/courses` | Courses (not sections), by code or title words |
+| `GET /api/v1/catalog/courses/:code` | One course: description, prerequisites, corequisites, restrictions, what it unlocks |
 
 `GET /api/v1/catalog/subjects` accepts `term_uid`.
 
 `GET /api/v1/catalog/instructors` accepts `term_uid`, `q`, `semantic`, `page`,
 and `per_page`. Without `semantic`, each word of `q` must match the first, last,
 or display name, so `q=ada lovelace` finds Ada Lovelace.
+
+`GET /api/v1/catalog/courses` accepts `q` (a code such as `COMP 2350`, or title
+words), `subject`, `term_uid` (only courses with a section in that term), `page`,
+and `per_page`.
+
+`GET /api/v1/catalog/courses/:code` takes `COMP2350` or `COMP 2350`, and an
+optional `term_uid` that adds the course's sections in that term. The
+prerequisites are an and/or tree of courses and placement tests. Each course in
+the tree has its `title` and `linked: true` when WIT Calendar knows the course.
+`unlocks` lists the courses that name this one as a prerequisite. The data comes
+from Banner and is refreshed every night. Each section also has a `course`
+object with the description, the prerequisites, and `typically_offered`.
+
+`GET /api/v1/catalog/instructors/:pub_id` also returns the Rate My Professors
+rating distribution, the top tags, and the newest reviews. Add `term_uid` to list
+the sections the instructor teaches in that term.
 
 `GET /api/v1/catalog/sections/:crn` accepts `term_uid`. Use it when one CRN
 occurs in more than one term. This endpoint also returns cancelled sections, so

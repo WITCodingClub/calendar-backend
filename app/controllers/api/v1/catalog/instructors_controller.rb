@@ -28,8 +28,11 @@ module Api
           )
         end
 
+        # The full record: Rate My Professors distribution, tags, and recent
+        # reviews. With term_uid, also the sections taught in that term.
         def show
-          render_resource(::Catalog::InstructorSerializer.new(find_instructor).as_json)
+          term = find_term_param
+          render_resource(::Catalog::InstructorDetailSerializer.new(find_instructor, term: term).as_json)
         end
 
         # Instructors who teach something close to what this one teaches. The
@@ -46,6 +49,12 @@ module Api
         end
 
         private
+
+        def find_term_param
+          return nil if params[:term_uid].blank?
+
+          Term.find_by(uid: params[:term_uid]) || raise(ActiveRecord::RecordNotFound, "No term #{params[:term_uid]}")
+        end
 
         def find_instructor
           faculty = Faculty.includes(:rating_distribution).find_by_public_id(params[:pub_id])

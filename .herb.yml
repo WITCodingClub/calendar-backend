@@ -45,6 +45,9 @@ linter:
   # would ask for &gt; in llms.txt, and that breaks the markdown.
   exclude:
     - "**/*.text.erb"
+    # Pages saved as they came from outside services, such as Banner. Specs
+    # parse them as they are, so they keep their own whitespace.
+    - "spec/fixtures/files/**/*"
 
   # # Exit with error code when diagnostics of this severity or higher are present
   # # Valid values: error (default), warning, info, hint

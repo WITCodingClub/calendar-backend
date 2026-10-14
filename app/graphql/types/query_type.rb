@@ -39,6 +39,19 @@ module Types
       argument :term_uid, Integer, required: false
     end
 
+    field :course, CourseType, null: true,
+          description: "One course by code, such as \"COMP 2350\", across terms" do
+      argument :code, String, required: true
+    end
+
+    field :courses, CourseType.connection_type, null: false,
+          description: "Courses (not sections) by code or title words" do
+      argument :q, String, required: false
+      argument :subject, [ String ], required: false, description: "Subject codes, e.g. [\"COMP\"]"
+      argument :term_uid, Integer, required: false, description: "Only courses with a section in this term"
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE
+    end
+
     field :instructors, InstructorType.connection_type, null: false,
           description: "Faculty who teach at least one section" do
       argument :term_uid, Integer, required: false
@@ -94,6 +107,14 @@ module Types
       relation = ::Catalog::ReviewQuery.new.call(**filters)
 
       ::Catalog::ReviewQuery.with_associations(relation)
+    end
+
+    def course(code:)
+      ::Catalog::CourseQuery.new.find(code)
+    end
+
+    def courses(q: nil, subject: nil, term_uid: nil)
+      ::Catalog::CourseQuery.new.call(q: q, subject: subject, term_uid: term_uid)
     end
 
     def instructors(term_uid: nil, q: nil, semantic: false)

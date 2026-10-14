@@ -16,8 +16,10 @@ module Api
                      .with_associations(relation)
                      .page(page).per(per_page)
 
+          catalog_courses = ::Catalog::CourseQuery.for_sections(sections)
+
           render_collection(
-            sections.map { |course| ::Catalog::SectionSerializer.new(course).as_json },
+            sections.map { |course| ::Catalog::SectionSerializer.new(course, catalog_courses: catalog_courses).as_json },
             meta: {
               page:        page,
               per_page:    per_page,
@@ -38,10 +40,11 @@ module Api
         # until the section has a vector, which the nightly backfill writes.
         def similar
           course   = find_section(params[:crn], params[:term_uid])
-          relation = ::Catalog::SectionQuery.with_associations(course.similar_sections(limit: similar_limit))
+          relation = ::Catalog::SectionQuery.with_associations(course.similar_sections(limit: similar_limit)).to_a
+          catalog_courses = ::Catalog::CourseQuery.for_sections(relation)
 
           render_collection(
-            relation.map { |section| ::Catalog::SectionSerializer.new(section).as_json },
+            relation.map { |section| ::Catalog::SectionSerializer.new(section, catalog_courses: catalog_courses).as_json },
             meta: { crn: course.crn, limit: similar_limit }
           )
         end
