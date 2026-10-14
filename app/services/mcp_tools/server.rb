@@ -12,10 +12,16 @@ module McpTools
       Times are in the America/New_York time zone.
     TEXT
 
+    DESCRIPTION = "Wentworth course catalog and your WIT Calendar schedule, read-only."
+
     def self.build(user:, application:, request: nil)
       MCP::Server.new(
         name:           NAME,
         title:          "WIT Calendar",
+        description:    DESCRIPTION,
+        # Clients show this icon next to the connector, where they support
+        # serverInfo icons (MCP 2025-11-25). public/icon.png is 180x180.
+        icons:          [ { src: icon_url, mime_type: "image/png", sizes: [ "180x180" ] } ],
         version:        VersionService.current_version.to_s,
         website_url:    Rails.application.routes.url_helpers.mcp_docs_url(**url_options),
         instructions:   INSTRUCTIONS,
@@ -50,6 +56,10 @@ module McpTools
 
       tool = McpTools.names.include?(data[:tool_name]) ? data[:tool_name] : "unknown"
       Yabeda.calendar.mcp_tool_calls_total.increment({ tool: tool, status: failed ? "error" : "ok" })
+    end
+
+    def self.icon_url
+      "#{Rails.application.routes.url_helpers.root_url(**url_options).chomp('/')}/icon.png"
     end
 
     def self.url_options

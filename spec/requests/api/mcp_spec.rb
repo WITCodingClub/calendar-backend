@@ -85,10 +85,13 @@ RSpec.describe "Api::Mcp", type: :request do
   end
 
   it "answers initialize with the server info" do
-    rpc "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "spec", version: "1" } }
+    rpc "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "spec", version: "1" } }
 
     expect(response).to have_http_status(:ok)
-    expect(response.parsed_body.dig("result", "serverInfo", "name")).to eq(McpTools::Server::NAME)
+    server_info = response.parsed_body.dig("result", "serverInfo")
+    expect(server_info["name"]).to eq(McpTools::Server::NAME)
+    expect(server_info["description"]).to eq(McpTools::Server::DESCRIPTION)
+    expect(server_info["icons"]).to eq([ { "src" => "http://example.com/icon.png", "mimeType" => "image/png", "sizes" => [ "180x180" ] } ])
   end
 
   it "marks every tool read-only" do
