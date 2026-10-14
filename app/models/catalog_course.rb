@@ -9,6 +9,34 @@
 #   { "type" => "and" | "or", "operands" => [...] }
 #   { "type" => "course", "subject_code" => "COMP", "course_number" => 1050, "min_grade" => "C", "level" => "Undergraduate" }
 #   { "type" => "test", "name" => "WIT Math Assessment", "score" => "1500" }
+# == Schema Information
+#
+# Table name: catalog_courses
+#
+#  id                 :bigint           not null, primary key
+#  corequisites       :jsonb            not null
+#  course_number      :integer          not null
+#  credit_hours       :integer
+#  description        :text
+#  details_fetched_at :datetime
+#  prerequisites      :jsonb
+#  restrictions       :jsonb            not null
+#  subject_code       :string           not null
+#  title              :string
+#  typically_offered  :string           default([]), not null, is an Array
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  source_term_id     :bigint
+#
+# Indexes
+#
+#  index_catalog_courses_on_source_term_id                  (source_term_id)
+#  index_catalog_courses_on_subject_code_and_course_number  (subject_code,course_number) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (source_term_id => terms.id)
+#
 class CatalogCourse < ApplicationRecord
   CODE_PATTERN = /\A\s*([A-Za-z]{2,5})\s*-?\s*(\d{3,4})\s*\z/
 
