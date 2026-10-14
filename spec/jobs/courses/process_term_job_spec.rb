@@ -79,4 +79,11 @@ RSpec.describe Courses::ProcessTermJob do
     expect { described_class.perform_now(user, term, courses) }.to raise_error(ArgumentError, "bug")
     expect(status_row).to have_attributes(status: "failed", error_code: "internal_error")
   end
+
+  it "waits out a Banner cooldown instead of using up the quick retries" do
+    stub_service { raise Catalog::BannerThrottle::CooldownError.new(60) }
+
+    expect { described_class.perform_now(user, term, courses) }
+      .to have_enqueued_job(described_class).at(a_value >= Catalog::BannerThrottle::COOLDOWN.from_now)
+  end
 end

@@ -272,4 +272,29 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       expect(stub).to have_been_requested.twice
     end
   end
+
+  describe "Banner errors" do
+    let(:url) { "#{described_class::BASE_URL}getFacultyMeetingTimes" }
+
+    it "retries a 500 and returns the next answer (Catalog::BannerThrottle)" do
+      stub = stub_request(:get, url).with(query: hash_including("term" => "202720"))
+                                    .to_return({ status: 500 },
+                                               { status: 200, body: { fmt: [] }.to_json,
+                                                 headers: { "Content-Type" => "application/json" } })
+
+      result = described_class.get_faculty_meeting_times(term: 202720, course_reference_number: 20382)
+
+      expect(result).to eq("fmt" => [])
+      expect(stub).to have_been_requested.twice
+    end
+
+    it "raises a RequestError at once while Banner cools down" do
+      stub = stub_request(:get, url).with(query: hash_including({}))
+      Catalog::BannerThrottle::COOLDOWN_AFTER.times { Catalog::BannerThrottle.record_failure }
+
+      expect { described_class.get_faculty_meeting_times(term: 202720, course_reference_number: 20382) }
+        .to raise_error(described_class::RequestError)
+      expect(stub).not_to have_been_requested
+    end
+  end
 end

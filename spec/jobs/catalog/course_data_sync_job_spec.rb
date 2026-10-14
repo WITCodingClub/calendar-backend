@@ -217,4 +217,17 @@ RSpec.describe Catalog::CourseDataSyncJob do
       expect(course.reload.faculties.map(&:email)).to eq([ "minevichi@wit.edu" ])
     end
   end
+
+  describe "when Banner cools down" do
+    it "stops the run, reports nothing, and tries again after the cooldown" do
+      course
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+      reports = capture_error_reports do
+        expect { described_class.perform_now(term_uids: [ term.uid ]) }.to have_enqueued_job(described_class)
+      end
+
+      expect(reports).to be_empty
+    end
+  end
 end

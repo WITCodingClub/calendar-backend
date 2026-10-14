@@ -50,6 +50,7 @@ The host side lives in [jaspermayone/infra](https://github.com/jaspermayone/infr
 | `calendar_csp_reports_total` | counter | `directive`: the violated directive, for example `script-src-elem`, or `other` | `CspReports` |
 | `calendar_api_legacy_requests_total` | counter | `route`: the old path, for example `GET user/email` | `Api::LegacyRouteCounting` |
 | `calendar_errors_reported_total` | counter | `error_class`, `handled`, `severity`, `source` | `ErrorReportSubscriber` |
+| `calendar_banner_requests_total` | counter | `outcome`: `ok`, `retried` (one for each retry), `failed`, or `cooldown` (refused while Banner cools down) | `Catalog::BannerThrottle` |
 | `calendar_mcp_tool_calls_total` | counter | `tool`: a tool name, or `unknown`; `status`: `ok` or `error` | `McpTools::Server` |
 | `calendar_oauth_clients_registered_total` | counter | | `Oauth::RegistrationsController` |
 

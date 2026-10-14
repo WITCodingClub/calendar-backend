@@ -11,12 +11,20 @@ module Concurrently
   # results in the order of `items`. It waits for every block in a batch, then
   # raises the error of the first item in that batch that failed. Later batches
   # do not start after a failure.
+  #
+  # Each thread gets a copy of the caller's ActiveSupport::ExecutionContext, so
+  # code in the block still knows the job or the request it runs for (error
+  # reports, and the Banner retry budget in Catalog::BannerThrottle).
   def self.map(items, limit: items.size, &block)
+    context = ActiveSupport::ExecutionContext.to_h
+
     items.each_slice([ limit, 1 ].max).flat_map do |batch|
       threads = batch.map do |item|
         Thread.new do
           Thread.current.report_on_exception = false
-          Rails.application.executor.wrap { block.call(item) }
+          Rails.application.executor.wrap do
+            ActiveSupport::ExecutionContext.set(**context) { block.call(item) }
+          end
         end
       end
 

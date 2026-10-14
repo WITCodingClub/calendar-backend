@@ -70,4 +70,14 @@ RSpec.describe Concurrently do
       expect(described_class.map([]) { raise "never called" }).to eq([])
     end
   end
+
+  it "gives each thread the caller's execution context" do
+    job = Object.new
+
+    seen = ActiveSupport::ExecutionContext.set(job: job) do
+      described_class.map([ 1, 2 ]) { ActiveSupport::ExecutionContext.to_h[:job] }
+    end
+
+    expect(seen).to eq([ job, job ])
+  end
 end
