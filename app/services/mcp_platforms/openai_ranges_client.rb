@@ -44,7 +44,9 @@ module McpPlatforms
       @connection ||= Faraday.new do |f|
         f.options.open_timeout = OPEN_TIMEOUT
         f.options.timeout      = READ_TIMEOUT
-        f.response :json
+        # OpenAI serves the file as application/octet-stream, so parse every
+        # body, not only one with a JSON content type.
+        f.response :json, content_type: //
       end
     end
   end
