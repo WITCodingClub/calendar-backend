@@ -28,4 +28,18 @@ RSpec.describe "Job concurrency groups" do
     expect(writers.map(&:concurrency_group).uniq).to eq([ "GoogleCalendarSyncJob" ])
     expect(CourseCalendars::SyncJob.concurrency_group).to eq("GoogleCalendarSyncJob")
   end
+
+  # Solid Queue frees a lock when its duration ends, even while the job still
+  # runs. A second job with the same key could then run at the same time. Each
+  # of these jobs can run for longer than the 3-minute default.
+  {
+    CourseCalendars::SyncJob => 1.hour,
+    CourseCalendars::HistoricalSyncJob => 1.hour,
+    Courses::ProcessTermJob => 1.hour,
+    Catalog::CourseDataSyncJob => 6.hours
+  }.each do |job, duration|
+    it "holds the lock of #{job.name} for #{duration.inspect}" do
+      expect(job.concurrency_duration).to eq(duration)
+    end
+  end
 end
