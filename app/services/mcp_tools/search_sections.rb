@@ -46,11 +46,18 @@ module McpTools
 
       {
         term_uid: term.uid,
-        sections: sections.map { |course| Catalog::SectionSerializer.new(course).as_json },
+        sections: serialize(sections.to_a),
         meta:     page_meta(page, per_page, total)
       }
     rescue Catalog::FilterError => e
       raise ToolError, e.message
+    end
+
+    private
+
+    def serialize(sections)
+      catalog_courses = Catalog::CourseQuery.for_sections(sections)
+      sections.map { |course| Catalog::SectionSerializer.new(course, catalog_courses: catalog_courses).as_json }
     end
   end
 end

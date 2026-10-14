@@ -22,6 +22,9 @@ module Catalog
       Rails.logger.info "[Catalog::CourseDataSyncJob] Starting sync for terms: #{term_uids}"
 
       term_uids.each { |uid| sync_term_courses(uid) }
+      # Prerequisites and descriptions change rarely. The details job skips a
+      # course it fetched for the same term in the last week.
+      term_uids.each { |uid| Catalog::CourseDetailsSyncJob.perform_later(uid) }
 
       Rails.logger.info "[Catalog::CourseDataSyncJob] Completed sync for #{term_uids.length} terms"
     end

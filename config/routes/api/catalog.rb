@@ -26,6 +26,10 @@ namespace :v1 do
 
     get "reviews", to: "reviews#index"
 
+    # A course across terms. The code may be "COMP2350" or "COMP 2350".
+    get "courses",       to: "courses#index"
+    get "courses/:code", to: "courses#show", as: :course, format: false
+
     get "instructors",                 to: "instructors#index"
     get "instructors/:pub_id",         to: "instructors#show",    as: :instructor
     get "instructors/:pub_id/similar", to: "instructors#similar", as: :similar_instructors

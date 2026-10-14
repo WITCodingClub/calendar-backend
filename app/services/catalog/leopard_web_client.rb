@@ -82,6 +82,36 @@ module Catalog
       ).call
     end
 
+    # The four pages Banner shows for a section's course: the description, the
+    # prerequisites, the corequisites, and the restrictions. Each is HTML, which
+    # Catalog::CourseDetailsParser reads. Raises RequestError when Banner does
+    # not answer 200.
+    COURSE_DETAIL_PAGES = {
+      description:   "getCourseDescription",
+      prerequisites: "getSectionPrerequisites",
+      corequisites:  "getCorequisites",
+      restrictions:  "getRestrictions"
+    }.freeze
+
+    # @return [Hash{Symbol => String}] the HTML of each page in COURSE_DETAIL_PAGES
+    def self.get_course_details(term:, course_reference_number:)
+      new(action: :get_course_details, term: term, course_reference_number: course_reference_number).course_details
+    end
+
+    # The requests go one after another, not at once, so a sync of every
+    # course in a term stays gentle on Banner.
+    def course_details
+      raise ArgumentError, "term is required" unless term
+      raise ArgumentError, "course_reference_number is required" unless course_reference_number
+
+      COURSE_DETAIL_PAGES.transform_values do |path|
+        response = connection.get(path, { term: term, courseReferenceNumber: course_reference_number })
+        raise RequestError.new("Banner #{path} answered #{response.status}", status: response.status) unless response.status == 200
+
+        response.body.to_s
+      end
+    end
+
     ACTIVE_TERMS_CACHE_KEY = "leopard_web/active_terms"
 
     # Banner's term list changes a few times a year. The admin catalog page and

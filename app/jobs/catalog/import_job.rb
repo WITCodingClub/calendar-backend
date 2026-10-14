@@ -23,6 +23,9 @@ module Catalog
       end
 
       Catalog::Importer.new(courses).call!
+      # Descriptions and prerequisites come from four more Banner pages per
+      # course, so they load in their own job, after the sections exist.
+      Catalog::CourseDetailsSyncJob.perform_later(term_uid)
 
       Rails.logger.info "[Catalog::ImportJob] Completed import for term #{term_uid}"
     rescue => e

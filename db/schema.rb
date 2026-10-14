@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_14_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_15_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -189,6 +189,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_120000) do
     t.index ["provider", "external_calendar_id"], name: "index_calendars_on_provider_and_external_calendar_id", unique: true
   end
 
+  create_table "catalog_courses", force: :cascade do |t|
+    t.string "subject_code", null: false
+    t.integer "course_number", null: false
+    t.string "title"
+    t.text "description"
+    t.integer "credit_hours"
+    t.string "typically_offered", default: [], null: false, array: true
+    t.jsonb "prerequisites"
+    t.jsonb "corequisites", default: [], null: false
+    t.jsonb "restrictions", default: [], null: false
+    t.bigint "source_term_id"
+    t.datetime "details_fetched_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["source_term_id"], name: "index_catalog_courses_on_source_term_id"
+    t.index ["subject_code", "course_number"], name: "index_catalog_courses_on_subject_code_and_course_number", unique: true
+  end
+
   create_table "console1984_commands", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "sensitive_access_id"
@@ -253,6 +271,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_120000) do
     t.check_constraint "end_time >= begin_time", name: "course_meeting_times_end_after_begin"
     t.check_constraint "meeting_schedule_type = ANY (ARRAY[1, 2])", name: "course_meeting_times_schedule_type_valid"
     t.check_constraint "meeting_type = 1", name: "course_meeting_times_meeting_type_valid"
+  end
+
+  create_table "course_prerequisites", force: :cascade do |t|
+    t.bigint "catalog_course_id", null: false
+    t.bigint "required_catalog_course_id"
+    t.string "required_subject_code", null: false
+    t.integer "required_course_number", null: false
+    t.string "min_grade"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_course_id"], name: "index_course_prerequisites_on_catalog_course_id"
+    t.index ["required_catalog_course_id"], name: "index_course_prerequisites_on_required_catalog_course_id"
+    t.index ["required_subject_code", "required_course_number"], name: "idx_on_required_subject_code_required_course_number_45b4b1b10c"
   end
 
   create_table "courses", force: :cascade do |t|
@@ -1105,9 +1136,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_120000) do
   add_foreign_key "calendar_events", "university_calendar_events", on_delete: :nullify
   add_foreign_key "calendar_preferences", "users"
   add_foreign_key "calendars", "oauth_credentials"
+  add_foreign_key "catalog_courses", "terms", column: "source_term_id"
   add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "course_meeting_time_rooms", "rooms"
   add_foreign_key "course_meeting_times", "courses"
+  add_foreign_key "course_prerequisites", "catalog_courses", column: "required_catalog_course_id", on_delete: :nullify
+  add_foreign_key "course_prerequisites", "catalog_courses", on_delete: :cascade
   add_foreign_key "courses", "terms"
   add_foreign_key "courses_faculties", "courses"
   add_foreign_key "courses_faculties", "faculties"

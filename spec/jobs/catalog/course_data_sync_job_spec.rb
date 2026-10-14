@@ -66,6 +66,13 @@ RSpec.describe Catalog::CourseDataSyncJob do
     )
   end
 
+  it "enqueues the course details sync for each term it syncs" do
+    stub_leopard_web([ banner_meeting_time(room: "308") ])
+
+    expect { described_class.perform_now(term_uids: [ term.uid ]) }
+      .to have_enqueued_job(Catalog::CourseDetailsSyncJob).with(term.uid)
+  end
+
   it "writes the new room when the registrar moves the section" do
     stub_leopard_web([ banner_meeting_time(room: "308") ])
 
