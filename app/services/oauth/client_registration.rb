@@ -48,15 +48,18 @@ module Oauth
         raise InvalidClientMetadataError.new("invalid_client_metadata", "token_endpoint_auth_method must be none")
       end
 
+      # A client may list grants and response types that this server does not
+      # offer, such as the JWT bearer grant in claude.ai's metadata document.
+      # The server only needs the ones it uses, and it never issues the others.
       grant_types = Array(metadata[:grant_types].presence || %w[authorization_code])
-      unless (grant_types - %w[authorization_code refresh_token]).empty?
-        raise InvalidClientMetadataError.new("invalid_client_metadata", "only authorization_code and refresh_token grants are supported")
+      unless grant_types.include?("authorization_code")
+        raise InvalidClientMetadataError.new("invalid_client_metadata", "the client must use the authorization_code grant")
       end
 
       response_types = Array(metadata[:response_types].presence || %w[code])
-      return if response_types == %w[code]
+      return if response_types.include?("code")
 
-      raise InvalidClientMetadataError.new("invalid_client_metadata", "only the code response type is supported")
+      raise InvalidClientMetadataError.new("invalid_client_metadata", "the client must use the code response type")
     end
 
     def redirect_uris

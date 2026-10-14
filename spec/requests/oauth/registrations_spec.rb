@@ -57,13 +57,21 @@ RSpec.describe "Oauth::Registrations", type: :request do
     expect(response.parsed_body["error"]).to eq("invalid_client_metadata")
   end
 
-  it "refuses other grant types" do
+  it "refuses a client without the authorization_code grant" do
     register(redirect_uris: [ "https://example.com/callback" ], grant_types: [ "client_credentials" ])
 
     expect(response.parsed_body["error"]).to eq("invalid_client_metadata")
   end
 
-  it "refuses other response types" do
+  it "accepts extra grant types and returns only the ones it offers" do
+    register(redirect_uris: [ "https://example.com/callback" ],
+             grant_types: [ "authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:jwt-bearer" ])
+
+    expect(response).to have_http_status(:created)
+    expect(response.parsed_body["grant_types"]).to eq(%w[authorization_code refresh_token])
+  end
+
+  it "refuses a client without the code response type" do
     register(redirect_uris: [ "https://example.com/callback" ], response_types: [ "token" ])
 
     expect(response.parsed_body["error"]).to eq("invalid_client_metadata")
