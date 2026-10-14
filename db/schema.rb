@@ -295,6 +295,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_120000) do
     t.string "grade_mode"
     t.boolean "is_section_linked", default: false, null: false
     t.string "link_identifier"
+    t.datetime "links_fetched_at"
     t.string "schedule_type", null: false
     t.integer "seats_available"
     t.integer "seats_capacity"
@@ -746,6 +747,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_120000) do
     t.check_constraint "floor >= 0", name: "rooms_floor_non_negative"
   end
 
+  create_table "section_links", force: :cascade do |t|
+    t.bigint "course_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "credit_hours"
+    t.bigint "linked_course_id", null: false
+    t.integer "option_group", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_id", "option_group", "linked_course_id"], name: "index_section_links_on_course_group_linked", unique: true
+    t.index ["linked_course_id"], name: "index_section_links_on_linked_course_id"
+  end
+
   create_table "security_events", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "event_type", null: false
@@ -1182,6 +1194,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_120000) do
   add_foreign_key "related_professors", "faculties", column: "related_faculty_id"
   add_foreign_key "rmp_ratings", "faculties"
   add_foreign_key "rooms", "buildings"
+  add_foreign_key "section_links", "courses", column: "linked_course_id", on_delete: :cascade
+  add_foreign_key "section_links", "courses", on_delete: :cascade
   add_foreign_key "security_events", "oauth_credentials"
   add_foreign_key "security_events", "users"
   add_foreign_key "sign_in_identities", "users"

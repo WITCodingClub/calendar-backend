@@ -211,8 +211,17 @@ message:
 | `GET /api/v1/catalog/reviews` | Rate My Professors reviews |
 | `GET /api/v1/catalog/courses` | Courses (not sections), by code or title words |
 | `GET /api/v1/catalog/courses/:code` | One course: description, prerequisites, corequisites, restrictions, what it unlocks |
+| `GET /api/v1/catalog/schedule_check` | Check a set of sections taken together |
 
 `GET /api/v1/catalog/subjects` accepts `term_uid`.
+
+`GET /api/v1/catalog/schedule_check` needs `term_uid` and `crn`, a
+comma-separated list of at most 30 CRNs, labs included. It returns time
+conflicts (the same day, overlapping times, overlapping dates), linked
+lecture and lab pairs that are missing a partner, the same course chosen
+twice, and totals: credit hours, days, earliest start, latest end, and the
+number of meetings before 9:00. Credit hours use Banner's credits for linked
+sections, where a lab is 0.
 
 `GET /api/v1/catalog/instructors` accepts `term_uid`, `q`, `semantic`, `page`,
 and `per_page`. Without `semantic`, each word of `q` must match the first, last,
@@ -459,14 +468,14 @@ query Sections($filter: SectionFilterInput) {
   carry `Cache-Control: public, max-age=3600`, which adds at most one more hour.
   Either field is `null` when Banner did not return enrollment data for the CRN.
 - `linked` says which sections a student must register together, most often a
-  lecture and its lab. It comes from Banner's own `linkIdentifier`, which reads
-  as `<slot><key>`: the first character is the slot (`A` for the lecture, `B`
-  for the lab) and the rest is the key that pairs them. A lecture `A1` goes with
-  every lab `B1` of the same course. `linked.crns` lists the partners in the
-  same term, so a client does not have to work the pairing out from the section
-  number. `linked.pub_ids` names the same partners by public id, in the same
-  order. `linked.required` is `false` and both lists are empty for a section
-  that stands alone.
+  lecture and its lab. When `linked.source` is `banner`, the pairs come from
+  Banner's own linked sections, fetched for each linked section. Before that,
+  `source` is `link_identifier`: a guess that pairs a lecture `A1` with every
+  lab `B1` of the same course. The guess can be wrong. `linked.options` lists
+  the sets of partners: take every CRN of any one set. `linked.crns` lists all
+  partners, and `linked.pub_ids` names them by public id, in the same order.
+  `linked.required` is `false` and the lists are empty for a section that
+  stands alone.
 - `pub_id` is the id to store. It is unique across every term and it never
   changes, so it is the key to use when you join this catalog to another system.
   A CRN is only unique inside one term, and the registrar reuses it. Both are

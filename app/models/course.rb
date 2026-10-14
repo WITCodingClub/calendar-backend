@@ -52,6 +52,9 @@ class Course < ApplicationRecord
 
   # Ordered on the join so `faculties.first` is Banner's primary instructor and
   # not whichever join row happens to be oldest.
+  # Banner's lecture and lab pairs for this section (Catalog::SectionLinksSync).
+  has_many :section_links, dependent: :delete_all
+  has_many :banner_linked_courses, through: :section_links, source: :linked_course
   has_many :course_faculties, -> { in_banner_order }, dependent: :destroy, inverse_of: :course
   has_many :faculties, through: :course_faculties
   has_many :meeting_times, class_name: "Course::MeetingTime", dependent: :destroy

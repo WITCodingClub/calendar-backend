@@ -76,6 +76,14 @@ module Catalog
       result
     end
 
+    # The section's own credits from Banner's search data. A lab reports 0
+    # there, so it gets nil: its credits belong to the linked lecture.
+    def self.credit_hours_for(course_data)
+      hours = course_data["creditHours"]
+      hours = course_data["creditHourLow"] if hours.nil? && course_data["creditHourIndicator"].blank?
+      hours.to_i.positive? ? hours.to_i : nil
+    end
+
     private
 
     def process_course(course_data)
@@ -234,9 +242,7 @@ module Catalog
     # credits. Some labs stand alone and carry credits (ARCH studios are 6), so
     # the schedule type does not decide this. Store nil for 0.
     def credit_hours_for(course_data)
-      hours = course_data["creditHours"]
-      hours = course_data["creditHourLow"] if hours.nil? && course_data["creditHourIndicator"].blank?
-      hours.to_i.positive? ? hours.to_i : nil
+      self.class.credit_hours_for(course_data)
     end
 
     def validate_courses_data!

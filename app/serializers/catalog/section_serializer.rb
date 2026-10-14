@@ -83,17 +83,10 @@ module Catalog
     end
 
     # Banner marks the sections a student has to register together, most often a
-    # lecture and its lab. `crns` names the partners in the same term, so a
-    # client does not have to guess the pairing from the section number.
+    # lecture and its lab. Catalog::SectionLinks gives Banner's own pairs once
+    # they are fetched, and says which source it used.
     def linked
-      partners = @course.linked_sections.pluck(:crn, :id)
-
-      {
-        required:   @course.is_section_linked,
-        identifier: @course.link_identifier,
-        crns:       partners.map(&:first),
-        pub_ids:    partners.map { |(_crn, id)| Course.public_id_for(id) }
-      }
+      SectionLinks.new(@course).as_json
     end
 
     def meeting_times

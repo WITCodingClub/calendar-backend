@@ -20,6 +20,8 @@ namespace :v1 do
 
     get "subjects", to: "subjects#index"
 
+    get "schedule_check", to: "schedule_checks#show", as: :schedule_check
+
     get "sections",              to: "sections#index"
     get "sections/:crn",         to: "sections#show",    as: :section,          constraints: { crn: /\d+/ }
     get "sections/:crn/similar", to: "sections#similar", as: :similar_sections, constraints: { crn: /\d+/ }

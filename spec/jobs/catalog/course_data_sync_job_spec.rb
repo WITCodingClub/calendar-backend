@@ -115,6 +115,39 @@ RSpec.describe Catalog::CourseDataSyncJob do
     expect(linked_rooms).to eq([ [ "IRAH", "112" ] ])
   end
 
+  describe "credit hours" do
+    # getClassDetails gives the course's credits, so it says 4 for a lab.
+    it "keeps the section's own credit hours from the import" do
+      course.update!(schedule_type: "LAB", credit_hours: nil)
+      stub_leopard_web([ banner_meeting_time ])
+
+      described_class.perform_now
+
+      expect(course.reload.credit_hours).to be_nil
+    end
+  end
+
+  describe "section links" do
+    it "fetches Banner's pairs for a linked section" do
+      course.update!(is_section_linked: true, link_identifier: "A1")
+      stub_leopard_web([ banner_meeting_time ])
+      allow(Catalog::SectionLinksSync).to receive(:call)
+
+      described_class.perform_now
+
+      expect(Catalog::SectionLinksSync).to have_received(:call).with(course)
+    end
+
+    it "sends no link request for a section that is not linked" do
+      stub_leopard_web([ banner_meeting_time ])
+      allow(Catalog::SectionLinksSync).to receive(:call)
+
+      described_class.perform_now
+
+      expect(Catalog::SectionLinksSync).not_to have_received(:call)
+    end
+  end
+
   describe "term selection" do
     it "syncs the running and upcoming terms, not every term Banner lists" do
       allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_raise("Banner should not be asked")

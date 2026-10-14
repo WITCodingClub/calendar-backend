@@ -71,15 +71,9 @@ module Types
       { capacity: object.seats_capacity, available: object.seats_available }
     end
 
+    # The same answer as the REST API, from Catalog::SectionLinks.
     def linked
-      partners = object.linked_sections.pluck(:crn, :id)
-
-      {
-        required:   object.is_section_linked,
-        identifier: object.link_identifier,
-        crns:       partners.map(&:first),
-        pub_ids:    partners.map { |(_crn, id)| Course.public_id_for(id) }
-      }
+      ::Catalog::SectionLinks.new(object).as_json
     end
 
     # filtered_meeting_times drops the duplicate rows a concurrent ingest can
