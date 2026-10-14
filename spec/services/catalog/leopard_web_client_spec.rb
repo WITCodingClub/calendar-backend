@@ -16,7 +16,7 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
   HTML
 
   # Banner reports a negative count for a section that holds more students than
-  # its cap. The courses table forbids a negative count.
+  # its cap. The importer stores that number as is, so this client does too.
   OVER_ENROLLED_HTML = <<~HTML
     <section aria-labelledby="enrollmentInfo">
       <span class="status-bold">Enrollment Actual:</span> <span dir="ltr">23</span><br>
@@ -81,15 +81,15 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       expect(result[:waitlist]).to eq(capacity: 0, actual: 0, seats_available: 0)
     end
 
-    it "reports no seat left for an over-enrolled section, not a negative count" do
+    it "keeps the negative count of an over-enrolled section, as the importer does" do
       service = described_class.new(action: :get_enrollment_info, term: 202710,
                                     course_reference_number: 16_962)
       stub_connection(service, body: OVER_ENROLLED_HTML)
 
       result = service.call
 
-      expect(result[:enrollment]).to eq(actual: 23, maximum: 15, seats_available: 0)
-      expect(result[:waitlist][:seats_available]).to eq(0)
+      expect(result[:enrollment]).to eq(actual: 23, maximum: 15, seats_available: -8)
+      expect(result[:waitlist][:seats_available]).to eq(-2)
     end
 
     it "returns nil when the page carries no enrollment section" do

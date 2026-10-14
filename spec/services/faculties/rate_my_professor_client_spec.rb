@@ -58,12 +58,11 @@ RSpec.describe Faculties::RateMyProfessorClient, type: :service do
       expect(result.dig("data", "newSearch", "teachers", "edges")).to eq([])
     end
 
-    it "returns the raw response body when the server answers with an error status" do
+    it "raises when the server answers with an error status" do
       stub_graphql("NewSearchTeachersQuery", status: 500, body: { error: "boom" }.to_json)
 
-      result = service.search_professors("Ada Byron")
-
-      expect(result).to eq("error" => "boom")
+      expect { service.search_professors("Ada Byron") }
+        .to raise_error(Faculties::RateMyProfessorClient::Error, /500/)
     end
 
     it "raises when the response body is not valid JSON" do
@@ -197,6 +196,61 @@ RSpec.describe Faculties::RateMyProfessorClient, type: :service do
 
       expect(url).to include(URI.encode_www_form_component("Jean-Luc"))
       expect(url).to include(URI.encode_www_form_component("O'Reilly"))
+    end
+  end
+
+  describe "failed responses" do
+    before { allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new) }
+
+    def stub_failure(operation_name, status:, fixture:, content_type:)
+      stub_request(:post, base_url)
+        .with(body: hash_including("operationName" => operation_name))
+        .to_return(status: status, body: file_fixture("rate_my_professor/#{fixture}").read,
+                   headers: { "Content-Type" => content_type })
+    end
+
+    it "raises on a 429 JSON body and does not cache it" do
+      stub_failure("NewSearchTeachersQuery", status: 429, fixture: "rate_limited.json", content_type: "application/json")
+
+      2.times do
+        expect { service.search_professors("Ada Byron") }
+          .to raise_error(Faculties::RateMyProfessorClient::Error, /429/)
+      end
+
+      expect(WebMock).to have_requested(:post, base_url).twice
+    end
+
+    it "raises on a 503 HTML body and does not cache it" do
+      stub_failure("TeacherRatingsPageQuery", status: 503, fixture: "unavailable.html", content_type: "text/html")
+
+      2.times do
+        expect { service.get_teacher_details("VGVhY2hlci0xMjM0NTY=") }
+          .to raise_error(Faculties::RateMyProfessorClient::Error, /503/)
+      end
+
+      expect(WebMock).to have_requested(:post, base_url).twice
+    end
+
+    it "raises on a 200 response whose body is not a JSON object" do
+      stub_failure("RatingsListQuery", status: 200, fixture: "unavailable.html", content_type: "text/html")
+
+      expect { service.get_ratings("VGVhY2hlci0xMjM0NTY=") }
+        .to raise_error(Faculties::RateMyProfessorClient::Error, /body/)
+    end
+
+    it "recovers on the next call after a failure" do
+      stub_failure("NewSearchTeachersQuery", status: 429, fixture: "rate_limited.json", content_type: "application/json")
+      expect { service.search_professors("Ada Byron") }.to raise_error(Faculties::RateMyProfessorClient::Error)
+
+      stub_graphql("NewSearchTeachersQuery", fixture: "search_results.json")
+
+      expect(service.search_professors("Ada Byron").dig("data", "newSearch", "teachers", "edges")).not_to be_empty
+    end
+
+    it "stops without raising when a ratings page has no pageInfo" do
+      stub_graphql("RatingsListQuery", body: { data: { node: { ratings: { edges: [ { node: { legacyId: 7 } } ] } } } }.to_json)
+
+      expect(service.get_all_ratings("VGVhY2hlci0xMjM0NTY=").map { |r| r["legacyId"] }).to eq([ 7 ])
     end
   end
 end

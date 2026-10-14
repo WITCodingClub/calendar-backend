@@ -136,6 +136,34 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
       expect(cancel).to have_been_requested
     end
 
+    it "keeps the row and retries the exclusions when cancelling an occurrence fails" do
+      calendar
+      create_stub = stub_event_create
+      stub_request(:get, "#{graph}/me/events/#{created_event_id}/instances")
+        .with(query: hash_including({})).to_return(graph_json_response("event_instances"))
+      stub_request(:delete, "#{graph}/me/events/AAMkSyntheticOccurrence1").to_return(status: 429)
+      allow_any_instance_of(Faraday::Retry::Middleware).to receive(:sleep) # rubocop:disable RSpec/AnyInstance
+      recurring = class_event.merge(
+        recurrence: [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO", "EXDATE;TZID=America/New_York:20261012T090000" ]
+      )
+      allow(Rails.error).to receive(:report)
+
+      service.update_calendar_events([ recurring ])
+
+      expect(calendar.calendar_events.sole).to have_attributes(external_event_id: created_event_id)
+      expect(Rails.error).to have_received(:report)
+        .with(instance_of(MicrosoftGraph::Error), handled: true, context: hash_including(user_id: user.id))
+
+      stub_request(:delete, "#{graph}/me/events/AAMkSyntheticOccurrence1").to_return(status: 204)
+      stub_request(:patch, "#{graph}/me/events/#{created_event_id}").to_return(graph_json_response("event_updated"))
+      stub_request(:get, "#{graph}/me/events/#{created_event_id}").with(query: hash_including({}))
+        .to_return(graph_json_response("event_fetched"))
+      described_class.new(user).update_calendar_events([ recurring ])
+
+      expect(create_stub).to have_been_requested.once
+      expect(calendar.calendar_events.count).to eq(1)
+    end
+
     it "skips an event that has not changed" do
       calendar
       create_stub = stub_event_create
@@ -372,6 +400,19 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
       expect(create_stub).to have_been_requested.twice
       expect(master_categories).to have_been_requested.once
       expect(a_request(:post, categories_url).with(body: { displayName: "WIT Banana", color: "preset3" }.to_json)).to have_been_made.once
+    end
+
+    it "clears the WIT category on a forced update when the color is gone" do
+      # An event with no resolved color (for example a cleared preference) has no category.
+      allow_any_instance_of(MicrosoftGraph::CategoryCache).to receive(:name_for).and_return(nil) # rubocop:disable RSpec/AnyInstance
+      create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time, external_event_id: created_event_id)
+      patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}")
+              .with(body: hash_including("categories" => []))
+              .to_return(graph_json_response("event_updated"))
+
+      service.update_calendar_events([ class_event ], force: true)
+
+      expect(patch).to have_been_requested
     end
 
     it "keeps the person's own categories and swaps the old WIT category on update" do
