@@ -17,6 +17,7 @@ module Courses
 
       processed = []
       touched_meeting_time_ids = []
+      prunable_course_ids = []
       enrolled_terms = Set.new
 
       grouped_courses = courses.group_by { |c| [ c[:crn], c[:term] ] }
@@ -145,14 +146,14 @@ module Courses
             # Only rows absent from the upload are removed, after the loop; their
             # calendar events are nullified and cleaned up by
             # Cleanup::OrphanedCalendarEventsJob.
-            touched_meeting_time_ids.concat(
-              Catalog::MeetingTimesIngest.call(
-                course: course,
-                raw_meeting_times: meeting_times,
-                locations: locations,
-                existing_meeting_times: existing_meeting_times.fetch(course.id, [])
-              )
+            course_touched_ids = Catalog::MeetingTimesIngest.call(
+              course: course,
+              raw_meeting_times: meeting_times,
+              locations: locations,
+              existing_meeting_times: existing_meeting_times.fetch(course.id, [])
             )
+            touched_meeting_time_ids.concat(course_touched_ids)
+            prunable_course_ids << course.id if course_touched_ids.any?
 
             Faculties::Ingest.call(
               course: course,
@@ -165,8 +166,10 @@ module Courses
             enrolled_terms << term
           end
 
-          processed_course_ids = processed.map(&:first)
-          Course::MeetingTime.where(course_id: processed_course_ids).where.not(id: touched_meeting_time_ids)
+          # Prune only courses whose ingest wrote a row. An ingest skips entries
+          # with no times (TBA) and returns no ids, which is not proof that the
+          # course lost its meetings. Catalog::Importer has the same guard.
+          Course::MeetingTime.where(course_id: prunable_course_ids).where.not(id: touched_meeting_time_ids)
                            .includes(:meeting_time_rooms, :event_preference).destroy_all
         end
       end

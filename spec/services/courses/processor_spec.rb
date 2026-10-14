@@ -90,6 +90,18 @@ RSpec.describe Courses::Processor do
     expect(CalendarEvent.orphaned).to include(event)
   end
 
+  it "keeps the meeting times of a course whose upload has no usable times" do
+    process!
+    course = Course.find_by(crn: 12345)
+    original_ids = course.meeting_times.pluck(:id)
+
+    class_details[:meeting_times].first["startTime"] = nil
+    class_details[:meeting_times].first["endTime"] = nil
+    process!
+
+    expect(course.meeting_times.pluck(:id)).to match_array(original_ids)
+  end
+
   # Prosopite raises in Prosopite.scan when the same query runs once for each
   # course (#723).
   describe "with several courses" do
