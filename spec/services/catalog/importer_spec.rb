@@ -233,4 +233,41 @@ RSpec.describe Catalog::Importer do
         .to eq([ "sandersone1@wit.edu", "minevichi@wit.edu" ])
     end
   end
+
+  describe "counts and repeated imports" do
+    it "counts a new section as added" do
+      result = described_class.call([ catalog_course ])
+
+      expect(result).to include(created: 1, updated: 0, unchanged: 0)
+    end
+
+    it "changes nothing when the same data is imported twice" do
+      described_class.call([ catalog_course ])
+      before = Course.where(term: term).pluck(:id, :updated_at)
+      meeting_times = Course::MeetingTime.pluck(:id, :updated_at)
+
+      result = described_class.call([ catalog_course ])
+
+      expect(result).to include(created: 0, updated: 0, unchanged: 1)
+      expect(Course.where(term: term).pluck(:id, :updated_at)).to eq(before)
+      expect(Course::MeetingTime.pluck(:id, :updated_at)).to match_array(meeting_times)
+    end
+
+    it "counts a section whose title changed as updated" do
+      described_class.call([ catalog_course ])
+
+      result = described_class.call([ catalog_course("courseTitle" => "Data Structures II") ])
+
+      expect(result).to include(created: 0, updated: 1, unchanged: 0)
+    end
+
+    it "keeps the enrollments of a section it imports again" do
+      described_class.call([ catalog_course ])
+      enrollment = create(:enrollment, course: imported_course)
+
+      described_class.call([ catalog_course("courseTitle" => "Data Structures II") ])
+
+      expect(enrollment.reload.course).to eq(imported_course)
+    end
+  end
 end

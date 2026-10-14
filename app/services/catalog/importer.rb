@@ -16,6 +16,7 @@ module Catalog
 
       processed_count = 0
       failed_courses = []
+      @changes = { created: 0, updated: 0, unchanged: 0 }
 
       unique_courses = catalog_courses.uniq { |c| [ c["courseReferenceNumber"], c["term"] ] }
 
@@ -65,7 +66,8 @@ module Catalog
         total: unique_courses.count,
         processed: processed_count,
         failed: failed_courses.count,
-        failed_courses: failed_courses
+        failed_courses: failed_courses,
+        **@changes
       }
     end
 
@@ -162,7 +164,9 @@ module Catalog
         c.seats_available = seats[:available]
       end
 
-      if course.persisted? && !course.new_record?
+      if course.previously_new_record?
+        @changes[:created] += 1
+      else
         update_attrs = {}
         update_attrs[:start_date] = start_date if start_date.present?
         update_attrs[:end_date] = end_date if end_date.present?
@@ -185,7 +189,14 @@ module Catalog
           update_attrs[:seats_available] = seats[:available]
         end
 
-        course.update!(update_attrs) if update_attrs.any?
+        # The counts cover the section row. Meeting times and instructors can
+        # still change below while the section counts as unchanged.
+        if update_attrs.any?
+          course.update!(update_attrs)
+          @changes[course.saved_changes? ? :updated : :unchanged] += 1
+        else
+          @changes[:unchanged] += 1
+        end
       end
 
       orphan_exam = FinalExam.orphan.find_by(crn: course.crn, term: term)
