@@ -109,16 +109,22 @@ class UniversityCalendarEvent < ApplicationRecord
   #               Falls back to latest imported course end_date for the term
   #               when finals period events are unavailable.
   #
+  # Both dates must fall inside term_detection_date_window, and the end date
+  # in the term's own year. Without this, Summer 2027 took 2026-07-25 (the day
+  # LeopardWeb first listed it) and the Summer 2026 finals end (2026-08-11).
+  #
   # @param year [Integer] The academic year
   # @param season [Symbol] The season (:fall, :spring, :summer)
   # @return [Hash] Hash with :start_date and :end_date keys
   def self.detect_term_dates(year, season)
     term = Term.find_by(year: year, season: season)
 
-    candidate_events = where(start_time: Date.new(year - 1, 1, 1).beginning_of_day..Date.new(year + 1, 12, 31).end_of_day)
+    window = term_detection_date_window(year, season)
+    candidate_events = where(start_time: window.first.beginning_of_day..window.last.end_of_day)
     matching_events = candidate_events.select { |event| event_matches_term_for_date_detection?(event, year, season, term) }
 
     leopard_web_start_date = leopard_web_registration_open_date(year, season, term)
+    leopard_web_start_date = nil unless leopard_web_start_date&.in?(window)
 
     schedule_available_event = matching_events
                                .select { |event| schedule_available_summary?(event.summary) }
@@ -136,10 +142,20 @@ class UniversityCalendarEvent < ApplicationRecord
     finals_end_date = finals_period_event&.end_time&.to_date || finals_period_event&.start_time&.to_date
     course_end_fallback = fallback_end_date_from_courses(term)
 
+    start_date = leopard_web_start_date || schedule_available_event&.start_time&.to_date || estimated_schedule_available_date
+    end_date   = finals_end_date || course_end_fallback
+
     {
-      start_date: leopard_web_start_date || schedule_available_event&.start_time&.to_date || estimated_schedule_available_date,
-      end_date: finals_end_date || course_end_fallback
+      start_date: (start_date if start_date&.in?(window)),
+      end_date:   (end_date if term_end_date?(end_date, year, window))
     }
+  end
+
+  # Classes end in the term's own year for every season.
+  def self.term_end_date?(date, year, window = nil)
+    return false if date.nil? || date.year != year
+
+    window.nil? || date.in?(window)
   end
 
   def self.leopard_web_registration_open_date(year, season, term)

@@ -133,4 +133,22 @@ RSpec.describe Term, type: :model do
       expect(described_class.season_position(:fall)).to eq(3)
     end
   end
+
+  describe "#implausible_date_fields" do
+    it "names a summer term's dates from the year before" do
+      term = build(:term, year: 2031, season: :summer, start_date: Date.new(2030, 7, 25), end_date: Date.new(2030, 8, 11))
+
+      expect(term.implausible_date_fields).to eq(%i[start_date end_date])
+    end
+
+    it "accepts a spring term that opens in the fall before and ends in its year" do
+      term = build(:term, year: 2031, season: :spring, start_date: Date.new(2030, 10, 15), end_date: Date.new(2031, 4, 25))
+
+      expect(term.implausible_date_fields).to be_empty
+    end
+
+    it "ignores dates that are not set" do
+      expect(build(:term, year: 2031, season: :fall).implausible_date_fields).to be_empty
+    end
+  end
 end
