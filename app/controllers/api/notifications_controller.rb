@@ -31,9 +31,15 @@ module Api
       authorize current_user, :update?
 
       duration_provided  = params.key?(:duration) && params[:duration].present?
-      duration_seconds   = params[:duration].to_i if duration_provided
 
       if duration_provided
+        unless params[:duration].to_s.match?(/\A-?\d+\z/)
+          render_error "Duration must be a whole number of seconds", status: :bad_request
+          return
+        end
+
+        duration_seconds = params[:duration].to_i
+
         if duration_seconds < 0
           render_error "Duration cannot be negative", status: :bad_request
           return
@@ -56,7 +62,7 @@ module Api
         notifications_disabled:       true,
         notifications_disabled_until: current_user.notifications_disabled_until
       }, status: :ok
-    rescue => e
+    rescue ActiveRecord::ActiveRecordError => e
       Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to disable notifications", status: :internal_server_error
     end
@@ -74,7 +80,7 @@ module Api
         notifications_disabled:       false,
         notifications_disabled_until: nil
       }, status: :ok
-    rescue => e
+    rescue ActiveRecord::ActiveRecordError => e
       Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to enable notifications", status: :internal_server_error
     end

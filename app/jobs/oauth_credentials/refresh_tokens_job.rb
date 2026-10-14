@@ -60,6 +60,13 @@ module OauthCredentials
       Rails.logger.info "[OauthCredentials::RefreshTokensJob] Refreshed token for credential #{credential.id} (#{credential.email})"
       :success
     rescue Signet::AuthorizationError => e
+      # Other refusals, such as invalid_client after a secret rotation, say
+      # nothing about this person's grant.
+      unless GoogleCalendar::CalendarServices.invalid_grant?(e)
+        Rails.error.report(e, handled: true, context: { oauth_credential_id: credential.id })
+        return :failure
+      end
+
       Rails.logger.warn "[OauthCredentials::RefreshTokensJob] Token revoked for credential #{credential.id} (#{credential.email}): #{e.message}"
       credential.update!(
         metadata: (credential.metadata || {}).merge(

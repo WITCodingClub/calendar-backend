@@ -71,6 +71,16 @@ RSpec.describe MicrosoftGraph::CategoryCache, :microsoft_graph do
     expect(a_request(:post, categories_url)).not_to have_been_made
   end
 
+  it "reports the error when the master list cannot be read" do
+    stub_master_list("error_forbidden", status: 403)
+
+    reports = capture_error_reports(MicrosoftGraph::Error) { cache.name_for(8) }
+
+    expect(reports.size).to eq(1)
+    expect(reports.first.handled).to be(true)
+    expect(reports.first.context).to eq(action: "list", status: 403)
+  end
+
   it "maps every Google color to a distinct Outlook preset" do
     presets = described_class::COLORS.values.map(&:last)
 
