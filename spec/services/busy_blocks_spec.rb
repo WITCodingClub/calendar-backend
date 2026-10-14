@@ -117,6 +117,39 @@ RSpec.describe BusyBlocks do
     end
   end
 
+  describe "all-day and cancelled sections" do
+    it "leaves out an async section whose meeting time is all day" do
+      enroll(day_of_week: :monday, begin_time: 1201, end_time: 2359)
+
+      expect(blocks).to eq([])
+    end
+
+    it "leaves out a cancelled section" do
+      enroll(day_of_week: :monday, begin_time: 900, end_time: 1015, status: :cancelled)
+
+      expect(blocks).to eq([])
+    end
+  end
+
+  describe "a break that started before the range" do
+    it "removes a meeting inside the break when the range starts inside it" do
+      enroll(day_of_week: :friday, begin_time: 900, end_time: 1000)
+      create(:university_calendar_event, category: "holiday",
+                                         start_time: Time.zone.local(2026, 10, 7), end_time: Time.zone.local(2026, 10, 11, 23, 59))
+
+      expect(blocks(from: Date.new(2026, 10, 9), to: Date.new(2026, 10, 9))).to eq([])
+      expect(blocks(from: monday, to: sunday)).to eq([])
+    end
+
+    it "keeps a meeting on a day after the break" do
+      enroll(day_of_week: :monday, begin_time: 900, end_time: 1015)
+      create(:university_calendar_event, category: "holiday",
+                                         start_time: Time.zone.local(2026, 9, 28), end_time: Time.zone.local(2026, 10, 4, 23, 59))
+
+      expect(blocks(from: monday, to: sunday)).to eq([ [ "2026-10-05", "09:00", "10:15" ] ])
+    end
+  end
+
   describe "final exams" do
     let(:course) { enroll(day_of_week: :monday, begin_time: 900, end_time: 1015) }
 
