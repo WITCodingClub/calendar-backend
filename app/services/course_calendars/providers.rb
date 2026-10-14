@@ -19,17 +19,16 @@ module CourseCalendars
   module Providers
     module_function
 
-    # Google stays the default, so a person with no calendar yet takes the same
-    # path as before. Microsoft joins only when its flag is on for the person
-    # and they have a Microsoft calendar.
+    # Google joins only when the person has a Google credential: without one,
+    # every Google call raises. Microsoft joins only when its flag is on for
+    # the person and they have a Microsoft calendar. A person with neither
+    # gets no services, and the sync does nothing.
     def services_for(user)
-      microsoft_enabled = MicrosoftGraph.enabled_for?(user)
-      google            = user.google_credential.present?
-      microsoft_calendar = (microsoft_enabled || !google) && CourseCalendar.microsoft.for_user(user).exists?
+      microsoft = MicrosoftGraph.enabled_for?(user) && CourseCalendar.microsoft.for_user(user).exists?
 
       services = []
-      services << GoogleCalendar::Provider.new(user) if google || !microsoft_calendar
-      services << MicrosoftGraph::CalendarProvider.new(user) if microsoft_enabled && microsoft_calendar
+      services << GoogleCalendar::Provider.new(user) if user.google_credential.present?
+      services << MicrosoftGraph::CalendarProvider.new(user) if microsoft
       services
     end
 
