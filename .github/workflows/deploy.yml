@@ -90,17 +90,12 @@ jobs:
 
           # wit-calendar-deploy (infra, modules/wit-calendar) starts the idle
           # slot with the new image, waits for /up, then stops the old slot.
-          # The site keeps serving during the swap. On a host that still has
-          # the single wit-calendar-web unit, sudo -n denies the command at
-          # once, and the old restart runs instead. Remove the fallback once
-          # alastor runs the two-slot module.
+          # The site keeps serving during the swap. See docs/deploy.md.
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=10 \
             wit-calendar-deploy@"$SERVER_HOST" \
-            "sudo -n wit-calendar-deploy '$IMAGE' || \
-             { echo '$IMAGE' > /var/lib/wit-calendar/image-ref && \
-               sudo -n systemctl restart wit-calendar-web; }"
+            "sudo -n wit-calendar-deploy '$IMAGE'"
 
       - name: Check health
         if: steps.gate.outputs.skip != 'true'
