@@ -20,6 +20,13 @@ module GoogleOauthable
     @google_credential = oauth_credentials.find_by(provider: "google")
   end
 
+  # Clears the cached credential, so the next google_credential call reads it
+  # again. Setting the variable to nil would cache nil: the defined? check
+  # above would then return nil until the user is loaded again.
+  def reset_google_credential
+    remove_instance_variable(:@google_credential) if defined?(@google_credential)
+  end
+
   def google_uid
     google_credential&.uid
   end
@@ -70,8 +77,7 @@ module GoogleOauthable
       token_expires_at: Time.zone.at(credentials.expires_at)
     )
 
-    # Clear the cached credential
-    @google_credential = nil
+    reset_google_credential
   end
 
   private
@@ -96,8 +102,7 @@ module GoogleOauthable
         access_token: credentials.access_token,
         token_expires_at: Time.zone.at(credentials.expires_at)
       )
-      # Clear the cached credential
-      @google_credential = nil
+      reset_google_credential
     end
 
     credentials
