@@ -55,9 +55,12 @@ module Users
       sign_in(:user, user)
 
       render json: { redirect_to: after_sign_in_path_for(user) }, status: :ok
-    rescue WebAuthn::Error => e
+    # ArgumentError: the gem raises it for a field that is not valid base64url.
+    rescue WebAuthn::Error, ArgumentError => e
       Rails.logger.warn("Passkey sign-in rejected: #{e.class} #{e.message}")
       render json: { error: "Could not verify this passkey" }, status: :unauthorized
+    rescue ActionController::ParameterMissing
+      render json: { error: "Missing passkey credential" }, status: :bad_request
     end
 
     private
@@ -65,7 +68,9 @@ module Users
     CREDENTIAL_KEYS = [ :type, :id, :rawId, :authenticatorAttachment ].freeze
 
     def credential_params
-      params.require(:credential).permit(
+      credential = params.require(:credential)
+      credential.require(:response)
+      credential.permit(
         *CREDENTIAL_KEYS,
         response: [ :authenticatorData, :clientDataJSON, :signature, :userHandle ]
       ).to_h
