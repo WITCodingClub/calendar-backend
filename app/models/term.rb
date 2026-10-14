@@ -144,6 +144,21 @@ class Term < ApplicationRecord
     update!(start_date: new_start, end_date: new_end)
   end
 
+  # The dates this term can have. start_date is the day the schedule or
+  # registration opens, so a spring term starts in the fall before it. Classes
+  # end in the term's own year. See UniversityCalendarEvent.detect_term_dates.
+  def date_window
+    UniversityCalendarEvent.term_detection_date_window(year, season)
+  end
+
+  # The date columns that fall outside date_window, for lib/tasks/terms.rake.
+  def implausible_date_fields
+    fields = []
+    fields << :start_date if start_date && !start_date.in?(date_window)
+    fields << :end_date if end_date && !UniversityCalendarEvent.term_end_date?(end_date, year, date_window)
+    fields
+  end
+
   def active?
     return false if start_date.nil? || end_date.nil?
 

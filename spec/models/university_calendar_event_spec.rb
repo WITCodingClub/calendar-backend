@@ -393,6 +393,8 @@ RSpec.describe UniversityCalendarEvent, type: :model do
   end
 
   describe ".detect_term_dates" do
+    include ActiveSupport::Testing::TimeHelpers
+
     let(:term) { create(:term, year: 2031, season: :fall) }
 
     before { allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: false, terms: []) }
@@ -418,7 +420,38 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: true, terms: [ { code: term.uid } ])
       event_at("Fall 2031 Course Schedule Available", Time.zone.local(2031, 3, 20, 9, 0))
 
-      expect(described_class.detect_term_dates(2031, :fall)[:start_date]).to eq(Time.zone.today)
+      travel_to(Time.zone.local(2031, 4, 2, 12)) do
+        expect(described_class.detect_term_dates(2031, :fall)[:start_date]).to eq(Date.new(2031, 4, 2))
+      end
+    end
+
+    it "ignores a LeopardWeb listing that comes before the term's window" do
+      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: true, terms: [ { code: term.uid } ])
+
+      travel_to(Time.zone.local(2030, 7, 25, 12)) do
+        expect(described_class.detect_term_dates(2031, :fall)[:start_date]).to be_nil
+      end
+    end
+
+    # Summer 2027 got 2026-07-25 and 2026-08-11: LeopardWeb listed it in July
+    # 2026, and the Summer 2026 finals event carried its term id.
+    it "keeps a summer term's dates out of the year before" do
+      summer = create(:term, year: 2031, season: :summer)
+      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: true, terms: [ { code: summer.uid } ])
+      event_at("Final Exam Period", Time.zone.local(2030, 8, 5, 9, 0), end_time: Time.zone.local(2030, 8, 11, 17, 0),
+                                    category: "finals", term: summer)
+
+      travel_to(Time.zone.local(2030, 7, 25, 12)) do
+        expect(described_class.detect_term_dates(2031, :summer)).to eq(start_date: nil, end_date: nil)
+      end
+    end
+
+    it "accepts a spring term's registration date in the fall before" do
+      create(:term, year: 2031, season: :spring)
+      event_at("Spring 2031 Course Schedule Available", Time.zone.local(2030, 10, 15, 9, 0))
+      event_at("Spring 2031 Final Exam Period", Time.zone.local(2031, 4, 20, 9, 0), end_time: Time.zone.local(2031, 4, 25, 17, 0), category: "finals")
+
+      expect(described_class.detect_term_dates(2031, :spring)).to eq(start_date: Date.new(2030, 10, 15), end_date: Date.new(2031, 4, 25))
     end
 
     it "falls back to course end dates when there is no finals event" do

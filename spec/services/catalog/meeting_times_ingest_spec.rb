@@ -63,6 +63,39 @@ RSpec.describe Catalog::MeetingTimesIngest do
     expect(course.meeting_times.flat_map { |mt| mt.rooms.map(&:number) }.uniq).to eq([ "0" ])
   end
 
+  describe "meeting schedule type" do
+    it "takes the type Banner sends with the meeting" do
+      described_class.call(course: course, raw_meeting_times: [ raw_meeting_times.first.merge("meetingScheduleType" => "LAB") ])
+
+      expect(course.meeting_times.pluck(:meeting_schedule_type).uniq).to eq([ "laboratory" ])
+    end
+
+    it "uses the section's schedule type when the meeting has none, as the nightly sync sends" do
+      lab = create(:course, schedule_type: :laboratory)
+
+      described_class.call(course: lab, raw_meeting_times: described_class.normalize_leopard_web([ {
+        "startDate" => "01/12/2027", "endDate" => "04/20/2027", "startTime" => "1715", "endTime" => "1900",
+        "building" => "IRAH", "room" => "206", "days" => { "wednesday" => true }
+      } ]))
+
+      expect(lab.meeting_times.pluck(:meeting_schedule_type)).to eq([ "laboratory" ])
+    end
+
+    it "treats online and rotating labs as labs" do
+      online_lab = create(:course, schedule_type: :online_sync_lab)
+
+      described_class.call(course: online_lab, raw_meeting_times: raw_meeting_times)
+
+      expect(online_lab.meeting_times.pluck(:meeting_schedule_type).uniq).to eq([ "laboratory" ])
+    end
+
+    it "keeps a lecture section's meetings as lectures" do
+      described_class.call(course: course, raw_meeting_times: raw_meeting_times)
+
+      expect(course.meeting_times.pluck(:meeting_schedule_type).uniq).to eq([ "lecture" ])
+    end
+  end
+
   describe ".normalize_leopard_web" do
     let(:leopard_web_payload) do
       [
