@@ -2,6 +2,34 @@
 
 require "rails_helper"
 
+# == Schema Information
+#
+# Table name: catalog_courses
+#
+#  id                 :bigint           not null, primary key
+#  corequisites       :jsonb            not null
+#  course_number      :integer          not null
+#  credit_hours       :integer
+#  description        :text
+#  details_fetched_at :datetime
+#  prerequisites      :jsonb
+#  restrictions       :jsonb            not null
+#  subject_code       :string           not null
+#  title              :string
+#  typically_offered  :string           default([]), not null, is an Array
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  source_term_id     :bigint
+#
+# Indexes
+#
+#  index_catalog_courses_on_source_term_id                  (source_term_id)
+#  index_catalog_courses_on_subject_code_and_course_number  (subject_code,course_number) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (source_term_id => terms.id)
+#
 RSpec.describe CatalogCourse do
   subject { create(:catalog_course) }
 

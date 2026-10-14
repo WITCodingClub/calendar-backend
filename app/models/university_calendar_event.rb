@@ -89,7 +89,9 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :for_term,      ->(term) { where(term: term) }
   scope :with_location, -> { where.not(location: [ nil, "" ]) }
   scope :by_categories, ->(cats) { where(category: cats) }
-  scope :in_date_range, ->(s, e) { where(start_time: s.beginning_of_day..e.end_of_day) }
+  # Events that overlap the range. A break is one event of several days, so an
+  # event that starts before the range still counts when it runs into it.
+  scope :in_date_range, ->(s, e) { where(end_time: s.beginning_of_day.., start_time: ..e.end_of_day) }
 
   def self.holidays_between(start_date, end_date)
     holidays.in_date_range(start_date, end_date).order(:start_time)
@@ -97,6 +99,15 @@ class UniversityCalendarEvent < ApplicationRecord
 
   def self.no_class_days_between(start_date, end_date)
     where(category: %w[holiday study_day finals]).in_date_range(start_date, end_date).order(:start_time)
+  end
+
+  # Every date inside the range that a holiday, study day, or finals event covers.
+  def self.no_class_dates_between(start_date, end_date)
+    no_class_days_between(start_date, end_date).pluck(:start_time, :end_time).flat_map do |start_time, end_time|
+      first = start_time.in_time_zone.to_date
+      last  = [ end_time.in_time_zone.to_date, first ].max
+      ([ first, start_date.to_date ].max..[ last, end_date.to_date ].min).to_a
+    end.uniq
   end
 
   # Detect term dates for a term.

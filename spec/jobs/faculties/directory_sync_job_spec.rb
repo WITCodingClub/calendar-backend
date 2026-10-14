@@ -14,6 +14,16 @@ RSpec.describe Faculties::DirectorySyncJob, type: :job do
     expect { described_class.perform_now }.to raise_error(/Failed to fetch faculty directory/)
   end
 
+  it "does not stamp the full sync time when the directory fetch fails" do
+    allow(Rails).to receive(:cache).and_return(ActiveSupport::Cache::MemoryStore.new)
+    allow(Faculties::Directory).to receive(:call)
+      .and_return(success: false, error: "HTTP 500", faculty: [], total_count: 0)
+
+    expect { described_class.perform_now }.to raise_error(/HTTP 500/)
+
+    expect(Rails.cache.read("faculty_directory_last_full_sync_at")).to be_nil
+  end
+
   it "asks the directory service for fresh pages, not cached ones" do
     allow(Faculties::Directory).to receive(:call).and_return(directory_result(faculty: []))
 

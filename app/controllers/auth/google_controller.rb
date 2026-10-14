@@ -2,6 +2,11 @@
 
 module Auth
   class GoogleController < ApplicationController
+    # A failure whose message is safe to show on the failure page.
+    class UserFacingError < StandardError; end
+
+    CALENDAR_FAILURE_MESSAGE = "Failed to connect your Google account. Please try again."
+
     skip_before_action :verify_authenticity_token, only: [ :callback ]
 
     def callback
@@ -14,16 +19,25 @@ module Auth
         handle_user_login(auth)
       end
     rescue => e
-      Rails.error.report(e, handled: true)
+      Rails.error.report(e, handled: true, context: { user_id: current_user&.id })
 
       if calendar_oauth_flow?
-        redirect_to "/oauth/failure?error=#{CGI.escape(e.message)}"
+        redirect_to "/oauth/failure?error=#{CGI.escape(failure_message_for(e))}"
       else
         redirect_to new_user_session_path, alert: "Failed to connect with Google. Please try again."
       end
     end
 
     private
+
+    # Only errors raised for the person carry text meant to be shown. Any other
+    # error can hold internals, so it gets the generic message.
+    def failure_message_for(error)
+      case error
+      when UserFacingError, GoogleSignIn::AccountLink::Conflict then error.message
+      else CALENDAR_FAILURE_MESSAGE
+      end
+    end
 
     def calendar_oauth_flow?
       return false if params[:state].blank?
@@ -45,7 +59,7 @@ module Auth
     #   tokens (Auth::OauthResultsController#link).
     def handle_calendar_oauth(auth)
       state_data = GoogleSignIn::OauthState.consume_state(params[:state])
-      raise "Invalid or expired state parameter" unless state_data
+      raise UserFacingError, "Invalid or expired state parameter" unless state_data
 
       user         = User.find(state_data["user_id"])
       target_email = state_data["email"].presence
@@ -54,11 +68,11 @@ module Auth
       # A state with an email is the old request shape: only that account is
       # accepted. A state without an email accepts any Google account.
       if target_email && chosen_email != target_email
-        raise "OAuth email (#{chosen_email}) does not match expected email (#{target_email})"
+        raise UserFacingError, "OAuth email (#{chosen_email}) does not match expected email (#{target_email})"
       end
 
       if current_user && current_user != user
-        raise "You are signed in as a different user. Sign out, then try again."
+        raise UserFacingError, "You are signed in as a different user. Sign out, then try again."
       end
 
       linker = GoogleSignIn::AccountLink.new(user)

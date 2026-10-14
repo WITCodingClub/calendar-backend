@@ -42,6 +42,30 @@ RSpec.describe Faculties::Directory, type: :service do
         expect(WebMock).to have_requested(:get, base_url).with(query: hash_including("page" => "0")).once
       end
 
+      it "does not cache a failed page" do
+        stub_page(page: 0, fixture: "server_error.html", status: 500)
+        first = described_class.new(page: 0, fetch_all: false).call
+        stub_page(page: 0, fixture: "page_single.html")
+
+        second = described_class.new(page: 0, fetch_all: false).call
+
+        expect(first[:success]).to be(false)
+        expect(second[:success]).to be(true)
+        expect(WebMock).to have_requested(:get, base_url).with(query: hash_including("page" => "0")).twice
+      end
+
+      it "returns a failure, not a partial list, when a later page fails" do
+        stub_page(page: 0, fixture: "pagination_page0.html")
+        stub_page(page: 1, fixture: "server_error.html", status: 500)
+        service = described_class.new
+        allow(service).to receive(:sleep)
+
+        result = service.call
+
+        expect(result[:success]).to be(false)
+        expect(result[:error]).to eq("HTTP 500")
+      end
+
       it "fetches the page again and overwrites the cache when force is true" do
         stub_page(page: 0, fixture: "page_empty.html")
         described_class.new(page: 0, fetch_all: false).call

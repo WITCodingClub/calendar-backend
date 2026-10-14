@@ -36,7 +36,7 @@ module Catalog
       {
         term:            { uid: term.uid, name: term.name },
         sections:        sections.map { |course| section_json(course) },
-        not_found:       @crns - sections.map(&:crn),
+        not_found:       @crns - found.map(&:crn),
         cancelled:       cancelled.map(&:crn),
         conflicts:       conflicts,
         link_problems:   link_problems,
