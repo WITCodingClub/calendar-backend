@@ -48,7 +48,9 @@ module Faculties
 
       loop do
         result = fetch_single_page(current_page)
-        break unless result[:success]
+        # A failed page makes the list partial. Return the failure, so a sync
+        # does not treat the partial list as the whole directory.
+        return result.merge(faculty: [], total_count: 0) unless result[:success]
 
         total_count ||= result[:total_count]
         all_faculty.concat(result[:faculty])
@@ -68,24 +70,27 @@ module Faculties
       }
     end
 
+    # Only a successful page is cached, so a failure is fetched again on the next call.
     def fetch_single_page(page_num)
       cache_key = "faculty_directory:page:#{page_num}:#{employee_type}:#{search}"
 
-      Rails.cache.fetch(cache_key, expires_in: 1.hour, force: force) do
-        params = {
-          page: page_num,
-          employee_type: employee_type
-        }
-        params[:search] = search if search.present?
-
-        response = connection.get("", params)
-
-        if response.success?
-          parse_directory_page(response.body)
-        else
-          { success: false, error: "HTTP #{response.status}", faculty: [], total_count: 0 }
-        end
+      unless force
+        cached = Rails.cache.read(cache_key)
+        return cached if cached
       end
+
+      params = {
+        page: page_num,
+        employee_type: employee_type
+      }
+      params[:search] = search if search.present?
+
+      response = connection.get("", params)
+      return { success: false, error: "HTTP #{response.status}", faculty: [], total_count: 0 } unless response.success?
+
+      result = parse_directory_page(response.body)
+      Rails.cache.write(cache_key, result, expires_in: 1.hour)
+      result
     end
 
     def connection

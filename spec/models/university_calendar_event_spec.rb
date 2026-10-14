@@ -146,6 +146,22 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(described_class.in_date_range(Date.new(2026, 11, 2), Date.new(2026, 11, 4))).to contain_exactly(first_day, last_day)
     end
 
+    it ".in_date_range includes an event that started before the range and runs into it" do
+      break_week = event_in("holiday", start_time: Time.zone.local(2026, 10, 7), end_time: Time.zone.local(2026, 10, 11, 23, 59))
+      event_in("holiday", start_time: Time.zone.local(2026, 10, 1), end_time: Time.zone.local(2026, 10, 8, 23, 59))
+      event_in("holiday", start_time: Time.zone.local(2026, 10, 12), end_time: Time.zone.local(2026, 10, 13))
+
+      expect(described_class.in_date_range(Date.new(2026, 10, 9), Date.new(2026, 10, 9))).to include(break_week)
+      expect(described_class.in_date_range(Date.new(2026, 10, 9), Date.new(2026, 10, 9)).count).to eq(1)
+    end
+
+    it ".no_class_dates_between lists only the dates of a multi-day break that fall inside the range" do
+      event_in("holiday", start_time: Time.zone.local(2026, 10, 7), end_time: Time.zone.local(2026, 10, 11, 23, 59))
+
+      expect(described_class.no_class_dates_between(Date.new(2026, 10, 9), Date.new(2026, 10, 20)))
+        .to contain_exactly(Date.new(2026, 10, 9), Date.new(2026, 10, 10), Date.new(2026, 10, 11))
+    end
+
     it ".holidays_between returns holidays in the range, earliest first" do
       later = event_in("holiday", start_time: Time.zone.local(2026, 11, 20, 9, 0), end_time: Time.zone.local(2026, 11, 20, 10, 0))
       earlier = event_in("holiday", start_time: Time.zone.local(2026, 11, 10, 9, 0), end_time: Time.zone.local(2026, 11, 10, 10, 0))

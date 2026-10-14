@@ -42,6 +42,7 @@ module Catalog
       # A search that returns the keyword results is better than a search that
       # returns an error, so the caller gets nil and falls back.
       Rails.logger.warn("[SemanticSearch] #{e.class}: #{e.message}")
+      Rails.error.report(e, handled: true)
       nil
     end
 

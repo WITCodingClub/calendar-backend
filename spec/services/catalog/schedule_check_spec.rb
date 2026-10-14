@@ -25,8 +25,17 @@ RSpec.describe Catalog::ScheduleCheck do
 
     expect(result[:sections].pluck(:crn)).to eq([ 20397 ])
     expect(result[:sections].first[:meeting_times]).to eq([ { day: "monday", begin_time: "10:00", end_time: "11:15" } ])
-    expect(result[:not_found]).to eq([ 20398, 99999 ])
+    expect(result[:not_found]).to eq([ 99999 ])
     expect(result[:cancelled]).to eq([ 20398 ])
+  end
+
+  it "does not list a cancelled CRN as not found" do
+    section(20398, status: :cancelled)
+
+    result = check(20398)
+
+    expect(result[:cancelled]).to eq([ 20398 ])
+    expect(result[:not_found]).to be_empty
   end
 
   it "finds two sections that meet at the same time" do

@@ -28,7 +28,7 @@ module Api
           }
         end
       }, status: :ok
-    rescue => e
+    rescue ActiveRecord::ActiveRecordError => e
       Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to fetch user extension config", status: :internal_server_error
     end
@@ -48,8 +48,13 @@ module Api
       config.show_historic_terms = params[:show_historic_terms] unless params[:show_historic_terms].nil?
 
       unless params[:enrolled_terms].nil?
-        terms = Array(params[:enrolled_terms]).map { |t| t.permit(:id, :name).to_h }
-        config.enrolled_terms = terms
+        items = Array(params[:enrolled_terms])
+        unless items.all?(ActionController::Parameters)
+          render_error "enrolled_terms must be a list of objects", status: :bad_request
+          return
+        end
+
+        config.enrolled_terms = items.map { |t| t.permit(:id, :name).to_h }
       end
 
       unless params[:university_event_categories].nil?
@@ -65,7 +70,7 @@ module Api
                      pub_id: config.public_id,
                      details: config.errors.full_messages
       end
-    rescue => e
+    rescue ActiveRecord::ActiveRecordError => e
       Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to update user extension config", status: :internal_server_error
     end

@@ -295,7 +295,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_140000) do
     t.string "grade_mode"
     t.boolean "is_section_linked", default: false, null: false
     t.string "link_identifier"
-    t.datetime "links_fetched_at"
     t.string "schedule_type", null: false
     t.integer "seats_available"
     t.integer "seats_capacity"
@@ -308,6 +307,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_140000) do
     t.datetime "updated_at", null: false
     t.vector "embedding", limit: 1536
     t.string "embedding_digest", limit: 64
+    t.datetime "links_fetched_at"
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
     t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["status"], name: "index_courses_on_status"
@@ -749,10 +749,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_140000) do
 
   create_table "section_links", force: :cascade do |t|
     t.bigint "course_id", null: false
-    t.datetime "created_at", null: false
-    t.integer "credit_hours"
     t.bigint "linked_course_id", null: false
     t.integer "option_group", null: false
+    t.integer "credit_hours"
+    t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["course_id", "option_group", "linked_course_id"], name: "index_section_links_on_course_group_linked", unique: true
     t.index ["linked_course_id"], name: "index_section_links_on_linked_course_id"
