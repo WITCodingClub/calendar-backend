@@ -19,7 +19,10 @@ module Courses
     # the class is renamed. Jobs in the queue hold locks under this name.
     CONCURRENCY_GROUP = "ProcessTermCoursesJob"
 
-    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(user, _term, _courses) { "process_term_courses_user_#{user.id}" }
+    # Banner lookups for a large term can take many minutes, so the lock lasts
+    # longer than the 3-minute default.
+    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(user, _term, _courses) { "process_term_courses_user_#{user.id}" },
+                       duration: 1.hour
 
     # After the last attempt, record the failure and raise again, so the job
     # stays in the failed-jobs list.
