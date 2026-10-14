@@ -42,6 +42,8 @@ module Catalog
         get_course_catalog
       when :get_active_terms
         get_active_terms
+      when :fetch_linked_sections
+        fetch_linked_sections
       else
         raise ArgumentError, "Unknown action: #{action}"
       end
@@ -70,6 +72,19 @@ module Catalog
     def self.get_faculty_meeting_times(term:, course_reference_number:)
       new(
         action: :get_faculty_meeting_times,
+        term: term,
+        course_reference_number: course_reference_number
+      ).call
+    end
+
+    # Banner's lecture and lab pairs for one section, as option groups: the
+    # section can be taken with any one group, and every section in that group
+    # is needed. An unlinked section returns []. Each entry is
+    # { crn: Integer, credit_hours: Integer or nil }; Banner gives a lab 0
+    # credit hours here.
+    def self.fetch_linked_sections(term:, course_reference_number:)
+      new(
+        action: :fetch_linked_sections,
         term: term,
         course_reference_number: course_reference_number
       ).call
@@ -128,6 +143,25 @@ module Catalog
     end
 
     private
+
+    def fetch_linked_sections
+      raise ArgumentError, "term is required" unless term
+      raise ArgumentError, "course_reference_number is required" unless course_reference_number
+
+      response = connection.get("fetchLinkedSections", { term: term, courseReferenceNumber: course_reference_number })
+      data = handle_response(response, :json)
+      groups = data.is_a?(Hash) ? data["linkedData"] : nil
+      raise ParseError, "fetchLinkedSections returned no linkedData" unless groups.is_a?(Array)
+
+      groups.map do |group|
+        Array(group).filter_map do |section|
+          crn = section["courseReferenceNumber"].to_s
+          next unless crn.match?(/\A\d+\z/)
+
+          { crn: crn.to_i, credit_hours: section["creditHours"]&.to_i }
+        end
+      end.reject(&:empty?)
+    end
 
     def get_class_details
       raise ArgumentError, "term is required" unless term

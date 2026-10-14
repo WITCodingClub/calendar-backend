@@ -27,6 +27,10 @@ module Catalog
       # course, so they load in their own job, after the sections exist.
       Catalog::CourseDetailsSyncJob.perform_later(term_uid)
 
+      # The import gives link identifiers only. Banner's real pairs come from
+      # one request for each linked section, so they run in their own job.
+      Catalog::SectionLinksSyncJob.perform_later(term_uid)
+
       Rails.logger.info "[Catalog::ImportJob] Completed import for term #{term_uid}"
     rescue => e
       Term.where(uid: term_uid).update_all(catalog_import_failed: true)

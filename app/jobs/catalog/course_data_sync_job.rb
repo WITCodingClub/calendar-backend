@@ -96,6 +96,8 @@ module Catalog
 
       meeting_times_changed = sync_meeting_times(course, fresh_data)
       faculty_changed       = sync_faculty(course, fresh_data)
+      # The registrar can change which lab goes with which lecture.
+      Catalog::SectionLinksSync.call(course) if course.is_section_linked
 
       changed = course_changed || meeting_times_changed || faculty_changed
       Rails.logger.info "[Catalog::CourseDataSyncJob] Updated course #{course.crn}" if changed
@@ -164,7 +166,6 @@ module Catalog
 
     def course_data_changed?(course, fresh_data)
       fresh_title           = fresh_data[:title].present? ? titleize_with_roman_numerals(fresh_data[:title].strip) : nil
-      fresh_credit_hours    = fresh_data[:credit_hours]
       fresh_grade_mode      = fresh_data[:grade_mode]&.strip
       fresh_subject         = fresh_data[:subject]&.strip
       fresh_section_number  = normalize_section_number(fresh_data[:section_number])
@@ -172,7 +173,6 @@ module Catalog
 
       [
         course.title          != fresh_title,
-        course.credit_hours   != fresh_credit_hours,
         course.grade_mode     != fresh_grade_mode,
         course.subject        != fresh_subject,
         course.section_number != fresh_section_number,
@@ -180,10 +180,13 @@ module Catalog
       ].any?
     end
 
+    # Credit hours are not taken from getClassDetails. Its "Credit Hours" is the
+    # course's credits, so it gives a lab the lecture's 4. The import keeps the
+    # section's own credits (Catalog::Importer.credit_hours_for), which are nil
+    # for a lab. The catalog:repair_credit_hours task corrects rows this job overwrote.
     def update_course_from_fresh_data(course, fresh_data)
       attrs = {}
       attrs[:title]          = titleize_with_roman_numerals(fresh_data[:title].strip) if fresh_data[:title].present?
-      attrs[:credit_hours]   = fresh_data[:credit_hours]   if fresh_data[:credit_hours]
       attrs[:grade_mode]     = fresh_data[:grade_mode]&.strip if fresh_data[:grade_mode]
       attrs[:subject]        = fresh_data[:subject]&.strip    if fresh_data[:subject]
       attrs[:section_number] = normalize_section_number(fresh_data[:section_number]) if fresh_data[:section_number]

@@ -297,4 +297,49 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       expect(stub).not_to have_been_requested
     end
   end
+
+  describe ".fetch_linked_sections" do
+    let(:url) { "#{described_class::BASE_URL}fetchLinkedSections" }
+
+    def stub_fixture(name)
+      stub_request(:get, url).with(query: { term: "202720", courseReferenceNumber: "20452" })
+                             .to_return(status: 200, body: file_fixture("leopard_web/#{name}").read,
+                                        headers: { "Content-Type" => "application/json" })
+    end
+
+    def fetch = described_class.fetch_linked_sections(term: 202720, course_reference_number: 20452)
+
+    it "returns each option group with Banner's credits" do
+      stub_fixture("linked_sections_options.json")
+
+      expect(fetch).to eq([
+        [ { crn: 20455, credit_hours: 0 } ],
+        [ { crn: 20456, credit_hours: 0 }, { crn: 20459, credit_hours: 0 } ]
+      ])
+    end
+
+    it "returns no groups for a section with no partners" do
+      stub_fixture("linked_sections_none.json")
+
+      expect(fetch).to eq([])
+    end
+
+    it "raises on an error status" do
+      stub_request(:get, url).with(query: hash_including({})).to_return(status: 500, body: "error")
+
+      expect { fetch }.to raise_error(described_class::RequestError)
+    end
+
+    it "raises when the body has no linkedData" do
+      stub_request(:get, url).with(query: hash_including({}))
+                             .to_return(status: 200, body: "{}", headers: { "Content-Type" => "application/json" })
+
+      expect { fetch }.to raise_error(described_class::ParseError)
+    end
+
+    it "needs a term and a CRN" do
+      expect { described_class.fetch_linked_sections(term: nil, course_reference_number: 1) }.to raise_error(ArgumentError)
+      expect { described_class.fetch_linked_sections(term: 1, course_reference_number: nil) }.to raise_error(ArgumentError)
+    end
+  end
 end

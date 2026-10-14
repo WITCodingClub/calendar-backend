@@ -12,6 +12,7 @@ module McpTools
       SearchCourses,
       GetCourse,
       SimilarSections,
+      CheckSchedule,
       SearchInstructors,
       GetInstructor,
       SimilarInstructors,

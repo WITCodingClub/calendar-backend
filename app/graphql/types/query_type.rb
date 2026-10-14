@@ -22,6 +22,14 @@ module Types
       argument :uid, Integer, required: true
     end
 
+    field :schedule_check, ScheduleCheckType, null: false,
+          description: "Checks a set of sections taken together: time conflicts, linked " \
+                       "lecture and lab pairs, the same course twice, and totals" do
+      argument :term_uid, Integer, required: true
+      argument :crns, [ Integer ], required: true,
+               description: "At most #{::Catalog::ScheduleCheck::MAX_CRNS}"
+    end
+
     field :subjects, [ SubjectType ], null: false,
           description: "Subjects offered, with section counts" do
       argument :term_uid, Integer, required: false
@@ -83,6 +91,10 @@ module Types
 
     def subjects(term_uid: nil)
       ::Catalog::SubjectQuery.new.call(term_uid: term_uid)
+    end
+
+    def schedule_check(term_uid:, crns:)
+      ::Catalog::ScheduleCheck.new(term_uid: term_uid, crns: crns).call
     end
 
     def sections(filter: nil)

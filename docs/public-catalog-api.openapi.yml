@@ -188,6 +188,81 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
+  /api/v1/catalog/schedule_check:
+    get:
+      tags: [sections]
+      operationId: checkSchedule
+      summary: Check a set of sections taken together
+      description: >-
+        Time conflicts (same day, overlapping times and dates), linked lecture and
+        lab pairs from Banner, the same course twice, and totals for the week.
+      parameters:
+        - name: term_uid
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: crn
+          in: query
+          required: true
+          description: Comma-separated CRNs, at most 30, including labs.
+          schema: { type: string }
+      responses:
+        "200":
+          description: The check
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      term: { type: object }
+                      sections: { type: array, items: { type: object } }
+                      not_found: { type: array, items: { type: integer } }
+                      cancelled: { type: array, items: { type: integer } }
+                      conflicts:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            crns: { type: array, items: { type: integer } }
+                            day: { type: string }
+                            times: { type: array, items: { type: string } }
+                      link_problems:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            crn: { type: integer }
+                            problem: { type: string, enum: [missing_partner, unverified_link] }
+                            message: { type: string }
+                            source: { type: string, enum: [banner, link_identifier] }
+                            partner_crns: { type: array, items: { type: integer } }
+                            partner_options: { type: array, items: { type: array, items: { type: integer } } }
+                      duplicates:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            course_code: { type: string }
+                            crns: { type: array, items: { type: integer } }
+                      totals:
+                        type: object
+                        properties:
+                          credit_hours: { type: integer }
+                          days: { type: array, items: { type: string } }
+                          earliest_start: { type: [string, "null"] }
+                          latest_end: { type: [string, "null"] }
+                          meetings_before_nine: { type: integer }
+        "400": { $ref: "#/components/responses/InvalidFilter" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
   /api/v1/catalog/sections:
     get:
       tags: [sections]
@@ -764,8 +839,18 @@ components:
           properties:
             required: { type: boolean }
             identifier: { type: [string, "null"] }
+            source:
+              type: string
+              enum: [banner, link_identifier]
+              description: >-
+                banner is Banner's own pairs. link_identifier is a guess from the
+                link identifiers, used until Banner's pairs are fetched. The guess can be wrong.
             crns: { type: array, items: { type: integer } }
             pub_ids: { type: array, items: { type: string } }
+            options:
+              type: array
+              description: Each list is one set of partner CRNs to take together. Pick any one set.
+              items: { type: array, items: { type: integer } }
         start_date: { type: string, format: date }
         end_date: { type: string, format: date }
         instructors:
