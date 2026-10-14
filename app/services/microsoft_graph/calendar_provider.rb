@@ -335,18 +335,29 @@ module MicrosoftGraph
 
     def create_remote_event(calendar, event, data)
       remote = client.post("me/calendars/#{escape(calendar.external_calendar_id)}/events", event_payload(data))
-      cancel_excluded_occurrences(remote.fetch("id"), data)
 
-      calendar.calendar_events.create!(
+      row = calendar.calendar_events.create!(
         row_attributes(data)
           .merge(syncable_ids(event))
           .merge(external_event_id: remote["id"], external_ical_uid: remote["iCalUId"])
       )
+      cancel_new_event_exclusions(row, data)
+      row
     rescue ActiveRecord::RecordNotUnique
       # A concurrent sync already tracks this event, so the one just created is a
       # duplicate. Remove it rather than leave it on the calendar.
       delete_quietly(remote["id"]) if remote
       nil
+    end
+
+    # The row exists before the occurrences are cancelled, so a failure here
+    # cannot make the next sync post the series again. The cleared hash makes
+    # the next sync see a change and run the exclusions through an update.
+    def cancel_new_event_exclusions(row, data)
+      cancel_excluded_occurrences(row.external_event_id, data)
+    rescue MicrosoftGraph::Error, Faraday::Error => e
+      Rails.error.report(e, handled: true, context: { user_id: user&.id, calendar_event_id: row.id })
+      row.update_column(:event_data_hash, nil) # rubocop:disable Rails/SkipsModelValidations
     end
 
     # Like GoogleCalendar::Provider#update_event_in_calendar: without force, the
@@ -371,6 +382,8 @@ module MicrosoftGraph
       end
 
       payload  = event_payload(payload_data, remote_categories: remote&.fetch("categories", nil))
+      # A forced update writes the app's values, so no color clears the old WIT category.
+      payload[:categories] ||= [] if force
       event_id = patch_event(row, event_id, payload)
       return recreate_remote_event(calendar, row, event, data) if event_id.blank?
 

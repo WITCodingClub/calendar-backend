@@ -65,6 +65,41 @@ RSpec.describe OauthCredentials::RefreshTokensJob do
     end
   end
 
+  describe "Google credentials" do
+    let(:google_token_url) { "https://oauth2.googleapis.com/token" }
+    let(:credential) do
+      create(:oauth_credential, refresh_token: "synthetic-refresh").tap { |c| c.update_columns(updated_at: 8.days.ago) } # rubocop:disable Rails/SkipsModelValidations
+    end
+
+    def stub_google_token_error(status, error)
+      stub_request(:post, google_token_url)
+        .to_return(status: status, body: { error: error }.to_json, headers: { "Content-Type" => "application/json" })
+    end
+
+    it "marks a credential revoked when Google answers invalid_grant" do
+      stub_google_token_error(400, "invalid_grant")
+      credential
+
+      expect { described_class.perform_now }.not_to raise_error
+
+      expect(credential.reload).to be_token_revoked
+    end
+
+    %w[invalid_client unauthorized_client].each do |error|
+      it "leaves a credential alone and reports the error for #{error}" do
+        stub_google_token_error(401, error)
+        credential
+
+        reports = capture_error_reports { described_class.perform_now }
+
+        expect(credential.reload).not_to be_token_revoked
+        expect(reports.size).to eq(1)
+        expect(reports.first).to be_handled
+        expect(reports.first.context).to include(oauth_credential_id: credential.id)
+      end
+    end
+  end
+
   context "when the Entra client is not configured" do
     it "does not refresh Microsoft credentials" do
       stale_microsoft_credential
