@@ -1,6 +1,29 @@
 # frozen_string_literal: true
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  # The MCP server and its OAuth endpoints (docs/mcp.md). A bearer token, not
+  # a cookie, signs these requests in, so any origin may call them, and
+  # credentials stay false. A browser client must read WWW-Authenticate to
+  # find the sign-in. First, so the localhost rule below does not take /api/mcp.
+  allow do
+    origins "*"
+
+    resource "/api/mcp",
+             headers: :any,
+             methods: [ :post, :options ],
+             credentials: false,
+             expose: [ "WWW-Authenticate", "Mcp-Session-Id" ]
+
+    %w[/api/oauth/token /api/oauth/revoke /api/oauth/register].each do |path|
+      resource path, headers: :any, methods: [ :post, :options ], credentials: false
+    end
+
+    resource "/.well-known/oauth-*",
+             headers: :any,
+             methods: [ :get, :options, :head ],
+             credentials: false
+  end
+
   allow do
     origins_list = [
       "http://localhost:3001",

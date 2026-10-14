@@ -384,7 +384,7 @@ paths:
         - $ref: "#/components/parameters/TermUid"
         - name: q
           in: query
-          description: Match the first, last, or display name.
+          description: Each word must match the first, last, or display name.
           schema: { type: string }
         - name: semantic
           in: query

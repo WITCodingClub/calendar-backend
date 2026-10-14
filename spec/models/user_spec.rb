@@ -61,6 +61,8 @@ RSpec.describe User, type: :model do
     it { is_expected.to have_many(:security_events).dependent(:destroy) }
     it { is_expected.to have_many(:passkeys).dependent(:destroy) }
     it { is_expected.to have_many(:sign_in_identities).dependent(:destroy) }
+    it { is_expected.to have_many(:oauth_access_grants).class_name("Doorkeeper::AccessGrant").with_foreign_key(:resource_owner_id).dependent(:delete_all) }
+    it { is_expected.to have_many(:oauth_access_tokens).class_name("Doorkeeper::AccessToken").with_foreign_key(:resource_owner_id).dependent(:delete_all) }
     it { is_expected.to have_many(:user_sessions).dependent(:destroy) }
     it { is_expected.to have_many(:sent_friendships).class_name("Friendship").with_foreign_key(:requester_id).dependent(:destroy) }
     it { is_expected.to have_many(:received_friendships).class_name("Friendship").with_foreign_key(:addressee_id).dependent(:destroy) }

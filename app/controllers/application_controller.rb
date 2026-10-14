@@ -8,11 +8,18 @@ class ApplicationController < ActionController::Base
 
   rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
 
+  OAUTH_AUTHORIZE_PATH = "/api/oauth/authorize?"
+
   # A guest who signed in from a meeting link goes back to that link. The
   # session holds only a /meet/ path, which MeetingLinksController sets.
+  # Someone who started from an app's OAuth request goes back to the consent
+  # page, which the Doorkeeper config stores (config/initializers/doorkeeper.rb).
   def after_sign_in_path_for(resource)
     return_to = session.delete(MeetingLinksController::RETURN_TO_KEY).to_s
     return return_to if return_to.start_with?("/meet/")
+
+    stored = stored_location_for(resource).to_s
+    return stored if stored.start_with?(OAUTH_AUTHORIZE_PATH)
 
     resource.admin_access? ? admin_root_path : dashboard_root_path
   end

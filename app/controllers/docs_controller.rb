@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-# Publishes the public catalog API reference at /docs/api, and the machine
-# descriptions of the API at /docs/api/openapi.json and
-# /docs/api/schema.graphql.
+# Publishes the public catalog API reference at /docs/api, the MCP server
+# guide at /docs/mcp, and the machine descriptions of the API at
+# /docs/api/openapi.json and /docs/api/schema.graphql.
 #
-# The page renders docs/public-catalog-api.md, the same file the repository
+# Each page renders a file in docs/ (PAGES), the same file the repository
 # keeps, so the site and the repository cannot say different things.
 #
 # An agent reads the markdown source, not the HTML. It gets the source from
 # /docs/api.md, or from /docs/api when its Accept header ranks text/markdown
-# above text/html.
+# above text/html. /docs/mcp works the same way.
 #
 # It inherits ActionController::Base, not ApplicationController. The page needs
 # no sign-in and no Pundit, and the modern-browser guard on the app pages would
@@ -23,26 +23,26 @@ class DocsController < ActionController::Base
   OPENAPI   = Rails.root.join("docs/public-catalog-api.openapi.yml")
   CACHE_AGE = 1.hour
 
+  # One entry for each markdown page: its source file, title, and description.
+  PAGES = {
+    api: {
+      source:      SOURCE,
+      title:       "Course Catalog API",
+      description: "Public read-only REST and GraphQL API for the Wentworth course catalog."
+    },
+    mcp: {
+      source:      Rails.root.join("docs/mcp.md"),
+      title:       "MCP Server",
+      description: "Connect Claude, ChatGPT, or another MCP client to your Wentworth schedule."
+    }
+  }.freeze
+
   def api
-    raise ActionController::RoutingError, "No API reference" unless SOURCE.exist?
+    render_page(:api, api_docs_url)
+  end
 
-    expires_in CACHE_AGE, public: true
-    # The HTML and the markdown share one URL, so a cache must key on Accept.
-    response.headers["Vary"] = "Accept"
-    response.headers["Link"] = %(<#{api_docs_url(format: :md)}>; rel="alternate"; type="text/markdown")
-
-    return render(plain: SOURCE.read, content_type: "text/markdown") if markdown_requested?
-
-    document  = self.class.render_markdown(SOURCE.read)
-    # Safe to mark: the source is a file in this repository, not user input, and
-    # the renderer is configured with escape_html so any HTML inside the
-    # markdown comes out escaped. Saying so here keeps the reasoning next to the
-    # renderer rather than leaving a bare raw() in the template.
-    @body     = document[:html].html_safe # rubocop:disable Rails/OutputSafety
-    @headings = document[:headings]
-
-    # A client that asks for neither format still gets the page.
-    render formats: :html
+  def mcp
+    render_page(:mcp, mcp_docs_url)
   end
 
   # The file names no host. The server URL comes from the request, the same as
@@ -91,6 +91,30 @@ class DocsController < ActionController::Base
   private_class_method :markdown
 
   private
+
+  def render_page(key, url)
+    @page = PAGES.fetch(key).merge(url: url, markdown_url: "#{url}.md")
+    source = @page[:source]
+    raise ActionController::RoutingError, "No #{@page[:title]} page" unless source.exist?
+
+    expires_in CACHE_AGE, public: true
+    # The HTML and the markdown share one URL, so a cache must key on Accept.
+    response.headers["Vary"] = "Accept"
+    response.headers["Link"] = %(<#{@page[:markdown_url]}>; rel="alternate"; type="text/markdown")
+
+    return render(plain: source.read, content_type: "text/markdown") if markdown_requested?
+
+    document  = self.class.render_markdown(source.read)
+    # Safe to mark: the source is a file in this repository, not user input, and
+    # the renderer is configured with escape_html so any HTML inside the
+    # markdown comes out escaped. Saying so here keeps the reasoning next to the
+    # renderer rather than leaving a bare raw() in the template.
+    @body     = document[:html].html_safe # rubocop:disable Rails/OutputSafety
+    @headings = document[:headings]
+
+    # A client that asks for neither format still gets the page.
+    render :page, formats: :html
+  end
 
   def markdown_requested?
     case params[:format]

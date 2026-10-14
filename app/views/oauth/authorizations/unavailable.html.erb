@@ -1,0 +1,7 @@
+<% content_for :title, "Cannot connect" %>
+
+<%= render layout: "devise/shared/card", locals: { heading: "Cannot connect this app", links: false } do %>
+  <p class="text-sm text-on-surface" role="alert">
+    <%= message %>
+  </p>
+<% end %>

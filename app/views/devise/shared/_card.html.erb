@@ -1,6 +1,7 @@
 <%# The frame of every Devise page: the same card, logo, and messages as the
     sign-in page. Render it as a layout:
-      render layout: "devise/shared/card", locals: { heading:, intro: } %>
+      render layout: "devise/shared/card", locals: { heading:, intro: }
+    A page outside Devise (the OAuth consent page) passes links: false. %>
 <div class="w-full max-w-sm">
   <div class="m3-card p-8">
     <div class="text-center mb-6">
@@ -25,6 +26,6 @@
 
     <%= yield %>
 
-    <%= render "devise/shared/links" %>
+    <%= render "devise/shared/links" if local_assigns.fetch(:links, true) %>
   </div>
 </div>

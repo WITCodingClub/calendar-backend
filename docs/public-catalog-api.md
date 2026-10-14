@@ -213,7 +213,8 @@ message:
 `GET /api/v1/catalog/subjects` accepts `term_uid`.
 
 `GET /api/v1/catalog/instructors` accepts `term_uid`, `q`, `semantic`, `page`,
-and `per_page`.
+and `per_page`. Without `semantic`, each word of `q` must match the first, last,
+or display name, so `q=ada lovelace` finds Ada Lovelace.
 
 `GET /api/v1/catalog/sections/:crn` accepts `term_uid`. Use it when one CRN
 occurs in more than one term. This endpoint also returns cancelled sections, so

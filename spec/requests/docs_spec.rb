@@ -173,4 +173,21 @@ RSpec.describe "Docs", type: :request do
       expect(document[:html]).not_to include("<script>")
     end
   end
+
+  describe "GET /docs/mcp" do
+    it "publishes the MCP guide from docs/mcp.md" do
+      get "/docs/mcp"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("MCP Server", "my_busy_times")
+      expect(response.body).to match(%r{<link rel="canonical" href="http://[^"]+/docs/mcp">})
+    end
+
+    it "returns the markdown source at /docs/mcp.md" do
+      get "/docs/mcp.md"
+
+      expect(response.media_type).to eq("text/markdown")
+      expect(response.body).to eq(Rails.root.join("docs/mcp.md").read)
+    end
+  end
 end

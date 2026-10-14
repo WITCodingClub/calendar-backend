@@ -15,6 +15,7 @@ authenticate :user do
       member { patch :calendar_placement }
     end
     resources :sign_in_identities,   only: [ :destroy ]
+    resources :connected_apps,       only: [ :destroy ]
     resource  :ics_feed,             only: [ :show ]
     resource  :notifications,        only: [ :show, :update ] do
       patch :university_events

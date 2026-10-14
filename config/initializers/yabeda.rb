@@ -38,6 +38,14 @@ Yabeda.configure do
           comment: "Errors that reach Rails.error, handled (rescued and reported) or not.",
           tags: %i[error_class handled severity source]
 
+  counter :mcp_tool_calls_total,
+          comment: "MCP tool calls, by tool and result (docs/mcp.md).",
+          tags: %i[tool status]
+
+  counter :oauth_clients_registered_total,
+          comment: "OAuth clients that MCP clients registered at /api/oauth/register.",
+          tags: []
+
   gauge :users, comment: "Accounts in the database.", aggregation: :most_recent
   gauge :active_sessions, comment: "Sessions that are not revoked or expired.", aggregation: :most_recent
   gauge :google_calendars, comment: "Google calendars that the app syncs.", aggregation: :most_recent
