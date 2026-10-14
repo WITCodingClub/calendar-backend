@@ -233,10 +233,9 @@ module Catalog
       @connection ||= Faraday.new(url: BASE_URL) do |faraday|
         faraday.options.open_timeout = OPEN_TIMEOUT
         faraday.options.timeout = READ_TIMEOUT
-        faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                        exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
-                        retry_statuses: [ 502, 503, 504 ]
         faraday.request :url_encoded
+        # Pacing, retries, and the cooldown for every Banner request.
+        faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
       end
@@ -461,10 +460,9 @@ module Catalog
       @terms_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
         faraday.options.open_timeout = OPEN_TIMEOUT
         faraday.options.timeout = READ_TIMEOUT
-        faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                        exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
-                        retry_statuses: [ 502, 503, 504 ]
         faraday.request :url_encoded
+        # Pacing, retries, and the cooldown for every Banner request.
+        faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
       end
@@ -474,10 +472,9 @@ module Catalog
       @session_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
         faraday.options.open_timeout = OPEN_TIMEOUT
         faraday.options.timeout = READ_TIMEOUT
-        faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                        exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
-                        retry_statuses: [ 502, 503, 504 ]
         faraday.request :url_encoded
+        # Pacing, retries, and the cooldown for every Banner request.
+        faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
       end
@@ -498,10 +495,9 @@ module Catalog
 
         faraday.options.open_timeout = OPEN_TIMEOUT
         faraday.options.timeout = READ_TIMEOUT
-        faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                        exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
-                        retry_statuses: [ 502, 503, 504 ]
         faraday.request :url_encoded
+        # Pacing, retries, and the cooldown for every Banner request.
+        faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
       end

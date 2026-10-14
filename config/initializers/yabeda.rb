@@ -38,6 +38,10 @@ Yabeda.configure do
           comment: "Errors that reach Rails.error, handled (rescued and reported) or not.",
           tags: %i[error_class handled severity source]
 
+  counter :banner_requests_total,
+          comment: "Requests to Banner (LeopardWeb), by outcome (Catalog::BannerThrottle).",
+          tags: %i[outcome]
+
   counter :mcp_tool_calls_total,
           comment: "MCP tool calls, by tool and result (docs/mcp.md).",
           tags: %i[tool status]

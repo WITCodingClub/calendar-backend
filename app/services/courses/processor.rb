@@ -255,12 +255,18 @@ module Courses
     LEOPARD_WEB_CONCURRENCY = 6
 
     def fetch_class_details(keys)
+      # A new thread does not know whether a job or a web request started it,
+      # and the Banner retry budget depends on that (Catalog::BannerThrottle).
+      context = ActiveSupport::ExecutionContext.to_h
+
       keys.each_slice(LEOPARD_WEB_CONCURRENCY).each_with_object({}) do |batch, details|
         threads = batch.map do |crn, term_uid|
           Thread.new do
             Thread.current.report_on_exception = false
             Rails.application.executor.wrap do
-              Catalog::LeopardWebClient.get_class_details(term: term_uid, course_reference_number: crn)
+              ActiveSupport::ExecutionContext.set(**context) do
+                Catalog::LeopardWebClient.get_class_details(term: term_uid, course_reference_number: crn)
+              end
             end
           end
         end

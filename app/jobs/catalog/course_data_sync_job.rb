@@ -14,6 +14,11 @@ module Catalog
 
     limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(*) { "course_data_sync" }
 
+    # Banner stopped answering, and Catalog::BannerThrottle holds every request
+    # for a few minutes. Stop the run and start again after the cooldown,
+    # instead of reporting one error for each remaining course.
+    retry_on Catalog::BannerThrottle::CooldownError, wait: Catalog::BannerThrottle::COOLDOWN + 30.seconds, attempts: 3
+
     def perform(term_uids: nil)
       term_uids ||= default_term_uids
 
@@ -58,10 +63,13 @@ module Catalog
         flags = CourseCalendars::SyncMarker.enrollment_flags(courses.map(&:id))
         CourseCalendars::SyncMarker.batch_with_enrollment_flags(flags) do
           courses.each do |course|
+            # Catalog::BannerThrottle paces the Banner requests, so there is no
+            # sleep here.
             if sync_course_data(course, term_uid)
               synced_count += 1
             end
-            sleep 0.1
+          rescue Catalog::BannerThrottle::CooldownError
+            raise
           rescue => e
             error_count += 1
             Rails.error.report(e, handled: true, context: { course_id: course.id, crn: course.crn })
@@ -144,6 +152,8 @@ module Catalog
 
     def fetch_fresh_course_data(crn, term_uid)
       Catalog::LeopardWebClient.get_class_details(term: term_uid, course_reference_number: crn)
+    rescue Catalog::BannerThrottle::CooldownError
+      raise
     rescue => e
       Rails.error.report(e, handled: true, context: { crn: crn, term_uid: term_uid })
       nil

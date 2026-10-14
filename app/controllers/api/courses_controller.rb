@@ -23,6 +23,8 @@ module Api
         user_pub: current_user.public_id,
         ics_url:  current_user.cal_url_with_extension
       }, status: :ok
+    rescue Catalog::BannerThrottle::CooldownError => e
+      render_banner_unavailable(e)
     rescue => e
       Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to process courses", status: :internal_server_error
@@ -81,12 +83,23 @@ module Api
       }, status: :ok
     rescue ArgumentError => e
       render_error e.message, status: :bad_request
+    rescue Catalog::BannerThrottle::CooldownError => e
+      render_banner_unavailable(e)
     rescue => e
       Rails.error.report(e, handled: true, context: { user_id: current_user.id })
       render_error "Failed to reprocess courses", status: :internal_server_error
     end
 
     private
+
+    # Banner stopped answering a moment ago (Catalog::BannerThrottle), so the
+    # request fails at once instead of waiting. This is expected, not a bug, so
+    # it is not reported. The client can try again after Retry-After.
+    def render_banner_unavailable(error)
+      response.headers["Retry-After"] = error.retry_after.to_s
+      render_error "Course data is not available right now. Try again in a few minutes.",
+                   status: :service_unavailable, code: "BANNER_UNAVAILABLE"
+    end
 
     def plain_hashes(courses)
       courses.map do |course|

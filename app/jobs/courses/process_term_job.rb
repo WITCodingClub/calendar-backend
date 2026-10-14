@@ -28,6 +28,15 @@ module Courses
       raise error
     end
 
+    # Banner stopped answering, and Catalog::BannerThrottle holds every
+    # request for a few minutes. Wait out the cooldown instead of using up the
+    # quick retries above. Declared after them, so it wins for this error.
+    retry_on(Catalog::BannerThrottle::CooldownError,
+             wait: Catalog::BannerThrottle::COOLDOWN + 30.seconds, attempts: 5) do |job, error|
+      job.mark_failed(:banner_unavailable)
+      raise error
+    end
+
     # A missing term does not get better on a retry.
     discard_on(Courses::InvalidTermError) { |job, _error| job.mark_failed(:term_not_found) }
 
