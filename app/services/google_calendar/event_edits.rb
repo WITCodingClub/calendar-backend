@@ -4,9 +4,11 @@ module GoogleCalendar
   # Compares a Google Calendar event with the values the app last wrote to it,
   # which the calendar_events row keeps, and finds the fields the person changed.
   #
-  # Summary, location, start time and end time count when they differ. Any
-  # description counts as an edit. A changed recurrence keeps the whole event
-  # as the person left it. MicrosoftGraph::EventEdits follows the same rules.
+  # Summary, location, start time and end time count when they differ. A
+  # changed recurrence keeps the whole event as the person left it. The
+  # description does not count: the app writes one to every event, and the row
+  # does not store it, so the rule would freeze every description.
+  # MicrosoftGraph::EventEdits follows the same rules.
   class EventEdits
     TIME_ZONE = "America/New_York"
 
@@ -36,7 +38,6 @@ module GoogleCalendar
 
       fields << "summary"     if remote.summary  != row.summary
       fields << "location"    if remote.location != row.location
-      fields << "description" if remote.description.present?
       fields << "start_time"  if time_changed?(remote_start, row.start_time)
       fields << "end_time"    if time_changed?(remote_end, row.end_time)
 
@@ -55,7 +56,6 @@ module GoogleCalendar
         case field
         when "summary"     then merged[:summary]     = remote.summary
         when "location"    then merged[:location]    = remote.location
-        when "description" then merged[:description] = remote.description
         when "start_time"  then merged[:start_time]  = remote_start
         when "end_time"    then merged[:end_time]    = remote_end
         end
@@ -64,11 +64,13 @@ module GoogleCalendar
     end
 
     # The row columns that take the event as the person left it in Google.
+    # The recurrence stays the one the app wrote, so the next sync still sees
+    # the person's recurrence as an edit.
     def remote_row_attributes
-      event_data = { summary: remote.summary, location: remote.location, start_time: remote_start,
-                     end_time: remote_end, recurrence: remote.recurrence }
+      attributes = { summary: remote.summary, location: remote.location, start_time: remote_start, end_time: remote_end }
+      data_hash  = CalendarEvent.generate_data_hash(attributes.merge(recurrence: row.recurrence))
 
-      event_data.merge(event_data_hash: CalendarEvent.generate_data_hash(event_data), last_synced_at: Time.current)
+      attributes.merge(event_data_hash: data_hash, last_synced_at: Time.current)
     end
 
     private
@@ -79,12 +81,20 @@ module GoogleCalendar
       self.class.parse_time(remote.start)
     end
 
+    # An all-day event ends at midnight after its last day. The app keeps the
+    # last day itself, like EventPayload expects.
     def remote_end
-      self.class.parse_time(remote.end)
+      time = self.class.parse_time(remote.end)
+      time && all_day? ? time - 1.day : time
+    end
+
+    def all_day?
+      remote.start&.date.present?
     end
 
     def time_changed?(remote_time, row_time)
       return remote_time != row_time if remote_time.nil? || row_time.nil?
+      return remote_time.to_date != row_time.in_time_zone(TIME_ZONE).to_date if all_day?
 
       remote_time.to_i != row_time.to_i
     end
