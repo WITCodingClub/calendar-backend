@@ -34,6 +34,7 @@ RSpec.describe "Dashboard authorization", type: :request do
       "dashboard/calendar_preferences"  => { id: -> { "global" } },
       "dashboard/connected_accounts"    => { id: -> { create(:oauth_credential, user: user).public_id } },
       "dashboard/sign_in_identities"    => { id: -> { create(:sign_in_identity, user: user).id } },
+      "dashboard/connected_apps"        => { id: -> { create(:oauth_access_token, resource_owner_id: user.id).application_id } },
       "dashboard/friend_groups"         => { id: -> { create(:friend_group, user: user).public_id } },
       "dashboard/friend_group_members"  => { friend_group_id: -> { create(:friend_group, user: user).public_id },
                                              id: -> { friend.public_id } },

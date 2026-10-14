@@ -111,6 +111,11 @@ class User < ApplicationRecord
   has_many :passkeys, dependent: :destroy
   has_many :user_sessions, dependent: :destroy
   has_many :sign_in_identities, dependent: :destroy
+  # Grants and tokens of the OAuth server for MCP clients (docs/mcp.md).
+  has_many :oauth_access_grants, class_name: "Doorkeeper::AccessGrant", foreign_key: :resource_owner_id,
+                                 inverse_of: false, dependent: :delete_all
+  has_many :oauth_access_tokens, class_name: "Doorkeeper::AccessToken", foreign_key: :resource_owner_id,
+                                 inverse_of: false, dependent: :delete_all
 
   has_many :sent_friendships, class_name: "Friendship", foreign_key: :requester_id,
            dependent: :destroy, inverse_of: :requester

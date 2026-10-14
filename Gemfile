@@ -50,6 +50,12 @@ gem "omniauth-rails_csrf_protection", "~> 2.0"
 gem "google-apis-calendar_v3", "~> 0.57.0"
 gem "googleauth", "~> 1.17"
 
+# OAuth 2.1 authorization server for MCP clients (docs/mcp.md)
+gem "doorkeeper", "~> 5.9"
+
+# Model Context Protocol server (docs/mcp.md)
+gem "mcp", "~> 1.7"
+
 # Authorization
 gem "pundit", "~> 2.5"
 

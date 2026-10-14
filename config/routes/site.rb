@@ -18,6 +18,8 @@ get "/.well-known/security.txt", to: "discovery#security", as: :security_txt, fo
 # /docs/api.md, or Accept: text/markdown, returns the markdown source.
 get "/docs",     to: redirect("/docs/api")
 get "/docs/api", to: "docs#api", as: :api_docs
+# How to connect an MCP client, rendered from docs/mcp.md. /docs/mcp.md works too.
+get "/docs/mcp", to: "docs#mcp", as: :mcp_docs
 # Machine descriptions of the same API, for code generators and agents.
 get "/docs/api/openapi.json",   to: "docs#openapi",        as: :api_openapi,        format: false
 get "/docs/api/schema.graphql", to: "docs#graphql_schema", as: :api_graphql_schema, format: false

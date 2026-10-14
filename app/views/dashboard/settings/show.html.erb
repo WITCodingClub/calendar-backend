@@ -55,6 +55,28 @@
     </div>
   <% end %>
 
+  <% if @connected_apps.any? %>
+    <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+      <div class="px-5 py-4">
+        <p class="m3-label">Connected apps</p>
+        <p class="text-xs text-on-surface-variant mt-0.5">These apps can read your schedule through the MCP server.</p>
+      </div>
+      <% @connected_apps.each do |app| %>
+        <div class="px-5 py-4 flex items-center justify-between gap-4">
+          <div class="min-w-0">
+            <p class="text-sm text-on-surface truncate"><%= app.name %></p>
+            <p class="text-xs text-on-surface-variant truncate"><%= Oauth::RedirectUris.hosts(app.redirect_uri).join(", ") %></p>
+          </div>
+          <%= button_to "Disconnect",
+              dashboard_connected_app_path(app),
+              method: :delete,
+              data: { turbo_confirm: "Disconnect #{app.name}? It will no longer be able to read your data." },
+              class: "m3-btn-danger text-xs px-4 py-2 flex-shrink-0" %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
   <div>
     <%= button_to destroy_user_session_path,
         method: :delete,

@@ -24,6 +24,9 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `GoogleSignIn` | Google sign-in and account linking: token checks, code exchange, OAuth state |
 | `MicrosoftSignIn` | Sign-in with a WIT Microsoft account |
 | `OauthCredentials` | Token refresh and revoke for every provider |
+| `Oauth` | The OAuth 2.1 server for MCP clients: consent page, client registration, metadata (`docs/mcp.md`) |
+| `McpTools` | The MCP server and its read-only tools (`docs/mcp.md`) |
+| `McpPlatforms` | The addresses of hosted MCP clients, which skip the per-IP rate limits (`docs/mcp.md`) |
 | `Risc` | Google RISC security events |
 | `FriendMeetings`, `Friendships`, `MeetingLinks` | Friends features |
 | `Faculties` | The faculty directory and RateMyProfessor |

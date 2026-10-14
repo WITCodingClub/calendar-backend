@@ -22,6 +22,13 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - When an extension API path changes, keep the old path in `config/routes/api/legacy.rb`. Remove it when `calendar_api_legacy_requests_total` for that path stays at zero after the extension release that stops calling it.
 - Render every API error with `render_error message, status: :not_found` (from `Api::ErrorRendering`). The body is `{ error, code }`. Pass `code:` only when a client needs a code more specific than the status gives.
 
+## MCP tools
+
+- Every MCP tool is read-only. It inherits `McpTools::BaseTool`, which marks it read-only for the client. `docs/mcp.md` gives the steps to add one.
+- A tool that reads a user's record calls `authorize` with the same policy as the matching API endpoint.
+- Raise `McpTools::ToolError` for a bad argument. The client gets the message as a tool error.
+- Each catalog tool matches a public catalog endpoint (the table in `docs/mcp.md`). When a catalog endpoint or filter changes, change the tool in the same PR. Put shared logic in the `Catalog::` query objects, not in a controller.
+
 ## Errors
 
 - A rescue that swallows an error (it logs, returns a fallback, or continues) reports it: `Rails.error.report(e, handled: true, context: { user_id: user.id })`. Put ids in the context, never tokens or personal data.

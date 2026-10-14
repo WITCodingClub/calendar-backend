@@ -289,6 +289,21 @@ RSpec.describe "Discovery files", type: :request do
     end
   end
 
+  describe "the MCP server in auth.md and llms.txt" do
+    it "describes the OAuth server for MCP clients" do
+      get "/auth.md", headers: crawler
+      expect(response.body).to include(
+        "| OAuth 2.1, for MCP clients only | `GET http://example.com/.well-known/oauth-authorization-server` |",
+        "### OAuth for MCP clients",
+        "POST http://example.com/api/oauth/register"
+      )
+      expect(response.body).not_to include("OAuth dynamic client registration or OAuth authorization server metadata")
+
+      get "/llms.txt", headers: crawler
+      expect(response.body).to include("[MCP server](http://example.com/docs/mcp.md)")
+    end
+  end
+
   describe "GET /auth.md and Microsoft sign-in" do
     after { Flipper.disable(FeatureFlags::MICROSOFT_SIGN_IN) }
 

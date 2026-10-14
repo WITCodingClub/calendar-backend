@@ -123,12 +123,12 @@ RSpec.describe Rack::Attack do
     end
   end
 
-  describe ".extract_user_id_from_jwt" do
+  describe ".extract_user_id" do
     it "decodes the token once per request, however many rules ask" do
       req = request_with("Bearer #{api_token_for(user)}")
       allow(JsonWebTokenService).to receive(:decode).and_call_original
 
-      3.times { expect(described_class.extract_user_id_from_jwt(req)).to eq(user.id) }
+      3.times { expect(described_class.extract_user_id(req)).to eq(user.id) }
 
       expect(JsonWebTokenService).to have_received(:decode).once
     end
@@ -137,7 +137,7 @@ RSpec.describe Rack::Attack do
       req = request_with("Bearer not-a-token")
       allow(JsonWebTokenService).to receive(:decode).and_call_original
 
-      2.times { expect(described_class.extract_user_id_from_jwt(req)).to be_nil }
+      2.times { expect(described_class.extract_user_id(req)).to be_nil }
 
       expect(JsonWebTokenService).to have_received(:decode).once
     end
@@ -145,8 +145,8 @@ RSpec.describe Rack::Attack do
     it "does not share the answer between requests" do
       other = create(:user)
 
-      expect(described_class.extract_user_id_from_jwt(request_with("Bearer #{api_token_for(user)}"))).to eq(user.id)
-      expect(described_class.extract_user_id_from_jwt(request_with("Bearer #{api_token_for(other)}"))).to eq(other.id)
+      expect(described_class.extract_user_id(request_with("Bearer #{api_token_for(user)}"))).to eq(user.id)
+      expect(described_class.extract_user_id(request_with("Bearer #{api_token_for(other)}"))).to eq(other.id)
     end
   end
 
@@ -171,6 +171,63 @@ RSpec.describe Rack::Attack do
       expect(discriminator("api/csp-reports", "/api/csp_reports")).to eq("1.2.3.4")
       expect(discriminator("api/csp-reports", "/api/user/onboard")).to be_nil
       expect(discriminator("api/ip", "/api/csp_reports")).to be_nil
+    end
+  end
+
+  describe "MCP clients" do
+    let(:claude_ip) { "160.79.104.10" }
+
+    def discriminator(name, path, ip: "1.2.3.4", method: "POST", **env)
+      request = Rack::Attack::Request.new(Rack::MockRequest.env_for(path, method: method, "REMOTE_ADDR" => ip, **env))
+      described_class.throttles.fetch(name).block.call(request)
+    end
+
+    after { McpPlatforms.reset! }
+
+    it "counts an MCP request with an OAuth token against the user" do
+      token = create(:oauth_access_token, resource_owner_id: user.id)
+
+      key = discriminator("api/user", "/api/mcp", ip: claude_ip, "HTTP_AUTHORIZATION" => "Bearer #{token.plaintext_token}")
+
+      expect(key).to eq(user.id)
+    end
+
+    it "does not take a revoked OAuth token as a user" do
+      token = create(:oauth_access_token, :revoked, resource_owner_id: user.id)
+
+      expect(described_class.extract_user_id(request_with("Bearer #{token.plaintext_token}"))).to be_nil
+    end
+
+    it "skips the per-IP limits for a hosted MCP client's address" do
+      expect(discriminator("api/ip", "/api/oauth/register", ip: claude_ip)).to be_nil
+      expect(discriminator("req/ip", "/.well-known/oauth-authorization-server", ip: claude_ip, method: "GET")).to be_nil
+      expect(discriminator("catalog/ip", "/api/v1/catalog/terms", ip: claude_ip, method: "GET")).to be_nil
+    end
+
+    it "keeps the per-IP limits for every other address" do
+      expect(discriminator("api/ip", "/api/oauth/register")).to eq("1.2.3.4")
+      expect(discriminator("api/ip", "/api/mcp")).to eq("1.2.3.4")
+    end
+
+    it "gives each hosted MCP client address one high backstop limit" do
+      expect(described_class.throttles.fetch("mcp/platform").limit).to eq(3000)
+      expect(discriminator("mcp/platform", "/api/oauth/register", ip: claude_ip)).to eq(claude_ip)
+      expect(discriminator("mcp/platform", "/api/oauth/register")).to be_nil
+    end
+
+    it "counts a semantic search against the user when the request has a token" do
+      env = Rack::MockRequest.env_for("/api/mcp", method: "POST", "REMOTE_ADDR" => claude_ip,
+                                                   "HTTP_AUTHORIZATION" => "Bearer #{api_token_for(user)}")
+      env[described_class::GRAPHQL_SEMANTIC_SEARCH_ENV_KEY] = true
+
+      expect(described_class.throttles.fetch("catalog/semantic").block.call(Rack::Attack::Request.new(env))).to eq("user:#{user.id}")
+    end
+
+    it "lets a client with no User-Agent call the MCP endpoints" do
+      %w[/api/mcp /api/oauth/token /.well-known/oauth-protected-resource].each do |path|
+        request = Rack::Attack::Request.new(Rack::MockRequest.env_for(path, "HTTP_USER_AGENT" => ""))
+        expect(described_class.suspicious_agent?(request)).to be(false)
+      end
     end
   end
 

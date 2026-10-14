@@ -74,6 +74,17 @@ production:
     queue: low
     schedule: every day at 4:30am
 
+  cleanup_unused_oauth_clients:
+    class: Cleanup::UnusedOauthClientsJob
+    queue: low
+    schedule: every day at 4:45am
+
+  # The ChatGPT connector addresses that skip the per-IP limits (McpPlatforms).
+  refresh_openai_mcp_ranges:
+    class: McpPlatforms::RefreshOpenaiRangesJob
+    queue: low
+    schedule: every 6 hours
+
   # Embeds the sections the catalog sync just wrote, and any instructor or
   # review text that changed. Text that did not change never reaches the API.
   backfill_embeddings:

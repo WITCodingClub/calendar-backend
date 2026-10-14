@@ -42,7 +42,7 @@ module Types
     field :instructors, InstructorType.connection_type, null: false,
           description: "Faculty who teach at least one section" do
       argument :term_uid, Integer, required: false
-      argument :q, String, required: false
+      argument :q, String, required: false, description: "Each word must match the first, last, or display name"
       argument :semantic, Boolean, required: false, default_value: false,
                description: "Rank q by meaning instead of by the literal name. " \
                             "A query can run one semantic search."
@@ -69,12 +69,7 @@ module Types
     end
 
     def subjects(term_uid: nil)
-      scope = Course.active
-      scope = scope.where(term_id: Term.where(uid: term_uid).select(:id)) if term_uid
-
-      scope.group(:subject).count.sort_by { |subject, _| subject }.map do |subject, count|
-        { subject: subject, code: subject_code(subject), section_count: count }
-      end
+      ::Catalog::SubjectQuery.new.call(term_uid: term_uid)
     end
 
     def sections(filter: nil)
@@ -102,33 +97,7 @@ module Types
     end
 
     def instructors(term_uid: nil, q: nil, semantic: false)
-      scope = Faculty.where(id: Faculty.joins(:courses).select("faculties.id"))
-                     .includes(:rating_distribution)
-
-      if term_uid
-        scope = scope.where(
-          id: Faculty.joins(:courses)
-                     .where(courses: { term_id: Term.where(uid: term_uid).select(:id) })
-                     .select("faculties.id")
-        )
-      end
-
-      return scope.order(:last_name, :first_name) if q.blank?
-
-      ranked = semantic ? ::Catalog::SemanticSearch.ranked_scope(scope, q) : nil
-      return ranked if ranked
-
-      query = "%#{ActiveRecord::Base.sanitize_sql_like(q.strip)}%"
-      scope.where(
-        "faculties.first_name ILIKE :q OR faculties.last_name ILIKE :q OR faculties.display_name ILIKE :q",
-        q: query
-      ).order(:last_name, :first_name)
-    end
-
-    private
-
-    def subject_code(subject)
-      subject =~ /\(([^)]+)\)/ ? ::Regexp.last_match(1) : subject
+      ::Catalog::InstructorQuery.new.call(term_uid: term_uid, q: q, semantic: semantic)
     end
   end
 end

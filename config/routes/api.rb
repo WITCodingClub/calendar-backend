@@ -11,6 +11,12 @@ namespace :api do
   draw "api/friends"  # /api/friends and /api/meeting_links
   draw "api/calendar" # courses, preferences, and university calendar events
 
+  # The MCP server (docs/mcp.md). Its bearer tokens come from the OAuth server
+  # in config/routes/oauth.rb, not from the extension sign-in. The server is
+  # stateless, so GET (an event stream) and DELETE (end a session) answer 405.
+  post  "mcp", to: "mcp#create", as: :mcp
+  match "mcp", to: "mcp#method_not_allowed", via: %i[get delete]
+
   # Anonymous usage counts from the extension, for Grafana. No token.
   post "extension_events", to: "extension_events#create"
 

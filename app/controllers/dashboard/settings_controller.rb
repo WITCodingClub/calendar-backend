@@ -9,6 +9,7 @@ module Dashboard
       authorize current_user, :show?
 
       @sign_in_identities = current_user.sign_in_identities.order(:created_at)
+      @connected_apps     = Doorkeeper::Application.authorized_for(current_user).order(:name)
     end
   end
 end

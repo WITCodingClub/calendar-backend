@@ -26,6 +26,7 @@ You need a credential only for the other `/api/` endpoints. They read or change 
 | --- | --- | --- |
 | Google sign-in | `POST <%= api_user_onboard_url %>` | The person, in a Google consent screen |
 | Passkey | `POST <%= api_user_passkeys_authentication_options_url %>`, then `POST <%= api_user_passkeys_authenticate_url %>` | The person, with their authenticator |
+| OAuth 2.1, for MCP clients only | `GET <%= oauth_authorization_server_metadata_url %>` | The person, on the consent page |
 
 <% if MicrosoftSignIn.enabled? %>
 Sign in with Microsoft opens a session on the web dashboard only. It does not give an API credential. To get a credential, the person uses Google sign-in with the same `@wit.edu` address, or a passkey.
@@ -36,8 +37,12 @@ This service does not support these methods:
 - Anonymous credentials
 - Verified email claims
 - Identity assertions (ID-JAG)
-- OAuth dynamic client registration or OAuth authorization server metadata
 - API keys
+
+### OAuth for MCP clients
+
+The [MCP server](<%= mcp_docs_url(format: :md) %>) at `<%= api_mcp_url %>` uses OAuth 2.1. An MCP client finds the server from the `401` response and its `WWW-Authenticate` header, registers at `POST <%= oauth_registration_url %>` or uses a client ID metadata document URL as its `client_id`, and sends the person to the consent page with PKCE (`S256`). The tokens work only on the MCP endpoint, not on the other `/api/` endpoints.
+
 
 ### Google sign-in
 

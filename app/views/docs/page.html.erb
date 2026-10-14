@@ -1,17 +1,17 @@
-<% content_for :title, "Course Catalog API" %>
+<% content_for :title, @page[:title] %>
 
-<% description = "Public read-only REST and GraphQL API for the Wentworth course catalog." %>
+<% description = @page[:description] %>
 
 <% content_for :head do %>
   <meta name="description" content="<%= description %>">
-  <link rel="canonical" href="<%= api_docs_url %>">
-  <link rel="alternate" type="text/markdown" href="<%= api_docs_url(format: :md) %>">
+  <link rel="canonical" href="<%= @page[:url] %>">
+  <link rel="alternate" type="text/markdown" href="<%= @page[:markdown_url] %>">
 
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="<%= ApplicationHelper::SITE_NAME %>">
   <meta property="og:title" content="<%= page_title %>">
   <meta property="og:description" content="<%= description %>">
-  <meta property="og:url" content="<%= api_docs_url %>">
+  <meta property="og:url" content="<%= @page[:url] %>">
   <meta name="twitter:card" content="summary">
 
   <%= structured_data_tag(
@@ -19,13 +19,13 @@
     "@type": "TechArticle",
     headline: page_title,
     description: description,
-    url: api_docs_url,
+    url: @page[:url],
     inLanguage: "en",
     isAccessibleForFree: true,
     encoding: {
       "@type": "MediaObject",
       encodingFormat: "text/markdown",
-      contentUrl: api_docs_url(format: :md)
+      contentUrl: @page[:markdown_url]
     },
     publisher: {
       "@type": "Organization",
