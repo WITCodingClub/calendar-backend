@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_15_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -435,7 +435,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_130000) do
     t.integer "status", default: 0, null: false
     t.bigint "term_id", null: false
     t.datetime "updated_at", null: false
-    t.bigint "uploaded_by_id", null: false
+    t.bigint "uploaded_by_id"
     t.index ["term_id", "created_at"], name: "index_finals_schedules_on_term_id_and_created_at"
     t.index ["uploaded_by_id"], name: "index_finals_schedules_on_uploaded_by_id"
   end

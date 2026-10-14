@@ -15,7 +15,7 @@
   <% t.column("Status") { |schedule| render "status_badge", status: schedule.status } %>
   <% t.column("Uploaded") do |schedule| %>
     <%= schedule.created_at.strftime("%b %-d, %Y %-l:%M %p") %>
-    <div class="text-xs text-on-surface-variant break-all"><%= schedule.uploaded_by.email %></div>
+    <div class="text-xs text-on-surface-variant break-all"><%= schedule.uploaded_by&.email || "Deleted user" %></div>
   <% end %>
   <% t.column("Results") do |schedule| %>
     <% if schedule.stats.present? %>

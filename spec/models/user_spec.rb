@@ -71,6 +71,10 @@ RSpec.describe User, type: :model do
     it { is_expected.to have_many(:friend_meeting_attendees).dependent(:delete_all) }
     it { is_expected.to have_many(:meeting_links).dependent(:destroy) }
     it { is_expected.to have_many(:guest_meeting_links).class_name("MeetingLink").with_foreign_key(:guest_user_id).dependent(:nullify) }
+    it { is_expected.to have_many(:enrollment_snapshots).dependent(:delete_all) }
+    it { is_expected.to have_many(:passkey_handoffs).dependent(:delete_all) }
+    it { is_expected.to have_many(:webauthn_challenges).dependent(:delete_all) }
+    it { is_expected.to have_many(:uploaded_finals_schedules).class_name("FinalsSchedule").with_foreign_key(:uploaded_by_id).dependent(:nullify) }
 
     it { is_expected.to validate_presence_of(:email) }
     it { is_expected.to validate_uniqueness_of(:email).case_insensitive }
@@ -114,6 +118,24 @@ RSpec.describe User, type: :model do
 
       expect { user.destroy! }.not_to raise_error
       expect(FriendMeeting.exists?(meeting.id)).to be(false)
+    end
+  end
+
+  describe "deleting the account with rows that point at the user" do
+    let(:user) { create(:user) }
+
+    it "removes the user's own rows and keeps the finals schedules the user uploaded" do
+      snapshot  = create(:enrollment_snapshot, user: user)
+      handoff   = create(:passkey_handoff, user: user)
+      challenge = create(:webauthn_challenge, user: user)
+      schedule  = create(:finals_schedule, uploaded_by: user)
+
+      expect { user.destroy! }.not_to raise_error
+
+      expect(EnrollmentSnapshot.exists?(snapshot.id)).to be(false)
+      expect(PasskeyHandoff.exists?(handoff.id)).to be(false)
+      expect(WebauthnChallenge.exists?(challenge.id)).to be(false)
+      expect(schedule.reload.uploaded_by_id).to be_nil
     end
   end
 

@@ -12,7 +12,7 @@
 #  created_at     :datetime         not null
 #  updated_at     :datetime         not null
 #  term_id        :bigint           not null
-#  uploaded_by_id :bigint           not null
+#  uploaded_by_id :bigint
 #
 # Indexes
 #
