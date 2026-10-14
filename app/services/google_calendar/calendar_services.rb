@@ -11,6 +11,13 @@ module GoogleCalendar
 
     module_function
 
+    # True when Google answered a token request with invalid_grant: the person
+    # revoked the grant or the refresh token expired. Other token errors, such
+    # as invalid_client after a secret rotation, say nothing about the person.
+    def invalid_grant?(error)
+      error.message.match?(/"error"\s*:\s*"invalid_grant"/)
+    end
+
     def service_account
       build(service_account_credentials)
     end
