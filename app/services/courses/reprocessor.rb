@@ -61,6 +61,8 @@ module Courses
 
     private
 
+    ALREADY_GONE_STATUSES = [ 404, 410 ].freeze
+
     def validate_input!
       raise ArgumentError, "courses cannot be nil"   if courses.nil?
       raise ArgumentError, "courses must be an array" unless courses.is_a?(Array)
@@ -87,8 +89,15 @@ module Courses
       calendar_events.find_each do |cal_event|
         begin
           service&.delete_event(course_calendar.external_calendar_id, cal_event.external_event_id)
-        rescue Google::Apis::ClientError => e
-          Rails.logger.warn("[CourseReprocess] User #{user.id}: Could not delete event #{cal_event.external_event_id}: #{e.message}")
+        rescue Google::Apis::Error => e
+          # 404 and 410 mean the event is already gone. Any other answer (401,
+          # 403, 429) leaves the real event on the calendar, so the row stays:
+          # without it nothing points at the event and it is stranded.
+          unless ALREADY_GONE_STATUSES.include?(e.status_code)
+            Rails.logger.warn("[CourseReprocess] User #{user.id}: Could not delete event #{cal_event.external_event_id}: #{e.message}")
+            Rails.error.report(e, handled: true, context: { user_id: user.id, calendar_event_id: cal_event.id })
+            next
+          end
         end
         cal_event.destroy!
         deleted_count += 1
