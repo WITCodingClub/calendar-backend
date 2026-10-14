@@ -90,6 +90,7 @@ module MicrosoftGraph
 
     def log_failure(action, error)
       Rails.logger.warn({ message: "Could not #{action} Outlook master categories", status: error.status }.to_json)
+      Rails.error.report(error, handled: true, context: { action: action, status: error.status })
     end
   end
 end
