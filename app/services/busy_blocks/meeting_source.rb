@@ -9,6 +9,10 @@ class BusyBlocks
       def covers?(date) = date.between?(start_date, end_date)
     end
 
+    # The begin and end times that mark an async or all-day section. See Course::MeetingTime#all_day?.
+    ALL_DAY_BEGIN = 1201
+    ALL_DAY_END   = 2359
+
     def self.call(user, from, to) = new(user, from, to).call
 
     def initialize(user, from, to)
@@ -38,6 +42,8 @@ class BusyBlocks
       Course::MeetingTime
         .joins(course: :enrollments)
         .where(enrollments: { user_id: @user.id })
+        .where(courses: { status: "active" })
+        .where.not(begin_time: ALL_DAY_BEGIN, end_time: ALL_DAY_END)
         .where(start_date: ..@to.in_time_zone.end_of_day)
         .where(end_date: @from.in_time_zone.beginning_of_day..)
         .distinct
@@ -55,11 +61,7 @@ class BusyBlocks
     # with no classes. A multi-day event covers each date from its start to its
     # end, as for the holiday exclusions of the calendar events.
     def no_class_dates
-      UniversityCalendarEvent.no_class_days_between(@from, @to).pluck(:start_time, :end_time).flat_map do |start_time, end_time|
-        first = start_time.in_time_zone.to_date
-        last  = [ end_time.in_time_zone.to_date, first ].max
-        (first..last).to_a
-      end.to_set
+      UniversityCalendarEvent.no_class_dates_between(@from, @to).to_set
     end
   end
 end

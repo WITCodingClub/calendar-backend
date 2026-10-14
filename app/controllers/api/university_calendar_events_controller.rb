@@ -24,8 +24,10 @@ module Api
       end
 
       if params[:term_id].present?
-        term    = Term.find_by_public_id(params[:term_id])
-        @events = @events.for_term(term) if term
+        term = find_term
+        return unless term
+
+        @events = @events.for_term(term)
       end
 
       @events = @events.page(params[:page]).per(params[:per_page] || 25)
@@ -57,8 +59,10 @@ module Api
       @holidays = UniversityCalendarEvent.holidays.includes(:term).upcoming.order(:start_time)
 
       if params[:term_id].present?
-        term      = Term.find_by_public_id(params[:term_id])
-        @holidays = @holidays.for_term(term) if term
+        term = find_term
+        return unless term
+
+        @holidays = @holidays.for_term(term)
       end
 
       if params[:start_date].present? && params[:end_date].present?
@@ -83,9 +87,15 @@ module Api
       raise ActiveRecord::RecordNotFound, "UniversityCalendarEvent not found" unless @event
     end
 
+    def find_term
+      term = Term.find_by_public_id(params[:term_id].to_s)
+      render_error "Term not found", status: :not_found unless term
+      term
+    end
+
     def parse_date_param(param_name)
       Date.iso8601(params[param_name])
-    rescue ArgumentError
+    rescue ArgumentError, TypeError
       raise ActionController::BadRequest, "Invalid #{param_name}: use ISO 8601 format (YYYY-MM-DD)"
     end
 

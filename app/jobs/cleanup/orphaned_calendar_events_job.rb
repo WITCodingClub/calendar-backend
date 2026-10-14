@@ -51,6 +51,13 @@ module Cleanup
           raise unless [ 404, 410 ].include?(e.status_code)
 
           Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Event #{event.external_event_id} already deleted from Google Calendar"
+        rescue Signet::AuthorizationError => e
+          # Google refused the refresh token, so the remote event is out of
+          # reach until the person connects again. Any other refusal, such as
+          # invalid_client, keeps the row and perform reports it.
+          raise unless GoogleCalendar::CalendarServices.invalid_grant?(e)
+
+          Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Google token revoked for credential #{credential.id}, so event #{event.external_event_id} stays on Google Calendar"
         end
       end
 

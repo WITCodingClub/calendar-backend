@@ -19,4 +19,11 @@ RSpec.describe FriendMeetings::UpdateJob do
 
     expect(job.concurrency_key).to eq("GoogleCalendarSyncJob/google_calendar_sync_user_#{meeting.user_id}")
   end
+
+  it "discards the job when the Google refresh token was revoked" do
+    allow(FriendMeetings::Publisher).to receive(:new).and_return(publisher)
+    allow(publisher).to receive(:update).and_raise(Google::Auth::AuthorizationError.new("synthetic invalid_grant"))
+
+    expect { described_class.perform_now(meeting) }.not_to raise_error
+  end
 end

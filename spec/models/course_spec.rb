@@ -14,6 +14,7 @@
 #  grade_mode        :string
 #  is_section_linked :boolean          default(FALSE), not null
 #  link_identifier   :string
+#  links_fetched_at  :datetime
 #  schedule_type     :string           not null
 #  seats_available   :integer
 #  seats_capacity    :integer

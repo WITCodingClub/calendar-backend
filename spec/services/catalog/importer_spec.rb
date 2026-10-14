@@ -82,6 +82,24 @@ RSpec.describe Catalog::Importer do
     end
   end
 
+  describe "catalog_imported" do
+    let!(:other_term) do
+      create(:term, uid: 202720, season: :spring, year: 2027,
+             start_date: Date.new(2027, 1, 18), end_date: Date.new(2027, 5, 7))
+    end
+
+    it "marks only the terms that had a course imported" do
+      good = catalog_row(crn: 41001, sequence: "01")
+      bad  = catalog_row(crn: 41002, sequence: "01", schedule_type: "Made Up Type (ZZZ)").merge("term" => "202720")
+
+      result = described_class.call([ good, bad ])
+
+      expect(result).to include(processed: 1, failed: 1)
+      expect(term.reload.catalog_imported).to be(true)
+      expect(other_term.reload.catalog_imported).to be(false)
+    end
+  end
+
   # One entry of the searchResults payload, cut down to the keys the service
   # reads. Seat counts come from this same payload, so importing them needs no
   # extra request to LeopardWeb.

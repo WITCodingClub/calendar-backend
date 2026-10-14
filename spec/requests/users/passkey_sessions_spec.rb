@@ -128,4 +128,48 @@ RSpec.describe "Signing in to the dashboard with a passkey", type: :request do
            params: { handle: handle, credential: unknown.get(challenge: challenge) }, as: :json
     }.not_to change(User, :count)
   end
+
+  describe "malformed credentials" do
+    let(:handle) do
+      post "/users/passkey/options"
+      json["handle"]
+    end
+
+    it "answers unauthorized when a field is not valid base64url" do
+      post "/users/passkey/callback",
+           params: { handle: handle,
+                     credential: { type: "public-key", id: "!!!", rawId: "!!!",
+                                   response: { authenticatorData: "!!!", clientDataJSON: "!!!", signature: "!!!" } } },
+           as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "answers unauthorized when the id of a known passkey is paired with invalid fields" do
+      passkey = register_passkey
+      post "/users/passkey/options"
+
+      post "/users/passkey/callback",
+           params: { handle: json["handle"],
+                     credential: { type: "public-key", id: passkey.external_id, rawId: passkey.external_id,
+                                   response: { authenticatorData: "!!!", clientDataJSON: "!!!", signature: "!!!" } } },
+           as: :json
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "answers bad request when the credential has no response" do
+      post "/users/passkey/callback",
+           params: { handle: handle, credential: { type: "public-key", id: "abc", rawId: "abc" } },
+           as: :json
+
+      expect(response).to have_http_status(:bad_request)
+    end
+
+    it "answers bad request when there is no credential" do
+      post "/users/passkey/callback", params: { handle: handle }, as: :json
+
+      expect(response).to have_http_status(:bad_request)
+    end
+  end
 end

@@ -120,9 +120,22 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
       expect(service).to have_received(:unshare_calendar_with_email).with(CourseCalendar.last.external_calendar_id, "second@example.com")
     end
 
+    it "refuses to remove the last Google account" do
+      primary = create(:oauth_credential, user: user, email: "first@example.com")
+      create(:course_calendar, oauth_credential: primary)
+
+      delete "/api/user/google_calendar/emails", params: { email: primary.email }, headers: headers, as: :json
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(json).to eq("error" => "Cannot disconnect your last Google account.", "code" => "VALIDATION_FAILED")
+      expect(OauthCredential.exists?(primary.id)).to be(true)
+      expect(CourseCalendar.count).to eq(1)
+    end
+
     it "answers INTERNAL_ERROR and reports the error when removal fails" do
       primary = create(:oauth_credential, user: user, email: "first@example.com")
       create(:course_calendar, oauth_credential: primary)
+      create(:oauth_credential, user: user, email: "second@example.com")
       allow_any_instance_of(OauthCredential).to receive(:destroy!).and_raise(StandardError, "boom") # rubocop:disable RSpec/AnyInstance
       allow(Rails.error).to receive(:report)
 

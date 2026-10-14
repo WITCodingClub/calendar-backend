@@ -15,6 +15,7 @@ module Catalog
       validate_courses_data!
 
       processed_count = 0
+      processed_terms = Set.new
       failed_courses = []
       @changes = { created: 0, updated: 0, unchanged: 0 }
 
@@ -37,6 +38,7 @@ module Catalog
         begin
           process_course(course_data)
           processed_count += 1
+          processed_terms << (course_data["term"] || course_data["termEffective"]).to_s
         rescue => e
           Rails.error.report(e, handled: true, context: { crn: course_data["courseReferenceNumber"], term: course_data["term"] })
           failed_courses << {
@@ -53,7 +55,7 @@ module Catalog
 
       term_uids.each do |term_uid|
         term = @terms[term_uid.to_s]
-        next unless term && processed_count > 0
+        next unless term && processed_terms.include?(term_uid.to_s)
 
         term.update!(
           catalog_imported: true,
