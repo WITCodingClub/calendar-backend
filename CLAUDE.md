@@ -43,7 +43,7 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 ## Migrations
 
 - Every new migration must pass strong_migrations (`config/initializers/strong_migrations.rb`). Use `safety_assured` only with a comment that says why the step is safe.
-- Put data backfills in rake tasks, not in schema migrations. Production runs `bin/rails db:prepare` before Puma starts, so a slow or failing migration takes the site down. The one exception: a cleanup that a later step in the same migration needs, such as removing orphan rows before `validate_foreign_key`.
+- Put data backfills in rake tasks, not in schema migrations. Production runs `bin/rails db:prepare` before the new container starts, while the old container still serves (`docs/deploy.md`). A slow migration delays the deploy, and a failing one blocks it. The one exception: a cleanup that a later step in the same migration needs, such as removing orphan rows before `validate_foreign_key`.
 - Add a foreign key in two migrations: `add_foreign_key ..., validate: false`, then `validate_foreign_key`.
 
 ## Specs
