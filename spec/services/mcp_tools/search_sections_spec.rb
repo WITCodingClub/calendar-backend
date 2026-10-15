@@ -6,7 +6,7 @@ RSpec.describe McpTools::SearchSections do
   let(:user) { create(:user) }
   let(:term) { create(:term) }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   it "searches one term with the catalog filters" do
     match = create(:course, term: term, subject: "MATH", title: "Calculus")

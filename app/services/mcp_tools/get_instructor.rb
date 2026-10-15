@@ -9,6 +9,7 @@ module McpTools
                 "the average rating and difficulty, the rating distribution, the top tags, and the newest reviews. " \
                 "With term_uid it also lists the sections the instructor teaches in that term. " \
                 "Call search_reviews for more reviews."
+    requires_scope "catalog"
     input_schema(
       properties: {
         instructor_id: { type: "string", description: "The instructor pub_id, for example fac_kw7coe30." },

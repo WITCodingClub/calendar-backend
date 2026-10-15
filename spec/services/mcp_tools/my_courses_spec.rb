@@ -6,7 +6,7 @@ RSpec.describe McpTools::MyCourses do
   let(:user) { create(:user) }
   let(:term) { create(:term) }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   it "lists the user's courses in the term without calendar settings" do
     course = create(:course, term: term, title: "Data Structures")

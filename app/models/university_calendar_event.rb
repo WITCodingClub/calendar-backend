@@ -68,6 +68,20 @@ class UniversityCalendarEvent < ApplicationRecord
     CATEGORY_DESCRIPTIONS.fetch(category.to_s, "Other university events")
   end
 
+  # Categories of the events that cancel classes on their dates.
+  NO_CLASS_CATEGORIES = %w[holiday study_day finals].freeze
+
+  # The cache holds plain times, not records, so a schema change cannot break
+  # an entry. The TTL covers writes that skip callbacks.
+  NO_CLASS_SPANS_CACHE_KEY = "university_calendar_events:no_class_spans"
+  NO_CLASS_SPANS_CACHE_TTL = 1.hour
+
+  # The dates of one no-class event, from no_class_spans_between. The ICS feed
+  # reads updated_at for the LAST-MODIFIED of a class event.
+  NoClassSpan = Data.define(:start_time, :end_time, :updated_at)
+
+  after_commit { self.class.expire_no_class_spans_cache }
+
   validates :ics_uid, presence: true, uniqueness: true
   validates :summary, presence: true
   validates :start_time, :end_time, presence: true
@@ -98,14 +112,38 @@ class UniversityCalendarEvent < ApplicationRecord
   end
 
   def self.no_class_days_between(start_date, end_date)
-    where(category: %w[holiday study_day finals]).in_date_range(start_date, end_date).order(:start_time)
+    where(category: NO_CLASS_CATEGORIES).in_date_range(start_date, end_date).order(:start_time)
+  end
+
+  # The no-class spans that overlap the range, earliest first. They come from
+  # Rails.cache, so a schedule, an ICS feed, or a sync does not query the table.
+  # The match is the same as in_date_range.
+  def self.no_class_spans_between(start_date, end_date)
+    range_start = start_date.beginning_of_day
+    range_end   = end_date.end_of_day
+
+    cached_no_class_spans.filter_map do |start_time, end_time, updated_at|
+      NoClassSpan.new(start_time:, end_time:, updated_at:) if end_time >= range_start && start_time <= range_end
+    end
+  end
+
+  # The start, end, and updated_at of every no-class event. There are few of them, so one
+  # cache entry holds them all. A commit on any event clears it.
+  def self.cached_no_class_spans
+    Rails.cache.fetch(NO_CLASS_SPANS_CACHE_KEY, expires_in: NO_CLASS_SPANS_CACHE_TTL) do
+      where(category: NO_CLASS_CATEGORIES).order(:start_time).pluck(:start_time, :end_time, :updated_at)
+    end
+  end
+
+  def self.expire_no_class_spans_cache
+    Rails.cache.delete(NO_CLASS_SPANS_CACHE_KEY)
   end
 
   # Every date inside the range that a holiday, study day, or finals event covers.
   def self.no_class_dates_between(start_date, end_date)
-    no_class_days_between(start_date, end_date).pluck(:start_time, :end_time).flat_map do |start_time, end_time|
-      first = start_time.in_time_zone.to_date
-      last  = [ end_time.in_time_zone.to_date, first ].max
+    no_class_spans_between(start_date, end_date).flat_map do |span|
+      first = span.start_time.in_time_zone.to_date
+      last  = [ span.end_time.in_time_zone.to_date, first ].max
       ([ first, start_date.to_date ].max..[ last, end_date.to_date ].min).to_a
     end.uniq
   end
@@ -328,7 +366,7 @@ class UniversityCalendarEvent < ApplicationRecord
   end
 
   def term_boundary_event? = category == "term_dates"
-  def excludes_classes?    = %w[holiday study_day finals].include?(category)
+  def excludes_classes?    = NO_CLASS_CATEGORIES.include?(category)
 
   def formatted_date
     all_day ? start_time.strftime("%B %d, %Y") : start_time.strftime("%B %d, %Y at %l:%M %p").squish

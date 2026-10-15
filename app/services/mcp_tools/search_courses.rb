@@ -11,6 +11,7 @@ module McpTools
     description "Searches Wentworth courses (not sections) by code or title words, for example \"COMP 2350\" or " \
                 "\"network security\". Filter by subject code, or by a term to list only the courses offered in it. " \
                 "Call get_course for prerequisites and the full description."
+    requires_scope "catalog"
     input_schema(
       properties: {
         q:        { type: "string", description: "A course code, or words in the title." },

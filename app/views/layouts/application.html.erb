@@ -4,19 +4,14 @@
     <meta charset="utf-8">
     <title><%= browser_title %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="Calendar">
-    <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
     <%= yield :head %>
 
-    <%# PWA manifest is not enabled. To turn it on, add the route in
-        config/routes.rb and link it here with:
-        tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
-
     <%= render "layouts/favicon" %>
+    <%= render "layouts/theme_color" %>
 
     <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>

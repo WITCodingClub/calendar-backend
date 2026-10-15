@@ -6,6 +6,7 @@ module McpTools
     title "My busy times"
     description "Lists the times I am busy between two dates: classes, final exams, and saved friend meetings. " \
                 "Days with no classes (holidays, study days) are left out. At most #{BusyBlocks::MAX_DAYS} days."
+    requires_scope "schedule:read"
     input_schema(
       properties: { start_date: DATE_SCHEMA, end_date: DATE_SCHEMA },
       required:   %w[start_date end_date]

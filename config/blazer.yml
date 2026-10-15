@@ -5,8 +5,9 @@ data_sources:
     url: <%= ENV["BLAZER_DATABASE_URL"] %>
 
     # statement timeout, in seconds
-    # none by default
-    # timeout: 15
+    # production has one Postgres server, so a long admin query must not
+    # take the CPU and I/O that the app needs
+    timeout: 15
 
     # caching settings
     # can greatly improve speed

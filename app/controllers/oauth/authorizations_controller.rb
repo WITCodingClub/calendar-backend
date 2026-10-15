@@ -18,8 +18,48 @@ module Oauth
 
     before_action :load_client_metadata_document
     before_action :check_resource, only: %i[new create]
+    before_action :sync_client_scopes, only: %i[new create]
+    before_action :normalize_scope, only: %i[new create destroy]
+    before_action :drop_unapproved_scopes, only: :create
+
+    helper_method :consent_scopes
 
     private
+
+    def consent_scopes
+      @consent_scopes ||= Oauth::ConsentScopes.new(params[:scope], previous: previous_token_scopes)
+    end
+
+    # A client registered before the scopes were split lists only "read".
+    # Doorkeeper refuses a request for a scope that the client does not list,
+    # so give each registered client the current list.
+    def sync_client_scopes
+      application = Doorkeeper::Application.find_by(uid: params[:client_id].to_s)
+      return unless application&.dynamic?
+
+      scopes = McpTools::Scopes::NAMES.join(" ")
+      application.update!(scopes: scopes) unless application.scopes.to_s == scopes
+    end
+
+    # The legacy read scope becomes the read scopes it stands for, so the
+    # consent page shows a box for each.
+    def normalize_scope
+      params[:scope] = consent_scopes.requested_scope if params[:scope].present?
+    end
+
+    # Doorkeeper grants the scope string of the form. Keep only the scopes
+    # whose box the student checked.
+    def drop_unapproved_scopes
+      params[:scope] = consent_scopes.granted_scope(params[:scopes])
+    end
+
+    def previous_token_scopes
+      application = Doorkeeper::Application.find_by(uid: params[:client_id].to_s)
+      return if application.nil? || current_resource_owner.nil?
+
+      Doorkeeper::AccessToken.where(application: application, resource_owner_id: current_resource_owner.id, revoked_at: nil)
+                             .order(created_at: :desc).pick(:scopes)
+    end
 
     # A client_id that is an HTTPS URL names a client ID metadata document.
     # Fetch it (or the kept copy) before Doorkeeper looks the client up.

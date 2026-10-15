@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe McpTools::SearchInstructors do
   let(:user) { create(:user) }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   def teaching(**attributes)
     create(:faculty, **attributes).tap { |faculty| create(:course).faculties << faculty }
