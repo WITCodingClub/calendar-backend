@@ -48,6 +48,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `search_reviews` | RateMyProfessor reviews, by instructor, words, meaning, or sentiment. | `GET /api/v1/catalog/reviews` | `reviews` |
 | `catalog_graphql` | Any read-only query on the catalog schema. | `POST /api/v1/graphql` | all |
 | `my_courses` | Your courses in one term, with weekly meeting times and rooms. | `GET /api/user/processed_events` | |
+| `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |
 | `list_friends` | Your friends and their ids. | `GET /api/friends` | |
@@ -60,6 +61,8 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `set_notifications` | **Changes** whether your reminders are paused. | `PATCH /api/user/notifications` | |
 
 Times are in the `America/New_York` time zone.
+
+`my_course_history` lists only the terms that you processed in the extension. The server cannot read LeopardWeb as you, so it cannot find the other terms. Since extension v6.0.0, each time you fetch a term, the extension also processes your other LeopardWeb terms in the background. A student who has not fetched a term since v6.0.0 can still have gaps.
 
 `catalog_graphql` has the same depth, cost, and page limits as `POST /api/v1/graphql`, and one semantic search for each query.
 
