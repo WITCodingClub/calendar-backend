@@ -120,6 +120,11 @@ module Faculties
     # Banner sends lowercase addresses, but rows written before this service ran
     # can carry any casing. preload matches on the lowered address so a re-import
     # updates the existing instructor instead of creating a second one.
+    #
+    # Imports of several terms run at the same time, and each one preloads before
+    # the others create. Another import can create the instructor after preload,
+    # and the uniqueness validation then raises RecordInvalid before the index
+    # raises RecordNotUnique. Both mean the row exists, so read it.
     def find_or_create_faculty(entry)
       @faculty_cache[entry[:email]] ||= begin
         Faculty.create!(
@@ -128,6 +133,10 @@ module Faculties
           last_name: entry[:last_name]
         )
       rescue ActiveRecord::RecordNotUnique
+        Faculty.find_by!("LOWER(email) = ?", entry[:email])
+      rescue ActiveRecord::RecordInvalid => e
+        raise unless e.record.errors.of_kind?(:email, :taken)
+
         Faculty.find_by!("LOWER(email) = ?", entry[:email])
       end
     end
