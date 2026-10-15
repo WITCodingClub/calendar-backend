@@ -181,9 +181,32 @@ class Term < ApplicationRecord
     !past?
   end
 
+  # Term.current keeps its id in Rails.cache under a key for the date, and
+  # memoizes the record for the request in Current. A commit on any term clears
+  # both. The TTL covers writes that skip callbacks, such as insert_all!.
+  CURRENT_ID_CACHE_TTL = 5.minutes
+
+  after_commit { self.class.expire_current_cache }
+
   def self.current
     today = Time.zone.today
 
+    Current.terms.fetch(today) do
+      id = Rails.cache.fetch(current_id_cache_key(today), expires_in: CURRENT_ID_CACHE_TTL) { find_current(today)&.id }
+      Current.terms[today] = id && find_by(id: id)
+    end
+  end
+
+  def self.current_id_cache_key(date)
+    "term:current_id:#{date.iso8601}"
+  end
+
+  def self.expire_current_cache
+    Rails.cache.delete(current_id_cache_key(Time.zone.today))
+    Current.terms = {}
+  end
+
+  def self.find_current(today)
     expected_season = case today.month
     when 1..5 then :spring
     when 6..7 then :summer

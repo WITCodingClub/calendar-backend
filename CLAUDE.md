@@ -35,6 +35,13 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - A rescue that raises the error again does not report it. The request and job executors report every error that leaves a request or a job.
 - `ErrorReportSubscriber` counts each report in `calendar_errors_reported_total` and logs it. See `docs/metrics.md`.
 
+## Caching
+
+- `Rails.cache` is Solid Cache in production and `:null_store` in specs. A spec that checks a cache sets `Rails.cache` to a `MemoryStore` in an `around` block.
+- A cache of records clears in an `after_commit` on the model, and has a TTL for writes that skip callbacks (`insert_all!`, `update_all`). Examples: `Term.current` and `UniversityCalendarEvent.no_class_spans_between`.
+- Cache plain values (ids, times, hashes), not records. A record in the cache breaks when a column changes.
+- Memoize a value for one request or one job in `Current`. Rails resets it at the end of each.
+
 ## Jobs
 
 - A job with `limits_concurrency` names its group with a `CONCURRENCY_GROUP` string constant. Never change that string: Solid Queue puts it in every lock key, and jobs in the queue hold locks under it. `spec/jobs/concurrency_groups_spec.rb` checks this.
