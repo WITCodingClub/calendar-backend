@@ -119,10 +119,10 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
       holiday(Time.zone.local(2027, 3, 1, 0, 0))
 
       builder.preload_holidays_for_user!
-      allow(UniversityCalendarEvent).to receive(:no_class_days_between).and_call_original
+      allow(UniversityCalendarEvent).to receive(:no_class_spans_between).and_call_original
 
-      expect(builder.holidays_for_meeting_time(meeting_time)).to eq([ day_off ])
-      expect(UniversityCalendarEvent).not_to have_received(:no_class_days_between)
+      expect(builder.holidays_for_meeting_time(meeting_time).map(&:start_time)).to eq([ day_off.start_time ])
+      expect(UniversityCalendarEvent).not_to have_received(:no_class_spans_between)
     end
 
     it "preloads no holidays for a user without meeting times" do
@@ -136,7 +136,7 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
     it "queries the holidays of the date range without a preload" do
       day_off = holiday(Time.zone.local(2026, 10, 12, 0, 0))
 
-      expect(builder.holidays_for_meeting_time(meeting_time)).to eq([ day_off ])
+      expect(builder.holidays_for_meeting_time(meeting_time).map(&:start_time)).to eq([ day_off.start_time ])
     end
   end
 end

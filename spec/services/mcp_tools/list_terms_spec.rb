@@ -11,7 +11,7 @@ RSpec.describe McpTools::ListTerms do
     create(:course, term: newer)
     allow(Term).to receive(:current).and_return(newer)
 
-    result = described_class.call(server_context: { user: user })
+    result = described_class.call(server_context: mcp_context(user))
 
     expect(result.error?).to be(false)
     expect(result.structured_content[:current_term_uid]).to eq(newer.uid)
@@ -24,6 +24,6 @@ RSpec.describe McpTools::ListTerms do
     create(:term)
     allow(Term).to receive(:active).and_return(Term.none)
 
-    expect(described_class.call(server_context: { user: user }, active: true).structured_content[:terms]).to be_empty
+    expect(described_class.call(server_context: mcp_context(user), active: true).structured_content[:terms]).to be_empty
   end
 end

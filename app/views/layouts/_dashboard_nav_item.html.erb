@@ -1,5 +1,5 @@
 <%# Renders a desktop navigation rail item. Locals: path, label, icon %>
-<% active = request.path == path || (path.split("/").length > 2 && request.path.start_with?(path + "/")) %>
+<% active = dashboard_nav_active?(path) %>
 <%= link_to path,
     title: label,
     "aria-label": label,

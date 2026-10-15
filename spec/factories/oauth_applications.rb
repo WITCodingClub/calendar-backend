@@ -5,7 +5,7 @@ FactoryBot.define do
   factory :oauth_application, class: "Doorkeeper::Application" do
     name { Faker::App.name }
     redirect_uri { "https://#{Faker::Internet.domain_name}/callback" }
-    scopes { "read" }
+    scopes { McpTools::Scopes::NAMES.join(" ") }
     confidential { false }
 
     trait :dynamic do

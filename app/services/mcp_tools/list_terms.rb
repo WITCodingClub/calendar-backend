@@ -7,6 +7,7 @@ module McpTools
     title "List terms"
     description "Lists the Wentworth academic terms, newest first, with the uid that the other tools take. " \
                 "current_term_uid is the term in session today, and next_term_uid is the one after it."
+    requires_scope "catalog"
     input_schema(
       properties: { active: { type: "boolean", description: "Only the terms in session today." } }
     )

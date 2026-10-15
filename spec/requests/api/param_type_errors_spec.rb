@@ -26,16 +26,16 @@ RSpec.describe "API params of the wrong type", type: :request do
     end
   end
 
-  describe "POST /api/user/notifications/disable" do
+  describe "PATCH /api/user/notifications" do
     it "answers 400 for a duration that is not a whole number" do
-      post "/api/user/notifications/disable", params: { duration: "abc" }, headers: headers, as: :json
+      patch "/api/user/notifications", params: { disabled: true, duration: "abc" }, headers: headers, as: :json
 
       expect(response).to have_http_status(:bad_request)
       expect(user.reload.notifications_disabled?).to be(false)
     end
 
     it "answers 400 for a duration that is an object" do
-      post "/api/user/notifications/disable", params: { duration: { a: 1 } }, headers: headers, as: :json
+      patch "/api/user/notifications", params: { disabled: true, duration: { a: 1 } }, headers: headers, as: :json
 
       expect(response).to have_http_status(:bad_request)
     end
@@ -43,7 +43,7 @@ RSpec.describe "API params of the wrong type", type: :request do
     it "answers 403 when the policy denies the update" do
       allow_any_instance_of(UserPolicy).to receive(:update?).and_return(false) # rubocop:disable RSpec/AnyInstance
 
-      post "/api/user/notifications/disable", params: { duration: 60 }, headers: headers, as: :json
+      patch "/api/user/notifications", params: { disabled: true, duration: 60 }, headers: headers, as: :json
 
       expect(response).to have_http_status(:forbidden)
     end

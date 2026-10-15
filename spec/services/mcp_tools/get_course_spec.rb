@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe McpTools::GetCourse do
   let(:user) { create(:user) }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   it "gets a course by code, with sections in a term" do
     term = create(:term)

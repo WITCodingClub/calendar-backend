@@ -11,7 +11,7 @@ RSpec.describe McpTools::MyFinals do
     create(:enrollment, user: user, course: course)
     create(:final_exam, term: term, crn: course.crn, course: course, location: "WENTW 010")
 
-    result = described_class.call(server_context: { user: user }, term_uid: term.uid)
+    result = described_class.call(server_context: mcp_context(user), term_uid: term.uid)
 
     expect(result.structured_content[:finals]).to eq([ {
       course:     "#{course.prefix}2000 Algorithms".squish,
