@@ -15,7 +15,7 @@ RSpec.describe McpTools::MyCourseHistory do
     create(:enrollment, user: user, course: create(:course, term: newer, title: "Algorithms"))
     create(:enrollment, course: create(:course, term: older))
 
-    result = described_class.call(server_context: { user: user })
+    result = described_class.call(server_context: mcp_context(user))
 
     terms = result.structured_content[:terms]
     expect(terms.pluck(:uid)).to eq([ newer.uid, older.uid ])
@@ -29,6 +29,6 @@ RSpec.describe McpTools::MyCourseHistory do
   end
 
   it "lists no terms for a user with no courses" do
-    expect(described_class.call(server_context: { user: user }).structured_content).to eq(terms: [])
+    expect(described_class.call(server_context: mcp_context(user)).structured_content).to eq(terms: [])
   end
 end

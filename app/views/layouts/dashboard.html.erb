@@ -75,14 +75,8 @@
           <%= logo_mark(:small) %>
           <span class="text-sm font-bold text-on-surface truncate"><%= page_title("Dashboard") %></span>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <span class="text-xs text-on-surface-variant"><%= current_user.first_name %></span>
-          <%= button_to destroy_user_session_path,
-              method: :delete,
-              class: "text-xs text-on-surface-variant hover:text-primary" do %>
-            Sign out
-          <% end %>
-        </div>
+        <%# Sign out is in the More sheet (#840). %>
+        <span class="text-xs text-on-surface-variant shrink-0"><%= current_user.first_name %></span>
       </header>
 
       <!-- Mobile bottom nav -->
