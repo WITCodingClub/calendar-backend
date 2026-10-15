@@ -24,6 +24,20 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
              credentials: false
   end
 
+  # The public catalog API carries no credentials and no user data, so any
+  # origin may read it. credentials must stay false to pair with origins "*".
+  # Cloudflare caches these responses for every origin (#684), so each one
+  # must be the same: this rule comes before the localhost rule, and
+  # Api::V1::PublicController sends the header when a request has no Origin.
+  allow do
+    origins "*"
+
+    resource "/api/v1/catalog/*",
+             headers: :any,
+             methods: [ :get, :options, :head ],
+             credentials: false
+  end
+
   allow do
     origins_list = [
       "http://localhost:3001",
@@ -41,15 +55,10 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
              expose: [ "Authorization" ]
   end
 
-  # The public catalog API carries no credentials and no user data, so any
+  # The public GraphQL API carries no credentials and no user data, so any
   # origin may read it. credentials must stay false to pair with origins "*".
   allow do
     origins "*"
-
-    resource "/api/v1/catalog/*",
-             headers: :any,
-             methods: [ :get, :options, :head ],
-             credentials: false
 
     resource "/api/v1/graphql",
              headers: :any,

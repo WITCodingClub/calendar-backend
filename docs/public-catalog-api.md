@@ -57,8 +57,11 @@ office locations.
 
 ## Limits
 
-- Responses are public and cacheable for 1 hour.
-- Rate limit: 300 requests per minute per IP address.
+- Responses are public and cacheable for 1 hour. Cloudflare caches REST
+  responses at the edge for the same hour.
+- Rate limit: 300 requests per minute per IP address. A response from the
+  Cloudflare cache does not count. Its `RateLimit` fields are those of the
+  request that filled the cache.
 - REST page size: 50 by default, 200 maximum.
 - GraphQL page size: 50 by default, 200 maximum.
 - GraphQL query depth: 12 maximum. Query cost: 500 maximum. See

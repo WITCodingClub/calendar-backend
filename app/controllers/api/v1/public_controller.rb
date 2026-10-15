@@ -25,8 +25,12 @@ module Api
         render json: { data: data }
       end
 
+      # Cloudflare caches these responses and ignores Vary: Origin (#684). Rack::Cors
+      # adds the CORS header only when the request has an Origin, so a response
+      # cached from a server-side request would lack it and break browsers.
       def set_public_cache
         expires_in CACHE_MAX_AGE, public: true
+        response.headers["Access-Control-Allow-Origin"] = "*"
       end
 
       def render_invalid_filter(exception)
