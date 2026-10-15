@@ -188,7 +188,7 @@ module CourseCalendars
     # Filters from the preloaded set (populated by preload_holidays_for_user!) to avoid
     # per-meeting-time DB queries when multiple meeting times have different date ranges.
     # @param meeting_time [MeetingTime] The meeting time to get holidays for
-    # @return [Array<UniversityCalendarEvent>] Holiday events in the date range
+    # @return [Array<UniversityCalendarEvent::NoClassSpan>] No-class spans in the date range
     def holidays_for_meeting_time(meeting_time)
       @holidays_cache ||= {}
       cache_key = [ meeting_time.start_date, meeting_time.end_date ]
@@ -204,10 +204,10 @@ module CourseCalendars
           h_end >= mt_start && h_start <= mt_end
         end
       else
-        @holidays_cache[cache_key] = UniversityCalendarEvent.no_class_days_between(
+        @holidays_cache[cache_key] = UniversityCalendarEvent.no_class_spans_between(
           meeting_time.start_date,
           meeting_time.end_date
-        ).to_a
+        )
       end
     end
 
@@ -223,7 +223,7 @@ module CourseCalendars
       max_end   = dates.map(&:last).compact.max
 
       @all_holidays_preloaded = if min_start && max_end
-                                  UniversityCalendarEvent.no_class_days_between(min_start, max_end).to_a
+                                  UniversityCalendarEvent.no_class_spans_between(min_start, max_end)
       else
                                   []
       end
