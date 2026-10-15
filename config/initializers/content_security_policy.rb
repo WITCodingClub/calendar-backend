@@ -27,6 +27,11 @@
 # letter_opener_web) put the nonce on their inline scripts, and Flipper UI
 # loads only its own script files, so the same policy fits them.
 Rails.application.configure do
+  # One exact Mermaid version. The docs layout imports from this URL, and
+  # script-src allows only this path, so a new release loads only after a
+  # change here.
+  config.x.mermaid_url = "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/"
+
   config.content_security_policy do |policy|
     policy.default_src     :self
     policy.base_uri        :self
@@ -34,7 +39,7 @@ Rails.application.configure do
     policy.frame_ancestors :self
     policy.frame_src       :self
     policy.form_action     :self, "https://accounts.google.com", "https://login.microsoftonline.com"
-    policy.script_src      :self, "https://cdn.jsdelivr.net/npm/mermaid@11/"
+    policy.script_src      :self, config.x.mermaid_url
     policy.style_src       :self, :unsafe_inline
     policy.img_src         :self, :data, "https://wit.edu", "https://*.wit.edu"
     policy.font_src        :self, :data

@@ -74,8 +74,12 @@ Open **Settings** on the dashboard. **Connected apps** lists every app that can 
 
 ## How the sign-in works
 
+The diagram shows the sign-in steps. The client first calls `/api/mcp` with no token and gets a 401 answer. It then finds the OAuth server, registers or sends its metadata URL, and opens the sign-in page in the browser. After you select **Allow**, the client trades the code for a token. It sends that token with each tool call.
+
 ```mermaid
 sequenceDiagram
+  accTitle: How an MCP client signs in
+  accDescr: The client calls /api/mcp with no token and gets 401. It reads the OAuth metadata, registers or sends a client ID metadata URL, and opens /api/oauth/authorize in the browser. The student signs in and selects Allow. The client trades the code for an access token and a refresh token, then calls /api/mcp with the token.
   participant C as MCP client
   participant M as /api/mcp
   participant A as OAuth server (/api/oauth)

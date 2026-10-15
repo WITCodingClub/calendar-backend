@@ -62,7 +62,7 @@ RSpec.describe "Content Security Policy" do
 
     expect(response.body).to include(%(<script type="module" nonce="#{nonce}">))
     expect(response.body).to include(%(<script type="application/ld+json" nonce="#{nonce}">))
-    expect(policy).to include("https://cdn.jsdelivr.net/npm/mermaid@11/")
+    expect(policy).to include(Rails.configuration.x.mermaid_url)
   end
 
   # Turbo Drive keeps the policy of the first full page load, so a page that

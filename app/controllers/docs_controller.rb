@@ -72,8 +72,23 @@ class DocsController < ActionController::Base
       { id: node["id"], text: node.text } if node["id"].present?
     end
 
+    make_scrollable(doc)
+
     { html: doc.to_html, headings: headings }
   end
+
+  # A wide code block or table scrolls sideways inside itself. tabindex lets a
+  # keyboard user focus it and scroll with the arrow keys. The table scrolls in
+  # a wrapper, because display: block on the table removes its table role for
+  # some screen readers.
+  def self.make_scrollable(doc)
+    doc.css("pre").each { |pre| pre["tabindex"] = "0" }
+
+    doc.css("table").each do |table|
+      table.wrap(%(<div class="docs-table" tabindex="0"></div>))
+    end
+  end
+  private_class_method :make_scrollable
 
   # escape_html keeps any raw HTML in the source out of the page. The file is
   # ours, so this is a guard, not a filter that the document depends on.

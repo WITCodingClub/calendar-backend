@@ -26,8 +26,15 @@ The API has three surfaces over the same data:
 Both surfaces use the same filter object, `Catalog::SectionQuery`. A filter
 gives the same result on both.
 
+The diagram shows the path of a request. The REST controllers and the GraphQL
+`QueryType` both send the filter to `Catalog::SectionQuery`, which reads the
+courses table. REST formats the result with the catalog serializers. GraphQL
+formats it with its `Types::*` classes.
+
 ```mermaid
 flowchart LR
+    accTitle: How a catalog request reaches the data
+    accDescr: The REST controllers and the GraphQL QueryType both use Catalog::SectionQuery, which reads the courses table. REST formats the result with Catalog serializers, and GraphQL with Types classes.
     R[REST controllers] --> Q[Catalog::SectionQuery]
     G[GraphQL QueryType] --> Q
     Q --> DB[(courses)]
@@ -127,8 +134,13 @@ a week is two rows, one per day. That is the right shape for a room question
 and the wrong shape for a course list: a reader scanning it sees each course
 more than once and reads the extra rows as duplicates.
 
+The diagram shows how to choose a report. To count courses, use
+`/reports/sections`. To count room hours, use `/reports/meeting_times`.
+
 ```mermaid
 flowchart LR
+    accTitle: Which report to use
+    accDescr: To count courses, use /reports/sections. To count room hours, use /reports/meeting_times.
     Q{What are you counting?} -->|courses| S["/reports/sections"]
     Q -->|room hours| M["/reports/meeting_times"]
 ```

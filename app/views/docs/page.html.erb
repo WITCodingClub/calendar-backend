@@ -36,16 +36,31 @@
 <% end %>
 
 <div class="docs">
-  <nav class="docs-toc" aria-label="On this page">
-    <p class="docs-toc-title">On this page</p>
-    <ul>
-      <% @headings.each do |heading| %>
-        <li><a href="#<%= heading[:id] %>"><%= heading[:text] %></a></li>
-      <% end %>
-    </ul>
-  </nav>
+  <%# Closed on a small screen, so the article starts near the top. The script
+      below opens it on a wide screen, where it sits beside the article. %>
+  <details class="docs-toc" id="docs-toc">
+    <summary>On this page</summary>
+    <nav aria-label="On this page">
+      <ul>
+        <% @headings.each do |heading| %>
+          <li><a href="#<%= heading[:id] %>"><%= heading[:text] %></a></li>
+        <% end %>
+      </ul>
+    </nav>
+  </details>
+  <script nonce="<%= content_security_policy_nonce %>">
+    (() => {
+      const toc  = document.getElementById("docs-toc");
+      const wide = window.matchMedia("(min-width: 1024px)");
+      const sync = () => { toc.open = wide.matches; };
+      sync();
+      wide.addEventListener("change", sync);
+    })();
+  </script>
 
-  <article class="docs-body">
-    <%= @body %>
-  </article>
+  <main id="content" class="docs-body" tabindex="-1">
+    <article>
+      <%= @body %>
+    </article>
+  </main>
 </div>

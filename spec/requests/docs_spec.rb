@@ -32,6 +32,49 @@ RSpec.describe "Docs", type: :request do
       expect(response.body).to match(/<a href="#[a-z0-9-]+">/)
     end
 
+    it "links the masthead back to the site and to the other docs page" do
+      get "/docs/api"
+
+      page = Nokogiri::HTML(response.body)
+      expect(page.at("header a.docs-brand")["href"]).to eq("/")
+      expect(page.at('nav[aria-label="Docs"] a[aria-current="page"]')["href"]).to eq("/docs/api")
+      expect(page.at('nav[aria-label="Docs"] a[href="/docs/mcp"]')["aria-current"]).to be_nil
+    end
+
+    it "lets a keyboard user skip to the article in <main>" do
+      get "/docs/api"
+
+      page = Nokogiri::HTML(response.body)
+      expect(page.at("a.docs-skip")["href"]).to eq("#content")
+      expect(page.at("main#content article")).to be_present
+    end
+
+    it "puts the menu in a <details>, so a phone shows it as one line" do
+      get "/docs/api"
+
+      page = Nokogiri::HTML(response.body)
+      expect(page.at("details.docs-toc > summary").text).to eq("On this page")
+      expect(page.at("details.docs-toc")["open"]).to be_nil
+    end
+
+    it "lets a keyboard user scroll code blocks and tables" do
+      get "/docs/api"
+
+      page = Nokogiri::HTML(response.body)
+      expect(page.css("main pre")).to all(satisfy { |pre| pre["tabindex"] == "0" })
+      expect(page.css("main table")).to all(satisfy { |table| table.parent["class"] == "docs-table" })
+      expect(page.css("main table")).not_to be_empty
+    end
+
+    it "loads one exact Mermaid version, the same one the CSP allows" do
+      get "/docs/api"
+
+      url = Rails.configuration.x.mermaid_url
+      expect(url).to match(%r{/mermaid@\d+\.\d+\.\d+/\z})
+      expect(response.body).to include(%(import("#{url}dist/mermaid.esm.min.mjs")))
+      expect(Rails.application.config.content_security_policy.directives["script-src"]).to include(url)
+    end
+
     it "keeps the diagram source, so it renders or stays readable" do
       get "/docs/api"
 
@@ -140,11 +183,12 @@ RSpec.describe "Docs", type: :request do
       expect(response.headers["Vary"]).to eq("Accept")
     end
 
+    # The HTML page also preloads its stylesheets in the same header.
     it "links every response to the markdown copy" do
       get "/docs/api"
 
       expect(response.headers["Link"])
-        .to eq('<http://example.com/docs/api.md>; rel="alternate"; type="text/markdown"')
+        .to start_with('<http://example.com/docs/api.md>; rel="alternate"; type="text/markdown"')
     end
 
     it "lets a proxy cache the markdown" do
@@ -160,11 +204,32 @@ RSpec.describe "Docs", type: :request do
     end
   end
 
+  describe "diagrams" do
+    # Mermaid turns accTitle and accDescr into the SVG <title> and <desc>, the
+    # text alternative a screen reader reads.
+    DocsController::PAGES.each do |key, page|
+      it "gives each diagram on the #{key} page a text alternative" do
+        diagrams = page[:source].read.scan(/^```mermaid\n(.*?)^```/m).flatten
+
+        expect(diagrams).not_to be_empty
+        expect(diagrams).to all(match(/^\s*accTitle: \S/).and(match(/^\s*accDescr: \S/)))
+      end
+    end
+  end
+
   describe ".render_markdown" do
     it "gives every heading an id, so the menu can link to it" do
       document = DocsController.render_markdown("## Sections\n\ntext\n")
 
       expect(document[:headings]).to eq([ { id: "sections", text: "Sections" } ])
+    end
+
+    it "wraps a table in a focusable scroll box" do
+      document = DocsController.render_markdown("| a | b |\n| - | - |\n| 1 | 2 |\n")
+
+      wrapper = Nokogiri::HTML.fragment(document[:html]).at("div.docs-table")
+      expect(wrapper["tabindex"]).to eq("0")
+      expect(wrapper.at("> table")).to be_present
     end
 
     it "escapes raw HTML in the source" do
