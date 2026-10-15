@@ -62,6 +62,18 @@ RSpec.describe Rack::Attack do
       end
     end
 
+    %w[/okcomputer /okcomputer/all /healthchecks /healthchecks/database.json].each do |path|
+      it "lets an uptime monitor read #{path}" do
+        user_agent = "Mozilla/5.0+(compatible; UptimeRobot/2.0; http://www.uptimerobot.com/)"
+        expect(described_class.suspicious_agent?(request_to(path, user_agent))).to be(false)
+      end
+    end
+
+    it "matches only the OkComputer paths" do
+      expect(described_class::OKCOMPUTER_PATH.match?("/healthchecks/../admin")).to be(false)
+      expect(described_class::OKCOMPUTER_PATH.match?("/healthchecksx")).to be(false)
+    end
+
     it "lets Googlebot and browsers read app pages" do
       expect(described_class.suspicious_agent?(request_to("/admin", "Googlebot/2.1"))).to be(false)
       expect(described_class.suspicious_agent?(request_to("/admin", "Mozilla/5.0 (Macintosh)"))).to be(false)

@@ -60,6 +60,12 @@ class Rack::Attack
       req.path.start_with?("/.well-known/oauth-")
   end
 
+  # OkComputer, which uptime monitors call. UptimeRobot's User-Agent says
+  # "bot", so the agent blocklist skips these paths. The throttles still apply,
+  # because each request runs the database and cache checks. The gem mounts
+  # itself at /okcomputer too.
+  OKCOMPUTER_PATH = %r{\A/(healthchecks|okcomputer)(/\w+)?(\.\w+)?/?\z}
+
   AGENT_READABLE_PATH = lambda do |req|
     AGENT_READABLE_PATHS.include?(req.path) ||
       req.path == "/docs" ||
@@ -332,11 +338,12 @@ class Rack::Attack
   # Crawlers, bots, and clients with no User-Agent get no access to the app
   # pages. Agents may still read the files and docs written for them, and data
   # tools, which often send no User-Agent, may still read the catalog API.
-  # Calendar apps may fetch the ICS feed.
+  # Calendar apps may fetch the ICS feed, and uptime monitors the health checks.
   def self.suspicious_agent?(req)
     return false if AGENT_READABLE_PATH.call(req)
     return false if MCP_CLIENT_PATH.call(req)
     return false if req.path.start_with?(CALENDAR_FEED_PATH)
+    return false if OKCOMPUTER_PATH.match?(req.path)
 
     ua = req.user_agent.to_s.downcase
     suspicious = ua.include?("scraper") ||
