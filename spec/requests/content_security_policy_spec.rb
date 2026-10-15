@@ -63,12 +63,10 @@ RSpec.describe "Content Security Policy" do
     expect(response.body).to include(%(<script nonce="#{nonce}">))
   end
 
-  it "puts the nonce on the docs scripts and lets Mermaid load from its CDN path" do
-    get "/docs/api"
+  it "allows scripts from no other host" do
+    get "/404"
 
-    expect(response.body).to include(%(<script type="module" nonce="#{nonce}">))
-    expect(response.body).to include(%(<script type="application/ld+json" nonce="#{nonce}">))
-    expect(policy).to include("https://cdn.jsdelivr.net/npm/mermaid@11/")
+    expect(policy).to match(/script-src 'self' 'nonce-[^']+';/)
   end
 
   # Turbo Drive keeps the policy of the first full page load, so a page that

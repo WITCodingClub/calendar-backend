@@ -10,12 +10,10 @@
 #
 # The hosts below are all that the app's pages load:
 #
-# - script-src: cdn.jsdelivr.net for Mermaid on the docs pages
-#   (layouts/docs.html.erb imports it with a dynamic import, which a nonce does
-#   not cover). Every inline <script>, and the Tailwind CDN script on the error
-#   pages, carries the nonce instead of a host entry.
+# - script-src: no host. Every inline <script>, and the Tailwind CDN script on
+#   the error pages, carries the nonce instead of a host entry.
 # - style-src: 'unsafe-inline', because the views and the engines use inline
-#   style attributes, and Mermaid and the Tailwind CDN add <style> elements.
+#   style attributes, and the Tailwind CDN adds <style> elements.
 #   A style-src nonce would make browsers ignore 'unsafe-inline'.
 # - img-src: wit.edu for the faculty photos (Faculties::Directory) and data:
 #   for the SVG and icon data URIs.
@@ -34,7 +32,7 @@ Rails.application.configure do
     policy.frame_ancestors :self
     policy.frame_src       :self
     policy.form_action     :self, "https://accounts.google.com", "https://login.microsoftonline.com"
-    policy.script_src      :self, "https://cdn.jsdelivr.net/npm/mermaid@11/"
+    policy.script_src      :self
     policy.style_src       :self, :unsafe_inline
     policy.img_src         :self, :data, "https://wit.edu", "https://*.wit.edu"
     policy.font_src        :self, :data

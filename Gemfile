@@ -15,8 +15,6 @@ gem "tailwindcss-rails", "~> 4.6"
 gem "turbo-rails", "~> 2.0"
 gem "stimulus-rails", "~> 1.3"
 
-# Renders the public API reference from the markdown file in docs/
-gem "redcarpet", "~> 3.6"
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
 # Database-backed adapters for cache and jobs
