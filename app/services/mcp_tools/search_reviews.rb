@@ -10,6 +10,7 @@ module McpTools
     title "Search instructor reviews"
     description "Searches RateMyProfessors reviews of Wentworth instructors, newest first. " \
                 "Set semantic to true to find reviews by meaning, for example q: \"lots of group projects\"."
+    requires_scope "catalog"
     input_schema(
       properties: {
         instructor_id: { type: "string", description: "Only reviews of this instructor (pub_id)." },

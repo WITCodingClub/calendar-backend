@@ -59,13 +59,20 @@
     <div class="m3-card divide-y divide-outline-variant overflow-hidden">
       <div class="px-5 py-4">
         <p class="m3-label">Connected apps</p>
-        <p class="text-xs text-on-surface-variant mt-0.5">These apps can read your schedule through the MCP server.</p>
+        <p class="text-xs text-on-surface-variant mt-0.5">These apps can use your WIT Calendar data through the MCP server.</p>
       </div>
       <% @connected_apps.each do |app| %>
+        <% scopes = McpTools::Scopes::ALL.select { |scope| @connected_app_scopes[app.id].include?(scope.name) } %>
         <div class="px-5 py-4 flex items-center justify-between gap-4">
           <div class="min-w-0">
             <p class="text-sm text-on-surface truncate"><%= app.name %></p>
             <p class="text-xs text-on-surface-variant truncate"><%= Oauth::RedirectUris.hosts(app.redirect_uri).join(", ") %></p>
+            <% { read: "Reads", change: "Changes" }.each do |group, heading| %>
+              <% labels = scopes.select { |scope| scope.group == group }.map(&:label) %>
+              <% if labels.any? %>
+                <p class="text-xs text-on-surface-variant mt-1"><%= heading %>: <%= labels.join(", ") %></p>
+              <% end %>
+            <% end %>
           </div>
           <%= button_to "Disconnect",
               dashboard_connected_app_path(app),

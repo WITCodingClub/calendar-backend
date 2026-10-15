@@ -9,7 +9,7 @@ RSpec.describe McpTools::ListFriends do
     friend = create(:friendship, :accepted, requester: user).addressee
     create(:friendship, requester: user)
 
-    result = described_class.call(server_context: { user: user })
+    result = described_class.call(server_context: mcp_context(user))
 
     expect(result.structured_content[:friends]).to eq([ { id: friend.public_id, name: friend.full_name } ])
   end

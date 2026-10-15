@@ -10,7 +10,7 @@ RSpec.describe "Oauth::Authorizations", type: :request do
       client_id:             application.uid,
       redirect_uri:          "https://claude.ai/api/mcp/auth_callback",
       response_type:         "code",
-      scope:                 "read",
+      scope:                 McpTools::Scopes::NAMES.join(" "),
       state:                 "abc",
       code_challenge:        "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
       code_challenge_method: "S256"
@@ -19,11 +19,78 @@ RSpec.describe "Oauth::Authorizations", type: :request do
 
   before { sign_in user }
 
-  it "shows the client name, the redirect host, and what it can read" do
+  # The checkbox of one scope on the consent page: "checked", "unchecked", or
+  # nil when the page has no box for it.
+  def box(scope)
+    input = Nokogiri::HTML(response.body).at_css("input[name='scopes[]'][value='#{scope}']")
+    return if input.nil?
+
+    input["checked"] ? "checked" : "unchecked"
+  end
+
+  it "shows the client name, the redirect host, and a box for each scope" do
     get "/api/oauth/authorize", params: params
 
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include("Connect Claude?", "claude.ai", "busy times", user.email)
+    expect(response.body).to include("Connect Claude?", "claude.ai", "busy times", user.email, "Your schedule")
+    expect(box("schedule:read")).to eq("checked")
+    expect(box("settings:write")).to eq("unchecked")
+    expect(box("friends:requests")).to eq("unchecked")
+    expect(box("catalog")).to be_nil
+  end
+
+  def granted_scopes
+    location = URI(response.location)
+    code     = Rack::Utils.parse_query(location.query).fetch("code")
+    Doorkeeper::AccessGrant.by_token(code).scopes.to_a
+  end
+
+  it "grants the always-on scope and the boxes the student checked" do
+    post "/api/oauth/authorize", params: params.merge(scopes: %w[schedule:read friends:read settings:write])
+
+    expect(granted_scopes).to eq(%w[catalog schedule:read friends:read settings:write])
+  end
+
+  it "grants only the always-on scope when no box is checked" do
+    post "/api/oauth/authorize", params: params
+
+    expect(granted_scopes).to eq([ "catalog" ])
+  end
+
+  it "shows the read boxes for a client that still asks for the legacy read scope" do
+    get "/api/oauth/authorize", params: params.merge(scope: "read")
+
+    expect(response).to have_http_status(:ok)
+    expect(box("friends:read")).to eq("checked")
+    expect(response.body).not_to include("It can change")
+
+    post "/api/oauth/authorize", params: params.merge(scope: "read", scopes: %w[schedule:read])
+    expect(granted_scopes).to eq(%w[catalog schedule:read])
+  end
+
+  it "checks a change box the student gave this app before" do
+    create(:oauth_access_token, resource_owner_id: user.id, application: application, scopes: "catalog settings:write")
+
+    get "/api/oauth/authorize", params: params
+
+    expect(box("settings:write")).to eq("checked")
+    expect(box("notifications:write")).to eq("unchecked")
+  end
+
+  it "checks the boxes of a step-up request for fewer scopes" do
+    get "/api/oauth/authorize", params: params.merge(scope: "catalog schedule:read notifications:write")
+
+    expect(box("notifications:write")).to eq("checked")
+    expect(box("friends:requests")).to be_nil
+  end
+
+  it "lets a client registered before the scopes were split ask for the new scopes" do
+    application.update!(dynamic: true, scopes: "read")
+
+    get "/api/oauth/authorize", params: params
+
+    expect(response).to have_http_status(:ok)
+    expect(application.reload.scopes.to_a).to eq(McpTools::Scopes::NAMES)
   end
 
   it "widens form-action so the browser can follow the redirect to the client" do

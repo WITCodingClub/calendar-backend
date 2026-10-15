@@ -7,6 +7,6 @@ FactoryBot.define do
     resource_owner_id { create(:user).id }
     redirect_uri { application.redirect_uri.split.first }
     expires_in { 5.minutes.to_i }
-    scopes { "read" }
+    scopes { McpTools::Scopes::LEGACY_READ_SCOPES.join(" ") }
   end
 end

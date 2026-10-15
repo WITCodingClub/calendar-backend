@@ -6,7 +6,7 @@ RSpec.describe McpTools::GetSection do
   let(:user) { create(:user) }
   let(:course) { create(:course) }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   it "gets a section by CRN with its final exam" do
     create(:final_exam, term: course.term, crn: course.crn, course: course)

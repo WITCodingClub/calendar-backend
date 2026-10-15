@@ -160,6 +160,19 @@ RSpec.describe "Docs", type: :request do
     end
   end
 
+  describe "diagrams" do
+    # Mermaid turns accTitle and accDescr into the SVG <title> and <desc>, the
+    # text alternative a screen reader reads.
+    DocsController::PAGES.each do |key, page|
+      it "gives each diagram on the #{key} page a text alternative" do
+        diagrams = page[:source].read.scan(/^```mermaid\n(.*?)^```/m).flatten
+
+        expect(diagrams).not_to be_empty
+        expect(diagrams).to all(match(/^\s*accTitle: \S/).and(match(/^\s*accDescr: \S/)))
+      end
+    end
+  end
+
   describe ".render_markdown" do
     it "gives every heading an id, so the menu can link to it" do
       document = DocsController.render_markdown("## Sections\n\ntext\n")

@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe McpTools::GetInstructor do
   let(:user) { create(:user) }
 
-  def call(id) = described_class.call(server_context: { user: user }, instructor_id: id)
+  def call(id) = described_class.call(server_context: mcp_context(user), instructor_id: id)
 
   it "gets an instructor by public id" do
     faculty = create(:faculty)
@@ -23,7 +23,7 @@ RSpec.describe McpTools::GetInstructor do
     create(:teacher_rating_tag, faculty: faculty, tag_name: "Caring", tag_count: 3)
     create(:course, term: term).faculties << faculty
 
-    result = described_class.call(server_context: { user: user }, instructor_id: faculty.public_id, term_uid: term.uid)
+    result = described_class.call(server_context: mcp_context(user), instructor_id: faculty.public_id, term_uid: term.uid)
 
     expect(result.structured_content[:rmp_tags]).to eq([ { name: "Caring", count: 3 } ])
     expect(result.structured_content[:sections].size).to eq(1)
@@ -32,6 +32,6 @@ RSpec.describe McpTools::GetInstructor do
   it "returns a tool error for an unknown term" do
     faculty = create(:faculty)
 
-    expect(described_class.call(server_context: { user: user }, instructor_id: faculty.public_id, term_uid: 1).error?).to be(true)
+    expect(described_class.call(server_context: mcp_context(user), instructor_id: faculty.public_id, term_uid: 1).error?).to be(true)
   end
 end

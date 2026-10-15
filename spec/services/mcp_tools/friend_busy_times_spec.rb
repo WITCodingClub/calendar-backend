@@ -6,7 +6,7 @@ RSpec.describe McpTools::FriendBusyTimes do
   let(:user)   { create(:user) }
   let(:friend) { create(:user) }
 
-  def call(friend_id) = described_class.call(server_context: { user: user }, friend_id: friend_id,
+  def call(friend_id) = described_class.call(server_context: mcp_context(user), friend_id: friend_id,
                                              start_date: "2026-12-17", end_date: "2026-12-17")
 
   context "when the friend shares availability only" do

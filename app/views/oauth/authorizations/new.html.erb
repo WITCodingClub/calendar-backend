@@ -3,21 +3,12 @@
 
 <%= render layout: "devise/shared/card", locals: { heading: "Connect #{@pre_auth.client.name}?", intro: "Signed in as #{current_resource_owner.email}", links: false } do %>
   <div class="space-y-4 text-sm text-on-surface">
+    <% groups = consent_scopes.groups %>
     <p>
-      An app wants to read your WIT Calendar data. After you allow it, it sends you back to
+      An app wants to use your WIT Calendar data. After you allow it, it sends you back to
       <strong class="break-all"><%= redirect_host %></strong>.
       Allow it only if you started this from that app.
     </p>
-
-    <div>
-      <p class="font-medium">It will be able to read:</p>
-      <ul class="list-disc pl-5 mt-1 space-y-1 text-on-surface-variant">
-        <li>Your courses, meeting times, and final exams</li>
-        <li>The times you are busy</li>
-        <li>Your friends list, and the busy times your friends share with you</li>
-        <li>The course catalog and the university calendar</li>
-      </ul>
-    </div>
 
     <% if Oauth::ClientMetadataDocument.client_id?(@pre_auth.client.uid) %>
       <p class="text-on-surface-variant">
@@ -25,12 +16,30 @@
       </p>
     <% end %>
 
-    <p class="text-on-surface-variant">
-      It cannot change anything. You can disconnect it at any time in Settings.
-    </p>
-
-    <%= form_tag oauth_authorization_path, method: :post, data: { turbo: false } do %>
+    <%= form_tag oauth_authorization_path, method: :post, data: { turbo: false }, class: "space-y-4" do %>
       <%= render "oauth/authorizations/fields", pre_auth: @pre_auth, resource: params[:resource] %>
+
+      <fieldset class="space-y-2">
+        <legend class="font-medium">It can read</legend>
+        <p class="text-on-surface-variant">The course catalog and the university calendar</p>
+        <% groups.fetch(:read, []).each do |item| %>
+          <%= render "oauth/authorizations/scope", item: item %>
+        <% end %>
+      </fieldset>
+
+      <% if groups.key?(:change) %>
+        <fieldset class="space-y-2">
+          <legend class="font-medium">It can change, if you allow it</legend>
+          <% groups[:change].each do |item| %>
+            <%= render "oauth/authorizations/scope", item: item %>
+          <% end %>
+        </fieldset>
+      <% else %>
+        <p class="text-on-surface-variant">It cannot change anything.</p>
+      <% end %>
+
+      <p class="text-on-surface-variant">You can disconnect it at any time in Settings.</p>
+
       <%= submit_tag "Allow", class: "m3-btn-filled w-full justify-center" %>
     <% end %>
 

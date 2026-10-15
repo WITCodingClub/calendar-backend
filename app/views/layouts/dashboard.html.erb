@@ -47,6 +47,7 @@
         <% admin_tool do %>
           <%= render "layouts/dashboard_nav_item", path: admin_root_path, label: "Admin", icon: "shield" %>
         <% end %>
+        <%= render "layouts/dashboard_nav_item", path: dashboard_settings_path, label: "Settings", icon: "cog" %>
         <div class="hidden xl:flex items-center gap-2 px-3 py-2 rounded-2xl">
           <div aria-hidden="true" class="w-7 h-7 rounded-full bg-secondary-container flex items-center justify-center text-xs font-bold text-on-secondary-container flex-shrink-0">
             <%# Onboarding leaves first_name nil when a student has no preferred
@@ -96,15 +97,37 @@
 
       <!-- Mobile bottom nav -->
       <nav aria-label="Main" class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-surface-container border-t border-outline-variant flex">
-        <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_root_path, label: "Home", icon: "home" %>
+        <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_root_path, label: "Overview", icon: "home" %>
         <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_schedule_path, label: "Schedule", icon: "calendar" %>
-        <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_calendar_preferences_path, label: "Prefs", icon: "adjustments" %>
-        <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_connected_accounts_path, label: "Accounts", icon: "link" %>
+        <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_calendar_preferences_path, label: "Preferences", icon: "adjustments" %>
         <%= render "layouts/dashboard_bottom_nav_item", path: dashboard_friends_path, label: "Friends", icon: "users" %>
-        <%# The wrapper takes the item's place in the flex row. %>
-        <% admin_tool("flex-1 flex") do %>
-          <%= render "layouts/dashboard_bottom_nav_item", path: admin_root_path, label: "Admin", icon: "shield" %>
-        <% end %>
+        <% more_active = dashboard_more_items.any? { |item| dashboard_nav_active?(item[:path]) } %>
+        <button type="button" popovertarget="dashboard-more"
+                class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors <%= more_active ? 'text-on-secondary-container' : 'text-on-surface-variant' %>">
+          <%= render "layouts/dashboard_icon", name: "more", active: more_active %>
+          More
+        </button>
+
+        <%# The popover attribute gives the sheet light dismiss (a tap outside it
+            or Escape closes it) with no JavaScript. Turbo replaces the body on
+            each visit, so the sheet is closed on the next page. %>
+        <div id="dashboard-more" popover
+             class="inset-x-2 top-auto bottom-16 m-0 w-auto p-2 space-y-1 rounded-3xl border border-outline-variant bg-surface-container-high text-on-surface shadow-lg backdrop:bg-black/30">
+          <% dashboard_more_items.each do |item| %>
+            <%= render "layouts/dashboard_more_item", **item %>
+          <% end %>
+          <% admin_tool do %>
+            <%= render "layouts/dashboard_more_item", path: admin_root_path, label: "Admin", icon: "shield" %>
+          <% end %>
+          <%= button_to destroy_user_session_path,
+              method: :delete,
+              class: "w-full flex items-center gap-3 min-h-11 px-4 py-3 rounded-2xl text-sm text-on-surface hover:bg-surface-container-highest transition-colors" do %>
+            <svg aria-hidden="true" focusable="false" class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sign out
+          <% end %>
+        </div>
       </nav>
 
       <!-- Page content -->

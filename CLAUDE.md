@@ -24,7 +24,8 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 
 ## MCP tools
 
-- Every MCP tool is read-only. It inherits `McpTools::BaseTool`, which marks it read-only for the client. `docs/mcp.md` gives the steps to add one.
+- Every MCP tool names the OAuth scope it needs with `requires_scope`, from `McpTools::Scopes`. A read tool inherits `McpTools::BaseTool`. A tool that changes data inherits `McpTools::BaseWriteTool`, changes only the signed-in student's own data, and has a matching API endpoint. A tool that reaches other people gets its own scope. `docs/mcp.md` gives the steps to add one.
+- Do not put MCP tools behind a Flipper flag. The scopes on the consent page are the gate.
 - A tool that reads a user's record calls `authorize` with the same policy as the matching API endpoint.
 - Raise `McpTools::ToolError` for a bad argument. The client gets the message as a tool error.
 - Each catalog tool matches a public catalog endpoint (the table in `docs/mcp.md`). When a catalog endpoint or filter changes, change the tool in the same PR. Put shared logic in the `Catalog::` query objects, not in a controller.
@@ -34,6 +35,13 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - A rescue that swallows an error (it logs, returns a fallback, or continues) reports it: `Rails.error.report(e, handled: true, context: { user_id: user.id })`. Put ids in the context, never tokens or personal data.
 - A rescue that raises the error again does not report it. The request and job executors report every error that leaves a request or a job.
 - `ErrorReportSubscriber` counts each report in `calendar_errors_reported_total` and logs it. See `docs/metrics.md`.
+
+## Caching
+
+- `Rails.cache` is Solid Cache in production and `:null_store` in specs. A spec that checks a cache sets `Rails.cache` to a `MemoryStore` in an `around` block.
+- A cache of records clears in an `after_commit` on the model, and has a TTL for writes that skip callbacks (`insert_all!`, `update_all`). Examples: `Term.current` and `UniversityCalendarEvent.no_class_spans_between`.
+- Cache plain values (ids, times, hashes), not records. A record in the cache breaks when a column changes.
+- Memoize a value for one request or one job in `Current`. Rails resets it at the end of each.
 
 ## Jobs
 

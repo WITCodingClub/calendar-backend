@@ -16,7 +16,7 @@ RSpec.describe "Oauth::Registrations", type: :request do
 
     expect(response).to have_http_status(:created)
     application = Doorkeeper::Application.last
-    expect(application).to have_attributes(name: "Claude", confidential: false, dynamic: true, scopes: Doorkeeper::OAuth::Scopes.from_string("read"))
+    expect(application).to have_attributes(name: "Claude", confidential: false, dynamic: true, scopes: Doorkeeper::OAuth::Scopes.from_array(McpTools::Scopes::NAMES))
     expect(response.parsed_body).to include(
       "client_id"                  => application.uid,
       "redirect_uris"              => [ "https://claude.ai/api/mcp/auth_callback" ],

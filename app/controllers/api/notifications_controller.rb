@@ -26,7 +26,8 @@ module Api
       ActiveModel::Type::Boolean.new.cast(params[:disabled]) ? disable : enable
     end
 
-    # POST /api/user/notifications/disable (legacy, see config/routes/api/legacy.rb)
+    private
+
     def disable
       authorize current_user, :update?
 
@@ -67,7 +68,6 @@ module Api
       render_error "Failed to disable notifications", status: :internal_server_error
     end
 
-    # POST /api/user/notifications/enable (legacy, see config/routes/api/legacy.rb)
     def enable
       authorize current_user, :update?
 
