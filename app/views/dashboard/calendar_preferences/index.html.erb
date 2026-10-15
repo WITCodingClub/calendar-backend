@@ -36,7 +36,7 @@
               class: "m3-input" %>
         </div>
         <div class="flex justify-end">
-          <%= f.submit "Save", class: "m3-btn-filled" %>
+          <%= f.submit "Save", class: "m3-btn-filled", data: { turbo_submits_with: "Saving…" } %>
         </div>
       <% end %>
     </div>
@@ -77,7 +77,7 @@
       </fieldset>
 
       <div class="flex justify-end">
-        <%= submit_tag "Save", class: "m3-btn-filled", data: { disable_with: false } %>
+        <%= submit_tag "Save", class: "m3-btn-filled", data: { turbo_submits_with: "Saving…" } %>
       </div>
     <% end %>
     <div class="px-5 py-4 flex items-center justify-between gap-4">

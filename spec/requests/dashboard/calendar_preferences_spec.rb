@@ -38,6 +38,16 @@ RSpec.describe "Dashboard::CalendarPreferences", type: :request do
       expect(response.body).to match(/<input[^>]*value="finals"[^>]*checked/)
       expect(response.body).not_to match(/<input[^>]*value="deadline"[^>]*checked/)
     end
+
+    # Turbo disables the button while the form submits and shows this label (#698).
+    it "gives every Save button a busy label" do
+      get dashboard_calendar_preferences_path
+
+      buttons = Nokogiri::HTML(response.body).css("input[type='submit'][value='Save']")
+      expect(buttons.size).to eq(2)
+      expect(buttons.map { |button| button["data-turbo-submits-with"] }).to all(eq("Saving…"))
+      expect(response.body).not_to include('data-disable-with="false"')
+    end
   end
 
   describe "PATCH /dashboard/calendar_preferences/university_events" do

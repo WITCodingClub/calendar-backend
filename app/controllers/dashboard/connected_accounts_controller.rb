@@ -14,6 +14,7 @@ module Dashboard
       # Outlook connection can always go.
       @can_disconnect = @credentials.size > 1
       @add_account_url = add_account_url
+      @extension_install_url = Rails.configuration.x.extension_install_url
 
       # The Outlook section shows only while the Microsoft Graph provider is on
       # for this person, like the extension endpoints.

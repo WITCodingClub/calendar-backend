@@ -15,5 +15,6 @@
       schedule: @schedule,
       title: "#{@friend.full_name}'s Schedule",
       path_for: ->(**query) { dashboard_friend_path(@friend.public_id, query) },
+      no_terms_message: "#{@friend.full_name} has no courses yet.",
       empty_hint: "#{@friend.full_name} has not imported a schedule for this term." %>
 </div>

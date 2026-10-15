@@ -101,5 +101,41 @@ RSpec.describe "Dashboard::Schedules", type: :request do
         expect(monday.at_css("li[title]")["title"]).to start_with("COMP 1050, Computer Science I")
       end
     end
+
+    # Empty states give a next step (#698).
+    describe "empty states" do
+      def empty_state
+        Nokogiri::HTML(response.body).at_css("[data-empty-state]")
+      end
+
+      it "shows no empty state when the term has courses" do
+        get dashboard_schedule_path, params: { term_uid: term.uid, view: "list" }
+
+        expect(empty_state).to be_nil
+      end
+
+      # An admin skips the onboarding gate, so an admin can open the schedule
+      # with no courses.
+      it "links the extension when the user has no courses" do
+        sign_in create(:user, :admin)
+
+        get dashboard_schedule_path, params: { view: "list" }
+
+        expect(response).to have_http_status(:ok)
+        expect(empty_state.text).to include("You have no courses yet.")
+        expect(empty_state.text).to include("Firefox and Safari cannot run it.")
+        link = empty_state.at_css("a[href='#{Rails.configuration.x.extension_install_url}']")
+        expect(link.text).to include("Get the extension")
+        expect(link["target"]).to eq("_blank")
+      end
+
+      it "asks the user to pick a term when the term in the link is not on the schedule" do
+        get dashboard_schedule_path, params: { term_uid: "999999" }
+
+        expect(response).to have_http_status(:ok)
+        expect(empty_state.text).to include("This term is not on the schedule.")
+        expect(empty_state.text).to include("Choose a term from the list.")
+      end
+    end
   end
 end
