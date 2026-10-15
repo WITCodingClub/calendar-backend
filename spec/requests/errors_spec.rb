@@ -100,4 +100,93 @@ RSpec.describe "Error pages" do
 
     expect(response).to have_http_status(:internal_server_error)
   end
+
+  describe "the HTML page" do
+    it "uses the built stylesheet, not the Tailwind CDN" do
+      get "/404", headers: browser
+
+      expect(response.body).not_to include("cdn.tailwindcss.com")
+      expect(response.body).to include('rel="stylesheet"', "/assets/tailwind")
+    end
+
+    it "has a main landmark and a skip link to it" do
+      get "/404", headers: browser
+
+      page = Nokogiri::HTML(response.body)
+      expect(page.at_css("main#error-main")).to be_present
+      expect(page.at_css('a[href="#error-main"]').text).to eq("Skip to content")
+    end
+
+    it "shows the code and the title in the page and the browser tab" do
+      get "/500", headers: browser
+
+      page = Nokogiri::HTML(response.body)
+      expect(page.at_css("h1").text).to eq("Something went wrong")
+      expect(page.at_css("title").text).to start_with("500 Something went wrong")
+    end
+
+    # The 422 and 500 pages render the partial with no block, so its yield
+    # must add nothing.
+    it "renders the page once when the partial has no extra actions" do
+      get "/422", headers: browser
+
+      page = Nokogiri::HTML(response.body)
+      expect(page.css("main").size).to eq(1)
+      expect(page.css("h1").size).to eq(1)
+      expect(page.css("main a").map(&:text)).to eq([ "Go to home page", "calendarwit@gmail.com" ])
+    end
+
+    it "links to the API reference and to help from the not found page" do
+      get "/404", headers: browser
+
+      expect(response.body).to include('href="/docs/api"', "mailto:calendarwit@gmail.com")
+    end
+
+    it "sends a visitor who is not signed in to the home page" do
+      get "/404", headers: browser
+
+      page = Nokogiri::HTML(response.body)
+      expect(page.at_css("a.m3-btn-filled").text).to eq("Go to home page")
+      expect(response.body).not_to include("Back to dashboard")
+    end
+
+    context "when the user is signed in" do
+      before { sign_in create(:user) }
+
+      it "sends the user to the dashboard" do
+        get "/404", headers: browser
+
+        page = Nokogiri::HTML(response.body)
+        expect(page.at_css("a.m3-btn-filled")["href"]).to eq("/dashboard")
+        expect(page.at_css("a.m3-btn-filled").text).to eq("Back to dashboard")
+      end
+
+      it "shows a sign out button on the unauthorized page" do
+        get "/unauthorized"
+
+        expect(Nokogiri::HTML(response.body).at_css("form button").text).to eq("Sign out")
+      end
+    end
+
+    it "shows a sign in link on the unauthorized page to a visitor" do
+      get "/unauthorized"
+
+      expect(response.body).to include(">Sign in</a>")
+    end
+
+    # A 500 can come from a database outage. The session lookup then fails,
+    # and the page must render anyway.
+    it "renders the 500 page as signed out when the session lookup fails" do
+      allow_any_instance_of(ErrorsController).to receive(:user_signed_in?) # rubocop:disable RSpec/AnyInstance
+        .and_raise(ActiveRecord::ConnectionNotEstablished)
+      allow(Rails.error).to receive(:report)
+
+      get "/500", headers: browser
+
+      expect(response).to have_http_status(:internal_server_error)
+      expect(response.body).to include("Go to home page")
+      expect(Rails.error).to have_received(:report)
+        .with(an_instance_of(ActiveRecord::ConnectionNotEstablished), handled: true, context: { error_page: "internal_server_error" })
+    end
+  end
 end
