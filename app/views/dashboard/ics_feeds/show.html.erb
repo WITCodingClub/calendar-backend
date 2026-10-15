@@ -1,10 +1,10 @@
 <% content_for :title, "ICS Feed" %>
 
-<div class="max-w-xl mx-auto space-y-6">
-  <h1 class="text-2xl font-bold text-on-surface">ICS Calendar Feed</h1>
+<div class="m3-page-narrow space-y-6">
+  <%= render "shared/page_header", title: "ICS Calendar Feed" %>
 
   <div class="flex items-start gap-3 px-4 py-3 rounded-xl bg-error-container text-on-error-container text-sm" role="note" id="ics-privacy-warning">
-    <svg aria-hidden="true" focusable="false" class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+    <%= icon(:lock, css_class: "w-5 h-5 flex-shrink-0") %>
     <p><strong>Keep this URL private.</strong> Anyone with the URL can see your full schedule. It needs no password.</p>
   </div>
 

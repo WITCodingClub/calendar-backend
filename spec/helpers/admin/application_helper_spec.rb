@@ -13,7 +13,7 @@ RSpec.describe Admin::ApplicationHelper do
       svg = html(helper.admin_icon(:users)).at_css("svg")
 
       expect(svg["aria-hidden"]).to eq("true")
-      expect(svg.at_css("path")["d"]).to eq(Admin::ApplicationHelper::ICONS[:users])
+      expect(svg.at_css("path")["d"]).to eq(IconHelper::ICONS[:users])
     end
 
     it "raises for an unknown icon, so a typo fails a spec" do

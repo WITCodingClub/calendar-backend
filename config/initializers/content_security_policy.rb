@@ -48,8 +48,9 @@ Rails.application.configure do
   # the first full load. A per-request nonce would block every inline script
   # on a page that Turbo shows after that. A visitor with no session gets a
   # random nonce on each page, so a page with an inline script that such a
-  # visitor can reach through Turbo (users/sessions/new) sets
-  # turbo-visit-control to reload.
+  # visitor can reach through Turbo must set turbo-visit-control to reload.
+  # The sign-in page has no inline script: its passkey code is a Stimulus
+  # controller.
   config.content_security_policy_nonce_generator = lambda do |request|
     request.session.id.to_s.presence || SecureRandom.base64(16)
   end

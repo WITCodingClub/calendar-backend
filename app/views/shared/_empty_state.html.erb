@@ -1,15 +1,11 @@
 <%# A card for a page or a list that has no data (#698): an icon, the reason,
-    an optional hint, and one action. Pass action: { label:, url:, external: true }
-    for a link that opens in a new tab. %>
+    an optional hint, and one action. `icon` is a name from IconHelper::ICONS.
+    Pass action: { label:, url:, external: true } for a link that opens in a
+    new tab. %>
 <%# locals: (message:, icon: :calendar, hint: nil, action: nil) %>
-<% icon_paths = {
-     calendar: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-     account: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1",
-     search: "M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
-   } %>
 <div class="m3-card p-8 flex flex-col items-center gap-3 text-center" data-empty-state>
   <span class="w-12 h-12 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
-    <svg aria-hidden="true" focusable="false" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<%= icon_paths.fetch(icon) %>" /></svg>
+    <%= icon(icon, css_class: "w-6 h-6") %>
   </span>
   <p class="font-medium text-on-surface"><%= message %></p>
   <% if hint.present? %>

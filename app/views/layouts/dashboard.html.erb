@@ -23,11 +23,7 @@
     <nav aria-label="Main" class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-20 xl:w-64 z-30 bg-surface-container border-r border-outline-variant">
       <!-- Logo -->
       <div class="flex items-center gap-3 px-4 xl:px-5 py-4 border-b border-outline-variant">
-        <div class="w-9 h-9 flex-shrink-0 rounded-xl bg-primary-container flex items-center justify-center">
-          <svg aria-hidden="true" focusable="false" class="w-5 h-5 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </div>
+        <%= logo_mark(:medium) %>
         <span class="hidden xl:block text-sm font-bold text-on-surface">WIT Calendar</span>
       </div>
 
@@ -45,7 +41,7 @@
       <!-- Bottom: user + sign out -->
       <div class="border-t border-outline-variant p-2 xl:p-3 space-y-1">
         <% admin_tool do %>
-          <%= render "layouts/dashboard_nav_item", path: admin_root_path, label: "Admin", icon: "shield" %>
+          <%= render "layouts/dashboard_nav_item", path: admin_root_path, label: "Admin", icon: "shield_check" %>
         <% end %>
         <%= render "layouts/dashboard_nav_item", path: dashboard_settings_path, label: "Settings", icon: "cog" %>
         <div class="hidden xl:flex items-center gap-2 px-3 py-2 rounded-2xl">
@@ -64,9 +60,7 @@
             title: "Sign out",
             "aria-label": "Sign out",
             class: "w-full flex items-center gap-3 px-3 py-2 rounded-2xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
-          <svg aria-hidden="true" focusable="false" class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
+          <%= icon(:logout, css_class: "w-5 h-5 flex-shrink-0") %>
           <span class="hidden xl:block">Sign out</span>
         <% end %>
       </div>
@@ -78,11 +72,7 @@
       <!-- Mobile top bar -->
       <header class="lg:hidden sticky top-0 z-20 bg-surface-container border-b border-outline-variant px-4 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3 min-w-0">
-          <div class="w-8 h-8 shrink-0 rounded-lg bg-primary-container flex items-center justify-center">
-            <svg aria-hidden="true" focusable="false" class="w-4 h-4 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
+          <%= logo_mark(:small) %>
           <span class="text-sm font-bold text-on-surface truncate"><%= page_title("Dashboard") %></span>
         </div>
         <div class="flex items-center gap-2 shrink-0">
@@ -104,7 +94,7 @@
         <% more_active = dashboard_more_items.any? { |item| dashboard_nav_active?(item[:path]) } %>
         <button type="button" popovertarget="dashboard-more"
                 class="flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors <%= more_active ? 'text-on-secondary-container' : 'text-on-surface-variant' %>">
-          <%= render "layouts/dashboard_icon", name: "more", active: more_active %>
+          <%= icon(:menu, css_class: "w-5 h-5 flex-shrink-0", stroke_width: more_active ? 2.5 : 2) %>
           More
         </button>
 
@@ -117,14 +107,12 @@
             <%= render "layouts/dashboard_more_item", **item %>
           <% end %>
           <% admin_tool do %>
-            <%= render "layouts/dashboard_more_item", path: admin_root_path, label: "Admin", icon: "shield" %>
+            <%= render "layouts/dashboard_more_item", path: admin_root_path, label: "Admin", icon: "shield_check" %>
           <% end %>
           <%= button_to destroy_user_session_path,
               method: :delete,
               class: "w-full flex items-center gap-3 min-h-11 px-4 py-3 rounded-2xl text-sm text-on-surface hover:bg-surface-container-highest transition-colors" do %>
-            <svg aria-hidden="true" focusable="false" class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <%= icon(:logout, css_class: "w-5 h-5 flex-shrink-0") %>
             Sign out
           <% end %>
         </div>

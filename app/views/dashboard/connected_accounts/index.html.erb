@@ -1,17 +1,16 @@
 <% content_for :title, "Accounts" %>
 
-<div class="max-w-2xl mx-auto space-y-6">
-  <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold text-on-surface">Connected Accounts</h1>
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header", title: "Connected Accounts" do %>
     <%= link_to @add_account_url, class: "m3-btn-tonal" do %>
-      <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+      <%= icon(:plus, css_class: "w-4 h-4") %>
       Add account
     <% end %>
-  </div>
+  <% end %>
 
   <% if @credentials.empty? %>
     <%= render "shared/empty_state",
-        icon: :account,
+        icon: :link,
         message: "No Google account is connected.",
         hint: safe_join([
           "Connect a Google account to add your classes to Google Calendar. WIT Calendar updates that calendar each time you import your schedule with the",

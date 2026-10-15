@@ -1,0 +1,5 @@
+<%# A link back to the parent page, above the page title. Locals: label, path %>
+<%= link_to path, class: "inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-on-surface transition-colors" do %>
+  <%= icon(:chevron_left, css_class: "w-4 h-4") %>
+  <%= label %>
+<% end %>
