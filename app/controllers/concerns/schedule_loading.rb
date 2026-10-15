@@ -52,7 +52,9 @@ module ScheduleLoading
     Schedule.new(
       terms:           terms,
       selected_term:   selected_term,
-      view_mode:       params[:view].presence_in(%w[list week month]) || "week",
+      # With no view in the URL, the partial shows the list on a small screen
+      # and the week grid on a larger one.
+      view_mode:       params[:view].presence_in(%w[list week month]) || "auto",
       today:           today,
       week_start:      week_start,
       month_date:      month_date,

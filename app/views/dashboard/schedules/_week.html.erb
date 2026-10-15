@@ -1,0 +1,156 @@
+<% px_per_hour     = 64 %>
+<% grid_start_hr   = 7 %>
+<% grid_end_hr     = 22 %>
+<% grid_total_px   = (grid_end_hr - grid_start_hr) * px_per_hour %>
+<% week_days       = schedule_week_days(schedule) %>
+<% prev_week       = schedule.week_start - 7 %>
+<% next_week       = schedule.week_start + 7 %>
+<% this_week_start = schedule.today.beginning_of_week(:monday) %>
+
+<%# Navigation %>
+<div class="flex items-center justify-between">
+  <%= link_to path_for.call(view: "week", term_uid: schedule.selected_term.uid, week_start: prev_week.iso8601),
+      "aria-label": "Previous week",
+      class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+    <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    Prev
+  <% end %>
+
+  <div class="text-center">
+    <span class="font-semibold text-on-surface">
+      <%= schedule.week_start.strftime("%b %-d") %> – <%= week_days.last.strftime("%b %-d, %Y") %>
+    </span>
+    <% if schedule.week_start == this_week_start %>
+      <span class="ml-2 text-xs bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full">This week</span>
+    <% end %>
+  </div>
+
+  <%= link_to path_for.call(view: "week", term_uid: schedule.selected_term.uid, week_start: next_week.iso8601),
+      "aria-label": "Next week",
+      class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+    Next
+    <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+  <% end %>
+</div>
+
+<% if schedule.courses.empty? %>
+  <div class="m3-card p-8 text-center">
+    <p class="text-on-surface-variant">No courses found for <%= schedule.selected_term.name %>.</p>
+    <p class="text-sm text-on-surface-variant mt-1"><%= empty_hint %></p>
+  </div>
+<% else %>
+  <div class="m3-card overflow-hidden">
+    <div class="overflow-x-auto">
+      <div style="min-width: <%= 52 + week_days.size * 90 %>px">
+
+        <%# Day header row. Each day column below is a list with the day as its
+            label, so screen readers skip this row. %>
+        <div class="flex border-b border-outline-variant bg-surface-container-low" aria-hidden="true">
+          <div class="flex-shrink-0 border-r border-outline-variant" style="width: 52px"></div>
+          <% week_days.each do |day| %>
+            <div class="flex-1 text-center py-2.5 border-l border-outline-variant first:border-l-0" style="min-width: 90px">
+              <div class="text-xs text-on-surface-variant"><%= day.strftime("%a") %></div>
+              <div class="mt-0.5 flex items-center justify-center">
+                <% if day == schedule.today %>
+                  <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary text-on-primary text-sm font-bold">
+                    <%= day.strftime("%-d") %>
+                  </span>
+                <% else %>
+                  <span class="text-sm font-medium text-on-surface"><%= day.strftime("%-d") %></span>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+
+        <%# Time grid %>
+        <div class="overflow-y-auto" style="max-height: 560px">
+          <div class="flex">
+
+            <%# Hour labels %>
+            <div class="flex-shrink-0 relative bg-surface-container-low border-r border-outline-variant" aria-hidden="true"
+                 style="width: 52px; height: <%= grid_total_px %>px">
+              <% (grid_start_hr...grid_end_hr).each do |hour| %>
+                <div class="absolute right-2 text-xs text-on-surface-variant leading-none select-none"
+                     style="top: <%= [(hour - grid_start_hr) * px_per_hour - 6, 2].max %>px">
+                  <%= hour == 12 ? "12p" : (hour > 12 ? "#{hour - 12}p" : "#{hour}a") %>
+                </div>
+              <% end %>
+            </div>
+
+            <%# Day columns %>
+            <% week_days.each do |day| %>
+              <% no_class = schedule.no_class_dates.include?(day) %>
+              <% sessions = schedule_sessions_on(schedule, day) %>
+
+              <div class="flex-1 relative border-l border-outline-variant <%= day == schedule.today ? 'bg-primary/[0.03]' : '' %>"
+                   style="height: <%= grid_total_px %>px; min-width: 90px">
+
+                <%# Hour and half-hour lines %>
+                <div aria-hidden="true">
+                  <% (grid_start_hr..grid_end_hr).each do |hour| %>
+                    <div class="absolute inset-x-0 border-t border-outline-variant pointer-events-none"
+                         style="top: <%= (hour - grid_start_hr) * px_per_hour %>px"></div>
+                  <% end %>
+                  <% (grid_start_hr...grid_end_hr).each do |hour| %>
+                    <div class="absolute inset-x-0 border-t border-dashed border-outline-variant/60 pointer-events-none"
+                         style="top: <%= (hour - grid_start_hr) * px_per_hour + px_per_hour / 2 %>px"></div>
+                  <% end %>
+                </div>
+
+                <%# No-class overlay %>
+                <% if no_class %>
+                  <div class="absolute inset-0 bg-surface-container/40 pointer-events-none flex items-center justify-center" aria-hidden="true">
+                    <span class="text-xs text-on-surface-variant select-none"
+                          style="writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg)">No Classes</span>
+                  </div>
+                <% end %>
+
+                <%# Course blocks %>
+                <ul class="absolute inset-0" aria-label="<%= day.strftime("%A, %B %-d") %>">
+                  <% if no_class %>
+                    <li class="sr-only">No classes</li>
+                  <% elsif sessions.empty? %>
+                    <li class="sr-only">No courses</li>
+                  <% end %>
+
+                  <% sessions.each do |entry| %>
+                    <% course = entry[:course] %>
+                    <% mt     = entry[:meeting_time] %>
+                    <% next unless mt[:begin_time].present? && mt[:end_time].present? %>
+                    <% bh, bm = mt[:begin_time].split(":").map(&:to_i) %>
+                    <% eh, em = mt[:end_time].split(":").map(&:to_i) %>
+                    <% b_min  = bh * 60 + bm %>
+                    <% e_min  = eh * 60 + em %>
+                    <% next if b_min < grid_start_hr * 60 || e_min > grid_end_hr * 60 %>
+                    <% top_v  = (b_min - grid_start_hr * 60) * px_per_hour / 60 %>
+                    <% ht_v   = [(e_min - b_min) * px_per_hour / 60, 20].max %>
+                    <% label  = schedule_entry_label(entry) %>
+
+                    <li class="absolute rounded overflow-hidden text-xs text-on-surface" title="<%= label %>"
+                        style="top: <%= top_v %>px; height: <%= ht_v %>px; left: 4px; right: 4px; <%= schedule_entry_style(entry) %>">
+                      <span class="sr-only"><%= label %></span>
+                      <div class="px-1.5 py-0.5 h-full overflow-hidden" aria-hidden="true">
+                        <div class="font-semibold leading-tight truncate"><%= course[:subject] %> <%= course[:course_number] %></div>
+                        <% if ht_v > 34 %>
+                          <div class="leading-tight truncate"><%= course[:title] %></div>
+                        <% end %>
+                        <% if ht_v > 50 && mt[:building_room].present? %>
+                          <div class="leading-tight truncate text-on-surface-variant"><%= mt[:building_room] %></div>
+                        <% end %>
+                        <% if ht_v > 66 && mt[:begin_time_display] %>
+                          <div class="leading-tight text-on-surface-variant"><%= mt[:begin_time_display] %> – <%= mt[:end_time_display] %></div>
+                        <% end %>
+                      </div>
+                    </li>
+                  <% end %>
+                </ul>
+              </div>
+            <% end %>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
