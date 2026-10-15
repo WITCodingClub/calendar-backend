@@ -1,0 +1,93 @@
+<% prev_month = schedule.month_date << 1 %>
+<% next_month = schedule.month_date >> 1 %>
+<% grid_first = schedule.month_date.beginning_of_month.beginning_of_week(:monday) %>
+<% grid_last  = schedule.month_date.end_of_month.end_of_week(:monday) %>
+<% cal_weeks  = (grid_first..grid_last).each_slice(7).to_a %>
+
+<%# Navigation %>
+<div class="flex items-center justify-between">
+  <%= link_to path_for.call(view: "month", term_uid: schedule.selected_term.uid, month: prev_month.strftime("%Y-%m")),
+      "aria-label": "Previous month",
+      class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+    <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    Prev
+  <% end %>
+
+  <div class="text-center">
+    <span class="font-semibold text-on-surface"><%= schedule.month_date.strftime("%B %Y") %></span>
+    <% if schedule.month_date == schedule.today.beginning_of_month %>
+      <span class="ml-2 text-xs bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full">This month</span>
+    <% end %>
+  </div>
+
+  <%= link_to path_for.call(view: "month", term_uid: schedule.selected_term.uid, month: next_month.strftime("%Y-%m")),
+      "aria-label": "Next month",
+      class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
+    Next
+    <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+  <% end %>
+</div>
+
+<div class="m3-card overflow-hidden">
+  <%# Weekday headers. Each day cell below is a list with the date as its
+      label, so screen readers skip this row. %>
+  <div class="grid grid-cols-7 border-b border-outline-variant bg-surface-container-low" aria-hidden="true">
+    <% %w[Mon Tue Wed Thu Fri Sat Sun].each do |lbl| %>
+      <div class="text-center text-xs font-medium text-on-surface-variant py-2"><%= lbl %></div>
+    <% end %>
+  </div>
+
+  <%# Calendar rows %>
+  <div class="divide-y divide-outline-variant">
+    <% cal_weeks.each do |week| %>
+      <div class="grid grid-cols-7 divide-x divide-outline-variant">
+        <% week.each do |day| %>
+          <% in_month = day.month == schedule.month_date.month %>
+          <% no_class = schedule.no_class_dates.include?(day) %>
+          <% sessions = schedule_sessions_on(schedule, day) %>
+
+          <div class="min-w-0 min-h-20 p-1.5 <%= in_month ? '' : 'bg-surface-container-low' %>">
+            <div class="mb-1 flex items-center" aria-hidden="true">
+              <% if day == schedule.today %>
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold">
+                  <%= day.strftime("%-d") %>
+                </span>
+              <% else %>
+                <span class="text-xs <%= in_month ? 'text-on-surface' : 'text-on-surface-variant' %>">
+                  <%= day.strftime("%-d") %>
+                </span>
+              <% end %>
+            </div>
+
+            <ul aria-label="<%= day.strftime("%A, %B %-d") %>">
+              <% if no_class && in_month %>
+                <li class="text-xs text-on-surface-variant bg-surface-container-high rounded px-1 py-0.5 mb-0.5 truncate leading-tight">
+                  No class
+                </li>
+              <% elsif sessions.empty? %>
+                <li class="sr-only">No courses</li>
+              <% end %>
+
+              <% sessions.each do |entry| %>
+                <% course = entry[:course] %>
+                <% label  = schedule_entry_label(entry) %>
+                <li class="text-xs text-on-surface rounded truncate px-1 py-0.5 mb-0.5 leading-tight" title="<%= label %>"
+                    style="<%= schedule_entry_style(entry, border_width: 2) %>">
+                  <span aria-hidden="true"><%= course[:subject] %> <%= course[:course_number] %></span>
+                  <span class="sr-only"><%= label %></span>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<% if schedule.courses.empty? %>
+  <div class="m3-card p-6 text-center mt-4">
+    <p class="text-on-surface-variant">No courses found for <%= schedule.selected_term.name %>.</p>
+    <p class="text-sm text-on-surface-variant mt-1"><%= empty_hint %></p>
+  </div>
+<% end %>
