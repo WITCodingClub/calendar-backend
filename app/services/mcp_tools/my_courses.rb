@@ -9,6 +9,7 @@ module McpTools
     title "My courses"
     description "Lists the courses I am enrolled in for one term, with the professor and the weekly meeting " \
                 "times and rooms. Times are 24-hour, in the America/New_York time zone."
+    requires_scope "schedule:read"
     input_schema(properties: { term_uid: TERM_SCHEMA })
 
     def perform(term_uid: nil)

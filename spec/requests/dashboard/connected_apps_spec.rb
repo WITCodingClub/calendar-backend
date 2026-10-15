@@ -16,6 +16,20 @@ RSpec.describe "Dashboard::ConnectedApps", type: :request do
     expect(response.body).to include("Connected apps", "Claude", "claude.ai")
   end
 
+  it "lists the permissions each app holds, from every live token" do
+    application = create(:oauth_application, name: "Claude")
+    create(:oauth_access_token, resource_owner_id: user.id, application: application, scopes: "catalog schedule:read")
+    create(:oauth_access_token, resource_owner_id: user.id, application: application, scopes: "catalog settings:write")
+    create(:oauth_access_token, :revoked, resource_owner_id: user.id, application: application, scopes: "friends:groups")
+    create(:oauth_access_token, :legacy_read, resource_owner_id: user.id, application: create(:oauth_application, name: "Old client"))
+
+    get dashboard_settings_path
+
+    expect(response.body).to include("Reads: Course catalog, Your schedule", "Changes: Change calendar settings")
+    expect(response.body).not_to include("Friend groups")
+    expect(response.body).to include("Reads: Course catalog, Your schedule, Your friends, Your calendar settings")
+  end
+
   it "shows no card when no app holds a token" do
     get dashboard_settings_path
 

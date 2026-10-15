@@ -9,6 +9,7 @@ module McpTools
     title "University calendar events"
     description "Lists Wentworth academic calendar events: holidays, term dates, registration, deadlines, " \
                 "study days, finals, and graduation. Without dates it lists upcoming events."
+    requires_scope "catalog"
     input_schema(
       properties: {
         start_date: DATE_SCHEMA,

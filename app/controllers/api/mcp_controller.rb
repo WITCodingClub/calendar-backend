@@ -8,13 +8,13 @@ module Api
   # token gets 401 and a WWW-Authenticate header that points to the protected
   # resource metadata (RFC 9728), which is how an MCP client finds the sign-in.
   class McpController < BaseController
-    SCOPE = "read"
-
     before_action :authenticate_oauth_token!
+    before_action :challenge_missing_tool_scope
 
     # POST /api/mcp
     def create
-      server    = McpTools::Server.build(user: current_user, application: @access_token.application, request: request)
+      server    = McpTools::Server.build(user: current_user, application: @access_token.application,
+                                         scopes: @scopes, request: request)
       transport = MCP::Server::Transports::StreamableHTTPTransport.new(
         server,
         stateless:                  true,
@@ -49,9 +49,9 @@ module Api
       elsif @access_token.nil? || !@access_token.accessible?
         challenge(error: "invalid_token", description: "The access token expired or was revoked")
         render_error "Authentication required", status: :unauthorized, code: "AUTH_INVALID"
-      elsif !@access_token.includes_scope?(SCOPE)
-        challenge(error: "insufficient_scope", description: "The token needs the #{SCOPE} scope")
-        render_error "The token needs the #{SCOPE} scope", status: :forbidden, code: "INSUFFICIENT_SCOPE"
+      elsif (@scopes = McpTools::Scopes.expand(@access_token.scopes)).empty?
+        challenge(error: "insufficient_scope", description: "The token has no WIT Calendar scope")
+        render_error "The token has no WIT Calendar scope", status: :forbidden, code: "INSUFFICIENT_SCOPE"
       else
         # A foreign key ties the token to the user, and deleting a user deletes
         # the tokens, so the user is always there.
@@ -59,10 +59,36 @@ module Api
       end
     end
 
-    # RFC 6750 section 3 and RFC 9728 section 5.1.
-    def challenge(error: nil, description: nil)
+    # A tool call that needs a scope the token lacks. A client on
+    # McpTools::Scopes::STEP_UP_CLIENTS gets 403 insufficient_scope, so it can
+    # ask the student for the scope and retry (step-up authorization). Any
+    # other client gets the tool error from McpTools::BaseTool, because a 403
+    # fails the whole request there.
+    def challenge_missing_tool_scope
+      return unless McpTools::Scopes.step_up?(@access_token.application)
+
+      body = JSON.parse(request.raw_post)
+      return unless body.is_a?(Hash) && body["method"] == "tools/call"
+
+      needed = McpTools.find(body.dig("params", "name"))&.required_scope
+      return if needed.nil? || @scopes.include?(needed)
+
+      Yabeda.calendar.mcp_scope_denials_total.increment({ scope: needed, mode: "step_up" })
+      label = McpTools::Scopes.label(needed)
+      challenge(error: "insufficient_scope", description: "This needs the #{label} permission",
+                scope: (@scopes | [ needed ]).join(" "))
+      render_error "This needs the #{label} permission", status: :forbidden, code: "INSUFFICIENT_SCOPE"
+    rescue JSON::ParserError
+      # The transport answers a body that is not JSON.
+      nil
+    end
+
+    # RFC 6750 section 3 and RFC 9728 section 5.1. The first challenge names
+    # every scope, so the student picks on the consent page. A client without
+    # step-up support can get a scope only there.
+    def challenge(error: nil, description: nil, scope: McpTools::Scopes::NAMES.join(" "))
       metadata = Oauth::Metadata.new(host: request.host, port: request.port, protocol: request.protocol)
-      parts = [ %(resource_metadata="#{metadata.resource_metadata_url}"), %(scope="#{SCOPE}") ]
+      parts = [ %(resource_metadata="#{metadata.resource_metadata_url}"), %(scope="#{scope}") ]
       parts << %(error="#{error}") if error
       parts << %(error_description="#{description}") if description
       response.headers["WWW-Authenticate"] = "Bearer #{parts.join(', ')}"

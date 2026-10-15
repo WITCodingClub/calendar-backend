@@ -46,6 +46,11 @@ Yabeda.configure do
           comment: "MCP tool calls, by tool and result (docs/mcp.md).",
           tags: %i[tool status]
 
+  counter :mcp_scope_denials_total,
+          comment: "MCP tool calls refused for a missing scope, by scope and answer: " \
+                   "step_up (HTTP 403) or tool_error (docs/mcp.md).",
+          tags: %i[scope mode]
+
   counter :oauth_clients_registered_total,
           comment: "OAuth clients that MCP clients registered at /api/oauth/register.",
           tags: []

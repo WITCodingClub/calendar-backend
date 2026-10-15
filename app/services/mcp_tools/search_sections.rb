@@ -13,6 +13,7 @@ module McpTools
     description "Searches the Wentworth course catalog for sections. Combine filters to narrow the list. " \
                 "Set semantic to true to rank q by meaning, for example q: \"intro to machine learning\". " \
                 "Without term_uid it searches the current term."
+    requires_scope "catalog"
     input_schema(
       properties: {
         term_uid:          TERM_SCHEMA,

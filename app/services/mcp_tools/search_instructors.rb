@@ -10,6 +10,7 @@ module McpTools
     title "Search instructors"
     description "Finds the Wentworth instructors who teach at least one section, by name or by meaning, " \
                 "with department, contact details, and RateMyProfessor ratings."
+    requires_scope "catalog"
     input_schema(
       properties: {
         q:        { type: "string", description: "A name, for example \"ada lovelace\". With semantic, what they teach." },

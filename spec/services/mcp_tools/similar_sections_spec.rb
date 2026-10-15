@@ -6,7 +6,7 @@ RSpec.describe McpTools::SimilarSections do
   let(:user) { create(:user) }
   let(:term) { create(:term) }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   it "lists the nearest sections by vector" do
     course = give_embedding(create(:course, term: term), 0.0)

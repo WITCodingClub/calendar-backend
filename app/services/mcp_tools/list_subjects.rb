@@ -7,6 +7,7 @@ module McpTools
     title "List subjects"
     description "Lists the subjects that have sections, with the short code that search_sections takes " \
                 "(for example COMP) and the section count."
+    requires_scope "catalog"
     input_schema(properties: { term_uid: { type: "integer", description: "Only subjects with sections in this term." } })
 
     def perform(term_uid: nil)
