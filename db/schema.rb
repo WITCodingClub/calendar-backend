@@ -10,10 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_15_170100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
+  enable_extension "pg_trgm"
   enable_extension "vector"
 
   create_table "active_storage_attachments", force: :cascade do |t|
@@ -308,10 +309,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_160000) do
     t.datetime "updated_at", null: false
     t.vector "embedding", limit: 1536
     t.string "embedding_digest", limit: 64
+    t.index "((course_number)::text) gin_trgm_ops", name: "index_courses_on_course_number_text_trgm", using: :gin
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
     t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["status"], name: "index_courses_on_status"
+    t.index ["subject"], name: "index_courses_on_subject_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["term_id", "subject", "course_number", "link_identifier"], name: "index_courses_on_course_and_link_identifier"
+    t.index ["title"], name: "index_courses_on_title_trgm", opclass: :gin_trgm_ops, using: :gin
     t.check_constraint "credit_hours IS NULL OR credit_hours > 0", name: "courses_credit_hours_positive"
     t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying::text, 'HYB'::character varying::text, 'IND'::character varying::text, 'LAB'::character varying::text, 'LEC'::character varying::text, 'ONL'::character varying::text, 'ONB'::character varying::text, 'OLB'::character varying::text, 'OLC'::character varying::text, 'RLB'::character varying::text, 'RLC'::character varying::text, 'SAB'::character varying::text, 'SAD'::character varying::text])", name: "courses_schedule_type_valid"
     t.check_constraint "seats_available IS NULL OR seats_capacity IS NULL OR seats_available <= seats_capacity", name: "courses_seats_available_le_capacity"
