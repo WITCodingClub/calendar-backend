@@ -12,7 +12,9 @@ class ErrorsController < ActionController::Base
   # The error pages exist only as HTML. A request for a missing /icon.png or
   # .woff2 file has a non-HTML format, and without formats: :html it raises a
   # missing template error and returns 500 instead of the real status.
-  layout false
+  layout "error"
+
+  helper_method :signed_in_for_error_page?
 
   def unauthorized
     render status: :forbidden, formats: :html
@@ -27,7 +29,7 @@ class ErrorsController < ActionController::Base
     if preferred_document_type == Mime[:html]
       render status: :not_found, formats: :html
     else
-      render status: :not_found, formats: :md
+      render status: :not_found, formats: :md, layout: false
     end
   end
 
@@ -37,5 +39,19 @@ class ErrorsController < ActionController::Base
 
   def internal_server_error
     render status: :internal_server_error, formats: :html
+  end
+
+  private
+
+  # Picks "Back to dashboard" or "Go to home page". The session lookup reads
+  # the database, and a 500 page can be the result of a database outage. The
+  # page must still render, so a database error counts as signed out.
+  def signed_in_for_error_page?
+    return @signed_in_for_error_page if defined?(@signed_in_for_error_page)
+
+    @signed_in_for_error_page = user_signed_in?
+  rescue ActiveRecord::ActiveRecordError => e
+    Rails.error.report(e, handled: true, context: { error_page: action_name })
+    @signed_in_for_error_page = false
   end
 end
