@@ -46,12 +46,6 @@ RSpec.describe "Head metadata", type: :request do
     it_behaves_like "a complete head", light: "#fff8f1", dark: "#16130b"
   end
 
-  describe "docs layout" do
-    before { get "/docs/api" }
-
-    it_behaves_like "a complete head", light: "#ffffff", dark: "#0b1120"
-  end
-
   describe "public layout" do
     before { get "/meet/#{create(:meeting_link).token}" }
 

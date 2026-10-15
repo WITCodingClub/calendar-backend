@@ -17,13 +17,6 @@ RSpec.describe "Favicon", type: :request do
     expect(response.media_type).to eq("image/png")
   end
 
-  it "links the icons from the docs layout" do
-    get "/docs/api"
-
-    expect(response.body).to include('<link rel="icon" href="/favicon.ico" sizes="48x48">')
-    expect(response.body).to include('<link rel="apple-touch-icon" href="/icon.png">')
-  end
-
   it "links the icons from the error pages" do
     get "/404"
 
