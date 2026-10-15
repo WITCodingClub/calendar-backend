@@ -13,6 +13,7 @@
   <%= yield :head %>
 </head>
 <body class="h-full bg-background text-on-background flex items-center justify-center px-4">
+  <%= render "shared/flash_messages" %>
   <%= yield %>
 </body>
 </html>

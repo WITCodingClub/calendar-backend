@@ -56,4 +56,32 @@ RSpec.describe ApplicationHelper, type: :helper do
       expect(html.scan("</script>").size).to eq(1)
     end
   end
+
+  describe "#flash_style" do
+    it "keeps errors on screen and announces them as alerts" do
+      expect(helper.flash_style("alert")).to include(role: "alert", timeout: 0, icon: :exclamation_circle)
+      expect(helper.flash_style(:error)).to include(role: "alert", timeout: 0)
+    end
+
+    it "keeps warnings on screen and announces them as alerts" do
+      expect(helper.flash_style("warning")).to include(role: "alert", timeout: 0, icon: :exclamation)
+    end
+
+    it "closes notices after a delay and announces them as a status" do
+      style = helper.flash_style(:notice)
+
+      expect(style).to include(role: "status", icon: :check_circle)
+      expect(style[:timeout]).to be_positive
+    end
+
+    it "gives each type its own color" do
+      colors = %w[alert warning notice other].map { |type| helper.flash_style(type)[:css_class] }
+
+      expect(colors.uniq.size).to eq(4)
+    end
+
+    it "shows an unknown type as information" do
+      expect(helper.flash_style("other")).to include(role: "status", icon: :information)
+    end
+  end
 end

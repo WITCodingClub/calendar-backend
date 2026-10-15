@@ -138,4 +138,9 @@ group :test do
   gem "shoulda-matchers", "~> 8.0"
   gem "simplecov", "~> 1.3", require: false
   gem "webmock", "~> 3.26"
+
+  # System specs drive headless Chrome over CDP, so the Stimulus controllers
+  # run in a real browser. See spec/support/system.rb.
+  gem "capybara", "~> 3.40"
+  gem "cuprite", "~> 0.18"
 end

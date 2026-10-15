@@ -23,6 +23,22 @@ module ApplicationHelper
     tag.script(json_escape(data.to_json).html_safe, type: "application/ld+json", nonce: content_security_policy_nonce) # rubocop:disable Rails/OutputSafety
   end
 
+  # How shared/flash_messages shows one flash type. Errors and warnings use
+  # role="alert" and stay until closed. Each type has its own color and icon,
+  # so color is not the only cue.
+  def flash_style(type)
+    case type.to_s
+    when "alert", "error", "danger"
+      { css_class: "bg-error-container border-error text-on-error-container", icon: :exclamation_circle, role: "alert", timeout: 0 }
+    when "warning"
+      { css_class: "bg-primary-container border-primary text-on-primary-container", icon: :exclamation, role: "alert", timeout: 0 }
+    when "notice", "success"
+      { css_class: "bg-tertiary-container border-tertiary text-on-tertiary-container", icon: :check_circle, role: "status", timeout: 8000 }
+    else
+      { css_class: "bg-surface-container-high border-outline text-on-surface", icon: :information, role: "status", timeout: 8000 }
+    end
+  end
+
   def titleize_with_roman_numerals(title)
     result = HTMLEntities.new.decode(title.to_s)
 
