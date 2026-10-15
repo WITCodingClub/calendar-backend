@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe McpTools::CatalogGraphql do
   let(:user) { create(:user) }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   it "runs a query on the catalog schema with variables" do
     term = create(:term)
@@ -35,7 +35,7 @@ RSpec.describe McpTools::CatalogGraphql do
     request = ActionDispatch::Request.new(Rack::MockRequest.env_for("/api/mcp", method: "POST"))
     allow(Rack::Attack).to receive(:semantic_search_throttled?).with(request.env).and_return(true)
 
-    result = described_class.call(server_context: { user: user, request: request },
+    result = described_class.call(server_context: mcp_context(user, request: request),
                                   query: '{ instructors(q: "robots", semantic: true) { nodes { name } } }')
 
     expect(result.content.first[:text]).to include("Rate limit exceeded for semantic search")

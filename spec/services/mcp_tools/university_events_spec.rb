@@ -9,7 +9,7 @@ RSpec.describe McpTools::UniversityEvents do
 
   around { |example| travel_to(Time.zone.local(2026, 10, 14, 12)) { example.run } }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   def event(summary, on:, category: "holiday")
     create(:university_calendar_event, summary: summary, category: category,

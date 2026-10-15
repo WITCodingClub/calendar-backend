@@ -6,6 +6,7 @@ module McpTools
     tool_name "similar_instructors"
     title "Similar instructors"
     description "Lists instructors who teach something close to what one instructor teaches."
+    requires_scope "catalog"
     input_schema(
       properties: {
         instructor_id: { type: "string", description: "The instructor pub_id." },

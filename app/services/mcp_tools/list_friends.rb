@@ -5,6 +5,7 @@ module McpTools
     tool_name "list_friends"
     title "List my friends"
     description "Lists my friends on WIT Calendar, with the id that friend_busy_times takes."
+    requires_scope "friends:read"
     input_schema(properties: {})
 
     def perform

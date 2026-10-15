@@ -11,8 +11,6 @@ module Oauth
   # The URLs come from the routes and the request host, the same as the other
   # discovery files (DiscoveryController).
   class Metadata
-    SCOPES = %w[read].freeze
-
     def initialize(url_options)
       @url_options = url_options
     end
@@ -36,7 +34,7 @@ module Oauth
         token_endpoint:                             routes.oauth_token_url(**@url_options),
         revocation_endpoint:                        routes.oauth_revoke_url(**@url_options),
         registration_endpoint:                      routes.oauth_registration_url(**@url_options),
-        scopes_supported:                           SCOPES,
+        scopes_supported:                           McpTools::Scopes::NAMES,
         response_types_supported:                   %w[code],
         response_modes_supported:                   %w[query],
         grant_types_supported:                      %w[authorization_code refresh_token],
@@ -53,7 +51,7 @@ module Oauth
         resource:                 resource,
         resource_name:            "WIT Calendar",
         authorization_servers:    [ issuer ],
-        scopes_supported:         SCOPES,
+        scopes_supported:         McpTools::Scopes::NAMES,
         bearer_methods_supported: %w[header],
         resource_documentation:   routes.mcp_docs_url(**@url_options)
       }

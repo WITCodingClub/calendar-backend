@@ -28,7 +28,8 @@ RSpec.describe "Api::Mcp", type: :request do
       expect(response).to have_http_status(:unauthorized)
       expect(response.parsed_body["code"]).to eq("AUTH_MISSING")
       expect(response.headers["WWW-Authenticate"]).to eq(
-        'Bearer resource_metadata="http://www.example.com/.well-known/oauth-protected-resource", scope="read"'
+        "Bearer resource_metadata=\"http://www.example.com/.well-known/oauth-protected-resource\", " \
+        "scope=\"#{McpTools::Scopes::NAMES.join(' ')}\""
       )
     end
 
@@ -94,11 +95,70 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(server_info["icons"]).to eq([ { "src" => "http://example.com/icon.png", "mimeType" => "image/png", "sizes" => [ "180x180" ] } ])
   end
 
-  it "marks every tool read-only" do
+  it "marks the read tools read-only and the write tools not destructive" do
     rpc "tools/list"
 
-    tools = response.parsed_body.dig("result", "tools")
-    expect(tools.map { |tool| tool.dig("annotations", "readOnlyHint") }).to all(be(true))
+    tools = response.parsed_body.dig("result", "tools").index_by { |tool| tool["name"] }
+    write_tools, read_tools = McpTools.all.partition { |tool| tool < McpTools::BaseWriteTool }
+
+    expect(read_tools.map { |tool| tools.dig(tool.name_value, "annotations", "readOnlyHint") }).to all(be(true))
+    expect(write_tools.map { |tool| tools.dig(tool.name_value, "annotations", "readOnlyHint") }).to all(be(false))
+    expect(write_tools.map { |tool| tools.dig(tool.name_value, "annotations", "destructiveHint") }).to all(be(false))
+  end
+
+  it "lists every tool to a token with any scope, and names the permission a write tool needs" do
+    rpc "tools/list", with: headers.merge("Authorization" => "Bearer #{create(:oauth_access_token, resource_owner_id: user.id, scopes: 'catalog').plaintext_token}")
+
+    tools = response.parsed_body.dig("result", "tools").index_by { |tool| tool["name"] }
+    expect(tools.keys).to match_array(McpTools.names)
+    expect(tools.dig("update_class_settings", "description")).to include('Needs the "Change calendar settings" permission')
+    expect(tools.dig("list_terms", "description")).not_to include("permission")
+  end
+
+  it "keeps the tools of a token issued before the scopes were split" do
+    legacy = create(:oauth_access_token, :legacy_read, resource_owner_id: user.id)
+
+    rpc "tools/call", { name: "list_terms", arguments: {} }, with: headers.merge("Authorization" => "Bearer #{legacy.plaintext_token}")
+
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.dig("result", "isError")).to be(false)
+  end
+
+  describe "a tool call without its scope" do
+    def denials(scope, mode) = Yabeda.calendar.mcp_scope_denials_total.get(scope: scope, mode: mode) || 0
+
+    it "answers a tool error that says how to add the permission, and counts it" do
+      expect { rpc "tools/call", { name: "set_notifications", arguments: { disabled: true } } }
+        .to change { denials("notifications:write", "tool_error") }.by(1)
+
+      expect(response).to have_http_status(:ok)
+      result = response.parsed_body["result"]
+      expect(result["isError"]).to be(true)
+      expect(result.dig("content", 0, "text")).to include('"Turn notifications off and on" permission', "connect again")
+      expect(user.reload.notifications_disabled?).to be(false)
+    end
+
+    it "answers 403 insufficient_scope for a client that supports step-up authorization" do
+      stub_const("McpTools::Scopes::STEP_UP_CLIENTS", [ token.application.uid ])
+
+      expect { rpc "tools/call", { name: "set_notifications", arguments: { disabled: true } } }
+        .to change { denials("notifications:write", "step_up") }.by(1)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body["code"]).to eq("INSUFFICIENT_SCOPE")
+      expect(response.headers["WWW-Authenticate"]).to include(
+        'error="insufficient_scope"',
+        "scope=\"#{McpTools::Scopes::LEGACY_READ_SCOPES.join(' ')} notifications:write\""
+      )
+    end
+
+    it "does not challenge a step-up client for a tool the token can call" do
+      stub_const("McpTools::Scopes::STEP_UP_CLIENTS", [ token.application.uid ])
+
+      rpc "tools/call", { name: "list_terms", arguments: {} }
+
+      expect(response).to have_http_status(:ok)
+    end
   end
 
   it "calls a tool as the token's user and counts the call" do

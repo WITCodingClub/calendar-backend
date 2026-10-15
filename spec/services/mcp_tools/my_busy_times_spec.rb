@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe McpTools::MyBusyTimes do
   let(:user) { create(:user) }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   it "lists the busy blocks of the user" do
     exam = create(:final_exam, exam_date: Date.new(2026, 12, 17), course: create(:course))

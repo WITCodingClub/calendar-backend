@@ -6,7 +6,7 @@ RSpec.describe McpTools::CheckSchedule do
   let(:user) { create(:user) }
   let(:term) { create(:term) }
 
-  def call(**arguments) = described_class.call(server_context: { user: user }, **arguments)
+  def call(**arguments) = described_class.call(server_context: mcp_context(user), **arguments)
 
   it "checks the CRNs in the term" do
     create(:course, term: term, crn: 20397)

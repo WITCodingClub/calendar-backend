@@ -14,6 +14,7 @@ module McpTools
                 "The schema is at https://calendar.witcc.dev/docs/api/schema.graphql. Root fields: terms, term, " \
                 "subjects, sections(filter:, first:, after:), section(crn:, termUid:), instructors, reviews. " \
                 "Prefer the other catalog tools for simple lookups."
+    requires_scope "catalog"
     input_schema(
       properties: {
         query:          { type: "string", description: "The GraphQL query document." },

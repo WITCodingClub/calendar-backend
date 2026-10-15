@@ -37,6 +37,22 @@ module GoogleCalendar
       11 => TOMATO
     }.freeze
 
+    # The palette by the names the Google Calendar web app shows. The MCP tools
+    # take these names.
+    NAMES = {
+      "lavender"  => LAVENDER,
+      "sage"      => SAGE,
+      "grape"     => GRAPE,
+      "flamingo"  => FLAMINGO,
+      "banana"    => BANANA,
+      "tangerine" => TANGERINE,
+      "peacock"   => PEACOCK,
+      "graphite"  => GRAPHITE,
+      "blueberry" => BLUEBERRY,
+      "basil"     => BASIL,
+      "tomato"    => TOMATO
+    }.freeze
+
     # Returns the "#rrggbb" hex for a legacy color id (1-11, as an Integer or a
     # digit string) or for a hex color. Returns nil for any other value.
     def self.normalize(value)
