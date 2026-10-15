@@ -295,6 +295,20 @@ html, body {
   .m3-alert-error {
     @apply flex items-center gap-3 px-4 py-3 rounded-xl bg-error-container text-on-error-container text-sm;
   }
+  /* An icon on each alert, so color is not the only cue. The mask paints
+     the icon in the text color. */
+  .m3-alert-notice::before,
+  .m3-alert-error::before {
+    content: "";
+    @apply w-5 h-5 shrink-0 bg-current;
+    mask: var(--m3-alert-icon) center / contain no-repeat;
+  }
+  .m3-alert-notice {
+    --m3-alert-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E");
+  }
+  .m3-alert-error {
+    --m3-alert-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E");
+  }
 
   /* Page widths for the dashboard. Narrow: one form or a few settings.
      Medium: lists of records. Wide: calendars and week views. */

@@ -79,6 +79,14 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - Put response bodies in `spec/fixtures/files/<service>/`. Write synthetic data in the shape of the real response. The repo is public, so fixtures hold no real names, emails, or tokens.
 - The admin layout requests the latest GitHub release on every render. Admin request specs stub that request.
 
+### System specs
+
+- Test JavaScript, such as a Stimulus controller, with a system spec in `spec/system/`. It runs the page in headless Chrome through Cuprite (`spec/support/system.rb`). The repo has no Node test runner.
+- Chrome must be installed. Cuprite finds it. Set `BROWSER_PATH` to use a different binary, and `HEADFUL=1` to watch the browser.
+- Do not use `sleep` to wait for a timer. Wait for a second element with the same timeout to go away, as `spec/system/flash_messages_spec.rb` does.
+- Find an icon button by its `aria-label`: `click_button("Dismiss")`.
+- A failing system spec saves a screenshot to `tmp/capybara/`. CI uploads it as the `capybara-screenshots` artifact.
+
 ### Fixture leakage
 
 A spec that declares `fixtures :buildings` inserts those rows outside the test transaction, so they stay for the rest of the run. Buildings have unique `name` and `abbreviation` columns. Give buildings in a spec names and abbreviations that `spec/fixtures/buildings.yml` does not use. The building factory uses `FCT` names for this reason. A spec that fails only in the full run usually hits this.
