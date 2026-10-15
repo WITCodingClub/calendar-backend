@@ -7,6 +7,7 @@ module McpTools
     title "Get a course section"
     description "Gets one course section by CRN: meeting times, rooms, instructors, seats, and the final exam. " \
                 "It also finds cancelled sections."
+    requires_scope "catalog"
     input_schema(
       properties: {
         crn:      { type: "integer", description: "The section CRN, for example 12345." },

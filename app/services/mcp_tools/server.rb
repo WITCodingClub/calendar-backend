@@ -7,14 +7,18 @@ module McpTools
     NAME = "wit-calendar"
 
     INSTRUCTIONS = <<~TEXT.squish
-      Read-only access to the Wentworth Institute of Technology course catalog and to the
-      signed-in student's schedule on WIT Calendar. Call list_terms first to get term uids.
-      Times are in the America/New_York time zone.
+      Access to the Wentworth Institute of Technology course catalog and to the signed-in
+      student's schedule on WIT Calendar. Call list_terms first to get term uids. Times are in
+      the America/New_York time zone. Each tool needs a permission that the student gives when
+      they connect. Tools that change data need a permission that is off by default. When a
+      tool answers that a permission is missing, tell the student how to add it and do not
+      retry. Before you change a setting, say what you will change.
     TEXT
 
-    DESCRIPTION = "Wentworth course catalog and your WIT Calendar schedule, read-only."
+    DESCRIPTION = "Wentworth course catalog and your WIT Calendar schedule and settings."
 
-    def self.build(user:, application:, request: nil)
+    # scopes: the scope names of the token, expanded (McpTools::Scopes.expand).
+    def self.build(user:, application:, scopes:, request: nil)
       MCP::Server.new(
         name:           NAME,
         title:          "WIT Calendar",
@@ -26,7 +30,7 @@ module McpTools
         website_url:    Rails.application.routes.url_helpers.mcp_docs_url(**url_options),
         instructions:   INSTRUCTIONS,
         tools:          McpTools.all,
-        server_context: { user: user, request: request },
+        server_context: { user: user, scopes: scopes, request: request },
         configuration:  configuration(user: user, application: application)
       )
     end

@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
 module McpTools
-  # Base for every MCP tool. Every tool is read-only.
+  # Base for every MCP tool. A tool that changes data inherits
+  # McpTools::BaseWriteTool instead.
   #
-  # A subclass sets its name, description, and input schema, and defines
-  # perform(user:, **arguments). perform returns a Hash: the tool sends it as
+  # A subclass sets its name, description, input schema, and the scope it
+  # needs (requires_scope, from McpTools::Scopes), and defines
+  # perform(**arguments). perform returns a Hash: the tool sends it as
   # structured content and as JSON text. A bad argument raises
   # McpTools::ToolError, which goes back to the client as a tool error with
   # the message. Any other error goes to the MCP server's exception reporter
@@ -31,7 +33,22 @@ module McpTools
         subclass.annotations(READ_ONLY)
       end
 
+      attr_reader :required_scope
+
+      # The scope a token needs to call this tool (McpTools::Scopes).
+      def requires_scope(name)
+        raise ArgumentError, "unknown MCP scope #{name}" unless Scopes::BY_NAME.key?(name)
+
+        @required_scope = name
+        description("#{description} Needs the \"#{Scopes.label(name)}\" permission.") unless Scopes::BY_NAME[name].default
+      end
+
       def call(server_context:, **arguments)
+        unless Array(server_context[:scopes]).include?(required_scope)
+          Yabeda.calendar.mcp_scope_denials_total.increment({ scope: required_scope.to_s, mode: "tool_error" })
+          return error_response(missing_scope_message)
+        end
+
         data = new(server_context[:user], request: server_context[:request]).perform(**arguments)
 
         MCP::Tool::Response.new([ { type: "text", text: data.to_json } ], structured_content: data)
@@ -47,6 +64,12 @@ module McpTools
       end
 
       private
+
+      def missing_scope_message
+        label = Scopes.label(required_scope)
+        "This needs the \"#{label}\" permission, which this app does not have. To add it, disconnect " \
+          "WIT Calendar in this app's connector settings, connect again, and check \"#{label}\"."
+      end
 
       def error_response(message)
         MCP::Tool::Response.new([ { type: "text", text: message } ], error: true)
@@ -95,6 +118,15 @@ module McpTools
 
       Catalog::SectionQuery.with_associations(relation).first ||
         raise(ToolError, "No section with CRN #{crn} in term #{term.uid}")
+    end
+
+    # A meeting time of a course the user takes, by the id from my_courses.
+    def find_my_meeting_time(id)
+      Course::MeetingTime.joins(course: :enrollments)
+                         .where(enrollments: { user_id: user.id })
+                         .includes(course: [ :faculties, :term ], rooms: :building)
+                         .find_by_public_id(id.to_s) ||
+        raise(ToolError, "No class meeting #{id} in your courses. Call my_courses for the ids.")
     end
 
     def find_instructor(pub_id)

@@ -33,7 +33,14 @@ Doorkeeper.configure do
   hash_token_secrets
   hash_application_secrets
 
-  default_scopes :read
+  # McpTools::Scopes describes each scope. It is reloadable code, so this list
+  # repeats the names, and spec/services/mcp_tools/scopes_spec.rb checks that
+  # the two match. "read" is the scope of tokens issued before the split.
+  default_scopes :catalog
+  optional_scopes :"schedule:read", :"friends:read", :"settings:read",
+                  :"settings:write", :"notifications:write",
+                  :"friends:requests", :"friends:meetings", :"friends:groups",
+                  :read
   enforce_configured_scopes
 
   access_token_methods :from_bearer_authorization

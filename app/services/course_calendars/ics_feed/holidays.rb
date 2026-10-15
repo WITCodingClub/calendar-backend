@@ -3,7 +3,7 @@
 module CourseCalendars
   class IcsFeed
     # The days with no classes (holidays, study days, finals) that fall in the
-    # dates of each meeting time. One query loads them for all the courses.
+    # dates of each meeting time. One cache read loads them for all the courses.
     class Holidays
       def initialize(courses)
         @cache = preload(courses)
@@ -12,10 +12,10 @@ module CourseCalendars
       # The no-class days in the dates of the meeting time.
       def for(meeting_time)
         cache_key = [ meeting_time.start_date, meeting_time.end_date ]
-        @cache[cache_key] ||= UniversityCalendarEvent.no_class_days_between(
+        @cache[cache_key] ||= UniversityCalendarEvent.no_class_spans_between(
           meeting_time.start_date,
           meeting_time.end_date
-        ).to_a
+        )
       end
 
       # The class starts that a no-class day cancels, at the hour and minute of
@@ -56,7 +56,7 @@ module CourseCalendars
         max_date = meeting_times.filter_map(&:end_date).max
         return {} unless min_date && max_date
 
-        all_no_class_days = UniversityCalendarEvent.no_class_days_between(min_date, max_date).to_a
+        all_no_class_days = UniversityCalendarEvent.no_class_spans_between(min_date, max_date)
 
         meeting_times.map { |mt| [ mt.start_date, mt.end_date ] }.uniq.each_with_object({}) do |(start_date, end_date), cache|
           cache[[ start_date, end_date ]] = all_no_class_days.select do |h|

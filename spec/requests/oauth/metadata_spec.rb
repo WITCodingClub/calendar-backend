@@ -18,7 +18,7 @@ RSpec.describe "Oauth::Metadata", type: :request do
         "code_challenge_methods_supported"      => [ "S256" ],
         "client_id_metadata_document_supported" => true,
         "token_endpoint_auth_methods_supported" => [ "none" ],
-        "scopes_supported"                      => [ "read" ],
+        "scopes_supported"                      => McpTools::Scopes::NAMES,
         "service_documentation"                 => "http://www.example.com/docs/mcp"
       )
     end
@@ -31,7 +31,7 @@ RSpec.describe "Oauth::Metadata", type: :request do
       expect(response.parsed_body).to include(
         "resource"              => "http://www.example.com/api/mcp",
         "authorization_servers" => [ "http://www.example.com" ],
-        "scopes_supported"      => [ "read" ]
+        "scopes_supported"      => McpTools::Scopes::NAMES
       )
     end
 

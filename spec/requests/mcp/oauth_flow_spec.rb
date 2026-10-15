@@ -39,7 +39,7 @@ RSpec.describe "MCP OAuth flow", type: :request do
       client_id:             client_id,
       redirect_uri:          redirect_uri,
       response_type:         "code",
-      scope:                 "read",
+      scope:                 McpTools::Scopes::NAMES.join(" "),
       state:                 "client-state",
       code_challenge:        code_challenge,
       code_challenge_method: "S256",
@@ -54,6 +54,7 @@ RSpec.describe "MCP OAuth flow", type: :request do
     challenge = response.headers["WWW-Authenticate"]
     metadata_url = challenge[/resource_metadata="([^"]+)"/, 1]
     expect(metadata_url).to eq("http://www.example.com/.well-known/oauth-protected-resource")
+    expect(challenge[/scope="([^"]+)"/, 1]).to eq(McpTools::Scopes::NAMES.join(" "))
 
     # 2. Discovery.
     get URI(metadata_url).path
@@ -82,10 +83,11 @@ RSpec.describe "MCP OAuth flow", type: :request do
 
     get back.request_uri
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include("Connect Claude?", "claude.ai")
+    expect(response.body).to include("Connect Claude?", "claude.ai", "It can read", "It can change, if you allow it")
 
-    # 5. Allow: the browser goes back to the client with a code.
-    post "/api/oauth/authorize", params: authorize_params(client_id)
+    # 5. Allow, with the schedule box and one change box checked: the browser
+    # goes back to the client with a code.
+    post "/api/oauth/authorize", params: authorize_params(client_id).merge(scopes: %w[schedule:read settings:write])
     callback = URI(response.location)
     expect("#{callback.scheme}://#{callback.host}#{callback.path}").to eq(redirect_uri)
     callback_params = Rack::Utils.parse_query(callback.query)
@@ -102,13 +104,23 @@ RSpec.describe "MCP OAuth flow", type: :request do
     }
     expect(response).to have_http_status(:ok)
     tokens = response.parsed_body
-    expect(tokens).to include("token_type" => "Bearer", "expires_in" => 3600, "scope" => "read")
+    expect(tokens).to include("token_type" => "Bearer", "expires_in" => 3600, "scope" => "catalog schedule:read settings:write")
 
-    # 7. The MCP server answers with the tools.
+    # 7. The MCP server answers with the tools. A tool whose box was not
+    # checked answers a tool error.
     mcp_call(tokens["access_token"], "tools/list")
     expect(response).to have_http_status(:ok)
     tool_names = response.parsed_body.dig("result", "tools").pluck("name")
     expect(tool_names).to match_array(McpTools.names)
+
+    mcp_call(tokens["access_token"], "tools/call", { name: "list_friends", arguments: {} })
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.dig("result", "isError")).to be(true)
+    expect(response.parsed_body.dig("result", "content", 0, "text")).to include('"Your friends" permission')
+
+    # 7b. The student has the app's permissions on the Settings page.
+    get dashboard_settings_path
+    expect(response.body).to include("Reads: Course catalog, Your schedule", "Changes: Change calendar settings")
 
     # 8. A refresh gives a new refresh token.
     post "/api/oauth/token", params: { grant_type: "refresh_token", refresh_token: tokens["refresh_token"], client_id: client_id }

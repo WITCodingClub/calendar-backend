@@ -10,6 +10,7 @@ module McpTools
                 "and totals (credits, days, earliest start, latest end, meetings before 9:00). " \
                 "Lecture and lab pairs come from Banner, so trust this over link identifiers. " \
                 "Use it before you suggest a schedule."
+    requires_scope "catalog"
     input_schema(
       properties: {
         term_uid: TERM_SCHEMA,

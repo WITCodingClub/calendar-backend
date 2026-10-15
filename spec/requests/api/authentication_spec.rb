@@ -16,7 +16,6 @@ RSpec.describe "API authentication" do
     api/passkeys#authenticate
     api/passkeys#authentication_options
     api/passkeys#exchange
-    api/terms#current_and_next
     api/v1/catalog/courses#index
     api/v1/catalog/courses#show
     api/v1/catalog/instructors#index

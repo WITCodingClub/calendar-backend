@@ -30,7 +30,7 @@ module Oauth
       {
         name:         client_name,
         redirect_uri: redirect_uris.join("\n"),
-        scopes:       "read",
+        scopes:       McpTools::Scopes::NAMES.join(" "),
         confidential: false,
         dynamic:      true
       }
