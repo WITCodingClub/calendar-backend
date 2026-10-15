@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="csrf-token" content="<%= form_authenticity_token %>">
   <title><%= browser_title("Dashboard") %></title>
   <%= render "layouts/favicon" %>
+  <%= render "layouts/theme_color" %>
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
   <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
@@ -77,15 +77,22 @@
 
       <!-- Mobile top bar -->
       <header class="lg:hidden sticky top-0 z-20 bg-surface-container border-b border-outline-variant px-4 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-8 h-8 shrink-0 rounded-lg bg-primary-container flex items-center justify-center">
             <svg aria-hidden="true" focusable="false" class="w-4 h-4 text-on-primary-container" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <span class="text-sm font-bold text-on-surface"><%= page_title("Dashboard") %></span>
+          <span class="text-sm font-bold text-on-surface truncate"><%= page_title("Dashboard") %></span>
         </div>
-        <span class="text-xs text-on-surface-variant"><%= current_user.first_name %></span>
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="text-xs text-on-surface-variant"><%= current_user.first_name %></span>
+          <%= button_to destroy_user_session_path,
+              method: :delete,
+              class: "text-xs text-on-surface-variant hover:text-primary" do %>
+            Sign out
+          <% end %>
+        </div>
       </header>
 
       <!-- Mobile bottom nav -->

@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= render "layouts/favicon" %>
+    <%= render "layouts/theme_color", light: "#ffffff", dark: "#0b1120" %>
     <%= yield :head %>
 
     <%# The page carries its own style. It must not wait for an asset build. %>
