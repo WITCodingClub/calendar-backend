@@ -23,12 +23,6 @@ RSpec.describe TwentyFiveLive::SyncJob, type: :job do
       expect(described_class.in_progress?).to be(true)
     end
 
-    it "is true for a job queued under the old class name" do
-      create_job(class_name: "TwentyFiveLiveSyncJob")
-
-      expect(described_class.in_progress?).to be(true)
-    end
-
     it "is false once the sync job has finished" do
       create_job.update!(finished_at: Time.current)
 

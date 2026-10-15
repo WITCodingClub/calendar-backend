@@ -1,0 +1,21 @@
+<%# One error page, rendered as a layout. Locals: code, title, text, and icon (the d attribute of a 24x24 stroke path). Render it with `render layout:` and a block to add actions after the main one. %>
+<% content_for :title, "#{code} #{title}" %>
+<div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-error-container text-on-error-container mb-6">
+  <svg aria-hidden="true" focusable="false" class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="<%= icon %>" />
+  </svg>
+</div>
+<p class="text-6xl font-bold text-on-surface mb-2"><%= code %></p>
+<h1 class="text-2xl font-semibold text-on-surface mb-4"><%= title %></h1>
+<p class="text-on-surface-variant mb-8"><%= text %></p>
+<div class="flex flex-wrap gap-3 justify-center">
+  <% if signed_in_for_error_page? %>
+    <%= link_to "Back to dashboard", dashboard_root_path, class: "m3-btn-filled" %>
+  <% else %>
+    <%= link_to "Go to home page", root_path, class: "m3-btn-filled" %>
+  <% end %>
+  <%= yield %>
+</div>
+<p class="mt-8 text-sm text-on-surface-variant">
+  Need help? Email <%= mail_to Rails.application.config.x.contact_email, nil, class: "text-primary underline" %>.
+</p>

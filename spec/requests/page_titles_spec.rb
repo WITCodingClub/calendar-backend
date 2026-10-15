@@ -12,6 +12,6 @@ RSpec.describe "Page titles", type: :request do
   it "names the error tab after the error" do
     get "/404"
 
-    expect(response.body).to include("<title>404 Not Found — WIT Calendar</title>")
+    expect(response.body).to include("<title>404 Page not found — WIT Calendar</title>")
   end
 end
