@@ -51,7 +51,7 @@
       The range can be up to <%= MeetingLink::MAX_RANGE_DAYS %> days. The link offers weekday times from 8:00 AM to 9:00 PM.
       With no expiry date, the link works until the end of the last day.
     </p>
-    <%= f.submit "Make link", class: "m3-btn-filled" %>
+    <%= f.submit "Make link", class: "m3-btn-filled", data: { turbo_submits_with: "Making…" } %>
   <% end %>
 
   <% if @links.empty? %>

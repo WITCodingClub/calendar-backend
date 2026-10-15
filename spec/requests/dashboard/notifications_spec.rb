@@ -12,6 +12,19 @@ RSpec.describe "Dashboard::Notifications", type: :request do
     sign_in user
   end
 
+  describe "GET /dashboard/notifications" do
+    # Turbo disables the button while the form submits and shows this label (#698).
+    it "gives the university event Save button a busy label" do
+      create(:enrollment, user: user)
+
+      get dashboard_notifications_path
+
+      button = Nokogiri::HTML(response.body).at_css("input[type='submit'][value='Save']")
+      expect(button["data-turbo-submits-with"]).to eq("Saving…")
+      expect(response.body).not_to include('data-disable-with="false"')
+    end
+  end
+
   describe "PATCH /dashboard/notifications/emails" do
     it "turns friend emails off" do
       patch emails_dashboard_notifications_path, params: { friend_emails: "false" }

@@ -3,43 +3,45 @@
 <div class="max-w-xl mx-auto space-y-6">
   <h1 class="text-2xl font-bold text-on-surface">ICS Calendar Feed</h1>
 
+  <div class="flex items-start gap-3 px-4 py-3 rounded-xl bg-error-container text-on-error-container text-sm" role="note" id="ics-privacy-warning">
+    <svg aria-hidden="true" focusable="false" class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+    <p><strong>Keep this URL private.</strong> Anyone with the URL can see your full schedule. It needs no password.</p>
+  </div>
+
   <div class="m3-card p-5 space-y-4">
     <p class="text-sm text-on-surface">
       Subscribe to your WIT Calendar in Apple Calendar, Google Calendar, Outlook, or any app that supports ICS feeds.
     </p>
 
-    <% if @ics_url.present? %>
-      <div>
-        <label class="m3-label">Your personal ICS URL</label>
-        <div class="flex gap-2" data-controller="clipboard" data-clipboard-text-value="<%= @ics_url %>">
-          <input type="text" autocomplete="off"
-                 value="<%= @ics_url %>"
-                 readonly
-                 class="m3-input font-mono text-xs flex-1"
-                 id="ics-url-field"
-                 data-action="click->clipboard#select">
-          <button type="button"
-                  class="m3-btn-tonal text-sm"
-                  data-action="click->clipboard#copy"
-                  data-clipboard-target="label">
-            Copy
-          </button>
-        </div>
+    <%# cal_url makes the token when the user has none, so the URL is always here. %>
+    <div>
+      <label class="m3-label" for="ics-url-field">Your personal ICS URL</label>
+      <div class="flex gap-2" data-controller="clipboard" data-clipboard-text-value="<%= @ics_url %>">
+        <input type="text" autocomplete="off"
+               value="<%= @ics_url %>"
+               readonly
+               class="m3-input font-mono text-xs flex-1"
+               id="ics-url-field"
+               aria-describedby="ics-privacy-warning"
+               data-action="click->clipboard#select">
+        <button type="button"
+                class="m3-btn-tonal text-sm"
+                data-action="click->clipboard#copy"
+                data-clipboard-target="label">
+          Copy
+        </button>
       </div>
+    </div>
 
-      <div class="flex flex-wrap gap-2 pt-1">
-        <%= link_to "webcal://#{URI.parse(@ics_url).host}#{URI.parse(@ics_url).path}?#{URI.parse(@ics_url).query}",
-            class: "m3-btn-outlined text-sm" do %>
-          Open in Calendar app
-        <% end %>
-      </div>
-    <% else %>
-      <p class="text-sm text-on-surface-variant">No ICS token generated yet. Contact support.</p>
-    <% end %>
+    <div class="flex flex-wrap gap-2 pt-1">
+      <%= link_to "webcal://#{URI.parse(@ics_url).host}#{URI.parse(@ics_url).path}?#{URI.parse(@ics_url).query}",
+          class: "m3-btn-outlined text-sm" do %>
+        Open in Calendar app
+      <% end %>
+    </div>
   </div>
 
   <div class="m3-card p-4 text-sm text-on-surface-variant space-y-1">
-    <p><strong class="text-on-surface">Keep this URL private</strong> — it grants read access to your full schedule without a password.</p>
     <p>Events update automatically every time you sync via the Chrome extension.</p>
     <p>
       The feed asks calendar apps to check for changes every hour, but each app sets its own schedule. Google Calendar can take up to a day.

@@ -34,10 +34,10 @@
 </div>
 
 <% if schedule.courses.empty? %>
-  <div class="m3-card p-8 text-center">
-    <p class="text-on-surface-variant">No courses found for <%= schedule.selected_term.name %>.</p>
-    <p class="text-sm text-on-surface-variant mt-1"><%= empty_hint %></p>
-  </div>
+  <%= render "shared/empty_state",
+      message: "No courses found for #{schedule.selected_term.name}.",
+      hint: empty_hint,
+      action: empty_action %>
 <% else %>
   <div class="m3-card overflow-hidden">
     <div class="overflow-x-auto">

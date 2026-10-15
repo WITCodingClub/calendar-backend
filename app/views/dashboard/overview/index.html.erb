@@ -3,6 +3,42 @@
 <div class="max-w-3xl mx-auto space-y-6">
   <h1 class="text-2xl font-bold text-on-surface">Overview</h1>
 
+  <%# Setup checklist. It goes away when every step is done. %>
+  <% unless @setup_steps.all?(&:done) %>
+    <section class="m3-card overflow-hidden" aria-labelledby="setup-heading">
+      <div class="px-5 py-4 border-b border-outline-variant flex items-center justify-between gap-3">
+        <h2 id="setup-heading" class="text-base font-semibold text-on-surface">Set up WIT Calendar</h2>
+        <span class="text-xs text-on-surface-variant"><%= @setup_steps.count(&:done) %> of <%= @setup_steps.size %> done</span>
+      </div>
+      <ol class="divide-y divide-outline-variant">
+        <% @setup_steps.each_with_index do |step, index| %>
+          <li class="px-5 py-4 flex gap-4">
+            <% if step.done %>
+              <span class="w-7 h-7 flex-shrink-0 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center">
+                <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+              </span>
+            <% else %>
+              <span class="w-7 h-7 flex-shrink-0 rounded-full bg-primary-container text-on-primary-container text-sm font-bold flex items-center justify-center"><%= index + 1 %></span>
+            <% end %>
+            <div class="flex-1 min-w-0 space-y-1">
+              <p class="text-sm font-medium <%= step.done ? 'text-on-surface-variant line-through' : 'text-on-surface' %>">
+                <%= step.title %>
+                <span class="sr-only"><%= step.done ? "(done)" : "(not done)" %></span>
+              </p>
+              <% unless step.done %>
+                <p class="text-xs text-on-surface-variant"><%= step.description %></p>
+                <% if step.action %>
+                  <% link_options = step.action[:external] ? { target: "_blank", rel: "noopener noreferrer" } : {} %>
+                  <%= link_to step.action[:label], step.action[:url], class: "m3-btn-tonal text-sm inline-flex mt-1", **link_options %>
+                <% end %>
+              <% end %>
+            </div>
+          </li>
+        <% end %>
+      </ol>
+    </section>
+  <% end %>
+
   <!-- Status cards -->
   <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
     <% if @current_term %>
@@ -23,7 +59,7 @@
     <% end %>
 
     <div class="m3-card p-4">
-      <p class="m3-label">Google Calendar</p>
+      <p class="m3-label">Calendar</p>
       <% if @has_calendar %>
         <p class="text-sm font-medium text-on-tertiary-container bg-tertiary-container inline-flex items-center gap-1 px-2 py-0.5 rounded-full mt-1">
           <svg aria-hidden="true" focusable="false" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>

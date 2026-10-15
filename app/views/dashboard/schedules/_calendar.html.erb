@@ -5,6 +5,9 @@
              else
                [ [ schedule.view_mode, "flex" ] ]
              end %>
+<%# The empty states use no_terms_message, empty_hint, and an optional
+    empty_action (see shared/_empty_state). %>
+<% empty_action = local_assigns[:empty_action] %>
 
 <div class="mx-auto space-y-4">
 
@@ -47,10 +50,21 @@
     </div>
   </div>
 
-  <% locals = { schedule: schedule, path_for: path_for, empty_hint: empty_hint } %>
+  <% locals = { schedule: schedule, path_for: path_for, empty_hint: empty_hint, empty_action: empty_action } %>
 
   <% if schedule.selected_term.nil? %>
-    <div class="m3-card p-8 text-center text-on-surface-variant">No term data available.</div>
+    <%# A term_uid that is not on this schedule, or a schedule with no terms. %>
+    <% if schedule.terms.any? %>
+      <%= render "shared/empty_state",
+          icon: :search,
+          message: "This term is not on the schedule.",
+          hint: "Choose a term from the list." %>
+    <% else %>
+      <%= render "shared/empty_state",
+          message: no_terms_message,
+          hint: empty_hint,
+          action: empty_action %>
+    <% end %>
   <% elsif schedule.view_mode == "auto" %>
     <div class="sm:hidden"><%= render "dashboard/schedules/list", **locals %></div>
     <div class="hidden sm:block space-y-4"><%= render "dashboard/schedules/week", **locals %></div>

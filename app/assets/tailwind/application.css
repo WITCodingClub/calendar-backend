@@ -221,6 +221,16 @@ html, body {
     @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-error-container text-on-error-container text-sm font-medium transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 
+  /* Busy state. Turbo disables the submit button while its form submits, so
+     a second click sends nothing. data-turbo-submits-with changes the label. */
+  :is(.m3-btn-filled, .m3-btn-tonal, .m3-btn-outlined, .m3-btn-text, .m3-btn-danger):disabled {
+    @apply opacity-60 cursor-not-allowed;
+  }
+  /* Turbo sets aria-busy on a form while it submits. */
+  form[aria-busy="true"] :is(.m3-btn-filled, .m3-btn-tonal, .m3-btn-outlined, .m3-btn-text, .m3-btn-danger):disabled {
+    @apply cursor-wait;
+  }
+
   /* Inputs / selects */
   .m3-input {
     @apply block w-full rounded-lg border border-outline-variant bg-surface-container-highest px-3 py-2 text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary;

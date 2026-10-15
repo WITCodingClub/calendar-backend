@@ -171,6 +171,20 @@ RSpec.describe "Dashboard::ConnectedAccounts", type: :request do
     end
   end
 
+  # A person who signed in with a passkey or with Microsoft has no Google
+  # account. The empty state tells the person what a connection does (#698).
+  describe "GET /dashboard/connected_accounts with no Google account" do
+    it "shows an empty state with a connect button and the extension link" do
+      get dashboard_connected_accounts_path
+
+      empty_state = Nokogiri::HTML(response.body).at_css("[data-empty-state]")
+      expect(empty_state.text).to include("No Google account is connected.")
+      expect(empty_state.text).to include("add your classes to Google Calendar")
+      expect(empty_state.at_css("a[href='#{Rails.configuration.x.extension_install_url}']")).to be_present
+      expect(empty_state.at_css("a[href^='/auth/google_oauth2?state=']").text).to include("Connect a Google account")
+    end
+  end
+
   describe "PATCH /dashboard/connected_accounts/:id/calendar_placement", :microsoft_graph do
     include ActiveJob::TestHelper
 

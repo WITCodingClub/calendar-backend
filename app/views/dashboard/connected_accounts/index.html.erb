@@ -10,9 +10,14 @@
   </div>
 
   <% if @credentials.empty? %>
-    <div class="m3-card p-8 text-center text-on-surface-variant">
-      No Google accounts connected yet.
-    </div>
+    <%= render "shared/empty_state",
+        icon: :account,
+        message: "No Google account is connected.",
+        hint: safe_join([
+          "Connect a Google account to add your classes to Google Calendar. WIT Calendar updates that calendar each time you import your schedule with the",
+          link_to("WIT Calendar extension", @extension_install_url, target: "_blank", rel: "noopener noreferrer", class: "text-primary hover:underline")
+        ], " ") + ".",
+        action: { label: "Connect a Google account", url: @add_account_url } %>
   <% else %>
     <div class="m3-card divide-y divide-outline-variant overflow-hidden">
       <% @credentials.each do |cred| %>
