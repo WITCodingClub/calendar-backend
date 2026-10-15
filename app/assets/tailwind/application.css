@@ -217,6 +217,10 @@ html, body {
   .m3-btn-text {
     @apply inline-flex items-center gap-2 px-3 py-2.5 rounded-full text-primary text-sm font-medium bg-transparent transition-colors hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
+  /* Sign-in buttons for Google, Microsoft, and passkeys */
+  .m3-btn-provider {
+    @apply flex items-center justify-center gap-3 w-full px-4 py-3 border border-outline-variant rounded-xl bg-surface-container hover:bg-surface-container-high transition font-medium text-on-surface shadow-sm;
+  }
   .m3-btn-danger {
     @apply inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-error-container text-on-error-container text-sm font-medium transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
@@ -277,6 +281,9 @@ html, body {
   .m3-badge-secondary {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-container text-on-secondary-container;
   }
+  .m3-badge-tertiary {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-tertiary-container text-on-tertiary-container;
+  }
   .m3-badge-error {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-error-container text-on-error-container;
   }
@@ -287,6 +294,18 @@ html, body {
   }
   .m3-alert-error {
     @apply flex items-center gap-3 px-4 py-3 rounded-xl bg-error-container text-on-error-container text-sm;
+  }
+
+  /* Page widths for the dashboard. Narrow: one form or a few settings.
+     Medium: lists of records. Wide: calendars and week views. */
+  .m3-page-narrow {
+    @apply w-full max-w-xl mx-auto;
+  }
+  .m3-page-medium {
+    @apply w-full max-w-2xl mx-auto;
+  }
+  .m3-page-wide {
+    @apply w-full max-w-6xl mx-auto;
   }
 
   /* Dividers */

@@ -12,7 +12,7 @@
   <%= link_to path_for.call(view: "week", term_uid: schedule.selected_term.uid, week_start: prev_week.iso8601),
       "aria-label": "Previous week",
       class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
-    <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    <%= icon(:chevron_left, css_class: "w-4 h-4") %>
     Prev
   <% end %>
 
@@ -29,7 +29,7 @@
       "aria-label": "Next week",
       class: "flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" do %>
     Next
-    <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+    <%= icon(:chevron_right, css_class: "w-4 h-4") %>
   <% end %>
 </div>
 

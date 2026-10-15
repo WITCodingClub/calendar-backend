@@ -1,9 +1,11 @@
 <% content_for :title, "Schedule" %>
 
-<%= render "dashboard/schedules/calendar",
-    schedule: @schedule,
-    title: "My Schedule",
-    path_for: ->(**query) { dashboard_schedule_path(query) },
-    no_terms_message: "You have no courses yet.",
-    empty_hint: "Import your schedule with the WIT Calendar extension. It runs in Chrome and in other Chromium browsers, such as Edge and Brave. Firefox and Safari cannot run it.",
-    empty_action: { label: "Get the extension", url: @extension_install_url, external: true } %>
+<div class="m3-page-wide">
+  <%= render "dashboard/schedules/calendar",
+      schedule: @schedule,
+      title: "My Schedule",
+      path_for: ->(**query) { dashboard_schedule_path(query) },
+      no_terms_message: "You have no courses yet.",
+      empty_hint: "Import your schedule with the WIT Calendar extension. It runs in Chrome and in other Chromium browsers, such as Edge and Brave. Firefox and Safari cannot run it.",
+      empty_action: { label: "Get the extension", url: @extension_install_url, external: true } %>
+</div>

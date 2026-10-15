@@ -1,0 +1,12 @@
+<%# One row in a card of links: the title, an optional hint, and a chevron.
+    Put the rows in an "m3-card divide-y divide-outline-variant overflow-hidden".
+    Locals: path, title, hint (optional, text or HTML) %>
+<%= link_to path, class: "flex items-center justify-between gap-4 px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
+  <span class="min-w-0">
+    <span class="block text-sm font-medium text-on-surface"><%= title %></span>
+    <% if local_assigns[:hint].present? %>
+      <span class="block text-xs text-on-surface-variant"><%= hint %></span>
+    <% end %>
+  </span>
+  <%= icon(:chevron_right, css_class: "w-5 h-5 flex-shrink-0 text-on-surface-variant") %>
+<% end %>

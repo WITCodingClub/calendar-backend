@@ -1,17 +1,6 @@
 <% content_for :title, "Connection Failed" %>
 
-<div class="m3-card p-8 w-full max-w-sm text-center">
-  <div class="flex items-center justify-center mb-5">
-    <div class="w-16 h-16 rounded-full bg-error-container flex items-center justify-center">
-      <svg class="w-8 h-8 text-on-error-container" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
-    </div>
-  </div>
-
-  <h1 class="text-xl font-semibold text-on-surface mb-1">Connection Failed</h1>
-
+<%= render "shared/status_card", title: "Connection Failed", icon_name: :x, tone: :error do %>
   <p class="text-sm text-on-surface-variant">Could not connect your Google Calendar.</p>
 
   <% if @error.present? %>
@@ -19,7 +8,7 @@
   <% end %>
 
   <p class="mt-6 text-xs text-on-surface-variant/60">Please close this window and try again.</p>
-</div>
+<% end %>
 
 <script nonce="<%= content_security_policy_nonce %>">
   // Only a page of this app may read the result. The extension does not use

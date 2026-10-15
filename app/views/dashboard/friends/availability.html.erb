@@ -2,31 +2,21 @@
 <% blocks_by_date = @busy_blocks.group_by(&:date) %>
 <% this_week_start = Time.zone.today.beginning_of_week(:monday) %>
 
-<div class="space-y-4">
-  <%= link_to dashboard_friends_path,
-      class: "inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-on-surface transition-colors" do %>
-    <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-    Friends
+<div class="m3-page-wide space-y-4">
+  <%= render "shared/page_header",
+      title: "#{@friend.full_name}'s Availability",
+      back: [ "Friends", dashboard_friends_path ],
+      description: "#{@friend.first_name} shares only the times they are busy, not their courses." do %>
+    <%= link_to "Previous week", dashboard_friend_path(@friend.public_id, week_start: (@week_start - 7).iso8601), class: "m3-btn-text" %>
+    <% unless @week_start == this_week_start %>
+      <%= link_to "This week", dashboard_friend_path(@friend.public_id), class: "m3-btn-text" %>
+    <% end %>
+    <%= link_to "Next week", dashboard_friend_path(@friend.public_id, week_start: (@week_start + 7).iso8601), class: "m3-btn-text" %>
   <% end %>
 
   <% if @can_set_visibility %>
     <%= render "visibility_form", friend: @friend, friendship: @friendship %>
   <% end %>
-
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <h1 class="text-2xl font-bold text-on-surface"><%= @friend.full_name %>'s Availability</h1>
-    <div class="flex items-center gap-2 text-sm">
-      <%= link_to "Previous week", dashboard_friend_path(@friend.public_id, week_start: (@week_start - 7).iso8601), class: "m3-btn-text" %>
-      <% unless @week_start == this_week_start %>
-        <%= link_to "This week", dashboard_friend_path(@friend.public_id), class: "m3-btn-text" %>
-      <% end %>
-      <%= link_to "Next week", dashboard_friend_path(@friend.public_id, week_start: (@week_start + 7).iso8601), class: "m3-btn-text" %>
-    </div>
-  </div>
-
-  <p class="text-sm text-on-surface-variant">
-    <%= @friend.first_name %> shares only the times they are busy, not their courses.
-  </p>
 
   <div class="m3-card divide-y divide-outline-variant overflow-hidden">
     <% (@week_start..(@week_start + 6)).each do |date| %>

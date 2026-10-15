@@ -1,20 +1,12 @@
 <% content_for :title, "Meeting Links" %>
 
-<div class="max-w-2xl mx-auto space-y-6">
-  <%= link_to dashboard_friends_path,
-      class: "inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-on-surface transition-colors" do %>
-    <svg aria-hidden="true" focusable="false" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-    Friends
-  <% end %>
-
-  <div class="space-y-1">
-    <h1 class="text-2xl font-bold text-on-surface">Meeting Links</h1>
-    <p class="text-sm text-on-surface-variant">
-      Make a link for a person who is not your friend, such as a professor or a project partner.
-      They pick one time when you are free, and the meeting goes in your calendar.
-      They see only your free times, never your courses.
-    </p>
-  </div>
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header",
+      title: "Meeting Links",
+      back: [ "Friends", dashboard_friends_path ],
+      description: "Make a link for a person who is not your friend, such as a professor or a project partner. " \
+                   "They pick one time when you are free, and the meeting goes in your calendar. " \
+                   "They see only your free times, never your courses." %>
 
   <% if @new_url.present? %>
     <div class="m3-card p-4 space-y-2" id="new-meeting-link">
@@ -55,7 +47,7 @@
   <% end %>
 
   <% if @links.empty? %>
-    <div class="m3-card p-8 text-center text-on-surface-variant">No meeting links yet.</div>
+    <%= render "shared/empty_state", message: "No meeting links yet." %>
   <% else %>
     <div class="m3-card divide-y divide-outline-variant overflow-hidden">
       <% @links.each do |link| %>

@@ -31,9 +31,7 @@
   <% end %>
 
   <% if groups.empty? %>
-    <div class="m3-card p-6 text-center text-sm text-on-surface-variant">
-      No groups yet. Make a group to sort your friends.
-    </div>
+    <%= render "shared/empty_state", message: "No groups yet. Make a group to sort your friends." %>
   <% else %>
     <div class="m3-card divide-y divide-outline-variant overflow-hidden">
       <% groups.each do |group| %>
@@ -67,7 +65,7 @@
                       form_class: "inline-flex",
                       class: "ml-1 hover:text-error transition-colors",
                       aria: { label: "Remove #{friend.full_name} from #{group.name}" } do %>
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    <%= icon(:x, css_class: "w-3 h-3") %>
                   <% end %>
                 </li>
               <% end %>

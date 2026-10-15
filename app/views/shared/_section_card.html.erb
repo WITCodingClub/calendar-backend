@@ -1,0 +1,12 @@
+<%# A card with a titled header. The block is the body. It sets its own
+    padding, so a form, a list, or rows can fill it.
+    Locals: title, description (optional), id (optional) %>
+<section class="m3-card overflow-hidden" <%= tag.attributes(id: local_assigns[:id]) %>>
+  <div class="px-5 py-4 border-b border-outline-variant">
+    <h2 class="text-base font-semibold text-on-surface"><%= title %></h2>
+    <% if local_assigns[:description].present? %>
+      <p class="text-xs text-on-surface-variant mt-0.5"><%= description %></p>
+    <% end %>
+  </div>
+  <%= yield %>
+</section>

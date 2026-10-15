@@ -81,10 +81,12 @@ RSpec.describe "Dashboard accessibility", type: :request do
     end
   end
 
-  it "names the icon-only back link on the friend requests page" do
+  # Issue #699: the back link shows its label, the same as on the other
+  # friends pages, so it needs no aria-label.
+  it "names the back link on the friend requests page with visible text" do
     get dashboard_friends_requests_path
 
     back = page.at_css("main a[href='#{dashboard_friends_path}']")
-    expect(back["aria-label"]).to eq("Back to friends")
+    expect(back.text.strip).to eq("Friends")
   end
 end

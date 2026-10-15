@@ -1,0 +1,15 @@
+<%# The result card of the OAuth and passkey pages: an icon in a circle, the
+    title, and the text from the block.
+    Locals: title, icon_name, tone (:primary or :error, default :primary) %>
+<% circle = local_assigns.fetch(:tone, :primary) == :error ? "bg-error-container text-on-error-container" : "bg-primary-container text-on-primary-container" %>
+<div class="m3-card p-8 w-full max-w-sm text-center">
+  <div class="flex items-center justify-center mb-5">
+    <span class="w-16 h-16 rounded-full flex items-center justify-center <%= circle %>">
+      <%= icon(icon_name, css_class: "w-8 h-8", stroke_width: 2.5) %>
+    </span>
+  </div>
+
+  <h1 class="text-xl font-semibold text-on-surface mb-1"><%= title %></h1>
+
+  <%= yield %>
+</div>
