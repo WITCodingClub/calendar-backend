@@ -19,6 +19,7 @@ module McpTools
       SearchReviews,
       CatalogGraphql,
       MyCourses,
+      MyCourseHistory,
       MyBusyTimes,
       MyFinals,
       ListFriends,

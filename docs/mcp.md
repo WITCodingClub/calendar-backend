@@ -48,6 +48,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `search_reviews` | RateMyProfessor reviews, by instructor, words, meaning, or sentiment. | `GET /api/v1/catalog/reviews` | `reviews` |
 | `catalog_graphql` | Any read-only query on the catalog schema. | `POST /api/v1/graphql` | all |
 | `my_courses` | Your courses in one term, with weekly meeting times and rooms. | `GET /api/user/processed_events` | |
+| `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |
 | `list_friends` | Your friends and their ids. | `GET /api/friends` | |
@@ -55,6 +56,8 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `university_events` | The academic calendar: holidays, deadlines, finals week. | `GET /api/university_calendar_events` | |
 
 Times are in the `America/New_York` time zone.
+
+`my_course_history` lists only the terms that you processed in the extension. A term that you did not process is not in the list, so the history can have gaps.
 
 `catalog_graphql` has the same depth, cost, and page limits as `POST /api/v1/graphql`, and one semantic search for each query.
 

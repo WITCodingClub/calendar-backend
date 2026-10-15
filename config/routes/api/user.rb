@@ -19,6 +19,7 @@ scope "user", as: :user do
   delete "oauth_credentials/:credential_id", to: "oauth_credentials#destroy"
   get    "busy_blocks",                      to: "busy_blocks#show"
   get    "finals",                           to: "finals#index"
+  get    "course_history",                   to: "course_histories#show"
 
   # Passkeys: a quick second sign-in for an account Google already vouched
   # for. The two authentication routes are the only unauthenticated ones.
