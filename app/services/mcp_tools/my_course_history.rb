@@ -8,6 +8,7 @@ module McpTools
     description "Lists every term I have processed in WIT Calendar, newest first, with my courses in each term: " \
                 "the professor and the weekly meeting times and rooms. Use it to find the classes I took before. " \
                 "A term that I did not process in the extension is not in the list, so the history can have gaps."
+    requires_scope "schedule:read"
     input_schema(properties: {})
 
     def perform
