@@ -57,7 +57,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 
 Times are in the `America/New_York` time zone.
 
-`my_course_history` lists only the terms that you processed in the extension. A term that you did not process is not in the list, so the history can have gaps.
+`my_course_history` lists only the terms that you processed in the extension. The server cannot read LeopardWeb as you, so it cannot find the other terms. Since extension v6.0.0, each time you fetch a term, the extension also processes your other LeopardWeb terms in the background. A student who has not fetched a term since v6.0.0 can still have gaps.
 
 `catalog_graphql` has the same depth, cost, and page limits as `POST /api/v1/graphql`, and one semantic search for each query.
 
