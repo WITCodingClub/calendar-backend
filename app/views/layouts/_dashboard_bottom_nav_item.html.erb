@@ -1,5 +1,5 @@
 <%# Renders a mobile bottom navigation item. Locals: path, label, icon %>
-<% active = request.path == path || (path.split("/").length > 2 && request.path.start_with?(path + "/")) %>
+<% active = dashboard_nav_active?(path) %>
 <%= link_to path,
     "aria-current": ("page" if active),
     class: "flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors #{active ? 'text-on-secondary-container' : 'text-on-surface-variant'}" do %>
