@@ -6,7 +6,7 @@ source "https://rubygems.org"
 
 gem "rails", "~> 8.1.4"
 gem "propshaft", "~> 1.3"
-gem "pg", "~> 1.6"
+gem "pg", "~> 1.7"
 # Catches unsafe schema migrations before they lock production tables
 gem "strong_migrations", "~> 2.8"
 gem "puma", "~> 8.0"
