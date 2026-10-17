@@ -1,11 +1,30 @@
 # Catalog maintenance
 
-The course catalog comes from Banner (LeopardWeb). These jobs and tasks keep it current. Every Banner request goes through `Catalog::BannerThrottle`, which allows a burst of 20 requests, then 5 a second, for the whole process.
+The course catalog comes from Banner (LeopardWeb). These jobs and tasks keep it current. Every Banner request goes through `Catalog::BannerThrottle`. Jobs share a burst of 20 requests, then 5 a second. Web requests have their own burst of 60, then 10 a second, so a student's schedule never waits behind the nightly sync.
 
 | What | When | How |
 | --- | --- | --- |
 | Import one term | A new term appears | Admin, Course catalog, Import (`Catalog::ImportJob`) |
 | Nightly sync | Every night, current and future terms | `Catalog::CourseDataSyncJob` (`config/recurring.yml`) |
+| Refresh one schedule's sections | After `POST /api/process_courses` serves sections from the catalog that Banner confirmed more than 6 hours ago | `Catalog::SectionRefreshJob` |
+
+## Where a schedule's sections come from
+
+`POST /api/process_courses` (`Courses::Processor`) does not ask Banner about a section that Banner confirmed in the last 36 hours. The nightly sync and each Banner fetch record that time in `courses.banner_synced_at`. Such a section comes from the catalog, and the request needs no Banner call. A new section, or one that the sync has not confirmed in 36 hours, goes to Banner as before. If the nightly sync stops, every section goes to Banner after 36 hours.
+
+```mermaid
+flowchart TD
+  S[Section in the upload] --> F{In the catalog, and banner_synced_at in the last 36 h?}
+  F -- yes --> C[Use the stored section]
+  C --> O{Older than 6 h?}
+  O -- yes --> J[Catalog::SectionRefreshJob asks Banner later]
+  O -- no --> E[Enroll]
+  J --> E
+  F -- no --> B[Ask Banner now, write the section, set banner_synced_at]
+  B --> E
+```
+
+Each request logs one line: `[Courses::Processor] user=… sections=… from_catalog=… from_banner=… refresh=… banner_ms=… total_ms=…`.
 | Course details and prerequisites | After each import, and nightly | `Catalog::CourseDetailsSyncJob` |
 | Re-import every term | After a change to the importer, or to find missed sections | `bin/rails catalog:reimport_all_terms` |
 

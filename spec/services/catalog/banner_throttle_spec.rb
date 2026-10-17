@@ -17,13 +17,35 @@ RSpec.describe Catalog::BannerThrottle do
   def requests(outcome) = Yabeda.calendar.banner_requests_total.get(outcome: outcome) || 0
 
   describe "pacing" do
-    it "lets a burst through, then makes each request wait its turn" do
-      waits = Array.new(described_class::BURST) { described_class.acquire }
-      expect(waits).to all(eq(0.0))
+    described_class::BUCKETS.each do |name, bucket|
+      it "lets a #{name} burst through, then makes each request wait its turn" do
+        waits = Array.new(bucket.burst) { described_class.acquire(name) }
+        expect(waits).to all(eq(0.0))
 
-      wait = described_class.acquire
-      expect(wait).to be_within(0.05).of(1 / described_class::RATE_PER_SECOND)
-      expect(described_class).to have_received(:pause).with(wait)
+        wait = described_class.acquire(name)
+        expect(wait).to be_within(0.05).of(1 / bucket.rate_per_second)
+        expect(described_class).to have_received(:pause).with(wait)
+      end
+    end
+
+    it "fits a schedule of 20 sections (3 requests each) in the web burst" do
+      expect(described_class::BUCKETS[:request].burst).to be >= 20 * 3
+    end
+
+    # The nightly sync must not slow a student's schedule down.
+    it "keeps a web request out of the job's queue" do
+      (described_class::BUCKETS[:job].burst + 50).times { described_class.acquire(:job) }
+
+      expect(described_class.acquire(:request)).to eq(0.0)
+    end
+
+    it "takes from the bucket of the current caller" do
+      described_class::BUCKETS[:job].burst.times { described_class.acquire(:job) }
+
+      ActiveSupport::ExecutionContext.set(job: Object.new) do
+        expect(described_class.acquire).to be_positive
+      end
+      expect(described_class.acquire).to eq(0.0)
     end
   end
 

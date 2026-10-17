@@ -41,6 +41,14 @@ RSpec.describe Courses::Processor do
     described_class.new(courses_payload, user).call
   end
 
+  # Uploads the schedule again once the catalog is stale, so Banner is asked
+  # again. With a fresh catalog the processor skips Banner (see "from the
+  # catalog" below).
+  def process_again!
+    Course.update_all(banner_synced_at: nil) # rubocop:disable Rails/SkipsModelValidations
+    process!
+  end
+
   it "creates the course, meeting times, and enrollment" do
     process!
 
@@ -54,7 +62,7 @@ RSpec.describe Courses::Processor do
     process!
     original_ids = Course.find_by(crn: 12345).meeting_times.pluck(:id)
 
-    process!
+    process_again!
 
     expect(Course.find_by(crn: 12345).meeting_times.pluck(:id)).to match_array(original_ids)
   end
@@ -68,7 +76,7 @@ RSpec.describe Courses::Processor do
     calendar = create(:course_calendar, oauth_credential: credential)
     event = create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time)
 
-    process!
+    process_again!
 
     expect(event.reload.meeting_time_id).to eq(meeting_time.id)
   end
@@ -83,7 +91,7 @@ RSpec.describe Courses::Processor do
     event = create(:calendar_event, course_calendar: calendar, meeting_time: stale_meeting_time)
 
     class_details[:meeting_times].first["days"] = { "monday" => true }
-    process!
+    process_again!
 
     expect(course.meeting_times.pluck(:day_of_week)).to eq([ "monday" ])
     expect(event.reload.meeting_time_id).to be_nil
@@ -97,7 +105,7 @@ RSpec.describe Courses::Processor do
 
     class_details[:meeting_times].first["startTime"] = nil
     class_details[:meeting_times].first["endTime"] = nil
-    process!
+    process_again!
 
     expect(course.meeting_times.pluck(:id)).to match_array(original_ids)
   end
@@ -147,7 +155,7 @@ RSpec.describe Courses::Processor do
       allow(Catalog::LeopardWebClient).to receive(:get_class_details) { |course_reference_number:, **|
         details_for(course_reference_number).merge(title: "Algorithms")
       }
-      expect { Prosopite.scan { process! } }.not_to raise_error
+      expect { Prosopite.scan { process_again! } }.not_to raise_error
 
       expect(Course.where(crn: crns).pluck(:title)).to all(eq("Algorithms"))
       expect(classmate.reload.calendar_needs_sync).to be(true)
@@ -161,7 +169,7 @@ RSpec.describe Courses::Processor do
       allow(Catalog::LeopardWebClient).to receive(:get_class_details) { |course_reference_number:, **|
         details_for(course_reference_number).tap { |d| d[:meeting_times].first["startTime"] = "0900" }
       }
-      expect { Prosopite.scan { result = process! } }.not_to raise_error
+      expect { Prosopite.scan { result = process_again! } }.not_to raise_error
 
       expect(Course::MeetingTime.where(id: old_ids)).not_to exist
       expect(result.map { |c| c[:crn].to_s }).to eq(crns)
@@ -228,7 +236,7 @@ RSpec.describe Courses::Processor do
 
       allow(Catalog::LeopardWebClient).to receive(:get_class_details)
         .and_return(class_details.merge(faculty: banner_faculty))
-      process!
+      process_again!
 
       expect(Course.find_by(crn: 12345).faculties.map(&:email)).to eq([ "sandersone1@wit.edu" ])
     end
@@ -248,6 +256,77 @@ RSpec.describe Courses::Processor do
 
       expect(Course.find_by(crn: 12345).faculties).to be_empty
       expect(Faculty.count).to eq(0)
+    end
+  end
+
+  describe "from the catalog" do
+    include ActiveSupport::Testing::TimeHelpers
+    include ActiveJob::TestHelper
+
+    let(:courses_payload) do
+      [ { crn: "12345", term: "202710", courseNumber: "2000" }, { crn: "67890", term: "202710", courseNumber: "2100" } ]
+    end
+
+    def stored_course(crn, synced_at)
+      create(:course, crn: crn, term: term, banner_synced_at: synced_at)
+    end
+
+    it "enrolls a section the nightly sync confirmed, with no Banner request" do
+      fresh = stored_course(12345, 2.hours.ago)
+      stored_course(67890, 1.hour.ago)
+
+      result = process!
+
+      expect(Catalog::LeopardWebClient).not_to have_received(:get_class_details)
+      expect(user.enrollments.pluck(:course_id)).to include(fresh.id)
+      expect(result.pluck(:crn)).to contain_exactly(12345, 67890)
+      expect(TermProcessingStatus.find_by(user: user, term: term)).to be_present
+    end
+
+    it "asks Banner only about a section that is new or that the sync has not confirmed lately" do
+      stored_course(12345, 2.hours.ago)
+      stale = stored_course(67890, (described_class::CATALOG_FRESH_FOR + 1.hour).ago)
+
+      freeze_time do
+        process!
+
+        expect(Catalog::LeopardWebClient).to have_received(:get_class_details).once
+        expect(Catalog::LeopardWebClient).to have_received(:get_class_details)
+          .with(term: "202710", course_reference_number: "67890")
+        expect(stale.reload.banner_synced_at).to eq(Time.current)
+      end
+    end
+
+    it "records when Banner confirmed a new section" do
+      freeze_time do
+        process!
+
+        expect(Course.where(term: term).pluck(:banner_synced_at)).to all(eq(Time.current))
+      end
+    end
+
+    it "refreshes a section from Banner in the background when the catalog copy is a few hours old" do
+      older = stored_course(12345, (described_class::REFRESH_AFTER + 1.hour).ago)
+      stored_course(67890, 1.hour.ago)
+
+      expect { process! }.to have_enqueued_job(Catalog::SectionRefreshJob).with([ older.id ])
+    end
+
+    it "does not refresh a section that the sync confirmed lately" do
+      stored_course(12345, 1.hour.ago)
+      stored_course(67890, 1.hour.ago)
+
+      expect { process! }.not_to have_enqueued_job(Catalog::SectionRefreshJob)
+    end
+
+    it "logs how many sections came from the catalog and from Banner" do
+      stored_course(12345, 1.hour.ago)
+      allow(Rails.logger).to receive(:info).and_call_original
+
+      process!
+
+      expect(Rails.logger).to have_received(:info)
+        .with(a_string_matching(/\[Courses::Processor\] .*sections=2 from_catalog=1 from_banner=1 .*total_ms=\d+/))
     end
   end
 
