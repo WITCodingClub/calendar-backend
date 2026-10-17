@@ -82,6 +82,7 @@ The extension sends `POST /api/extension_events` with a JSON body:
 - One request counts 50 events at most.
 - Rack::Attack allows 120 requests a minute from one IP address, in the `api/extension-events` throttle. The events do not use the anonymous API budget (`api/ip`), because many students share one campus address and sign-in needs that budget.
 - Students can turn the events off in the extension Settings. Firefox sends events only when the student allows the optional `technicalAndInteraction` data permission.
+- The extension asks once per account. It stores the answer in `usage_stats_enabled` on `GET` and `PUT /api/user/extension_config`, so a new browser or cleared storage does not ask again. `null` means the student has not answered. On Firefox, the browser permission still decides if events go out. The stored answer only stops the question.
 
 To add an event:
 

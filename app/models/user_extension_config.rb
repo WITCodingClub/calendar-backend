@@ -13,6 +13,7 @@
 #  show_historic_terms         :boolean          default(TRUE), not null
 #  sync_university_events      :boolean          default(FALSE), not null
 #  university_event_categories :jsonb
+#  usage_stats_enabled         :boolean
 #  created_at                  :datetime         not null
 #  updated_at                  :datetime         not null
 #  user_id                     :bigint           not null
