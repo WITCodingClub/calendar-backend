@@ -38,6 +38,23 @@ Yabeda.configure do
           comment: "Errors that reach Rails.error, handled (rescued and reported) or not.",
           tags: %i[error_class handled severity source]
 
+  counter :banner_requests_total,
+          comment: "Requests to Banner (LeopardWeb), by outcome (Catalog::BannerThrottle).",
+          tags: %i[outcome]
+
+  counter :mcp_tool_calls_total,
+          comment: "MCP tool calls, by tool and result (docs/mcp.md).",
+          tags: %i[tool status]
+
+  counter :mcp_scope_denials_total,
+          comment: "MCP tool calls refused for a missing scope, by scope and answer: " \
+                   "step_up (HTTP 403) or tool_error (docs/mcp.md).",
+          tags: %i[scope mode]
+
+  counter :oauth_clients_registered_total,
+          comment: "OAuth clients that MCP clients registered at /api/oauth/register.",
+          tags: []
+
   gauge :users, comment: "Accounts in the database.", aggregation: :most_recent
   gauge :active_sessions, comment: "Sessions that are not revoked or expired.", aggregation: :most_recent
   gauge :google_calendars, comment: "Google calendars that the app syncs.", aggregation: :most_recent

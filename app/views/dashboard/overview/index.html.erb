@@ -1,7 +1,43 @@
 <% content_for :title, "Overview" %>
 
-<div class="max-w-3xl mx-auto space-y-6">
-  <h1 class="text-2xl font-bold text-on-surface">Overview</h1>
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header", title: "Overview" %>
+
+  <%# Setup checklist. It goes away when every step is done. %>
+  <% unless @setup_steps.all?(&:done) %>
+    <section class="m3-card overflow-hidden" aria-labelledby="setup-heading">
+      <div class="px-5 py-4 border-b border-outline-variant flex items-center justify-between gap-3">
+        <h2 id="setup-heading" class="text-base font-semibold text-on-surface">Set up WIT Calendar</h2>
+        <span class="text-xs text-on-surface-variant"><%= @setup_steps.count(&:done) %> of <%= @setup_steps.size %> done</span>
+      </div>
+      <ol class="divide-y divide-outline-variant">
+        <% @setup_steps.each_with_index do |step, index| %>
+          <li class="px-5 py-4 flex gap-4">
+            <% if step.done %>
+              <span class="w-7 h-7 flex-shrink-0 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center">
+                <%= icon(:check, css_class: "w-4 h-4", stroke_width: 2.5) %>
+              </span>
+            <% else %>
+              <span class="w-7 h-7 flex-shrink-0 rounded-full bg-primary-container text-on-primary-container text-sm font-bold flex items-center justify-center"><%= index + 1 %></span>
+            <% end %>
+            <div class="flex-1 min-w-0 space-y-1">
+              <p class="text-sm font-medium <%= step.done ? 'text-on-surface-variant line-through' : 'text-on-surface' %>">
+                <%= step.title %>
+                <span class="sr-only"><%= step.done ? "(done)" : "(not done)" %></span>
+              </p>
+              <% unless step.done %>
+                <p class="text-xs text-on-surface-variant"><%= step.description %></p>
+                <% if step.action %>
+                  <% link_options = step.action[:external] ? { target: "_blank", rel: "noopener noreferrer" } : {} %>
+                  <%= link_to step.action[:label], step.action[:url], class: "m3-btn-tonal text-sm inline-flex mt-1", **link_options %>
+                <% end %>
+              <% end %>
+            </div>
+          </li>
+        <% end %>
+      </ol>
+    </section>
+  <% end %>
 
   <!-- Status cards -->
   <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -23,11 +59,13 @@
     <% end %>
 
     <div class="m3-card p-4">
-      <p class="m3-label">Google Calendar</p>
+      <p class="m3-label">Calendar</p>
       <% if @has_calendar %>
-        <p class="text-sm font-medium text-on-tertiary-container bg-tertiary-container inline-flex items-center gap-1 px-2 py-0.5 rounded-full mt-1">
-          <svg aria-hidden="true" focusable="false" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
-          Connected
+        <p class="mt-1">
+          <span class="m3-badge-tertiary gap-1">
+            <%= icon(:check, css_class: "w-3.5 h-3.5", stroke_width: 2.5) %>
+            Connected
+          </span>
         </p>
       <% else %>
         <p class="text-sm text-on-surface-variant mt-1">Not connected</p>
@@ -39,40 +77,13 @@
   </div>
 
   <!-- Quick nav -->
-  <div class="m3-card divide-y divide-outline-variant">
-    <%= link_to dashboard_schedule_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
-      <div>
-        <p class="text-sm font-medium text-on-surface">My Schedule</p>
-        <p class="text-xs text-on-surface-variant">View courses and meeting times</p>
-      </div>
-      <svg aria-hidden="true" focusable="false" class="w-5 h-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-    <% end %>
-    <%= link_to dashboard_calendar_preferences_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
-      <div>
-        <p class="text-sm font-medium text-on-surface">Calendar Preferences</p>
-        <p class="text-xs text-on-surface-variant">Customize event titles, colors, and reminders</p>
-      </div>
-      <svg aria-hidden="true" focusable="false" class="w-5 h-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-    <% end %>
-    <%= link_to dashboard_ics_feed_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
-      <div>
-        <p class="text-sm font-medium text-on-surface">ICS Feed</p>
-        <p class="text-xs text-on-surface-variant">Subscribe in Apple Calendar, Outlook, etc.</p>
-      </div>
-      <svg aria-hidden="true" focusable="false" class="w-5 h-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-    <% end %>
-    <%= link_to dashboard_notifications_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
-      <div>
-        <p class="text-sm font-medium text-on-surface">Notifications</p>
-        <p class="text-xs text-on-surface-variant">
-          <% if @notifications_disabled %>
-            Currently <span class="text-error">disabled</span>
-          <% else %>
-            Currently enabled
-          <% end %>
-        </p>
-      </div>
-      <svg aria-hidden="true" focusable="false" class="w-5 h-5 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-    <% end %>
+  <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+    <%= render "shared/list_link_row", path: dashboard_schedule_path, title: "My Schedule", hint: "View courses and meeting times" %>
+    <%= render "shared/list_link_row", path: dashboard_calendar_preferences_path, title: "Calendar Preferences", hint: "Customize event titles, colors, and reminders" %>
+    <%= render "shared/list_link_row", path: dashboard_ics_feed_path, title: "ICS Feed", hint: "Subscribe in Apple Calendar, Outlook, etc." %>
+    <%= render "shared/list_link_row",
+        path: dashboard_notifications_path,
+        title: "Notifications",
+        hint: @notifications_disabled ? safe_join([ "Currently ", tag.span("disabled", class: "text-error") ]) : "Currently enabled" %>
   </div>
 </div>

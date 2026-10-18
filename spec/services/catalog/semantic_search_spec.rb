@@ -51,6 +51,15 @@ RSpec.describe Catalog::SemanticSearch do
 
       expect(described_class.vector_for("intro to programming")).to be_nil
     end
+
+    it "reports the error when the API fails" do
+      stub_request(:post, Embeddings::Generator::API_URL).to_return(status: 500, body: "{}")
+
+      reports = capture_error_reports(Embeddings::Generator::Error) { described_class.vector_for("intro to programming") }
+
+      expect(reports.size).to eq(1)
+      expect(reports.first.handled).to be(true)
+    end
   end
 
   describe ".vector_for when search is off", :embeddings do

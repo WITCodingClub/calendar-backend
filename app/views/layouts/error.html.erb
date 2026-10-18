@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title><%= browser_title %></title>
+  <%= render "layouts/favicon" %>
+  <%= csrf_meta_tags %>
+  <%= csp_meta_tag %>
+  <%= stylesheet_link_tag "tailwind" %>
+</head>
+<body class="min-h-full bg-background text-on-background flex items-center justify-center px-4 py-10">
+  <a href="#error-main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded-full focus:bg-primary focus:text-on-primary">Skip to content</a>
+  <main id="error-main" tabindex="-1" class="focus:outline-none w-full max-w-md text-center">
+    <%= yield %>
+  </main>
+</body>
+</html>

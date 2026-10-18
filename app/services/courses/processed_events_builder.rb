@@ -4,7 +4,8 @@ module Courses
   class Courses::ProcessedEventsBuilder
     include ApplicationHelper
 
-    def initialize(user, term)
+    # term is needed only for build. classes_by_term takes its own terms.
+    def initialize(user, term = nil)
       @user = user
       @term = term
       @preference_resolver = Preferences::Resolver.new(user)
@@ -12,25 +13,29 @@ module Courses
     end
 
     def build
+      {
+        classes: classes_by_term([ @term ]).fetch(@term.id, []),
+        notifications_disabled: @user.notifications_disabled?
+      }
+    end
+
+    # The user's classes in each of the terms, keyed by term id, from one
+    # enrollments query. A term with no classes has no key.
+    def classes_by_term(terms)
       @user.calendar_preferences.load
       @user.event_preferences.load
 
       enrollments = @user
                     .enrollments
-                    .where(term_id: @term.id)
-                    .includes(course: [
+                    .where(term_id: terms.map(&:id))
+                    .includes(:term, course: [
                                 :faculties,
                                 { meeting_times: [ :event_preference, { rooms: :building }, { course: [ :faculties, :term ] } ] }
                               ])
 
-      structured_data = enrollments.map do |enrollment|
-        build_course_data(enrollment)
+      enrollments.group_by(&:term_id).transform_values do |term_enrollments|
+        term_enrollments.map { |enrollment| build_course_data(enrollment) }
       end
-
-      {
-        classes: structured_data,
-        notifications_disabled: @user.notifications_disabled?
-      }
     end
 
     private
@@ -47,10 +52,10 @@ module Courses
         schedule_type: course.schedule_type,
         prefix: course.prefix,
         term: {
-          pub_id: @term.public_id,
-          uid: @term.uid,
-          season: @term.season,
-          year: @term.year
+          pub_id: enrollment.term.public_id,
+          uid: enrollment.term.uid,
+          season: enrollment.term.season,
+          year: enrollment.term.year
         },
         professor: build_professor_data(faculty),
         meeting_times: build_meeting_times_data(filtered_meeting_times)

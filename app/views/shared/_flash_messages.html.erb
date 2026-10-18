@@ -1,23 +1,23 @@
-<div id="flash-messages" class="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full pointer-events-none">
-  <% flash.each do |type, message| %>
-    <%
-      bg_class = case type.to_s
-      when "notice", "success" then "bg-primary-container border-primary text-on-primary-container"
-      when "alert", "error", "danger" then "bg-error-container border-error text-on-error-container"
-      when "warning" then "bg-secondary-container border-secondary text-on-secondary-container"
-      else "bg-tertiary-container border-tertiary text-on-tertiary-container"
-      end
-    %>
-    <div class="pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg <%= bg_class %>"
+<%# Flash messages for the dashboard and sign-in pages. On a small screen the
+    stack spans the width, below the mobile top bar (top-16) and above the
+    bottom nav. Locals: below_top_bar (bool, default false). %>
+<% below_top_bar = local_assigns.fetch(:below_top_bar, false) %>
+<% messages = flash.to_hash.select { |_type, message| message.is_a?(String) && message.present? } %>
+<div id="flash-messages"
+     class="fixed inset-x-4 <%= below_top_bar ? "top-16" : "top-4" %> lg:top-4 lg:left-auto lg:right-4 lg:w-full lg:max-w-sm max-h-[calc(100dvh-9rem)] lg:max-h-[calc(100dvh-2rem)] overflow-y-auto z-40 space-y-2 pointer-events-none">
+  <% messages.each do |type, message| %>
+    <% style = flash_style(type) %>
+    <div role="<%= style[:role] %>"
+         class="pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg <%= style[:css_class] %>"
          data-controller="flash-message"
-         data-flash-message-timeout-value="5000">
+         data-flash-message-timeout-value="<%= style[:timeout] %>">
+      <%= icon(style[:icon], css_class: "w-5 h-5 flex-shrink-0") %>
       <p class="text-sm flex-1"><%= message %></p>
       <button type="button"
-              class="flex-shrink-0 text-current opacity-60 hover:opacity-100"
+              aria-label="Dismiss"
+              class="flex-shrink-0 text-current opacity-70 hover:opacity-100 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
               data-action="click->flash-message#dismiss">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <%= icon(:x, css_class: "w-4 h-4") %>
       </button>
     </div>
   <% end %>

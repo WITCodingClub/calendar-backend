@@ -146,6 +146,25 @@ RSpec.describe Faculties::Ingest do
     end
   end
 
+  describe "when another import creates the instructor after preload" do
+    let(:raw) { [ { "displayName" => "Race Teacher", "emailAddress" => "race@example.edu", "primaryIndicator" => true } ] }
+
+    it "attaches the existing instructor" do
+      cache = described_class.preload([ raw ])
+      existing = create(:faculty, email: "race@example.edu")
+
+      described_class.call(course: course, raw_faculty: raw, faculty: cache)
+
+      expect(course.reload.faculties).to contain_exactly(existing)
+    end
+
+    it "raises for a validation error that is not a taken email" do
+      allow(Faculty).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new(Faculty.new.tap(&:validate)))
+
+      expect { described_class.call(course: course, raw_faculty: raw) }.to raise_error(ActiveRecord::RecordInvalid)
+    end
+  end
+
   describe ".preload" do
     it "matches an email in any case" do
       faculty = create(:faculty, email: "Mixed.Case@Example.edu")

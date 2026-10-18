@@ -6,7 +6,7 @@ module Api
   class GoogleCalendarsController < BaseController
     authenticate_with_token
 
-    # POST /api/user/google_calendar (legacy path: POST /api/user/gcal)
+    # POST /api/user/google_calendar
     #
     # The email is optional. Without it, the person picks any Google account in
     # the OAuth screen. With it, only that account is accepted, as in older
@@ -84,6 +84,11 @@ module Api
 
       if course_calendar.nil?
         render_error "No Google Calendar found", status: :not_found
+        return
+      end
+
+      unless credential.removable?
+        render_error "Cannot disconnect your last Google account.", status: :unprocessable_content
         return
       end
 

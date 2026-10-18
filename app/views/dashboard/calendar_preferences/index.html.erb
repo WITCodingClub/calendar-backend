@@ -1,14 +1,12 @@
 <% content_for :title, "Preferences" %>
 
-<div class="max-w-2xl mx-auto space-y-6">
-  <h1 class="text-2xl font-bold text-on-surface">Calendar Preferences</h1>
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header", title: "Calendar Preferences" %>
 
   <!-- Global preferences -->
-  <div class="m3-card overflow-hidden">
-    <div class="px-5 py-4 border-b border-outline-variant">
-      <h2 class="text-base font-semibold text-on-surface">Global Defaults</h2>
-      <p class="text-xs text-on-surface-variant mt-0.5">Applied to your classes unless overridden per event type. University calendar events keep their own defaults.</p>
-    </div>
+  <%= render "shared/section_card",
+      title: "Global Defaults",
+      description: "Applied to your classes unless overridden per event type. University calendar events keep their own defaults." do %>
     <div class="px-5 py-4">
       <%= form_with url: dashboard_calendar_preference_path("global"), method: :patch, class: "space-y-4" do |f| %>
         <div>
@@ -36,18 +34,14 @@
               class: "m3-input" %>
         </div>
         <div class="flex justify-end">
-          <%= f.submit "Save", class: "m3-btn-filled" %>
+          <%= f.submit "Save", class: "m3-btn-filled", data: { turbo_submits_with: "Saving…" } %>
         </div>
       <% end %>
     </div>
-  </div>
+  <% end %>
 
   <!-- University calendar events -->
-  <div class="m3-card overflow-hidden">
-    <div class="px-5 py-4 border-b border-outline-variant">
-      <h2 class="text-base font-semibold text-on-surface">University Calendar Events</h2>
-      <p class="text-xs text-on-surface-variant mt-0.5">Holidays, deadlines, and other university events.</p>
-    </div>
+  <%= render "shared/section_card", title: "University Calendar Events", description: "Holidays, deadlines, and other university events." do %>
     <%= form_with url: university_events_dashboard_calendar_preferences_path, method: :patch, class: "px-5 py-4 space-y-4 border-b border-outline-variant" do %>
       <label class="flex items-start gap-3 cursor-pointer">
         <%= hidden_field_tag :sync_university_events, "0", id: nil %>
@@ -77,7 +71,7 @@
       </fieldset>
 
       <div class="flex justify-end">
-        <%= submit_tag "Save", class: "m3-btn-filled", data: { disable_with: false } %>
+        <%= submit_tag "Save", class: "m3-btn-filled", data: { turbo_submits_with: "Saving…" } %>
       </div>
     <% end %>
     <div class="px-5 py-4 flex items-center justify-between gap-4">
@@ -93,14 +87,11 @@
       </p>
       <%= link_to "Change", dashboard_notifications_path, class: "text-xs text-primary hover:underline" %>
     </div>
-  </div>
+  <% end %>
 
   <!-- Per-event-type preferences summary -->
   <% if @event_type_prefs.any? %>
-    <div class="m3-card overflow-hidden">
-      <div class="px-5 py-4 border-b border-outline-variant">
-        <h2 class="text-base font-semibold text-on-surface">Event Type Overrides</h2>
-      </div>
+    <%= render "shared/section_card", title: "Event Type Overrides" do %>
       <div class="divide-y divide-outline-variant">
         <% @event_type_prefs.each do |pref| %>
           <div class="px-5 py-3 flex items-center justify-between">
@@ -118,6 +109,6 @@
           </div>
         <% end %>
       </div>
-    </div>
+    <% end %>
   <% end %>
 </div>

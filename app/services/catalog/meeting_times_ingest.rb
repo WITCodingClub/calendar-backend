@@ -122,6 +122,9 @@ module Catalog
 
     ONLINE_SCHEDULE_TYPES = %w[online online_blended online_sync_lab online_sync_lecture].freeze
 
+    # Banner schedule codes whose meetings are labs (Course::ScheduleType).
+    LAB_SCHEDULE_CODES = %w[LAB OLB RLB].freeze
+
     def preload_buildings_and_rooms
       entries = @raw_meeting_times.filter_map do |mt|
         abbr = (mt["building"] || mt[:building]).to_s.strip
@@ -186,7 +189,9 @@ module Catalog
         @locations.rooms[cache_key] ||= Room.find_or_create_by!(number: room_num, building: building)
       }
 
-      meeting_schedule_type = map_schedule_type(mt["meetingScheduleType"] || mt[:meetingScheduleType] || mt["scheduleType"] || mt[:scheduleType])
+      meeting_schedule_type = map_schedule_type(
+        mt["meetingScheduleType"] || mt[:meetingScheduleType] || mt["scheduleType"] || mt[:scheduleType] || course_schedule_code
+      )
       meeting_type          = map_meeting_type(mt["meetingType"] || mt[:meetingType])
 
       hours_per_day = if @compute_hours_week
@@ -297,10 +302,17 @@ module Catalog
     end
 
     def map_schedule_type(val)
-      case val.to_s.strip.upcase
-      when "LAB" then 2
-      else 1
-      end
+      LAB_SCHEDULE_CODES.include?(val.to_s.strip.upcase) ? 2 : 1
+    end
+
+    # getClassDetails meeting times (normalize_leopard_web) carry no schedule
+    # type, and the nightly sync re-ingests them. Without this fallback every
+    # lab meeting went back to "lecture" each night. A section's meetings share
+    # its schedule type.
+    def course_schedule_code
+      Course::ScheduleType.new(course.schedule_type).code if course.schedule_type.present?
+    rescue ArgumentError
+      nil
     end
 
     def map_meeting_type(_val)

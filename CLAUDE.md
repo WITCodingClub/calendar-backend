@@ -22,11 +22,26 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - When an extension API path changes, keep the old path in `config/routes/api/legacy.rb`. Remove it when `calendar_api_legacy_requests_total` for that path stays at zero after the extension release that stops calling it.
 - Render every API error with `render_error message, status: :not_found` (from `Api::ErrorRendering`). The body is `{ error, code }`. Pass `code:` only when a client needs a code more specific than the status gives.
 
+## MCP tools
+
+- Every MCP tool names the OAuth scope it needs with `requires_scope`, from `McpTools::Scopes`. A read tool inherits `McpTools::BaseTool`. A tool that changes data inherits `McpTools::BaseWriteTool`, changes only the signed-in student's own data, and has a matching API endpoint. A tool that reaches other people gets its own scope. `docs/mcp.md` gives the steps to add one.
+- Do not put MCP tools behind a Flipper flag. The scopes on the consent page are the gate.
+- A tool that reads a user's record calls `authorize` with the same policy as the matching API endpoint.
+- Raise `McpTools::ToolError` for a bad argument. The client gets the message as a tool error.
+- Each catalog tool matches a public catalog endpoint (the table in `docs/mcp.md`). When a catalog endpoint or filter changes, change the tool in the same PR. Put shared logic in the `Catalog::` query objects, not in a controller.
+
 ## Errors
 
 - A rescue that swallows an error (it logs, returns a fallback, or continues) reports it: `Rails.error.report(e, handled: true, context: { user_id: user.id })`. Put ids in the context, never tokens or personal data.
 - A rescue that raises the error again does not report it. The request and job executors report every error that leaves a request or a job.
 - `ErrorReportSubscriber` counts each report in `calendar_errors_reported_total` and logs it. See `docs/metrics.md`.
+
+## Caching
+
+- `Rails.cache` is Solid Cache in production and `:null_store` in specs. A spec that checks a cache sets `Rails.cache` to a `MemoryStore` in an `around` block.
+- A cache of records clears in an `after_commit` on the model, and has a TTL for writes that skip callbacks (`insert_all!`, `update_all`). Examples: `Term.current` and `UniversityCalendarEvent.no_class_spans_between`.
+- Cache plain values (ids, times, hashes), not records. A record in the cache breaks when a column changes.
+- Memoize a value for one request or one job in `Current`. Rails resets it at the end of each.
 
 ## Jobs
 
@@ -36,7 +51,7 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 ## Migrations
 
 - Every new migration must pass strong_migrations (`config/initializers/strong_migrations.rb`). Use `safety_assured` only with a comment that says why the step is safe.
-- Put data backfills in rake tasks, not in schema migrations. Production runs `bin/rails db:prepare` before Puma starts, so a slow or failing migration takes the site down. The one exception: a cleanup that a later step in the same migration needs, such as removing orphan rows before `validate_foreign_key`.
+- Put data backfills in rake tasks, not in schema migrations. Production runs `bin/rails db:prepare` before the new container starts, while the old container still serves (`docs/deploy.md`). A slow migration delays the deploy, and a failing one blocks it. The one exception: a cleanup that a later step in the same migration needs, such as removing orphan rows before `validate_foreign_key`.
 - Add a foreign key in two migrations: `add_foreign_key ..., validate: false`, then `validate_foreign_key`.
 
 ## Specs
@@ -63,6 +78,14 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 - In a service's own spec, stub the HTTP request, not the service's methods. A job spec that only calls a service may stub the service class.
 - Put response bodies in `spec/fixtures/files/<service>/`. Write synthetic data in the shape of the real response. The repo is public, so fixtures hold no real names, emails, or tokens.
 - The admin layout requests the latest GitHub release on every render. Admin request specs stub that request.
+
+### System specs
+
+- Test JavaScript, such as a Stimulus controller, with a system spec in `spec/system/`. It runs the page in headless Chrome through Cuprite (`spec/support/system.rb`). The repo has no Node test runner.
+- Chrome must be installed. Cuprite finds it. Set `BROWSER_PATH` to use a different binary, and `HEADFUL=1` to watch the browser.
+- Do not use `sleep` to wait for a timer. Wait for a second element with the same timeout to go away, as `spec/system/flash_messages_spec.rb` does.
+- Find an icon button by its `aria-label`: `click_button("Dismiss")`.
+- A failing system spec saves a screenshot to `tmp/capybara/`. CI uploads it as the `capybara-screenshots` artifact.
 
 ### Fixture leakage
 

@@ -47,6 +47,25 @@ class Rack::Attack
   # User-Agents often say "bot" or nothing at all.
   CALENDAR_FEED_PATH = "/calendar/"
 
+  # The endpoints that MCP clients call from their own servers (docs/mcp.md).
+  # The clients' User-Agents are not browsers, so the agent blocklist skips
+  # these paths. /api/oauth/authorize is a browser page and keeps the normal
+  # rules. For the shared addresses of claude.ai and ChatGPT, see ip_key.
+  MCP_PATH = "/api/mcp"
+  OAUTH_CLIENT_PATHS = [ "/api/oauth/token", "/api/oauth/revoke", "/api/oauth/register" ].freeze
+
+  MCP_CLIENT_PATH = lambda do |req|
+    req.path == MCP_PATH ||
+      OAUTH_CLIENT_PATHS.include?(req.path) ||
+      req.path.start_with?("/.well-known/oauth-")
+  end
+
+  # OkComputer, which uptime monitors call. UptimeRobot's User-Agent says
+  # "bot", so the agent blocklist skips these paths. The throttles still apply,
+  # because each request runs the database and cache checks. The gem mounts
+  # itself at /okcomputer too.
+  OKCOMPUTER_PATH = %r{\A/(healthchecks|okcomputer)(/\w+)?(\.\w+)?/?\z}
+
   AGENT_READABLE_PATH = lambda do |req|
     AGENT_READABLE_PATHS.include?(req.path) ||
       req.path == "/docs" ||
@@ -76,7 +95,7 @@ class Rack::Attack
   safelist("allow-privileged-users") do |req|
     next false unless req.path.start_with?("/api/")
 
-    user_id = extract_user_id_from_jwt(req)
+    user_id = extract_user_id(req)
     next false unless user_id
 
     # Api::TokenAuthentication uses this user, so the request loads it once.
@@ -111,7 +130,7 @@ class Rack::Attack
   throttle("req/ip", limit: 600, period: 5.minutes) do |req|
     next if req.path.start_with?("/assets", "/packs", "/rails/active_storage")
 
-    req.ip unless extract_user_id_from_jwt(req)
+    ip_key(req) unless extract_user_id(req)
   end
 
   # ===========================================================================
@@ -125,18 +144,31 @@ class Rack::Attack
   end
 
   # ===========================================================================
+  # MCP PLATFORM THROTTLES
+  # ===========================================================================
+
+  # claude.ai and ChatGPT send every student's MCP requests from a few
+  # addresses (McpPlatforms). The per-IP rules skip those addresses (ip_key),
+  # and api/user limits each student. This one high limit for each address
+  # is the backstop for the requests that carry no token: discovery,
+  # registration, and the token exchange.
+  throttle("mcp/platform", limit: 3000, period: 1.minute) do |req|
+    req.ip if McpPlatforms.include?(req.ip)
+  end
+
+  # ===========================================================================
   # API THROTTLES
   # ===========================================================================
 
   throttle("api/user", limit: 100, period: 1.minute) do |req|
-    extract_user_id_from_jwt(req) if req.path.start_with?("/api/")
+    extract_user_id(req) if req.path.start_with?("/api/")
   end
 
   # Sized for a campus address that many students share.
   throttle("api/ip", limit: 60, period: 1.minute) do |req|
     if req.path.start_with?("/api/") && !PUBLIC_CATALOG_PATH.call(req) &&
-       ![ EXTENSION_EVENTS_PATH, CSP_REPORTS_PATH ].include?(req.path) && !extract_user_id_from_jwt(req)
-      req.ip
+       ![ EXTENSION_EVENTS_PATH, CSP_REPORTS_PATH ].include?(req.path) && !extract_user_id(req)
+      ip_key(req)
     end
   end
 
@@ -151,20 +183,23 @@ class Rack::Attack
   # The public catalog API is meant to be consumed anonymously, so it gets its
   # own, more generous budget instead of the 20/min anonymous API limit.
   throttle("catalog/ip", limit: 300, period: 1.minute) do |req|
-    req.ip if PUBLIC_CATALOG_PATH.call(req)
+    ip_key(req) if PUBLIC_CATALOG_PATH.call(req)
   end
 
   # A semantic search embeds the query, which costs an API call whenever the
   # words are new. The cache absorbs the repeats; this limit absorbs the rest.
   # GraphQL carries its query in the body, so this rule cannot see it.
   # Analyzers::SemanticSearchLimit runs this throttle again, through
-  # semantic_search_throttled?, when a GraphQL query asks for a search.
+  # semantic_search_throttled?, when a GraphQL query asks for a search. The
+  # MCP tools run it the same way (McpTools::SemanticBudget). A request with
+  # a user's token counts against that user, not the address.
   GRAPHQL_SEMANTIC_SEARCH_ENV_KEY = "calendar.graphql_semantic_search"
 
   throttle("catalog/semantic", limit: 30, period: 1.minute) do |req|
     if req.env[GRAPHQL_SEMANTIC_SEARCH_ENV_KEY] ||
        (req.path.start_with?("/api/v1/catalog") && req.GET["semantic"].present?)
-      req.ip
+      user_id = extract_user_id(req)
+      user_id ? "user:#{user_id}" : ip_key(req)
     end
   end
 
@@ -178,12 +213,12 @@ class Rack::Attack
 
   throttle("api/process-courses", limit: 5, period: 1.minute) do |req|
     path = ActionDispatch::Journey::Router::Utils.normalize_path(req.path)
-    user_id = extract_user_id_from_jwt(req) if req.post? && PROCESS_COURSES_PATH.match?(path)
+    user_id = extract_user_id(req) if req.post? && PROCESS_COURSES_PATH.match?(path)
     "process-courses:#{user_id}" if user_id
   end
 
   throttle("api/preview-template", limit: 10, period: 1.minute) do |req|
-    user_id = extract_user_id_from_jwt(req) if req.post? && route_path(req) == "/api/calendar_preferences/preview"
+    user_id = extract_user_id(req) if req.post? && route_path(req) == "/api/calendar_preferences/preview"
     "preview:#{user_id}" if user_id
   end
 
@@ -303,10 +338,12 @@ class Rack::Attack
   # Crawlers, bots, and clients with no User-Agent get no access to the app
   # pages. Agents may still read the files and docs written for them, and data
   # tools, which often send no User-Agent, may still read the catalog API.
-  # Calendar apps may fetch the ICS feed.
+  # Calendar apps may fetch the ICS feed, and uptime monitors the health checks.
   def self.suspicious_agent?(req)
     return false if AGENT_READABLE_PATH.call(req)
+    return false if MCP_CLIENT_PATH.call(req)
     return false if req.path.start_with?(CALENDAR_FEED_PATH)
+    return false if OKCOMPUTER_PATH.match?(req.path)
 
     ua = req.user_agent.to_s.downcase
     suspicious = ua.include?("scraper") ||
@@ -376,13 +413,16 @@ class Rack::Attack
     throttles.fetch("catalog/semantic").matched_by?(req)
   end
 
-  def self.extract_user_id_from_jwt(req)
+  # The user of the request's bearer token: an extension JWT, or an OAuth
+  # access token of the MCP server. Both kinds count against the same
+  # per-user limits.
+  def self.extract_user_id(req)
     return req.env[JWT_USER_ID_ENV_KEY] if req.env.key?(JWT_USER_ID_ENV_KEY)
 
-    req.env[JWT_USER_ID_ENV_KEY] = decode_user_id_from_jwt(req)
+    req.env[JWT_USER_ID_ENV_KEY] = decode_user_id(req)
   end
 
-  def self.decode_user_id_from_jwt(req)
+  def self.decode_user_id(req)
     auth_header = req.env["HTTP_AUTHORIZATION"]
     return nil unless auth_header&.start_with?("Bearer ")
 
@@ -390,8 +430,18 @@ class Rack::Attack
     # Verify signature and expiration. A forged/unsigned token must not be able
     # to grant the admin throttle safelist or a controlled throttle-bucket key.
     payload = JsonWebTokenService.decode(token)
-    payload && payload[:user_id]
+    return payload[:user_id] if payload
+
+    oauth_token = Doorkeeper::AccessToken.by_token(token)
+    oauth_token.resource_owner_id if oauth_token&.accessible?
   rescue StandardError
     nil
+  end
+
+  # The address for a per-IP rule, or nil for a hosted MCP client's address
+  # (McpPlatforms), which many students share. Their requests count per user
+  # (api/user) and against mcp/platform instead.
+  def self.ip_key(req)
+    req.ip unless McpPlatforms.include?(req.ip)
   end
 end

@@ -1,0 +1,21 @@
+<%# The top of a dashboard page: an optional back link, the title, an optional
+    description, and the page actions from the block.
+      render "shared/page_header", title: "Meeting Links", back: [ "Friends", dashboard_friends_path ] do
+        link_to ...
+      end
+    A partial always gets a block, so check what it returns, not block_given?. %>
+<% actions = yield %>
+<div class="space-y-1">
+  <% if local_assigns[:back] %>
+    <%= render "shared/back_link", label: back[0], path: back[1] %>
+  <% end %>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-2xl font-bold text-on-surface"><%= title %></h1>
+    <% if actions.present? %>
+      <div class="flex flex-wrap items-center gap-2"><%= actions %></div>
+    <% end %>
+  </div>
+  <% if local_assigns[:description].present? %>
+    <p class="text-sm text-on-surface-variant"><%= description %></p>
+  <% end %>
+</div>

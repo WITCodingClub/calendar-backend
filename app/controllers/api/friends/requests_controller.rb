@@ -73,6 +73,11 @@ module Api
       private
 
       def resolve_friend_user
+        unless params[:friend_email].nil? || params[:friend_email].is_a?(String)
+          render_error "friend_email must be a string", status: :bad_request
+          return
+        end
+
         has_id    = params[:friend_id].present?
         has_email = params[:friend_email].present?
 

@@ -40,6 +40,17 @@ RSpec.describe GoogleCalendar::CalendarServices do
       expect(credential.reload.access_token).to eq("synthetic-refreshed-token")
     end
 
+    # A sync builds the service more than once on the same user. After a
+    # refresh, the next build must still find the credential.
+    it "builds the service again after it refreshed a token" do
+      create(:oauth_credential, user: user, refresh_token: "synthetic-refresh", token_expires_at: 1.minute.ago)
+      stub_request(:post, token_url).to_return(refreshed)
+
+      described_class.for_user(user)
+
+      expect(described_class.for_user(user).authorization.access_token).to eq("synthetic-refreshed-token")
+    end
+
     it "raises when the person has no Google credential" do
       expect { described_class.for_user(user) }.to raise_error(RuntimeError, "User has no Google credential")
     end

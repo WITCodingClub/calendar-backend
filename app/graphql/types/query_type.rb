@@ -22,6 +22,14 @@ module Types
       argument :uid, Integer, required: true
     end
 
+    field :schedule_check, ScheduleCheckType, null: false,
+          description: "Checks a set of sections taken together: time conflicts, linked " \
+                       "lecture and lab pairs, the same course twice, and totals" do
+      argument :term_uid, Integer, required: true
+      argument :crns, [ Integer ], required: true,
+               description: "At most #{::Catalog::ScheduleCheck::MAX_CRNS}"
+    end
+
     field :subjects, [ SubjectType ], null: false,
           description: "Subjects offered, with section counts" do
       argument :term_uid, Integer, required: false
@@ -39,10 +47,23 @@ module Types
       argument :term_uid, Integer, required: false
     end
 
+    field :course, CourseType, null: true,
+          description: "One course by code, such as \"COMP 2350\", across terms" do
+      argument :code, String, required: true
+    end
+
+    field :courses, CourseType.connection_type, null: false,
+          description: "Courses (not sections) by code or title words" do
+      argument :q, String, required: false
+      argument :subject, [ String ], required: false, description: "Subject codes, e.g. [\"COMP\"]"
+      argument :term_uid, Integer, required: false, description: "Only courses with a section in this term"
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE
+    end
+
     field :instructors, InstructorType.connection_type, null: false,
           description: "Faculty who teach at least one section" do
       argument :term_uid, Integer, required: false
-      argument :q, String, required: false
+      argument :q, String, required: false, description: "Each word must match the first, last, or display name"
       argument :semantic, Boolean, required: false, default_value: false,
                description: "Rank q by meaning instead of by the literal name. " \
                             "A query can run one semantic search."
@@ -69,12 +90,11 @@ module Types
     end
 
     def subjects(term_uid: nil)
-      scope = Course.active
-      scope = scope.where(term_id: Term.where(uid: term_uid).select(:id)) if term_uid
+      ::Catalog::SubjectQuery.new.call(term_uid: term_uid)
+    end
 
-      scope.group(:subject).count.sort_by { |subject, _| subject }.map do |subject, count|
-        { subject: subject, code: subject_code(subject), section_count: count }
-      end
+    def schedule_check(term_uid:, crns:)
+      ::Catalog::ScheduleCheck.new(term_uid: term_uid, crns: crns).call
     end
 
     def sections(filter: nil)
@@ -101,34 +121,16 @@ module Types
       ::Catalog::ReviewQuery.with_associations(relation)
     end
 
-    def instructors(term_uid: nil, q: nil, semantic: false)
-      scope = Faculty.where(id: Faculty.joins(:courses).select("faculties.id"))
-                     .includes(:rating_distribution)
-
-      if term_uid
-        scope = scope.where(
-          id: Faculty.joins(:courses)
-                     .where(courses: { term_id: Term.where(uid: term_uid).select(:id) })
-                     .select("faculties.id")
-        )
-      end
-
-      return scope.order(:last_name, :first_name) if q.blank?
-
-      ranked = semantic ? ::Catalog::SemanticSearch.ranked_scope(scope, q) : nil
-      return ranked if ranked
-
-      query = "%#{ActiveRecord::Base.sanitize_sql_like(q.strip)}%"
-      scope.where(
-        "faculties.first_name ILIKE :q OR faculties.last_name ILIKE :q OR faculties.display_name ILIKE :q",
-        q: query
-      ).order(:last_name, :first_name)
+    def course(code:)
+      ::Catalog::CourseQuery.new.find(code)
     end
 
-    private
+    def courses(q: nil, subject: nil, term_uid: nil)
+      ::Catalog::CourseQuery.new.call(q: q, subject: subject, term_uid: term_uid)
+    end
 
-    def subject_code(subject)
-      subject =~ /\(([^)]+)\)/ ? ::Regexp.last_match(1) : subject
+    def instructors(term_uid: nil, q: nil, semantic: false)
+      ::Catalog::InstructorQuery.new.call(term_uid: term_uid, q: q, semantic: semantic)
     end
   end
 end

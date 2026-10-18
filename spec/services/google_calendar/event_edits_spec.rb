@@ -55,7 +55,32 @@ RSpec.describe GoogleCalendar::EventEdits do
                             start: Google::Apis::CalendarV3::EventDateTime.new(date_time: (start + 30.minutes).iso8601),
                             end: Google::Apis::CalendarV3::EventDateTime.new(date_time: (start + 2.hours).iso8601))
 
-      expect(described_class.new(row, remote).edited_fields).to eq(%w[summary location description start_time end_time])
+      expect(described_class.new(row, remote).edited_fields).to eq(%w[summary location start_time end_time])
+    end
+
+    it "does not count the description the app wrote" do
+      expect(described_class.new(row, remote_event(description: "CRN 10001")).edited_fields).to eq([])
+    end
+
+    context "with an all-day event" do
+      let(:day) { zone.local(2026, 11, 26) }
+      let(:row) { build(:calendar_event, summary: "Synthetic Lecture", location: "Synthetic Hall", start_time: day, end_time: day.end_of_day) }
+
+      def all_day_event(start_date, end_date)
+        remote_event(start: Google::Apis::CalendarV3::EventDateTime.new(date: start_date),
+                     end: Google::Apis::CalendarV3::EventDateTime.new(date: end_date))
+      end
+
+      it "reads the end date Google gives as the day after the last day" do
+        expect(described_class.new(row, all_day_event("2026-11-26", "2026-11-27")).edited_fields).to eq([])
+      end
+
+      it "finds a moved last day" do
+        edits = described_class.new(row, all_day_event("2026-11-26", "2026-11-28"))
+
+        expect(edits.edited_fields).to eq(%w[end_time])
+        expect(edits.merge({}, %w[end_time])).to eq(end_time: zone.local(2026, 11, 27))
+      end
     end
 
     it "counts a time that only one side has as an edit" do
@@ -88,25 +113,25 @@ RSpec.describe GoogleCalendar::EventEdits do
     it "puts the person's value in place of each edited field only" do
       remote = remote_event(summary: "Edited", description: "My notes",
                             end: Google::Apis::CalendarV3::EventDateTime.new(date_time: (start + 2.hours).iso8601))
-      data   = { summary: "Synthetic Lecture", description: nil, location: "New Hall", end_time: start + 1.hour }
+      data   = { summary: "Synthetic Lecture", description: "CRN 10001", location: "New Hall", end_time: start + 1.hour }
 
       merged = described_class.new(row, remote).merge(data, %w[summary description end_time])
 
-      expect(merged).to eq(summary: "Edited", description: "My notes", location: "New Hall", end_time: start + 2.hours)
+      expect(merged).to eq(summary: "Edited", description: "CRN 10001", location: "New Hall", end_time: start + 2.hours)
       expect(data[:summary]).to eq("Synthetic Lecture")
     end
   end
 
   describe "#remote_row_attributes" do
-    it "gives the row the event as the person left it" do
+    it "gives the row the event as the person left it, with the recurrence the app wrote" do
       remote = remote_event(summary: "Edited", recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TH" ])
 
       attributes = described_class.new(row, remote).remote_row_attributes
 
-      expected_data = { summary: "Edited", location: "Synthetic Hall", start_time: start, end_time: start + 1.hour,
-                        recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TH" ] }
+      expected_data = { summary: "Edited", location: "Synthetic Hall", start_time: start, end_time: start + 1.hour }
       expect(attributes).to include(expected_data)
-      expect(attributes[:event_data_hash]).to eq(CalendarEvent.generate_data_hash(expected_data))
+      expect(attributes).not_to have_key(:recurrence)
+      expect(attributes[:event_data_hash]).to eq(CalendarEvent.generate_data_hash(expected_data.merge(recurrence: row.recurrence)))
       expect(attributes[:last_synced_at]).to be_within(1.minute).of(Time.current)
     end
   end

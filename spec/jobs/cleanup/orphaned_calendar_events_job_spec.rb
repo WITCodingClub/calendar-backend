@@ -76,6 +76,35 @@ RSpec.describe Cleanup::OrphanedCalendarEventsJob do
       .with(an_instance_of(Google::Apis::ClientError), handled: true, context: { calendar_event_id: orphan.id })
   end
 
+  it "deletes the row when Google refused the refresh token, because the remote event is out of reach" do
+    calendar.oauth_credential.update!(token_expires_at: 1.hour.ago)
+    orphan = create_orphan(external_event_id: "evt-1")
+    stub_request(:post, "https://oauth2.googleapis.com/token")
+      .to_return(status: 400, body: { error: "invalid_grant" }.to_json, headers: { "Content-Type" => "application/json" })
+    allow(Rails.error).to receive(:report)
+
+    result = described_class.perform_now
+
+    expect(result).to eq(total: 1, deleted: 1, errors: 0)
+    expect(CalendarEvent.exists?(orphan.id)).to be(false)
+    expect(Rails.error).not_to have_received(:report)
+  end
+
+  it "keeps the row and reports the error when the token endpoint refuses the client" do
+    calendar.oauth_credential.update!(token_expires_at: 1.hour.ago)
+    orphan = create_orphan(external_event_id: "evt-1")
+    stub_request(:post, "https://oauth2.googleapis.com/token")
+      .to_return(status: 401, body: { error: "invalid_client" }.to_json, headers: { "Content-Type" => "application/json" })
+    allow(Rails.error).to receive(:report)
+
+    result = described_class.perform_now
+
+    expect(result).to eq(total: 1, deleted: 0, errors: 1)
+    expect(CalendarEvent.exists?(orphan.id)).to be(true)
+    expect(Rails.error).to have_received(:report)
+      .with(an_instance_of(Google::Auth::AuthorizationError), handled: true, context: { calendar_event_id: orphan.id })
+  end
+
   it "does not call Google for a calendar without an external id" do
     orphan = create_orphan
     CourseCalendar.where(id: calendar.id).update_all(external_calendar_id: "") # rubocop:disable Rails/SkipsModelValidations

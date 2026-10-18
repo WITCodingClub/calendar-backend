@@ -1,0 +1,18 @@
+<%# A card for a page or a list that has no data (#698): an icon, the reason,
+    an optional hint, and one action. `icon` is a name from IconHelper::ICONS.
+    Pass action: { label:, url:, external: true } for a link that opens in a
+    new tab. %>
+<%# locals: (message:, icon: :calendar, hint: nil, action: nil) %>
+<div class="m3-card p-8 flex flex-col items-center gap-3 text-center" data-empty-state>
+  <span class="w-12 h-12 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
+    <%= icon(icon, css_class: "w-6 h-6") %>
+  </span>
+  <p class="font-medium text-on-surface"><%= message %></p>
+  <% if hint.present? %>
+    <p class="text-sm text-on-surface-variant max-w-md"><%= hint %></p>
+  <% end %>
+  <% if action %>
+    <% link_options = action[:external] ? { target: "_blank", rel: "noopener noreferrer" } : {} %>
+    <%= link_to action[:label], action[:url], class: "m3-btn-filled text-sm mt-1", **link_options %>
+  <% end %>
+</div>

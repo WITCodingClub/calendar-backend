@@ -15,7 +15,7 @@
         <%= admin_table(enrollments, card: false) do |t| %>
           <% t.column("Course") do |enrollment| %>
             <% if enrollment.course %>
-              <span class="font-medium"><%= enrollment.course.subject %> <%= enrollment.course.course_number %></span>
+              <%= link_to "#{enrollment.course.subject} #{enrollment.course.course_number}", admin_course_path(enrollment.course), class: "font-medium text-primary hover:underline" %>
               <% if enrollment.course.section_number.present? %>
                 <span class="text-on-surface-variant">(<%= enrollment.course.section_number %>)</span>
               <% end %>

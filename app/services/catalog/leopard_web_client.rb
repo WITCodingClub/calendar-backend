@@ -42,6 +42,8 @@ module Catalog
         get_course_catalog
       when :get_active_terms
         get_active_terms
+      when :fetch_linked_sections
+        fetch_linked_sections
       else
         raise ArgumentError, "Unknown action: #{action}"
       end
@@ -75,11 +77,54 @@ module Catalog
       ).call
     end
 
+    # Banner's lecture and lab pairs for one section, as option groups: the
+    # section can be taken with any one group, and every section in that group
+    # is needed. An unlinked section returns []. Each entry is
+    # { crn: Integer, credit_hours: Integer or nil }; Banner gives a lab 0
+    # credit hours here.
+    def self.fetch_linked_sections(term:, course_reference_number:)
+      new(
+        action: :fetch_linked_sections,
+        term: term,
+        course_reference_number: course_reference_number
+      ).call
+    end
+
     def self.get_course_catalog(term:)
       new(
         action: :get_course_catalog,
         term: term
       ).call
+    end
+
+    # The four pages Banner shows for a section's course: the description, the
+    # prerequisites, the corequisites, and the restrictions. Each is HTML, which
+    # Catalog::CourseDetailsParser reads. Raises RequestError when Banner does
+    # not answer 200.
+    COURSE_DETAIL_PAGES = {
+      description:   "getCourseDescription",
+      prerequisites: "getSectionPrerequisites",
+      corequisites:  "getCorequisites",
+      restrictions:  "getRestrictions"
+    }.freeze
+
+    # @return [Hash{Symbol => String}] the HTML of each page in COURSE_DETAIL_PAGES
+    def self.get_course_details(term:, course_reference_number:)
+      new(action: :get_course_details, term: term, course_reference_number: course_reference_number).course_details
+    end
+
+    # The requests go one after another, not at once, so a sync of every
+    # course in a term stays gentle on Banner.
+    def course_details
+      raise ArgumentError, "term is required" unless term
+      raise ArgumentError, "course_reference_number is required" unless course_reference_number
+
+      COURSE_DETAIL_PAGES.transform_values do |path|
+        response = connection.get(path, { term: term, courseReferenceNumber: course_reference_number })
+        raise RequestError.new("Banner #{path} answered #{response.status}", status: response.status) unless response.status == 200
+
+        response.body.to_s
+      end
     end
 
     ACTIVE_TERMS_CACHE_KEY = "leopard_web/active_terms"
@@ -98,6 +143,25 @@ module Catalog
     end
 
     private
+
+    def fetch_linked_sections
+      raise ArgumentError, "term is required" unless term
+      raise ArgumentError, "course_reference_number is required" unless course_reference_number
+
+      response = connection.get("fetchLinkedSections", { term: term, courseReferenceNumber: course_reference_number })
+      data = handle_response(response, :json)
+      groups = data.is_a?(Hash) ? data["linkedData"] : nil
+      raise ParseError, "fetchLinkedSections returned no linkedData" unless groups.is_a?(Array)
+
+      groups.map do |group|
+        Array(group).filter_map do |section|
+          crn = section["courseReferenceNumber"].to_s
+          next unless crn.match?(/\A\d+\z/)
+
+          { crn: crn.to_i, credit_hours: section["creditHours"]&.to_i }
+        end
+      end.reject(&:empty?)
+    end
 
     def get_class_details
       raise ArgumentError, "term is required" unless term
@@ -233,10 +297,9 @@ module Catalog
       @connection ||= Faraday.new(url: BASE_URL) do |faraday|
         faraday.options.open_timeout = OPEN_TIMEOUT
         faraday.options.timeout = READ_TIMEOUT
-        faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                        exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
-                        retry_statuses: [ 502, 503, 504 ]
         faraday.request :url_encoded
+        # Pacing, retries, and the cooldown for every Banner request.
+        faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
       end
@@ -297,23 +360,21 @@ module Catalog
         enrollment: {
           actual: extract_span_value(section, "Enrollment Actual:")&.to_i,
           maximum: extract_span_value(section, "Enrollment Maximum:")&.to_i,
-          seats_available: clamp_seats(extract_span_value(section, "Enrollment Seats Available:"))
+          seats_available: seat_count(extract_span_value(section, "Enrollment Seats Available:"))
         },
         waitlist: {
           capacity: extract_span_value(section, "Waitlist Capacity:")&.to_i,
           actual: extract_span_value(section, "Waitlist Actual:")&.to_i,
-          seats_available: clamp_seats(extract_span_value(section, "Waitlist Seats Available:"))
+          seats_available: seat_count(extract_span_value(section, "Waitlist Seats Available:"))
         }
       }
     end
 
     # Banner reports a negative count when a section holds more students than its
-    # cap, for example -8 of 15. The courses table forbids a negative count, and a
-    # student only needs to read that no seat is left, so the floor is zero.
-    def clamp_seats(raw)
-      return nil if raw.nil?
-
-      [ raw.to_i, 0 ].max
+    # cap, for example -8 of 15. Keep it, as Catalog::Importer does, so both write
+    # paths store the same number. The courses table allows a negative count.
+    def seat_count(raw)
+      raw&.to_i
     end
 
     def extract_labeled_value(section, label)
@@ -461,10 +522,9 @@ module Catalog
       @terms_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
         faraday.options.open_timeout = OPEN_TIMEOUT
         faraday.options.timeout = READ_TIMEOUT
-        faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                        exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
-                        retry_statuses: [ 502, 503, 504 ]
         faraday.request :url_encoded
+        # Pacing, retries, and the cooldown for every Banner request.
+        faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
       end
@@ -474,10 +534,9 @@ module Catalog
       @session_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
         faraday.options.open_timeout = OPEN_TIMEOUT
         faraday.options.timeout = READ_TIMEOUT
-        faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                        exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
-                        retry_statuses: [ 502, 503, 504 ]
         faraday.request :url_encoded
+        # Pacing, retries, and the cooldown for every Banner request.
+        faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
       end
@@ -498,10 +557,9 @@ module Catalog
 
         faraday.options.open_timeout = OPEN_TIMEOUT
         faraday.options.timeout = READ_TIMEOUT
-        faraday.request :retry, max: 3, interval: 1, backoff_factor: 2,
-                        exceptions: [ Faraday::ConnectionFailed, Faraday::TimeoutError ],
-                        retry_statuses: [ 502, 503, 504 ]
         faraday.request :url_encoded
+        # Pacing, retries, and the cooldown for every Banner request.
+        faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
       end

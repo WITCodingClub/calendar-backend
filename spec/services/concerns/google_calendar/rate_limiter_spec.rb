@@ -17,11 +17,7 @@ RSpec.describe GoogleCalendar::RateLimiter do
     Google::Apis::RateLimitError.new(message, status_code: 429)
   end
 
-  before do
-    allow(limiter).to receive(:sleep)
-    # A request spec that ran earlier in this process can leave :controller set.
-    ActiveSupport::ExecutionContext.clear
-  end
+  before { allow(limiter).to receive(:sleep) }
 
   describe "config" do
     it "shares one config between every class that includes the concern" do
@@ -64,6 +60,17 @@ RSpec.describe GoogleCalendar::RateLimiter do
 
       expect(attempts).to eq(described_class::REQUEST_MAX_RETRIES + 1)
       expect(limiter).to have_received(:sleep).with(a_value <= described_class::REQUEST_MAX_DELAY * 1.25)
+    end
+
+    it "uses the job retries after a request block has ended" do
+      # ExecutionContext.set puts the missing :controller key back as nil.
+      ActiveSupport::ExecutionContext.set(controller: Object.new) { nil }
+      attempts = 0
+
+      expect { limiter.call_rate_limited { attempts += 1; raise rate_limit_error } }
+        .to raise_error(Google::Apis::RateLimitError)
+
+      expect(attempts).to be > described_class::REQUEST_MAX_RETRIES + 1
     end
 
     it "caps a long Retry-After inside a web request" do

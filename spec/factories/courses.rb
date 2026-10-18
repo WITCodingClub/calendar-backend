@@ -5,6 +5,7 @@
 # Table name: courses
 #
 #  id                :bigint           not null, primary key
+#  banner_synced_at  :datetime
 #  course_number     :integer          not null
 #  credit_hours      :integer
 #  crn               :integer          not null
@@ -14,6 +15,7 @@
 #  grade_mode        :string
 #  is_section_linked :boolean          default(FALSE), not null
 #  link_identifier   :string
+#  links_fetched_at  :datetime
 #  schedule_type     :string           not null
 #  seats_available   :integer
 #  seats_capacity    :integer

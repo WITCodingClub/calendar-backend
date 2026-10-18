@@ -26,8 +26,15 @@ The API has three surfaces over the same data:
 Both surfaces use the same filter object, `Catalog::SectionQuery`. A filter
 gives the same result on both.
 
+The diagram shows the path of a request. The REST controllers and the GraphQL
+`QueryType` both send the filter to `Catalog::SectionQuery`, which reads the
+courses table. REST formats the result with the catalog serializers. GraphQL
+formats it with its `Types::*` classes.
+
 ```mermaid
 flowchart LR
+    accTitle: How a catalog request reaches the data
+    accDescr: The REST controllers and the GraphQL QueryType both use Catalog::SectionQuery, which reads the courses table. REST formats the result with Catalog serializers, and GraphQL with Types classes.
     R[REST controllers] --> Q[Catalog::SectionQuery]
     G[GraphQL QueryType] --> Q
     Q --> DB[(courses)]
@@ -50,8 +57,11 @@ office locations.
 
 ## Limits
 
-- Responses are public and cacheable for 1 hour.
-- Rate limit: 300 requests per minute per IP address.
+- Responses are public and cacheable for 1 hour. Cloudflare caches REST
+  responses at the edge for the same hour.
+- Rate limit: 300 requests per minute per IP address. A response from the
+  Cloudflare cache does not count. Its `RateLimit` fields are those of the
+  request that filled the cache.
 - REST page size: 50 by default, 200 maximum.
 - GraphQL page size: 50 by default, 200 maximum.
 - GraphQL query depth: 12 maximum. Query cost: 500 maximum. See
@@ -127,8 +137,13 @@ a week is two rows, one per day. That is the right shape for a room question
 and the wrong shape for a course list: a reader scanning it sees each course
 more than once and reads the extra rows as duplicates.
 
+The diagram shows how to choose a report. To count courses, use
+`/reports/sections`. To count room hours, use `/reports/meeting_times`.
+
 ```mermaid
 flowchart LR
+    accTitle: Which report to use
+    accDescr: To count courses, use /reports/sections. To count room hours, use /reports/meeting_times.
     Q{What are you counting?} -->|courses| S["/reports/sections"]
     Q -->|room hours| M["/reports/meeting_times"]
 ```
@@ -209,11 +224,39 @@ message:
 | `GET /api/v1/catalog/instructors/:pub_id` | One instructor |
 | `GET /api/v1/catalog/instructors/:pub_id/similar` | Instructors like this one |
 | `GET /api/v1/catalog/reviews` | Rate My Professors reviews |
+| `GET /api/v1/catalog/courses` | Courses (not sections), by code or title words |
+| `GET /api/v1/catalog/courses/:code` | One course: description, prerequisites, corequisites, restrictions, what it unlocks |
+| `GET /api/v1/catalog/schedule_check` | Check a set of sections taken together |
 
 `GET /api/v1/catalog/subjects` accepts `term_uid`.
 
+`GET /api/v1/catalog/schedule_check` needs `term_uid` and `crn`, a
+comma-separated list of at most 30 CRNs, labs included. It returns time
+conflicts (the same day, overlapping times, overlapping dates), linked
+lecture and lab pairs that are missing a partner, the same course chosen
+twice, and totals: credit hours, days, earliest start, latest end, and the
+number of meetings before 9:00. Credit hours use Banner's credits for linked
+sections, where a lab is 0.
+
 `GET /api/v1/catalog/instructors` accepts `term_uid`, `q`, `semantic`, `page`,
+and `per_page`. Without `semantic`, each word of `q` must match the first, last,
+or display name, so `q=ada lovelace` finds Ada Lovelace.
+
+`GET /api/v1/catalog/courses` accepts `q` (a code such as `COMP 2350`, or title
+words), `subject`, `term_uid` (only courses with a section in that term), `page`,
 and `per_page`.
+
+`GET /api/v1/catalog/courses/:code` takes `COMP2350` or `COMP 2350`, and an
+optional `term_uid` that adds the course's sections in that term. The
+prerequisites are an and/or tree of courses and placement tests. Each course in
+the tree has its `title` and `linked: true` when WIT Calendar knows the course.
+`unlocks` lists the courses that name this one as a prerequisite. The data comes
+from Banner and is refreshed every night. Each section also has a `course`
+object with the description, the prerequisites, and `typically_offered`.
+
+`GET /api/v1/catalog/instructors/:pub_id` also returns the Rate My Professors
+rating distribution, the top tags, and the newest reviews. Add `term_uid` to list
+the sections the instructor teaches in that term.
 
 `GET /api/v1/catalog/sections/:crn` accepts `term_uid`. Use it when one CRN
 occurs in more than one term. This endpoint also returns cancelled sections, so
@@ -440,14 +483,14 @@ query Sections($filter: SectionFilterInput) {
   carry `Cache-Control: public, max-age=3600`, which adds at most one more hour.
   Either field is `null` when Banner did not return enrollment data for the CRN.
 - `linked` says which sections a student must register together, most often a
-  lecture and its lab. It comes from Banner's own `linkIdentifier`, which reads
-  as `<slot><key>`: the first character is the slot (`A` for the lecture, `B`
-  for the lab) and the rest is the key that pairs them. A lecture `A1` goes with
-  every lab `B1` of the same course. `linked.crns` lists the partners in the
-  same term, so a client does not have to work the pairing out from the section
-  number. `linked.pub_ids` names the same partners by public id, in the same
-  order. `linked.required` is `false` and both lists are empty for a section
-  that stands alone.
+  lecture and its lab. When `linked.source` is `banner`, the pairs come from
+  Banner's own linked sections, fetched for each linked section. Before that,
+  `source` is `link_identifier`: a guess that pairs a lecture `A1` with every
+  lab `B1` of the same course. The guess can be wrong. `linked.options` lists
+  the sets of partners: take every CRN of any one set. `linked.crns` lists all
+  partners, and `linked.pub_ids` names them by public id, in the same order.
+  `linked.required` is `false` and the lists are empty for a section that
+  stands alone.
 - `pub_id` is the id to store. It is unique across every term and it never
   changes, so it is the key to use when you join this catalog to another system.
   A CRN is only unique inside one term, and the registrar reuses it. Both are

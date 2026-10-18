@@ -45,7 +45,8 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       get "/api/v1/catalog/sections", params: { crn: 10_001 }
 
       expect(json["data"].first["linked"]).to eq(
-        "required" => false, "identifier" => nil, "crns" => [], "pub_ids" => []
+        "required" => false, "identifier" => nil, "source" => "link_identifier",
+        "crns" => [], "pub_ids" => [], "options" => []
       )
     end
 
@@ -56,8 +57,8 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       get "/api/v1/catalog/sections", params: { crn: 10_002 }
 
       expect(json["data"].first["linked"]).to eq(
-        "required" => true, "identifier" => "A1", "crns" => [ 10_003 ],
-        "pub_ids" => [ comp2000b.public_id ]
+        "required" => true, "identifier" => "A1", "source" => "link_identifier", "crns" => [ 10_003 ],
+        "pub_ids" => [ comp2000b.public_id ], "options" => [ [ 10_003 ] ]
       )
     end
 

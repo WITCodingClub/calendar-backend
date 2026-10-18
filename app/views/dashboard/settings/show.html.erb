@@ -1,7 +1,7 @@
 <% content_for :title, "Settings" %>
 
-<div class="max-w-xl mx-auto space-y-6">
-  <h1 class="text-2xl font-bold text-on-surface">Settings</h1>
+<div class="m3-page-narrow space-y-6">
+  <%= render "shared/page_header", title: "Settings" %>
 
   <div class="m3-card divide-y divide-outline-variant overflow-hidden">
     <div class="px-5 py-4">
@@ -19,40 +19,56 @@
   </div>
 
   <div class="m3-card divide-y divide-outline-variant overflow-hidden">
-    <%= link_to dashboard_connected_accounts_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
-      <p class="text-sm text-on-surface">Connected Google accounts</p>
-      <svg aria-hidden="true" focusable="false" class="w-4 h-4 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-    <% end %>
-    <%= link_to dashboard_notifications_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
-      <p class="text-sm text-on-surface">Notification settings</p>
-      <svg aria-hidden="true" focusable="false" class="w-4 h-4 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-    <% end %>
-    <%= link_to dashboard_ics_feed_path, class: "flex items-center justify-between px-5 py-4 hover:bg-surface-container-high transition-colors" do %>
-      <p class="text-sm text-on-surface">ICS calendar feed</p>
-      <svg aria-hidden="true" focusable="false" class="w-4 h-4 text-on-surface-variant" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-    <% end %>
+    <%= render "shared/list_link_row", path: dashboard_connected_accounts_path, title: "Connected Google accounts" %>
+    <%= render "shared/list_link_row", path: dashboard_notifications_path, title: "Notification settings" %>
+    <%= render "shared/list_link_row", path: dashboard_ics_feed_path, title: "ICS calendar feed" %>
   </div>
 
   <% if @sign_in_identities.any? %>
-    <div class="m3-card divide-y divide-outline-variant overflow-hidden">
-      <div class="px-5 py-4">
-        <p class="m3-label">Microsoft sign-in</p>
-        <p class="text-xs text-on-surface-variant mt-0.5">Removing an account here does not sign you out.</p>
-      </div>
-      <% @sign_in_identities.each do |identity| %>
-        <div class="px-5 py-4 flex items-center justify-between gap-4">
-          <div class="min-w-0">
-            <p class="text-sm text-on-surface truncate"><%= identity.email %></p>
-            <p class="text-xs text-on-surface-variant">Added <%= identity.created_at.strftime("%b %d, %Y") %></p>
+    <%= render "shared/section_card", title: "Microsoft sign-in", description: "Removing an account here does not sign you out." do %>
+      <div class="divide-y divide-outline-variant">
+        <% @sign_in_identities.each do |identity| %>
+          <div class="px-5 py-4 flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <p class="text-sm text-on-surface truncate"><%= identity.email %></p>
+              <p class="text-xs text-on-surface-variant">Added <%= identity.created_at.strftime("%b %d, %Y") %></p>
+            </div>
+            <%= button_to "Remove",
+                dashboard_sign_in_identity_path(identity),
+                method: :delete,
+                data: { turbo_confirm: "Remove Microsoft sign-in for #{identity.email}?" },
+                class: "m3-btn-danger text-xs px-4 py-2 flex-shrink-0" %>
           </div>
-          <%= button_to "Remove",
-              dashboard_sign_in_identity_path(identity),
-              method: :delete,
-              data: { turbo_confirm: "Remove Microsoft sign-in for #{identity.email}?" },
-              class: "m3-btn-danger text-xs px-4 py-2 flex-shrink-0" %>
-        </div>
-      <% end %>
-    </div>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <% if @connected_apps.any? %>
+    <%= render "shared/section_card", title: "Connected apps", description: "These apps can use your WIT Calendar data through the MCP server." do %>
+      <div class="divide-y divide-outline-variant">
+        <% @connected_apps.each do |app| %>
+          <% scopes = McpTools::Scopes::ALL.select { |scope| @connected_app_scopes[app.id].include?(scope.name) } %>
+          <div class="px-5 py-4 flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <p class="text-sm text-on-surface truncate"><%= app.name %></p>
+              <p class="text-xs text-on-surface-variant truncate"><%= Oauth::RedirectUris.hosts(app.redirect_uri).join(", ") %></p>
+              <% { read: "Reads", change: "Changes" }.each do |group, heading| %>
+                <% labels = scopes.select { |scope| scope.group == group }.map(&:label) %>
+                <% if labels.any? %>
+                  <p class="text-xs text-on-surface-variant mt-1"><%= heading %>: <%= labels.join(", ") %></p>
+                <% end %>
+              <% end %>
+            </div>
+            <%= button_to "Disconnect",
+                dashboard_connected_app_path(app),
+                method: :delete,
+                data: { turbo_confirm: "Disconnect #{app.name}? It will no longer be able to read your data." },
+                class: "m3-btn-danger text-xs px-4 py-2 flex-shrink-0" %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
   <% end %>
 
   <div>

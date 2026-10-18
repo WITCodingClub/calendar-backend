@@ -7,29 +7,51 @@
 # executor, and the calling thread lets the blocks autoload while it waits, so
 # it is safe inside a request or a job.
 module Concurrently
-  # Calls the block with each item, up to `limit` at a time, and returns the
-  # results in the order of `items`. It waits for every block in a batch, then
-  # raises the error of the first item in that batch that failed. Later batches
-  # do not start after a failure.
+  # Calls the block with each item, on up to `limit` threads at a time, and
+  # returns the results in the order of `items`. A thread takes the next item
+  # as soon as it is free, so one slow item does not hold back the rest. After
+  # a failure, no thread starts a new item. When the running items are done,
+  # it raises the error of the first item (in the order of `items`) that
+  # failed.
+  #
+  # Each thread gets a copy of the caller's ActiveSupport::ExecutionContext, so
+  # code in the block still knows the job or the request it runs for (error
+  # reports, and the Banner retry budget in Catalog::BannerThrottle).
   def self.map(items, limit: items.size, &block)
-    items.each_slice([ limit, 1 ].max).flat_map do |batch|
-      threads = batch.map do |item|
-        Thread.new do
-          Thread.current.report_on_exception = false
-          Rails.application.executor.wrap { block.call(item) }
+    return [] if items.empty?
+
+    context = ActiveSupport::ExecutionContext.to_h
+    queue   = Queue.new
+    items.each_with_index { |item, index| queue << [ item, index ] }
+    queue.close
+
+    results = Array.new(items.size)
+    errors  = Array.new(items.size)
+    failed  = Concurrent::AtomicBoolean.new(false)
+
+    workers = Array.new(limit.clamp(1, items.size)) do
+      Thread.new do
+        Thread.current.report_on_exception = false
+
+        while !failed.true? && (entry = queue.pop)
+          item, index = entry
+          begin
+            Rails.application.executor.wrap do
+              ActiveSupport::ExecutionContext.set(**context) { results[index] = block.call(item) }
+            end
+          rescue StandardError => e
+            errors[index] = e
+            failed.make_true
+          end
         end
       end
-
-      outcomes = ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-        threads.map do |thread|
-          [ thread.value, nil ]
-        rescue StandardError => e
-          [ nil, e ]
-        end
-      end
-
-      outcomes.each { |_, error| raise error if error }
-      outcomes.map(&:first)
     end
+
+    ActiveSupport::Dependencies.interlock.permit_concurrent_loads { workers.each(&:join) }
+
+    error = errors.compact.first
+    raise error if error
+
+    results
   end
 end

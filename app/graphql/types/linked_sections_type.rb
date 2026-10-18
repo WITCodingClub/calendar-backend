@@ -13,5 +13,10 @@ module Types
           description: "CRNs of the partner sections in the same term. Empty when the section stands alone."
     field :pub_ids, [ String ], null: false,
           description: "Public ids of the same partner sections, in the same order as crns."
+    field :source, String, null: false,
+          description: "\"banner\": Banner's own pairs. \"link_identifier\": a guess from the link " \
+                       "identifiers, used until Banner's pairs are fetched. The guess can be wrong."
+    field :options, [ [ Integer ] ], null: false,
+          description: "Each list is one set of partner CRNs to take together. Pick any one set."
   end
 end

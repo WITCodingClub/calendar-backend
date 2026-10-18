@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= browser_title("Sign In") %></title>
   <%= render "layouts/favicon" %>
+  <%= render "layouts/theme_color" %>
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
   <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
@@ -12,6 +13,7 @@
   <%= yield :head %>
 </head>
 <body class="h-full bg-background text-on-background flex items-center justify-center px-4">
+  <%= render "shared/flash_messages" %>
   <%= yield %>
 </body>
 </html>

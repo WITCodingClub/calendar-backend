@@ -1,0 +1,40 @@
+{
+  "linkedData": [
+    [
+      {
+        "id": 100452,
+        "term": "202720",
+        "termDesc": "Spring 2027",
+        "courseReferenceNumber": "20452",
+        "partOfTerm": "1",
+        "courseNumber": "4960",
+        "courseDisplay": "4960",
+        "subject": "COMP",
+        "subjectDescription": "Computer Science (COMP)",
+        "sequenceNumber": "03B",
+        "campusDescription": "Wentworth Institute Technology",
+        "scheduleTypeDescription": "Lecture (LEC)",
+        "courseTitle": "SOFTWARE ENGINEERING",
+        "creditHours": 4,
+        "maximumEnrollment": 25,
+        "enrollment": 0,
+        "seatsAvailable": 25,
+        "waitCapacity": 5,
+        "waitCount": 0,
+        "waitAvailable": 5,
+        "crossList": null,
+        "creditHourHigh": 4,
+        "creditHourLow": 0,
+        "creditHourIndicator": "OR",
+        "openSection": true,
+        "linkIdentifier": "A2",
+        "isSectionLinked": true,
+        "subjectCourse": "COMP4960",
+        "faculty": [],
+        "meetingsFaculty": [],
+        "reservedSeatSummary": null,
+        "sectionAttributes": null
+      }
+    ]
+  ]
+}

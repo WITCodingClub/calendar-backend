@@ -3,8 +3,12 @@
 module Catalog
   # A single course section (one CRN) as the public catalog API returns it.
   class SectionSerializer
-    def initialize(course)
+    # catalog_courses: the CatalogCourse rows of a list of sections, from
+    # CourseQuery.for_sections, so a list sends one query. Without it, the
+    # serializer looks the one course up.
+    def initialize(course, catalog_courses: nil)
       @course = course
+      @catalog_courses = catalog_courses
     end
 
     def as_json(*)
@@ -31,7 +35,8 @@ module Catalog
         end_date:           @course.end_date,
         instructors:        @course.faculties.map { |f| InstructorSerializer.new(f).as_json },
         meeting_times:      meeting_times,
-        final_exam:         final_exam
+        final_exam:         final_exam,
+        course:             course_details
       }
     end
 
@@ -43,6 +48,26 @@ module Catalog
 
     def course_code
       self.class.course_code_for(@course)
+    end
+
+    # What Banner says about the course: the description, the prerequisites,
+    # and the terms it is usually offered. GET /api/v1/catalog/courses/:code
+    # has the full record. Nil until Catalog::CourseDetailsSync stores it.
+    def course_details
+      catalog_course =
+        if @catalog_courses
+          @catalog_courses[[ @course.prefix, @course.course_number ]]
+        else
+          CatalogCourse.find_by(subject_code: @course.prefix, course_number: @course.course_number)
+        end
+      return nil if catalog_course.nil?
+
+      {
+        code:              catalog_course.code,
+        description:       catalog_course.description,
+        prerequisites:     catalog_course.prerequisites,
+        typically_offered: catalog_course.typically_offered
+      }
     end
 
     def term
@@ -58,17 +83,10 @@ module Catalog
     end
 
     # Banner marks the sections a student has to register together, most often a
-    # lecture and its lab. `crns` names the partners in the same term, so a
-    # client does not have to guess the pairing from the section number.
+    # lecture and its lab. Catalog::SectionLinks gives Banner's own pairs once
+    # they are fetched, and says which source it used.
     def linked
-      partners = @course.linked_sections.pluck(:crn, :id)
-
-      {
-        required:   @course.is_section_linked,
-        identifier: @course.link_identifier,
-        crns:       partners.map(&:first),
-        pub_ids:    partners.map { |(_crn, id)| Course.public_id_for(id) }
-      }
+      SectionLinks.new(@course).as_json
     end
 
     def meeting_times

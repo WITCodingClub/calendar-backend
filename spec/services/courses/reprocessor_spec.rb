@@ -144,6 +144,29 @@ RSpec.describe Courses::Reprocessor do
           expect(CalendarEvent.where(external_event_id: "evt-1")).to be_empty
         end
 
+        it "treats a 410 as already deleted" do
+          stub_request(:delete, event_url).to_return(status: 410, body: { error: { message: "Gone" } }.to_json,
+                                                     headers: { "Content-Type" => "application/json" })
+
+          described_class.new(payload, user).call
+
+          expect(CalendarEvent.where(external_event_id: "evt-1")).to be_empty
+        end
+
+        [ 401, 403, 429 ].each do |status|
+          it "keeps the row and reports the error when Google answers #{status}" do
+            stub_request(:delete, event_url).to_return(status: status, body: { error: { message: "No" } }.to_json,
+                                                       headers: { "Content-Type" => "application/json" })
+
+            reports = capture_error_reports { described_class.new(payload, user).call }
+
+            expect(CalendarEvent.where(external_event_id: "evt-1")).to exist
+            expect(reports.size).to eq(1)
+            expect(reports.first.handled).to be(true)
+            expect(reports.first.context).to eq(user_id: user.id, calendar_event_id: CalendarEvent.find_by!(external_event_id: "evt-1").id)
+          end
+        end
+
         it "refreshes an expired token before the delete" do
           credential.update!(token_expires_at: 1.hour.ago)
           token_stub = stub_request(:post, "https://oauth2.googleapis.com/token")

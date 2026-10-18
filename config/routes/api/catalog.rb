@@ -20,11 +20,17 @@ namespace :v1 do
 
     get "subjects", to: "subjects#index"
 
+    get "schedule_check", to: "schedule_checks#show", as: :schedule_check
+
     get "sections",              to: "sections#index"
     get "sections/:crn",         to: "sections#show",    as: :section,          constraints: { crn: /\d+/ }
     get "sections/:crn/similar", to: "sections#similar", as: :similar_sections, constraints: { crn: /\d+/ }
 
     get "reviews", to: "reviews#index"
+
+    # A course across terms. The code may be "COMP2350" or "COMP 2350".
+    get "courses",       to: "courses#index"
+    get "courses/:code", to: "courses#show", as: :course, format: false
 
     get "instructors",                 to: "instructors#index"
     get "instructors/:pub_id",         to: "instructors#show",    as: :instructor

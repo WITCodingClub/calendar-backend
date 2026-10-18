@@ -6,7 +6,7 @@ RSpec.describe Admin::NavigationRegistry do
   let(:items) { described_class::CATEGORIES.flat_map { |category| category[:items] } }
 
   it "gives every item an icon that Admin::ApplicationHelper can draw" do
-    expect(items.pluck(:icon) - Admin::ApplicationHelper::ICONS.keys).to be_empty
+    expect(items.pluck(:icon) - IconHelper::ICONS.keys).to be_empty
     expect(items.pluck(:icon)).to all(be_present)
   end
 

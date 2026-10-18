@@ -35,8 +35,8 @@
 #
 # Indexes
 #
+#  index_users_needing_calendar_sync     (calendar_needs_sync) WHERE calendar_needs_sync
 #  index_users_on_access_level           (access_level)
-#  index_users_on_calendar_needs_sync    (calendar_needs_sync)
 #  index_users_on_calendar_token         (calendar_token) UNIQUE
 #  index_users_on_confirmation_token     (confirmation_token) UNIQUE
 #  index_users_on_email                  (email) UNIQUE

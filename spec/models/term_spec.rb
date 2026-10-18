@@ -108,6 +108,54 @@ RSpec.describe Term, type: :model do
     end
   end
 
+  describe ".current caching" do
+    around do |example|
+      original = Rails.cache
+      Rails.cache = ActiveSupport::Cache::MemoryStore.new
+      travel_to(Date.new(2026, 10, 1)) { example.run }
+      Rails.cache = original
+    end
+
+    before { allow(described_class).to receive(:find_current).and_call_original }
+
+    it "looks up the term one time for each request" do
+      fall = create_term(year: 2026, season: :fall)
+
+      expect([ described_class.current, described_class.current ]).to eq([ fall, fall ])
+      expect(described_class).to have_received(:find_current).once
+    end
+
+    it "reads the term id from Rails.cache in the next request" do
+      fall = create_term(year: 2026, season: :fall)
+      described_class.current
+      Current.reset
+
+      expect(described_class.current).to eq(fall)
+      expect(described_class).to have_received(:find_current).once
+      expect(Rails.cache.read("term:current_id:2026-10-01")).to eq(fall.id)
+    end
+
+    it "looks up the term again after a commit on a term" do
+      expect(described_class.current).to be_nil
+
+      fall = create_term(year: 2026, season: :fall)
+
+      expect(described_class.current).to eq(fall)
+      expect(described_class).to have_received(:find_current).twice
+    end
+
+    it "looks up the term again when the date changes" do
+      fall        = create_term(year: 2026, season: :fall)
+      spring_next = create_term(year: 2027, season: :spring)
+
+      travel_to(Date.new(2026, 12, 14))
+      expect(described_class.current).to eq(fall)
+
+      travel_to(Date.new(2026, 12, 15))
+      expect(described_class.current).to eq(spring_next)
+    end
+  end
+
   describe ".enrolled_for" do
     it "returns only terms the user has enrollments in" do
       user       = create(:user)
@@ -131,6 +179,24 @@ RSpec.describe Term, type: :model do
       expect(described_class.season_position(:spring)).to eq(1)
       expect(described_class.season_position("summer")).to eq(2)
       expect(described_class.season_position(:fall)).to eq(3)
+    end
+  end
+
+  describe "#implausible_date_fields" do
+    it "names a summer term's dates from the year before" do
+      term = build(:term, year: 2031, season: :summer, start_date: Date.new(2030, 7, 25), end_date: Date.new(2030, 8, 11))
+
+      expect(term.implausible_date_fields).to eq(%i[start_date end_date])
+    end
+
+    it "accepts a spring term that opens in the fall before and ends in its year" do
+      term = build(:term, year: 2031, season: :spring, start_date: Date.new(2030, 10, 15), end_date: Date.new(2031, 4, 25))
+
+      expect(term.implausible_date_fields).to be_empty
+    end
+
+    it "ignores dates that are not set" do
+      expect(build(:term, year: 2031, season: :fall).implausible_date_fields).to be_empty
     end
   end
 end

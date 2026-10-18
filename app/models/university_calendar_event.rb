@@ -68,6 +68,20 @@ class UniversityCalendarEvent < ApplicationRecord
     CATEGORY_DESCRIPTIONS.fetch(category.to_s, "Other university events")
   end
 
+  # Categories of the events that cancel classes on their dates.
+  NO_CLASS_CATEGORIES = %w[holiday study_day finals].freeze
+
+  # The cache holds plain times, not records, so a schema change cannot break
+  # an entry. The TTL covers writes that skip callbacks.
+  NO_CLASS_SPANS_CACHE_KEY = "university_calendar_events:no_class_spans"
+  NO_CLASS_SPANS_CACHE_TTL = 1.hour
+
+  # The dates of one no-class event, from no_class_spans_between. The ICS feed
+  # reads updated_at for the LAST-MODIFIED of a class event.
+  NoClassSpan = Data.define(:start_time, :end_time, :updated_at)
+
+  after_commit { self.class.expire_no_class_spans_cache }
+
   validates :ics_uid, presence: true, uniqueness: true
   validates :summary, presence: true
   validates :start_time, :end_time, presence: true
@@ -89,14 +103,49 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :for_term,      ->(term) { where(term: term) }
   scope :with_location, -> { where.not(location: [ nil, "" ]) }
   scope :by_categories, ->(cats) { where(category: cats) }
-  scope :in_date_range, ->(s, e) { where(start_time: s.beginning_of_day..e.end_of_day) }
+  # Events that overlap the range. A break is one event of several days, so an
+  # event that starts before the range still counts when it runs into it.
+  scope :in_date_range, ->(s, e) { where(end_time: s.beginning_of_day.., start_time: ..e.end_of_day) }
 
   def self.holidays_between(start_date, end_date)
     holidays.in_date_range(start_date, end_date).order(:start_time)
   end
 
   def self.no_class_days_between(start_date, end_date)
-    where(category: %w[holiday study_day finals]).in_date_range(start_date, end_date).order(:start_time)
+    where(category: NO_CLASS_CATEGORIES).in_date_range(start_date, end_date).order(:start_time)
+  end
+
+  # The no-class spans that overlap the range, earliest first. They come from
+  # Rails.cache, so a schedule, an ICS feed, or a sync does not query the table.
+  # The match is the same as in_date_range.
+  def self.no_class_spans_between(start_date, end_date)
+    range_start = start_date.beginning_of_day
+    range_end   = end_date.end_of_day
+
+    cached_no_class_spans.filter_map do |start_time, end_time, updated_at|
+      NoClassSpan.new(start_time:, end_time:, updated_at:) if end_time >= range_start && start_time <= range_end
+    end
+  end
+
+  # The start, end, and updated_at of every no-class event. There are few of them, so one
+  # cache entry holds them all. A commit on any event clears it.
+  def self.cached_no_class_spans
+    Rails.cache.fetch(NO_CLASS_SPANS_CACHE_KEY, expires_in: NO_CLASS_SPANS_CACHE_TTL) do
+      where(category: NO_CLASS_CATEGORIES).order(:start_time).pluck(:start_time, :end_time, :updated_at)
+    end
+  end
+
+  def self.expire_no_class_spans_cache
+    Rails.cache.delete(NO_CLASS_SPANS_CACHE_KEY)
+  end
+
+  # Every date inside the range that a holiday, study day, or finals event covers.
+  def self.no_class_dates_between(start_date, end_date)
+    no_class_spans_between(start_date, end_date).flat_map do |span|
+      first = span.start_time.in_time_zone.to_date
+      last  = [ span.end_time.in_time_zone.to_date, first ].max
+      ([ first, start_date.to_date ].max..[ last, end_date.to_date ].min).to_a
+    end.uniq
   end
 
   # Detect term dates for a term.
@@ -109,16 +158,22 @@ class UniversityCalendarEvent < ApplicationRecord
   #               Falls back to latest imported course end_date for the term
   #               when finals period events are unavailable.
   #
+  # Both dates must fall inside term_detection_date_window, and the end date
+  # in the term's own year. Without this, Summer 2027 took 2026-07-25 (the day
+  # LeopardWeb first listed it) and the Summer 2026 finals end (2026-08-11).
+  #
   # @param year [Integer] The academic year
   # @param season [Symbol] The season (:fall, :spring, :summer)
   # @return [Hash] Hash with :start_date and :end_date keys
   def self.detect_term_dates(year, season)
     term = Term.find_by(year: year, season: season)
 
-    candidate_events = where(start_time: Date.new(year - 1, 1, 1).beginning_of_day..Date.new(year + 1, 12, 31).end_of_day)
+    window = term_detection_date_window(year, season)
+    candidate_events = where(start_time: window.first.beginning_of_day..window.last.end_of_day)
     matching_events = candidate_events.select { |event| event_matches_term_for_date_detection?(event, year, season, term) }
 
     leopard_web_start_date = leopard_web_registration_open_date(year, season, term)
+    leopard_web_start_date = nil unless leopard_web_start_date&.in?(window)
 
     schedule_available_event = matching_events
                                .select { |event| schedule_available_summary?(event.summary) }
@@ -136,10 +191,20 @@ class UniversityCalendarEvent < ApplicationRecord
     finals_end_date = finals_period_event&.end_time&.to_date || finals_period_event&.start_time&.to_date
     course_end_fallback = fallback_end_date_from_courses(term)
 
+    start_date = leopard_web_start_date || schedule_available_event&.start_time&.to_date || estimated_schedule_available_date
+    end_date   = finals_end_date || course_end_fallback
+
     {
-      start_date: leopard_web_start_date || schedule_available_event&.start_time&.to_date || estimated_schedule_available_date,
-      end_date: finals_end_date || course_end_fallback
+      start_date: (start_date if start_date&.in?(window)),
+      end_date:   (end_date if term_end_date?(end_date, year, window))
     }
+  end
+
+  # Classes end in the term's own year for every season.
+  def self.term_end_date?(date, year, window = nil)
+    return false if date.nil? || date.year != year
+
+    window.nil? || date.in?(window)
   end
 
   def self.leopard_web_registration_open_date(year, season, term)
@@ -301,7 +366,7 @@ class UniversityCalendarEvent < ApplicationRecord
   end
 
   def term_boundary_event? = category == "term_dates"
-  def excludes_classes?    = %w[holiday study_day finals].include?(category)
+  def excludes_classes?    = NO_CLASS_CATEGORIES.include?(category)
 
   def formatted_date
     all_day ? start_time.strftime("%B %d, %Y") : start_time.strftime("%B %d, %Y at %l:%M %p").squish

@@ -10,12 +10,9 @@ module Api
         def index
           page, per_page = pagination
 
-          # Subquery rather than joins(:courses): a join would multiply rows by
-          # section count and break both the page size and the total.
-          scope = Faculty.where(id: Faculty.joins(:courses).select("faculties.id"))
-                         .includes(:rating_distribution)
-          scope = scope.where(id: faculty_ids_for_term) if params[:term_uid].present?
-          scope = apply_search(scope)
+          scope = ::Catalog::InstructorQuery.new.call(
+            term_uid: params[:term_uid], q: params[:q], semantic: boolean_param(:semantic)
+          )
 
           total  = scope.count
           people = scope.page(page).per(per_page)
@@ -31,8 +28,11 @@ module Api
           )
         end
 
+        # The full record: Rate My Professors distribution, tags, and recent
+        # reviews. With term_uid, also the sections taught in that term.
         def show
-          render_resource(::Catalog::InstructorSerializer.new(find_instructor).as_json)
+          term = find_term_param
+          render_resource(::Catalog::InstructorDetailSerializer.new(find_instructor, term: term).as_json)
         end
 
         # Instructors who teach something close to what this one teaches. The
@@ -50,6 +50,12 @@ module Api
 
         private
 
+        def find_term_param
+          return nil if params[:term_uid].blank?
+
+          Term.find_by(uid: params[:term_uid]) || raise(ActiveRecord::RecordNotFound, "No term #{params[:term_uid]}")
+        end
+
         def find_instructor
           faculty = Faculty.includes(:rating_distribution).find_by_public_id(params[:pub_id])
           raise ActiveRecord::RecordNotFound, "No instructor #{params[:pub_id]}" if faculty.nil?
@@ -60,28 +66,6 @@ module Api
         def similar_limit
           @similar_limit ||= (params[:limit].presence&.to_i || Embeddable::DEFAULT_SIMILAR_LIMIT)
                             .clamp(1, Embeddable::MAX_SIMILAR_LIMIT)
-        end
-
-        def faculty_ids_for_term
-          Faculty.joins(:courses)
-                 .where(courses: { term_id: Term.where(uid: params[:term_uid].to_i).select(:id) })
-                 .select("faculties.id")
-        end
-
-        # Ranks by meaning when the caller asks for it, and by the literal
-        # words otherwise. A semantic search that cannot reach the API falls
-        # back to the name match rather than failing.
-        def apply_search(scope)
-          return scope.order(:last_name, :first_name) if params[:q].blank?
-
-          ranked = ::Catalog::SemanticSearch.ranked_scope(scope, params[:q]) if boolean_param(:semantic)
-          return ranked if ranked
-
-          query = "%#{ActiveRecord::Base.sanitize_sql_like(params[:q].to_s.strip)}%"
-          scope.where(
-            "faculties.first_name ILIKE :q OR faculties.last_name ILIKE :q OR faculties.display_name ILIKE :q",
-            q: query
-          ).order(:last_name, :first_name)
         end
       end
     end

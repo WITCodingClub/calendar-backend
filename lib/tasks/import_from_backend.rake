@@ -21,8 +21,8 @@ namespace :import do
 
     ImportFromBackendService.call(
       database_url: url,
-      dry_run: ENV["DRY_RUN"].present?,
-      send_welcome_emails: ENV["SEND_WELCOME_EMAILS"].present?
+      dry_run: ActiveModel::Type::Boolean.new.cast(ENV["DRY_RUN"]) || false,
+      send_welcome_emails: ActiveModel::Type::Boolean.new.cast(ENV["SEND_WELCOME_EMAILS"]) || false
     )
   end
 end

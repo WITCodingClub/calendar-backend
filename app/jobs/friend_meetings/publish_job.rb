@@ -15,7 +15,8 @@ module FriendMeetings
 
     retry_on MicrosoftGraph::Error, Google::Apis::ServerError, Google::Apis::RateLimitError,
              wait: :polynomially_longer, attempts: 5
-    discard_on MicrosoftGraph::AuthError, Google::Apis::AuthorizationError, ActiveJob::DeserializationError
+    discard_on MicrosoftGraph::AuthError, Google::Apis::AuthorizationError, Signet::AuthorizationError,
+               ActiveJob::DeserializationError
 
     def perform(meeting)
       FriendMeetings::Publisher.new(meeting.user).publish(meeting)

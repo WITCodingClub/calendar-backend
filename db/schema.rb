@@ -10,10 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
+  enable_extension "pg_trgm"
   enable_extension "vector"
 
   create_table "active_storage_attachments", force: :cascade do |t|
@@ -189,6 +190,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
     t.index ["provider", "external_calendar_id"], name: "index_calendars_on_provider_and_external_calendar_id", unique: true
   end
 
+  create_table "catalog_courses", force: :cascade do |t|
+    t.string "subject_code", null: false
+    t.integer "course_number", null: false
+    t.string "title"
+    t.text "description"
+    t.integer "credit_hours"
+    t.string "typically_offered", default: [], null: false, array: true
+    t.jsonb "prerequisites"
+    t.jsonb "corequisites", default: [], null: false
+    t.jsonb "restrictions", default: [], null: false
+    t.bigint "source_term_id"
+    t.datetime "details_fetched_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["source_term_id"], name: "index_catalog_courses_on_source_term_id"
+    t.index ["subject_code", "course_number"], name: "index_catalog_courses_on_subject_code_and_course_number", unique: true
+  end
+
   create_table "console1984_commands", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "sensitive_access_id"
@@ -255,6 +274,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
     t.check_constraint "meeting_type = 1", name: "course_meeting_times_meeting_type_valid"
   end
 
+  create_table "course_prerequisites", force: :cascade do |t|
+    t.bigint "catalog_course_id", null: false
+    t.bigint "required_catalog_course_id"
+    t.string "required_subject_code", null: false
+    t.integer "required_course_number", null: false
+    t.string "min_grade"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_course_id"], name: "index_course_prerequisites_on_catalog_course_id"
+    t.index ["required_catalog_course_id"], name: "index_course_prerequisites_on_required_catalog_course_id"
+    t.index ["required_subject_code", "required_course_number"], name: "idx_on_required_subject_code_required_course_number_45b4b1b10c"
+  end
+
   create_table "courses", force: :cascade do |t|
     t.integer "course_number", null: false
     t.datetime "created_at", null: false
@@ -264,6 +296,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
     t.string "grade_mode"
     t.boolean "is_section_linked", default: false, null: false
     t.string "link_identifier"
+    t.datetime "links_fetched_at"
     t.string "schedule_type", null: false
     t.integer "seats_available"
     t.integer "seats_capacity"
@@ -276,12 +309,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
     t.datetime "updated_at", null: false
     t.vector "embedding", limit: 1536
     t.string "embedding_digest", limit: 64
+    t.datetime "banner_synced_at"
+    t.index "((course_number)::text) gin_trgm_ops", name: "index_courses_on_course_number_text_trgm", using: :gin
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
     t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["status"], name: "index_courses_on_status"
+    t.index ["subject"], name: "index_courses_on_subject_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["term_id", "subject", "course_number", "link_identifier"], name: "index_courses_on_course_and_link_identifier"
+    t.index ["title"], name: "index_courses_on_title_trgm", opclass: :gin_trgm_ops, using: :gin
     t.check_constraint "credit_hours IS NULL OR credit_hours > 0", name: "courses_credit_hours_positive"
-    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying, 'HYB'::character varying, 'IND'::character varying, 'LAB'::character varying, 'LEC'::character varying, 'ONL'::character varying, 'ONB'::character varying, 'OLB'::character varying, 'OLC'::character varying, 'RLB'::character varying, 'RLC'::character varying, 'SAB'::character varying, 'SAD'::character varying]::text[])", name: "courses_schedule_type_valid"
+    t.check_constraint "schedule_type::text = ANY (ARRAY['EXT'::character varying::text, 'HYB'::character varying::text, 'IND'::character varying::text, 'LAB'::character varying::text, 'LEC'::character varying::text, 'ONL'::character varying::text, 'ONB'::character varying::text, 'OLB'::character varying::text, 'OLC'::character varying::text, 'RLB'::character varying::text, 'RLC'::character varying::text, 'SAB'::character varying::text, 'SAD'::character varying::text])", name: "courses_schedule_type_valid"
     t.check_constraint "seats_available IS NULL OR seats_capacity IS NULL OR seats_available <= seats_capacity", name: "courses_seats_available_le_capacity"
     t.check_constraint "seats_capacity IS NULL OR seats_capacity >= 0", name: "courses_seats_capacity_non_negative"
     t.check_constraint "start_date IS NULL OR end_date IS NULL OR end_date >= start_date", name: "courses_end_date_on_or_after_start_date"
@@ -403,7 +440,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
     t.integer "status", default: 0, null: false
     t.bigint "term_id", null: false
     t.datetime "updated_at", null: false
-    t.bigint "uploaded_by_id", null: false
+    t.bigint "uploaded_by_id"
     t.index ["term_id", "created_at"], name: "index_finals_schedules_on_term_id_and_created_at"
     t.index ["uploaded_by_id"], name: "index_finals_schedules_on_uploaded_by_id"
   end
@@ -561,12 +598,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
   create_table "oauth_applications", force: :cascade do |t|
     t.string "name", null: false
     t.string "uid", null: false
-    t.string "secret", null: false
+    t.string "secret"
     t.text "redirect_uri", null: false
     t.string "scopes", default: "", null: false
     t.boolean "confidential", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "dynamic", default: false, null: false
     t.index ["uid"], name: "index_oauth_applications_on_uid", unique: true
   end
 
@@ -712,6 +750,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
     t.check_constraint "SUBSTRING(number FROM 1 FOR 1) !~ '^[0-9]$'::text OR SUBSTRING(number FROM 1 FOR 1) = floor::text", name: "rooms_floor_matches_number_prefix"
     t.check_constraint "capacity IS NULL OR capacity > 0", name: "rooms_capacity_positive"
     t.check_constraint "floor >= 0", name: "rooms_floor_non_negative"
+  end
+
+  create_table "section_links", force: :cascade do |t|
+    t.bigint "course_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "credit_hours"
+    t.bigint "linked_course_id", null: false
+    t.integer "option_group", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_id", "option_group", "linked_course_id"], name: "index_section_links_on_course_group_linked", unique: true
+    t.index ["linked_course_id"], name: "index_section_links_on_linked_course_id"
   end
 
   create_table "security_events", force: :cascade do |t|
@@ -1022,6 +1071,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
     t.jsonb "university_event_categories"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.boolean "usage_stats_enabled"
     t.index ["user_id"], name: "index_user_extension_configs_on_user_id_unique", unique: true
   end
 
@@ -1074,7 +1124,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
     t.datetime "updated_at", null: false
     t.boolean "friend_emails", default: true, null: false
     t.index ["access_level"], name: "index_users_on_access_level"
-    t.index ["calendar_needs_sync"], name: "index_users_on_calendar_needs_sync"
+    t.index ["calendar_needs_sync"], name: "index_users_needing_calendar_sync", where: "calendar_needs_sync"
     t.index ["calendar_token"], name: "index_users_on_calendar_token", unique: true
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
@@ -1104,9 +1154,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
   add_foreign_key "calendar_events", "university_calendar_events", on_delete: :nullify
   add_foreign_key "calendar_preferences", "users"
   add_foreign_key "calendars", "oauth_credentials"
+  add_foreign_key "catalog_courses", "terms", column: "source_term_id"
   add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "course_meeting_time_rooms", "rooms"
   add_foreign_key "course_meeting_times", "courses"
+  add_foreign_key "course_prerequisites", "catalog_courses", column: "required_catalog_course_id", on_delete: :nullify
+  add_foreign_key "course_prerequisites", "catalog_courses", on_delete: :cascade
   add_foreign_key "courses", "terms"
   add_foreign_key "courses_faculties", "courses"
   add_foreign_key "courses_faculties", "faculties"
@@ -1147,6 +1200,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_220000) do
   add_foreign_key "related_professors", "faculties", column: "related_faculty_id"
   add_foreign_key "rmp_ratings", "faculties"
   add_foreign_key "rooms", "buildings"
+  add_foreign_key "section_links", "courses", column: "linked_course_id", on_delete: :cascade
+  add_foreign_key "section_links", "courses", on_delete: :cascade
   add_foreign_key "security_events", "oauth_credentials"
   add_foreign_key "security_events", "users"
   add_foreign_key "sign_in_identities", "users"

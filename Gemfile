@@ -15,8 +15,6 @@ gem "tailwindcss-rails", "~> 4.6"
 gem "turbo-rails", "~> 2.0"
 gem "stimulus-rails", "~> 1.3"
 
-# Renders the public API reference from the markdown file in docs/
-gem "redcarpet", "~> 3.6"
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
 # Database-backed adapters for cache and jobs
@@ -47,8 +45,14 @@ gem "webauthn", "~> 3.4"
 gem "omniauth-google-oauth2", "~> 1.2"
 gem "omniauth-entra-id", "~> 3.1"
 gem "omniauth-rails_csrf_protection", "~> 2.0"
-gem "google-apis-calendar_v3", "~> 0.57.0"
+gem "google-apis-calendar_v3", "~> 0.58.0"
 gem "googleauth", "~> 1.17"
+
+# OAuth 2.1 authorization server for MCP clients (docs/mcp.md)
+gem "doorkeeper", "~> 5.9"
+
+# Model Context Protocol server (docs/mcp.md)
+gem "mcp", "~> 1.7"
 
 # Authorization
 gem "pundit", "~> 2.5"
@@ -132,4 +136,9 @@ group :test do
   gem "shoulda-matchers", "~> 8.0"
   gem "simplecov", "~> 1.3", require: false
   gem "webmock", "~> 3.26"
+
+  # System specs drive headless Chrome over CDP, so the Stimulus controllers
+  # run in a real browser. See spec/support/system.rb.
+  gem "capybara", "~> 3.40"
+  gem "cuprite", "~> 0.18"
 end

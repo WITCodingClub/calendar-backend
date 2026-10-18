@@ -34,10 +34,29 @@ jobs:
         with:
           ref: ${{ env.DEPLOY_SHA }}
 
+      # Every merge to main starts a deploy, and deploys run one at a time. A
+      # burst of merges would deploy each commit in turn. When main has moved
+      # past this commit, skip it: the run for the newest commit deploys them
+      # all at once. A manual run (workflow_dispatch) always deploys.
+      - name: Skip when main has moved on
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          main_sha=$(git ls-remote --quiet origin refs/heads/main | cut -f1)
+          if [ "$EVENT_NAME" != "workflow_dispatch" ] && [ "$main_sha" != "$DEPLOY_SHA" ]; then
+            echo "main is at ${main_sha:0:8}, this run is for ${DEPLOY_SHA:0:8}. A later run deploys main."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Docker Buildx
+        if: steps.gate.outputs.skip != 'true'
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to ghcr.io
+        if: steps.gate.outputs.skip != 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -45,6 +64,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push image
+        if: steps.gate.outputs.skip != 'true'
         id: build
         uses: docker/build-push-action@v7
         with:
@@ -58,6 +78,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Deploy to alastor
+        if: steps.gate.outputs.skip != 'true'
         env:
           DEPLOY_KEY: ${{ secrets.WIT_CALENDAR_DEPLOY_KEY }}
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -67,17 +88,20 @@ jobs:
           echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
 
+          # wit-calendar-deploy (infra, modules/wit-calendar) starts the idle
+          # slot with the new image, waits for /up, then stops the old slot.
+          # The site keeps serving during the swap. See docs/deploy.md.
           ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=10 \
             wit-calendar-deploy@"$SERVER_HOST" \
-            "echo '$IMAGE' > /var/lib/wit-calendar/image-ref && \
-             sudo systemctl restart wit-calendar-web"
+            "sudo -n wit-calendar-deploy '$IMAGE'"
 
       - name: Check health
+        if: steps.gate.outputs.skip != 'true'
         run: |
-          # systemctl restart stops the old container before the new one starts,
-          # so a 200 here comes from the new container. The x-runtime header
+          # The deploy command returns only after the new slot answers /up, so
+          # a 200 here comes from the new container. The x-runtime header
           # shows that Rails answered, not the Cloudflare website Worker.
           deadline=$((SECONDS + 180))
           while [ "$SECONDS" -lt "$deadline" ]; do

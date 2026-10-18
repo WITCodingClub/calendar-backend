@@ -16,7 +16,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 
 | Namespace | What it holds |
 |---|---|
-| `Catalog` | The course catalog: import, snapshot, LeopardWeb client, queries, serializers, semantic search |
+| `Catalog` | The course catalog: import, snapshot, LeopardWeb client, queries, serializers, semantic search (upkeep: `docs/catalog-maintenance.md`) |
 | `Courses` | A user's course list: enrollments, processed events |
 | `CourseCalendars` | Calendar sync for every provider: sync jobs, provider selection, sync markers, the ICS feed |
 | `GoogleCalendar` | Google Calendar: the provider, event labels, colors, rate limits, calendar jobs |
@@ -24,6 +24,9 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `GoogleSignIn` | Google sign-in and account linking: token checks, code exchange, OAuth state |
 | `MicrosoftSignIn` | Sign-in with a WIT Microsoft account |
 | `OauthCredentials` | Token refresh and revoke for every provider |
+| `Oauth` | The OAuth 2.1 server for MCP clients: consent page, client registration, metadata (`docs/mcp.md`) |
+| `McpTools` | The MCP server and its read-only tools (`docs/mcp.md`) |
+| `McpPlatforms` | The addresses of hosted MCP clients, which skip the per-IP rate limits (`docs/mcp.md`) |
 | `Risc` | Google RISC security events |
 | `FriendMeetings`, `Friendships`, `MeetingLinks` | Friends features |
 | `Faculties` | The faculty directory and RateMyProfessor |
@@ -64,6 +67,26 @@ flowchart TD
 - **API route files:** `routes/api.rb` draws each file in `routes/api/` inside `namespace :api`. Put a new API route in the file for its area. The catch-all route stays last in `routes/api.rb`.
 - **API:** every API controller inherits from `Api::BaseController`. `CLAUDE.md` has the rules for auth, errors, and old paths.
 - **Fixed URLs:** the OAuth callbacks, `/risc/events`, and `/calendar/:token` never change. Google, Microsoft, and calendar apps store them.
+
+## Views
+
+Issue #699 set these rules for the dashboard and the sign-in pages. The admin pages use the partials in `app/views/admin/shared/`.
+
+- **Shared partials** live in `app/views/shared/`. Use them before you write the markup again:
+
+  | Partial | Use |
+  |---|---|
+  | `page_header` | The title of a page, with an optional `back:` link, `description:`, and actions in the block |
+  | `back_link` | A link back to the parent page, when the page has no `page_header` |
+  | `section_card` | A card with a titled header. The block is the body |
+  | `list_link_row` | One link row with a title, a hint, and a chevron |
+  | `empty_state` | A card for a list with no items. The block holds the next step |
+  | `status_card` | The result card of the OAuth and passkey pages |
+
+- **Icons:** call `icon(:name, css_class: "w-4 h-4")` from `IconHelper`. Add a new icon to `IconHelper::ICONS` (outline) or `FILLED_ICONS`. Do not paste an inline `<svg>`. `logo_mark(:small)`, `(:medium)`, or `(:large)` draws the logo.
+- **Page widths:** wrap each dashboard page in one width class. `m3-page-narrow` is for one form or a few settings, `m3-page-medium` is for lists of records, and `m3-page-wide` is for calendars.
+- **Buttons and badges:** use the `m3-btn-*` and `m3-badge-*` classes in `app/assets/tailwind/application.css`. `m3-btn-provider` is the sign-in button for Google, Microsoft, and passkeys.
+- **JavaScript:** put page code in a Stimulus controller, not an inline script. Shared modules live in `app/javascript/lib/`, for example `lib/webauthn`.
 
 ## Renaming a job
 

@@ -66,6 +66,13 @@ RSpec.describe Catalog::CourseDataSyncJob do
     )
   end
 
+  it "enqueues the course details sync for each term it syncs" do
+    stub_leopard_web([ banner_meeting_time(room: "308") ])
+
+    expect { described_class.perform_now(term_uids: [ term.uid ]) }
+      .to have_enqueued_job(Catalog::CourseDetailsSyncJob).with(term.uid)
+  end
+
   it "writes the new room when the registrar moves the section" do
     stub_leopard_web([ banner_meeting_time(room: "308") ])
 
@@ -99,6 +106,26 @@ RSpec.describe Catalog::CourseDataSyncJob do
     expect(course.meeting_times.reload.pluck(:id).sort).to eq(ids_before)
   end
 
+  # Courses::Processor serves a section from the catalog when this is recent.
+  it "records when Banner confirmed the section, even when nothing changed" do
+    stub_leopard_web([ banner_meeting_time ])
+
+    freeze_time do
+      described_class.perform_now
+
+      expect(course.reload.banner_synced_at).to eq(Time.current)
+    end
+  end
+
+  it "leaves the confirmation time alone when Banner returns nothing for the section" do
+    stub_leopard_web([])
+    allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(nil)
+
+    described_class.perform_now
+
+    expect(course.reload.banner_synced_at).to be_nil
+  end
+
   it "keeps the stored meeting times when Banner returns none" do
     stub_leopard_web([])
 
@@ -106,6 +133,39 @@ RSpec.describe Catalog::CourseDataSyncJob do
 
     expect(course.meeting_times.reload.count).to eq(2)
     expect(linked_rooms).to eq([ [ "IRAH", "112" ] ])
+  end
+
+  describe "credit hours" do
+    # getClassDetails gives the course's credits, so it says 4 for a lab.
+    it "keeps the section's own credit hours from the import" do
+      course.update!(schedule_type: "LAB", credit_hours: nil)
+      stub_leopard_web([ banner_meeting_time ])
+
+      described_class.perform_now
+
+      expect(course.reload.credit_hours).to be_nil
+    end
+  end
+
+  describe "section links" do
+    it "fetches Banner's pairs for a linked section" do
+      course.update!(is_section_linked: true, link_identifier: "A1")
+      stub_leopard_web([ banner_meeting_time ])
+      allow(Catalog::SectionLinksSync).to receive(:call)
+
+      described_class.perform_now
+
+      expect(Catalog::SectionLinksSync).to have_received(:call).with(course)
+    end
+
+    it "sends no link request for a section that is not linked" do
+      stub_leopard_web([ banner_meeting_time ])
+      allow(Catalog::SectionLinksSync).to receive(:call)
+
+      described_class.perform_now
+
+      expect(Catalog::SectionLinksSync).not_to have_received(:call)
+    end
   end
 
   describe "term selection" do
@@ -215,6 +275,19 @@ RSpec.describe Catalog::CourseDataSyncJob do
       described_class.perform_now
 
       expect(course.reload.faculties.map(&:email)).to eq([ "minevichi@wit.edu" ])
+    end
+  end
+
+  describe "when Banner cools down" do
+    it "stops the run, reports nothing, and tries again after the cooldown" do
+      course
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+      reports = capture_error_reports do
+        expect { described_class.perform_now(term_uids: [ term.uid ]) }.to have_enqueued_job(described_class)
+      end
+
+      expect(reports).to be_empty
     end
   end
 end

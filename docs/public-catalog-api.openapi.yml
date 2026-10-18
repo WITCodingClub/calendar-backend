@@ -48,6 +48,8 @@ tags:
     description: Faculty who teach at least one section
   - name: reviews
     description: Rate My Professors reviews of WIT instructors
+  - name: courses
+    description: Courses across terms, with Banner's description and prerequisites
 
 paths:
   /api/v1/catalog/terms:
@@ -183,6 +185,81 @@ paths:
                     properties:
                       count: { type: integer }
                       term_uid: { type: [integer, "null"] }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/schedule_check:
+    get:
+      tags: [sections]
+      operationId: checkSchedule
+      summary: Check a set of sections taken together
+      description: >-
+        Time conflicts (same day, overlapping times and dates), linked lecture and
+        lab pairs from Banner, the same course twice, and totals for the week.
+      parameters:
+        - name: term_uid
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: crn
+          in: query
+          required: true
+          description: Comma-separated CRNs, at most 30, including labs.
+          schema: { type: string }
+      responses:
+        "200":
+          description: The check
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      term: { type: object }
+                      sections: { type: array, items: { type: object } }
+                      not_found: { type: array, items: { type: integer } }
+                      cancelled: { type: array, items: { type: integer } }
+                      conflicts:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            crns: { type: array, items: { type: integer } }
+                            day: { type: string }
+                            times: { type: array, items: { type: string } }
+                      link_problems:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            crn: { type: integer }
+                            problem: { type: string, enum: [missing_partner, unverified_link] }
+                            message: { type: string }
+                            source: { type: string, enum: [banner, link_identifier] }
+                            partner_crns: { type: array, items: { type: integer } }
+                            partner_options: { type: array, items: { type: array, items: { type: integer } } }
+                      duplicates:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            course_code: { type: string }
+                            crns: { type: array, items: { type: integer } }
+                      totals:
+                        type: object
+                        properties:
+                          credit_hours: { type: integer }
+                          days: { type: array, items: { type: string } }
+                          earliest_start: { type: [string, "null"] }
+                          latest_end: { type: [string, "null"] }
+                          meetings_before_nine: { type: integer }
+        "400": { $ref: "#/components/responses/InvalidFilter" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -384,7 +461,7 @@ paths:
         - $ref: "#/components/parameters/TermUid"
         - name: q
           in: query
-          description: Match the first, last, or display name.
+          description: Each word must match the first, last, or display name.
           schema: { type: string }
         - name: semantic
           in: query
@@ -417,12 +494,16 @@ paths:
     get:
       tags: [instructors]
       operationId: getInstructor
-      summary: Get one instructor by public id
+      summary: Get one instructor by public id, with Rate My Professors details
       parameters:
         - name: pub_id
           in: path
           required: true
           schema: { type: string }
+        - name: term_uid
+          in: query
+          description: Also list the sections the instructor teaches in this term.
+          schema: { type: integer }
       responses:
         "200":
           description: The instructor
@@ -435,7 +516,7 @@ paths:
                 type: object
                 required: [data]
                 properties:
-                  data: { $ref: "#/components/schemas/Instructor" }
+                  data: { $ref: "#/components/schemas/InstructorDetail" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
@@ -474,6 +555,74 @@ paths:
                     properties:
                       pub_id: { type: string }
                       limit: { type: integer }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/courses:
+    get:
+      tags: [courses]
+      operationId: listCourses
+      summary: Search courses (not sections) by code or title words
+      parameters:
+        - name: q
+          in: query
+          description: A course code such as "COMP 2350", or words in the title.
+          schema: { type: string }
+        - name: subject
+          in: query
+          description: Subject codes, comma-separated.
+          schema: { type: string, examples: ["COMP,MATH"] }
+        - $ref: "#/components/parameters/TermUid"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: One page of courses, by subject and number
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/CourseSummary" }
+                  meta: { $ref: "#/components/schemas/PageMeta" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/courses/{code}:
+    get:
+      tags: [courses]
+      operationId: getCourse
+      summary: Get one course with its description, prerequisites, and what it unlocks
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: The course code, such as COMP2350 or "COMP 2350".
+          schema: { type: string }
+        - name: term_uid
+          in: query
+          description: Also list the course's sections in this term.
+          schema: { type: integer }
+      responses:
+        "200":
+          description: The course
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Course" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
@@ -690,8 +839,18 @@ components:
           properties:
             required: { type: boolean }
             identifier: { type: [string, "null"] }
+            source:
+              type: string
+              enum: [banner, link_identifier]
+              description: >-
+                banner is Banner's own pairs. link_identifier is a guess from the
+                link identifiers, used until Banner's pairs are fetched. The guess can be wrong.
             crns: { type: array, items: { type: integer } }
             pub_ids: { type: array, items: { type: string } }
+            options:
+              type: array
+              description: Each list is one set of partner CRNs to take together. Pick any one set.
+              items: { type: array, items: { type: integer } }
         start_date: { type: string, format: date }
         end_date: { type: string, format: date }
         instructors:
@@ -766,6 +925,74 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Rmp"
             - type: "null"
+
+    CourseSummary:
+      type: object
+      required: [code, subject_code, course_number, typically_offered]
+      properties:
+        code: { type: string, examples: ["COMP 2350"] }
+        subject_code: { type: string }
+        course_number: { type: integer }
+        title: { type: [string, "null"] }
+        credit_hours: { type: [integer, "null"] }
+        typically_offered:
+          type: array
+          items: { type: string, enum: [fall, spring, summer] }
+
+    Course:
+      allOf:
+        - $ref: "#/components/schemas/CourseSummary"
+        - type: object
+          properties:
+            description: { type: [string, "null"] }
+            prerequisites:
+              description: >-
+                An and/or tree. A node is {type: "and"|"or", operands}, {type: "course",
+                subject_code, course_number, code, title, linked, min_grade, level}, or
+                {type: "test", name, score}. Null when the course has none.
+              type: [object, "null"]
+            corequisites:
+              type: array
+              items: { type: object }
+            restrictions:
+              type: array
+              items:
+                type: object
+                properties:
+                  heading: { type: string }
+                  values: { type: array, items: { type: string } }
+            unlocks:
+              type: array
+              items: { $ref: "#/components/schemas/CourseSummary" }
+            details_term_uid: { type: [integer, "null"] }
+            details_fetched_at: { type: [string, "null"], format: date-time }
+            sections:
+              type: array
+              items: { $ref: "#/components/schemas/Section" }
+
+    InstructorDetail:
+      allOf:
+        - $ref: "#/components/schemas/Instructor"
+        - type: object
+          properties:
+            rating_distribution:
+              description: How many ratings gave each score, 1 to 5. Null with no ratings.
+              type: [object, "null"]
+            rmp_tags:
+              type: array
+              items:
+                type: object
+                properties:
+                  name: { type: string }
+                  count: { type: integer }
+            recent_reviews:
+              type: array
+              items: { $ref: "#/components/schemas/Review" }
+            review_count: { type: integer }
+            reviews_source: { type: string }
+            sections:
+              type: array
+              items: { $ref: "#/components/schemas/Section" }
 
     Review:
       type: object

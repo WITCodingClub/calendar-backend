@@ -107,6 +107,15 @@ jobs:
           HASHID_SALT: ci_test_salt
         run: bin/rails db:test:prepare && bundle exec rspec
 
+      # A failing system spec saves a screenshot of the page.
+      - name: Upload system spec screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: capybara-screenshots
+          path: tmp/capybara
+          if-no-files-found: ignore
+
   zeitwerk:
     runs-on: ubuntu-latest
     env:

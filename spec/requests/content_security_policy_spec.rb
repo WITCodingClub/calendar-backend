@@ -17,10 +17,14 @@ RSpec.describe "Content Security Policy" do
     expect(nonce).to be_present
   end
 
-  it "puts the nonce on the inline script of the sign-in page" do
+  # The passkey code is a Stimulus controller, so Turbo can show the page
+  # with the nonce of an earlier page.
+  it "has no inline script on the sign-in page" do
     get "/users/sign_in"
 
-    expect(response.body).to include(%(<script nonce="#{nonce}">))
+    scripts = Nokogiri::HTML(response.body).css("script").reject { |script| script["src"] || script["type"] == "importmap" }
+    expect(scripts.map(&:text).join).not_to include("navigator.credentials")
+    expect(response.body).to include('data-controller="passkey-sign-in"')
   end
 
   it "keeps the nonce in style-src out, so inline style attributes still work" do
@@ -29,21 +33,23 @@ RSpec.describe "Content Security Policy" do
     expect(policy[/style-src [^;]*/]).to eq("style-src 'self' 'unsafe-inline'")
   end
 
-  it "puts the nonce on the inline script of the passkey page" do
+  it "passes the passkey page values to its Stimulus controller, not an inline script" do
     get "/passkey", params: { mode: "authenticate", redirect_uri: "https://aceelinogfcceklkpacakdeddnaakicj.chromiumapp.org/" }
 
-    expect(response.body).to include(%(<script type="module" nonce="#{nonce}">))
+    expect(response.body).to include('data-controller="passkey-ceremony"')
+    expect(response.body).not_to include("navigator.credentials")
   end
 
-  it "escapes a value that could close the script tag on the passkey page" do
+  it "escapes a value that could close a tag on the passkey page" do
     get "/passkey", params: {
       mode: "authenticate",
       redirect_uri: "https://aceelinogfcceklkpacakdeddnaakicj.chromiumapp.org/",
       state: "</script><script>alert(1)</script>"
     }
 
-    expect(response.body).not_to include("</script><script>alert(1)")
-    expect(response.body).to include('</script>')
+    expect(response.body).not_to include("<script>alert(1)")
+    expect(Nokogiri::HTML(response.body).at_css("[data-passkey-ceremony-state-value]")["data-passkey-ceremony-state-value"])
+      .to eq("</script><script>alert(1)</script>")
   end
 
   it "puts the nonce on the inline scripts of the OAuth result pages" do
@@ -57,12 +63,10 @@ RSpec.describe "Content Security Policy" do
     expect(response.body).to include(%(<script nonce="#{nonce}">))
   end
 
-  it "puts the nonce on the docs scripts and lets Mermaid load from its CDN path" do
-    get "/docs/api"
+  it "allows scripts from no other host" do
+    get "/404"
 
-    expect(response.body).to include(%(<script type="module" nonce="#{nonce}">))
-    expect(response.body).to include(%(<script type="application/ld+json" nonce="#{nonce}">))
-    expect(policy).to include("https://cdn.jsdelivr.net/npm/mermaid@11/")
+    expect(policy).to match(/script-src 'self' 'nonce-[^']+';/)
   end
 
   # Turbo Drive keeps the policy of the first full page load, so a page that
@@ -77,13 +81,5 @@ RSpec.describe "Content Security Policy" do
 
     expect(response).to have_http_status(:ok)
     expect(nonce).to eq(first)
-  end
-
-  # A visitor with no session gets a new nonce on each page, so the sign-in
-  # page asks Turbo for a full page load.
-  it "makes Turbo load the sign-in page in full" do
-    get "/users/sign_in"
-
-    expect(response.body).to include('<meta name="turbo-visit-control" content="reload">')
   end
 end

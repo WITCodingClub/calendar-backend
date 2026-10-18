@@ -5,6 +5,7 @@
 # Table name: courses
 #
 #  id                :bigint           not null, primary key
+#  banner_synced_at  :datetime
 #  course_number     :integer          not null
 #  credit_hours      :integer
 #  crn               :integer          not null
@@ -14,6 +15,7 @@
 #  grade_mode        :string
 #  is_section_linked :boolean          default(FALSE), not null
 #  link_identifier   :string
+#  links_fetched_at  :datetime
 #  schedule_type     :string           not null
 #  seats_available   :integer
 #  seats_capacity    :integer
@@ -44,6 +46,8 @@ RSpec.describe Course, type: :model do
     subject { create(:course) }
 
     it { is_expected.to belong_to(:term) }
+    it { is_expected.to have_many(:section_links).dependent(:delete_all) }
+    it { is_expected.to have_many(:banner_linked_courses).through(:section_links).source(:linked_course) }
     it { is_expected.to have_many(:course_faculties).dependent(:destroy) }
     it { is_expected.to have_many(:faculties).through(:course_faculties) }
     it { is_expected.to have_many(:meeting_times).class_name("Course::MeetingTime").dependent(:destroy) }

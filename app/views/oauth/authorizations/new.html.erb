@@ -1,0 +1,51 @@
+<% content_for :title, "Connect an app" %>
+<% redirect_host = Oauth::RedirectUris.hosts(@pre_auth.redirect_uri).first || @pre_auth.redirect_uri %>
+
+<%= render layout: "devise/shared/card", locals: { heading: "Connect #{@pre_auth.client.name}?", intro: "Signed in as #{current_resource_owner.email}", links: false } do %>
+  <div class="space-y-4 text-sm text-on-surface">
+    <% groups = consent_scopes.groups %>
+    <p>
+      An app wants to use your WIT Calendar data. After you allow it, it sends you back to
+      <strong class="break-all"><%= redirect_host %></strong>.
+      Allow it only if you started this from that app.
+    </p>
+
+    <% if Oauth::ClientMetadataDocument.client_id?(@pre_auth.client.uid) %>
+      <p class="text-on-surface-variant">
+        <%= URI.parse(@pre_auth.client.uid).host %> publishes this app's name and addresses.
+      </p>
+    <% end %>
+
+    <%= form_tag oauth_authorization_path, method: :post, data: { turbo: false }, class: "space-y-4" do %>
+      <%= render "oauth/authorizations/fields", pre_auth: @pre_auth, resource: params[:resource] %>
+
+      <fieldset class="space-y-2">
+        <legend class="font-medium">It can read</legend>
+        <p class="text-on-surface-variant">The course catalog and the university calendar</p>
+        <% groups.fetch(:read, []).each do |item| %>
+          <%= render "oauth/authorizations/scope", item: item %>
+        <% end %>
+      </fieldset>
+
+      <% if groups.key?(:change) %>
+        <fieldset class="space-y-2">
+          <legend class="font-medium">It can change, if you allow it</legend>
+          <% groups[:change].each do |item| %>
+            <%= render "oauth/authorizations/scope", item: item %>
+          <% end %>
+        </fieldset>
+      <% else %>
+        <p class="text-on-surface-variant">It cannot change anything.</p>
+      <% end %>
+
+      <p class="text-on-surface-variant">You can disconnect it at any time in Settings.</p>
+
+      <%= submit_tag "Allow", class: "m3-btn-filled w-full justify-center" %>
+    <% end %>
+
+    <%= form_tag oauth_authorization_path, method: :delete, data: { turbo: false } do %>
+      <%= render "oauth/authorizations/fields", pre_auth: @pre_auth, resource: params[:resource] %>
+      <%= submit_tag "Deny", class: "m3-btn-outlined w-full justify-center" %>
+    <% end %>
+  </div>
+<% end %>

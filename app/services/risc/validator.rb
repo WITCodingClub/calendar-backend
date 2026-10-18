@@ -13,6 +13,10 @@ module Risc
     class InvalidAudienceError < ValidationError; end
     class InvalidSignatureError < ValidationError; end
     class KeyNotFoundError < ValidationError; end
+    # Google's config or JWKS could not be fetched. This says nothing about the
+    # token, so it is not a ValidationError: the job retries it and does not
+    # discard the event.
+    class FetchError < StandardError; end
 
     RISC_CONFIGURATION_URL = "https://accounts.google.com/.well-known/risc-configuration"
     CACHE_DURATION = 1.hour
@@ -20,6 +24,9 @@ module Risc
     # These fetches run in the request path. A slow Google must not hold a Puma thread for 60 s.
     OPEN_TIMEOUT = 5
     READ_TIMEOUT = 10
+    # A token with an unknown kid makes one JWKS refetch. This limits how often
+    # a flood of forged kids can make us call Google.
+    JWKS_REFETCH_COOLDOWN = 1.minute
 
     def initialize
       @risc_config = fetch_risc_configuration
@@ -33,7 +40,7 @@ module Risc
 
       raise KeyNotFoundError, "Token missing key ID (kid) in header" if key_id.blank?
 
-      public_key = get_public_key(key_id)
+      public_key = get_public_key(key_id) || refetch_public_key(key_id)
       raise KeyNotFoundError, "Public key not found for key ID: #{key_id}" if public_key.nil?
 
       decoded = JWT.decode(
@@ -94,7 +101,7 @@ module Risc
         uri = URI.parse(RISC_CONFIGURATION_URL)
         response = get_response(uri)
 
-        raise ValidationError, "Failed to fetch RISC configuration: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+        raise FetchError, "Failed to fetch RISC configuration: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
         result = JSON.parse(response.body)
         Rails.cache.write("risc_configuration:stale", result, expires_in: STALE_BACKUP_DURATION)
@@ -113,16 +120,7 @@ module Risc
       jwks_uri = @risc_config["jwks_uri"]
       raise ValidationError, "JWKS URI not found in RISC configuration" if jwks_uri.blank?
 
-      Rails.cache.fetch("risc_jwks", expires_in: CACHE_DURATION) do
-        uri = URI.parse(jwks_uri)
-        response = get_response(uri)
-
-        raise ValidationError, "Failed to fetch JWKS: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
-
-        result = JSON.parse(response.body)
-        Rails.cache.write("risc_jwks:stale", result, expires_in: STALE_BACKUP_DURATION)
-        result
-      end
+      Rails.cache.fetch("risc_jwks", expires_in: CACHE_DURATION) { download_jwks }
     rescue => e
       stale = Rails.cache.read("risc_jwks:stale")
       if stale.present?
@@ -130,6 +128,32 @@ module Risc
         return stale
       end
       raise
+    end
+
+    def download_jwks
+      uri = URI.parse(@risc_config["jwks_uri"])
+      response = get_response(uri)
+
+      raise FetchError, "Failed to fetch JWKS: #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+
+      result = JSON.parse(response.body)
+      Rails.cache.write("risc_jwks:stale", result, expires_in: STALE_BACKUP_DURATION)
+      result
+    end
+
+    # Google rotates its signing keys. The cached JWKS can miss a new key for up
+    # to an hour, so an unknown kid gets one fresh fetch before the token is
+    # rejected. A failed fetch raises FetchError and does not fall back to the
+    # stale copy, because that copy lacks the key too.
+    def refetch_public_key(key_id)
+      if Rails.cache.write("risc_jwks:refetched", true, expires_in: JWKS_REFETCH_COOLDOWN, unless_exist: true)
+        @jwks = download_jwks
+        Rails.cache.write("risc_jwks", @jwks, expires_in: CACHE_DURATION)
+      else
+        @jwks = fetch_jwks
+      end
+
+      get_public_key(key_id)
     end
 
     def get_public_key(key_id)

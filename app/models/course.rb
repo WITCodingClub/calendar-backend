@@ -5,6 +5,7 @@
 # Table name: courses
 #
 #  id                :bigint           not null, primary key
+#  banner_synced_at  :datetime
 #  course_number     :integer          not null
 #  credit_hours      :integer
 #  crn               :integer          not null
@@ -14,6 +15,7 @@
 #  grade_mode        :string
 #  is_section_linked :boolean          default(FALSE), not null
 #  link_identifier   :string
+#  links_fetched_at  :datetime
 #  schedule_type     :string           not null
 #  seats_available   :integer
 #  seats_capacity    :integer
@@ -52,6 +54,9 @@ class Course < ApplicationRecord
 
   # Ordered on the join so `faculties.first` is Banner's primary instructor and
   # not whichever join row happens to be oldest.
+  # Banner's lecture and lab pairs for this section (Catalog::SectionLinksSync).
+  has_many :section_links, dependent: :delete_all
+  has_many :banner_linked_courses, through: :section_links, source: :linked_course
   has_many :course_faculties, -> { in_banner_order }, dependent: :destroy, inverse_of: :course
   has_many :faculties, through: :course_faculties
   has_many :meeting_times, class_name: "Course::MeetingTime", dependent: :destroy

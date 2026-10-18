@@ -39,7 +39,7 @@ module GoogleCalendar
 
     # Without force, the person's edits in Google win: an edited field keeps
     # the person's value, and an edited recurrence keeps the whole event.
-    # An event that is gone from Google is made again.
+    # An event that is gone from Google is made again, also with force.
     #
     # Returns :updated, :skipped_no_change, :skipped_user_edit, or :recreated.
     def update(service, course_calendar, db_event, course_event, force: false, labels: nil)
@@ -53,30 +53,21 @@ module GoogleCalendar
       newly_edited_fields = []
 
       unless force
-        begin
-          current_gcal_event = rate_limiter.with_rate_limit_handling { service.get_event(calendar_id, db_event.external_event_id) }
-          edits              = EventEdits.new(db_event, current_gcal_event)
+        current_gcal_event = rate_limiter.with_rate_limit_handling { service.get_event(calendar_id, db_event.external_event_id) }
+        edits              = EventEdits.new(db_event, current_gcal_event)
 
-          newly_edited_fields = edits.edited_fields
+        newly_edited_fields = edits.edited_fields
 
-          if edits.recurrence_changed?
-            Rails.logger.info "User edited recurrence in Google Calendar: #{db_event.external_event_id}. Preserving user changes."
-            keep_remote_event(db_event, edits)
-            db_event.mark_synced!
-            return :skipped_user_edit
-          end
-        rescue Google::Apis::ClientError => e
-          raise unless e.status_code == 404
-
-          Rails.logger.warn({ message: "Event not found in Google Calendar, recreating",
-                              user_id: user.id, external_event_id: db_event.external_event_id }.to_json)
-          db_event.destroy
-          create(service, course_calendar, course_event, course_event, labels: labels)
-          return :recreated
+        if edits.recurrence_changed?
+          Rails.logger.info "User edited recurrence in Google Calendar: #{db_event.external_event_id}. Preserving user changes."
+          keep_remote_event(db_event, edits)
+          db_event.mark_synced!
+          return :skipped_user_edit
         end
       end
 
-      all_edited_fields = force ? [] : ((db_event.user_edited_fields || []) + newly_edited_fields).uniq
+      # Rows from before EventEdits stopped counting the description can still list it.
+      all_edited_fields = force ? [] : ((db_event.user_edited_fields || []) - [ "description" ] + newly_edited_fields).uniq
 
       merged_event_data = if all_edited_fields.any? && current_gcal_event
                             EventEdits.new(db_event, current_gcal_event).merge(course_event, all_edited_fields)
@@ -105,6 +96,15 @@ module GoogleCalendar
                           color_id: merged_event_data[:color_id], user_edited_fields: all_edited_fields }.to_json)
 
       :updated
+    rescue Google::Apis::ClientError => e
+      raise unless self.class.event_already_deleted?(e)
+
+      Rails.logger.warn({ message: "Event not found in Google Calendar, recreating",
+                          user_id: user.id, external_event_id: db_event.external_event_id }.to_json)
+      db_event.skip_remote_deletion = true
+      db_event.destroy
+      create(service, course_calendar, course_event, course_event, labels: labels)
+      :recreated
     end
 
     # Deletes the event and its row. An event that is already gone from Google

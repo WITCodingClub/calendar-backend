@@ -23,5 +23,14 @@ RSpec.describe "Admin user enrollments", type: :request do
 
       expect(response.body).to include("Zelda Quill")
     end
+
+    it "links each enrolled course to its admin page" do
+      course = create(:course)
+      create(:enrollment, user: user, course: course)
+
+      get admin_user_path(user)
+
+      expect(response.body).to include(%(href="#{admin_course_path(course)}"))
+    end
   end
 end

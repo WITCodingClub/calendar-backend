@@ -82,6 +82,24 @@ RSpec.describe Catalog::Importer do
     end
   end
 
+  describe "catalog_imported" do
+    let!(:other_term) do
+      create(:term, uid: 202720, season: :spring, year: 2027,
+             start_date: Date.new(2027, 1, 18), end_date: Date.new(2027, 5, 7))
+    end
+
+    it "marks only the terms that had a course imported" do
+      good = catalog_row(crn: 41001, sequence: "01")
+      bad  = catalog_row(crn: 41002, sequence: "01", schedule_type: "Made Up Type (ZZZ)").merge("term" => "202720")
+
+      result = described_class.call([ good, bad ])
+
+      expect(result).to include(processed: 1, failed: 1)
+      expect(term.reload.catalog_imported).to be(true)
+      expect(other_term.reload.catalog_imported).to be(false)
+    end
+  end
+
   # One entry of the searchResults payload, cut down to the keys the service
   # reads. Seat counts come from this same payload, so importing them needs no
   # extra request to LeopardWeb.
@@ -231,6 +249,43 @@ RSpec.describe Catalog::Importer do
 
       expect(imported_course.faculties.map(&:email))
         .to eq([ "sandersone1@wit.edu", "minevichi@wit.edu" ])
+    end
+  end
+
+  describe "counts and repeated imports" do
+    it "counts a new section as added" do
+      result = described_class.call([ catalog_course ])
+
+      expect(result).to include(created: 1, updated: 0, unchanged: 0)
+    end
+
+    it "changes nothing when the same data is imported twice" do
+      described_class.call([ catalog_course ])
+      before = Course.where(term: term).pluck(:id, :updated_at)
+      meeting_times = Course::MeetingTime.pluck(:id, :updated_at)
+
+      result = described_class.call([ catalog_course ])
+
+      expect(result).to include(created: 0, updated: 0, unchanged: 1)
+      expect(Course.where(term: term).pluck(:id, :updated_at)).to eq(before)
+      expect(Course::MeetingTime.pluck(:id, :updated_at)).to match_array(meeting_times)
+    end
+
+    it "counts a section whose title changed as updated" do
+      described_class.call([ catalog_course ])
+
+      result = described_class.call([ catalog_course("courseTitle" => "Data Structures II") ])
+
+      expect(result).to include(created: 0, updated: 1, unchanged: 0)
+    end
+
+    it "keeps the enrollments of a section it imports again" do
+      described_class.call([ catalog_course ])
+      enrollment = create(:enrollment, course: imported_course)
+
+      described_class.call([ catalog_course("courseTitle" => "Data Structures II") ])
+
+      expect(enrollment.reload.course).to eq(imported_course)
     end
   end
 end

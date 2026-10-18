@@ -46,8 +46,8 @@ class DiscoveryController < ActionController::Base
            content_type: %(application/linkset+json; profile="#{API_CATALOG_PROFILE}")
   end
 
-  # How an agent gets a credential for the personal API. The service has no
-  # OAuth authorization server, so the file stands alone and there is no
-  # /.well-known/oauth-protected-resource document.
+  # How an agent gets a credential for the personal API. The OAuth server
+  # (Oauth::MetadataController) serves MCP clients only, so the extension API
+  # has no /.well-known/oauth-protected-resource document of its own.
   def auth; end
 end

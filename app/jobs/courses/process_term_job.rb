@@ -19,11 +19,23 @@ module Courses
     # the class is renamed. Jobs in the queue hold locks under this name.
     CONCURRENCY_GROUP = "ProcessTermCoursesJob"
 
-    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(user, _term, _courses) { "process_term_courses_user_#{user.id}" }
+    # Banner lookups for a large term can take many minutes, so the lock lasts
+    # longer than the 3-minute default.
+    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(user, _term, _courses) { "process_term_courses_user_#{user.id}" },
+                       duration: 1.hour
 
     # After the last attempt, record the failure and raise again, so the job
     # stays in the failed-jobs list.
     retry_on(*RETRYABLE_ERRORS, wait: :polynomially_longer, attempts: 3) do |job, error|
+      job.mark_failed(:banner_unavailable)
+      raise error
+    end
+
+    # Banner stopped answering, and Catalog::BannerThrottle holds every
+    # request for a few minutes. Wait out the cooldown instead of using up the
+    # quick retries above. Declared after them, so it wins for this error.
+    retry_on(Catalog::BannerThrottle::CooldownError,
+             wait: Catalog::BannerThrottle::COOLDOWN + 30.seconds, attempts: 5) do |job, error|
       job.mark_failed(:banner_unavailable)
       raise error
     end

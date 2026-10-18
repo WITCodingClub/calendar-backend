@@ -16,7 +16,7 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
   HTML
 
   # Banner reports a negative count for a section that holds more students than
-  # its cap. The courses table forbids a negative count.
+  # its cap. The importer stores that number as is, so this client does too.
   OVER_ENROLLED_HTML = <<~HTML
     <section aria-labelledby="enrollmentInfo">
       <span class="status-bold">Enrollment Actual:</span> <span dir="ltr">23</span><br>
@@ -81,15 +81,15 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       expect(result[:waitlist]).to eq(capacity: 0, actual: 0, seats_available: 0)
     end
 
-    it "reports no seat left for an over-enrolled section, not a negative count" do
+    it "keeps the negative count of an over-enrolled section, as the importer does" do
       service = described_class.new(action: :get_enrollment_info, term: 202710,
                                     course_reference_number: 16_962)
       stub_connection(service, body: OVER_ENROLLED_HTML)
 
       result = service.call
 
-      expect(result[:enrollment]).to eq(actual: 23, maximum: 15, seats_available: 0)
-      expect(result[:waitlist][:seats_available]).to eq(0)
+      expect(result[:enrollment]).to eq(actual: 23, maximum: 15, seats_available: -8)
+      expect(result[:waitlist][:seats_available]).to eq(-2)
     end
 
     it "returns nil when the page carries no enrollment section" do
@@ -270,6 +270,76 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       2.times { described_class.get_active_terms }
 
       expect(stub).to have_been_requested.twice
+    end
+  end
+
+  describe "Banner errors" do
+    let(:url) { "#{described_class::BASE_URL}getFacultyMeetingTimes" }
+
+    it "retries a 500 and returns the next answer (Catalog::BannerThrottle)" do
+      stub = stub_request(:get, url).with(query: hash_including("term" => "202720"))
+                                    .to_return({ status: 500 },
+                                               { status: 200, body: { fmt: [] }.to_json,
+                                                 headers: { "Content-Type" => "application/json" } })
+
+      result = described_class.get_faculty_meeting_times(term: 202720, course_reference_number: 20382)
+
+      expect(result).to eq("fmt" => [])
+      expect(stub).to have_been_requested.twice
+    end
+
+    it "raises a RequestError at once while Banner cools down" do
+      stub = stub_request(:get, url).with(query: hash_including({}))
+      Catalog::BannerThrottle::COOLDOWN_AFTER.times { Catalog::BannerThrottle.record_failure }
+
+      expect { described_class.get_faculty_meeting_times(term: 202720, course_reference_number: 20382) }
+        .to raise_error(described_class::RequestError)
+      expect(stub).not_to have_been_requested
+    end
+  end
+
+  describe ".fetch_linked_sections" do
+    let(:url) { "#{described_class::BASE_URL}fetchLinkedSections" }
+
+    def stub_fixture(name)
+      stub_request(:get, url).with(query: { term: "202720", courseReferenceNumber: "20452" })
+                             .to_return(status: 200, body: file_fixture("leopard_web/#{name}").read,
+                                        headers: { "Content-Type" => "application/json" })
+    end
+
+    def fetch = described_class.fetch_linked_sections(term: 202720, course_reference_number: 20452)
+
+    it "returns each option group with Banner's credits" do
+      stub_fixture("linked_sections_options.json")
+
+      expect(fetch).to eq([
+        [ { crn: 20455, credit_hours: 0 } ],
+        [ { crn: 20456, credit_hours: 0 }, { crn: 20459, credit_hours: 0 } ]
+      ])
+    end
+
+    it "returns no groups for a section with no partners" do
+      stub_fixture("linked_sections_none.json")
+
+      expect(fetch).to eq([])
+    end
+
+    it "raises on an error status" do
+      stub_request(:get, url).with(query: hash_including({})).to_return(status: 500, body: "error")
+
+      expect { fetch }.to raise_error(described_class::RequestError)
+    end
+
+    it "raises when the body has no linkedData" do
+      stub_request(:get, url).with(query: hash_including({}))
+                             .to_return(status: 200, body: "{}", headers: { "Content-Type" => "application/json" })
+
+      expect { fetch }.to raise_error(described_class::ParseError)
+    end
+
+    it "needs a term and a CRN" do
+      expect { described_class.fetch_linked_sections(term: nil, course_reference_number: 1) }.to raise_error(ArgumentError)
+      expect { described_class.fetch_linked_sections(term: 1, course_reference_number: nil) }.to raise_error(ArgumentError)
     end
   end
 end

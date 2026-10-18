@@ -146,6 +146,22 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(described_class.in_date_range(Date.new(2026, 11, 2), Date.new(2026, 11, 4))).to contain_exactly(first_day, last_day)
     end
 
+    it ".in_date_range includes an event that started before the range and runs into it" do
+      break_week = event_in("holiday", start_time: Time.zone.local(2026, 10, 7), end_time: Time.zone.local(2026, 10, 11, 23, 59))
+      event_in("holiday", start_time: Time.zone.local(2026, 10, 1), end_time: Time.zone.local(2026, 10, 8, 23, 59))
+      event_in("holiday", start_time: Time.zone.local(2026, 10, 12), end_time: Time.zone.local(2026, 10, 13))
+
+      expect(described_class.in_date_range(Date.new(2026, 10, 9), Date.new(2026, 10, 9))).to include(break_week)
+      expect(described_class.in_date_range(Date.new(2026, 10, 9), Date.new(2026, 10, 9)).count).to eq(1)
+    end
+
+    it ".no_class_dates_between lists only the dates of a multi-day break that fall inside the range" do
+      event_in("holiday", start_time: Time.zone.local(2026, 10, 7), end_time: Time.zone.local(2026, 10, 11, 23, 59))
+
+      expect(described_class.no_class_dates_between(Date.new(2026, 10, 9), Date.new(2026, 10, 20)))
+        .to contain_exactly(Date.new(2026, 10, 9), Date.new(2026, 10, 10), Date.new(2026, 10, 11))
+    end
+
     it ".holidays_between returns holidays in the range, earliest first" do
       later = event_in("holiday", start_time: Time.zone.local(2026, 11, 20, 9, 0), end_time: Time.zone.local(2026, 11, 20, 10, 0))
       earlier = event_in("holiday", start_time: Time.zone.local(2026, 11, 10, 9, 0), end_time: Time.zone.local(2026, 11, 10, 10, 0))
@@ -161,6 +177,69 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       event_in("deadline", start_time: Time.zone.local(2026, 11, 13, 9, 0), end_time: Time.zone.local(2026, 11, 13, 10, 0))
 
       expect(described_class.no_class_days_between(Date.new(2026, 11, 1), Date.new(2026, 11, 30))).to eq([ holiday, study, finals ])
+    end
+
+    it ".no_class_spans_between matches the events of no_class_days_between, earliest first" do
+      finals = event_in("finals", start_time: Time.zone.local(2026, 11, 12, 9, 0), end_time: Time.zone.local(2026, 11, 12, 10, 0))
+      break_week = event_in("holiday", start_time: Time.zone.local(2026, 10, 28), end_time: Time.zone.local(2026, 11, 2, 23, 59))
+      event_in("deadline", start_time: Time.zone.local(2026, 11, 13, 9, 0), end_time: Time.zone.local(2026, 11, 13, 10, 0))
+      event_in("holiday", start_time: Time.zone.local(2026, 12, 1), end_time: Time.zone.local(2026, 12, 1, 23, 59))
+
+      spans = described_class.no_class_spans_between(Date.new(2026, 11, 1), Date.new(2026, 11, 30))
+
+      expect(spans).to eq(described_class.no_class_days_between(Date.new(2026, 11, 1), Date.new(2026, 11, 30)).map do |event|
+        UniversityCalendarEvent::NoClassSpan.new(start_time: event.start_time, end_time: event.end_time, updated_at: event.updated_at)
+      end)
+      expect(spans.map(&:start_time)).to eq([ break_week.start_time, finals.start_time ])
+    end
+  end
+
+  describe ".no_class_spans_between caching" do
+    let(:key) { UniversityCalendarEvent::NO_CLASS_SPANS_CACHE_KEY }
+    let(:range) { [ Date.new(2026, 11, 1), Date.new(2026, 11, 30) ] }
+
+    around do |example|
+      original = Rails.cache
+      Rails.cache = ActiveSupport::Cache::MemoryStore.new
+      example.run
+      Rails.cache = original
+    end
+
+    def holiday_on(day)
+      create(:university_calendar_event, category: "holiday", start_time: day, end_time: day + 1.hour)
+    end
+
+    it "reads the spans from Rails.cache after the first call" do
+      holiday_on(Time.zone.local(2026, 11, 10))
+      described_class.no_class_spans_between(*range)
+      allow(described_class).to receive(:where).and_call_original
+
+      expect(described_class.no_class_spans_between(*range).size).to eq(1)
+      expect(described_class).not_to have_received(:where)
+    end
+
+    it "clears the cache when an event is created" do
+      described_class.no_class_spans_between(*range)
+      holiday_on(Time.zone.local(2026, 11, 10))
+
+      expect(Rails.cache.exist?(key)).to be(false)
+      expect(described_class.no_class_spans_between(*range).size).to eq(1)
+    end
+
+    it "clears the cache when an event changes category" do
+      event = holiday_on(Time.zone.local(2026, 11, 10))
+      described_class.no_class_spans_between(*range)
+      event.update!(category: "deadline")
+
+      expect(described_class.no_class_spans_between(*range)).to be_empty
+    end
+
+    it "clears the cache when an event is destroyed" do
+      event = holiday_on(Time.zone.local(2026, 11, 10))
+      described_class.no_class_spans_between(*range)
+      event.destroy!
+
+      expect(described_class.no_class_spans_between(*range)).to be_empty
     end
   end
 
@@ -393,6 +472,8 @@ RSpec.describe UniversityCalendarEvent, type: :model do
   end
 
   describe ".detect_term_dates" do
+    include ActiveSupport::Testing::TimeHelpers
+
     let(:term) { create(:term, year: 2031, season: :fall) }
 
     before { allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: false, terms: []) }
@@ -418,7 +499,38 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: true, terms: [ { code: term.uid } ])
       event_at("Fall 2031 Course Schedule Available", Time.zone.local(2031, 3, 20, 9, 0))
 
-      expect(described_class.detect_term_dates(2031, :fall)[:start_date]).to eq(Time.zone.today)
+      travel_to(Time.zone.local(2031, 4, 2, 12)) do
+        expect(described_class.detect_term_dates(2031, :fall)[:start_date]).to eq(Date.new(2031, 4, 2))
+      end
+    end
+
+    it "ignores a LeopardWeb listing that comes before the term's window" do
+      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: true, terms: [ { code: term.uid } ])
+
+      travel_to(Time.zone.local(2030, 7, 25, 12)) do
+        expect(described_class.detect_term_dates(2031, :fall)[:start_date]).to be_nil
+      end
+    end
+
+    # Summer 2027 got 2026-07-25 and 2026-08-11: LeopardWeb listed it in July
+    # 2026, and the Summer 2026 finals event carried its term id.
+    it "keeps a summer term's dates out of the year before" do
+      summer = create(:term, year: 2031, season: :summer)
+      allow(Catalog::LeopardWebClient).to receive(:get_active_terms).and_return(success: true, terms: [ { code: summer.uid } ])
+      event_at("Final Exam Period", Time.zone.local(2030, 8, 5, 9, 0), end_time: Time.zone.local(2030, 8, 11, 17, 0),
+                                    category: "finals", term: summer)
+
+      travel_to(Time.zone.local(2030, 7, 25, 12)) do
+        expect(described_class.detect_term_dates(2031, :summer)).to eq(start_date: nil, end_date: nil)
+      end
+    end
+
+    it "accepts a spring term's registration date in the fall before" do
+      create(:term, year: 2031, season: :spring)
+      event_at("Spring 2031 Course Schedule Available", Time.zone.local(2030, 10, 15, 9, 0))
+      event_at("Spring 2031 Final Exam Period", Time.zone.local(2031, 4, 20, 9, 0), end_time: Time.zone.local(2031, 4, 25, 17, 0), category: "finals")
+
+      expect(described_class.detect_term_dates(2031, :spring)).to eq(start_date: Date.new(2030, 10, 15), end_date: Date.new(2031, 4, 25))
     end
 
     it "falls back to course end dates when there is no finals event" do

@@ -15,7 +15,9 @@ module Catalog
       validate_courses_data!
 
       processed_count = 0
+      processed_terms = Set.new
       failed_courses = []
+      @changes = { created: 0, updated: 0, unchanged: 0 }
 
       unique_courses = catalog_courses.uniq { |c| [ c["courseReferenceNumber"], c["term"] ] }
 
@@ -36,6 +38,7 @@ module Catalog
         begin
           process_course(course_data)
           processed_count += 1
+          processed_terms << (course_data["term"] || course_data["termEffective"]).to_s
         rescue => e
           Rails.error.report(e, handled: true, context: { crn: course_data["courseReferenceNumber"], term: course_data["term"] })
           failed_courses << {
@@ -52,7 +55,7 @@ module Catalog
 
       term_uids.each do |term_uid|
         term = @terms[term_uid.to_s]
-        next unless term && processed_count > 0
+        next unless term && processed_terms.include?(term_uid.to_s)
 
         term.update!(
           catalog_imported: true,
@@ -65,7 +68,8 @@ module Catalog
         total: unique_courses.count,
         processed: processed_count,
         failed: failed_courses.count,
-        failed_courses: failed_courses
+        failed_courses: failed_courses,
+        **@changes
       }
     end
 
@@ -74,6 +78,14 @@ module Catalog
       raise "Failed to process #{result[:failed]} courses" if result[:failed] > 0
 
       result
+    end
+
+    # The section's own credits from Banner's search data. A lab reports 0
+    # there, so it gets nil: its credits belong to the linked lecture.
+    def self.credit_hours_for(course_data)
+      hours = course_data["creditHours"]
+      hours = course_data["creditHourLow"] if hours.nil? && course_data["creditHourIndicator"].blank?
+      hours.to_i.positive? ? hours.to_i : nil
     end
 
     private
@@ -154,7 +166,9 @@ module Catalog
         c.seats_available = seats[:available]
       end
 
-      if course.persisted? && !course.new_record?
+      if course.previously_new_record?
+        @changes[:created] += 1
+      else
         update_attrs = {}
         update_attrs[:start_date] = start_date if start_date.present?
         update_attrs[:end_date] = end_date if end_date.present?
@@ -177,7 +191,14 @@ module Catalog
           update_attrs[:seats_available] = seats[:available]
         end
 
-        course.update!(update_attrs) if update_attrs.any?
+        # The counts cover the section row. Meeting times and instructors can
+        # still change below while the section counts as unchanged.
+        if update_attrs.any?
+          course.update!(update_attrs)
+          @changes[course.saved_changes? ? :updated : :unchanged] += 1
+        else
+          @changes[:unchanged] += 1
+        end
       end
 
       orphan_exam = FinalExam.orphan.find_by(crn: course.crn, term: term)
@@ -234,9 +255,7 @@ module Catalog
     # credits. Some labs stand alone and carry credits (ARCH studios are 6), so
     # the schedule type does not decide this. Store nil for 0.
     def credit_hours_for(course_data)
-      hours = course_data["creditHours"]
-      hours = course_data["creditHourLow"] if hours.nil? && course_data["creditHourIndicator"].blank?
-      hours.to_i.positive? ? hours.to_i : nil
+      self.class.credit_hours_for(course_data)
     end
 
     def validate_courses_data!

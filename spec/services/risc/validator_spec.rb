@@ -66,7 +66,7 @@ RSpec.describe Risc::Validator, type: :service do
     it "raises when the RISC configuration endpoint answers with an error status" do
       stub_risc_configuration(status: 500, body: "boom")
 
-      expect { described_class.new }.to raise_error(Risc::Validator::ValidationError)
+      expect { described_class.new }.to raise_error(Risc::Validator::FetchError)
     end
 
     it "raises when the RISC configuration body is not valid JSON" do
@@ -127,7 +127,7 @@ RSpec.describe Risc::Validator, type: :service do
       stub_risc_configuration
       stub_jwks(keys: [], status: 502)
 
-      expect { described_class.new }.to raise_error(Risc::Validator::ValidationError)
+      expect { described_class.new }.to raise_error(Risc::Validator::FetchError)
     end
   end
 
@@ -159,6 +159,74 @@ RSpec.describe Risc::Validator, type: :service do
       token = build_token(key_id: "unknown-key")
 
       expect { service.validate_and_decode(token) }.to raise_error(Risc::Validator::KeyNotFoundError)
+    end
+
+    it "does not treat a fetch failure as a validation failure" do
+      expect(Risc::Validator::FetchError).not_to be < Risc::Validator::ValidationError
+    end
+
+    context "when Google has rotated its signing key" do
+      let(:new_key) { OpenSSL::PKey::RSA.generate(2048) }
+      let(:cache) { ActiveSupport::Cache::MemoryStore.new }
+
+      before do
+        allow(Rails).to receive(:cache).and_return(cache)
+        stub_risc_configuration
+      end
+
+      it "fetches the JWKS again for an unknown kid and validates the token" do
+        stub_request(:get, JWKS_URL)
+          .to_return({ status: 200, body: { keys: [ jwk_for(rsa_key, kid) ] }.to_json },
+                     { status: 200, body: { keys: [ jwk_for(rsa_key, kid), jwk_for(new_key, "rotated-key") ] }.to_json })
+        validator = described_class.new
+
+        decoded = validator.validate_and_decode(build_token(key: new_key, key_id: "rotated-key"))
+
+        expect(decoded[:jti]).to eq("factory-jti-1")
+        expect(WebMock).to have_requested(:get, JWKS_URL).twice
+      end
+
+      it "keeps the fresh keys in the cache" do
+        stub_request(:get, JWKS_URL)
+          .to_return({ status: 200, body: { keys: [ jwk_for(rsa_key, kid) ] }.to_json },
+                     { status: 200, body: { keys: [ jwk_for(new_key, "rotated-key") ] }.to_json })
+        described_class.new.validate_and_decode(build_token(key: new_key, key_id: "rotated-key"))
+
+        validator = described_class.new
+
+        expect(validator.validate_and_decode(build_token(key: new_key, key_id: "rotated-key"))[:jti]).to eq("factory-jti-1")
+        expect(WebMock).to have_requested(:get, JWKS_URL).twice
+      end
+
+      it "raises KeyNotFoundError when the fresh JWKS still lacks the kid" do
+        stub_jwks(keys: [ jwk_for(rsa_key, kid) ])
+        validator = described_class.new
+
+        expect { validator.validate_and_decode(build_token(key_id: "unknown-key")) }
+          .to raise_error(Risc::Validator::KeyNotFoundError)
+        expect(WebMock).to have_requested(:get, JWKS_URL).twice
+      end
+
+      it "fetches at most once a minute, however many unknown kids arrive" do
+        stub_jwks(keys: [ jwk_for(rsa_key, kid) ])
+        validator = described_class.new
+
+        3.times do
+          expect { validator.validate_and_decode(build_token(key_id: "unknown-key")) }
+            .to raise_error(Risc::Validator::KeyNotFoundError)
+        end
+
+        expect(WebMock).to have_requested(:get, JWKS_URL).twice
+      end
+
+      it "raises FetchError, not KeyNotFoundError, when the fresh fetch fails" do
+        stub_request(:get, JWKS_URL)
+          .to_return({ status: 200, body: { keys: [ jwk_for(rsa_key, kid) ] }.to_json }, { status: 503, body: "" })
+        validator = described_class.new
+
+        expect { validator.validate_and_decode(build_token(key: new_key, key_id: "rotated-key")) }
+          .to raise_error(Risc::Validator::FetchError)
+      end
     end
 
     it "raises InvalidTokenError for a completely malformed token" do

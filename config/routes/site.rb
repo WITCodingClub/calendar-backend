@@ -14,10 +14,13 @@ get "/.well-known/api-catalog", to: "discovery#api_catalog", as: :api_catalog, f
 # RFC 9116 security.txt: where to report a vulnerability.
 get "/.well-known/security.txt", to: "discovery#security", as: :security_txt, format: false, defaults: { format: :text }
 
-# Public API reference, rendered from docs/public-catalog-api.md.
-# /docs/api.md, or Accept: text/markdown, returns the markdown source.
+# Public API reference (docs/public-catalog-api.md) and MCP guide (docs/mcp.md).
+# calendar-website renders the HTML pages from /docs/api.md and /docs/mcp.md.
+# Rails answers /docs/api and /docs/mcp only when the website is down, with
+# the markdown. See DocsController.
 get "/docs",     to: redirect("/docs/api")
 get "/docs/api", to: "docs#api", as: :api_docs
+get "/docs/mcp", to: "docs#mcp", as: :mcp_docs
 # Machine descriptions of the same API, for code generators and agents.
 get "/docs/api/openapi.json",   to: "docs#openapi",        as: :api_openapi,        format: false
 get "/docs/api/schema.graphql", to: "docs#graphql_schema", as: :api_graphql_schema, format: false

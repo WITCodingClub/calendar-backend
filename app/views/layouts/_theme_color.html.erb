@@ -1,0 +1,8 @@
+<%# Browser toolbar colors. The defaults match the M3 background in
+    app/assets/tailwind/application.css. A layout with its own palette
+    passes light: and dark:. %>
+<% light = local_assigns.fetch(:light, "#fff8f1") %>
+<% dark = local_assigns.fetch(:dark, "#16130b") %>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="<%= light %>" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="<%= dark %>" media="(prefers-color-scheme: dark)">

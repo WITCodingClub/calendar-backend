@@ -6,9 +6,9 @@ module MicrosoftGraph
   #
   # The rules follow GoogleCalendar::Provider#detect_user_edited_fields: summary,
   # location, start time and end time count, and a changed recurrence keeps the
-  # whole event as the person left it. The description does not count. Google
-  # marks any description as an edit, but the row does not store the
-  # description the app wrote, so that rule would freeze every description.
+  # whole event as the person left it. The description does not count: the
+  # row does not store the description the app wrote, so that rule would
+  # freeze every description.
   class EventEdits
     # The fields a GET must ask for.
     SELECT          = "id,subject,location,start,end,isAllDay,recurrence,categories"

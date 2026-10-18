@@ -1,0 +1,7 @@
+<label class="flex items-start gap-3 cursor-pointer">
+  <%= check_box_tag "scopes[]", item.scope.name, item.checked, id: "scope_#{item.scope.name.tr(':', '_')}", class: "mt-1 accent-primary" %>
+  <span>
+    <span class="block text-sm text-on-surface"><%= item.scope.label %></span>
+    <span class="block text-xs text-on-surface-variant"><%= item.scope.description %></span>
+  </span>
+</label>

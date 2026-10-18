@@ -1,0 +1,13 @@
+<%# One node of a prerequisite tree (CatalogCourse#prerequisites). A nested
+    group gets parentheses. %>
+<% case node["type"] %>
+<% when "and", "or" %>
+  <% parts = node["operands"].map { |operand| render("admin/courses/requisite", node: operand, relations: relations, nested: true) } %>
+  <% joined = safe_join(parts, tag.span(" #{node['type']} ", class: "text-on-surface-variant uppercase text-xs font-medium")) %>
+  <%= local_assigns[:nested] ? safe_join([ "(", joined, ")" ]) : joined %>
+<% when "course" %>
+  <%= render "admin/courses/course_code", relations: relations, subject_code: node["subject_code"], course_number: node["course_number"] %>
+  <% if node["min_grade"].present? %><span class="text-xs text-on-surface-variant">(min <%= node["min_grade"] %>)</span><% end %>
+<% when "test" %>
+  <span><%= node["name"] %><%= " #{node['score']}" if node["score"].present? %></span>
+<% end %>

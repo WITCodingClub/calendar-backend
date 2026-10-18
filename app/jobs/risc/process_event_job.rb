@@ -5,6 +5,9 @@ module Risc
     queue_as :high
 
     retry_on StandardError, wait: :polynomially_longer, attempts: 3
+    # Google's config or JWKS was down. The webhook already answered 2xx, so the
+    # job is the only retry. A later declaration wins over StandardError above.
+    retry_on Risc::Validator::FetchError, wait: :polynomially_longer, attempts: 5
     discard_on Risc::Validator::ValidationError
 
     def perform(token)

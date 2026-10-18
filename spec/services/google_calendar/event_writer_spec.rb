@@ -105,7 +105,66 @@ RSpec.describe GoogleCalendar::EventWriter do
 
       expect(writer.update(service, calendar, row, event_data)).to eq(:skipped_user_edit)
       expect(a_request(:put, event_url)).not_to have_been_made
-      expect(row.reload.recurrence).to eq([ "RRULE:FREQ=WEEKLY;BYDAY=TU" ])
+      expect(row.reload).to have_attributes(summary: "Old Lecture", recurrence: nil)
+    end
+
+    it "keeps the person's recurrence on every later sync" do
+      row.update!(recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TU" ])
+      data = event_data.merge(recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TU" ])
+      stub_request(:get, event_url).to_return(remote_body(recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TH" ]))
+
+      expect(writer.update(service, calendar, row, data)).to eq(:skipped_user_edit)
+      expect(writer.update(service, calendar, row.reload, data)).to eq(:skipped_user_edit)
+      expect(a_request(:put, event_url)).not_to have_been_made
+    end
+
+    it "writes a new description over the one the app wrote before" do
+      row.update!(user_edited_fields: [ "description" ])
+      stub_request(:get, event_url).to_return(remote_body(description: "CRN 10001"))
+      put = stub_request(:put, event_url).with(body: hash_including("description" => "CRN 20002")).to_return(json)
+
+      writer.update(service, calendar, row, event_data.merge(description: "CRN 20002"))
+
+      expect(put).to have_been_requested.once
+      expect(row.reload.user_edited_fields).to be_nil
+    end
+
+    context "with an all-day event" do
+      let(:day) { zone.local(2026, 11, 26) }
+      let(:row) do
+        create(:calendar_event, :for_university_event, course_calendar: calendar, university_calendar_event: university_event,
+                                                       external_event_id: "synthetic-event", summary: "Old Holiday",
+                                                       location: nil, start_time: day, end_time: day.end_of_day)
+      end
+      let(:holiday_data) do
+        { summary: "Synthetic Holiday", location: nil, start_time: day, end_time: day.end_of_day, all_day: true,
+          university_calendar_event_id: university_event.id }
+      end
+
+      def all_day_body(start_date, end_date)
+        remote_body(summary: "Old Holiday", location: nil, start: { date: start_date }, end: { date: end_date })
+      end
+
+      it "keeps the same days when the person did not move the event" do
+        stub_request(:get, event_url).to_return(all_day_body("2026-11-26", "2026-11-27"))
+        put = stub_request(:put, event_url).with(body: hash_including("start" => { "date" => "2026-11-26" },
+                                                                      "end"   => { "date" => "2026-11-27" }))
+                                           .to_return(json)
+
+        expect(writer.update(service, calendar, row, holiday_data)).to eq(:updated)
+        expect(put).to have_been_requested.once
+        expect(row.reload.user_edited_fields).to be_nil
+      end
+
+      it "keeps the last day the person chose" do
+        stub_request(:get, event_url).to_return(all_day_body("2026-11-26", "2026-11-28"))
+        put = stub_request(:put, event_url).with(body: hash_including("end" => { "date" => "2026-11-28" })).to_return(json)
+
+        writer.update(service, calendar, row, holiday_data)
+
+        expect(put).to have_been_requested.once
+        expect(row.reload.user_edited_fields).to eq([ "end_time" ])
+      end
     end
 
     it "makes an event that is gone from Google again" do
@@ -115,6 +174,17 @@ RSpec.describe GoogleCalendar::EventWriter do
       expect(writer.update(service, calendar, row, event_data)).to eq(:recreated)
       expect(insert).to have_been_requested.once
       expect(calendar.calendar_events.sole.external_event_id).to eq("syntheticmeetingevent1")
+    end
+
+    [ 404, 410 ].each do |status|
+      it "with force, makes the event again when Google answers #{status}" do
+        stub_request(:put, event_url).to_return(google_error(status))
+        insert = stub_request(:post, events_url).with(body: hash_including("summary" => "Synthetic Lecture")).to_return(json)
+
+        expect(writer.update(service, calendar, row, event_data, force: true)).to eq(:recreated)
+        expect(insert).to have_been_requested.once
+        expect(calendar.calendar_events.sole.external_event_id).to eq("syntheticmeetingevent1")
+      end
     end
 
     it "with force, writes over the person's edits without reading the event" do
