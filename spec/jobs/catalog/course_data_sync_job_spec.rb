@@ -106,6 +106,26 @@ RSpec.describe Catalog::CourseDataSyncJob do
     expect(course.meeting_times.reload.pluck(:id).sort).to eq(ids_before)
   end
 
+  # Courses::Processor serves a section from the catalog when this is recent.
+  it "records when Banner confirmed the section, even when nothing changed" do
+    stub_leopard_web([ banner_meeting_time ])
+
+    freeze_time do
+      described_class.perform_now
+
+      expect(course.reload.banner_synced_at).to eq(Time.current)
+    end
+  end
+
+  it "leaves the confirmation time alone when Banner returns nothing for the section" do
+    stub_leopard_web([])
+    allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(nil)
+
+    described_class.perform_now
+
+    expect(course.reload.banner_synced_at).to be_nil
+  end
+
   it "keeps the stored meeting times when Banner returns none" do
     stub_leopard_web([])
 

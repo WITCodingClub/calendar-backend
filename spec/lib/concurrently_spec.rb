@@ -53,17 +53,29 @@ RSpec.describe Concurrently do
       expect(finished).to eq([ 1 ])
     end
 
-    it "does not start a later batch after a failure" do
+    it "starts no new item after a failure" do
       started = Concurrent::Array.new
 
       expect {
         described_class.map([ 1, 2, 3, 4 ], limit: 2) do |item|
           started << item
           raise "boom" if item == 1
+
+          sleep 0.05
         end
       }.to raise_error("boom")
 
       expect(started).to contain_exactly(1, 2)
+    end
+
+    # A slow item must not hold back the items after it, as a fixed batch would.
+    it "starts the next item as soon as a thread is free" do
+      third_started = Concurrent::Event.new
+
+      described_class.map([ :slow, :fast, :third ], limit: 2) do |item|
+        third_started.set if item == :third
+        raise "the third item waited for the slow one" if item == :slow && !third_started.wait(5)
+      end
     end
 
     it "returns an empty list for no items" do
