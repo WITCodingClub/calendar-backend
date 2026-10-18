@@ -20,6 +20,12 @@ RSpec.describe "Api::ExtensionConfigs", type: :request do
       expect(ids).to eq(UniversityCalendarEvent::SYNCABLE_CATEGORIES)
       expect(ids).not_to include("campus_event")
     end
+
+    it "returns a null usage stats answer before the student answers" do
+      get "/api/user/extension_config", headers: headers
+
+      expect(json).to include("usage_stats_enabled" => nil)
+    end
   end
 
   describe "PUT /api/user/extension_config" do
@@ -43,6 +49,23 @@ RSpec.describe "Api::ExtensionConfigs", type: :request do
           as: :json
 
       expect(user.user_extension_config.reload.university_event_categories).to eq(%w[deadline])
+    end
+
+    it "saves a usage stats answer of no" do
+      put "/api/user/extension_config", params: { usage_stats_enabled: false }, headers: headers, as: :json
+
+      expect(response).to have_http_status(:ok)
+
+      get "/api/user/extension_config", headers: headers
+
+      expect(json).to include("usage_stats_enabled" => false)
+    end
+
+    it "keeps the usage stats answer when a request leaves it out" do
+      put "/api/user/extension_config", params: { usage_stats_enabled: true }, headers: headers, as: :json
+      put "/api/user/extension_config", params: { military_time: true }, headers: headers, as: :json
+
+      expect(user.user_extension_config.reload.usage_stats_enabled).to be(true)
     end
 
     it "rejects a default color that is not a color" do
