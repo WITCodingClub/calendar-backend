@@ -64,7 +64,7 @@ gem "admin_tools", "~> 1.0"
 gem "ice_cube", "~> 0.17.0"
 
 # ICS calendar feed generation
-gem "icalendar", "~> 2.12"
+gem "icalendar", "~> 2.13"
 
 # Encoded/hashid public IDs
 gem "encoded_ids", "~> 1.1"
