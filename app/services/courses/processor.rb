@@ -12,10 +12,21 @@ module Courses
       super()
     end
 
+    # The nightly sync (Catalog::CourseDataSyncJob) asks Banner about every
+    # section of the active terms. A section it confirmed within this time is
+    # served from the catalog, with no Banner request. When the sync has not
+    # run for longer, every section goes to Banner as before.
+    CATALOG_FRESH_FOR = 36.hours
+    # A section served from the catalog that is older than this gets a Banner
+    # refresh in the background (Catalog::SectionRefreshJob).
+    REFRESH_AFTER = 6.hours
+
     def call
       validate_courses_data!
+      started_at = monotonic_now
 
       processed = []
+      banner_synced_ids = []
       touched_meeting_time_ids = []
       prunable_course_ids = []
       enrolled_terms = Set.new
@@ -32,7 +43,15 @@ module Courses
       orphan_exam_cache = FinalExam.orphan.where(crn: crns, term_id: term_ids)
                                    .index_by { |e| [ e.crn.to_s, e.term_id ] }
 
-      class_details = fetch_class_details(grouped_courses.keys)
+      catalog_courses = grouped_courses.keys.each_with_object({}) do |(crn, term_uid), acc|
+        term = term_cache[term_uid.to_s]
+        course = term && course_cache[[ crn.to_s, term.id ]]
+        acc[[ crn, term_uid ]] = course if course&.banner_synced_at&.after?(CATALOG_FRESH_FOR.ago)
+      end
+
+      banner_started_at = monotonic_now
+      class_details = fetch_class_details(grouped_courses.keys - catalog_courses.keys)
+      banner_ms = elapsed_ms(banner_started_at)
 
       # Check every term before the first write. Enrollments and the removal of
       # old meeting times happen after the loop, so a raise inside it would leave
@@ -80,6 +99,17 @@ module Courses
         CourseCalendars::SyncMarker.batch_with_enrollment_flags(enrollment_flags) do
           grouped_courses.each do |key, course_meetings|
             course_data = course_meetings.first
+
+            # The nightly sync already wrote what Banner would send now: the
+            # details, seats, meeting times, and instructors.
+            if (course = catalog_courses[key])
+              term = term_cache.fetch(course_data[:term].to_s)
+              link_orphan_exam(orphan_exam_cache, course, term)
+              processed << [ course.id, term ]
+              enrolled_terms << term
+              next
+            end
+
             detailed_course_info = class_details[key]
 
             unless detailed_course_info
@@ -134,11 +164,7 @@ module Courses
               course.update!(update_attrs) if update_attrs.any?
             end
 
-            orphan_exam = orphan_exam_cache[[ course.crn.to_s, term.id ]]
-            if orphan_exam
-              orphan_exam.update!(course: course)
-              Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
-            end
+            link_orphan_exam(orphan_exam_cache, course, term)
 
             # Upsert in place so meeting time IDs stay stable — destroying them
             # cascades to calendar_events tracking rows, which strands the
@@ -163,8 +189,12 @@ module Courses
             )
 
             processed << [ course.id, term ]
+            banner_synced_ids << course.id
             enrolled_terms << term
           end
+
+          # A timestamp, not a change to the sections, so no calendar resync.
+          Course.where(id: banner_synced_ids).update_all(banner_synced_at: Time.current) if banner_synced_ids.any? # rubocop:disable Rails/SkipsModelValidations
 
           # Prune only courses whose ingest wrote a row. An ingest skips entries
           # with no times (TBA) and returns no ids, which is not proof that the
@@ -239,6 +269,15 @@ module Courses
         CourseCalendars::SyncJob.perform_later(user, force: false)
       end
 
+      stale_ids = catalog_courses.values.select { |course| course.banner_synced_at.before?(REFRESH_AFTER.ago) }.map(&:id)
+      Catalog::SectionRefreshJob.perform_later(stale_ids) if stale_ids.any?
+
+      Rails.logger.info(
+        "[Courses::Processor] user=#{user.id} sections=#{grouped_courses.size} " \
+        "from_catalog=#{catalog_courses.size} from_banner=#{class_details.size} " \
+        "refresh=#{stale_ids.size} banner_ms=#{banner_ms} total_ms=#{elapsed_ms(started_at)}"
+      )
+
       processed_courses
     end
 
@@ -250,34 +289,36 @@ module Courses
 
     private
 
-    # Banner answers one section per request, with two round trips each, and a
+    # Banner answers one section per request, with three requests each, and a
     # schedule has several sections. Asked one after another, process_courses
     # spent over a second waiting on Banner. The requests only use the network,
-    # so send a few at once. An error in any request still raises here, before
+    # so send a few at once. Concurrently starts the next section as soon as a
+    # thread is free. An error in any request still raises here, before
     # anything is written.
     LEOPARD_WEB_CONCURRENCY = 6
 
     def fetch_class_details(keys)
-      # A new thread does not know whether a job or a web request started it,
-      # and the Banner retry budget depends on that (Catalog::BannerThrottle).
-      context = ActiveSupport::ExecutionContext.to_h
-
-      keys.each_slice(LEOPARD_WEB_CONCURRENCY).each_with_object({}) do |batch, details|
-        threads = batch.map do |crn, term_uid|
-          Thread.new do
-            Thread.current.report_on_exception = false
-            Rails.application.executor.wrap do
-              ActiveSupport::ExecutionContext.set(**context) do
-                Catalog::LeopardWebClient.get_class_details(term: term_uid, course_reference_number: crn)
-              end
-            end
-          end
-        end
-
-        ActiveSupport::Dependencies.interlock.permit_concurrent_loads do
-          batch.zip(threads) { |key, thread| details[key] = thread.value }
-        end
+      details = Concurrently.map(keys, limit: LEOPARD_WEB_CONCURRENCY) do |crn, term_uid|
+        Catalog::LeopardWebClient.get_class_details(term: term_uid, course_reference_number: crn)
       end
+
+      keys.zip(details).to_h
+    end
+
+    def link_orphan_exam(orphan_exam_cache, course, term)
+      orphan_exam = orphan_exam_cache[[ course.crn.to_s, term.id ]]
+      return unless orphan_exam
+
+      orphan_exam.update!(course: course)
+      Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
+    end
+
+    def monotonic_now
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+
+    def elapsed_ms(since)
+      ((monotonic_now - since) * 1000).round
     end
 
     def validate_courses_data!

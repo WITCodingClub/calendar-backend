@@ -2,8 +2,6 @@
 
 module Catalog
   class Catalog::CourseDataSyncJob < ApplicationJob
-    include ApplicationHelper
-
     queue_as :low
 
     # SolidQueue calls this key with the job's arguments, so it has to accept them.
@@ -58,10 +56,10 @@ module Catalog
       synced_count = 0
       error_count  = 0
 
-      # Courses in a term share buildings and rooms, so one Locations serves them
-      # all. Enrollment flags are loaded and marks are sent once for each batch of
+      # Courses in a term share buildings and rooms, so one SectionSync (and its
+      # Locations) serves them all. Enrollment flags are loaded and marks are sent once for each batch of
       # courses, not once for each course.
-      @locations = Catalog::MeetingTimesIngest::Locations.new
+      section_sync = Catalog::SectionSync.new
 
       term.courses.includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
           .find_in_batches(batch_size: 50) do |courses|
@@ -70,7 +68,7 @@ module Catalog
           courses.each do |course|
             # Catalog::BannerThrottle paces the Banner requests, so there is no
             # sleep here.
-            if sync_course_data(course, term_uid)
+            if section_sync.call(course, term_uid)
               synced_count += 1
             end
           rescue Catalog::BannerThrottle::CooldownError
@@ -83,139 +81,6 @@ module Catalog
       end
 
       Rails.logger.info "[Catalog::CourseDataSyncJob] Term #{term.name} complete — #{synced_count} synced, #{error_count} errors"
-    end
-
-    def sync_course_data(course, term_uid)
-      fresh_data = fetch_fresh_course_data(course.crn, term_uid)
-      return false unless fresh_data
-
-      course_changed = if course_data_changed?(course, fresh_data)
-                         update_course_from_fresh_data(course, fresh_data)
-                         true
-      else
-                         update_enrollment_counts(course, fresh_data)
-      end
-
-      meeting_times_changed = sync_meeting_times(course, fresh_data)
-      faculty_changed       = sync_faculty(course, fresh_data)
-      # The registrar can change which lab goes with which lecture.
-      Catalog::SectionLinksSync.call(course) if course.is_section_linked
-
-      changed = course_changed || meeting_times_changed || faculty_changed
-      Rails.logger.info "[Catalog::CourseDataSyncJob] Updated course #{course.crn}" if changed
-
-      changed
-    end
-
-    # The registrar reassigns sections after the term starts, and the extension
-    # only posts a schedule when the student's course list changes. Without this
-    # the calendar keeps naming the instructor who taught the section on the day
-    # it was first imported.
-    def sync_faculty(course, fresh_data)
-      Faculties::Ingest.call(course: course, raw_faculty: fresh_data[:faculty])
-    end
-
-    # The registrar moves sections between rooms after registration opens, and the
-    # extension only posts a schedule when the student's course list changes. So
-    # this job is the only thing that notices a room or time change, and it has to
-    # write the new meeting times itself.
-    def sync_meeting_times(course, fresh_data)
-      raw = fresh_data[:meeting_times]
-      # An empty payload means Banner told us nothing, not that the section stopped
-      # meeting. Pruning on it would delete every meeting time and strand the
-      # Google Calendar events that point at them.
-      return false if raw.blank?
-
-      # The batch preloads meeting times with their rooms and buildings, so the
-      # first fingerprint sends no query.
-      before = meeting_times_fingerprint(course.meeting_times)
-
-      touched_ids = Catalog::MeetingTimesIngest.call(
-        course: course,
-        raw_meeting_times: Catalog::MeetingTimesIngest.normalize_leopard_web(raw),
-        locations: @locations,
-        existing_meeting_times: course.meeting_times.to_a
-      )
-      return false if touched_ids.empty?
-
-      course.meeting_times.where.not(id: touched_ids).destroy_all
-      course.meeting_times.reset
-
-      before != meeting_times_fingerprint(course.meeting_times.includes(rooms: :building))
-    end
-
-    def meeting_times_fingerprint(meeting_times)
-      meeting_times.map { |mt|
-        [
-          mt.day_of_week,
-          mt.begin_time,
-          mt.end_time,
-          mt.start_date,
-          mt.end_date,
-          mt.rooms.map { |r| [ r.building.abbreviation, r.number ] }.sort
-        ]
-      }.sort_by(&:to_s)
-    end
-
-    def fetch_fresh_course_data(crn, term_uid)
-      Catalog::LeopardWebClient.get_class_details(term: term_uid, course_reference_number: crn)
-    rescue Catalog::BannerThrottle::CooldownError
-      raise
-    rescue => e
-      Rails.error.report(e, handled: true, context: { crn: crn, term_uid: term_uid })
-      nil
-    end
-
-    def course_data_changed?(course, fresh_data)
-      fresh_title           = fresh_data[:title].present? ? titleize_with_roman_numerals(fresh_data[:title].strip) : nil
-      fresh_grade_mode      = fresh_data[:grade_mode]&.strip
-      fresh_subject         = fresh_data[:subject]&.strip
-      fresh_section_number  = normalize_section_number(fresh_data[:section_number])
-      fresh_schedule_type   = extract_schedule_type(fresh_data[:schedule_type])
-
-      [
-        course.title          != fresh_title,
-        course.grade_mode     != fresh_grade_mode,
-        course.subject        != fresh_subject,
-        course.section_number != fresh_section_number,
-        fresh_schedule_type && course.schedule_type != fresh_schedule_type
-      ].any?
-    end
-
-    # Credit hours are not taken from getClassDetails. Its "Credit Hours" is the
-    # course's credits, so it gives a lab the lecture's 4. The import keeps the
-    # section's own credits (Catalog::Importer.credit_hours_for), which are nil
-    # for a lab. The catalog:repair_credit_hours task corrects rows this job overwrote.
-    def update_course_from_fresh_data(course, fresh_data)
-      attrs = {}
-      attrs[:title]          = titleize_with_roman_numerals(fresh_data[:title].strip) if fresh_data[:title].present?
-      attrs[:grade_mode]     = fresh_data[:grade_mode]&.strip if fresh_data[:grade_mode]
-      attrs[:subject]        = fresh_data[:subject]&.strip    if fresh_data[:subject]
-      attrs[:section_number] = normalize_section_number(fresh_data[:section_number]) if fresh_data[:section_number]
-
-      schedule_type = extract_schedule_type(fresh_data[:schedule_type])
-      attrs[:schedule_type] = schedule_type if schedule_type
-
-      attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
-      attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
-
-      course.update!(attrs) if attrs.any?
-    end
-
-    def update_enrollment_counts(course, fresh_data)
-      attrs = {}
-      attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
-      attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
-
-      course.update!(attrs) if attrs.any?
-      attrs.any?
-    end
-
-    def extract_schedule_type(raw)
-      return nil if raw.blank?
-
-      match = raw.to_s.match(/\(([^)]+)\)/)
-      match ? match[1].strip : raw.strip
     end
   end
 end

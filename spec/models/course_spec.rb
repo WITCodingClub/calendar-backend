@@ -5,6 +5,7 @@
 # Table name: courses
 #
 #  id                :bigint           not null, primary key
+#  banner_synced_at  :datetime
 #  course_number     :integer          not null
 #  credit_hours      :integer
 #  crn               :integer          not null

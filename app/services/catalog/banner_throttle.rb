@@ -8,10 +8,11 @@ module Catalog
   # about 40 requests in a minute, and worked again a few minutes later. So the
   # middleware does three things:
   #
-  # 1. Pacing. A token bucket that the whole process shares: BURST requests at
-  #    once, then RATE_PER_SECOND. One schedule in POST /api/process_courses
-  #    sends about 18 requests, which fit in the burst. The nightly sync sends
-  #    thousands, which the rate spreads out.
+  # 1. Pacing. A token bucket for each kind of caller (BUCKETS): a burst of
+  #    requests at once, then a fixed rate. Web requests and jobs have separate
+  #    buckets, so a student's schedule never waits behind the nightly sync.
+  #    A schedule of 20 sections (60 requests) fits in the web burst. The
+  #    nightly sync sends thousands, which the job rate spreads out.
   # 2. Retries. 429 and 5xx answers and connection failures retry with
   #    exponential backoff and jitter, and Retry-After when Banner sends it. A
   #    web request has a small budget, so a student does not wait long. A job
@@ -24,10 +25,16 @@ module Catalog
   # inside it), so the memory is shared by the web requests and the jobs. With
   # more processes, move the bucket and the cooldown to a shared store.
   class BannerThrottle < Faraday::Middleware
-    BURST = 20
-    # Requests per second after the burst. The nightly sync for two terms sends
-    # about 8,000 requests, which takes about 27 minutes at this rate.
-    RATE_PER_SECOND = 5.0
+    Bucket = Data.define(:burst, :rate_per_second)
+    # The job rate spreads the nightly sync for two terms (about 8,000
+    # requests) over about 27 minutes. On 2026-10-14 Banner failed after about
+    # 40 searchResults requests in a minute, so the job bucket stays slow. A
+    # web request sends getClassDetails and two small reads, which Banner
+    # answered 48 at a time in a test on 2026-10-17.
+    BUCKETS = {
+      request: Bucket.new(burst: 60, rate_per_second: 10.0),
+      job:     Bucket.new(burst: 20, rate_per_second: 5.0)
+    }.freeze
 
     RETRY_STATUSES   = [ 429, 500, 502, 503, 504 ].freeze
     RETRY_EXCEPTIONS = [ Faraday::ConnectionFailed, Faraday::TimeoutError ].freeze
@@ -67,20 +74,22 @@ module Catalog
     class << self
       def reset!
         @mutex.synchronize do
-          @tokens        = BURST.to_f
-          @refilled_at   = clock
-          @failures      = 0
+          @tokens         = BUCKETS.transform_values { |bucket| bucket.burst.to_f }
+          @refilled_at    = BUCKETS.transform_values { clock }
+          @failures       = 0
           @cooldown_until = nil
         end
       end
 
-      # Takes one token, and waits when there is none. A negative balance
-      # holds the place of each request that waits.
-      def acquire
+      # Takes one token from the bucket of the current caller, and waits when
+      # there is none. A negative balance holds the place of each request that
+      # waits.
+      def acquire(name = current_budget)
+        bucket = BUCKETS.fetch(name)
         wait = @mutex.synchronize do
-          refill
-          @tokens -= 1
-          @tokens.negative? ? -@tokens / RATE_PER_SECOND : 0.0
+          refill(name)
+          @tokens[name] -= 1
+          @tokens[name].negative? ? -@tokens[name] / bucket.rate_per_second : 0.0
         end
         pause(wait) if wait.positive?
         wait
@@ -133,10 +142,11 @@ module Catalog
 
       private
 
-      def refill
+      def refill(name)
+        bucket = BUCKETS.fetch(name)
         now = clock
-        @tokens = [ @tokens + ((now - @refilled_at) * RATE_PER_SECOND), BURST.to_f ].min
-        @refilled_at = now
+        @tokens[name] = [ @tokens[name] + ((now - @refilled_at[name]) * bucket.rate_per_second), bucket.burst.to_f ].min
+        @refilled_at[name] = now
       end
 
       def clock
@@ -147,14 +157,15 @@ module Catalog
     reset!
 
     def call(env)
-      budget = BUDGETS.fetch(self.class.current_budget)
+      name   = self.class.current_budget
+      budget = BUDGETS.fetch(name)
       request_body = env.body
       retries = 0
       waited  = 0.0
 
       loop do
         refuse_during_cooldown!
-        self.class.acquire
+        self.class.acquire(name)
         env.body = request_body
 
         begin
