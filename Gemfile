@@ -45,7 +45,7 @@ gem "webauthn", "~> 3.4"
 gem "omniauth-google-oauth2", "~> 1.2"
 gem "omniauth-entra-id", "~> 3.1"
 gem "omniauth-rails_csrf_protection", "~> 2.0"
-gem "google-apis-calendar_v3", "~> 0.57.0"
+gem "google-apis-calendar_v3", "~> 0.58.0"
 gem "googleauth", "~> 1.17"
 
 # OAuth 2.1 authorization server for MCP clients (docs/mcp.md)
