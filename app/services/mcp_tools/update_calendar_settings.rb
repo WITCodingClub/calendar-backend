@@ -45,6 +45,7 @@ module McpTools
         optional: %i[not_changed]
       )
     )
+    links { [ calendar_settings_link ] }
 
     def perform(level:, **arguments)
       scope = LEVELS[level] || raise(ToolError, "level must be one of #{LEVELS.keys.join(', ')}")

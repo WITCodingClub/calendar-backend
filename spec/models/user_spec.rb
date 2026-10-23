@@ -149,6 +149,14 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe "#onboarding_complete?" do
+    it "is true for a user with processed courses or admin access" do
+      expect(create(:user).onboarding_complete?).to be(false)
+      expect(create(:user, :with_processed_courses).onboarding_complete?).to be(true)
+      expect(create(:user, :admin).onboarding_complete?).to be(true)
+    end
+  end
+
   describe "#super_admin_access?" do
     it "is true for a super admin and an owner only" do
       levels = %i[user admin super_admin owner].index_with { |level| build(:user, access_level: level).super_admin_access? }

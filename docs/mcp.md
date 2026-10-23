@@ -146,6 +146,43 @@ Rules:
 
 To add an app: add the HTML file, add an `MCP::Resource` subclass in `app/services/mcp_tools/` (see `McpTools::WeekGridApp`), add it to `McpTools.app_resources`, and call `meta YourApp.tool_meta` in each tool that uses it.
 
+## Page links
+
+Some tools add links to the WIT Calendar pages where the student can see or change the same data. Each link is a `resource_link` content item (MCP 2025-06-18). A client can show it as a link that the student opens in the browser.
+
+| Tool | Page | Route |
+| --- | --- | --- |
+| `my_courses` | My schedule, for the term of the result. Only when the page lists that term. | `dashboard_schedule_url(term_uid:)` |
+| `list_friends` | Friends | `dashboard_friends_url` |
+| `friend_busy_times` | The friend's page: the full schedule, or the busy times of the week of `start_date` | `dashboard_friend_url(id, week_start:)` |
+| `my_calendar_settings`, `update_calendar_settings` | Calendar settings | `dashboard_calendar_preferences_url` |
+| `set_notifications` | Notification settings | `dashboard_notifications_url` |
+| Any tool, when the token does not have its permission | The **Connected apps** card on Settings | `dashboard_settings_url(anchor: "connected-apps")` |
+
+Rules:
+
+- The JSON text stays the first content item. The links come after it. The links are not in `structuredContent`, so the output schemas do not change.
+- A tool error has no page link. The one exception is the missing permission error, which links to the connected apps card.
+- Link only to a page that exists in Rails. The catalog tools have no links, because the catalog has no web pages. `my_finals`, `my_busy_times`, `my_course_history`, `update_class_settings`, and `preview_template` have no links, because no page shows the same data.
+- Build each URL with a route helper through `page_url`. It adds `McpTools::Server.url_options`, so the host is correct in each environment. Do not write a host in the code.
+- A URL holds only the public ids that the page itself uses in its URLs. It never holds a token. A dashboard page needs a session, so the student signs in in the browser.
+- The `mcp` gem does not check content items. It sends each Hash as it is.
+- Only a client on protocol version 2025-06-18 or later gets links. An older client can check the content against a closed list of types and refuse the whole result. The server reads the version from the `_meta` envelope (2026-07-28) first, then from the `MCP-Protocol-Version` header. A request with no version is 2025-03-26, so it gets no links. This rule also applies to the missing permission error.
+- The dashboard sends a student with no processed courses to the onboarding page. Such a student gets no link to those pages. Use `onboarded_page_link` for them. The notification and settings pages skip onboarding, so they use `page_link`. `User#onboarding_complete?` is the rule for both.
+- The schedule page lists the enrolled current and future terms, or the last 6 enrolled terms when there are none (`ScheduleLoading.terms_for`). `my_courses` links only to a term in that list.
+- A link is extra. When a `links` block raises an error, the server reports it with `Rails.error.report` and sends the result with no links.
+
+To add a link to a tool, call `links` in the tool class. The block gets the result Hash and returns a list of link Hashes from `page_link` or `onboarded_page_link` (`McpTools::PageLinks`):
+
+```ruby
+links do
+  [ onboarded_page_link(name: "wit-calendar-friends", title: "My friends on WIT Calendar",
+                        url: page_url(:dashboard_friends_url)) ]
+end
+```
+
+Then add the tool and its arguments to `spec/services/mcp_tools/page_links_spec.rb` and `spec/requests/mcp/page_links_spec.rb`. The request spec opens each link as a signed-in student and expects `200`. Add a row to the table above.
+
 ## Prompts
 
 A prompt is a task that the student starts from the client, for example as a slash command. The server gives one user message. The message tells the model which tools to call and in which order. It tells the model to ask the student for a fact that no tool gives, and not to guess it. Each message ends with the advisor message: confirm the plan with the program director and the academic advisor. Every argument is optional.
@@ -200,7 +237,7 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 | `friends:requests`, `friends:meetings`, `friends:groups` | reserved for the friend tools | unchecked |
 
 - The server lists every tool to every token. A tool that needs a permission the token lacks says so in its description.
-- A call to a tool without its scope gets a tool error that tells the student how to add the permission: disconnect the app in its connector settings, connect again, and check the box. The server counts these in `calendar_mcp_scope_denials_total`.
+- A call to a tool without its scope gets a tool error that tells the student how to add the permission: disconnect the app in its connector settings, connect again, and check the box. The error also links to Settings on the dashboard, which shows the permissions of each app. The server counts these in `calendar_mcp_scope_denials_total`.
 - The MCP spec also defines step-up authorization: the server answers `403` with `WWW-Authenticate: Bearer error="insufficient_scope", scope="..."`, and the client asks the student for the missing scope. Not every client does this, and in a client that does not, the `403` fails the whole request with no reason shown. So the server sends the `403` only to clients in `McpTools::Scopes::STEP_UP_CLIENTS`. Add a client there after a test shows that it signs in again and retries. The step-up consent page starts with the requested boxes checked.
 - A box the student checked for this app before starts checked the next time.
 - Tokens issued before the scopes were split have the scope `read`. The server treats it as every read scope, so those connections keep their tools. A client registered before the split lists only `read`; the consent page updates its list on the next sign-in.
@@ -286,6 +323,7 @@ Rules:
 | `app/views/mcp_apps/` | The HTML templates of the MCP Apps |
 | `McpTools::Prompts::` (`app/services/mcp_tools/prompts/`) | The prompts |
 | `McpTools::Completions` | Completions for the prompt arguments |
+| `McpTools::PageLinks` | The `resource_link` items that point to WIT Calendar pages |
 | `Dashboard::ConnectedAppsController` | Disconnect an app |
 
 ### Add a tool
@@ -296,6 +334,7 @@ Rules:
 4. Define `perform`. Return a Hash. Raise `McpTools::ToolError` for a bad argument. A write tool checks its arguments and calls `authorize` first. Then it makes the change in a `with_confirmation` block (see "Confirmation"). Add the optional `not_changed` key (`McpTools::Schemas::NOT_CHANGED`) to its output schema.
 5. Call `authorize` for any record that belongs to a user. Reuse the policies, queries, and serializers of the matching API endpoint. If no endpoint gives the data, add one too, so the extension and the MCP server stay equal.
 6. A tool with a semantic search calls `spend_semantic_search!` first. A tool whose answer a student can use to plan courses calls `academic_planning` with the keys of its data sources (`Catalog::Freshness::SOURCES`), so its result carries the advisory.
+   If a WIT Calendar page shows the same data, call `links` (see [Page links](#page-links)).
 7. Add the class to `McpTools.all`, and add a row to the table above and to the permissions table.
 8. Write a spec in `spec/services/mcp_tools/`. Check that a token without the scope gets a tool error.
 9. Add calls of the tool to `spec/services/mcp_tools/output_schemas_spec.rb`. Use full data and sparse data: nil fields and empty lists.

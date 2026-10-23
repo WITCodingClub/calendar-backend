@@ -35,6 +35,16 @@ module McpTools
         optional: %i[not_changed]
       )
     )
+    links do
+      [
+        page_link(
+          name:        "wit-calendar-notifications",
+          title:       "Notification settings on WIT Calendar",
+          url:         page_url(:dashboard_notifications_url),
+          description: "Pause or resume your reminders."
+        )
+      ]
+    end
 
     def perform(disabled:, duration_hours: nil)
       authorize user, :update?
