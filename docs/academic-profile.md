@@ -66,7 +66,8 @@ Some students processed their current term before the extension read past terms 
 
 - `GET /api/user/backfills` returns each name with `completed` and `completed_at`.
 - `PUT /api/user/backfills/:name` marks the run done and returns the same body. Call it only after the run finishes, so a failed run starts again on the next panel load.
-- An unknown name answers 404. Add a new run to `UserBackfill::NAMES`.
+- The backend does not know if a run was ever needed. A new student starts with every run not completed, so the extension marks each run done after its first full sync too.
+- An unknown name answers 404. Add a new run to `UserBackfill::NAMES`. To run a finished backfill again for every student, add a new name (for example `past_terms_v2`).
 
 ```mermaid
 sequenceDiagram
