@@ -41,6 +41,7 @@ RSpec.describe "Friends availability-only sharing", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(json["classes"].first["title"]).to eq("Secret Topology Seminar")
+      expect(json["classes"].first["crn"]).to eq(98_765)
     end
 
     it "answers 403 with no course data when the friend shares only availability" do

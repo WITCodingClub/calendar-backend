@@ -10,7 +10,7 @@ module McpTools
                   "optionally in one subject or on given days and times."
       arguments [
         MCP::Prompt::Argument.new(name: "term", title: "Term",
-                                  description: "The term uid or name, for example 202710 or Spring 2027. Default: the next term."),
+                                  description: "The term uid or name, for example 202710 or Spring 2027. Default: the next fall or spring term."),
         MCP::Prompt::Argument.new(name: "subject", title: "Subject",
                                   description: "A subject code, for example COMP or MATH."),
         MCP::Prompt::Argument.new(name: "days", title: "Days",

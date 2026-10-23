@@ -7,9 +7,10 @@ module McpTools
   # - term: term uids, the current and future terms first, then the past
   #   terms, newest first. The value matches the start of the uid or the name.
   # - subject: subject codes with active sections, in the term of the term
-  #   argument when the client sends it.
+  #   argument when the client sends it, else in the current and future terms.
   # - courses: course codes from the catalog. The argument is a list, so only
-  #   the part after the last comma completes.
+  #   the part after the last separator (comma, semicolon, or new line)
+  #   completes.
   #
   # Each match is on the start of the value and ignores case. An argument
   # that the prompt does not have, or that has no completions, gets no values.
@@ -20,7 +21,7 @@ module McpTools
     def self.call(params) = new(params).call
 
     def initialize(params)
-      @params = params || {}
+      @params = params.is_a?(Hash) ? params : {}
     end
 
     def call
@@ -33,9 +34,9 @@ module McpTools
     attr_reader :params
 
     def values_for(name, value)
-      return [] unless params.dig(:ref, :type) == "ref/prompt"
+      return [] unless dig(:ref, :type) == "ref/prompt"
 
-      prompt = Prompts.find(params.dig(:ref, :name))
+      prompt = Prompts.find(dig(:ref, :name))
       return [] unless prompt&.argument_names&.include?(name)
 
       case name
@@ -46,8 +47,14 @@ module McpTools
       end
     end
 
-    def argument_name  = params.dig(:argument, :name).to_s
-    def argument_value = params.dig(:argument, :value).to_s
+    def argument_name  = dig(:argument, :name).to_s
+    def argument_value = dig(:argument, :value).to_s
+
+    # Hash#dig raises when a client sends text or a list where the spec has
+    # an object. Such a part counts as missing.
+    def dig(*keys)
+      keys.reduce(params) { |node, key| node.is_a?(Hash) ? node[key] : nil }
+    end
 
     def terms(value)
       needle = value.strip.downcase
@@ -60,20 +67,30 @@ module McpTools
 
     def subjects(value)
       needle = value.strip.upcase
-      Catalog::SubjectQuery.new.codes(term_uid: context_term_uid).select { |code| code.upcase.start_with?(needle) }
+      Catalog::SubjectQuery.new.codes(term_uids: subject_term_uids).select { |code| code.upcase.start_with?(needle) }
     end
 
+    # The term the client already filled in (a uid or a name, the same as the
+    # prompts take). Without one, the current and future terms, so the query
+    # does not read every past term. Without those, every term.
+    def subject_term_uids
+      context = dig(:context, :arguments, :term)
+      term = Prompts::BasePrompt.find_term(context) if context.is_a?(String) || context.is_a?(Numeric)
+      return [ term.uid ] if term
+
+      uids = Term.current_and_future.pluck(:uid)
+      uids.presence
+    end
+
+    # Only the code after the last separator completes. The text before it
+    # stays, with one space after the separator.
     # One more than the limit, so hasMore is true when there are more.
     def courses(value)
-      head, _, last = value.rpartition(",")
-      prefix = head.strip.empty? ? "" : "#{head.strip}, "
+      parts  = value.split(/(#{Prompts::BasePrompt::COURSE_SEPARATORS})/o)
+      last   = parts.last.to_s.match?(Prompts::BasePrompt::COURSE_SEPARATORS) ? "" : parts.pop.to_s
+      head   = parts.join.sub(/[ \t]+\z/, "")
+      prefix = head.empty? ? "" : "#{head}#{' ' unless head.end_with?("\n")}"
       Catalog::CourseQuery.new.codes_starting_with(last, limit: LIMIT + 1).map { |code| "#{prefix}#{code}" }
-    end
-
-    # The term argument the client already filled in, when it is a uid.
-    def context_term_uid
-      uid = params.dig(:context, :arguments, :term).to_s.strip
-      uid if uid.match?(/\A\d{6}\z/)
     end
   end
 end

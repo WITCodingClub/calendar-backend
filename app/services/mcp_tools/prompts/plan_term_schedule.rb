@@ -11,7 +11,7 @@ module McpTools
                   "preferences, and get one to three schedules with no conflicts, with their CRNs."
       arguments [
         MCP::Prompt::Argument.new(name: "term", title: "Term",
-                                  description: "The term uid or name, for example 202710 or Spring 2027. Default: the next term."),
+                                  description: "The term uid or name, for example 202710 or Spring 2027. Default: the next fall or spring term."),
         MCP::Prompt::Argument.new(name: "courses", title: "Courses",
                                   description: "The courses you want, separated by commas, for example COMP 2350, MATH 1750."),
         MCP::Prompt::Argument.new(name: "preferences", title: "Preferences",

@@ -121,9 +121,10 @@ A prompt is a task that the student starts from the client, for example as a sla
 | `plan_degree_progression` | `program`, `catalog_year`, `graduation_term` | Plans each term to graduation: `my_course_history`, the required courses from the student, then `get_course` for prerequisites, corequisites, and the terms each course is usually offered. Lists the risks. |
 | `find_class_for_free_time` | `term`, `subject`, `days`, `times` | Finds sections that fit the student's free time: `my_busy_times`, `search_sections` with time filters, then `check_schedule`. |
 
-- `term` takes a term uid (`202710`) or a name (`Spring 2027`). Without it, a prompt uses the next term. `check_my_schedule` uses the next term if the student has courses in it, else the current term.
-- `courses` takes course codes separated by commas: `COMP 2350, MATH 1750`.
+- `term` takes a term uid (`202710`) or a name (`Spring 2027`). Without it, `plan_term_schedule` and `find_class_for_free_time` use the next fall or spring term, and tell the model to confirm the term with the student. They skip summer, because a student in March registers for fall. `check_my_schedule` uses the next term if the student has courses in it, else the current term.
+- `courses` takes course codes separated by commas, semicolons, or new lines: `COMP 2350, MATH 1750`.
 - The server cuts an argument at 500 characters. The message puts each argument in quotes.
+- Arguments that are not an object of strings get `-32602` (Invalid params). The server does not report this client error.
 - A prompt reads no student data. The tools read it when the model calls them, with the scopes of the token. `my_courses` gives the CRN of each course, so `check_my_schedule` can pass the CRNs to `check_schedule`.
 - WIT Calendar has no degree requirement data yet. So `plan_degree_progression` tells the model to ask the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu. Issues #526 to #529 and #799 add requirement data and tools. When they ship, change `requirements_steps` in `McpTools::Prompts::PlanDegreeProgression` to call the new tools. Then the model asks the student only for what the tools do not give.
 
@@ -134,17 +135,17 @@ The server answers `completion/complete` for the prompt arguments (`McpTools::Co
 | Argument | Values | Source |
 | --- | --- | --- |
 | `term` | Term uids. The current and future terms come first, then the past terms, newest first. The value matches the start of the uid or of the name (`spr` gives `Spring 2027`). | `terms` |
-| `subject` | Subject codes with active sections. When the client sends the `term` argument as context, only the subjects of that term. | `Catalog::SubjectQuery#codes` |
-| `courses` | Course codes from the catalog, for example `COMP 2350`. Only the code after the last comma completes. The codes before it stay. | `Catalog::CourseQuery#codes_starting_with` |
+| `subject` | Subject codes with active sections. When the client sends the `term` argument as context (a uid or a name), only the subjects of that term. Without it, only the subjects of the current and future terms. | `Catalog::SubjectQuery#codes` |
+| `courses` | Course codes from the catalog, for example `COMP 2350`. The separators are the same as for the prompts. Only the code after the last separator completes. The codes before it stay. | `Catalog::CourseQuery#codes_starting_with` |
 
-Other arguments get no values. The course query uses the unique index on `(subject_code, course_number)` when the value has a number, and a limit of 101 rows.
+Other arguments get no values. A `context` or `context.arguments` that is not an object gives no context, not an error. The course query uses the unique index on `(subject_code, course_number)` when the value has a number, and a limit of 101 rows.
 
 ### Cache hints
 
-The server sets the SEP-2549 cache hints: `ttlMs` is 3,600,000 (one hour) and `cacheScope` is `public` (`McpTools::Server::CACHE_TTL_MS` and `CACHE_SCOPE`). The SDK adds the hints to `tools/list`, `prompts/list`, `resources/list`, `resources/read`, and `server/discover`. It does not add them to `tools/call`, `prompts/get`, or `completion/complete`.
+The server sets the SEP-2549 cache hints: `ttlMs` is 300,000 (5 minutes) and `cacheScope` is `public` (`McpTools::Server::CACHE_TTL_MS` and `CACHE_SCOPE`). The SDK adds the hints to `tools/list`, `prompts/list`, `resources/list`, `resources/read`, and `server/discover`. It does not add them to `tools/call`, `prompts/get`, or `completion/complete`.
 
 - The scope is `public` because those results are the same for every token. The server lists every tool and prompt to every token, their descriptions are fixed in code, and the only resources are the static app templates. A cache that a client shares between students cannot leak the data of one student.
-- The lists change only on a deploy, so one hour is safe.
+- The TTL is short because the results change on a deploy: a new tool, a new prompt, or a new week grid template. The server is stateless, so it cannot send `list_changed` to tell a client to read them again. With 5 minutes, a client is at most 5 minutes behind a deploy, and it still saves the reads in one chat.
 - A client on a protocol version before 2026-07-28 also gets the two fields in the list results. A client ignores result fields it does not know.
 - Before you add a resource or a list result that changes for each student, set the scope to `private`, or give that result its own hints.
 

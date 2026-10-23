@@ -299,6 +299,15 @@ RSpec.describe "Api::Mcp", type: :request do
 
       expect(response.parsed_body.dig("error", "code")).to eq(-32_602)
     end
+
+    it "answers invalid params, with no error report, for arguments that are not an object of text" do
+      [ "COMP 2350", [ "COMP 2350" ], { courses: [ "COMP 2350" ] } ].each do |arguments|
+        reports = capture_error_reports { rpc "prompts/get", { name: "plan_term_schedule", arguments: arguments } }
+
+        expect(response.parsed_body.dig("error", "code")).to eq(-32_602)
+        expect(reports).to be_empty
+      end
+    end
   end
 
   describe "completion/complete" do
@@ -322,15 +331,53 @@ RSpec.describe "Api::Mcp", type: :request do
     it "gives no values for an argument with no completions" do
       expect(complete("plan_degree_progression", "program", "BS")).to eq("values" => [], "hasMore" => false)
     end
+
+    it "completes a subject in the term the client sends as context" do
+      term = create(:term, year: 2031, season: :spring)
+      create(:course, term: term, subject: "Computer Science (COMP)")
+      create(:course, subject: "Communication (COMM)")
+
+      rpc "completion/complete", { ref: { type: "ref/prompt", name: "find_class_for_free_time" },
+                                   argument: { name: "subject", value: "co" },
+                                   context: { arguments: { term: "Spring 2031" } } }
+
+      expect(response.parsed_body.dig("result", "completion")).to eq("values" => [ "COMP" ], "hasMore" => false)
+    end
+
+    it "answers a malformed context with values and no error report" do
+      create(:course, subject: "Computer Science (COMP)")
+      allow(Term).to receive(:current).and_return(nil)
+
+      [ "text", [ 1 ], { arguments: "text" }, { arguments: [ 1 ] } ].each do |context|
+        reports = capture_error_reports do
+          rpc "completion/complete", { ref: { type: "ref/prompt", name: "find_class_for_free_time" },
+                                       argument: { name: "subject", value: "co" }, context: context }
+        end
+
+        expect(response.parsed_body.dig("result", "completion", "values")).to eq([ "COMP" ])
+        expect(reports).to be_empty
+      end
+    end
   end
 
   describe "cache hints" do
-    it "marks tools/list and prompts/list public for one hour" do
-      %w[tools/list prompts/list].each do |method|
-        rpc method
+    let(:hints) { { "ttlMs" => 300_000, "cacheScope" => "public" } }
 
-        expect(response.parsed_body["result"]).to include("ttlMs" => 3_600_000, "cacheScope" => "public")
+    it "marks tools/list, prompts/list, resources/list, and resources/read public for 5 minutes" do
+      [ [ "tools/list", {} ], [ "prompts/list", {} ], [ "resources/list", {} ],
+        [ "resources/read", { uri: McpTools::WeekGridApp::URI_VALUE } ] ].each do |method, params|
+        rpc method, params
+
+        expect(response.parsed_body["result"]).to include(hints)
       end
+    end
+
+    it "adds no hints to prompts/get or completion/complete" do
+      rpc "prompts/get", { name: "check_my_schedule" }
+      expect(response.parsed_body["result"]).not_to include("ttlMs", "cacheScope")
+
+      rpc "completion/complete", { ref: { type: "ref/prompt", name: "check_my_schedule" }, argument: { name: "term", value: "" } }
+      expect(response.parsed_body["result"]).not_to include("ttlMs", "cacheScope")
     end
 
     it "gives the same tools/list to tokens of different students and scopes" do
@@ -349,11 +396,17 @@ RSpec.describe "Api::Mcp", type: :request do
       expect(response.parsed_body["result"]).not_to include("ttlMs", "cacheScope")
     end
 
-    it "still lists the tools on an older protocol version" do
-      rpc "tools/list", with: headers.merge("MCP-Protocol-Version" => "2025-03-26")
+    it "still lists the tools and prompts, with the hints, on an older protocol version" do
+      older = headers.merge("MCP-Protocol-Version" => "2025-03-26")
 
+      rpc "tools/list", with: older
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body.dig("result", "tools").pluck("name")).to match_array(McpTools.names)
+
+      rpc "prompts/list", with: older
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["result"]).to include(hints)
+      expect(response.parsed_body.dig("result", "prompts").pluck("name")).to eq(McpTools::Prompts.names)
     end
   end
 end

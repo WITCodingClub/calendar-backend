@@ -36,9 +36,25 @@ RSpec.describe McpTools::Completions do
       create(:course, term: term, subject: "Mathematics (MATH)")
       create(:course, subject: "Communication (COMM)")
 
+      allow(Term).to receive(:current).and_return(nil)
+
       expect(complete("subject", "co", prompt: "find_class_for_free_time")[:values]).to eq(%w[COMM COMP CONM])
       expect(complete("subject", "co", prompt: "find_class_for_free_time", context: { term: term.uid.to_s })[:values])
         .to eq(%w[COMP CONM])
+      expect(complete("subject", "co", prompt: "find_class_for_free_time", context: { term: term.name })[:values])
+        .to eq(%w[COMP CONM])
+    end
+
+    it "uses the current and future terms when the client sends no term" do
+      past    = create(:term, year: 2030, season: :fall)
+      current = create(:term, year: 2031, season: :spring)
+      future  = create(:term, year: 2031, season: :fall)
+      create(:course, term: past, subject: "Communication (COMM)")
+      create(:course, term: current, subject: "Computer Science (COMP)")
+      create(:course, term: future, subject: "Construction Management (CONM)")
+      allow(Term).to receive(:current).and_return(current)
+
+      expect(complete("subject", "co", prompt: "find_class_for_free_time")[:values]).to eq(%w[COMP CONM])
     end
   end
 
@@ -53,6 +69,12 @@ RSpec.describe McpTools::Completions do
       expect(complete("courses", "comp 23")).to eq(values: [ "COMP 2350" ], hasMore: false)
       expect(complete("courses", "COMP 2350, math 17")[:values]).to eq([ "COMP 2350, MATH 1750" ])
       expect(complete("courses", "COMP 2350,ma")[:values]).to eq([ "COMP 2350, MATH 1750", "COMP 2350, MATH 2300" ])
+    end
+
+    it "splits on the same separators as the prompts" do
+      expect(complete("courses", "COMP 2350; math 17")[:values]).to eq([ "COMP 2350; MATH 1750" ])
+      expect(complete("courses", "COMP 2350\nmath 17")[:values]).to eq([ "COMP 2350\nMATH 1750" ])
+      expect(complete("courses", "COMP 2350,")[:values]).to eq([ "COMP 2350, COMP 2350", "COMP 2350, MATH 1750", "COMP 2350, MATH 2300" ])
     end
 
     it "gives at most 100 values and says there are more" do
@@ -75,5 +97,18 @@ RSpec.describe McpTools::Completions do
     expect(complete("courses", "CO", prompt: "check_my_schedule")).to eq(values: [], hasMore: false)
     expect(described_class.call({ ref: { type: "ref/resource", uri: "x" }, argument: { name: "courses", value: "CO" } }))
       .to eq(completion: { values: [], hasMore: false })
+  end
+
+  it "treats a malformed part of the params as missing" do
+    create(:course, subject: "Computer Science (COMP)")
+    allow(Term).to receive(:current).and_return(nil)
+    ref ={ type: "ref/prompt", name: "find_class_for_free_time" }
+
+    [ "text", [ 1 ], { arguments: "text" }, { arguments: [ 1 ] }, { arguments: { term: { uid: 1 } } } ].each do |context|
+      result = described_class.call({ ref: ref, argument: { name: "subject", value: "CO" }, context: context })
+      expect(result[:completion][:values]).to eq(%w[COMP])
+    end
+    expect(described_class.call("text")).to eq(completion: { values: [], hasMore: false })
+    expect(described_class.call({ ref: "text", argument: [ 1 ] })).to eq(completion: { values: [], hasMore: false })
   end
 end

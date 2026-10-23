@@ -53,16 +53,47 @@ RSpec.describe McpTools::Prompts do
       expect(text(prompt, { "term" => "Winter 1999" })).to include('I asked for "Winter 1999"', "ask me which term I mean")
     end
 
-    it "uses the next term when there is no argument" do
-      allow(Term).to receive(:next).and_return(term)
+    it "skips summer: in spring, the default is the fall term, and the model confirms it" do
+      fall = create(:term, year: 2031, season: :fall)
+      create(:term, year: 2031, season: :summer)
+      allow(Term).to receive(:current).and_return(term)
 
-      expect(text(prompt)).to include("Use Spring 2031 (term_uid #{term.uid}), the next term.")
+      body = text(prompt)
+
+      expect(body).to include("Use Fall 2031 (term_uid #{fall.uid}), the next fall or spring term", "ask me to confirm the term")
+      expect(text(McpTools::Prompts::FindClassForFreeTime)).to include("Use Fall 2031")
     end
 
-    it "tells the model to call list_terms when there is no next term" do
-      allow(Term).to receive(:next).and_return(nil)
+    it "uses the spring term in fall and in summer" do
+      spring = create(:term, year: 2032, season: :spring)
+      allow(Term).to receive(:current).and_return(create(:term, year: 2031, season: :fall))
+      expect(text(prompt)).to include("Use Spring 2032 (term_uid #{spring.uid})")
 
-      expect(text(prompt)).to include("Call list_terms and use next_term_uid")
+      allow(Term).to receive(:current).and_return(create(:term, year: 2032, season: :summer))
+      expect(text(prompt)).to include("The next fall or spring term is Fall 2032", "not published yet")
+    end
+
+    it "tells the model to ask when there is no current term" do
+      allow(Term).to receive(:current).and_return(nil)
+
+      expect(text(prompt)).to include("Call list_terms, then ask me which term I mean")
+    end
+  end
+
+  describe ".validate_arguments!" do
+    let(:prompt) { McpTools::Prompts::PlanTermSchedule }
+
+    it "takes nil or an object of text and numbers" do
+      expect { prompt.validate_arguments!(nil) }.not_to raise_error
+      expect { prompt.validate_arguments!({ term: 202710, courses: "COMP 2350" }) }.not_to raise_error
+    end
+
+    it "raises Invalid params for arguments that are not an object of text" do
+      [ "term", [ 1 ], { term: { uid: 1 } }, { courses: [ "COMP 2350" ] } ].each do |args|
+        expect { prompt.validate_arguments!(args) }.to raise_error(MCP::Server::RequestHandlerError) { |error|
+          expect(error.error_code).to eq(-32_602)
+        }
+      end
     end
   end
 

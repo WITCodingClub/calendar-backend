@@ -18,9 +18,10 @@ module Catalog
     # call: it counts nothing. The MCP server completes prompt arguments with it.
     #
     # @return [Array<String>]
-    def codes(term_uid: nil)
+    # term_uids: only the subjects of these terms. nil: every term.
+    def codes(term_uids: nil)
       scope = Course.active
-      scope = scope.where(term_id: Term.where(uid: term_uid.to_i).select(:id)) if term_uid.present?
+      scope = scope.where(term_id: Term.where(uid: Array(term_uids).map(&:to_i)).select(:id)) unless term_uids.nil?
 
       scope.distinct.pluck(:subject).map { |subject| self.class.code_for(subject) }.uniq.sort
     end

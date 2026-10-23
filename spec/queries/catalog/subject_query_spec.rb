@@ -24,7 +24,7 @@ RSpec.describe Catalog::SubjectQuery do
       create(:course, term: term, subject: "Physics (PHYS)", status: :cancelled)
       create(:course, subject: "Biology (BIOL)")
 
-      expect(described_class.new.codes(term_uid: term.uid)).to eq(%w[COMP MATH])
+      expect(described_class.new.codes(term_uids: [ term.uid ])).to eq(%w[COMP MATH])
       expect(described_class.new.codes).to eq(%w[BIOL COMP MATH])
     end
   end
