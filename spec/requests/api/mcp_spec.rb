@@ -227,7 +227,7 @@ RSpec.describe "Api::Mcp", type: :request do
 
     expect(response).to have_http_status(:ok)
     content = response.parsed_body.dig("result", "structuredContent")
-    expect(content.except("advisory")).to eq("term_uid" => term.uid, "courses" => [])
+    expect(content.except("advisory")).to eq("term_uid" => term.uid, "term_name" => term.name, "courses" => [])
     expect(content.dig("advisory", "message")).to eq(McpTools::BaseTool::ADVISORY)
   end
 

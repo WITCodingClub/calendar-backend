@@ -83,6 +83,9 @@ RSpec.describe "MCP week grid app", type: :system do
       monday = find("[role='list'][aria-label='Monday']")
       expect(monday).to have_css(".block.conflict[data-crn='20397']", text: "Conflict")
       expect(monday).to have_css(".block.conflict[data-crn='20401']", text: "Conflict")
+      # The two blocks share the column, so each one is narrow with a short time.
+      expect(monday).to have_css(".block.narrow[data-crn='20397'] .time", exact_text: "9:00-10:15")
+      expect(page).to have_css(".hour.top", text: "9 AM", visible: :all)
       # The second Monday meeting of CRN 20397 does not overlap anything.
       expect(monday).to have_css(".block:not(.conflict)[data-crn='20397']", text: "2:00 PM to 3:50 PM")
       expect(find("[role='list'][aria-label='Wednesday']")).to have_css(".block:not(.conflict)[data-crn='20500']")
@@ -107,7 +110,7 @@ RSpec.describe "MCP week grid app", type: :system do
     send_tool_result(tool_result(McpTools::MyCourses, term_uid: term.uid))
 
     within_frame("app") do
-      expect(page).to have_css("h1", text: "My courses")
+      expect(page).to have_css("h1", text: "My courses, #{term.name}")
       expect(find("[role='list'][aria-label='Tuesday']")).to have_css(".block", text: "11:00 AM to 12:15 PM")
       expect(find("[role='list'][aria-label='Monday']")).to have_no_css(".block")
       # The all-day placeholder of a section with no set time is not a block.

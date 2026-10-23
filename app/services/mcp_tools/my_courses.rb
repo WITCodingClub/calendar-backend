@@ -23,7 +23,7 @@ module McpTools
         course.merge(meeting_times: course[:meeting_times].map { |time| time.except(:calendar_config) })
       end
 
-      { term_uid: term.uid, courses: classes }
+      { term_uid: term.uid, term_name: term.name, courses: classes }
     end
   end
 end
