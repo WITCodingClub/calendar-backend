@@ -637,14 +637,18 @@
               if (event.conflict) block.appendChild(el("span", "badge", "Conflict"));
               block.appendChild(el("strong", null, event.label));
               if (event.columns > 1) {
-                // Blocks that share a column are narrow: the code wraps, the
-                // time is short, and the detail stays in the tooltip.
+                // Blocks that share a column are narrow: the code wraps and the
+                // time is short. A block that crosses noon says PM at the end.
                 block.classList.add("narrow");
-                block.appendChild(el("span", "time", shortClock(event.start) + "-" + shortClock(event.end)));
+                var crossesNoon = event.start < 720 && event.end > 720;
+                block.appendChild(el("span", "time",
+                  shortClock(event.start) + "-" + shortClock(event.end) + (crossesNoon ? " PM" : "")));
               } else {
                 block.appendChild(el("span", "time", clock(event.start) + " to " + clock(event.end)));
-                if (event.detail) block.appendChild(el("span", null, event.detail));
               }
+              // The detail stays in narrow blocks too: touch hosts have no
+              // tooltip, and a screen reader reads the clipped text.
+              if (event.detail) block.appendChild(el("span", null, event.detail));
               block.title = event.label + ", " + DAY_NAMES[day] + " " + clock(event.start) + " to " + clock(event.end) +
                 (event.detail ? ", " + event.detail : "") + (event.conflict ? ", conflict" : "");
               column.appendChild(block);
