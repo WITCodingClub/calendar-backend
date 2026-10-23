@@ -252,6 +252,7 @@ module McpTools
     # One of the user's courses (Courses::ProcessedEventsBuilder).
     # my_course_history leaves out term, because the course is under its term.
     MY_COURSE_PROPERTIES = {
+      crn:           INTEGER,
       title:         STRING,
       course_number: INTEGER,
       schedule_type: STRING,
