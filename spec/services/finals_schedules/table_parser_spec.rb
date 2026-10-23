@@ -138,6 +138,73 @@ RSpec.describe FinalsSchedules::TableParser do
     end
   end
 
+  describe "rows next to each other" do
+    def line(section, crns, date = "", time = "", room = "")
+      format("%-35s%-33s%-39s%-45s%-31s%-19s%s", section, "SAMPLE", crns, "", date, time, room).rstrip
+    end
+
+    it "does not give a row with no CRN the CRNs of a row with no date" do
+      text = [
+        line("ZQXA2100-01", "10049-10050", "", "", "TO BE ANNOUNCED"),
+        line("ZQXF1000-01", "FILL IN", "Tuesday, December 9, 2025", "1:00PM-4:00PM", "ZQXB AUD")
+      ].join("\n")
+
+      expect(parser.parse(text)).to eq([])
+      expect(parser.warnings).to contain_exactly(a_string_including("Row has no CRN"),
+                                                 a_string_including("Row has no exam date and time"))
+    end
+
+    it "gives an open chain to the tall row below it, not to a row with no CRN above it" do
+      text = [
+        line("ZQXF1000-01", "FILL IN", "Tuesday, December 9, 2025", "1:00PM-4:00PM", "ZQXB AUD"),
+        line("ZQXA1200-01-", "10045-10046-"),
+        line("", "", "Wednesday, December 10, 2025", "10:15AM-12:15PM", "ZQXB 201"),
+        line("05C", "10047-10048")
+      ].join("\n")
+
+      expect(parser.parse(text)).to all(include(date: Date.new(2025, 12, 10), combined_crns: [ 10_045, 10_046, 10_047, 10_048 ]))
+      expect(parser.parse(text).size).to eq(4)
+    end
+
+    it "continues a chain that wraps from a row that has CRNs" do
+      text = [
+        row("10031", "Friday, April 4, 2025", "1:00PM-5:00PM", "ZQXB 101").sub("10031  ", "10031-  "),
+        format("%-48s%s", "", "10033")
+      ].join("\n")
+
+      expect(parser.parse(text)).to contain_exactly(include(crn: 10_031, combined_crns: [ 10_031, 10_033 ]),
+                                                    include(crn: 10_033, combined_crns: [ 10_031, 10_033 ]))
+      expect(parser.warnings).to eq([])
+    end
+
+    it "does not take a tag as the room" do
+      text = row("10001", "Monday, December 14, 2026", "8:00 AM - 10:00 AM", "                    COMBINED FINAL")
+
+      expect(parser.parse(text)).to contain_exactly(include(location: nil))
+    end
+
+    it "does not take the lower part of a wrapped room for the next row" do
+      text = [
+        format("%140s%s", "", "ZQXN/ZQXS"),
+        row("10001", "Tuesday, December 08, 2026", "1:00 PM - 5:00 PM"),
+        format("%144s%s", "", "CRIT"),
+        row("10002", "Tuesday, December 08, 2026", "1:00 PM - 5:00 PM")
+      ].join("\n")
+
+      expect(parser.parse(text).map { |e| e[:location] }).to eq([ "ZQXN/ZQXS CRIT", nil ])
+    end
+
+    it "warns when a CRN has a second row with other data" do
+      text = [
+        row("10001", "Monday, December 14, 2026", "8:00 AM - 10:00 AM", "ZQXB 101"),
+        row("10001", "Tuesday, December 15, 2026", "8:00 AM - 10:00 AM", "ZQXB 102")
+      ].join("\n")
+
+      expect(parser.parse(text)).to contain_exactly(include(crn: 10_001, location: "ZQXB 101"))
+      expect(parser.warnings).to contain_exactly(a_string_including("CRN 10001 has more than one row"))
+    end
+  end
+
   describe "dates" do
     it "keeps the printed year when the weekday does not match the common year" do
       text = [

@@ -17,6 +17,14 @@ namespace :finals do
       schedule = FinalsSchedule.for_term(term).completed.recent.find { |s| s.pdf_file.attached? }
       next unless schedule
 
+      # A newer upload in the queue would race with this run, and the older
+      # PDF could win.
+      if FinalsSchedule.for_term(term).where(status: %i[pending processing]).where("created_at > ?", schedule.created_at).exists?
+        puts
+        puts "#{term.name} (#{term.uid}): skipped, a newer upload is still processing"
+        next
+      end
+
       result = FinalsSchedules::Parser.call(pdf_content: schedule.pdf_file.download, term: term, dry_run: !apply)
 
       puts
@@ -41,8 +49,10 @@ namespace :finals do
         stats:         result.slice(:total, :created, :updated, :linked, :orphan, :rooms_created),
         error_message: result[:errors].presence&.join("\n")
       )
-      # Past terms get no calendar sync: their events are over.
-      schedule.trigger_calendar_resyncs_for_term if current_and_future.include?(term.id) && result[:changes].any?
+      # Past terms get no calendar sync: their events are over. Between terms
+      # there is no current term, so an exam still to come also counts.
+      upcoming = current_and_future.include?(term.id) || FinalExam.where(term: term, exam_date: Date.current..).exists?
+      schedule.trigger_calendar_resyncs_for_term if upcoming && result[:changes].any?
     end
   end
 

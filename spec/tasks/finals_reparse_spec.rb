@@ -48,7 +48,7 @@ RSpec.describe "finals rake tasks" do
     before do
       schedule_for(past)
       create(:final_exam, term: past, crn: 10_061, exam_date: Date.new(2026, 4, 1), start_time: 800, end_time: 1000)
-      create(:final_exam, term: past, crn: 10_099)
+      create(:final_exam, term: past, crn: 10_099, exam_date: Date.new(2026, 4, 9))
     end
 
     it "prints the changes and saves nothing in a dry run" do
@@ -84,6 +84,26 @@ RSpec.describe "finals rake tasks" do
       run_task("finals:reparse", "APPLY" => "1")
 
       expect(synced).to eq([ future.id ])
+    end
+
+    it "syncs calendars between terms when the term still has an exam to come" do
+      allow(Term).to receive(:current_and_future).and_return(Term.none)
+      create(:final_exam, term: past, exam_date: Date.current + 30)
+      synced = []
+      allow_any_instance_of(FinalsSchedule).to receive(:trigger_calendar_resyncs_for_term) { |schedule| synced << schedule.term_id } # rubocop:disable RSpec/AnyInstance
+
+      run_task("finals:reparse", "APPLY" => "1")
+
+      expect(synced).to eq([ past.id ])
+    end
+
+    it "skips a term with a newer upload still processing" do
+      create(:finals_schedule, term: past, status: :pending)
+
+      output = run_task("finals:reparse", "APPLY" => "1")
+
+      expect(output).to include("skipped, a newer upload is still processing")
+      expect(FinalExam.find_by!(term: past, crn: 10_061).start_time).to eq(800)
     end
 
     it "limits the run to TERM_UID and uses only completed uploads with a PDF" do

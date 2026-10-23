@@ -60,28 +60,32 @@ module FinalsSchedules
       changes = []
 
       entries.each do |entry|
-        rooms_created += ensure_rooms_exist(entry[:location])
+        # A savepoint for each entry: in a dry run, one database error rolls
+        # back only this entry, not the transaction that the others share.
+        ActiveRecord::Base.transaction(requires_new: true) do
+          rooms_created += ensure_rooms_exist(entry[:location])
 
-        final_exam = FinalExam.find_or_initialize_by(crn: entry[:crn], term: term)
-        was_new    = final_exam.new_record?
-        course     = Course.find_by(crn: entry[:crn], term: term)
+          final_exam = FinalExam.find_or_initialize_by(crn: entry[:crn], term: term)
+          was_new    = final_exam.new_record?
+          course     = Course.find_by(crn: entry[:crn], term: term)
 
-        final_exam.assign_attributes(
-          course:        course,
-          exam_date:     entry[:date],
-          start_time:    entry[:start_time],
-          end_time:      entry[:end_time],
-          location:      entry[:location],
-          combined_crns: entry[:combined_crns]
-        )
-        diff = final_exam.changes.slice(*TRACKED_ATTRIBUTES)
+          final_exam.assign_attributes(
+            course:        course,
+            exam_date:     entry[:date],
+            start_time:    entry[:start_time],
+            end_time:      entry[:end_time],
+            location:      entry[:location],
+            combined_crns: entry[:combined_crns]
+          )
+          diff = final_exam.changes.slice(*TRACKED_ATTRIBUTES)
 
-        if final_exam.save
-          was_new ? created += 1 : updated += 1
-          course ? linked += 1 : orphan += 1
-          changes << { crn: entry[:crn], action: was_new ? :create : :update, changes: diff } if was_new || diff.any?
-        else
-          errors << "Failed to save final exam for CRN #{entry[:crn]}: #{final_exam.errors.full_messages.join(', ')}"
+          if final_exam.save
+            was_new ? created += 1 : updated += 1
+            course ? linked += 1 : orphan += 1
+            changes << { crn: entry[:crn], action: was_new ? :create : :update, changes: diff } if was_new || diff.any?
+          else
+            errors << "Failed to save final exam for CRN #{entry[:crn]}: #{final_exam.errors.full_messages.join(', ')}"
+          end
         end
       rescue => e
         Rails.error.report(e, handled: true, context: { crn: entry[:crn] })

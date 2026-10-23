@@ -24,6 +24,8 @@ The registrar changes the columns, the headers, and the page breaks of the PDF e
 - `WENTW212` becomes `WENTW 212`, and `CEIS 414A/B` becomes `CEIS 414A / CEIS 414B`, so `FinalExam::ROOM_PATTERN` finds each room. `SEE FACULTY` (also `SEE FACULTY FOR DETAILS`), `ONLINE`, `VIRTUAL`, and `TBA` become `See Faculty`, `Online`, `Virtual`, and `TBA`. `#N/A` is a spreadsheet error, so it gives no location.
 - When a few rows have a year that does not match their weekday (Fall 2026 has a fill-down error), the parser uses the year that most rows use and warns.
 
+A row with no date gets no exam, even when another CRN of its group has a date. The old `SpringFallParser` copied the date of that CRN. No PDF from 2022 to 2026 has such a row in its `-layout` text.
+
 The parser warns about a line with a CRN but no date and time, unless the line says `ONLINE`, `TBA`, `VIRTUAL`, or `SEE FACULTY`. The admin sees the warnings on the upload page.
 
 The fixtures in `spec/fixtures/files/finals_schedules/` copy the layout of each PDF from Fall 2022 to Fall 2026, with made-up data.

@@ -147,6 +147,19 @@ RSpec.describe FinalsSchedules::Parser do
       expect(building.rooms).to be_empty
     end
 
+    it "keeps going in a dry run after a database error on one entry" do
+      allow(Rails.error).to receive(:report)
+      allow(Course).to receive(:find_by).and_wrap_original do |original, **args|
+        ActiveRecord::Base.connection.execute("SELECT 1/0") if args[:crn] == 10_061
+        original.call(**args)
+      end
+
+      result = described_class.call(pdf_content: "%PDF", term: term, dry_run: true)
+
+      expect(result[:errors]).to contain_exactly(a_string_including("Error processing CRN 10061"))
+      expect(result).to include(created: 1)
+    end
+
     it "skips locations in unknown buildings and blank locations" do
       stub_pdftotext([ row("10001", "8:00 AM - 10:00 AM", "NOPE 101"), row("10002", "8:00 AM - 10:00 AM") ].join("\n"))
 
