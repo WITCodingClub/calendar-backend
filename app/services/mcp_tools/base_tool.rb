@@ -21,7 +21,13 @@ module McpTools
   # Each tool sets output_schema: the JSON Schema of the Hash that perform
   # returns. The shared parts are in McpTools::Schemas. academic_planning adds
   # ADVISORY_SCHEMA to it, so a tool's own schema leaves the advisory out.
+  #
+  # A tool can call links with a block that takes the result and returns
+  # page_link Hashes (McpTools::PageLinks). Each one goes in the content after
+  # the JSON text, as a resource_link to a WIT Calendar page. The structured
+  # content does not change.
   class BaseTool < MCP::Tool
+    include PageLinks
     READ_ONLY = {
       read_only_hint:   true,
       destructive_hint: false,
@@ -70,7 +76,13 @@ module McpTools
         subclass.annotations(READ_ONLY)
       end
 
-      attr_reader :required_scope
+      attr_reader :required_scope, :links_block
+
+      # The pages of a result: links { |result| [ page_link(...) ] }. The
+      # block runs on the tool instance, so it can read user.
+      def links(&block)
+        @links_block = block
+      end
 
       # The result of this tool carries ADVISORY and the refresh times of
       # its sources (keys of Catalog::Freshness::SOURCES).
@@ -107,17 +119,17 @@ module McpTools
       def call(server_context:, **arguments)
         unless Array(server_context[:scopes]).include?(required_scope)
           Yabeda.calendar.mcp_scope_denials_total.increment({ scope: required_scope.to_s, mode: "tool_error" })
-          return error_response(missing_scope_message)
+          return error_response(missing_scope_message, links: [ PageLinks.connected_apps_link ])
         end
 
-        data = new(server_context[:user], request: server_context[:request], server_context: server_context)
-               .perform(**arguments)
+        tool = new(server_context[:user], request: server_context[:request], server_context: server_context)
+        data = tool.perform(**arguments)
         # A write tool asks the student to confirm first (McpTools::Confirmation).
         return data if data.is_a?(MCP::Server::InputRequiredResult)
 
         data = data.merge(advisory: advisory) if academic_planning?
 
-        MCP::Tool::Response.new([ { type: "text", text: data.to_json } ], structured_content: data)
+        MCP::Tool::Response.new([ { type: "text", text: data.to_json }, *tool.page_links(data) ], structured_content: data)
       rescue ToolError, ActiveRecord::RecordNotFound => e
         # The message is for the person who asked: a term that does not exist,
         # a friend who does not share. These are answers, not faults, so they
@@ -154,8 +166,8 @@ module McpTools
           "WIT Calendar in this app's connector settings, connect again, and check \"#{label}\"."
       end
 
-      def error_response(message)
-        MCP::Tool::Response.new([ { type: "text", text: message } ], error: true)
+      def error_response(message, links: [])
+        MCP::Tool::Response.new([ { type: "text", text: message }, *links ], error: true)
       end
     end
 
@@ -166,6 +178,12 @@ module McpTools
       @user           = user
       @request        = request
       @server_context = server_context
+    end
+
+    # The resource_link content items of a result, from the links block.
+    def page_links(data)
+      block = self.class.links_block
+      block ? Array(instance_exec(data, &block)).compact : []
     end
 
     private

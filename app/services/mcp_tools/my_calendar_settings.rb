@@ -31,6 +31,7 @@ module McpTools
         template_variables:           Schemas::STRINGS
       )
     )
+    links { [ calendar_settings_link ] }
 
     def perform
       authorize user, :show?

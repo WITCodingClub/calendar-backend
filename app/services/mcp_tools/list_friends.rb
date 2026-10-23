@@ -7,6 +7,16 @@ module McpTools
     description "Lists my friends on WIT Calendar, with the id that friend_busy_times takes."
     requires_scope "friends:read"
     input_schema(properties: {})
+    links do
+      [
+        page_link(
+          name:        "wit-calendar-friends",
+          title:       "My friends on WIT Calendar",
+          url:         page_url(:dashboard_friends_url),
+          description: "Your friends, your friend requests, and what you share with each friend."
+        )
+      ]
+    end
     output_schema(Schemas.object(friends: Schemas.array(Schemas::FRIEND)))
 
     def perform

@@ -14,6 +14,16 @@ module McpTools
     # Hosts with the MCP Apps extension show the result as a week grid.
     meta WeekGridApp.tool_meta
     input_schema(properties: { term_uid: TERM_SCHEMA })
+    links do |result|
+      [
+        page_link(
+          name:        "wit-calendar-schedule",
+          title:       "My schedule on WIT Calendar",
+          url:         page_url(:dashboard_schedule_url, term_uid: result[:term_uid]),
+          description: "Your courses in #{result[:term_name]}, as a list, a week, or a month."
+        )
+      ]
+    end
     output_schema(
       Schemas.object(term_uid: Schemas::INTEGER, term_name: Schemas::STRING, courses: Schemas.array(Schemas::MY_COURSE))
     )
