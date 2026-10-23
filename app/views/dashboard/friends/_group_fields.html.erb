@@ -1,0 +1,21 @@
+<%# The color and shared fields of the new group form and the group editor. A color field always sends a color, so "No color" clears it. %>
+<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+  <label class="flex items-center gap-2 text-xs text-on-surface-variant">
+    Color
+    <%= f.color_field :color,
+        value: group&.color || GoogleCalendar::Colors::PEACOCK,
+        id: "#{id_prefix}_color",
+        class: "h-7 w-10 cursor-pointer rounded border border-outline-variant bg-transparent" %>
+  </label>
+  <label class="flex items-center gap-2 text-xs text-on-surface-variant">
+    <%= hidden_field_tag :no_color, "0", id: nil %>
+    <%= check_box_tag :no_color, "1", group.present? && group.color.nil?, id: "#{id_prefix}_no_color" %>
+    No color
+  </label>
+  <label class="flex items-center gap-2 text-xs text-on-surface-variant">
+    <%= hidden_field_tag :shared, "0", id: nil %>
+    <%= check_box_tag :shared, "1", group&.shared, id: "#{id_prefix}_shared" %>
+    Share with the friends in this group
+  </label>
+</div>
+<p class="text-xs text-on-surface-variant">A shared group shows to each friend in it, with the other members and their busy times. Only you can change it. Each friend can hide it or opt out.</p>

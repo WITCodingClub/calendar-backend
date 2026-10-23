@@ -38,10 +38,18 @@ RSpec.describe "Dashboard authorization", type: :request do
       "dashboard/friend_groups"         => { id: -> { create(:friend_group, user: user).public_id } },
       "dashboard/friend_group_members"  => { friend_group_id: -> { create(:friend_group, user: user).public_id },
                                              id: -> { friend.public_id } },
+      "dashboard/shared_friend_groups"  => { id: -> { shared_group_with_user.public_id } },
       "dashboard/friends/requests"      => { id: -> { create(:friendship, addressee: user).id } },
       "dashboard/friends"               => { id: -> { friend.public_id } },
       "dashboard/meeting_links"         => { id: -> { create(:meeting_link, user: user).public_id } }
     }
+  end
+
+  # A group that the friend owns and shares, with the user in it.
+  def shared_group_with_user
+    group = create(:friend_group, :shared, user: friend)
+    create(:friend_group_membership, friend_group: group, friendship: user.accepted_friendship_with(friend))
+    group
   end
 
   def path_for(route)

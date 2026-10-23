@@ -239,6 +239,93 @@ RSpec.describe "Dashboard friend groups", type: :request do
 
         expect(group.reload.expires_at).to be_nil
       end
+
+      it "shares the group and sets its color" do
+        group = create(:friend_group, user: user)
+
+        patch dashboard_friend_group_path(group.public_id), params: { name: group.name, shared: "1", color: "#1a2b3c", no_color: "0" }
+
+        expect(group.reload).to have_attributes(shared: true, color: "#1a2b3c")
+      end
+
+      it "stops sharing and clears the color when No color is checked" do
+        group = create(:friend_group, :shared, user: user, color: "#33b679")
+
+        patch dashboard_friend_group_path(group.public_id),
+              params: { name: group.name, shared: "0", color: "#039be5", no_color: "1" }
+
+        expect(group.reload).to have_attributes(shared: false, color: nil)
+      end
+    end
+
+    describe "groups that a friend shared with the user" do
+      let(:shared_group) do
+        create(:friend_group, :shared, user: friend, name: "Suitemates").tap do |group|
+          create(:friend_group_membership, friend_group: group, friendship: user.accepted_friendship_with(friend))
+        end
+      end
+
+      it "shows the group, its owner, and the people in it on the friends page" do
+        shared_group
+
+        get dashboard_friends_path
+
+        expect(response.body).to include("Shared with you", "Suitemates", "From Grace Hopper")
+      end
+
+      it "does not show the section when no group is shared with the user" do
+        get dashboard_friends_path
+
+        expect(response.body).not_to include("Shared with you")
+      end
+
+      def set_status(status)
+        patch dashboard_shared_friend_group_path(shared_group.public_id), params: { status: status }
+      end
+
+      it "hides the group and lists it under Hidden and opted out" do
+        set_status("hidden")
+
+        expect(shared_group.membership_for(user)).to be_hidden
+        expect(flash[:notice]).to eq("\"Suitemates\" is hidden. The other members still see you.")
+
+        get dashboard_friends_path
+        expect(response.body).to include("Hidden and opted out (1)", "Show")
+      end
+
+      it "opts out and opts back in, and keeps the friendship" do
+        set_status("opted_out")
+        expect(shared_group.membership_for(user)).to be_opted_out
+        expect(user.friend_of?(friend)).to be(true)
+
+        set_status("active")
+        expect(shared_group.membership_for(user)).to be_active
+      end
+
+      it "refuses an unknown status" do
+        set_status("gone")
+
+        expect(flash[:alert]).to eq("That choice is not valid.")
+        expect(shared_group.membership_for(user)).to be_active
+      end
+
+      it "does not change a group that is not shared" do
+        shared_group.update!(shared: false)
+
+        set_status("hidden")
+
+        expect(flash[:alert]).to eq("Group not found.")
+        expect(shared_group.membership_for(user)).to be_active
+      end
+
+      it "marks a member who opted out on the owner's group" do
+        own = create(:friend_group, :shared, user: user, name: "Planning")
+        add_to(own).update!(status: :opted_out)
+
+        get dashboard_friends_path
+
+        expect(response.body).to include("(opted out)")
+      end
     end
 
     describe "DELETE /dashboard/friends/groups/:id" do

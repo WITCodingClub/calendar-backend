@@ -30,10 +30,16 @@ scope "friends", as: :friends do
     delete "groups/:group_id",                    to: "groups#destroy"
     post   "groups/:group_id/members",            to: "groups#add_member"
     delete "groups/:group_id/members/:friend_id", to: "groups#remove_member"
+    get    "groups/:group_id/busy_blocks",        to: "group_busy_blocks#index"
+
+    # Groups that other users shared with the user (extension#213).
+    get    "shared_groups",           to: "shared_groups#index"
+    get    "shared_groups/:group_id", to: "shared_groups#show"
+    patch  "shared_groups/:group_id", to: "shared_groups#update"
   end
 
-  # After the routes above, so "meetings", "requests", and "groups" are not
-  # read as a friend id.
+  # After the routes above, so "meetings", "requests", "groups", and
+  # "shared_groups" are not read as a friend id.
   delete ":friend_id",        to: "friends#destroy"
   patch  ":friend_id/expiry", to: "friends#update_expiry"
 

@@ -7,6 +7,7 @@ require "rails_helper"
 # Table name: friend_group_memberships
 #
 #  id              :bigint           not null, primary key
+#  status          :string           default("active"), not null
 #  created_at      :datetime         not null
 #  updated_at      :datetime         not null
 #  friend_group_id :bigint           not null
@@ -30,6 +31,11 @@ RSpec.describe FriendGroupMembership, type: :model do
     it { is_expected.to belong_to(:friendship) }
 
     it { is_expected.to validate_uniqueness_of(:friendship_id).scoped_to(:friend_group_id).with_message("is already in this group") }
+
+    it do
+      is_expected.to define_enum_for(:status).with_values(described_class::STATUSES)
+                                             .backed_by_column_of_type(:string).with_default(:active)
+    end
   end
 
   # #friendship_belongs_to_group_owner compares two records, the group owner

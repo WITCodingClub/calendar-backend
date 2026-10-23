@@ -5,8 +5,10 @@
 # Table name: friend_groups
 #
 #  id         :bigint           not null, primary key
+#  color      :string
 #  expires_at :datetime
 #  name       :string           not null
+#  shared     :boolean          default(FALSE), not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
 #  user_id    :bigint           not null
@@ -21,7 +23,10 @@
 #  fk_rails_...  (user_id => users.id) ON DELETE => cascade
 #
 # A named group of friends, for example "study group" or "roommates". Only the
-# owner sees a group. The friends in it do not know about it.
+# owner sees a group, until the owner shares it. A shared group also shows to
+# its members, read only: they see the owner, the other members, and the busy
+# times of each one. Only the owner changes a group. Each member can hide the
+# group or opt out of it (FriendGroupMembership#status).
 class FriendGroup < ApplicationRecord
   include EncodedIds::HashidIdentifiable
 
@@ -39,7 +44,17 @@ class FriendGroup < ApplicationRecord
   scope :unexpired, -> { where("friend_groups.expires_at IS NULL OR friend_groups.expires_at > ?", Time.current) }
   scope :expired,   -> { where(expires_at: ..Time.current) }
 
+  # The shared groups of other owners that hold the user as a member, with any
+  # member status. A membership points at a friendship of the owner, so when
+  # that friendship is one of the user's accepted friendships, the user is the
+  # member.
+  scope :shared_with, lambda { |user|
+    member_of = FriendGroupMembership.where(friendship_id: user.accepted_friendships.select(:id))
+    where(shared: true).where.not(user_id: user.id).where(id: member_of.select(:friend_group_id))
+  }
+
   normalizes :name, with: ->(name) { name.squish }
+  normalizes :color, with: GoogleCalendar::Colors.method(:normalize_attribute)
 
   # An expired group with the same name blocks a new one through the unique
   # name index until the cleanup job runs, so remove it first.
@@ -47,6 +62,7 @@ class FriendGroup < ApplicationRecord
 
   validates :name, presence: true, length: { maximum: NAME_MAX_LENGTH },
                    uniqueness: { scope: :user_id, case_sensitive: false }
+  validates :color, format: { with: GoogleCalendar::Colors::HEX_FORMAT }, allow_nil: true
   validate :expires_at_in_future, if: :will_save_change_to_expires_at?
 
   # The API routes and the dashboard UI for groups are off until the privacy
@@ -71,14 +87,54 @@ class FriendGroup < ApplicationRecord
     end
   end
 
-  # The friend users in the group. Preload memberships: { friendship: [:requester, :addressee] }
-  # to read this for many groups without a query per group. A membership whose
-  # friendship is no longer an accepted friendship of the owner is left out.
-  def members
+  # { friend user => membership }, sorted by the friend's name. Preload
+  # memberships: { friendship: [:requester, :addressee] } to read this for many
+  # groups without a query per group. A membership whose friendship is no
+  # longer an accepted friendship of the owner is left out.
+  def memberships_by_member
     live = user.accepted_friendship_ids
     memberships.select { |membership| live.include?(membership.friendship_id) }
-               .map { |membership| membership.friendship.friend_for(user) }
-               .sort_by { |friend| friend.full_name.downcase }
+               .index_by { |membership| membership.friendship.friend_for(user) }
+               .sort_by { |friend, _| friend.full_name.downcase }
+               .to_h
+  end
+
+  # Every friend user in the group, also the members who opted out. Only the
+  # owner sees this list.
+  def members
+    memberships_by_member.keys
+  end
+
+  # The people that the members of a shared group see: the owner, then each
+  # member who did not opt out.
+  def shared_people
+    [ user, *memberships_by_member.reject { |_, membership| membership.opted_out? }.keys ]
+  end
+
+  # The people whose busy times the viewer reads in this group. The owner is a
+  # friend of each member, so the owner sees every member.
+  def people_for(viewer)
+    viewer.id == user_id ? [ user, *members ] : shared_people
+  end
+
+  # The membership of other_user, or nil. The owner has none. It reads the
+  # loaded memberships when they are there, so a list of groups runs no query
+  # per group.
+  def membership_for(other_user)
+    return nil if other_user.nil? || other_user.id == user_id
+
+    if memberships.loaded?
+      ids = other_user.accepted_friendship_ids
+      memberships.to_a.find { |membership| ids.include?(membership.friendship_id) }
+    else
+      memberships.find_by(friendship_id: other_user.accepted_friendships.select(:id))
+    end
+  end
+
+  # True when other_user is in the group through an accepted friendship with
+  # the owner, with any status.
+  def member?(other_user)
+    membership_for(other_user).present?
   end
 
   # Raised when some member ids are not accepted friends of the owner.

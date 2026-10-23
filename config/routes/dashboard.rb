@@ -25,6 +25,8 @@ authenticate :user do
     resources :friend_groups, path: "friends/groups", only: [ :create, :update, :destroy ] do
       resources :members, controller: "friend_group_members", only: [ :create, :destroy ]
     end
+    # Hides a group that a friend shared with the user, or opts out of it.
+    resources :shared_friend_groups, path: "friends/shared_groups", only: [ :update ]
     # Before resources :friends, so "requests" is not read as a friend id.
     # FriendshipMailer and the extension link to GET /dashboard/friends/requests,
     # so that path must not change.

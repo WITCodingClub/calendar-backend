@@ -5,8 +5,10 @@
 # Table name: friend_groups
 #
 #  id         :bigint           not null, primary key
+#  color      :string
 #  expires_at :datetime
 #  name       :string           not null
+#  shared     :boolean          default(FALSE), not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
 #  user_id    :bigint           not null
@@ -28,6 +30,11 @@ FactoryBot.define do
     # A group that ends in a week.
     trait :temporary do
       expires_at { 1.week.from_now }
+    end
+
+    # A group that its members see too.
+    trait :shared do
+      shared { true }
     end
 
     # A group that already holds accepted friends of its owner.

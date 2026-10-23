@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_163000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -466,6 +466,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
     t.bigint "friendship_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "status", default: "active", null: false
     t.index ["friend_group_id", "friendship_id"], name: "index_friend_group_memberships_on_group_and_friendship", unique: true
     t.index ["friendship_id"], name: "index_friend_group_memberships_on_friendship_id"
   end
@@ -476,6 +477,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "expires_at"
+    t.boolean "shared", default: false, null: false
+    t.string "color"
     t.index "user_id, lower((name)::text)", name: "index_friend_groups_on_user_id_and_lower_name", unique: true
     t.index ["expires_at"], name: "index_friend_groups_on_expires_at", where: "(expires_at IS NOT NULL)"
   end

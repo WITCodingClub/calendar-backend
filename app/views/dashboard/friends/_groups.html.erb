@@ -1,4 +1,4 @@
-<%# Friend groups on the friends page. Only the owner sees them. %>
+<%# The friend groups that the user owns, on the friends page. A shared group also shows to its members. %>
 <section class="space-y-3" aria-labelledby="friend-groups-heading">
   <h2 id="friend-groups-heading" class="text-lg font-semibold text-on-surface">Groups</h2>
 
@@ -16,6 +16,7 @@
       End date (optional)
       <%= f.date_field :expires_on, min: Date.current + 1, class: "m3-input text-xs" %>
     </label>
+    <%= render "group_fields", f: f, group: nil, id_prefix: "new_group" %>
     <% if friends.any? %>
       <fieldset class="flex flex-wrap gap-x-4 gap-y-1">
         <legend class="sr-only">Friends to put in the new group</legend>
@@ -35,14 +36,21 @@
   <% else %>
     <div class="m3-card divide-y divide-outline-variant overflow-hidden">
       <% groups.each do |group| %>
-        <% members = group.members %>
+        <% by_member = group.memberships_by_member %>
+        <% members = by_member.keys %>
         <% member_ids = members.map(&:id) %>
         <div id="<%= dom_id(group) %>" class="px-5 py-4 space-y-3">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <p class="text-sm font-medium text-on-surface"><%= group.name %></p>
+              <p class="flex items-center gap-2 text-sm font-medium text-on-surface">
+                <%= render "group_color", group: group %>
+                <%= group.name %>
+              </p>
               <p class="text-xs text-on-surface-variant">
                 <%= pluralize(members.size, "friend") %>
+                <% if group.shared %>
+                  · Shared with them
+                <% end %>
                 <% if group.expires_at %>
                   · Ends on <%= group.expires_at.to_date.to_fs(:long) %>
                 <% end %>
@@ -60,6 +68,9 @@
               <% members.each do |friend| %>
                 <li class="m3-badge-secondary gap-1">
                   <%= friend.full_name %>
+                  <% if group.shared && by_member[friend].opted_out? %>
+                    <span class="text-on-surface-variant">(opted out)</span>
+                  <% end %>
                   <%= button_to dashboard_friend_group_member_path(group.public_id, friend.public_id),
                       method: :delete,
                       form_class: "inline-flex",
@@ -93,6 +104,7 @@
                     id: "group_#{group.public_id}_expires_on",
                     class: "m3-input text-xs" %>
               </label>
+              <%= render "group_fields", f: f, group: group, id_prefix: "group_#{group.public_id}" %>
               <p class="text-xs text-on-surface-variant">Leave the end date empty to keep the group. When the date passes, the group is removed. Your friends stay.</p>
               <fieldset class="flex flex-wrap gap-x-4 gap-y-1">
                 <legend class="sr-only">Friends in <%= group.name %></legend>
