@@ -21,6 +21,11 @@ scope "user", as: :user do
   get    "finals",                           to: "finals#index"
   get    "course_history",                   to: "course_histories#show"
 
+  # The academic profile and course outcomes from LeopardWeb (#529)
+  get "academic_profile", to: "academic_profiles#show"
+  put "academic_profile", to: "academic_profiles#update"
+  put "course_outcomes",  to: "course_outcomes#update"
+
   # Passkeys: a quick second sign-in for an account Google already vouched
   # for. The two authentication routes are the only unauthenticated ones.
   get    "passkeys",                        to: "passkeys#index"

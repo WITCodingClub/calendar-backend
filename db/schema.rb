@@ -10,12 +10,25 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_130100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
   enable_extension "vector"
+
+  create_table "academic_profiles", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "level"
+    t.string "class_standing"
+    t.string "admit_type"
+    t.integer "admit_term_uid"
+    t.string "leopardweb_digest"
+    t.datetime "leopardweb_synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_academic_profiles_on_user_id", unique: true
+  end
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -272,6 +285,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
     t.check_constraint "end_time >= begin_time", name: "course_meeting_times_end_after_begin"
     t.check_constraint "meeting_schedule_type = ANY (ARRAY[1, 2])", name: "course_meeting_times_schedule_type_valid"
     t.check_constraint "meeting_type = 1", name: "course_meeting_times_meeting_type_valid"
+  end
+
+  create_table "course_outcomes", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "course_id", null: false
+    t.string "outcome", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["course_id"], name: "index_course_outcomes_on_course_id"
+    t.index ["user_id", "course_id"], name: "index_course_outcomes_on_user_id_and_course_id", unique: true
   end
 
   create_table "course_prerequisites", force: :cascade do |t|
@@ -948,6 +971,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "student_programs", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "role", null: false
+    t.string "code"
+    t.string "name", null: false
+    t.string "degree"
+    t.string "college"
+    t.string "department"
+    t.string "concentration"
+    t.string "study_path"
+    t.integer "catalog_term_uid"
+    t.string "status", default: "active", null: false
+    t.datetime "ended_at"
+    t.string "source", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "status"], name: "index_student_programs_on_user_id_and_status"
+  end
+
   create_table "teacher_rating_tags", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "faculty_id", null: false
@@ -1145,6 +1187,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
     t.index ["user_id"], name: "index_webauthn_challenges_on_user_id"
   end
 
+  add_foreign_key "academic_profiles", "users", on_delete: :cascade
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_events", "calendars"
@@ -1158,6 +1201,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
   add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "course_meeting_time_rooms", "rooms"
   add_foreign_key "course_meeting_times", "courses"
+  add_foreign_key "course_outcomes", "courses", on_delete: :cascade
+  add_foreign_key "course_outcomes", "users", on_delete: :cascade
   add_foreign_key "course_prerequisites", "catalog_courses", column: "required_catalog_course_id", on_delete: :nullify
   add_foreign_key "course_prerequisites", "catalog_courses", on_delete: :cascade
   add_foreign_key "courses", "terms"
@@ -1213,6 +1258,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "student_programs", "users", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
   add_foreign_key "term_processing_statuses", "terms"
   add_foreign_key "term_processing_statuses", "users"
