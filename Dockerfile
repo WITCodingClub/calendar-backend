@@ -68,6 +68,13 @@ USER 1000:1000
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 
+# The image has no git binary. VersionService reads the commit from REVISION.
+# This ARG is late in the stage, so a new commit does not bust earlier layers.
+ARG GIT_SHA=""
+COPY --chown=rails:rails <<EOF /rails/REVISION
+${GIT_SHA}
+EOF
+
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 

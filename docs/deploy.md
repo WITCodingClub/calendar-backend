@@ -26,6 +26,12 @@ sequenceDiagram
   GH->>T: GET https://calendar.witcc.dev/up (must be 200 with x-runtime)
 ```
 
+## Version in the image
+
+The image has no git binary. The workflow passes `GIT_SHA=<sha>` as a build arg, and the final stage writes it to `/rails/REVISION`. `VersionService` reads that file for `current_sha` and `current_version`. The `ARG` sits late in the final stage, so a new commit does not bust the earlier layers.
+
+The image has no release tag. Releases and tags (`v6.x`) live in the `WITCodingClub/calendar` repo, not in this repo. This repo has only the old `v1.0.x` tags. So `update_available?` stays false in production, and the admin footer shows the short SHA.
+
 ## Rules that follow from this
 
 - Two app versions run at the same time for a few seconds. A migration runs while the old code still serves, so it must be safe next to the old code. strong_migrations enforces this (see `CLAUDE.md`).

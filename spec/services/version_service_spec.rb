@@ -27,4 +27,34 @@ RSpec.describe VersionService do
     expect(described_class).to have_received(:`).with(/git rev-parse/).once
     expect(described_class.call).to include(current: "v1.2.3", current_sha: "abc1234")
   end
+
+  # The production image has no git binary. The build writes the commit to REVISION.
+  context "with a REVISION file and no git" do
+    let(:root) { Pathname.new(Dir.mktmpdir) }
+
+    before do
+      File.write(root.join("REVISION"), "0123456789abcdef\n")
+      allow(Rails).to receive(:root).and_return(root)
+      allow(described_class).to receive(:`).and_return("")
+    end
+
+    after { FileUtils.remove_entry(root) }
+
+    it "reads the short SHA from REVISION" do
+      expect(described_class.current_sha).to eq("0123456")
+    end
+
+    it "ignores a blank REVISION file" do
+      File.write(root.join("REVISION"), "\n")
+
+      expect(described_class.current_sha).to eq("unknown")
+    end
+
+    it "uses the SHA as the version and reports no update" do
+      allow_any_instance_of(described_class).to receive(:latest_version).and_return("v6.3.0") # rubocop:disable RSpec/AnyInstance
+      result = described_class.call
+
+      expect(result).to include(current: "0123456", update_available: false)
+    end
+  end
 end
