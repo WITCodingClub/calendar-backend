@@ -20,20 +20,23 @@ _.file = ".env"
 # Lets you type `rails`, `rubocop`, etc. without the `bin/` prefix.
 _.path = ["{{config_root}}/bin"]
 
-# System packages for `mise bootstrap`: Postgres, plus the native
-# libraries that Ruby and the pg and ruby-vips gems build against.
+# System packages for `mise bootstrap`: Postgres, the native libraries
+# that Ruby and the pg and ruby-vips gems build against, and poppler for
+# the `pdftotext` command that the finals parser runs.
 # brew entries also work on Linux, so limit them to macOS.
 [bootstrap.packages]
 "brew:postgresql@17" = { os = "macos" }
 "brew:vips" = { os = "macos" }
 "brew:libyaml" = { os = "macos" }
 "brew:openssl@3" = { os = "macos" }
+"brew:poppler" = { os = "macos" }
 "apt:postgresql" = "latest"
 "apt:libpq-dev" = "latest"
 "apt:libvips" = "latest"
 "apt:libyaml-dev" = "latest"
 "apt:libssl-dev" = "latest"
 "apt:build-essential" = "latest"
+"apt:poppler-utils" = "latest"
 
 [tasks.setup]
 description = "Install gems and prepare the database"
