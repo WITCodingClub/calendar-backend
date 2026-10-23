@@ -1,0 +1,5 @@
+                                                           Sample Final Exam Schedule - Fall 2022
+CRN   Course         Title                            Instructor                        Final Exam Day               Final Exam Time       Location      Multi-Section Exam
+10001 ZQXA1200-01    SAMPLE REPRESENTATION            Doe, Jane                         Monday, December 12, 2022    3:00 PM - 5:00 PM     ZQXB 201      (Multi-Section Exam)
+10002 ZQXA2200-01    SAMPLE MATTERS                   Roe, Rick                         Friday, December 9, 2022     8:00 AM - 10:00 AM    Virtual
+10003 ZQXA3000-01    SAMPLE STUDIO                    Poe, Pat                          Friday, December 9, 2022     6:00 PM - 8:00 PM     Sample Aud.   (Multi-Section Exam)

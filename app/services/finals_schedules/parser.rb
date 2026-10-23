@@ -1,33 +1,28 @@
 # frozen_string_literal: true
 
-require "open3"
-require "tempfile"
-
 module FinalsSchedules
+  # Parses a finals PDF and saves one FinalExam per CRN for the term.
+  #
+  # With dry_run: true, the service makes the same changes in a transaction
+  # and rolls it back. The result then shows what an upload would change.
   class Parser < ApplicationService
-    PARSERS = [
-      FinalsSchedules::Parsers::Spring2026Parser,
-      FinalsSchedules::Parsers::Fall2025Parser,
-      FinalsSchedules::Parsers::SpringFallParser
-    ].freeze
+    TRACKED_ATTRIBUTES = %w[exam_date start_time end_time location combined_crns].freeze
 
-    attr_reader :pdf_content, :term
+    attr_reader :pdf_content, :term, :dry_run
 
-    def initialize(pdf_content:, term:)
+    def initialize(pdf_content:, term:, dry_run: false)
       @pdf_content = pdf_content
       @term        = term
+      @dry_run     = dry_run
       super()
     end
 
     def call
       validate!
 
-      text   = extract_pdf_text
-      parser = detect_parser(text)
-      Rails.logger.info("Finals schedule parser: #{parser.class.name}")
-
-      entries = parser.parse(text)
-      results = process_exam_entries(entries)
+      parser  = TableParser.new
+      entries = parser.parse(PdfText.extract(pdf_content))
+      results = dry_run ? rolled_back { process_exam_entries(entries) } : process_exam_entries(entries)
 
       {
         total:         entries.count,
@@ -36,6 +31,8 @@ module FinalsSchedules
         linked:        results[:linked],
         orphan:        results[:orphan],
         rooms_created: results[:rooms_created],
+        changes:       results[:changes],
+        stale_crns:    FinalExam.where(term: term).where.not(crn: entries.pluck(:crn)).order(:crn).pluck(:crn),
         errors:        parser.warnings + results[:errors]
       }
     end
@@ -48,63 +45,47 @@ module FinalsSchedules
       raise ArgumentError, "PDF content must be a string" unless pdf_content.is_a?(String)
     end
 
-    def extract_pdf_text
-      Tempfile.create([ "finals_schedule", ".pdf" ], binmode: true) do |tmp|
-        tmp.write(pdf_content)
-        tmp.flush
-
-        stdout, stderr, status = Open3.capture3("pdftotext", tmp.path, "-")
-
-        unless status.success?
-          raise "Failed to extract text from PDF: #{stderr.presence || 'Unknown error'}. " \
-                "Make sure pdftotext is installed (brew install poppler on Mac)"
-        end
-
-        stdout
+    def rolled_back
+      result = nil
+      ActiveRecord::Base.transaction do
+        result = yield
+        raise ActiveRecord::Rollback
       end
-    end
-
-    def detect_parser(text)
-      PARSERS.each do |klass|
-        return klass.new if klass.matches?(text)
-      end
-
-      ranked = PARSERS.map { |klass| { parser: klass.new, count: 0 } }
-      ranked.each { |r| r[:count] = r[:parser].parse(text).count }
-      best = ranked.max_by { |r| r[:count] }
-
-      Rails.logger.warn(
-        "Unknown finals PDF format; falling back to #{best[:parser].class.name} " \
-        "(#{best[:count]} entries)"
-      )
-      best[:parser]
+      result
     end
 
     def process_exam_entries(entries)
       created = updated = linked = orphan = rooms_created = 0
       errors  = []
+      changes = []
 
       entries.each do |entry|
-        rooms_created += ensure_rooms_exist(entry[:location])
+        # A savepoint for each entry: in a dry run, one database error rolls
+        # back only this entry, not the transaction that the others share.
+        ActiveRecord::Base.transaction(requires_new: true) do
+          rooms_created += ensure_rooms_exist(entry[:location])
 
-        final_exam = FinalExam.find_or_initialize_by(crn: entry[:crn], term: term)
-        was_new    = final_exam.new_record?
-        course     = Course.find_by(crn: entry[:crn], term: term)
+          final_exam = FinalExam.find_or_initialize_by(crn: entry[:crn], term: term)
+          was_new    = final_exam.new_record?
+          course     = Course.find_by(crn: entry[:crn], term: term)
 
-        final_exam.assign_attributes(
-          course:        course,
-          exam_date:     entry[:date],
-          start_time:    entry[:start_time],
-          end_time:      entry[:end_time],
-          location:      entry[:location],
-          combined_crns: entry[:combined_crns]
-        )
+          final_exam.assign_attributes(
+            course:        course,
+            exam_date:     entry[:date],
+            start_time:    entry[:start_time],
+            end_time:      entry[:end_time],
+            location:      entry[:location],
+            combined_crns: entry[:combined_crns]
+          )
+          diff = final_exam.changes.slice(*TRACKED_ATTRIBUTES)
 
-        if final_exam.save
-          was_new ? created += 1 : updated += 1
-          course ? linked += 1 : orphan += 1
-        else
-          errors << "Failed to save final exam for CRN #{entry[:crn]}: #{final_exam.errors.full_messages.join(', ')}"
+          if final_exam.save
+            was_new ? created += 1 : updated += 1
+            course ? linked += 1 : orphan += 1
+            changes << { crn: entry[:crn], action: was_new ? :create : :update, changes: diff } if was_new || diff.any?
+          else
+            errors << "Failed to save final exam for CRN #{entry[:crn]}: #{final_exam.errors.full_messages.join(', ')}"
+          end
         end
       rescue => e
         Rails.error.report(e, handled: true, context: { crn: entry[:crn] })
@@ -112,7 +93,7 @@ module FinalsSchedules
       end
 
       { created: created, updated: updated, linked: linked, orphan: orphan,
-        rooms_created: rooms_created, errors: errors }
+        rooms_created: rooms_created, changes: changes, errors: errors }
     end
 
     def ensure_rooms_exist(location)
