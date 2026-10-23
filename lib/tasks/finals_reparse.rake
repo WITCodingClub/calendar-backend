@@ -46,7 +46,7 @@ namespace :finals do
 
       schedule.update!(
         processed_at:  Time.current,
-        stats:         result.slice(:total, :created, :updated, :linked, :orphan, :rooms_created),
+        stats:         result.slice(:total, :created, :updated, :unchanged, :linked, :orphan, :rooms_created),
         error_message: result[:errors].presence&.join("\n")
       )
       # Past terms get no calendar sync: their events are over. Between terms
