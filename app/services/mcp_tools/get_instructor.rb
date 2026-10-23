@@ -17,6 +17,7 @@ module McpTools
       },
       required: [ "instructor_id" ]
     )
+    output_schema(Schemas::INSTRUCTOR_DETAIL)
 
     def perform(instructor_id:, term_uid: nil)
       term = term_uid && (Term.find_by(uid: term_uid) || raise(ToolError, "No term with uid #{term_uid}. Call list_terms for the uids."))

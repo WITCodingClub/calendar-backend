@@ -163,6 +163,18 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(write_tools.map { |tool| tools.dig(tool.name_value, "annotations", "destructiveHint") }).to all(be(false))
   end
 
+  it "gives each tool an outputSchema, with the advisory for an academic planning tool" do
+    rpc "tools/list"
+
+    tools = response.parsed_body.dig("result", "tools").index_by { |tool| tool["name"] }
+    expect(McpTools.names.map { |name| tools.dig(name, "outputSchema", "type") }).to all(eq("object"))
+    expect(tools.dig("list_terms", "outputSchema", "$schema")).to eq("https://json-schema.org/draft/2020-12/schema")
+    expect(tools.dig("list_terms", "outputSchema", "required")).to eq(%w[current_term_uid next_term_uid terms])
+    expect(tools.dig("get_section", "outputSchema", "required")).to include("crn", "advisory")
+    expect(tools.dig("get_section", "outputSchema", "properties", "advisory", "properties").keys).to eq(%w[message data_sources])
+    expect(tools.dig("list_friends", "outputSchema", "properties")).not_to have_key("advisory")
+  end
+
   it "lists every tool to a token with any scope, and names the permission a write tool needs" do
     rpc "tools/list", with: headers.merge("Authorization" => "Bearer #{create(:oauth_access_token, resource_owner_id: user.id, scopes: 'catalog').plaintext_token}")
 

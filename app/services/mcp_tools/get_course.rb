@@ -18,6 +18,7 @@ module McpTools
       },
       required: [ "code" ]
     )
+    output_schema(Schemas::COURSE)
 
     def perform(code:, term_uid: nil)
       raise ToolError, "#{code} is not a course code. Use a subject code and number, for example COMP 2350." unless CatalogCourse.parse_code(code)

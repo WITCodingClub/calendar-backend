@@ -16,6 +16,7 @@ module McpTools
       },
       required: [ "crn" ]
     )
+    output_schema(Schemas::SECTION)
 
     def perform(crn:, term_uid: nil)
       Catalog::SectionSerializer.new(find_section(crn, term_uid)).as_json

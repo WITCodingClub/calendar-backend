@@ -17,6 +17,10 @@ module McpTools
   # tells the student to confirm the plan with their program director and
   # advisor, and the refresh times of the sources the tool names
   # (Catalog::Freshness).
+  #
+  # Each tool sets output_schema: the JSON Schema of the Hash that perform
+  # returns. The shared parts are in McpTools::Schemas. academic_planning adds
+  # ADVISORY_SCHEMA to it, so a tool's own schema leaves the advisory out.
   class BaseTool < MCP::Tool
     READ_ONLY = {
       read_only_hint:   true,
@@ -32,6 +36,27 @@ module McpTools
                "WIT Calendar refreshes it, and when it last did. Tell the student to confirm any course plan with " \
                "their program director and their academic advisor before they register, drop a course, or " \
                "change their plan."
+
+    # The advisory key in the result of an academic planning tool. A term
+    # source (Catalog::Freshness::TERM_SOURCES) has terms, the other sources
+    # have last_refreshed_at.
+    ADVISORY_SCHEMA = Schemas.object(
+      message:      Schemas::STRING,
+      data_sources: Schemas.array(
+        Schemas.object(
+          {
+            data:              Schemas::STRING,
+            source:            Schemas::STRING,
+            schedule:          Schemas::STRING,
+            last_refreshed_at: Schemas.nullable(Schemas::DATE_TIME),
+            terms:             Schemas.array(
+              Schemas.object(term_uid: Schemas::INTEGER, term: Schemas::STRING, last_refreshed_at: Schemas.nullable(Schemas::DATE_TIME))
+            )
+          },
+          optional: %i[last_refreshed_at terms]
+        )
+      )
+    ).freeze
 
     PAGE_SCHEMA = { type: "integer", minimum: 1, description: "The page, from 1." }.freeze
     TERM_SCHEMA = {
@@ -54,11 +79,22 @@ module McpTools
         raise ArgumentError, "unknown data source #{unknown.join(', ')}" if unknown.any?
 
         @data_sources = sources
+        apply_output_schema
       end
 
       attr_reader :data_sources
 
       def academic_planning? = !@data_sources.nil?
+
+      # The JSON Schema of the result (the MCP outputSchema). The schema of an
+      # academic planning tool also gets the advisory, whichever of the two
+      # calls comes first.
+      def output_schema(value = nil)
+        return super() if value.nil?
+
+        @own_output_schema = value
+        apply_output_schema
+      end
 
       # The scope a token needs to call this tool (McpTools::Scopes).
       def requires_scope(name)
@@ -90,6 +126,19 @@ module McpTools
       end
 
       private
+
+      def apply_output_schema
+        return if @own_output_schema.nil?
+
+        schema = @own_output_schema
+        if academic_planning?
+          schema = schema.merge(
+            properties: schema.fetch(:properties, {}).merge(advisory: ADVISORY_SCHEMA),
+            required:   [ *schema[:required], "advisory" ]
+          )
+        end
+        @output_schema_value = MCP::Tool::OutputSchema.new(schema)
+      end
 
       def advisory
         { message: ADVISORY, data_sources: Catalog::Freshness.call(data_sources) }

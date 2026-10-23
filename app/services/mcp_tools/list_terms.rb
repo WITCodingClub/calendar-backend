@@ -11,6 +11,13 @@ module McpTools
     input_schema(
       properties: { active: { type: "boolean", description: "Only the terms in session today." } }
     )
+    output_schema(
+      Schemas.object(
+        current_term_uid: Schemas.nullable(Schemas::INTEGER),
+        next_term_uid:    Schemas.nullable(Schemas::INTEGER),
+        terms:            Schemas.array(Schemas::TERM)
+      )
+    )
 
     def perform(active: false)
       counts = Course.active.group(:term_id).count
