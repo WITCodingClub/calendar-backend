@@ -139,6 +139,16 @@
         text-overflow: ellipsis;
       }
 
+      .hour.top {
+        transform: none;
+      }
+
+      .block.narrow strong {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+      }
+
       .block span {
         display: block;
         color: var(--color-text-secondary);
@@ -325,6 +335,13 @@
           return isNaN(value) ? null : value;
         }
 
+        // 12-hour time with no AM or PM, for a narrow block: "9:05".
+        function shortClock(total) {
+          var h = Math.floor(total / 60) % 24;
+          var m = total % 60;
+          return (h % 12 === 0 ? 12 : h % 12) + ":" + (m < 10 ? "0" : "") + m;
+        }
+
         // 12-hour time: "9:05 AM". With short, a whole hour drops the
         // minutes: "1 PM".
         function clock(total, short) {
@@ -447,7 +464,7 @@
           var count = (data.courses || []).length;
 
           return {
-            title: data.term_uid ? "My courses, term " + data.term_uid : "My courses",
+            title: data.term_name ? "My courses, " + data.term_name : (data.term_uid ? "My courses, term " + data.term_uid : "My courses"),
             summary: count + (count === 1 ? " course" : " courses"),
             events: events,
             notes: notes
@@ -590,8 +607,10 @@
 
           var hours = el("div", "hours");
           hours.setAttribute("aria-hidden", "true");
-          for (var hour = first + 1; hour < last; hour++) {
-            var label = el("span", "hour", clock(hour * 60, true));
+          for (var hour = first; hour < last; hour++) {
+            // The label of the first hour sits at the top line, so it does not
+            // move up out of the grid.
+            var label = el("span", hour === first ? "hour top" : "hour", clock(hour * 60, true));
             label.style.top = "calc(" + (hour - first) + " * var(--hour-height))";
             hours.appendChild(label);
           }
@@ -617,10 +636,21 @@
               // The badge goes first, so a short block still shows it.
               if (event.conflict) block.appendChild(el("span", "badge", "Conflict"));
               block.appendChild(el("strong", null, event.label));
-              block.appendChild(el("span", null, clock(event.start) + " to " + clock(event.end)));
+              if (event.columns > 1) {
+                // Blocks that share a column are narrow: the code wraps and the
+                // time is short. A block that crosses noon says PM at the end.
+                block.classList.add("narrow");
+                var crossesNoon = event.start < 720 && event.end > 720;
+                block.appendChild(el("span", "time",
+                  shortClock(event.start) + "-" + shortClock(event.end) + (crossesNoon ? " PM" : "")));
+              } else {
+                block.appendChild(el("span", "time", clock(event.start) + " to " + clock(event.end)));
+              }
+              // The detail stays in narrow blocks too: touch hosts have no
+              // tooltip, and a screen reader reads the clipped text.
               if (event.detail) block.appendChild(el("span", null, event.detail));
               block.title = event.label + ", " + DAY_NAMES[day] + " " + clock(event.start) + " to " + clock(event.end) +
-                (event.conflict ? ", conflict" : "");
+                (event.detail ? ", " + event.detail : "") + (event.conflict ? ", conflict" : "");
               column.appendChild(block);
             });
 
