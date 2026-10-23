@@ -36,6 +36,18 @@ module Preferences
 
     ALLOWED_CONTEXT_KEYS = ALLOWED_VARIABLES.map(&:to_sym).freeze
 
+    # Conditionals only. else and elsif belong to their if, so they are not
+    # tags of their own.
+    ALLOWED_TAGS = %w[if unless].freeze
+
+    # Pass the user_id when the renderer builds events from saved templates.
+    # A saved template that fails then reports the error, so that a template a
+    # later rule rejects does not fail without a trace. A preview passes none,
+    # because a bad template there is the person's typing, not a fault.
+    def initialize(user_id: nil)
+      @user_id = user_id
+    end
+
     def render(template_string, context)
       return "" if template_string.blank?
 
@@ -217,12 +229,12 @@ module Preferences
         datetime.strftime("%-I:%M %p")
       end
 
-      # Templates may only contain plain text and {{ variable }} interpolation.
-      # Liquid tags ({% ... %}) — loops, includes, conditionals — are rejected so
-      # a user-supplied template can't do control flow, resource exhaustion, or
-      # pull in other content.
+      # Templates may only contain plain text, {{ variable }} interpolation,
+      # and the conditionals in ALLOWED_TAGS. Other Liquid tags ({% ... %}),
+      # such as loops, includes, and assigns, are rejected so a user-supplied
+      # template can't loop, exhaust resources, or pull in other content.
       def check_for_disallowed_tags(parsed_template)
-        tags = collect_tag_names(parsed_template.root)
+        tags = collect_tag_names(parsed_template.root) - ALLOWED_TAGS
         if tags.any?
           raise InvalidTemplateError, "Disallowed tags: #{tags.uniq.join(', ')}"
         end
@@ -257,13 +269,26 @@ module Preferences
           elsif node.name.is_a?(String)
             variables << node.name
           end
-        when Liquid::Block, Liquid::Document
+        when Liquid::If
+          # Unless is an If. Its conditions name variables too.
+          node.blocks.each { |condition| extract_variables_from_condition(condition, variables) }
+          node.nodelist.each { |child| extract_variables_from_node(child, variables) }
+        when Liquid::Block, Liquid::Document, Liquid::BlockBody
           node.nodelist.each { |child| extract_variables_from_node(child, variables) }
         when Liquid::Tag
           if node.respond_to?(:nodelist)
             node.nodelist.each { |child| extract_variables_from_node(child, variables) }
           end
         end
+      end
+
+      def extract_variables_from_condition(condition, variables)
+        return if condition.nil?
+
+        [ condition.left, condition.right ].each do |operand|
+          variables << operand.name if operand.is_a?(Liquid::VariableLookup)
+        end
+        extract_variables_from_condition(condition.child_condition, variables)
       end
 
       def build_location_string(building, rooms)
@@ -316,6 +341,7 @@ module Preferences
         self.class.validate_template(template_string)
         Liquid::Template.parse(template_string)
       rescue Liquid::Error, InvalidTemplateError => e
+        Rails.error.report(e, handled: true, context: { user_id: @user_id }) if @user_id
         e
       end
 

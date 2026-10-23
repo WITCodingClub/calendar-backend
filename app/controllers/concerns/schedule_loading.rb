@@ -76,7 +76,7 @@ module ScheduleLoading
     # The schedule owner's preferences give the colors and titles, so a friend's
     # schedule looks the same as it does in their own calendar and the extension.
     preference_resolver = Preferences::Resolver.new(user)
-    template_renderer   = Preferences::TemplateRenderer.new
+    template_renderer   = Preferences::TemplateRenderer.new(user_id: user.id)
 
     enrollments.map do |enrollment|
       EnrolledCourseSerializer.new(
