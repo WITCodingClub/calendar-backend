@@ -21,6 +21,28 @@ module McpTools
 
     DESCRIPTION = "Wentworth course catalog and your WIT Calendar schedule and settings."
 
+    # SEP-2549 cache hints. The SDK adds them to the list and read results
+    # (tools/list, prompts/list, resources/list, resources/read) and to
+    # server/discover, never to a tool call, a prompt, or a completion.
+    #
+    # Scope: those results are the same for every token. Every tool and
+    # prompt is listed to every token, their descriptions are fixed in code,
+    # and the only resources are the static app templates
+    # (McpTools.app_resources). So a cache that a client shares between
+    # students cannot leak one student's data, and the scope is public.
+    #
+    # TTL: the results change on a deploy (a new tool, a new week grid
+    # template). The server is stateless, so it cannot send list_changed to
+    # tell a client to read them again. A short TTL keeps a client at most
+    # 5 minutes behind a deploy, and still saves the reads within one chat.
+    #
+    # A client on an older protocol version gets the two fields in the list
+    # results too. JSON-RPC clients ignore result fields they do not know.
+    # Before you add a resource or a list that changes for each student, set
+    # the scope to private or give that result its own hints.
+    CACHE_TTL_MS = 5 * 60 * 1000
+    CACHE_SCOPE  = "public"
+
     # scopes: the scope names of the token, expanded (McpTools::Scopes.expand).
     def self.build(user:, application:, scopes:, request: nil)
       MCP::Server.new(
@@ -34,8 +56,31 @@ module McpTools
         website_url:    Rails.application.routes.url_helpers.mcp_docs_url(**url_options),
         instructions:   INSTRUCTIONS,
         tools:          McpTools.all,
+        resources:      McpTools.app_resources,
+        prompts:        McpTools::Prompts.all,
+        capabilities:   capabilities,
+        ttl_ms:         CACHE_TTL_MS,
+        cache_scope:    CACHE_SCOPE,
         server_context: { user: user, scopes: scopes, request: request },
         configuration:  configuration(user: user, application: application)
+      ).tap do |server|
+        server.completion_handler { |params| Completions.call(params) }
+      end
+    end
+
+    # The SDK defaults, plus completions for the prompt arguments
+    # (McpTools::Completions) and the MCP Apps extension (docs/mcp.md, "Apps").
+    # The server is stateless, so it cannot see what the client declared at
+    # initialize. It always links tools to their app; a client without the
+    # extension ignores the link and reads the normal result.
+    def self.capabilities
+      MCP::Server::Capabilities.new(
+        tools:       { listChanged: true },
+        prompts:     { listChanged: true },
+        resources:   { listChanged: true },
+        logging:     {},
+        completions: {},
+        extensions:  MCP::Apps.capability
       )
     end
 
@@ -44,6 +89,8 @@ module McpTools
         # The SDK sends the client a generic error and calls this with the
         # cause. It handles the error, so the report says handled.
         exception_reporter: lambda do |exception, _context|
+          next if client_error?(exception)
+
           cause = exception.respond_to?(:original_error) && exception.original_error || exception
           Rails.error.report(cause, handled: true, context: { user_id: user.id, oauth_application_id: application&.id })
         end,
@@ -56,6 +103,15 @@ module McpTools
           raise
         end
       )
+    end
+
+    # Invalid params with no cause: a bad request from the client, such as
+    # prompt arguments that are not an object or an unknown prompt. The client
+    # gets -32602 with the reason. It is not a fault, so it is not reported,
+    # the same as a 4xx from the API.
+    def self.client_error?(exception)
+      exception.is_a?(MCP::Server::RequestHandlerError) && exception.original_error.nil? &&
+        (exception.error_code == ::JsonRpcHandler::ErrorCode::INVALID_PARAMS || exception.error_type == :invalid_params)
     end
 
     # Unknown tool names go in one bucket, so a client cannot add label values.

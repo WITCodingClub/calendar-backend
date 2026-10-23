@@ -48,6 +48,10 @@ class CatalogCourse < ApplicationRecord
   has_many :required_by, class_name: "CoursePrerequisite", foreign_key: :required_catalog_course_id,
                          inverse_of: :required_catalog_course, dependent: :nullify
   has_many :unlocks, through: :required_by, source: :catalog_course
+  # The catalog rows that name this course (CatalogCourseLinkable).
+  has_many :catalog_year_courses, dependent: :nullify
+  has_many :program_plan_items, dependent: :nullify
+  has_many :elective_group_courses, dependent: :nullify
 
   validates :subject_code, :course_number, presence: true
   validates :course_number, uniqueness: { scope: :subject_code }

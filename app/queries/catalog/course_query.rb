@@ -21,6 +21,32 @@ module Catalog
       CatalogCourse.find_by_code(code)
     end
 
+    # A partial course code: letters, numbers, or both ("co", "COMP 23", "2350").
+    PARTIAL_CODE = /\A([A-Za-z]{0,5})\s*-?\s*(\d{0,4})\z/
+
+    # The codes ("COMP 2350") of the courses whose code starts with a partial
+    # code, case-insensitive, in code order. The MCP server completes prompt
+    # arguments with it. With numbers, the letters are the whole subject code,
+    # so the unique index on (subject_code, course_number) finds the rows.
+    #
+    # @return [Array<String>] at most limit codes
+    def codes_starting_with(prefix, limit:)
+      match = PARTIAL_CODE.match(prefix.to_s.strip)
+      return [] unless match
+
+      letters, digits = match[1].upcase, match[2]
+      relation = CatalogCourse.all
+      if digits.present?
+        relation = relation.where(subject_code: letters) if letters.present?
+        relation = relation.where("CAST(catalog_courses.course_number AS text) LIKE ?", "#{digits}%")
+      elsif letters.present?
+        relation = relation.where("catalog_courses.subject_code LIKE ?", "#{letters}%")
+      end
+
+      relation.order(:subject_code, :course_number).limit(limit)
+              .pluck(:subject_code, :course_number).map { |subject, number| "#{subject} #{number}" }
+    end
+
     # The catalog courses of some sections, keyed by [subject_code, course_number],
     # so a list of sections loads them in one query.
     def self.for_sections(sections)

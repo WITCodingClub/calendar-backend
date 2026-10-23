@@ -11,7 +11,12 @@ module McpTools
                 "times and rooms. Times are 24-hour, in the America/New_York time zone."
     requires_scope "schedule:read"
     academic_planning :sections
+    # Hosts with the MCP Apps extension show the result as a week grid.
+    meta WeekGridApp.tool_meta
     input_schema(properties: { term_uid: TERM_SCHEMA })
+    output_schema(
+      Schemas.object(term_uid: Schemas::INTEGER, term_name: Schemas::STRING, courses: Schemas.array(Schemas::MY_COURSE))
+    )
 
     def perform(term_uid: nil)
       authorize user, :show?
@@ -21,7 +26,7 @@ module McpTools
         course.merge(meeting_times: course[:meeting_times].map { |time| time.except(:calendar_config) })
       end
 
-      { term_uid: term.uid, courses: classes }
+      { term_uid: term.uid, term_name: term.name, courses: classes }
     end
   end
 end

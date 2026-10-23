@@ -1,0 +1,12 @@
+COURSESECTION               COURSE TITLE        CRN                 INSTRUCTOR   EXAM-DATE                    EXAM-TIME-OF-DAY     EXAM-ROOM
+ZQXA1000-01A   SAMPLE STUDIO                    10071   Doe, Jane                      Friday, December 11, 2026     8:00 AM - 12:00 PM   ZQXB
+ZQXA1000-03B   SAMPLE STUDIO                    10072   Roe, Rick                      Friday, December 11, 2027     8:00 AM - 12:00 PM   ZQXB
+ZQXA2100-01    SAMPLE HISTORY                   10073   Poe, Pat                       Monday, December 14, 2026     10:15 AM - 12:15 PM  ZQXB101
+                                                                                                                                            ZQXN/ZQXS
+ZQXH2000-01    SAMPLE INTERIOR STUDIO           10074   Fox, Fay                       Tuesday, December 08, 2026    1:00 PM - 5:00 PM
+                                                                                                                                                CRIT
+                                                                                                                                            ZQXN/ZQXS
+ZQXH2000-02    SAMPLE INTERIOR STUDIO           10075   Ash, Ari                       Tuesday, December 08, 2026    1:00 PM - 5:00 PM
+                                                                                                                                                CRIT
+ZQXI900-13G    SAMPLE LANGUAGE SKILLS           10076   Sun, Sam                       Monday, December 14, 2026     3:00PM - 6:00 PM     ZQXN CRIT RM
+ZQXA2100-01    SAMPLE HISTORY                   10073   Poe, Pat                       Monday, December 14, 2026     10:15 AM - 12:15 PM  ZQXB101

@@ -70,6 +70,8 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            GIT_SHA=${{ env.DEPLOY_SHA }}
           tags: |
             ghcr.io/witcodingclub/calendar-backend:latest
             ghcr.io/witcodingclub/calendar-backend:main

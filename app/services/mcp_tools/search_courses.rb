@@ -22,6 +22,7 @@ module McpTools
         per_page: { type: "integer", minimum: 1, maximum: MAX_PER_PAGE, description: "Default #{DEFAULT_PER_PAGE}." }
       }
     )
+    output_schema(Schemas.object(courses: Schemas.array(Schemas::COURSE_SUMMARY), meta: Schemas::PAGE_META))
 
     def perform(q: nil, subject: nil, term_uid: nil, page: nil, per_page: nil)
       page, per_page = page_params(page, per_page, default: DEFAULT_PER_PAGE, max: MAX_PER_PAGE)

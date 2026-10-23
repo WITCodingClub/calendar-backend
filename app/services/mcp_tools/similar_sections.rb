@@ -17,6 +17,7 @@ module McpTools
       },
       required: [ "crn" ]
     )
+    output_schema(Schemas.object(crn: Schemas::INTEGER, sections: Schemas.array(Schemas::SECTION)))
 
     def perform(crn:, term_uid: nil, limit: nil)
       course = find_section(crn, term_uid)

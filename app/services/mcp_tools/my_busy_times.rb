@@ -11,6 +11,7 @@ module McpTools
       properties: { start_date: DATE_SCHEMA, end_date: DATE_SCHEMA },
       required:   %w[start_date end_date]
     )
+    output_schema(Schemas.object(Schemas::BUSY_TIMES_PROPERTIES))
 
     def perform(start_date:, end_date:)
       authorize user, :show?

@@ -36,6 +36,13 @@ module McpTools
         per_page:          { type: "integer", minimum: 1, maximum: MAX_PER_PAGE, description: "Default #{DEFAULT_PER_PAGE}." }
       }
     )
+    output_schema(
+      Schemas.object(
+        term_uid: Schemas::INTEGER,
+        sections: Schemas.array(Schemas::SECTION),
+        meta:     Schemas::PAGE_META
+      )
+    )
 
     def perform(term_uid: nil, page: nil, per_page: nil, **filters)
       term = find_term(term_uid)

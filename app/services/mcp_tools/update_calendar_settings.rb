@@ -32,6 +32,14 @@ module McpTools
       },
       required: [ "level" ]
     )
+    # settings is null when the level has no settings left.
+    output_schema(
+      Schemas.object(
+        level:    { type: "string", enum: LEVELS.keys },
+        result:   Schemas::SAVE_RESULT,
+        settings: Schemas.nullable(Schemas::CALENDAR_SETTINGS)
+      )
+    )
 
     def perform(level:, **arguments)
       scope = LEVELS[level] || raise(ToolError, "level must be one of #{LEVELS.keys.join(', ')}")

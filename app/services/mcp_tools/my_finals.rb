@@ -9,6 +9,13 @@ module McpTools
     requires_scope "schedule:read"
     academic_planning :finals
     input_schema(properties: { term_uid: TERM_SCHEMA })
+    output_schema(
+      Schemas.object(
+        term_uid:           Schemas::INTEGER,
+        schedule_published: Schemas::BOOLEAN,
+        finals:             Schemas.array(Schemas::FINAL_EXAM)
+      )
+    )
 
     def perform(term_uid: nil)
       authorize user, :show?

@@ -10,12 +10,26 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
   enable_extension "vector"
+
+  create_table "academic_profiles", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "level"
+    t.string "class_standing"
+    t.string "admit_type"
+    t.integer "admit_term_uid"
+    t.string "leopardweb_profile_digest"
+    t.string "leopardweb_programs_digest"
+    t.datetime "leopardweb_synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_academic_profiles_on_user_id", unique: true
+  end
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -208,6 +222,36 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.index ["subject_code", "course_number"], name: "index_catalog_courses_on_subject_code_and_course_number", unique: true
   end
 
+  create_table "catalog_year_courses", force: :cascade do |t|
+    t.bigint "catalog_year_id", null: false
+    t.string "subject_code", null: false
+    t.integer "course_number", null: false
+    t.bigint "catalog_course_id"
+    t.string "title"
+    t.text "description"
+    t.integer "min_credits"
+    t.integer "max_credits"
+    t.text "prerequisite_text"
+    t.string "typically_offered", default: [], null: false, array: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_course_id"], name: "index_catalog_year_courses_on_catalog_course_id"
+    t.index ["catalog_year_id", "subject_code", "course_number"], name: "idx_catalog_year_courses_unique", unique: true
+    t.index ["subject_code", "course_number"], name: "index_catalog_year_courses_on_subject_code_and_course_number"
+  end
+
+  create_table "catalog_years", force: :cascade do |t|
+    t.integer "start_year", null: false
+    t.string "source", default: "html", null: false
+    t.string "status", default: "pending", null: false
+    t.string "base_url"
+    t.datetime "imported_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["start_year"], name: "index_catalog_years_on_start_year", unique: true
+    t.check_constraint "start_year >= 2010", name: "catalog_years_start_year_plausible"
+  end
+
   create_table "console1984_commands", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "sensitive_access_id"
@@ -242,6 +286,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.index ["username"], name: "index_console1984_users_on_username"
   end
 
+  create_table "course_code_aliases", force: :cascade do |t|
+    t.string "from_subject_code", null: false
+    t.integer "from_course_number", null: false
+    t.string "to_subject_code", null: false
+    t.integer "to_course_number", null: false
+    t.string "source", null: false
+    t.datetime "reviewed_at"
+    t.string "note"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["from_subject_code", "from_course_number", "to_subject_code", "to_course_number"], name: "idx_course_code_aliases_unique", unique: true
+    t.index ["to_subject_code", "to_course_number"], name: "idx_on_to_subject_code_to_course_number_49e737555f"
+  end
+
   create_table "course_meeting_time_rooms", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "meeting_time_id", null: false
@@ -272,6 +330,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.check_constraint "end_time >= begin_time", name: "course_meeting_times_end_after_begin"
     t.check_constraint "meeting_schedule_type = ANY (ARRAY[1, 2])", name: "course_meeting_times_schedule_type_valid"
     t.check_constraint "meeting_type = 1", name: "course_meeting_times_meeting_type_valid"
+  end
+
+  create_table "course_outcomes", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.integer "term_uid", null: false
+    t.integer "crn", null: false
+    t.string "outcome", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "term_uid", "crn"], name: "index_course_outcomes_on_user_id_and_term_uid_and_crn", unique: true
   end
 
   create_table "course_prerequisites", force: :cascade do |t|
@@ -332,6 +400,47 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.index ["course_id", "faculty_id"], name: "index_courses_faculties_on_course_id_and_faculty_id", unique: true
     t.index ["course_id", "primary_indicator"], name: "index_courses_faculties_on_course_id_and_primary"
     t.index ["faculty_id"], name: "index_courses_faculties_on_faculty_id"
+  end
+
+  create_table "degree_programs", force: :cascade do |t|
+    t.string "slug", null: false
+    t.string "name", null: false
+    t.string "kind", null: false
+    t.string "level", null: false
+    t.bigint "parent_program_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["parent_program_id"], name: "index_degree_programs_on_parent_program_id"
+    t.index ["slug"], name: "index_degree_programs_on_slug", unique: true
+  end
+
+  create_table "elective_group_courses", force: :cascade do |t|
+    t.bigint "elective_group_id", null: false
+    t.string "subject_code", null: false
+    t.integer "course_number", null: false
+    t.bigint "catalog_course_id"
+    t.boolean "requires_approval", default: false, null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_course_id"], name: "index_elective_group_courses_on_catalog_course_id"
+    t.index ["elective_group_id", "subject_code", "course_number"], name: "idx_elective_group_courses_unique", unique: true
+    t.index ["subject_code", "course_number"], name: "index_elective_group_courses_on_subject_code_and_course_number"
+  end
+
+  create_table "elective_groups", force: :cascade do |t|
+    t.bigint "requirement_set_id", null: false
+    t.bigint "program_plan_id"
+    t.string "name", null: false
+    t.text "heading"
+    t.integer "min_courses"
+    t.integer "min_credits"
+    t.integer "position", default: 0, null: false
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["program_plan_id"], name: "index_elective_groups_on_program_plan_id"
+    t.index ["requirement_set_id", "program_plan_id", "position"], name: "idx_elective_groups_unique", unique: true, nulls_not_distinct: true
   end
 
   create_table "enrollment_snapshots", force: :cascade do |t|
@@ -682,6 +791,68 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.index ["database", "captured_at"], name: "index_pghero_space_stats_on_database_and_captured_at"
   end
 
+  create_table "program_pathway_steps", force: :cascade do |t|
+    t.bigint "program_pathway_id", null: false
+    t.bigint "degree_program_id", null: false
+    t.integer "position", null: false
+    t.integer "plan_years"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["degree_program_id"], name: "index_program_pathway_steps_on_degree_program_id"
+    t.index ["program_pathway_id", "position"], name: "index_program_pathway_steps_on_program_pathway_id_and_position", unique: true
+  end
+
+  create_table "program_pathways", force: :cascade do |t|
+    t.string "slug", null: false
+    t.string "name", null: false
+    t.string "kind", null: false
+    t.integer "max_shared_courses"
+    t.integer "max_shared_credits"
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_program_pathways_on_slug", unique: true
+  end
+
+  create_table "program_plan_items", force: :cascade do |t|
+    t.bigint "program_plan_id", null: false
+    t.integer "year_index", null: false
+    t.string "season", null: false
+    t.integer "position", null: false
+    t.string "kind", null: false
+    t.string "subject_code"
+    t.integer "course_number"
+    t.bigint "catalog_course_id"
+    t.string "label"
+    t.integer "min_credits"
+    t.integer "max_credits"
+    t.integer "lecture_hours"
+    t.integer "lab_hours"
+    t.bigint "elective_group_id"
+    t.string "footnote"
+    t.jsonb "options", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_course_id"], name: "index_program_plan_items_on_catalog_course_id"
+    t.index ["elective_group_id"], name: "index_program_plan_items_on_elective_group_id"
+    t.index ["program_plan_id", "position"], name: "index_program_plan_items_on_program_plan_id_and_position", unique: true
+    t.index ["subject_code", "course_number"], name: "index_program_plan_items_on_subject_code_and_course_number"
+    t.check_constraint "year_index >= 1", name: "program_plan_items_year_index_positive"
+  end
+
+  create_table "program_plans", force: :cascade do |t|
+    t.bigint "requirement_set_id", null: false
+    t.string "name", null: false
+    t.integer "position", default: 0, null: false
+    t.integer "years", null: false
+    t.boolean "accelerated", default: false, null: false
+    t.integer "total_credits"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["requirement_set_id", "position"], name: "index_program_plans_on_requirement_set_id_and_position", unique: true
+    t.check_constraint "years >= 1 AND years <= 6", name: "program_plans_years_range"
+  end
+
   create_table "rating_distributions", force: :cascade do |t|
     t.decimal "avg_difficulty", precision: 3, scale: 2
     t.decimal "avg_rating", precision: 3, scale: 2
@@ -710,6 +881,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.datetime "updated_at", null: false
     t.index ["faculty_id", "rmp_id"], name: "index_related_professors_on_faculty_id_and_rmp_id", unique: true
     t.index ["related_faculty_id"], name: "index_related_professors_on_related_faculty_id"
+  end
+
+  create_table "requirement_sets", force: :cascade do |t|
+    t.bigint "degree_program_id", null: false
+    t.bigint "catalog_year_id", null: false
+    t.string "name", null: false
+    t.string "path"
+    t.string "school_name"
+    t.string "department_name"
+    t.text "description"
+    t.integer "total_credits"
+    t.string "source", default: "html", null: false
+    t.boolean "needs_review", default: false, null: false
+    t.string "source_digest"
+    t.datetime "fetched_at"
+    t.datetime "last_seen_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_year_id"], name: "index_requirement_sets_on_catalog_year_id"
+    t.index ["degree_program_id", "catalog_year_id"], name: "idx_on_degree_program_id_catalog_year_id_10cd4884bd", unique: true
   end
 
   create_table "rmp_ratings", force: :cascade do |t|
@@ -950,6 +1141,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "student_programs", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "degree_program_id"
+    t.bigint "catalog_year_id"
+    t.string "role", null: false
+    t.string "code"
+    t.string "name", null: false
+    t.string "degree"
+    t.string "college"
+    t.string "department"
+    t.string "concentration"
+    t.string "study_path"
+    t.integer "catalog_term_uid"
+    t.string "status", default: "active", null: false
+    t.datetime "ended_at"
+    t.string "source", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_year_id"], name: "index_student_programs_on_catalog_year_id"
+    t.index ["degree_program_id"], name: "index_student_programs_on_degree_program_id"
+    t.index ["user_id", "status"], name: "index_student_programs_on_user_id_and_status"
+  end
+
   create_table "teacher_rating_tags", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "faculty_id", null: false
@@ -1149,6 +1363,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.index ["user_id"], name: "index_webauthn_challenges_on_user_id"
   end
 
+  add_foreign_key "academic_profiles", "users", on_delete: :cascade
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "calendar_events", "calendars"
@@ -1159,14 +1374,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
   add_foreign_key "calendar_preferences", "users"
   add_foreign_key "calendars", "oauth_credentials"
   add_foreign_key "catalog_courses", "terms", column: "source_term_id"
+  add_foreign_key "catalog_year_courses", "catalog_courses", on_delete: :nullify
+  add_foreign_key "catalog_year_courses", "catalog_years", on_delete: :cascade
   add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "course_meeting_time_rooms", "rooms"
   add_foreign_key "course_meeting_times", "courses"
+  add_foreign_key "course_outcomes", "users", on_delete: :cascade
   add_foreign_key "course_prerequisites", "catalog_courses", column: "required_catalog_course_id", on_delete: :nullify
   add_foreign_key "course_prerequisites", "catalog_courses", on_delete: :cascade
   add_foreign_key "courses", "terms"
   add_foreign_key "courses_faculties", "courses"
   add_foreign_key "courses_faculties", "faculties"
+  add_foreign_key "degree_programs", "degree_programs", column: "parent_program_id", on_delete: :nullify
+  add_foreign_key "elective_group_courses", "catalog_courses", on_delete: :nullify
+  add_foreign_key "elective_group_courses", "elective_groups", on_delete: :cascade
+  add_foreign_key "elective_groups", "program_plans", on_delete: :cascade
+  add_foreign_key "elective_groups", "requirement_sets", on_delete: :cascade
   add_foreign_key "enrollment_snapshots", "terms"
   add_foreign_key "enrollment_snapshots", "users"
   add_foreign_key "enrollments", "courses"
@@ -1199,9 +1422,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
   add_foreign_key "oauth_openid_requests", "oauth_access_grants", column: "access_grant_id", on_delete: :cascade
   add_foreign_key "passkey_handoffs", "users"
   add_foreign_key "passkeys", "users"
+  add_foreign_key "program_pathway_steps", "degree_programs"
+  add_foreign_key "program_pathway_steps", "program_pathways", on_delete: :cascade
+  add_foreign_key "program_plan_items", "catalog_courses", on_delete: :nullify
+  add_foreign_key "program_plan_items", "elective_groups", on_delete: :nullify
+  add_foreign_key "program_plan_items", "program_plans", on_delete: :cascade
+  add_foreign_key "program_plans", "requirement_sets", on_delete: :cascade
   add_foreign_key "rating_distributions", "faculties"
   add_foreign_key "related_professors", "faculties"
   add_foreign_key "related_professors", "faculties", column: "related_faculty_id"
+  add_foreign_key "requirement_sets", "catalog_years"
+  add_foreign_key "requirement_sets", "degree_programs"
   add_foreign_key "rmp_ratings", "faculties"
   add_foreign_key "rooms", "buildings"
   add_foreign_key "section_links", "courses", column: "linked_course_id", on_delete: :cascade
@@ -1217,6 +1448,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "student_programs", "catalog_years", on_delete: :nullify
+  add_foreign_key "student_programs", "degree_programs", on_delete: :nullify
+  add_foreign_key "student_programs", "users", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
   add_foreign_key "term_processing_statuses", "terms"
   add_foreign_key "term_processing_statuses", "users"

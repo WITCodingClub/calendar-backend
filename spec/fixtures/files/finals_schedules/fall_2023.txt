@@ -1,0 +1,5 @@
+                                                                        Updated Fall 2023 Final Exam Schedule 12/06/2023
+  CRN      COURSE          TITLE                            INSTRUCTOR                             FINAL EXAM DATE                FINAL EXAM TIME       LOCATION          FINAL EXAM TYPE
+10011    ZQXA1200-01     SAMPLE REPRESENTATION            Doe, Jane                              Wednesday, December 13, 2023   8:00 AM - 10:00 AM    ZQXB102           MULTI-SECTION EXAM
+10012    ZQXA1200-03     SAMPLE REPRESENTATION            Roe, Rick                              Wednesday, December 13, 2023   8:00 AM - 10:00 AM    525ZQ114          COMBINED FINAL
+10013    ZQXA7910-01     SAMPLE ONLINE COURSE             Poe, Pat                               ONLINE

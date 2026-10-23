@@ -14,6 +14,7 @@ module McpTools
       },
       required: [ "instructor_id" ]
     )
+    output_schema(Schemas.object(instructor_id: Schemas::STRING, instructors: Schemas.array(Schemas::INSTRUCTOR)))
 
     def perform(instructor_id:, limit: nil)
       faculty = find_instructor(instructor_id)

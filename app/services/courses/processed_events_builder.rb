@@ -48,6 +48,7 @@ module Courses
 
       {
         title: titleize_with_roman_numerals(course.title),
+        crn: course.crn,
         course_number: course.course_number,
         schedule_type: course.schedule_type,
         prefix: course.prefix,
