@@ -24,6 +24,12 @@ module McpTools
       },
       required: [ "disabled" ]
     )
+    output_schema(
+      Schemas.object(
+        notifications_disabled:       Schemas::BOOLEAN,
+        notifications_disabled_until: Schemas.nullable(Schemas::DATE_TIME)
+      )
+    )
 
     def perform(disabled:, duration_hours: nil)
       authorize user, :update?

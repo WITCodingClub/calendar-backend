@@ -14,6 +14,7 @@ module McpTools
     # Hosts with the MCP Apps extension show the result as a week grid.
     meta WeekGridApp.tool_meta
     input_schema(properties: { term_uid: TERM_SCHEMA })
+    output_schema(Schemas.object(term_uid: Schemas::INTEGER, courses: Schemas.array(Schemas::MY_COURSE)))
 
     def perform(term_uid: nil)
       authorize user, :show?

@@ -19,6 +19,18 @@ module McpTools
       },
       required: [ "meeting_time_id" ]
     )
+    # class_settings is null when the class has no settings of its own left.
+    output_schema(
+      Schemas.object(
+        meeting_time_id: Schemas::STRING,
+        course:          Schemas::STRING,
+        result:          Schemas::SAVE_RESULT,
+        class_settings:  Schemas.nullable(Schemas::SETTINGS),
+        resolved:        Schemas::RESOLVED_SETTINGS,
+        sources:         Schemas::SETTING_SOURCES,
+        preview:         Schemas::PREVIEW
+      )
+    )
 
     def perform(meeting_time_id:, **arguments)
       meeting_time = find_my_meeting_time(meeting_time_id)

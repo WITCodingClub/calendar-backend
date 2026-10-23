@@ -49,6 +49,26 @@ RSpec.describe McpTools::BaseTool do
     )
   end
 
+  it "adds the advisory to the output schema of an academic planning tool, in either order" do
+    schema = McpTools::Schemas.object(answer: McpTools::Schemas::INTEGER)
+    before = Class.new(described_class) do
+      academic_planning :sections
+      output_schema schema
+    end
+    after = Class.new(described_class) do
+      output_schema schema
+      academic_planning :sections
+    end
+
+    [ before, after ].each do |tool|
+      expect(tool.output_schema.to_h).to include(
+        properties: { answer: { type: "integer" }, advisory: described_class::ADVISORY_SCHEMA },
+        required:   %w[answer advisory]
+      )
+    end
+    expect(tool_class(planning: false).tap { |tool| tool.output_schema(schema) }.output_schema.to_h[:properties].keys).to eq([ :answer ])
+  end
+
   it "refuses an unknown data source" do
     expect { Class.new(described_class) { academic_planning :rumors } }.to raise_error(ArgumentError, /rumors/)
   end

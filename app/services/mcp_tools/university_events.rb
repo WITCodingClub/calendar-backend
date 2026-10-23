@@ -22,6 +22,7 @@ module McpTools
         limit:      { type: "integer", minimum: 1, maximum: MAX_LIMIT, description: "Most events to return. Default #{DEFAULT_LIMIT}." }
       }
     )
+    output_schema(Schemas.object(events: Schemas.array(Schemas::UNIVERSITY_EVENT)))
 
     def perform(start_date: nil, end_date: nil, categories: nil, limit: nil)
       authorize UniversityCalendarEvent, :index?

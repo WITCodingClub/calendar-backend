@@ -215,11 +215,24 @@ Rules:
 
 1. Add a class in `app/services/mcp_tools/` that inherits `McpTools::BaseTool`. A tool that changes data inherits `McpTools::BaseWriteTool`.
 2. Set `tool_name`, `title`, `description`, `requires_scope` (a scope from `McpTools::Scopes`), and `input_schema`. Call `requires_scope` after `description`: it adds the permission to the description.
-3. Define `perform`. Return a Hash. Raise `McpTools::ToolError` for a bad argument.
-4. Call `authorize` for any record that belongs to a user. Reuse the policies, queries, and serializers of the matching API endpoint. If no endpoint gives the data, add one too, so the extension and the MCP server stay equal.
-5. A tool with a semantic search calls `spend_semantic_search!` first. A tool whose answer a student can use to plan courses calls `academic_planning` with the keys of its data sources (`Catalog::Freshness::SOURCES`), so its result carries the advisory.
-6. Add the class to `McpTools.all`, and add a row to the table above and to the permissions table.
-7. Write a spec in `spec/services/mcp_tools/`. Check that a token without the scope gets a tool error.
+3. Set `output_schema`: the JSON Schema of the Hash that `perform` returns. Build it from the parts in `McpTools::Schemas`. Add a shared part there, not in the tool. Do not add the `advisory` key: `academic_planning` adds it.
+4. Define `perform`. Return a Hash. Raise `McpTools::ToolError` for a bad argument.
+5. Call `authorize` for any record that belongs to a user. Reuse the policies, queries, and serializers of the matching API endpoint. If no endpoint gives the data, add one too, so the extension and the MCP server stay equal.
+6. A tool with a semantic search calls `spend_semantic_search!` first. A tool whose answer a student can use to plan courses calls `academic_planning` with the keys of its data sources (`Catalog::Freshness::SOURCES`), so its result carries the advisory.
+7. Add the class to `McpTools.all`, and add a row to the table above and to the permissions table.
+8. Write a spec in `spec/services/mcp_tools/`. Check that a token without the scope gets a tool error.
+9. Add calls of the tool to `spec/services/mcp_tools/output_schemas_spec.rb`. Use full data and sparse data: nil fields and empty lists.
+
+### Output schemas
+
+Each tool sends an `outputSchema` in `tools/list`. The MCP spec says that the structured result of a tool must conform to its output schema. Clients, such as ChatGPT, use the schema to check and read a result.
+
+- A key that can be null has a nullable type. `required` lists only the keys that are always in the result.
+- An object can take keys that the schema does not name, so a new field does not break a client.
+- `McpTools::BaseTool::ADVISORY_SCHEMA` is the schema of the `advisory` key. `academic_planning` adds it to the output schema of the tool.
+- `catalog_graphql` has a loose schema, because the shape of `data` follows the query.
+- `spec/services/mcp_tools/output_schemas_spec.rb` calls each tool and checks the result against its schema. The spec is stricter than the schema: it fails on a key that the schema does not name. When a serializer gets a new key, add the key to the schema in the same PR.
+- The `mcp` gem does not check results at run time, because `validate_tool_call_results` is off. Do not turn it on. The gem checks the Ruby Hash before it becomes JSON, so a `Date` or `Time` value fails a `string` type. A failed check gives the client an internal error in place of the result.
 
 A write tool changes only the signed-in student's own data, through the same models and policies as its API endpoint. A tool that reaches other people, such as a friend request, needs a scope of its own. `McpTools::BaseTool` marks a read tool read-only for the client, and `McpTools::BaseWriteTool` marks a write tool as not destructive.
 

@@ -17,6 +17,7 @@ module McpTools
       },
       required: %w[friend_id start_date end_date]
     )
+    output_schema(Schemas.object(Schemas::BUSY_TIMES_PROPERTIES.merge(friend: Schemas::FRIEND)))
 
     def perform(friend_id:, start_date:, end_date:)
       friendship = find_friendship(friend_id)

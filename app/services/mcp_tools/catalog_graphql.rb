@@ -24,6 +24,17 @@ module McpTools
       },
       required: [ "query" ]
     )
+    # A GraphQL response: data has the shape of the query, so it stays open.
+    output_schema(
+      Schemas.object(
+        {
+          data:       Schemas.nullable({ type: "object", additionalProperties: true }),
+          errors:     Schemas.array({ type: "object", properties: { message: Schemas::STRING }, additionalProperties: true }),
+          extensions: { type: "object", additionalProperties: true }
+        },
+        optional: %i[data errors extensions]
+      )
+    )
 
     def perform(query:, variables: nil, operation_name: nil)
       raise ToolError, "query is longer than #{MAX_QUERY_LENGTH} characters" if query.length > MAX_QUERY_LENGTH

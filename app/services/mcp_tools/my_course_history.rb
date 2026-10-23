@@ -11,6 +11,21 @@ module McpTools
     requires_scope "schedule:read"
     academic_planning :sections
     input_schema(properties: {})
+    # Courses::HistoryBuilder.
+    output_schema(
+      Schemas.object(
+        terms: Schemas.array(
+          Schemas.object(
+            uid:     Schemas::INTEGER,
+            pub_id:  Schemas::STRING,
+            name:    Schemas::STRING,
+            season:  Schemas::STRING,
+            year:    Schemas::INTEGER,
+            courses: Schemas.array(Schemas::MY_COURSE_IN_TERM)
+          )
+        )
+      )
+    )
 
     def perform
       authorize user, :show?

@@ -27,6 +27,45 @@ module McpTools
       },
       required: [ "crns" ]
     )
+    # Catalog::ScheduleCheck#call.
+    output_schema(
+      Schemas.object(
+        term:          Schemas::TERM_REF,
+        sections:      Schemas.array(
+          Schemas.object(
+            crn:           Schemas::INTEGER,
+            course_code:   Schemas::STRING,
+            title:         Schemas::STRING,
+            schedule_type: Schemas::STRING,
+            credit_hours:  Schemas.nullable(Schemas::INTEGER),
+            meeting_times: Schemas.array(Schemas.object(day: Schemas::DAY, begin_time: Schemas::TIME, end_time: Schemas::TIME))
+          )
+        ),
+        not_found:     Schemas::INTEGERS,
+        cancelled:     Schemas::INTEGERS,
+        conflicts:     Schemas.array(
+          Schemas.object(crns: Schemas::INTEGERS, day: Schemas::DAY, times: Schemas::STRINGS)
+        ),
+        link_problems: Schemas.array(
+          Schemas.object(
+            crn:             Schemas::INTEGER,
+            source:          Schemas::LINKED[:properties][:source],
+            partner_crns:    Schemas::INTEGERS,
+            partner_options: Schemas.array(Schemas::INTEGERS),
+            problem:         { type: "string", enum: %w[missing_partner unverified_link] },
+            message:         Schemas::STRING
+          )
+        ),
+        duplicates:    Schemas.array(Schemas.object(course_code: Schemas::STRING, crns: Schemas::INTEGERS)),
+        totals:        Schemas.object(
+          credit_hours:         Schemas::INTEGER,
+          days:                 Schemas.array(Schemas::DAY),
+          earliest_start:       Schemas.nullable(Schemas::TIME),
+          latest_end:           Schemas.nullable(Schemas::TIME),
+          meetings_before_nine: Schemas::INTEGER
+        )
+      )
+    )
 
     def perform(crns:, term_uid: nil)
       Catalog::ScheduleCheck.new(term_uid: find_term(term_uid).uid, crns: crns).call
