@@ -168,6 +168,13 @@ class User < ApplicationRecord
     enrollments.exists?
   end
 
+  # True when the dashboard pages open for this user. The others go to the
+  # onboarding page first (Dashboard::ApplicationController, #644). Admins
+  # skip it.
+  def onboarding_complete?
+    admin_access? || processed_courses?
+  end
+
   def super_admin_access?
     super_admin? || owner?
   end

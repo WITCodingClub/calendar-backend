@@ -9,7 +9,7 @@ module McpTools
     input_schema(properties: {})
     links do
       [
-        page_link(
+        onboarded_page_link(
           name:        "wit-calendar-friends",
           title:       "My friends on WIT Calendar",
           url:         page_url(:dashboard_friends_url),

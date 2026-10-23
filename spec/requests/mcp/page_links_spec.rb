@@ -22,14 +22,16 @@ RSpec.describe "MCP page links", type: :request do
     }
   end
 
-  def call_tool(name, arguments, scopes: token)
+  def call_tool(name, arguments, scopes: token, version: "2025-06-18")
+    headers = {
+      "Content-Type"  => "application/json",
+      "Accept"        => "application/json, text/event-stream",
+      "Authorization" => "Bearer #{scopes.plaintext_token}"
+    }
+    headers["MCP-Protocol-Version"] = version if version
     post "/api/mcp",
          params:  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: name, arguments: arguments } }.to_json,
-         headers: {
-           "Content-Type"  => "application/json",
-           "Accept"        => "application/json, text/event-stream",
-           "Authorization" => "Bearer #{scopes.plaintext_token}"
-         }
+         headers: headers
     response.parsed_body["result"]
   end
 
@@ -79,5 +81,37 @@ RSpec.describe "MCP page links", type: :request do
 
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body.at_css("##{uri.fragment}").text).to include("Connected apps", read_only.application.name)
+  end
+
+  describe "the MCP-Protocol-Version header" do
+    let(:read_only) { create(:oauth_access_token, resource_owner_id: user.id) }
+
+    it "gives links to a 2025-06-18 client" do
+      expect(links(call_tool("list_friends", {}))).to be_present
+      expect(links(call_tool("set_notifications", { disabled: true }, scopes: read_only))).to be_present
+    end
+
+    it "gives only the text to a 2025-03-26 client and to a request with no header" do
+      [ "2025-03-26", nil ].each do |version|
+        result = call_tool("list_friends", {}, version: version)
+        expect(result["content"].pluck("type")).to eq([ "text" ]), version.inspect
+
+        error = call_tool("set_notifications", { disabled: true }, scopes: read_only, version: version)
+        expect(error["content"].pluck("type")).to eq([ "text" ]), version.inspect
+      end
+    end
+  end
+
+  it "opens the friend page of a friend who shares the full schedule" do
+    Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, user)
+    Friendship.accepted_between(user, friend).update_visibility_for!(friend, :full)
+
+    uri = links(call_tool("friend_busy_times", calls["friend_busy_times"])).sole["uri"]
+    sign_in user
+    get URI(uri).request_uri
+
+    expect(response).to have_http_status(:ok)
+  ensure
+    Flipper.disable(FeatureFlags::FRIENDS_AVAILABILITY_ONLY)
   end
 end

@@ -149,9 +149,9 @@ Some tools add links to the WIT Calendar pages where the student can see or chan
 
 | Tool | Page | Route |
 | --- | --- | --- |
-| `my_courses` | My schedule, for the term of the result | `dashboard_schedule_url(term_uid:)` |
+| `my_courses` | My schedule, for the term of the result. Only when the page lists that term. | `dashboard_schedule_url(term_uid:)` |
 | `list_friends` | Friends | `dashboard_friends_url` |
-| `friend_busy_times` | The friend's page, for the week of `start_date` | `dashboard_friend_url(id, week_start:)` |
+| `friend_busy_times` | The friend's page: the full schedule, or the busy times of the week of `start_date` | `dashboard_friend_url(id, week_start:)` |
 | `my_calendar_settings`, `update_calendar_settings` | Calendar settings | `dashboard_calendar_preferences_url` |
 | `set_notifications` | Notification settings | `dashboard_notifications_url` |
 | Any tool, when the token does not have its permission | The **Connected apps** card on Settings | `dashboard_settings_url(anchor: "connected-apps")` |
@@ -164,13 +164,17 @@ Rules:
 - Build each URL with a route helper through `page_url`. It adds `McpTools::Server.url_options`, so the host is correct in each environment. Do not write a host in the code.
 - A URL holds only the public ids that the page itself uses in its URLs. It never holds a token. A dashboard page needs a session, so the student signs in in the browser.
 - The `mcp` gem does not check content items. It sends each Hash as it is.
+- Only a client on protocol version 2025-06-18 or later gets links. An older client can check the content against a closed list of types and refuse the whole result. The server reads the version from the `_meta` envelope (2026-07-28) first, then from the `MCP-Protocol-Version` header. A request with no version is 2025-03-26, so it gets no links. This rule also applies to the missing permission error.
+- The dashboard sends a student with no processed courses to the onboarding page. Such a student gets no link to those pages. Use `onboarded_page_link` for them. The notification and settings pages skip onboarding, so they use `page_link`. `User#onboarding_complete?` is the rule for both.
+- The schedule page lists the enrolled current and future terms, or the last 6 enrolled terms when there are none (`ScheduleLoading.terms_for`). `my_courses` links only to a term in that list.
+- A link is extra. When a `links` block raises an error, the server reports it with `Rails.error.report` and sends the result with no links.
 
-To add a link to a tool, call `links` in the tool class. The block gets the result Hash and returns a list of `page_link` Hashes (`McpTools::PageLinks`):
+To add a link to a tool, call `links` in the tool class. The block gets the result Hash and returns a list of link Hashes from `page_link` or `onboarded_page_link` (`McpTools::PageLinks`):
 
 ```ruby
-links do |result|
-  [ page_link(name: "wit-calendar-schedule", title: "My schedule on WIT Calendar",
-              url: page_url(:dashboard_schedule_url, term_uid: result[:term_uid])) ]
+links do
+  [ onboarded_page_link(name: "wit-calendar-friends", title: "My friends on WIT Calendar",
+                        url: page_url(:dashboard_friends_url)) ]
 end
 ```
 

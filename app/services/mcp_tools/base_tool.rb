@@ -119,7 +119,8 @@ module McpTools
       def call(server_context:, **arguments)
         unless Array(server_context[:scopes]).include?(required_scope)
           Yabeda.calendar.mcp_scope_denials_total.increment({ scope: required_scope.to_s, mode: "tool_error" })
-          return error_response(missing_scope_message, links: [ PageLinks.connected_apps_link ])
+          links = PageLinks.supported?(server_context) ? [ PageLinks.connected_apps_link ] : []
+          return error_response(missing_scope_message, links: links)
         end
 
         tool = new(server_context[:user], request: server_context[:request], server_context: server_context)
@@ -128,8 +129,9 @@ module McpTools
         return data if data.is_a?(MCP::Server::InputRequiredResult)
 
         data = data.merge(advisory: advisory) if academic_planning?
+        links = PageLinks.supported?(server_context) ? tool.page_links(data) : []
 
-        MCP::Tool::Response.new([ { type: "text", text: data.to_json }, *tool.page_links(data) ], structured_content: data)
+        MCP::Tool::Response.new([ { type: "text", text: data.to_json }, *links ], structured_content: data)
       rescue ToolError, ActiveRecord::RecordNotFound => e
         # The message is for the person who asked: a term that does not exist,
         # a friend who does not share. These are answers, not faults, so they
@@ -181,10 +183,15 @@ module McpTools
       @server_context = server_context
     end
 
-    # The resource_link content items of a result, from the links block.
+    # The resource_link content items of a result, from the links block. A
+    # link is extra, so a fault in a links block is reported and the result
+    # goes out without links.
     def page_links(data)
       block = self.class.links_block
       block ? Array(instance_exec(data, &block)).compact : []
+    rescue StandardError => e
+      Rails.error.report(e, handled: true, context: { user_id: user&.id })
+      []
     end
 
     private

@@ -18,15 +18,17 @@ module McpTools
       required: %w[friend_id start_date end_date]
     )
     output_schema(Schemas.object(Schemas::BUSY_TIMES_PROPERTIES.merge(friend: Schemas::FRIEND)))
-    # The friend page shows the week of start_date. The friend id is the
-    # public id that the page uses in its own URL, and the result has it too.
+    # The friend page shows the friend's schedule or, for a friend who shares
+    # availability only, the busy times of the week of start_date. The friend
+    # id is the public id that the page uses in its own URL, and the result
+    # has it too.
     links do |result|
       [
-        page_link(
+        onboarded_page_link(
           name:        "wit-calendar-friend",
           title:       "#{result.dig(:friend, :name)} on WIT Calendar",
           url:         page_url(:dashboard_friend_url, result.dig(:friend, :id), week_start: result[:start_date]),
-          description: "What this friend shares with you, for the week of #{result[:start_date]}."
+          description: "What this friend shares with you: their class schedule, or only the times they are busy."
         )
       ]
     end

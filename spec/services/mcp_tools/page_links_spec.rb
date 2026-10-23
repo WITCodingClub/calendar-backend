@@ -5,9 +5,9 @@ require "rails_helper"
 # The resource_link content items that point a student to a WIT Calendar page.
 # spec/requests/mcp/page_links_spec.rb opens each page as a signed-in student.
 RSpec.describe McpTools::PageLinks do
-  let(:user)   { create(:user) }
-  let(:friend) { create(:user) }
   let(:term)   { create(:term) }
+  let(:user)   { create(:enrollment, course: create(:course, term: term)).user }
+  let(:friend) { create(:user) }
 
   # The tools with links, the arguments of a call that succeeds, and the
   # controller action of each link.
@@ -24,18 +24,24 @@ RSpec.describe McpTools::PageLinks do
     }
   end
 
-  def call(tool, scopes: McpTools::Scopes::NAMES, **arguments)
-    tool.call(server_context: mcp_context(user, scopes: scopes), **arguments)
+  def request_with(version)
+    headers = version ? { "HTTP_MCP_PROTOCOL_VERSION" => version } : {}
+    ActionDispatch::TestRequest.create(headers)
   end
+
+  def call(tool, scopes: McpTools::Scopes::NAMES, version: "2025-06-18", **arguments)
+    tool.call(server_context: mcp_context(user, scopes: scopes, request: request_with(version)), **arguments)
+  end
+
+  def types(result) = result.content.map { |item| item[:type] }
 
   # The dashboard routes are inside Devise's authenticate block, which asks
   # Warden for a user. recognize_path builds a request with no Warden, so the
   # request here gets a Warden double that signs anyone in.
   def route_of(uri)
-    path    = URI(uri).path
-    env     = Rack::MockRequest.env_for(path).merge("warden" => instance_double(Warden::Proxy, authenticate!: user))
-    routes  = Rails.application.routes
-    route   = routes.recognize_path_with_request(ActionDispatch::Request.new(env), path, {})
+    path   = URI(uri).path
+    env    = Rack::MockRequest.env_for(path).merge("warden" => instance_double(Warden::Proxy, authenticate!: user))
+    route  = Rails.application.routes.recognize_path_with_request(ActionDispatch::Request.new(env), path, {})
     "#{route[:controller]}##{route[:action]}"
   end
 
@@ -78,17 +84,15 @@ RSpec.describe McpTools::PageLinks do
   end
 
   it "gives a tool without links only the JSON text" do
-    result = call(McpTools::ListTerms)
-
     expect(McpTools::ListTerms.links_block).to be_nil
-    expect(result.content.map { |item| item[:type] }).to eq([ "text" ])
+    expect(types(call(McpTools::ListTerms))).to eq([ "text" ])
   end
 
   it "gives a tool error no page link" do
     result = call(McpTools::FriendBusyTimes, friend_id: "nobody", start_date: "2026-12-17", end_date: "2026-12-18")
 
     expect(result.error?).to be(true)
-    expect(result.content.map { |item| item[:type] }).to eq([ "text" ])
+    expect(types(result)).to eq([ "text" ])
   end
 
   it "links a missing permission to the connected apps card" do
@@ -99,5 +103,84 @@ RSpec.describe McpTools::PageLinks do
     link = result.content.second
     expect(link).to include(type: "resource_link", uri: "http://example.com/dashboard/settings#connected-apps")
     expect(route_of(link[:uri])).to eq("dashboard/settings#show")
+  end
+
+  describe "the protocol version" do
+    it "sends links from 2025-06-18 on" do
+      %w[2025-06-18 2025-11-25 2026-07-28].each do |version|
+        expect(types(call(McpTools::ListFriends, version: version))).to eq(%w[text resource_link]), version
+      end
+    end
+
+    it "sends no links to an older client or a request with no version header" do
+      [ "2025-03-26", "2024-11-05", nil ].each do |version|
+        expect(types(call(McpTools::ListFriends, version: version))).to eq([ "text" ]), version.inspect
+        expect(types(call(McpTools::SetNotifications, scopes: [ "catalog" ], version: version, disabled: true))).to eq([ "text" ])
+      end
+    end
+
+    it "reads the version of the _meta envelope first" do
+      key     = MCP::RequestEnvelope::PROTOCOL_VERSION_META_KEY.to_sym
+      context = mcp_context(user, request: request_with(nil), _meta: { key => "2026-07-28" })
+
+      expect(types(McpTools::ListFriends.call(server_context: context))).to eq(%w[text resource_link])
+    end
+  end
+
+  it "links my_courses only to a term that the schedule page lists" do
+    past = create(:term, year: 2025)
+    create(:enrollment, user: user, course: create(:course, term: past))
+    allow(Term).to receive(:current).and_return(term)
+
+    expect(types(call(McpTools::MyCourses, term_uid: term.uid))).to eq(%w[text resource_link])
+    expect(types(call(McpTools::MyCourses, term_uid: past.uid))).to eq([ "text" ])
+  end
+
+  it "links my_courses to no page for a term without courses" do
+    empty = create(:term)
+
+    expect(types(call(McpTools::MyCourses, term_uid: empty.uid))).to eq([ "text" ])
+  end
+
+  context "when the student has no processed courses" do
+    let(:user) { create(:user) }
+
+    it "links only to the pages that skip onboarding" do
+      expect(types(call(McpTools::ListFriends))).to eq([ "text" ])
+      expect(types(call(McpTools::MyCalendarSettings))).to eq([ "text" ])
+      expect(types(call(McpTools::FriendBusyTimes, friend_id: friend.public_id, start_date: "2026-12-17", end_date: "2026-12-18")))
+        .to eq([ "text" ])
+      expect(types(call(McpTools::SetNotifications, disabled: true))).to eq(%w[text resource_link])
+    end
+
+    it "links an admin to every page, the same as the dashboard" do
+      user.update!(access_level: :admin)
+
+      expect(types(call(McpTools::ListFriends))).to eq(%w[text resource_link])
+    end
+  end
+
+  it "describes the friend page for a friend who shares the full schedule" do
+    Flipper.enable_actor(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, user)
+    Friendship.accepted_between(user, friend).update_visibility_for!(friend, :full)
+
+    link = call(McpTools::FriendBusyTimes, friend_id: friend.public_id, start_date: "2026-12-17", end_date: "2026-12-18")
+           .content.last
+
+    expect(link[:description]).to eq("What this friend shares with you: their class schedule, or only the times they are busy.")
+  ensure
+    Flipper.disable(FeatureFlags::FRIENDS_AVAILABILITY_ONLY)
+  end
+
+  it "reports a fault in a links block and sends the result without links" do
+    allow(McpTools::ListFriends).to receive(:links_block).and_return(proc { raise "broken link" })
+    allow(Rails.error).to receive(:report)
+
+    result = call(McpTools::ListFriends)
+
+    expect(result.error?).to be(false)
+    expect(types(result)).to eq([ "text" ])
+    expect(Rails.error).to have_received(:report)
+      .with(an_instance_of(RuntimeError), handled: true, context: { user_id: user.id })
   end
 end
