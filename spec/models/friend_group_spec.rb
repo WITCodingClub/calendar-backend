@@ -7,8 +7,10 @@ require "rails_helper"
 # Table name: friend_groups
 #
 #  id         :bigint           not null, primary key
+#  color      :string
 #  expires_at :datetime
 #  name       :string           not null
+#  shared     :boolean          default(FALSE), not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
 #  user_id    :bigint           not null
@@ -31,10 +33,119 @@ RSpec.describe FriendGroup, type: :model do
     it { is_expected.to belong_to(:user) }
     it { is_expected.to have_many(:memberships).class_name("FriendGroupMembership").dependent(:destroy) }
     it { is_expected.to have_many(:friendships).through(:memberships) }
+    it { is_expected.to have_many(:opt_outs).class_name("FriendGroupOptOut").dependent(:delete_all) }
 
     it { is_expected.to validate_presence_of(:name) }
     it { is_expected.to validate_length_of(:name).is_at_most(FriendGroup::NAME_MAX_LENGTH) }
     it { is_expected.to validate_uniqueness_of(:name).scoped_to(:user_id).case_insensitive }
+    it { is_expected.to allow_value(nil, "#33b679").for(:color) }
+    it { is_expected.not_to allow_value("green", "#33b67", "", "7", 5).for(:color) }
+  end
+
+  it "stores the color as lowercase hex" do
+    expect(build(:friend_group, color: " #E67C73 ").color).to eq("#e67c73")
+  end
+
+  describe "shared groups" do
+    let(:owner)  { create(:user) }
+    let(:member) { create(:user) }
+    let(:other)  { create(:user) }
+    let(:member_friendship) { create(:friendship, :accepted, requester: owner, addressee: member) }
+    let(:other_friendship)  { create(:friendship, :accepted, requester: other, addressee: owner) }
+    let(:group) { create(:friend_group, :shared, user: owner) }
+
+    # shared_people leaves out members without the flag.
+    after { Flipper.disable(FeatureFlags::FRIEND_GROUPS) }
+
+    before do
+      Flipper.enable(FeatureFlags::FRIEND_GROUPS)
+      create(:friend_group_membership, friend_group: group, friendship: member_friendship)
+      create(:friend_group_membership, friend_group: group, friendship: other_friendship)
+    end
+
+    describe ".shared_with" do
+      it "finds the shared groups that hold the user as a member" do
+        create(:friend_group, :shared, user: member)
+        private_group = create(:friend_group, user: owner)
+        create(:friend_group_membership, friend_group: private_group, friendship: member_friendship)
+
+        expect(described_class.shared_with(member)).to contain_exactly(group)
+        expect(described_class.shared_with(owner)).to be_empty
+        expect(described_class.shared_with(create(:user))).to be_empty
+      end
+    end
+
+    it "shows every member to the owner and leaves out an opted-out member for the others" do
+      group.membership_for(other).update!(status: :opted_out)
+      group.reload
+
+      expect(group.people_for(owner).first).to eq(owner)
+      expect(group.people_for(owner).drop(1)).to contain_exactly(member, other)
+      expect(group.shared_people).to eq([ owner, member ])
+      expect(group.people_for(member)).to eq([ owner, member ])
+    end
+
+    it "keeps a hidden member in the list that the others see" do
+      group.membership_for(member).update!(status: :hidden)
+
+      expect(group.reload.shared_people).to contain_exactly(owner, member, other)
+    end
+
+    describe "#membership_for" do
+      it "finds the membership of a member, with or without loaded memberships" do
+        membership = group.membership_for(member)
+
+        expect(membership.friendship).to eq(member_friendship)
+        expect(described_class.includes(:memberships).find(group.id).membership_for(member)).to eq(membership)
+      end
+
+      it "is nil for the owner, a stranger, and nil" do
+        expect(group.membership_for(owner)).to be_nil
+        expect(group.membership_for(create(:user))).to be_nil
+        expect(group.membership_for(nil)).to be_nil
+      end
+    end
+
+    describe "#member?" do
+      it "is true for a member with any status and false for the owner" do
+        group.membership_for(member).update!(status: :opted_out)
+
+        expect(group.member?(member)).to be(true)
+        expect(group.member?(owner)).to be(false)
+      end
+    end
+
+    it "keeps the status of a member who stays when the owner replaces the members" do
+      group.membership_for(member).update!(status: :opted_out)
+
+      group.save_with_members!({}, friend_ids: [ member.public_id ])
+
+      expect(group.reload.membership_for(member)).to be_opted_out
+      expect(group.member?(other)).to be(false)
+    end
+
+    it "keeps an opt-out when the owner removes the member and adds them again" do
+      group.membership_for(member).update!(status: :opted_out)
+
+      group.save_with_members!({}, friend_ids: [ other.public_id ])
+      group.save_with_members!({}, friend_ids: [ other.public_id, member.public_id ])
+      expect(group.reload.membership_for(member)).to be_opted_out
+
+      group.membership_for(member).destroy!
+      group.memberships.create!(friendship: member_friendship)
+      expect(group.reload.membership_for(member)).to be_opted_out
+    end
+
+    it "forgets the opt-out when the member opts back in" do
+      group.membership_for(member).update!(status: :opted_out)
+      group.membership_for(member).update!(status: :active)
+
+      group.membership_for(member).destroy!
+      group.memberships.create!(friendship: member_friendship)
+
+      expect(group.reload.membership_for(member)).to be_active
+      expect(group.opt_outs).to be_empty
+    end
   end
 
   it "squishes the name" do

@@ -1,0 +1,78 @@
+<%# Friend groups that friends shared with the user. They are read only. The user can hide one or opt out of it. %>
+<% statuses = groups.index_with { |group| group.membership_for(current_user).status } %>
+<% active = groups.select { |group| statuses[group] == "active" } %>
+<% set_aside = groups - active %>
+<% if groups.any? %>
+  <section class="space-y-3" aria-labelledby="shared-friend-groups-heading">
+    <h2 id="shared-friend-groups-heading" class="text-lg font-semibold text-on-surface">Shared with you</h2>
+
+    <% if active.any? %>
+      <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+        <% active.each do |group| %>
+          <div id="shared_<%= dom_id(group) %>" class="px-5 py-4 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="flex items-center gap-2 text-sm font-medium text-on-surface">
+                  <%= render "group_color", group: group %>
+                  <%= group.name %>
+                </p>
+                <p class="text-xs text-on-surface-variant">
+                  From <%= group.user.full_name %>
+                  <% if group.expires_at %>
+                    · Ends on <%= group.expires_at.to_date.to_fs(:long) %>
+                  <% end %>
+                </p>
+              </div>
+              <div class="flex items-center gap-3">
+                <%= button_to "Hide",
+                    dashboard_shared_friend_group_path(group.public_id),
+                    method: :patch,
+                    params: { status: "hidden" },
+                    class: "text-xs text-on-surface-variant hover:text-primary transition-colors" %>
+                <%= button_to "Opt out",
+                    dashboard_shared_friend_group_path(group.public_id),
+                    method: :patch,
+                    params: { status: "opted_out" },
+                    data: { turbo_confirm: "Opt out of \"#{group.name}\"? The other members will no longer see you or your busy times." },
+                    class: "text-xs text-on-surface-variant hover:text-error transition-colors" %>
+              </div>
+            </div>
+
+            <ul class="flex flex-wrap gap-2" aria-label="People in <%= group.name %>">
+              <% group.shared_people.each do |person| %>
+                <li class="m3-badge-secondary"><%= person == current_user ? "You" : person.full_name %></li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if set_aside.any? %>
+      <details class="m3-card px-5 py-3 text-sm">
+        <summary class="cursor-pointer text-on-surface-variant">Hidden and opted out (<%= set_aside.size %>)</summary>
+        <ul class="mt-3 divide-y divide-outline-variant">
+          <% set_aside.each do |group| %>
+            <li id="shared_<%= dom_id(group) %>" class="py-2 flex items-center justify-between gap-3">
+              <div>
+                <p class="flex items-center gap-2 text-sm text-on-surface">
+                  <%= render "group_color", group: group %>
+                  <%= group.name %>
+                </p>
+                <p class="text-xs text-on-surface-variant">
+                  From <%= group.user.full_name %> ·
+                  <%= statuses[group] == "hidden" ? "Hidden. The other members still see you." : "Opted out. The other members do not see you." %>
+                </p>
+              </div>
+              <%= button_to statuses[group] == "hidden" ? "Show" : "Opt back in",
+                  dashboard_shared_friend_group_path(group.public_id),
+                  method: :patch,
+                  params: { status: "active" },
+                  class: "m3-btn-text text-xs" %>
+            </li>
+          <% end %>
+        </ul>
+      </details>
+    <% end %>
+  </section>
+<% end %>

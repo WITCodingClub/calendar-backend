@@ -1,0 +1,4 @@
+<%# The color dot of a friend group. Renders nothing when the group has no color. %>
+<% if group.color %>
+  <span class="inline-block w-2.5 h-2.5 rounded-full shrink-0" style="background-color: <%= group.color %>" aria-hidden="true"></span>
+<% end %>

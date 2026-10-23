@@ -12,27 +12,47 @@ class BusyBlocks
     # The end time of an occurrence that goes on past midnight.
     END_OF_DAY = 2400
 
-    def self.call(user, from, to) = new(user, from, to).call
+    def self.call(user, from, to) = call_many([ user ], from, to).fetch(user.id, [])
 
-    def initialize(user, from, to)
-      @user        = user
+    # { user id => [Interval] }, in two queries for any number of users.
+    def self.call_many(users, from, to) = new(users, from, to).call
+
+    def initialize(users, from, to)
+      @user_ids    = users.map(&:id)
       @range_start = from.in_time_zone.beginning_of_day
       @range_end   = (to + 1).in_time_zone.beginning_of_day
     end
 
     def call
-      meetings.flat_map do |meeting|
-        meeting.occurrences_between(@range_start, @range_end).flat_map do |starts_at, ends_at|
+      found   = meetings
+      invited = invited_user_ids(found)
+
+      found.each_with_object({}) do |meeting, by_user|
+        times = meeting.occurrences_between(@range_start, @range_end).flat_map do |starts_at, ends_at|
           intervals(starts_at.in_time_zone, ends_at.in_time_zone)
         end
+        next if times.empty?
+
+        people = (@user_ids & [ meeting.user_id ]) | (meeting.invite_friends? ? invited.fetch(meeting.id, []) : [])
+        people.each { |user_id| (by_user[user_id] ||= []).concat(times) }
       end
     end
 
     private
 
+    # FriendMeeting.inviting, for many users at once.
     def meetings
-      FriendMeeting.live.where(user_id: @user.id).or(FriendMeeting.live.inviting(@user))
+      inviting = FriendMeeting.live.where(invite_friends: true)
+                              .where(id: FriendMeetingAttendee.where(user_id: @user_ids).select(:friend_meeting_id))
+      FriendMeeting.live.where(user_id: @user_ids).or(inviting)
                    .overlapping(@range_start, @range_end).to_a
+    end
+
+    # { meeting id => [user id] } for the users that each meeting invited.
+    def invited_user_ids(meetings)
+      FriendMeetingAttendee.where(friend_meeting_id: meetings.map(&:id), user_id: @user_ids)
+                           .pluck(:friend_meeting_id, :user_id)
+                           .group_by(&:first).transform_values { |rows| rows.map(&:last) }
     end
 
     # One interval for each date that the occurrence covers, inside the range.

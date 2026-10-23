@@ -69,7 +69,8 @@ RSpec.describe "Api::Friends::Groups", type: :request do
           "id"      => study.public_id,
           "members" => [ { "id" => friend.public_id, "name" => "Grace Hopper" } ]
         )
-        expect(groups.last.keys).to contain_exactly("id", "name", "members", "expires_at", "created_at", "updated_at")
+        expect(groups.last.keys).to contain_exactly("id", "name", "color", "shared", "members", "opted_out_member_ids", "expires_at",
+                                                    "created_at", "updated_at")
       end
     end
 
@@ -556,7 +557,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
         get "/api/friends", headers: headers
 
         friends = response.parsed_body["friends"].index_by { |friend| friend["id"] }
-        expect(friends[in_group.public_id]["groups"]).to eq([ { "id" => group.public_id, "name" => "Study group" } ])
+        expect(friends[in_group.public_id]["groups"]).to eq([ { "id" => group.public_id, "name" => "Study group", "color" => nil } ])
         expect(friends[alone.public_id]["groups"]).to eq([])
       end
 

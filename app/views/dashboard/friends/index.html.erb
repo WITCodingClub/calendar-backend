@@ -58,7 +58,7 @@
             <% if @groups_enabled && @groups_by_friend[friend.id].any? %>
               <ul class="mt-1 flex flex-wrap gap-1" aria-label="Groups">
                 <% @groups_by_friend[friend.id].each do |group| %>
-                  <li class="m3-badge-primary"><%= group.name %></li>
+                  <li class="m3-badge-primary gap-1"><%= render "group_color", group: group %><%= group.name %></li>
                 <% end %>
               </ul>
             <% end %>
@@ -87,5 +87,6 @@
 
   <% if @groups_enabled %>
     <%= render "groups", groups: @groups, friends: @friends %>
+    <%= render "shared_groups", groups: @shared_groups %>
   <% end %>
 </div>
