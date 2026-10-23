@@ -15,6 +15,8 @@ flowchart LR
 
 ## The parser
 
+`FinalsSchedules::PdfText` runs the `pdftotext` command from poppler. The production image installs `poppler-utils` in the `Dockerfile`, and `mise bootstrap` installs poppler for development. Without it, the job fails with "pdftotext is not installed".
+
 The registrar changes the columns, the headers, and the page breaks of the PDF each term. `FinalsSchedules::TableParser` does not use column positions or headers. It reads `pdftotext -layout` text, where each exam is one line, and finds a row by its content:
 
 - A row has a weekday date and a time range on one line.

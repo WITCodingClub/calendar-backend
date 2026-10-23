@@ -14,7 +14,11 @@ module FinalsSchedules
         tmp.write(pdf_content)
         tmp.flush
 
-        stdout, stderr, status = Open3.capture3("pdftotext", "-layout", tmp.path, "-")
+        begin
+          stdout, stderr, status = Open3.capture3("pdftotext", "-layout", tmp.path, "-")
+        rescue Errno::ENOENT
+          raise "pdftotext is not installed. Install poppler-utils (brew install poppler on Mac)"
+        end
 
         unless status.success?
           raise "Failed to extract text from PDF: #{stderr.presence || 'Unknown error'}. " \

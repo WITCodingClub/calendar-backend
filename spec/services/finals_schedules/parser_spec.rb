@@ -48,6 +48,14 @@ RSpec.describe FinalsSchedules::Parser do
       expect { described_class.call(pdf_content: "%PDF", term: term) }
         .to raise_error(RuntimeError, /Unknown error/)
     end
+
+    it "says pdftotext is missing when the binary is not installed" do
+      allow(Open3).to receive(:capture3).with("pdftotext", "-layout", anything, "-")
+        .and_raise(Errno::ENOENT, "pdftotext")
+
+      expect { described_class.call(pdf_content: "%PDF", term: term) }
+        .to raise_error(RuntimeError, /pdftotext is not installed/)
+    end
   end
 
   describe "#call" do
