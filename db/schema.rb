@@ -1192,14 +1192,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
     t.datetime "catalog_imported_at"
     t.boolean "catalog_importing", default: false, null: false
     t.datetime "created_at", null: false
-    t.datetime "details_synced_at"
     t.date "end_date"
     t.integer "season", null: false
-    t.datetime "sections_synced_at"
     t.date "start_date"
     t.integer "uid", null: false
     t.datetime "updated_at", null: false
     t.integer "year", null: false
+    t.datetime "sections_synced_at"
+    t.datetime "details_synced_at"
     t.index ["uid"], name: "index_terms_on_uid", unique: true
     t.index ["year", "season"], name: "index_terms_on_year_and_season", unique: true
     t.check_constraint "season = ANY (ARRAY[1, 2, 3])", name: "terms_season_valid"

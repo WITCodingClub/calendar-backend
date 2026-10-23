@@ -25,9 +25,9 @@
 #
 # Indexes
 #
-#  index_student_programs_on_catalog_year_id    (catalog_year_id)
-#  index_student_programs_on_degree_program_id  (degree_program_id)
-#  index_student_programs_on_user_id_and_status (user_id,status)
+#  index_student_programs_on_catalog_year_id     (catalog_year_id)
+#  index_student_programs_on_degree_program_id   (degree_program_id)
+#  index_student_programs_on_user_id_and_status  (user_id,status)
 #
 # Foreign Keys
 #

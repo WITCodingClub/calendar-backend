@@ -2,6 +2,26 @@
 
 require "rails_helper"
 
+# == Schema Information
+#
+# Table name: course_outcomes
+#
+#  id         :bigint           not null, primary key
+#  crn        :integer          not null
+#  outcome    :string           not null
+#  term_uid   :integer          not null
+#  created_at :datetime         not null
+#  updated_at :datetime         not null
+#  user_id    :bigint           not null
+#
+# Indexes
+#
+#  index_course_outcomes_on_user_id_and_term_uid_and_crn  (user_id,term_uid,crn) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id) ON DELETE => cascade
+#
 RSpec.describe CourseOutcome, type: :model do
   subject { create(:course_outcome) }
 

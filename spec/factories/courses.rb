@@ -31,9 +31,12 @@
 # Indexes
 #
 #  index_courses_on_course_and_link_identifier  (term_id,subject,course_number,link_identifier)
+#  index_courses_on_course_number_text_trgm     (((course_number)::text) gin_trgm_ops) USING gin
 #  index_courses_on_crn_and_term_id             (crn,term_id) UNIQUE
 #  index_courses_on_embedding                   (embedding vector_cosine_ops) USING hnsw
 #  index_courses_on_status                      (status)
+#  index_courses_on_subject_trgm                (subject gin_trgm_ops) USING gin
+#  index_courses_on_title_trgm                  (title gin_trgm_ops) USING gin
 #
 # Foreign Keys
 #
