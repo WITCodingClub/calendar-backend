@@ -28,7 +28,8 @@ module Catalog
         catalog_year:    @set.catalog_year.name,
         total_credits:   @set.total_credits,
         parent_program:  program.parent_program&.slug,
-        catalog_url:     @set.catalog_url
+        catalog_url:     @set.catalog_url,
+        listed:          @set.listed?
       }
       return json if @summary
 
@@ -98,10 +99,12 @@ module Catalog
         if codes.empty?
           {}
         else
-          banner = CatalogCourse.where(code_condition(codes), *codes.flatten).pluck(:subject_code, :course_number, :title)
-          year = @set.catalog_year.catalog_year_courses.where(code_condition(codes), *codes.flatten)
+          # The year's title wins. A year row with no title keeps Banner's.
+          banner = CatalogCourse.where(code_condition(codes), *codes.flatten).where.not(title: nil)
+                                .pluck(:subject_code, :course_number, :title)
+          year = @set.catalog_year.catalog_year_courses.where(code_condition(codes), *codes.flatten).where.not(title: nil)
                      .pluck(:subject_code, :course_number, :title)
-          (banner + year).to_h { |subject, number, title| [ [ subject, number ], title ] }.compact
+          (banner + year).to_h { |subject, number, title| [ [ subject, number ], title ] }
         end
       end
     end

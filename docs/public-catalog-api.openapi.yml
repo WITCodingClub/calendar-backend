@@ -644,8 +644,10 @@ paths:
             examples: ["bachelor,minor"]
         - name: level
           in: query
-          description: Only programs of this level.
-          schema: { type: string, enum: [undergraduate, graduate] }
+          description: Only programs of these levels, comma-separated (undergraduate, graduate).
+          schema:
+            type: string
+            examples: ["undergraduate"]
         - name: q
           in: query
           description: Words in the program name.
@@ -689,7 +691,7 @@ paths:
         - name: slug
           in: path
           required: true
-          description: The program slug from the list, such as computer-science-bs.
+          description: The program slug from the list, such as computer-science-bs, or the exact program name.
           schema: { type: string }
         - $ref: "#/components/parameters/CatalogYear"
       responses:
@@ -782,7 +784,10 @@ components:
     CatalogYear:
       name: catalog_year
       in: query
-      description: The catalog year, such as 2024 or 2024-2025. Leave it out for the newest catalog year.
+      description: >-
+        The catalog year, such as 2024-2025, 2024-25, or 2024 (the first year). A term name such as
+        "Spring 2024" gives the catalog year of that term; a catalog year starts in the fall, so Spring 2024
+        is in 2023-2024. Leave it out for the newest catalog year.
       schema: { type: string, examples: ["2024-2025"] }
     SimilarLimit:
       name: limit
@@ -1076,6 +1081,11 @@ components:
           description: The slug of the major a concentration belongs to.
           type: [string, "null"]
         catalog_url: { type: [string, "null"], format: uri }
+        listed:
+          description: >-
+            False for a program that the newest import of its catalog year no longer found. The list leaves
+            these out. The program endpoint still returns them.
+          type: boolean
 
     ProgramCourse:
       type: object

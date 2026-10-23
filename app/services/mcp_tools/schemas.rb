@@ -215,7 +215,8 @@ module McpTools
       catalog_year:   STRING,
       total_credits:  nullable(INTEGER),
       parent_program: nullable(STRING),
-      catalog_url:    nullable(STRING)
+      catalog_url:    nullable(STRING),
+      listed:         BOOLEAN
     }.freeze
     PROGRAM_SUMMARY = object(PROGRAM_SUMMARY_PROPERTIES).freeze
 

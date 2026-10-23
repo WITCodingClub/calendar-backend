@@ -258,15 +258,17 @@ the tree has its `title` and `linked: true` when WIT Calendar knows the course.
 from Banner and is refreshed every night. Each section also has a `course`
 object with the description, the prerequisites, and `typically_offered`.
 
-`GET /api/v1/catalog/programs` accepts `catalog_year` (`2024` or `2024-2025`),
+`GET /api/v1/catalog/programs` accepts `catalog_year` (`2024-2025`, `2024-25`,
+`2024`, or a term name such as `Spring 2024`, which is in 2023-2024),
 `kind` (`associate`, `bachelor`, `master`, `minor`, `concentration`,
 `certificate`, `exploratory`), `level` (`undergraduate`, `graduate`), and `q`
 (words in the name). Without `catalog_year`, it uses the newest catalog year.
 `meta.catalog_years` lists the catalog years the API has, newest first. The data
-starts with 2019-2020.
+starts with 2019-2020. The list leaves out a program that the catalog no longer
+lists. The program endpoint still returns it, with `listed: false`.
 
 `GET /api/v1/catalog/programs/:slug` takes the slug from the list, such as
-`computer-science-bs`, and the same `catalog_year`. Each plan of study lists
+`computer-science-bs`, or the exact program name, and the same `catalog_year`. Each plan of study lists
 its terms by `year` and `season`. Each item is a `course`, a `choice` between
 the courses in `options`, or a `placeholder` such as "Computer Science
 Elective", with the name of the `elective_list` it draws from. The data comes

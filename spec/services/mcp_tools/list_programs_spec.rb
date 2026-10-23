@@ -35,7 +35,7 @@ RSpec.describe McpTools::ListPrograms do
 
   it "returns tool errors for a year that is not imported or a bad filter" do
     expect(text(call(catalog_year: "2015-2016"))).to include("No 2015-2016 catalog", "2024-2025, 2023-2024")
-    expect(text(call(catalog_year: "soon"))).to include("catalog_year must be a year")
+    expect(text(call(catalog_year: "soon"))).to include("catalog_year must be a catalog year")
     expect(text(call(kind: "doctorate"))).to include("kind must be one of")
   end
 

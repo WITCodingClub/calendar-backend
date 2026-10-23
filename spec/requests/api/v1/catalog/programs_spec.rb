@@ -18,6 +18,8 @@ RSpec.describe "Catalog programs API", type: :request do
                              catalog_year: newer, name: "Gear Minor")
     create(:requirement_set, degree_program: program, catalog_year: older, name: "Widget Design Bachelor of Science")
     create(:catalog_year, start_year: 2030, status: "missing")
+    create(:requirement_set, :unlisted, catalog_year: newer, name: "Old Widgets, B.S.",
+                                        degree_program: create(:degree_program, slug: "old-widgets-bs"))
   end
 
   describe "GET /api/v1/catalog/programs" do
@@ -27,7 +29,7 @@ RSpec.describe "Catalog programs API", type: :request do
       expect(response).to have_http_status(:ok)
       expect(json["data"].pluck("slug")).to eq(%w[gear-minor widget-design-bs])
       expect(json["meta"]).to eq("count" => 2, "catalog_year" => "2024-2025", "catalog_years" => %w[2024-2025 2023-2024])
-      expect(json["data"].last).to include("name" => "Widget Design, B.S.", "kind" => "bachelor", "level" => "undergraduate",
+      expect(json["data"].last).to include("name" => "Widget Design, B.S.", "kind" => "bachelor", "level" => "undergraduate", "listed" => true,
                                            "school" => "School of Widgetry", "catalog_year" => "2024-2025",
                                            "catalog_url" => "https://catalog.wit.edu/previous-catalogs/2024-2025/widgetry/widget-design-bs/")
       expect(response.headers["Cache-Control"]).to eq("max-age=3600, public")
@@ -94,6 +96,32 @@ RSpec.describe "Catalog programs API", type: :request do
           "min_credits" => nil, "notes" => nil,
           "courses" => [ { "code" => "WDGT 3000", "title" => "SPINNING", "requires_approval" => true } ] }
       ])
+    end
+
+    it "finds a program by its exact name, the same as the MCP tool" do
+      get "/api/v1/catalog/programs/#{ERB::Util.url_encode('widget design, b.s.')}"
+
+      expect(response).to have_http_status(:ok)
+      expect(json["data"]["slug"]).to eq("widget-design-bs")
+    end
+
+    it "loads a program with many linked placeholders in a fixed number of queries" do
+      plan = set.program_plans.first
+      group = set.elective_groups.first
+      3.times { |i| create(:program_plan_item, :placeholder, program_plan: plan, position: 10 + i, elective_group: group) }
+
+      get "/api/v1/catalog/programs/widget-design-bs"
+
+      expect(json["data"]["plans"].first["terms"].first["items"].pluck("elective_list").compact.size).to eq(4)
+    end
+
+    it "keeps Banner's title when the catalog year has a row with no title" do
+      create(:catalog_course, subject_code: "WDGT", course_number: 3000, title: "Spinning")
+      CatalogYearCourse.find_by!(course_number: 3000).update!(title: nil)
+
+      get "/api/v1/catalog/programs/widget-design-bs"
+
+      expect(json["data"]["elective_lists"].first["courses"].first["title"]).to eq("Spinning")
     end
 
     it "finds a program in an older catalog year" do

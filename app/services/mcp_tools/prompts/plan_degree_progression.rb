@@ -67,7 +67,8 @@ module McpTools
         [
           "If I did not give my program and my catalog year, ask me for them. My catalog year is the catalog of " \
           "the term I started my program in, not this year's catalog. If I changed my major, it is the catalog " \
-          "of the term of the change.",
+          "of the term of the change. A catalog year starts in the fall, so a student who started in Spring 2024 " \
+          "is on 2023-2024. You can pass the term to the tools, for example catalog_year: Spring 2024.",
           "Call list_programs with my catalog year and words from my program name to find my program. If more " \
           "than one program fits, ask me which one.",
           "Call degree_requirements with the program slug and my catalog year. If it lists more than one plan, " \

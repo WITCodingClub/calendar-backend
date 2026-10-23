@@ -84,12 +84,14 @@ RSpec.describe DegreeRequirements::Importer do
     it "skips a page that did not change" do
       import
       set = RequirementSet.find_by!(name: "Widget Design, B.S.")
-      set.update_columns(last_seen_at: 2.days.ago)
+      set.update_columns(last_seen_at: 2.days.ago, path: "/widgetry/widget-design/widget-design-bs/")
 
       result = described_class.new(catalog_year, client: client).call
 
       expect(result).to have_attributes(updated: 0, unchanged: 8)
       expect(set.reload.last_seen_at).to be_within(1.minute).of(Time.current)
+      # The year moved from the site root to the archive, and the page did not change.
+      expect(set.path).to eq("/previous-catalogs/2024-2025/widgetry/widget-design/widget-design-bs/")
     end
 
     it "writes a changed page again and keeps the plan ids" do

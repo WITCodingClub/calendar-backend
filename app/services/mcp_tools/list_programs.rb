@@ -5,8 +5,10 @@ module McpTools
   class ListPrograms < BaseTool
     CATALOG_YEAR_SCHEMA = {
       type:        "string",
-      description: "The catalog year, for example 2024-2025 or 2024. A student follows the catalog of the term " \
-                   "they started their program in. Leave it out for the newest catalog."
+      description: "The catalog year, for example 2024-2025, or the term a program started, for example Spring " \
+                   "2024. A student follows the catalog of the term they started their program in, and a catalog " \
+                   "year starts in the fall, so Spring 2024 is in 2023-2024. A bare year such as 2024 is the first " \
+                   "year: 2024-2025. Leave it out for the newest catalog."
     }.freeze
 
     tool_name "list_programs"
