@@ -56,6 +56,8 @@ RSpec.describe "Api::Finals", type: :request do
 
   it "says when the term has no finals schedule yet" do
     create(:enrollment, user: user, course: create(:course, term: term))
+    create(:final_exam, term: term)
+    create(:finals_schedule, term: term, status: :processing)
 
     get "/api/user/finals", params: { term_uid: term.uid }, headers: auth_headers_for(user)
 

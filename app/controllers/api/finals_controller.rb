@@ -2,8 +2,9 @@
 
 module Api
   # The final exams of the signed-in user's courses in one term. The my_finals
-  # MCP tool sends the same data. schedule_published is false until the term
-  # has a finals schedule, so a client can tell "not out yet" from "no finals".
+  # MCP tool sends the same data. schedule_published is false until a finals
+  # schedule finishes its import, so a client can tell "not out yet" from "no
+  # finals".
   class FinalsController < BaseController
     include Api::TermLookup
 
@@ -19,7 +20,7 @@ module Api
       exams = Courses::FinalExamsQuery.new(current_user, term).call
       render json: {
         term_uid:           term.uid,
-        schedule_published: term.final_exams.exists?,
+        schedule_published: term.finals_published?,
         finals:             EnrolledFinalExamSerializer.render_collection(exams)
       }
     end

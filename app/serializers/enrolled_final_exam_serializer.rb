@@ -6,13 +6,14 @@
 class EnrolledFinalExamSerializer
   # Finds the rooms of every exam with one set of queries.
   def self.render_collection(exams)
-    rooms_by_exam = FinalExam.matched_rooms_for(exams)
-    exams.map { |exam| new(exam, rooms: rooms_by_exam[exam]).as_json }
+    rooms_by_exam = FinalExam.part_rooms_for(exams)
+    exams.map { |exam| new(exam, part_rooms: rooms_by_exam[exam]).as_json }
   end
 
-  def initialize(exam, rooms: nil)
+  # part_rooms: the exam's entry from FinalExam.part_rooms_for.
+  def initialize(exam, part_rooms: nil)
     @exam = exam
-    @rooms = rooms
+    @part_rooms = part_rooms
   end
 
   def as_json(*)
@@ -26,7 +27,7 @@ class EnrolledFinalExamSerializer
       start_time:    @exam.formatted_start_time,
       end_time:      @exam.formatted_end_time,
       location:      @exam.location,
-      location_name: @rooms ? @exam.location_with_names(@rooms) : @exam.location_with_names
+      location_name: @part_rooms ? @exam.location_with_names(@part_rooms) : @exam.location_with_names
     }
   end
 end

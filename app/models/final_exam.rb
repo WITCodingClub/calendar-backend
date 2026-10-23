@@ -150,8 +150,15 @@ class FinalExam < ApplicationRecord
   # exam or many.
   # @return [Hash{FinalExam => Array<Room>}]
   def self.matched_rooms_for(exams)
+    part_rooms_for(exams).transform_values(&:compact)
+  end
+
+  # The room of each " / " part of each exam's location, or nil for a part
+  # with no known room.
+  # @return [Hash{FinalExam => Array<Room, nil>}]
+  def self.part_rooms_for(exams)
     parts_by_exam = exams.index_with(&:location_parts)
-    parts = parts_by_exam.values.flatten
+    parts = parts_by_exam.values.flatten.compact
     return parts_by_exam if parts.empty?
 
     buildings_by_abbrev = Building.where(abbreviation: parts.pluck(:abbrev).uniq).index_by(&:abbreviation)
@@ -160,8 +167,8 @@ class FinalExam < ApplicationRecord
                        .index_by { |r| [ r.building_id, Room.number_key(r.number) ] }
 
     parts_by_exam.transform_values do |exam_parts|
-      exam_parts.filter_map do |p|
-        building = buildings_by_abbrev[p[:abbrev]]
+      exam_parts.map do |p|
+        building = p && buildings_by_abbrev[p[:abbrev]]
         next unless building
 
         rooms_by_key[[ building.id, p[:room_key] ]]
@@ -169,12 +176,12 @@ class FinalExam < ApplicationRecord
     end
   end
 
-  # Each "ABBR 123" part of the location, as a building abbreviation and a
-  # Room.number_key.
+  # Each " / " part of the location as a building abbreviation and a
+  # Room.number_key, or nil for a part that is not "ABBR 123".
   def location_parts
     return [] if location.blank?
 
-    location.split(" / ").filter_map do |loc|
+    location.split(" / ").map do |loc|
       next unless loc =~ ROOM_PATTERN
 
       { abbrev: $1, room_key: Room.number_key($2) }
@@ -185,11 +192,15 @@ class FinalExam < ApplicationRecord
 
   def rooms_matched? = matched_rooms.any?
 
-  # Pass the rooms from matched_rooms_for to skip the queries.
-  def location_with_names(rooms = matched_rooms)
-    return location if location.blank? || rooms.empty?
+  # Names each part of the location that matches a room, and keeps the text of
+  # the other parts. Pass the rooms from part_rooms_for to skip the queries.
+  def location_with_names(part_rooms = self.class.part_rooms_for([ self ])[self])
+    return location if location.blank?
 
-    rooms.map { |r| "#{r.building.name} #{r.formatted_number}" }.join(" / ")
+    location.split(" / ").each_with_index.map do |part, i|
+      room = part_rooms[i]
+      room ? "#{room.building.name} #{room.formatted_number}" : part
+    end.join(" / ")
   end
 
   private

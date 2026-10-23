@@ -25,4 +25,10 @@ RSpec.describe McpTools::MyFinals do
       location_name: "WENTW 010"
     } ])
   end
+
+  it "says when the term has no finals schedule yet" do
+    result = described_class.call(server_context: mcp_context(user), term_uid: term.uid)
+
+    expect(result.structured_content).to include(schedule_published: false, finals: [])
+  end
 end
