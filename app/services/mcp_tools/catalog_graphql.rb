@@ -15,6 +15,7 @@ module McpTools
                 "subjects, sections(filter:, first:, after:), section(crn:, termUid:), instructors, reviews. " \
                 "Prefer the other catalog tools for simple lookups."
     requires_scope "catalog"
+    academic_planning :sections, :course_details
     input_schema(
       properties: {
         query:          { type: "string", description: "The GraphQL query document." },

@@ -117,6 +117,17 @@ RSpec.describe Catalog::CourseDataSyncJob do
     end
   end
 
+  # Catalog::Freshness reports this time in the MCP advisory.
+  it "records when the run for the term finished" do
+    stub_leopard_web([ banner_meeting_time ])
+
+    freeze_time do
+      described_class.perform_now(term_uids: [ term.uid ])
+
+      expect(term.reload.sections_synced_at).to eq(Time.current)
+    end
+  end
+
   it "leaves the confirmation time alone when Banner returns nothing for the section" do
     stub_leopard_web([])
     allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(nil)
@@ -288,6 +299,7 @@ RSpec.describe Catalog::CourseDataSyncJob do
       end
 
       expect(reports).to be_empty
+      expect(term.reload.sections_synced_at).to be_nil
     end
   end
 end

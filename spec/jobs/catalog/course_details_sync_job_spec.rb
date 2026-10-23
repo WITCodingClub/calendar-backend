@@ -3,14 +3,20 @@
 require "rails_helper"
 
 RSpec.describe Catalog::CourseDetailsSyncJob do
+  include ActiveSupport::Testing::TimeHelpers
+
   it "syncs the term" do
     term = create(:term)
     sync = instance_double(Catalog::CourseDetailsSync, call: Catalog::CourseDetailsSync::Result.new(fetched: 1, skipped: 0, failed: 0))
     allow(Catalog::CourseDetailsSync).to receive(:new).with(term).and_return(sync)
 
-    described_class.perform_now(term.uid)
+    freeze_time do
+      described_class.perform_now(term.uid)
 
-    expect(sync).to have_received(:call)
+      expect(sync).to have_received(:call)
+      # Catalog::Freshness reports this time in the MCP advisory.
+      expect(term.reload.details_synced_at).to eq(Time.current)
+    end
   end
 
   it "does nothing for an unknown term" do

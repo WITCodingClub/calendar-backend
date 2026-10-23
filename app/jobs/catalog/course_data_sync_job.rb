@@ -80,6 +80,9 @@ module Catalog
         end
       end
 
+      # The time of a full run, for the MCP advisory (Catalog::Freshness). A
+      # run that stops on a Banner cooldown raises before this line.
+      term.update_column(:sections_synced_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
       Rails.logger.info "[Catalog::CourseDataSyncJob] Term #{term.name} complete — #{synced_count} synced, #{error_count} errors"
     end
   end

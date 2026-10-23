@@ -8,6 +8,7 @@ module McpTools
     description "Lists sections that teach something close to one section. The list is empty until the " \
                 "section has a vector, which a nightly job writes."
     requires_scope "catalog"
+    academic_planning :sections
     input_schema(
       properties: {
         crn:      { type: "integer", description: "The section CRN." },
