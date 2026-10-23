@@ -28,7 +28,7 @@ module CourseCalendars
         e.dtend    = Icalendar::Values::DateTime.new(meeting.end_time.in_time_zone(TZID), tzid: TZID)
         e.summary  = meeting.title
         e.location = meeting.location if meeting.location.present?
-        e.rrule    = meeting.recurrence.first.delete_prefix("RRULE:") if meeting.weekly?
+        e.rrule    = meeting.recurrence.first.delete_prefix("RRULE:") if meeting.repeating?
         e.uid      = "friend-meeting-#{meeting.public_id}@calendar-util.wit.edu"
         # From updated_at, not the request time, so an unchanged meeting gives
         # the same feed body (and ETag) on every request.

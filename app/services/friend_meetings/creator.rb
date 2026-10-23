@@ -8,6 +8,11 @@ module FriendMeetings
   # one-time meeting link (#652), so every check lives here and not in a
   # controller.
   #
+  # A repeating meeting (frequency daily, weekly, or monthly) can also take
+  # repeat_interval (every N days, weeks, or months), repeat_days (the weekdays
+  # of a weekly meeting), and repeat_until (the last date). Without
+  # repeat_until, it repeats until the end of the term.
+  #
   # A meeting link passes a guest: { name:, email: } and no friends. The guest
   # is not a user of the app, so no friend check applies to it. The guest always
   # gets the invitation, whatever invite_friends says.
@@ -25,7 +30,8 @@ module FriendMeetings
     UTC_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})\z/
 
     def initialize(user:, title:, start_time:, end_time:, friend_ids:, location: nil,
-                   frequency: nil, invite_friends: false, idempotency_key: nil, destinations: nil, guest: nil)
+                   frequency: nil, repeat_interval: nil, repeat_days: nil, repeat_until: nil,
+                   invite_friends: false, idempotency_key: nil, destinations: nil, guest: nil)
       @user            = user
       @title           = title
       @start_time      = start_time
@@ -33,6 +39,9 @@ module FriendMeetings
       @friend_ids      = friend_ids
       @location        = location
       @frequency       = frequency.presence || FriendMeeting::FREQUENCIES[:one_time]
+      @repeat_interval = repeat_interval
+      @repeat_days     = repeat_days
+      @repeat_until    = repeat_until
       @invite_friends  = ActiveModel::Type::Boolean.new.cast(invite_friends) || false
       @idempotency_key = idempotency_key.to_s.strip.presence
       @destinations    = destinations
@@ -43,7 +52,9 @@ module FriendMeetings
       existing = find_existing
       return existing if existing
 
-      raise Error, "frequency must be one_time or weekly" unless FriendMeeting::FREQUENCIES.value?(@frequency)
+      raise Error, "frequency must be one of #{FriendMeeting::FREQUENCIES.values.join(', ')}" unless FriendMeeting::FREQUENCIES.value?(@frequency)
+
+      repeat_options = resolve_repeat_options
 
       friends      = resolve_friends
       destinations = resolve_destinations
@@ -54,12 +65,14 @@ module FriendMeetings
         start_time:      self.class.parse_time(@start_time, "start_time"),
         end_time:        self.class.parse_time(@end_time, "end_time"),
         frequency:       @frequency,
+        repeat_interval: repeat_options[:interval],
+        repeat_days:     repeat_options[:days],
         invite_friends:  @invite_friends,
         idempotency_key: @idempotency_key,
         guest_name:      @guest && @guest[:name].to_s.strip,
         guest_email:     @guest && @guest[:email].to_s.strip.downcase
       )
-      self.class.assign_term(meeting) if meeting.weekly?
+      self.class.assign_term(meeting, repeat_until: repeat_options[:until]) if meeting.repeating?
 
       FriendMeeting.transaction do
         meeting.save!
@@ -89,21 +102,51 @@ module FriendMeetings
       raise Error, "#{name} must be an ISO 8601 time with a UTC offset"
     end
 
-    # A weekly meeting repeats until the end of the term that holds its first
-    # day. Between terms, that is the current term, which must not have ended.
-    def self.assign_term(meeting)
+    # A repeating meeting belongs to the term that holds its first day. Between
+    # terms, that is the current term, which must not have ended. Without a
+    # repeat_until, the meeting repeats until the end of that term.
+    def self.assign_term(meeting, repeat_until: nil)
       start_date = meeting.local_start.to_date
       term       = Term.find_by_date(start_date) || Term.current
 
       if term.nil? || term.end_date.nil? || term.end_date < start_date
-        raise Error, "a weekly meeting must start on or before the last day of the current term"
+        raise Error, "a repeating meeting must start on or before the last day of the current term"
       end
 
       meeting.term         = term
-      meeting.repeat_until = term.end_date
+      meeting.repeat_until = repeat_until || term.end_date
+    end
+
+    # The repeat_until of a request: nil, or an ISO 8601 date.
+    def self.parse_date(value, name)
+      return nil if value.blank?
+
+      Date.iso8601(value.to_s)
+    rescue Date::Error
+      raise Error, "#{name} must be an ISO 8601 date"
     end
 
     private
+
+    # The model checks the ranges. This only turns the request values into
+    # the right types, and stops repeat options on a one-time meeting.
+    def resolve_repeat_options
+      given = [ @repeat_interval, @repeat_days, @repeat_until ].any?(&:present?)
+      if @frequency == FriendMeeting::FREQUENCIES[:one_time]
+        raise Error, "repeat_interval, repeat_days, and repeat_until need a repeating frequency" if given
+
+        return { interval: 1, days: [], until: nil }
+      end
+
+      interval = @repeat_interval.presence || 1
+      raise Error, "repeat_interval must be a whole number" unless interval.to_s.match?(/\A\d+\z/)
+
+      {
+        interval: interval.to_i,
+        days:     Array(@repeat_days).map { |day| day.to_s.strip.downcase }.compact_blank.uniq,
+        until:    self.class.parse_date(@repeat_until, "repeat_until")
+      }
+    end
 
     def find_existing
       return nil unless @idempotency_key

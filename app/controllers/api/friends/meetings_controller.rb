@@ -56,6 +56,9 @@ module Api
           friend_ids:      params.require(:friend_ids),
           location:        params[:location],
           frequency:       params[:frequency],
+          repeat_interval: params[:repeat_interval],
+          repeat_days:     params.key?(:repeat_days) ? Array(params[:repeat_days]) : nil,
+          repeat_until:    params[:repeat_until],
           invite_friends:  params[:invite_friends],
           idempotency_key: request.headers["Idempotency-Key"].presence || params[:idempotency_key],
           destinations:    params.key?(:destinations) ? Array(params[:destinations]) : nil

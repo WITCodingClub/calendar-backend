@@ -62,6 +62,19 @@ RSpec.describe MicrosoftGraph::EventEdits do
 
       expect(result.recurrence_changed?).to be(true)
     end
+
+    it "ignores the index that Graph adds to a weekly pattern, and compares it for a relativeMonthly one" do
+      row.recurrence = [ "RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20261212T045959Z" ]
+      weekly = { pattern: { type: "weekly", interval: 1, daysOfWeek: [ "monday" ], firstDayOfWeek: "sunday", index: "first" },
+                 range:   { type: "endDate", startDate: "2026-09-14", endDate: "2026-12-11" } }
+      expect(edits(recurrence: weekly).recurrence_changed?).to be(false)
+
+      row.recurrence = [ "RRULE:FREQ=MONTHLY;BYDAY=2MO;UNTIL=20261212T045959Z" ]
+      monthly = { pattern: { type: "relativeMonthly", interval: 1, daysOfWeek: [ "monday" ], index: "second" },
+                  range:   { type: "endDate", startDate: "2026-09-14", endDate: "2026-12-11" } }
+      expect(edits(recurrence: monthly).recurrence_changed?).to be(false)
+      expect(edits(recurrence: monthly.deep_merge(pattern: { index: "third" })).recurrence_changed?).to be(true)
+    end
   end
 
   describe "#merge" do

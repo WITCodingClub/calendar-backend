@@ -43,6 +43,33 @@ RSpec.describe MicrosoftGraph::EventPayload do
       )
     end
 
+    it "turns a daily RRULE with an interval into a daily pattern" do
+      recurrence = described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=DAILY;INTERVAL=3;UNTIL=20261212T045959Z" ]))[:recurrence]
+
+      expect(recurrence[:pattern]).to eq(type: "daily", interval: 3)
+    end
+
+    it "keeps the interval of a weekly RRULE" do
+      recurrence = described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=MO;UNTIL=20261212T045959Z" ]))[:recurrence]
+
+      expect(recurrence[:pattern]).to eq(type: "weekly", interval: 2, daysOfWeek: %w[monday], firstDayOfWeek: "sunday")
+    end
+
+    it "turns a monthly RRULE on one weekday of the month into a relativeMonthly pattern" do
+      second = described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=MONTHLY;BYDAY=2MO;UNTIL=20261212T045959Z" ]))[:recurrence]
+      last   = described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=-1MO" ]))[:recurrence]
+
+      expect(second[:pattern]).to eq(type: "relativeMonthly", interval: 1, daysOfWeek: %w[monday], index: "second")
+      expect(last).to eq(
+        pattern: { type: "relativeMonthly", interval: 2, daysOfWeek: %w[monday], index: "last" },
+        range:   { type: "noEnd", startDate: "2026-09-14", recurrenceTimeZone: "Eastern Standard Time" }
+      )
+    end
+
+    it "sends no recurrence for a monthly RRULE that it cannot map" do
+      expect(described_class.build(weekly_class.merge(recurrence: [ "RRULE:FREQ=MONTHLY;BYMONTHDAY=14" ]))[:recurrence]).to be_nil
+    end
+
     it "shows a timed event as busy, so a class blocks the time" do
       expect(described_class.build(weekly_class)[:showAs]).to eq("busy")
     end

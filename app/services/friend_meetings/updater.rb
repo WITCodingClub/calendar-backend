@@ -39,8 +39,15 @@ module FriendMeetings
       @meeting.start_time = FriendMeetings::Creator.parse_time(@changes[:start_time], "start_time") if @changes.key?(:start_time)
       @meeting.end_time   = FriendMeetings::Creator.parse_time(@changes[:end_time], "end_time") if @changes.key?(:end_time)
 
-      # A weekly meeting that moves to a new day can move to a new term.
-      FriendMeetings::Creator.assign_term(@meeting) if @meeting.weekly? && @meeting.start_time_changed?
+      reassign_term if @meeting.repeating? && @meeting.start_time_changed?
+    end
+
+    # A repeating meeting that moves to a new day can move to a new term. One
+    # that ended with its term ends with the new term. A repeat_until that the
+    # person picked stays.
+    def reassign_term
+      picked = @meeting.repeat_until unless @meeting.repeat_until == @meeting.term&.end_date
+      FriendMeetings::Creator.assign_term(@meeting, repeat_until: picked)
     end
   end
 end

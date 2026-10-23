@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_23_003000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -517,6 +517,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_003000) do
     t.datetime "updated_at", null: false
     t.string "guest_name"
     t.string "guest_email"
+    t.integer "repeat_interval", default: 1, null: false
+    t.string "repeat_days", default: [], null: false, array: true
     t.index ["term_id"], name: "index_friend_meetings_on_term_id"
     t.index ["user_id", "idempotency_key"], name: "idx_friend_meetings_unique_idempotency_key", unique: true, where: "(idempotency_key IS NOT NULL)"
     t.index ["user_id"], name: "index_friend_meetings_on_user_id"

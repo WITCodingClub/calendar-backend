@@ -48,12 +48,32 @@ A meeting that the person cannot see answers 404. An invitee who tries to change
 | `start_time`, `end_time` | yes | ISO 8601 with a UTC offset. The end must be after the start, and 12 hours at most after it. |
 | `friend_ids` | yes | 1 to 20 ids from `GET /api/friends`. Each one must be an accepted friend. |
 | `location` | no | 200 characters at most. |
-| `frequency` | no | `one_time` (the default) or `weekly`. |
+| `frequency` | no | `one_time` (the default), `daily`, `weekly`, or `monthly`. |
+| `repeat_interval` | no | Repeat every N days, weeks, or months. 1 (the default) to 30. |
+| `repeat_days` | no | The weekdays of a `weekly` meeting, for example `["monday", "wednesday"]`. The day of `start_time` is always one of them. |
+| `repeat_until` | no | The last date the meeting can happen, as an ISO 8601 date (`2027-01-29`). The default is the last day of the term. It can be 366 days after the start date at most. |
 | `invite_friends` | no | `false` by default. When `true`, the friends get an invitation. |
 | `destinations` | no | The places for the meeting: `google`, `microsoft`, `ics`. Each provider must have a connected course calendar. `ics` is always allowed. Without this field, the meeting goes to every connected course calendar and the ICS feed. |
 | `idempotency_key` | no | The same as the `Idempotency-Key` header. 255 characters at most. |
 
-A weekly meeting repeats on the day of its start time until the last day of the term that holds that day. Between terms, the app uses the current term. A weekly meeting must start on or before the last day of that term.
+A repeating meeting belongs to the term that holds the day of its start time. Between terms, the app uses the current term. A repeating meeting must start on or before the last day of that term. Without `repeat_until`, it repeats until the last day of that term.
+
+`repeat_interval`, `repeat_days`, and `repeat_until` need a repeating `frequency`. With `one_time`, they answer `422`.
+
+| `frequency` | Repeats on | Example RRULE |
+| --- | --- | --- |
+| `daily` | Every `repeat_interval` days. | `FREQ=DAILY;INTERVAL=3` |
+| `weekly` | Each day in `repeat_days` (or only the start day), every `repeat_interval` weeks. Weeks start on Sunday. | `FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=WE,FR` |
+| `monthly` | The same weekday of the month as the start, every `repeat_interval` months. A start on the fifth weekday of a month repeats on the last one. | `FREQ=MONTHLY;BYDAY=2WE` |
+
+The extension can map its choices like this:
+
+| Choice | Request |
+| --- | --- |
+| Every week | `"frequency": "weekly"` |
+| Every other week | `"frequency": "weekly", "repeat_interval": 2` |
+| Once a month | `"frequency": "monthly"` |
+| Custom | Any `frequency` with `repeat_interval`, `repeat_days`, and `repeat_until`. |
 
 Invitations go out only from the first provider in `destinations` that can send them (`google` or `microsoft`). The ICS feed lists the friends as attendees, but a feed cannot send an invitation.
 
@@ -75,6 +95,8 @@ The create, show, and update routes answer `{ "meeting": { ... } }`:
   "time_zone": "America/New_York",
   "frequency": "weekly",
   "recurrence": "RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20261219T045959Z",
+  "repeat_interval": 1,
+  "repeat_days": ["wednesday"],
   "repeat_until": "2026-12-18",
   "invite_friends": true,
   "role": "owner",
@@ -93,6 +115,7 @@ The create, show, and update routes answer `{ "meeting": { ... } }`:
 ```
 
 - `start_time` and `end_time` are the first occurrence. `recurrence` is `null` for a one-time meeting.
+- `repeat_days` lists every day of a weekly meeting, the start day too. It is empty for any other `frequency`.
 - `role` is `owner` or `invitee`. Only the owner gets `can_edit` and `can_delete`. Only an invitee gets `can_leave`.
 - `destinations` and `publications` are empty for an invitee, because they are the owner's own calendars.
 - `guest` is the person who booked a one-time meeting link, as `{ "name", "email" }`, or `null`. Only the owner sees it. The guest always gets the invitation.
@@ -137,13 +160,13 @@ Each place has one row in `publications`.
 ```
 
 - The occurrence id is the meeting id and the occurrence start in UTC. It stays the same until the owner moves the meeting.
-- A weekly meeting keeps its local time across a daylight saving change.
+- A repeating meeting keeps its local time across a daylight saving change.
 - The route reads only the database, so it works for a person who uses only the ICS feed.
 - An invited friend sees a meeting when the owner set `invite_friends`. The friend does not accept in the app: the provider invitation handles the answer. See [A declined invitation](#a-declined-invitation).
 
 ## Change a meeting
 
-`PATCH /api/friends/meetings/:id` with any of `title`, `location`, `start_time`, `end_time`. The change applies to every occurrence. A weekly meeting that moves to a new day can move to the term that holds the new day. The answer is the meeting, with each provider `queued` until the update job writes the change. The provider that sent the invitations tells the friends about the change.
+`PATCH /api/friends/meetings/:id` with any of `title`, `location`, `start_time`, `end_time`. The change applies to every occurrence. The repeat options do not change. A repeating meeting that moves to a new day can move to the term that holds the new day. If the meeting repeated until the end of its term, it then repeats until the end of the new term. A `repeat_until` that the person picked stays. The answer is the meeting, with each provider `queued` until the update job writes the change. The provider that sent the invitations tells the friends about the change.
 
 ## Delete a meeting
 
@@ -172,7 +195,7 @@ A friend who declines the invitation in Google Calendar or Outlook also leaves t
 | `accepted`, `needsAction`, `none` | The friend stays. |
 
 - The app does not update the provider event after a decline. The event keeps the friend as declined, so the friend gets no cancellation.
-- The app reads only the answer for the whole series. A friend who declines one occurrence of a weekly meeting stays on the meeting.
+- The app reads only the answer for the whole series. A friend who declines one occurrence of a repeating meeting stays on the meeting.
 - The sync reads only meetings that have not ended and whose invitations went out.
 - A friend who uses only the ICS feed gets no invitation, so the leave route is the only way out.
 

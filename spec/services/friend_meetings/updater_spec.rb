@@ -47,6 +47,16 @@ RSpec.describe FriendMeetings::Updater do
     expect(weekly.reload).to have_attributes(term: spring, repeat_until: Date.new(2027, 4, 30))
   end
 
+  it "keeps a repeat_until that the person picked when the meeting moves" do
+    fall    = create(:term, start_date: Date.new(2026, 9, 2), end_date: Date.new(2026, 12, 18))
+    monthly = create(:friend_meeting, frequency: "monthly", term: fall, repeat_until: Date.new(2027, 5, 1),
+                                      start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16))
+
+    described_class.call(meeting: monthly, changes: { start_time: "2026-10-21T15:00:00-04:00", end_time: "2026-10-21T16:00:00-04:00" })
+
+    expect(monthly.reload).to have_attributes(term: fall, repeat_until: Date.new(2027, 5, 1))
+  end
+
   it "refuses an empty change and a time without an offset" do
     expect { described_class.call(meeting: meeting, changes: {}) }.to raise_error(FriendMeetings::Creator::Error, /at least one/)
     expect { described_class.call(meeting: meeting, changes: { start_time: "2026-10-14T15:00:00" }) }
