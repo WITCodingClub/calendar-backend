@@ -122,6 +122,12 @@ RSpec.describe FinalExam do
       expect(described_class.finals_week_start(term.id)).to eq(Date.new(2026, 12, 10))
     end
 
+    it "falls back to the earliest date when no date holds enough of the exams" do
+      (1..11).each { |day| create(:final_exam, term: term, exam_date: Date.new(2026, 12, day)) }
+
+      expect(described_class.finals_week_start(term.id)).to eq(Date.new(2026, 12, 1))
+    end
+
     it "ignores the exams of another term" do
       create_list(:final_exam, 3, term: create(:term), exam_date: Date.new(2026, 12, 1))
       create(:final_exam, term: term, exam_date: Date.new(2026, 12, 10))

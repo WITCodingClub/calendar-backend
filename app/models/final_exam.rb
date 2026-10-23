@@ -76,7 +76,8 @@ class FinalExam < ApplicationRecord
     total  = counts.values.sum
     return nil if total.zero?
 
-    counts.select { |_date, count| count >= total * FINALS_WEEK_MIN_SHARE }.keys.min
+    busy_dates = counts.select { |_date, count| count >= total * FINALS_WEEK_MIN_SHARE }.keys
+    (busy_dates.presence || counts.keys).min
   end
 
   def self.link_orphan_exams_to_courses(term:)
