@@ -21,8 +21,7 @@ module FinalsSchedules
         end
 
         unless status.success?
-          raise "Failed to extract text from PDF: #{stderr.presence || 'Unknown error'}. " \
-                "Make sure pdftotext is installed (brew install poppler on Mac)"
+          raise "Failed to extract text from PDF: #{stderr.presence || 'Unknown error'}"
         end
 
         stdout
