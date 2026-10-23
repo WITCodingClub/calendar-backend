@@ -27,15 +27,15 @@ class VersionService < ApplicationService
   end
 
   def self.current_sha
-    @current_sha ||= begin
-      revision_file = Rails.root.join("REVISION")
-      if revision_file.exist?
-        revision_file.read.strip[0..6]
-      else
-        `git rev-parse --short HEAD 2>/dev/null`.strip.presence || "unknown"
-      end
-    end
+    @current_sha ||= revision_from_file || `git rev-parse --short HEAD 2>/dev/null`.strip.presence || "unknown"
   end
+
+  # The production image has no git. The build writes the commit to REVISION.
+  def self.revision_from_file
+    file = Rails.root.join("REVISION")
+    file.read.strip[0..6].presence if file.exist?
+  end
+  private_class_method :revision_from_file
 
   def current_version = self.class.current_version
   def current_sha = self.class.current_sha
