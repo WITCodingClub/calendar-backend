@@ -28,6 +28,7 @@ module FriendMeetings
     class Error < StandardError; end
 
     UTC_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})\z/
+    REPEAT_OPTIONS_NEED_FREQUENCY = "repeat_interval, repeat_days, and repeat_until need a repeating frequency"
 
     def initialize(user:, title:, start_time:, end_time:, friend_ids:, location: nil,
                    frequency: nil, repeat_interval: nil, repeat_days: nil, repeat_until: nil,
@@ -52,8 +53,7 @@ module FriendMeetings
       existing = find_existing
       return existing if existing
 
-      raise Error, "frequency must be one of #{FriendMeeting::FREQUENCIES.values.join(', ')}" unless FriendMeeting::FREQUENCIES.value?(@frequency)
-
+      self.class.check_frequency(@frequency)
       repeat_options = resolve_repeat_options
 
       friends      = resolve_friends
@@ -117,6 +117,26 @@ module FriendMeetings
       meeting.repeat_until = repeat_until || term.end_date
     end
 
+    def self.check_frequency(frequency)
+      return if FriendMeeting::FREQUENCIES.value?(frequency)
+
+      raise Error, "frequency must be one of #{FriendMeeting::FREQUENCIES.values.join(', ')}"
+    end
+
+    # The repeat_interval of a request. The model checks the range.
+    def self.parse_interval(value)
+      return 1 if value.blank?
+      raise Error, "repeat_interval must be a whole number" unless value.to_s.match?(/\A\d+\z/)
+
+      value.to_i
+    end
+
+    # The repeat_days of a request, in lower case, without blanks or repeats.
+    # The model checks the names.
+    def self.parse_days(value)
+      Array(value).map { |day| day.to_s.strip.downcase }.compact_blank.uniq
+    end
+
     # The repeat_until of a request: nil, or an ISO 8601 date.
     def self.parse_date(value, name)
       return nil if value.blank?
@@ -131,19 +151,15 @@ module FriendMeetings
     # The model checks the ranges. This only turns the request values into
     # the right types, and stops repeat options on a one-time meeting.
     def resolve_repeat_options
-      given = [ @repeat_interval, @repeat_days, @repeat_until ].any?(&:present?)
       if @frequency == FriendMeeting::FREQUENCIES[:one_time]
-        raise Error, "repeat_interval, repeat_days, and repeat_until need a repeating frequency" if given
+        raise Error, REPEAT_OPTIONS_NEED_FREQUENCY if [ @repeat_interval, @repeat_days, @repeat_until ].any?(&:present?)
 
         return { interval: 1, days: [], until: nil }
       end
 
-      interval = @repeat_interval.presence || 1
-      raise Error, "repeat_interval must be a whole number" unless interval.to_s.match?(/\A\d+\z/)
-
       {
-        interval: interval.to_i,
-        days:     Array(@repeat_days).map { |day| day.to_s.strip.downcase }.compact_blank.uniq,
+        interval: self.class.parse_interval(@repeat_interval),
+        days:     self.class.parse_days(@repeat_days),
         until:    self.class.parse_date(@repeat_until, "repeat_until")
       }
     end

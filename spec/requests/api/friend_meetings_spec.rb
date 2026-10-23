@@ -291,6 +291,26 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
       expect(response.parsed_body.dig("meeting", "publications").first["status"]).to eq("queued")
     end
 
+    it "lets the owner change the repeat options" do
+      patch "/api/friends/meetings/#{meeting.public_id}",
+            params: { frequency: "weekly", repeat_interval: 2, repeat_days: %w[friday], repeat_until: "2027-01-29" },
+            headers: auth_headers_for(user), as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["meeting"]).to include(
+        "frequency"       => "weekly",
+        "recurrence"      => "RRULE:FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=WE,FR;UNTIL=20270130T045959Z",
+        "repeat_interval" => 2,
+        "repeat_days"     => %w[wednesday friday],
+        "repeat_until"    => "2027-01-29"
+      )
+
+      patch "/api/friends/meetings/#{meeting.public_id}", params: { repeat_days: [], repeat_until: nil },
+                                                          headers: auth_headers_for(user), as: :json
+
+      expect(response.parsed_body["meeting"]).to include("repeat_days" => %w[wednesday], "repeat_until" => "2026-12-18")
+    end
+
     it "answers 422 for a change that is not valid" do
       patch "/api/friends/meetings/#{meeting.public_id}", params: { end_time: "2026-10-14T14:00:00-04:00" },
                                                           headers: auth_headers_for(user), as: :json

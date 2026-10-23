@@ -19,7 +19,7 @@ All routes use the extension's bearer token.
 | `GET /api/friends/meetings?start=&end=` | anyone | The person's meetings and the meetings that invited them, with each occurrence in the range. |
 | `POST /api/friends/meetings` | anyone | Make a meeting. |
 | `GET /api/friends/meetings/:id` | owner, invitee | One meeting. |
-| `PATCH /api/friends/meetings/:id` | owner | Change the title, place, or time of the whole series. |
+| `PATCH /api/friends/meetings/:id` | owner | Change the title, place, time, or repeat options of the whole series. |
 | `DELETE /api/friends/meetings/:id` | owner | Delete the meeting and its provider events. |
 | `DELETE /api/friends/meetings/:id/attendance` | invitee | Leave the meeting. |
 
@@ -166,7 +166,13 @@ Each place has one row in `publications`.
 
 ## Change a meeting
 
-`PATCH /api/friends/meetings/:id` with any of `title`, `location`, `start_time`, `end_time`. The change applies to every occurrence. The repeat options do not change. A repeating meeting that moves to a new day can move to the term that holds the new day. If the meeting repeated until the end of its term, it then repeats until the end of the new term. A `repeat_until` that the person picked stays. The answer is the meeting, with each provider `queued` until the update job writes the change. The provider that sent the invitations tells the friends about the change.
+`PATCH /api/friends/meetings/:id` with any of `title`, `location`, `start_time`, `end_time`, `frequency`, `repeat_interval`, `repeat_days`, `repeat_until`. The change applies to every occurrence. A field that the request leaves out keeps its value.
+
+- A repeating meeting that moves to a new day can move to the term that holds the new day. If the meeting repeated until the end of its term, it then repeats until the end of the new term. A `repeat_until` that the person picked stays.
+- `"repeat_until": null` makes the meeting repeat until the end of its term again.
+- `"frequency": "one_time"` stops the repeats and clears `repeat_interval`, `repeat_days`, and `repeat_until`. Do not send other repeat options with it.
+- A one-time meeting that starts to repeat gets a `repeat_interval` of 1 unless the request sends one.
+- `repeat_days` stays only while the meeting stays `weekly`. `"repeat_days": []` goes back to the start day only. The answer is the meeting, with each provider `queued` until the update job writes the change. The provider that sent the invitations tells the friends about the change.
 
 ## Delete a meeting
 
