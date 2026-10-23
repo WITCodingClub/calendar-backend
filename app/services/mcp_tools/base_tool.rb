@@ -163,7 +163,8 @@ module McpTools
       def missing_scope_message
         label = Scopes.label(required_scope)
         "This needs the \"#{label}\" permission, which this app does not have. To add it, disconnect " \
-          "WIT Calendar in this app's connector settings, connect again, and check \"#{label}\"."
+          "WIT Calendar in this app's connector settings, connect again, and check \"#{label}\". " \
+          "Settings in WIT Calendar shows the permissions that this app has."
       end
 
       def error_response(message, links: [])
