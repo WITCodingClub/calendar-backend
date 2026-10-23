@@ -93,6 +93,7 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(server_info["name"]).to eq(McpTools::Server::NAME)
     expect(server_info["description"]).to eq(McpTools::Server::DESCRIPTION)
     expect(server_info["icons"]).to eq([ { "src" => "http://example.com/icon.png", "mimeType" => "image/png", "sizes" => [ "180x180" ] } ])
+    expect(response.parsed_body.dig("result", "instructions")).to include("program director", "academic advisor")
   end
 
   it "marks the read tools read-only and the write tools not destructive" do
@@ -169,7 +170,9 @@ RSpec.describe "Api::Mcp", type: :request do
       .to change { tool_calls("my_courses", "ok") }.by(1)
 
     expect(response).to have_http_status(:ok)
-    expect(response.parsed_body.dig("result", "structuredContent")).to eq("term_uid" => term.uid, "courses" => [])
+    content = response.parsed_body.dig("result", "structuredContent")
+    expect(content.except("advisory")).to eq("term_uid" => term.uid, "courses" => [])
+    expect(content.dig("advisory", "message")).to eq(McpTools::BaseTool::ADVISORY)
   end
 
   it "returns a tool error for a bad argument and counts it" do

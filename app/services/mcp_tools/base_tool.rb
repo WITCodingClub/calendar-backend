@@ -11,6 +11,12 @@ module McpTools
   # McpTools::ToolError, which goes back to the client as a tool error with
   # the message. Any other error goes to the MCP server's exception reporter
   # (McpTools::Server).
+  #
+  # A tool whose answer a student can use to plan courses calls
+  # academic_planning. Its result then carries an advisory: ADVISORY, which
+  # tells the student to confirm the plan with their program director and
+  # advisor, and the refresh times of the sources the tool names
+  # (Catalog::Freshness).
   class BaseTool < MCP::Tool
     READ_ONLY = {
       read_only_hint:   true,
@@ -21,6 +27,12 @@ module McpTools
 
     # A date in a tool argument: YYYY-MM-DD.
     DATE_SCHEMA = { type: "string", format: "date", description: "A date in YYYY-MM-DD format." }.freeze
+    ADVISORY = "WIT Calendar is not an official Wentworth service. It copies this data from official Wentworth " \
+               "sources on a schedule, so the data can be out of date. data_sources gives each source, how often " \
+               "WIT Calendar refreshes it, and when it last did. Tell the student to confirm any course plan with " \
+               "their program director and their academic advisor before they register, drop a course, or " \
+               "change their plan."
+
     PAGE_SCHEMA = { type: "integer", minimum: 1, description: "The page, from 1." }.freeze
     TERM_SCHEMA = {
       type:        "integer",
@@ -34,6 +46,19 @@ module McpTools
       end
 
       attr_reader :required_scope
+
+      # The result of this tool carries ADVISORY and the refresh times of
+      # its sources (keys of Catalog::Freshness::SOURCES).
+      def academic_planning(*sources)
+        unknown = sources - Catalog::Freshness::SOURCES.keys
+        raise ArgumentError, "unknown data source #{unknown.join(', ')}" if unknown.any?
+
+        @data_sources = sources
+      end
+
+      attr_reader :data_sources
+
+      def academic_planning? = !@data_sources.nil?
 
       # The scope a token needs to call this tool (McpTools::Scopes).
       def requires_scope(name)
@@ -50,6 +75,7 @@ module McpTools
         end
 
         data = new(server_context[:user], request: server_context[:request]).perform(**arguments)
+        data = data.merge(advisory: advisory) if academic_planning?
 
         MCP::Tool::Response.new([ { type: "text", text: data.to_json } ], structured_content: data)
       rescue ToolError, ActiveRecord::RecordNotFound => e
@@ -64,6 +90,10 @@ module McpTools
       end
 
       private
+
+      def advisory
+        { message: ADVISORY, data_sources: Catalog::Freshness.call(data_sources) }
+      end
 
       def missing_scope_message
         label = Scopes.label(required_scope)

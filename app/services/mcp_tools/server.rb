@@ -12,7 +12,11 @@ module McpTools
       the America/New_York time zone. Each tool needs a permission that the student gives when
       they connect. Tools that change data need a permission that is off by default. When a
       tool answers that a permission is missing, tell the student how to add it and do not
-      retry. Before you change a setting, say what you will change.
+      retry. Before you change a setting, say what you will change. WIT Calendar is not an
+      official Wentworth service. It copies course data from official Wentworth sources on a
+      schedule, and the advisory in a course result says when it last did. When you help a
+      student plan courses, tell them to confirm the plan with their program director and
+      their academic advisor.
     TEXT
 
     DESCRIPTION = "Wentworth course catalog and your WIT Calendar schedule and settings."

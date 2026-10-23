@@ -147,38 +147,61 @@ class FinalExam < ApplicationRecord
     Time.zone.local(exam_date.year, exam_date.month, exam_date.day, end_time / 100, end_time % 100)
   end
 
-  def matched_rooms
-    return [] if location.blank?
+  # The rooms that each exam's location names, with the same queries for one
+  # exam or many.
+  # @return [Hash{FinalExam => Array<Room>}]
+  def self.matched_rooms_for(exams)
+    part_rooms_for(exams).transform_values(&:compact)
+  end
 
-    parts = location.split(" / ").filter_map do |loc|
-      next unless loc =~ ROOM_PATTERN
-
-      { abbrev: $1, room_key: Room.number_key($2) }
-    end
-    return [] if parts.empty?
+  # The room of each " / " part of each exam's location, or nil for a part
+  # with no known room.
+  # @return [Hash{FinalExam => Array<Room, nil>}]
+  def self.part_rooms_for(exams)
+    parts_by_exam = exams.index_with(&:location_parts)
+    parts = parts_by_exam.values.flatten.compact
+    return parts_by_exam if parts.empty?
 
     buildings_by_abbrev = Building.where(abbreviation: parts.pluck(:abbrev).uniq).index_by(&:abbreviation)
     rooms_by_key = Room.where(building_id: buildings_by_abbrev.values.map(&:id))
                        .includes(:building)
                        .index_by { |r| [ r.building_id, Room.number_key(r.number) ] }
 
-    parts.filter_map do |p|
-      building = buildings_by_abbrev[p[:abbrev]]
-      next unless building
+    parts_by_exam.transform_values do |exam_parts|
+      exam_parts.map do |p|
+        building = p && buildings_by_abbrev[p[:abbrev]]
+        next unless building
 
-      rooms_by_key[[ building.id, p[:room_key] ]]
+        rooms_by_key[[ building.id, p[:room_key] ]]
+      end
     end
   end
 
+  # Each " / " part of the location as a building abbreviation and a
+  # Room.number_key, or nil for a part that is not "ABBR 123".
+  def location_parts
+    return [] if location.blank?
+
+    location.split(" / ").map do |loc|
+      next unless loc =~ ROOM_PATTERN
+
+      { abbrev: $1, room_key: Room.number_key($2) }
+    end
+  end
+
+  def matched_rooms = self.class.matched_rooms_for([ self ])[self]
+
   def rooms_matched? = matched_rooms.any?
 
-  def location_with_names
+  # Names each part of the location that matches a room, and keeps the text of
+  # the other parts. Pass the rooms from part_rooms_for to skip the queries.
+  def location_with_names(part_rooms = self.class.part_rooms_for([ self ])[self])
     return location if location.blank?
 
-    rooms = matched_rooms
-    return location if rooms.empty?
-
-    rooms.map { |r| "#{r.building.name} #{r.formatted_number}" }.join(" / ")
+    location.split(" / ").each_with_index.map do |part, i|
+      room = part_rooms[i]
+      room ? "#{room.building.name} #{room.formatted_number}" : part
+    end.join(" / ")
   end
 
   private
