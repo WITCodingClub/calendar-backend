@@ -31,8 +31,8 @@
 #   but the other members still see the member.
 # - opted_out: the member does not see the group, and the other members do
 #   not see the member or the member's busy times. The owner still sees the
-#   member. When the owner edits the group, a member who stays in it keeps
-#   the status.
+#   member. A FriendGroupOptOut row keeps the opt-out when the owner removes
+#   the member and adds them again.
 class FriendGroupMembership < ApplicationRecord
   STATUSES = { active: "active", hidden: "hidden", opted_out: "opted_out" }.freeze
 
@@ -44,7 +44,26 @@ class FriendGroupMembership < ApplicationRecord
   validates :friendship_id, uniqueness: { scope: :friend_group_id, message: "is already in this group" }
   validate :friendship_belongs_to_group_owner
 
+  before_create :apply_saved_opt_out
+  after_save :sync_opt_out, if: :saved_change_to_status?
+
+  # The user in the group: the friend of the owner.
+  def member_user_id
+    friendship.friend_id_for(friend_group.user)
+  end
+
   private
+
+  def apply_saved_opt_out
+    return unless active?
+
+    self.status = :opted_out if FriendGroupOptOut.exists?(friend_group_id: friend_group_id, user_id: member_user_id)
+  end
+
+  def sync_opt_out
+    opt_out = FriendGroupOptOut.where(friend_group_id: friend_group_id, user_id: member_user_id)
+    opted_out? ? opt_out.first_or_create! : opt_out.delete_all
+  end
 
   def friendship_belongs_to_group_owner
     return if friend_group.nil? || friendship.nil?

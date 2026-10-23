@@ -40,6 +40,18 @@ RSpec.describe "Api::Friends::SharedGroups", type: :request do
     end
   end
 
+  context "when the flag is on for the owner and the viewer but not for another member" do
+    before { [ owner, member ].each { |user| Flipper.enable_actor(FeatureFlags::FRIEND_GROUPS, user) } }
+
+    it "leaves that member out of the group and its busy times" do
+      get "/api/friends/shared_groups", headers: headers
+      expect(json["groups"].first["members"].pluck("id")).to eq([ member.public_id ])
+
+      get "/api/friends/groups/#{group.public_id}/busy_blocks", headers: headers
+      expect(json["people"].pluck("id")).to eq([ owner.public_id, member.public_id ])
+    end
+  end
+
   context "when the friend_groups flag is on" do
     before { Flipper.enable(FeatureFlags::FRIEND_GROUPS) }
 

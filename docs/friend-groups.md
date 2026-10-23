@@ -121,7 +121,9 @@ Each member of a shared group has a status. Only the member can change it. The o
 
 `PATCH /api/friends/shared_groups/:group_id` with `{ "status": "opted_out" }` answers `{ "group": { ... } }` with the new `status`. An unknown status answers 422. Send `"active"` to undo a hide or an opt-out. A member who opted out cannot read the busy times of the group (403).
 
-The owner still sees a member who opted out. When the owner edits the group, a member who stays in it keeps their status. When the owner removes a member and adds them again, the status starts at `active`.
+The owner still sees a member who opted out. An opt-out stays when the owner removes the member and adds them again (`friend_group_opt_outs`). Only the member can end it, with `"active"` or `"hidden"`.
+
+A member who does not have the `friend_groups` flag cannot see the group or opt out. The other members do not see that member, and get no busy times for that member.
 
 ## Busy times
 

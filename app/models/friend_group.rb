@@ -37,6 +37,7 @@ class FriendGroup < ApplicationRecord
   belongs_to :user
   has_many :memberships, class_name: "FriendGroupMembership", dependent: :destroy, inverse_of: :friend_group
   has_many :friendships, through: :memberships
+  has_many :opt_outs, class_name: "FriendGroupOptOut", dependent: :delete_all, inverse_of: :friend_group
 
   # A group with an end date in the past is gone for the owner, even before
   # FriendGroups::RemoveExpiredJob deletes the row. FriendGroupPolicy::Scope
@@ -54,7 +55,9 @@ class FriendGroup < ApplicationRecord
   }
 
   normalizes :name, with: ->(name) { name.squish }
-  normalizes :color, with: GoogleCalendar::Colors.method(:normalize_attribute)
+  # Only "#rrggbb" in any case. The format check rejects every other value,
+  # also the legacy palette ids that GoogleCalendar::Colors accepts.
+  normalizes :color, with: ->(color) { color.is_a?(String) ? color.strip.downcase : color }
 
   # An expired group with the same name blocks a new one through the unique
   # name index until the cleanup job runs, so remove it first.
@@ -89,8 +92,10 @@ class FriendGroup < ApplicationRecord
 
   # { friend user => membership }, sorted by the friend's name. Preload
   # memberships: { friendship: [:requester, :addressee] } to read this for many
-  # groups without a query per group. A membership whose friendship is no
-  # longer an accepted friendship of the owner is left out.
+  # groups without a query per group. It still runs one query per owner, for
+  # the owner's friendships, so a list of shared groups from many owners runs
+  # one query per owner. A membership whose friendship is no longer an
+  # accepted friendship of the owner is left out.
   def memberships_by_member
     live = user.accepted_friendship_ids
     memberships.select { |membership| live.include?(membership.friendship_id) }
@@ -106,9 +111,14 @@ class FriendGroup < ApplicationRecord
   end
 
   # The people that the members of a shared group see: the owner, then each
-  # member who did not opt out.
+  # member who did not opt out. A member without the friend_groups flag cannot
+  # see the group or opt out, so the other members do not see that member
+  # either.
   def shared_people
-    [ user, *memberships_by_member.reject { |_, membership| membership.opted_out? }.keys ]
+    visible = memberships_by_member.reject do |friend, membership|
+      membership.opted_out? || !FriendGroup.enabled_for?(friend)
+    end
+    [ user, *visible.keys ]
   end
 
   # The people whose busy times the viewer reads in this group. The owner is a
@@ -200,8 +210,19 @@ class FriendGroup < ApplicationRecord
     existing = memberships.pluck(:friendship_id)
 
     memberships.where(friendship_id: existing - wanted).delete_all
-    added = wanted - existing
-    memberships.klass.insert_all(added.map { |id| { friend_group_id: self.id, friendship_id: id } }) if added.any?
+    added = friendships.reject { |friendship| existing.include?(friendship.id) }
+    if added.any?
+      opted_out = opt_outs.pluck(:user_id).to_set
+      memberships.klass.insert_all(added.map { |friendship| membership_row(friendship, opted_out) })
+    end
     memberships.reset
+  end
+
+  # insert_all skips the FriendGroupMembership callbacks, so a row for a friend
+  # who opted out before starts as opted_out here.
+  def membership_row(friendship, opted_out_user_ids)
+    status = opted_out_user_ids.include?(friendship.friend_id_for(user)) ? "opted_out" : "active"
+
+    { friend_group_id: id, friendship_id: friendship.id, status: status }
   end
 end

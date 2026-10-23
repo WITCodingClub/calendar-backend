@@ -33,12 +33,13 @@ RSpec.describe FriendGroup, type: :model do
     it { is_expected.to belong_to(:user) }
     it { is_expected.to have_many(:memberships).class_name("FriendGroupMembership").dependent(:destroy) }
     it { is_expected.to have_many(:friendships).through(:memberships) }
+    it { is_expected.to have_many(:opt_outs).class_name("FriendGroupOptOut").dependent(:delete_all) }
 
     it { is_expected.to validate_presence_of(:name) }
     it { is_expected.to validate_length_of(:name).is_at_most(FriendGroup::NAME_MAX_LENGTH) }
     it { is_expected.to validate_uniqueness_of(:name).scoped_to(:user_id).case_insensitive }
     it { is_expected.to allow_value(nil, "#33b679").for(:color) }
-    it { is_expected.not_to allow_value("green", "#33b67").for(:color) }
+    it { is_expected.not_to allow_value("green", "#33b67", "", "7", 5).for(:color) }
   end
 
   it "stores the color as lowercase hex" do
@@ -53,7 +54,11 @@ RSpec.describe FriendGroup, type: :model do
     let(:other_friendship)  { create(:friendship, :accepted, requester: other, addressee: owner) }
     let(:group) { create(:friend_group, :shared, user: owner) }
 
+    # shared_people leaves out members without the flag.
+    after { Flipper.disable(FeatureFlags::FRIEND_GROUPS) }
+
     before do
+      Flipper.enable(FeatureFlags::FRIEND_GROUPS)
       create(:friend_group_membership, friend_group: group, friendship: member_friendship)
       create(:friend_group_membership, friend_group: group, friendship: other_friendship)
     end
@@ -117,6 +122,29 @@ RSpec.describe FriendGroup, type: :model do
 
       expect(group.reload.membership_for(member)).to be_opted_out
       expect(group.member?(other)).to be(false)
+    end
+
+    it "keeps an opt-out when the owner removes the member and adds them again" do
+      group.membership_for(member).update!(status: :opted_out)
+
+      group.save_with_members!({}, friend_ids: [ other.public_id ])
+      group.save_with_members!({}, friend_ids: [ other.public_id, member.public_id ])
+      expect(group.reload.membership_for(member)).to be_opted_out
+
+      group.membership_for(member).destroy!
+      group.memberships.create!(friendship: member_friendship)
+      expect(group.reload.membership_for(member)).to be_opted_out
+    end
+
+    it "forgets the opt-out when the member opts back in" do
+      group.membership_for(member).update!(status: :opted_out)
+      group.membership_for(member).update!(status: :active)
+
+      group.membership_for(member).destroy!
+      group.memberships.create!(friendship: member_friendship)
+
+      expect(group.reload.membership_for(member)).to be_active
+      expect(group.opt_outs).to be_empty
     end
   end
 

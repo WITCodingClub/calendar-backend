@@ -11,6 +11,10 @@ module Api
     # planning. A member who opted out is left out for the other members. The
     # times hold no course data.
     #
+    # The friend_groups flag gates this route. It does not use the
+    # friends_availability_only gate of GET /api/friends/:friend_id/busy_blocks:
+    # that gate only holds back the per-friend route during its own rollout.
+    #
     # Answers 404 while the friend_groups flag is off for the user.
     class GroupBusyBlocksController < Api::BaseController
       include Api::BusyBlocksParams

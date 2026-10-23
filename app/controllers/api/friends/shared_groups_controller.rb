@@ -67,6 +67,9 @@ module Api
       # Loads the group again with its members, so the answer shows the change.
       def render_group
         group = FriendGroup.includes(:user, memberships: { friendship: %i[requester addressee] }).find(@group.id)
+        # The owner can remove the user while this request runs.
+        raise ActiveRecord::RecordNotFound, "Group not found" if group.membership_for(current_user).nil?
+
         render json: { group: serialize(group) }, status: :ok
       end
 
