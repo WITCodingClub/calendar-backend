@@ -348,6 +348,8 @@ RSpec.describe FinalExam do
       numbered_room = create(:room, building: numbered, number: "114")
 
       expect(build(:final_exam, location: "525ZQ 114").matched_rooms).to eq([ numbered_room ])
+    end
+
     it "finds the rooms of many exams with one set of queries" do
       first = build(:final_exam, location: "ZZQ 112")
       second = build(:final_exam, location: "ZZQ 205 / NOPE 1")
