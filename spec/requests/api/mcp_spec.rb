@@ -257,4 +257,103 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(reports.first.context).to include(user_id: user.id, oauth_application_id: token.application_id)
     expect(response.body).not_to include("database is down")
   end
+
+  describe "prompts" do
+    it "declares prompts and completions in initialize" do
+      rpc "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "spec", version: "1" } }
+
+      capabilities = response.parsed_body.dig("result", "capabilities")
+      expect(capabilities).to include("prompts", "completions", "tools")
+    end
+
+    it "lists every prompt with its arguments" do
+      rpc "prompts/list"
+
+      prompts = response.parsed_body.dig("result", "prompts").index_by { |prompt| prompt["name"] }
+      expect(prompts.keys).to eq(McpTools::Prompts.names)
+      expect(prompts.dig("plan_term_schedule", "arguments").pluck("name")).to eq(%w[term courses preferences])
+      expect(prompts.dig("plan_term_schedule", "arguments").pluck("required")).to all(be(false))
+    end
+
+    it "gets a prompt with no arguments" do
+      rpc "prompts/get", { name: "check_my_schedule" }
+
+      expect(response).to have_http_status(:ok)
+      message = response.parsed_body.dig("result", "messages", 0)
+      expect(message["role"]).to eq("user")
+      expect(message.dig("content", "text")).to include("my_courses", "program director", "academic advisor")
+    end
+
+    it "gets a prompt with arguments" do
+      term = create(:term, year: 2031, season: :spring)
+
+      rpc "prompts/get", { name: "plan_term_schedule", arguments: { term: term.uid.to_s, courses: "COMP 2350" } }
+
+      text = response.parsed_body.dig("result", "messages", 0, "content", "text")
+      expect(text).to include("Term: Spring 2031 (term_uid #{term.uid}).", "Courses I want: COMP 2350.")
+      expect(response.parsed_body["result"]).not_to include("ttlMs", "cacheScope")
+    end
+
+    it "answers invalid params for an unknown prompt" do
+      rpc "prompts/get", { name: "drop_tables" }
+
+      expect(response.parsed_body.dig("error", "code")).to eq(-32_602)
+    end
+  end
+
+  describe "completion/complete" do
+    def complete(prompt, argument, value)
+      rpc "completion/complete", { ref: { type: "ref/prompt", name: prompt }, argument: { name: argument, value: value } }
+      response.parsed_body.dig("result", "completion")
+    end
+
+    it "completes a course code" do
+      create(:catalog_course, subject_code: "COMP", course_number: 2350)
+
+      expect(complete("plan_term_schedule", "courses", "comp 2")).to eq("values" => [ "COMP 2350" ], "hasMore" => false)
+    end
+
+    it "completes a term uid" do
+      term = create(:term)
+
+      expect(complete("check_my_schedule", "term", term.uid.to_s)["values"]).to eq([ term.uid.to_s ])
+    end
+
+    it "gives no values for an argument with no completions" do
+      expect(complete("plan_degree_progression", "program", "BS")).to eq("values" => [], "hasMore" => false)
+    end
+  end
+
+  describe "cache hints" do
+    it "marks tools/list and prompts/list public for one hour" do
+      %w[tools/list prompts/list].each do |method|
+        rpc method
+
+        expect(response.parsed_body["result"]).to include("ttlMs" => 3_600_000, "cacheScope" => "public")
+      end
+    end
+
+    it "gives the same tools/list to tokens of different students and scopes" do
+      rpc "tools/list"
+      first = response.parsed_body["result"]
+
+      other = create(:oauth_access_token, resource_owner_id: create(:user).id, scopes: "catalog")
+      rpc "tools/list", with: headers.merge("Authorization" => "Bearer #{other.plaintext_token}")
+
+      expect(response.parsed_body["result"]).to eq(first)
+    end
+
+    it "adds no hints to a tool call" do
+      rpc "tools/call", { name: "list_terms", arguments: {} }
+
+      expect(response.parsed_body["result"]).not_to include("ttlMs", "cacheScope")
+    end
+
+    it "still lists the tools on an older protocol version" do
+      rpc "tools/list", with: headers.merge("MCP-Protocol-Version" => "2025-03-26")
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("result", "tools").pluck("name")).to match_array(McpTools.names)
+    end
+  end
 end

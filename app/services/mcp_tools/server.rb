@@ -21,6 +21,23 @@ module McpTools
 
     DESCRIPTION = "Wentworth course catalog and your WIT Calendar schedule and settings."
 
+    # SEP-2549 cache hints. The SDK adds them to the list and read results
+    # (tools/list, prompts/list, resources/list, resources/read) and to
+    # server/discover, never to a tool call or a prompt. Those results are the
+    # same for every token: every tool and prompt is listed to every token,
+    # their descriptions are fixed in code, and the only resources are the
+    # static app templates (McpTools.app_resources).
+    # So a cache that a client shares between students cannot leak one
+    # student's data, and the scope is public. The lists change only on a
+    # deploy, so a client can keep them for one hour.
+    #
+    # A client on an older protocol version gets the two fields in the list
+    # results too. JSON-RPC clients ignore result fields they do not know.
+    # Before you add a resource or a list that changes for each student, set
+    # the scope to private or give that result its own hints.
+    CACHE_TTL_MS = 60 * 60 * 1000
+    CACHE_SCOPE  = "public"
+
     # scopes: the scope names of the token, expanded (McpTools::Scopes.expand).
     def self.build(user:, application:, scopes:, request: nil)
       MCP::Server.new(
@@ -35,23 +52,30 @@ module McpTools
         instructions:   INSTRUCTIONS,
         tools:          McpTools.all,
         resources:      McpTools.app_resources,
+        prompts:        McpTools::Prompts.all,
         capabilities:   capabilities,
+        ttl_ms:         CACHE_TTL_MS,
+        cache_scope:    CACHE_SCOPE,
         server_context: { user: user, scopes: scopes, request: request },
         configuration:  configuration(user: user, application: application)
-      )
+      ).tap do |server|
+        server.completion_handler { |params| Completions.call(params) }
+      end
     end
 
-    # The SDK defaults, plus the MCP Apps extension (docs/mcp.md, "Apps").
+    # The SDK defaults, plus completions for the prompt arguments
+    # (McpTools::Completions) and the MCP Apps extension (docs/mcp.md, "Apps").
     # The server is stateless, so it cannot see what the client declared at
     # initialize. It always links tools to their app; a client without the
     # extension ignores the link and reads the normal result.
     def self.capabilities
       MCP::Server::Capabilities.new(
-        tools:      { listChanged: true },
-        prompts:    { listChanged: true },
-        resources:  { listChanged: true },
-        logging:    {},
-        extensions: MCP::Apps.capability
+        tools:       { listChanged: true },
+        prompts:     { listChanged: true },
+        resources:   { listChanged: true },
+        logging:     {},
+        completions: {},
+        extensions:  MCP::Apps.capability
       )
     end
 

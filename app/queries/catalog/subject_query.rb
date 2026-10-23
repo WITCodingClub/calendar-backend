@@ -14,6 +14,17 @@ module Catalog
       end
     end
 
+    # The subject codes (COMP, MATH) with active sections, sorted. Cheaper than
+    # call: it counts nothing. The MCP server completes prompt arguments with it.
+    #
+    # @return [Array<String>]
+    def codes(term_uid: nil)
+      scope = Course.active
+      scope = scope.where(term_id: Term.where(uid: term_uid.to_i).select(:id)) if term_uid.present?
+
+      scope.distinct.pluck(:subject).map { |subject| self.class.code_for(subject) }.uniq.sort
+    end
+
     # Stored as "Computer Science (COMP)"; students search by the code.
     def self.code_for(subject)
       subject =~ /\(([^)]+)\)/ ? ::Regexp.last_match(1) : subject
