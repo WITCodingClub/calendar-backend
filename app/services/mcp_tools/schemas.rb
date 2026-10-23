@@ -37,6 +37,8 @@ module McpTools
     DATE_TIME = { type: "string", format: "date-time" }.freeze
     # A 24-hour time, HH:MM.
     TIME      = { type: "string", pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }.freeze
+    # A busy block that runs to midnight ends at "24:00" (BusyBlocks).
+    BUSY_TIME = { type: "string", pattern: "^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$" }.freeze
     DAY       = { type: "string", enum: Course::MeetingTime.day_of_weeks.keys }.freeze
 
     STRINGS  = array(STRING).freeze
@@ -268,7 +270,7 @@ module McpTools
       time_zone:  STRING,
       start_date: DATE,
       end_date:   DATE,
-      busy:       array(object(date: DATE, weekday: STRING, start: TIME, end: TIME))
+      busy:       array(object(date: DATE, weekday: STRING, start: BUSY_TIME, end: BUSY_TIME))
     }.freeze
 
     # FriendSerializer, as list_friends and friend_busy_times send it.

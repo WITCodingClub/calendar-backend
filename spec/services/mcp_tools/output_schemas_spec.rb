@@ -187,6 +187,16 @@ RSpec.describe "MCP tool output schemas" do
       expect_valid(McpTools::FriendBusyTimes, friend_id: friend.public_id, start_date: "2026-10-26", end_date: "2026-11-01")
     end
 
+    # BusyBlocks splits a meeting that goes past midnight, so the first part
+    # ends at "24:00".
+    it "matches the busy times of a meeting that goes past midnight" do
+      zone = ActiveSupport::TimeZone["America/New_York"]
+      create(:friend_meeting, user: user, start_time: zone.local(2026, 10, 27, 23), end_time: zone.local(2026, 10, 28, 1))
+
+      busy = expect_valid(McpTools::MyBusyTimes, start_date: "2026-10-27", end_date: "2026-10-28")[:busy]
+      expect(busy).to include(include(start: "23:00", end: "24:00"))
+    end
+
     it "matches the settings tools" do
       settings = expect_valid(McpTools::MyCalendarSettings)
       expect(settings[:levels]).to be_present
