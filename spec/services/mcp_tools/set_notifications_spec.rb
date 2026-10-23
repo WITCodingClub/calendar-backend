@@ -45,4 +45,52 @@ RSpec.describe McpTools::SetNotifications do
 
     expect(user.reload).to have_attributes(notifications_disabled?: false, calendar_needs_sync: true)
   end
+
+  describe "confirmation" do
+    def confirmed_call(context = {}, **arguments)
+      described_class.call(server_context: mcp_modern_context(user, **context), **arguments)
+    end
+
+    def message(**arguments) = confirmed_call(**arguments).input_requests.dig(McpTools::Confirmation::KEY, :params, :message)
+
+    it "says what changes and what is on now, and changes nothing" do
+      expect(message(disabled: true, duration_hours: 1.5)).to eq(
+        "Turn off the reminders of all your calendar events for 1.5 hours.\nNow: the reminders are on."
+      )
+      expect(message(disabled: true, duration_hours: 1)).to start_with("Turn off the reminders of all your calendar events for 1 hour.")
+      expect(message(disabled: true)).to start_with("Turn off the reminders of all your calendar events until you turn them on again.")
+      expect(user.reload.notifications_disabled?).to be(false)
+    end
+
+    it "names the end of a pause in Eastern time" do
+      user.update!(notifications_disabled_until: Time.zone.parse("2026-10-22 18:30 UTC"))
+
+      travel_to(Time.zone.parse("2026-10-22 12:00 UTC")) do
+        expect(message(disabled: false)).to eq(
+          "Turn the reminders of all your calendar events on again.\n" \
+          "Now: the reminders are off until October 22, 2026 at 2:30 PM (Eastern time)."
+        )
+      end
+    end
+
+    it "does not ask to turn on reminders that are on" do
+      expect(confirmed_call(disabled: false).structured_content).to eq(notifications_disabled: false, notifications_disabled_until: nil)
+    end
+
+    it "pauses on accept and gives the current state on decline" do
+      question = confirmed_call(disabled: true)
+      answer = ->(action) { confirmed_call({ input_responses: mcp_confirmation(action), request_state: question.request_state }, disabled: true) }
+
+      declined = answer.call("decline").structured_content
+      expect(declined).to include(notifications_disabled: false, notifications_disabled_until: nil, not_changed: include(reason: "declined"))
+      expect(user.reload.notifications_disabled?).to be(false)
+
+      expect(answer.call("accept").structured_content).to include(notifications_disabled: true)
+      expect(user.reload.notifications_disabled?).to be(true)
+    end
+
+    it "checks the duration before it asks" do
+      expect(confirmed_call(disabled: true, duration_hours: 0).error?).to be(true)
+    end
+  end
 end

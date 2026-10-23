@@ -219,6 +219,23 @@ RSpec.describe "MCP tool output schemas" do
       expect_valid(McpTools::MyCalendarSettings)
       expect(expect_valid(McpTools::SetNotifications, disabled: false)[:notifications_disabled_until]).to be_nil
     end
+
+    # McpTools::Confirmation: the client asks, and the student declines.
+    it "matches the write tools when the student declines" do
+      declined = lambda do |tool, **arguments|
+        question = tool.call(server_context: mcp_modern_context(user), **arguments)
+        context  = mcp_modern_context(user, input_responses: mcp_confirmation("decline"), request_state: question.request_state)
+        result   = tool.call(server_context: context, **arguments)
+
+        expect(schema_errors(tool, result)).to be_empty, "#{tool.name_value}: #{schema_errors(tool, result).join("\n")}"
+        result.structured_content
+      end
+
+      expect(declined.call(McpTools::UpdateClassSettings, meeting_time_id: meeting_time.public_id, color: "sage"))
+        .to include(result: :unchanged, not_changed: include(reason: "declined"))
+      expect(declined.call(McpTools::UpdateCalendarSettings, level: "lecture", visibility: "private")).to include(result: :unchanged)
+      expect(declined.call(McpTools::SetNotifications, disabled: true)).to include(notifications_disabled: false)
+    end
   end
 
   context "with sparse data" do

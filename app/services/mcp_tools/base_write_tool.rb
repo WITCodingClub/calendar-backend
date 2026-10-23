@@ -6,6 +6,9 @@ module McpTools
   # API endpoint. A write scope (McpTools::Scopes) is off by default on the
   # consent page, so the student turns each one on.
   #
+  # Before a write tool changes data, it asks the student to confirm, if the
+  # client can ask (with_confirmation, McpTools::Confirmation).
+  #
   # The settings tools share the setting fields and their parsing here.
   class BaseWriteTool < BaseTool
     include PreferenceParams
@@ -19,6 +22,19 @@ module McpTools
 
     # The fields of a calendar or class setting, as the tools name them.
     SETTING_FIELDS = %w[title_template description_template location_template color visibility reminders].freeze
+
+    # The names of the setting columns in a confirmation message.
+    FIELD_LABELS = {
+      title_template:       "Event title",
+      description_template: "Event description",
+      location_template:    "Event location",
+      color_id:             "Color",
+      visibility:           "Visibility",
+      reminder_settings:    "Reminders"
+    }.freeze
+
+    NOT_CHANGED_MESSAGE = "Nothing changed. The student did not confirm the change. Do not call the tool again " \
+                          "unless the student asks for the change again."
 
     TEMPLATE_HINT = "Liquid variables: #{Preferences::TemplateRenderer::ALLOWED_VARIABLES.map { |v| "{{#{v}}}" }.join(', ')}."
 
@@ -62,6 +78,60 @@ module McpTools
 
     private
 
+    # Runs the block, which makes the change, when the student confirms it or
+    # when the client cannot ask. Otherwise returns the question for the
+    # client, or the result of unchanged with not_changed added. A nil message
+    # means nothing changes, so there is nothing to confirm.
+    def with_confirmation(message, unchanged:)
+      return yield if message.nil?
+
+      outcome = Confirmation.new(server_context, user: user).call(message)
+      case outcome
+      when :accept then yield
+      when MCP::Server::InputRequiredResult then outcome
+      else
+        unchanged.call.merge(not_changed: { reason: outcome == :decline ? "declined" : "cancelled", message: NOT_CHANGED_MESSAGE })
+      end
+    end
+
+    # The confirmation message of a settings change: what it affects, then one
+    # line for each field that changes. Nil when no field changes.
+    def settings_message(target, preference, attributes)
+      # The texts are compared, not the values: a stored "popup" reminder and
+      # a new "notification" one are the same reminder.
+      lines = attributes.filter_map do |column, value|
+        old = describe_setting(column, preference[column])
+        updated = describe_setting(column, value)
+        "- #{FIELD_LABELS.fetch(column)}: from #{old} to #{updated}." unless old == updated
+      end
+      return if lines.empty?
+
+      [ "Change the calendar events of #{target}:", *lines ].join("\n")
+    end
+
+    def describe_setting(column, value)
+      return "not set" if value.nil?
+
+      case column
+      when :color_id then GoogleCalendar::Colors::NAMES.key(value)&.capitalize || value
+      when :reminder_settings then describe_reminders(value)
+      when :visibility then value.to_s
+      else value.to_s.empty? ? "empty" : %("#{value}")
+      end
+    end
+
+    def describe_reminders(reminders)
+      return "no reminders" if reminders.empty?
+
+      reminders.map do |reminder|
+        reminder = reminder.to_h.stringify_keys
+        type     = reminder["type"].to_s
+        type     = type.singularize if reminder["time"].to_s == "1"
+        method   = reminder["method"] == "email" ? "email" : "notification"
+        "#{reminder['time']} #{type} before by #{method}"
+      end.join(", ")
+    end
+
     # PreferenceParams reads current_user.
     def current_user = user
 
@@ -76,11 +146,11 @@ module McpTools
       end
     end
 
-    # Writes the setting arguments onto a preference row, then saves it. A row
-    # with no field left is deleted, the same as the DELETE endpoint.
-    # Returns :saved or :deleted.
-    def apply_settings!(preference, arguments)
-      preference.assign_attributes(setting_attributes(arguments))
+    # Writes the attributes (from setting_attributes) onto a preference row,
+    # then saves it. A row with no field left is deleted, the same as the
+    # DELETE endpoint. Returns :saved or :deleted.
+    def apply_settings!(preference, attributes)
+      preference.assign_attributes(attributes)
 
       if setting_blank?(preference)
         preference.destroy! if preference.persisted?

@@ -93,4 +93,71 @@ RSpec.describe McpTools::UpdateClassSettings do
 
     expect { call(color: "basil") }.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true)
   end
+
+  describe "confirmation" do
+    let(:arguments) { { meeting_time_id: meeting_time.public_id, color: "sage", reminders: [], reset: [ "title_template" ] } }
+
+    before do
+      create(:event_preference, user: user, preferenceable: meeting_time, title_template: "Old {{title}}", color_id: GoogleCalendar::Colors::PEACOCK)
+    end
+
+    def confirmed_call(**context)
+      described_class.call(server_context: mcp_modern_context(user, **context), **arguments)
+    end
+
+    def question = confirmed_call
+    def message = question.input_requests.dig(McpTools::Confirmation::KEY, :params, :message)
+
+    it "asks with the class and each field from the old value to the new one, and changes nothing" do
+      expect { question }.not_to have_enqueued_job(CourseCalendars::SyncJob)
+
+      expect(message).to start_with("Change the calendar events of one class only (Data Structures")
+      # The factory row has no reminders already, so reminders: [] is no change.
+      expect(message.lines.map(&:chomp).drop(1)).to eq([
+        "- Color: from Peacock to Sage.",
+        '- Event title: from "Old {{title}}" to not set.'
+      ])
+      expect(EventPreference.sole).to have_attributes(title_template: "Old {{title}}", color_id: GoogleCalendar::Colors::PEACOCK)
+    end
+
+    it "makes the change when the student accepts" do
+      result = confirmed_call(input_responses: mcp_confirmation("accept"), request_state: question.request_state)
+
+      expect(result.structured_content).to include(result: :saved)
+      expect(result.structured_content).not_to have_key(:not_changed)
+      expect(EventPreference.sole).to have_attributes(title_template: nil, color_id: GoogleCalendar::Colors::SAGE, reminder_settings: [])
+    end
+
+    it "changes nothing and gives the current settings when the student declines" do
+      result = confirmed_call(input_responses: mcp_confirmation("decline"), request_state: question.request_state)
+
+      expect(result.error?).to be(false)
+      expect(result.structured_content).to include(result: :unchanged, not_changed: { reason: "declined", message: McpTools::BaseWriteTool::NOT_CHANGED_MESSAGE })
+      expect(result.structured_content[:class_settings]).to include(title_template: "Old {{title}}")
+      expect(EventPreference.sole.color_id).to eq(GoogleCalendar::Colors::PEACOCK)
+    end
+
+    it "gives null class settings on a decline when the class has none" do
+      EventPreference.delete_all
+
+      result = confirmed_call(input_responses: mcp_confirmation("cancel"), request_state: question.request_state)
+
+      expect(result.structured_content).to include(result: :unchanged, class_settings: nil)
+      expect(result.structured_content.dig(:not_changed, :reason)).to eq("cancelled")
+      expect(EventPreference.count).to eq(0)
+    end
+
+    it "does not ask when nothing changes" do
+      result = described_class.call(server_context: mcp_modern_context(user), meeting_time_id: meeting_time.public_id, color: "peacock")
+
+      expect(result.structured_content).to include(result: :saved)
+    end
+
+    it "checks the scope and the arguments before it asks" do
+      no_scope = described_class.call(server_context: mcp_modern_context(user, scopes: %w[catalog]), **arguments)
+      bad_color = described_class.call(server_context: mcp_modern_context(user), meeting_time_id: meeting_time.public_id, color: "sparkle")
+
+      expect([ no_scope, bad_color ]).to all(be_a(MCP::Tool::Response).and(have_attributes(error?: true)))
+    end
+  end
 end

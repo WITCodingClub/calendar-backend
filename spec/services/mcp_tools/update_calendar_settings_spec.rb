@@ -56,4 +56,54 @@ RSpec.describe McpTools::UpdateCalendarSettings do
 
     expect { call(level: "all_classes", color: "sage") }.to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true)
   end
+
+  describe "confirmation" do
+    def message(level, **arguments)
+      result = described_class.call(server_context: mcp_modern_context(user), level: level, **arguments)
+      result.input_requests.dig(McpTools::Confirmation::KEY, :params, :message)
+    end
+
+    it "names the events that the level covers" do
+      expect(message("all_classes", color: "sage")).to start_with("Change the calendar events of all your classes:\n")
+      expect(message("lecture", color: "sage")).to start_with("Change the calendar events of every lecture class:")
+      expect(message("final_exam", color: "sage")).to start_with("Change the calendar events of your final exams:")
+      expect(message("university", color: "sage")).to start_with("Change the calendar events of all university calendar events:")
+      expect(message("university:holiday", color: "sage")).to include("university calendar events in the holiday category")
+      expect(CalendarPreference.count).to eq(0)
+    end
+
+    it "lists each field that changes and says that a class's own settings stay" do
+      create(:calendar_preference, user: user, scope: :global, visibility: "public",
+                                   reminder_settings: [ { "time" => "1", "type" => "hours", "method" => "popup" } ])
+
+      lines = message("all_classes", visibility: "private", reminders: [ { time: 10, type: "minutes", method: "email" } ]).lines.map(&:chomp)
+
+      expect(lines.drop(1)).to eq([
+        "- Visibility: from public to private.",
+        "- Reminders: from 1 hour before by notification to 10 minutes before by email.",
+        "A class with settings of its own keeps them."
+      ])
+    end
+
+    it "leaves out a reminder stored as popup that the call sends as notification" do
+      create(:calendar_preference, user: user, scope: :global, reminder_settings: [ { "time" => "10", "type" => "minutes", "method" => "popup" } ])
+
+      lines = message("all_classes", color: "sage", reminders: [ { time: 10, type: "minutes", method: "notification" } ]).lines.map(&:chomp)
+
+      expect(lines.drop(1)).to eq([ "- Color: from not set to Sage.", "A class with settings of its own keeps them." ])
+    end
+
+    it "saves on accept and keeps the settings on decline" do
+      question = described_class.call(server_context: mcp_modern_context(user), level: "lecture", color: "sage")
+      retry_call = lambda do |action|
+        context = mcp_modern_context(user, input_responses: mcp_confirmation(action), request_state: question.request_state)
+        described_class.call(server_context: context, level: "lecture", color: "sage").structured_content
+      end
+
+      expect(retry_call.call("decline")).to include(result: :unchanged, settings: nil, not_changed: include(reason: "declined"))
+      expect(CalendarPreference.count).to eq(0)
+
+      expect(retry_call.call("accept")).to include(result: :saved, settings: include(color_id: GoogleCalendar::Colors::SAGE))
+    end
+  end
 end
