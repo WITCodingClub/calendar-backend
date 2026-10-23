@@ -337,10 +337,23 @@
         }
 
         // check_schedule: { term, sections, conflicts, link_problems, ... }
+        // "09:00-10:15" to "9:00 AM to 10:15 AM".
+        function span(times) {
+          var parts = String(times).split("-");
+          var start = minutes(parts[0]);
+          var end = minutes(parts[1]);
+          return start === null || end === null ? String(times) : clock(start) + " to " + clock(end);
+        }
+
         function fromScheduleCheck(data) {
+          // conflict.times[i] is "HH:MM-HH:MM" for conflict.crns[i]. The key holds
+          // the times too, so a second meeting of the same CRN on that day is
+          // not marked.
           var conflictKeys = {};
           (data.conflicts || []).forEach(function (conflict) {
-            (conflict.crns || []).forEach(function (crn) { conflictKeys[crn + "|" + conflict.day] = true; });
+            (conflict.crns || []).forEach(function (crn, i) {
+              conflictKeys[crn + "|" + conflict.day + "|" + (conflict.times || [])[i]] = true;
+            });
           });
 
           var events = [];
@@ -356,7 +369,7 @@
                 label: section.course_code,
                 detail: section.title,
                 color: index % COLORS,
-                conflict: !!conflictKeys[section.crn + "|" + time.day],
+                conflict: !!conflictKeys[section.crn + "|" + time.day + "|" + time.begin_time + "-" + time.end_time],
                 crn: section.crn
               });
             });
@@ -367,7 +380,7 @@
             notes.push({
               kind: "danger",
               text: "Conflict on " + (DAY_NAMES[conflict.day] || conflict.day) + ": CRN " +
-                (conflict.crns || []).join(" and CRN ") + " (" + (conflict.times || []).join(", ") + ")."
+                (conflict.crns || []).join(" and CRN ") + " (" + (conflict.times || []).map(span).join(", ") + ")."
             });
           });
           (data.link_problems || []).forEach(function (problem) { notes.push({ kind: "warning", text: problem.message }); });
@@ -406,6 +419,9 @@
             var times = course.meeting_times || [];
             var placed = false;
             times.forEach(function (time) {
+              // 12:01 to 23:59 is the all-day placeholder of a section with no
+              // set time (Course::MeetingTime#all_day?). check_schedule drops it.
+              if (time.begin_time === "12:01" && time.end_time === "23:59") return;
               var room = time.location && time.location.building
                 ? [time.location.building.abbreviation].concat(time.location.rooms || []).join(" ")
                 : "";
@@ -491,19 +507,25 @@
 
         // The advisory (McpTools::BaseTool): not official, confirm with the
         // program director and advisor, and when the sections last refreshed.
-        function advisoryText(advisory) {
+        // The advisory (McpTools::BaseTool): not official, confirm with the
+        // program director and advisor, and when the sections of the result's
+        // term last refreshed. Catalog::Freshness lists only the current and
+        // future terms, so a term that is not in the list has ended.
+        function advisoryText(advisory, termUid) {
           if (!advisory) return null;
           var text = "WIT Calendar is not an official Wentworth service. Confirm your plan with your program " +
             "director and your academic advisor.";
           var sections = (advisory.data_sources || []).filter(function (source) { return source.terms; })[0];
-          var times = sections ? sections.terms.map(function (term) { return term.last_refreshed_at; }).filter(Boolean) : [];
-          if (times.length) {
-            var latest = new Date(times.sort()[times.length - 1]);
-            text += " Section data last refreshed from Banner on " + latest.toLocaleString("en-US", {
+          if (!sections || !termUid) return text;
+
+          var entry = sections.terms.filter(function (term) { return term.term_uid === termUid; })[0];
+          if (!entry) return text + " This term has ended, so WIT Calendar no longer refreshes its section data.";
+          if (!entry.last_refreshed_at) return text + " The section data of this term has not refreshed from Banner yet.";
+
+          return text + " Section data last refreshed from Banner on " +
+            new Date(entry.last_refreshed_at).toLocaleString("en-US", {
               timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
             }) + ".";
-          }
-          return text;
         }
 
         function render(result) {
@@ -543,7 +565,8 @@
             app.appendChild(list);
           }
 
-          var advisory = advisoryText(data.advisory);
+          var termUid = data.term ? data.term.uid : data.term_uid;
+          var advisory = advisoryText(data.advisory, termUid);
           if (advisory) app.appendChild(el("p", "advisory", advisory));
 
           reportSize();
@@ -620,6 +643,8 @@
         }).then(function (result) {
           applyHostContext(result.hostContext || {});
           notify("ui/notifications/initialized", {});
+          // A host can drop a size report that came before initialized.
+          lastHeight = 0;
           reportSize();
         }).catch(function () {
           showStatus("The host did not start the view.", true);
