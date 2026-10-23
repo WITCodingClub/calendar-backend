@@ -82,6 +82,39 @@ The term sources give one time for each current and future term. The time is whe
 
 A settings tool takes a color as a name (`lavender`, `sage`, `grape`, `flamingo`, `banana`, `tangerine`, `peacock`, `graphite`, `blueberry`, `basil`, `tomato`), a Google Calendar color id from 1 to 11, or a `#rrggbb` hex color. A change to a setting queues the same calendar sync as the extension.
 
+### Confirmation
+
+Before a tool that changes data makes the change, the server asks the student to confirm it in the client (MCP elicitation). The server does not depend on the AI model to ask. `McpTools::Confirmation` does this for every `McpTools::BaseWriteTool`.
+
+- The client shows a message and a "Make this change" box. The message lists the events that the change affects (one class, all classes, one kind of class, final exams, or university events). It also gives each field that changes, with the old value and the new value. Then it says which settings stay: a kind of class or a class with settings of its own keeps them, and a university event category keeps its settings. For `set_notifications`, it says what changes and the current state.
+- The message comes from the same parsing as the save (`setting_attributes`), so the student sees what the tool saves. The model checks the new values before the question (`validate_settings!`). A change that cannot be saved gets a tool error, and the student does not see a question.
+- A template comes last, on one line. The message shows newlines and quotes as escapes, and it cuts a template after 120 characters (`TEMPLATE_PREVIEW_LENGTH`). So a template cannot change the layout of the question.
+- A reminder time shows as a number: "1.0" shows as "1", and 1 takes the singular ("1 hour"). `set_notifications` stores a pause in whole minutes and shows that time. It refuses a pause of less than one minute.
+- When the university color changes, or the student picks the same color again, the save removes the colors of the university event categories (`CalendarPreference#clear_category_colors`). The message gives the number of category colors that the save removes. A university save that does not set the color keeps the category colors.
+- When the student checks the box and accepts, the tool makes the change.
+- When the student declines, cancels, or accepts with the box clear, nothing changes. The tool gives a normal result, not an error. The result has the current values, `result: "unchanged"` for a settings tool, and a `not_changed` field with the `reason` (`declined` or `cancelled`) and a `message`.
+- When nothing would change, the tool does not ask.
+
+The server is stateless, so it uses the multi round-trip form of MCP 2026-07-28 (SEP-2322):
+
+1. The first call returns an `input_required` result. It has one `elicitation/create` request under the key `confirm`, and a `requestState`.
+2. The client shows the question. Then it calls the same tool again, with the same arguments, the answer in `inputResponses`, and the same `requestState`.
+3. The tool runs again from the start. The scope check, the `authorize` calls, and the argument checks run again before the change.
+
+Only a client that sends its requests on the 2026-07-28 wire and declares form elicitation in the request `_meta` sees the confirmation. Any other client gets the old behavior: the tool makes the change with no question. The server cannot send the question on an older wire. There, the SDK sends a server-to-client request, and a stateless JSON response cannot carry it. So `McpTools::Server` sets `input_required_legacy_shim: false`.
+
+The `requestState` comes back from the client, so the SDK seals it (`MCP::Server::RequestStateSecurity`):
+
+- AES-256-GCM encrypts the state, so the client cannot read or change it.
+- The seal binds the state to `tools/call`, the tool name, a digest of the arguments, and the user (the audience). The state of one student cannot complete the call of another student.
+- The state expires after 10 minutes (`McpTools::Server::REQUEST_STATE_TTL`).
+- The key comes from `secret_key_base` through `Rails.application.key_generator` and the salt `McpTools::Server::REQUEST_STATE_SALT`. Both deploy slots use the same key, so a retry can go to either slot. Change the salt to make every open state invalid.
+- The state also holds a digest of the message and of the version of the record that the change writes: `updated_at` of the preference row, or of the user for `set_notifications`, or a nil marker when the row does not exist yet. If the message or the record changes before the retry, the tool asks again. After the change, the record has a new `updated_at`, so the same state and answer cannot make the change again, also when the setting goes back to the old value. One gap stays: when the change creates a row and a later change deletes it, the nil marker is the same again, so the state works again until it expires.
+
+A state that is changed, expired, or for another user, tool, or set of arguments gets the JSON-RPC error `-32602` "Invalid or expired requestState" (HTTP 400). This is a client error, so the server does not report it. The client can call the tool again with no state, and the student gets a new question. An answer or a state that is not a JSON object counts as a cancel or as no state. It does not cause an error.
+
+`calendar_mcp_tool_calls_total` counts the question as `input_required`, and a call that the student did not confirm as `declined` or `cancelled` (`docs/metrics.md`).
+
 ## Apps
 
 The server supports the MCP Apps extension ([SEP-1865](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx), `io.modelcontextprotocol/ui`). A host that supports the extension shows a tool result as an interactive page in a sandboxed iframe.
@@ -257,7 +290,7 @@ Rules:
 1. Add a class in `app/services/mcp_tools/` that inherits `McpTools::BaseTool`. A tool that changes data inherits `McpTools::BaseWriteTool`.
 2. Set `tool_name`, `title`, `description`, `requires_scope` (a scope from `McpTools::Scopes`), and `input_schema`. Call `requires_scope` after `description`: it adds the permission to the description.
 3. Set `output_schema`: the JSON Schema of the Hash that `perform` returns. Build it from the parts in `McpTools::Schemas`. Add a shared part there, not in the tool. Do not add the `advisory` key: `academic_planning` adds it.
-4. Define `perform`. Return a Hash. Raise `McpTools::ToolError` for a bad argument.
+4. Define `perform`. Return a Hash. Raise `McpTools::ToolError` for a bad argument. A write tool checks its arguments and calls `authorize` first. Then it makes the change in a `with_confirmation` block (see "Confirmation"). Add the optional `not_changed` key (`McpTools::Schemas::NOT_CHANGED`) to its output schema.
 5. Call `authorize` for any record that belongs to a user. Reuse the policies, queries, and serializers of the matching API endpoint. If no endpoint gives the data, add one too, so the extension and the MCP server stay equal.
 6. A tool with a semantic search calls `spend_semantic_search!` first. A tool whose answer a student can use to plan courses calls `academic_planning` with the keys of its data sources (`Catalog::Freshness::SOURCES`), so its result carries the advisory.
 7. Add the class to `McpTools.all`, and add a row to the table above and to the permissions table.

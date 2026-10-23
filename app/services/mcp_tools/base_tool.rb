@@ -110,7 +110,11 @@ module McpTools
           return error_response(missing_scope_message)
         end
 
-        data = new(server_context[:user], request: server_context[:request]).perform(**arguments)
+        data = new(server_context[:user], request: server_context[:request], server_context: server_context)
+               .perform(**arguments)
+        # A write tool asks the student to confirm first (McpTools::Confirmation).
+        return data if data.is_a?(MCP::Server::InputRequiredResult)
+
         data = data.merge(advisory: advisory) if academic_planning?
 
         MCP::Tool::Response.new([ { type: "text", text: data.to_json } ], structured_content: data)
@@ -155,11 +159,13 @@ module McpTools
       end
     end
 
-    attr_reader :user, :request
+    attr_reader :user, :request, :server_context
 
-    def initialize(user, request: nil)
-      @user    = user
-      @request = request
+    # server_context: the MCP::ServerContext of the call, or a Hash in specs.
+    def initialize(user, request: nil, server_context: nil)
+      @user           = user
+      @request        = request
+      @server_context = server_context
     end
 
     private

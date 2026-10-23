@@ -32,12 +32,17 @@ module McpTools
       },
       required: [ "level" ]
     )
-    # settings is null when the level has no settings left.
+    # settings is null when the level has no settings left. not_changed is
+    # there only when the student did not confirm.
     output_schema(
       Schemas.object(
-        level:    { type: "string", enum: LEVELS.keys },
-        result:   Schemas::SAVE_RESULT,
-        settings: Schemas.nullable(Schemas::CALENDAR_SETTINGS)
+        {
+          level:       { type: "string", enum: LEVELS.keys },
+          result:      Schemas::SAVE_RESULT,
+          settings:    Schemas.nullable(Schemas::CALENDAR_SETTINGS),
+          not_changed: Schemas::NOT_CHANGED
+        },
+        optional: %i[not_changed]
       )
     )
 
@@ -46,14 +51,61 @@ module McpTools
       preference = calendar_preference_for_scope(scope)
 
       authorize_change(preference)
-      result = apply_settings!(preference, arguments)
-      sync_calendar
+      attributes = setting_attributes(arguments)
+      validate_settings!(preference, attributes)
+      cleared    = category_colors_cleared(preference, attributes)
+      message    = settings_message(describe_level(level), preference, attributes,
+                                    extra: cleared_line(cleared), notes: level_notes(level, cleared))
+      unchanged  = -> { settings_result(level, preference.persisted? ? preference : nil, :unchanged) }
 
-      {
-        level:    level,
-        result:   result,
-        settings: result == :saved ? CalendarPreferenceSerializer.new(preference).as_json : nil
-      }
+      with_confirmation(message, unchanged: unchanged, version: record_version(preference)) do
+        result = apply_settings!(preference, attributes)
+        sync_calendar
+        settings_result(level, result == :saved ? preference : nil, result)
+      end
+    end
+
+    private
+
+    def settings_result(level, preference, result)
+      { level: level, result: result, settings: preference && CalendarPreferenceSerializer.new(preference).as_json }
+    end
+
+    # A save that sets the university color ends every category color
+    # (CalendarPreference#clear_category_colors), also when the color is the
+    # same. Returns how many it ends.
+    def category_colors_cleared(preference, attributes)
+      return 0 unless preference.scope_uni_cal_global? && attributes[:color_id].present?
+
+      user.calendar_preferences.for_uni_cal_category_scope.where.not(color_id: nil).count
+    end
+
+    def cleared_line(count)
+      return [] if count.zero?
+
+      [ "- Removes the colors of #{count} university event #{count == 1 ? 'category' : 'categories'}, " \
+        "so the new color shows on all university events." ]
+    end
+
+    # What keeps its own settings above this level (Preferences::Resolver).
+    def level_notes(level, cleared)
+      case level
+      when "all_classes" then [ "A kind of class (such as lecture) or a class with settings of its own keeps them." ]
+      when "final_exam", /\Auniversity:/ then []
+      when "university"
+        [ cleared.zero? ? "A university event category with settings of its own keeps them." : "Each category keeps its other settings." ]
+      else [ "A class with settings of its own keeps them." ]
+      end
+    end
+
+    def describe_level(level)
+      case level
+      when "all_classes" then "all your classes"
+      when "final_exam" then "your final exams"
+      when "university" then "all university calendar events"
+      when /\Auniversity:(.+)\z/ then "the university calendar events in the #{Regexp.last_match(1).humanize(capitalize: false)} category"
+      else "every #{Course::ScheduleType.new(level).readable_description} class"
+      end
     end
   end
 end

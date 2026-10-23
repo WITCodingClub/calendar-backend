@@ -339,6 +339,11 @@ module McpTools
     # PreferenceParams#generate_preview.
     PREVIEW = object(title: nullable(STRING), description: nullable(STRING), location: nullable(STRING)).freeze
 
-    SAVE_RESULT = { type: "string", enum: %w[saved deleted] }.freeze
+    # unchanged: the student did not confirm the change (McpTools::Confirmation).
+    SAVE_RESULT = { type: "string", enum: %w[saved deleted unchanged] }.freeze
+
+    # The result of a write tool when the student declined or cancelled the
+    # confirmation. Nothing changed.
+    NOT_CHANGED = object(reason: { type: "string", enum: %w[declined cancelled] }, message: STRING).freeze
   end
 end

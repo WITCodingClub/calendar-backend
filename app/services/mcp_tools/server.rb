@@ -62,10 +62,36 @@ module McpTools
         ttl_ms:         CACHE_TTL_MS,
         cache_scope:    CACHE_SCOPE,
         server_context: { user: user, scopes: scopes, request: request },
-        configuration:  configuration(user: user, application: application)
+        configuration:  configuration(user: user, application: application, request: request),
+        request_state_security: request_state_security(user),
+        # A write tool returns input_required only on the 2026-07-28 wire
+        # (McpTools::Confirmation). On an older wire the shim sends a
+        # server-to-client request, which a stateless JSON response cannot
+        # carry, so it stays off.
+        input_required_legacy_shim: false
       ).tap do |server|
         server.completion_handler { |params| Completions.call(params) }
       end
+    end
+
+    # The confirmation of a write tool (McpTools::Confirmation) sends a request
+    # state to the client, and the client sends it back on the retry. The SDK
+    # encrypts it with AES-256-GCM and binds it to the tool, a digest of the
+    # arguments, an expiry, and the audience. The audience is the user, so the
+    # state of one student cannot complete the call of another.
+    #
+    # Both deploy slots must read a state that the other slot sealed, so the
+    # key comes from secret_key_base. Change the salt to make every open
+    # state invalid.
+    REQUEST_STATE_SALT = "mcp request state v1"
+    REQUEST_STATE_TTL  = 10.minutes.to_i
+
+    def self.request_state_security(user)
+      MCP::Server::RequestStateSecurity.new(key: request_state_key, ttl: REQUEST_STATE_TTL, audience: "user:#{user.id}")
+    end
+
+    def self.request_state_key
+      Rails.application.key_generator.generate_key(REQUEST_STATE_SALT, MCP::Server::RequestStateSecurity::KEY_BYTES)
     end
 
     # The SDK defaults, plus completions for the prompt arguments
@@ -84,7 +110,7 @@ module McpTools
       )
     end
 
-    def self.configuration(user:, application:)
+    def self.configuration(user:, application:, request: nil)
       MCP::Configuration.new(
         # The SDK sends the client a generic error and calls this with the
         # cause. It handles the error, so the report says handled.
@@ -96,30 +122,59 @@ module McpTools
         end,
         around_request: lambda do |data, &handler|
           result = handler.call
-          count_tool_call(data, failed: data[:error].present? || (result.is_a?(Hash) && result[:isError]))
+          count_tool_call(data, request, status: tool_call_status(data, result))
           result
         rescue StandardError
-          count_tool_call(data, failed: true)
+          count_tool_call(data, request, status: "error")
           raise
         end
       )
+    end
+
+    # ok, error, input_required (the question of McpTools::Confirmation), or
+    # declined or cancelled (the student did not confirm).
+    def self.tool_call_status(data, result)
+      return "error" if data[:error].present?
+      return "input_required" if data[:input_required]
+      return "ok" unless result.is_a?(Hash)
+      return "error" if result[:isError]
+
+      reason = result.dig(:structuredContent, :not_changed, :reason) if result[:structuredContent].is_a?(Hash)
+      %w[declined cancelled].include?(reason) ? reason : "ok"
     end
 
     # Invalid params with no cause: a bad request from the client, such as
     # prompt arguments that are not an object or an unknown prompt. The client
     # gets -32602 with the reason. It is not a fault, so it is not reported,
     # the same as a 4xx from the API.
+    #
+    # A request state that is changed, expired, or for another call or user
+    # (request_state_security) is a client error too. The client gets -32602
+    # "Invalid or expired requestState" and calls the tool again without it.
     def self.client_error?(exception)
+      cause = exception.respond_to?(:original_error) ? exception.original_error : exception
+      return true if cause.is_a?(MCP::Server::RequestStateSecurity::InvalidStateError)
+
       exception.is_a?(MCP::Server::RequestHandlerError) && exception.original_error.nil? &&
         (exception.error_code == ::JsonRpcHandler::ErrorCode::INVALID_PARAMS || exception.error_type == :invalid_params)
     end
 
     # Unknown tool names go in one bucket, so a client cannot add label values.
-    def self.count_tool_call(data, failed:)
+    # The SDK names the tool only when it reaches the tool. A retry with a bad
+    # request state fails before that, so the name then comes from the body.
+    def self.count_tool_call(data, request, status:)
       return unless data[:method] == "tools/call"
 
-      tool = McpTools.names.include?(data[:tool_name]) ? data[:tool_name] : "unknown"
-      Yabeda.calendar.mcp_tool_calls_total.increment({ tool: tool, status: failed ? "error" : "ok" })
+      name = data[:tool_name] || requested_tool_name(request)
+      tool = McpTools.names.include?(name) ? name : "unknown"
+      Yabeda.calendar.mcp_tool_calls_total.increment({ tool: tool, status: status })
+    end
+
+    def self.requested_tool_name(request)
+      params = request&.request_parameters&.dig("params")
+      params["name"] if params.is_a?(Hash)
+    rescue ActionDispatch::Http::Parameters::ParseError
+      nil
     end
 
     def self.icon_url
