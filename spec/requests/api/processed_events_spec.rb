@@ -61,6 +61,7 @@ RSpec.describe "GET /api/user/processed_events", type: :request do
     expect(response).to have_http_status(:ok)
     meeting_times = JSON.parse(response.body)["classes"].flat_map { |c| c["meeting_times"] }
     expect(meeting_times.length).to eq(9)
+    expect(JSON.parse(response.body)["classes"].pluck("crn")).to contain_exactly(11_111, 22_222, 33_333)
     expect(meeting_times.map { |mt| mt.dig("location", "building", "abbreviation") }.uniq).to eq([ "IRAH" ])
     expect(room_queries).to eq(1)
     expect(building_queries).to eq(1)

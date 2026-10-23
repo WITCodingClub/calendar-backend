@@ -47,7 +47,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `similar_instructors` | Instructors who teach something close to one instructor. | `GET /api/v1/catalog/instructors/:pub_id/similar` | |
 | `search_reviews` | RateMyProfessor reviews, by instructor, words, meaning, or sentiment. | `GET /api/v1/catalog/reviews` | `reviews` |
 | `catalog_graphql` | Any read-only query on the catalog schema. | `POST /api/v1/graphql` | all |
-| `my_courses` | Your courses in one term, with weekly meeting times and rooms. | `GET /api/user/processed_events` | |
+| `my_courses` | Your courses in one term, with their CRNs, weekly meeting times, and rooms. | `GET /api/user/processed_events` | |
 | `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |
@@ -109,6 +109,45 @@ Rules:
 - `spec/system/mcp_week_grid_spec.rb` puts the template in an iframe with a fake host, and sends it a real tool result.
 
 To add an app: add the HTML file, add an `MCP::Resource` subclass in `app/services/mcp_tools/` (see `McpTools::WeekGridApp`), add it to `McpTools.app_resources`, and call `meta YourApp.tool_meta` in each tool that uses it.
+
+## Prompts
+
+A prompt is a task that the student starts from the client, for example as a slash command. The server gives one user message. The message tells the model which tools to call and in which order. It tells the model to ask the student for a fact that no tool gives, and not to guess it. Each message ends with the advisor message: confirm the plan with the program director and the academic advisor. Every argument is optional.
+
+| Prompt | Arguments | What it does |
+| --- | --- | --- |
+| `plan_term_schedule` | `term`, `courses`, `preferences` | Plans one term: `list_terms`, `my_courses`, `my_course_history`, `get_course` for the prerequisites of each course, `search_sections` with the preferences as filters, then `check_schedule` until each option has no conflicts. Gives one to three options with their CRNs. |
+| `check_my_schedule` | `term` | Checks the student's courses: `my_courses`, `check_schedule` on their CRNs, `get_course` for corequisites, and `my_finals` for exams at the same time. |
+| `plan_degree_progression` | `program`, `catalog_year`, `graduation_term` | Plans each term to graduation: `my_course_history`, the required courses from the student, then `get_course` for prerequisites, corequisites, and the terms each course is usually offered. Lists the risks. |
+| `find_class_for_free_time` | `term`, `subject`, `days`, `times` | Finds sections that fit the student's free time: `my_busy_times`, `search_sections` with time filters, then `check_schedule`. |
+
+- `term` takes a term uid (`202710`) or a name (`Spring 2027`). Without it, `plan_term_schedule` and `find_class_for_free_time` use the next fall or spring term, and tell the model to confirm the term with the student. They skip summer, because a student in March registers for fall. `check_my_schedule` uses the next term if the student has courses in it, else the current term.
+- `courses` takes course codes separated by commas, semicolons, or new lines: `COMP 2350, MATH 1750`.
+- The server cuts an argument at 500 characters. The message puts each argument in quotes.
+- Arguments that are not an object of strings get `-32602` (Invalid params). The server does not report this client error.
+- A prompt reads no student data. The tools read it when the model calls them, with the scopes of the token. `my_courses` gives the CRN of each course, so `check_my_schedule` can pass the CRNs to `check_schedule`.
+- WIT Calendar has no degree requirement data yet. So `plan_degree_progression` tells the model to ask the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu. Issues #526 to #529 and #799 add requirement data and tools. When they ship, change `requirements_steps` in `McpTools::Prompts::PlanDegreeProgression` to call the new tools. Then the model asks the student only for what the tools do not give.
+
+### Completions
+
+The server answers `completion/complete` for the prompt arguments (`McpTools::Completions`). Each match is on the start of the value and ignores case. An answer has at most 100 values. When more match, `hasMore` is true.
+
+| Argument | Values | Source |
+| --- | --- | --- |
+| `term` | Term uids. The current and future terms come first, then the past terms, newest first. The value matches the start of the uid or of the name (`spr` gives `Spring 2027`). | `terms` |
+| `subject` | Subject codes with active sections. When the client sends the `term` argument as context (a uid or a name), only the subjects of that term. Without it, only the subjects of the current and future terms. | `Catalog::SubjectQuery#codes` |
+| `courses` | Course codes from the catalog, for example `COMP 2350`. The separators are the same as for the prompts. Only the code after the last separator completes. The codes before it stay. | `Catalog::CourseQuery#codes_starting_with` |
+
+Other arguments get no values. A `context` or `context.arguments` that is not an object gives no context, not an error. The course query uses the unique index on `(subject_code, course_number)` when the value has a number, and a limit of 101 rows.
+
+### Cache hints
+
+The server sets the SEP-2549 cache hints: `ttlMs` is 300,000 (5 minutes) and `cacheScope` is `public` (`McpTools::Server::CACHE_TTL_MS` and `CACHE_SCOPE`). The SDK adds the hints to `tools/list`, `prompts/list`, `resources/list`, `resources/read`, and `server/discover`. It does not add them to `tools/call`, `prompts/get`, or `completion/complete`.
+
+- The scope is `public` because those results are the same for every token. The server lists every tool and prompt to every token, their descriptions are fixed in code, and the only resources are the static app templates. A cache that a client shares between students cannot leak the data of one student.
+- The TTL is short because the results change on a deploy: a new tool, a new prompt, or a new week grid template. The server is stateless, so it cannot send `list_changed` to tell a client to read them again. With 5 minutes, a client is at most 5 minutes behind a deploy, and it still saves the reads in one chat.
+- A client on a protocol version before 2026-07-28 also gets the two fields in the list results. A client ignores result fields it does not know.
+- Before you add a resource or a list result that changes for each student, set the scope to `private`, or give that result its own hints.
 
 ## Permissions
 
@@ -209,6 +248,8 @@ Rules:
 | `Api::McpController` | The MCP endpoint and the bearer token check |
 | `McpTools::` (`app/services/mcp_tools/`) | The server, its tools, and its app resources |
 | `app/views/mcp_apps/` | The HTML templates of the MCP Apps |
+| `McpTools::Prompts::` (`app/services/mcp_tools/prompts/`) | The prompts |
+| `McpTools::Completions` | Completions for the prompt arguments |
 | `Dashboard::ConnectedAppsController` | Disconnect an app |
 
 ### Add a tool
@@ -235,6 +276,15 @@ Each tool sends an `outputSchema` in `tools/list`. The MCP spec says that the st
 - The `mcp` gem does not check results at run time, because `validate_tool_call_results` is off. Do not turn it on. The gem checks the Ruby Hash before it becomes JSON, so a `Date` or `Time` value fails a `string` type. A failed check gives the client an internal error in place of the result.
 
 A write tool changes only the signed-in student's own data, through the same models and policies as its API endpoint. A tool that reaches other people, such as a friend request, needs a scope of its own. `McpTools::BaseTool` marks a read tool read-only for the client, and `McpTools::BaseWriteTool` marks a write tool as not destructive.
+
+### Add a prompt
+
+1. Add a class in `app/services/mcp_tools/prompts/` that inherits `McpTools::Prompts::BasePrompt`.
+2. Set `prompt_name`, `title`, `description`, and `arguments`. Keep every argument optional, and make the message tell the model to ask for a missing fact.
+3. Define `steps`. Return the parts of the message. Name each tool and the order to call them. `BasePrompt` adds the ask rule, the permission rule, and the advisor message.
+4. Add the class to `McpTools::Prompts.all`, and add a row to the prompts table above.
+5. If an argument can complete, use the name `term`, `subject`, or `courses`, or add a case to `McpTools::Completions`.
+6. Add examples to `spec/services/mcp_tools/prompts_spec.rb`.
 
 ### Try it locally
 
