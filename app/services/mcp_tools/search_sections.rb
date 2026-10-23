@@ -14,6 +14,7 @@ module McpTools
                 "Set semantic to true to rank q by meaning, for example q: \"intro to machine learning\". " \
                 "Without term_uid it searches the current term."
     requires_scope "catalog"
+    academic_planning
     input_schema(
       properties: {
         term_uid:          TERM_SCHEMA,

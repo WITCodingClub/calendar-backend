@@ -12,6 +12,7 @@ module McpTools
                 "\"network security\". Filter by subject code, or by a term to list only the courses offered in it. " \
                 "Call get_course for prerequisites and the full description."
     requires_scope "catalog"
+    academic_planning
     input_schema(
       properties: {
         q:        { type: "string", description: "A course code, or words in the title." },
