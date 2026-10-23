@@ -15,7 +15,8 @@ module McpTools
   # A tool whose answer a student can use to plan courses calls
   # academic_planning. Its result then carries an advisory: ADVISORY, which
   # tells the student to confirm the plan with their program director and
-  # advisor, and the sources with their refresh times (Catalog::Freshness).
+  # advisor, and the refresh times of the sources the tool names
+  # (Catalog::Freshness).
   class BaseTool < MCP::Tool
     READ_ONLY = {
       read_only_hint:   true,
@@ -46,12 +47,18 @@ module McpTools
 
       attr_reader :required_scope
 
-      # The result of this tool carries ADVISORY.
-      def academic_planning
-        @academic_planning = true
+      # The result of this tool carries ADVISORY and the refresh times of
+      # its sources (keys of Catalog::Freshness::SOURCES).
+      def academic_planning(*sources)
+        unknown = sources - Catalog::Freshness::SOURCES.keys
+        raise ArgumentError, "unknown data source #{unknown.join(', ')}" if unknown.any?
+
+        @data_sources = sources
       end
 
-      def academic_planning? = @academic_planning == true
+      attr_reader :data_sources
+
+      def academic_planning? = !@data_sources.nil?
 
       # The scope a token needs to call this tool (McpTools::Scopes).
       def requires_scope(name)
@@ -85,7 +92,7 @@ module McpTools
       private
 
       def advisory
-        { message: ADVISORY, data_sources: Catalog::Freshness.call }
+        { message: ADVISORY, data_sources: Catalog::Freshness.call(data_sources) }
       end
 
       def missing_scope_message

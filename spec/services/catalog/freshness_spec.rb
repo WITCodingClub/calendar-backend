@@ -11,33 +11,59 @@ RSpec.describe Catalog::Freshness do
     Rails.cache = original
   end
 
-  def source(data_prefix) = described_class.call.find { |s| s[:data].start_with?(data_prefix) }
+  let(:synced) { Time.zone.parse("2026-10-21 04:12") }
+  let(:term) { create(:term, sections_synced_at: synced, details_synced_at: synced - 1.day) }
 
-  it "gives the latest refresh of the sections and the course details" do
-    synced = Time.zone.parse("2026-10-21 04:12")
-    create(:course, banner_synced_at: synced - 1.day)
-    create(:course, banner_synced_at: synced)
-    create(:catalog_course, details_fetched_at: synced - 2.days)
+  before { allow(Term).to receive(:current).and_return(term) }
 
-    expect(source("Course sections")).to include(source: /Banner/, last_refreshed_at: synced.iso8601)
-    expect(source("Course descriptions")).to include(last_refreshed_at: (synced - 2.days).iso8601)
+  def source(key) = described_class.call([ key ]).first
+
+  it "gives the time each term's run finished for the section and course detail sources" do
+    expect(source(:sections)).to include(source: /Banner/)
+    expect(source(:sections)[:terms]).to eq([ { term_uid: term.uid, term: term.name, last_refreshed_at: synced.iso8601 } ])
+    expect(source(:course_details)[:terms].first[:last_refreshed_at]).to eq((synced - 1.day).iso8601)
+  end
+
+  # A student's own courses refresh when the extension processes a term, so
+  # one fresh course says nothing about the rest.
+  it "ignores the confirmation time of single courses" do
+    create(:course, term: term, banner_synced_at: Time.current)
+
+    expect(source(:sections)[:terms].first[:last_refreshed_at]).to eq(synced.iso8601)
+  end
+
+  it "gives the latest completed finals schedule of each term" do
+    create(:finals_schedule, term: term, status: :completed, processed_at: synced - 2.days)
+    create(:finals_schedule, term: term, status: :failed, processed_at: synced)
+
+    expect(source(:finals)[:terms].first[:last_refreshed_at]).to eq((synced - 2.days).iso8601)
+  end
+
+  it "gives the latest fetch of the university calendar" do
+    create(:university_calendar_event, last_fetched_at: synced)
+
+    expect(source(:university_calendar)).to include(source: /25Live/, last_refreshed_at: synced.iso8601)
   end
 
   it "gives no time for a source that never refreshed" do
-    expect(described_class.call.pluck(:last_refreshed_at)).to eq([ nil, nil ])
+    term.update!(sections_synced_at: nil)
+
+    expect(source(:sections)[:terms].first[:last_refreshed_at]).to be_nil
+    expect(source(:university_calendar)[:last_refreshed_at]).to be_nil
   end
 
   it "keeps the times in the cache" do
-    described_class.call
-    create(:course, banner_synced_at: Time.current)
+    source(:sections)
+    term.update!(sections_synced_at: Time.current)
 
-    expect(source("Course sections")[:last_refreshed_at]).to be_nil
+    expect(source(:sections)[:terms].first[:last_refreshed_at]).to eq(synced.iso8601)
   end
 
-  # The schedule text says 4 AM. It must change with the recurring job.
-  it "matches the schedule of the daily catalog sync" do
+  # The schedule text gives these times. It must change with the recurring jobs.
+  it "matches the schedules of the recurring syncs" do
     recurring = YAML.load_file(Rails.root.join("config/recurring.yml"))
 
     expect(recurring.dig("production", "course_data_sync", "schedule")).to eq("every day at 4am")
+    expect(recurring.dig("production", "university_calendar_sync", "schedule")).to eq("every saturday at 2am")
   end
 end

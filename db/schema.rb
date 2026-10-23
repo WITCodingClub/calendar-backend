@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_003000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -976,8 +976,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_140000) do
     t.datetime "catalog_imported_at"
     t.boolean "catalog_importing", default: false, null: false
     t.datetime "created_at", null: false
+    t.datetime "details_synced_at"
     t.date "end_date"
     t.integer "season", null: false
+    t.datetime "sections_synced_at"
     t.date "start_date"
     t.integer "uid", null: false
     t.datetime "updated_at", null: false

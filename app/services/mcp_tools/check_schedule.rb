@@ -11,7 +11,7 @@ module McpTools
                 "Lecture and lab pairs come from Banner, so trust this over link identifiers. " \
                 "Use it before you suggest a schedule."
     requires_scope "catalog"
-    academic_planning
+    academic_planning :sections
     input_schema(
       properties: {
         term_uid: TERM_SCHEMA,

@@ -7,6 +7,7 @@ module McpTools
     title "My final exams"
     description "Lists the final exams for my courses in one term: date, time, and room."
     requires_scope "schedule:read"
+    academic_planning :finals
     input_schema(properties: { term_uid: TERM_SCHEMA })
 
     def perform(term_uid: nil)
