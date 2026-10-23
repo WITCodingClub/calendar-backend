@@ -256,6 +256,17 @@ RSpec.describe "Admin pages", type: :request do
       expect(page.css("main").text.squish).to include("Unchanged 7")
     end
 
+    it "leaves out the unchanged count for stats saved before it existed" do
+      schedule.update!(status: :completed, stats: { created: 0, updated: 250 })
+
+      get admin_finals_schedules_path
+      expect(response.body).to include("0 created · 250 updated")
+      expect(response.body).not_to include("unchanged")
+
+      get admin_finals_schedule_path(schedule)
+      expect(page.css("main").text.squish).to include("Unchanged —")
+    end
+
     it "renders the index with a schedule whose uploader was deleted" do
       schedule.update_columns(uploaded_by_id: nil)
 

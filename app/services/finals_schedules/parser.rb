@@ -79,8 +79,9 @@ module FinalsSchedules
             combined_crns: entry[:combined_crns]
           )
           diff = final_exam.changes.slice(*TRACKED_ATTRIBUTES)
-          # A row that the PDF does not change counts as unchanged, not updated.
-          changed = final_exam.changed?
+          # A row whose exam fields the PDF does not change counts as unchanged,
+          # not updated. A new course link alone shows in the linked count.
+          changed = diff.any?
 
           if final_exam.save
             if was_new

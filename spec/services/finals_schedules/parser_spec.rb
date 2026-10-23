@@ -134,6 +134,16 @@ RSpec.describe FinalsSchedules::Parser do
       expect(FinalExam.where(term: term).count).to eq(2)
     end
 
+    it "counts an exam that only gets a course link as unchanged" do
+      described_class.call(pdf_content: "%PDF", term: term)
+      create(:course, term: term, crn: 10_062)
+
+      result = described_class.call(pdf_content: "%PDF", term: term)
+
+      expect(result).to include(updated: 0, unchanged: 2, linked: 1)
+      expect(result[:changes]).to be_empty
+    end
+
     it "lists stored exams that the PDF no longer has, and keeps them" do
       create(:final_exam, term: term, crn: 10_099)
 

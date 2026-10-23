@@ -35,7 +35,8 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <%= render "admin/shared/stat", label: "Created", value: @finals_schedule.stats["created"] || 0, tone: :success %>
             <%= render "admin/shared/stat", label: "Updated", value: @finals_schedule.stats["updated"] || 0, tone: :info %>
-            <%= render "admin/shared/stat", label: "Unchanged", value: @finals_schedule.stats["unchanged"] || 0 %>
+            <%# Stats saved before the unchanged count existed have no "unchanged" key. %>
+            <%= render "admin/shared/stat", label: "Unchanged", value: @finals_schedule.stats.fetch("unchanged", "—") %>
             <%= render "admin/shared/stat", label: "Total parsed", value: @finals_schedule.stats["total"] || 0 %>
             <%= render "admin/shared/stat", label: "Linked", value: @final_exams.count(&:linked?) %>
             <%= render "admin/shared/stat", label: "Awaiting courses", value: @final_exams.count(&:orphan?), tone: :warning %>
