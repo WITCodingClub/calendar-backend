@@ -14,7 +14,7 @@ module AcademicProfiles
   # a degree catalog import, so programs saved before the import get a link.
   class ProgramMatcher < ApplicationService
     KINDS_BY_ROLE = {
-      "major"         => %w[bachelor master exploratory],
+      "major"         => %w[associate bachelor master exploratory],
       "minor"         => %w[minor],
       "concentration" => %w[concentration],
       "certificate"   => %w[certificate]
@@ -61,6 +61,7 @@ module AcademicProfiles
       return kinds unless program.major?
 
       case program.degree.to_s
+      when /\Aassociate/i then %w[associate]
       when /\Abachelor/i then %w[bachelor]
       when /\Amaster/i then %w[master]
       else kinds

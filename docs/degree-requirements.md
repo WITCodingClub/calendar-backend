@@ -56,6 +56,7 @@ erDiagram
 - A save that changes the code clears the link.
 - `link_catalog_courses` on each model sets every link in bulk, and fixes a link that names another course.
 - The import calls it after it writes the rows. `Catalog::CourseDetailsSync.seed` calls it when Banner lists a course for the first time.
+- The import also runs `AcademicProfiles::ProgramMatcher.relink_active`, so student programs saved before the import link to their `DegreeProgram` and `CatalogYear` (`docs/academic-profile.md`).
 
 ## Import
 

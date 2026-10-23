@@ -63,6 +63,15 @@ RSpec.describe DegreeRequirements::Importer do
     expect(ElectiveGroupCourse.find_by!(course_number: 3990)).to have_attributes(requires_approval: true)
   end
 
+  it "links the student programs that were saved before the import" do
+    program = create(:student_program, name: "Widget Design", degree: "Bachelor of Science", catalog_term_uid: 202510)
+
+    import
+
+    expect(program.reload).to have_attributes(degree_program: DegreeProgram.find_by!(slug: "widget-design-bs"),
+                                              catalog_year: catalog_year)
+  end
+
   it "reads the kind and level of each program, and links a concentration to its major" do
     import
 

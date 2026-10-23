@@ -28,6 +28,12 @@ RSpec.describe AcademicProfiles::ProgramMatcher do
     expect(match(name: "Computer Science", degree: "Master of Science").degree_program).to eq(cs_master)
   end
 
+  it "uses the degree to pick an associate degree" do
+    associate = create(:degree_program, name: "Sprocket Technology, A.A.S.", slug: "sprocket-tech-aas", kind: "associate")
+
+    expect(match(name: "Sprocket Technology", degree: "Associate in Applied Science").degree_program).to eq(associate)
+  end
+
   it "links a minor by role" do
     expect(match(role: "minor", name: "Computer Networking", degree: nil).degree_program).to eq(networking_minor)
   end

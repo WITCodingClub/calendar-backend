@@ -43,6 +43,8 @@ module DegreeRequirements
       link_parents(programs)
       ProgramPlanItem.link_catalog_courses
       ElectiveGroupCourse.link_catalog_courses
+      # Student programs saved before this import get their link now.
+      AcademicProfiles::ProgramMatcher.relink_active
 
       @catalog_year.update!(status: "imported", imported_at: Time.current)
       result(:imported, programs.size).tap do |done|
