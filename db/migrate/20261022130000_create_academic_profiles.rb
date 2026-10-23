@@ -16,7 +16,8 @@ class CreateAcademicProfiles < ActiveRecord::Migration[8.1]
       t.string :class_standing
       t.string :admit_type
       t.integer :admit_term_uid
-      t.string :leopardweb_digest
+      t.string :leopardweb_profile_digest
+      t.string :leopardweb_programs_digest
       t.datetime :leopardweb_synced_at
       t.timestamps
     end

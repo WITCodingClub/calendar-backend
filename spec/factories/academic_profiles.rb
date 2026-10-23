@@ -4,16 +4,17 @@
 #
 # Table name: academic_profiles
 #
-#  id                   :bigint           not null, primary key
-#  admit_term_uid       :integer
-#  admit_type           :string
-#  class_standing       :string
-#  leopardweb_digest    :string
-#  leopardweb_synced_at :datetime
-#  level                :string
-#  created_at           :datetime         not null
-#  updated_at           :datetime         not null
-#  user_id              :bigint           not null
+#  id                         :bigint           not null, primary key
+#  admit_term_uid             :integer
+#  admit_type                 :string
+#  class_standing             :string
+#  leopardweb_profile_digest  :string
+#  leopardweb_programs_digest :string
+#  leopardweb_synced_at       :datetime
+#  level                      :string
+#  created_at                 :datetime         not null
+#  updated_at                 :datetime         not null
+#  user_id                    :bigint           not null
 #
 # Indexes
 #

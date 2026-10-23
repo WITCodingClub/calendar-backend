@@ -22,7 +22,7 @@ RSpec.describe AcademicProfiles::Sync do
     profile = sync
 
     expect(profile).to have_attributes(level: "Undergraduate", class_standing: "Sophomore", admit_term_uid: 202610)
-    expect(profile.leopardweb_digest).to be_present
+    expect(profile).to have_attributes(leopardweb_profile_digest: be_present, leopardweb_programs_digest: be_present)
     expect(user.student_programs.active.pluck(:role, :code, :name, :catalog_term_uid, :source))
       .to contain_exactly([ "major", "BCOS3", "Computer Science", 202610, "leopardweb" ],
                           [ "minor", nil, "Computer Networking", 202610, "leopardweb" ])
@@ -60,14 +60,24 @@ RSpec.describe AcademicProfiles::Sync do
       .to contain_exactly([ "Computer Science", "student" ], [ "Data Science", "student" ])
   end
 
-  it "applies a LeopardWeb profile that changed after the student's edit" do
+  it "applies a LeopardWeb change to the profile fields and keeps the student's programs" do
     sync
-    sync(source: "student", class_standing: "Junior")
+    sync(source: "student", class_standing: "Junior", programs: [ major, minor.merge(name: "Data Science") ])
 
     sync(class_standing: "Senior")
 
     expect(user.academic_profile.reload.class_standing).to eq("Senior")
-    expect(user.student_programs.active.pluck(:source).uniq).to eq([ "leopardweb" ])
+    expect(user.student_programs.active.pluck(:name)).to contain_exactly("Computer Science", "Data Science")
+  end
+
+  it "applies a LeopardWeb change to the programs and keeps the student's profile fields" do
+    sync
+    sync(source: "student", class_standing: "Junior")
+
+    sync(programs: [ major ])
+
+    expect(user.academic_profile.reload.class_standing).to eq("Junior")
+    expect(user.student_programs.active.pluck(:name, :source)).to eq([ [ "Computer Science", "leopardweb" ] ])
   end
 
   it "accepts an empty list and a profile with no terms" do

@@ -21,6 +21,12 @@ RSpec.describe AcademicProfiles::TermCode do
       expect(described_class.parse("Fall")).to be_nil
       expect(described_class.parse(nil)).to be_nil
     end
+
+    it "returns nil for a year out of range" do
+      expect(described_class.parse("Fall 0000")).to be_nil
+      expect(described_class.parse("000010")).to be_nil
+      expect(described_class.parse("Spring #{Time.zone.today.year + 10}")).to be_nil
+    end
   end
 
   it "converts a code back to its label" do

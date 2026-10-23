@@ -4,10 +4,11 @@ module CourseOutcomes
   # Stores the outcome of each finished course that the extension reads from
   # the LeopardWeb Student Grades page (PUT /api/user/course_outcomes).
   #
-  # Each term in the payload replaces the outcomes of that term. A term that
-  # is not in the payload does not change. A CRN must belong to a course the
-  # user is enrolled in, so the extension processes a term before it sends
-  # its outcomes. Other CRNs come back in unknown_crns.
+  # Each term in the payload replaces the outcomes of that term: a stored CRN
+  # that is not in the payload is removed. A term that is not in the payload
+  # does not change. A CRN must belong to a course the user is enrolled in, so
+  # the extension processes a term before it sends its outcomes. Other CRNs
+  # come back in unknown_crns, and their stored rows do not change.
   class Recorder < ApplicationService
     MAX_TERMS = 30
     MAX_COURSES = 30
@@ -79,29 +80,24 @@ module CourseOutcomes
     end
 
     def record(uid, term, outcomes)
-      enrolled = term ? enrolled_courses(term, outcomes.keys) : {}
-      unknown = outcomes.keys.reject { |crn| enrolled.key?(crn) }
+      enrolled = term ? enrolled_crns(term, outcomes.keys) : []
+      unknown = outcomes.keys - enrolled
 
-      if term
-        existing = user.course_outcomes.joins(:course).where(courses: { term_id: term.id })
-        existing.where.not(course_id: enrolled.values.map(&:id)).delete_all
+      # A CRN in the payload keeps its stored row even when it is unknown now:
+      # its enrollment can be missing for a short time, for example while the
+      # extension reprocesses the term.
+      user.course_outcomes.where(term_uid: uid).where.not(crn: outcomes.keys).delete_all
 
-        rows = enrolled.map do |crn, course|
-          { user_id: user.id, course_id: course.id, outcome: outcomes.fetch(crn) }
-        end
-        # normalize_courses checked each outcome before this write.
-        CourseOutcome.upsert_all(rows, unique_by: %i[user_id course_id], record_timestamps: true) if rows.any? # rubocop:disable Rails/SkipsModelValidations
-      end
+      rows = enrolled.map { |crn| { user_id: user.id, term_uid: uid, crn: crn, outcome: outcomes.fetch(crn) } }
+      # normalize_courses checked each outcome before this write.
+      CourseOutcome.upsert_all(rows, unique_by: %i[user_id term_uid crn], record_timestamps: true) if rows.any? # rubocop:disable Rails/SkipsModelValidations
 
       Result.new(term: uid, updated: enrolled.size, unknown_crns: unknown.map(&:to_s))
     end
 
-    # Returns { crn => course } for the courses of the term the user is
-    # enrolled in.
-    def enrolled_courses(term, crns)
-      Course.where(term: term, crn: crns)
-            .where(id: user.enrollments.select(:course_id))
-            .index_by(&:crn)
+    # The CRNs of the term that the user is enrolled in.
+    def enrolled_crns(term, crns)
+      Course.where(term: term, crn: crns).where(id: user.enrollments.select(:course_id)).pluck(:crn)
     end
 
     def invalid(message, code: "invalid_outcome")

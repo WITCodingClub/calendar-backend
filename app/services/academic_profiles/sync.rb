@@ -11,9 +11,10 @@ module AcademicProfiles
   # active row keeps that row. An active row that is not in the list ends, and
   # is never deleted, so a change of major keeps the old major.
   #
-  # A LeopardWeb payload that is the same as the last LeopardWeb payload
-  # changes nothing. Without this, each course sync would undo a value the
-  # student changed in the settings.
+  # A LeopardWeb payload changes only the parts that differ from the last
+  # LeopardWeb payload: the profile fields, the program list, or both. Without
+  # this, each course sync would undo a value the student changed in the
+  # settings.
   class Sync < ApplicationService
     SOURCES = StudentProgram::SOURCES.values.freeze
     MAX_PROGRAMS = 10
@@ -40,7 +41,6 @@ module AcademicProfiles
 
       profile_attributes = normalize_profile
       programs = normalize_programs
-      digest = Digest::SHA256.hexdigest([ profile_attributes, programs ].to_json)
 
       # user_id, not user: with user, a create that loses the race sets the
       # unsaved record on user.academic_profile.
@@ -48,19 +48,34 @@ module AcademicProfiles
 
       AcademicProfile.transaction do
         profile.lock!
-        next if source == "leopardweb" && profile.leopardweb_digest == digest
-
-        profile.assign_attributes(profile_attributes)
-        profile.assign_attributes(leopardweb_digest: digest, leopardweb_synced_at: Time.current) if source == "leopardweb"
-        profile.save!
-
-        sync_programs(programs, source)
+        source == "leopardweb" ? apply_leopardweb(profile, profile_attributes, programs) : apply_student(profile, profile_attributes, programs)
       end
 
       profile
     end
 
     private
+
+    # The profile fields and the program list have separate digests, so a
+    # LeopardWeb change to the class standing does not undo the student's
+    # change to a program, and the reverse.
+    def apply_leopardweb(profile, profile_attributes, programs)
+      profile_digest = digest(profile_attributes)
+      programs_digest = digest(programs)
+
+      profile.assign_attributes(profile_attributes) unless profile.leopardweb_profile_digest == profile_digest
+      sync_programs(programs, "leopardweb") unless profile.leopardweb_programs_digest == programs_digest
+
+      profile.update!(leopardweb_profile_digest: profile_digest, leopardweb_programs_digest: programs_digest,
+                      leopardweb_synced_at: Time.current)
+    end
+
+    def apply_student(profile, profile_attributes, programs)
+      profile.update!(profile_attributes)
+      sync_programs(programs, "student")
+    end
+
+    def digest(value) = Digest::SHA256.hexdigest(value.to_json)
 
     def normalize_profile
       PROFILE_FIELDS.index_with { |field| text(payload[field], field) }

@@ -27,8 +27,8 @@ RSpec.describe CourseOutcomes::Recorder do
     ] } ])
 
     expect(results.map(&:as_json)).to eq([ { term: "202610", updated: 2, unknown_crns: [ other.crn.to_s ] } ])
-    expect(user.course_outcomes.pluck(:course_id, :outcome))
-      .to contain_exactly([ calculus.id, "c_or_better" ], [ writing.id, "passed_below_c" ])
+    expect(user.course_outcomes.pluck(:crn, :outcome))
+      .to contain_exactly([ calculus.crn, "c_or_better" ], [ writing.crn, "passed_below_c" ])
   end
 
   it "replaces the outcomes of each term it gets, and leaves the other terms" do
@@ -41,17 +41,29 @@ RSpec.describe CourseOutcomes::Recorder do
 
     record([ { term: fall.uid, courses: [ { crn: changed.crn, outcome: "c_or_better" } ] } ])
 
-    expect(user.course_outcomes.pluck(:course_id, :outcome))
-      .to contain_exactly([ kept.id, "withdrawn" ], [ changed.id, "c_or_better" ])
+    expect(user.course_outcomes.pluck(:crn, :outcome))
+      .to contain_exactly([ kept.crn, "withdrawn" ], [ changed.crn, "c_or_better" ])
   end
 
-  it "keeps the outcome when Courses::Reprocessor makes the enrollment again" do
+  it "keeps the outcome when the catalog refresh deletes and imports the course again" do
     course = enroll(fall)
     record([ { term: fall.uid, courses: [ { crn: course.crn, outcome: "c_or_better" } ] } ])
 
-    user.enrollments.find_by!(course: course).destroy!
-    create(:enrollment, user: user, course: course)
+    Enrollment.where(course: course).delete_all
+    course.delete
+    new_course = create(:course, term: fall, crn: course.crn)
 
+    expect(user.course_outcomes.sole).to have_attributes(outcome: "c_or_better", course: new_course)
+  end
+
+  it "keeps the stored outcome of a CRN that is in the payload but not enrolled now" do
+    course = enroll(fall)
+    record([ { term: fall.uid, courses: [ { crn: course.crn, outcome: "c_or_better" } ] } ])
+    user.enrollments.delete_all
+
+    results = record([ { term: fall.uid, courses: [ { crn: course.crn, outcome: "failed" } ] } ])
+
+    expect(results.map(&:as_json)).to eq([ { term: "202610", updated: 0, unknown_crns: [ course.crn.to_s ] } ])
     expect(user.course_outcomes.sole.outcome).to eq("c_or_better")
   end
 

@@ -23,7 +23,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_130100) do
     t.string "class_standing"
     t.string "admit_type"
     t.integer "admit_term_uid"
-    t.string "leopardweb_digest"
+    t.string "leopardweb_profile_digest"
+    t.string "leopardweb_programs_digest"
     t.datetime "leopardweb_synced_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -289,12 +290,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_130100) do
 
   create_table "course_outcomes", force: :cascade do |t|
     t.bigint "user_id", null: false
-    t.bigint "course_id", null: false
+    t.integer "term_uid", null: false
+    t.integer "crn", null: false
     t.string "outcome", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["course_id"], name: "index_course_outcomes_on_course_id"
-    t.index ["user_id", "course_id"], name: "index_course_outcomes_on_user_id_and_course_id", unique: true
+    t.index ["user_id", "term_uid", "crn"], name: "index_course_outcomes_on_user_id_and_term_uid_and_crn", unique: true
   end
 
   create_table "course_prerequisites", force: :cascade do |t|
@@ -1201,7 +1202,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_130100) do
   add_foreign_key "course_meeting_time_rooms", "course_meeting_times", column: "meeting_time_id"
   add_foreign_key "course_meeting_time_rooms", "rooms"
   add_foreign_key "course_meeting_times", "courses"
-  add_foreign_key "course_outcomes", "courses", on_delete: :cascade
   add_foreign_key "course_outcomes", "users", on_delete: :cascade
   add_foreign_key "course_prerequisites", "catalog_courses", column: "required_catalog_course_id", on_delete: :nullify
   add_foreign_key "course_prerequisites", "catalog_courses", on_delete: :cascade

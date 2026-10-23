@@ -31,10 +31,15 @@ LeopardWeb shows a term as a label, for example "Fall 2025". `AcademicProfiles::
 flowchart TD
   P[PUT academic_profile] --> V{Payload valid?}
   V -- no --> E[422 invalid_profile or invalid_term]
-  V -- yes --> S{source is leopardweb and digest is the same as last time?}
-  S -- yes --> N[No change: keep the student's edits]
-  S -- no --> U[Update the profile fields]
-  U --> M[Match each program to an active row]
+  V -- yes --> L{source}
+  L -- student --> U[Update the profile fields]
+  L -- student --> M
+  L -- leopardweb --> D1{Profile fields same as the last LeopardWeb payload?}
+  D1 -- yes --> N1[Keep the profile fields]
+  D1 -- no --> U
+  L -- leopardweb --> D2{Program list same as the last LeopardWeb payload?}
+  D2 -- yes --> N2[Keep the programs]
+  D2 -- no --> M[Match each program to an active row]
   M --> K[Matched: update the row in place]
   M --> C[Not matched: create an active row]
   M --> X[Active row not in the list: end it]
@@ -42,13 +47,13 @@ flowchart TD
 
 - A program matches an active row when the role, code, name, concentration, study path, and catalog term are the same. A change in another field, such as the department, updates the row.
 - A row is never deleted. A change of major ends the old row and creates a new one, so the history stays.
-- The student can change a value in the extension settings (`source: "student"`). Each course sync sends the LeopardWeb profile again. The backend skips a LeopardWeb profile that is the same as the last one (`leopardweb_digest`), so the student's change stays until LeopardWeb shows a different profile.
+- The student can change a value in the extension settings (`source: "student"`). Each course sync sends the LeopardWeb profile again. The backend keeps a digest of the profile fields and a digest of the program list from the last LeopardWeb payload. It skips each part that has the same digest. So a student's change to a program stays until LeopardWeb shows a different program list, even when the class standing changes.
 
 ## Course outcomes
 
-- Each term in a request replaces the outcomes of that term. A term that is not in the request does not change.
-- A CRN must belong to a course the user is enrolled in. Other CRNs come back in `unknown_crns`, and the extension processes that term first.
-- An outcome belongs to the user and the course, not to the enrollment. `Courses::Reprocessor` deletes and creates enrollments, and the outcome stays.
+- Each term in a request replaces the outcomes of that term: a stored CRN that is not in the request is removed. A term that is not in the request does not change.
+- A CRN must belong to a course the user is enrolled in. Other CRNs come back in `unknown_crns`, and the extension processes that term first. The stored outcome of an unknown CRN in the request does not change, because its enrollment can be missing for a short time.
+- An outcome names its course by term code and CRN, not by course id. `Courses::Reprocessor` deletes and creates enrollments, and `rake catalog:refresh` deletes and imports the courses of a term again. The outcome stays through both.
 
 ## Next step
 

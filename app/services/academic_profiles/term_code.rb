@@ -15,19 +15,25 @@ module AcademicProfiles
 
     module_function
 
+    # Banner starts long after this year. A later year than a few years from
+    # now is a typo.
+    FIRST_YEAR = 2000
+    YEARS_AHEAD = 3
+
     # Returns the Banner code for a label or a code, or nil when the value is
-    # neither.
+    # neither, or its year is out of range.
     def parse(value)
       text = value.to_s.strip
-      return Integer(text, 10) if text.match?(CODE)
+      code = if text.match?(CODE)
+        Integer(text, 10)
+      elsif (match = text.match(LABEL))
+        season = match[1].downcase
+        year = Integer(match[2], 10)
+        year += 1 if season == "fall"
+        (year * 100) + SEASON_SUFFIXES.fetch(season)
+      end
 
-      match = text.match(LABEL)
-      return nil unless match
-
-      season = match[1].downcase
-      year = Integer(match[2], 10)
-      year += 1 if season == "fall"
-      (year * 100) + SEASON_SUFFIXES.fetch(season)
+      code if code && (FIRST_YEAR..(Time.zone.today.year + YEARS_AHEAD)).cover?(code / 100)
     end
 
     def label(code)

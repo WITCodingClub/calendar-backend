@@ -5,20 +5,19 @@
 # Table name: course_outcomes
 #
 #  id         :bigint           not null, primary key
+#  crn        :integer          not null
 #  outcome    :string           not null
+#  term_uid   :integer          not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
-#  course_id  :bigint           not null
 #  user_id    :bigint           not null
 #
 # Indexes
 #
-#  index_course_outcomes_on_course_id              (course_id)
-#  index_course_outcomes_on_user_id_and_course_id  (user_id,course_id) UNIQUE
+#  index_course_outcomes_on_user_id_and_term_uid_and_crn  (user_id,term_uid,crn) UNIQUE
 #
 # Foreign Keys
 #
-#  fk_rails_...  (course_id => courses.id) ON DELETE => cascade
 #  fk_rails_...  (user_id => users.id) ON DELETE => cascade
 #
 # The result of one finished course for one student (#529). The extension
@@ -27,6 +26,10 @@
 #
 # There are two pass values because some prerequisites need a C or higher,
 # and a D still passes and gives credit.
+#
+# A row names its course by term code and CRN, not by course id, so it stays
+# when Courses::Reprocessor or `rake catalog:refresh` makes the course or the
+# enrollment again.
 class CourseOutcome < ApplicationRecord
   OUTCOMES = {
     c_or_better:    "c_or_better",
@@ -39,9 +42,13 @@ class CourseOutcome < ApplicationRecord
   enum :outcome, OUTCOMES, validate: true
 
   belongs_to :user
-  belongs_to :course
 
-  validates :course_id, uniqueness: { scope: :user_id }
+  validates :term_uid, :crn, presence: true
+  validates :crn, uniqueness: { scope: %i[user_id term_uid] }
 
   def passed? = c_or_better? || passed_below_c?
+
+  def course
+    Course.joins(:term).find_by(crn: crn, terms: { uid: term_uid })
+  end
 end

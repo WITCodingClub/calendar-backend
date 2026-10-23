@@ -17,7 +17,7 @@ RSpec.describe "PUT /api/user/course_outcomes", type: :request do
 
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body).to eq("terms" => [ { "term" => "202610", "updated" => 1, "unknown_crns" => [ "99999" ] } ])
-    expect(user.course_outcomes.sole).to have_attributes(course_id: course.id, outcome: "passed_below_c")
+    expect(user.course_outcomes.sole).to have_attributes(term_uid: 202610, crn: course.crn, outcome: "passed_below_c")
   end
 
   it "answers 422 with invalid_outcome for a letter grade" do
