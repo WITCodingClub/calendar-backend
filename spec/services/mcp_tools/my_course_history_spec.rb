@@ -29,6 +29,6 @@ RSpec.describe McpTools::MyCourseHistory do
   end
 
   it "lists no terms for a user with no courses" do
-    expect(described_class.call(server_context: mcp_context(user)).structured_content).to eq(terms: [])
+    expect(described_class.call(server_context: mcp_context(user)).structured_content.except(:advisory)).to eq(terms: [])
   end
 end

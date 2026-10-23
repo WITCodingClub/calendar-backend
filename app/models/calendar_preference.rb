@@ -56,10 +56,19 @@ class CalendarPreference < ApplicationRecord
   after_update_commit :sync_calendar_if_preferences_changed
   # A category row sits above the university wide row in Preferences::Resolver, so
   # a category color from an old extension build hides the color the person
-  # picks now. Every save of a university wide color ends those overrides, also
-  # a save of the same color, because an old build can write category colors
-  # again between two saves.
-  after_save :clear_category_colors, if: :university_wide_color_set?
+  # picks now. A save that picks a university wide color ends those overrides,
+  # also when the color is the same, because an old build can write category
+  # colors again between two saves. A save that does not set the color, such
+  # as a visibility change, keeps them.
+  after_save :clear_category_colors, if: :university_wide_color_picked?
+  after_save { @color_id_picked = false }
+
+  # Dirty tracking cannot see an assignment of the value the row already has,
+  # so the writer records each assignment (university_wide_color_picked?).
+  def color_id=(value)
+    @color_id_picked = true
+    super
+  end
 
   scope :for_event_type,       ->(type) { where(scope: :event_type, event_type: type) }
   scope :for_uni_cal_category, ->(cat) { where(scope: :uni_cal_category, event_type: cat) }
@@ -80,8 +89,8 @@ class CalendarPreference < ApplicationRecord
     end
   end
 
-  def university_wide_color_set?
-    scope_uni_cal_global? && color_id.present?
+  def university_wide_color_picked?
+    scope_uni_cal_global? && color_id.present? && (@color_id_picked || saved_change_to_color_id?)
   end
 
   def clear_category_colors

@@ -4,7 +4,8 @@ module MicrosoftGraph
   # Turns the event hash the sync builds (the same one Google gets) into a
   # Graph event resource.
   #
-  # Graph has no RRULE or EXDATE. A weekly RRULE becomes a patternedRecurrence,
+  # Graph has no RRULE or EXDATE. A daily, weekly, or monthly RRULE becomes a
+  # patternedRecurrence,
   # and the EXDATE days are cancelled after the series exists (see
   # MicrosoftGraph::CalendarProvider#cancel_excluded_occurrences). Graph has one
   # reminder per event, so the earliest reminder wins. Colors are not part of
@@ -22,6 +23,9 @@ module MicrosoftGraph
       "SU" => "sunday", "MO" => "monday", "TU" => "tuesday", "WE" => "wednesday",
       "TH" => "thursday", "FR" => "friday", "SA" => "saturday"
     }.freeze
+
+    # The ordinal in a monthly BYDAY, for example 2 in 2WE, as a Graph index.
+    WEEK_INDEXES = { "1" => "first", "2" => "second", "3" => "third", "4" => "fourth", "-1" => "last" }.freeze
 
     REMINDER_METHODS = %w[email popup notification].freeze
     SENSITIVITY      = { "private" => "private", "confidential" => "confidential" }.freeze
@@ -101,22 +105,31 @@ module MicrosoftGraph
       return nil unless rule
 
       parts = rule.delete_prefix("RRULE:").split(";").to_h { |part| part.split("=", 2) }
-      # The sync only builds weekly rules.
-      return nil unless parts["FREQ"] == "WEEKLY"
+      # A course sync builds only weekly rules. A friend meeting can also be
+      # daily, or monthly on one weekday of the month.
+      pattern = pattern_payload(parts)
+      return nil unless pattern
 
-      start_date = local_start.to_date
-      days = parts["BYDAY"].to_s.split(",").filter_map { |day| DAYS[day] }
-      days = [ start_date.strftime("%A").downcase ] if days.empty?
+      { pattern: pattern, range: range_payload(parts["UNTIL"], local_start.to_date) }
+    end
 
-      {
-        pattern: {
-          type:           "weekly",
-          interval:       (parts["INTERVAL"] || 1).to_i,
-          daysOfWeek:     days,
-          firstDayOfWeek: "sunday"
-        },
-        range: range_payload(parts["UNTIL"], start_date)
-      }
+    def pattern_payload(parts)
+      interval = (parts["INTERVAL"] || 1).to_i
+
+      case parts["FREQ"]
+      when "DAILY"
+        { type: "daily", interval: interval }
+      when "WEEKLY"
+        days = parts["BYDAY"].to_s.split(",").filter_map { |day| DAYS[day] }
+        days = [ local_start.strftime("%A").downcase ] if days.empty?
+        { type: "weekly", interval: interval, daysOfWeek: days, firstDayOfWeek: "sunday" }
+      when "MONTHLY"
+        match = parts["BYDAY"].to_s.match(/\A(-?\d)([A-Z]{2})\z/)
+        index = match && WEEK_INDEXES[match[1]]
+        return nil unless index && DAYS[match[2]]
+
+        { type: "relativeMonthly", interval: interval, daysOfWeek: [ DAYS[match[2]] ], index: index }
+      end
     end
 
     def range_payload(until_value, start_date)

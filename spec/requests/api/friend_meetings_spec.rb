@@ -65,30 +65,52 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
       expect(response).to have_http_status(:created)
       expect(response.parsed_body).to eq(
         "meeting" => {
-          "id"             => meeting.public_id,
-          "title"          => "Synthetic Study Group",
-          "location"       => "Synthetic Library",
-          "start_time"     => "2026-10-14T15:00:00-04:00",
-          "end_time"       => "2026-10-14T16:00:00-04:00",
-          "time_zone"      => "America/New_York",
-          "frequency"      => "weekly",
-          "recurrence"     => "RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20261219T045959Z",
-          "repeat_until"   => "2026-12-18",
-          "invite_friends" => true,
-          "role"           => "owner",
-          "can_edit"       => true,
-          "can_delete"     => true,
-          "can_leave"      => false,
-          "owner"          => { "id" => user.public_id, "name" => user.full_name },
-          "friends"        => [ { "id" => friend.public_id, "name" => "Sample Friend" } ],
-          "guest"          => nil,
-          "destinations"   => %w[google ics],
-          "publications"   => [
+          "id"              => meeting.public_id,
+          "title"           => "Synthetic Study Group",
+          "location"        => "Synthetic Library",
+          "start_time"      => "2026-10-14T15:00:00-04:00",
+          "end_time"        => "2026-10-14T16:00:00-04:00",
+          "time_zone"       => "America/New_York",
+          "frequency"       => "weekly",
+          "recurrence"      => "RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20261219T045959Z",
+          "repeat_interval" => 1,
+          "repeat_days"     => %w[wednesday],
+          "repeat_until"    => "2026-12-18",
+          "invite_friends"  => true,
+          "role"            => "owner",
+          "can_edit"        => true,
+          "can_delete"      => true,
+          "can_leave"       => false,
+          "owner"           => { "id" => user.public_id, "name" => user.full_name },
+          "friends"         => [ { "id" => friend.public_id, "name" => "Sample Friend" } ],
+          "guest"           => nil,
+          "destinations"    => %w[google ics],
+          "publications"    => [
             { "provider" => "google", "status" => "queued", "invitation_status" => "queued" },
             { "provider" => "ics", "status" => "published", "invitation_status" => "not_requested" }
           ]
         }
       )
+    end
+
+    it "makes a meeting every other week on two days until a picked date" do
+      post_meeting(params.merge(repeat_interval: 2, repeat_days: %w[friday], repeat_until: "2027-01-29"))
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body["meeting"]).to include(
+        "frequency"       => "weekly",
+        "recurrence"      => "RRULE:FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=WE,FR;UNTIL=20270130T045959Z",
+        "repeat_interval" => 2,
+        "repeat_days"     => %w[wednesday friday],
+        "repeat_until"    => "2027-01-29"
+      )
+    end
+
+    it "answers 422 for a repeat interval out of range" do
+      post_meeting(params.merge(frequency: "monthly", repeat_interval: 0))
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(FriendMeeting.count).to eq(0)
     end
 
     it "sends the meeting only to the places in destinations" do
@@ -267,6 +289,31 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
       expect(response.parsed_body["meeting"]).to include("title" => "Synthetic Review", "location" => "Synthetic Hall",
                                                          "start_time" => "2026-10-15T10:00:00-04:00")
       expect(response.parsed_body.dig("meeting", "publications").first["status"]).to eq("queued")
+    end
+
+    it "lets the owner change the repeat options" do
+      patch "/api/friends/meetings/#{meeting.public_id}",
+            params: { frequency: "weekly", repeat_interval: 2, repeat_days: %w[friday], repeat_until: "2027-01-29" },
+            headers: auth_headers_for(user), as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["meeting"]).to include(
+        "frequency"       => "weekly",
+        "recurrence"      => "RRULE:FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=WE,FR;UNTIL=20270130T045959Z",
+        "repeat_interval" => 2,
+        "repeat_days"     => %w[wednesday friday],
+        "repeat_until"    => "2027-01-29"
+      )
+
+      patch "/api/friends/meetings/#{meeting.public_id}", params: { repeat_days: [], repeat_until: nil },
+                                                          headers: auth_headers_for(user), as: :json
+
+      expect(response.parsed_body["meeting"]).to include("repeat_days" => %w[wednesday], "repeat_until" => "2026-12-18")
+
+      patch "/api/friends/meetings/#{meeting.public_id}", params: { repeat_days: "friday" },
+                                                          headers: auth_headers_for(user), as: :json
+
+      expect(response.parsed_body.dig("meeting", "repeat_days")).to eq(%w[wednesday friday])
     end
 
     it "answers 422 for a change that is not valid" do

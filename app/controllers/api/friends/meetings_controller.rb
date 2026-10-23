@@ -56,6 +56,9 @@ module Api
           friend_ids:      params.require(:friend_ids),
           location:        params[:location],
           frequency:       params[:frequency],
+          repeat_interval: params[:repeat_interval],
+          repeat_days:     params.key?(:repeat_days) ? Array(params[:repeat_days]) : nil,
+          repeat_until:    params[:repeat_until],
           invite_friends:  params[:invite_friends],
           idempotency_key: request.headers["Idempotency-Key"].presence || params[:idempotency_key],
           destinations:    params.key?(:destinations) ? Array(params[:destinations]) : nil
@@ -68,11 +71,12 @@ module Api
 
       # PATCH /api/friends/meetings/:id
       #
-      # Changes the whole series. Only the owner can do it.
+      # Changes the whole series, the repeat options too. Only the owner can do
+      # it.
       def update
         authorize @meeting, :update?
 
-        FriendMeetings::Updater.call(meeting: @meeting, changes: params.permit(*FriendMeetings::Updater::FIELDS).to_h)
+        FriendMeetings::Updater.call(meeting: @meeting, changes: params.permit(*FriendMeetings::Updater::PERMITTED).to_h)
         render json: { meeting: serialize(@meeting.reload) }
       rescue FriendMeetings::Creator::Error => e
         render_error e.message, status: :unprocessable_content

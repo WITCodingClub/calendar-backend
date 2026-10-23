@@ -12,6 +12,8 @@ module McpTools
       GetSection,
       SearchCourses,
       GetCourse,
+      ListPrograms,
+      GetDegreeRequirements,
       SimilarSections,
       CheckSchedule,
       SearchInstructors,
@@ -33,6 +35,9 @@ module McpTools
       SetNotifications
     ]
   end
+
+  # The MCP App templates (ui:// resources) that tools name in their _meta.
+  def self.app_resources = [ WeekGridApp ]
 
   def self.names = all.map(&:name_value)
 

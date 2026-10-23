@@ -93,6 +93,63 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(server_info["name"]).to eq(McpTools::Server::NAME)
     expect(server_info["description"]).to eq(McpTools::Server::DESCRIPTION)
     expect(server_info["icons"]).to eq([ { "src" => "http://example.com/icon.png", "mimeType" => "image/png", "sizes" => [ "180x180" ] } ])
+    expect(response.parsed_body.dig("result", "instructions")).to include("program director", "academic advisor")
+  end
+
+  describe "the MCP Apps extension" do
+    let(:uri) { McpTools::WeekGridApp::URI_VALUE }
+
+    it "declares the extension at initialize" do
+      rpc "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "spec", version: "1" } }
+
+      expect(response.parsed_body.dig("result", "capabilities", "extensions", MCP::Apps::EXTENSION_ID))
+        .to eq("mimeTypes" => [ MCP::Apps::RESOURCE_MIME_TYPE ])
+    end
+
+    it "links check_schedule and my_courses to the week grid in tools/list" do
+      rpc "tools/list"
+
+      tools = response.parsed_body.dig("result", "tools").index_by { |tool| tool["name"] }
+      expect(tools.dig("check_schedule", "_meta", "ui", "resourceUri")).to eq(uri)
+      expect(tools.dig("my_courses", "_meta", "ui", "resourceUri")).to eq(uri)
+      expect(tools.dig("list_terms", "_meta")).to be_nil
+    end
+
+    it "lists the week grid in resources/list" do
+      rpc "resources/list"
+
+      expect(response.parsed_body.dig("result", "resources")).to contain_exactly(
+        include("uri" => uri, "name" => "week_grid", "mimeType" => MCP::Apps::RESOURCE_MIME_TYPE)
+      )
+    end
+
+    it "returns the template in resources/read" do
+      rpc "resources/read", { uri: uri }
+
+      contents = response.parsed_body.dig("result", "contents")
+      expect(contents.size).to eq(1)
+      expect(contents.first).to include("uri" => uri, "mimeType" => MCP::Apps::RESOURCE_MIME_TYPE)
+      expect(contents.first["text"]).to start_with("<!DOCTYPE html>")
+      expect(contents.first.dig("_meta", "ui")).to eq("prefersBorder" => true)
+    end
+
+    it "answers resources/read for an unknown URI with an error" do
+      rpc "resources/read", { uri: "ui://wit-calendar/nothing" }
+
+      expect(response.parsed_body.dig("error", "code")).to eq(-32602)
+    end
+
+    it "gives a client without the extension the same text and structured result" do
+      term = create(:term)
+      create(:course, term: term, crn: 20397)
+
+      rpc "tools/call", { name: "check_schedule", arguments: { term_uid: term.uid, crns: [ 20397 ] } }
+
+      result = response.parsed_body["result"]
+      expect(result["isError"]).to be(false)
+      expect(result.dig("structuredContent", "sections").pluck("crn")).to eq([ 20397 ])
+      expect(JSON.parse(result.dig("content", 0, "text"))).to eq(result["structuredContent"])
+    end
   end
 
   it "marks the read tools read-only and the write tools not destructive" do
@@ -104,6 +161,18 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(read_tools.map { |tool| tools.dig(tool.name_value, "annotations", "readOnlyHint") }).to all(be(true))
     expect(write_tools.map { |tool| tools.dig(tool.name_value, "annotations", "readOnlyHint") }).to all(be(false))
     expect(write_tools.map { |tool| tools.dig(tool.name_value, "annotations", "destructiveHint") }).to all(be(false))
+  end
+
+  it "gives each tool an outputSchema, with the advisory for an academic planning tool" do
+    rpc "tools/list"
+
+    tools = response.parsed_body.dig("result", "tools").index_by { |tool| tool["name"] }
+    expect(McpTools.names.map { |name| tools.dig(name, "outputSchema", "type") }).to all(eq("object"))
+    expect(tools.dig("list_terms", "outputSchema", "$schema")).to eq("https://json-schema.org/draft/2020-12/schema")
+    expect(tools.dig("list_terms", "outputSchema", "required")).to eq(%w[current_term_uid next_term_uid terms])
+    expect(tools.dig("get_section", "outputSchema", "required")).to include("crn", "advisory")
+    expect(tools.dig("get_section", "outputSchema", "properties", "advisory", "properties").keys).to eq(%w[message data_sources])
+    expect(tools.dig("list_friends", "outputSchema", "properties")).not_to have_key("advisory")
   end
 
   it "lists every tool to a token with any scope, and names the permission a write tool needs" do
@@ -169,7 +238,9 @@ RSpec.describe "Api::Mcp", type: :request do
       .to change { tool_calls("my_courses", "ok") }.by(1)
 
     expect(response).to have_http_status(:ok)
-    expect(response.parsed_body.dig("result", "structuredContent")).to eq("term_uid" => term.uid, "courses" => [])
+    content = response.parsed_body.dig("result", "structuredContent")
+    expect(content.except("advisory")).to eq("term_uid" => term.uid, "term_name" => term.name, "courses" => [])
+    expect(content.dig("advisory", "message")).to eq(McpTools::BaseTool::ADVISORY)
   end
 
   it "returns a tool error for a bad argument and counts it" do
@@ -197,5 +268,157 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(reports.first.handled).to be(true)
     expect(reports.first.context).to include(user_id: user.id, oauth_application_id: token.application_id)
     expect(response.body).not_to include("database is down")
+  end
+
+  describe "prompts" do
+    it "declares prompts and completions in initialize" do
+      rpc "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "spec", version: "1" } }
+
+      capabilities = response.parsed_body.dig("result", "capabilities")
+      expect(capabilities).to include("prompts", "completions", "tools")
+    end
+
+    it "lists every prompt with its arguments" do
+      rpc "prompts/list"
+
+      prompts = response.parsed_body.dig("result", "prompts").index_by { |prompt| prompt["name"] }
+      expect(prompts.keys).to eq(McpTools::Prompts.names)
+      expect(prompts.dig("plan_term_schedule", "arguments").pluck("name")).to eq(%w[term courses preferences])
+      expect(prompts.dig("plan_term_schedule", "arguments").pluck("required")).to all(be(false))
+    end
+
+    it "gets a prompt with no arguments" do
+      rpc "prompts/get", { name: "check_my_schedule" }
+
+      expect(response).to have_http_status(:ok)
+      message = response.parsed_body.dig("result", "messages", 0)
+      expect(message["role"]).to eq("user")
+      expect(message.dig("content", "text")).to include("my_courses", "program director", "academic advisor")
+    end
+
+    it "gets a prompt with arguments" do
+      term = create(:term, year: 2031, season: :spring)
+
+      rpc "prompts/get", { name: "plan_term_schedule", arguments: { term: term.uid.to_s, courses: "COMP 2350" } }
+
+      text = response.parsed_body.dig("result", "messages", 0, "content", "text")
+      expect(text).to include("Term: Spring 2031 (term_uid #{term.uid}).", "Courses I want: COMP 2350.")
+      expect(response.parsed_body["result"]).not_to include("ttlMs", "cacheScope")
+    end
+
+    it "answers invalid params for an unknown prompt" do
+      rpc "prompts/get", { name: "drop_tables" }
+
+      expect(response.parsed_body.dig("error", "code")).to eq(-32_602)
+    end
+
+    it "answers invalid params, with no error report, for arguments that are not an object of text" do
+      [ "COMP 2350", [ "COMP 2350" ], { courses: [ "COMP 2350" ] } ].each do |arguments|
+        reports = capture_error_reports { rpc "prompts/get", { name: "plan_term_schedule", arguments: arguments } }
+
+        expect(response.parsed_body.dig("error", "code")).to eq(-32_602)
+        expect(reports).to be_empty
+      end
+    end
+  end
+
+  describe "completion/complete" do
+    def complete(prompt, argument, value)
+      rpc "completion/complete", { ref: { type: "ref/prompt", name: prompt }, argument: { name: argument, value: value } }
+      response.parsed_body.dig("result", "completion")
+    end
+
+    it "completes a course code" do
+      create(:catalog_course, subject_code: "COMP", course_number: 2350)
+
+      expect(complete("plan_term_schedule", "courses", "comp 2")).to eq("values" => [ "COMP 2350" ], "hasMore" => false)
+    end
+
+    it "completes a term uid" do
+      term = create(:term)
+
+      expect(complete("check_my_schedule", "term", term.uid.to_s)["values"]).to eq([ term.uid.to_s ])
+    end
+
+    it "gives no values for an argument with no completions" do
+      expect(complete("plan_degree_progression", "program", "BS")).to eq("values" => [], "hasMore" => false)
+    end
+
+    it "completes a subject in the term the client sends as context" do
+      term = create(:term, year: 2031, season: :spring)
+      create(:course, term: term, subject: "Computer Science (COMP)")
+      create(:course, subject: "Communication (COMM)")
+
+      rpc "completion/complete", { ref: { type: "ref/prompt", name: "find_class_for_free_time" },
+                                   argument: { name: "subject", value: "co" },
+                                   context: { arguments: { term: "Spring 2031" } } }
+
+      expect(response.parsed_body.dig("result", "completion")).to eq("values" => [ "COMP" ], "hasMore" => false)
+    end
+
+    it "answers a malformed context with values and no error report" do
+      create(:course, subject: "Computer Science (COMP)")
+      allow(Term).to receive(:current).and_return(nil)
+
+      [ "text", [ 1 ], { arguments: "text" }, { arguments: [ 1 ] } ].each do |context|
+        reports = capture_error_reports do
+          rpc "completion/complete", { ref: { type: "ref/prompt", name: "find_class_for_free_time" },
+                                       argument: { name: "subject", value: "co" }, context: context }
+        end
+
+        expect(response.parsed_body.dig("result", "completion", "values")).to eq([ "COMP" ])
+        expect(reports).to be_empty
+      end
+    end
+  end
+
+  describe "cache hints" do
+    let(:hints) { { "ttlMs" => 300_000, "cacheScope" => "public" } }
+
+    it "marks tools/list, prompts/list, resources/list, and resources/read public for 5 minutes" do
+      [ [ "tools/list", {} ], [ "prompts/list", {} ], [ "resources/list", {} ],
+        [ "resources/read", { uri: McpTools::WeekGridApp::URI_VALUE } ] ].each do |method, params|
+        rpc method, params
+
+        expect(response.parsed_body["result"]).to include(hints)
+      end
+    end
+
+    it "adds no hints to prompts/get or completion/complete" do
+      rpc "prompts/get", { name: "check_my_schedule" }
+      expect(response.parsed_body["result"]).not_to include("ttlMs", "cacheScope")
+
+      rpc "completion/complete", { ref: { type: "ref/prompt", name: "check_my_schedule" }, argument: { name: "term", value: "" } }
+      expect(response.parsed_body["result"]).not_to include("ttlMs", "cacheScope")
+    end
+
+    it "gives the same tools/list to tokens of different students and scopes" do
+      rpc "tools/list"
+      first = response.parsed_body["result"]
+
+      other = create(:oauth_access_token, resource_owner_id: create(:user).id, scopes: "catalog")
+      rpc "tools/list", with: headers.merge("Authorization" => "Bearer #{other.plaintext_token}")
+
+      expect(response.parsed_body["result"]).to eq(first)
+    end
+
+    it "adds no hints to a tool call" do
+      rpc "tools/call", { name: "list_terms", arguments: {} }
+
+      expect(response.parsed_body["result"]).not_to include("ttlMs", "cacheScope")
+    end
+
+    it "still lists the tools and prompts, with the hints, on an older protocol version" do
+      older = headers.merge("MCP-Protocol-Version" => "2025-03-26")
+
+      rpc "tools/list", with: older
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.dig("result", "tools").pluck("name")).to match_array(McpTools.names)
+
+      rpc "prompts/list", with: older
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["result"]).to include(hints)
+      expect(response.parsed_body.dig("result", "prompts").pluck("name")).to eq(McpTools::Prompts.names)
+    end
   end
 end

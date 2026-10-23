@@ -107,6 +107,9 @@ class User < ApplicationRecord
   has_many :calendar_preferences, dependent: :destroy
   has_many :event_preferences, dependent: :destroy
   has_one :user_extension_config, dependent: :destroy
+  has_one :academic_profile, dependent: :delete
+  has_many :student_programs, dependent: :delete_all
+  has_many :course_outcomes, dependent: :delete_all
   has_many :security_events, dependent: :destroy
   has_many :passkeys, dependent: :destroy
   has_many :user_sessions, dependent: :destroy
@@ -163,6 +166,13 @@ class User < ApplicationRecord
   # checks the same enrollments for one term.
   def processed_courses?
     enrollments.exists?
+  end
+
+  # True when the dashboard pages open for this user. The others go to the
+  # onboarding page first (Dashboard::ApplicationController, #644). Admins
+  # skip it.
+  def onboarding_complete?
+    admin_access? || processed_courses?
   end
 
   def super_admin_access?

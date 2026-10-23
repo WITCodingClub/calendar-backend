@@ -60,6 +60,14 @@ RSpec.describe MeetingLinks::Slots do
     expect(starts_on(thursday).first).to eq("09:00")
   end
 
+  it "leaves out a daily friend meeting of the owner on each day it repeats" do
+    create(:friend_meeting, :weekly, user: owner, frequency: "daily", start_time: zone.local(2026, 10, 1, 8),
+                                     end_time: zone.local(2026, 10, 1, 9), repeat_until: Date.new(2026, 12, 1))
+
+    expect(starts_on(thursday).first).to eq("09:00")
+    expect(starts_on(thursday + 1).first).to eq("09:00")
+  end
+
   it "with a signed-in guest, offers only the times when both people are free" do
     guest = create(:user)
     enroll(guest, day_of_week: :thursday, begin_time: 800, end_time: 1150)

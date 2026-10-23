@@ -1,0 +1,11 @@
+                                                                                                                      SPRING 2025
+                                                                                                                    FINALS SCHEDULE
+                                                                                                                * INDICATES UPDATED AS OF 03/19/2025
+               COURSE
+   UPDATED                SECTION NUMBER   COURSE TITLE                 CRN                           MULTI-SECTION CRNS                            INSTRUCTOR                 FINAL DAY                  FINAL TIME       FINAL LOCATION
+               NUMBER
+           * ZQXA1500   01A              SAMPLE STUDIO                10031   10031-10032                                 Doe, Jane                          Friday, April 4, 2025      1:00PM-5:00PM     SEE FACULTY
+           * ZQXA1500   03B              SAMPLE STUDIO                10032   10031-10032                                 Roe, Rick                          Friday, April 4, 2025      1:00PM-5:00PM     SEE FACULTY
+             ZQXD2100   01A              SAMPLE NETWORKS              10033   10033                                       Poe, Pat                           Tuesday, April 15, 2025    3:00PM-5:00PM     ZQXB 414A/B
+           * ZQXE1776   01A              SAMPLE CALCULUS              10034   -                                           Fox, Fay                           SEE FACULTY                Date Scheduled Spring 1 Term
+             ZQXD2150   01A              SAMPLE ADMIN                 10035                                               Ash, Ari                           Friday, April 11, 2025     8:00AM-10:00AM    ZQXB 002/004

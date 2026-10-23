@@ -36,6 +36,12 @@ RSpec.describe "GET /calendar/:calendar_token friend meetings", type: :request d
     expect(event.attendee).to be_empty
   end
 
+  it "shows a monthly meeting with its monthly rule" do
+    meeting_with_friend(frequency: "monthly", repeat_interval: 2, term: create(:term), repeat_until: Date.new(2027, 5, 1))
+
+    expect(feed_events.sole.rrule.first).to have_attributes(frequency: "MONTHLY", interval: 2, by_day: [ "2TU" ], until: "20270502T035959Z")
+  end
+
   it "stamps a meeting with its last change, so an unchanged feed is the same on each request" do
     meeting = meeting_with_friend
     meeting.update_columns(updated_at: zone.local(2026, 10, 2, 9, 30)) # rubocop:disable Rails/SkipsModelValidations

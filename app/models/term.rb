@@ -9,8 +9,10 @@
 #  catalog_imported      :boolean          default(FALSE), not null
 #  catalog_imported_at   :datetime
 #  catalog_importing     :boolean          default(FALSE), not null
+#  details_synced_at     :datetime
 #  end_date              :date
 #  season                :integer          not null
+#  sections_synced_at    :datetime
 #  start_date            :date
 #  uid                   :integer          not null
 #  year                  :integer          not null
@@ -179,6 +181,17 @@ class Term < ApplicationRecord
 
   def current_or_future?
     !past?
+  end
+
+  # True when the term has final exams and a finals schedule upload finished.
+  # The parser saves one exam at a time, so during the first import (or after
+  # a failed one) the term has only some of its exams. Terms from the old
+  # backend have exams and no FinalsSchedule.
+  def finals_published?
+    return false unless final_exams.exists?
+
+    schedules = FinalsSchedule.for_term(self)
+    !schedules.exists? || schedules.completed.exists?
   end
 
   # Term.current keeps its id in Rails.cache under a key for the date, and

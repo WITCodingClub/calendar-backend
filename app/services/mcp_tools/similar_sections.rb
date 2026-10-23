@@ -8,6 +8,7 @@ module McpTools
     description "Lists sections that teach something close to one section. The list is empty until the " \
                 "section has a vector, which a nightly job writes."
     requires_scope "catalog"
+    academic_planning :sections
     input_schema(
       properties: {
         crn:      { type: "integer", description: "The section CRN." },
@@ -16,6 +17,7 @@ module McpTools
       },
       required: [ "crn" ]
     )
+    output_schema(Schemas.object(crn: Schemas::INTEGER, sections: Schemas.array(Schemas::SECTION)))
 
     def perform(crn:, term_uid: nil, limit: nil)
       course = find_section(crn, term_uid)

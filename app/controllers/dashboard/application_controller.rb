@@ -22,7 +22,7 @@ module Dashboard
     end
 
     def onboarding_complete?
-      current_user.admin_access? || current_user.processed_courses?
+      current_user.onboarding_complete?
     end
 
     # Where to go after a user answers a friend request. The friends page is

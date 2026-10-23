@@ -14,6 +14,7 @@ module McpTools
                 "Set semantic to true to rank q by meaning, for example q: \"intro to machine learning\". " \
                 "Without term_uid it searches the current term."
     requires_scope "catalog"
+    academic_planning :sections
     input_schema(
       properties: {
         term_uid:          TERM_SCHEMA,
@@ -34,6 +35,13 @@ module McpTools
         page:              PAGE_SCHEMA,
         per_page:          { type: "integer", minimum: 1, maximum: MAX_PER_PAGE, description: "Default #{DEFAULT_PER_PAGE}." }
       }
+    )
+    output_schema(
+      Schemas.object(
+        term_uid: Schemas::INTEGER,
+        sections: Schemas.array(Schemas::SECTION),
+        meta:     Schemas::PAGE_META
+      )
     )
 
     def perform(term_uid: nil, page: nil, per_page: nil, **filters)

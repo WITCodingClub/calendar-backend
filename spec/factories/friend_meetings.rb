@@ -13,6 +13,8 @@
 #  idempotency_key :string
 #  invite_friends  :boolean          default(FALSE), not null
 #  location        :string
+#  repeat_days     :string           default([]), not null, is an Array
+#  repeat_interval :integer          default(1), not null
 #  repeat_until    :date
 #  start_time      :datetime         not null
 #  title           :string           not null

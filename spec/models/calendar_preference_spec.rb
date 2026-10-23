@@ -151,6 +151,17 @@ RSpec.describe CalendarPreference, type: :model do
       expect(other.reload.color_id).to eq("#d50000")
     end
 
+    it "leaves category colors alone when a save does not set the color" do
+      preference = create(:calendar_preference, :uni_cal_global, user: user, color_id: "#1a2b3c")
+      # The row is cleared on the create above, so put the stale color back.
+      holiday.update_column(:color_id, "#d50000") # rubocop:disable Rails/SkipsModelValidations
+
+      preference.update!(visibility: "private")
+      CalendarPreference.find(preference.id).update!(title_template: "{{summary}}")
+
+      expect(holiday.reload.color_id).to eq("#d50000")
+    end
+
     it "leaves category colors alone when the row has no color" do
       create(:calendar_preference, :uni_cal_global, user: user, reminder_settings: [])
 

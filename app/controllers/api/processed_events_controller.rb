@@ -35,7 +35,7 @@ module Api
                     ])
 
       preference_resolver = Preferences::Resolver.new(current_user)
-      template_renderer   = Preferences::TemplateRenderer.new
+      template_renderer   = Preferences::TemplateRenderer.new(user_id: current_user.id)
 
       structured_data = enrollments.map do |enrollment|
         EnrolledCourseSerializer.new(

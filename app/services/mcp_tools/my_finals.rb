@@ -7,14 +7,26 @@ module McpTools
     title "My final exams"
     description "Lists the final exams for my courses in one term: date, time, and room."
     requires_scope "schedule:read"
+    academic_planning :finals
     input_schema(properties: { term_uid: TERM_SCHEMA })
+    output_schema(
+      Schemas.object(
+        term_uid:           Schemas::INTEGER,
+        schedule_published: Schemas::BOOLEAN,
+        finals:             Schemas.array(Schemas::FINAL_EXAM)
+      )
+    )
 
     def perform(term_uid: nil)
       authorize user, :show?
       term = find_term(term_uid)
 
       exams = Courses::FinalExamsQuery.new(user, term).call
-      { term_uid: term.uid, finals: exams.map { |exam| EnrolledFinalExamSerializer.new(exam).as_json } }
+      {
+        term_uid:           term.uid,
+        schedule_published: term.finals_published?,
+        finals:             EnrolledFinalExamSerializer.render_collection(exams)
+      }
     end
   end
 end

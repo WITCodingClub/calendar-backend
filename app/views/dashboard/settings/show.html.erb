@@ -45,7 +45,8 @@
   <% end %>
 
   <% if @connected_apps.any? %>
-    <%= render "shared/section_card", title: "Connected apps", description: "These apps can use your WIT Calendar data through the MCP server." do %>
+    <%# MCP tool errors link to this card (McpTools::PageLinks::CONNECTED_APPS_ANCHOR). %>
+    <%= render "shared/section_card", title: "Connected apps", description: "These apps can use your WIT Calendar data through the MCP server.", id: McpTools::PageLinks::CONNECTED_APPS_ANCHOR do %>
       <div class="divide-y divide-outline-variant">
         <% @connected_apps.each do |app| %>
           <% scopes = McpTools::Scopes::ALL.select { |scope| @connected_app_scopes[app.id].include?(scope.name) } %>

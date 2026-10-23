@@ -9,7 +9,7 @@ module Courses
       @user = user
       @term = term
       @preference_resolver = Preferences::Resolver.new(user)
-      @template_renderer = Preferences::TemplateRenderer.new
+      @template_renderer = Preferences::TemplateRenderer.new(user_id: user.id)
     end
 
     def build
@@ -48,6 +48,7 @@ module Courses
 
       {
         title: titleize_with_roman_numerals(course.title),
+        crn: course.crn,
         course_number: course.course_number,
         schedule_type: course.schedule_type,
         prefix: course.prefix,

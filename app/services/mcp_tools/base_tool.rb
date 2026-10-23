@@ -11,7 +11,23 @@ module McpTools
   # McpTools::ToolError, which goes back to the client as a tool error with
   # the message. Any other error goes to the MCP server's exception reporter
   # (McpTools::Server).
+  #
+  # A tool whose answer a student can use to plan courses calls
+  # academic_planning. Its result then carries an advisory: ADVISORY, which
+  # tells the student to confirm the plan with their program director and
+  # advisor, and the refresh times of the sources the tool names
+  # (Catalog::Freshness).
+  #
+  # Each tool sets output_schema: the JSON Schema of the Hash that perform
+  # returns. The shared parts are in McpTools::Schemas. academic_planning adds
+  # ADVISORY_SCHEMA to it, so a tool's own schema leaves the advisory out.
+  #
+  # A tool can call links with a block that takes the result and returns
+  # page_link Hashes (McpTools::PageLinks). Each one goes in the content after
+  # the JSON text, as a resource_link to a WIT Calendar page. The structured
+  # content does not change.
   class BaseTool < MCP::Tool
+    include PageLinks
     READ_ONLY = {
       read_only_hint:   true,
       destructive_hint: false,
@@ -21,6 +37,33 @@ module McpTools
 
     # A date in a tool argument: YYYY-MM-DD.
     DATE_SCHEMA = { type: "string", format: "date", description: "A date in YYYY-MM-DD format." }.freeze
+    ADVISORY = "WIT Calendar is not an official Wentworth service. It copies this data from official Wentworth " \
+               "sources on a schedule, so the data can be out of date. data_sources gives each source, how often " \
+               "WIT Calendar refreshes it, and when it last did. Tell the student to confirm any course plan with " \
+               "their program director and their academic advisor before they register, drop a course, or " \
+               "change their plan."
+
+    # The advisory key in the result of an academic planning tool. A term
+    # source (Catalog::Freshness::TERM_SOURCES) has terms, the other sources
+    # have last_refreshed_at.
+    ADVISORY_SCHEMA = Schemas.object(
+      message:      Schemas::STRING,
+      data_sources: Schemas.array(
+        Schemas.object(
+          {
+            data:              Schemas::STRING,
+            source:            Schemas::STRING,
+            schedule:          Schemas::STRING,
+            last_refreshed_at: Schemas.nullable(Schemas::DATE_TIME),
+            terms:             Schemas.array(
+              Schemas.object(term_uid: Schemas::INTEGER, term: Schemas::STRING, last_refreshed_at: Schemas.nullable(Schemas::DATE_TIME))
+            )
+          },
+          optional: %i[last_refreshed_at terms]
+        )
+      )
+    ).freeze
+
     PAGE_SCHEMA = { type: "integer", minimum: 1, description: "The page, from 1." }.freeze
     TERM_SCHEMA = {
       type:        "integer",
@@ -33,7 +76,37 @@ module McpTools
         subclass.annotations(READ_ONLY)
       end
 
-      attr_reader :required_scope
+      attr_reader :required_scope, :links_block
+
+      # The pages of a result: links { |result| [ page_link(...) ] }. The
+      # block runs on the tool instance, so it can read user.
+      def links(&block)
+        @links_block = block
+      end
+
+      # The result of this tool carries ADVISORY and the refresh times of
+      # its sources (keys of Catalog::Freshness::SOURCES).
+      def academic_planning(*sources)
+        unknown = sources - Catalog::Freshness::SOURCES.keys
+        raise ArgumentError, "unknown data source #{unknown.join(', ')}" if unknown.any?
+
+        @data_sources = sources
+        apply_output_schema
+      end
+
+      attr_reader :data_sources
+
+      def academic_planning? = !@data_sources.nil?
+
+      # The JSON Schema of the result (the MCP outputSchema). The schema of an
+      # academic planning tool also gets the advisory, whichever of the two
+      # calls comes first.
+      def output_schema(value = nil)
+        return super() if value.nil?
+
+        @own_output_schema = value
+        apply_output_schema
+      end
 
       # The scope a token needs to call this tool (McpTools::Scopes).
       def requires_scope(name)
@@ -46,12 +119,19 @@ module McpTools
       def call(server_context:, **arguments)
         unless Array(server_context[:scopes]).include?(required_scope)
           Yabeda.calendar.mcp_scope_denials_total.increment({ scope: required_scope.to_s, mode: "tool_error" })
-          return error_response(missing_scope_message)
+          links = PageLinks.supported?(server_context) ? [ PageLinks.connected_apps_link ] : []
+          return error_response(missing_scope_message, links: links)
         end
 
-        data = new(server_context[:user], request: server_context[:request]).perform(**arguments)
+        tool = new(server_context[:user], request: server_context[:request], server_context: server_context)
+        data = tool.perform(**arguments)
+        # A write tool asks the student to confirm first (McpTools::Confirmation).
+        return data if data.is_a?(MCP::Server::InputRequiredResult)
 
-        MCP::Tool::Response.new([ { type: "text", text: data.to_json } ], structured_content: data)
+        data = data.merge(advisory: advisory) if academic_planning?
+        links = PageLinks.supported?(server_context) ? tool.page_links(data) : []
+
+        MCP::Tool::Response.new([ { type: "text", text: data.to_json }, *links ], structured_content: data)
       rescue ToolError, ActiveRecord::RecordNotFound => e
         # The message is for the person who asked: a term that does not exist,
         # a friend who does not share. These are answers, not faults, so they
@@ -65,22 +145,53 @@ module McpTools
 
       private
 
+      def apply_output_schema
+        return if @own_output_schema.nil?
+
+        schema = @own_output_schema
+        if academic_planning?
+          schema = schema.merge(
+            properties: schema.fetch(:properties, {}).merge(advisory: ADVISORY_SCHEMA),
+            required:   [ *schema[:required], "advisory" ]
+          )
+        end
+        @output_schema_value = MCP::Tool::OutputSchema.new(schema)
+      end
+
+      def advisory
+        { message: ADVISORY, data_sources: Catalog::Freshness.call(data_sources) }
+      end
+
       def missing_scope_message
         label = Scopes.label(required_scope)
         "This needs the \"#{label}\" permission, which this app does not have. To add it, disconnect " \
-          "WIT Calendar in this app's connector settings, connect again, and check \"#{label}\"."
+          "WIT Calendar in this app's connector settings, connect again, and check \"#{label}\". " \
+          "Settings in WIT Calendar shows the permissions that this app has."
       end
 
-      def error_response(message)
-        MCP::Tool::Response.new([ { type: "text", text: message } ], error: true)
+      def error_response(message, links: [])
+        MCP::Tool::Response.new([ { type: "text", text: message }, *links ], error: true)
       end
     end
 
-    attr_reader :user, :request
+    attr_reader :user, :request, :server_context
 
-    def initialize(user, request: nil)
-      @user    = user
-      @request = request
+    # server_context: the MCP::ServerContext of the call, or a Hash in specs.
+    def initialize(user, request: nil, server_context: nil)
+      @user           = user
+      @request        = request
+      @server_context = server_context
+    end
+
+    # The resource_link content items of a result, from the links block. A
+    # link is extra, so a fault in a links block is reported and the result
+    # goes out without links.
+    def page_links(data)
+      block = self.class.links_block
+      block ? Array(instance_exec(data, &block)).compact : []
+    rescue StandardError => e
+      Rails.error.report(e, handled: true, context: { user_id: user&.id })
+      []
     end
 
     private

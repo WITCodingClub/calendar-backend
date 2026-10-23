@@ -9,8 +9,10 @@
 #  catalog_imported      :boolean          default(FALSE), not null
 #  catalog_imported_at   :datetime
 #  catalog_importing     :boolean          default(FALSE), not null
+#  details_synced_at     :datetime
 #  end_date              :date
 #  season                :integer          not null
+#  sections_synced_at    :datetime
 #  start_date            :date
 #  uid                   :integer          not null
 #  year                  :integer          not null
@@ -197,6 +199,40 @@ RSpec.describe Term, type: :model do
 
     it "ignores dates that are not set" do
       expect(build(:term, year: 2031, season: :fall).implausible_date_fields).to be_empty
+    end
+  end
+
+  describe "#finals_published?" do
+    let(:term) { create(:term) }
+
+    it "is false without final exams" do
+      create(:finals_schedule, term: term, status: :completed)
+
+      expect(term.finals_published?).to be(false)
+    end
+
+    it "is true for exams with no upload, as the old backend imported them" do
+      create(:final_exam, term: term)
+
+      expect(term.finals_published?).to be(true)
+    end
+
+    it "is false while the first upload imports, and true once it completes" do
+      create(:final_exam, term: term)
+      schedule = create(:finals_schedule, term: term, status: :processing)
+
+      expect(term.finals_published?).to be(false)
+
+      schedule.update!(status: :completed)
+      expect(term.finals_published?).to be(true)
+    end
+
+    it "stays true while a new upload imports over a completed one" do
+      create(:final_exam, term: term)
+      create(:finals_schedule, term: term, status: :completed)
+      create(:finals_schedule, term: term, status: :processing)
+
+      expect(term.finals_published?).to be(true)
     end
   end
 end

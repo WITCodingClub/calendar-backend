@@ -161,6 +161,13 @@ RSpec.describe CourseCalendars::IcsFeed do
       expect(until_date).to eq(Date.new(2026, 12, 7))
     end
 
+    it "ignores an early final that few sections of the term hold when the course has none" do
+      create(:final_exam, term: term, exam_date: Date.new(2026, 11, 19))
+      create_list(:final_exam, 10, term: term, exam_date: Date.new(2026, 12, 10))
+
+      expect(until_date).to eq(Date.new(2026, 12, 9))
+    end
+
     it "ends before the finals period of the term when it comes first" do
       create(:final_exam, term: term, crn: course.crn, course: course, exam_date: Date.new(2026, 12, 14))
       create(:university_calendar_event, term: term, category: "finals", summary: "Final Exam Period",

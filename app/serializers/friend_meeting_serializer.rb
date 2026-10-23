@@ -13,6 +13,8 @@
 #  idempotency_key :string
 #  invite_friends  :boolean          default(FALSE), not null
 #  location        :string
+#  repeat_days     :string           default([]), not null, is an Array
+#  repeat_interval :integer          default(1), not null
 #  repeat_until    :date
 #  start_time      :datetime         not null
 #  title           :string           not null
@@ -49,25 +51,27 @@ class FriendMeetingSerializer
     owner = @meeting.owned_by?(@viewer)
 
     {
-      id:             @meeting.public_id,
-      title:          @meeting.title,
-      location:       @meeting.location,
-      start_time:     local(@meeting.start_time),
-      end_time:       local(@meeting.end_time),
-      time_zone:      FriendMeeting::LOCAL_TIME_ZONE,
-      frequency:      @meeting.frequency,
-      recurrence:     @meeting.recurrence&.first,
-      repeat_until:   @meeting.repeat_until&.iso8601,
-      invite_friends: @meeting.invite_friends,
-      role:           owner ? "owner" : "invitee",
-      can_edit:       owner,
-      can_delete:     owner,
-      can_leave:      !owner,
-      owner:          person(@meeting.user),
-      friends:        @meeting.attendees.map { |friend| person(friend) },
-      guest:          owner ? guest : nil,
-      destinations:   owner ? @meeting.destinations : [],
-      publications:   owner ? publications : []
+      id:              @meeting.public_id,
+      title:           @meeting.title,
+      location:        @meeting.location,
+      start_time:      local(@meeting.start_time),
+      end_time:        local(@meeting.end_time),
+      time_zone:       FriendMeeting::LOCAL_TIME_ZONE,
+      frequency:       @meeting.frequency,
+      recurrence:      @meeting.recurrence&.first,
+      repeat_interval: @meeting.repeat_interval,
+      repeat_days:     @meeting.weekdays,
+      repeat_until:    @meeting.repeat_until&.iso8601,
+      invite_friends:  @meeting.invite_friends,
+      role:            owner ? "owner" : "invitee",
+      can_edit:        owner,
+      can_delete:      owner,
+      can_leave:       !owner,
+      owner:           person(@meeting.user),
+      friends:         @meeting.attendees.map { |friend| person(friend) },
+      guest:           owner ? guest : nil,
+      destinations:    owner ? @meeting.destinations : [],
+      publications:    owner ? publications : []
     }
   end
 

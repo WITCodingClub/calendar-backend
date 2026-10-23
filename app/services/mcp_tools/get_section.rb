@@ -8,6 +8,7 @@ module McpTools
     description "Gets one course section by CRN: meeting times, rooms, instructors, seats, and the final exam. " \
                 "It also finds cancelled sections."
     requires_scope "catalog"
+    academic_planning :sections
     input_schema(
       properties: {
         crn:      { type: "integer", description: "The section CRN, for example 12345." },
@@ -15,6 +16,7 @@ module McpTools
       },
       required: [ "crn" ]
     )
+    output_schema(Schemas::SECTION)
 
     def perform(crn:, term_uid: nil)
       Catalog::SectionSerializer.new(find_section(crn, term_uid)).as_json

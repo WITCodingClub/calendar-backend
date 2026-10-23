@@ -35,7 +35,8 @@ class FinalExam < ApplicationRecord
 
   # "WENT 210" or "WENT 2A": a building abbreviation, then a room number that
   # can end in letters.
-  ROOM_PATTERN = /([A-Z]+)\s+(\d+[A-Z]*)/i
+  # A building code can start with digits ("525HA 114").
+  ROOM_PATTERN = /\b([A-Z0-9]*[A-Z])\s+(\d+[A-Z]*)/i
 
   belongs_to :term
   belongs_to :course, optional: true
@@ -48,6 +49,8 @@ class FinalExam < ApplicationRecord
   validates :crn, uniqueness: { scope: :term_id, message: "can only have one final exam per CRN per term" }
   validate :end_time_after_start_time
 
+  before_save :link_course, if: -> { course_id.nil? }
+
   serialize :combined_crns, coder: JSON
 
   delegate :title, :subject, :course_number, :section_number, :schedule_type,
@@ -57,6 +60,25 @@ class FinalExam < ApplicationRecord
   scope :linked,   -> { where.not(course_id: nil) }
   scope :for_crn,  ->(crn) { where(crn: crn) }
   scope :upcoming, -> { where(exam_date: Time.zone.today..) }
+
+  # A date counts as part of finals week when it holds at least this share of
+  # the term's exams.
+  FINALS_WEEK_MIN_SHARE = 0.1
+
+  # The first day of the term's finals week, or nil when the term has no exams.
+  # A course with no final stops its classes the day before.
+  #
+  # This is not the earliest exam date. A few sections hold their "final"
+  # weeks early: in Fall 2026, 8 Global Research Studio sections had one on
+  # Nov 19, and the classes of every course with no final stopped on Nov 18.
+  def self.finals_week_start(term_id)
+    counts = where(term_id: term_id).group(:exam_date).count
+    total  = counts.values.sum
+    return nil if total.zero?
+
+    busy_dates = counts.select { |_date, count| count >= total * FINALS_WEEK_MIN_SHARE }.keys
+    (busy_dates.presence || counts.keys).min
+  end
 
   def self.link_orphan_exams_to_courses(term:)
     linked_count = 0
@@ -146,41 +168,71 @@ class FinalExam < ApplicationRecord
     Time.zone.local(exam_date.year, exam_date.month, exam_date.day, end_time / 100, end_time % 100)
   end
 
-  def matched_rooms
-    return [] if location.blank?
+  # The rooms that each exam's location names, with the same queries for one
+  # exam or many.
+  # @return [Hash{FinalExam => Array<Room>}]
+  def self.matched_rooms_for(exams)
+    part_rooms_for(exams).transform_values(&:compact)
+  end
 
-    parts = location.split(" / ").filter_map do |loc|
-      next unless loc =~ ROOM_PATTERN
-
-      { abbrev: $1, room_key: Room.number_key($2) }
-    end
-    return [] if parts.empty?
+  # The room of each " / " part of each exam's location, or nil for a part
+  # with no known room.
+  # @return [Hash{FinalExam => Array<Room, nil>}]
+  def self.part_rooms_for(exams)
+    parts_by_exam = exams.index_with(&:location_parts)
+    parts = parts_by_exam.values.flatten.compact
+    return parts_by_exam if parts.empty?
 
     buildings_by_abbrev = Building.where(abbreviation: parts.pluck(:abbrev).uniq).index_by(&:abbreviation)
     rooms_by_key = Room.where(building_id: buildings_by_abbrev.values.map(&:id))
                        .includes(:building)
                        .index_by { |r| [ r.building_id, Room.number_key(r.number) ] }
 
-    parts.filter_map do |p|
-      building = buildings_by_abbrev[p[:abbrev]]
-      next unless building
+    parts_by_exam.transform_values do |exam_parts|
+      exam_parts.map do |p|
+        building = p && buildings_by_abbrev[p[:abbrev]]
+        next unless building
 
-      rooms_by_key[[ building.id, p[:room_key] ]]
+        rooms_by_key[[ building.id, p[:room_key] ]]
+      end
     end
   end
 
+  # Each " / " part of the location as a building abbreviation and a
+  # Room.number_key, or nil for a part that is not "ABBR 123".
+  def location_parts
+    return [] if location.blank?
+
+    location.split(" / ").map do |loc|
+      next unless loc =~ ROOM_PATTERN
+
+      { abbrev: $1, room_key: Room.number_key($2) }
+    end
+  end
+
+  def matched_rooms = self.class.matched_rooms_for([ self ])[self]
+
   def rooms_matched? = matched_rooms.any?
 
-  def location_with_names
+  # Names each part of the location that matches a room, and keeps the text of
+  # the other parts. Pass the rooms from part_rooms_for to skip the queries.
+  def location_with_names(part_rooms = self.class.part_rooms_for([ self ])[self])
     return location if location.blank?
 
-    rooms = matched_rooms
-    return location if rooms.empty?
-
-    rooms.map { |r| "#{r.building.name} #{r.formatted_number}" }.join(" / ")
+    location.split(" / ").each_with_index.map do |part, i|
+      room = part_rooms[i]
+      room ? "#{room.building.name} #{room.formatted_number}" : part
+    end.join(" / ")
   end
 
   private
+
+  # The finals parser looks up the course before it saves, so a course created
+  # between the two leaves the exam unlinked. The old-backend import can also
+  # save a nil course. Look it up again on every save with no course.
+  def link_course
+    self.course = Course.find_by(crn: crn, term_id: term_id)
+  end
 
   def format_time(time_int)
     return nil unless time_int

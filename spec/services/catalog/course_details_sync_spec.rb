@@ -62,6 +62,16 @@ RSpec.describe Catalog::CourseDetailsSync do
     expect(CoursePrerequisite.find_by(required_course_number: 2300).required_catalog_course).to eq(CatalogCourse.find_by_code("MATH 2300"))
   end
 
+  it "links the degree requirement rows when a seed adds their course" do
+    item = create(:program_plan_item, subject_code: "MATH", course_number: 2300)
+    year_course = create(:catalog_year_course, subject_code: "MATH", course_number: 2300)
+
+    described_class.seed(Course.where(id: create(:course, subject: "Mathematics (MATH)", course_number: 2300).id))
+
+    course = CatalogCourse.find_by_code("MATH 2300")
+    expect([ item.reload.catalog_course, year_course.reload.catalog_course ]).to eq([ course, course ])
+  end
+
   it "skips a course fetched for this term in the last week, and fetches it again after that" do
     stub_banner(20382)
     sync

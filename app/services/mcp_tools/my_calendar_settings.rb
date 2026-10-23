@@ -12,6 +12,26 @@ module McpTools
                 "tools take. A level that is not listed uses the defaults."
     requires_scope "settings:read"
     input_schema(properties: {})
+    output_schema(
+      Schemas.object(
+        levels:                       Schemas.array(
+          Schemas.object(Schemas::SETTINGS_PROPERTIES.merge(level: Schemas::STRING))
+        ),
+        classes:                      Schemas.array(
+          Schemas.object(
+            Schemas::SETTINGS_PROPERTIES.merge(meeting_time_id: Schemas::STRING, course: Schemas::STRING, term_uid: Schemas::INTEGER)
+          )
+        ),
+        notifications_disabled_until: Schemas.nullable(Schemas::DATE_TIME),
+        colors:                       {
+          type:                 "object",
+          description:          "Each color name, with its Google Calendar color id.",
+          additionalProperties: Schemas::STRING
+        },
+        template_variables:           Schemas::STRINGS
+      )
+    )
+    links { [ calendar_settings_link ] }
 
     def perform
       authorize user, :show?
