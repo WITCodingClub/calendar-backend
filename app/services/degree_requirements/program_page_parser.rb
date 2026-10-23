@@ -31,6 +31,9 @@ module DegreeRequirements
     LIST_START = /\A(?:and\s+)?(?:select|choose|take|complete)\b|following/i
     NAME_LIMIT = 80
     DESCRIPTION_LIMIT = 5_000
+    # Part of the digest. Raise it when a change to this parser should write
+    # every page again, also the pages that did not change.
+    VERSION = 1
 
     def initialize(html)
       @doc = Nokogiri::HTML(html)
@@ -65,7 +68,7 @@ module DegreeRequirements
       Page.new(name: squish((@doc.at_css("h1.page-title") || @doc.at_css("h1"))&.text), start_year: CatalogSource.page_start_year(@html),
                school_name: breadcrumb[0], department_name: breadcrumb[1], description: description,
                total_credits: total_credits(plans), plans: plans, groups: groups,
-               digest: Digest::SHA256.hexdigest(@content.to_html))
+               digest: Digest::SHA256.hexdigest("#{VERSION}:#{@content.to_html}"))
     end
 
     private

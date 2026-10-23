@@ -18,8 +18,17 @@ RSpec.describe "degree_requirements rake tasks" do
 
   it "queues the import of one catalog year" do
     expect { run_task("degree_requirements:import", "2024") }
-      .to have_enqueued_job(DegreeRequirements::ImportJob).with(2024)
-      .and output(/Queued the import of 2024-2025/).to_stdout
+      .to have_enqueued_job(DegreeRequirements::ImportJob).with(2024, force: false)
+      .and output(/Queued the import of 2024-2025\./).to_stdout
+  end
+
+  it "passes FORCE on to the job" do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("FORCE").and_return("1")
+
+    expect { run_task("degree_requirements:import", "2024") }
+      .to have_enqueued_job(DegreeRequirements::ImportJob).with(2024, force: true)
+      .and output(/with force/).to_stdout
   end
 
   it "queues every year from 2019 to this year" do

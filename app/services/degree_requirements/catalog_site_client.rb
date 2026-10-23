@@ -21,6 +21,7 @@ module DegreeRequirements
     # more than about 15 pages a minute.
     WAYBACK_HOST = "web.archive.org"
     WAYBACK_DELAY = 5
+    ALLOWED_HOSTS = [ URI(SITE_URL).host, WAYBACK_HOST ].freeze
 
     def initialize(delay: 0.5, wayback_delay: WAYBACK_DELAY)
       @pacer = RequestPacer.new(delay)
@@ -37,12 +38,14 @@ module DegreeRequirements
         return nil if response.status == 404
 
         if response.status.in?(300..399) && response.headers["location"].present?
-          url = URI.join(url, response.headers["location"]).to_s
+          url = redirect_target(url, response.headers["location"])
           next
         end
         raise FetchError, "GET #{url}: HTTP #{response.status}" unless response.success?
 
-        return response.body.to_s.dup.force_encoding(Encoding::UTF_8)
+        # A stray byte from another encoding would make every regex on the
+        # page raise, so it is replaced.
+        return response.body.to_s.dup.force_encoding(Encoding::UTF_8).scrub
       end
       raise FetchError, "GET #{url}: too many redirects"
     rescue Faraday::Error => e
@@ -50,6 +53,17 @@ module DegreeRequirements
     end
 
     private
+
+    # A redirect is followed only to the catalog site or the Wayback Machine,
+    # over HTTPS, so a bad redirect cannot send the server to another host.
+    def redirect_target(from, location)
+      target = URI.join(from, location)
+      unless target.scheme == "https" && target.host.in?(ALLOWED_HOSTS)
+        raise FetchError, "GET #{from}: redirect to #{target.host || location} is not allowed"
+      end
+
+      target.to_s
+    end
 
     def connection
       @connection ||= Faraday.new(request: { open_timeout: 10, timeout: 30 }) do |f|

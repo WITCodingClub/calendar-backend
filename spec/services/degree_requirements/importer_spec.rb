@@ -119,11 +119,55 @@ RSpec.describe DegreeRequirements::Importer do
     expect(RequirementSet.count).to eq(0)
   end
 
-  it "stops before writing when the index is much shorter than the last import" do
-    create_list(:requirement_set, 20, catalog_year: catalog_year)
+  it "keeps the status of an imported year when no source answers" do
+    catalog_year.update!(status: "imported", imported_at: 1.day.ago)
+    create(:requirement_set, catalog_year: catalog_year)
+    stub_request(:get, "#{base}/programs-az/").to_return(status: 200, body: "<p>Down for maintenance</p>")
+    stub_request(:get, "https://catalog.wit.edu/programs-az/").to_return(status: 200, body: plain_page("2026-2027"))
 
-    expect { import }.to raise_error(DegreeRequirements::ImportShrankError, /lists 8 programs, the last import had 20/)
-    expect(RequirementSet.count).to eq(20)
+    expect(import.status).to eq(:missing)
+    expect(catalog_year.reload.status).to eq("imported")
+  end
+
+  describe "a short index" do
+    before { catalog_year.update!(status: "imported", imported_at: 1.day.ago) }
+
+    it "stops before writing when the index is much shorter than the last import" do
+      create_list(:requirement_set, 20, catalog_year: catalog_year, last_seen_at: 1.day.ago)
+
+      expect { import }.to raise_error(DegreeRequirements::ImportShrankError, /lists 8 programs, the last import had 20/)
+      expect(RequirementSet.count).to eq(20)
+    end
+
+    it "counts only the programs the last import saw" do
+      create_list(:requirement_set, 20, catalog_year: catalog_year, last_seen_at: 1.year.ago)
+
+      expect(import.status).to eq(:imported)
+    end
+
+    it "imports anyway with force" do
+      create_list(:requirement_set, 20, catalog_year: catalog_year, last_seen_at: 1.day.ago)
+
+      expect(described_class.new(catalog_year, client: client, force: true).call.programs).to eq(8)
+    end
+  end
+
+  it "writes every page again when the parser version changes" do
+    import
+    stub_const("DegreeRequirements::ProgramPageParser::VERSION", DegreeRequirements::ProgramPageParser::VERSION + 1)
+
+    expect(described_class.new(catalog_year, client: client).call).to have_attributes(updated: 8, unchanged: 0)
+  end
+
+  it "lets only the newest catalog year set the parent of a concentration" do
+    concentration = create(:degree_program, slug: "widget-design-bs-gears-concentration", kind: "concentration")
+    newer_major = create(:degree_program, slug: "gears-bs")
+    concentration.update!(parent_program: newer_major)
+    create(:requirement_set, degree_program: concentration, catalog_year: create(:catalog_year, start_year: 2026))
+
+    import
+
+    expect(concentration.reload.parent_program).to eq(newer_major)
   end
 
   it "skips a page from another catalog year, such as an old Wayback capture" do

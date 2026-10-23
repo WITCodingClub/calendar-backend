@@ -33,6 +33,16 @@ RSpec.describe DegreeRequirements::CourseImporter do
     expect(CatalogYearCourse.find_by!(course_number: 1000)).to have_attributes(title: "WIDGETS I", description: nil)
   end
 
+  it "reports a course whose details fail, and imports the rest" do
+    stub_request(:post, details_url).with(body: hash_including("group" => "code:WDGT1000")).to_return(status: 500)
+    allow(Rails.error).to receive(:report)
+
+    expect(import).to eq(2)
+    expect(CatalogYearCourse.find_by!(course_number: 1000).title).to eq("WIDGETS I")
+    expect(Rails.error).to have_received(:report)
+      .with(an_instance_of(DegreeRequirements::FetchError), hash_including(handled: true, context: hash_including(code: "WDGT1000")))
+  end
+
   it "skips a code that is not a course code" do
     import
 

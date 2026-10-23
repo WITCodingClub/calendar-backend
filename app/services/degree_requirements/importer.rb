@@ -14,22 +14,28 @@ module DegreeRequirements
     # Below this many stored programs, a short index is not a warning sign.
     SHRINK_FLOOR = 10
 
-    def initialize(catalog_year, client: CatalogSiteClient.new)
+    # force: true skips the check for a short index, after a person confirms
+    # that the catalog really lists fewer programs.
+    def initialize(catalog_year, client: CatalogSiteClient.new, force: false)
       @catalog_year = catalog_year
       @client = client
+      @force = force
       @stats = Hash.new(0)
     end
 
     def call
       source = CatalogSource.locate(start_year, client: @client)
       if source.nil?
-        @catalog_year.update!(status: "missing")
+        # A year with stored data keeps its status: the site may be down for
+        # a moment, and the data is still good.
+        @catalog_year.update!(status: "missing") unless @catalog_year.requirement_sets.exists?
+        log("no source has this catalog year")
         return result(:missing, 0)
       end
 
       index = ProgramIndexParser.new(source.index_html, home_path: source.home_path)
       entries = index.entries.uniq(&:slug)
-      check_shrink!(entries.size)
+      check_shrink!(entries.size) unless @force
       log("left out #{index.unclassified.size} links with no program kind: #{index.unclassified.join(', ')}") if index.unclassified.any?
 
       @catalog_year.update!(source: source.catalog_year_source, base_url: source.base_url)
@@ -53,11 +59,16 @@ module DegreeRequirements
                  skipped: @stats[:skipped])
     end
 
+    # Compares with the programs the last import saw. Sets of programs that
+    # left the catalog earlier stay stored, so they do not count.
     def check_shrink!(count)
-      previous = @catalog_year.requirement_sets.count
+      sets = @catalog_year.requirement_sets
+      sets = sets.where(last_seen_at: (@catalog_year.imported_at - 1.day)..) if @catalog_year.imported_at
+      previous = sets.count
       return if previous < SHRINK_FLOOR || count >= previous / 2
 
-      raise ImportShrankError, "#{@catalog_year.name}: the index lists #{count} programs, the last import had #{previous}"
+      raise ImportShrankError, "#{@catalog_year.name}: the index lists #{count} programs, the last import had #{previous}. " \
+                               "If that is right, import again with force"
     end
 
     # The DegreeProgram for one index entry, or nil when its page is missing,
@@ -152,11 +163,13 @@ module DegreeRequirements
 
     # "Building Sciences, B.S. - Construction Management Concentration" belongs
     # to the "Building Sciences, B.S." of the same catalog year.
+    # The newest catalog year sets the parent, the same as the name.
     def link_parents(programs)
       by_name = programs.to_h { |entry, program| [ name_key(entry.name), program ] }
       programs.each do |entry, program|
         parent = entry.parent_name && by_name[name_key(entry.parent_name)]
         next if parent.nil? || parent == program || program.parent_program_id == parent.id
+        next if program.catalog_years.maximum(:start_year).to_i > start_year
 
         program.parent_program = parent
         log("#{program.slug}: #{program.errors.full_messages.to_sentence}") unless program.save

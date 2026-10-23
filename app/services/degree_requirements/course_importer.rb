@@ -34,13 +34,22 @@ module DegreeRequirements
       subject_code, course_number = CatalogCourse.parse_code(result["code"])
       return nil if subject_code.nil?
 
-      details = @client.details(@catalog_year.start_year, result["code"])
+      details = fetch_details(result["code"])
       parsed = CourseDescriptionParser.call(details&.dig("description"))
       { catalog_year_id: @catalog_year.id, subject_code: subject_code, course_number: course_number,
         title: CGI.unescapeHTML((details&.dig("title") || result["title"]).to_s).strip.presence,
         description: parsed.description, prerequisite_text: parsed.prerequisite_text,
         min_credits: parsed.min_credits, max_credits: parsed.max_credits,
         typically_offered: parsed.typically_offered }
+    end
+
+    # One course that fails keeps its title from the list, so the rest of the
+    # year still imports.
+    def fetch_details(code)
+      @client.details(@catalog_year.start_year, code)
+    rescue FetchError => e
+      Rails.error.report(e, handled: true, context: { catalog_year_id: @catalog_year.id, code: code })
+      nil
     end
   end
 end

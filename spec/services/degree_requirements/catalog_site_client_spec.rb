@@ -32,6 +32,21 @@ RSpec.describe DegreeRequirements::CatalogSiteClient do
     expect(client.get(url)).to eq("moved")
   end
 
+  it "refuses a redirect to another host or to plain HTTP" do
+    stub_request(:get, url).to_return(status: 302, headers: { "Location" => "http://169.254.169.254/latest/" })
+
+    expect { client.get(url) }.to raise_error(DegreeRequirements::FetchError, /not allowed/)
+  end
+
+  it "replaces bytes that are not UTF-8" do
+    stub_request(:get, url).to_return(status: 200, body: "it\x92s Boston, MA 2024-2025".b)
+
+    page = client.get(url)
+
+    expect(page).to be_valid_encoding
+    expect(DegreeRequirements::CatalogSource.page_start_year(page)).to eq(2024)
+  end
+
   it "stops after a few redirects" do
     stub_request(:get, url).to_return(status: 302, headers: { "Location" => url })
 
