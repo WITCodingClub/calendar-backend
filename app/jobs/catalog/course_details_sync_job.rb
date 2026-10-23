@@ -19,6 +19,8 @@ module Catalog
       return Rails.logger.warn("[Catalog::CourseDetailsSyncJob] No term #{term_uid}") if term.nil?
 
       result = Catalog::CourseDetailsSync.new(term).call
+      # The time of a full run, for the MCP advisory (Catalog::Freshness).
+      term.update_column(:details_synced_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
       Rails.logger.info "[Catalog::CourseDetailsSyncJob] #{term.name}: #{result.fetched} fetched, " \
                         "#{result.skipped} skipped, #{result.failed} failed"
     end

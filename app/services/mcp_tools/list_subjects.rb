@@ -9,6 +9,10 @@ module McpTools
                 "(for example COMP) and the section count."
     requires_scope "catalog"
     input_schema(properties: { term_uid: { type: "integer", description: "Only subjects with sections in this term." } })
+    # term_uid is there only when the call passed it.
+    output_schema(
+      Schemas.object({ term_uid: Schemas::INTEGER, subjects: Schemas.array(Schemas::SUBJECT) }, optional: %i[term_uid])
+    )
 
     def perform(term_uid: nil)
       { term_uid: term_uid, subjects: Catalog::SubjectQuery.new.call(term_uid: term_uid) }.compact

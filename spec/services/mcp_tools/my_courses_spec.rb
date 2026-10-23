@@ -18,6 +18,8 @@ RSpec.describe McpTools::MyCourses do
 
     courses = result.structured_content[:courses]
     expect(courses.pluck(:title)).to eq([ "Data Structures" ])
+    # check_my_schedule passes these CRNs to check_schedule.
+    expect(courses.first[:crn]).to eq(course.crn)
     expect(courses.first[:meeting_times].first).to include(begin_time: "09:00", monday: true)
     expect(courses.first[:meeting_times].first).not_to have_key(:calendar_config)
   end

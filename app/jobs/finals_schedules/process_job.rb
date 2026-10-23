@@ -28,7 +28,7 @@ module FinalsSchedules
       Rails.logger.info({
         message:  "FinalsSchedules::ProcessJob completed",
         term_uid: finals_schedule.term.uid,
-        result:   result
+        result:   result.except(:changes, :stale_crns)
       }.to_json)
     rescue => e
       finals_schedule.update!(

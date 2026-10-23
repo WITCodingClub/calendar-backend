@@ -17,6 +17,7 @@ class EnrolledCourseSerializer
 
     {
       title:          titleize_with_roman_numerals(course.title),
+      crn:            course.crn,
       subject:        course.prefix,
       course_number:  course.course_number,
       section_number: course.section_number,

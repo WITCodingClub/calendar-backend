@@ -10,6 +10,7 @@ module McpTools
     description "Lists Wentworth academic calendar events: holidays, term dates, registration, deadlines, " \
                 "study days, finals, and graduation. Without dates it lists upcoming events."
     requires_scope "catalog"
+    academic_planning :university_calendar
     input_schema(
       properties: {
         start_date: DATE_SCHEMA,
@@ -21,6 +22,7 @@ module McpTools
         limit:      { type: "integer", minimum: 1, maximum: MAX_LIMIT, description: "Most events to return. Default #{DEFAULT_LIMIT}." }
       }
     )
+    output_schema(Schemas.object(events: Schemas.array(Schemas::UNIVERSITY_EVENT)))
 
     def perform(start_date: nil, end_date: nil, categories: nil, limit: nil)
       authorize UniversityCalendarEvent, :index?

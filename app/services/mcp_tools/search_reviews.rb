@@ -21,6 +21,12 @@ module McpTools
         per_page:      { type: "integer", minimum: 1, maximum: MAX_PER_PAGE, description: "Default #{DEFAULT_PER_PAGE}." }
       }
     )
+    output_schema(
+      Schemas.object(
+        reviews: Schemas.array(Schemas::REVIEW),
+        meta:    Schemas.object(Schemas::PAGE_META[:properties].merge(source: Schemas::STRING))
+      )
+    )
 
     def perform(instructor_id: nil, q: nil, semantic: false, sentiment: nil, page: nil, per_page: nil)
       spend_semantic_search!(q, semantic)

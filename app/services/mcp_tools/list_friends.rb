@@ -7,6 +7,7 @@ module McpTools
     description "Lists my friends on WIT Calendar, with the id that friend_busy_times takes."
     requires_scope "friends:read"
     input_schema(properties: {})
+    output_schema(Schemas.object(friends: Schemas.array(Schemas::FRIEND)))
 
     def perform
       authorize :friendship, :index?

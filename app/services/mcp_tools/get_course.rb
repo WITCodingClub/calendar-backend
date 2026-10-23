@@ -10,6 +10,7 @@ module McpTools
                 "each course with its title), the corequisites, the enrollment restrictions, and the courses it unlocks. " \
                 "With term_uid it also lists the course's sections in that term."
     requires_scope "catalog"
+    academic_planning :course_details, :sections
     input_schema(
       properties: {
         code:     { type: "string", description: "The course code, for example COMP 2350 or COMP2350." },
@@ -17,6 +18,7 @@ module McpTools
       },
       required: [ "code" ]
     )
+    output_schema(Schemas::COURSE)
 
     def perform(code:, term_uid: nil)
       raise ToolError, "#{code} is not a course code. Use a subject code and number, for example COMP 2350." unless CatalogCourse.parse_code(code)

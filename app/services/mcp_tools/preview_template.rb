@@ -18,6 +18,7 @@ module McpTools
       },
       required: %w[template meeting_time_id]
     )
+    output_schema(Schemas.object(template: Schemas::STRING, rendered: Schemas::STRING))
 
     def perform(template:, meeting_time_id:)
       authorize user, :show?

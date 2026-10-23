@@ -15,6 +15,7 @@ module McpTools
                 "subjects, sections(filter:, first:, after:), section(crn:, termUid:), instructors, reviews. " \
                 "Prefer the other catalog tools for simple lookups."
     requires_scope "catalog"
+    academic_planning :sections, :course_details
     input_schema(
       properties: {
         query:          { type: "string", description: "The GraphQL query document." },
@@ -22,6 +23,17 @@ module McpTools
         operation_name: { type: "string", description: "The operation to run when the document has several." }
       },
       required: [ "query" ]
+    )
+    # A GraphQL response: data has the shape of the query, so it stays open.
+    output_schema(
+      Schemas.object(
+        {
+          data:       Schemas.nullable({ type: "object", additionalProperties: true }),
+          errors:     Schemas.array({ type: "object", properties: { message: Schemas::STRING }, additionalProperties: true }),
+          extensions: { type: "object", additionalProperties: true }
+        },
+        optional: %i[data errors extensions]
+      )
     )
 
     def perform(query:, variables: nil, operation_name: nil)

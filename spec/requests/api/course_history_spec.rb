@@ -23,5 +23,7 @@ RSpec.describe "GET /api/user/course_history", type: :request do
     body = response.parsed_body
     expect(body["terms"].pluck("uid")).to eq(terms.reverse.map(&:uid))
     expect(body["terms"].map { |term| term["courses"].length }).to eq([ 2, 2 ])
+    expect(body["terms"].flat_map { |term| term["courses"].pluck("crn") })
+      .to match_array(Course.where(term: terms).pluck(:crn))
   end
 end

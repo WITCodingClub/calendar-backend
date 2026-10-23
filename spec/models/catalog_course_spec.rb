@@ -38,6 +38,9 @@ RSpec.describe CatalogCourse do
   it { is_expected.to have_many(:prerequisite_courses).through(:course_prerequisites) }
   it { is_expected.to have_many(:required_by).class_name("CoursePrerequisite").with_foreign_key(:required_catalog_course_id).dependent(:nullify) }
   it { is_expected.to have_many(:unlocks).through(:required_by) }
+  it { is_expected.to have_many(:catalog_year_courses).dependent(:nullify) }
+  it { is_expected.to have_many(:program_plan_items).dependent(:nullify) }
+  it { is_expected.to have_many(:elective_group_courses).dependent(:nullify) }
   it { is_expected.to validate_presence_of(:subject_code) }
   it { is_expected.to validate_presence_of(:course_number) }
   it { is_expected.to validate_uniqueness_of(:course_number).scoped_to(:subject_code) }
