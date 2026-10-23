@@ -1,0 +1,9 @@
+                                                                      SUMMER 2024
+                                                                  FINAL EXAM SCHEDULE
+   COURSE WITH
+                            COURSE TITLE          CRNS    MULTI-SECTION CRNS            INSTRUCTOR            EXAM DATE                  EXAM TIME           EXAM ROOM
+     SECTION
+ZQXA3900-01      SAMPLE STRUCTURES                10021                         Doe, Jane                    TUESDAY, AUGUST 13, 2024   12:45PM - 2:45PM    ZQXB 306
+ZQXC4450-01A     SAMPLE PROSTHETICS               10022       10023-10022       Roe, Rick                    MONDAY, AUGUST 12, 2024    12:45PM - 2:45PM    ZQXB 201
+ZQXC4450-03B     SAMPLE PROSTHETICS               10023       10023-10022       Roe, Rick                    MONDAY, AUGUST 12, 2024    12:45PM - 2:45PM    ZQXB 201
+ZQXC5000-01      SAMPLE MISSING ROOM              10024                         Poe, Pat                     MONDAY, AUGUST 12, 2024    12:45PM - 2:45PM    #N/A

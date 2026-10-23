@@ -343,6 +343,13 @@ RSpec.describe FinalExam do
       expect(exam.matched_rooms).to eq([ padded ])
     end
 
+    it "matches a building code that starts with digits" do
+      numbered = create(:building, abbreviation: "525ZQ", name: "Numbered Hall")
+      numbered_room = create(:room, building: numbered, number: "114")
+
+      expect(build(:final_exam, location: "525ZQ 114").matched_rooms).to eq([ numbered_room ])
+    end
+
     it "keeps the raw location when no room matches" do
       exam = build(:final_exam, location: "NOPE 112")
 

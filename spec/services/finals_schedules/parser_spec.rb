@@ -9,7 +9,12 @@ RSpec.describe FinalsSchedules::Parser do
 
   def stub_pdftotext(text, success: true, stderr: "")
     allow(status).to receive(:success?).and_return(success)
-    allow(Open3).to receive(:capture3).with("pdftotext", anything, "-").and_return([ text, stderr, status ])
+    allow(Open3).to receive(:capture3).with("pdftotext", "-layout", anything, "-").and_return([ text, stderr, status ])
+  end
+
+  def row(crn, time, room = "")
+    format("%-15s%-33s%-8s%-31s%-30s%-21s%s", "ZQXA1000-01", "SAMPLE STUDIO", crn, "Doe, Jane",
+           "Monday, May 4, 2026", time, room).rstrip
   end
 
   describe "argument validation" do
@@ -51,15 +56,24 @@ RSpec.describe FinalsSchedules::Parser do
     before { stub_pdftotext(pdf_text) }
 
     it "creates exams, links courses, and counts orphans" do
-      course = create(:course, term: term, crn: 10_001)
+      course = create(:course, term: term, crn: 10_061)
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
-      expect(result).to include(total: 2, created: 2, updated: 0, linked: 1, orphan: 1, errors: [])
-      exam = FinalExam.find_by!(crn: 10_001, term: term)
+      expect(result).to include(total: 2, created: 2, updated: 0, linked: 1, orphan: 1, errors: [], stale_crns: [])
+      exam = FinalExam.find_by!(crn: 10_061, term: term)
       expect(exam).to have_attributes(
-        course: course, exam_date: Date.new(2026, 5, 4), start_time: 800, end_time: 1000,
-        location: "ZQXB 101", combined_crns: [ 10_001 ]
+        course: course, exam_date: Date.new(2026, 4, 10), start_time: 1015, end_time: 1215,
+        location: "ZQXB 205", combined_crns: [ 10_061 ]
+      )
+    end
+
+    it "lists each new exam in the changes" do
+      result = described_class.call(pdf_content: "%PDF", term: term)
+
+      expect(result[:changes]).to contain_exactly(
+        include(crn: 10_061, action: :create, changes: include("location" => [ nil, "ZQXB 205" ])),
+        include(crn: 10_062, action: :create)
       )
     end
 
@@ -67,59 +81,82 @@ RSpec.describe FinalsSchedules::Parser do
       result = described_class.call(pdf_content: "%PDF", term: term)
 
       expect(result[:rooms_created]).to eq(2)
-      expect(building.rooms.pluck(:number).map(&:to_i)).to contain_exactly(101, 102)
+      expect(building.rooms.pluck(:number).map(&:to_i)).to contain_exactly(205, 419)
       expect(described_class.call(pdf_content: "%PDF", term: term)[:rooms_created]).to eq(0)
     end
 
-    it "creates a lettered room with its letter" do
-      stub_pdftotext("CRN\n10001\nEXAM-DATE\nMonday, May 4, 2026\nEXAM-TIME-OF-DAY\n8:00 AM - 10:00 AM\n" \
-                     "EXAM-ROOM\nZQXB 402A\n")
+    it "creates each room of a room list, with its letter" do
+      stub_pdftotext(row("10001", "8:00 AM - 10:00 AM", "ZQXB 402A/B"))
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
-      expect(result[:rooms_created]).to eq(1)
-      expect(building.rooms.pluck(:number)).to eq([ "402A" ])
+      expect(result[:rooms_created]).to eq(2)
+      expect(building.rooms.pluck(:number)).to contain_exactly("402A", "402B")
     end
 
     it "does not create a room that the catalog stores with leading zeros" do
-      create(:room, building: building, number: "101")
-      create(:room, building: building, number: "0102")
+      create(:room, building: building, number: "205")
+      create(:room, building: building, number: "0419")
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
       expect(result[:rooms_created]).to eq(0)
-      expect(building.rooms.pluck(:number)).to contain_exactly("101", "0102")
+      expect(building.rooms.pluck(:number)).to contain_exactly("205", "0419")
     end
 
     it "returns the parser warnings with the errors" do
-      stub_pdftotext("CRN\n10001\nEXAM-DATE\nMonday, May 4, 2026\nEXAM-TIME-OF-DAY\nafter lunch\n")
+      stub_pdftotext(format("%-15s%-8s%s", "ZQXA1000-01", "10001", "after lunch"))
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
       expect(result[:total]).to eq(0)
-      expect(result[:errors]).to contain_exactly(a_string_including("page skipped"))
+      expect(result[:errors]).to contain_exactly(a_string_including("Row has no exam date and time"))
     end
 
-    it "updates existing exams on a second run" do
+    it "updates existing exams on a second run and lists only real changes" do
       described_class.call(pdf_content: "%PDF", term: term)
+      FinalExam.find_by!(crn: 10_062, term: term).update!(start_time: 800, end_time: 1000)
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
       expect(result).to include(created: 0, updated: 2)
+      expect(result[:changes]).to contain_exactly(
+        { crn: 10_062, action: :update, changes: { "start_time" => [ 800, 1500 ], "end_time" => [ 1000, 1700 ] } }
+      )
       expect(FinalExam.where(term: term).count).to eq(2)
     end
 
-    it "skips locations in unknown buildings and blank locations" do
-      stub_pdftotext("CRN\n10001\nEXAM-DATE\nMonday, May 4, 2026\nEXAM-TIME-OF-DAY\n8:00 AM - 10:00 AM\n" \
-                     "EXAM-ROOM\nNOPE 101\n")
+    it "lists stored exams that the PDF no longer has, and keeps them" do
+      create(:final_exam, term: term, crn: 10_099)
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
-      expect(result).to include(created: 1, rooms_created: 0)
+      expect(result[:stale_crns]).to eq([ 10_099 ])
+      expect(FinalExam.exists?(term: term, crn: 10_099)).to be(true)
+    end
+
+    it "saves nothing in a dry run but reports the same result" do
+      create(:final_exam, term: term, crn: 10_061, exam_date: Date.new(2026, 4, 1), start_time: 800, end_time: 1000)
+
+      result = described_class.call(pdf_content: "%PDF", term: term, dry_run: true)
+
+      expect(result).to include(total: 2, created: 1, updated: 1, rooms_created: 2)
+      expect(result[:changes].map { |c| c[:crn] }).to contain_exactly(10_061, 10_062)
+      expect(FinalExam.where(term: term).pluck(:crn)).to eq([ 10_061 ])
+      expect(FinalExam.find_by!(crn: 10_061).start_time).to eq(800)
+      expect(building.rooms).to be_empty
+    end
+
+    it "skips locations in unknown buildings and blank locations" do
+      stub_pdftotext([ row("10001", "8:00 AM - 10:00 AM", "NOPE 101"), row("10002", "8:00 AM - 10:00 AM") ].join("\n"))
+
+      result = described_class.call(pdf_content: "%PDF", term: term)
+
+      expect(result).to include(created: 2, rooms_created: 0)
     end
 
     it "records a validation error when the entry cannot be saved" do
-      stub_pdftotext("CRN\n10001\nEXAM-DATE\nMonday, May 4, 2026\nEXAM-TIME-OF-DAY\n10:00 AM - 8:00 AM\n")
+      stub_pdftotext(row("10001", "10:00 AM - 8:00 AM"))
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
@@ -133,39 +170,14 @@ RSpec.describe FinalsSchedules::Parser do
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
-      expect(result[:errors]).to include("Error processing CRN 10001: boom")
-      expect(Rails.error).to have_received(:report).with(instance_of(StandardError), handled: true, context: { crn: 10_001 }).at_least(:once)
+      expect(result[:errors]).to include("Error processing CRN 10061: boom", "Error processing CRN 10062: boom")
+      expect(Rails.error).to have_received(:report).with(instance_of(StandardError), handled: true, context: { crn: 10_061 })
     end
 
     it "handles an empty schedule" do
       stub_pdftotext("")
-      allow(Rails.logger).to receive(:warn)
 
       expect(described_class.call(pdf_content: "%PDF", term: term)).to include(total: 0, created: 0)
-    end
-  end
-
-  describe "format detection" do
-    it "picks the Fall 2025 parser for COMBINED CRNs text" do
-      stub_pdftotext(file_fixture("finals_schedules/fall_2025.txt").read)
-
-      expect(described_class.call(pdf_content: "%PDF", term: term)).to include(total: 3, created: 3)
-    end
-
-    it "picks the SpringFall parser for FINAL DAY text" do
-      stub_pdftotext(file_fixture("finals_schedules/spring_fall.txt").read)
-
-      expect(described_class.call(pdf_content: "%PDF", term: term)).to include(total: 3)
-    end
-
-    it "falls back to the first parser with the most entries for unknown text" do
-      stub_pdftotext(file_fixture("finals_schedules/unknown.txt").read)
-      allow(Rails.logger).to receive(:warn)
-
-      result = described_class.call(pdf_content: "%PDF", term: term)
-
-      expect(result).to include(total: 1, created: 1)
-      expect(Rails.logger).to have_received(:warn).with(/Unknown finals PDF format; falling back to .*Fall2025Parser \(1 entries\)/)
     end
   end
 end

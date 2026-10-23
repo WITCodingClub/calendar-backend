@@ -35,7 +35,8 @@ class FinalExam < ApplicationRecord
 
   # "WENT 210" or "WENT 2A": a building abbreviation, then a room number that
   # can end in letters.
-  ROOM_PATTERN = /([A-Z]+)\s+(\d+[A-Z]*)/i
+  # A building code can start with digits ("525HA 114").
+  ROOM_PATTERN = /\b([A-Z0-9]*[A-Z])\s+(\d+[A-Z]*)/i
 
   belongs_to :term
   belongs_to :course, optional: true
