@@ -343,6 +343,27 @@ RSpec.describe FinalExam do
       expect(exam.matched_rooms).to eq([ padded ])
     end
 
+    it "finds the rooms of many exams with one set of queries" do
+      first = build(:final_exam, location: "ZZQ 112")
+      second = build(:final_exam, location: "ZZQ 205 / NOPE 1")
+      online = build(:final_exam, location: "Online")
+
+      expect(described_class.matched_rooms_for([ first, second, online ]))
+        .to eq(first => [ room ], second => [ lab ], online => [])
+    end
+
+    it "builds a location from rooms it is given" do
+      exam = build(:final_exam, location: "ZZQ 205 / NOPE 1")
+
+      expect(exam.location_with_names([ lab, nil ])).to eq("Synthetic Hall 205 / NOPE 1")
+    end
+
+    it "keeps the text of a part with no room" do
+      exam = build(:final_exam, location: "ZZQ 112 / NOPE 5 / Online")
+
+      expect(exam.location_with_names).to eq("Synthetic Hall 112 / NOPE 5 / Online")
+    end
+
     it "keeps the raw location when no room matches" do
       exam = build(:final_exam, location: "NOPE 112")
 
