@@ -110,6 +110,7 @@ class User < ApplicationRecord
   has_one :academic_profile, dependent: :delete
   has_many :student_programs, dependent: :delete_all
   has_many :course_outcomes, dependent: :delete_all
+  has_many :user_backfills, dependent: :delete_all
   has_many :security_events, dependent: :destroy
   has_many :passkeys, dependent: :destroy
   has_many :user_sessions, dependent: :destroy
