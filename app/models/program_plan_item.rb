@@ -62,17 +62,42 @@ class ProgramPlanItem < ApplicationRecord
   belongs_to :program_plan
   belongs_to :elective_group, optional: true
 
+  before_validation :normalize_options
+
   validates :year_index, presence: true, numericality: { only_integer: true, greater_than_or_equal_to: 1 }
   validates :position, presence: true, uniqueness: { scope: :program_plan_id }
   validates :subject_code, :course_number, presence: true, if: :course?
   validates :label, presence: true, if: :placeholder?
+  validates :max_credits, comparison: { greater_than_or_equal_to: :min_credits }, allow_nil: true, if: :min_credits
   validate :options_name_courses, if: :choice?
+  validate :elective_group_in_same_requirement_set
 
   private
 
+  # Stores each option like the code columns: "COMP" and 1000.
+  def normalize_options
+    return unless options.is_a?(Array)
+
+    self.options = options.map do |option|
+      next option unless option.is_a?(Hash)
+
+      option = option.stringify_keys
+      number = option["course_number"]
+      option.merge("subject_code" => option["subject_code"].to_s.strip.upcase.presence,
+                   "course_number" => number.to_s.match?(/\A\s*\d+\s*\z/) ? number.to_i : number)
+    end
+  end
+
   def options_name_courses
     valid = options.is_a?(Array) && options.size >= 2 &&
-            options.all? { |option| option.is_a?(Hash) && option["subject_code"].present? && option["course_number"].present? }
+            options.all? { |option| option.is_a?(Hash) && option["subject_code"].present? && option["course_number"].is_a?(Integer) }
     errors.add(:options, "must list at least two courses") unless valid
+  end
+
+  def elective_group_in_same_requirement_set
+    return if elective_group.nil? || program_plan.nil?
+    return if elective_group.requirement_set_id == program_plan.requirement_set_id
+
+    errors.add(:elective_group, "must belong to the same requirement set")
   end
 end

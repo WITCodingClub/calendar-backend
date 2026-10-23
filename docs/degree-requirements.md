@@ -51,4 +51,7 @@ erDiagram
 
 ## Links to Banner courses
 
-`ProgramPlanItem`, `ElectiveGroupCourse`, and `CatalogYearCourse` name a course by `subject_code` and `course_number`. `catalog_course_id` links the row to the `CatalogCourse` with that code (`CatalogCourseLinkable`). The link is nil when Banner does not know the code. Run `link_catalog_courses` on the model after an import to set the links in bulk.
+`ProgramPlanItem`, `ElectiveGroupCourse`, and `CatalogYearCourse` name a course by `subject_code` and `course_number`. `catalog_course_id` links the row to the `CatalogCourse` with that code (`CatalogCourseLinkable`). The link is nil when Banner does not know the code.
+
+- A save that changes the code clears the link.
+- `link_catalog_courses` on each model sets every link in bulk, and fixes a link that names another course. Run it after a degree requirements import, and after the Banner course sync adds courses. The import and the sync do not call it yet (#527).

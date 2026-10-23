@@ -52,6 +52,16 @@ RSpec.describe DegreeProgram do
     expect(subject.concentrations).to eq([ concentration ])
   end
 
+  # A cross-record check, so no matcher covers it.
+  it "takes as parent only a program with no parent of its own" do
+    concentration = create(:degree_program, :concentration, parent_program: subject)
+
+    expect(build(:degree_program, :concentration, parent_program: concentration)).not_to be_valid
+    subject.parent_program = subject
+    expect(subject).not_to be_valid
+    expect(subject.errors[:parent_program]).to be_present
+  end
+
   it "finds its requirement set for a catalog year" do
     catalog_year = create(:catalog_year)
     requirement_set = create(:requirement_set, degree_program: subject, catalog_year: catalog_year)

@@ -43,6 +43,7 @@ class CourseCodeAlias < ApplicationRecord
   validates :from_subject_code, :from_course_number, :to_subject_code, :to_course_number, presence: true
   validates :to_course_number, uniqueness: { scope: [ :from_subject_code, :from_course_number, :to_subject_code ] }
   validate :codes_differ
+  validate :no_reverse_alias
 
   def from_code = "#{from_subject_code} #{from_course_number}"
   def to_code = "#{to_subject_code} #{to_course_number}"
@@ -51,5 +52,13 @@ class CourseCodeAlias < ApplicationRecord
 
   def codes_differ
     errors.add(:to_course_number, "must name a different course") if from_code == to_code
+  end
+
+  # A pair in both directions would send a lookup that follows the aliases
+  # around in a loop.
+  def no_reverse_alias
+    reverse = self.class.where(from_subject_code: to_subject_code, from_course_number: to_course_number,
+                               to_subject_code: from_subject_code, to_course_number: from_course_number)
+    errors.add(:base, "#{to_code} already points to #{from_code}") if reverse.where.not(id: id).exists?
   end
 end

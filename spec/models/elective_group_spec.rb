@@ -20,8 +20,8 @@ require "rails_helper"
 #
 # Indexes
 #
-#  index_elective_groups_on_program_plan_id     (program_plan_id)
-#  index_elective_groups_on_requirement_set_id  (requirement_set_id)
+#  idx_elective_groups_unique                (requirement_set_id,program_plan_id,position) UNIQUE NULLS NOT DISTINCT
+#  index_elective_groups_on_program_plan_id  (program_plan_id)
 #
 # Foreign Keys
 #
@@ -36,6 +36,15 @@ RSpec.describe ElectiveGroup do
   it { is_expected.to have_many(:courses).class_name("ElectiveGroupCourse").dependent(:delete_all) }
   it { is_expected.to have_many(:program_plan_items).dependent(:nullify) }
   it { is_expected.to validate_presence_of(:name) }
+  it { is_expected.to validate_uniqueness_of(:position).scoped_to(:requirement_set_id, :program_plan_id) }
+
+  # The database index treats a nil plan as equal, so a re-import cannot add
+  # a second program-wide list at the same position.
+  it "rejects a second program-wide list at the same position in the database" do
+    attributes = { requirement_set_id: subject.requirement_set_id, position: subject.position, name: "Copy" }
+
+    expect { described_class.insert_all!([ attributes ]) }.to raise_error(ActiveRecord::RecordNotUnique)
+  end
   it { is_expected.to validate_numericality_of(:min_courses).only_integer.is_greater_than(0).allow_nil }
   it { is_expected.to validate_numericality_of(:min_credits).only_integer.is_greater_than(0).allow_nil }
 

@@ -40,4 +40,5 @@ class CatalogYearCourse < ApplicationRecord
 
   validates :subject_code, :course_number, presence: true
   validates :course_number, uniqueness: { scope: [ :catalog_year_id, :subject_code ] }
+  validates :max_credits, comparison: { greater_than_or_equal_to: :min_credits }, allow_nil: true, if: :min_credits
 end

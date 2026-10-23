@@ -58,7 +58,7 @@ class CreateDegreeRequirements < ActiveRecord::Migration[8.1]
     end
 
     create_table :elective_groups do |t|
-      t.references :requirement_set, null: false, foreign_key: { on_delete: :cascade }
+      t.references :requirement_set, null: false, foreign_key: { on_delete: :cascade }, index: false
       t.references :program_plan, foreign_key: { on_delete: :cascade }
       t.string :name, null: false
       t.text :heading
@@ -67,6 +67,10 @@ class CreateDegreeRequirements < ActiveRecord::Migration[8.1]
       t.integer :position, null: false, default: 0
       t.text :notes
       t.timestamps
+      # The key a re-import upserts on. A list printed once for the whole
+      # program has no plan, so the nulls count as equal.
+      t.index [ :requirement_set_id, :program_plan_id, :position ], unique: true, nulls_not_distinct: true,
+                                                                    name: "idx_elective_groups_unique"
     end
 
     create_table :elective_group_courses do |t|

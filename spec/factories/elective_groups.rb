@@ -18,8 +18,8 @@
 #
 # Indexes
 #
-#  index_elective_groups_on_program_plan_id     (program_plan_id)
-#  index_elective_groups_on_requirement_set_id  (requirement_set_id)
+#  idx_elective_groups_unique                (requirement_set_id,program_plan_id,position) UNIQUE NULLS NOT DISTINCT
+#  index_elective_groups_on_program_plan_id  (program_plan_id)
 #
 # Foreign Keys
 #
@@ -32,6 +32,7 @@ FactoryBot.define do
     name { "#{Faker::Educator.subject} Electives" }
     heading { "#{name}, select two (2) courses from the following list:" }
     min_courses { 2 }
+    sequence(:position)
 
     trait :for_plan do
       program_plan { association :program_plan, requirement_set: requirement_set }

@@ -52,8 +52,20 @@ class DegreeProgram < ApplicationRecord
 
   validates :name, presence: true
   validates :slug, presence: true, uniqueness: true, format: { with: /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/ }
+  validate :parent_is_a_top_program
 
   def requirement_set_for(catalog_year)
     requirement_sets.find_by(catalog_year: catalog_year)
+  end
+
+  private
+
+  # A concentration belongs to a major, never to itself or to another
+  # concentration, so a walk up from any program ends after one step.
+  def parent_is_a_top_program
+    return if parent_program.nil?
+    return if parent_program != self && parent_program.parent_program_id.nil?
+
+    errors.add(:parent_program, "must be a program with no parent")
   end
 end

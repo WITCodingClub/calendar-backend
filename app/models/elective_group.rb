@@ -25,8 +25,8 @@
 #
 # Indexes
 #
-#  index_elective_groups_on_program_plan_id     (program_plan_id)
-#  index_elective_groups_on_requirement_set_id  (requirement_set_id)
+#  idx_elective_groups_unique                (requirement_set_id,program_plan_id,position) UNIQUE NULLS NOT DISTINCT
+#  index_elective_groups_on_program_plan_id  (program_plan_id)
 #
 # Foreign Keys
 #
@@ -42,6 +42,7 @@ class ElectiveGroup < ApplicationRecord
   has_many :program_plan_items, dependent: :nullify
 
   validates :name, presence: true
+  validates :position, uniqueness: { scope: [ :requirement_set_id, :program_plan_id ] }
   validates :min_courses, :min_credits, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validate :plan_in_same_requirement_set
 

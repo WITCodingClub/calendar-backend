@@ -59,6 +59,16 @@ RSpec.describe CourseCodeAlias do
     expect(row.errors[:to_course_number]).to be_present
   end
 
+  # A check across rows, so no matcher covers it.
+  it "rejects the reverse of a stored alias" do
+    reverse = build(:course_code_alias, from_subject_code: subject.to_subject_code, from_course_number: subject.to_course_number,
+                                        to_subject_code: subject.from_subject_code, to_course_number: subject.from_course_number)
+
+    expect(reverse).not_to be_valid
+    expect(reverse.errors[:base]).to be_present
+    expect(subject).to be_valid
+  end
+
   it "lists the reviewed rows" do
     reviewed = create(:course_code_alias, :reviewed)
     subject

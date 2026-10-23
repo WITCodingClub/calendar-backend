@@ -75,6 +75,18 @@ RSpec.describe ProgramPlanItem do
       expect(build(:program_plan_item, :choice)).to be_valid
     end
 
+    it "stores each option like the code columns" do
+      item = build(:program_plan_item, :choice, options: [
+        { "subject_code" => " comp ", "course_number" => "1000" },
+        { subject_code: "COMP", course_number: 1099 }
+      ])
+
+      item.validate
+
+      expect(item.options).to eq([ { "subject_code" => "COMP", "course_number" => 1000 },
+                                   { "subject_code" => "COMP", "course_number" => 1099 } ])
+    end
+
     it "rejects one course, an empty list, or a row with no number" do
       one = [ { "subject_code" => "COMP", "course_number" => 1000 } ]
       no_number = one + [ { "subject_code" => "COMP" } ]
@@ -114,13 +126,60 @@ RSpec.describe ProgramPlanItem do
       expect(placeholder.reload.catalog_course).to be_nil
     end
 
-    it "keeps a link that is already set" do
-      other = create(:catalog_course)
+    it "changes nothing when every link is right" do
       create(:catalog_course, subject_code: "COMP", course_number: 2350)
-      item = create(:program_plan_item, subject_code: "COMP", course_number: 2350, catalog_course: other)
+      create(:program_plan_item, subject_code: "COMP", course_number: 2350)
+      described_class.link_catalog_courses
 
       expect(described_class.link_catalog_courses).to eq(0)
-      expect(item.reload.catalog_course).to eq(other)
     end
+
+    it "fixes a link that a bulk write left on the old course" do
+      old_course = create(:catalog_course, subject_code: "COMP", course_number: 1000)
+      new_course = create(:catalog_course, subject_code: "COMP", course_number: 1050)
+      item = create(:program_plan_item, subject_code: "COMP", course_number: 1000)
+      described_class.link_catalog_courses
+      item.update_columns(course_number: 1050)
+
+      expect { described_class.link_catalog_courses }.to change { item.reload.catalog_course }.from(old_course).to(new_course)
+    end
+
+    it "clears a link when the new code is not in Banner" do
+      create(:catalog_course, subject_code: "COMP", course_number: 1000)
+      item = create(:program_plan_item, subject_code: "COMP", course_number: 1000)
+      described_class.link_catalog_courses
+      item.update_columns(course_number: 128)
+
+      expect { described_class.link_catalog_courses }.to change { item.reload.catalog_course_id }.to(nil)
+    end
+  end
+
+  # A save callback, so no matcher covers it.
+  it "drops its link when its code changes" do
+    course = create(:catalog_course, subject_code: "COMP", course_number: 1000)
+    item = create(:program_plan_item, subject_code: "COMP", course_number: 1000, catalog_course: course)
+
+    item.update!(course_number: 1050)
+
+    expect(item.reload.catalog_course).to be_nil
+  end
+
+  # A cross-record check, so no matcher covers it.
+  it "takes an elective list only from its own requirement set" do
+    plan = create(:program_plan)
+    own = create(:elective_group, requirement_set: plan.requirement_set)
+    expect(build(:program_plan_item, :placeholder, program_plan: plan, elective_group: own)).to be_valid
+
+    item = build(:program_plan_item, :placeholder, program_plan: plan, elective_group: create(:elective_group))
+    expect(item).not_to be_valid
+    expect(item.errors[:elective_group]).to be_present
+  end
+
+  # A comparison with another column, so the numericality matchers do not cover it.
+  it "rejects a credit range that ends below its start" do
+    item = build(:program_plan_item, min_credits: 4, max_credits: 3)
+
+    expect(item).not_to be_valid
+    expect(item.errors[:max_credits]).to be_present
   end
 end

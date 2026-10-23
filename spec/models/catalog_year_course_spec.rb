@@ -48,6 +48,20 @@ RSpec.describe CatalogYearCourse do
     expect(subject.reload.title).not_to eq("A NEW TITLE")
   end
 
+  # A comparison with another column, so the numericality matchers do not cover it.
+  it "rejects a credit range that ends below its start" do
+    expect(build(:catalog_year_course, min_credits: 4, max_credits: 3)).not_to be_valid
+  end
+
+  it "links to the Banner course with its code" do
+    course = create(:catalog_course, subject_code: "COMP", course_number: 128)
+    row = create(:catalog_year_course, subject_code: "COMP", course_number: 128)
+
+    described_class.link_catalog_courses
+
+    expect(row.reload.catalog_course).to eq(course)
+  end
+
   it "keeps its row when the Banner course is deleted" do
     course = create(:catalog_course)
     subject.update!(catalog_course: course)
