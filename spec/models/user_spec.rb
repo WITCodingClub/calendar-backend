@@ -58,6 +58,7 @@ RSpec.describe User, type: :model do
     it { is_expected.to have_many(:calendar_preferences).dependent(:destroy) }
     it { is_expected.to have_many(:event_preferences).dependent(:destroy) }
     it { is_expected.to have_one(:user_extension_config).dependent(:destroy) }
+    it { is_expected.to have_many(:user_backfills).dependent(:delete_all) }
     it { is_expected.to have_many(:security_events).dependent(:destroy) }
     it { is_expected.to have_many(:passkeys).dependent(:destroy) }
     it { is_expected.to have_many(:sign_in_identities).dependent(:destroy) }
