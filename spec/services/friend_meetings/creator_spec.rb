@@ -65,6 +65,42 @@ RSpec.describe FriendMeetings::Creator do
     expect(meeting).to have_attributes(frequency: "weekly", term: term, repeat_until: Date.new(2026, 12, 18))
   end
 
+  describe "repeat options" do
+    before { term }
+
+    it "keeps the interval, the days, and a picked last date" do
+      meeting = create_meeting(frequency: "weekly", repeat_interval: "2", repeat_days: [ " Friday ", "friday" ],
+                               repeat_until: "2027-03-01")
+
+      expect(meeting).to have_attributes(repeat_interval: 2, repeat_days: %w[friday], term: term, repeat_until: Date.new(2027, 3, 1))
+      expect(meeting.weekdays).to eq(%w[wednesday friday])
+    end
+
+    it "makes a monthly meeting that repeats until the end of the term" do
+      meeting = create_meeting(frequency: "monthly")
+
+      expect(meeting).to have_attributes(frequency: "monthly", repeat_interval: 1, repeat_until: Date.new(2026, 12, 18))
+    end
+
+    it "refuses repeat options on a one-time meeting" do
+      expect { create_meeting(repeat_interval: 2) }.to raise_error(described_class::Error, /need a repeating frequency/)
+    end
+
+    it "refuses an interval that is not a whole number" do
+      expect { create_meeting(frequency: "daily", repeat_interval: "1.5") }
+        .to raise_error(described_class::Error, "repeat_interval must be a whole number")
+    end
+
+    it "refuses a repeat_until that is not a date" do
+      expect { create_meeting(frequency: "daily", repeat_until: "soon") }
+        .to raise_error(described_class::Error, "repeat_until must be an ISO 8601 date")
+    end
+
+    it "refuses an interval out of range" do
+      expect { create_meeting(frequency: "daily", repeat_interval: 31) }.to raise_error(ActiveRecord::RecordInvalid, /Repeat interval/)
+    end
+  end
+
   describe "a guest from a one-time meeting link" do
     let(:guest) { { name: " Sample Guest ", email: " Guest@Example.com " } }
 
@@ -182,7 +218,8 @@ RSpec.describe FriendMeetings::Creator do
     end
 
     it "refuses an unknown frequency" do
-      expect { create_meeting(frequency: "daily") }.to raise_error(described_class::Error, "frequency must be one_time or weekly")
+      expect { create_meeting(frequency: "yearly") }
+        .to raise_error(described_class::Error, "frequency must be one of one_time, daily, weekly, monthly")
     end
 
     it "refuses a person who is not a friend" do

@@ -75,23 +75,16 @@ module MeetingLinks
     end
 
     # The person's own friend meetings and the ones they were added to. A
-    # weekly meeting is busy on its day each week until it stops repeating.
+    # repeating meeting is busy at each occurrence until it stops repeating.
     def meeting_blocks(user)
-      meetings = FriendMeeting.live.not_ended.where(user: user)
-                              .or(FriendMeeting.live.not_ended.where(id: user.friend_meeting_attendees.select(:friend_meeting_id)))
+      range_start = days.first.in_time_zone.beginning_of_day
+      range_end   = (days.last + 1).in_time_zone.beginning_of_day
+      meetings    = FriendMeeting.live.not_ended.where(user: user)
+                                 .or(FriendMeeting.live.not_ended.where(id: user.friend_meeting_attendees.select(:friend_meeting_id)))
 
-      meetings.flat_map do |meeting|
-        length = meeting.end_time - meeting.start_time
-        occurrence_starts(meeting).map { |start| [ start, start + length ] }
+      meetings.overlapping(range_start, range_end).flat_map do |meeting|
+        meeting.occurrences_between(range_start, range_end)
       end
-    end
-
-    def occurrence_starts(meeting)
-      return [ meeting.start_time ] unless meeting.weekly?
-
-      start = meeting.local_start
-      last  = [ meeting.repeat_until, days.last ].min
-      (0..).lazy.map { |week| start + week.weeks }.take_while { |time| time.to_date <= last }.to_a
     end
 
     def at(date, hhmm)

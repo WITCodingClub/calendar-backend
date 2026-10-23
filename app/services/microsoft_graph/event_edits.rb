@@ -86,7 +86,9 @@ module MicrosoftGraph
       remote_time.to_i != row_time.to_i
     end
 
-    # Only the parts the app sets. Graph adds defaults such as dayOfMonth.
+    # Only the parts the app sets. Graph adds defaults such as dayOfMonth, and
+    # an index for every type, so the index counts only for a relativeMonthly
+    # pattern.
     def normalize(recurrence)
       return nil if recurrence.blank?
 
@@ -96,6 +98,7 @@ module MicrosoftGraph
 
       [
         pattern["type"], pattern["interval"].to_i, Array(pattern["daysOfWeek"]).sort,
+        pattern["type"] == "relativeMonthly" ? pattern["index"] : nil,
         range["type"], range["type"] == "endDate" ? range["endDate"] : nil
       ]
     end

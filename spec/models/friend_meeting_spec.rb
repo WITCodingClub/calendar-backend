@@ -15,6 +15,8 @@ require "rails_helper"
 #  idempotency_key :string
 #  invite_friends  :boolean          default(FALSE), not null
 #  location        :string
+#  repeat_days     :string           default([]), not null, is an Array
+#  repeat_interval :integer          default(1), not null
 #  repeat_until    :date
 #  start_time      :datetime         not null
 #  title           :string           not null
@@ -57,10 +59,11 @@ RSpec.describe FriendMeeting do
     it { is_expected.to validate_length_of(:guest_name).is_at_most(FriendMeeting::GUEST_NAME_MAX_LENGTH) }
     it { is_expected.to allow_value("guest@example.com", nil).for(:guest_email) }
     it { is_expected.not_to allow_value("not-an-email").for(:guest_email) }
+    it { is_expected.to validate_numericality_of(:repeat_interval).only_integer.is_in(1..FriendMeeting::MAX_REPEAT_INTERVAL) }
 
     it do
       expect(subject).to define_enum_for(:frequency)
-        .with_values(one_time: "one_time", weekly: "weekly")
+        .with_values(one_time: "one_time", daily: "daily", weekly: "weekly", monthly: "monthly")
         .backed_by_column_of_type(:string)
         .validating
     end
@@ -102,6 +105,34 @@ RSpec.describe FriendMeeting do
       expect(meeting).not_to be_valid
       expect(meeting.errors[:repeat_until]).to include("must be on or after the start date")
     end
+
+    it "refuses a repeat_until more than a year after the start date" do
+      meeting = build(:friend_meeting, :weekly, start_time: zone.local(2026, 9, 15, 15), repeat_until: Date.new(2027, 9, 17))
+
+      expect(meeting).not_to be_valid
+      expect(meeting.errors[:repeat_until]).to include("must be no more than 366 days after the start date")
+    end
+  end
+
+  # These depend on the frequency, which no shoulda matcher covers.
+  describe "repeat_days validations" do
+    it "accepts weekday names for a weekly meeting" do
+      expect(build(:friend_meeting, :weekly, repeat_days: %w[monday friday])).to be_valid
+    end
+
+    it "refuses a name that is not a weekday" do
+      meeting = build(:friend_meeting, :weekly, repeat_days: %w[monday funday])
+
+      expect(meeting).not_to be_valid
+      expect(meeting.errors[:repeat_days].first).to start_with("must list only sunday, monday")
+    end
+
+    it "refuses days on a meeting that is not weekly" do
+      meeting = build(:friend_meeting, :weekly, frequency: "daily", repeat_days: %w[monday])
+
+      expect(meeting).not_to be_valid
+      expect(meeting.errors[:repeat_days]).to include("can be set only for a weekly meeting")
+    end
   end
 
   describe "#recurrence" do
@@ -116,6 +147,43 @@ RSpec.describe FriendMeeting do
       # 21:00 Eastern on a Tuesday is Wednesday in UTC, so BYDAY must use the
       # local day. UNTIL is 23:59:59 Eastern on the last day.
       expect(meeting.recurrence).to eq([ "RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=20261219T045959Z" ])
+    end
+
+    def repeating(**attributes)
+      build(:friend_meeting, :weekly, start_time: zone.local(2026, 9, 15, 15), end_time: zone.local(2026, 9, 15, 16),
+                                      repeat_until: Date.new(2026, 12, 18), **attributes)
+    end
+
+    it "repeats every N days" do
+      expect(repeating(frequency: "daily", repeat_interval: 3).recurrence)
+        .to eq([ "RRULE:FREQ=DAILY;INTERVAL=3;UNTIL=20261219T045959Z" ])
+    end
+
+    it "repeats every other week on each picked day and the start day, with weeks that start on Sunday" do
+      expect(repeating(repeat_interval: 2, repeat_days: %w[thursday sunday]).recurrence)
+        .to eq([ "RRULE:FREQ=WEEKLY;INTERVAL=2;WKST=SU;BYDAY=SU,TU,TH;UNTIL=20261219T045959Z" ])
+    end
+
+    it "repeats monthly on the same weekday of the month" do
+      # 2026-09-15 is the third Tuesday of September.
+      expect(repeating(frequency: "monthly").recurrence).to eq([ "RRULE:FREQ=MONTHLY;BYDAY=3TU;UNTIL=20261219T045959Z" ])
+    end
+
+    it "repeats monthly on the last weekday when the start is the fifth one" do
+      # 2026-09-29 is the fifth Tuesday of September.
+      meeting = repeating(frequency: "monthly", start_time: zone.local(2026, 9, 29, 15), end_time: zone.local(2026, 9, 29, 16))
+
+      expect(meeting.recurrence).to eq([ "RRULE:FREQ=MONTHLY;BYDAY=-1TU;UNTIL=20261219T045959Z" ])
+    end
+  end
+
+  describe "#weekdays" do
+    it "is the start day for a weekly meeting with no picked days" do
+      expect(build(:friend_meeting, :weekly, start_time: zone.local(2026, 9, 15, 15)).weekdays).to eq(%w[tuesday])
+    end
+
+    it "is empty for a meeting that is not weekly" do
+      expect(build(:friend_meeting).weekdays).to eq([])
     end
   end
 
@@ -189,6 +257,46 @@ RSpec.describe FriendMeeting do
       starts = meeting.occurrences_between(zone.local(2026, 10, 1), zone.local(2026, 12, 31)).map(&:first)
 
       expect(starts).to eq([ zone.local(2026, 10, 28, 15), zone.local(2026, 11, 4, 15), zone.local(2026, 11, 11, 15) ])
+    end
+
+    it "lists each occurrence of a meeting every other week on two days" do
+      meeting = build(:friend_meeting, frequency: "weekly", repeat_interval: 2, repeat_days: %w[friday],
+                                       repeat_until: Date.new(2026, 11, 13),
+                                       start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16))
+
+      starts = meeting.occurrences_between(zone.local(2026, 10, 1), zone.local(2026, 12, 31)).map(&:first)
+
+      expect(starts).to eq([ zone.local(2026, 10, 14, 15), zone.local(2026, 10, 16, 15),
+                             zone.local(2026, 10, 28, 15), zone.local(2026, 10, 30, 15),
+                             zone.local(2026, 11, 11, 15), zone.local(2026, 11, 13, 15) ])
+    end
+
+    it "lists each monthly occurrence on the same weekday of the month" do
+      meeting = build(:friend_meeting, frequency: "monthly", repeat_until: Date.new(2026, 12, 31),
+                                       start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16))
+
+      starts = meeting.occurrences_between(zone.local(2026, 10, 1), zone.local(2027, 1, 1)).map(&:first)
+
+      expect(starts).to eq([ zone.local(2026, 10, 14, 15), zone.local(2026, 11, 11, 15), zone.local(2026, 12, 9, 15) ])
+    end
+
+    it "lists a daily meeting once on the fall-back day, at the first 01:30" do
+      meeting = build(:friend_meeting, frequency: "daily", repeat_until: Date.new(2026, 11, 2),
+                                       start_time: zone.local(2026, 10, 31, 1, 30), end_time: zone.local(2026, 10, 31, 2))
+
+      starts = meeting.occurrences_between(zone.local(2026, 10, 31), zone.local(2026, 11, 3)).map(&:first)
+
+      expect(starts.map { |time| time.in_time_zone(zone).strftime("%F %R") }).to eq([ "2026-10-31 01:30", "2026-11-01 01:30", "2026-11-02 01:30" ])
+      expect(starts.second.utc_offset).to eq(-4.hours)
+    end
+
+    it "lists every third day for a daily meeting" do
+      meeting = build(:friend_meeting, frequency: "daily", repeat_interval: 3, repeat_until: Date.new(2026, 10, 21),
+                                       start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16))
+
+      starts = meeting.occurrences_between(zone.local(2026, 10, 1), zone.local(2026, 11, 1)).map(&:first)
+
+      expect(starts).to eq([ zone.local(2026, 10, 14, 15), zone.local(2026, 10, 17, 15), zone.local(2026, 10, 20, 15) ])
     end
   end
 

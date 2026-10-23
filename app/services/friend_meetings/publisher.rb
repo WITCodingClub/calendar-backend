@@ -48,13 +48,22 @@ module FriendMeetings
     # exists, and makes each event that is missing. An event gets attendees
     # only from the provider that sent the invitations, so a removed friend
     # gets a cancellation from that provider.
+    #
+    # A meeting that starts or stops repeating gets a new event: an update
+    # cannot reliably turn a series into one event, or one event into a series,
+    # in every provider. The friends get a cancellation and a new invitation.
     def update(meeting)
       return if meeting.cancelled?
 
       each_publication(meeting) do |publication, service, calendar|
         row = meeting.calendar_events.find_by(calendar_id: calendar.id)
 
-        if row
+        if row && row.recurrence.present? != meeting.repeating?
+          service.delete_friend_meeting_event(row)
+          invite = publication.sends_invitations?
+          service.create_friend_meeting_event(meeting, invite: invite)
+          publication.mark_published!(invitations_sent: invite)
+        elsif row
           service.update_friend_meeting_event(row, meeting, attendees: publication.invitations_sent_at.present?)
           publication.mark_published!
         else
