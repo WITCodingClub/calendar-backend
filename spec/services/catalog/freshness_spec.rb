@@ -65,5 +65,14 @@ RSpec.describe Catalog::Freshness do
 
     expect(recurring.dig("production", "course_data_sync", "schedule")).to eq("every day at 4am")
     expect(recurring.dig("production", "university_calendar_sync", "schedule")).to eq("every saturday at 2am")
+    expect(recurring.dig("production", "degree_requirements_current_year", "schedule")).to eq("every month on the 2nd at 3am")
+  end
+
+  it "gives the time of the newest catalog import" do
+    create(:catalog_year, :imported, start_year: 2023, imported_at: synced - 1.day)
+    create(:catalog_year, :imported, start_year: 2024, imported_at: synced)
+
+    expect(source(:degree_requirements)).to include(source: "Wentworth academic catalog (catalog.wit.edu)",
+                                                     last_refreshed_at: synced.iso8601)
   end
 end

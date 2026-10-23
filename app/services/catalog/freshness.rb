@@ -14,8 +14,9 @@ module Catalog
     # skips callbacks, so the cache has only a TTL.
     CACHE_TTL = 10.minutes
 
-    # The daily run is course_data_sync in config/recurring.yml, and the
-    # weekly one is university_calendar_sync.
+    # The daily run is course_data_sync in config/recurring.yml, the weekly
+    # one is university_calendar_sync, and the monthly one is
+    # degree_requirements_current_year.
     SOURCES = {
       sections:            {
         data:     "Course sections: meeting times, rooms, instructors, and seats",
@@ -39,6 +40,12 @@ module Catalog
         data:     "Holidays, term dates, registration, deadlines, and finals week",
         source:   "Wentworth academic calendar (25Live)",
         schedule: "Every Saturday at 2 AM Eastern."
+      },
+      degree_requirements: {
+        data:     "Degree programs, plans of study, and elective lists for each catalog year",
+        source:   "Wentworth academic catalog (catalog.wit.edu)",
+        schedule: "On the 2nd of each month at 3 AM Eastern, for the current catalog year and the year before. " \
+                  "Older catalog years do not change."
       }
     }.freeze
 
@@ -71,7 +78,8 @@ module Catalog
             finals:         finals[term.id]&.iso8601
           }
         end,
-        university_calendar: UniversityCalendarEvent.maximum(:last_fetched_at)&.iso8601
+        university_calendar: UniversityCalendarEvent.maximum(:last_fetched_at)&.iso8601,
+        degree_requirements: CatalogYear.maximum(:imported_at)&.iso8601
       }
     end
   end

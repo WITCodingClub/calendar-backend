@@ -32,6 +32,11 @@ namespace :v1 do
     get "courses",       to: "courses#index"
     get "courses/:code", to: "courses#show", as: :course, format: false
 
+    # Degree programs of one catalog year. The slug is the last part of the
+    # program's catalog path, such as "computer-science-bs".
+    get "programs",       to: "programs#index"
+    get "programs/:slug", to: "programs#show", as: :program, constraints: { slug: /[a-z0-9-]+/ }
+
     get "instructors",                 to: "instructors#index"
     get "instructors/:pub_id",         to: "instructors#show",    as: :instructor
     get "instructors/:pub_id/similar", to: "instructors#similar", as: :similar_instructors

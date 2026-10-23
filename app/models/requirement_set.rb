@@ -57,4 +57,14 @@ class RequirementSet < ApplicationRecord
   def standard_plan
     program_plans.where(accelerated: false).first || program_plans.first
   end
+
+  # The program page this set came from. A set from the Wayback Machine
+  # links to the capture, because the catalog site has no copy of that year.
+  def catalog_url
+    return nil if path.blank?
+
+    url = "#{DegreeRequirements::SITE_URL}#{path}"
+    timestamp = DegreeRequirements::WAYBACK_TIMESTAMPS[catalog_year.start_year]
+    source_wayback? && timestamp ? "https://web.archive.org/web/#{timestamp}/#{url}" : url
+  end
 end

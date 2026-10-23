@@ -136,12 +136,16 @@ RSpec.describe McpTools::Prompts do
   end
 
   describe McpTools::Prompts::PlanDegreeProgression do
-    it "asks for the required courses, because WIT Calendar has no requirement data" do
+    it "reads the requirements from the catalog, after the course history" do
       body = text(described_class)
 
-      expect(body).to include("WIT Calendar has no degree requirement data", "Do not make up a list of required courses")
-      expect(body).to include("Program: I did not say. Ask me.", "catalog.wit.edu")
-      expect(body.index("my_course_history")).to be < body.index("get_course")
+      expect_in_order(body, %w[my_course_history list_programs degree_requirements get_course])
+      expect(body).to include("Program: I did not say. Ask me.", "the catalog of the term I started my program in")
+    end
+
+    it "asks for the list only when the catalog has no data, and never makes one up" do
+      expect(text(described_class)).to include("If degree_requirements has no data for my catalog year",
+                                               "Do not make up a list of required courses")
     end
 
     it "gives the facts the student passed" do

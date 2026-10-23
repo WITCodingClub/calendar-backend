@@ -12,7 +12,7 @@ module McpTools
 
     ALL = [
       Scope.new(name: "catalog", group: :read, label: "Course catalog",
-                description: "Courses, sections, instructors, reviews, terms, and the university calendar",
+                description: "Courses, sections, instructors, reviews, terms, degree programs, and the university calendar",
                 default: true),
       Scope.new(name: "schedule:read", group: :read, label: "Your schedule",
                 description: "Your courses, meeting times, final exams, and busy times",

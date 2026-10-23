@@ -5,15 +5,16 @@ module McpTools
     # Plans the terms from now to graduation: which required course goes in
     # which term, in prerequisite order, in a term when it is usually offered.
     #
-    # WIT Calendar has no degree requirement data yet, so the student gives
-    # the list of required courses (requirements_steps). Issue #799 adds
-    # requirement tools. When they ship, change requirements_steps to call
-    # them, and ask the student only for what they do not give.
+    # The requirements come from the academic catalog (list_programs and
+    # degree_requirements). The student's own programs are not read yet
+    # (#868), so the model asks for the program and the catalog year. The
+    # catalog has no data before 2019-2020; then the student gives the list.
     class PlanDegreeProgression < BasePrompt
       prompt_name "plan_degree_progression"
       title "Plan my path to graduation"
       description "Plan the courses for each term from now to graduation, in prerequisite order and in " \
-                  "the terms each course is usually offered. You give the list of required courses."
+                  "the terms each course is usually offered. The required courses come from your program in " \
+                  "the academic catalog."
       arguments [
         MCP::Prompt::Argument.new(name: "program", title: "Program",
                                   description: "Your major or program, for example BS Computer Science."),
@@ -62,15 +63,23 @@ module McpTools
         ]
       end
 
-      # WIT Calendar has no degree requirements yet. The student gives the
-      # list. Issue #799: replace these steps with the requirement tools.
       def requirements_steps
         [
-          "WIT Calendar has no degree requirement data. Ask me for my program, my catalog year, and the list of " \
-          "required courses that I have not completed, if I did not give them. Tell me that I can copy the list " \
-          "from my degree audit or from my program page on catalog.wit.edu. Do not make up a list " \
-          "of required courses.",
-          "For each elective slot in my list, ask me which course I want, or leave the slot open in the plan."
+          "If I did not give my program and my catalog year, ask me for them. My catalog year is the catalog of " \
+          "the term I started my program in, not this year's catalog. If I changed my major, it is the catalog " \
+          "of the term of the change.",
+          "Call list_programs with my catalog year and words from my program name to find my program. If more " \
+          "than one program fits, ask me which one.",
+          "Call degree_requirements with the program slug and my catalog year. If it lists more than one plan, " \
+          "such as the four-year and the three-year plan, ask me which plan I follow.",
+          "Compare the plan with my course history. Wentworth gave most courses 4-digit numbers in 2015-2016, so " \
+          "a course I took before then can have an older 3-digit number. List the required courses I have not " \
+          "completed, and ask me to correct the list.",
+          "For each elective slot, show me the elective list it draws from and its minimum, and ask me which " \
+          "course I want, or leave the slot open in the plan.",
+          "If degree_requirements has no data for my catalog year, ask me for the list of required courses that I " \
+          "have not completed. Tell me that I can copy it from my degree audit or from my program page on " \
+          "catalog.wit.edu. Do not make up a list of required courses."
         ]
       end
 
