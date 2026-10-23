@@ -76,6 +76,7 @@ RSpec.describe "MCP week grid app", type: :system do
 
     within_frame("app") do
       expect(page).to have_css("h1", text: "Schedule check")
+      expect(page).to have_css("#summary", text: "9:00 AM to 2:15 PM")
       expect(page).to have_css("#summary", text: "1 conflict")
 
       monday = find("[role='list'][aria-label='Monday']")
@@ -92,14 +93,18 @@ RSpec.describe "MCP week grid app", type: :system do
     course = create(:course, term: term, subject: "COMP", course_number: 2000, title: "Data Structures")
     create(:course_meeting_time, course: course, day_of_week: :tuesday, begin_time: 1100, end_time: 1215)
     create(:enrollment, user: user, course: course)
+    term.update!(sections_synced_at: Time.zone.parse("2026-10-21 04:12"))
+    allow(Term).to receive(:current).and_return(term)
 
     start_host
     send_tool_result(tool_result(McpTools::MyCourses, term_uid: term.uid))
 
     within_frame("app") do
       expect(page).to have_css("h1", text: "My courses")
-      expect(find("[role='list'][aria-label='Tuesday']")).to have_css(".block", text: "11:00 to 12:15")
+      expect(find("[role='list'][aria-label='Tuesday']")).to have_css(".block", text: "11:00 AM to 12:15 PM")
       expect(find("[role='list'][aria-label='Monday']")).to have_no_css(".block")
+      expect(page).to have_css(".advisory", text: "program director and your academic advisor")
+      expect(page).to have_css(".advisory", text: "last refreshed from Banner on Oct 21, 4:12 AM")
     end
   end
 
