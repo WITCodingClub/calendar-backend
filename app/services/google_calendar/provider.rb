@@ -103,7 +103,7 @@ module GoogleCalendar
 
       stats              = { created: 0, updated: 0, skipped: 0 }
       preference_resolver = Preferences::Resolver.new(user)
-      template_renderer   = Preferences::TemplateRenderer.new
+      template_renderer   = Preferences::TemplateRenderer.new(user_id: user.id)
       labels              = GoogleCalendar::EventLabels.new(service, calendar_id)
       preload_syncables(events)
 
@@ -172,7 +172,7 @@ module GoogleCalendar
       existing_events = query.index_by { |e| build_event_key(e) }
 
       preference_resolver = Preferences::Resolver.new(user)
-      template_renderer   = Preferences::TemplateRenderer.new
+      template_renderer   = Preferences::TemplateRenderer.new(user_id: user.id)
       labels              = GoogleCalendar::EventLabels.new(service, course_calendar.external_calendar_id)
       stats = { created: 0, updated: 0, skipped: 0 }
       preload_syncables(events)
