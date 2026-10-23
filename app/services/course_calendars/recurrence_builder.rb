@@ -97,16 +97,14 @@ module CourseCalendars
                                                   .minimum(:exam_date)
     end
 
-    # Memoized lookup of the earliest final exam date across an entire term.
+    # Memoized lookup of the start of the term's finals week.
     # Used as a fallback so courses without a linked final still stop recurring
     # at the start of finals week rather than running through to term end_date.
     def earliest_final_exam_date_for_term(term_id)
       @term_finals_start_dates ||= {}
       return @term_finals_start_dates[term_id] if @term_finals_start_dates.key?(term_id)
 
-      @term_finals_start_dates[term_id] = ::FinalExam.where(term_id: term_id)
-                                                     .where.not(exam_date: nil)
-                                                     .minimum(:exam_date)
+      @term_finals_start_dates[term_id] = ::FinalExam.finals_week_start(term_id)
     end
 
     # Memoized lookup of the earliest finals-period university calendar event for a term.

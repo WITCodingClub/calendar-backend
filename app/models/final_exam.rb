@@ -61,6 +61,25 @@ class FinalExam < ApplicationRecord
   scope :for_crn,  ->(crn) { where(crn: crn) }
   scope :upcoming, -> { where(exam_date: Time.zone.today..) }
 
+  # A date counts as part of finals week when it holds at least this share of
+  # the term's exams.
+  FINALS_WEEK_MIN_SHARE = 0.1
+
+  # The first day of the term's finals week, or nil when the term has no exams.
+  # A course with no final stops its classes the day before.
+  #
+  # This is not the earliest exam date. A few sections hold their "final"
+  # weeks early: in Fall 2026, 8 Global Research Studio sections had one on
+  # Nov 19, and the classes of every course with no final stopped on Nov 18.
+  def self.finals_week_start(term_id)
+    counts = where(term_id: term_id).group(:exam_date).count
+    total  = counts.values.sum
+    return nil if total.zero?
+
+    busy_dates = counts.select { |_date, count| count >= total * FINALS_WEEK_MIN_SHARE }.keys
+    (busy_dates.presence || counts.keys).min
+  end
+
   def self.link_orphan_exams_to_courses(term:)
     linked_count = 0
     orphan_exams = orphan.where(term: term).to_a
