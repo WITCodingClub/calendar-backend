@@ -49,6 +49,13 @@ linter:
     # parse them as they are, so they keep their own whitespace.
     - "spec/fixtures/files/**/*"
 
+  rules:
+    # An MCP App template goes to the MCP host, not to a browser through
+    # Rails. The host applies its own CSP, so a Rails nonce means nothing.
+    html-require-script-nonce:
+      exclude:
+        - "app/views/mcp_apps/**/*"
+
   # # Exit with error code when diagnostics of this severity or higher are present
   # # Valid values: error (default), warning, info, hint
   # failLevel: warning

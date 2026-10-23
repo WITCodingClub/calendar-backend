@@ -34,8 +34,24 @@ module McpTools
         website_url:    Rails.application.routes.url_helpers.mcp_docs_url(**url_options),
         instructions:   INSTRUCTIONS,
         tools:          McpTools.all,
+        resources:      McpTools.app_resources,
+        capabilities:   capabilities,
         server_context: { user: user, scopes: scopes, request: request },
         configuration:  configuration(user: user, application: application)
+      )
+    end
+
+    # The SDK defaults, plus the MCP Apps extension (docs/mcp.md, "Apps").
+    # The server is stateless, so it cannot see what the client declared at
+    # initialize. It always links tools to their app; a client without the
+    # extension ignores the link and reads the normal result.
+    def self.capabilities
+      MCP::Server::Capabilities.new(
+        tools:      { listChanged: true },
+        prompts:    { listChanged: true },
+        resources:  { listChanged: true },
+        logging:    {},
+        extensions: MCP::Apps.capability
       )
     end
 

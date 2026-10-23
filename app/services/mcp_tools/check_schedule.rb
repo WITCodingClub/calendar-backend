@@ -12,6 +12,8 @@ module McpTools
                 "Use it before you suggest a schedule."
     requires_scope "catalog"
     academic_planning :sections
+    # Hosts with the MCP Apps extension show the result as a week grid.
+    meta WeekGridApp.tool_meta
     input_schema(
       properties: {
         term_uid: TERM_SCHEMA,

@@ -82,6 +82,32 @@ The term sources give one time for each current and future term. The time is whe
 
 A settings tool takes a color as a name (`lavender`, `sage`, `grape`, `flamingo`, `banana`, `tangerine`, `peacock`, `graphite`, `blueberry`, `basil`, `tomato`), a Google Calendar color id from 1 to 11, or a `#rrggbb` hex color. A change to a setting queues the same calendar sync as the extension.
 
+## Apps
+
+The server supports the MCP Apps extension ([SEP-1865](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx), `io.modelcontextprotocol/ui`). A host that supports the extension shows a tool result as an interactive page in a sandboxed iframe.
+
+| App | Resource | Tools |
+| --- | --- | --- |
+| Week grid | `ui://wit-calendar/week-grid` | `check_schedule` (conflicts are marked), `my_courses` |
+
+How it works:
+
+1. `initialize` declares the extension in `capabilities.extensions`.
+2. `tools/list` gives each tool with an app a `_meta.ui.resourceUri`. It also gives the old flat key `_meta["ui/resourceUri"]` for older hosts.
+3. The host reads the template with `resources/read`. The MIME type is `text/html;profile=mcp-app`.
+4. The page sends `ui/initialize` to the host. It applies the `theme` and `styles.variables` of the host context, then sends `ui/notifications/initialized`.
+5. The host sends `ui/notifications/tool-result`. The page draws the `structuredContent` of the result. It also handles `ui/notifications/host-context-changed`, `ui/notifications/tool-cancelled`, `ui/resource-teardown`, and `ping`, and it sends `ui/notifications/size-changed`.
+
+Rules:
+
+- A tool with an app returns the same text and `structuredContent` as before. A client without the extension ignores the `_meta` and reads the normal result. The server is stateless, so it cannot see what the client declared at `initialize`, and it always sends the `_meta`.
+- A template is one HTML file in `app/views/mcp_apps/`, with inline CSS and JavaScript. It loads nothing from the network, so the resource declares no CSP domains and the host uses its strictest CSP. `spec/services/mcp_tools/week_grid_app_spec.rb` checks this.
+- The page uses the host CSS variables (for example `--color-background-primary`) and has its own `light-dark()` values when the host gives none.
+- Do not put an app behind a Flipper flag. The tool scope is the gate, the same as for the tool.
+- `spec/system/mcp_week_grid_spec.rb` puts the template in an iframe with a fake host, and sends it a real tool result.
+
+To add an app: add the HTML file, add an `MCP::Resource` subclass in `app/services/mcp_tools/` (see `McpTools::WeekGridApp`), add it to `McpTools.app_resources`, and call `meta YourApp.tool_meta` in each tool that uses it.
+
 ## Permissions
 
 Each tool needs one OAuth scope. The consent page shows one checkbox for each scope the client asks for. A client that follows the MCP spec asks for every scope, because the first `401` names them all. The student checks or clears each box.
@@ -179,7 +205,8 @@ Rules:
 | `config/routes/oauth.rb` | The OAuth routes |
 | `Oauth::` (`app/controllers/oauth/`, `app/services/oauth/`) | Consent page, registration, metadata |
 | `Api::McpController` | The MCP endpoint and the bearer token check |
-| `McpTools::` (`app/services/mcp_tools/`) | The server and its tools |
+| `McpTools::` (`app/services/mcp_tools/`) | The server, its tools, and its app resources |
+| `app/views/mcp_apps/` | The HTML templates of the MCP Apps |
 | `Dashboard::ConnectedAppsController` | Disconnect an app |
 
 ### Add a tool

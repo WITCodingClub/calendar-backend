@@ -11,6 +11,8 @@ module McpTools
                 "times and rooms. Times are 24-hour, in the America/New_York time zone."
     requires_scope "schedule:read"
     academic_planning :sections
+    # Hosts with the MCP Apps extension show the result as a week grid.
+    meta WeekGridApp.tool_meta
     input_schema(properties: { term_uid: TERM_SCHEMA })
 
     def perform(term_uid: nil)
