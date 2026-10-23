@@ -107,6 +107,9 @@ class User < ApplicationRecord
   has_many :calendar_preferences, dependent: :destroy
   has_many :event_preferences, dependent: :destroy
   has_one :user_extension_config, dependent: :destroy
+  has_one :academic_profile, dependent: :delete
+  has_many :student_programs, dependent: :delete_all
+  has_many :course_outcomes, dependent: :delete_all
   has_many :security_events, dependent: :destroy
   has_many :passkeys, dependent: :destroy
   has_many :user_sessions, dependent: :destroy
