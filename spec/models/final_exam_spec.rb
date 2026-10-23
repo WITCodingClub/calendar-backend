@@ -107,6 +107,29 @@ RSpec.describe FinalExam do
     end
   end
 
+  describe ".finals_week_start" do
+    let(:term) { create(:term) }
+
+    it "is nil when the term has no exams" do
+      expect(described_class.finals_week_start(term.id)).to be_nil
+    end
+
+    it "skips an early date that holds few of the term's exams" do
+      create(:final_exam, term: term, exam_date: Date.new(2026, 11, 19))
+      create_list(:final_exam, 5, term: term, exam_date: Date.new(2026, 12, 10))
+      create_list(:final_exam, 5, term: term, exam_date: Date.new(2026, 12, 11))
+
+      expect(described_class.finals_week_start(term.id)).to eq(Date.new(2026, 12, 10))
+    end
+
+    it "ignores the exams of another term" do
+      create_list(:final_exam, 3, term: create(:term), exam_date: Date.new(2026, 12, 1))
+      create(:final_exam, term: term, exam_date: Date.new(2026, 12, 10))
+
+      expect(described_class.finals_week_start(term.id)).to eq(Date.new(2026, 12, 10))
+    end
+  end
+
   describe "scopes" do
     include ActiveSupport::Testing::TimeHelpers
 

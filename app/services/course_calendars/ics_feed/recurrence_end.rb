@@ -3,7 +3,7 @@
 module CourseCalendars
   class IcsFeed
     # The last day of the weekly rule of a class. Classes stop the day before
-    # the course's own final, else the day before the first final of the term,
+    # the course's own final, else the day before the term's finals week starts,
     # and always before the finals period or study day of the term.
     #
     # Each lookup runs once and is kept for the rest of the feed.
@@ -51,9 +51,7 @@ module CourseCalendars
       def earliest_final_for_term(term_id)
         return @term_finals[term_id] if @term_finals.key?(term_id)
 
-        @term_finals[term_id] = FinalExam.where(term_id: term_id)
-                                         .where.not(exam_date: nil)
-                                         .minimum(:exam_date)
+        @term_finals[term_id] = FinalExam.finals_week_start(term_id)
       end
 
       def earliest_finals_period_for_term(term_id)

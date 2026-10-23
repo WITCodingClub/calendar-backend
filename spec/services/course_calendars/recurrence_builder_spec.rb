@@ -57,6 +57,13 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
       expect(builder.build_recurrence_rule(meeting_time)).to include("UNTIL=20261212T045959Z")
     end
 
+    it "ignores an early final that few sections of the term hold when the course has none" do
+      create(:final_exam, term: term, exam_date: Date.new(2026, 11, 19))
+      create_list(:final_exam, 10, term: term, exam_date: Date.new(2026, 12, 10))
+
+      expect(builder.build_recurrence_rule(meeting_time)).to include("UNTIL=20261210T045959Z")
+    end
+
     it "stops the day before Study Day" do
       create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
                                          start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
