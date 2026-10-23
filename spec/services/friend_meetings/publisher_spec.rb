@@ -295,6 +295,36 @@ RSpec.describe FriendMeetings::Publisher, :microsoft_graph do
       expect(publication("google")).to be_published
     end
 
+    it "makes a new event with a new invitation when a single event starts to repeat" do
+      row
+      publication("google").update!(invitations_sent_at: 1.day.ago)
+      meeting.update!(frequency: "weekly", term: create(:term), repeat_until: Date.new(2026, 12, 18))
+      delete = stub_request(:delete, "#{google_events_url}/gcal_synthetic_meeting").with(query: { "sendUpdates" => "all" })
+                                                                                   .to_return(status: 204)
+      insert = stub_request(:post, google_events_url).with(query: { "sendUpdates" => "all" }) { |request|
+        JSON.parse(request.body)["recurrence"] == meeting.recurrence
+      }.to_return(google_created)
+
+      described_class.new(user).update(meeting)
+
+      expect(delete).to have_been_requested.once
+      expect(insert).to have_been_requested.once
+      expect(meeting.calendar_events.sole.recurrence).to eq(meeting.recurrence)
+      expect(publication("google")).to be_published
+    end
+
+    it "makes a new event when a series stops repeating" do
+      row.update!(recurrence: [ "RRULE:FREQ=WEEKLY;BYDAY=TU;UNTIL=20261219T045959Z" ])
+      delete = stub_request(:delete, "#{google_events_url}/gcal_synthetic_meeting").with(query: hash_including({})).to_return(status: 204)
+      insert = stub_request(:post, google_events_url).with(query: hash_including({})).to_return(google_created)
+
+      described_class.new(user).update(meeting)
+
+      expect(delete).to have_been_requested.once
+      expect(insert).to have_been_requested.once
+      expect(meeting.calendar_events.sole.recurrence).to be_nil
+    end
+
     it "makes the event when the calendar does not have it yet" do
       insert = stub_request(:post, google_events_url).with(query: { "sendUpdates" => "all" }).to_return(google_created)
 

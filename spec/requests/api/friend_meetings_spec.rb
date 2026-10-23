@@ -309,6 +309,11 @@ RSpec.describe "Api::Friends::Meetings", type: :request do
                                                           headers: auth_headers_for(user), as: :json
 
       expect(response.parsed_body["meeting"]).to include("repeat_days" => %w[wednesday], "repeat_until" => "2026-12-18")
+
+      patch "/api/friends/meetings/#{meeting.public_id}", params: { repeat_days: "friday" },
+                                                          headers: auth_headers_for(user), as: :json
+
+      expect(response.parsed_body.dig("meeting", "repeat_days")).to eq(%w[wednesday friday])
     end
 
     it "answers 422 for a change that is not valid" do

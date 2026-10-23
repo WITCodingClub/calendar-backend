@@ -280,6 +280,16 @@ RSpec.describe FriendMeeting do
       expect(starts).to eq([ zone.local(2026, 10, 14, 15), zone.local(2026, 11, 11, 15), zone.local(2026, 12, 9, 15) ])
     end
 
+    it "lists a daily meeting once on the fall-back day, at the first 01:30" do
+      meeting = build(:friend_meeting, frequency: "daily", repeat_until: Date.new(2026, 11, 2),
+                                       start_time: zone.local(2026, 10, 31, 1, 30), end_time: zone.local(2026, 10, 31, 2))
+
+      starts = meeting.occurrences_between(zone.local(2026, 10, 31), zone.local(2026, 11, 3)).map(&:first)
+
+      expect(starts.map { |time| time.in_time_zone(zone).strftime("%F %R") }).to eq([ "2026-10-31 01:30", "2026-11-01 01:30", "2026-11-02 01:30" ])
+      expect(starts.second.utc_offset).to eq(-4.hours)
+    end
+
     it "lists every third day for a daily meeting" do
       meeting = build(:friend_meeting, frequency: "daily", repeat_interval: 3, repeat_until: Date.new(2026, 10, 21),
                                        start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16))

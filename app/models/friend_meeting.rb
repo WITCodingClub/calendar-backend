@@ -136,6 +136,8 @@ class FriendMeeting < ApplicationRecord
 
   # Each occurrence that overlaps the range, as [start, end] pairs. A
   # repeating meeting keeps its local wall time across a daylight saving change.
+  # On the fall-back day, a wall time between 01:00 and 02:00 happens twice;
+  # like an RRULE, the meeting happens only at the first one.
   def occurrences_between(range_start, range_end)
     duration = end_time - start_time
     starts =
@@ -143,6 +145,7 @@ class FriendMeeting < ApplicationRecord
         schedule = IceCube::Schedule.new(local_start, duration: duration)
         schedule.add_recurrence_rule(recurrence_rule.until(recurrence_until))
         schedule.occurrences_between(range_start, range_end, spans: true)
+                .uniq { |time| time.in_time_zone(LOCAL_TIME_ZONE).strftime("%F %T") }
       else
         [ local_start ]
       end

@@ -13,8 +13,8 @@ module FriendMeetings
   class Updater < ApplicationService
     REPEAT_FIELDS = %i[frequency repeat_interval repeat_days repeat_until].freeze
     FIELDS        = (%i[title location start_time end_time] + REPEAT_FIELDS).freeze
-    # For params.permit: repeat_days is a list.
-    PERMITTED = (FIELDS - [ :repeat_days ] + [ { repeat_days: [] } ]).freeze
+    # For params.permit: repeat_days is a list, or one day like at create.
+    PERMITTED = (FIELDS + [ { repeat_days: [] } ]).freeze
 
     def initialize(meeting:, changes:)
       @meeting = meeting
@@ -47,12 +47,23 @@ module FriendMeetings
       if @changes.keys.intersect?(REPEAT_FIELDS)
         apply_repeat_changes
       elsif @meeting.repeating? && @meeting.start_time_changed?
+        @meeting.repeat_days = moved_days(@meeting.repeat_days)
         FriendMeetings::Creator.assign_term(@meeting, repeat_until: picked_repeat_until)
       end
     end
 
+    # A weekly meeting whose start moves to a new weekday moves that day too,
+    # so a meeting on Monday and Wednesday that moves from Monday to Tuesday
+    # meets on Tuesday and Wednesday. The other days stay.
+    def moved_days(days)
+      return Array(days) unless @meeting.start_time_changed? && @meeting.start_time_was
+
+      old_day = @meeting.start_time_was.in_time_zone(FriendMeeting::LOCAL_TIME_ZONE).strftime("%A").downcase
+      Array(days) - [ old_day ]
+    end
+
     def apply_repeat_changes
-      frequency = @changes.key?(:frequency) ? @changes[:frequency].presence || "one_time" : @meeting.frequency
+      frequency = @changes.key?(:frequency) ? @changes[:frequency].to_s : @meeting.frequency
       FriendMeetings::Creator.check_frequency(frequency)
 
       if frequency == FriendMeeting::FREQUENCIES[:one_time]
@@ -67,9 +78,11 @@ module FriendMeetings
       was_repeating = @meeting.repeating?
       repeat_until  = @changes.key?(:repeat_until) ? FriendMeetings::Creator.parse_date(@changes[:repeat_until], "repeat_until") : picked_repeat_until
 
-      @meeting.repeat_interval = new_interval(was_repeating)
-      @meeting.repeat_days     = new_days(frequency)
+      was_weekly = @meeting.weekly?
+
       @meeting.frequency       = frequency
+      @meeting.repeat_interval = new_interval(was_repeating)
+      @meeting.repeat_days     = new_days(frequency, was_weekly: was_weekly)
       FriendMeetings::Creator.assign_term(@meeting, repeat_until: repeat_until)
     end
 
@@ -80,11 +93,13 @@ module FriendMeetings
       was_repeating ? @meeting.repeat_interval : 1
     end
 
-    # The days stay only while the meeting stays weekly.
-    def new_days(frequency)
-      return FriendMeetings::Creator.parse_days(@changes[:repeat_days]) if @changes.key?(:repeat_days)
+    # The days stay only while the meeting stays weekly. Days that the request
+    # sends replace them. The old start day leaves them when the start moves,
+    # because the repeat_days that GET returns hold the start day.
+    def new_days(frequency, was_weekly:)
+      return moved_days(FriendMeetings::Creator.parse_days(@changes[:repeat_days])) if @changes.key?(:repeat_days)
 
-      @meeting.weekly? && frequency == FriendMeeting::FREQUENCIES[:weekly] ? @meeting.repeat_days : []
+      was_weekly && frequency == FriendMeeting::FREQUENCIES[:weekly] ? moved_days(@meeting.repeat_days) : []
     end
 
     # The repeat_until that the person picked, or nil when the meeting repeats

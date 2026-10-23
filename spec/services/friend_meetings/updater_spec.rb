@@ -113,9 +113,35 @@ RSpec.describe FriendMeetings::Updater do
       expect(weekly.recurrence).to be_nil
     end
 
-    it "refuses repeat options for a one-time meeting, an unknown frequency, and a bad date" do
+    it "moves the start day of a weekly meeting and keeps its other days" do
+      weekly = create(:friend_meeting, :weekly, term: fall, repeat_days: %w[monday wednesday],
+                                                start_time: zone.local(2026, 10, 12, 15), end_time: zone.local(2026, 10, 12, 16))
+
+      update(weekly, start_time: "2026-10-13T15:00:00-04:00", end_time: "2026-10-13T16:00:00-04:00")
+
+      expect(weekly.reload.weekdays).to eq(%w[tuesday wednesday])
+    end
+
+    it "moves the start day when the request sends back the days that GET returned" do
+      weekly = create(:friend_meeting, :weekly, term: fall, start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16))
+
+      update(weekly, start_time: "2026-10-15T15:00:00-04:00", end_time: "2026-10-15T16:00:00-04:00", repeat_days: weekly.weekdays)
+
+      expect(weekly.reload.weekdays).to eq(%w[thursday])
+    end
+
+    it "takes one day as a string" do
+      weekly = create(:friend_meeting, :weekly, term: fall, start_time: zone.local(2026, 10, 14, 15), end_time: zone.local(2026, 10, 14, 16))
+
+      update(weekly, repeat_days: "Friday")
+
+      expect(weekly.reload.weekdays).to eq(%w[wednesday friday])
+    end
+
+    it "refuses repeat options for a one-time meeting, an unknown or blank frequency, and a bad date" do
       expect { update(meeting, repeat_interval: 2) }.to raise_error(FriendMeetings::Creator::Error, /need a repeating frequency/)
       expect { update(meeting, frequency: "yearly") }.to raise_error(FriendMeetings::Creator::Error, /frequency must be one of/)
+      expect { update(meeting, frequency: nil) }.to raise_error(FriendMeetings::Creator::Error, /frequency must be one of/)
       expect { update(meeting, frequency: "daily", repeat_until: "soon") }
         .to raise_error(FriendMeetings::Creator::Error, "repeat_until must be an ISO 8601 date")
     end

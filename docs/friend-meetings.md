@@ -160,7 +160,7 @@ Each place has one row in `publications`.
 ```
 
 - The occurrence id is the meeting id and the occurrence start in UTC. It stays the same until the owner moves the meeting.
-- A repeating meeting keeps its local time across a daylight saving change.
+- A repeating meeting keeps its local time across a daylight saving change. On the day the clocks go back, a meeting between 01:00 and 02:00 happens once, at the first of the two times.
 - The route reads only the database, so it works for a person who uses only the ICS feed.
 - An invited friend sees a meeting when the owner set `invite_friends`. The friend does not accept in the app: the provider invitation handles the answer. See [A declined invitation](#a-declined-invitation).
 
@@ -172,7 +172,10 @@ Each place has one row in `publications`.
 - `"repeat_until": null` makes the meeting repeat until the end of its term again.
 - `"frequency": "one_time"` stops the repeats and clears `repeat_interval`, `repeat_days`, and `repeat_until`. Do not send other repeat options with it.
 - A one-time meeting that starts to repeat gets a `repeat_interval` of 1 unless the request sends one.
-- `repeat_days` stays only while the meeting stays `weekly`. `"repeat_days": []` goes back to the start day only. The answer is the meeting, with each provider `queued` until the update job writes the change. The provider that sent the invitations tells the friends about the change.
+- `repeat_days` stays only while the meeting stays `weekly`. `"repeat_days": []` goes back to the start day only.
+- When `start_time` moves a weekly meeting to a new weekday, the old start day leaves `repeat_days` and the new one joins. The other days stay. This also applies to `repeat_days` in the same request, so a client can send back the list that GET returned.
+- `frequency` cannot be `null` or empty. Send `one_time` to stop the repeats.
+- A meeting that starts or stops repeating gets a new provider event. The friends get a cancellation and a new invitation. The answer is the meeting, with each provider `queued` until the update job writes the change. The provider that sent the invitations tells the friends about the change.
 
 ## Delete a meeting
 
