@@ -308,4 +308,34 @@ RSpec.describe "MCP tool output schemas" do
       expect(result).to have_key("data")
     end
   end
+
+  context "with degree programs" do
+    let(:catalog_year) { create(:catalog_year, :imported, start_year: 2026) }
+    let(:major) { create(:degree_program, slug: "widget-design-bs", name: "Widget Design, B.S.") }
+
+    it "matches a program with plans and elective lists" do
+      set = create(:requirement_set, degree_program: major, catalog_year: catalog_year, path: "/widgetry/widget-design-bs/")
+      plan = create(:program_plan, requirement_set: set)
+      group = create(:elective_group, requirement_set: set, program_plan: plan)
+      create(:elective_group_course, elective_group: group, requires_approval: true)
+      create(:program_plan_item, program_plan: plan, footnote: "1")
+      create(:program_plan_item, :placeholder, program_plan: plan, elective_group: group, min_credits: nil, max_credits: nil)
+      create(:program_plan_item, :choice, program_plan: plan, season: "summer")
+      create(:degree_program, :concentration, slug: "widget-design-gears", parent_program: major)
+
+      expect(expect_valid(McpTools::ListPrograms)[:programs].size).to eq(1)
+      program = expect_valid(McpTools::GetDegreeRequirements, program: "widget-design-bs")
+      expect(program[:plans].first[:terms].flat_map { |term| term[:items] }.pluck(:kind)).to eq(%w[course placeholder choice])
+      expect(program[:advisory][:data_sources].first).to include(source: "Wentworth academic catalog (catalog.wit.edu)")
+    end
+
+    it "matches a minor with no plan, school, credits, or link" do
+      minor = create(:degree_program, :minor, slug: "gear-minor", parent_program: nil)
+      create(:requirement_set, degree_program: minor, catalog_year: catalog_year, school_name: nil, total_credits: nil)
+
+      program = expect_valid(McpTools::GetDegreeRequirements, program: "gear-minor", catalog_year: "2026-2027")
+      expect(program).to include(plans: [], elective_lists: [], school: nil, catalog_url: nil, description: nil)
+      expect_valid(McpTools::ListPrograms, kind: "minor", q: "nothing matches this")
+    end
+  end
 end

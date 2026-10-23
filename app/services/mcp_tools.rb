@@ -12,6 +12,8 @@ module McpTools
       GetSection,
       SearchCourses,
       GetCourse,
+      ListPrograms,
+      GetDegreeRequirements,
       SimilarSections,
       CheckSchedule,
       SearchInstructors,

@@ -39,6 +39,8 @@ RSpec.describe McpTools::BaseTool do
       "get_section"       => %i[sections],
       "search_courses"    => %i[course_details],
       "get_course"        => %i[course_details sections],
+      "list_programs"       => %i[degree_requirements],
+      "degree_requirements" => %i[degree_requirements course_details],
       "similar_sections"  => %i[sections],
       "check_schedule"    => %i[sections],
       "catalog_graphql"   => %i[sections course_details],
