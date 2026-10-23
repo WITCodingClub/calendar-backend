@@ -1141,6 +1141,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
 
   create_table "student_programs", force: :cascade do |t|
     t.bigint "user_id", null: false
+    t.bigint "degree_program_id"
+    t.bigint "catalog_year_id"
     t.string "role", null: false
     t.string "code"
     t.string "name", null: false
@@ -1155,6 +1157,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
     t.string "source", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["catalog_year_id"], name: "index_student_programs_on_catalog_year_id"
+    t.index ["degree_program_id"], name: "index_student_programs_on_degree_program_id"
     t.index ["user_id", "status"], name: "index_student_programs_on_user_id_and_status"
   end
 
@@ -1442,6 +1446,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "student_programs", "catalog_years", on_delete: :nullify
+  add_foreign_key "student_programs", "degree_programs", on_delete: :nullify
   add_foreign_key "student_programs", "users", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
   add_foreign_key "term_processing_statuses", "terms"

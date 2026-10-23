@@ -55,6 +55,13 @@ flowchart TD
 - A CRN must belong to a course the user is enrolled in. Other CRNs come back in `unknown_crns`, and the extension processes that term first. The stored outcome of an unknown CRN in the request does not change, because its enrollment can be missing for a short time.
 - An outcome names its course by term code and CRN, not by course id. `Courses::Reprocessor` deletes and creates enrollments, and `rake catalog:refresh` deletes and imports the courses of a term again. The outcome stays through both.
 
-## Next step
+## Links to the degree catalog
 
-When the degree catalog models from #526 merge, each `StudentProgram` gets a `degree_program_id` and a `catalog_year_id`, and `matched` in the response shows if the link was found. Until then, `matched` is `null`.
+`AcademicProfiles::ProgramMatcher` links each `StudentProgram` to a `DegreeProgram` and a `CatalogYear` (`docs/degree-requirements.md`). `AcademicProfiles::Sync` runs it for each payload.
+
+- LeopardWeb gives the subject ("Computer Science") and the degree apart. The catalog name has both ("Computer Science, B.S."). The matcher compares the subject only. The role picks the kind (a minor matches a `minor`), and the degree picks a bachelor or a master.
+- A program with no match, or with more than one, keeps a null `degree_program_id`.
+- The catalog year comes from the catalog term: Spring 2026 is in 2025-2026.
+- `matched` in the response is `true` with a link, `false` when the catalog year is imported and has no such program, and `null` before the import.
+- The degree catalog import (#527) must call `AcademicProfiles::ProgramMatcher.relink_active` when it finishes, so programs saved before the import get a link.
+- LeopardWeb's `concentration` field on a major is not linked yet. A program with the `concentration` role is.

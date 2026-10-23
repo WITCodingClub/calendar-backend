@@ -4,29 +4,35 @@
 #
 # Table name: student_programs
 #
-#  id               :bigint           not null, primary key
-#  catalog_term_uid :integer
-#  code             :string
-#  college          :string
-#  concentration    :string
-#  degree           :string
-#  department       :string
-#  ended_at         :datetime
-#  name             :string           not null
-#  role             :string           not null
-#  source           :string           not null
-#  status           :string           default("active"), not null
-#  study_path       :string
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  user_id          :bigint           not null
+#  id                :bigint           not null, primary key
+#  catalog_term_uid  :integer
+#  code              :string
+#  college           :string
+#  concentration     :string
+#  degree            :string
+#  department        :string
+#  ended_at          :datetime
+#  name              :string           not null
+#  role              :string           not null
+#  source            :string           not null
+#  status            :string           default("active"), not null
+#  study_path        :string
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#  catalog_year_id   :bigint
+#  degree_program_id :bigint
+#  user_id           :bigint           not null
 #
 # Indexes
 #
-#  index_student_programs_on_user_id_and_status  (user_id,status)
+#  index_student_programs_on_catalog_year_id    (catalog_year_id)
+#  index_student_programs_on_degree_program_id  (degree_program_id)
+#  index_student_programs_on_user_id_and_status (user_id,status)
 #
 # Foreign Keys
 #
+#  fk_rails_...  (catalog_year_id => catalog_years.id) ON DELETE => nullify
+#  fk_rails_...  (degree_program_id => degree_programs.id) ON DELETE => nullify
 #  fk_rails_...  (user_id => users.id) ON DELETE => cascade
 #
 FactoryBot.define do

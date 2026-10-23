@@ -18,7 +18,7 @@ class AcademicProfileSerializer
       admit_term:      AcademicProfiles::TermCode.label(profile&.admit_term_uid),
       admit_term_code: profile&.admit_term_uid&.to_s,
       updated_at:      profile&.updated_at&.iso8601,
-      programs:        @user.student_programs.active.order(:id).map { |program| program_json(program) }
+      programs:        @user.student_programs.active.includes(:catalog_year).order(:id).map { |program| program_json(program) }
     }
   end
 
@@ -37,9 +37,8 @@ class AcademicProfileSerializer
       study_path:        program.study_path,
       catalog_term:      program.catalog_term,
       catalog_term_code: program.catalog_term_uid&.to_s,
-      catalog_year:      program.catalog_year,
-      # Null until programs link to the degree catalog (#526).
-      matched:           nil,
+      catalog_year:      program.catalog_year_name,
+      matched:           program.matched?,
       source:            program.source
     }
   end

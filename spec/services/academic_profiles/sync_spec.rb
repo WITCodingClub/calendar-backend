@@ -87,6 +87,16 @@ RSpec.describe AcademicProfiles::Sync do
     expect(user.student_programs).to be_empty
   end
 
+  it "links each program to the degree catalog" do
+    computer_science = create(:degree_program, name: "Computer Science, B.S.", slug: "computer-science-bs")
+    catalog_year = create(:catalog_year, :imported, start_year: 2025)
+
+    sync
+
+    expect(user.student_programs.find_by!(role: "major"))
+      .to have_attributes(degree_program: computer_science, catalog_year: catalog_year)
+  end
+
   describe "invalid payloads" do
     it "rejects a term it cannot read with the invalid_term code" do
       expect { sync(admit_term: "Autumn 2025") }

@@ -107,18 +107,20 @@ module AcademicProfiles
       active = user.student_programs.active.to_a
       kept = []
 
-      programs.each do |attributes|
+      rows = programs.map do |attributes|
         row = active.find { |candidate| kept.exclude?(candidate) && same_program?(candidate, attributes) }
 
         if row
           row.update!(attributes.merge(source: source))
           kept << row
+          row
         else
           user.student_programs.create!(attributes.merge(source: source))
         end
       end
 
       (active - kept).each { |row| row.update!(status: :ended, ended_at: Time.current) }
+      ProgramMatcher.new(rows).call
     end
 
     def same_program?(row, attributes)
