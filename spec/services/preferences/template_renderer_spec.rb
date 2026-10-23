@@ -112,6 +112,43 @@ RSpec.describe Preferences::TemplateRenderer do
         .with(described_class::InvalidTemplateError, handled: true, context: { user_id: 15 }).once
     end
 
+    it "falls back to the title and reports an error at render time" do
+      allow(Rails.error).to receive(:report)
+      saved = described_class.new(user_id: 15)
+
+      expect(saved.render("{% if course_number > 2000 %}Upper{% endif %}", { title: "Calculus", course_number: "2010" }))
+        .to eq("Calculus")
+      expect(Rails.error).to have_received(:report).once
+    end
+
+    it "reports the error class only, not text from the template" do
+      allow(Rails.error).to receive(:report)
+
+      described_class.new(user_id: 15).render("{% for x in (1..3) %}Jane Doe{% endfor %}", { title: "Calculus" })
+
+      expect(Rails.error).to have_received(:report) do |error, **|
+        expect(error.message).to eq("A saved template failed: Preferences::TemplateRenderer::InvalidTemplateError")
+      end
+    end
+
+    context "with a cache" do
+      around do |example|
+        original = Rails.cache
+        Rails.cache = ActiveSupport::Cache::MemoryStore.new
+        example.run
+      ensure
+        Rails.cache = original
+      end
+
+      it "reports a broken template once across renderers, as for each feed poll" do
+        allow(Rails.error).to receive(:report)
+
+        3.times { described_class.new(user_id: 15).render("{% for x in (1..3) %}{% endfor %}", { title: "Calculus" }) }
+
+        expect(Rails.error).to have_received(:report).once
+      end
+    end
+
     it "does not report a failing template without a user, as in a preview" do
       allow(Rails.error).to receive(:report)
 
@@ -141,6 +178,26 @@ RSpec.describe Preferences::TemplateRenderer do
 
     it "rejects a variable outside the allowed list in the body of a condition" do
       expect { described_class.validate_template("{% if title %}{{secret}}{% endif %}") }
+        .to raise_error(described_class::InvalidTemplateError, /Disallowed variables: secret/)
+    end
+
+    it "rejects a condition that lax parsing would read wrongly" do
+      [ "{% if title == 'x' && room %}a{% endif %}", "{% if schedule_type = 'Lab' %}a{% endif %}",
+        "{% if title | downcase contains 'lab' %}a{% endif %}" ].each do |template|
+        expect { described_class.validate_template(template) }
+          .to raise_error(described_class::InvalidTemplateError, /Syntax error/)
+      end
+    end
+
+    it "rejects a variable outside the allowed list inside a lookup or a range" do
+      [ "{% if title[secret] %}a{% endif %}", "{% if (1..secret) contains 3 %}a{% endif %}", "{{ title[secret] }}" ].each do |template|
+        expect { described_class.validate_template(template) }
+          .to raise_error(described_class::InvalidTemplateError, /Disallowed variables: secret/)
+      end
+    end
+
+    it "rejects a variable outside the allowed list in the else body of unless" do
+      expect { described_class.validate_template("{% unless room %}TBA{% else %}{{secret}}{% endunless %}") }
         .to raise_error(described_class::InvalidTemplateError, /Disallowed variables: secret/)
     end
 
