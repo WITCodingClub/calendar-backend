@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<!--
+  The week grid MCP App (McpTools::WeekGridApp, docs/mcp.md "Apps").
+  The host shows this page in a sandboxed iframe and sends it the tool result
+  over postMessage (JSON-RPC 2.0). The page must not load anything from the
+  network: the host CSP blocks it. Keep all CSS and JavaScript inline.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Week grid</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --color-background-primary: light-dark(#ffffff, #1f1f1f);
+        --color-background-secondary: light-dark(#f5f5f4, #2a2a2a);
+        --color-text-primary: light-dark(#1c1917, #f5f5f4);
+        --color-text-secondary: light-dark(#57534e, #a8a29e);
+        --color-text-danger: light-dark(#b91c1c, #fca5a5);
+        --color-background-danger: light-dark(#fef2f2, #3f1d1d);
+        --color-border-danger: light-dark(#dc2626, #f87171);
+        --color-text-warning: light-dark(#92400e, #fcd34d);
+        --color-background-warning: light-dark(#fffbeb, #3a2e12);
+        --color-border-primary: light-dark(#d6d3d1, #44403c);
+        --color-border-secondary: light-dark(#e7e5e4, #333333);
+        --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --font-text-xs-size: 11px;
+        --font-text-sm-size: 13px;
+        --font-weight-semibold: 600;
+        --border-radius-sm: 4px;
+        --border-radius-md: 8px;
+        --hour-height: 56px;
+      }
+
+      :root[data-theme="light"] {
+        color-scheme: light;
+      }
+
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 12px;
+        background: var(--color-background-primary);
+        color: var(--color-text-primary);
+        font-family: var(--font-sans);
+        font-size: var(--font-text-sm-size);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .summary {
+        margin: 2px 0 10px;
+        color: var(--color-text-secondary);
+      }
+
+      .status {
+        padding: 16px 0;
+        color: var(--color-text-secondary);
+      }
+
+      .status.error {
+        color: var(--color-text-danger);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 40px repeat(var(--days), minmax(0, 1fr));
+        border: 1px solid var(--color-border-primary);
+        border-radius: var(--border-radius-md);
+        overflow: hidden;
+      }
+
+      .day-head {
+        padding: 6px 4px;
+        text-align: center;
+        font-weight: var(--font-weight-semibold);
+        background: var(--color-background-secondary);
+        border-bottom: 1px solid var(--color-border-primary);
+        border-left: 1px solid var(--color-border-secondary);
+      }
+
+      .corner {
+        background: var(--color-background-secondary);
+        border-bottom: 1px solid var(--color-border-primary);
+      }
+
+      .hours,
+      .day {
+        position: relative;
+        height: calc(var(--hours) * var(--hour-height));
+      }
+
+      .day {
+        border-left: 1px solid var(--color-border-secondary);
+        background-image: repeating-linear-gradient(
+          to bottom,
+          var(--color-border-secondary) 0 1px,
+          transparent 1px var(--hour-height)
+        );
+      }
+
+      .hour {
+        position: absolute;
+        right: 4px;
+        font-size: var(--font-text-xs-size);
+        color: var(--color-text-secondary);
+        transform: translateY(-50%);
+      }
+
+      .block {
+        position: absolute;
+        overflow: hidden;
+        padding: 2px 4px;
+        border-radius: var(--border-radius-sm);
+        border-left: 3px solid var(--block-border);
+        background: var(--block-background);
+        color: var(--color-text-primary);
+        font-size: var(--font-text-xs-size);
+        line-height: 1.25;
+      }
+
+      .block strong {
+        display: block;
+        font-weight: var(--font-weight-semibold);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .block span {
+        display: block;
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .block.conflict {
+        border: 2px solid var(--color-border-danger);
+        background: var(--color-background-danger);
+      }
+
+      .block .badge {
+        color: var(--color-text-danger);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .notes {
+        margin: 10px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .notes li {
+        margin-top: 4px;
+        padding: 6px 8px;
+        border-radius: var(--border-radius-sm);
+        background: var(--color-background-warning);
+        color: var(--color-text-warning);
+      }
+
+      .notes li.danger {
+        background: var(--color-background-danger);
+        color: var(--color-text-danger);
+      }
+
+      .notes li.plain {
+        background: var(--color-background-secondary);
+        color: var(--color-text-secondary);
+      }
+
+      .advisory {
+        margin: 12px 0 0;
+        font-size: 12px;
+        color: var(--color-text-secondary);
+      }
+
+      .c0 { --block-background: light-dark(#dbeafe, #1e3a5f); --block-border: light-dark(#2563eb, #60a5fa); }
+      .c1 { --block-background: light-dark(#dcfce7, #16402a); --block-border: light-dark(#16a34a, #4ade80); }
+      .c2 { --block-background: light-dark(#f3e8ff, #3b2257); --block-border: light-dark(#9333ea, #c084fc); }
+      .c3 { --block-background: light-dark(#ffedd5, #4a2a12); --block-border: light-dark(#ea580c, #fb923c); }
+      .c4 { --block-background: light-dark(#cffafe, #134048); --block-border: light-dark(#0891b2, #22d3ee); }
+      .c5 { --block-background: light-dark(#fce7f3, #4a1d36); --block-border: light-dark(#db2777, #f472b6); }
+      .c6 { --block-background: light-dark(#fef9c3, #423a10); --block-border: light-dark(#ca8a04, #facc15); }
+      .c7 { --block-background: light-dark(#e0e7ff, #2a2f5c); --block-border: light-dark(#4f46e5, #818cf8); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 id="title">Week grid</h1>
+      <p id="summary" class="summary"></p>
+    </header>
+    <main id="app">
+      <p id="status" class="status" role="status">Waiting for the schedule.</p>
+    </main>
+    <script>
+      (function () {
+        "use strict";
+
+        var PROTOCOL_VERSION = "2026-01-26";
+        var DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+        var DAY_LABELS = {
+          monday: "Mon", tuesday: "Tue", wednesday: "Wed", thursday: "Thu",
+          friday: "Fri", saturday: "Sat", sunday: "Sun"
+        };
+        var DAY_NAMES = {
+          monday: "Monday", tuesday: "Tuesday", wednesday: "Wednesday", thursday: "Thursday",
+          friday: "Friday", saturday: "Saturday", sunday: "Sunday"
+        };
+        var COLORS = 8;
+
+        var nextId = 1;
+        var pending = {};
+        var host = window.parent;
+
+        // --- The postMessage bridge (JSON-RPC 2.0) ---------------------------
+
+        function send(message) {
+          message.jsonrpc = "2.0";
+          host.postMessage(message, "*");
+        }
+
+        function request(method, params) {
+          var id = nextId++;
+          send({ id: id, method: method, params: params });
+          return new Promise(function (resolve, reject) {
+            pending[id] = { resolve: resolve, reject: reject };
+          });
+        }
+
+        function notify(method, params) {
+          send({ method: method, params: params || {} });
+        }
+
+        function respond(id, result) {
+          send({ id: id, result: result || {} });
+        }
+
+        window.addEventListener("message", function (event) {
+          if (event.source !== host) return;
+          var data = event.data;
+          if (!data || data.jsonrpc !== "2.0") return;
+
+          // A response to one of our requests.
+          if (data.method === undefined && data.id !== undefined) {
+            var waiting = pending[data.id];
+            if (!waiting) return;
+            delete pending[data.id];
+            if (data.error) waiting.reject(new Error(data.error.message || "Request failed"));
+            else waiting.resolve(data.result || {});
+            return;
+          }
+
+          switch (data.method) {
+            case "ui/notifications/tool-result":
+              render(data.params || {});
+              break;
+            case "ui/notifications/tool-cancelled":
+              showStatus("The tool call was cancelled.", false);
+              break;
+            case "ui/notifications/host-context-changed":
+              applyHostContext(data.params || {});
+              break;
+            case "ui/resource-teardown":
+            case "ping":
+              if (data.id !== undefined) respond(data.id, {});
+              break;
+          }
+        });
+
+        // --- Theme -----------------------------------------------------------
+
+        function applyHostContext(context) {
+          var root = document.documentElement;
+          if (context.theme === "light" || context.theme === "dark") {
+            root.setAttribute("data-theme", context.theme);
+          }
+          var variables = context.styles && context.styles.variables;
+          if (variables) {
+            Object.keys(variables).forEach(function (name) {
+              if (name.indexOf("--") === 0 && variables[name]) root.style.setProperty(name, variables[name]);
+            });
+          }
+          var fonts = context.styles && context.styles.css && context.styles.css.fonts;
+          if (fonts && !document.getElementById("host-fonts")) {
+            var style = document.createElement("style");
+            style.id = "host-fonts";
+            style.textContent = fonts;
+            document.head.appendChild(style);
+          }
+        }
+
+        // --- Size ------------------------------------------------------------
+
+        var lastHeight = 0;
+        function reportSize() {
+          var height = Math.ceil(document.documentElement.getBoundingClientRect().height);
+          if (height === lastHeight) return;
+          lastHeight = height;
+          notify("ui/notifications/size-changed", {
+            width: Math.ceil(document.documentElement.getBoundingClientRect().width),
+            height: height
+          });
+        }
+
+        // --- Data ------------------------------------------------------------
+
+        function minutes(hhmm) {
+          if (typeof hhmm !== "string") return null;
+          var parts = hhmm.split(":");
+          if (parts.length !== 2) return null;
+          var value = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+          return isNaN(value) ? null : value;
+        }
+
+        // 12-hour time: "9:05 AM". With short, a whole hour drops the
+        // minutes: "1 PM".
+        function clock(total, short) {
+          var h = Math.floor(total / 60) % 24;
+          var m = total % 60;
+          var suffix = h < 12 ? " AM" : " PM";
+          var h12 = h % 12 === 0 ? 12 : h % 12;
+          if (short && m === 0) return h12 + suffix;
+          return h12 + ":" + (m < 10 ? "0" : "") + m + suffix;
+        }
+
+        // check_schedule: { term, sections, conflicts, link_problems, ... }
+        // "09:00-10:15" to "9:00 AM to 10:15 AM".
+        function span(times) {
+          var parts = String(times).split("-");
+          var start = minutes(parts[0]);
+          var end = minutes(parts[1]);
+          return start === null || end === null ? String(times) : clock(start) + " to " + clock(end);
+        }
+
+        function fromScheduleCheck(data) {
+          // conflict.times[i] is "HH:MM-HH:MM" for conflict.crns[i]. The key holds
+          // the times too, so a second meeting of the same CRN on that day is
+          // not marked.
+          var conflictKeys = {};
+          (data.conflicts || []).forEach(function (conflict) {
+            (conflict.crns || []).forEach(function (crn, i) {
+              conflictKeys[crn + "|" + conflict.day + "|" + (conflict.times || [])[i]] = true;
+            });
+          });
+
+          var events = [];
+          var unscheduled = [];
+          (data.sections || []).forEach(function (section, index) {
+            var times = section.meeting_times || [];
+            if (times.length === 0) unscheduled.push(section.course_code + " (" + section.crn + ")");
+            times.forEach(function (time) {
+              events.push({
+                day: time.day,
+                start: minutes(time.begin_time),
+                end: minutes(time.end_time),
+                label: section.course_code,
+                detail: section.title,
+                color: index % COLORS,
+                conflict: !!conflictKeys[section.crn + "|" + time.day + "|" + time.begin_time + "-" + time.end_time],
+                crn: section.crn
+              });
+            });
+          });
+
+          var notes = [];
+          (data.conflicts || []).forEach(function (conflict) {
+            notes.push({
+              kind: "danger",
+              text: "Conflict on " + (DAY_NAMES[conflict.day] || conflict.day) + ": CRN " +
+                (conflict.crns || []).join(" and CRN ") + " (" + (conflict.times || []).map(span).join(", ") + ")."
+            });
+          });
+          (data.link_problems || []).forEach(function (problem) { notes.push({ kind: "warning", text: problem.message }); });
+          (data.duplicates || []).forEach(function (duplicate) {
+            notes.push({ kind: "warning", text: duplicate.course_code + " is in the list more than once: CRN " + duplicate.crns.join(", ") + "." });
+          });
+          (data.not_found || []).forEach(function (crn) { notes.push({ kind: "warning", text: "No section has CRN " + crn + "." }); });
+          (data.cancelled || []).forEach(function (crn) { notes.push({ kind: "warning", text: "CRN " + crn + " is cancelled." }); });
+          if (unscheduled.length) notes.push({ kind: "plain", text: "No set meeting time: " + unscheduled.join(", ") + "." });
+
+          var totals = data.totals || {};
+          var summary = [];
+          if (totals.credit_hours !== undefined) summary.push(totals.credit_hours + " credits");
+          if (totals.days) summary.push(totals.days.length + (totals.days.length === 1 ? " day" : " days"));
+          var earliest = minutes(totals.earliest_start);
+          var latest = minutes(totals.latest_end);
+          if (earliest !== null && latest !== null) summary.push(clock(earliest) + " to " + clock(latest));
+          if (totals.meetings_before_nine) summary.push(totals.meetings_before_nine + " before 9 AM");
+          var conflicts = (data.conflicts || []).length;
+          summary.push(conflicts === 0 ? "no conflicts" : conflicts + (conflicts === 1 ? " conflict" : " conflicts"));
+
+          return {
+            title: data.term && data.term.name ? "Schedule check, " + data.term.name : "Schedule check",
+            summary: summary.join(" · "),
+            events: events,
+            notes: notes
+          };
+        }
+
+        // my_courses: { term_uid, courses: [{ prefix, course_number, meeting_times: [{ monday: true, ... }] }] }
+        function fromMyCourses(data) {
+          var events = [];
+          var unscheduled = [];
+          (data.courses || []).forEach(function (course, index) {
+            var code = [course.prefix, course.course_number].filter(Boolean).join(" ") || course.title;
+            var times = course.meeting_times || [];
+            var placed = false;
+            times.forEach(function (time) {
+              // 12:01 to 23:59 is the all-day placeholder of a section with no
+              // set time (Course::MeetingTime#all_day?). check_schedule drops it.
+              if (time.begin_time === "12:01" && time.end_time === "23:59") return;
+              var room = time.location && time.location.building
+                ? [time.location.building.abbreviation].concat(time.location.rooms || []).join(" ")
+                : "";
+              DAYS.forEach(function (day) {
+                if (!time[day]) return;
+                placed = true;
+                events.push({
+                  day: day,
+                  start: minutes(time.begin_time),
+                  end: minutes(time.end_time),
+                  label: code,
+                  detail: room || course.title,
+                  color: index % COLORS,
+                  conflict: false
+                });
+              });
+            });
+            if (!placed) unscheduled.push(code);
+          });
+
+          var notes = [];
+          if (unscheduled.length) notes.push({ kind: "plain", text: "No set meeting time: " + unscheduled.join(", ") + "." });
+          var count = (data.courses || []).length;
+
+          return {
+            title: data.term_uid ? "My courses, term " + data.term_uid : "My courses",
+            summary: count + (count === 1 ? " course" : " courses"),
+            events: events,
+            notes: notes
+          };
+        }
+
+        // --- Rendering -------------------------------------------------------
+
+        function el(tag, className, text) {
+          var node = document.createElement(tag);
+          if (className) node.className = className;
+          if (text !== undefined) node.textContent = text;
+          return node;
+        }
+
+        function showStatus(text, isError) {
+          var app = document.getElementById("app");
+          app.textContent = "";
+          var status = el("p", "status" + (isError ? " error" : ""), text);
+          status.setAttribute("role", isError ? "alert" : "status");
+          app.appendChild(status);
+          reportSize();
+        }
+
+        // Places the events of one day in columns, so blocks that overlap sit
+        // side by side.
+        function layoutDay(events) {
+          events.sort(function (a, b) { return a.start - b.start || b.end - a.end; });
+          var groups = [];
+          var group = null;
+          var groupEnd = -1;
+          events.forEach(function (event) {
+            if (!group || event.start >= groupEnd) {
+              group = [];
+              groups.push(group);
+              groupEnd = event.end;
+            } else {
+              groupEnd = Math.max(groupEnd, event.end);
+            }
+            group.push(event);
+          });
+          groups.forEach(function (members) {
+            var columnEnds = [];
+            members.forEach(function (event) {
+              var column = columnEnds.findIndex(function (end) { return end <= event.start; });
+              if (column === -1) {
+                column = columnEnds.length;
+                columnEnds.push(event.end);
+              } else {
+                columnEnds[column] = event.end;
+              }
+              event.column = column;
+            });
+            members.forEach(function (event) { event.columns = columnEnds.length; });
+          });
+        }
+
+        // The advisory (McpTools::BaseTool): not official, confirm with the
+        // program director and advisor, and when the sections last refreshed.
+        // The advisory (McpTools::BaseTool): not official, confirm with the
+        // program director and advisor, and when the sections of the result's
+        // term last refreshed. Catalog::Freshness lists only the current and
+        // future terms, so a term that is not in the list has ended.
+        function advisoryText(advisory, termUid) {
+          if (!advisory) return null;
+          var text = "WIT Calendar is not an official Wentworth service. Confirm your plan with your program " +
+            "director and your academic advisor.";
+          var sections = (advisory.data_sources || []).filter(function (source) { return source.terms; })[0];
+          if (!sections || !termUid) return text;
+
+          var entry = sections.terms.filter(function (term) { return term.term_uid === termUid; })[0];
+          if (!entry) return text + " This term has ended, so WIT Calendar no longer refreshes its section data.";
+          if (!entry.last_refreshed_at) return text + " The section data of this term has not refreshed from Banner yet.";
+
+          return text + " Section data last refreshed from Banner on " +
+            new Date(entry.last_refreshed_at).toLocaleString("en-US", {
+              timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+            }) + ".";
+        }
+
+        function render(result) {
+          if (result.isError) {
+            var message = (result.content || []).map(function (item) { return item.text; }).filter(Boolean).join(" ");
+            showStatus(message || "The tool returned an error.", true);
+            return;
+          }
+
+          var data = result.structuredContent;
+          if (!data) {
+            showStatus("The tool result has no schedule data.", true);
+            return;
+          }
+
+          var view = data.sections ? fromScheduleCheck(data) : fromMyCourses(data);
+          document.getElementById("title").textContent = view.title;
+          document.getElementById("summary").textContent = view.summary;
+
+          var app = document.getElementById("app");
+          app.textContent = "";
+
+          var events = view.events.filter(function (event) {
+            return DAYS.indexOf(event.day) !== -1 && event.start !== null && event.end !== null && event.end > event.start;
+          });
+
+          if (events.length === 0) {
+            app.appendChild(el("p", "status", "No class meets at a set time."));
+          } else {
+            app.appendChild(buildGrid(events));
+          }
+
+          if (view.notes.length) {
+            var list = el("ul", "notes");
+            list.setAttribute("aria-label", "Notes");
+            view.notes.forEach(function (note) { list.appendChild(el("li", note.kind, note.text)); });
+            app.appendChild(list);
+          }
+
+          var termUid = data.term ? data.term.uid : data.term_uid;
+          var advisory = advisoryText(data.advisory, termUid);
+          if (advisory) app.appendChild(el("p", "advisory", advisory));
+
+          reportSize();
+        }
+
+        function buildGrid(events) {
+          var days = DAYS.filter(function (day, index) {
+            return index < 5 || events.some(function (event) { return event.day === day; });
+          });
+          var first = Math.floor(Math.min.apply(null, events.map(function (e) { return e.start; })) / 60);
+          var last = Math.ceil(Math.max.apply(null, events.map(function (e) { return e.end; })) / 60);
+          if (last - first < 4) last = first + 4;
+          var origin = first * 60;
+
+          var grid = el("div", "grid");
+          grid.style.setProperty("--days", days.length);
+          grid.style.setProperty("--hours", last - first);
+
+          grid.appendChild(el("div", "corner"));
+          days.forEach(function (day) { grid.appendChild(el("div", "day-head", DAY_LABELS[day])); });
+
+          var hours = el("div", "hours");
+          hours.setAttribute("aria-hidden", "true");
+          for (var hour = first + 1; hour < last; hour++) {
+            var label = el("span", "hour", clock(hour * 60, true));
+            label.style.top = "calc(" + (hour - first) + " * var(--hour-height))";
+            hours.appendChild(label);
+          }
+          grid.appendChild(hours);
+
+          days.forEach(function (day) {
+            var column = el("div", "day");
+            column.setAttribute("role", "list");
+            column.setAttribute("aria-label", DAY_NAMES[day]);
+            column.setAttribute("data-day", day);
+
+            var dayEvents = events.filter(function (event) { return event.day === day; });
+            layoutDay(dayEvents);
+
+            dayEvents.forEach(function (event) {
+              var block = el("div", "block c" + event.color + (event.conflict ? " conflict" : ""));
+              block.setAttribute("role", "listitem");
+              if (event.crn !== undefined) block.setAttribute("data-crn", event.crn);
+              block.style.top = "calc(" + (event.start - origin) + " / 60 * var(--hour-height))";
+              block.style.height = "calc(" + (event.end - event.start) + " / 60 * var(--hour-height) - 2px)";
+              block.style.left = "calc(" + (event.column / event.columns * 100) + "% + 2px)";
+              block.style.width = "calc(" + (100 / event.columns) + "% - 4px)";
+              // The badge goes first, so a short block still shows it.
+              if (event.conflict) block.appendChild(el("span", "badge", "Conflict"));
+              block.appendChild(el("strong", null, event.label));
+              block.appendChild(el("span", null, clock(event.start) + " to " + clock(event.end)));
+              if (event.detail) block.appendChild(el("span", null, event.detail));
+              block.title = event.label + ", " + DAY_NAMES[day] + " " + clock(event.start) + " to " + clock(event.end) +
+                (event.conflict ? ", conflict" : "");
+              column.appendChild(block);
+            });
+
+            grid.appendChild(column);
+          });
+
+          return grid;
+        }
+
+        // --- Start -----------------------------------------------------------
+
+        if (typeof ResizeObserver === "function") {
+          new ResizeObserver(reportSize).observe(document.documentElement);
+        }
+
+        request("ui/initialize", {
+          protocolVersion: PROTOCOL_VERSION,
+          appInfo: { name: "wit-calendar-week-grid", version: "1.0.0" },
+          appCapabilities: { availableDisplayModes: ["inline"] }
+        }).then(function (result) {
+          applyHostContext(result.hostContext || {});
+          notify("ui/notifications/initialized", {});
+          // A host can drop a size report that came before initialized.
+          lastHeight = 0;
+          reportSize();
+        }).catch(function () {
+          showStatus("The host did not start the view.", true);
+        });
+      })();
+    </script>
+  </body>
+</html>

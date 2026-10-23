@@ -96,6 +96,62 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(response.parsed_body.dig("result", "instructions")).to include("program director", "academic advisor")
   end
 
+  describe "the MCP Apps extension" do
+    let(:uri) { McpTools::WeekGridApp::URI_VALUE }
+
+    it "declares the extension at initialize" do
+      rpc "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "spec", version: "1" } }
+
+      expect(response.parsed_body.dig("result", "capabilities", "extensions", MCP::Apps::EXTENSION_ID))
+        .to eq("mimeTypes" => [ MCP::Apps::RESOURCE_MIME_TYPE ])
+    end
+
+    it "links check_schedule and my_courses to the week grid in tools/list" do
+      rpc "tools/list"
+
+      tools = response.parsed_body.dig("result", "tools").index_by { |tool| tool["name"] }
+      expect(tools.dig("check_schedule", "_meta", "ui", "resourceUri")).to eq(uri)
+      expect(tools.dig("my_courses", "_meta", "ui", "resourceUri")).to eq(uri)
+      expect(tools.dig("list_terms", "_meta")).to be_nil
+    end
+
+    it "lists the week grid in resources/list" do
+      rpc "resources/list"
+
+      expect(response.parsed_body.dig("result", "resources")).to contain_exactly(
+        include("uri" => uri, "name" => "week_grid", "mimeType" => MCP::Apps::RESOURCE_MIME_TYPE)
+      )
+    end
+
+    it "returns the template in resources/read" do
+      rpc "resources/read", { uri: uri }
+
+      contents = response.parsed_body.dig("result", "contents")
+      expect(contents.size).to eq(1)
+      expect(contents.first).to include("uri" => uri, "mimeType" => MCP::Apps::RESOURCE_MIME_TYPE)
+      expect(contents.first["text"]).to start_with("<!DOCTYPE html>")
+      expect(contents.first.dig("_meta", "ui")).to eq("prefersBorder" => true)
+    end
+
+    it "answers resources/read for an unknown URI with an error" do
+      rpc "resources/read", { uri: "ui://wit-calendar/nothing" }
+
+      expect(response.parsed_body.dig("error", "code")).to eq(-32602)
+    end
+
+    it "gives a client without the extension the same text and structured result" do
+      term = create(:term)
+      create(:course, term: term, crn: 20397)
+
+      rpc "tools/call", { name: "check_schedule", arguments: { term_uid: term.uid, crns: [ 20397 ] } }
+
+      result = response.parsed_body["result"]
+      expect(result["isError"]).to be(false)
+      expect(result.dig("structuredContent", "sections").pluck("crn")).to eq([ 20397 ])
+      expect(JSON.parse(result.dig("content", 0, "text"))).to eq(result["structuredContent"])
+    end
+  end
+
   it "marks the read tools read-only and the write tools not destructive" do
     rpc "tools/list"
 
