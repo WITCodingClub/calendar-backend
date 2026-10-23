@@ -155,5 +155,98 @@ RSpec.describe "Api::Mcp confirmation of a write tool", type: :request do
       expect(result).to include("resultType" => "complete", "isError" => true)
       expect(result.dig("content", 0, "text")).to include("permission")
     end
+
+    it "does not take the same state and answer again after the change is undone" do
+      state = question_state
+      expect(answer("accept", state: state).dig("result", "isError")).to be(false)
+      travel(1.second) { user.reload.enable_notifications! }
+
+      body = answer("accept", state: state)
+
+      expect(body.dig("result", "resultType")).to eq("input_required")
+      expect(user.reload.notifications_disabled?).to be(false)
+    end
+
+    it "does not raise for an answer or state that is not an object" do
+      reports = capture_error_reports do
+        modern_call(retry_with: { inputResponses: "accept", requestState: question_state })
+        expect(response.parsed_body.dig("result", "structuredContent", "not_changed", "reason")).to eq("cancelled")
+
+        modern_call(retry_with: { inputResponses: { confirm: { action: "accept", content: "yes" } }, requestState: question_state })
+        expect(response.parsed_body.dig("result", "structuredContent", "not_changed", "reason")).to eq("cancelled")
+
+        modern_call(retry_with: { inputResponses: mcp_confirmation("accept"), requestState: 42 })
+        expect(response).to have_http_status(:bad_request)
+      end
+
+      expect(reports).to be_empty
+      expect(user.reload.notifications_disabled?).to be(false)
+    end
+  end
+
+  describe "the tool call count" do
+    def tool_calls(status, tool: "set_notifications")
+      Yabeda.calendar.mcp_tool_calls_total.get(tool: tool, status: status) || 0
+    end
+
+    it "counts the question, an accept, a decline, and a cancel by status" do
+      expect { question_state }.to change { tool_calls("input_required") }.by(1)
+      expect { answer("decline") }.to change { tool_calls("declined") }.by(1)
+      expect { answer("cancel") }.to change { tool_calls("cancelled") }.by(1)
+      expect { answer("accept") }.to change { tool_calls("ok") }.by(1)
+    end
+
+    it "counts a refused state under the tool that the request names" do
+      state = question_state
+
+      unknown = tool_calls("error", tool: "unknown")
+
+      expect { answer("accept", state: "#{state}x") }.to change { tool_calls("error") }.by(1)
+      expect(tool_calls("error", tool: "unknown")).to eq(unknown)
+    end
+  end
+
+  describe "the settings tools" do
+    let(:course) { create(:course, title: "Data Structures") }
+    let(:meeting_time) { create(:course_meeting_time, course: course) }
+
+    before { create(:enrollment, user: user, course: course) }
+
+    it "asks, then saves the class settings on accept" do
+      args = { meeting_time_id: meeting_time.public_id, color: "sage" }
+      result = modern_call(tool: "update_class_settings", args: args)["result"]
+
+      expect(result["resultType"]).to eq("input_required")
+      expect(result.dig("inputRequests", "confirm", "params", "message"))
+        .to start_with("Change the calendar events of one class only (Data Structures")
+      expect(EventPreference.count).to eq(0)
+
+      saved = answer("accept", state: result["requestState"], tool: "update_class_settings", args: args)["result"]
+
+      expect(saved.dig("structuredContent", "result")).to eq("saved")
+      expect(EventPreference.sole.color_id).to eq(GoogleCalendar::Colors::SAGE)
+    end
+
+    it "asks, then keeps the calendar settings on decline" do
+      args = { level: "all_classes", visibility: "private" }
+      result = modern_call(tool: "update_calendar_settings", args: args)["result"]
+
+      expect(result.dig("inputRequests", "confirm", "params", "message")).to include("- Visibility: from not set to private.")
+
+      declined = answer("decline", state: result["requestState"], tool: "update_calendar_settings", args: args)["result"]
+
+      expect(declined.dig("structuredContent", "result")).to eq("unchanged")
+      expect(declined.dig("structuredContent", "not_changed", "reason")).to eq("declined")
+      expect(CalendarPreference.count).to eq(0)
+    end
+
+    it "changes the settings at once for a legacy client" do
+      post "/api/mcp", params: { jsonrpc: "2.0", id: 1, method: "tools/call",
+                                 params: { name: "update_calendar_settings", arguments: { level: "lecture", color: "basil" } } }.to_json,
+                       headers: headers_for(token, modern: false)
+
+      expect(response.parsed_body.dig("result", "structuredContent", "result")).to eq("saved")
+      expect(CalendarPreference.sole.color_id).to eq(GoogleCalendar::Colors::BASIL)
+    end
   end
 end

@@ -4,6 +4,7 @@ require "rails_helper"
 
 RSpec.describe McpTools::UpdateCalendarSettings do
   include ActiveJob::TestHelper
+  include ActiveSupport::Testing::TimeHelpers
 
   let(:user) { create(:user) }
 
@@ -81,7 +82,7 @@ RSpec.describe McpTools::UpdateCalendarSettings do
       expect(lines.drop(1)).to eq([
         "- Visibility: from public to private.",
         "- Reminders: from 1 hour before by notification to 10 minutes before by email.",
-        "A class with settings of its own keeps them."
+        "A kind of class (such as lecture) or a class with settings of its own keeps them."
       ])
     end
 
@@ -90,7 +91,7 @@ RSpec.describe McpTools::UpdateCalendarSettings do
 
       lines = message("all_classes", color: "sage", reminders: [ { time: 10, type: "minutes", method: "notification" } ]).lines.map(&:chomp)
 
-      expect(lines.drop(1)).to eq([ "- Color: from not set to Sage.", "A class with settings of its own keeps them." ])
+      expect(lines.drop(1)).to eq([ "- Color: from not set to Sage.", "A kind of class (such as lecture) or a class with settings of its own keeps them." ])
     end
 
     it "saves on accept and keeps the settings on decline" do
@@ -104,6 +105,70 @@ RSpec.describe McpTools::UpdateCalendarSettings do
       expect(CalendarPreference.count).to eq(0)
 
       expect(retry_call.call("accept")).to include(result: :saved, settings: include(color_id: GoogleCalendar::Colors::SAGE))
+    end
+
+    it "ends with what keeps its own settings at each level" do
+      expect(message("laboratory", color: "sage").lines.last).to eq("A class with settings of its own keeps them.")
+      expect(message("university", color: "sage").lines.last).to eq("A university event category with settings of its own keeps them.")
+      expect(message("final_exam", color: "sage").lines.last).to start_with("- Color:")
+      expect(message("university:holiday", color: "sage").lines.last).to start_with("- Color:")
+    end
+
+    describe "the university color" do
+      let!(:university) { create(:calendar_preference, :uni_cal_global, user: user, color_id: GoogleCalendar::Colors::SAGE) }
+
+      before do
+        # The create above ends category colors, so add them after it.
+        create(:calendar_preference, :uni_cal_category, user: user, event_type: "holiday", color_id: "#d50000")
+        create(:calendar_preference, :uni_cal_category, user: user, event_type: "registration", color_id: "#0b8043")
+      end
+
+      def category_colors = CalendarPreference.where(scope: :uni_cal_category).where.not(color_id: nil).count
+
+      it "says that a new color removes the category colors" do
+        lines = message("university", color: "tomato").lines.map(&:chomp)
+
+        expect(lines.drop(1)).to eq([
+          "- Color: from Sage to Tomato.",
+          "- Removes the colors of 2 university event categories, so the new color shows on all university events.",
+          "Each category keeps its other settings."
+        ])
+        expect(category_colors).to eq(2)
+      end
+
+      it "asks before the same color again removes the category colors" do
+        expect(message("university", color: "sage")).to include("Removes the colors of 2 university event categories")
+      end
+
+      it "keeps the category colors for a change that does not set the color" do
+        result = call(level: "university", visibility: "private")
+
+        expect(result.structured_content).to include(result: :saved)
+        expect(category_colors).to eq(2)
+      end
+    end
+
+    it "refuses a change that cannot be saved before it asks" do
+      result = described_class.call(server_context: mcp_modern_context(user), level: "all_classes", title_template: "{{secret}}")
+
+      expect(result).to be_a(MCP::Tool::Response)
+      expect(result.error?).to be(true)
+      expect(result.content.first[:text]).to include("Disallowed variables: secret")
+    end
+
+    it "does not take the same answer again after the change" do
+      create(:calendar_preference, user: user, scope: :global, color_id: GoogleCalendar::Colors::TOMATO)
+      question = described_class.call(server_context: mcp_modern_context(user), level: "all_classes", color: "sage")
+      answer = lambda do
+        context = mcp_modern_context(user, input_responses: mcp_confirmation("accept"), request_state: question.request_state)
+        described_class.call(server_context: context, level: "all_classes", color: "sage")
+      end
+
+      expect(answer.call.structured_content).to include(result: :saved)
+      travel(1.second) { call(level: "all_classes", color: "tomato") }
+
+      expect(answer.call).to be_a(MCP::Server::InputRequiredResult)
+      expect(CalendarPreference.sole.color_id).to eq(GoogleCalendar::Colors::TOMATO)
     end
   end
 end

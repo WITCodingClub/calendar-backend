@@ -62,7 +62,7 @@ module McpTools
         ttl_ms:         CACHE_TTL_MS,
         cache_scope:    CACHE_SCOPE,
         server_context: { user: user, scopes: scopes, request: request },
-        configuration:  configuration(user: user, application: application),
+        configuration:  configuration(user: user, application: application, request: request),
         request_state_security: request_state_security(user),
         # A write tool returns input_required only on the 2026-07-28 wire
         # (McpTools::Confirmation). On an older wire the shim sends a
@@ -110,7 +110,7 @@ module McpTools
       )
     end
 
-    def self.configuration(user:, application:)
+    def self.configuration(user:, application:, request: nil)
       MCP::Configuration.new(
         # The SDK sends the client a generic error and calls this with the
         # cause. It handles the error, so the report says handled.
@@ -122,13 +122,25 @@ module McpTools
         end,
         around_request: lambda do |data, &handler|
           result = handler.call
-          count_tool_call(data, failed: data[:error].present? || (result.is_a?(Hash) && result[:isError]))
+          count_tool_call(data, request, status: tool_call_status(data, result))
           result
         rescue StandardError
-          count_tool_call(data, failed: true)
+          count_tool_call(data, request, status: "error")
           raise
         end
       )
+    end
+
+    # ok, error, input_required (the question of McpTools::Confirmation), or
+    # declined or cancelled (the student did not confirm).
+    def self.tool_call_status(data, result)
+      return "error" if data[:error].present?
+      return "input_required" if data[:input_required]
+      return "ok" unless result.is_a?(Hash)
+      return "error" if result[:isError]
+
+      reason = result.dig(:structuredContent, :not_changed, :reason) if result[:structuredContent].is_a?(Hash)
+      %w[declined cancelled].include?(reason) ? reason : "ok"
     end
 
     # Invalid params with no cause: a bad request from the client, such as
@@ -148,11 +160,21 @@ module McpTools
     end
 
     # Unknown tool names go in one bucket, so a client cannot add label values.
-    def self.count_tool_call(data, failed:)
+    # The SDK names the tool only when it reaches the tool. A retry with a bad
+    # request state fails before that, so the name then comes from the body.
+    def self.count_tool_call(data, request, status:)
       return unless data[:method] == "tools/call"
 
-      tool = McpTools.names.include?(data[:tool_name]) ? data[:tool_name] : "unknown"
-      Yabeda.calendar.mcp_tool_calls_total.increment({ tool: tool, status: failed ? "error" : "ok" })
+      name = data[:tool_name] || requested_tool_name(request)
+      tool = McpTools.names.include?(name) ? name : "unknown"
+      Yabeda.calendar.mcp_tool_calls_total.increment({ tool: tool, status: status })
+    end
+
+    def self.requested_tool_name(request)
+      params = request&.request_parameters&.dig("params")
+      params["name"] if params.is_a?(Hash)
+    rescue ActionDispatch::Http::Parameters::ParseError
+      nil
     end
 
     def self.icon_url

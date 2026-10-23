@@ -52,11 +52,13 @@ module McpTools
 
       authorize_change(preference)
       attributes = setting_attributes(arguments)
-      message    = settings_message(describe_level(level), preference, attributes)
-      message  &&= "#{message}\nA class with settings of its own keeps them."
+      validate_settings!(preference, attributes)
+      cleared    = category_colors_cleared(preference, attributes)
+      message    = settings_message(describe_level(level), preference, attributes,
+                                    extra: cleared_line(cleared), notes: level_notes(level, cleared))
       unchanged  = -> { settings_result(level, preference.persisted? ? preference : nil, :unchanged) }
 
-      with_confirmation(message, unchanged: unchanged) do
+      with_confirmation(message, unchanged: unchanged, version: record_version(preference)) do
         result = apply_settings!(preference, attributes)
         sync_calendar
         settings_result(level, result == :saved ? preference : nil, result)
@@ -67,6 +69,33 @@ module McpTools
 
     def settings_result(level, preference, result)
       { level: level, result: result, settings: preference && CalendarPreferenceSerializer.new(preference).as_json }
+    end
+
+    # A save that sets the university color ends every category color
+    # (CalendarPreference#clear_category_colors), also when the color is the
+    # same. Returns how many it ends.
+    def category_colors_cleared(preference, attributes)
+      return 0 unless preference.scope_uni_cal_global? && attributes[:color_id].present?
+
+      user.calendar_preferences.for_uni_cal_category_scope.where.not(color_id: nil).count
+    end
+
+    def cleared_line(count)
+      return [] if count.zero?
+
+      [ "- Removes the colors of #{count} university event #{count == 1 ? 'category' : 'categories'}, " \
+        "so the new color shows on all university events." ]
+    end
+
+    # What keeps its own settings above this level (Preferences::Resolver).
+    def level_notes(level, cleared)
+      case level
+      when "all_classes" then [ "A kind of class (such as lecture) or a class with settings of its own keeps them." ]
+      when "final_exam", /\Auniversity:/ then []
+      when "university"
+        [ cleared.zero? ? "A university event category with settings of its own keeps them." : "Each category keeps its other settings." ]
+      else [ "A class with settings of its own keeps them." ]
+      end
     end
 
     def describe_level(level)

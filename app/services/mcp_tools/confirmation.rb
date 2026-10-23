@@ -16,8 +16,11 @@ module McpTools
   #
   # The SDK seals the request state (McpTools::Server.request_state_security):
   # the client cannot read or change it, and it is bound to the tool, the
-  # arguments, and the user. The state holds a digest of the message, so a
-  # retry applies the change only if the student saw the same message.
+  # arguments, and the user. The state also holds a digest of the message and
+  # of the version of the record that the change writes (its updated_at). A
+  # retry applies the change only if the message and the record are the same
+  # as when the student saw the question. After the change, the record has a
+  # new version, so the same state cannot make the change again.
   class Confirmation
     KEY = "confirm"
 
@@ -39,14 +42,18 @@ module McpTools
       @user           = user
     end
 
+    # version: a value that changes each time the record changes, or nil for
+    # a record that does not exist yet.
+    #
     # Returns :accept, :decline, :cancel, or an MCP::Server::InputRequiredResult
     # that the tool returns to ask the student.
-    def call(message)
-      question = input_required(message)
+    def call(message, version: nil)
+      digest   = digest(message, version)
+      question = input_required(message, digest)
       return :accept unless supported?(question)
 
       state = read_state
-      return question unless state && state["u"] == @user.id && state["d"] == digest(message)
+      return question unless state && state["u"] == @user.id && state["d"] == digest
 
       outcome(@server_context.input_response(KEY))
     end
@@ -60,10 +67,11 @@ module McpTools
     def supported?(question)
       return false unless @server_context.respond_to?(:modern?) && @server_context.modern?
 
-      question.missing_client_capabilities(@server_context.client_capabilities || {}).empty?
+      capabilities = @server_context.client_capabilities
+      capabilities.is_a?(Hash) && question.missing_client_capabilities(capabilities).empty?
     end
 
-    def input_required(message)
+    def input_required(message, digest)
       MCP::Server::InputRequiredResult.new(
         input_requests: {
           KEY => {
@@ -71,14 +79,16 @@ module McpTools
             params: { mode: "form", message: message, requestedSchema: REQUESTED_SCHEMA }
           }
         },
-        request_state: JSON.generate(u: @user.id, d: digest(message))
+        request_state: JSON.generate(u: @user.id, d: digest)
       )
     end
 
-    # The SDK gives the state in plain text after it checks the seal.
+    # The SDK gives the state in plain text after it checks the seal. The
+    # state comes from the client, so anything that is not the JSON object
+    # this class wrote counts as no state.
     def read_state
       state = @server_context.request_state
-      return if state.nil?
+      return unless state.is_a?(String)
 
       parsed = JSON.parse(state)
       parsed if parsed.is_a?(Hash)
@@ -86,16 +96,23 @@ module McpTools
       nil
     end
 
+    # The answer comes from the client too. Anything that is not an accept
+    # with confirm true, or a decline, counts as a cancel.
     def outcome(response)
-      response = response.to_h.deep_stringify_keys if response.respond_to?(:to_h)
+      return :cancel unless response.is_a?(Hash)
 
-      case response.is_a?(Hash) && response["action"]
-      when "accept" then response.dig("content", "confirm") == true ? :accept : :decline
+      response = response.stringify_keys
+      case response["action"]
+      when "accept"
+        content = response["content"]
+        return :cancel unless content.is_a?(Hash)
+
+        content.stringify_keys["confirm"] == true ? :accept : :decline
       when "decline" then :decline
       else :cancel
       end
     end
 
-    def digest(message) = OpenSSL::Digest::SHA256.hexdigest(message)
+    def digest(message, version) = OpenSSL::Digest::SHA256.hexdigest(JSON.generate([ message, version&.to_s ]))
   end
 end

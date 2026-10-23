@@ -51,7 +51,7 @@ The host side lives in [jaspermayone/infra](https://github.com/jaspermayone/infr
 | `calendar_api_legacy_requests_total` | counter | `route`: the old path, for example `GET user/email` | `Api::LegacyRouteCounting` |
 | `calendar_errors_reported_total` | counter | `error_class`, `handled`, `severity`, `source` | `ErrorReportSubscriber` |
 | `calendar_banner_requests_total` | counter | `outcome`: `ok`, `retried` (one for each retry), `failed`, or `cooldown` (refused while Banner cools down) | `Catalog::BannerThrottle` |
-| `calendar_mcp_tool_calls_total` | counter | `tool`: a tool name, or `unknown`; `status`: `ok` or `error` | `McpTools::Server` |
+| `calendar_mcp_tool_calls_total` | counter | `tool`: a tool name, or `unknown`; `status`: `ok`, `error`, `input_required` (a write tool asks the student to confirm), `declined`, or `cancelled` (the student did not confirm, so nothing changed). A retry with a bad request state counts as `error` under the tool name in the request. | `McpTools::Server` |
 | `calendar_mcp_scope_denials_total` | counter | `scope`: the missing scope; `mode`: `step_up` (HTTP 403) or `tool_error` | `Api::McpController`, `McpTools::BaseTool` |
 | `calendar_oauth_clients_registered_total` | counter | | `Oauth::RegistrationsController` |
 

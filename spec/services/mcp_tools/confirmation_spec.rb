@@ -72,12 +72,41 @@ RSpec.describe McpTools::Confirmation do
     end
 
     it "asks again when the state is for another user, another message, or not JSON" do
-      other_user = JSON.generate(u: create(:user).id, d: OpenSSL::Digest::SHA256.hexdigest(message))
-      other_message = JSON.generate(u: user.id, d: OpenSSL::Digest::SHA256.hexdigest("Something else"))
+      real = JSON.parse(question.request_state)
+      other_user = JSON.generate(real.merge("u" => create(:user).id))
+      other_message = JSON.generate(real.merge("d" => OpenSSL::Digest::SHA256.hexdigest("Something else")))
 
+      expect(answer(mcp_confirmation("accept"), state: JSON.generate(real))).to eq(:accept)
       [ other_user, other_message, "not json", "[]" ].each do |state|
         expect(answer(mcp_confirmation("accept"), state: state)).to be_a(MCP::Server::InputRequiredResult)
       end
+    end
+
+    it "asks again when the record changed since the question" do
+      state = described_class.new(mcp_modern_context(user), user: user).call(message, version: "v1").request_state
+      context = mcp_modern_context(user, input_responses: mcp_confirmation("accept"), request_state: state)
+
+      expect(described_class.new(context, user: user).call(message, version: "v1")).to eq(:accept)
+      expect(described_class.new(context, user: user).call(message, version: "v2")).to be_a(MCP::Server::InputRequiredResult)
+      expect(described_class.new(context, user: user).call(message)).to be_a(MCP::Server::InputRequiredResult)
+    end
+
+    it "treats a state that is not a String as no state" do
+      [ 42, { "u" => user.id }, [ "x" ] ].each do |state|
+        expect(answer(mcp_confirmation("accept"), state: state)).to be_a(MCP::Server::InputRequiredResult)
+      end
+    end
+
+    it "treats an answer or content that is not an object as a cancel" do
+      [ "accept", [ 1 ], 42, { action: "accept", content: "yes" }, { action: "accept", content: [ true ] },
+        { action: "accept" } ].each do |response|
+        expect(answer({ described_class::KEY => response })).to eq(:cancel)
+      end
+    end
+
+    it "treats inputResponses that are not an object as no answer" do
+      expect(answer("accept")).to eq(:cancel)
+      expect(answer([ 1, 2 ])).to eq(:cancel)
     end
   end
 end

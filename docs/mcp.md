@@ -86,8 +86,11 @@ A settings tool takes a color as a name (`lavender`, `sage`, `grape`, `flamingo`
 
 Before a tool that changes data makes the change, the server asks the student to confirm it in the client (MCP elicitation). The server does not depend on the AI model to ask. `McpTools::Confirmation` does this for every `McpTools::BaseWriteTool`.
 
-- The client shows a message and a "Make this change" box. The message lists the events that the change affects (one class, all classes, one kind of class, final exams, or university events). It also gives each field that changes, with the old value and the new value. For `set_notifications`, it says what changes and the current state.
-- The message comes from the same parsing as the save (`setting_attributes`), so the student sees what the tool saves.
+- The client shows a message and a "Make this change" box. The message lists the events that the change affects (one class, all classes, one kind of class, final exams, or university events). It also gives each field that changes, with the old value and the new value. Then it says which settings stay: a kind of class or a class with settings of its own keeps them, and a university event category keeps its settings. For `set_notifications`, it says what changes and the current state.
+- The message comes from the same parsing as the save (`setting_attributes`), so the student sees what the tool saves. The model checks the new values before the question (`validate_settings!`). A change that cannot be saved gets a tool error, and the student does not see a question.
+- A template comes last, on one line. The message shows newlines and quotes as escapes, and it cuts a template after 120 characters (`TEMPLATE_PREVIEW_LENGTH`). So a template cannot change the layout of the question.
+- A reminder time shows as a number: "1.0" shows as "1", and 1 takes the singular ("1 hour"). `set_notifications` stores a pause in whole minutes and shows that time. It refuses a pause of less than one minute.
+- When the university color changes, or the student picks the same color again, the save removes the colors of the university event categories (`CalendarPreference#clear_category_colors`). The message gives the number of category colors that the save removes. A university save that does not set the color keeps the category colors.
 - When the student checks the box and accepts, the tool makes the change.
 - When the student declines, cancels, or accepts with the box clear, nothing changes. The tool gives a normal result, not an error. The result has the current values, `result: "unchanged"` for a settings tool, and a `not_changed` field with the `reason` (`declined` or `cancelled`) and a `message`.
 - When nothing would change, the tool does not ask.
@@ -106,9 +109,11 @@ The `requestState` comes back from the client, so the SDK seals it (`MCP::Server
 - The seal binds the state to `tools/call`, the tool name, a digest of the arguments, and the user (the audience). The state of one student cannot complete the call of another student.
 - The state expires after 10 minutes (`McpTools::Server::REQUEST_STATE_TTL`).
 - The key comes from `secret_key_base` through `Rails.application.key_generator` and the salt `McpTools::Server::REQUEST_STATE_SALT`. Both deploy slots use the same key, so a retry can go to either slot. Change the salt to make every open state invalid.
-- The state also holds a digest of the message. If the settings change before the retry, the tool asks again with the new message.
+- The state also holds a digest of the message and of the version of the record that the change writes: `updated_at` of the preference row, or of the user for `set_notifications`, or a nil marker when the row does not exist yet. If the message or the record changes before the retry, the tool asks again. After the change, the record has a new `updated_at`, so the same state and answer cannot make the change again, also when the setting goes back to the old value. One gap stays: when the change creates a row and a later change deletes it, the nil marker is the same again, so the state works again until it expires.
 
-A state that is changed, expired, or for another user, tool, or set of arguments gets the JSON-RPC error `-32602` "Invalid or expired requestState" (HTTP 400). This is a client error, so the server does not report it. The client can call the tool again with no state, and the student gets a new question.
+A state that is changed, expired, or for another user, tool, or set of arguments gets the JSON-RPC error `-32602` "Invalid or expired requestState" (HTTP 400). This is a client error, so the server does not report it. The client can call the tool again with no state, and the student gets a new question. An answer or a state that is not a JSON object counts as a cancel or as no state. It does not cause an error.
+
+`calendar_mcp_tool_calls_total` counts the question as `input_required`, and a call that the student did not confirm as `declined` or `cancelled` (`docs/metrics.md`).
 
 ## Apps
 

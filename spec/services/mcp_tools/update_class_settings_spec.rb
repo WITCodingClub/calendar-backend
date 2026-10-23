@@ -4,6 +4,7 @@ require "rails_helper"
 
 RSpec.describe McpTools::UpdateClassSettings do
   include ActiveJob::TestHelper
+  include ActiveSupport::Testing::TimeHelpers
 
   let(:user) { create(:user) }
   let(:course) { create(:course, title: "Data Structures") }
@@ -158,6 +159,49 @@ RSpec.describe McpTools::UpdateClassSettings do
       bad_color = described_class.call(server_context: mcp_modern_context(user), meeting_time_id: meeting_time.public_id, color: "sparkle")
 
       expect([ no_scope, bad_color ]).to all(be_a(MCP::Tool::Response).and(have_attributes(error?: true)))
+    end
+
+    it "refuses a template that cannot be saved before it asks, and keeps the row" do
+      result = described_class.call(server_context: mcp_modern_context(user), meeting_time_id: meeting_time.public_id,
+                                    title_template: "{{secret}}")
+
+      expect(result).to be_a(MCP::Tool::Response)
+      expect(result.content.first[:text]).to include("Disallowed variables: secret")
+      expect(EventPreference.sole.title_template).to eq("Old {{title}}")
+    end
+
+    it "shows a template on one line, escaped and cut, after the other fields" do
+      long = "Line one\nLine two \"quoted\" #{'x' * 200}"
+      result = described_class.call(server_context: mcp_modern_context(user), meeting_time_id: meeting_time.public_id,
+                                    description_template: long, visibility: "private")
+      message = result.input_requests.dig(McpTools::Confirmation::KEY, :params, :message)
+      lines = message.lines.map(&:chomp)
+
+      expect(lines.size).to eq(3)
+      expect(lines[1]).to eq("- Visibility: from not set to private.")
+      expect(lines[2]).to start_with('- Event description: from not set to "Line one\nLine two \"quoted\" xxx')
+      expect(lines[2]).to end_with('x..."' + ".")
+      expect(lines[2].length).to be < 200
+    end
+
+    it "shows reminder times as numbers, with one in the singular" do
+      result = described_class.call(server_context: mcp_modern_context(user), meeting_time_id: meeting_time.public_id,
+                                    reminders: [ { time: 1.0, type: "hours", method: "notification" },
+                                                 { time: "2.50", type: "days", method: "email" } ])
+      message = result.input_requests.dig(McpTools::Confirmation::KEY, :params, :message)
+
+      expect(message).to include("to 1 hour before by notification, 2.5 days before by email.")
+    end
+
+    it "does not take the same answer again after the change is undone" do
+      state  = question.request_state
+      answer = -> { confirmed_call(input_responses: mcp_confirmation("accept"), request_state: state) }
+
+      expect(answer.call.structured_content).to include(result: :saved)
+      travel(1.second) { call(color: "peacock", title_template: "Old {{title}}", reminders: []) }
+
+      expect(answer.call).to be_a(MCP::Server::InputRequiredResult)
+      expect(EventPreference.sole).to have_attributes(color_id: GoogleCalendar::Colors::PEACOCK, title_template: "Old {{title}}")
     end
   end
 end

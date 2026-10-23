@@ -55,7 +55,7 @@ RSpec.describe McpTools::SetNotifications do
 
     it "says what changes and what is on now, and changes nothing" do
       expect(message(disabled: true, duration_hours: 1.5)).to eq(
-        "Turn off the reminders of all your calendar events for 1.5 hours.\nNow: the reminders are on."
+        "Turn off the reminders of all your calendar events for 1 hour and 30 minutes.\nNow: the reminders are on."
       )
       expect(message(disabled: true, duration_hours: 1)).to start_with("Turn off the reminders of all your calendar events for 1 hour.")
       expect(message(disabled: true)).to start_with("Turn off the reminders of all your calendar events until you turn them on again.")
@@ -91,6 +91,27 @@ RSpec.describe McpTools::SetNotifications do
 
     it "checks the duration before it asks" do
       expect(confirmed_call(disabled: true, duration_hours: 0).error?).to be(true)
+      expect(confirmed_call(disabled: true, duration_hours: 0.001).content.first[:text]).to include("at least one minute")
+    end
+
+    it "says the duration that it stores, in whole minutes" do
+      freeze_time do
+        expect(message(disabled: true, duration_hours: 0.01)).to start_with("Turn off the reminders of all your calendar events for 1 minute.")
+
+        call(disabled: true, duration_hours: 0.01)
+        expect(user.reload.notifications_disabled_until).to eq(1.minute.from_now)
+      end
+    end
+
+    it "does not take the same answer again after a pause and a resume" do
+      state  = confirmed_call(disabled: true).request_state
+      answer = -> { confirmed_call({ input_responses: mcp_confirmation("accept"), request_state: state }, disabled: true) }
+
+      answer.call
+      travel(1.second) { call(disabled: false) }
+
+      expect(answer.call).to be_a(MCP::Server::InputRequiredResult)
+      expect(user.reload.notifications_disabled?).to be(false)
     end
   end
 end

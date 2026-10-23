@@ -44,10 +44,11 @@ module McpTools
 
       authorize_change(preference)
       attributes = setting_attributes(arguments)
+      validate_settings!(preference, attributes)
       message    = settings_message(describe_class(meeting_time), preference, attributes)
       unchanged  = -> { settings_result(meeting_time, preference.persisted? ? preference : nil, :unchanged) }
 
-      with_confirmation(message, unchanged: unchanged) do
+      with_confirmation(message, unchanged: unchanged, version: record_version(preference)) do
         result = apply_settings!(preference, attributes)
         sync_calendar
         settings_result(meeting_time, result == :saved ? preference : nil, result)
