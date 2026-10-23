@@ -28,7 +28,7 @@ sequenceDiagram
 
 ## Version in the image
 
-The image has no git binary. The workflow passes `GIT_SHA=<sha>` as a build arg, and the final stage writes it to `/rails/REVISION`. `VersionService` reads that file for `current_sha` and `current_version`. The `ARG` sits late in the final stage, so a new commit does not bust the earlier layers.
+The image has no git binary. The workflow passes `GIT_SHA=<sha>` as a build arg, and the final stage writes it to `/rails/REVISION`. `VersionService` reads that file for `current_sha` and `current_version`. The `ARG` sits late in the final stage, so the new SHA changes only the `REVISION` layer there.
 
 The image has no release tag. Releases and tags (`v6.x`) live in the `WITCodingClub/calendar` repo, not in this repo. This repo has only the old `v1.0.x` tags. So `update_available?` stays false in production, and the admin footer shows the short SHA.
 
