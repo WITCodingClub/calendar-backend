@@ -138,12 +138,43 @@ RSpec.describe FinalExam do
     end
   end
 
+  # An exam saved with no course while its course exists. update_column skips
+  # the before_save link, as rows from before it were saved.
+  def unlinked_exam(**attrs)
+    create(:final_exam, **attrs).tap { |exam| exam.update_column(:course_id, nil) } # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  describe "linking the course on save" do
+    let(:term) { create(:term) }
+
+    it "links the course with the same crn and term" do
+      course = create(:course, term: term, crn: 82_222)
+
+      expect(create(:final_exam, term: term, crn: 82_222).course).to eq(course)
+    end
+
+    it "links a course that was created after the exam, on the next save" do
+      exam = create(:final_exam, term: term, crn: 82_222)
+      course = create(:course, term: term, crn: 82_222)
+
+      exam.update!(location: "ZZQ 112")
+
+      expect(exam.reload.course).to eq(course)
+    end
+
+    it "ignores a course with the same crn in another term" do
+      create(:course, crn: 82_222)
+
+      expect(create(:final_exam, term: term, crn: 82_222).course).to be_nil
+    end
+  end
+
   describe ".link_orphan_exams_to_courses" do
     let(:term) { create(:term) }
 
     it "links orphan exams that have a course with the same crn and term" do
       course = create(:course, term: term, crn: 83_333)
-      match = create(:final_exam, term: term, crn: 83_333)
+      match = unlinked_exam(term: term, crn: 83_333)
       other = create(:final_exam, term: term, crn: 84_444)
 
       expect(described_class.link_orphan_exams_to_courses(term: term)).to eq(1)
@@ -164,7 +195,7 @@ RSpec.describe FinalExam do
 
     it "links the course and returns it" do
       course = create(:course, term: term, crn: 85_555)
-      exam = create(:final_exam, term: term, crn: 85_555)
+      exam = unlinked_exam(term: term, crn: 85_555)
 
       expect(exam.link_to_course!).to eq(course)
       expect(exam.reload.course).to eq(course)

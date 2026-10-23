@@ -49,6 +49,8 @@ class FinalExam < ApplicationRecord
   validates :crn, uniqueness: { scope: :term_id, message: "can only have one final exam per CRN per term" }
   validate :end_time_after_start_time
 
+  before_save :link_course, if: -> { course_id.nil? }
+
   serialize :combined_crns, coder: JSON
 
   delegate :title, :subject, :course_number, :section_number, :schedule_type,
@@ -205,6 +207,13 @@ class FinalExam < ApplicationRecord
   end
 
   private
+
+  # The finals parser looks up the course before it saves, so a course created
+  # between the two leaves the exam unlinked. The old-backend import can also
+  # save a nil course. Look it up again on every save with no course.
+  def link_course
+    self.course = Course.find_by(crn: crn, term_id: term_id)
+  end
 
   def format_time(time_int)
     return nil unless time_int
