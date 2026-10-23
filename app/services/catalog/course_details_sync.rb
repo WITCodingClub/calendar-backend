@@ -34,18 +34,25 @@ module Catalog
       return 0 if rows.empty?
 
       now = Time.current
-      CatalogCourse.insert_all(
+      inserted = CatalogCourse.insert_all(
         rows.map do |subject, number, title|
           { subject_code: prefix_of(subject), course_number: number, title: title, created_at: now, updated_at: now }
         end,
         unique_by: %i[subject_code course_number]
       )
       link_orphan_prerequisites
+      link_degree_requirements if inserted.length.positive?
       rows.size
     end
 
     def self.prefix_of(subject)
       (subject.to_s[/\(([^)]+)\)\s*\z/, 1] || subject.to_s).strip.upcase
+    end
+
+    # The degree requirements name courses by code. A course that Banner
+    # lists for the first time gets its links here (docs/degree-requirements.md).
+    def self.link_degree_requirements
+      [ ProgramPlanItem, ElectiveGroupCourse, CatalogYearCourse ].each(&:link_catalog_courses)
     end
 
     def self.link_orphan_prerequisites

@@ -30,6 +30,7 @@
 #
 class DegreeProgram < ApplicationRecord
   KINDS = {
+    associate: "associate",
     bachelor: "bachelor",
     master: "master",
     minor: "minor",
