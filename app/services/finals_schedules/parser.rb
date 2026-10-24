@@ -28,6 +28,7 @@ module FinalsSchedules
         total:         entries.count,
         created:       results[:created],
         updated:       results[:updated],
+        unchanged:     results[:unchanged],
         linked:        results[:linked],
         orphan:        results[:orphan],
         rooms_created: results[:rooms_created],
@@ -55,7 +56,7 @@ module FinalsSchedules
     end
 
     def process_exam_entries(entries)
-      created = updated = linked = orphan = rooms_created = 0
+      created = updated = unchanged = linked = orphan = rooms_created = 0
       errors  = []
       changes = []
 
@@ -78,9 +79,18 @@ module FinalsSchedules
             combined_crns: entry[:combined_crns]
           )
           diff = final_exam.changes.slice(*TRACKED_ATTRIBUTES)
+          # A row whose exam fields the PDF does not change counts as unchanged,
+          # not updated. A new course link alone shows in the linked count.
+          changed = diff.any?
 
           if final_exam.save
-            was_new ? created += 1 : updated += 1
+            if was_new
+              created += 1
+            elsif changed
+              updated += 1
+            else
+              unchanged += 1
+            end
             course ? linked += 1 : orphan += 1
             changes << { crn: entry[:crn], action: was_new ? :create : :update, changes: diff } if was_new || diff.any?
           else
@@ -92,7 +102,7 @@ module FinalsSchedules
         errors << "Error processing CRN #{entry[:crn]}: #{e.message}"
       end
 
-      { created: created, updated: updated, linked: linked, orphan: orphan,
+      { created: created, updated: updated, unchanged: unchanged, linked: linked, orphan: orphan,
         rooms_created: rooms_created, changes: changes, errors: errors }
     end
 

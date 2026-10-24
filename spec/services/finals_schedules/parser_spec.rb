@@ -68,7 +68,7 @@ RSpec.describe FinalsSchedules::Parser do
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
-      expect(result).to include(total: 2, created: 2, updated: 0, linked: 1, orphan: 1, errors: [], stale_crns: [])
+      expect(result).to include(total: 2, created: 2, updated: 0, unchanged: 0, linked: 1, orphan: 1, errors: [], stale_crns: [])
       exam = FinalExam.find_by!(crn: 10_061, term: term)
       expect(exam).to have_attributes(
         course: course, exam_date: Date.new(2026, 4, 10), start_time: 1015, end_time: 1215,
@@ -121,17 +121,27 @@ RSpec.describe FinalsSchedules::Parser do
       expect(result[:errors]).to contain_exactly(a_string_including("Row has no exam date and time"))
     end
 
-    it "updates existing exams on a second run and lists only real changes" do
+    it "counts only changed exams as updated on a second run and lists only real changes" do
       described_class.call(pdf_content: "%PDF", term: term)
       FinalExam.find_by!(crn: 10_062, term: term).update!(start_time: 800, end_time: 1000)
 
       result = described_class.call(pdf_content: "%PDF", term: term)
 
-      expect(result).to include(created: 0, updated: 2)
+      expect(result).to include(created: 0, updated: 1, unchanged: 1)
       expect(result[:changes]).to contain_exactly(
         { crn: 10_062, action: :update, changes: { "start_time" => [ 800, 1500 ], "end_time" => [ 1000, 1700 ] } }
       )
       expect(FinalExam.where(term: term).count).to eq(2)
+    end
+
+    it "counts an exam that only gets a course link as unchanged" do
+      described_class.call(pdf_content: "%PDF", term: term)
+      create(:course, term: term, crn: 10_062)
+
+      result = described_class.call(pdf_content: "%PDF", term: term)
+
+      expect(result).to include(updated: 0, unchanged: 2, linked: 1)
+      expect(result[:changes]).to be_empty
     end
 
     it "lists stored exams that the PDF no longer has, and keeps them" do
@@ -148,7 +158,7 @@ RSpec.describe FinalsSchedules::Parser do
 
       result = described_class.call(pdf_content: "%PDF", term: term, dry_run: true)
 
-      expect(result).to include(total: 2, created: 1, updated: 1, rooms_created: 2)
+      expect(result).to include(total: 2, created: 1, updated: 1, unchanged: 0, rooms_created: 2)
       expect(result[:changes].map { |c| c[:crn] }).to contain_exactly(10_061, 10_062)
       expect(FinalExam.where(term: term).pluck(:crn)).to eq([ 10_061 ])
       expect(FinalExam.find_by!(crn: 10_061).start_time).to eq(800)

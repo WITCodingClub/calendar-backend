@@ -19,7 +19,7 @@ module FinalsSchedules
       finals_schedule.update!(
         status:       :completed,
         processed_at: Time.current,
-        stats:        result.slice(:total, :created, :updated, :linked, :orphan, :rooms_created),
+        stats:        result.slice(:total, :created, :updated, :unchanged, :linked, :orphan, :rooms_created),
         error_message: result[:errors].any? ? result[:errors].join("\n") : nil
       )
 

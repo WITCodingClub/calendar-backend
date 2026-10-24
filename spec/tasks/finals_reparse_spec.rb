@@ -71,7 +71,7 @@ RSpec.describe "finals rake tasks" do
       expect(FinalExam.find_by!(term: past, crn: 10_061)).to have_attributes(start_time: 1015, exam_date: Date.new(2026, 4, 10))
       expect(FinalExam.exists?(term: past, crn: 10_062)).to be(true)
       expect(FinalExam.exists?(term: past, crn: 10_099)).to be(true)
-      expect(FinalsSchedule.find_by!(term: past).stats).to include("total" => 2, "created" => 1)
+      expect(FinalsSchedule.find_by!(term: past).stats).to include("total" => 2, "created" => 1, "unchanged" => 0)
     end
 
     it "syncs calendars for a current or future term with changes" do
