@@ -28,7 +28,7 @@ gem "flipper-active_record", "~> 1.4"
 gem "flipper-ui", "~> 1.4"
 gem "flipper-active_support_cache_store", "~> 1.4"
 gem "blazer", "~> 3.5"
-gem "pghero", "~> 4.0"
+gem "pghero", "~> 4.1"
 gem "audits1984", "~> 0.1.7"
 gem "console1984", "~> 0.2.4"
 
