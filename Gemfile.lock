@@ -140,7 +140,7 @@ GEM
     crack (1.0.1)
       bigdecimal
       rexml
-    crass (1.0.7)
+    crass (1.0.8)
     csv (3.3.6)
     cuprite (0.18)
       capybara (~> 3.0)
@@ -294,18 +294,18 @@ GEM
       simpleidn (~> 0.2)
     jwt (3.3.0)
       base64
-    kaminari (1.2.2)
+    kaminari (1.3.0)
       activesupport (>= 4.1.0)
-      kaminari-actionview (= 1.2.2)
-      kaminari-activerecord (= 1.2.2)
-      kaminari-core (= 1.2.2)
-    kaminari-actionview (1.2.2)
+      kaminari-actionview (= 1.3.0)
+      kaminari-activerecord (= 1.3.0)
+      kaminari-core (= 1.3.0)
+    kaminari-actionview (1.3.0)
       actionview
-      kaminari-core (= 1.2.2)
-    kaminari-activerecord (1.2.2)
+      kaminari-core (= 1.3.0)
+    kaminari-activerecord (1.3.0)
       activerecord
-      kaminari-core (= 1.2.2)
-    kaminari-core (1.2.2)
+      kaminari-core (= 1.3.0)
+    kaminari-core (1.3.0)
     language_server-protocol (3.17.0.6)
     launchy (3.1.1)
       addressable (~> 2.8)
@@ -729,7 +729,7 @@ DEPENDENCIES
   ice_cube (~> 0.17.0)
   importmap-rails (~> 2.2)
   jwt (~> 3.3)
-  kaminari (~> 1.2)
+  kaminari (~> 1.3)
   letter_opener (~> 1.10)
   letter_opener_web (~> 3.0)
   liquid (~> 5.14)
@@ -813,7 +813,7 @@ CHECKSUMS
   console1984 (0.2.4) sha256=634e71a51cdc1b8ca3c9550b27f0ef01d386655830f3805b4e2e4e1e2f3b244e
   cose (1.3.1) sha256=d5d4dbcd6b035d513edc4e1ab9bc10e9ce13b4011c96e3d1b8fe5e6413fd6de5
   crack (1.0.1) sha256=ff4a10390cd31d66440b7524eb1841874db86201d5b70032028553130b6d4c7e
-  crass (1.0.7) sha256=94868719948664c89ddcaf0a37c65048413dfcb1c869470a5f7a7ceb5390b295
+  crass (1.0.8) sha256=7a0145c7a2c59f8e7923b3a69ce819c444823a00a5127d805298fea13be24efe
   csv (3.3.6) sha256=aba61e7e507a66f03d45cb1f3c4b6359861c3504038b422962875dce099e4456
   cuprite (0.18) sha256=32c3203a492f25dbd5a3525716ae09610bcef8936ddd32ff39f34477a98062b2
   date (3.5.1) sha256=750d06384d7b9c15d562c76291407d89e368dda4d4fff957eb94962d325a0dc0
@@ -872,10 +872,10 @@ CHECKSUMS
   json (3.1.0) sha256=3ce7ccf8fde58960177a3a756c31f292a4c1e1dedee884547096a5b0604e3bd8
   json_schemer (2.5.0) sha256=2f01fb4cce721a4e08dd068fc2030cffd0702a7f333f1ea2be6e8991f00ae396
   jwt (3.3.0) sha256=44cc34fbc341c148233cf66641522b4bce0dfb1ce55e8073f05c56f44f4ee546
-  kaminari (1.2.2) sha256=c4076ff9adccc6109408333f87b5c4abbda5e39dc464bd4c66d06d9f73442a3e
-  kaminari-actionview (1.2.2) sha256=1330f6fc8b59a4a4ef6a549ff8a224797289ebf7a3a503e8c1652535287cc909
-  kaminari-activerecord (1.2.2) sha256=0dd3a67bab356a356f36b3b7236bcb81cef313095365befe8e98057dd2472430
-  kaminari-core (1.2.2) sha256=3bd26fec7370645af40ca73b9426a448d09b8a8ba7afa9ba3c3e0d39cdbb83ff
+  kaminari (1.3.0) sha256=428bb00736f0afd56bcc28ee7d45afa368b47921ce6432c7d94fc471434a6043
+  kaminari-actionview (1.3.0) sha256=3842d495088b70f70261227176cc88e17bacf2a0c94fd551c27ac0cec9d1d170
+  kaminari-activerecord (1.3.0) sha256=8ee8a85bffac0ea5098afb178dc9096c9f2a70481f9779b08a3fe31d80ad1827
+  kaminari-core (1.3.0) sha256=b783beb552f0b24ec8cfd9ffc7cffc0bf63fd0cd843c60382d075a7e56315b3e
   language_server-protocol (3.17.0.6) sha256=5ef2c0c138f8267e1bc631d3328347d354f96724b0af22f2c79516120443b7f0
   launchy (3.1.1) sha256=72b847b5cc961589dde2c395af0108c86ff0119f42d4648d25b5440ebb10059e
   letter_opener (1.10.0) sha256=2ff33f2e3b5c3c26d1959be54b395c086ca6d44826e8bf41a14ff96fdf1bdbb2
