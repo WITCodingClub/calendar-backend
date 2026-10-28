@@ -36,13 +36,15 @@ module Api
 
       preference_resolver = Preferences::Resolver.new(current_user)
       template_renderer   = Preferences::TemplateRenderer.new(user_id: current_user.id)
+      recurrence          = CourseCalendars::RecurrenceBuilder.preloaded(current_user, enrollments.map(&:course))
 
       structured_data = enrollments.map do |enrollment|
         EnrolledCourseSerializer.new(
           enrollment,
           term:               term,
           preference_resolver: preference_resolver,
-          template_renderer:  template_renderer
+          template_renderer:  template_renderer,
+          recurrence:         recurrence
         ).as_json
       end
 

@@ -12,8 +12,14 @@ module McpTools
     title "Search course sections"
     description "Searches the Wentworth course catalog for sections. Combine filters to narrow the list. " \
                 "Set semantic to true to rank q by meaning, for example q: \"intro to machine learning\". " \
-                "Without term_uid it searches the current term."
+                "Without term_uid it searches the current term. Use it for \"when does COMP 2350 meet next " \
+                "semester\" and \"which sections have open seats\". Not every section has a waitlist: a " \
+                "waitlist capacity of 0 means none, and null means WIT Calendar does not know yet. For a full section with a waitlist, the student joins it " \
+                "before they ask for a capacity override. A Technical or HSS elective can be missing until its school sends the list: " \
+                "list_term_electives gives the lists the schools sent. For an elective that is still missing, the " \
+                "student asks the dean or associate dean of their school."
     requires_scope "catalog"
+    meta CatalogApp.tool_meta
     academic_planning :sections
     input_schema(
       properties: {

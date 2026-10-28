@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<!--
+  The catalog MCP App (McpTools::CatalogApp, docs/mcp.md "Apps"): course
+  sections, a course, and an instructor.
+  The host shows this page in a sandboxed iframe and sends it the tool result
+  over postMessage (JSON-RPC 2.0). The page must not load anything from the
+  network: the host CSP blocks it. Keep all CSS and JavaScript inline.
+  McpTools::AppResource puts the shared files in place of the @include lines.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Catalog</title>
+    <style>
+      /* @include shared/base.css */
+
+      .block-section:not(:first-child) {
+        margin-top: 18px;
+      }
+
+      .description {
+        margin: 0;
+        color: var(--color-text-secondary);
+        line-height: 1.5;
+      }
+
+      /* A section card. */
+      .section-card {
+        position: relative;
+        padding: 12px 14px 12px 18px;
+      }
+
+      .section-card::before {
+        content: "";
+        position: absolute;
+        top: 12px;
+        bottom: 12px;
+        left: 6px;
+        width: 3px;
+        border-radius: 2px;
+        background: var(--block-accent);
+      }
+
+      .section-card.cancelled {
+        opacity: 0.65;
+      }
+
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .card-title {
+        min-width: 0;
+      }
+
+      .card-title strong {
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .card-title .title {
+        margin-left: 6px;
+        color: var(--color-text-secondary);
+      }
+
+      .meta {
+        margin-top: 2px;
+        font-size: var(--font-text-xs-size);
+        color: var(--color-text-tertiary);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .facts {
+        display: grid;
+        grid-template-columns: 84px minmax(0, 1fr);
+        gap: 4px 12px;
+        margin: 10px 0 0;
+      }
+
+      .facts dt {
+        color: var(--color-text-tertiary);
+        font-size: var(--font-text-xs-size);
+        line-height: 18px;
+      }
+
+      .facts dd {
+        margin: 0;
+        min-width: 0;
+      }
+
+      .meetings > * + * {
+        margin-top: 2px;
+      }
+
+      .meeting {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 10px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .meeting .days {
+        min-width: 92px;
+        font-weight: var(--font-weight-medium);
+      }
+
+      .meeting .room {
+        color: var(--color-text-secondary);
+      }
+
+      .people {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px 12px;
+      }
+
+      .rating {
+        margin-left: 4px;
+        color: var(--color-text-secondary);
+        font-size: var(--font-text-xs-size);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .seats {
+        flex: none;
+        text-align: right;
+      }
+
+      .seats .bar {
+        width: 72px;
+        height: 4px;
+        margin: 5px 0 0 auto;
+        overflow: hidden;
+        border-radius: 2px;
+        background: var(--color-background-secondary);
+      }
+
+      .seats .fill {
+        height: 100%;
+        background: var(--color-text-success);
+      }
+
+      .seats.low .fill {
+        background: var(--color-text-warning);
+      }
+
+      .seats .count {
+        font-size: var(--font-text-xs-size);
+        color: var(--color-text-secondary);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      /* The prerequisite tree. */
+      .tree,
+      .tree ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .tree ul {
+        margin: 4px 0 0 6px;
+        padding-left: 12px;
+        border-left: 2px solid var(--color-border-secondary);
+      }
+
+      .tree li + li {
+        margin-top: 4px;
+      }
+
+      .tree .join {
+        font-size: var(--font-text-xs-size);
+        font-weight: var(--font-weight-medium);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+      }
+
+      .tree strong {
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .tree .muted {
+        margin-left: 6px;
+      }
+
+      /* The instructor stats. */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 8px;
+      }
+
+      .stat {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--color-background-secondary);
+      }
+
+      .stat .value {
+        display: block;
+        font-size: 20px;
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .stat .value small {
+        margin-left: 2px;
+        font-size: var(--font-text-xs-size);
+        font-weight: normal;
+        color: var(--color-text-tertiary);
+      }
+
+      .stat .name {
+        font-size: var(--font-text-xs-size);
+        color: var(--color-text-secondary);
+      }
+
+      .distribution {
+        display: grid;
+        grid-template-columns: 14px minmax(0, 1fr) 32px;
+        gap: 4px 8px;
+        align-items: center;
+        font-size: var(--font-text-xs-size);
+        font-variant-numeric: tabular-nums;
+        color: var(--color-text-secondary);
+      }
+
+      .distribution .bar {
+        height: 6px;
+        overflow: hidden;
+        border-radius: 3px;
+        background: var(--color-background-secondary);
+      }
+
+      .distribution .fill {
+        height: 100%;
+        border-radius: 3px;
+        background: var(--color-text-tertiary);
+      }
+
+      .distribution .count {
+        text-align: right;
+      }
+
+      .review {
+        padding: 10px 0;
+      }
+
+      .review + .review {
+        border-top: 1px solid var(--color-border-secondary);
+      }
+
+      .review p {
+        margin: 4px 0 0;
+        line-height: 1.5;
+      }
+
+      .review .chips {
+        margin-top: 6px;
+      }
+
+      .pager {
+        margin: 12px 0 0;
+        font-size: var(--font-text-xs-size);
+        color: var(--color-text-tertiary);
+      }
+
+      @media (max-width: 480px) {
+        .card-head {
+          flex-direction: column;
+        }
+
+        .seats {
+          text-align: left;
+        }
+
+        .seats .bar {
+          margin-left: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 id="title">Catalog</h1>
+      <p id="summary" class="summary"></p>
+    </header>
+    <main id="app">
+      <p id="status" class="status" role="status">Waiting for the catalog.</p>
+    </main>
+    <script>
+      // @include shared/app.js
+
+      (function () {
+        "use strict";
+
+        var el = App.el;
+        var append = App.append;
+        var DAY_ORDER = App.DAYS;
+        var SEASONS = { fall: "Fall", spring: "Spring", summer: "Summer" };
+
+        // --- Small parts -----------------------------------------------------
+
+        function section(label, content) {
+          if (!content) return null;
+          var node = el("section", "block-section");
+          node.appendChild(el("h2", "label", label));
+          node.appendChild(content);
+          return node;
+        }
+
+        function stack(nodes) {
+          var node = el("div", "stack");
+          nodes.forEach(function (child) { append(node, child); });
+          return node;
+        }
+
+        function credits(value) {
+          return value === null || value === undefined ? null : App.plural(value, "credit");
+        }
+
+        function offered(values) {
+          return (values || []).map(function (value) { return SEASONS[String(value).toLowerCase()] || value; });
+        }
+
+        function rating(rmp) {
+          if (!rmp || rmp.avg_rating === null || rmp.avg_rating === undefined) return null;
+          var node = el("span", "rating", "★ " + Number(rmp.avg_rating).toFixed(1));
+          node.title = "RateMyProfessor: " + Number(rmp.avg_rating).toFixed(1) + " of 5 from " +
+            App.plural(rmp.num_ratings || 0, "rating");
+          return node;
+        }
+
+        // --- Sections --------------------------------------------------------
+
+        // Meetings with the same time and room on several days become one
+        // line: "Mon, Wed  9:00 – 10:15 AM  WENT 210".
+        function meetings(times) {
+          var groups = [];
+          var byKey = {};
+          (times || []).forEach(function (time) {
+            var room = time.location && time.location.display ? time.location.display : "";
+            var when = time.all_day ? null : App.timeRange(time.begin_time, time.end_time);
+            var key = (when || "") + "|" + room;
+            if (!byKey[key]) {
+              byKey[key] = { when: when, room: room, days: [] };
+              groups.push(byKey[key]);
+            }
+            if (byKey[key].days.indexOf(time.day) === -1) byKey[key].days.push(time.day);
+          });
+          if (groups.length === 0) return null;
+
+          var list = el("div", "meetings");
+          groups.forEach(function (group) {
+            group.days.sort(function (a, b) { return DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b); });
+            var line = el("div", "meeting");
+            append(line,
+              el("span", "days", group.days.map(function (day) { return App.DAY_LABELS[day] || day; }).join(", ")),
+              el("span", null, group.when || "No set time"),
+              group.room ? el("span", "room", group.room) : null);
+            list.appendChild(line);
+          });
+          return list;
+        }
+
+        function seats(data) {
+          var capacity = data && data.capacity;
+          var available = data && data.available;
+          if (capacity === null || capacity === undefined || available === null || available === undefined) return null;
+
+          var open = Math.max(available, 0);
+          var node = el("div", "seats" + (open / Math.max(capacity, 1) <= 0.15 ? " low" : ""));
+          node.appendChild(el("span", "count", open === 0 ? "Full" : open + " of " + capacity + " open"));
+          var bar = el("div", "bar");
+          var fill = el("div", "fill");
+          fill.style.width = (open / Math.max(capacity, 1) * 100) + "%";
+          bar.appendChild(fill);
+          bar.setAttribute("aria-hidden", "true");
+          node.appendChild(bar);
+          return node;
+        }
+
+        function sectionCard(data, color) {
+          var cancelled = data.status === "cancelled";
+          var card = el("article", "card section-card c" + color + (cancelled ? " cancelled" : ""));
+          card.setAttribute("data-crn", data.crn);
+
+          var head = el("div", "card-head");
+          var title = el("div", "card-title");
+          append(title, el("strong", null, data.course_code), el("span", "title", data.title));
+          var meta = [
+            "CRN " + data.crn,
+            data.schedule_type,
+            credits(data.credit_hours),
+            data.term && data.term.name
+          ].filter(Boolean);
+          title.appendChild(el("div", "meta", meta.join(" · ")));
+          head.appendChild(title);
+          append(head, cancelled ? App.chips(["Cancelled"], "danger") : seats(data.seats));
+          card.appendChild(head);
+
+          var facts = el("dl", "facts");
+          var fact = function (name, value) {
+            if (!value) return;
+            append(facts, el("dt", null, name));
+            var dd = el("dd");
+            if (typeof value === "string") dd.textContent = value;
+            else dd.appendChild(value);
+            facts.appendChild(dd);
+          };
+
+          fact("Meets", meetings(data.meeting_times) || "No set meeting time");
+          var people = (data.instructors || []).map(function (person) {
+            var node = el("span");
+            append(node, document.createTextNode(person.name), rating(person.rmp));
+            return node;
+          });
+          if (people.length) {
+            var list = el("div", "people");
+            people.forEach(function (node) { list.appendChild(node); });
+            fact("Instructor", list);
+          }
+          var exam = data.final_exam;
+          if (exam && exam.date) {
+            fact("Final exam", [
+              App.formatDate(exam.date),
+              App.timeRange(exam.start_time, exam.end_time),
+              exam.location
+            ].filter(Boolean).join(" · "));
+          }
+          var linked = data.linked;
+          if (linked && linked.required && (linked.crns || []).length) {
+            fact("Linked", "Take with CRN " + linked.crns.join(", CRN "));
+          }
+          card.appendChild(facts);
+          return card;
+        }
+
+        function sectionList(sections) {
+          var colorOf = App.colorPicker();
+          return stack(sections.map(function (data) { return sectionCard(data, colorOf(data.course_code)); }));
+        }
+
+        // --- Prerequisites ---------------------------------------------------
+
+        function prerequisite(node) {
+          if (!node) return null;
+          if (node.type === "and" || node.type === "or") {
+            var item = el("div");
+            item.appendChild(el("span", "join", node.type === "and" ? "All of" : "One of"));
+            var list = el("ul");
+            (node.operands || []).forEach(function (operand) { append(list, append(el("li"), prerequisite(operand))); });
+            item.appendChild(list);
+            return item;
+          }
+          var line = el("span");
+          if (node.type === "test") {
+            append(line, el("strong", null, node.name || "Placement test"),
+              node.score ? el("span", "muted", "score " + node.score) : null);
+            return line;
+          }
+          var code = node.code || [node.subject_code, node.course_number].filter(Boolean).join(" ");
+          append(line, el("strong", null, code),
+            node.title ? el("span", "muted", node.title) : null,
+            node.min_grade ? el("span", "muted", "grade " + node.min_grade + " or better") : null);
+          return line;
+        }
+
+        function prerequisiteTree(nodes) {
+          nodes = (nodes || []).filter(Boolean);
+          if (nodes.length === 0) return null;
+          var tree = el("ul", "tree");
+          nodes.forEach(function (node) { append(tree, append(el("li"), prerequisite(node))); });
+          return tree;
+        }
+
+        // --- Views -----------------------------------------------------------
+
+        function renderSearch(data, app) {
+          var sections = data.sections || [];
+          var meta = data.meta || {};
+          var term = sections[0] && sections[0].term && sections[0].term.name;
+          var first = ((meta.page || 1) - 1) * (meta.per_page || sections.length) + 1;
+          var last = first + sections.length - 1;
+          App.setHeader(term ? "Sections, " + term : "Sections",
+            sections.length ? "Showing " + first + "–" + last + " of " + (meta.total_count || sections.length) : "");
+
+          if (sections.length === 0) {
+            app.appendChild(el("p", "status", "No section matches the search."));
+          } else {
+            app.appendChild(sectionList(sections));
+            if (meta.total_count > last) {
+              app.appendChild(el("p", "pager", "Ask for the next page to see more sections."));
+            }
+          }
+          append(app, App.advisory(data, data.term_uid));
+        }
+
+        function renderSimilar(data, app) {
+          var sections = data.sections || [];
+          App.setHeader("Sections like CRN " + data.crn, App.plural(sections.length, "section"));
+          app.appendChild(sections.length ? sectionList(sections) : el("p", "status", "No similar sections."));
+          append(app, App.advisory(data, sections[0] && sections[0].term && sections[0].term.uid));
+        }
+
+        function renderSection(data, app) {
+          App.setHeader(data.course_code + ", " + data.title, data.term && data.term.name);
+          app.appendChild(sectionCard(data, 0));
+          var course = data.course;
+          if (course) {
+            append(app,
+              section("Description", course.description ? el("p", "description", course.description) : null),
+              section("Prerequisites", prerequisiteTree([course.prerequisites])),
+              section("Usually offered", (course.typically_offered || []).length ? App.chips(offered(course.typically_offered)) : null));
+          }
+          append(app, App.advisory(data, data.term && data.term.uid));
+        }
+
+        function renderCourse(data, app) {
+          var summary = [credits(data.credit_hours)];
+          if ((data.typically_offered || []).length) summary.push("Usually offered " + offered(data.typically_offered).join(", "));
+          App.setHeader(data.code + (data.title ? ", " + data.title : ""), summary.filter(Boolean).join(" · "));
+
+          var restrictions = (data.restrictions || []).map(function (restriction) {
+            var node = el("div");
+            append(node, el("span", "muted", restriction.heading + ": "),
+              document.createTextNode((restriction.values || []).join(", ")));
+            return node;
+          });
+          var sections = data.sections || [];
+
+          append(app,
+            section("Description", data.description ? el("p", "description", data.description) : null),
+            section("Prerequisites", prerequisiteTree([data.prerequisites])),
+            section("Corequisites", prerequisiteTree(data.corequisites)),
+            section("Restrictions", restrictions.length ? stack(restrictions) : null),
+            section("Unlocks", (data.unlocks || []).length
+              ? App.chips(data.unlocks.map(function (course) { return course.code; }))
+              : null),
+            section(sections.length && sections[0].term ? "Sections, " + sections[0].term.name : "Sections",
+              sections.length ? sectionList(sections) : null));
+
+          if (app.childNodes.length === 0) app.appendChild(el("p", "status", "The catalog has no details for this course."));
+          append(app, App.advisory(data, sections[0] && sections[0].term && sections[0].term.uid));
+        }
+
+        function renderInstructor(data, app) {
+          App.setHeader(data.name, [data.title, data.department, data.school].filter(Boolean).join(" · "));
+
+          var rmp = data.rmp;
+          if (rmp && rmp.num_ratings) {
+            var stats = el("div", "stats");
+            var stat = function (name, value, unit) {
+              if (value === null || value === undefined) return;
+              var node = el("div", "stat");
+              var number = el("span", "value", value);
+              if (unit) number.appendChild(el("small", null, unit));
+              append(node, number, el("span", "name", name));
+              stats.appendChild(node);
+            };
+            stat("Rating", rmp.avg_rating === null ? null : Number(rmp.avg_rating).toFixed(1), "/ 5");
+            stat("Difficulty", rmp.avg_difficulty === null ? null : Number(rmp.avg_difficulty).toFixed(1), "/ 5");
+            stat("Would take again", rmp.would_take_again_percent === null || rmp.would_take_again_percent < 0
+              ? null : Math.round(rmp.would_take_again_percent) + "%");
+            stat("Ratings", String(rmp.num_ratings));
+            app.appendChild(stats);
+          } else {
+            app.appendChild(el("p", "muted", "No RateMyProfessor ratings."));
+          }
+
+          var counts = data.rating_distribution;
+          if (counts) {
+            var total = 0;
+            ["1", "2", "3", "4", "5"].forEach(function (score) { total += counts[score] || 0; });
+            if (total > 0) {
+              var chart = el("div", "distribution");
+              ["5", "4", "3", "2", "1"].forEach(function (score) {
+                var bar = el("div", "bar");
+                var fill = el("div", "fill");
+                fill.style.width = ((counts[score] || 0) / total * 100) + "%";
+                bar.appendChild(fill);
+                append(chart, el("span", null, score), bar, el("span", "count", String(counts[score] || 0)));
+              });
+              chart.setAttribute("role", "img");
+              chart.setAttribute("aria-label", "Ratings: " + ["5", "4", "3", "2", "1"].map(function (score) {
+                return (counts[score] || 0) + " of " + score;
+              }).join(", "));
+              append(app, section("Rating distribution", chart));
+            }
+          }
+
+          var tags = (data.rmp_tags || []).map(function (tag) { return tag.count ? tag.name + " " + tag.count : tag.name; });
+          append(app, section("Tags", tags.length ? App.chips(tags) : null));
+
+          var reviews = (data.recent_reviews || []).map(function (review) {
+            var node = el("div", "review");
+            var meta = [
+              review.course_name,
+              review.rated_on && App.formatDate(review.rated_on, { weekday: false, year: true }),
+              review.clarity_rating !== null && review.clarity_rating !== undefined ? "clarity " + review.clarity_rating + "/5" : null,
+              review.difficulty_rating !== null && review.difficulty_rating !== undefined ? "difficulty " + review.difficulty_rating + "/5" : null
+            ].filter(Boolean);
+            append(node,
+              el("div", "meta", meta.join(" · ")),
+              review.comment ? el("p", null, review.comment) : null,
+              (review.tags || []).length ? App.chips(review.tags) : null);
+            return node;
+          });
+          append(app, section("Recent reviews", reviews.length ? stack(reviews) : null));
+
+          var sections = data.sections || [];
+          append(app, section(sections.length && sections[0].term ? "Sections, " + sections[0].term.name : "Sections",
+            sections.length ? sectionList(sections) : null));
+        }
+
+        function render(data) {
+          var app = App.clear();
+          if (data.meta && data.sections) renderSearch(data, app);
+          else if (data.crn !== undefined && data.sections) renderSimilar(data, app);
+          else if (data.crn !== undefined) renderSection(data, app);
+          else if (data.recent_reviews || data.rmp_tags) renderInstructor(data, app);
+          else if (data.code !== undefined) renderCourse(data, app);
+          else App.showStatus("The tool result has no catalog data.", true);
+        }
+
+        App.start({ name: "wit-calendar-catalog", render: render });
+      })();
+    </script>
+  </body>
+</html>

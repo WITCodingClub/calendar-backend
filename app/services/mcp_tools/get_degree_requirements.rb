@@ -10,7 +10,9 @@ module McpTools
                 "of study (such as the four-year and the three-year plan) semester by semester, with required " \
                 "courses, choices between courses, and elective slots, and the elective lists that the slots draw " \
                 "from, with their minimums. Call list_programs to find the slug. This is the published catalog, " \
-                "not a degree audit: a student's own audit (Stellic) decides which courses count."
+                "not a degree audit: a student's own audit (Stellic) decides which courses count. A course " \
+                "substitution or transfer credit for a requirement needs approval from the program director, " \
+                "the dean's office of the school, or both."
     requires_scope "catalog"
     academic_planning :degree_requirements, :course_details
     input_schema(

@@ -4,29 +4,36 @@
 #
 # Table name: courses
 #
-#  id                :bigint           not null, primary key
-#  banner_synced_at  :datetime
-#  course_number     :integer          not null
-#  credit_hours      :integer
-#  crn               :integer          not null
-#  embedding         :vector(1536)
-#  embedding_digest  :string(64)
-#  end_date          :date             not null
-#  grade_mode        :string
-#  is_section_linked :boolean          default(FALSE), not null
-#  link_identifier   :string
-#  links_fetched_at  :datetime
-#  schedule_type     :string           not null
-#  seats_available   :integer
-#  seats_capacity    :integer
-#  section_number    :string           not null
-#  start_date        :date             not null
-#  status            :string           default("active"), not null
-#  subject           :string           not null
-#  title             :string           not null
-#  created_at        :datetime         not null
-#  updated_at        :datetime         not null
-#  term_id           :bigint           not null
+#  id                    :bigint           not null, primary key
+#  banner_synced_at      :datetime
+#  campus                :string
+#  course_number         :integer          not null
+#  credit_hours          :integer
+#  crn                   :integer          not null
+#  cross_list_available  :integer
+#  cross_list_capacity   :integer
+#  cross_list_identifier :string
+#  embedding             :vector(1536)
+#  embedding_digest      :string(64)
+#  end_date              :date             not null
+#  grade_mode            :string
+#  is_section_linked     :boolean          default(FALSE), not null
+#  link_identifier       :string
+#  links_fetched_at      :datetime
+#  part_of_term          :string
+#  schedule_type         :string           not null
+#  seats_available       :integer
+#  seats_capacity        :integer
+#  section_number        :string           not null
+#  start_date            :date             not null
+#  status                :string           default("active"), not null
+#  subject               :string           not null
+#  title                 :string           not null
+#  waitlist_available    :integer
+#  waitlist_capacity     :integer
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  term_id               :bigint           not null
 #
 # Indexes
 #
@@ -192,6 +199,24 @@ RSpec.describe Course, type: :model do
 
       expect(lecture.link_slot).to eq("A")
       expect(lecture.link_key).to be_nil
+    end
+  end
+
+  describe "#cross_listed_crns" do
+    let(:term) { create(:term) }
+
+    it "lists the other active sections of the group in the same term" do
+      section = create(:course, :cross_listed, term: term, crn: 16182)
+      create(:course, :cross_listed, term: term, crn: 16211)
+      create(:course, :cross_listed, term: term, crn: 16300, status: :cancelled)
+      create(:course, :cross_listed, crn: 16400)
+      create(:course, term: term, crn: 16500, cross_list_identifier: "02")
+
+      expect(section.cross_listed_crns).to eq([ 16211 ])
+    end
+
+    it "is empty for a section that is not cross-listed" do
+      expect(create(:course, term: term).cross_listed_crns).to eq([])
     end
   end
 

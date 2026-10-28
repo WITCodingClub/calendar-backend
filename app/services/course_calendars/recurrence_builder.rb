@@ -14,6 +14,17 @@ module CourseCalendars
       @user = user
     end
 
+    # A builder with the no-class events, the courses' final exam dates, and
+    # the terms' finals dates loaded, for a response that lists a whole
+    # schedule. Its lookups then send no query for each course or term.
+    def self.preloaded(user, courses)
+      new(user).tap do |builder|
+        builder.preload_holidays_for_user!
+        builder.preload_final_exam_dates!(courses.map(&:id))
+        builder.preload_term_finals_dates!(courses.map(&:term_id).uniq)
+      end
+    end
+
     def find_first_meeting_date(meeting_time)
       return nil if meeting_time.day_of_week.blank?
 
@@ -48,7 +59,20 @@ module CourseCalendars
     def build_recurrence_rule(meeting_time)
       return nil if meeting_time.day_of_week.blank?
 
-      # Determine the end date for recurrence
+      recurrence_end = effective_end_date(meeting_time)
+
+      # Build weekly recurrence rule using ice_cube and export to iCalendar format.
+      # UNTIL must be end-of-day in the *local* zone expressed as UTC. Using bare
+      # Time.utc(...,23,59,59) drops the final occurrence of evening (Eastern)
+      # classes, whose start instant falls after midnight UTC.
+      until_time = Time.zone.local(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59).utc
+      rule = IceCube::Rule.weekly.day(meeting_time.day_of_week.to_sym).until(until_time)
+      "RRULE:#{rule.to_ical}"
+    end
+
+    # The last date the class can meet: meeting_time.end_date, cut back to
+    # before finals week and Study Day. The stored end_date does not change.
+    def effective_end_date(meeting_time)
       # Use meeting_time.end_date, but stop before finals week if THIS COURSE has a final
       recurrence_end = meeting_time.end_date.to_date
 
@@ -76,13 +100,39 @@ module CourseCalendars
         end
       end
 
-      # Build weekly recurrence rule using ice_cube and export to iCalendar format.
-      # UNTIL must be end-of-day in the *local* zone expressed as UTC. Using bare
-      # Time.utc(...,23,59,59) drops the final occurrence of evening (Eastern)
-      # classes, whose start instant falls after midnight UTC.
-      until_time = Time.zone.local(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59).utc
-      rule = IceCube::Rule.weekly.day(meeting_time.day_of_week.to_sym).until(until_time)
-      "RRULE:#{rule.to_ical}"
+      recurrence_end
+    end
+
+    # The dates on the meeting day, from start_date to effective_end_date,
+    # that a no-class event covers. These are the EXDATEs that calendar sync
+    # adds, without the dates after the class stops.
+    def excluded_dates(meeting_time)
+      return [] if meeting_time.day_of_week.blank?
+
+      range = meeting_time.start_date.to_date..effective_end_date(meeting_time)
+      holiday_dates(meeting_time).select { |date| range.cover?(date) }.uniq.sort
+    end
+
+    # Loads the first final exam date of each course in one query, so that
+    # effective_end_date sends no query for each course.
+    def preload_final_exam_dates!(course_ids)
+      @course_final_dates ||= {}
+      dates = ::FinalExam.where(course_id: course_ids).where.not(exam_date: nil)
+                         .group(:course_id).minimum(:exam_date)
+      course_ids.each { |id| @course_final_dates[id] = dates[id] }
+    end
+
+    # Loads the start of finals week and the first finals-period event of
+    # each term in two queries.
+    def preload_term_finals_dates!(term_ids)
+      @term_finals_start_dates ||= {}
+      @term_finals_period_dates ||= {}
+      starts  = ::FinalExam.finals_week_starts(term_ids)
+      periods = finals_period_events.where(term_id: term_ids).group(:term_id).minimum(:start_time)
+      term_ids.each do |id|
+        @term_finals_start_dates[id]  = starts[id]
+        @term_finals_period_dates[id] = periods[id]&.to_date
+      end
     end
 
     # Memoized lookup of final exam date for a specific course
@@ -115,11 +165,12 @@ module CourseCalendars
       @term_finals_period_dates ||= {}
       return @term_finals_period_dates[term_id] if @term_finals_period_dates.key?(term_id)
 
-      @term_finals_period_dates[term_id] = ::UniversityCalendarEvent
-                                           .where(term_id: term_id, category: "finals")
-                                           .where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%")
-                                           .minimum(:start_time)
-                                           &.to_date
+      @term_finals_period_dates[term_id] = finals_period_events.where(term_id: term_id).minimum(:start_time)&.to_date
+    end
+
+    def finals_period_events
+      ::UniversityCalendarEvent.where(category: "finals")
+                               .where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%")
     end
 
     # Build recurrence array with RRULE and EXDATE entries for holidays
@@ -144,42 +195,30 @@ module CourseCalendars
     # @param start_time [Time] The start time of meetings (for time component)
     # @return [Array<String>] Array of EXDATE strings
     def build_holiday_exdates(meeting_time, start_time)
+      holiday_dates(meeting_time).map { |date| format_exdate(date, start_time) }
+    end
+
+    # The dates on this meeting time's day that a no-class event in its date
+    # range covers. A multi-day event gives each of its days on the meeting day.
+    # @param meeting_time [MeetingTime] The meeting time object
+    # @return [Array<Date>]
+    def holiday_dates(meeting_time)
       return [] unless defined?(UniversityCalendarEvent)
 
       # Get the numeric day of week (0=Sunday, 1=Monday, etc.)
       target_wday = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
       return [] if target_wday.nil?
 
-      # Get all holidays during the course date range
-      holidays = holidays_for_meeting_time(meeting_time)
-      return [] if holidays.empty?
-
-      # Filter to holidays that have any day falling on this meeting day
-      matching_holidays = holidays.select do |holiday|
+      holidays_for_meeting_time(meeting_time).flat_map do |holiday|
         if holiday.end_time && holiday.start_time.to_date != holiday.end_time.to_date
-          # Multi-day event: check if any day in the range matches target weekday
-          (holiday.start_time.to_date..holiday.end_time.to_date).any? { |date| date.wday == target_wday }
+          # Multi-day: each day in the range on the meeting day
+          (holiday.start_time.to_date..holiday.end_time.to_date).select { |date| date.wday == target_wday }
+        elsif holiday.start_time.wday == target_wday
+          [ holiday.start_time.to_date ]
         else
-          # Single-day event: check if the day matches
-          holiday.start_time.wday == target_wday
+          []
         end
       end
-
-      # Build EXDATE strings for all matching dates
-      exdates = []
-      matching_holidays.each do |holiday|
-        if holiday.end_time && holiday.start_time.to_date != holiday.end_time.to_date
-          # Multi-day: add EXDATE for each matching weekday in the range
-          (holiday.start_time.to_date..holiday.end_time.to_date).each do |date|
-            exdates << format_exdate(date, start_time) if date.wday == target_wday
-          end
-        else
-          # Single-day: add one EXDATE
-          exdates << format_exdate(holiday.start_time.to_date, start_time)
-        end
-      end
-
-      exdates
     end
 
     # Get holidays that apply to a meeting time's date range.
@@ -193,9 +232,11 @@ module CourseCalendars
       return @holidays_cache[cache_key] if @holidays_cache.key?(cache_key)
 
       if @all_holidays_preloaded
-        # Filter from the preloaded set in memory — no additional DB query
-        mt_start = meeting_time.start_date
-        mt_end   = meeting_time.end_date
+        # Filter from the preloaded set in memory — no additional DB query.
+        # Compare dates: a Date against the local-midnight start_date becomes
+        # midnight UTC and drops a holiday on the first day.
+        mt_start = meeting_time.start_date.to_date
+        mt_end   = meeting_time.end_date.to_date
         @holidays_cache[cache_key] = @all_holidays_preloaded.select do |h|
           h_start = h.start_time.to_date
           h_end   = (h.end_time || h.start_time).to_date

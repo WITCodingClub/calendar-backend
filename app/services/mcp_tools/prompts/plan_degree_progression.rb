@@ -46,7 +46,8 @@ module McpTools
             "and if I will take summer classes.",
             "For each required course that I did not complete, call get_course with the code. Read the credits, " \
             "the prerequisites, the corequisites, the restrictions, and the terms it is usually offered. Call " \
-            "get_course for each prerequisite that is not on my list, too.",
+            "get_course for each prerequisite that is not on my list, too. If a prerequisite has a min_grade, ask " \
+            "me for my grade in it.",
             "Put each course in a term from the next term to my graduation term. A course goes after all of its " \
             "prerequisites, in the same term as its corequisites, and in a term when it is usually offered. Keep " \
             "each term at or under the credit load I gave. Put the courses at the start of a long prerequisite " \
@@ -59,7 +60,9 @@ module McpTools
           "Then list the risks: a course offered in one season only, a long prerequisite chain, a term with a heavy " \
           "load, a course with a restriction I may not meet, and a required course with no catalog data. If the " \
           "plan cannot reach my graduation term, say so and say which courses push it later.",
-          "Tell me that this plan is a draft. My degree audit and my advisor decide which courses count."
+          "Tell me that this plan is a draft. My degree audit and my advisor decide which courses count. A course " \
+          "substitution or transfer credit for a requirement needs approval from my program director, the dean's " \
+          "office of my school, or both."
         ]
       end
 

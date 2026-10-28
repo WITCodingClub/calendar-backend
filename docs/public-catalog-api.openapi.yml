@@ -980,7 +980,13 @@ components:
         status: { type: string, enum: [active, cancelled] }
         seats:
           type: object
-          description: From Banner, refreshed every night. Up to a day old. Not a real-time seat count.
+          description: From Banner, refreshed every night, and every 30 minutes from the time a term's sections are listed until 7 days after its classes start. Not a real-time seat count.
+          properties:
+            capacity: { type: [integer, "null"] }
+            available: { type: [integer, "null"] }
+        waitlist:
+          type: object
+          description: The waitlist places and the places still open, from the same Banner data and jobs as seats. A section with no waitlist has a capacity of 0.
           properties:
             capacity: { type: [integer, "null"] }
             available: { type: [integer, "null"] }
@@ -1002,6 +1008,26 @@ components:
               type: array
               description: Each list is one set of partner CRNs to take together. Pick any one set.
               items: { type: array, items: { type: integer } }
+        cross_list:
+          description: >-
+            Sections of other courses that meet with this one, such as an undergraduate and a
+            graduate studio. The seats count the whole group. Null when the section is not cross-listed.
+          oneOf:
+            - type: object
+              properties:
+                identifier: { type: string, description: Banner's group. Unique only inside one term. }
+                crns: { type: array, items: { type: integer } }
+                seats:
+                  type: object
+                  properties:
+                    capacity: { type: [integer, "null"] }
+                    available: { type: [integer, "null"] }
+            - type: "null"
+        part_of_term:
+          type: [string, "null"]
+          description: 1 for the full term. A code such as FA1 or FA2 for one half of the term.
+          examples: ["1", FA2]
+        campus: { type: [string, "null"], examples: [Wentworth Institute Technology, Online Course] }
         start_date: { type: string, format: date }
         end_date: { type: string, format: date }
         instructors:
@@ -1112,6 +1138,30 @@ components:
                 properties:
                   heading: { type: string }
                   values: { type: array, items: { type: string } }
+            mutual_exclusions:
+              description: >-
+                Courses that block this one: a student who completed one of them cannot take
+                this course. Each has the same keys as a course node of prerequisites.
+              type: array
+              items: { type: object }
+            college: { type: [string, "null"], examples: ["The School of Comp & Data Sci"] }
+            division:
+              type: [string, "null"]
+              description: COF Eligible Cross Reg marks a course open to Colleges of the Fenway students.
+            department: { type: [string, "null"], examples: [Computer Science & Networking] }
+            levels: { type: array, items: { type: string }, examples: [[Undergraduate]] }
+            grading_modes: { type: array, items: { type: string }, examples: [[Standard Letter, Pass/Fail]] }
+            fees:
+              type: array
+              items:
+                type: object
+                properties:
+                  level: { type: [string, "null"] }
+                  description: { type: [string, "null"], examples: [Follett Access] }
+                  amount_cents: { type: integer, description: The amount in US cents. }
+            learning_objectives:
+              type: [string, "null"]
+              description: From Banner's syllabus page. One objective or line on each line.
             unlocks:
               type: array
               items: { $ref: "#/components/schemas/CourseSummary" }

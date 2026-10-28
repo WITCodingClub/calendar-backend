@@ -6,20 +6,28 @@ require "rails_helper"
 #
 # Table name: catalog_courses
 #
-#  id                 :bigint           not null, primary key
-#  corequisites       :jsonb            not null
-#  course_number      :integer          not null
-#  credit_hours       :integer
-#  description        :text
-#  details_fetched_at :datetime
-#  prerequisites      :jsonb
-#  restrictions       :jsonb            not null
-#  subject_code       :string           not null
-#  title              :string
-#  typically_offered  :string           default([]), not null, is an Array
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  source_term_id     :bigint
+#  id                  :bigint           not null, primary key
+#  college             :string
+#  corequisites        :jsonb            not null
+#  course_number       :integer          not null
+#  credit_hours        :integer
+#  department          :string
+#  description         :text
+#  details_fetched_at  :datetime
+#  division            :string
+#  fees                :jsonb            not null
+#  grading_modes       :string           default([]), not null, is an Array
+#  learning_objectives :text
+#  levels              :string           default([]), not null, is an Array
+#  mutual_exclusions   :jsonb            not null
+#  prerequisites       :jsonb
+#  restrictions        :jsonb            not null
+#  subject_code        :string           not null
+#  title               :string
+#  typically_offered   :string           default([]), not null, is an Array
+#  created_at          :datetime         not null
+#  updated_at          :datetime         not null
+#  source_term_id      :bigint
 #
 # Indexes
 #

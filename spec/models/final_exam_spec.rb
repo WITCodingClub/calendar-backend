@@ -136,6 +136,18 @@ RSpec.describe FinalExam do
     end
   end
 
+  describe ".finals_week_starts" do
+    it "gives the start of finals week of each term and no key for a term with no exams" do
+      fall, spring, empty = create_list(:term, 3)
+      create(:final_exam, term: fall, exam_date: Date.new(2026, 11, 19))
+      create_list(:final_exam, 10, term: fall, exam_date: Date.new(2026, 12, 10))
+      create(:final_exam, term: spring, exam_date: Date.new(2027, 4, 26))
+
+      expect(described_class.finals_week_starts([ fall.id, spring.id, empty.id ]))
+        .to eq(fall.id => Date.new(2026, 12, 10), spring.id => Date.new(2027, 4, 26))
+    end
+  end
+
   describe "scopes" do
     include ActiveSupport::Testing::TimeHelpers
 

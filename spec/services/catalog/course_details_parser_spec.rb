@@ -123,6 +123,80 @@ RSpec.describe Catalog::CourseDetailsParser do
     end
   end
 
+  describe ".catalog" do
+    it "reads the college, division, department, levels, and grading modes without their codes" do
+      expect(described_class.catalog(fixture("catalog_details"))).to eq(
+        college:       "The School of Comp & Data Sci",
+        division:      "COF Eligible Cross Reg",
+        department:    "Computer Science & Networking",
+        levels:        [ "Undergraduate" ],
+        grading_modes: [ "Standard Letter", "Pass/Fail", "Not Graded" ]
+      )
+    end
+
+    it "gives nil and empty lists for a page with no values" do
+      expect(described_class.catalog("")).to eq(college: nil, division: nil, department: nil, levels: [], grading_modes: [])
+    end
+
+    it "does not give a label with no list the list of the next label" do
+      html = <<~HTML
+        <span class="status-bold">Levels:</span><br/>
+        <span class="status-bold">Grading Modes:</span><br/>
+        <div class="indent-left">Standard Letter  S</div>
+      HTML
+
+      expect(described_class.catalog(html)).to include(levels: [], grading_modes: [ "Standard Letter" ])
+    end
+  end
+
+  describe ".mutual_exclusions" do
+    it "reads each excluded course" do
+      expect(described_class.mutual_exclusions(fixture("mutual_exclusions"))).to eq(
+        [ { "subject_code" => "ARCH", "course_number" => 7250, "level" => "Graduate", "min_grade" => "TR" } ]
+      )
+    end
+
+    it "is empty without mutual exclusions" do
+      expect(described_class.mutual_exclusions(fixture("mutual_exclusions_none"))).to eq([])
+    end
+  end
+
+  describe ".fees" do
+    it "reads each fee with its amount in cents" do
+      expect(described_class.fees(fixture("fees"))).to eq(
+        [
+          { "level" => "Undergraduate", "description" => "Follett Access", "amount_cents" => 9499 },
+          { "level" => "Continuing Education", "description" => "Tuition - Workforce Training", "amount_cents" => 200_000 }
+        ]
+      )
+    end
+
+    it "is empty without fees" do
+      expect(described_class.fees(fixture("fees_none"))).to eq([])
+    end
+
+    it "skips a row whose amount is not a number" do
+      html = "<table><tbody><tr><td>Undergraduate</td><td>Lab fee</td><td>TBA</td></tr></tbody></table>"
+
+      expect(described_class.fees(html)).to eq([])
+    end
+  end
+
+  describe ".learning_objectives" do
+    it "keeps one line for each line Banner shows" do
+      expect(described_class.learning_objectives(fixture("syllabus"))).to eq(
+        "Course Learning Outcomes\n" \
+        "1. Explain how binary codes represent data & instructions.\n" \
+        "2. Write a simple machine-language program.\n" \
+        "3. Use basic command-line utilities to finish a task."
+      )
+    end
+
+    it "is nil without a syllabus" do
+      expect(described_class.learning_objectives(fixture("syllabus_none"))).to be_nil
+    end
+  end
+
   it "reads the subject code from a Banner subject" do
     expect(described_class.subject_code("Computer Science (COMP)")).to eq("COMP")
     expect(described_class.subject_code("Computer Science")).to be_nil

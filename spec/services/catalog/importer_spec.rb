@@ -116,6 +116,8 @@ RSpec.describe Catalog::Importer do
       "maximumEnrollment"       => 30,
       "enrollment"              => 28,
       "seatsAvailable"          => 2,
+      "waitCapacity"            => 5,
+      "waitAvailable"           => 3,
       "meetingsFaculty"         => [
         {
           "meetingTime" => {
@@ -178,6 +180,28 @@ RSpec.describe Catalog::Importer do
     end
   end
 
+  describe "part of term, campus, and cross-list group" do
+    let(:cross_listed) do
+      catalog_course("partOfTerm" => "FA2", "campusDescription" => "John D O&#39;Bryant School - BPS",
+                     "crossList" => "03", "crossListCapacity" => 10, "crossListAvailable" => -1)
+    end
+
+    it "stores them on a new course" do
+      described_class.call([ cross_listed ])
+
+      expect(imported_course).to have_attributes(part_of_term: "FA2", campus: "John D O'Bryant School - BPS",
+                                                 cross_list_identifier: "03", cross_list_capacity: 10, cross_list_available: -1)
+    end
+
+    it "updates them on a course that already exists, and clears a cross-list group Banner dropped" do
+      described_class.call([ cross_listed ])
+      described_class.call([ catalog_course("partOfTerm" => "1", "campusDescription" => "Online Course") ])
+
+      expect(imported_course).to have_attributes(part_of_term: "1", campus: "Online Course",
+                                                 cross_list_identifier: nil, cross_list_capacity: nil, cross_list_available: nil)
+    end
+  end
+
   describe "seat counts" do
     it "stores seat counts from the catalog payload on a new course" do
       described_class.call([ catalog_course ])
@@ -218,6 +242,20 @@ RSpec.describe Catalog::Importer do
       described_class.call([ catalog_course("maximumEnrollment" => 5, "seatsAvailable" => 1) ])
 
       expect(imported_course).to have_attributes(seats_capacity: 5, seats_available: 1)
+    end
+
+    it "stores the waitlist counts" do
+      described_class.call([ catalog_course ])
+      described_class.call([ catalog_course("waitAvailable" => 0) ])
+
+      expect(imported_course).to have_attributes(waitlist_capacity: 5, waitlist_available: 0)
+    end
+
+    it "does not overwrite known waitlist counts with a payload that omits one" do
+      described_class.call([ catalog_course ])
+      described_class.call([ catalog_course("waitCapacity" => nil) ])
+
+      expect(imported_course).to have_attributes(waitlist_capacity: 5, waitlist_available: 3)
     end
   end
 

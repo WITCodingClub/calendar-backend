@@ -11,7 +11,7 @@
       <% if user.last_calendar_sync_at %>
         <span title="<%= l(user.last_calendar_sync_at, format: :long) %>"><%= time_ago_in_words(user.last_calendar_sync_at) %> ago</span>
       <% end %>
-      <% if user.calendar_needs_sync %>
+      <% if user.calendar_sync_pending? %>
         <%= admin_badge("Needs sync", :warning) %>
       <% end %>
     <% end %>

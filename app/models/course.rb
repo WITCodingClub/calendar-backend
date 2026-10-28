@@ -4,29 +4,36 @@
 #
 # Table name: courses
 #
-#  id                :bigint           not null, primary key
-#  banner_synced_at  :datetime
-#  course_number     :integer          not null
-#  credit_hours      :integer
-#  crn               :integer          not null
-#  embedding         :vector(1536)
-#  embedding_digest  :string(64)
-#  end_date          :date             not null
-#  grade_mode        :string
-#  is_section_linked :boolean          default(FALSE), not null
-#  link_identifier   :string
-#  links_fetched_at  :datetime
-#  schedule_type     :string           not null
-#  seats_available   :integer
-#  seats_capacity    :integer
-#  section_number    :string           not null
-#  start_date        :date             not null
-#  status            :string           default("active"), not null
-#  subject           :string           not null
-#  title             :string           not null
-#  created_at        :datetime         not null
-#  updated_at        :datetime         not null
-#  term_id           :bigint           not null
+#  id                    :bigint           not null, primary key
+#  banner_synced_at      :datetime
+#  campus                :string
+#  course_number         :integer          not null
+#  credit_hours          :integer
+#  crn                   :integer          not null
+#  cross_list_available  :integer
+#  cross_list_capacity   :integer
+#  cross_list_identifier :string
+#  embedding             :vector(1536)
+#  embedding_digest      :string(64)
+#  end_date              :date             not null
+#  grade_mode            :string
+#  is_section_linked     :boolean          default(FALSE), not null
+#  link_identifier       :string
+#  links_fetched_at      :datetime
+#  part_of_term          :string
+#  schedule_type         :string           not null
+#  seats_available       :integer
+#  seats_capacity        :integer
+#  section_number        :string           not null
+#  start_date            :date             not null
+#  status                :string           default("active"), not null
+#  subject               :string           not null
+#  title                 :string           not null
+#  waitlist_available    :integer
+#  waitlist_capacity     :integer
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  term_id               :bigint           not null
 #
 # Indexes
 #
@@ -127,6 +134,19 @@ class Course < ApplicationRecord
 
   def link_key
     link_identifier.presence && link_identifier[1..].presence
+  end
+
+  # The CRNs of the other sections in this section's cross-list group: sections
+  # of different courses that meet together (Catalog::Importer). A list of
+  # sections reads the groups of a term with one query in each request.
+  def cross_listed_crns
+    return [] if cross_list_identifier.nil?
+
+    groups = Current.cross_lists[term_id] ||=
+      Course.active.where(term_id: term_id).where.not(cross_list_identifier: nil)
+            .order(:crn).pluck(:cross_list_identifier, :crn)
+            .group_by(&:first).transform_values { |rows| rows.map(&:last) }
+    Array(groups[cross_list_identifier]) - [ crn ]
   end
 
   # Sections a student has to register alongside this one: same course, same

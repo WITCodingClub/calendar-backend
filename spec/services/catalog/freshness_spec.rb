@@ -19,7 +19,7 @@ RSpec.describe Catalog::Freshness do
   def source(key) = described_class.call([ key ]).first
 
   it "gives the time each term's run finished for the section and course detail sources" do
-    expect(source(:sections)).to include(source: /Banner/)
+    expect(source(:sections)).to include(key: "sections", source: /Banner/)
     expect(source(:sections)[:terms]).to eq([ { term_uid: term.uid, term: term.name, last_refreshed_at: synced.iso8601 } ])
     expect(source(:course_details)[:terms].first[:last_refreshed_at]).to eq((synced - 1.day).iso8601)
   end
@@ -64,6 +64,7 @@ RSpec.describe Catalog::Freshness do
     recurring = YAML.load_file(Rails.root.join("config/recurring.yml"))
 
     expect(recurring.dig("production", "course_data_sync", "schedule")).to eq("every day at 4am")
+    expect(recurring.dig("production", "catalog_seat_refresh", "schedule")).to eq("every 30 minutes")
     expect(recurring.dig("production", "university_calendar_sync", "schedule")).to eq("every saturday at 2am")
     expect(recurring.dig("production", "degree_requirements_current_year", "schedule")).to eq("every month on the 2nd at 3am")
     expect(recurring.dig("production", "term_electives_import", "schedule")).to eq("every day at 3:30am")

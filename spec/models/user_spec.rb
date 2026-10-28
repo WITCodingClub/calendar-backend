@@ -140,6 +140,23 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe "calendar sync flag" do
+    let!(:with_calendar) { create(:course_calendar).oauth_credential.user.tap { |u| u.update!(calendar_needs_sync: true) } }
+    let!(:without_calendar) { create(:user, calendar_needs_sync: true) }
+
+    it "counts only flagged users with a course calendar in .needs_sync" do
+      create(:course_calendar) # not flagged
+
+      expect(User.needs_sync).to contain_exactly(with_calendar)
+    end
+
+    it "is pending only for a flagged user with a course calendar" do
+      expect(with_calendar.calendar_sync_pending?).to be(true)
+      expect(without_calendar.calendar_sync_pending?).to be(false)
+      expect(create(:course_calendar).oauth_credential.user.calendar_sync_pending?).to be(false)
+    end
+  end
+
   describe "#processed_courses?" do
     it "is false before the extension processes any courses" do
       expect(create(:user).processed_courses?).to be(false)

@@ -231,6 +231,14 @@ RSpec.describe CourseCalendars::IcsFeed do
     end
   end
 
+  it "moves LAST-MODIFIED and SEQUENCE to the last feed code change when every row is older" do
+    event = class_event
+    changed_at = described_class::CLASS_EVENT_LOGIC_CHANGED_AT
+
+    expect(event.last_modified.to_time).to eq(changed_at)
+    expect(event.sequence).to eq(changed_at.to_i / 60)
+  end
+
   it "gives the same bytes for the same data at a later time" do
     first = described_class.new(user).to_ical
 

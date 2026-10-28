@@ -19,7 +19,7 @@
   <% end %>
   <% t.column("Results") do |schedule| %>
     <% if schedule.stats.present? %>
-      <%= schedule.stats["created"] || 0 %> created · <%= schedule.stats["updated"] || 0 %> updated · <%= schedule.stats["skipped"] || 0 %> skipped
+      <%= schedule.stats["created"] || 0 %> created · <%= schedule.stats["updated"] || 0 %> updated<% if schedule.stats.key?("unchanged") %> · <%= schedule.stats["unchanged"] %> unchanged<% end %>
     <% end %>
   <% end %>
   <% t.column("Actions", align: :right, primary: false) do |schedule| %>

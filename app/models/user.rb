@@ -156,7 +156,18 @@ class User < ApplicationRecord
   scope :admins, -> { where(access_level: [ :admin, :super_admin, :owner ]) }
   scope :super_admins, -> { where(access_level: [ :super_admin, :owner ]) }
   scope :owners, -> { where(access_level: :owner) }
-  scope :needs_sync, -> { where(calendar_needs_sync: true) }
+  # The nightly sync skips users with no course calendar, so the flag alone
+  # does not mean a sync is waiting. See #calendar_sync_pending?.
+  scope :needs_sync, -> {
+    where(calendar_needs_sync: true).where(id: OauthCredential.joins(:course_calendar).select(:user_id))
+  }
+
+  # True when the next nightly sync will push changes for this user. Many
+  # writers set calendar_needs_sync without checking for a connected
+  # calendar, so check for one here.
+  def calendar_sync_pending?
+    calendar_needs_sync && course_calendars.any?
+  end
 
   def admin_access?
     admin? || super_admin? || owner?

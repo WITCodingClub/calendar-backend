@@ -20,6 +20,17 @@ module McpTools
       PERMISSION = "If a tool answers that a permission is missing, tell me how to add it. Then continue with the " \
                    "tools that work, and tell me what you could not check."
 
+      # Banner override types, and who gives them at Wentworth. The server
+      # instructions say the same.
+      OVERRIDE = "Banner can block a registration: a full section, a missing prerequisite or corequisite, a major, " \
+                 "program, or class year restriction, a time conflict, a section that needs instructor or department " \
+                 "approval, or more credits than the term maximum. I can ask for an override of the block from the " \
+                 "dean's office of the school that offers the course. If a full section has a waitlist (the section " \
+                 "result shows it), I can join the waitlist first. An override is not certain, so make plans that " \
+                 "do not need one. Offer one option that needs an override only when no plan without one works, or " \
+                 "when I am stuck or worried. For that option, name the override and the course, and for a time " \
+                 "conflict give the minutes of overlap."
+
       ADVISOR = "WIT Calendar is not an official Wentworth service, and its data can be out of date. At the end, " \
                 "tell me to confirm the plan with my program director and my academic advisor before I register, " \
                 "drop a course, or change my plan."
@@ -93,7 +104,7 @@ module McpTools
       end
 
       def text
-        [ *steps, ASK, PERMISSION, ADVISOR ].join("\n\n")
+        [ *steps, ASK, PERMISSION, OVERRIDE, ADVISOR ].join("\n\n")
       end
 
       private

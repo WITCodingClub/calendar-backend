@@ -38,7 +38,23 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       )
       expect(section["term"]).to eq("uid" => 202_710, "name" => "Fall 2026")
       expect(section["seats"]).to eq("capacity" => nil, "available" => nil)
+      expect(section["waitlist"]).to eq("capacity" => nil, "available" => nil)
       expect(section["pub_id"]).to be_present
+      expect(section).to include("cross_list" => nil, "part_of_term" => nil, "campus" => nil)
+    end
+
+    it "names the sections cross-listed with this one, and the seats of the group" do
+      comp2000.update!(cross_list_identifier: "01", cross_list_capacity: 23, cross_list_available: 10,
+                       part_of_term: "FA1", campus: "Online Course")
+      comp2000b.update!(cross_list_identifier: "01")
+
+      get "/api/v1/catalog/sections", params: { crn: "10002,10003" }
+
+      expect(json["data"].first).to include(
+        "part_of_term" => "FA1", "campus" => "Online Course",
+        "cross_list"   => { "identifier" => "01", "crns" => [ 10_003 ], "seats" => { "capacity" => 23, "available" => 10 } }
+      )
+      expect(json["data"].second["cross_list"]["crns"]).to eq([ 10_002 ])
     end
 
     it "reports a section that stands alone as unlinked" do

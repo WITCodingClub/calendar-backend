@@ -144,6 +144,8 @@ module Courses
               course.grade_mode     = detailed_course_info[:grade_mode]
               course.seats_available = detailed_course_info[:seats_available]
               course.seats_capacity  = detailed_course_info[:seats_capacity]
+              course.waitlist_available = detailed_course_info[:waitlist_available]
+              course.waitlist_capacity  = detailed_course_info[:waitlist_capacity]
               course.save!
               enrollment_flags[course.id] = false
             end
@@ -160,6 +162,10 @@ module Courses
 
               update_attrs[:seats_available] = detailed_course_info[:seats_available] unless detailed_course_info[:seats_available].nil?
               update_attrs[:seats_capacity]  = detailed_course_info[:seats_capacity]  unless detailed_course_info[:seats_capacity].nil?
+              unless detailed_course_info[:waitlist_capacity].nil? || detailed_course_info[:waitlist_available].nil?
+                update_attrs[:waitlist_capacity]  = detailed_course_info[:waitlist_capacity]
+                update_attrs[:waitlist_available] = detailed_course_info[:waitlist_available]
+              end
 
               course.update!(update_attrs) if update_attrs.any?
             end

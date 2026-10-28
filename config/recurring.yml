@@ -11,6 +11,13 @@ production:
     queue: low
     schedule: every 5 minutes
 
+  # Seat counts for the terms in their registration window. About four Banner
+  # requests for each term.
+  catalog_seat_refresh:
+    class: Catalog::SeatRefreshJob
+    queue: low
+    schedule: every 30 minutes
+
   # ---------------------------------------------------------------------------
   # HOURLY
   # ---------------------------------------------------------------------------

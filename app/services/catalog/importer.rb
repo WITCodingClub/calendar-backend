@@ -88,6 +88,22 @@ module Catalog
       hours.to_i.positive? ? hours.to_i : nil
     end
 
+    # The part of term ("1" for the full term, a code such as "FA1" or "FA2"
+    # for one half), the campus, and the cross-list group, from Banner's search
+    # data. A cross-list group joins sections of different courses that meet
+    # together, such as an undergraduate and a graduate ARCH studio. Its
+    # identifier is unique only in its term, and the seats count the whole
+    # group.
+    def self.section_details_for(course_data)
+      {
+        part_of_term:          course_data["partOfTerm"].presence,
+        campus:                CGI.unescapeHTML(course_data["campusDescription"].to_s).presence,
+        cross_list_identifier: course_data["crossList"].presence,
+        cross_list_capacity:   course_data["crossListCapacity"]&.to_i,
+        cross_list_available:  course_data["crossListAvailable"]&.to_i
+      }
+    end
+
     private
 
     def process_course(course_data)
@@ -147,7 +163,9 @@ module Catalog
       is_section_linked = ActiveModel::Type::Boolean.new.cast(course_data["isSectionLinked"]) || false
 
       seats = seat_counts(course_data)
+      waitlist = waitlist_counts(course_data)
       credit_hours = credit_hours_for(course_data)
+      section_details = self.class.section_details_for(course_data)
 
       course = Course.find_or_create_by!(crn: crn, term: term) do |c|
         c.title = titleize_with_roman_numerals(course_data["courseTitle"] || "Untitled Course")
@@ -164,6 +182,9 @@ module Catalog
         c.is_section_linked = is_section_linked
         c.seats_capacity = seats[:capacity]
         c.seats_available = seats[:available]
+        c.waitlist_capacity = waitlist[:capacity]
+        c.waitlist_available = waitlist[:available]
+        c.assign_attributes(section_details)
       end
 
       if course.previously_new_record?
@@ -182,6 +203,7 @@ module Catalog
         # so these have to be written on update and not only on create.
         update_attrs[:link_identifier]   = link_identifier   if course.link_identifier != link_identifier
         update_attrs[:is_section_linked] = is_section_linked if course.is_section_linked != is_section_linked
+        section_details.each { |name, value| update_attrs[name] = value if course[name] != value }
 
         # Set both counts together or neither. The database checks that
         # seats_available is not more than seats_capacity, so a half update can
@@ -189,6 +211,10 @@ module Catalog
         if seats[:capacity].present? && seats[:available].present?
           update_attrs[:seats_capacity] = seats[:capacity]
           update_attrs[:seats_available] = seats[:available]
+        end
+        if waitlist[:capacity].present? && waitlist[:available].present?
+          update_attrs[:waitlist_capacity] = waitlist[:capacity]
+          update_attrs[:waitlist_available] = waitlist[:available]
         end
 
         # The counts cover the section row. Meeting times and instructors can
@@ -242,6 +268,16 @@ module Catalog
     def seat_counts(course_data)
       capacity = course_data["maximumEnrollment"]
       available = course_data["seatsAvailable"]
+
+      {
+        capacity: capacity.nil? ? nil : capacity.to_i,
+        available: available.nil? ? nil : available.to_i
+      }
+    end
+
+    def waitlist_counts(course_data)
+      capacity = course_data["waitCapacity"]
+      available = course_data["waitAvailable"]
 
       {
         capacity: capacity.nil? ? nil : capacity.to_i,

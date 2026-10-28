@@ -161,7 +161,17 @@ module McpTools
       grade_mode:         nullable(STRING),
       status:             { type: "string", enum: %w[active cancelled] },
       seats:              object(capacity: nullable(INTEGER), available: nullable(INTEGER)),
+      waitlist:           object(capacity: nullable(INTEGER), available: nullable(INTEGER)),
       linked:             LINKED,
+      cross_list:         nullable(
+        object(
+          identifier: STRING,
+          crns:       INTEGERS,
+          seats:      object(capacity: nullable(INTEGER), available: nullable(INTEGER))
+        )
+      ),
+      part_of_term:       nullable(STRING),
+      campus:             nullable(STRING),
       start_date:         DATE,
       end_date:           DATE,
       instructors:        array(INSTRUCTOR),
@@ -193,14 +203,22 @@ module McpTools
 
     # Catalog::CourseSerializer. sections is there only with a term.
     COURSE_PROPERTIES = COURSE_SUMMARY_PROPERTIES.merge(
-      description:        nullable(STRING),
-      prerequisites:      nullable(PREREQUISITE),
-      corequisites:       array(PREREQUISITE),
-      restrictions:       array(object(heading: STRING, values: STRINGS)),
-      unlocks:            array(COURSE_SUMMARY),
-      details_term_uid:   nullable(INTEGER),
-      details_fetched_at: nullable(DATE_TIME),
-      sections:           array(SECTION)
+      description:         nullable(STRING),
+      prerequisites:       nullable(PREREQUISITE),
+      corequisites:        array(PREREQUISITE),
+      restrictions:        array(object(heading: STRING, values: STRINGS)),
+      mutual_exclusions:   array(PREREQUISITE),
+      college:             nullable(STRING),
+      division:            nullable(STRING),
+      department:          nullable(STRING),
+      levels:              STRINGS,
+      grading_modes:       STRINGS,
+      fees:                array(object(level: nullable(STRING), description: nullable(STRING), amount_cents: INTEGER)),
+      learning_objectives: nullable(STRING),
+      unlocks:             array(COURSE_SUMMARY),
+      details_term_uid:    nullable(INTEGER),
+      details_fetched_at:  nullable(DATE_TIME),
+      sections:            array(SECTION)
     ).freeze
     COURSE = object(COURSE_PROPERTIES, optional: %i[sections]).freeze
 
@@ -317,6 +335,8 @@ module McpTools
       end_time:   TIME,
       start_date: DATE_TIME,
       end_date:   DATE_TIME,
+      effective_end_date: DATE,
+      excluded_dates:     array(DATE),
       location:   object(
         building: nullable(object(pub_id: STRING, name: STRING, abbreviation: STRING)),
         rooms:    STRINGS

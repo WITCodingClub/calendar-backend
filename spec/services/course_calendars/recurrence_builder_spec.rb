@@ -79,6 +79,118 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
     end
   end
 
+  describe "#effective_end_date" do
+    it "returns the stored end date when the term has no finals" do
+      expect(builder.effective_end_date(meeting_time)).to eq(Date.new(2026, 12, 15))
+    end
+
+    it "returns the day before the course's final exam" do
+      create(:final_exam, course: course, term: term, exam_date: Date.new(2026, 12, 10))
+
+      expect(builder.effective_end_date(meeting_time)).to eq(Date.new(2026, 12, 9))
+    end
+
+    it "returns the day before the term's finals week when the course has no final" do
+      create(:final_exam, term: term, exam_date: Date.new(2026, 12, 12))
+
+      expect(builder.effective_end_date(meeting_time)).to eq(Date.new(2026, 12, 11))
+    end
+
+    it "returns the day before Study Day and keeps the stored end date" do
+      create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
+                                         start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
+
+      expect(builder.effective_end_date(meeting_time)).to eq(Date.new(2026, 12, 7))
+      expect(meeting_time.reload.end_date.to_date).to eq(Date.new(2026, 12, 15))
+    end
+  end
+
+  describe "#excluded_dates" do
+    it "returns a holiday on the meeting day" do
+      holiday(Time.zone.local(2026, 10, 12, 0, 0))
+
+      expect(builder.excluded_dates(meeting_time)).to eq([ Date.new(2026, 10, 12) ])
+    end
+
+    it "returns the meeting day inside a holiday of several days" do
+      holiday(Time.zone.local(2026, 11, 21, 0, 0), Time.zone.local(2026, 11, 25, 23, 0))
+
+      expect(builder.excluded_dates(meeting_time)).to eq([ Date.new(2026, 11, 23) ])
+    end
+
+    it "leaves out a holiday on another day" do
+      holiday(Time.zone.local(2026, 10, 13, 0, 0))
+
+      expect(builder.excluded_dates(meeting_time)).to eq([])
+    end
+
+    it "leaves out finals days after the effective end date" do
+      create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
+                                         start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
+      create(:university_calendar_event, term: term, category: "finals", summary: "Final Exam Period",
+                                         start_time: Time.zone.local(2026, 12, 9, 0, 0), end_time: Time.zone.local(2026, 12, 15, 23, 59))
+
+      expect(builder.excluded_dates(meeting_time)).to eq([])
+    end
+  end
+
+  describe "#preload_final_exam_dates!" do
+    it "loads the final exam dates of all courses in one query" do
+      other_course = create(:course, term: term)
+      create(:final_exam, course: course, term: term, exam_date: Date.new(2026, 12, 10))
+
+      builder.preload_final_exam_dates!([ course.id, other_course.id ])
+      allow(FinalExam).to receive(:where).and_call_original
+
+      expect(builder.final_exam_date_for_course(course.id)).to eq(Date.new(2026, 12, 10))
+      expect(builder.final_exam_date_for_course(other_course.id)).to be_nil
+      expect(FinalExam).not_to have_received(:where)
+    end
+  end
+
+  describe ".preloaded" do
+    it "loads the holidays, final exam dates, and finals dates, so the lookups send no query" do
+      create(:enrollment, user: user, course: course)
+      meeting_time
+      holiday(Time.zone.local(2026, 10, 12, 0, 0))
+      create(:final_exam, term: term, exam_date: Date.new(2026, 12, 12))
+      create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
+                                         start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
+
+      preloaded = described_class.preloaded(user, [ course ])
+      queries = count_queries do
+        expect(preloaded.effective_end_date(meeting_time)).to eq(Date.new(2026, 12, 7))
+        expect(preloaded.excluded_dates(meeting_time)).to eq([ Date.new(2026, 10, 12) ])
+      end
+
+      expect(queries).to eq(0)
+    end
+
+    it "gives the same dates as a builder that looks each value up, for courses in two terms" do
+      spring = create(:term)
+      spring_course = create(:course, term: spring, start_date: Date.new(2027, 1, 11), end_date: Date.new(2027, 4, 30))
+      spring_time = create(:course_meeting_time, course: spring_course, day_of_week: :monday)
+      [ course, spring_course ].each { |c| create(:enrollment, user: user, course: c, term: c.term) }
+      meeting_time
+      holiday(Time.zone.local(2026, 10, 12, 0, 0))
+      holiday(Time.zone.local(2027, 2, 15, 0, 0))
+      create(:final_exam, course: course, term: term, exam_date: Date.new(2026, 12, 10))
+      create(:final_exam, term: spring, exam_date: Date.new(2027, 4, 26))
+      create(:university_calendar_event, term: spring, category: "finals", summary: "Study Day",
+                                         start_time: Time.zone.local(2027, 4, 23, 0, 0), end_time: Time.zone.local(2027, 4, 23, 23, 59))
+
+      preloaded = described_class.preloaded(user, [ course, spring_course ])
+
+      [ meeting_time, spring_time ].each do |mt|
+        lazy = described_class.new(user)
+        expect(preloaded.effective_end_date(mt)).to eq(lazy.effective_end_date(mt))
+        expect(preloaded.excluded_dates(mt)).to eq(lazy.excluded_dates(mt))
+      end
+      expect(preloaded.effective_end_date(spring_time)).to eq(Date.new(2027, 4, 22))
+      expect(preloaded.excluded_dates(spring_time)).to eq([ Date.new(2027, 2, 15) ])
+    end
+  end
+
   describe "#final_exam_date_for_course" do
     it "sends the query only once for each course" do
       create(:final_exam, course: course, term: term, exam_date: Date.new(2026, 12, 10))
@@ -130,6 +242,41 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
 
       expect(builder.holidays_for_meeting_time(meeting_time).map(&:start_time)).to eq([ day_off.start_time ])
       expect(UniversityCalendarEvent).not_to have_received(:no_class_spans_between)
+    end
+
+    # start_date is local midnight. A Date compared with it becomes midnight
+    # UTC, which is hours earlier, so the preload dropped a holiday that ends
+    # on the first day.
+    it "keeps a holiday on the first day of the meeting time, as the query without a preload does" do
+      create(:enrollment, user: user, course: course)
+      meeting_time.update!(start_date: Time.zone.local(2026, 9, 14), end_date: Time.zone.local(2026, 12, 14))
+      holiday(Time.zone.local(2026, 9, 14, 0, 0), Time.zone.local(2026, 9, 14, 23, 59))
+
+      builder.preload_holidays_for_user!
+
+      expect(builder.excluded_dates(meeting_time)).to eq([ Date.new(2026, 9, 14) ])
+      expect(builder.excluded_dates(meeting_time)).to eq(described_class.new(user).excluded_dates(meeting_time))
+    end
+
+    it "keeps the first day of a break of several days that ends on it" do
+      create(:enrollment, user: user, course: course)
+      meeting_time.update!(start_date: Time.zone.local(2026, 9, 14), end_date: Time.zone.local(2026, 12, 14))
+      holiday(Time.zone.local(2026, 9, 12, 0, 0), Time.zone.local(2026, 9, 14, 23, 59))
+
+      builder.preload_holidays_for_user!
+
+      expect(builder.excluded_dates(meeting_time)).to eq([ Date.new(2026, 9, 14) ])
+      expect(builder.excluded_dates(meeting_time)).to eq(described_class.new(user).excluded_dates(meeting_time))
+    end
+
+    it "keeps a holiday on the last day of the meeting time" do
+      create(:enrollment, user: user, course: course)
+      meeting_time.update!(start_date: Time.zone.local(2026, 9, 14), end_date: Time.zone.local(2026, 12, 14))
+      holiday(Time.zone.local(2026, 12, 14, 0, 0), Time.zone.local(2026, 12, 14, 23, 59))
+
+      builder.preload_holidays_for_user!
+
+      expect(builder.excluded_dates(meeting_time)).to eq([ Date.new(2026, 12, 14) ])
     end
 
     it "preloads no holidays for a user without meeting times" do
