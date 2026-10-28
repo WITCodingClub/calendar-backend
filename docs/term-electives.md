@@ -34,7 +34,7 @@ erDiagram
 
 | Model | One row is |
 |---|---|
-| `TermElectiveList` | One PDF. `school` comes from the file name (`SCDS`, `HSS`, `SOM`, `ARCH`). `body_text` is the full text of the PDF. `sha256` is the digest of the PDF. `fetched_at` is when the import last read the file, changed or not. |
+| `TermElectiveList` | One PDF. `school` comes from the file name (`SCDS`, `HSS`, `SOM`, `ARCH`, `SOE`, `SOS`). `body_text` is the full text of the PDF. `sha256` is the digest of the PDF. `fetched_at` is when the import last read the file, changed or not. |
 | `TermElectiveCourse` | One course code in a PDF, with the nearest heading above it. The same code can occur under more than one heading. |
 
 ## Parser

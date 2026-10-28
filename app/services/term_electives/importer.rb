@@ -23,6 +23,8 @@ module TermElectives
       raise FetchError, "GET #{PAGE_URL}: not found" if page.nil?
 
       urls = pdf_urls(page)
+      # The page moved its files or changed its links. Nothing is removed.
+      Rails.error.report(Error.new("the Registrar page links no PDF"), handled: true) if urls.empty?
       counts = Hash.new(0)
       term_ids = urls.filter_map { |url| import(url, counts) }
 
@@ -65,7 +67,7 @@ module TermElectives
       write(list || TermElectiveList.new(url: url), term, sha256, text, parsed)
       counts[:imported] += 1
       term.id
-    rescue FetchError, RuntimeError, ArgumentError, ActiveRecord::ActiveRecordError => e
+    rescue FetchError, RuntimeError, ArgumentError, SystemCallError, ActiveRecord::ActiveRecordError => e
       # One bad file does not stop the others. The next run tries it again.
       Rails.error.report(e, handled: true, context: { url: url })
       counts[:failed] += 1
@@ -103,21 +105,34 @@ module TermElectives
           .map { |subject_code, course_number, heading, position| { subject_code:, course_number:, heading:, position: } }
     end
 
-    # Links to PDFs on wit.edu over HTTPS. A link can have a raw space, such
-    # as "FA26 HSS Electives V3.pdf", so the href is escaped first.
+    # Links to PDFs on wit.edu over HTTPS, as one URL for each file: no
+    # fragment, and wit.edu for www.wit.edu. A link can have a raw space or a
+    # character that is not ASCII, such as "FA26 HSS Electives V3.pdf", so
+    # the href is escaped first.
     def pdf_urls(page)
-      Nokogiri::HTML(page).css("a[href]").filter_map do |link|
-        href = link["href"].strip.gsub(" ", "%20")
+      # The client gives bytes. Without a charset, Nokogiri would read them as
+      # Latin-1.
+      html = page.dup.force_encoding(Encoding::UTF_8).scrub
+      Nokogiri::HTML(html).css("a[href]").filter_map do |link|
+        href = escape(link["href"].strip)
         uri = URI.join(PAGE_URL, href)
         next unless uri.path.to_s.match?(/\.pdf\z/i)
-        next uri.to_s if uri.scheme == "https" && uri.host.to_s.downcase.delete_prefix("www.") == SITE_HOST
 
-        Rails.logger.warn("[TermElectives] skipped PDF link #{href}")
-        nil
-      rescue URI::Error
-        Rails.logger.warn("[TermElectives] skipped PDF link #{href}")
+        unless uri.scheme == "https" && uri.host.to_s.downcase.delete_prefix("www.") == SITE_HOST
+          Rails.logger.warn("[TermElectives] skipped PDF link #{href}")
+          next
+        end
+        uri.fragment = nil
+        uri.host = SITE_HOST
+        uri.to_s
+      rescue URI::Error => e
+        Rails.error.report(e, handled: true, context: { href: href })
         nil
       end.uniq
+    end
+
+    def escape(href)
+      href.gsub(/[^\x21-\x7E]/) { |char| char.bytes.map { |byte| format("%%%02X", byte) }.join }
     end
 
     def known_subjects

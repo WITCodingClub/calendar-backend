@@ -51,7 +51,8 @@ module Catalog
       term_electives:      {
         data:     "The elective lists that each school publishes for a term",
         source:   "Wentworth Registrar elective lists (PDF)",
-        schedule: "Every day at 3:30 AM Eastern, for each list that the Registrar's page links."
+        schedule: "Every day at 3:30 AM Eastern, for each list that the Registrar's page links. The time is " \
+                  "the newest read of any list. Each list gives its own fetched_at."
       }
     }.freeze
 

@@ -15,6 +15,8 @@ module TermElectives
       methods:        %i[get]
     }.freeze
     MAX_REDIRECTS = 3
+    # The lists are a few pages. A larger file is not an elective list.
+    MAX_BYTES = 20.megabytes
     ALLOWED_HOSTS = [ SITE_HOST, "www.#{SITE_HOST}" ].freeze
 
     # The body as binary, or nil for a 404. Raises FetchError for any other
@@ -30,7 +32,10 @@ module TermElectives
         end
         raise FetchError, "GET #{url}: HTTP #{response.status}" unless response.success?
 
-        return response.body.to_s.b
+        body = response.body.to_s.b
+        raise FetchError, "GET #{url}: larger than #{MAX_BYTES} bytes" if body.bytesize > MAX_BYTES
+
+        return body
       end
       raise FetchError, "GET #{url}: too many redirects"
     rescue Faraday::Error => e
@@ -40,7 +45,11 @@ module TermElectives
     private
 
     def redirect_target(from, location)
-      target = URI.join(from, location)
+      target = begin
+        URI.join(from, location)
+      rescue URI::Error
+        raise FetchError, "GET #{from}: bad redirect to #{location}"
+      end
       unless target.scheme == "https" && target.host.to_s.downcase.in?(ALLOWED_HOSTS)
         raise FetchError, "GET #{from}: redirect to #{target.host || location} is not allowed"
       end

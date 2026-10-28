@@ -32,7 +32,7 @@ RSpec.describe McpTools::ListTermElectives do
   end
 
   it "takes a school, a course, and heading words" do
-    expect(call(term_uid: term.uid, school: "HSS").structured_content[:lists].size).to eq(1)
+    expect(call(term_uid: term.uid, school: "hss").structured_content[:lists].size).to eq(1)
     expect(call(term_uid: term.uid, course: "COMP 2000").structured_content[:lists].first[:courses].pluck(:code)).to eq([ "COMP 2000" ])
     expect(call(term_uid: term.uid, q: "social").structured_content[:lists].pluck(:school)).to eq(%w[HSS])
   end

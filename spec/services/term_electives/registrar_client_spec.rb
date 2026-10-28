@@ -42,6 +42,19 @@ RSpec.describe TermElectives::RegistrarClient do
     expect { client.get(url) }.to raise_error(TermElectives::FetchError, /not allowed/)
   end
 
+  it "raises a fetch error for a redirect it cannot read" do
+    stub_request(:get, url).to_return(status: 302, headers: { "Location" => "/a b\u2013c.pdf" })
+
+    expect { client.get(url) }.to raise_error(TermElectives::FetchError, /bad redirect/)
+  end
+
+  it "raises a fetch error for a file that is too large" do
+    stub_const("#{described_class}::MAX_BYTES", 4)
+    stub_request(:get, url).to_return(status: 200, body: "%PDF-1.7")
+
+    expect { client.get(url) }.to raise_error(TermElectives::FetchError, /larger than 4 bytes/)
+  end
+
   it "stops after a few redirects" do
     stub_request(:get, url).to_return(status: 302, headers: { "Location" => url })
 

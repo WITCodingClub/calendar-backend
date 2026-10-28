@@ -45,6 +45,13 @@ RSpec.describe "Catalog term electives API", type: :request do
     expect(json["code"]).to eq("INVALID_FILTER")
   end
 
+  it "answers 400 for words or a course given as a list" do
+    get "/api/v1/catalog/terms/#{term.uid}/electives", params: { q: [ "net" ] }
+
+    expect(response).to have_http_status(:bad_request)
+    expect(json["error"]).to eq("q must be one value")
+  end
+
   it "answers 404 for an unknown term" do
     get "/api/v1/catalog/terms/999999/electives"
 

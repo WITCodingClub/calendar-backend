@@ -17,7 +17,7 @@ module McpTools
     input_schema(
       properties: {
         term_uid: TERM_SCHEMA,
-        school:   { type: "string", enum: TermElectives::SCHOOLS, description: "Only the lists of this school." },
+        school:   { type: "string", description: "Only the lists of this school: #{TermElectives::SCHOOLS.join(', ')}." },
         course:   { type: "string", description: "Only this course, for example COMP2000, to see which lists " \
                                                  "name it." },
         q:        { type: "string", description: "Words in the heading, for example computer science." }

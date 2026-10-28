@@ -8,7 +8,7 @@ RSpec.describe TermElectives::Importer do
   subject(:importer) { described_class.new }
 
   let(:page_url) { TermElectives::PAGE_URL }
-  let(:scds_url) { "https://www.wit.edu/sites/default/files/2031-01/SCDS_Electives_Spring%202031.pdf" }
+  let(:scds_url) { "https://wit.edu/sites/default/files/2031-01/SCDS_Electives_Spring%202031.pdf" }
   let(:hss_url) { "https://wit.edu/sites/default/files/2031-01/Spring%202031%20HSS%20Electives.pdf" }
   let!(:term) { create(:term, year: 2031, season: :spring) }
   let(:texts) do
@@ -64,10 +64,11 @@ RSpec.describe TermElectives::Importer do
     expect(FinalsSchedules::PdfText).to have_received(:extract).twice
   end
 
-  it "only fetches PDF links over HTTPS on wit.edu" do
+  it "only fetches PDF links over HTTPS on wit.edu, once for each file" do
     importer.call
 
     expect(TermElectiveList.pluck(:url)).to contain_exactly(scds_url, hss_url)
+    expect(a_request(:get, scds_url)).to have_been_made.once
     expect(a_request(:get, "http://wit.edu/sites/default/files/plain.pdf")).not_to have_been_made
   end
 
@@ -148,6 +149,32 @@ RSpec.describe TermElectives::Importer do
     expect(importer.call).to have_attributes(imported: 1, failed: 1)
     expect(Rails.error).to have_received(:report)
       .with(an_instance_of(ActiveRecord::RecordNotUnique), handled: true, context: { url: scds_url })
+  end
+
+  it "reports a PDF with a bad redirect and imports the others" do
+    allow(Rails.error).to receive(:report)
+    stub_request(:get, scds_url).to_return(status: 301, headers: { "Location" => "/files/a b\u2013c.pdf" })
+
+    expect(importer.call).to have_attributes(imported: 1, failed: 1)
+    expect(Rails.error).to have_received(:report).with(an_instance_of(TermElectives::FetchError), handled: true, context: { url: scds_url })
+  end
+
+  it "escapes a link with a character that is not ASCII" do
+    page = "<a href=\"/files/HSS \u2013 Spring.pdf\">HSS</a>"
+    stub_request(:get, page_url).to_return(status: 200, body: page)
+    stub_request(:get, "https://wit.edu/files/HSS%20%E2%80%93%20Spring.pdf").to_return(status: 404)
+
+    expect(importer.call).to have_attributes(skipped: 1)
+  end
+
+  it "reports a page that links no PDF, and removes nothing" do
+    allow(Rails.error).to receive(:report)
+    list = create(:term_elective_list, term: term)
+    stub_request(:get, page_url).to_return(status: 200, body: "<p>Moved</p>")
+
+    expect(importer.call.removed).to eq(0)
+    expect(TermElectiveList.exists?(list.id)).to be(true)
+    expect(Rails.error).to have_received(:report).with(an_instance_of(TermElectives::Error), handled: true)
   end
 
   it "raises when the page is missing" do

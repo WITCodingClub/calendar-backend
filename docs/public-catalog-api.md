@@ -279,7 +279,7 @@ not a degree audit.
 
 `GET /api/v1/catalog/terms/:uid/electives` returns one item for each elective
 list PDF on the Registrar's "Technical, Major, and HSS Electives" page: the
-`school` (`SCDS`, `HSS`, `SOM`, `ARCH`, or null), the `title`, the `url` of the
+`school` (`SCDS`, `HSS`, `SOM`, `ARCH`, `SOE`, `SOS`, or null), the `title`, the `url` of the
 PDF, `fetched_at`, the `courses`, and the full `text` of the PDF. Each course has
 its `code`, its Banner `title`, and the `heading` above it in the PDF, such as
 "Computer Science Elective". The text has the rules that name no course, such
