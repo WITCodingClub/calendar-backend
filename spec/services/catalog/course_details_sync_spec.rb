@@ -9,16 +9,20 @@ RSpec.describe Catalog::CourseDetailsSync do
 
   def fixture(name) = file_fixture("leopard_web/#{name}.html").read
 
-  def stub_banner(crn, prerequisites: fixture("prerequisites_and_or_groups"), status: 200)
+  def stub_banner(crn, prerequisites: fixture("prerequisites_and_or_groups"), status: 200, failing: [])
     {
-      "getCourseDescription"    => fixture("course_description"),
-      "getSectionPrerequisites" => prerequisites,
-      "getCorequisites"         => fixture("corequisites_none"),
-      "getRestrictions"         => fixture("restrictions")
+      "getCourseDescription"        => fixture("course_description"),
+      "getSectionPrerequisites"     => prerequisites,
+      "getCorequisites"             => fixture("corequisites_none"),
+      "getRestrictions"             => fixture("restrictions"),
+      "getSectionCatalogDetails"    => fixture("catalog_details"),
+      "getCourseMutuallyExclusions" => fixture("mutual_exclusions"),
+      "getFees"                     => fixture("fees"),
+      "getSyllabus"                 => fixture("syllabus")
     }.each do |path, body|
       stub_request(:get, "#{Catalog::LeopardWebClient::BASE_URL}#{path}")
         .with(query: { term: term.uid.to_s, courseReferenceNumber: crn.to_s })
-        .to_return(status: status, body: body)
+        .to_return(status: failing.include?(path) ? 500 : status, body: body)
     end
   end
 
@@ -39,6 +43,24 @@ RSpec.describe Catalog::CourseDetailsSync do
     expect(course.prerequisites["type"]).to eq("and")
     expect(course.restrictions.size).to eq(2)
     expect(course.corequisites).to eq([])
+  end
+
+  it "stores the catalog entry, mutual exclusions, fees, and learning objectives" do
+    stub_banner(20382)
+
+    sync
+
+    course = CatalogCourse.find_by_code("COMP 2000")
+    expect(course).to have_attributes(
+      college:       "The School of Comp & Data Sci",
+      division:      "COF Eligible Cross Reg",
+      department:    "Computer Science & Networking",
+      levels:        [ "Undergraduate" ],
+      grading_modes: [ "Standard Letter", "Pass/Fail", "Not Graded" ]
+    )
+    expect(course.mutual_exclusions).to eq([ { "subject_code" => "ARCH", "course_number" => 7250, "level" => "Graduate", "min_grade" => "TR" } ])
+    expect(course.fees.first).to eq("level" => "Undergraduate", "description" => "Follett Access", "amount_cents" => 9499)
+    expect(course.learning_objectives).to start_with("Course Learning Outcomes\n1. Explain")
   end
 
   it "links each prerequisite to a course in the system, and keeps unknown codes unlinked" do
@@ -95,6 +117,17 @@ RSpec.describe Catalog::CourseDetailsSync do
 
     expect(course.reload.description).to eq("Old text")
     expect(reports.first.context).to include(catalog_course_id: course.id, crn: 20382)
+  end
+
+  it "stores the other pages and keeps the old values when an optional page fails" do
+    course = create(:catalog_course, subject_code: "COMP", course_number: 2000, description: "Old text",
+                                     learning_objectives: "Old objectives", fees: [ { "level" => "Undergraduate" } ])
+    stub_banner(20382, failing: %w[getSyllabus getFees])
+
+    expect(sync).to have_attributes(fetched: 1, failed: 0)
+    expect(course.reload).to have_attributes(learning_objectives: "Old objectives", fees: [ { "level" => "Undergraduate" } ],
+                                             college: be_present)
+    expect(course.description).not_to eq("Old text")
   end
 
   it "seeds a row for every course with the newest title" do

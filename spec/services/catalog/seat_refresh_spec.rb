@@ -70,6 +70,16 @@ RSpec.describe Catalog::SeatRefresh do
     expect(full.reload.seats_available).to eq(17)
   end
 
+  # A cross-list group shares its seats, so the group count changes as fast as the seats.
+  it "writes the cross-list group counts" do
+    full.update!(cross_list_identifier: "01", cross_list_capacity: 24, cross_list_available: 4)
+    stub_search({ totalCount: 1, data: [ { courseReferenceNumber: "20452", maximumEnrollment: 25, seatsAvailable: 17,
+                                           crossList: "01", crossListCapacity: 24, crossListAvailable: 0 } ] }.to_json)
+
+    expect(described_class.call(term)).to eq(1)
+    expect(full.reload).to have_attributes(cross_list_capacity: 24, cross_list_available: 0)
+  end
+
   # The database checks that seats_available is not more than seats_capacity.
   it "writes neither count when Banner sends only one" do
     stub_search({ totalCount: 1, data: [ { courseReferenceNumber: "20452", maximumEnrollment: nil, seatsAvailable: 0 } ] }.to_json)

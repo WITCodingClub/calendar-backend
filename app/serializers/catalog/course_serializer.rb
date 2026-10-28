@@ -2,9 +2,10 @@
 
 module Catalog
   # One course (CatalogCourse) as the public catalog API returns it, with the
-  # description, prerequisites, corequisites, restrictions, and the courses it
-  # unlocks. Each course in the prerequisite tree gets its title and whether
-  # WIT Calendar knows the course (linked).
+  # description, prerequisites, corequisites, restrictions, mutual exclusions,
+  # catalog entry, fees, learning objectives, and the courses it unlocks. Each
+  # course in the prerequisite tree gets its title and whether WIT Calendar
+  # knows the course (linked).
   #
   # Pass a term to add that term's sections.
   class CourseSerializer
@@ -28,13 +29,21 @@ module Catalog
       return json if @summary
 
       json.merge(
-        description:        @course.description,
-        prerequisites:      enrich(@course.prerequisites),
-        corequisites:       @course.corequisites.map { |ref| enrich(ref.merge("type" => "course")) },
-        restrictions:       @course.restrictions,
-        unlocks:            @course.unlocks.order(:subject_code, :course_number).distinct.map { |c| summary(c) },
-        details_term_uid:   @course.source_term&.uid,
-        details_fetched_at: @course.details_fetched_at
+        description:         @course.description,
+        prerequisites:       enrich(@course.prerequisites),
+        corequisites:        @course.corequisites.map { |ref| enrich(ref.merge("type" => "course")) },
+        restrictions:        @course.restrictions,
+        mutual_exclusions:   @course.mutual_exclusions.map { |ref| enrich(ref.merge("type" => "course")) },
+        college:             @course.college,
+        division:            @course.division,
+        department:          @course.department,
+        levels:              @course.levels,
+        grading_modes:       @course.grading_modes,
+        fees:                @course.fees,
+        learning_objectives: @course.learning_objectives,
+        unlocks:             @course.unlocks.order(:subject_code, :course_number).distinct.map { |c| summary(c) },
+        details_term_uid:    @course.source_term&.uid,
+        details_fetched_at:  @course.details_fetched_at
       ).tap { |full| full[:sections] = sections if @term }
     end
 
@@ -59,10 +68,11 @@ module Catalog
       )
     end
 
-    # Every course the tree and the corequisites name, in one query.
+    # Every course the tree, the corequisites, and the mutual exclusions name,
+    # in one query.
     def known_courses
       @known_courses ||= begin
-        refs = course_refs(@course.prerequisites) + @course.corequisites
+        refs = course_refs(@course.prerequisites) + @course.corequisites + @course.mutual_exclusions
         pairs = refs.map { |ref| [ ref["subject_code"], ref["course_number"].to_i ] }.uniq
         if pairs.empty?
           {}

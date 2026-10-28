@@ -2,7 +2,8 @@
 
 module Catalog
   # Reads the HTML of Banner's course pages (LeopardWebClient.get_course_details)
-  # into plain values for CatalogCourse.
+  # into plain values for CatalogCourse. A page with no data ("No fee
+  # information available.") gives nil, an empty list, or an empty hash value.
   #
   # Banner shows prerequisites as rows of a table. Each row has a connector
   # (And, Or, or nothing on the first row), optional parentheses, and either a
@@ -76,12 +77,97 @@ module Catalog
         groups.reject { |group| group["values"].empty? }
       end
 
+      # The catalog entry. Banner writes each value as a name, two spaces, and
+      # a code ("Standard Letter  L"). Only the name is kept.
+      #
+      # @return [Hash] { college:, division:, department:, levels:, grading_modes: }
+      def catalog(html)
+        doc = Nokogiri::HTML.fragment(html.to_s)
+        labels = doc.css("span.status-bold").index_by { |span| span.text.squish.delete_suffix(":") }
+
+        {
+          college:       single_value(labels["College"]),
+          division:      single_value(labels["Division"]),
+          department:    single_value(labels["Department"]),
+          levels:        list_values(labels["Levels"]),
+          grading_modes: list_values(labels["Grading Modes"])
+        }
+      end
+
+      # Courses a student cannot take after they complete one of them.
+      #
+      # @return [Array<Hash>] { subject_code:, course_number:, level:, min_grade: } for each course
+      def mutual_exclusions(html)
+        table_rows(html).filter_map do |subject, number, _title, level, grade|
+          code = subject_code(subject)
+          next unless code && number.to_s.match?(/\A\d{3,4}\z/)
+
+          { "subject_code" => code, "course_number" => number.to_i, "level" => level.presence, "min_grade" => grade.presence }
+        end
+      end
+
+      # Fees charged with the course, such as a Follett Access fee for the
+      # course materials.
+      #
+      # @return [Array<Hash>] { level:, description:, amount_cents: } for each fee
+      def fees(html)
+        table_rows(html).filter_map do |level, description, amount|
+          cents = amount_cents(amount)
+          { "level" => level.presence, "description" => description.presence, "amount_cents" => cents } if cents
+        end
+      end
+
+      # The "Learning Objectives" of Banner's syllabus page, one line for each
+      # line Banner shows.
+      #
+      # @return [String, nil]
+      def learning_objectives(html)
+        label = Nokogiri::HTML.fragment(html.to_s).css("span.status-bold")
+                          .find { |span| span.text.squish.start_with?("Learning Objectives") }
+        return nil unless label
+
+        lines = []
+        node = label.next_sibling
+        until node.nil? || (node.element? && node["class"].to_s.include?("status-bold"))
+          lines.concat(node.text.split("\n"))
+          node = node.next_sibling
+        end
+        lines.map(&:squish).reject(&:blank?).join("\n").presence
+      end
+
       # "Computer Science (COMP)" to "COMP".
       def subject_code(text)
         text.to_s[/\(([A-Z]{2,5})\)\s*\z/, 1]
       end
 
       private
+
+      # The span after the label: "The School of Comp & Data Sci  CD".
+      def single_value(label)
+        value = label&.xpath("following-sibling::*[1][self::span]")&.first
+        strip_code(value&.text)
+      end
+
+      # The div right after the label, with one value on each line. A label
+      # with no list of its own gives [], not the list of the next label.
+      def list_values(label)
+        list = label&.xpath("following-sibling::*[not(self::br)][1][self::div]")&.first
+        return [] unless list
+
+        list.children.select(&:text?).filter_map { |node| strip_code(node.text) }
+      end
+
+      def strip_code(text)
+        text.to_s.strip.split(/\s{2,}/).first.presence
+      end
+
+      # "$2,000.00" to 200000.
+      def amount_cents(text)
+        amount = text.to_s.delete("$,").strip
+        return nil unless amount.match?(/\A\d+(\.\d{1,2})?\z/)
+
+        (BigDecimal(amount) * 100).to_i
+      end
 
       def prerequisite_rows(html)
         table_rows(Nokogiri::HTML.fragment(html.to_s).css("table.basePreqTable").to_html)

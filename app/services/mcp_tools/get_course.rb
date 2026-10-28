@@ -7,7 +7,9 @@ module McpTools
     title "Get a course"
     description "Gets one course by code, such as COMP 2350, from Banner's catalog: the description, the credits, " \
                 "the terms it is usually offered, the prerequisites (an and/or tree of courses and placement tests, " \
-                "each course with its title), the corequisites, the enrollment restrictions, and the courses it unlocks. " \
+                "each course with its title), the corequisites, the enrollment restrictions, the mutual exclusions " \
+                "(courses that block this one once completed), the college, department, levels, and grading modes, " \
+                "the course fees, the learning objectives, and the courses it unlocks. " \
                 "With term_uid it also lists the course's sections in that term. Use it for \"can I take " \
                 "COMP 2350\" and \"what are the prerequisites\". A prerequisite with a min_grade needs that " \
                 "grade or better. my_course_history has no grades, so ask the student for the grade. A missing " \

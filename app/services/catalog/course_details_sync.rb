@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 module Catalog
-  # Fetches Banner's description, prerequisites, corequisites, and
-  # restrictions for each course in one term, and stores them on its
-  # CatalogCourse. Banner gives these per section, but they belong to the
-  # course, so one section of each course is enough.
+  # Fetches Banner's description, prerequisites, corequisites, restrictions,
+  # catalog entry, mutual exclusions, fees, and learning objectives for each
+  # course in one term, and stores them on its CatalogCourse. Banner gives
+  # these per section, but they belong to the course, so one section of each
+  # course is enough.
   #
   # The newest term wins. A course is skipped when its details came from a
   # newer term, or from this term less than FRESH_FOR ago, so a backfill of
@@ -101,6 +102,17 @@ module Catalog
       source.uid == @term.uid && catalog_course.details_fetched_at > FRESH_FOR.ago
     end
 
+    # The columns of each optional page that Banner sent. A page that failed
+    # (nil) keeps the old values.
+    def optional_details(pages)
+      details = {}
+      details.merge!(CourseDetailsParser.catalog(pages[:catalog])) if pages[:catalog]
+      details[:mutual_exclusions] = CourseDetailsParser.mutual_exclusions(pages[:mutual_exclusions]) if pages[:mutual_exclusions]
+      details[:fees] = CourseDetailsParser.fees(pages[:fees]) if pages[:fees]
+      details[:learning_objectives] = CourseDetailsParser.learning_objectives(pages[:syllabus]) if pages[:syllabus]
+      details
+    end
+
     def store(catalog_course, crn)
       pages = @client.get_course_details(term: @term.uid, course_reference_number: crn)
       details = CourseDetailsParser.description(pages[:description])
@@ -108,14 +120,15 @@ module Catalog
 
       CatalogCourse.transaction do
         catalog_course.update!(
-          description:        details[:description],
-          credit_hours:       details[:credit_hours] || catalog_course.credit_hours,
-          typically_offered:  details[:typically_offered],
-          prerequisites:      prerequisites,
-          corequisites:       CourseDetailsParser.corequisites(pages[:corequisites]),
-          restrictions:       CourseDetailsParser.restrictions(pages[:restrictions]),
-          source_term:        @term,
-          details_fetched_at: Time.current
+          description:         details[:description],
+          credit_hours:        details[:credit_hours] || catalog_course.credit_hours,
+          typically_offered:   details[:typically_offered],
+          prerequisites:       prerequisites,
+          corequisites:        CourseDetailsParser.corequisites(pages[:corequisites]),
+          restrictions:        CourseDetailsParser.restrictions(pages[:restrictions]),
+          **optional_details(pages),
+          source_term:         @term,
+          details_fetched_at:  Time.current
         )
         replace_prerequisite_links(catalog_course, prerequisites)
       end

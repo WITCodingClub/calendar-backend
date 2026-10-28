@@ -43,6 +43,25 @@ RSpec.describe "Catalog courses API", type: :request do
       expect(data).not_to have_key("sections")
     end
 
+    it "returns the catalog entry, mutual exclusions, fees, and learning objectives" do
+      comp2000.update!(college: "The School of Comp & Data Sci", division: "COF Eligible Cross Reg",
+                       department: "Computer Science & Networking", levels: [ "Undergraduate" ],
+                       grading_modes: [ "Standard Letter", "Pass/Fail" ],
+                       mutual_exclusions: [ { "subject_code" => "COMP", "course_number" => 1050, "level" => "Undergraduate", "min_grade" => "TR" } ],
+                       fees: [ { "level" => "Undergraduate", "description" => "Follett Access", "amount_cents" => 9499 } ],
+                       learning_objectives: "Explain hashing.\nAnalyze sorting.")
+
+      get "/api/v1/catalog/courses/COMP2000"
+
+      data = json["data"]
+      expect(data).to include("college" => "The School of Comp & Data Sci", "division" => "COF Eligible Cross Reg",
+                              "department" => "Computer Science & Networking", "levels" => [ "Undergraduate" ],
+                              "grading_modes" => [ "Standard Letter", "Pass/Fail" ],
+                              "learning_objectives" => "Explain hashing.\nAnalyze sorting.")
+      expect(data["mutual_exclusions"].first).to include("code" => "COMP 1050", "title" => "Computer Science II", "linked" => true)
+      expect(data["fees"]).to eq([ { "level" => "Undergraduate", "description" => "Follett Access", "amount_cents" => 9499 } ])
+    end
+
     it "accepts a code with a space and lists what a course unlocks" do
       get "/api/v1/catalog/courses/#{ERB::Util.url_encode('comp 1050')}"
 

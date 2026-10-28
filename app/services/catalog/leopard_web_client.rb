@@ -97,18 +97,28 @@ module Catalog
       ).call
     end
 
-    # The four pages Banner shows for a section's course: the description, the
-    # prerequisites, the corequisites, and the restrictions. Each is HTML, which
+    # The pages Banner shows for a section's course: the description, the
+    # prerequisites, the corequisites, the restrictions, the catalog entry
+    # (college, department, levels, grading modes), the mutual exclusions, the
+    # fees, and the syllabus (learning objectives). Each is HTML, which
     # Catalog::CourseDetailsParser reads. Raises RequestError when Banner does
-    # not answer 200.
+    # not answer 200 for a page that is not in OPTIONAL_COURSE_DETAIL_PAGES.
     COURSE_DETAIL_PAGES = {
-      description:   "getCourseDescription",
-      prerequisites: "getSectionPrerequisites",
-      corequisites:  "getCorequisites",
-      restrictions:  "getRestrictions"
+      description:       "getCourseDescription",
+      prerequisites:     "getSectionPrerequisites",
+      corequisites:      "getCorequisites",
+      restrictions:      "getRestrictions",
+      catalog:           "getSectionCatalogDetails",
+      mutual_exclusions: "getCourseMutuallyExclusions",
+      fees:              "getFees",
+      syllabus:          "getSyllabus"
     }.freeze
 
-    # @return [Hash{Symbol => String}] the HTML of each page in COURSE_DETAIL_PAGES
+    # Pages that only add to a course. When one of them fails, its value is
+    # nil and the other pages are still used.
+    OPTIONAL_COURSE_DETAIL_PAGES = %i[catalog mutual_exclusions fees syllabus].freeze
+
+    # @return [Hash{Symbol => String, nil}] the HTML of each page in COURSE_DETAIL_PAGES
     def self.get_course_details(term:, course_reference_number:)
       new(action: :get_course_details, term: term, course_reference_number: course_reference_number).course_details
     end
@@ -119,11 +129,12 @@ module Catalog
       raise ArgumentError, "term is required" unless term
       raise ArgumentError, "course_reference_number is required" unless course_reference_number
 
-      COURSE_DETAIL_PAGES.transform_values do |path|
+      COURSE_DETAIL_PAGES.to_h do |page, path|
         response = connection.get(path, { term: term, courseReferenceNumber: course_reference_number })
-        raise RequestError.new("Banner #{path} answered #{response.status}", status: response.status) unless response.status == 200
+        next [ page, response.body.to_s ] if response.status == 200
+        next [ page, nil ] if OPTIONAL_COURSE_DETAIL_PAGES.include?(page)
 
-        response.body.to_s
+        raise RequestError.new("Banner #{path} answered #{response.status}", status: response.status)
       end
     end
 

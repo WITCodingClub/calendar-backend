@@ -52,4 +52,33 @@ RSpec.describe "Catalog GraphQL courses" do
     expect(result.dig("data", "sections", "nodes")).to eq([ { "seats"    => { "capacity" => 25, "available" => 0 },
                                                              "waitlist" => { "capacity" => 5, "available" => 1 } } ])
   end
+
+  it "returns the catalog entry, mutual exclusions, fees, and learning objectives of a course" do
+    comp2000.update!(college: "The School of Comp & Data Sci", levels: [ "Undergraduate" ], grading_modes: [ "Standard Letter" ],
+                     mutual_exclusions: [ { "subject_code" => "COMP", "course_number" => 1050 } ],
+                     fees: [ { "level" => "Undergraduate", "description" => "Follett Access", "amount_cents" => 9499 } ],
+                     learning_objectives: "Explain hashing.")
+
+    result = execute('{ course(code: "COMP 2000") { college division levels gradingModes mutualExclusions learningObjectives ' \
+                     "fees { level description amountCents } } }")
+
+    expect(result.dig("data", "course")).to include(
+      "college" => "The School of Comp & Data Sci", "division" => nil, "levels" => [ "Undergraduate" ],
+      "gradingModes" => [ "Standard Letter" ], "learningObjectives" => "Explain hashing.",
+      "fees" => [ { "level" => "Undergraduate", "description" => "Follett Access", "amountCents" => 9499 } ]
+    )
+    expect(result.dig("data", "course", "mutualExclusions").first).to include("code" => "COMP 1050", "linked" => true)
+  end
+
+  it "returns the part of term, campus, and cross-list group of a section" do
+    section = create(:course, :cross_listed, term: term, part_of_term: "FA2", campus: "Online Course")
+    partner = create(:course, :cross_listed, term: term)
+
+    result = execute("query($uid: Int!) { sections(filter: { termUid: $uid }) { nodes { crn partOfTerm campus " \
+                     "crossList { identifier crns seats { capacity available } } } } }", { "uid" => term.uid })
+
+    node = result.dig("data", "sections", "nodes").find { |n| n["crn"] == section.crn }
+    expect(node).to include("partOfTerm" => "FA2", "campus" => "Online Course")
+    expect(node["crossList"]).to eq("identifier" => "01", "crns" => [ partner.crn ], "seats" => { "capacity" => 24, "available" => 4 })
+  end
 end
