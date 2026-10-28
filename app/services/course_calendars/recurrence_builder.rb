@@ -232,9 +232,11 @@ module CourseCalendars
       return @holidays_cache[cache_key] if @holidays_cache.key?(cache_key)
 
       if @all_holidays_preloaded
-        # Filter from the preloaded set in memory — no additional DB query
-        mt_start = meeting_time.start_date
-        mt_end   = meeting_time.end_date
+        # Filter from the preloaded set in memory — no additional DB query.
+        # Compare dates: a Date against the local-midnight start_date becomes
+        # midnight UTC and drops a holiday on the first day.
+        mt_start = meeting_time.start_date.to_date
+        mt_end   = meeting_time.end_date.to_date
         @holidays_cache[cache_key] = @all_holidays_preloaded.select do |h|
           h_start = h.start_time.to_date
           h_end   = (h.end_time || h.start_time).to_date
