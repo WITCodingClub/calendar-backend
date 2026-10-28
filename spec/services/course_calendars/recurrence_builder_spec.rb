@@ -165,6 +165,30 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
 
       expect(queries).to eq(0)
     end
+
+    it "gives the same dates as a builder that looks each value up, for courses in two terms" do
+      spring = create(:term)
+      spring_course = create(:course, term: spring, start_date: Date.new(2027, 1, 11), end_date: Date.new(2027, 4, 30))
+      spring_time = create(:course_meeting_time, course: spring_course, day_of_week: :monday)
+      [ course, spring_course ].each { |c| create(:enrollment, user: user, course: c, term: c.term) }
+      meeting_time
+      holiday(Time.zone.local(2026, 10, 12, 0, 0))
+      holiday(Time.zone.local(2027, 2, 15, 0, 0))
+      create(:final_exam, course: course, term: term, exam_date: Date.new(2026, 12, 10))
+      create(:final_exam, term: spring, exam_date: Date.new(2027, 4, 26))
+      create(:university_calendar_event, term: spring, category: "finals", summary: "Study Day",
+                                         start_time: Time.zone.local(2027, 4, 23, 0, 0), end_time: Time.zone.local(2027, 4, 23, 23, 59))
+
+      preloaded = described_class.preloaded(user, [ course, spring_course ])
+
+      [ meeting_time, spring_time ].each do |mt|
+        lazy = described_class.new(user)
+        expect(preloaded.effective_end_date(mt)).to eq(lazy.effective_end_date(mt))
+        expect(preloaded.excluded_dates(mt)).to eq(lazy.excluded_dates(mt))
+      end
+      expect(preloaded.effective_end_date(spring_time)).to eq(Date.new(2027, 4, 22))
+      expect(preloaded.excluded_dates(spring_time)).to eq([ Date.new(2027, 2, 15) ])
+    end
   end
 
   describe "#final_exam_date_for_course" do
