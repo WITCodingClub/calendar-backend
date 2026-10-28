@@ -59,8 +59,10 @@ module CourseCalendars
         all_no_class_days = UniversityCalendarEvent.no_class_spans_between(min_date, max_date)
 
         meeting_times.map { |mt| [ mt.start_date, mt.end_date ] }.uniq.each_with_object({}) do |(start_date, end_date), cache|
+          # Compare dates: a Date against the local-midnight start_date becomes
+          # midnight UTC and drops a holiday on the first day.
           cache[[ start_date, end_date ]] = all_no_class_days.select do |h|
-            h.start_time.to_date <= end_date && h.end_time.to_date >= start_date
+            h.start_time.to_date <= end_date.to_date && h.end_time.to_date >= start_date.to_date
           end
         end
       end

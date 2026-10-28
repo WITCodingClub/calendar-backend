@@ -244,6 +244,30 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
       expect(UniversityCalendarEvent).not_to have_received(:no_class_spans_between)
     end
 
+    # start_date is local midnight. A Date compared with it becomes midnight
+    # UTC, which is hours earlier, so the preload dropped a holiday that ends
+    # on the first day.
+    it "keeps a holiday on the first day of the meeting time, as the query without a preload does" do
+      create(:enrollment, user: user, course: course)
+      meeting_time.update!(start_date: Time.zone.local(2026, 9, 14), end_date: Time.zone.local(2026, 12, 14))
+      holiday(Time.zone.local(2026, 9, 14, 0, 0), Time.zone.local(2026, 9, 14, 23, 59))
+
+      builder.preload_holidays_for_user!
+
+      expect(builder.excluded_dates(meeting_time)).to eq([ Date.new(2026, 9, 14) ])
+      expect(builder.excluded_dates(meeting_time)).to eq(described_class.new(user).excluded_dates(meeting_time))
+    end
+
+    it "keeps a holiday on the last day of the meeting time" do
+      create(:enrollment, user: user, course: course)
+      meeting_time.update!(start_date: Time.zone.local(2026, 9, 14), end_date: Time.zone.local(2026, 12, 14))
+      holiday(Time.zone.local(2026, 12, 14, 0, 0), Time.zone.local(2026, 12, 14, 23, 59))
+
+      builder.preload_holidays_for_user!
+
+      expect(builder.excluded_dates(meeting_time)).to eq([ Date.new(2026, 12, 14) ])
+    end
+
     it "preloads no holidays for a user without meeting times" do
       holiday(Time.zone.local(2026, 10, 12, 0, 0))
 
