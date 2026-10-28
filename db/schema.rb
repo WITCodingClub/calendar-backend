@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -1201,6 +1201,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_170000) do
     t.index ["faculty_id", "rmp_legacy_id"], name: "index_teacher_rating_tags_on_faculty_id_and_rmp_legacy_id", unique: true
   end
 
+  create_table "term_elective_courses", force: :cascade do |t|
+    t.bigint "term_elective_list_id", null: false
+    t.string "subject_code", null: false
+    t.integer "course_number", null: false
+    t.text "heading"
+    t.integer "position", default: 0, null: false
+    t.bigint "catalog_course_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["catalog_course_id"], name: "index_term_elective_courses_on_catalog_course_id"
+    t.index ["subject_code", "course_number"], name: "index_term_elective_courses_on_subject_code_and_course_number"
+    t.index ["term_elective_list_id", "subject_code", "course_number", "heading"], name: "idx_term_elective_courses_unique", unique: true, nulls_not_distinct: true
+  end
+
+  create_table "term_elective_lists", force: :cascade do |t|
+    t.bigint "term_id", null: false
+    t.string "url", null: false
+    t.string "school"
+    t.string "title"
+    t.string "sha256", null: false
+    t.text "body_text"
+    t.datetime "fetched_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["term_id"], name: "index_term_elective_lists_on_term_id"
+    t.index ["url"], name: "index_term_elective_lists_on_url", unique: true
+  end
+
   create_table "term_processing_statuses", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "term_id", null: false
@@ -1490,6 +1518,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_170000) do
   add_foreign_key "student_programs", "degree_programs", on_delete: :nullify
   add_foreign_key "student_programs", "users", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
+  add_foreign_key "term_elective_courses", "catalog_courses", on_delete: :nullify
+  add_foreign_key "term_elective_courses", "term_elective_lists", on_delete: :cascade
+  add_foreign_key "term_elective_lists", "terms", on_delete: :cascade
   add_foreign_key "term_processing_statuses", "terms"
   add_foreign_key "term_processing_statuses", "users"
   add_foreign_key "university_calendar_events", "terms"

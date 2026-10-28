@@ -15,8 +15,10 @@ module Catalog
     CACHE_TTL = 10.minutes
 
     # The daily run is course_data_sync in config/recurring.yml, the seat
-    # refresh is catalog_seat_refresh, the weekly one is university_calendar_sync,
-    # and the monthly one is degree_requirements_current_year.
+    # refresh is catalog_seat_refresh, the weekly one is
+    # university_calendar_sync, the monthly one is
+    # degree_requirements_current_year, and term_electives_import runs each
+    # night.
     SOURCES = {
       sections:            {
         data:     "Course sections: meeting times, rooms, instructors, and seats",
@@ -47,6 +49,12 @@ module Catalog
         source:   "Wentworth academic catalog (catalog.wit.edu)",
         schedule: "On the 2nd of each month at 3 AM Eastern, for the current catalog year and the year before. " \
                   "Older catalog years do not change."
+      },
+      term_electives:      {
+        data:     "The elective lists that each school publishes for a term",
+        source:   "Wentworth Registrar elective lists (PDF)",
+        schedule: "Every day at 3:30 AM Eastern, for each list that the Registrar's page links. The time is " \
+                  "the newest read of any list. Each list gives its own fetched_at."
       }
     }.freeze
 
@@ -81,7 +89,8 @@ module Catalog
           }
         end,
         university_calendar: UniversityCalendarEvent.maximum(:last_fetched_at)&.iso8601,
-        degree_requirements: CatalogYear.maximum(:imported_at)&.iso8601
+        degree_requirements: CatalogYear.maximum(:imported_at)&.iso8601,
+        term_electives:      TermElectiveList.maximum(:fetched_at)&.iso8601
       }
     end
   end

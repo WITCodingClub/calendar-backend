@@ -12,8 +12,10 @@ module McpTools
                      "transfer and graduate credits, but not credits in progress. If I am a first-year student or a " \
                      "sophomore, or I am on academic probation, continued probation, or academic dismissal, I need a " \
                      "Registration Alternate PIN (RAC) from my primary advisor before I can register. Do not guess my " \
-                     "class year or my standing: if you do not know them, tell me the RAC rule. If a Technical or HSS " \
-                     "elective that I need is not in the schedule yet, tell me to ask the dean or associate dean of my school."
+                     "class year or my standing: if you do not know them, tell me the RAC rule. Call list_term_electives to " \
+                     "see the Technical, Major, and HSS elective lists that the schools sent for the term. If a " \
+                     "Technical or HSS elective that I need is not in the schedule yet, tell me to ask the dean or " \
+                     "associate dean of my school."
 
       prompt_name "plan_term_schedule"
       title "Plan a term schedule"

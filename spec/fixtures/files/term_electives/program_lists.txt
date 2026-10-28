@@ -1,0 +1,25 @@
+Spring 2031 School of Computing and Data Science Electives
+Applied Widgets
+Domain Electives
+     Business Management:
+     • MGMT1500 – Decision Analysis for Business
+     • MGMT2000 – Management Information Systems
+
+Non-Technical Elective
+Any 4-credit courses for which the pre-requisites have been met, in the following subjects:
+ARCH, COMM, ECON, ENGL, HIST, HUMN,
+MGMT, PHIL, POLS, PSYC, SOCL
+Computer Networking
+NET Elective
+   • COMP2000 – Data Structures
+   • MATH4050 – Machine Learning (required course for those on the 2025-26
+       Catalog)
+   • Any 2000-Level courses in BIOL, CHEM, or PHYS.
+
+Data Science
+Data Science Elective
+   • MATH4050 – Machine Learning
+   • COMP 2350 – Algorithms
+
+Lab-based Science Electives (BSCN, BSCO)
+   •   PHYS1250 – Engineering Physics I

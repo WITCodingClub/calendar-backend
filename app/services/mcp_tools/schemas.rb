@@ -287,6 +287,16 @@ module McpTools
       )
     ).freeze
 
+    # Catalog::TermElectiveListSerializer.
+    TERM_ELECTIVE_LIST = object(
+      school:     nullable(STRING),
+      title:      nullable(STRING),
+      url:        STRING,
+      fetched_at: DATE_TIME,
+      courses:    array(object(code: STRING, title: nullable(STRING), heading: nullable(STRING))),
+      text:       nullable(STRING)
+    ).freeze
+
     # Catalog::ReviewSerializer. get_instructor leaves out instructor.
     REVIEW_PROPERTIES = {
       pub_id:            STRING,

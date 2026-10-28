@@ -66,6 +66,13 @@ production:
   # NIGHTLY (3:30am–8am window, staggered 30 min apart)
   # ---------------------------------------------------------------------------
 
+  # The schools send new elective lists during registration. Files that did
+  # not change are skipped.
+  term_electives_import:
+    class: TermElectives::ImportJob
+    queue: low
+    schedule: every day at 3:30am
+
   cleanup_orphaned_google_calendars:
     class: Cleanup::OrphanedGoogleCalendarsJob
     queue: low

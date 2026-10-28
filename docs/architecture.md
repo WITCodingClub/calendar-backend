@@ -18,6 +18,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 |---|---|
 | `Catalog` | The course catalog: import, snapshot, LeopardWeb client, queries, serializers, semantic search (upkeep: `docs/catalog-maintenance.md`) |
 | `DegreeRequirements` | The academic catalog import: programs, plans of study, elective lists, and course descriptions for each catalog year (`docs/degree-requirements.md`) |
+| `TermElectives` | The elective list PDFs that each school publishes for a term (`docs/term-electives.md`) |
 | `Courses` | A user's course list: enrollments, processed events |
 | `AcademicProfiles` | A student's level, class standing, and programs from LeopardWeb (`docs/academic-profile.md`) |
 | `CourseOutcomes` | The outcome of each finished course, without the letter grade (`docs/academic-profile.md`) |

@@ -36,6 +36,7 @@ class Term < ApplicationRecord
   has_many :enrollments, through: :courses
   has_many :final_exams, dependent: :destroy
   has_many :term_processing_statuses, dependent: :delete_all
+  has_many :term_elective_lists, dependent: :destroy
   has_many :university_calendar_events, dependent: :nullify
   has_many :friend_meetings, dependent: :nullify
 

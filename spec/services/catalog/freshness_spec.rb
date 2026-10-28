@@ -67,6 +67,7 @@ RSpec.describe Catalog::Freshness do
     expect(recurring.dig("production", "catalog_seat_refresh", "schedule")).to eq("every 30 minutes")
     expect(recurring.dig("production", "university_calendar_sync", "schedule")).to eq("every saturday at 2am")
     expect(recurring.dig("production", "degree_requirements_current_year", "schedule")).to eq("every month on the 2nd at 3am")
+    expect(recurring.dig("production", "term_electives_import", "schedule")).to eq("every day at 3:30am")
   end
 
   it "gives the time of the newest catalog import" do
@@ -75,5 +76,12 @@ RSpec.describe Catalog::Freshness do
 
     expect(source(:degree_requirements)).to include(source: "Wentworth academic catalog (catalog.wit.edu)",
                                                      last_refreshed_at: synced.iso8601)
+  end
+
+  it "gives the time the elective lists were last read" do
+    create(:term_elective_list, fetched_at: synced - 1.day)
+    create(:term_elective_list, fetched_at: synced)
+
+    expect(source(:term_electives)).to include(source: "Wentworth Registrar elective lists (PDF)", last_refreshed_at: synced.iso8601)
   end
 end

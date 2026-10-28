@@ -50,10 +50,11 @@ module Catalog
       (subject.to_s[/\(([^)]+)\)\s*\z/, 1] || subject.to_s).strip.upcase
     end
 
-    # The degree requirements name courses by code. A course that Banner
-    # lists for the first time gets its links here (docs/degree-requirements.md).
+    # The degree requirements and the term elective lists name courses by
+    # code. A course that Banner lists for the first time gets its links here
+    # (docs/degree-requirements.md, docs/term-electives.md).
     def self.link_degree_requirements
-      [ ProgramPlanItem, ElectiveGroupCourse, CatalogYearCourse ].each(&:link_catalog_courses)
+      [ ProgramPlanItem, ElectiveGroupCourse, CatalogYearCourse, TermElectiveCourse ].each(&:link_catalog_courses)
     end
 
     def self.link_orphan_prerequisites
