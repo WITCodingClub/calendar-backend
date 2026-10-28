@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -218,6 +218,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_160000) do
     t.datetime "details_fetched_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "college"
+    t.string "division"
+    t.string "department"
+    t.string "levels", default: [], null: false, array: true
+    t.string "grading_modes", default: [], null: false, array: true
+    t.text "learning_objectives"
+    t.jsonb "mutual_exclusions", default: [], null: false
+    t.jsonb "fees", default: [], null: false
     t.index ["source_term_id"], name: "index_catalog_courses_on_source_term_id"
     t.index ["subject_code", "course_number"], name: "index_catalog_courses_on_subject_code_and_course_number", unique: true
   end
@@ -380,6 +388,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_160000) do
     t.datetime "banner_synced_at"
     t.integer "waitlist_capacity"
     t.integer "waitlist_available"
+    t.string "part_of_term"
+    t.string "campus"
+    t.string "cross_list_identifier"
+    t.integer "cross_list_capacity"
+    t.integer "cross_list_available"
     t.index "((course_number)::text) gin_trgm_ops", name: "index_courses_on_course_number_text_trgm", using: :gin
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
     t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw

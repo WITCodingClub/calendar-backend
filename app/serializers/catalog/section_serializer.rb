@@ -32,6 +32,9 @@ module Catalog
         seats:              seats,
         waitlist:           waitlist,
         linked:             linked,
+        cross_list:         cross_list,
+        part_of_term:       @course.part_of_term,
+        campus:             @course.campus,
         start_date:         @course.start_date,
         end_date:           @course.end_date,
         instructors:        @course.faculties.map { |f| InstructorSerializer.new(f).as_json },
@@ -43,6 +46,19 @@ module Catalog
 
     def self.course_code_for(course)
       "#{course.prefix} #{course.course_number}-#{course.section_number}"
+    end
+
+    # Sections of other courses that meet with this one, such as an
+    # undergraduate and a graduate studio. The seats count the whole group.
+    # Nil when the section is not cross-listed.
+    def self.cross_list_for(course)
+      return nil if course.cross_list_identifier.nil?
+
+      {
+        identifier: course.cross_list_identifier,
+        crns:       course.cross_listed_crns,
+        seats:      { capacity: course.cross_list_capacity, available: course.cross_list_available }
+      }
     end
 
     private
@@ -94,6 +110,10 @@ module Catalog
     # they are fetched, and says which source it used.
     def linked
       SectionLinks.new(@course).as_json
+    end
+
+    def cross_list
+      self.class.cross_list_for(@course)
     end
 
     def meeting_times

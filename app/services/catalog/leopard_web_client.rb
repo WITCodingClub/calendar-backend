@@ -97,15 +97,21 @@ module Catalog
       ).call
     end
 
-    # The four pages Banner shows for a section's course: the description, the
-    # prerequisites, the corequisites, and the restrictions. Each is HTML, which
+    # The pages Banner shows for a section's course: the description, the
+    # prerequisites, the corequisites, the restrictions, the catalog entry
+    # (college, department, levels, grading modes), the mutual exclusions, the
+    # fees, and the syllabus (learning objectives). Each is HTML, which
     # Catalog::CourseDetailsParser reads. Raises RequestError when Banner does
     # not answer 200.
     COURSE_DETAIL_PAGES = {
-      description:   "getCourseDescription",
-      prerequisites: "getSectionPrerequisites",
-      corequisites:  "getCorequisites",
-      restrictions:  "getRestrictions"
+      description:       "getCourseDescription",
+      prerequisites:     "getSectionPrerequisites",
+      corequisites:      "getCorequisites",
+      restrictions:      "getRestrictions",
+      catalog:           "getSectionCatalogDetails",
+      mutual_exclusions: "getCourseMutuallyExclusions",
+      fees:              "getFees",
+      syllabus:          "getSyllabus"
     }.freeze
 
     # @return [Hash{Symbol => String}] the HTML of each page in COURSE_DETAIL_PAGES

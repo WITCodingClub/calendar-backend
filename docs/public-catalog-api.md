@@ -227,7 +227,7 @@ message:
 | `GET /api/v1/catalog/instructors/:pub_id/similar` | Instructors like this one |
 | `GET /api/v1/catalog/reviews` | Rate My Professors reviews |
 | `GET /api/v1/catalog/courses` | Courses (not sections), by code or title words |
-| `GET /api/v1/catalog/courses/:code` | One course: description, prerequisites, corequisites, restrictions, what it unlocks |
+| `GET /api/v1/catalog/courses/:code` | One course: description, prerequisites, corequisites, restrictions, mutual exclusions, catalog entry, fees, learning objectives, what it unlocks |
 | `GET /api/v1/catalog/schedule_check` | Check a set of sections taken together |
 | `GET /api/v1/catalog/programs` | Degree programs of one catalog year |
 | `GET /api/v1/catalog/programs/:slug` | One program: its plans of study and elective lists |
@@ -254,9 +254,18 @@ and `per_page`.
 optional `term_uid` that adds the course's sections in that term. The
 prerequisites are an and/or tree of courses and placement tests. Each course in
 the tree has its `title` and `linked: true` when WIT Calendar knows the course.
-`unlocks` lists the courses that name this one as a prerequisite. The data comes
-from Banner and is refreshed every night. Each section also has a `course`
+`unlocks` lists the courses that name this one as a prerequisite.
+`mutual_exclusions` lists the courses that block this one: a student who
+completed one of them cannot take it. The course also has its `college`,
+`division`, `department`, `levels`, `grading_modes`, `fees` (each with
+`amount_cents`), and `learning_objectives` from Banner's syllabus page. The data
+comes from Banner and is refreshed every night. Each section also has a `course`
 object with the description, the prerequisites, and `typically_offered`.
+
+A section has its `part_of_term` (`1` for the full term, a code such as `FA1` or
+`FA2` for one half), its `campus`, and its `cross_list`: the sections of other
+courses that meet with it, with the seats of the whole group. `cross_list` is
+null when the section is not cross-listed.
 
 `GET /api/v1/catalog/programs` accepts `catalog_year` (`2024-2025`, `2024-25`,
 `2024`, or a term name such as `Spring 2024`, which is in 2023-2024),

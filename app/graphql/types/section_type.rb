@@ -24,6 +24,9 @@ module Types
     field :seats, SeatsType, null: false
     field :waitlist, WaitlistType, null: false
     field :linked, LinkedSectionsType, null: false
+    field :cross_list, CrossListType, null: true, description: "Null when the section is not cross-listed"
+    field :part_of_term, String, null: true, description: "\"1\" for the full term, a code such as \"FA1\" or \"FA2\" for one half"
+    field :campus, String, null: true, description: "e.g. \"Wentworth Institute Technology\", \"Online Course\""
     field :start_date, GraphQL::Types::ISO8601Date, null: false
     field :end_date, GraphQL::Types::ISO8601Date, null: false
     field :instructors, [ InstructorType ], null: false, method: :faculties
@@ -74,6 +77,11 @@ module Types
 
     def waitlist
       { capacity: object.waitlist_capacity, available: object.waitlist_available }
+    end
+
+    # The same answer as the REST API.
+    def cross_list
+      ::Catalog::SectionSerializer.cross_list_for(object)
     end
 
     # The same answer as the REST API, from Catalog::SectionLinks.

@@ -18,7 +18,9 @@ module McpTools
 
     tool_name "get_section"
     title "Get a course section"
-    description "Gets one course section by CRN: meeting times, rooms, instructors, seats, the waitlist, and the final exam. " \
+    description "Gets one course section by CRN: meeting times, rooms, instructors, seats, the waitlist, the final exam, " \
+                "the part of term (1 is the full term, a code such as FA1 or FA2 is one half), the campus, and the " \
+                "cross-listed sections that meet with it. " \
                 "It also finds cancelled sections. Not every section has a waitlist: a waitlist capacity of 0 " \
                 "means none, and null means WIT Calendar does not know yet. For a full section with a waitlist, the student joins it before they ask for a " \
                 "capacity override. When the data is more than #{Courses::Processor::CATALOG_FRESH_FOR.in_hours.to_i} " \

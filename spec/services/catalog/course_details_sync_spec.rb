@@ -11,10 +11,14 @@ RSpec.describe Catalog::CourseDetailsSync do
 
   def stub_banner(crn, prerequisites: fixture("prerequisites_and_or_groups"), status: 200)
     {
-      "getCourseDescription"    => fixture("course_description"),
-      "getSectionPrerequisites" => prerequisites,
-      "getCorequisites"         => fixture("corequisites_none"),
-      "getRestrictions"         => fixture("restrictions")
+      "getCourseDescription"        => fixture("course_description"),
+      "getSectionPrerequisites"     => prerequisites,
+      "getCorequisites"             => fixture("corequisites_none"),
+      "getRestrictions"             => fixture("restrictions"),
+      "getSectionCatalogDetails"    => fixture("catalog_details"),
+      "getCourseMutuallyExclusions" => fixture("mutual_exclusions"),
+      "getFees"                     => fixture("fees"),
+      "getSyllabus"                 => fixture("syllabus")
     }.each do |path, body|
       stub_request(:get, "#{Catalog::LeopardWebClient::BASE_URL}#{path}")
         .with(query: { term: term.uid.to_s, courseReferenceNumber: crn.to_s })
@@ -39,6 +43,24 @@ RSpec.describe Catalog::CourseDetailsSync do
     expect(course.prerequisites["type"]).to eq("and")
     expect(course.restrictions.size).to eq(2)
     expect(course.corequisites).to eq([])
+  end
+
+  it "stores the catalog entry, mutual exclusions, fees, and learning objectives" do
+    stub_banner(20382)
+
+    sync
+
+    course = CatalogCourse.find_by_code("COMP 2000")
+    expect(course).to have_attributes(
+      college:       "The School of Comp & Data Sci",
+      division:      "COF Eligible Cross Reg",
+      department:    "Computer Science & Networking",
+      levels:        [ "Undergraduate" ],
+      grading_modes: [ "Standard Letter", "Pass/Fail", "Not Graded" ]
+    )
+    expect(course.mutual_exclusions).to eq([ { "subject_code" => "ARCH", "course_number" => 7250, "level" => "Graduate", "min_grade" => "TR" } ])
+    expect(course.fees.first).to eq("level" => "Undergraduate", "description" => "Follett Access", "amount_cents" => 9499)
+    expect(course.learning_objectives).to start_with("Course Learning Outcomes\n1. Explain")
   end
 
   it "links each prerequisite to a course in the system, and keeps unknown codes unlinked" do

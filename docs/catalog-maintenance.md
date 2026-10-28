@@ -70,4 +70,4 @@ Search the logs for `Catalog::ReimportAllTermsJob`. A term that fails logs the e
 ### How long it takes
 
 - **Imports:** Banner lists every term back to 2014, about 39,500 sections. One import sends about 4 requests (a session and pages of 500 sections), so the Banner time is small. Most of the time is the database work, about 1 to 2 minutes for a term of 1,200 sections. All terms take about 30 to 60 minutes.
-- **Course details:** each course details sync sends 4 requests for each course that needs new details, at 5 requests a second. The newest terms take about 6 minutes each (450 courses). Older terms take less, because a course that a newer term already loaded is skipped. Expect a few hours in total, in the background, behind the imports.
+- **Course details:** each course details sync sends 8 requests for each course that needs new details (`LeopardWebClient::COURSE_DETAIL_PAGES`), at 5 requests a second. The newest terms take about 12 minutes each (450 courses). Older terms take less, because a course that a newer term already loaded is skipped. Expect a few hours in total, in the background, behind the imports.
