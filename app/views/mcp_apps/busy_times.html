@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<!--
+  The busy times MCP App (McpTools::BusyTimesApp, docs/mcp.md "Apps").
+  The host shows this page in a sandboxed iframe and sends it the tool result
+  over postMessage (JSON-RPC 2.0). The page must not load anything from the
+  network: the host CSP blocks it. Keep all CSS and JavaScript inline.
+  McpTools::AppResource puts the shared files in place of the @include lines.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Busy times</title>
+    <style>
+      /* @include shared/base.css */
+
+      /* One row for each day: the date, then a track from the first hour to
+         the last, with a bar for each busy time. */
+      .timeline {
+        --label-width: 92px;
+        --busy-background: light-dark(#e9ecf2, #2f343d);
+        --busy-accent: light-dark(#64748b, #94a3b8);
+      }
+
+      .axis,
+      .row {
+        display: grid;
+        grid-template-columns: var(--label-width) minmax(0, 1fr);
+        align-items: center;
+      }
+
+      .axis {
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--color-border-secondary);
+      }
+
+      .axis .ticks {
+        position: relative;
+        height: 14px;
+      }
+
+      .tick {
+        position: absolute;
+        top: 0;
+        font-size: 10px;
+        color: var(--color-text-tertiary);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        transform: translateX(-50%);
+      }
+
+      .tick.first {
+        transform: none;
+      }
+
+      .tick.last {
+        transform: translateX(-100%);
+      }
+
+      .rows {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .row {
+        min-height: 34px;
+        border-bottom: 1px solid var(--color-border-secondary);
+      }
+
+      /* A gap between the weeks. */
+      .row.week-start:not(:first-child) {
+        margin-top: 10px;
+        border-top: 1px solid var(--color-border-secondary);
+      }
+
+      .row .date {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .row .date .weekday {
+        display: inline-block;
+        width: 34px;
+        color: var(--color-text-secondary);
+      }
+
+      .row.weekend .date {
+        color: var(--color-text-tertiary);
+      }
+
+      .track {
+        position: relative;
+        height: 34px;
+        background-image: repeating-linear-gradient(
+          to right,
+          var(--color-border-secondary) 0 1px,
+          transparent 1px calc(100% / var(--hours))
+        );
+      }
+
+      .busy {
+        position: absolute;
+        top: 6px;
+        bottom: 6px;
+        overflow: hidden;
+        padding: 0 6px;
+        border-radius: 5px;
+        background: var(--busy-background);
+        box-shadow: inset 2px 0 0 var(--busy-accent);
+        color: var(--color-text-secondary);
+        font-size: 10px;
+        line-height: 22px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .row .free {
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: var(--font-text-xs-size);
+        color: var(--color-text-tertiary);
+      }
+
+      @media (max-width: 480px) {
+        .timeline {
+          --label-width: 70px;
+        }
+
+        .row .date .weekday {
+          display: block;
+          width: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 id="title">Busy times</h1>
+      <p id="summary" class="summary"></p>
+    </header>
+    <main id="app">
+      <p id="status" class="status" role="status">Waiting for the busy times.</p>
+    </main>
+    <script>
+      // @include shared/app.js
+
+      (function () {
+        "use strict";
+
+        var el = App.el;
+        var DAY_MS = 24 * 60 * 60 * 1000;
+        // A bar this many minutes long or longer shows its time.
+        var LABEL_MIN_MINUTES = 90;
+
+        function isoDate(date) {
+          var month = date.getMonth() + 1;
+          var day = date.getDate();
+          return date.getFullYear() + "-" + (month < 10 ? "0" : "") + month + "-" + (day < 10 ? "0" : "") + day;
+        }
+
+        // Every date from start to end, both included.
+        function datesBetween(start, end) {
+          var dates = [];
+          var from = App.parseDate(start);
+          var to = App.parseDate(end);
+          if (!from || !to) return dates;
+          for (var time = from.getTime(); time <= to.getTime(); time += DAY_MS) {
+            dates.push(isoDate(new Date(time)));
+          }
+          return dates;
+        }
+
+        // my_busy_times and friend_busy_times:
+        // { time_zone, start_date, end_date, busy: [{ date, weekday, start, end }], friend? }
+        function render(data) {
+          var busy = (data.busy || []).map(function (block) {
+            return { date: block.date, start: App.minutes(block.start), end: App.minutes(block.end) };
+          }).filter(function (block) { return block.start !== null && block.end !== null && block.end > block.start; });
+
+          var title = data.friend && data.friend.name ? data.friend.name + "’s busy times" : "My busy times";
+          var range = App.formatDate(data.start_date, { weekday: false }) + " – " +
+            App.formatDate(data.end_date, { weekday: false });
+          App.setHeader(title, [range, App.plural(busy.length, "busy time")].join(" · "));
+          var app = App.clear();
+
+          var dates = datesBetween(data.start_date, data.end_date);
+          if (dates.length === 0) {
+            app.appendChild(el("p", "status", "No days to show."));
+            return;
+          }
+          app.appendChild(buildTimeline(dates, busy));
+          app.appendChild(el("p", "advisory", "Times are in " + (data.time_zone || "America/New_York") +
+            ". Holidays and other days with no classes show no class times."));
+        }
+
+        function buildTimeline(dates, busy) {
+          var first = 8;
+          var last = 18;
+          busy.forEach(function (block) {
+            first = Math.min(first, Math.floor(block.start / 60));
+            last = Math.max(last, Math.ceil(block.end / 60));
+          });
+          var hours = last - first;
+          var origin = first * 60;
+          var span = hours * 60;
+
+          var timeline = el("div", "timeline");
+          timeline.style.setProperty("--hours", hours);
+
+          var axis = el("div", "axis");
+          axis.setAttribute("aria-hidden", "true");
+          var ticks = el("div", "ticks");
+          // A label every two hours keeps the axis readable on a narrow host.
+          for (var hour = first; hour <= last; hour += 2) {
+            var tick = el("span", "tick" + (hour === first ? " first" : "") + (hour === last ? " last" : ""),
+              App.clock(hour * 60, true));
+            tick.style.left = ((hour - first) / hours * 100) + "%";
+            ticks.appendChild(tick);
+          }
+          App.append(axis, el("span"), ticks);
+          timeline.appendChild(axis);
+
+          var byDate = {};
+          busy.forEach(function (block) { (byDate[block.date] = byDate[block.date] || []).push(block); });
+
+          var rows = el("ul", "rows");
+          rows.setAttribute("aria-label", "Days");
+          dates.forEach(function (iso) {
+            var date = App.parseDate(iso);
+            var weekday = date.getDay();
+            var blocks = (byDate[iso] || []).sort(function (a, b) { return a.start - b.start; });
+
+            var row = el("li", "row" + (weekday === 1 ? " week-start" : "") + (weekday === 0 || weekday === 6 ? " weekend" : ""));
+            row.setAttribute("data-date", iso);
+            var label = el("span", "date");
+            App.append(label,
+              el("span", "weekday", date.toLocaleDateString("en-US", { weekday: "short" })),
+              document.createTextNode(App.formatDate(iso, { weekday: false })));
+            row.appendChild(label);
+
+            var track = el("div", "track");
+            if (blocks.length === 0) {
+              track.appendChild(el("span", "free", "Free"));
+            }
+            blocks.forEach(function (block) {
+              var bar = el("span", "busy");
+              var text = App.range(block.start, block.end);
+              bar.style.left = ((block.start - origin) / span * 100) + "%";
+              bar.style.width = "calc(" + ((block.end - block.start) / span * 100) + "% - 2px)";
+              bar.title = "Busy " + text;
+              if (block.end - block.start >= LABEL_MIN_MINUTES) bar.textContent = text;
+              track.appendChild(bar);
+            });
+            row.appendChild(track);
+
+            row.setAttribute("aria-label", App.formatDate(iso, { longWeekday: true }) + ": " + (blocks.length
+              ? "busy " + blocks.map(function (block) { return App.range(block.start, block.end); }).join(", ")
+              : "free"));
+            rows.appendChild(row);
+          });
+          timeline.appendChild(rows);
+
+          return timeline;
+        }
+
+        App.start({ name: "wit-calendar-busy-times", render: render });
+      })();
+    </script>
+  </body>
+</html>

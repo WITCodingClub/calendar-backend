@@ -1,8 +1,9 @@
 <%# The frame of every Devise page: the same card and logo as the sign-in
     page. The sessions layout shows the flash messages. Render it as a layout:
       render layout: "devise/shared/card", locals: { heading:, intro: }
-    A page outside Devise (the OAuth consent page) passes links: false. %>
-<div class="w-full max-w-sm">
+    A page outside Devise (the OAuth consent page) passes links: false, and
+    can pass a wider width class. %>
+<div class="w-full <%= local_assigns.fetch(:width, "max-w-sm") %>">
   <div class="m3-card p-8">
     <div class="text-center mb-6">
       <div class="mb-4"><%= logo_mark(:large) %></div>

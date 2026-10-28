@@ -8,6 +8,7 @@ module McpTools
                 "Use it for \"am I free on Thursday afternoon\" and \"when do I have class this week\". " \
                 "Days with no classes (holidays, study days) are left out. At most #{BusyBlocks::MAX_DAYS} days."
     requires_scope "schedule:read"
+    meta BusyTimesApp.tool_meta
     input_schema(
       properties: { start_date: DATE_SCHEMA, end_date: DATE_SCHEMA },
       required:   %w[start_date end_date]

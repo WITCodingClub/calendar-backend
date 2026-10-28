@@ -10,6 +10,7 @@ module McpTools
                 "With term_uid it also lists the sections the instructor teaches in that term. " \
                 "Call search_reviews for more reviews."
     requires_scope "catalog"
+    meta CatalogApp.tool_meta
     input_schema(
       properties: {
         instructor_id: { type: "string", description: "The instructor pub_id, for example fac_kw7coe30." },

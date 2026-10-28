@@ -56,10 +56,11 @@ module Catalog
       last = Rails.cache.fetch(CACHE_KEY, expires_in: CACHE_TTL) { last_refreshed }
 
       keys.map do |key|
+        source = SOURCES.fetch(key).merge(key: key.to_s)
         if TERM_SOURCES.include?(key)
-          SOURCES.fetch(key).merge(terms: last[:terms].map { |term| term.slice(:term_uid, :term).merge(last_refreshed_at: term[key]) })
+          source.merge(terms: last[:terms].map { |term| term.slice(:term_uid, :term).merge(last_refreshed_at: term[key]) })
         else
-          SOURCES.fetch(key).merge(last_refreshed_at: last[key])
+          source.merge(last_refreshed_at: last[key])
         end
       end
     end

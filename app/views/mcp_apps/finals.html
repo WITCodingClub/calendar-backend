@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!--
+  The final exams MCP App (McpTools::FinalsApp, docs/mcp.md "Apps").
+  The host shows this page in a sandboxed iframe and sends it the tool result
+  over postMessage (JSON-RPC 2.0). The page must not load anything from the
+  network: the host CSP blocks it. Keep all CSS and JavaScript inline.
+  McpTools::AppResource puts the shared files in place of the @include lines.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Final exams</title>
+    <style>
+      /* @include shared/base.css */
+
+      .notes + .days {
+        margin-top: 14px;
+      }
+
+      .days > section + section {
+        margin-top: 16px;
+      }
+
+      .exams {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        border: 1px solid var(--color-border-secondary);
+        border-radius: 10px;
+      }
+
+      .exam {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 4px 12px;
+        align-items: baseline;
+        padding: 10px 14px;
+      }
+
+      .exam + .exam {
+        border-top: 1px solid var(--color-border-secondary);
+      }
+
+      .exam .time {
+        color: var(--color-text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .exam .course {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      /* The course color, the same as in the week grid. */
+      .exam .dot {
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--block-accent);
+        transform: translateY(-1px);
+      }
+
+      .exam strong {
+        flex: none;
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .exam .course .muted {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .exam .room {
+        grid-column: 2;
+        margin-left: 16px;
+        color: var(--color-text-secondary);
+      }
+
+      @media (max-width: 420px) {
+        .exam {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .exam .room {
+          grid-column: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 id="title">Final exams</h1>
+      <p id="summary" class="summary"></p>
+    </header>
+    <main id="app">
+      <p id="status" class="status" role="status">Waiting for the exams.</p>
+    </main>
+    <script>
+      // @include shared/app.js
+
+      (function () {
+        "use strict";
+
+        var el = App.el;
+
+        // my_finals: { term_uid, schedule_published, finals: [{ course, date, start_time, ... }] }
+        function render(data) {
+          var finals = (data.finals || []).slice().sort(function (a, b) {
+            return String(a.date).localeCompare(String(b.date)) ||
+              String(a.start_time || "").localeCompare(String(b.start_time || ""));
+          });
+
+          var summary = [App.plural(finals.length, "exam")];
+          if (finals.length) {
+            var first = App.formatDate(finals[0].date, { weekday: false });
+            var last = App.formatDate(finals[finals.length - 1].date, { weekday: false });
+            summary.push(first === last ? first : first + " – " + last);
+          }
+          App.setHeader("Final exams", summary.join(" · "));
+          var app = App.clear();
+
+          if (data.schedule_published === false) {
+            var notes = el("ul", "notes");
+            notes.appendChild(el("li", null, "The final exam schedule of this term is not published yet. " +
+              "Dates and rooms can change."));
+            app.appendChild(notes);
+          }
+
+          if (finals.length === 0) {
+            app.appendChild(el("p", "status", "No final exams to show."));
+          } else {
+            app.appendChild(buildDays(finals));
+          }
+
+          App.append(app, App.advisory(data, data.term_uid));
+        }
+
+        function buildDays(finals) {
+          var colorOf = App.colorPicker();
+          var days = el("div", "days");
+          var list = null;
+          var date = null;
+
+          finals.forEach(function (exam) {
+            if (exam.date !== date) {
+              date = exam.date;
+              var section = el("section");
+              var heading = el("h2", "label", App.formatDate(date, { longWeekday: true }));
+              section.appendChild(heading);
+              list = el("ul", "exams");
+              list.setAttribute("aria-label", heading.textContent);
+              section.appendChild(list);
+              days.appendChild(section);
+            }
+
+            // course is "COMP2000 Data Structures" (EnrolledFinalExamSerializer).
+            var match = /^([A-Z]+)(\d+)\s*(.*)$/.exec(String(exam.course));
+            var code = match ? match[1] + " " + match[2] : String(exam.course);
+            var title = match ? match[3] : "";
+
+            var row = el("li", "exam c" + colorOf(code));
+            if (exam.crn) row.setAttribute("data-crn", exam.crn);
+            row.appendChild(el("span", "time", App.timeRange(exam.start_time, exam.end_time) || "Time not set"));
+            var course = el("span", "course");
+            var dot = el("span", "dot");
+            dot.setAttribute("aria-hidden", "true");
+            App.append(course, dot, el("strong", null, code), title ? el("span", "muted", title) : null);
+            row.appendChild(course);
+            var room = exam.location_name || exam.location;
+            if (room) row.appendChild(el("span", "room", room));
+            list.appendChild(row);
+          });
+
+          return days;
+        }
+
+        App.start({ name: "wit-calendar-finals", render: render });
+      })();
+    </script>
+  </body>
+</html>

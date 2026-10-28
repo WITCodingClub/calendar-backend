@@ -28,6 +28,22 @@ RSpec.describe "Oauth::Authorizations", type: :request do
     input["checked"] ? "checked" : "unchecked"
   end
 
+  # Allow and Deny are two forms, and their buttons sit outside both and name
+  # the form with the form attribute.
+  it "points the Allow and Deny buttons at their forms" do
+    get "/api/oauth/authorize", params: params
+
+    html = Nokogiri::HTML(response.body)
+    allow_form = html.at_css("form#oauth-allow")
+    deny_form = html.at_css("form#oauth-deny")
+    expect(html.at_css("input[type=submit][value=Allow][form=oauth-allow]")).to be_present
+    expect(html.at_css("input[type=submit][value=Deny][form=oauth-deny]")).to be_present
+    expect(allow_form.css("input[name='scopes[]']")).to be_present
+    expect(allow_form.at_css("input[name=client_id]")["value"]).to eq(application.uid)
+    expect(deny_form.at_css("input[name=_method]")["value"]).to eq("delete")
+    expect(deny_form.at_css("input[name=client_id]")["value"]).to eq(application.uid)
+  end
+
   it "shows the client name, the redirect host, and a box for each scope" do
     get "/api/oauth/authorize", params: params
 

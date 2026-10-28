@@ -37,7 +37,7 @@ module McpTools
   end
 
   # The MCP App templates (ui:// resources) that tools name in their _meta.
-  def self.app_resources = [ WeekGridApp ]
+  def self.app_resources = [ WeekGridApp, BusyTimesApp, CatalogApp, FinalsApp ]
 
   def self.names = all.map(&:name_value)
 

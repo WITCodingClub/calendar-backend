@@ -1,51 +1,69 @@
 <% content_for :title, "Connect an app" %>
 <% redirect_host = Oauth::RedirectUris.hosts(@pre_auth.redirect_uri).first || @pre_auth.redirect_uri %>
 
-<%= render layout: "devise/shared/card", locals: { heading: "Connect #{@pre_auth.client.name}?", intro: "Signed in as #{current_resource_owner.email}", links: false } do %>
-  <div class="space-y-4 text-sm text-on-surface">
+<%= render layout: "devise/shared/card", locals: { heading: "Connect #{@pre_auth.client.name}?", intro: "Signed in as #{current_resource_owner.email}", links: false, width: "max-w-md" } do %>
+  <div class="space-y-5 text-sm text-on-surface">
     <% groups = consent_scopes.groups %>
-    <p>
-      An app wants to use your WIT Calendar data. After you allow it, it sends you back to
-      <strong class="break-all"><%= redirect_host %></strong>.
-      Allow it only if you started this from that app.
-    </p>
+    <div class="flex gap-3 rounded-2xl border border-outline-variant bg-surface-container-low p-3">
+      <%= icon(:shield_check, css_class: "w-5 h-5 mt-0.5 shrink-0 text-on-surface-variant") %>
+      <div class="space-y-1">
+        <p>
+          An app wants to use your WIT Calendar data. After you allow it, it sends you back to
+          <strong class="break-all"><%= redirect_host %></strong>.
+          Allow it only if you started this from that app.
+        </p>
+        <% if Oauth::ClientMetadataDocument.client_id?(@pre_auth.client.uid) %>
+          <p class="text-on-surface-variant">
+            <%= URI.parse(@pre_auth.client.uid).host %> publishes this app's name and addresses.
+          </p>
+        <% end %>
+      </div>
+    </div>
 
-    <% if Oauth::ClientMetadataDocument.client_id?(@pre_auth.client.uid) %>
-      <p class="text-on-surface-variant">
-        <%= URI.parse(@pre_auth.client.uid).host %> publishes this app's name and addresses.
-      </p>
-    <% end %>
-
-    <%= form_tag oauth_authorization_path, method: :post, data: { turbo: false }, class: "space-y-4" do %>
+    <%# Allow and Deny are two forms. The buttons sit together at the end and
+        name their form with the form attribute. %>
+    <%= form_tag oauth_authorization_path, method: :post, id: "oauth-allow", data: { turbo: false }, class: "space-y-5" do %>
       <%= render "oauth/authorizations/fields", pre_auth: @pre_auth, resource: params[:resource] %>
 
-      <fieldset class="space-y-2">
-        <legend class="font-medium">It can read</legend>
-        <p class="text-on-surface-variant">The course catalog and the university calendar</p>
-        <% groups.fetch(:read, []).each do |item| %>
-          <%= render "oauth/authorizations/scope", item: item %>
-        <% end %>
+      <fieldset>
+        <legend class="mb-2 text-xs font-medium uppercase tracking-wide text-on-surface-variant">It can read</legend>
+        <ul class="divide-y divide-outline-variant overflow-hidden rounded-2xl border border-outline-variant">
+          <li class="flex items-start gap-3 px-4 py-3">
+            <span class="block flex-1">
+              <span class="block text-on-surface">The course catalog and the university calendar</span>
+              <span class="block text-xs text-on-surface-variant">Always on. This data is public.</span>
+            </span>
+            <%= icon(:check, css_class: "w-4 h-4 mt-0.5 shrink-0 text-on-surface-variant") %>
+          </li>
+          <% groups.fetch(:read, []).each do |item| %>
+            <li><%= render "oauth/authorizations/scope", item: item %></li>
+          <% end %>
+        </ul>
       </fieldset>
 
       <% if groups.key?(:change) %>
-        <fieldset class="space-y-2">
-          <legend class="font-medium">It can change, if you allow it</legend>
-          <% groups[:change].each do |item| %>
-            <%= render "oauth/authorizations/scope", item: item %>
-          <% end %>
+        <fieldset>
+          <legend class="mb-2 text-xs font-medium uppercase tracking-wide text-on-surface-variant">It can change, if you allow it</legend>
+          <ul class="divide-y divide-outline-variant overflow-hidden rounded-2xl border border-outline-variant">
+            <% groups[:change].each do |item| %>
+              <li><%= render "oauth/authorizations/scope", item: item %></li>
+            <% end %>
+          </ul>
         </fieldset>
       <% else %>
         <p class="text-on-surface-variant">It cannot change anything.</p>
       <% end %>
-
-      <p class="text-on-surface-variant">You can disconnect it at any time in Settings.</p>
-
-      <%= submit_tag "Allow", class: "m3-btn-filled w-full justify-center" %>
     <% end %>
 
-    <%= form_tag oauth_authorization_path, method: :delete, data: { turbo: false } do %>
+    <%= form_tag oauth_authorization_path, method: :delete, id: "oauth-deny", data: { turbo: false } do %>
       <%= render "oauth/authorizations/fields", pre_auth: @pre_auth, resource: params[:resource] %>
-      <%= submit_tag "Deny", class: "m3-btn-outlined w-full justify-center" %>
     <% end %>
+
+    <div class="grid grid-cols-2 gap-3">
+      <%= submit_tag "Deny", form: "oauth-deny", class: "m3-btn-outlined w-full justify-center" %>
+      <%= submit_tag "Allow", form: "oauth-allow", class: "m3-btn-filled w-full justify-center" %>
+    </div>
+
+    <p class="text-center text-xs text-on-surface-variant">You can disconnect it at any time in Settings.</p>
   </div>
 <% end %>

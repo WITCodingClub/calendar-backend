@@ -1,0 +1,194 @@
+/*
+  The styles that every MCP App template shares (McpTools::AppResource puts
+  this file in place of its @include line). The host can override each
+  --color-, --font- and --border-radius- variable through styles.variables.
+*/
+:root {
+  color-scheme: light dark;
+  --color-background-primary: light-dark(#ffffff, #1f1f1f);
+  --color-background-secondary: light-dark(#f5f5f4, #2a2a2a);
+  --color-text-primary: light-dark(#1c1917, #f5f5f4);
+  --color-text-secondary: light-dark(#57534e, #a8a29e);
+  --color-text-tertiary: light-dark(#78716c, #78716c);
+  --color-text-danger: light-dark(#b91c1c, #fca5a5);
+  --color-background-danger: light-dark(#fef2f2, #3f1d1d);
+  --color-border-danger: light-dark(#dc2626, #f87171);
+  --color-text-warning: light-dark(#92400e, #fcd34d);
+  --color-background-warning: light-dark(#fffbeb, #3a2e12);
+  --color-text-success: light-dark(#15803d, #86efac);
+  --color-border-primary: light-dark(#d6d3d1, #44403c);
+  --color-border-secondary: light-dark(#e7e5e4, #333333);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-text-xs-size: 11px;
+  --font-text-sm-size: 13px;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-text-sm-size);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  margin: 0;
+  font-size: var(--font-text-sm-size);
+  font-weight: var(--font-weight-semibold);
+}
+
+.summary {
+  margin: 2px 0 14px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary:empty {
+  margin-bottom: 10px;
+}
+
+.status {
+  padding: 16px 0;
+  color: var(--color-text-secondary);
+}
+
+.status.error {
+  color: var(--color-text-danger);
+}
+
+.muted {
+  color: var(--color-text-secondary);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A small heading over a group, such as a date or "Prerequisites". */
+.label {
+  margin: 0 0 6px;
+  font-size: var(--font-text-xs-size);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.card {
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 10px;
+}
+
+.stack > * + * {
+  margin-top: 8px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-text-xs-size);
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.chip.danger {
+  background: var(--color-background-danger);
+  color: var(--color-text-danger);
+}
+
+.chip.warning {
+  background: var(--color-background-warning);
+  color: var(--color-text-warning);
+}
+
+.notes {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notes li {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: var(--border-radius-md);
+  background: var(--color-background-warning);
+  color: var(--color-text-warning);
+}
+
+.notes li.danger {
+  background: var(--color-background-danger);
+  color: var(--color-text-danger);
+}
+
+.notes li.plain {
+  background: transparent;
+  border: 1px solid var(--color-border-secondary);
+  color: var(--color-text-secondary);
+}
+
+.advisory {
+  margin: 12px 0 0;
+  font-size: var(--font-text-xs-size);
+  line-height: 1.45;
+  color: var(--color-text-tertiary);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* One color for each course, so a lecture and its lab match. */
+.c0 { --block-background: light-dark(#eff4ff, #1c2a44); --block-accent: light-dark(#3b6fe0, #7aa2f7); --block-text: light-dark(#1e3a8a, #c7d7fb); }
+.c1 { --block-background: light-dark(#ecf8f1, #17332a); --block-accent: light-dark(#2f9e6a, #5fd09a); --block-text: light-dark(#14532d, #bfeed6); }
+.c2 { --block-background: light-dark(#f5f0fe, #2c2245); --block-accent: light-dark(#8b5cf6, #b39cfb); --block-text: light-dark(#4c1d95, #ddd2fd); }
+.c3 { --block-background: light-dark(#fff4ea, #3a2716); --block-accent: light-dark(#e07a2c, #f4a462); --block-text: light-dark(#7c2d12, #fbd9bc); }
+.c4 { --block-background: light-dark(#eaf7fa, #15323a); --block-accent: light-dark(#1b98b5, #5cc8e0); --block-text: light-dark(#164e63, #c2ecf5); }
+.c5 { --block-background: light-dark(#fdf0f5, #3a1c2b); --block-accent: light-dark(#d9478a, #f08bb8); --block-text: light-dark(#831843, #f8cfe1); }
+.c6 { --block-background: light-dark(#fbf6e6, #352d14); --block-accent: light-dark(#c3930f, #e4c25a); --block-text: light-dark(#713f12, #f3e3b0); }
+.c7 { --block-background: light-dark(#f1f2f4, #2a2c31); --block-accent: light-dark(#64748b, #a0aec0); --block-text: light-dark(#1e293b, #dbe1ea); }

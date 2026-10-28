@@ -8,6 +8,7 @@ module McpTools
     description "Lists the final exams of my Wentworth classes in one term: date, time, and room. Use it for " \
                 "\"when is my final\" and \"what is my finals schedule\"."
     requires_scope "schedule:read"
+    meta FinalsApp.tool_meta
     academic_planning :finals
     input_schema(properties: { term_uid: TERM_SCHEMA })
     output_schema(
