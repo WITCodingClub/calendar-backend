@@ -15,6 +15,8 @@ RSpec.describe Courses::Processor do
       grade_mode: "Standard Letter",
       seats_available: 10,
       seats_capacity: 30,
+      waitlist_available: 3,
+      waitlist_capacity: 5,
       schedule_type: "Lecture (LEC)",
       meeting_times: [
         {
@@ -56,6 +58,16 @@ RSpec.describe Courses::Processor do
     expect(course).to be_present
     expect(course.meeting_times.count).to eq(2)
     expect(user.enrollments.where(course: course)).to exist
+  end
+
+  it "stores the waitlist counts, and refreshes them when Banner is asked again" do
+    process!
+    expect(Course.find_by(crn: 12345)).to have_attributes(waitlist_capacity: 5, waitlist_available: 3)
+
+    allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(class_details.merge(waitlist_available: 0))
+    process_again!
+
+    expect(Course.find_by(crn: 12345)).to have_attributes(waitlist_capacity: 5, waitlist_available: 0)
   end
 
   it "keeps meeting time ids stable across re-processing" do

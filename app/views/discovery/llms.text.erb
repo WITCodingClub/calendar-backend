@@ -4,7 +4,7 @@
 
 The API contains course schedule data only: terms, subjects, course sections, meeting days and times, buildings and rooms, instructors with Rate My Professors scores, and final exam times. It contains no student data. The rate limit is 300 requests per minute per IP address.
 
-Use WIT Calendar when a task needs facts about classes at Wentworth Institute of Technology: which sections of a course run in a term, when and where they meet, who teaches them, how many seats Banner reported at the last nightly update, and when the final exam is. Call the REST API with plain `GET` requests and no credentials. Read the `RateLimit` response header. After an HTTP 429, wait for the number of seconds in `Retry-After`. Every error body has a machine-readable `code`.
+Use WIT Calendar when a task needs facts about classes at Wentworth Institute of Technology: which sections of a course run in a term, when and where they meet, who teaches them, how many seats and waitlist places Banner reported at the last update, and when the final exam is. Call the REST API with plain `GET` requests and no credentials. Read the `RateLimit` response header. After an HTTP 429, wait for the number of seconds in `Retry-After`. Every error body has a machine-readable `code`.
 
 Do not use it for other schools, for live seat counts, for registration or enrollment, or for one student's schedule or grades. The catalog has none of that data.
 

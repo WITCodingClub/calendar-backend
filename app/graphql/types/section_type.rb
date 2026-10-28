@@ -22,6 +22,7 @@ module Types
     field :grade_mode, String, null: true
     field :status, String, null: false
     field :seats, SeatsType, null: false
+    field :waitlist, WaitlistType, null: false
     field :linked, LinkedSectionsType, null: false
     field :start_date, GraphQL::Types::ISO8601Date, null: false
     field :end_date, GraphQL::Types::ISO8601Date, null: false
@@ -69,6 +70,10 @@ module Types
 
     def seats
       { capacity: object.seats_capacity, available: object.seats_available }
+    end
+
+    def waitlist
+      { capacity: object.waitlist_capacity, available: object.waitlist_available }
     end
 
     # The same answer as the REST API, from Catalog::SectionLinks.

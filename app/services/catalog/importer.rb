@@ -147,6 +147,7 @@ module Catalog
       is_section_linked = ActiveModel::Type::Boolean.new.cast(course_data["isSectionLinked"]) || false
 
       seats = seat_counts(course_data)
+      waitlist = waitlist_counts(course_data)
       credit_hours = credit_hours_for(course_data)
 
       course = Course.find_or_create_by!(crn: crn, term: term) do |c|
@@ -164,6 +165,8 @@ module Catalog
         c.is_section_linked = is_section_linked
         c.seats_capacity = seats[:capacity]
         c.seats_available = seats[:available]
+        c.waitlist_capacity = waitlist[:capacity]
+        c.waitlist_available = waitlist[:available]
       end
 
       if course.previously_new_record?
@@ -189,6 +192,10 @@ module Catalog
         if seats[:capacity].present? && seats[:available].present?
           update_attrs[:seats_capacity] = seats[:capacity]
           update_attrs[:seats_available] = seats[:available]
+        end
+        if waitlist[:capacity].present? && waitlist[:available].present?
+          update_attrs[:waitlist_capacity] = waitlist[:capacity]
+          update_attrs[:waitlist_available] = waitlist[:available]
         end
 
         # The counts cover the section row. Meeting times and instructors can
@@ -242,6 +249,16 @@ module Catalog
     def seat_counts(course_data)
       capacity = course_data["maximumEnrollment"]
       available = course_data["seatsAvailable"]
+
+      {
+        capacity: capacity.nil? ? nil : capacity.to_i,
+        available: available.nil? ? nil : available.to_i
+      }
+    end
+
+    def waitlist_counts(course_data)
+      capacity = course_data["waitCapacity"]
+      available = course_data["waitAvailable"]
 
       {
         capacity: capacity.nil? ? nil : capacity.to_i,

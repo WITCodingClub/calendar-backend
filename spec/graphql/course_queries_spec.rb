@@ -42,4 +42,14 @@ RSpec.describe "Catalog GraphQL courses" do
     expect(node["description"]).to eq(comp2000.description)
     expect(node["prerequisites"]).to include("code" => "COMP 1050")
   end
+
+  it "gives the seat and waitlist counts of a section" do
+    create(:course, term: term, seats_capacity: 25, seats_available: 0, waitlist_capacity: 5, waitlist_available: 1)
+
+    result = execute("query($uid: Int!) { sections(filter: { termUid: $uid }) { nodes { seats { capacity available } waitlist { capacity available } } } }",
+                     { "uid" => term.uid })
+
+    expect(result.dig("data", "sections", "nodes")).to eq([ { "seats"    => { "capacity" => 25, "available" => 0 },
+                                                             "waitlist" => { "capacity" => 5, "available" => 1 } } ])
+  end
 end

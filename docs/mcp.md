@@ -73,7 +73,7 @@ WIT Calendar is not an official Wentworth service. It copies its data from offic
 
 | Source key | Data | Source | Refresh | Last refresh |
 | --- | --- | --- | --- | --- |
-| `sections` | Meeting times, rooms, instructors, seats | Banner class schedule (LeopardWeb) | Every day at 4 AM Eastern, for the current and future terms. A past term is not refreshed after it ends. | `terms.sections_synced_at`: when `Catalog::CourseDataSyncJob` finished the term |
+| `sections` | Meeting times, rooms, instructors, seats | Banner class schedule (LeopardWeb) | Every day at 4 AM Eastern, for the current and future terms. A past term is not refreshed after it ends. Seats also every 30 minutes, from the time a term's sections are listed until 7 days after its classes start (`Catalog::SeatRefreshJob`). | `terms.sections_synced_at`: when `Catalog::CourseDataSyncJob` finished the term |
 | `course_details` | Descriptions, credits, prerequisites, restrictions | Banner course catalog | Each course at most once every 7 days, in the daily run | `terms.details_synced_at`: when `Catalog::CourseDetailsSyncJob` finished the term |
 | `finals` | Final exam dates, times, rooms | Registrar finals schedule (PDF) | When an admin uploads a new schedule | The latest completed `FinalsSchedule` of the term |
 | `university_calendar` | Holidays, term dates, deadlines | Academic calendar (25Live) | Every Saturday at 2 AM Eastern | The latest `university_calendar_events.last_fetched_at` |

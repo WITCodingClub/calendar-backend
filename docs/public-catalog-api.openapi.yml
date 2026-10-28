@@ -922,7 +922,13 @@ components:
         status: { type: string, enum: [active, cancelled] }
         seats:
           type: object
-          description: From Banner, refreshed every night. Up to a day old. Not a real-time seat count.
+          description: From Banner, refreshed every night, and every 30 minutes from the time a term's sections are listed until 7 days after its classes start. Not a real-time seat count.
+          properties:
+            capacity: { type: [integer, "null"] }
+            available: { type: [integer, "null"] }
+        waitlist:
+          type: object
+          description: The waitlist places and the places still open, from the same Banner data and jobs as seats. A section with no waitlist has a capacity of 0.
           properties:
             capacity: { type: [integer, "null"] }
             available: { type: [integer, "null"] }

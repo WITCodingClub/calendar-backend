@@ -16,22 +16,48 @@ module Catalog
 
     # Banner stopped answering, and Catalog::BannerThrottle holds every request
     # for a few minutes. Stop the run and start again after the cooldown,
-    # instead of reporting one error for each remaining course.
-    retry_on Catalog::BannerThrottle::CooldownError, wait: Catalog::BannerThrottle::COOLDOWN + 30.seconds, attempts: 3
+    # instead of reporting one error for each remaining course. Banner stops
+    # answering about every 10 minutes, so a full run needs several attempts.
+    retry_on Catalog::BannerThrottle::CooldownError, wait: Catalog::BannerThrottle::COOLDOWN + 30.seconds, attempts: 10
+
+    # Each attempt syncs the sections that Banner confirmed longest ago first,
+    # across all the terms, and skips a section confirmed more recently than
+    # this. So a retry continues where the last attempt stopped, and a night
+    # that does not finish leaves the next night to start with the sections it
+    # did not reach. Before this, each attempt started again at the first
+    # section of the first term. From 2026-10-25 to 2026-10-28 every run
+    # stopped on its third cooldown, and no run reached Spring 2027 (#904).
+    #
+    # Courses::Processor also confirms the sections of a schedule a student
+    # uploads, but it does not fetch Banner's linked sections. The window is
+    # short so that few of those sections miss the nightly link sync.
+    FRESH_FOR = 3.hours
+
+    BATCH_SIZE = 50
 
     def perform(term_uids: nil)
       term_uids ||= default_term_uids
 
       return if term_uids.empty?
 
-      Rails.logger.info "[Catalog::CourseDataSyncJob] Starting sync for terms: #{term_uids}"
+      terms = Term.where(uid: term_uids).to_a
+      missing = term_uids.map(&:to_i) - terms.map(&:uid)
+      Rails.logger.warn "[Catalog::CourseDataSyncJob] Terms not found for UIDs #{missing}" if missing.any?
+      return if terms.empty?
 
-      term_uids.each { |uid| sync_term_courses(uid) }
+      Rails.logger.info "[Catalog::CourseDataSyncJob] Starting sync for terms: #{terms.map(&:uid)}"
+
+      counts = sync_courses(terms)
+      # The time of a full run, for the MCP advisory (Catalog::Freshness). A
+      # run that stops on a Banner cooldown raises before this line.
+      Term.where(id: terms.map(&:id)).update_all(sections_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
+
       # Prerequisites and descriptions change rarely. The details job skips a
       # course it fetched for the same term in the last week.
-      term_uids.each { |uid| Catalog::CourseDetailsSyncJob.perform_later(uid) }
+      terms.each { |term| Catalog::CourseDetailsSyncJob.perform_later(term.uid) }
 
-      Rails.logger.info "[Catalog::CourseDataSyncJob] Completed sync for #{term_uids.length} terms"
+      Rails.logger.info "[Catalog::CourseDataSyncJob] Completed sync for #{terms.length} terms: " \
+                        "#{counts[:synced]} synced, #{counts[:errors]} errors"
     end
 
     private
@@ -44,46 +70,40 @@ module Catalog
       (Term.active.pluck(:uid) + Term.current_and_future.pluck(:uid)).uniq
     end
 
-    def sync_term_courses(term_uid)
-      term = Term.find_by(uid: term_uid)
-      unless term
-        Rails.logger.warn "[Catalog::CourseDataSyncJob] Term not found for UID #{term_uid}"
-        return
-      end
+    def sync_courses(terms)
+      counts = { synced: 0, errors: 0 }
+      uids = terms.to_h { |term| [ term.id, term.uid ] }
 
-      Rails.logger.info "[Catalog::CourseDataSyncJob] Syncing courses for term #{term.name} (#{term_uid})"
+      # find_in_batches ignores an order, so take the ids in order first.
+      ids = Course.where(term_id: uids.keys)
+                  .where(banner_synced_at: nil).or(Course.where(term_id: uids.keys, banner_synced_at: ...FRESH_FOR.ago))
+                  .order(Course.arel_table[:banner_synced_at].asc.nulls_first, :id)
+                  .pluck(:id)
 
-      synced_count = 0
-      error_count  = 0
-
-      # Courses in a term share buildings and rooms, so one SectionSync (and its
-      # Locations) serves them all. Enrollment flags are loaded and marks are sent once for each batch of
-      # courses, not once for each course.
+      # Courses share buildings and rooms, so one SectionSync (and its
+      # Locations) serves them all. Enrollment flags are loaded and marks are
+      # sent once for each batch of courses, not once for each course.
       section_sync = Catalog::SectionSync.new
 
-      term.courses.includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
-          .find_in_batches(batch_size: 50) do |courses|
+      ids.each_slice(BATCH_SIZE) do |slice|
+        courses = Course.where(id: slice).includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
+                        .index_by(&:id).values_at(*slice).compact
         flags = CourseCalendars::SyncMarker.enrollment_flags(courses.map(&:id))
         CourseCalendars::SyncMarker.batch_with_enrollment_flags(flags) do
           courses.each do |course|
             # Catalog::BannerThrottle paces the Banner requests, so there is no
             # sleep here.
-            if section_sync.call(course, term_uid)
-              synced_count += 1
-            end
+            counts[:synced] += 1 if section_sync.call(course, uids.fetch(course.term_id))
           rescue Catalog::BannerThrottle::CooldownError
             raise
           rescue => e
-            error_count += 1
+            counts[:errors] += 1
             Rails.error.report(e, handled: true, context: { course_id: course.id, crn: course.crn })
           end
         end
       end
 
-      # The time of a full run, for the MCP advisory (Catalog::Freshness). A
-      # run that stops on a Banner cooldown raises before this line.
-      term.update_column(:sections_synced_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
-      Rails.logger.info "[Catalog::CourseDataSyncJob] Term #{term.name} complete — #{synced_count} synced, #{error_count} errors"
+      counts
     end
   end
 end

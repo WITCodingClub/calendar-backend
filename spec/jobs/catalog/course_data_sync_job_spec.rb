@@ -42,6 +42,8 @@ RSpec.describe Catalog::CourseDataSyncJob do
       grade_mode: "Standard Letter",
       seats_available: 5,
       seats_capacity: 30,
+      waitlist_available: 1,
+      waitlist_capacity: 5,
       meeting_times: meeting_times,
       faculty: faculty
     }
@@ -144,6 +146,14 @@ RSpec.describe Catalog::CourseDataSyncJob do
 
     expect(course.meeting_times.reload.count).to eq(2)
     expect(linked_rooms).to eq([ [ "IRAH", "112" ] ])
+  end
+
+  it "writes the seat and waitlist counts" do
+    stub_leopard_web([ banner_meeting_time ])
+
+    described_class.perform_now
+
+    expect(course.reload).to have_attributes(seats_capacity: 30, seats_available: 5, waitlist_capacity: 5, waitlist_available: 1)
   end
 
   describe "credit hours" do
@@ -286,6 +296,72 @@ RSpec.describe Catalog::CourseDataSyncJob do
       described_class.perform_now
 
       expect(course.reload.faculties.map(&:email)).to eq([ "minevichi@wit.edu" ])
+    end
+  end
+
+  describe "sections Banner confirmed recently" do
+    # A retry after a cooldown must not start again at the first section.
+    it "skips a section confirmed within FRESH_FOR" do
+      course.update_column(:banner_synced_at, 1.hour.ago) # rubocop:disable Rails/SkipsModelValidations
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
+
+      described_class.perform_now(term_uids: [ term.uid ])
+
+      expect(Catalog::LeopardWebClient).not_to have_received(:get_class_details)
+    end
+
+    it "syncs a section confirmed before FRESH_FOR" do
+      course.update_column(:banner_synced_at, 4.hours.ago) # rubocop:disable Rails/SkipsModelValidations
+      stub_leopard_web([ banner_meeting_time ])
+
+      described_class.perform_now(term_uids: [ term.uid ])
+
+      expect(Catalog::LeopardWebClient).to have_received(:get_class_details)
+    end
+
+    # A night that stops early must not leave the next night to start over in
+    # the first term.
+    it "syncs the sections confirmed longest ago first, across terms" do
+      spring = create(:term, uid: 202720, season: :spring, year: 2027)
+      never = create(:course, term: spring)
+      course.update_column(:banner_synced_at, 1.day.ago) # rubocop:disable Rails/SkipsModelValidations
+      calls = []
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) do |term:, course_reference_number:|
+        calls << [ term, course_reference_number ]
+        nil
+      end
+
+      described_class.perform_now(term_uids: [ term.uid, spring.uid ])
+
+      expect(calls).to eq([ [ spring.uid, never.crn ], [ term.uid, course.crn ] ])
+    end
+
+    it "records the run for the term when every section is already fresh" do
+      course.update_column(:banner_synced_at, 1.hour.ago) # rubocop:disable Rails/SkipsModelValidations
+
+      freeze_time do
+        described_class.perform_now(term_uids: [ term.uid ])
+
+        expect(term.reload.sections_synced_at).to eq(Time.current)
+      end
+    end
+
+    it "continues after the sections a cooldown attempt already synced" do
+      first = course
+      second = create(:course, term: term)
+      calls = []
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) do |course_reference_number:, **|
+        calls << course_reference_number
+        raise Catalog::BannerThrottle::CooldownError.new(60) if course_reference_number == second.crn && calls.count(second.crn) == 1
+
+        class_details(meeting_times: [ banner_meeting_time ])
+      end
+
+      # The first run stops on the cooldown. The second stands in for the retry.
+      2.times { described_class.perform_now(term_uids: [ term.uid ]) }
+
+      expect(calls.count(first.crn)).to eq(1)
+      expect(calls.count(second.crn)).to eq(2)
     end
   end
 

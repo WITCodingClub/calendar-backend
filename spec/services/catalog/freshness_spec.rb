@@ -64,6 +64,7 @@ RSpec.describe Catalog::Freshness do
     recurring = YAML.load_file(Rails.root.join("config/recurring.yml"))
 
     expect(recurring.dig("production", "course_data_sync", "schedule")).to eq("every day at 4am")
+    expect(recurring.dig("production", "catalog_seat_refresh", "schedule")).to eq("every 30 minutes")
     expect(recurring.dig("production", "university_calendar_sync", "schedule")).to eq("every saturday at 2am")
     expect(recurring.dig("production", "degree_requirements_current_year", "schedule")).to eq("every month on the 2nd at 3am")
   end
