@@ -499,8 +499,10 @@ query Sections($filter: SectionFilterInput) {
 ## Notes on the data
 
 - `seats.capacity` and `seats.available` come from Banner. The catalog import
-  sets them, and a nightly job refreshes them for every active term. They can be
-  up to a day old, so do not show them as a real-time seat count. Responses also
+  sets them, and a nightly job refreshes them for every active term. From the
+  time a term's sections are listed until 7 days after its classes start, a job
+  also refreshes them every 30 minutes. Outside that window they can be up to a
+  day old. Do not show them as a real-time seat count. Responses also
   carry `Cache-Control: public, max-age=3600`, which adds at most one more hour.
   Either field is `null` when Banner did not return enrollment data for the CRN.
 - `linked` says which sections a student must register together, most often a

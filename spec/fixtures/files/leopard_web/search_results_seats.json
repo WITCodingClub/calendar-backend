@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "totalCount": 3,
+  "data": [
+    { "courseReferenceNumber": "20452", "term": "202720", "maximumEnrollment": 25, "enrollment": 25, "seatsAvailable": 0 },
+    { "courseReferenceNumber": "20393", "term": "202720", "maximumEnrollment": 25, "enrollment": 12, "seatsAvailable": 13 },
+    { "courseReferenceNumber": "20500", "term": "202720", "maximumEnrollment": 15, "enrollment": 23, "seatsAvailable": -8 }
+  ]
+}

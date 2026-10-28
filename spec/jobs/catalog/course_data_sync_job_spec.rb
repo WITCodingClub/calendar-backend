@@ -289,6 +289,55 @@ RSpec.describe Catalog::CourseDataSyncJob do
     end
   end
 
+  describe "sections Banner confirmed recently" do
+    # A retry after a cooldown must not start again at the first section.
+    it "skips a section confirmed within FRESH_FOR" do
+      course.update_column(:banner_synced_at, 1.hour.ago) # rubocop:disable Rails/SkipsModelValidations
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
+
+      described_class.perform_now(term_uids: [ term.uid ])
+
+      expect(Catalog::LeopardWebClient).not_to have_received(:get_class_details)
+    end
+
+    it "syncs a section confirmed before FRESH_FOR" do
+      course.update_column(:banner_synced_at, 13.hours.ago) # rubocop:disable Rails/SkipsModelValidations
+      stub_leopard_web([ banner_meeting_time ])
+
+      described_class.perform_now(term_uids: [ term.uid ])
+
+      expect(Catalog::LeopardWebClient).to have_received(:get_class_details)
+    end
+
+    it "records the run for the term when every section is already fresh" do
+      course.update_column(:banner_synced_at, 1.hour.ago) # rubocop:disable Rails/SkipsModelValidations
+
+      freeze_time do
+        described_class.perform_now(term_uids: [ term.uid ])
+
+        expect(term.reload.sections_synced_at).to eq(Time.current)
+      end
+    end
+
+    it "continues after the sections a cooldown attempt already synced" do
+      first = course
+      second = create(:course, term: term)
+      calls = []
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) do |course_reference_number:, **|
+        calls << course_reference_number
+        raise Catalog::BannerThrottle::CooldownError.new(60) if course_reference_number == second.crn && calls.count(second.crn) == 1
+
+        class_details(meeting_times: [ banner_meeting_time ])
+      end
+
+      # The first run stops on the cooldown. The second stands in for the retry.
+      2.times { described_class.perform_now(term_uids: [ term.uid ]) }
+
+      expect(calls.count(first.crn)).to eq(1)
+      expect(calls.count(second.crn)).to eq(2)
+    end
+  end
+
   describe "when Banner cools down" do
     it "stops the run, reports nothing, and tries again after the cooldown" do
       course

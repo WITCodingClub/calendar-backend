@@ -14,15 +14,16 @@ module Catalog
     # skips callbacks, so the cache has only a TTL.
     CACHE_TTL = 10.minutes
 
-    # The daily run is course_data_sync in config/recurring.yml, the weekly
-    # one is university_calendar_sync, and the monthly one is
-    # degree_requirements_current_year.
+    # The daily run is course_data_sync in config/recurring.yml, the seat
+    # refresh is catalog_seat_refresh, the weekly one is university_calendar_sync,
+    # and the monthly one is degree_requirements_current_year.
     SOURCES = {
       sections:            {
         data:     "Course sections: meeting times, rooms, instructors, and seats",
         source:   "Wentworth Banner class schedule (LeopardWeb)",
         schedule: "Every day at 4 AM Eastern, for the current and future terms. A past term is not refreshed " \
-                  "after it ends."
+                  "after it ends. Seats also every 30 minutes, from the time a term's sections are listed until " \
+                  "#{SeatRefreshJob::ADD_DROP.in_days.to_i} days after its classes start."
       },
       course_details:      {
         data:     "Course descriptions, credits, prerequisites, corequisites, and restrictions",

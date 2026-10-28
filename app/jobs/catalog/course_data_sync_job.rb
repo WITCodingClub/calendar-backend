@@ -16,8 +16,15 @@ module Catalog
 
     # Banner stopped answering, and Catalog::BannerThrottle holds every request
     # for a few minutes. Stop the run and start again after the cooldown,
-    # instead of reporting one error for each remaining course.
-    retry_on Catalog::BannerThrottle::CooldownError, wait: Catalog::BannerThrottle::COOLDOWN + 30.seconds, attempts: 3
+    # instead of reporting one error for each remaining course. Banner stops
+    # answering about every 10 minutes, so a full run needs several attempts.
+    retry_on Catalog::BannerThrottle::CooldownError, wait: Catalog::BannerThrottle::COOLDOWN + 30.seconds, attempts: 10
+
+    # A section that Banner confirmed more recently than this is skipped, so a
+    # retry continues where the last attempt stopped. Before this, each attempt
+    # started again at the first section. From 2026-10-25 to 2026-10-28 every
+    # run stopped on its third cooldown, and no run reached Spring 2027.
+    FRESH_FOR = 12.hours
 
     def perform(term_uids: nil)
       term_uids ||= default_term_uids
@@ -61,7 +68,8 @@ module Catalog
       # courses, not once for each course.
       section_sync = Catalog::SectionSync.new
 
-      term.courses.includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
+      term.courses.where(banner_synced_at: nil).or(term.courses.where(banner_synced_at: ...FRESH_FOR.ago))
+          .includes(meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
           .find_in_batches(batch_size: 50) do |courses|
         flags = CourseCalendars::SyncMarker.enrollment_flags(courses.map(&:id))
         CourseCalendars::SyncMarker.batch_with_enrollment_flags(flags) do
