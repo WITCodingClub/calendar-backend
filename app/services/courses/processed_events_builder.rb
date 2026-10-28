@@ -33,6 +33,8 @@ module Courses
                                 { meeting_times: [ :event_preference, { rooms: :building }, { course: [ :faculties, :term ] } ] }
                               ])
 
+      @recurrence = CourseCalendars::RecurrenceBuilder.preloaded(@user, enrollments.map(&:course))
+
       enrollments.group_by(&:term_id).transform_values do |term_enrollments|
         term_enrollments.map { |enrollment| build_course_data(enrollment) }
       end
@@ -103,6 +105,8 @@ module Courses
           end_time: mt.fmt_end_time_military,
           start_date: mt.start_date,
           end_date: mt.end_date,
+          effective_end_date: @recurrence.effective_end_date(mt).iso8601,
+          excluded_dates: @recurrence.excluded_dates(mt).map(&:iso8601),
           location: build_location_data(mt),
           **days,
           calendar_config: {
