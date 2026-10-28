@@ -116,6 +116,8 @@ RSpec.describe Catalog::Importer do
       "maximumEnrollment"       => 30,
       "enrollment"              => 28,
       "seatsAvailable"          => 2,
+      "waitCapacity"            => 5,
+      "waitAvailable"           => 3,
       "meetingsFaculty"         => [
         {
           "meetingTime" => {
@@ -218,6 +220,20 @@ RSpec.describe Catalog::Importer do
       described_class.call([ catalog_course("maximumEnrollment" => 5, "seatsAvailable" => 1) ])
 
       expect(imported_course).to have_attributes(seats_capacity: 5, seats_available: 1)
+    end
+
+    it "stores the waitlist counts" do
+      described_class.call([ catalog_course ])
+      described_class.call([ catalog_course("waitAvailable" => 0) ])
+
+      expect(imported_course).to have_attributes(waitlist_capacity: 5, waitlist_available: 0)
+    end
+
+    it "does not overwrite known waitlist counts with a payload that omits one" do
+      described_class.call([ catalog_course ])
+      described_class.call([ catalog_course("waitCapacity" => nil) ])
+
+      expect(imported_course).to have_attributes(waitlist_capacity: 5, waitlist_available: 3)
     end
   end
 

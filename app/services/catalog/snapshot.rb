@@ -24,7 +24,7 @@ module Catalog
       "buildings"                                => [ "Building", %w[id abbreviation name formal_name twenty_five_live_id] ],
       "rooms"                                    => [ "Room", %w[id building_id number formal_name floor capacity twenty_five_live_id] ],
       "faculties"                                => [ "Faculty", %w[id first_name middle_name last_name display_name title department school employee_type] ],
-      "courses"                                  => [ "Course", %w[id term_id crn subject course_number section_number title schedule_type credit_hours grade_mode start_date end_date status seats_available seats_capacity is_section_linked link_identifier] ],
+      "courses"                                  => [ "Course", %w[id term_id crn subject course_number section_number title schedule_type credit_hours grade_mode start_date end_date status seats_available seats_capacity waitlist_available waitlist_capacity is_section_linked link_identifier] ],
       "course_meeting_times"                     => [ "Course::MeetingTime", %w[id course_id day_of_week begin_time end_time hours_week meeting_schedule_type meeting_type start_date end_date] ],
       "course_meeting_time_rooms"                => [ "Course::MeetingTimeRoom", %w[id meeting_time_id room_id] ],
       "courses_faculties"                        => [ "CourseFaculty", %w[id course_id faculty_id primary_indicator] ],

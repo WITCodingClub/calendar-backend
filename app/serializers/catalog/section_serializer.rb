@@ -30,6 +30,7 @@ module Catalog
         grade_mode:         @course.grade_mode,
         status:             @course.status,
         seats:              seats,
+        waitlist:           waitlist,
         linked:             linked,
         start_date:         @course.start_date,
         end_date:           @course.end_date,
@@ -74,12 +75,18 @@ module Catalog
       { uid: @course.term.uid, name: @course.term.name }
     end
 
-    # Live enrollment numbers from Banner, by way of Catalog::LeopardWebClient. The
-    # catalog import sets them, and Catalog::CourseDataSyncJob refreshes them every night.
-    # They are therefore up to a day old. Do not present them as a real-time
-    # seat count. Null when Banner did not return enrollment data for the CRN.
+    # Enrollment numbers from Banner. The catalog import sets them,
+    # Catalog::CourseDataSyncJob refreshes them every night, and
+    # Catalog::SeatRefreshJob every 30 minutes while students register. Do not
+    # present them as a real-time seat count. Null when Banner did not return
+    # enrollment data for the CRN.
     def seats
       { capacity: @course.seats_capacity, available: @course.seats_available }
+    end
+
+    # The waitlist counts, from the same Banner data and jobs as seats.
+    def waitlist
+      { capacity: @course.waitlist_capacity, available: @course.waitlist_available }
     end
 
     # Banner marks the sections a student has to register together, most often a

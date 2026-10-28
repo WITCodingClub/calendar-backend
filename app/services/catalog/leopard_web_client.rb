@@ -221,6 +221,8 @@ module Catalog
         if enrollment_data
           details[:seats_available] = enrollment_data.dig(:enrollment, :seats_available)
           details[:seats_capacity]  = enrollment_data.dig(:enrollment, :maximum)
+          details[:waitlist_available] = enrollment_data.dig(:waitlist, :seats_available)
+          details[:waitlist_capacity]  = enrollment_data.dig(:waitlist, :capacity)
         end
       rescue => e
         Rails.error.report(e, handled: true, context: { crn: course_reference_number, term: term })

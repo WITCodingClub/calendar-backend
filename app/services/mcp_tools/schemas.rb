@@ -161,6 +161,7 @@ module McpTools
       grade_mode:         nullable(STRING),
       status:             { type: "string", enum: %w[active cancelled] },
       seats:              object(capacity: nullable(INTEGER), available: nullable(INTEGER)),
+      waitlist:           object(capacity: nullable(INTEGER), available: nullable(INTEGER)),
       linked:             LINKED,
       start_date:         DATE,
       end_date:           DATE,

@@ -38,6 +38,7 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       )
       expect(section["term"]).to eq("uid" => 202_710, "name" => "Fall 2026")
       expect(section["seats"]).to eq("capacity" => nil, "available" => nil)
+      expect(section["waitlist"]).to eq("capacity" => nil, "available" => nil)
       expect(section["pub_id"]).to be_present
     end
 

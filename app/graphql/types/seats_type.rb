@@ -3,7 +3,8 @@
 module Types
   class SeatsType < BaseObject
     description "Seat counts for a section, from Banner. A nightly job refreshes " \
-                "them, so they can be up to a day old. They are not a real-time count."
+                "them, and while students register a job refreshes them every 30 minutes. " \
+                "They are not a real-time count."
 
     field :capacity, Integer, null: true,
           description: "Total seats in the section. Null when Banner returned no enrollment data."

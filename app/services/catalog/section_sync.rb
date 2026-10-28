@@ -136,6 +136,7 @@ module Catalog
 
       attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
       attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
+      attrs.merge!(waitlist_counts(fresh_data))
 
       course.update!(attrs) if attrs.any?
     end
@@ -144,9 +145,17 @@ module Catalog
       attrs = {}
       attrs[:seats_available] = fresh_data[:seats_available] unless fresh_data[:seats_available].nil?
       attrs[:seats_capacity]  = fresh_data[:seats_capacity]  unless fresh_data[:seats_capacity].nil?
+      attrs.merge!(waitlist_counts(fresh_data))
 
       course.update!(attrs) if attrs.any?
       attrs.any?
+    end
+
+    # Both counts or neither, so a section never shows half of a waitlist.
+    def waitlist_counts(fresh_data)
+      return {} if fresh_data[:waitlist_capacity].nil? || fresh_data[:waitlist_available].nil?
+
+      fresh_data.slice(:waitlist_capacity, :waitlist_available)
     end
 
     def extract_schedule_type(raw)

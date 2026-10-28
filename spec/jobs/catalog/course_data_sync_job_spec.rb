@@ -42,6 +42,8 @@ RSpec.describe Catalog::CourseDataSyncJob do
       grade_mode: "Standard Letter",
       seats_available: 5,
       seats_capacity: 30,
+      waitlist_available: 1,
+      waitlist_capacity: 5,
       meeting_times: meeting_times,
       faculty: faculty
     }
@@ -144,6 +146,14 @@ RSpec.describe Catalog::CourseDataSyncJob do
 
     expect(course.meeting_times.reload.count).to eq(2)
     expect(linked_rooms).to eq([ [ "IRAH", "112" ] ])
+  end
+
+  it "writes the seat and waitlist counts" do
+    stub_leopard_web([ banner_meeting_time ])
+
+    described_class.perform_now
+
+    expect(course.reload).to have_attributes(seats_capacity: 30, seats_available: 5, waitlist_capacity: 5, waitlist_available: 1)
   end
 
   describe "credit hours" do

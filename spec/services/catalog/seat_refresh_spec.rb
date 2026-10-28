@@ -6,8 +6,8 @@ RSpec.describe Catalog::SeatRefresh do
   let(:base) { "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/" }
   let(:term) { create(:term, uid: 202720, season: :spring, year: 2027) }
   let!(:full)       { create(:course, term: term, crn: 20452, seats_capacity: 25, seats_available: 17) }
-  let!(:unchanged)  { create(:course, term: term, crn: 20393, seats_capacity: 25, seats_available: 13) }
-  let!(:over)       { create(:course, term: term, crn: 20500, seats_capacity: 15, seats_available: 2) }
+  let!(:unchanged)  { create(:course, term: term, crn: 20393, seats_capacity: 25, seats_available: 13, waitlist_capacity: 0, waitlist_available: 0) }
+  let!(:over)       { create(:course, term: term, crn: 20500, seats_capacity: 15, seats_available: 2, waitlist_capacity: 0, waitlist_available: 0) }
   let!(:not_listed) { create(:course, term: term, crn: 20999, seats_capacity: 30, seats_available: 30) }
 
   before do
@@ -25,6 +25,23 @@ RSpec.describe Catalog::SeatRefresh do
 
     expect(described_class.call(term)).to eq(2)
     expect(full.reload.slice(:seats_capacity, :seats_available)).to eq("seats_capacity" => 25, "seats_available" => 0)
+  end
+
+  it "writes the waitlist counts" do
+    stub_search(file_fixture("leopard_web/search_results_seats.json").read)
+
+    described_class.call(term)
+
+    expect(full.reload).to have_attributes(waitlist_capacity: 5, waitlist_available: 1)
+  end
+
+  it "writes the waitlist counts when the seats did not change" do
+    unchanged.update!(waitlist_capacity: 5, waitlist_available: 5)
+    stub_search(file_fixture("leopard_web/search_results_seats.json").read)
+
+    described_class.call(term)
+
+    expect(unchanged.reload).to have_attributes(seats_available: 13, waitlist_capacity: 0, waitlist_available: 0)
   end
 
   # Banner reports a negative count for an over-enrolled section, as the import keeps it.
@@ -48,7 +65,7 @@ RSpec.describe Catalog::SeatRefresh do
     stub_search({ totalCount: 1, data: [ { courseReferenceNumber: "20452", maximumEnrollment: nil, seatsAvailable: 0 } ] }.to_json)
 
     expect(described_class.call(term)).to eq(0)
-    expect(full.reload.seats_available).to eq(17)
+    expect(full.reload).to have_attributes(seats_capacity: 25, seats_available: 17, waitlist_capacity: nil)
   end
 
   it "returns nil and writes nothing when Banner fails" do
