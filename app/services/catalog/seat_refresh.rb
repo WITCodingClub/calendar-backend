@@ -1,15 +1,17 @@
 # frozen_string_literal: true
 
 module Catalog
-  # Writes Banner's current seat and waitlist counts for every section of one
-  # term, and nothing else. Banner's class search gives the counts for 500
-  # sections in one request, so a term costs about four requests.
+  # Writes Banner's current seat, waitlist, and cross-list group counts for
+  # every section of one term, and nothing else. Banner's class search gives
+  # the counts for 500 sections in one request, so a term costs about four
+  # requests.
   # Catalog::SectionSync sends three requests for each section, so the nightly
   # sync cannot keep seats current while students register.
   #
   # Catalog::SeatRefreshJob calls it for each term in its registration window.
   class SeatRefresh < ApplicationService
-    COLUMNS = %i[seats_capacity seats_available waitlist_capacity waitlist_available].freeze
+    COLUMNS = %i[seats_capacity seats_available waitlist_capacity waitlist_available
+                 cross_list_capacity cross_list_available].freeze
 
     def initialize(term)
       @term = term
@@ -47,12 +49,13 @@ module Catalog
 
     # The same fields as Catalog::Importer. Each pair is written together or
     # not at all: the database checks that seats_available is not more than
-    # seats_capacity, and half a waitlist means nothing. An over-enrolled
+    # seats_capacity, and half a count means nothing. An over-enrolled
     # section reports a negative number of seats, and it is kept.
     def counts(section)
-      seats    = pair(section, "maximumEnrollment", "seatsAvailable", :seats_capacity, :seats_available)
-      waitlist = pair(section, "waitCapacity", "waitAvailable", :waitlist_capacity, :waitlist_available)
-      seats.merge(waitlist)
+      seats      = pair(section, "maximumEnrollment", "seatsAvailable", :seats_capacity, :seats_available)
+      waitlist   = pair(section, "waitCapacity", "waitAvailable", :waitlist_capacity, :waitlist_available)
+      cross_list = pair(section, "crossListCapacity", "crossListAvailable", :cross_list_capacity, :cross_list_available)
+      seats.merge(waitlist, cross_list)
     end
 
     def pair(section, capacity_key, available_key, capacity_column, available_column)

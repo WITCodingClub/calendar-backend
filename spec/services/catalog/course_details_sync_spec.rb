@@ -9,7 +9,7 @@ RSpec.describe Catalog::CourseDetailsSync do
 
   def fixture(name) = file_fixture("leopard_web/#{name}.html").read
 
-  def stub_banner(crn, prerequisites: fixture("prerequisites_and_or_groups"), status: 200)
+  def stub_banner(crn, prerequisites: fixture("prerequisites_and_or_groups"), status: 200, failing: [])
     {
       "getCourseDescription"        => fixture("course_description"),
       "getSectionPrerequisites"     => prerequisites,
@@ -22,7 +22,7 @@ RSpec.describe Catalog::CourseDetailsSync do
     }.each do |path, body|
       stub_request(:get, "#{Catalog::LeopardWebClient::BASE_URL}#{path}")
         .with(query: { term: term.uid.to_s, courseReferenceNumber: crn.to_s })
-        .to_return(status: status, body: body)
+        .to_return(status: failing.include?(path) ? 500 : status, body: body)
     end
   end
 
@@ -117,6 +117,17 @@ RSpec.describe Catalog::CourseDetailsSync do
 
     expect(course.reload.description).to eq("Old text")
     expect(reports.first.context).to include(catalog_course_id: course.id, crn: 20382)
+  end
+
+  it "stores the other pages and keeps the old values when an optional page fails" do
+    course = create(:catalog_course, subject_code: "COMP", course_number: 2000, description: "Old text",
+                                     learning_objectives: "Old objectives", fees: [ { "level" => "Undergraduate" } ])
+    stub_banner(20382, failing: %w[getSyllabus getFees])
+
+    expect(sync).to have_attributes(fetched: 1, failed: 0)
+    expect(course.reload).to have_attributes(learning_objectives: "Old objectives", fees: [ { "level" => "Undergraduate" } ],
+                                             college: be_present)
+    expect(course.description).not_to eq("Old text")
   end
 
   it "seeds a row for every course with the newest title" do

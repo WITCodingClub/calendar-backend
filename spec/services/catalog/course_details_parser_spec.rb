@@ -137,6 +137,16 @@ RSpec.describe Catalog::CourseDetailsParser do
     it "gives nil and empty lists for a page with no values" do
       expect(described_class.catalog("")).to eq(college: nil, division: nil, department: nil, levels: [], grading_modes: [])
     end
+
+    it "does not give a label with no list the list of the next label" do
+      html = <<~HTML
+        <span class="status-bold">Levels:</span><br/>
+        <span class="status-bold">Grading Modes:</span><br/>
+        <div class="indent-left">Standard Letter  S</div>
+      HTML
+
+      expect(described_class.catalog(html)).to include(levels: [], grading_modes: [ "Standard Letter" ])
+    end
   end
 
   describe ".mutual_exclusions" do

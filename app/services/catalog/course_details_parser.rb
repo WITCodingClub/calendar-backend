@@ -148,9 +148,10 @@ module Catalog
         strip_code(value&.text)
       end
 
-      # The div after the label, with one value on each line.
+      # The div right after the label, with one value on each line. A label
+      # with no list of its own gives [], not the list of the next label.
       def list_values(label)
-        list = label&.xpath("following-sibling::div[1]")&.first
+        list = label&.xpath("following-sibling::*[not(self::br)][1][self::div]")&.first
         return [] unless list
 
         list.children.select(&:text?).filter_map { |node| strip_code(node.text) }

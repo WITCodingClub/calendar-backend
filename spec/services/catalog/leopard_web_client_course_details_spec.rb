@@ -20,6 +20,16 @@ RSpec.describe Catalog::LeopardWebClient, ".get_course_details" do
     expect(pages[:syllabus]).to eq("<section>getSyllabus</section>")
   end
 
+  it "gives nil for an optional page that does not answer 200" do
+    described_class::COURSE_DETAIL_PAGES.each_value { |path| stub_page(path) }
+    stub_page("getSyllabus", status: 500)
+
+    pages = described_class.get_course_details(term: 202720, course_reference_number: 20382)
+
+    expect(pages[:syllabus]).to be_nil
+    expect(pages[:description]).to eq("<section>getCourseDescription</section>")
+  end
+
   it "raises a request error when Banner does not answer 200" do
     stub_page("getCourseDescription", status: 500)
 

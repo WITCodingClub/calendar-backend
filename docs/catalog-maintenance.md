@@ -27,6 +27,7 @@ flowchart TD
 Each request logs one line: `[Courses::Processor] user=… sections=… from_catalog=… from_banner=… refresh=… banner_ms=… total_ms=…`.
 | Course details and prerequisites | After each import, and nightly | `Catalog::CourseDetailsSyncJob` |
 | Re-import every term | After a change to the importer, or to find missed sections | `bin/rails catalog:reimport_all_terms` |
+| Fetch every course's details again | After a new course detail column ships | `bin/rails catalog:backfill_course_details REFETCH=1` |
 
 ## Re-import every term
 

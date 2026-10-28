@@ -1,8 +1,15 @@
 # frozen_string_literal: true
 
 namespace :catalog do
-  desc "Once: load course descriptions and prerequisites for every imported term, newest first"
+  desc "Load course details for every imported term, newest first (REFETCH=1 also fetches fresh courses again)"
   task backfill_course_details: :environment do
+    # The sync skips a course fetched in the last week. After a new detail
+    # column ships, REFETCH=1 fills it for every course now, not in a week.
+    if ENV["REFETCH"].present?
+      cleared = CatalogCourse.where.not(details_fetched_at: nil).update_all(details_fetched_at: nil) # rubocop:disable Rails/SkipsModelValidations
+      puts "Marked #{cleared} courses to fetch again."
+    end
+
     # Every course gets a row first, so prerequisites can link to courses
     # that only old terms offered.
     seeded = Catalog::CourseDetailsSync.seed(Course.all)

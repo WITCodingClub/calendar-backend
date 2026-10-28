@@ -102,6 +102,17 @@ module Catalog
       source.uid == @term.uid && catalog_course.details_fetched_at > FRESH_FOR.ago
     end
 
+    # The columns of each optional page that Banner sent. A page that failed
+    # (nil) keeps the old values.
+    def optional_details(pages)
+      details = {}
+      details.merge!(CourseDetailsParser.catalog(pages[:catalog])) if pages[:catalog]
+      details[:mutual_exclusions] = CourseDetailsParser.mutual_exclusions(pages[:mutual_exclusions]) if pages[:mutual_exclusions]
+      details[:fees] = CourseDetailsParser.fees(pages[:fees]) if pages[:fees]
+      details[:learning_objectives] = CourseDetailsParser.learning_objectives(pages[:syllabus]) if pages[:syllabus]
+      details
+    end
+
     def store(catalog_course, crn)
       pages = @client.get_course_details(term: @term.uid, course_reference_number: crn)
       details = CourseDetailsParser.description(pages[:description])
@@ -115,10 +126,7 @@ module Catalog
           prerequisites:       prerequisites,
           corequisites:        CourseDetailsParser.corequisites(pages[:corequisites]),
           restrictions:        CourseDetailsParser.restrictions(pages[:restrictions]),
-          **CourseDetailsParser.catalog(pages[:catalog]),
-          mutual_exclusions:   CourseDetailsParser.mutual_exclusions(pages[:mutual_exclusions]),
-          fees:                CourseDetailsParser.fees(pages[:fees]),
-          learning_objectives: CourseDetailsParser.learning_objectives(pages[:syllabus]),
+          **optional_details(pages),
           source_term:         @term,
           details_fetched_at:  Time.current
         )
