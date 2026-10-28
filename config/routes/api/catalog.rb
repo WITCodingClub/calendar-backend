@@ -17,6 +17,8 @@ namespace :v1 do
     get "terms/current", to: "terms#current"
     get "terms/next",    to: "terms#next"
     get "terms/:uid",    to: "terms#show", as: :term, constraints: { uid: /\d+/ }
+    # The elective list PDFs of the term (docs/term-electives.md).
+    get "terms/:uid/electives", to: "term_electives#index", as: :term_electives, constraints: { uid: /\d+/ }
 
     get "subjects", to: "subjects#index"
 

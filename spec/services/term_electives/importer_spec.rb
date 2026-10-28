@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe TermElectives::Importer do
+  include ActiveSupport::Testing::TimeHelpers
+
   subject(:importer) { described_class.new }
 
   let(:page_url) { TermElectives::PAGE_URL }
@@ -80,13 +82,14 @@ RSpec.describe TermElectives::Importer do
     expect(FinalsSchedules::PdfText).to have_received(:extract).twice
   end
 
-  it "keeps the rows of an unchanged PDF when nothing else changed" do
+  it "keeps the rows of an unchanged PDF when nothing else changed, and records the read" do
     importer.call
     ids = TermElectiveCourse.ids
 
-    importer.call
+    travel_to(1.day.from_now) { importer.call }
 
     expect(TermElectiveCourse.ids).to match_array(ids)
+    expect(TermElectiveList.find_by!(url: scds_url).fetched_at).to be > 12.hours.from_now
   end
 
   it "links a course to a catalog course that Banner adds after the import" do

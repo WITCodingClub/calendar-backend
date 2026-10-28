@@ -4,6 +4,10 @@ Each school publishes its elective lists for a term as PDFs. The Registrar's [Te
 
 These lists are not the catalog elective lists in `docs/degree-requirements.md`. A catalog list is for a catalog year. A term list names the courses that a school accepts as electives in one term.
 
+## API and MCP
+
+`GET /api/v1/catalog/terms/:uid/electives` and the MCP tool `list_term_electives` give the lists of one term. Both use `Catalog::TermElectiveQuery` and `Catalog::TermElectiveListSerializer`. `docs/public-catalog-api.md` gives the filters. The tool's advisory names the `term_electives` source (`Catalog::Freshness`).
+
 ## Flow
 
 ```mermaid
@@ -30,7 +34,7 @@ erDiagram
 
 | Model | One row is |
 |---|---|
-| `TermElectiveList` | One PDF. `school` comes from the file name (`SCDS`, `HSS`, `SOM`, `ARCH`). `body_text` is the full text of the PDF. `sha256` is the digest of the PDF. |
+| `TermElectiveList` | One PDF. `school` comes from the file name (`SCDS`, `HSS`, `SOM`, `ARCH`). `body_text` is the full text of the PDF. `sha256` is the digest of the PDF. `fetched_at` is when the import last read the file, changed or not. |
 | `TermElectiveCourse` | One course code in a PDF, with the nearest heading above it. The same code can occur under more than one heading. |
 
 ## Parser
@@ -41,7 +45,7 @@ Each school uses a different layout, and a school can change its layout from one
 - **Courses:** each code such as `COMP2000`, `ECON 4102`, `ARCH3800-02`, or `Economics (ECON) 4102`. The importer keeps a code only when Banner knows its subject, because "FALL 2026" has the same shape as a code.
 - **Headings:** a short line at the left margin with no digits. The line above it is blank or short, and the next line of content is a course or another heading. Examples: "Computer Science Elective", "Social Science". A heading is context only. It does not always name the list exactly.
 
-The parser does not read rules that name no course, such as "Any 2000-Level courses in BIOE, BIOL, ...". `body_text` keeps them.
+The parser does not read rules that name no course, such as "Any 2000-Level courses in BIOE, BIOL, ...". `body_text` keeps them, and the API and the tool return it as `text`.
 
 ## Updates and removals
 

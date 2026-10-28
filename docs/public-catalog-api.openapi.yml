@@ -52,6 +52,8 @@ tags:
     description: Courses across terms, with Banner's description and prerequisites
   - name: programs
     description: Degree programs from the academic catalog, for each catalog year
+  - name: electives
+    description: The elective lists that each school publishes for a term
 
 paths:
   /api/v1/catalog/terms:
@@ -156,6 +158,62 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: "#/components/schemas/Term" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/terms/{uid}/electives:
+    get:
+      tags: [electives]
+      operationId: listTermElectives
+      summary: List the elective lists of one term
+      description: >-
+        One item for each elective list PDF on the Registrar's "Technical, Major, and HSS Electives" page.
+        With a filter, each list keeps only the matching courses, and a list with no match is left out.
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          description: The Banner term code, for example `202720`.
+          schema: { type: integer, examples: [202720] }
+        - name: school
+          in: query
+          required: false
+          description: One school code, or a comma-separated list.
+          schema: { type: string, examples: ["SCDS", "SCDS,HSS"] }
+        - name: course
+          in: query
+          required: false
+          description: Only this course, for example `COMP2000` or `COMP 2000`.
+          schema: { type: string }
+        - name: q
+          in: query
+          required: false
+          description: Words that must all be in the heading of a course.
+          schema: { type: string }
+      responses:
+        "200":
+          description: The elective lists, by school and title
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/TermElectiveList" }
+                  meta:
+                    type: object
+                    required: [count, term_uid, term]
+                    properties:
+                      count: { type: integer }
+                      term_uid: { type: integer }
+                      term: { type: string, examples: ["Spring 2027"] }
+        "400": { $ref: "#/components/responses/InvalidFilter" }
         "404": { $ref: "#/components/responses/NotFound" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
@@ -1086,6 +1144,32 @@ components:
             False for a program that the newest import of its catalog year no longer found. The list leaves
             these out. The program endpoint still returns them.
           type: boolean
+
+    TermElectiveList:
+      type: object
+      required: [school, title, url, fetched_at, courses, text]
+      properties:
+        school:
+          description: The school, from the file name. Null when the file name names none.
+          type: [string, "null"]
+          enum: [SCDS, HSS, SOM, ARCH, SOE, SOS, null]
+        title: { type: [string, "null"], description: The first line of the PDF. }
+        url: { type: string, format: uri, description: The PDF on wit.edu. }
+        fetched_at: { type: string, format: date-time, description: When the import last read the PDF. }
+        courses:
+          type: array
+          items:
+            type: object
+            required: [code, title, heading]
+            properties:
+              code: { type: string, examples: ["COMP 2000"] }
+              title: { type: [string, "null"], description: The Banner title. Null when Banner does not know the course. }
+              heading:
+                type: [string, "null"]
+                description: The nearest heading above the code in the PDF, such as "Computer Science Elective".
+        text:
+          type: [string, "null"]
+          description: The full text of the PDF, with the rules that name no course.
 
     ProgramCourse:
       type: object

@@ -30,7 +30,7 @@ Any MCP client that supports OAuth with dynamic client registration or client ID
 
 ## Tools
 
-Each catalog tool matches a public catalog endpoint, so the MCP server, the REST API, and GraphQL give the same answers. The catalog tools share the query objects of those endpoints (`Catalog::SectionQuery`, `Catalog::InstructorQuery`, `Catalog::ReviewQuery`, `Catalog::SubjectQuery`, `Catalog::ProgramQuery`).
+Each catalog tool matches a public catalog endpoint, so the MCP server, the REST API, and GraphQL give the same answers. The catalog tools share the query objects of those endpoints (`Catalog::SectionQuery`, `Catalog::InstructorQuery`, `Catalog::ReviewQuery`, `Catalog::SubjectQuery`, `Catalog::ProgramQuery`, `Catalog::TermElectiveQuery`).
 
 | Tool | What it reads | REST endpoint | GraphQL field |
 | --- | --- | --- | --- |
@@ -42,6 +42,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `get_course` | One course: description, prerequisites, corequisites, restrictions, terms usually offered, what it unlocks. | `GET /api/v1/catalog/courses/:code` | `course` |
 | `list_programs` | The degree programs of one catalog year, and the catalog years WIT Calendar has. | `GET /api/v1/catalog/programs` | |
 | `degree_requirements` | What one program requires in one catalog year: each plan of study by semester, and the elective lists. | `GET /api/v1/catalog/programs/:slug` | |
+| `list_term_electives` | The elective lists that each school publishes for one term, with the heading of each course and the full text of each PDF. | `GET /api/v1/catalog/terms/:uid/electives` | |
 | `similar_sections` | Sections that teach something close to one section. | `GET /api/v1/catalog/sections/:crn/similar` | |
 | `check_schedule` | Time conflicts, lecture and lab pairs, duplicates, and totals for a set of CRNs. | `GET /api/v1/catalog/schedule_check` | `scheduleCheck` |
 | `search_instructors` | Instructors who teach, by name or by meaning. | `GET /api/v1/catalog/instructors` | `instructors` |
@@ -78,6 +79,7 @@ WIT Calendar is not an official Wentworth service. It copies its data from offic
 | `finals` | Final exam dates, times, rooms | Registrar finals schedule (PDF) | When an admin uploads a new schedule | The latest completed `FinalsSchedule` of the term |
 | `university_calendar` | Holidays, term dates, deadlines | Academic calendar (25Live) | Every Saturday at 2 AM Eastern | The latest `university_calendar_events.last_fetched_at` |
 | `degree_requirements` | Degree programs, plans of study, elective lists | Academic catalog (catalog.wit.edu) | On the 2nd of each month at 3 AM Eastern, for the current catalog year and the year before | The latest `catalog_years.imported_at` |
+| `term_electives` | The elective lists of each school for a term | Registrar elective lists (PDF) | Every day at 3:30 AM Eastern | The latest `term_elective_lists.fetched_at`: when the import last read a list |
 
 The term sources give one time for each current and future term. The time is when a full run finished, not when one course changed: a student's own courses also refresh when the extension processes a term, so one fresh course says nothing about the rest. `Catalog::Freshness` builds the list and keeps the times in the cache for 10 minutes. The server instructions say the same. When a schedule in `config/recurring.yml` changes, change the text in `Catalog::Freshness` too. A spec checks this.
 
@@ -228,7 +230,7 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 
 | Scope | Gives | Starts |
 | --- | --- | --- |
-| `catalog` | `list_terms`, `list_subjects`, `search_sections`, `get_section`, `search_courses`, `get_course`, `list_programs`, `degree_requirements`, `similar_sections`, `check_schedule`, `search_instructors`, `get_instructor`, `similar_instructors`, `search_reviews`, `catalog_graphql`, `university_events` | always on, no checkbox (public data) |
+| `catalog` | `list_terms`, `list_subjects`, `search_sections`, `get_section`, `search_courses`, `get_course`, `list_programs`, `degree_requirements`, `list_term_electives`, `similar_sections`, `check_schedule`, `search_instructors`, `get_instructor`, `similar_instructors`, `search_reviews`, `catalog_graphql`, `university_events` | always on, no checkbox (public data) |
 | `schedule:read` | `my_courses`, `my_finals`, `my_busy_times` | checked |
 | `friends:read` | `list_friends`, `friend_busy_times` | checked |
 | `settings:read` | `my_calendar_settings`, `preview_template` | checked |

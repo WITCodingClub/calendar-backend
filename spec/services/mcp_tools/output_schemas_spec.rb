@@ -309,6 +309,23 @@ RSpec.describe "MCP tool output schemas" do
     end
   end
 
+  context "with term elective lists" do
+    it "matches a list with courses, and one with no school, title, or text" do
+      term = create(:term)
+      list = create(:term_elective_list, term: term, body_text: "Any 2000-Level courses in COMP")
+      catalog_course = create(:catalog_course)
+      create(:term_elective_course, term_elective_list: list, subject_code: catalog_course.subject_code,
+                                    course_number: catalog_course.course_number)
+      TermElectiveCourse.link_catalog_courses
+      create(:term_elective_course, term_elective_list: list, heading: nil)
+      create(:term_elective_list, term: term, school: nil, title: nil, body_text: nil)
+
+      result = expect_valid(McpTools::ListTermElectives, term_uid: term.uid)
+      expect(result[:lists].size).to eq(2)
+      expect(result[:advisory][:data_sources].first).to include(source: "Wentworth Registrar elective lists (PDF)")
+    end
+  end
+
   context "with degree programs" do
     let(:catalog_year) { create(:catalog_year, :imported, start_year: 2026) }
     let(:major) { create(:degree_program, slug: "widget-design-bs", name: "Widget Design, B.S.") }

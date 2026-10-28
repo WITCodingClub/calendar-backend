@@ -47,6 +47,7 @@ module TermElectives
       if list&.sha256 == sha256
         parsed = PdfParser.parse(list.body_text)
         write_courses(list, parsed) unless rows(parsed) == stored_rows(list)
+        list.update_columns(fetched_at: Time.current)
         counts[:unchanged] += 1
         return list.term_id
       end

@@ -14,6 +14,7 @@ module McpTools
       GetCourse,
       ListPrograms,
       GetDegreeRequirements,
+      ListTermElectives,
       SimilarSections,
       CheckSchedule,
       SearchInstructors,

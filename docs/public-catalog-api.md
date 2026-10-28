@@ -49,6 +49,7 @@ The API contains course schedule data only:
 - Terms, subjects, and course sections
 - Degree programs from the academic catalog, with their plans of study and
   elective lists, for each catalog year
+- The elective lists that each school publishes for a term
 - Meeting days, times, buildings, and rooms
 - Instructors, with Rate My Professors scores
 - Final exam times
@@ -218,6 +219,7 @@ message:
 | `GET /api/v1/catalog/terms/current` | The current term. 404 when there is none |
 | `GET /api/v1/catalog/terms/next` | The term after the current term. 404 when there is none |
 | `GET /api/v1/catalog/terms/:uid` | One term by its Banner code, e.g. `202710` |
+| `GET /api/v1/catalog/terms/:uid/electives` | The elective lists that each school publishes for the term |
 | `GET /api/v1/catalog/subjects` | Subjects with section counts |
 | `GET /api/v1/catalog/sections` | Sections, with filters |
 | `GET /api/v1/catalog/sections/:crn` | One section by CRN |
@@ -274,6 +276,18 @@ the courses in `options`, or a `placeholder` such as "Computer Science
 Elective", with the name of the `elective_list` it draws from. The data comes
 from catalog.wit.edu and is refreshed each month. It is the published catalog,
 not a degree audit.
+
+`GET /api/v1/catalog/terms/:uid/electives` returns one item for each elective
+list PDF on the Registrar's "Technical, Major, and HSS Electives" page: the
+`school` (`SCDS`, `HSS`, `SOM`, `ARCH`, or null), the `title`, the `url` of the
+PDF, `fetched_at`, the `courses`, and the full `text` of the PDF. Each course has
+its `code`, its Banner `title`, and the `heading` above it in the PDF, such as
+"Computer Science Elective". The text has the rules that name no course, such
+as "Any 2000-Level courses in BIOE, BIOL, ...". It accepts `school` (one code or
+a comma-separated list), `course` (a code such as `COMP2000`), and `q` (words
+that must all be in the heading). With a filter, each list keeps only the
+matching courses, and a list with no match is left out. The data is refreshed
+each night.
 
 `GET /api/v1/catalog/instructors/:pub_id` also returns the Rate My Professors
 rating distribution, the top tags, and the newest reviews. Add `term_uid` to list

@@ -4,7 +4,8 @@
 # "Spring 2027 School of Computing and Data Science Electives". body_text is
 # the text of the PDF. It keeps the rules that name no course, such as "Any
 # 2000-Level courses in BIOE, BIOL, ...". sha256 is the digest of the PDF,
-# so the import skips a file that did not change.
+# so the import skips a file that did not change. fetched_at is the last
+# time the import read the file, changed or not.
 # == Schema Information
 #
 # Table name: term_elective_lists
@@ -32,7 +33,7 @@
 class TermElectiveList < ApplicationRecord
   belongs_to :term
 
-  has_many :courses, -> { order(:position) }, class_name: "TermElectiveCourse", dependent: :delete_all,
+  has_many :courses, -> { order(:position, :id) }, class_name: "TermElectiveCourse", dependent: :delete_all,
                                                inverse_of: :term_elective_list
 
   validates :url, presence: true, uniqueness: true
