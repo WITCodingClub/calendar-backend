@@ -37,6 +37,17 @@ RSpec.describe Catalog::SeatRefreshJob do
     expect(described_class.terms).to contain_exactly(upcoming)
   end
 
+  it "stops before the next term when Banner starts to cool down" do
+    summer = create(:term, uid: 202730, season: :summer, year: 2027, start_date: Date.new(2027, 5, 4), end_date: Date.new(2027, 8, 10))
+    create(:course, term: summer)
+    remaining = [ nil, 120 ]
+    allow(Catalog::BannerThrottle).to receive(:cooldown_remaining) { remaining.shift }
+
+    described_class.perform_now
+
+    expect(Catalog::SeatRefresh).to have_received(:call).once
+  end
+
   it "skips the run while Banner cools down" do
     allow(Catalog::BannerThrottle).to receive(:cooldown_remaining).and_return(120)
 

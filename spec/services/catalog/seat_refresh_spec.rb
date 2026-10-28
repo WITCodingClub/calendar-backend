@@ -60,6 +60,16 @@ RSpec.describe Catalog::SeatRefresh do
     expect(not_listed.seats_available).to eq(30)
   end
 
+  # Catalog::SectionSync can write newer counts while the search is in flight.
+  it "leaves a section alone that changed during the fetch" do
+    stub_search(file_fixture("leopard_web/search_results_seats.json").read)
+    full.update_column(:updated_at, 1.minute.from_now) # rubocop:disable Rails/SkipsModelValidations
+
+    described_class.call(term)
+
+    expect(full.reload.seats_available).to eq(17)
+  end
+
   # The database checks that seats_available is not more than seats_capacity.
   it "writes neither count when Banner sends only one" do
     stub_search({ totalCount: 1, data: [ { courseReferenceNumber: "20452", maximumEnrollment: nil, seatsAvailable: 0 } ] }.to_json)

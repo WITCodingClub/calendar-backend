@@ -311,12 +311,29 @@ RSpec.describe Catalog::CourseDataSyncJob do
     end
 
     it "syncs a section confirmed before FRESH_FOR" do
-      course.update_column(:banner_synced_at, 13.hours.ago) # rubocop:disable Rails/SkipsModelValidations
+      course.update_column(:banner_synced_at, 4.hours.ago) # rubocop:disable Rails/SkipsModelValidations
       stub_leopard_web([ banner_meeting_time ])
 
       described_class.perform_now(term_uids: [ term.uid ])
 
       expect(Catalog::LeopardWebClient).to have_received(:get_class_details)
+    end
+
+    # A night that stops early must not leave the next night to start over in
+    # the first term.
+    it "syncs the sections confirmed longest ago first, across terms" do
+      spring = create(:term, uid: 202720, season: :spring, year: 2027)
+      never = create(:course, term: spring)
+      course.update_column(:banner_synced_at, 1.day.ago) # rubocop:disable Rails/SkipsModelValidations
+      calls = []
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details) do |term:, course_reference_number:|
+        calls << [ term, course_reference_number ]
+        nil
+      end
+
+      described_class.perform_now(term_uids: [ term.uid, spring.uid ])
+
+      expect(calls).to eq([ [ spring.uid, never.crn ], [ term.uid, course.crn ] ])
     end
 
     it "records the run for the term when every section is already fresh" do

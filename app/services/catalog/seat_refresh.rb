@@ -18,6 +18,7 @@ module Catalog
     # Returns the number of sections whose counts changed, or nil when Banner
     # did not answer.
     def call
+      fetched_at = Time.current
       result = LeopardWebClient.get_course_catalog(term: @term.uid)
       return nil unless result[:success]
 
@@ -30,13 +31,16 @@ module Catalog
       end
 
       now = Time.current
-      Course.transaction do
-        changed.each do |id, attrs|
-          # Only the count columns change, and no callback reads them.
-          Course.where(id: id).update_all(attrs.merge(updated_at: now)) # rubocop:disable Rails/SkipsModelValidations
+      written = Course.transaction do
+        changed.sum do |id, attrs|
+          # Only the count columns change, and no callback reads them. A row
+          # that Catalog::SectionSync wrote during the fetch has newer counts
+          # than this search, so it is left alone.
+          Course.where(id: id, updated_at: ...fetched_at)
+                .update_all(attrs.merge(updated_at: now)) # rubocop:disable Rails/SkipsModelValidations
         end
       end
-      changed.size
+      written
     end
 
     private

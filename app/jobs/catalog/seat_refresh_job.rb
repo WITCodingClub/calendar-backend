@@ -19,11 +19,11 @@ module Catalog
     ADD_DROP = 1.week
 
     def perform
-      # Banner is not answering, and the next run is 30 minutes away. Skip
-      # this run instead of reporting a failure for each term.
-      return if BannerThrottle.cooldown_remaining
-
       self.class.terms.each do |term|
+        # Banner is not answering, and the next run is 30 minutes away. Stop
+        # here instead of reporting a failure for each term that is left.
+        break if BannerThrottle.cooldown_remaining
+
         changed = SeatRefresh.call(term)
         Rails.logger.info "[Catalog::SeatRefreshJob] #{term.name}: #{changed.inspect} sections changed"
       end

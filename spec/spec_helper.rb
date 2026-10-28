@@ -7,7 +7,7 @@ SimpleCov.start "rails" do
 
   # Only the full CI run enforces the floor. A local run of one spec file
   # covers a small part of the app and would always fail it.
-  minimum_coverage line: 86, branch: 72 if ENV["CI"]
+  minimum_coverage line: 87, branch: 73 if ENV["CI"]
 end
 
 RSpec.configure do |config|
