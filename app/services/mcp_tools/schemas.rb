@@ -308,6 +308,8 @@ module McpTools
       end_time:   TIME,
       start_date: DATE_TIME,
       end_date:   DATE_TIME,
+      effective_end_date: DATE,
+      excluded_dates:     array(DATE),
       location:   object(
         building: nullable(object(pub_id: STRING, name: STRING, abbreviation: STRING)),
         rooms:    STRINGS

@@ -3,11 +3,12 @@
 class EnrolledCourseSerializer
   include ApplicationHelper
 
-  def initialize(enrollment, term:, preference_resolver:, template_renderer:)
+  def initialize(enrollment, term:, preference_resolver:, template_renderer:, recurrence:)
     @enrollment = enrollment
     @term = term
     @preference_resolver = preference_resolver
     @template_renderer = template_renderer
+    @recurrence = recurrence
   end
 
   def as_json(*)
@@ -31,7 +32,8 @@ class EnrolledCourseSerializer
                         MeetingTimeSerializer.new(
                           mt,
                           preference_resolver: @preference_resolver,
-                          template_renderer:   @template_renderer
+                          template_renderer:   @template_renderer,
+                          recurrence:          @recurrence
                         ).as_json
                       end
     }

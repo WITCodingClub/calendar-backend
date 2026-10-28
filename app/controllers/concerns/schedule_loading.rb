@@ -84,13 +84,15 @@ module ScheduleLoading
     # schedule looks the same as it does in their own calendar and the extension.
     preference_resolver = Preferences::Resolver.new(user)
     template_renderer   = Preferences::TemplateRenderer.new(user_id: user.id)
+    recurrence          = CourseCalendars::RecurrenceBuilder.preloaded(user, enrollments.map(&:course))
 
     enrollments.map do |enrollment|
       EnrolledCourseSerializer.new(
         enrollment,
         term:                term,
         preference_resolver: preference_resolver,
-        template_renderer:   template_renderer
+        template_renderer:   template_renderer,
+        recurrence:          recurrence
       ).as_json.with_indifferent_access
     end
   end
