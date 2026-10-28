@@ -27,7 +27,7 @@ module Admin
         end
       end
 
-      @users = @users.page(params[:page]).per(25)
+      @users = @users.includes(:course_calendars).page(params[:page]).per(25)
     end
 
     def show
