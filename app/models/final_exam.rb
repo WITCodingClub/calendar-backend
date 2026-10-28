@@ -72,12 +72,20 @@ class FinalExam < ApplicationRecord
   # weeks early: in Fall 2026, 8 Global Research Studio sections had one on
   # Nov 19, and the classes of every course with no final stopped on Nov 18.
   def self.finals_week_start(term_id)
-    counts = where(term_id: term_id).group(:exam_date).count
-    total  = counts.values.sum
-    return nil if total.zero?
+    finals_week_starts([ term_id ])[term_id]
+  end
 
-    busy_dates = counts.select { |_date, count| count >= total * FINALS_WEEK_MIN_SHARE }.keys
-    (busy_dates.presence || counts.keys).min
+  # finals_week_start for each of the terms, from one query. A term with no
+  # exams has no key.
+  def self.finals_week_starts(term_ids)
+    where(term_id: term_ids).group(:term_id, :exam_date).count
+                            .group_by { |(term_id, _date), _count| term_id }
+                            .transform_values do |rows|
+      counts = rows.to_h { |(_term_id, date), count| [ date, count ] }
+      total  = counts.values.sum
+      busy_dates = counts.select { |_date, count| count >= total * FINALS_WEEK_MIN_SHARE }.keys
+      (busy_dates.presence || counts.keys).min
+    end
   end
 
   def self.link_orphan_exams_to_courses(term:)

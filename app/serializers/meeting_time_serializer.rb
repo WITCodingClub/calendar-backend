@@ -3,10 +3,13 @@
 class MeetingTimeSerializer
   include ApplicationHelper
 
-  def initialize(meeting_time, preference_resolver:, template_renderer:)
+  # recurrence is a CourseCalendars::RecurrenceBuilder for the schedule owner.
+  # It gives the same end date and no-class dates that calendar sync uses.
+  def initialize(meeting_time, preference_resolver:, template_renderer:, recurrence:)
     @mt = meeting_time
     @preference_resolver = preference_resolver
     @template_renderer = template_renderer
+    @recurrence = recurrence
   end
 
   def as_json(*)
@@ -33,6 +36,8 @@ class MeetingTimeSerializer
       building_room:       @mt.building_room,
       start_date:          @mt.start_date,
       end_date:            @mt.end_date,
+      effective_end_date:  @recurrence.effective_end_date(@mt).iso8601,
+      excluded_dates:      @recurrence.excluded_dates(@mt).map(&:iso8601),
       location: {
         building: building_json,
         rooms:    @mt.rooms.map(&:formatted_number)
