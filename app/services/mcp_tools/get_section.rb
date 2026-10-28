@@ -25,6 +25,7 @@ module McpTools
                 "hours old in a current or future term, this tool asks WIT Calendar to read Banner again in the " \
                 "background. The answer does not wait for it. #{BANNER_HINT}"
     requires_scope "catalog"
+    meta CatalogApp.tool_meta
     academic_planning :sections
     input_schema(
       properties: {

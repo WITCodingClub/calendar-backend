@@ -14,6 +14,7 @@ module McpTools
                 "prerequisite or a restriction needs an override from the dean's office of the school that " \
                 "offers the course."
     requires_scope "catalog"
+    meta CatalogApp.tool_meta
     academic_planning :course_details, :sections
     input_schema(
       properties: {

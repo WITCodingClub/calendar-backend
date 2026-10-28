@@ -111,7 +111,7 @@ RSpec.describe "Api::Mcp", type: :request do
   end
 
   describe "the MCP Apps extension" do
-    let(:uri) { McpTools::WeekGridApp::URI_VALUE }
+    let(:uri) { McpTools::WeekGridApp.uri }
 
     it "declares the extension at initialize" do
       rpc "initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "spec", version: "1" } }
@@ -120,20 +120,35 @@ RSpec.describe "Api::Mcp", type: :request do
         .to eq("mimeTypes" => [ MCP::Apps::RESOURCE_MIME_TYPE ])
     end
 
-    it "links check_schedule and my_courses to the week grid in tools/list" do
+    it "links each tool with an app to its template in tools/list" do
       rpc "tools/list"
 
       tools = response.parsed_body.dig("result", "tools").index_by { |tool| tool["name"] }
-      expect(tools.dig("check_schedule", "_meta", "ui", "resourceUri")).to eq(uri)
-      expect(tools.dig("my_courses", "_meta", "ui", "resourceUri")).to eq(uri)
+      {
+        "check_schedule"    => McpTools::WeekGridApp,
+        "my_courses"        => McpTools::WeekGridApp,
+        "my_busy_times"     => McpTools::BusyTimesApp,
+        "friend_busy_times" => McpTools::BusyTimesApp,
+        "search_sections"   => McpTools::CatalogApp,
+        "similar_sections"  => McpTools::CatalogApp,
+        "get_section"       => McpTools::CatalogApp,
+        "get_course"        => McpTools::CatalogApp,
+        "get_instructor"    => McpTools::CatalogApp,
+        "my_finals"         => McpTools::FinalsApp
+      }.each do |name, app|
+        expect(tools.dig(name, "_meta", "ui", "resourceUri")).to eq(app.uri), name
+      end
       expect(tools.dig("list_terms", "_meta")).to be_nil
     end
 
-    it "lists the week grid in resources/list" do
+    it "lists every app in resources/list" do
       rpc "resources/list"
 
       expect(response.parsed_body.dig("result", "resources")).to contain_exactly(
-        include("uri" => uri, "name" => "week_grid", "mimeType" => MCP::Apps::RESOURCE_MIME_TYPE)
+        include("uri" => uri, "name" => "week_grid", "mimeType" => MCP::Apps::RESOURCE_MIME_TYPE),
+        include("uri" => McpTools::BusyTimesApp.uri, "name" => "busy_times"),
+        include("uri" => McpTools::CatalogApp.uri, "name" => "catalog"),
+        include("uri" => McpTools::FinalsApp.uri, "name" => "finals")
       )
     end
 
@@ -391,7 +406,7 @@ RSpec.describe "Api::Mcp", type: :request do
 
     it "marks tools/list, prompts/list, resources/list, and resources/read public for 5 minutes" do
       [ [ "tools/list", {} ], [ "prompts/list", {} ], [ "resources/list", {} ],
-        [ "resources/read", { uri: McpTools::WeekGridApp::URI_VALUE } ] ].each do |method, params|
+        [ "resources/read", { uri: McpTools::WeekGridApp.uri } ] ].each do |method, params|
         rpc method, params
 
         expect(response.parsed_body["result"]).to include(hints)

@@ -9,6 +9,7 @@ module McpTools
     description "Lists the times a friend is busy between two dates, with no course details. " \
                 "Use it to find a free time to meet. At most #{BusyBlocks::MAX_DAYS} days."
     requires_scope "friends:read"
+    meta BusyTimesApp.tool_meta
     input_schema(
       properties: {
         friend_id:  { type: "string", description: "The friend id from list_friends." },

@@ -18,6 +18,7 @@ module McpTools
                 "before they ask for a capacity override. A Technical or HSS elective can be missing until its school sends the list: " \
                 "the student asks the dean or associate dean of their school."
     requires_scope "catalog"
+    meta CatalogApp.tool_meta
     academic_planning :sections
     input_schema(
       properties: {

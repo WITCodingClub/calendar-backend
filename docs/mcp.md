@@ -216,6 +216,9 @@ The server supports the MCP Apps extension ([SEP-1865](https://github.com/modelc
 | App | Resource | Tools |
 | --- | --- | --- |
 | Week grid | `ui://wit-calendar/week-grid` | `check_schedule` (conflicts are marked), `my_courses` |
+| Busy times | `ui://wit-calendar/busy-times` | `my_busy_times`, `friend_busy_times` |
+| Catalog | `ui://wit-calendar/catalog` | `search_sections`, `similar_sections`, `get_section`, `get_course`, `get_instructor` |
+| Final exams | `ui://wit-calendar/finals` | `my_finals` |
 
 How it works:
 
@@ -229,13 +232,15 @@ Rules:
 
 - A tool with an app returns the same text and `structuredContent` as before. A client without the extension ignores the `_meta` and reads the normal result. The server is stateless, so it cannot see what the client declared at `initialize`, and it always sends the `_meta`.
 - `resources/list` gives the template to every client. A client without the extension can show it as a resource to attach. The list keeps it, because a host with the extension can read the list to find the template first.
-- The page shows times in the 12-hour format. It shows the advisory of the result (see [Tools](#tools)): the advisor message, and when the section data of the result's term last refreshed. A past term is not in the list of `Catalog::Freshness`, so the page says that its data no longer refreshes.
-- A template is one HTML file in `app/views/mcp_apps/`, with inline CSS and JavaScript. It loads nothing from the network, so the resource declares no CSP domains and the host uses its strictest CSP. `spec/services/mcp_tools/week_grid_app_spec.rb` checks this.
+- The page shows times in the 12-hour format. A page for an academic planning tool shows the advisory of the result (see [Tools](#tools)): the advisor message, and when the section data of the result's term last refreshed. A past term is not in the list of `Catalog::Freshness`, so the page says that its data no longer refreshes.
+- A template is one HTML file in `app/views/mcp_apps/`, with inline CSS and JavaScript. It loads nothing from the network, so the resource declares no CSP domains and the host uses its strictest CSP. `spec/services/mcp_tools/app_resource_spec.rb` checks this for every app.
+- The templates share `app/views/mcp_apps/shared/base.css` (the colors, the type, and the course colors) and `shared/app.js` (the host bridge and the time helpers). A line `/* @include shared/base.css */` or `// @include shared/app.js` in a template becomes the file when `McpTools::AppResource` serves it. A template calls `App.start({ name, render })`.
+- One course has one color in every app: a lecture and its lab (`CHEM 1100-13E`, `CHEM 1100-15E`) match.
 - The page uses the host CSS variables (for example `--color-background-primary`) and has its own `light-dark()` values when the host gives none.
 - Do not put an app behind a Flipper flag. The tool scope is the gate, the same as for the tool.
-- `spec/system/mcp_week_grid_spec.rb` puts the template in an iframe with a fake host, and sends it a real tool result.
+- Each app has a system spec, `spec/system/mcp_<app>_spec.rb`. It puts the template in an iframe with the fake host of `spec/support/mcp_app_host.rb`, and sends it a real tool result.
 
-To add an app: add the HTML file, add an `MCP::Resource` subclass in `app/services/mcp_tools/` (see `McpTools::WeekGridApp`), add it to `McpTools.app_resources`, and call `meta YourApp.tool_meta` in each tool that uses it.
+To add an app: add the HTML file with the two include lines, add a `McpTools::AppResource` subclass in `app/services/mcp_tools/` (see `McpTools::FinalsApp`), add it to `McpTools.app_resources`, call `meta YourApp.tool_meta` in each tool that uses it, and add a system spec.
 
 ## Page links
 
