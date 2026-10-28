@@ -45,6 +45,29 @@ RSpec.describe McpTools::GetSection do
       expect { call(crn: course.crn, term_uid: course.term.uid) }.not_to have_enqueued_job(Catalog::SectionRefreshJob)
     end
 
+    it "does not queue a refresh of a section in a past term, which the nightly sync leaves out" do
+      course.term # the current term
+      past = create(:course, term: create(:term, year: 2020), banner_synced_at: nil)
+
+      expect { call(crn: past.crn, term_uid: past.term.uid) }.not_to have_enqueued_job(Catalog::SectionRefreshJob)
+    end
+
+    it "does not queue a refresh of a cancelled section" do
+      course.update!(banner_synced_at: 37.hours.ago, status: :cancelled)
+
+      expect { call(crn: course.crn, term_uid: course.term.uid) }.not_to have_enqueued_job(Catalog::SectionRefreshJob)
+    end
+
+    it "queues the section again on the next call when the queue failed" do
+      course.update!(banner_synced_at: 37.hours.ago)
+      allow(Rails.error).to receive(:report)
+      allow(Catalog::SectionRefreshJob).to receive(:perform_later).and_raise(StandardError, "queue down")
+      call(crn: course.crn, term_uid: course.term.uid)
+      allow(Catalog::SectionRefreshJob).to receive(:perform_later).and_call_original
+
+      expect { call(crn: course.crn, term_uid: course.term.uid) }.to have_enqueued_job(Catalog::SectionRefreshJob).with([ course.id ])
+    end
+
     it "still answers when the refresh fails, and reports the error" do
       course.update!(banner_synced_at: 37.hours.ago)
       allow(Catalog::SectionRefreshJob).to receive(:perform_later).and_raise(StandardError, "queue down")

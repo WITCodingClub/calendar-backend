@@ -7,7 +7,8 @@ module McpTools
 
     # Banner's own pages need no sign-in. Catalog::BannerThrottle says why the
     # model reads only a few.
-    BANNER_HINT = "When the advisory says the section data is more than 2 days old or has no refresh time, " \
+    BANNER_HINT = "For a current or future term, when the advisory says the section data is more than 2 days old " \
+                  "or has no refresh time, " \
                   "and you can fetch web pages, read Banner itself. " \
                   "Send one GET for each CRN, one at a time, for at most 10 CRNs, because Banner fails after " \
                   "about 40 requests in a minute. The term_uid is the Banner term code. " \
@@ -19,10 +20,10 @@ module McpTools
     title "Get a course section"
     description "Gets one course section by CRN: meeting times, rooms, instructors, seats, the waitlist, and the final exam. " \
                 "It also finds cancelled sections. Not every section has a waitlist: a waitlist capacity of 0 " \
-                "means none. For a full section with a waitlist, the student joins it before they ask for a " \
+                "means none, and null means WIT Calendar does not know yet. For a full section with a waitlist, the student joins it before they ask for a " \
                 "capacity override. When the data is more than #{Courses::Processor::CATALOG_FRESH_FOR.in_hours.to_i} " \
-                "hours old, this tool asks WIT Calendar to read Banner again in the background: call it again " \
-                "after a minute. #{BANNER_HINT}"
+                "hours old in a current or future term, this tool asks WIT Calendar to read Banner again in the " \
+                "background. The answer does not wait for it. #{BANNER_HINT}"
     requires_scope "catalog"
     academic_planning :sections
     input_schema(

@@ -10,7 +10,7 @@ module McpTools
                 "and totals (credits, days, earliest start, latest end, meetings before 9:00). " \
                 "Lecture and lab pairs come from Banner, so trust this over link identifiers. " \
                 "Use it before you suggest a schedule. Sections with data older than " \
-                "#{Courses::Processor::CATALOG_FRESH_FOR.in_hours.to_i} hours get a Banner refresh in the background. " \
+                "#{Courses::Processor::CATALOG_FRESH_FOR.in_hours.to_i} hours in a current or future term get a Banner refresh in the background. " \
                 "To read Banner itself, see get_section. A schedule with a time conflict needs a time conflict " \
                 "override from the dean's office of the school that offers the course: give the minutes of overlap."
     requires_scope "catalog"

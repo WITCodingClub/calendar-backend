@@ -233,8 +233,9 @@ module McpTools
 
     # The most sections that one call sends to Banner again.
     REFRESH_LIMIT = 30
-    # A section that one call queued is not queued again for this long.
-    REFRESH_QUEUED_FOR = 15.minutes
+    # A section that one call queued is not queued again for this long, also
+    # when Banner gave nothing and banner_synced_at did not move.
+    REFRESH_QUEUED_FOR = Courses::Processor::REFRESH_AFTER
 
     # Sections whose Banner data is older than
     # Courses::Processor::CATALOG_FRESH_FOR, so the nightly sync missed them,
@@ -242,15 +243,31 @@ module McpTools
     # need no refresh here: Catalog::SeatRefreshJob writes them every 30
     # minutes during registration, and it does not move banner_synced_at. The
     # answer does not wait. A refresh is extra, so a fault is reported, not raised.
+    #
+    # Only the terms that the nightly sync reads (Catalog::CourseDataSyncJob):
+    # a past term is not synced on purpose, and cancelled sections are left out.
     def refresh_stale_sections(term_uid, crns)
-      ids = Course.joins(:term).where(terms: { uid: term_uid }, crn: crns)
+      return unless synced_term_uids.include?(term_uid.to_i)
+
+      ids = Course.joins(:term).where(terms: { uid: term_uid }, crn: crns).where.not(status: :cancelled)
                   .where("courses.banner_synced_at IS NULL OR courses.banner_synced_at < ?", Courses::Processor::CATALOG_FRESH_FOR.ago)
                   .limit(REFRESH_LIMIT).pluck(:id)
-      ids = ids.select { |id| Rails.cache.write("mcp/section_refresh/#{id}", true, expires_in: REFRESH_QUEUED_FOR, unless_exist: true) }
-      Catalog::SectionRefreshJob.perform_later(ids) if ids.any?
+      ids = ids.select { |id| Rails.cache.write(refresh_key(id), true, expires_in: REFRESH_QUEUED_FOR, unless_exist: true) }
+      return if ids.empty?
+
+      begin
+        Catalog::SectionRefreshJob.perform_later(ids)
+      rescue StandardError
+        ids.each { |id| Rails.cache.delete(refresh_key(id)) }
+        raise
+      end
     rescue StandardError => e
       Rails.error.report(e, handled: true, context: { user_id: user&.id })
     end
+
+    def synced_term_uids = (Term.active.pluck(:uid) + Term.current_and_future.pluck(:uid)).uniq
+
+    def refresh_key(id) = "mcp/section_refresh/#{id}"
 
     # A meeting time of a course the user takes, by the id from my_courses.
     def find_my_meeting_time(id)
