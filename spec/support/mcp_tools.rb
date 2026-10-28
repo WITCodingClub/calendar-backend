@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+# The mcp gem defines MCP::ServerContext only when it loads MCP::Server. A
+# spec that runs before anything loads the server needs it here.
+require "mcp/server"
+
 # The server_context that McpTools::Server gives a tool. A token has every
 # scope unless an example passes fewer.
 module McpToolHelpers
