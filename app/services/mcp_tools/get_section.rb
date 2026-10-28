@@ -5,7 +5,7 @@ module McpTools
   class GetSection < BaseTool
     tool_name "get_section"
     title "Get a course section"
-    description "Gets one course section by CRN: meeting times, rooms, instructors, seats, and the final exam. " \
+    description "Gets one course section by CRN: meeting times, rooms, instructors, seats, the waitlist, and the final exam. " \
                 "It also finds cancelled sections."
     requires_scope "catalog"
     academic_planning :sections

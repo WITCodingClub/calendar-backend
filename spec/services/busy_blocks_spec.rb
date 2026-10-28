@@ -180,6 +180,40 @@ RSpec.describe BusyBlocks do
     end
   end
 
+  describe ".for_users" do
+    let(:zone)  { Time.zone }
+    let(:other) { create(:user) }
+
+    def blocks_for(users)
+      described_class.for_users(users, from: monday, to: sunday)
+                     .transform_values { |list| list.map { |b| [ b.date.iso8601, b.start, b.end ] } }
+    end
+
+    it "gives each user the same blocks that .new(user).call gives" do
+      enroll(day_of_week: :monday, begin_time: 900, end_time: 1015)
+      course = create(:course, term: term)
+      create(:final_exam, term: term, course: course, exam_date: Date.new(2026, 10, 9), start_time: 800, end_time: 1000)
+      create(:enrollment, user: other, course: course)
+      meeting = create(:friend_meeting, :invite_friends, user: user, start_time: zone.local(2026, 10, 7, 12),
+                                                         end_time: zone.local(2026, 10, 7, 13))
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: other)
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: create(:user))
+
+      expect(blocks_for([ user, other ])).to eq(
+        user  => [ [ "2026-10-05", "09:00", "10:15" ], [ "2026-10-07", "12:00", "13:00" ] ],
+        other => [ [ "2026-10-07", "12:00", "13:00" ], [ "2026-10-09", "08:00", "10:00" ] ]
+      )
+      expect(blocks).to eq(blocks_for([ user, other ])[user])
+    end
+
+    it "gives no block to an invitee of a meeting that does not invite friends" do
+      meeting = create(:friend_meeting, user: user, start_time: zone.local(2026, 10, 7, 12), end_time: zone.local(2026, 10, 7, 13))
+      create(:friend_meeting_attendee, friend_meeting: meeting, user: other)
+
+      expect(blocks_for([ user, other ])[other]).to eq([])
+    end
+  end
+
   describe ".sources" do
     it "includes the busy time of a source that is added to the list" do
       extra = Class.new do

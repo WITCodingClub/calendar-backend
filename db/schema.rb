@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -378,6 +378,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
     t.vector "embedding", limit: 1536
     t.string "embedding_digest", limit: 64
     t.datetime "banner_synced_at"
+    t.integer "waitlist_capacity"
+    t.integer "waitlist_available"
     t.index "((course_number)::text) gin_trgm_ops", name: "index_courses_on_course_number_text_trgm", using: :gin
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
     t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
@@ -575,8 +577,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
     t.bigint "friendship_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "status", default: "active", null: false
     t.index ["friend_group_id", "friendship_id"], name: "index_friend_group_memberships_on_group_and_friendship", unique: true
     t.index ["friendship_id"], name: "index_friend_group_memberships_on_friendship_id"
+  end
+
+  create_table "friend_group_opt_outs", force: :cascade do |t|
+    t.bigint "friend_group_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["friend_group_id", "user_id"], name: "index_friend_group_opt_outs_on_friend_group_id_and_user_id", unique: true
+    t.index ["user_id"], name: "index_friend_group_opt_outs_on_user_id"
   end
 
   create_table "friend_groups", force: :cascade do |t|
@@ -585,6 +597,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "expires_at"
+    t.boolean "shared", default: false, null: false
+    t.string "color"
     t.index "user_id, lower((name)::text)", name: "index_friend_groups_on_user_id_and_lower_name", unique: true
     t.index ["expires_at"], name: "index_friend_groups_on_expires_at", where: "(expires_at IS NOT NULL)"
   end
@@ -1277,6 +1291,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
     t.index ["term_id"], name: "index_university_calendar_events_on_term_id"
   end
 
+  create_table "user_backfills", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.datetime "completed_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "name"], name: "index_user_backfills_on_user_id_and_name", unique: true
+  end
+
   create_table "user_extension_configs", force: :cascade do |t|
     t.boolean "advanced_editing", default: false, null: false
     t.datetime "created_at", null: false
@@ -1402,6 +1425,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
   add_foreign_key "finals_schedules", "users", column: "uploaded_by_id"
   add_foreign_key "friend_group_memberships", "friend_groups", on_delete: :cascade
   add_foreign_key "friend_group_memberships", "friendships", on_delete: :cascade
+  add_foreign_key "friend_group_opt_outs", "friend_groups", on_delete: :cascade
+  add_foreign_key "friend_group_opt_outs", "users", on_delete: :cascade
   add_foreign_key "friend_groups", "users", on_delete: :cascade
   add_foreign_key "friend_meeting_attendees", "friend_meetings"
   add_foreign_key "friend_meeting_attendees", "users"
@@ -1455,6 +1480,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_110100) do
   add_foreign_key "term_processing_statuses", "terms"
   add_foreign_key "term_processing_statuses", "users"
   add_foreign_key "university_calendar_events", "terms"
+  add_foreign_key "user_backfills", "users", on_delete: :cascade
   add_foreign_key "user_extension_configs", "users"
   add_foreign_key "user_sessions", "passkeys"
   add_foreign_key "user_sessions", "users"

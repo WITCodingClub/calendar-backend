@@ -14,14 +14,16 @@ module Catalog
     # skips callbacks, so the cache has only a TTL.
     CACHE_TTL = 10.minutes
 
-    # The daily run is course_data_sync in config/recurring.yml, and the
-    # weekly one is university_calendar_sync.
+    # The daily run is course_data_sync in config/recurring.yml, the seat
+    # refresh is catalog_seat_refresh, the weekly one is university_calendar_sync,
+    # and the monthly one is degree_requirements_current_year.
     SOURCES = {
       sections:            {
         data:     "Course sections: meeting times, rooms, instructors, and seats",
         source:   "Wentworth Banner class schedule (LeopardWeb)",
         schedule: "Every day at 4 AM Eastern, for the current and future terms. A past term is not refreshed " \
-                  "after it ends."
+                  "after it ends. Seats also every 30 minutes, from the time a term's sections are listed until " \
+                  "#{SeatRefreshJob::ADD_DROP.in_days.to_i} days after its classes start."
       },
       course_details:      {
         data:     "Course descriptions, credits, prerequisites, corequisites, and restrictions",
@@ -39,6 +41,12 @@ module Catalog
         data:     "Holidays, term dates, registration, deadlines, and finals week",
         source:   "Wentworth academic calendar (25Live)",
         schedule: "Every Saturday at 2 AM Eastern."
+      },
+      degree_requirements: {
+        data:     "Degree programs, plans of study, and elective lists for each catalog year",
+        source:   "Wentworth academic catalog (catalog.wit.edu)",
+        schedule: "On the 2nd of each month at 3 AM Eastern, for the current catalog year and the year before. " \
+                  "Older catalog years do not change."
       }
     }.freeze
 
@@ -71,7 +79,8 @@ module Catalog
             finals:         finals[term.id]&.iso8601
           }
         end,
-        university_calendar: UniversityCalendarEvent.maximum(:last_fetched_at)&.iso8601
+        university_calendar: UniversityCalendarEvent.maximum(:last_fetched_at)&.iso8601,
+        degree_requirements: CatalogYear.maximum(:imported_at)&.iso8601
       }
     end
   end

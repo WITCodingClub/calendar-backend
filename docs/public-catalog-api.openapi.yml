@@ -50,6 +50,8 @@ tags:
     description: Rate My Professors reviews of WIT instructors
   - name: courses
     description: Courses across terms, with Banner's description and prerequisites
+  - name: programs
+    description: Degree programs from the academic catalog, for each catalog year
 
 paths:
   /api/v1/catalog/terms:
@@ -627,6 +629,89 @@ paths:
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
+  /api/v1/catalog/programs:
+    get:
+      tags: [programs]
+      operationId: listPrograms
+      summary: List the degree programs of one catalog year
+      parameters:
+        - $ref: "#/components/parameters/CatalogYear"
+        - name: kind
+          in: query
+          description: Only programs of these kinds, comma-separated.
+          schema:
+            type: string
+            examples: ["bachelor,minor"]
+        - name: level
+          in: query
+          description: Only programs of these levels, comma-separated (undergraduate, graduate).
+          schema:
+            type: string
+            examples: ["undergraduate"]
+        - name: q
+          in: query
+          description: Words in the program name.
+          schema: { type: string }
+      responses:
+        "200":
+          description: The programs, by name
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProgramSummary" }
+                  meta:
+                    type: object
+                    required: [count, catalog_year, catalog_years]
+                    properties:
+                      count: { type: integer }
+                      catalog_year: { type: string, examples: ["2024-2025"] }
+                      catalog_years:
+                        description: The catalog years the API has, newest first.
+                        type: array
+                        items: { type: string }
+        "400": { $ref: "#/components/responses/InvalidFilter" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/programs/{slug}:
+    get:
+      tags: [programs]
+      operationId: getProgram
+      summary: Get one program with its plans of study and elective lists
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: The program slug from the list, such as computer-science-bs, or the exact program name.
+          schema: { type: string }
+        - $ref: "#/components/parameters/CatalogYear"
+      responses:
+        "200":
+          description: The program in that catalog year
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Program" }
+        "400": { $ref: "#/components/responses/InvalidFilter" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
   /api/v1/catalog/reviews:
     get:
       tags: [reviews]
@@ -696,6 +781,14 @@ paths:
 
 components:
   parameters:
+    CatalogYear:
+      name: catalog_year
+      in: query
+      description: >-
+        The catalog year, such as 2024-2025, 2024-25, or 2024 (the first year). A term name such as
+        "Spring 2024" gives the catalog year of that term; a catalog year starts in the fall, so Spring 2024
+        is in 2023-2024. Leave it out for the newest catalog year.
+      schema: { type: string, examples: ["2024-2025"] }
     SimilarLimit:
       name: limit
       in: query
@@ -829,7 +922,13 @@ components:
         status: { type: string, enum: [active, cancelled] }
         seats:
           type: object
-          description: From Banner, refreshed every night. Up to a day old. Not a real-time seat count.
+          description: From Banner, refreshed every night, and every 30 minutes from the time a term's sections are listed until 7 days after its classes start. Not a real-time seat count.
+          properties:
+            capacity: { type: [integer, "null"] }
+            available: { type: [integer, "null"] }
+        waitlist:
+          type: object
+          description: The waitlist places and the places still open, from the same Banner data and jobs as seats. A section with no waitlist has a capacity of 0.
           properties:
             capacity: { type: [integer, "null"] }
             available: { type: [integer, "null"] }
@@ -969,6 +1068,102 @@ components:
             sections:
               type: array
               items: { $ref: "#/components/schemas/Section" }
+
+    ProgramSummary:
+      type: object
+      required: [slug, name, kind, level, catalog_year]
+      properties:
+        slug: { type: string, examples: ["computer-science-bs"] }
+        name: { type: string, examples: ["Computer Science, B.S."] }
+        kind:
+          type: string
+          enum: [associate, bachelor, master, minor, concentration, certificate, exploratory]
+        level: { type: string, enum: [undergraduate, graduate] }
+        school: { type: [string, "null"] }
+        department: { type: [string, "null"] }
+        catalog_year: { type: string, examples: ["2024-2025"] }
+        total_credits: { type: [integer, "null"] }
+        parent_program:
+          description: The slug of the major a concentration belongs to.
+          type: [string, "null"]
+        catalog_url: { type: [string, "null"], format: uri }
+        listed:
+          description: >-
+            False for a program that the newest import of its catalog year no longer found. The list leaves
+            these out. The program endpoint still returns them.
+          type: boolean
+
+    ProgramCourse:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, examples: ["COMP 2350"] }
+        title: { type: [string, "null"] }
+
+    Program:
+      allOf:
+        - $ref: "#/components/schemas/ProgramSummary"
+        - type: object
+          properties:
+            description: { type: [string, "null"] }
+            needs_review:
+              description: True for a program read from a PDF catalog that no person has checked yet.
+              type: boolean
+            source: { type: string, enum: [html, wayback, pdf] }
+            plans:
+              type: array
+              items:
+                type: object
+                properties:
+                  name: { type: string, examples: ["Four Year Program"] }
+                  years: { type: integer }
+                  accelerated: { type: boolean }
+                  total_credits: { type: [integer, "null"] }
+                  terms:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        year: { type: integer, description: "The year of the plan, from 1." }
+                        season: { type: string, enum: [fall, spring, summer] }
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              kind: { type: string, enum: [course, choice, placeholder] }
+                              code: { type: [string, "null"] }
+                              title: { type: [string, "null"] }
+                              min_credits: { type: [integer, "null"] }
+                              max_credits: { type: [integer, "null"] }
+                              footnote: { type: [string, "null"] }
+                              options:
+                                type: array
+                                items: { $ref: "#/components/schemas/ProgramCourse" }
+                              elective_list:
+                                description: The name of the elective list a placeholder draws from.
+                                type: [string, "null"]
+            elective_lists:
+              type: array
+              items:
+                type: object
+                properties:
+                  name: { type: string }
+                  heading: { type: [string, "null"] }
+                  plan:
+                    description: The plan the list is printed under, or null for the whole program.
+                    type: [string, "null"]
+                  min_courses: { type: [integer, "null"] }
+                  min_credits: { type: [integer, "null"] }
+                  notes: { type: [string, "null"] }
+                  courses:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: "#/components/schemas/ProgramCourse"
+                        - type: object
+                          properties:
+                            requires_approval: { type: boolean }
 
     InstructorDetail:
       allOf:

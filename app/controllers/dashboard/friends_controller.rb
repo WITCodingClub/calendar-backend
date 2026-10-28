@@ -99,6 +99,8 @@ module Dashboard
       return unless @groups_enabled
 
       @groups = policy_scope(FriendGroup).includes(:user, memberships: { friendship: %i[requester addressee] }).order(:name)
+      @shared_groups = policy_scope(FriendGroup, policy_scope_class: FriendGroupPolicy::SharedScope)
+                       .includes(:user, memberships: { friendship: %i[requester addressee] }).order(:name, :id)
       @groups_by_friend = FriendGroup.by_friend_id_for(current_user)
     end
 

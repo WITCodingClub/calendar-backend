@@ -9,7 +9,7 @@ module Courses
       @user = user
       @term = term
       @preference_resolver = Preferences::Resolver.new(user)
-      @template_renderer = Preferences::TemplateRenderer.new
+      @template_renderer = Preferences::TemplateRenderer.new(user_id: user.id)
     end
 
     def build

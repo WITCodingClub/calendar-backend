@@ -76,6 +76,10 @@ module Calendar
 
     config.exceptions_app = self.routes
 
+    # No attachment uses image variants, and the image_processing gem is not
+    # installed. Without this, every boot prints a warning about the gem.
+    config.active_storage.variant_processor = :disabled
+
     config.generators do |g|
       g.test_framework :rspec, fixtures: true, view_specs: false, helper_specs: false, routing_specs: false
       g.fixture_replacement :factory_bot, dir: "spec/factories"

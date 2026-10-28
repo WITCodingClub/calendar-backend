@@ -55,6 +55,30 @@ flowchart TD
 - A CRN must belong to a course the user is enrolled in. Other CRNs come back in `unknown_crns`, and the extension processes that term first. The stored outcome of an unknown CRN in the request does not change, because its enrollment can be missing for a short time.
 - An outcome names its course by term code and CRN, not by course id. `Courses::Reprocessor` deletes and creates enrollments, and `rake catalog:refresh` deletes and imports the courses of a term again. The outcome stays through both.
 
+## One-time backfills
+
+Some students processed their current term before the extension read past terms or academic data. The extension runs each missing part one time for them (WITCodingClub/calendar-extension#215), and the backend keeps the record of each run in `UserBackfill`.
+
+| Name | The run |
+|---|---|
+| `past_terms` | Process every past LeopardWeb term |
+| `academic_data` | Send the academic profile and the course outcomes |
+
+- `GET /api/user/backfills` returns each name with `completed` and `completed_at`.
+- `PUT /api/user/backfills/:name` marks the run done and returns the same body. Call it only after the run finishes, so a failed run starts again on the next panel load.
+- The backend does not know if a run was ever needed. A new student starts with every run not completed, so the extension marks each run done after its first full sync too.
+- An unknown name answers 404. Add a new run to `UserBackfill::NAMES`. To run a finished backfill again for every student, add a new name (for example `past_terms_v2`).
+
+```mermaid
+sequenceDiagram
+  participant E as Extension
+  participant B as Backend
+  E->>B: GET /api/user/backfills
+  B-->>E: past_terms.completed = false
+  E->>E: process past terms
+  E->>B: PUT /api/user/backfills/past_terms
+```
+
 ## Links to the degree catalog
 
 `AcademicProfiles::ProgramMatcher` links each `StudentProgram` to a `DegreeProgram` and a `CatalogYear` (`docs/degree-requirements.md`). `AcademicProfiles::Sync` runs it for each payload.

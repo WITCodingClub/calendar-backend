@@ -26,6 +26,10 @@ scope "user", as: :user do
   put "academic_profile", to: "academic_profiles#update"
   put "course_outcomes",  to: "course_outcomes#update"
 
+  # One-time catch-up runs the extension marks done (calendar-extension#215)
+  get "backfills",       to: "backfills#index"
+  put "backfills/:name", to: "backfills#update"
+
   # Passkeys: a quick second sign-in for an account Google already vouched
   # for. The two authentication routes are the only unauthenticated ones.
   get    "passkeys",                        to: "passkeys#index"

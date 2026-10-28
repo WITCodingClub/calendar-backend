@@ -104,7 +104,9 @@ module DegreeRequirements
       set = RequirementSet.find_or_initialize_by(degree_program: program, catalog_year: @catalog_year)
       now = Time.current
       if set.persisted? && set.source_digest == page.digest
-        set.update_columns(last_seen_at: now)
+        # The path moves from the site root to /previous-catalogs/ when the
+        # current year goes to the archive, and the page itself stays the same.
+        set.update_columns(last_seen_at: now, path: entry.path)
         @stats[:unchanged] += 1
         return program
       end

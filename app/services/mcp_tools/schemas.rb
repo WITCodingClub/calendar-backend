@@ -161,6 +161,7 @@ module McpTools
       grade_mode:         nullable(STRING),
       status:             { type: "string", enum: %w[active cancelled] },
       seats:              object(capacity: nullable(INTEGER), available: nullable(INTEGER)),
+      waitlist:           object(capacity: nullable(INTEGER), available: nullable(INTEGER)),
       linked:             LINKED,
       start_date:         DATE,
       end_date:           DATE,
@@ -203,6 +204,71 @@ module McpTools
       sections:           array(SECTION)
     ).freeze
     COURSE = object(COURSE_PROPERTIES, optional: %i[sections]).freeze
+
+    # Catalog::ProgramSerializer.summary.
+    PROGRAM_SUMMARY_PROPERTIES = {
+      slug:           STRING,
+      name:           STRING,
+      kind:           { type: "string", enum: DegreeProgram::KINDS.values },
+      level:          { type: "string", enum: DegreeProgram::LEVELS.values },
+      school:         nullable(STRING),
+      department:     nullable(STRING),
+      catalog_year:   STRING,
+      total_credits:  nullable(INTEGER),
+      parent_program: nullable(STRING),
+      catalog_url:    nullable(STRING),
+      listed:         BOOLEAN
+    }.freeze
+    PROGRAM_SUMMARY = object(PROGRAM_SUMMARY_PROPERTIES).freeze
+
+    # A course that a program names, with the title of that catalog year.
+    PROGRAM_COURSE = object(code: STRING, title: nullable(STRING)).freeze
+
+    # Catalog::ProgramSerializer.
+    PROGRAM = object(
+      PROGRAM_SUMMARY_PROPERTIES.merge(
+        description:    nullable(STRING),
+        needs_review:   BOOLEAN,
+        source:         STRING,
+        plans:          array(
+          object(
+            name:          STRING,
+            years:         INTEGER,
+            accelerated:   BOOLEAN,
+            total_credits: nullable(INTEGER),
+            terms:         array(
+              object(
+                year:   INTEGER,
+                season: STRING,
+                items:  array(
+                  object(
+                    kind:          { type: "string", enum: ProgramPlanItem::KINDS.values },
+                    code:          nullable(STRING),
+                    title:         nullable(STRING),
+                    min_credits:   nullable(INTEGER),
+                    max_credits:   nullable(INTEGER),
+                    footnote:      nullable(STRING),
+                    options:       array(PROGRAM_COURSE),
+                    elective_list: nullable(STRING)
+                  )
+                )
+              )
+            )
+          )
+        ),
+        elective_lists: array(
+          object(
+            name:        STRING,
+            heading:     nullable(STRING),
+            plan:        nullable(STRING),
+            min_courses: nullable(INTEGER),
+            min_credits: nullable(INTEGER),
+            notes:       nullable(STRING),
+            courses:     array(object(code: STRING, title: nullable(STRING), requires_approval: BOOLEAN))
+          )
+        )
+      )
+    ).freeze
 
     # Catalog::ReviewSerializer. get_instructor leaves out instructor.
     REVIEW_PROPERTIES = {

@@ -2,7 +2,9 @@
 
 module Api
   module Friends
-    # Named groups of friends. A group is private to its owner.
+    # Named groups of friends that the user owns. A group is private to its
+    # owner until the owner sets "shared": true. Then its members see it, read
+    # only, through SharedGroupsController. docs/friend-groups.md has the API.
     #
     # Every action answers 404 while the friend_groups flag is off for the user.
     # Groups use public ids ("fgr_..."). Members are friends, named by their user
@@ -12,13 +14,16 @@ module Api
     # rule (Friendships::ExpiryTime): a date means the end of that day in
     # America/New_York. When it passes, the group is removed. The friendships
     # stay. null means the group does not end.
+    #
+    # "color" is a "#rrggbb" hex string or null. "shared" is true or false.
     class GroupsController < Api::BaseController
       # An update must change at least one of these.
-      UPDATE_KEYS = %i[name member_ids expires_at].freeze
+      UPDATE_KEYS = %i[name member_ids expires_at shared color].freeze
 
       authenticate_with_token
 
-      before_action :require_friend_groups
+      include Api::FriendGroupsFlag
+
       before_action :set_group, except: %i[index create]
 
       rescue_from FriendGroup::UnknownFriends, with: :render_unknown_friends
@@ -40,9 +45,10 @@ module Api
       end
 
       # POST /api/friends/groups
-      #   { "name": "Study group", "member_ids": ["usr_..."], "expires_at": "2026-12-01" }
+      #   { "name": "Study group", "member_ids": ["usr_..."], "expires_at": "2026-12-01",
+      #     "shared": true, "color": "#33b679" }
       #
-      # member_ids and expires_at are optional. The group and its members save in
+      # Only name is required. The group and its members save in
       # one transaction.
       def create
         group = current_user.friend_groups.new
@@ -53,9 +59,10 @@ module Api
       end
 
       # PATCH /api/friends/groups/:group_id
-      #   { "name": "Roommates", "member_ids": ["usr_..."], "expires_at": null }
+      #   { "name": "Roommates", "member_ids": ["usr_..."], "expires_at": null,
+      #     "shared": false, "color": null }
       #
-      # name, member_ids, and expires_at are all optional, but one must be there.
+      # Each key is optional, but one must be there.
       # When member_ids is there, it REPLACES the members. If any id is not an
       # accepted friend, the answer is 422 and nothing changes.
       def update
@@ -103,14 +110,22 @@ module Api
 
       private
 
-      # The name and the end date, for each key the request has. An end date that
-      # does not follow the expiry rule is a bad request. A date in the past
-      # fails validation and answers 422.
+      # The name, end date, shared flag, and color, for each key the request
+      # has. An end date that does not follow the expiry rule, or a shared value
+      # that is not true or false, is a bad request. A date in the past, or a
+      # color that is not "#rrggbb", fails validation and answers 422.
       def group_attributes
         attributes = params.key?(:name) ? { name: params[:name] } : {}
-        return attributes unless params.key?(:expires_at)
+        attributes[:expires_at] = parse_group_expires_at if params.key?(:expires_at)
+        attributes[:shared] = parse_shared if params.key?(:shared)
+        attributes[:color] = params[:color] if params.key?(:color)
+        attributes
+      end
 
-        attributes.merge(expires_at: parse_group_expires_at)
+      def parse_shared
+        return params[:shared] if [ true, false ].include?(params[:shared])
+
+        raise ActionController::BadRequest, "shared must be true or false"
       end
 
       def parse_group_expires_at
@@ -137,12 +152,6 @@ module Api
         render_error "Friend not found: #{error.ids.join(', ')}",
                      status: :unprocessable_content,
                      invalid_member_ids: error.ids
-      end
-
-      def require_friend_groups
-        return if FriendGroup.enabled_for?(current_user)
-
-        render_error "Friend groups are not enabled", status: :not_found
       end
 
       # Scoping to the user's own groups is the access check: another user's

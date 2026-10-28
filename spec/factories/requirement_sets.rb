@@ -38,6 +38,12 @@ FactoryBot.define do
     name { degree_program.name }
     school_name { "School of #{Faker::Educator.subject}" }
     total_credits { 120 }
+    last_seen_at { Time.current }
+
+    # A program that the last import of its year did not find.
+    trait :unlisted do
+      last_seen_at { 1.year.ago }
+    end
 
     trait :from_pdf do
       source { "pdf" }

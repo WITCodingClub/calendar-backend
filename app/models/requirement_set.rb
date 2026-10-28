@@ -57,4 +57,25 @@ class RequirementSet < ApplicationRecord
   def standard_plan
     program_plans.where(accelerated: false).first || program_plans.first
   end
+
+  # The last import of a catalog year saw every set whose last_seen_at is
+  # after this time. A set seen before it is of a program that left the
+  # catalog. The same window as DegreeRequirements::Importer#check_shrink!.
+  def self.listed_since(catalog_year)
+    catalog_year.imported_at - 1.day
+  end
+
+  def listed?
+    catalog_year.imported_at.nil? || (last_seen_at.present? && last_seen_at >= self.class.listed_since(catalog_year))
+  end
+
+  # The program page this set came from. A set from the Wayback Machine
+  # links to the capture, because the catalog site has no copy of that year.
+  def catalog_url
+    return nil if path.blank?
+
+    url = "#{DegreeRequirements::SITE_URL}#{path}"
+    timestamp = DegreeRequirements::WAYBACK_TIMESTAMPS[catalog_year.start_year]
+    source_wayback? && timestamp ? "https://web.archive.org/web/#{timestamp}/#{url}" : url
+  end
 end

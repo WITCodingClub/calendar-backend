@@ -38,7 +38,7 @@ module CourseCalendars
 
     def calendar
       @preference_resolver = Preferences::Resolver.new(@user)
-      @template_renderer   = Preferences::TemplateRenderer.new
+      @template_renderer   = Preferences::TemplateRenderer.new(user_id: @user.id)
       @holidays            = Holidays.new(@courses)
       @recurrence_end      = RecurrenceEnd.new(@courses)
 

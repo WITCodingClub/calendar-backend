@@ -82,4 +82,38 @@ RSpec.describe RequirementSet do
     expect { subject.destroy }.to change(ProgramPlanItem, :count).by(-1)
       .and change(ElectiveGroupCourse, :count).by(-1)
   end
+
+  describe "#listed?" do
+    let(:catalog_year) { create(:catalog_year, :imported) }
+
+    it "is true for a set the last import saw, and false for an older one" do
+      expect(create(:requirement_set, catalog_year: catalog_year)).to be_listed
+      expect(create(:requirement_set, :unlisted, catalog_year: catalog_year)).not_to be_listed
+      expect(create(:requirement_set, catalog_year: catalog_year, last_seen_at: nil)).not_to be_listed
+    end
+
+    it "is true in a year that has no finished import" do
+      expect(create(:requirement_set, :unlisted, catalog_year: create(:catalog_year))).to be_listed
+    end
+  end
+
+  describe "#catalog_url" do
+    it "links to the catalog site" do
+      set = build(:requirement_set, path: "/previous-catalogs/2024-2025/widgetry/widget-design-bs/")
+
+      expect(set.catalog_url).to eq("https://catalog.wit.edu/previous-catalogs/2024-2025/widgetry/widget-design-bs/")
+    end
+
+    it "links to the Wayback capture for a year read from the Wayback Machine" do
+      set = build(:requirement_set, source: "wayback", path: "/widgetry/widget-design-bs/",
+                                    catalog_year: build(:catalog_year, start_year: 2025))
+
+      expect(set.catalog_url)
+        .to eq("https://web.archive.org/web/20260301000000/https://catalog.wit.edu/widgetry/widget-design-bs/")
+    end
+
+    it "is nil with no path" do
+      expect(build(:requirement_set, path: nil).catalog_url).to be_nil
+    end
+  end
 end

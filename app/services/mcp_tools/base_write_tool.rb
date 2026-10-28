@@ -41,7 +41,8 @@ module McpTools
     NOT_CHANGED_MESSAGE = "Nothing changed. The student did not confirm the change. Do not call the tool again " \
                           "unless the student asks for the change again."
 
-    TEMPLATE_HINT = "Liquid variables: #{Preferences::TemplateRenderer::ALLOWED_VARIABLES.map { |v| "{{#{v}}}" }.join(', ')}."
+    TEMPLATE_HINT = "Liquid variables: #{Preferences::TemplateRenderer::ALLOWED_VARIABLES.map { |v| "{{#{v}}}" }.join(', ')}. " \
+                    "Tags: only {% if %} and {% unless %}, with elsif and else."
 
     SETTING_PROPERTIES = {
       title_template:       { type: "string", maxLength: 500, description: "The event title. #{TEMPLATE_HINT}" },

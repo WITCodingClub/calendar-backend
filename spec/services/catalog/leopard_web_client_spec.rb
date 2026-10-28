@@ -217,12 +217,13 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       allow(connection).to receive(:get) { wait_for_all.call(:details, nil) }
       allow(service).to receive(:get_faculty_meeting_times) { wait_for_all.call(:fmt, nil) }
       allow(service).to receive(:get_enrollment_info) do
-        wait_for_all.call(:enrollment, { enrollment: { seats_available: 4, maximum: 30 } })
+        wait_for_all.call(:enrollment, { enrollment: { seats_available: 4, maximum: 30 }, waitlist: { capacity: 5, seats_available: 2 } })
       end
 
       details = service.call
 
-      expect(details).to include(title: "Calculus 2A", seats_available: 4, seats_capacity: 30)
+      expect(details).to include(title: "Calculus 2A", seats_available: 4, seats_capacity: 30,
+                                 waitlist_capacity: 5, waitlist_available: 2)
     end
 
     it "still raises a meeting times failure for a section that exists" do

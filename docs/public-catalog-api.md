@@ -47,6 +47,8 @@ flowchart LR
 The API contains course schedule data only:
 
 - Terms, subjects, and course sections
+- Degree programs from the academic catalog, with their plans of study and
+  elective lists, for each catalog year
 - Meeting days, times, buildings, and rooms
 - Instructors, with Rate My Professors scores
 - Final exam times
@@ -227,6 +229,8 @@ message:
 | `GET /api/v1/catalog/courses` | Courses (not sections), by code or title words |
 | `GET /api/v1/catalog/courses/:code` | One course: description, prerequisites, corequisites, restrictions, what it unlocks |
 | `GET /api/v1/catalog/schedule_check` | Check a set of sections taken together |
+| `GET /api/v1/catalog/programs` | Degree programs of one catalog year |
+| `GET /api/v1/catalog/programs/:slug` | One program: its plans of study and elective lists |
 
 `GET /api/v1/catalog/subjects` accepts `term_uid`.
 
@@ -253,6 +257,23 @@ the tree has its `title` and `linked: true` when WIT Calendar knows the course.
 `unlocks` lists the courses that name this one as a prerequisite. The data comes
 from Banner and is refreshed every night. Each section also has a `course`
 object with the description, the prerequisites, and `typically_offered`.
+
+`GET /api/v1/catalog/programs` accepts `catalog_year` (`2024-2025`, `2024-25`,
+`2024`, or a term name such as `Spring 2024`, which is in 2023-2024),
+`kind` (`associate`, `bachelor`, `master`, `minor`, `concentration`,
+`certificate`, `exploratory`), `level` (`undergraduate`, `graduate`), and `q`
+(words in the name). Without `catalog_year`, it uses the newest catalog year.
+`meta.catalog_years` lists the catalog years the API has, newest first. The data
+starts with 2019-2020. The list leaves out a program that the catalog no longer
+lists. The program endpoint still returns it, with `listed: false`.
+
+`GET /api/v1/catalog/programs/:slug` takes the slug from the list, such as
+`computer-science-bs`, or the exact program name, and the same `catalog_year`. Each plan of study lists
+its terms by `year` and `season`. Each item is a `course`, a `choice` between
+the courses in `options`, or a `placeholder` such as "Computer Science
+Elective", with the name of the `elective_list` it draws from. The data comes
+from catalog.wit.edu and is refreshed each month. It is the published catalog,
+not a degree audit.
 
 `GET /api/v1/catalog/instructors/:pub_id` also returns the Rate My Professors
 rating distribution, the top tags, and the newest reviews. Add `term_uid` to list
@@ -478,8 +499,13 @@ query Sections($filter: SectionFilterInput) {
 ## Notes on the data
 
 - `seats.capacity` and `seats.available` come from Banner. The catalog import
-  sets them, and a nightly job refreshes them for every active term. They can be
-  up to a day old, so do not show them as a real-time seat count. Responses also
+  sets them, and a nightly job refreshes them for every active term. From the
+  time a term's sections are listed until 7 days after its classes start, a job
+  also refreshes them every 30 minutes. Outside that window they can be up to a
+  day old. Do not show them as a real-time seat count.
+- `waitlist.capacity` and `waitlist.available` are the section's waitlist places
+  and the places still open, from the same Banner data and jobs as `seats`. A
+  section with no waitlist has a capacity of 0. Responses also
   carry `Cache-Control: public, max-age=3600`, which adds at most one more hour.
   Either field is `null` when Banner did not return enrollment data for the CRN.
 - `linked` says which sections a student must register together, most often a

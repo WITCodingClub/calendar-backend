@@ -30,7 +30,7 @@ Any MCP client that supports OAuth with dynamic client registration or client ID
 
 ## Tools
 
-Each catalog tool matches a public catalog endpoint, so the MCP server, the REST API, and GraphQL give the same answers. The catalog tools share the query objects of those endpoints (`Catalog::SectionQuery`, `Catalog::InstructorQuery`, `Catalog::ReviewQuery`, `Catalog::SubjectQuery`).
+Each catalog tool matches a public catalog endpoint, so the MCP server, the REST API, and GraphQL give the same answers. The catalog tools share the query objects of those endpoints (`Catalog::SectionQuery`, `Catalog::InstructorQuery`, `Catalog::ReviewQuery`, `Catalog::SubjectQuery`, `Catalog::ProgramQuery`).
 
 | Tool | What it reads | REST endpoint | GraphQL field |
 | --- | --- | --- | --- |
@@ -40,6 +40,8 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `get_section` | One section by CRN, cancelled or not. | `GET /api/v1/catalog/sections/:crn` | `section` |
 | `search_courses` | Courses (not sections) by code or title words. | `GET /api/v1/catalog/courses` | `courses` |
 | `get_course` | One course: description, prerequisites, corequisites, restrictions, terms usually offered, what it unlocks. | `GET /api/v1/catalog/courses/:code` | `course` |
+| `list_programs` | The degree programs of one catalog year, and the catalog years WIT Calendar has. | `GET /api/v1/catalog/programs` | |
+| `degree_requirements` | What one program requires in one catalog year: each plan of study by semester, and the elective lists. | `GET /api/v1/catalog/programs/:slug` | |
 | `similar_sections` | Sections that teach something close to one section. | `GET /api/v1/catalog/sections/:crn/similar` | |
 | `check_schedule` | Time conflicts, lecture and lab pairs, duplicates, and totals for a set of CRNs. | `GET /api/v1/catalog/schedule_check` | `scheduleCheck` |
 | `search_instructors` | Instructors who teach, by name or by meaning. | `GET /api/v1/catalog/instructors` | `instructors` |
@@ -71,10 +73,11 @@ WIT Calendar is not an official Wentworth service. It copies its data from offic
 
 | Source key | Data | Source | Refresh | Last refresh |
 | --- | --- | --- | --- | --- |
-| `sections` | Meeting times, rooms, instructors, seats | Banner class schedule (LeopardWeb) | Every day at 4 AM Eastern, for the current and future terms. A past term is not refreshed after it ends. | `terms.sections_synced_at`: when `Catalog::CourseDataSyncJob` finished the term |
+| `sections` | Meeting times, rooms, instructors, seats | Banner class schedule (LeopardWeb) | Every day at 4 AM Eastern, for the current and future terms. A past term is not refreshed after it ends. Seats also every 30 minutes, from the time a term's sections are listed until 7 days after its classes start (`Catalog::SeatRefreshJob`). | `terms.sections_synced_at`: when `Catalog::CourseDataSyncJob` finished the term |
 | `course_details` | Descriptions, credits, prerequisites, restrictions | Banner course catalog | Each course at most once every 7 days, in the daily run | `terms.details_synced_at`: when `Catalog::CourseDetailsSyncJob` finished the term |
 | `finals` | Final exam dates, times, rooms | Registrar finals schedule (PDF) | When an admin uploads a new schedule | The latest completed `FinalsSchedule` of the term |
 | `university_calendar` | Holidays, term dates, deadlines | Academic calendar (25Live) | Every Saturday at 2 AM Eastern | The latest `university_calendar_events.last_fetched_at` |
+| `degree_requirements` | Degree programs, plans of study, elective lists | Academic catalog (catalog.wit.edu) | On the 2nd of each month at 3 AM Eastern, for the current catalog year and the year before | The latest `catalog_years.imported_at` |
 
 The term sources give one time for each current and future term. The time is when a full run finished, not when one course changed: a student's own courses also refresh when the extension processes a term, so one fresh course says nothing about the rest. `Catalog::Freshness` builds the list and keeps the times in the cache for 10 minutes. The server instructions say the same. When a schedule in `config/recurring.yml` changes, change the text in `Catalog::Freshness` too. A spec checks this.
 
@@ -143,6 +146,43 @@ Rules:
 
 To add an app: add the HTML file, add an `MCP::Resource` subclass in `app/services/mcp_tools/` (see `McpTools::WeekGridApp`), add it to `McpTools.app_resources`, and call `meta YourApp.tool_meta` in each tool that uses it.
 
+## Page links
+
+Some tools add links to the WIT Calendar pages where the student can see or change the same data. Each link is a `resource_link` content item (MCP 2025-06-18). A client can show it as a link that the student opens in the browser.
+
+| Tool | Page | Route |
+| --- | --- | --- |
+| `my_courses` | My schedule, for the term of the result. Only when the page lists that term. | `dashboard_schedule_url(term_uid:)` |
+| `list_friends` | Friends | `dashboard_friends_url` |
+| `friend_busy_times` | The friend's page: the full schedule, or the busy times of the week of `start_date` | `dashboard_friend_url(id, week_start:)` |
+| `my_calendar_settings`, `update_calendar_settings` | Calendar settings | `dashboard_calendar_preferences_url` |
+| `set_notifications` | Notification settings | `dashboard_notifications_url` |
+| Any tool, when the token does not have its permission | The **Connected apps** card on Settings | `dashboard_settings_url(anchor: "connected-apps")` |
+
+Rules:
+
+- The JSON text stays the first content item. The links come after it. The links are not in `structuredContent`, so the output schemas do not change.
+- A tool error has no page link. The one exception is the missing permission error, which links to the connected apps card.
+- Link only to a page that exists in Rails. The catalog tools have no links, because the catalog has no web pages. `my_finals`, `my_busy_times`, `my_course_history`, `update_class_settings`, and `preview_template` have no links, because no page shows the same data.
+- Build each URL with a route helper through `page_url`. It adds `McpTools::Server.url_options`, so the host is correct in each environment. Do not write a host in the code.
+- A URL holds only the public ids that the page itself uses in its URLs. It never holds a token. A dashboard page needs a session, so the student signs in in the browser.
+- The `mcp` gem does not check content items. It sends each Hash as it is.
+- Only a client on protocol version 2025-06-18 or later gets links. An older client can check the content against a closed list of types and refuse the whole result. The server reads the version from the `_meta` envelope (2026-07-28) first, then from the `MCP-Protocol-Version` header. A request with no version is 2025-03-26, so it gets no links. This rule also applies to the missing permission error.
+- The dashboard sends a student with no processed courses to the onboarding page. Such a student gets no link to those pages. Use `onboarded_page_link` for them. The notification and settings pages skip onboarding, so they use `page_link`. `User#onboarding_complete?` is the rule for both.
+- The schedule page lists the enrolled current and future terms, or the last 6 enrolled terms when there are none (`ScheduleLoading.terms_for`). `my_courses` links only to a term in that list.
+- A link is extra. When a `links` block raises an error, the server reports it with `Rails.error.report` and sends the result with no links.
+
+To add a link to a tool, call `links` in the tool class. The block gets the result Hash and returns a list of link Hashes from `page_link` or `onboarded_page_link` (`McpTools::PageLinks`):
+
+```ruby
+links do
+  [ onboarded_page_link(name: "wit-calendar-friends", title: "My friends on WIT Calendar",
+                        url: page_url(:dashboard_friends_url)) ]
+end
+```
+
+Then add the tool and its arguments to `spec/services/mcp_tools/page_links_spec.rb` and `spec/requests/mcp/page_links_spec.rb`. The request spec opens each link as a signed-in student and expects `200`. Add a row to the table above.
+
 ## Prompts
 
 A prompt is a task that the student starts from the client, for example as a slash command. The server gives one user message. The message tells the model which tools to call and in which order. It tells the model to ask the student for a fact that no tool gives, and not to guess it. Each message ends with the advisor message: confirm the plan with the program director and the academic advisor. Every argument is optional.
@@ -151,7 +191,7 @@ A prompt is a task that the student starts from the client, for example as a sla
 | --- | --- | --- |
 | `plan_term_schedule` | `term`, `courses`, `preferences` | Plans one term: `list_terms`, `my_courses`, `my_course_history`, `get_course` for the prerequisites of each course, `search_sections` with the preferences as filters, then `check_schedule` until each option has no conflicts. Gives one to three options with their CRNs. |
 | `check_my_schedule` | `term` | Checks the student's courses: `my_courses`, `check_schedule` on their CRNs, `get_course` for corequisites, and `my_finals` for exams at the same time. |
-| `plan_degree_progression` | `program`, `catalog_year`, `graduation_term` | Plans each term to graduation: `my_course_history`, the required courses from the student, then `get_course` for prerequisites, corequisites, and the terms each course is usually offered. Lists the risks. |
+| `plan_degree_progression` | `program`, `catalog_year`, `graduation_term` | Plans each term to graduation: `my_course_history`, then `list_programs` and `degree_requirements` for the required courses, then `get_course` for prerequisites, corequisites, and the terms each course is usually offered. Lists the risks. |
 | `find_class_for_free_time` | `term`, `subject`, `days`, `times` | Finds sections that fit the student's free time: `my_busy_times`, `search_sections` with time filters, then `check_schedule`. |
 
 - `term` takes a term uid (`202710`) or a name (`Spring 2027`). Without it, `plan_term_schedule` and `find_class_for_free_time` use the next fall or spring term, and tell the model to confirm the term with the student. They skip summer, because a student in March registers for fall. `check_my_schedule` uses the next term if the student has courses in it, else the current term.
@@ -159,7 +199,7 @@ A prompt is a task that the student starts from the client, for example as a sla
 - The server cuts an argument at 500 characters. The message puts each argument in quotes.
 - Arguments that are not an object of strings get `-32602` (Invalid params). The server does not report this client error.
 - A prompt reads no student data. The tools read it when the model calls them, with the scopes of the token. `my_courses` gives the CRN of each course, so `check_my_schedule` can pass the CRNs to `check_schedule`.
-- WIT Calendar has no degree requirement data yet. So `plan_degree_progression` tells the model to ask the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu. Issues #526 to #529 and #799 add requirement data and tools. When they ship, change `requirements_steps` in `McpTools::Prompts::PlanDegreeProgression` to call the new tools. Then the model asks the student only for what the tools do not give.
+- `plan_degree_progression` reads the required courses with `list_programs` and `degree_requirements`. The tools do not read the student's own programs yet (#868), so the model asks for the program and the catalog year. The catalog has no data before 2019-2020. For an older catalog year, the model asks the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu.
 
 ### Completions
 
@@ -188,7 +228,7 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 
 | Scope | Gives | Starts |
 | --- | --- | --- |
-| `catalog` | `list_terms`, `list_subjects`, `search_sections`, `get_section`, `search_courses`, `get_course`, `similar_sections`, `check_schedule`, `search_instructors`, `get_instructor`, `similar_instructors`, `search_reviews`, `catalog_graphql`, `university_events` | always on, no checkbox (public data) |
+| `catalog` | `list_terms`, `list_subjects`, `search_sections`, `get_section`, `search_courses`, `get_course`, `list_programs`, `degree_requirements`, `similar_sections`, `check_schedule`, `search_instructors`, `get_instructor`, `similar_instructors`, `search_reviews`, `catalog_graphql`, `university_events` | always on, no checkbox (public data) |
 | `schedule:read` | `my_courses`, `my_finals`, `my_busy_times` | checked |
 | `friends:read` | `list_friends`, `friend_busy_times` | checked |
 | `settings:read` | `my_calendar_settings`, `preview_template` | checked |
@@ -197,7 +237,7 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 | `friends:requests`, `friends:meetings`, `friends:groups` | reserved for the friend tools | unchecked |
 
 - The server lists every tool to every token. A tool that needs a permission the token lacks says so in its description.
-- A call to a tool without its scope gets a tool error that tells the student how to add the permission: disconnect the app in its connector settings, connect again, and check the box. The server counts these in `calendar_mcp_scope_denials_total`.
+- A call to a tool without its scope gets a tool error that tells the student how to add the permission: disconnect the app in its connector settings, connect again, and check the box. The error also links to Settings on the dashboard, which shows the permissions of each app. The server counts these in `calendar_mcp_scope_denials_total`.
 - The MCP spec also defines step-up authorization: the server answers `403` with `WWW-Authenticate: Bearer error="insufficient_scope", scope="..."`, and the client asks the student for the missing scope. Not every client does this, and in a client that does not, the `403` fails the whole request with no reason shown. So the server sends the `403` only to clients in `McpTools::Scopes::STEP_UP_CLIENTS`. Add a client there after a test shows that it signs in again and retries. The step-up consent page starts with the requested boxes checked.
 - A box the student checked for this app before starts checked the next time.
 - Tokens issued before the scopes were split have the scope `read`. The server treats it as every read scope, so those connections keep their tools. A client registered before the split lists only `read`; the consent page updates its list on the next sign-in.
@@ -283,6 +323,7 @@ Rules:
 | `app/views/mcp_apps/` | The HTML templates of the MCP Apps |
 | `McpTools::Prompts::` (`app/services/mcp_tools/prompts/`) | The prompts |
 | `McpTools::Completions` | Completions for the prompt arguments |
+| `McpTools::PageLinks` | The `resource_link` items that point to WIT Calendar pages |
 | `Dashboard::ConnectedAppsController` | Disconnect an app |
 
 ### Add a tool
@@ -293,6 +334,7 @@ Rules:
 4. Define `perform`. Return a Hash. Raise `McpTools::ToolError` for a bad argument. A write tool checks its arguments and calls `authorize` first. Then it makes the change in a `with_confirmation` block (see "Confirmation"). Add the optional `not_changed` key (`McpTools::Schemas::NOT_CHANGED`) to its output schema.
 5. Call `authorize` for any record that belongs to a user. Reuse the policies, queries, and serializers of the matching API endpoint. If no endpoint gives the data, add one too, so the extension and the MCP server stay equal.
 6. A tool with a semantic search calls `spend_semantic_search!` first. A tool whose answer a student can use to plan courses calls `academic_planning` with the keys of its data sources (`Catalog::Freshness::SOURCES`), so its result carries the advisory.
+   If a WIT Calendar page shows the same data, call `links` (see [Page links](#page-links)).
 7. Add the class to `McpTools.all`, and add a row to the table above and to the permissions table.
 8. Write a spec in `spec/services/mcp_tools/`. Check that a token without the scope gets a tool error.
 9. Add calls of the tool to `spec/services/mcp_tools/output_schemas_spec.rb`. Use full data and sparse data: nil fields and empty lists.

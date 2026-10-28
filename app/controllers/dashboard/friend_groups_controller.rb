@@ -16,7 +16,8 @@ module Dashboard
       save_group(group, notice: "Group \"#{params[:name].to_s.squish}\" created.")
     end
 
-    # One Save applies the name, the end date, and the members together.
+    # One Save applies the name, the end date, the color, the shared box, and
+    # the members together.
     def update
       authorize @group
 
@@ -37,6 +38,9 @@ module Dashboard
     def save_group(group, notice:)
       ids = params[:member_ids].nil? ? nil : Array(params[:member_ids]).compact_blank
       attributes = params.key?(:name) ? { name: params[:name] } : {}
+      attributes[:shared] = ActiveModel::Type::Boolean.new.cast(params[:shared]) || false if params.key?(:shared)
+      # A color field always sends a color, so the form sends no_color=1 to clear it.
+      attributes[:color] = params[:no_color] == "1" ? nil : params[:color] if params.key?(:color)
       if params.key?(:expires_on)
         expires_at = parse_expires_on
         return redirect_to(dashboard_friends_path, alert: "That end date is not valid.") if expires_at == false

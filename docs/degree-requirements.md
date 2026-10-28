@@ -109,3 +109,14 @@ flowchart TD
 | `table.sc_courselist` and the heading above it | An `ElectiveGroup`. "select four (4) courses" gives `min_courses`. |
 | An area header or a "Select ..." note inside a list | A new `ElectiveGroup`, such as "Required Courses: Select one (1) course from the following courses" |
 | "The following courses require School approval" | `requires_approval` on the courses after it |
+
+## API and MCP tools
+
+| Reader | Endpoint or tool |
+|---|---|
+| Public catalog API | `GET /api/v1/catalog/programs` and `GET /api/v1/catalog/programs/:slug` (`docs/public-catalog-api.md`) |
+| MCP | `list_programs` and `degree_requirements` (`docs/mcp.md`) |
+
+Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read only catalog years with `status: imported`. Without a catalog year, they use the newest one. Each course in a plan or a list gets its title as that catalog year printed it, or Banner's title when the year has no row.
+
+The tools do not read a student's own programs yet. `my_programs` and `my_degree_progress` come later (#868, #799).

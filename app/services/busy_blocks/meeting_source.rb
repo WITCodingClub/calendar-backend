@@ -5,7 +5,7 @@ class BusyBlocks
   # (a holiday, a study day, or the finals period). The same rule removes
   # those days from the calendar events of the user.
   class MeetingSource
-    Row = Data.define(:day_of_week, :begin_time, :end_time, :start_date, :end_date) do
+    Row = Data.define(:user_id, :day_of_week, :begin_time, :end_time, :start_date, :end_date) do
       def covers?(date) = date.between?(start_date, end_date)
     end
 
@@ -13,17 +13,27 @@ class BusyBlocks
     ALL_DAY_BEGIN = 1201
     ALL_DAY_END   = 2359
 
-    def self.call(user, from, to) = new(user, from, to).call
+    def self.call(user, from, to) = call_many([ user ], from, to).fetch(user.id, [])
 
-    def initialize(user, from, to)
-      @user = user
-      @from = from
-      @to   = to
+    # { user id => [Interval] }, in two queries for any number of users.
+    def self.call_many(users, from, to) = new(users, from, to).call
+
+    def initialize(users, from, to)
+      @user_ids = users.map(&:id)
+      @from     = from
+      @to       = to
     end
 
     def call
-      by_weekday  = rows.group_by(&:day_of_week)
-      no_class    = no_class_dates
+      no_class = no_class_dates
+
+      rows.group_by(&:user_id).transform_values { |user_rows| intervals(user_rows, no_class) }
+    end
+
+    private
+
+    def intervals(user_rows, no_class)
+      by_weekday = user_rows.group_by(&:day_of_week)
 
       (@from..@to).flat_map do |date|
         next [] if no_class.include?(date)
@@ -34,25 +44,23 @@ class BusyBlocks
       end
     end
 
-    private
-
-    # One query, whatever the number of classes. It reads only the columns that a
+    # One query, whatever the number of classes and users. It reads only the columns that a
     # block needs, so no course record is loaded at all.
     def rows
       Course::MeetingTime
         .joins(course: :enrollments)
-        .where(enrollments: { user_id: @user.id })
+        .where(enrollments: { user_id: @user_ids })
         .where(courses: { status: "active" })
         .where.not(begin_time: ALL_DAY_BEGIN, end_time: ALL_DAY_END)
         .where(start_date: ..@to.in_time_zone.end_of_day)
         .where(end_date: @from.in_time_zone.beginning_of_day..)
         .distinct
-        .pluck(Arel.sql("course_meeting_times.day_of_week"), :begin_time, :end_time,
+        .pluck(Arel.sql("enrollments.user_id"), Arel.sql("course_meeting_times.day_of_week"), :begin_time, :end_time,
                Arel.sql("course_meeting_times.start_date"), Arel.sql("course_meeting_times.end_date"))
-        .map do |day_of_week, begin_time, end_time, start_date, end_date|
+        .map do |user_id, day_of_week, begin_time, end_time, start_date, end_date|
           # Rails casts the enum column to its name ("monday"). Date#wday uses
           # the same numbers as the enum (Sunday is 0).
-          Row.new(day_of_week: Course::MeetingTime.day_of_weeks.fetch(day_of_week), begin_time:, end_time:,
+          Row.new(user_id:, day_of_week: Course::MeetingTime.day_of_weeks.fetch(day_of_week), begin_time:, end_time:,
                   start_date: start_date.in_time_zone.to_date, end_date: end_date.in_time_zone.to_date)
         end
     end

@@ -11,13 +11,20 @@ module ScheduleLoading
     :courses, :schedule_by_day, :no_class_dates
   )
 
+  # The terms the schedule page lists for a user: the enrolled current and
+  # future terms, or the last 6 enrolled terms when there are none. The MCP
+  # my_courses tool links to the page only for these terms.
+  def self.terms_for(user, current_term = Term.current)
+    enrolled_terms = Term.enrolled_for(user)
+    terms = enrolled_terms.current_and_future(current_term)
+    terms.empty? ? enrolled_terms.reverse_chronological.limit(6) : terms
+  end
+
   private
 
   def build_schedule_for(user)
-    enrolled_terms = Term.enrolled_for(user)
     current_term = Term.current
-    terms = enrolled_terms.current_and_future(current_term)
-    terms = enrolled_terms.reverse_chronological.limit(6) if terms.empty?
+    terms = ScheduleLoading.terms_for(user, current_term)
 
     selected_term = if params[:term_uid].present?
                       terms.find_by(uid: params[:term_uid])
@@ -76,7 +83,7 @@ module ScheduleLoading
     # The schedule owner's preferences give the colors and titles, so a friend's
     # schedule looks the same as it does in their own calendar and the extension.
     preference_resolver = Preferences::Resolver.new(user)
-    template_renderer   = Preferences::TemplateRenderer.new
+    template_renderer   = Preferences::TemplateRenderer.new(user_id: user.id)
 
     enrollments.map do |enrollment|
       EnrolledCourseSerializer.new(
