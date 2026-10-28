@@ -22,6 +22,12 @@ module CourseCalendars
     # Google Calendar ignores both and uses its own schedule.
     REFRESH_INTERVAL = "PT1H"
 
+    # The last change to how the feed builds a class event from the same rows.
+    # No row's updated_at moves for such a change, so LAST-MODIFIED and
+    # SEQUENCE are at least this time, and calendar apps fetch the new copy.
+    # Move it forward when a code change alters the event body.
+    CLASS_EVENT_LOGIC_CHANGED_AT = Time.find_zone!(TZID).local(2026, 10, 28, 18, 0)
+
     def initialize(user)
       @user    = user
       @courses = user.courses
@@ -183,7 +189,8 @@ module CourseCalendars
 
     # The last change to anything that the class event shows. A calendar client
     # keeps its copy until LAST-MODIFIED or SEQUENCE goes up, so a new title
-    # template, color, holiday, or room must move it too. Every row here is
+    # template, color, holiday, or room must move it too, as must a change to
+    # the feed code (CLASS_EVENT_LOGIC_CHANGED_AT). Every row here is
     # already loaded, so this runs no query.
     def meeting_time_last_modified(course, meeting_time)
       [
@@ -194,7 +201,8 @@ module CourseCalendars
         *meeting_time.meeting_time_rooms.map(&:updated_at),
         *meeting_time.rooms.map(&:updated_at),
         *meeting_time.rooms.filter_map { |room| room.building&.updated_at },
-        *@holidays.for(meeting_time).map(&:updated_at)
+        *@holidays.for(meeting_time).map(&:updated_at),
+        CLASS_EVENT_LOGIC_CHANGED_AT
       ].compact.max
     end
 
