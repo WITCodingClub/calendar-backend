@@ -27,7 +27,7 @@ RSpec.describe McpTools::Prompts do
 
   describe "every prompt" do
     described_class.all.each do |prompt|
-      it "#{prompt.name_value} gives one user message with the advisor message, with and without arguments" do
+      it "#{prompt.name_value} gives one user message with the override and advisor messages, with and without arguments" do
         [ {}, prompt.argument_names.index_with { "x" } ].each do |args|
           result = prompt.template(args).to_h
 
@@ -35,6 +35,7 @@ RSpec.describe McpTools::Prompts do
           expect(result[:messages].size).to eq(1)
           expect(result[:messages].first).to include(role: "user", content: hash_including(type: "text"))
           expect(text(prompt, args)).to include("program director", "academic advisor", McpTools::Prompts::BasePrompt::ASK)
+          expect(text(prompt, args)).to include(McpTools::Prompts::BasePrompt::OVERRIDE)
         end
       end
     end
@@ -104,6 +105,15 @@ RSpec.describe McpTools::Prompts do
       expect_in_order(body, %w[list_terms my_course_history get_course search_sections check_schedule])
       expect(body).to include("Ask me which courses I want", "Ask me one time about start and end times")
       expect(body).to include("check_schedule must show no conflicts")
+      expect(body).to include("If a prerequisite has a min_grade, ask me for my grade")
+    end
+
+    it "tells the student how to register: the time ticket, the RAC, and electives not yet listed" do
+      body = text(described_class)
+
+      expect(body).to include(described_class::REGISTRATION)
+      expect(body).to include("time ticket", "Registration Alternate PIN (RAC)", "dean or associate dean")
+      expect_in_order(body, [ "check_schedule must show no conflicts", described_class::REGISTRATION, McpTools::Prompts::BasePrompt::ADVISOR ])
     end
 
     it "gives the course codes and the preferences of the student" do
@@ -141,6 +151,11 @@ RSpec.describe McpTools::Prompts do
 
       expect_in_order(body, %w[my_course_history list_programs degree_requirements get_course])
       expect(body).to include("Program: I did not say. Ask me.", "the catalog of the term I started my program in")
+    end
+
+    it "asks for the grade of a prerequisite with a min_grade, and names who approves a substitution" do
+      expect(text(described_class)).to include("If a prerequisite has a min_grade, ask me for my grade",
+                                               "my program director, the dean's office of my school, or both")
     end
 
     it "asks for the list only when the catalog has no data, and never makes one up" do

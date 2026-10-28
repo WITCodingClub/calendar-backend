@@ -9,7 +9,8 @@ module McpTools
     tool_name "search_instructors"
     title "Search instructors"
     description "Finds the Wentworth instructors who teach at least one section, by name or by meaning, " \
-                "with department, contact details, and RateMyProfessor ratings."
+                "with department, contact details, and RateMyProfessor ratings. Use it for \"is Professor X " \
+                "good\" and \"who teaches networking\"."
     requires_scope "catalog"
     input_schema(
       properties: {

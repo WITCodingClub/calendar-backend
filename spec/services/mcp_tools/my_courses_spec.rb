@@ -23,4 +23,11 @@ RSpec.describe McpTools::MyCourses do
     expect(courses.first[:meeting_times].first).to include(begin_time: "09:00", monday: true)
     expect(courses.first[:meeting_times].first).not_to have_key(:calendar_config)
   end
+
+  it "queues a Banner refresh of the user's sections with old data" do
+    course = create(:course, term: term, banner_synced_at: 37.hours.ago)
+    create(:enrollment, user: user, course: course)
+
+    expect { call(term_uid: term.uid) }.to have_enqueued_job(Catalog::SectionRefreshJob).with([ course.id ])
+  end
 end

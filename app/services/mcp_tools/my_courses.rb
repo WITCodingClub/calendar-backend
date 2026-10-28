@@ -7,8 +7,10 @@ module McpTools
   class MyCourses < BaseTool
     tool_name "my_courses"
     title "My courses"
-    description "Lists the courses I am enrolled in for one term, with the professor and the weekly meeting " \
-                "times and rooms. Times are 24-hour, in the America/New_York time zone."
+    description "Lists my Wentworth (WIT) classes in one term, with the professor and the weekly meeting " \
+                "times and rooms. Use it for \"what classes do I have today\", \"where is my next class\", " \
+                "\"who is my professor\", and \"what is my schedule\". Times are 24-hour, in the America/New_York " \
+                "time zone."
     requires_scope "schedule:read"
     academic_planning :sections
     # Hosts with the MCP Apps extension show the result as a week grid.
@@ -40,6 +42,7 @@ module McpTools
         course.merge(meeting_times: course[:meeting_times].map { |time| time.except(:calendar_config) })
       end
 
+      refresh_stale_sections(term.uid, classes.pluck(:crn))
       { term_uid: term.uid, term_name: term.name, courses: classes }
     end
   end
