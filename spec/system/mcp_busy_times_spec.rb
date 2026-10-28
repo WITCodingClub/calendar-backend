@@ -26,6 +26,18 @@ RSpec.describe "MCP busy times app", type: :system do
     wait_for_host_message("ui/notifications/size-changed")
   end
 
+  it "writes a busy time that ends at midnight with PM and AM" do
+    start_host(McpTools::BusyTimesApp)
+    send_tool_result(tool_result(McpTools::MyBusyTimes, user, start_date: "2026-12-16", end_date: "2026-12-16"))
+
+    within_frame("app") do
+      expect(page).to have_css(".row")
+      # BusyBlocks sends "24:00" for a block that runs to midnight.
+      expect(page.evaluate_script("App.timeRange('20:00', '24:00')")).to eq("8:00 PM – 12:00 AM")
+      expect(page.evaluate_script("App.timeRange('09:00', '09:50')")).to eq("9:00 – 9:50 AM")
+    end
+  end
+
   it "names the friend of friend_busy_times" do
     friend = create(:user, first_name: "Morgan")
     friendship = create(:friendship, :accepted, requester: user, addressee: friend)

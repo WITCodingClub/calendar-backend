@@ -34,6 +34,33 @@ RSpec.describe "MCP catalog app", type: :system do
     wait_for_host_message("ui/notifications/size-changed")
   end
 
+  it "draws one section of get_section as a card" do
+    course = create(:course, term: term, crn: 20145, subject: "COMP", course_number: 2350, title: "Data Structures",
+                             seats_capacity: 30, seats_available: 3)
+
+    start_host(McpTools::CatalogApp)
+    send_tool_result(tool_result(McpTools::GetSection, user, crn: course.crn, term_uid: term.uid))
+
+    within_frame("app") do
+      expect(page).to have_css("h1", text: /COMP 2350-\w+, Data Structures/)
+      card = find("article[data-crn='20145']")
+      expect(card).to have_text("3 of 30 open")
+      expect(card).to have_css(".seats.low")
+    end
+  end
+
+  it "lists the sections of similar_sections" do
+    course = create(:course, term: term, crn: 20145)
+
+    start_host(McpTools::CatalogApp)
+    send_tool_result(tool_result(McpTools::SimilarSections, user, crn: course.crn, term_uid: term.uid))
+
+    within_frame("app") do
+      expect(page).to have_css("h1", text: "Sections like CRN 20145")
+      expect(page).to have_css(".status", text: "No similar sections.")
+    end
+  end
+
   it "draws a course with its description and sections" do
     create(:catalog_course, :with_details, subject_code: "COMP", course_number: 2350, title: "Algorithms",
                                            description: "Sorting and graphs.")

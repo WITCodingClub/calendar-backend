@@ -37,6 +37,9 @@ RSpec.describe "MCP finals app", type: :system do
     within_frame("app") do
       expect(page).to have_css(".notes li", text: "not published yet")
       expect(page).to have_css(".status", text: "No final exams to show.")
+      # The advisory names the finals schedule, the source of this tool, not Banner.
+      expect(page).to have_css(".advisory", text: "finals schedule")
+      expect(page).to have_no_css(".advisory", text: "Banner")
     end
   end
 end

@@ -19,7 +19,7 @@ RSpec.describe Catalog::Freshness do
   def source(key) = described_class.call([ key ]).first
 
   it "gives the time each term's run finished for the section and course detail sources" do
-    expect(source(:sections)).to include(source: /Banner/)
+    expect(source(:sections)).to include(key: "sections", source: /Banner/)
     expect(source(:sections)[:terms]).to eq([ { term_uid: term.uid, term: term.name, last_refreshed_at: synced.iso8601 } ])
     expect(source(:course_details)[:terms].first[:last_refreshed_at]).to eq((synced - 1.day).iso8601)
   end

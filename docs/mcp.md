@@ -69,7 +69,7 @@ Times are in the `America/New_York` time zone.
 WIT Calendar is not an official Wentworth service. It copies its data from official Wentworth sources on a schedule. The tools that give course, schedule, finals, and academic calendar data add an `advisory` field to each result. The field has two parts:
 
 - `message` tells the AI client to ask the student to confirm a course plan with their program director and their academic advisor.
-- `data_sources` lists the sources of that tool's data, how often WIT Calendar refreshes each one, and when it last did.
+- `data_sources` lists the sources of that tool's data, how often WIT Calendar refreshes each one, and when it last did. The `key` of each source is its key in `Catalog::Freshness::SOURCES`.
 
 | Source key | Data | Source | Refresh | Last refresh |
 | --- | --- | --- | --- | --- |
@@ -232,7 +232,7 @@ Rules:
 
 - A tool with an app returns the same text and `structuredContent` as before. A client without the extension ignores the `_meta` and reads the normal result. The server is stateless, so it cannot see what the client declared at `initialize`, and it always sends the `_meta`.
 - `resources/list` gives the template to every client. A client without the extension can show it as a resource to attach. The list keeps it, because a host with the extension can read the list to find the template first.
-- The page shows times in the 12-hour format. A page for an academic planning tool shows the advisory of the result (see [Tools](#tools)): the advisor message, and when the section data of the result's term last refreshed. A past term is not in the list of `Catalog::Freshness`, so the page says that its data no longer refreshes.
+- The page shows times in the 12-hour format. A page for an academic planning tool shows the advisory of the result (see [Tools](#tools)): the advisor message, and when the section data of the result's term last refreshed. A tool without the `sections` source, such as `my_finals`, shows when the finals schedule was last loaded. A past term is not in the list of `Catalog::Freshness`, so the page says that its data no longer refreshes.
 - A template is one HTML file in `app/views/mcp_apps/`, with inline CSS and JavaScript. It loads nothing from the network, so the resource declares no CSP domains and the host uses its strictest CSP. `spec/services/mcp_tools/app_resource_spec.rb` checks this for every app.
 - The templates share `app/views/mcp_apps/shared/base.css` (the colors, the type, and the course colors) and `shared/app.js` (the host bridge and the time helpers). A line `/* @include shared/base.css */` or `// @include shared/app.js` in a template becomes the file when `McpTools::AppResource` serves it. A template calls `App.start({ name, render })`.
 - One course has one color in every app: a lecture and its lab (`CHEM 1100-13E`, `CHEM 1100-15E`) match.

@@ -45,12 +45,13 @@ module McpTools
 
     # The advisory key in the result of an academic planning tool. A term
     # source (Catalog::Freshness::TERM_SOURCES) has terms, the other sources
-    # have last_refreshed_at.
+    # have last_refreshed_at. key names the source (Catalog::Freshness::SOURCES).
     ADVISORY_SCHEMA = Schemas.object(
       message:      Schemas::STRING,
       data_sources: Schemas.array(
         Schemas.object(
           {
+            key:               { type: "string", enum: Catalog::Freshness::SOURCES.keys.map(&:to_s) },
             data:              Schemas::STRING,
             source:            Schemas::STRING,
             schedule:          Schemas::STRING,

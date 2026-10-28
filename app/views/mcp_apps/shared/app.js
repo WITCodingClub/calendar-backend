@@ -145,9 +145,10 @@ var App = (function () {
     return h12 + ":" + (m < 10 ? "0" : "") + m + suffix;
   }
 
-  // A range: "9:00 – 9:50 AM", or "11:00 AM – 12:15 PM" when it crosses noon.
+  // A range: "9:00 – 9:50 AM", or "11:00 AM – 12:15 PM" when it crosses noon
+  // or ends at midnight (24:00, from BusyBlocks).
   function range(start, end) {
-    if ((start < 720) === (end < 720)) return shortClock(start) + " – " + clock(end);
+    if (end < 1440 && (start < 720) === (end < 720)) return shortClock(start) + " – " + clock(end);
     return clock(start) + " – " + clock(end);
   }
 
@@ -231,22 +232,40 @@ var App = (function () {
     reportSize();
   }
 
+  // What the advisory says about each term source (Catalog::Freshness), by key.
+  var TERM_SOURCE_TEXT = {
+    sections: {
+      ended: "This term has ended, so WIT Calendar no longer refreshes its section data.",
+      never: "The section data of this term has not refreshed from Banner yet.",
+      last: "Section data last refreshed from Banner on "
+    },
+    finals: {
+      ended: "This term has ended, so WIT Calendar no longer loads its finals schedule.",
+      never: "WIT Calendar has not loaded the Registrar finals schedule of this term yet.",
+      last: "The Registrar finals schedule was last loaded on "
+    }
+  };
+
   // The advisory (McpTools::BaseTool): not official, confirm with the program
-  // director and advisor, and when the sections of the result's term last
-  // refreshed. Catalog::Freshness lists only the current and future terms, so
-  // a term that is not in the list has ended.
+  // director and advisor, and when the sections (or the finals) of the
+  // result's term last refreshed. Catalog::Freshness lists only the current
+  // and future terms, so a term that is not in the list has ended.
   function advisoryText(advisory, termUid) {
     if (!advisory) return null;
     var text = "WIT Calendar is not an official Wentworth service. Confirm your plan with your program " +
       "director and your academic advisor.";
-    var sections = (advisory.data_sources || []).filter(function (source) { return source.terms; })[0];
-    if (!sections || !termUid) return text;
+    var sources = advisory.data_sources || [];
+    var source = ["sections", "finals"].map(function (key) {
+      return sources.filter(function (item) { return item.key === key && item.terms; })[0];
+    }).filter(Boolean)[0];
+    if (!source || !termUid) return text;
 
-    var entry = sections.terms.filter(function (term) { return term.term_uid === termUid; })[0];
-    if (!entry) return text + " This term has ended, so WIT Calendar no longer refreshes its section data.";
-    if (!entry.last_refreshed_at) return text + " The section data of this term has not refreshed from Banner yet.";
+    var words = TERM_SOURCE_TEXT[source.key];
+    var entry = source.terms.filter(function (term) { return term.term_uid === termUid; })[0];
+    if (!entry) return text + " " + words.ended;
+    if (!entry.last_refreshed_at) return text + " " + words.never;
 
-    return text + " Section data last refreshed from Banner on " +
+    return text + " " + words.last +
       new Date(entry.last_refreshed_at).toLocaleString("en-US", {
         timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
       }) + ".";
