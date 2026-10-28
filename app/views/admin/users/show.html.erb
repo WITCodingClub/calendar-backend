@@ -38,7 +38,7 @@
         <% else %>
           <span class="text-on-surface-variant">Never synced</span>
         <% end %>
-        <% if @user.calendar_needs_sync %>
+        <% if @user.calendar_sync_pending? %>
           <%= admin_badge("Needs sync", :warning) %>
         <% end %>
       <% end %>
