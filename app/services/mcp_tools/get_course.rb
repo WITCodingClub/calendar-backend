@@ -8,7 +8,11 @@ module McpTools
     description "Gets one course by code, such as COMP 2350, from Banner's catalog: the description, the credits, " \
                 "the terms it is usually offered, the prerequisites (an and/or tree of courses and placement tests, " \
                 "each course with its title), the corequisites, the enrollment restrictions, and the courses it unlocks. " \
-                "With term_uid it also lists the course's sections in that term."
+                "With term_uid it also lists the course's sections in that term. Use it for \"can I take " \
+                "COMP 2350\" and \"what are the prerequisites\". A prerequisite with a min_grade needs that " \
+                "grade or better. my_course_history has no grades, so ask the student for the grade. A missing " \
+                "prerequisite or a restriction needs an override from the dean's office of the school that " \
+                "offers the course."
     requires_scope "catalog"
     academic_planning :course_details, :sections
     input_schema(

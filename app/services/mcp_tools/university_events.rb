@@ -8,7 +8,10 @@ module McpTools
     tool_name "university_events"
     title "University calendar events"
     description "Lists Wentworth academic calendar events: holidays, term dates, registration, deadlines, " \
-                "study days, finals, and graduation. Without dates it lists upcoming events."
+                "study days, finals, and graduation. Without dates it lists upcoming events. Use it for \"when is " \
+                "spring break\", \"is there class on Monday\", and \"when is the last day to drop\". Each " \
+                "student's own registration time is on their time ticket in myWentworth. It comes from their " \
+                "completed earned credits, with transfer and graduate credits, but not credits in progress."
     requires_scope "catalog"
     academic_planning :university_calendar
     input_schema(

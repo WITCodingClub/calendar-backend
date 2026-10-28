@@ -6,20 +6,38 @@ module McpTools
   class Server
     NAME = "wit-calendar"
 
+    # Clients read the instructions to decide when to call a tool, also when
+    # the tools are deferred and the model sees only their names. So the
+    # first sentences say when to use the server, in the words students use.
+    # Claude Code cuts instructions after 2,048 characters (MAX_INSTRUCTIONS_LENGTH).
+    # Put a rule for one tool in that tool's description.
     INSTRUCTIONS = <<~TEXT.squish
-      Access to the Wentworth Institute of Technology course catalog and to the signed-in
-      student's schedule on WIT Calendar. Call list_terms first to get term uids. Times are in
-      the America/New_York time zone. Each tool needs a permission that the student gives when
-      they connect. Tools that change data need a permission that is off by default. When a
-      tool answers that a permission is missing, tell the student how to add it and do not
-      retry. Before you change a setting, say what you will change. WIT Calendar is not an
-      official Wentworth service. It copies course data from official Wentworth sources on a
-      schedule, and the advisory in a course result says when it last did. When you help a
-      student plan courses, tell them to confirm the plan with their program director and
-      their academic advisor.
+      WIT Calendar has the Wentworth Institute of Technology (WIT) course catalog and the
+      signed-in student's class schedule. The student is a Wentworth student. Use these tools,
+      without being asked to by name, for any question about their classes or Wentworth
+      courses: what classes they have today or this week, where and when a class meets, when
+      a final exam is, who teaches a course and how students rate the professor, what to take
+      next semester, prerequisites, schedule conflicts, degree requirements, registration and
+      overrides, holidays and the academic calendar, when a friend is free, and how classes
+      look in their calendar. "My classes", "my schedule", "my professor", and "my finals"
+      mean their Wentworth courses. Call list_terms first to get term uids. Times are in the
+      America/New_York time zone. When a tool answers that a permission is missing, tell the
+      student how to add it and do not retry. Before you change a setting, say what you will
+      change. WIT Calendar is not an official Wentworth service, and the advisory in a course
+      result says when it last copied the data. When you help a student plan courses, tell
+      them to confirm the plan with their program director and their academic advisor. Make
+      plans that need no registration override. Offer one option that needs an override only
+      when no plan without one works, or when the student is stuck or worried. Then name the
+      override and the course, and tell the student to ask the dean's office of the school
+      that offers the course. A student registers at the time on their time ticket, in
+      myWentworth under Prepare for Registration. First-year students, sophomores, and
+      students on academic probation or dismissal need a Registration Alternate PIN (RAC)
+      from their primary advisor.
     TEXT
 
-    DESCRIPTION = "Wentworth course catalog and your WIT Calendar schedule and settings."
+    MAX_INSTRUCTIONS_LENGTH = 2_048
+
+    DESCRIPTION = "Wentworth (WIT) classes, schedule, finals, professors, course planning, and registration."
 
     # SEP-2549 cache hints. The SDK adds them to the list and read results
     # (tools/list, prompts/list, resources/list, resources/read) and to

@@ -4,7 +4,8 @@ module McpTools
   class ListFriends < BaseTool
     tool_name "list_friends"
     title "List my friends"
-    description "Lists my friends on WIT Calendar, with the id that friend_busy_times takes."
+    description "Lists my friends on WIT Calendar, with the id that friend_busy_times takes. Use it when I " \
+                "ask when a friend is free or has class."
     requires_scope "friends:read"
     input_schema(properties: {})
     links do

@@ -9,7 +9,10 @@ module McpTools
                 "lectures and labs that must be registered as a linked pair, the same course twice, " \
                 "and totals (credits, days, earliest start, latest end, meetings before 9:00). " \
                 "Lecture and lab pairs come from Banner, so trust this over link identifiers. " \
-                "Use it before you suggest a schedule."
+                "Use it before you suggest a schedule. Sections with data older than " \
+                "#{Courses::Processor::CATALOG_FRESH_FOR.in_hours.to_i} hours get a Banner refresh in the background. " \
+                "To read Banner itself, see get_section. A schedule with a time conflict needs a time conflict " \
+                "override from the dean's office of the school that offers the course: give the minutes of overlap."
     requires_scope "catalog"
     academic_planning :sections
     # Hosts with the MCP Apps extension show the result as a week grid.
@@ -68,7 +71,9 @@ module McpTools
     )
 
     def perform(crns:, term_uid: nil)
-      Catalog::ScheduleCheck.new(term_uid: find_term(term_uid).uid, crns: crns).call
+      result = Catalog::ScheduleCheck.new(term_uid: find_term(term_uid).uid, crns: crns).call
+      refresh_stale_sections(result[:term][:uid], result[:sections].pluck(:crn))
+      result
     rescue Catalog::FilterError => e
       raise ToolError, e.message
     end

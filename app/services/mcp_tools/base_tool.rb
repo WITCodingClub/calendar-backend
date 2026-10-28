@@ -231,6 +231,27 @@ module McpTools
         raise(ToolError, "No section with CRN #{crn} in term #{term.uid}")
     end
 
+    # The most sections that one call sends to Banner again.
+    REFRESH_LIMIT = 30
+    # A section that one call queued is not queued again for this long.
+    REFRESH_QUEUED_FOR = 15.minutes
+
+    # Sections whose Banner data is older than
+    # Courses::Processor::CATALOG_FRESH_FOR, so the nightly sync missed them,
+    # get a Banner refresh in the background (Catalog::SectionRefreshJob). Seats
+    # need no refresh here: Catalog::SeatRefreshJob writes them every 30
+    # minutes during registration, and it does not move banner_synced_at. The
+    # answer does not wait. A refresh is extra, so a fault is reported, not raised.
+    def refresh_stale_sections(term_uid, crns)
+      ids = Course.joins(:term).where(terms: { uid: term_uid }, crn: crns)
+                  .where("courses.banner_synced_at IS NULL OR courses.banner_synced_at < ?", Courses::Processor::CATALOG_FRESH_FOR.ago)
+                  .limit(REFRESH_LIMIT).pluck(:id)
+      ids = ids.select { |id| Rails.cache.write("mcp/section_refresh/#{id}", true, expires_in: REFRESH_QUEUED_FOR, unless_exist: true) }
+      Catalog::SectionRefreshJob.perform_later(ids) if ids.any?
+    rescue StandardError => e
+      Rails.error.report(e, handled: true, context: { user_id: user&.id })
+    end
+
     # A meeting time of a course the user takes, by the id from my_courses.
     def find_my_meeting_time(id)
       Course::MeetingTime.joins(course: :enrollments)

@@ -94,6 +94,20 @@ RSpec.describe "Api::Mcp", type: :request do
     expect(server_info["description"]).to eq(McpTools::Server::DESCRIPTION)
     expect(server_info["icons"]).to eq([ { "src" => "http://example.com/icon.png", "mimeType" => "image/png", "sizes" => [ "180x180" ] } ])
     expect(response.parsed_body.dig("result", "instructions")).to include("program director", "academic advisor")
+    expect(response.parsed_body.dig("result", "instructions")).to include("override", "dean's office of the school that offers the course")
+    expect(response.parsed_body.dig("result", "instructions")).to include("time ticket", "Registration Alternate PIN (RAC)")
+    expect(response.parsed_body.dig("result", "instructions")).to include("without being asked to by name")
+  end
+
+  it "keeps the instructions under the Claude Code limit, so no client cuts them" do
+    expect(McpTools::Server::INSTRUCTIONS.length).to be <= McpTools::Server::MAX_INSTRUCTIONS_LENGTH
+  end
+
+  it "puts the registration rules for one tool in that tool's description" do
+    expect(McpTools::SearchSections.description_value).to include("waitlist capacity of 0 means none")
+    expect(McpTools::GetCourse.description_value).to include("min_grade")
+    expect(McpTools::CheckSchedule.description_value).to include("time conflict override")
+    expect(McpTools::GetDegreeRequirements.description_value).to include("course substitution")
   end
 
   describe "the MCP Apps extension" do

@@ -81,9 +81,100 @@ WIT Calendar is not an official Wentworth service. It copies its data from offic
 
 The term sources give one time for each current and future term. The time is when a full run finished, not when one course changed: a student's own courses also refresh when the extension processes a term, so one fresh course says nothing about the rest. `Catalog::Freshness` builds the list and keeps the times in the cache for 10 minutes. The server instructions say the same. When a schedule in `config/recurring.yml` changes, change the text in `Catalog::Freshness` too. A spec checks this.
 
+### When a client calls the tools
+
+A student must not have to name WIT Calendar or a tool. The model calls a tool when the question matches what the server says about itself. Two texts decide this:
+
+- **The server instructions** (`McpTools::Server::INSTRUCTIONS`). The client puts them in the context of every chat, also when it defers the tools. A client with many tools, such as Claude Code with tool search, shows the model only the tool names until it searches. So the instructions start with when to use the server: the topics, and the words students use ("my classes", "my finals", "my professor"). The rules come after.
+- **The tool descriptions.** A tool search matches the words of the question with the names and the descriptions. Each tool that a student asks about in plain words has a "Use it for" sentence with example questions. Give Wentworth or WIT in the description of a student tool, so that "my classes" does not go to a general calendar.
+
+Rules:
+
+- Claude Code cuts server instructions and tool descriptions after 2,048 characters, with no error (`McpTools::Server::MAX_INSTRUCTIONS_LENGTH`). `spec/requests/api/mcp_spec.rb` checks the length of the instructions. Keep the trigger sentences first, so that a cut removes rules, not triggers.
+- Put a rule for one tool in the description of that tool, not in the instructions. The model reads a description when it loads the tool.
+- `DESCRIPTION` (the `serverInfo` description) lists the topics too. Some clients show it in their connector list.
+
+### Registration overrides
+
+Banner can block a registration. A student can ask for an override of the block. At Wentworth, the dean's office of the school that offers the course gives overrides.
+
+| Override | It lets the student |
+| --- | --- |
+| Capacity or closed | Register in a full section. Check the department waitlist rules first. |
+| Prerequisite or corequisite | Register without a prerequisite or a corequisite. |
+| Major, minor, or program | Register in a section restricted to other majors, minors, colleges, or programs. |
+| Class year or level | Register in a section restricted to other class years. |
+| Time conflict | Register in two sections whose meeting times overlap. |
+| Instructor or department approval | Register in a section that needs that approval. |
+| Maximum hours (`ADV_MAX_HR`) | Register for more credits than the term maximum. |
+
+The server instructions (`McpTools::Server::INSTRUCTIONS`) and each prompt (`McpTools::Prompts::BasePrompt::OVERRIDE`) give the model these rules. `check_schedule` and `get_course` name the override in their descriptions.
+
+- An override is not certain, so make plans that do not need one.
+- Offer one option that needs an override only when no plan without one works, or when the student is stuck or worried.
+- For that option, name the override and the course, and tell the student to ask the dean's office of the school that offers the course.
+- For a time conflict, give the minutes of overlap. `check_schedule` gives the times of each conflict.
+
+No tool reads or requests overrides. Banner does not show them to WIT Calendar. When the override text changes, change it in each place.
+
+### Registration steps
+
+The Registrar's notice for Spring 2027 gives these rules. `plan_term_schedule` gives all of them after the options (`McpTools::Prompts::PlanTermSchedule::REGISTRATION`). The server instructions have only the time ticket and the RAC, because of the length limit (see [When a client calls the tools](#when-a-client-calls-the-tools)). The tool descriptions have the other rules:
+
+- **Time ticket:** each student registers at the time on their time ticket. The student finds it in myWentworth under **Prepare for Registration**.
+- **Registration time:** the time comes from the completed earned credits, with transfer and graduate credits. Credits in progress do not count. `university_events` says this.
+- **Registration Alternate PIN (RAC):** first-year students, sophomores, and students on academic probation, continued probation, or academic dismissal need a RAC before they can register. The primary advisor gives it. WIT Calendar does not know the class year or the academic standing of a student, so the model gives the rule and does not guess.
+- **Electives not listed yet:** for a Technical or HSS elective that is not in the schedule yet, the student asks the dean or associate dean of their school. The Registrar adds the electives when the schools send the lists. `search_sections` says this.
+
+- **Waitlists:** not every section has a Banner waitlist. The `waitlist` of a section result gives its capacity and open seats (#905), and a capacity of 0 means no waitlist. For a full section with a waitlist, the student joins it before they ask for a capacity override. `search_sections`, `get_section`, and the prompts say this.
+- **Minimum grades:** some prerequisites need a minimum grade. `Catalog::CourseDetailsSync` stores it as `min_grade` in the prerequisite tree, and `get_course` gives it. `my_course_history` has no grades, so the model asks the student for the grade. `get_course`, `plan_term_schedule`, and `plan_degree_progression` say this.
+- **Substitutions and transfer credit:** a course substitution or transfer credit for a degree requirement needs approval from the program director, the dean's office of the school, or both. `degree_requirements` and `plan_degree_progression` say this.
+
+No tool reads the time ticket, the RAC, or the standing of a student. The dates of each registration window change each term, so the docs and the server do not give them. When the Registrar changes these rules, change the text in each place.
+
+### Old section data
+
+The nightly sync can be a day old, and seats change fast during registration. So the server does two things:
+
+- **A refresh on our server.** `get_section`, `check_schedule`, and `my_courses` queue `Catalog::SectionRefreshJob` for each section in the result whose `banner_synced_at` is older than `Courses::Processor::CATALOG_FRESH_FOR` (36 hours), so the nightly sync missed it. This is the same refresh that the extension starts when it processes a schedule. Seats need no refresh here: `Catalog::SeatRefreshJob` writes them every 30 minutes during registration, and it does not change `banner_synced_at`. The answer does not wait for it. A call queues at most 30 sections (`McpTools::BaseTool::REFRESH_LIMIT`), and a cache key stops a section from being queued again for 15 minutes (`REFRESH_QUEUED_FOR`). `Catalog::BannerThrottle` paces the job. A fault in the refresh is reported, and the tool still answers.
+- **A direct read of Banner by the client.** The `get_section` description (`McpTools::GetSection::BANNER_HINT`) tells the model to read Banner itself when the advisory says the section data is more than 2 days old or has no refresh time. The model needs a web fetch tool for this. These Banner pages need no sign-in or session, and a GET works:
+
+| Page | Gives |
+| --- | --- |
+| `searchResults/getEnrollmentInfo?term=<term_uid>&courseReferenceNumber=<crn>` | Seats and waitlist, as HTML |
+| `searchResults/getFacultyMeetingTimes?term=<term_uid>&courseReferenceNumber=<crn>` | Meeting times, rooms, and instructors, as JSON |
+
+The base URL is `Catalog::LeopardWebClient::BASE_URL`, and the term uid is the Banner term code. On 2026-10-14, Banner failed after about 40 requests in a minute, so the description limits the model to 10 CRNs, one at a time.
+
 `catalog_graphql` has the same depth, cost, and page limits as `POST /api/v1/graphql`, and one semantic search for each query.
 
 A settings tool takes a color as a name (`lavender`, `sage`, `grape`, `flamingo`, `banana`, `tangerine`, `peacock`, `graphite`, `blueberry`, `basil`, `tomato`), a Google Calendar color id from 1 to 11, or a `#rrggbb` hex color. A change to a setting queues the same calendar sync as the extension.
+
+### Class settings
+
+A class setting overrides the calendar settings for one weekly class meeting. It is an `EventPreference` row on a `Course::MeetingTime`, the same row that `PATCH /api/meeting_times/:id/preference` writes. `my_calendar_settings` lists these rows under `classes`. `update_class_settings` adds, changes, and removes them.
+
+`Preferences::Resolver` finds each field on its own. For an event of a class meeting, the first level that sets the field wins:
+
+| Order | Level | Set with | `sources` value |
+| --- | --- | --- | --- |
+| 1 | The class meeting | `update_class_settings` | `individual` |
+| 2 | The kind of class (`lecture`, `laboratory`, and the other schedule types) | `update_calendar_settings` with that level | `event_type:<type>` |
+| 3 | All classes | `update_calendar_settings` with `all_classes` | `global` |
+| 4 | The defaults | | `system_default` |
+
+So a class setting for the color only changes the color. The title, the reminders, and the other fields still come from the levels below. The default color is the lecture or lab color from the extension settings, else the color of the class meeting (`Course::MeetingTime#event_color`).
+
+Rules:
+
+- A class setting applies to one meeting time: one course, on one day of the week, in one term. A course that meets on Monday and Wednesday has two meeting times. To change the whole course, call `update_class_settings` once for each `meeting_time_id` that `my_courses` gives. A course in a new term has new meeting times, so the settings do not carry over.
+- A class setting does not change the final exam of the course. Final exams use the `final_exam` level.
+- Only the fields in the call change. The other fields of the row stay.
+- `reset` removes fields from the row, so the level below applies again. When no field is left, the tool deletes the row and gives `result: "deleted"` and `class_settings: null`. This is the same as the `DELETE` endpoint.
+- An empty template counts as not set, so the level below applies. An empty `reminders` list counts as set: the class gets no reminders.
+- A change with `update_calendar_settings` does not remove class settings. Its confirmation message says that a class with settings of its own keeps them.
+- Paused notifications (`set_notifications`) remove the reminders of every event in the calendar sync, also the reminders of a class setting. `resolved` and `sources` show the stored reminders, not the pause.
+- The result gives `class_settings` (the row), `resolved` (the value of each field after the lookup), `sources` (the level of each value, from the table above), and `preview` (the title, description, and location of the class meeting with those values).
 
 ### Confirmation
 
