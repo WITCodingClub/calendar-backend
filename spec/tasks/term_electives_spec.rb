@@ -8,13 +8,11 @@ RSpec.describe "term_electives rake tasks" do
     Rails.application.load_tasks if Rake::Task.tasks.empty?
   end
 
-  it "runs the import and prints the counts" do
-    result = TermElectives::Importer::Result.new(imported: 2, unchanged: 1, skipped: 0, failed: 0, removed: 0)
-    allow(TermElectives::Importer).to receive(:new).and_return(instance_double(TermElectives::Importer, call: result))
-
+  it "queues the import" do
     task = Rake::Task["term_electives:import"]
     task.reenable
 
-    expect { task.invoke }.to output("imported: 2, unchanged: 1, skipped: 0, failed: 0, removed: 0\n").to_stdout
+    expect { task.invoke }.to have_enqueued_job(TermElectives::ImportJob)
+      .and output("Queued the import of the term elective lists.\n").to_stdout
   end
 end

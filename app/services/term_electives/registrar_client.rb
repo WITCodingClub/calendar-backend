@@ -15,7 +15,7 @@ module TermElectives
       methods:        %i[get]
     }.freeze
     MAX_REDIRECTS = 3
-    ALLOWED_HOST = URI(PAGE_URL).host
+    ALLOWED_HOSTS = [ SITE_HOST, "www.#{SITE_HOST}" ].freeze
 
     # The body as binary, or nil for a 404. Raises FetchError for any other
     # failure.
@@ -41,7 +41,7 @@ module TermElectives
 
     def redirect_target(from, location)
       target = URI.join(from, location)
-      unless target.scheme == "https" && target.host == ALLOWED_HOST
+      unless target.scheme == "https" && target.host.to_s.downcase.in?(ALLOWED_HOSTS)
         raise FetchError, "GET #{from}: redirect to #{target.host || location} is not allowed"
       end
 

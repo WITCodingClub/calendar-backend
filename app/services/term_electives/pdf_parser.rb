@@ -17,6 +17,7 @@ module TermElectives
     TERM = /\b(spring|summer|fall)\s+(\d{4})\b/i
     # The header row of a table, such as "Area  Course  Title  Course Times".
     COLUMN_HEADER = /\bcourse\b.*\btitle\b/i
+    TERM_LINES = 8
     MAX_HEADING_WORDS = 12
     MAX_HEADING_LENGTH = 80
     MAX_HEADING_INDENT = 2
@@ -41,12 +42,15 @@ module TermElectives
       @lines.map { |line| squish(line) }.find(&:present?)
     end
 
-    # The first season and year in the text. A file name can name another
-    # term than the text: "SP26 ARCH Undergrad Electives.pdf" is for Spring
-    # 2027.
+    # The season and year in the first lines of the text, where the title
+    # is. A file name can name another term than the text: "SP26 ARCH
+    # Undergrad Electives.pdf" is for Spring 2027. The body can name other
+    # terms, such as "for students who took it in Fall 2026", so a term
+    # further down is not read, and a title with two terms gives none.
     def term
-      match = @lines.join("\n").match(TERM)
-      [ match[1].downcase, match[2].to_i ] if match
+      top = @lines.reject { |line| line.strip.empty? }.first(TERM_LINES).join("\n")
+      terms = top.scan(TERM).map { |season, year| [ season.downcase, year.to_i ] }.uniq
+      terms.first if terms.one?
     end
 
     def courses

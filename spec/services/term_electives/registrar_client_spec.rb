@@ -29,6 +29,13 @@ RSpec.describe TermElectives::RegistrarClient do
     expect(client.get(url)).to eq("moved")
   end
 
+  it "follows a redirect to www.wit.edu" do
+    stub_request(:get, url).to_return(status: 301, headers: { "Location" => "https://www.wit.edu/new.pdf" })
+    stub_request(:get, "https://www.wit.edu/new.pdf").to_return(status: 200, body: "moved")
+
+    expect(client.get(url)).to eq("moved")
+  end
+
   it "refuses a redirect to another host" do
     stub_request(:get, url).to_return(status: 302, headers: { "Location" => "https://example.com/a.pdf" })
 

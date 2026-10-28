@@ -6,8 +6,8 @@ RSpec.describe TermElectives::Importer do
   subject(:importer) { described_class.new }
 
   let(:page_url) { TermElectives::PAGE_URL }
-  let(:scds_url) { "https://wit.edu/sites/default/files/2031-01/SCDS_Electives_Spring%202031.pdf" }
-  let(:hss_url) { "https://wit.edu/sites/default/files/2031-01/Spring_2031_HSS_Electives.pdf" }
+  let(:scds_url) { "https://www.wit.edu/sites/default/files/2031-01/SCDS_Electives_Spring%202031.pdf" }
+  let(:hss_url) { "https://wit.edu/sites/default/files/2031-01/Spring%202031%20HSS%20Electives.pdf" }
   let!(:term) { create(:term, year: 2031, season: :spring) }
   let(:texts) do
     {
@@ -62,6 +62,43 @@ RSpec.describe TermElectives::Importer do
     expect(FinalsSchedules::PdfText).to have_received(:extract).twice
   end
 
+  it "only fetches PDF links over HTTPS on wit.edu" do
+    importer.call
+
+    expect(TermElectiveList.pluck(:url)).to contain_exactly(scds_url, hss_url)
+    expect(a_request(:get, "http://wit.edu/sites/default/files/plain.pdf")).not_to have_been_made
+  end
+
+  it "adds the courses of a subject that Banner adds after the import" do
+    importer.call
+    create(:catalog_course, subject_code: "PHYS", course_number: 1250)
+
+    importer.call
+
+    course = TermElectiveCourse.find_by!(subject_code: "PHYS")
+    expect(course).to have_attributes(heading: "Lab-based Science Electives (BSCN, BSCO)", catalog_course: CatalogCourse.find_by!(subject_code: "PHYS"))
+    expect(FinalsSchedules::PdfText).to have_received(:extract).twice
+  end
+
+  it "keeps the rows of an unchanged PDF when nothing else changed" do
+    importer.call
+    ids = TermElectiveCourse.ids
+
+    importer.call
+
+    expect(TermElectiveCourse.ids).to match_array(ids)
+  end
+
+  it "links a course to a catalog course that Banner adds after the import" do
+    importer.call
+    course = TermElectiveCourse.find_by!(subject_code: "COMP", course_number: 2000)
+    catalog_course = create(:catalog_course, subject_code: "COMP", course_number: 2000)
+
+    importer.call
+
+    expect(course.reload.catalog_course).to eq(catalog_course)
+  end
+
   it "writes the courses again when a PDF changed" do
     importer.call
     texts["scds-pdf v2"] = "Spring 2031 Electives\nNET Elective\n• COMP3400 – Operating Systems\n"
@@ -98,6 +135,16 @@ RSpec.describe TermElectives::Importer do
     expect(importer.call).to have_attributes(imported: 1, failed: 1)
     expect(Rails.error).to have_received(:report)
       .with(an_instance_of(TermElectives::FetchError), handled: true, context: { url: scds_url })
+  end
+
+  it "reports a PDF that fails to save and imports the others" do
+    allow(Rails.error).to receive(:report)
+    allow(TermElectiveList).to receive(:new).and_call_original
+    allow(TermElectiveList).to receive(:new).with(url: scds_url).and_raise(ActiveRecord::RecordNotUnique)
+
+    expect(importer.call).to have_attributes(imported: 1, failed: 1)
+    expect(Rails.error).to have_received(:report)
+      .with(an_instance_of(ActiveRecord::RecordNotUnique), handled: true, context: { url: scds_url })
   end
 
   it "raises when the page is missing" do

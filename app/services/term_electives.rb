@@ -11,6 +11,8 @@ module TermElectives
 
   PAGE_URL = "https://wit.edu/academics/registrar/how-to/technical-major-and-huss-electives"
   USER_AGENT = "WITCalendarBot/1.0"
+  # The page and its PDFs are on wit.edu. A link can also name www.wit.edu.
+  SITE_HOST = "wit.edu"
 
   # The school of a list, from a word in the file name, such as
   # "SCDS_Electives_Spring 2027.pdf".

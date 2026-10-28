@@ -62,6 +62,19 @@ RSpec.describe TermElectives::PdfParser do
     end
   end
 
+  it "reads the term from the title, not from a term in the body" do
+    text = "Spring 2031 Electives\n" + ("\n• COMP2000 – Data Structures\n" * 8) +
+           "Students who took COMP2000 in Fall 2030 may not take it again.\n"
+
+    expect(described_class.parse(text)).to have_attributes(season: "spring", year: 2031)
+  end
+
+  it "gives no term when the title names two terms" do
+    result = described_class.parse("Fall 2030 and Spring 2031 Electives\n• COMP2000 – Data Structures\n")
+
+    expect(result).to have_attributes(season: nil, year: nil)
+  end
+
   it "gives no term when the text names none" do
     result = described_class.parse("Electives\n• COMP2000 – Data Structures\n")
 
