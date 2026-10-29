@@ -13,7 +13,7 @@ RSpec.describe Admin::CoursesHelper do
     end
 
     it "gives nil when Banner gave no counts" do
-      expect(helper.admin_open_count(nil, 24)).to be_nil
+      expect([ helper.admin_open_count(nil, 24), helper.admin_open_count(4, nil) ]).to eq([ nil, nil ])
     end
   end
 

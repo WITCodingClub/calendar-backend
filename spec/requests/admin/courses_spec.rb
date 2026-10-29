@@ -70,5 +70,14 @@ RSpec.describe "Admin courses", type: :request do
 
       expect(response.body).to include("No catalog details for this course yet")
     end
+
+    it "says the same for a seeded catalog row that Banner has not filled yet" do
+      course = create(:course, term: term, subject: "Computer Science (COMP)", course_number: 2650)
+      create(:catalog_course, subject_code: "COMP", course_number: 2650, details_fetched_at: nil)
+
+      get admin_course_path(course)
+
+      expect(response.body).to include("No catalog details for this course yet")
+    end
   end
 end

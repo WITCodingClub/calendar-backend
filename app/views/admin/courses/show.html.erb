@@ -35,8 +35,10 @@
     <% end %>
   <% end %>
 
-  <% catalog = relations.catalog_course %>
-  <%= render "admin/shared/card", title: "Catalog", subtitle: (catalog&.details_fetched_at ? "Fetched from Banner #{time_ago_in_words(catalog.details_fetched_at)} ago" : nil) do %>
+  <%# CourseDetailsSync.seed makes a row with only the code and title before
+      it asks Banner, so a row with no fetch time has no details yet. %>
+  <% catalog = relations.catalog_course if relations.catalog_course&.details_fetched_at %>
+  <%= render "admin/shared/card", title: "Catalog", subtitle: ("Fetched from Banner #{time_ago_in_words(catalog.details_fetched_at)} ago" if catalog) do %>
     <% if catalog %>
       <%= admin_details(columns: 3) do |d| %>
         <% d.item("Description", wide: true) { catalog.description } %>
