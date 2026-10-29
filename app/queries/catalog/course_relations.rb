@@ -2,8 +2,9 @@
 
 module Catalog
   # The courses around one section, for the admin course page: the
-  # prerequisite tree, the corequisites, the courses it is a prerequisite for,
-  # and the sections a student registers with it.
+  # prerequisite tree, the corequisites, the mutual exclusions, the courses it
+  # is a prerequisite for, the sections a student registers with it, and the
+  # sections it is cross-listed with.
   #
   # A prerequisite names a course, not a section. section_for gives a section
   # of that course to link to: one in the same term first, else the newest.
@@ -30,6 +31,11 @@ module Catalog
       catalog_course&.corequisites || []
     end
 
+    # [{ "subject_code" => "ARCH", "course_number" => 5100, "level" => ..., "min_grade" => ... }, ...]
+    def mutual_exclusions
+      catalog_course&.mutual_exclusions || []
+    end
+
     # The CatalogCourse rows that list this course as a prerequisite.
     def unlocks
       @unlocks ||= catalog_course ? catalog_course.unlocks.distinct.order(:subject_code, :course_number).to_a : []
@@ -38,6 +44,11 @@ module Catalog
     # Each group is one set of partner sections (Catalog::SectionLinks).
     def linked_options
       @linked_options ||= SectionLinks.new(course).options
+    end
+
+    # The other sections in this section's cross-list group, by CRN.
+    def cross_listed_sections
+      @cross_listed_sections ||= Course.where(term_id: course.term_id, crn: course.cross_listed_crns).order(:crn).to_a
     end
 
     def section_for(subject_code, course_number)
@@ -66,7 +77,7 @@ module Catalog
     end
 
     def codes
-      refs = course_refs(prerequisites) + corequisites
+      refs = course_refs(prerequisites) + corequisites + mutual_exclusions
       refs.map { |ref| [ ref["subject_code"].to_s.upcase, ref["course_number"].to_i ] } +
         unlocks.map { |unlocked| [ unlocked.subject_code, unlocked.course_number ] }
     end

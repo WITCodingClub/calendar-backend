@@ -28,6 +28,36 @@ RSpec.describe Catalog::CourseRelations do
     end
   end
 
+  describe "#mutual_exclusions" do
+    it "reads them from the catalog course, and section_for finds their sections" do
+      create(:catalog_course, subject_code: course.prefix, course_number: course.course_number,
+                              mutual_exclusions: [ { "subject_code" => "ARCH", "course_number" => 6100 } ])
+      excluded = create(:course, term: course.term, subject: "Architecture (ARCH)", course_number: 6100)
+      relations = described_class.new(course)
+
+      expect(relations.mutual_exclusions).to eq([ { "subject_code" => "ARCH", "course_number" => 6100 } ])
+      expect(relations.section_for("ARCH", 6100)).to eq(excluded)
+    end
+
+    it "is empty when the course has no catalog row" do
+      expect(described_class.new(course).mutual_exclusions).to eq([])
+    end
+  end
+
+  describe "#cross_listed_sections" do
+    it "gives the other active sections in the group, in the same term" do
+      section = create(:course, :cross_listed, term: course.term)
+      partner = create(:course, :cross_listed, term: course.term)
+      create(:course, :cross_listed)
+
+      expect(described_class.new(section).cross_listed_sections).to eq([ partner ])
+    end
+
+    it "is empty for a section that is not cross-listed" do
+      expect(described_class.new(course).cross_listed_sections).to eq([])
+    end
+  end
+
   describe "#section_for" do
     it "prefers a section in the same term over a newer term" do
       tree = { "type" => "course", "subject_code" => "COMP", "course_number" => 2000 }

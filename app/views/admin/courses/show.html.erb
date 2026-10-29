@@ -4,12 +4,21 @@
     back: [ "Courses", admin_courses_path ] %>
 
 <div class="space-y-6">
+  <% relations = Catalog::CourseRelations.new(@course) %>
   <%= render "admin/shared/card", title: "Details" do %>
     <%= admin_details(columns: 3) do |d| %>
       <% d.item("CRN") { @course.crn } %>
       <% d.item("Term") { link_to @course.term.name, admin_term_path(@course.term), class: "text-primary hover:underline" } %>
       <% d.item("Section") { @course.section_number } %>
       <% d.item("Credits") { @course.credit_hours } %>
+      <% d.item("Schedule type") { @course.schedule_type_description || @course.schedule_type } %>
+      <% d.item("Grade mode") { @course.grade_mode } %>
+      <% d.item("Part of term") { @course.part_of_term } %>
+      <% d.item("Campus") { @course.campus } %>
+      <% d.item("Dates") { "#{@course.start_date.strftime('%m/%d/%Y')} – #{@course.end_date.strftime('%m/%d/%Y')}" } %>
+      <% d.item("Status") { @course.status.capitalize } %>
+      <% d.item("Seats") { admin_open_count(@course.seats_available, @course.seats_capacity) } %>
+      <% d.item("Waitlist") { admin_open_count(@course.waitlist_available, @course.waitlist_capacity) } %>
       <% d.item("Instructors", wide: true) do %>
         <% if @course.faculties.any? %>
           <%= safe_join(@course.faculties.map { |f| link_to f.full_name, admin_faculty_path(f), class: "text-primary hover:underline" }, ", ") %>
@@ -17,10 +26,41 @@
           TBA
         <% end %>
       <% end %>
+      <% if @course.cross_list_identifier %>
+        <% d.item("Cross-listed with", wide: true) do %>
+          <%= safe_join(relations.cross_listed_sections.map { |section| link_to("#{section.prefix} #{section.course_number} (#{section.section_number}) · CRN #{section.crn}", admin_course_path(section), class: "text-primary hover:underline whitespace-nowrap", title: section.title) }, ", ") %>
+          <div class="text-xs text-on-surface-variant">Group <%= @course.cross_list_identifier %><% if (count = admin_open_count(@course.cross_list_available, @course.cross_list_capacity)) %>: <%= count %> across the group<% end %></div>
+        <% end %>
+      <% end %>
     <% end %>
   <% end %>
 
-  <% relations = Catalog::CourseRelations.new(@course) %>
+  <%# CourseDetailsSync.seed makes a row with only the code and title before
+      it asks Banner, so a row with no fetch time has no details yet. %>
+  <% catalog = relations.catalog_course if relations.catalog_course&.details_fetched_at %>
+  <%= render "admin/shared/card", title: "Catalog", subtitle: ("Fetched from Banner #{time_ago_in_words(catalog.details_fetched_at)} ago" if catalog) do %>
+    <% if catalog %>
+      <%= admin_details(columns: 3) do |d| %>
+        <% d.item("Description", wide: true) { catalog.description } %>
+        <% d.item("College") { catalog.college } %>
+        <% d.item("Division") { catalog.division } %>
+        <% d.item("Department") { catalog.department } %>
+        <% d.item("Levels") { catalog.levels.join(", ") } %>
+        <% d.item("Grading modes") { catalog.grading_modes.join(", ") } %>
+        <% d.item("Typically offered") { catalog.typically_offered.map(&:capitalize).join(", ") } %>
+        <% d.item("Fees", wide: true) { safe_join(catalog.fees.map { |fee| tag.div(admin_fee(fee)) }) } %>
+        <% d.item("Restrictions", wide: true) do %>
+          <% catalog.restrictions.each do |group| %>
+            <div><span class="font-medium"><%= group["heading"] %>:</span> <%= group["values"].join(", ") %></div>
+          <% end %>
+        <% end %>
+        <% d.item("Learning objectives", wide: true) { simple_format(catalog.learning_objectives) if catalog.learning_objectives } %>
+      <% end %>
+    <% else %>
+      <p class="text-xs text-on-surface-variant">No catalog details for this course yet. Catalog::CourseDetailsSync stores the catalog entry, the prerequisites, and the corequisites.</p>
+    <% end %>
+  <% end %>
+
   <%= render "admin/shared/card", title: "Related courses" do %>
     <%= admin_details(columns: 2) do |d| %>
       <% d.item("Prerequisites", wide: true) do %>
@@ -28,6 +68,9 @@
       <% end %>
       <% d.item("Corequisites") do %>
         <%= safe_join(relations.corequisites.map { |ref| render("admin/courses/course_code", relations: relations, subject_code: ref["subject_code"], course_number: ref["course_number"]) }, ", ") %>
+      <% end %>
+      <% d.item("Mutually exclusive with") do %>
+        <%= safe_join(relations.mutual_exclusions.map { |ref| render("admin/courses/course_code", relations: relations, subject_code: ref["subject_code"], course_number: ref["course_number"]) }, ", ") %>
       <% end %>
       <% d.item("Prerequisite for") do %>
         <%= safe_join(relations.unlocks.map { |unlocked| render("admin/courses/course_code", relations: relations, subject_code: unlocked.subject_code, course_number: unlocked.course_number) }, ", ") %>
@@ -40,9 +83,6 @@
           </div>
         <% end %>
       <% end %>
-    <% end %>
-    <% if relations.catalog_course.nil? %>
-      <p class="mt-3 text-xs text-on-surface-variant">No catalog details for this course yet. Catalog::CourseDetailsSync stores the prerequisites and corequisites.</p>
     <% end %>
   <% end %>
 
