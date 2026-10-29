@@ -12,7 +12,7 @@ module Preferences
     ].freeze
 
     SYSTEM_DEFAULTS = {
-      title_template: "{{title}}",
+      title_template: "{% if schedule_type == 'Laboratory' %}{{title | remove: ' - Lab'}} - {{schedule_type_short}}{% else %}{{title}}{% endif %}",
       description_template: "{{faculty}}\n{{faculty_email}}",
       location_template: "{{building}} {{room}}",
       reminder_settings: [ { "time" => "30", "type" => "minutes", "method" => "popup" } ],

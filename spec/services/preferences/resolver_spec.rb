@@ -103,6 +103,29 @@ RSpec.describe Preferences::Resolver do
     end
   end
 
+  describe "the system default title" do
+    def default_title_for(course)
+      meeting = create(:course_meeting_time, course: course)
+      template = described_class.new(user).resolve_for(meeting)[:title_template]
+      Preferences::TemplateRenderer.new.render(template, Preferences::TemplateRenderer.build_context_from_meeting_time(meeting))
+    end
+
+    it "adds Lab to a lab whose title does not have it" do
+      expect(default_title_for(create(:course, schedule_type: :laboratory, title: "Computer Science I")))
+        .to eq("Computer Science I - Lab")
+    end
+
+    it "does not add Lab twice to a lab whose title has it" do
+      expect(default_title_for(create(:course, schedule_type: :laboratory, title: "Computer Science I - Lab")))
+        .to eq("Computer Science I - Lab")
+    end
+
+    it "leaves a lecture title alone" do
+      expect(default_title_for(create(:course, schedule_type: :lecture, title: "Computer Science I")))
+        .to eq("Computer Science I")
+    end
+  end
+
   describe "the do not disturb switch" do
     it "clears the reminders of university events as well" do
       user.disable_notifications!
