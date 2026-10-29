@@ -78,7 +78,14 @@ RSpec.describe "MCP tool output schemas" do
     let(:lecture) do
       create(:course, term: term, subject: "Computer Science (COMP)", course_number: 2350, title: "Data Structures",
                       credit_hours: 4, seats_capacity: 30, seats_available: 5, grade_mode: "Standard Letter",
-                      is_section_linked: true, link_identifier: "A1", links_fetched_at: 1.day.ago)
+                      is_section_linked: true, link_identifier: "A1", links_fetched_at: 1.day.ago,
+                      waitlist_capacity: 10, waitlist_available: 8, part_of_term: "FA1", campus: "Boston",
+                      cross_list_identifier: "01", cross_list_capacity: 40, cross_list_available: 12)
+    end
+    # The graduate section that meets with the lecture.
+    let(:cross_listed) do
+      create(:course, term: term, subject: "Computer Science (COMP)", course_number: 6350, title: "Graduate Algorithms",
+                      cross_list_identifier: "01", cross_list_capacity: 40, cross_list_available: 12)
     end
     let(:lab) do
       create(:course, term: term, subject: "Computer Science (COMP)", course_number: 2350, section_number: "02",
@@ -89,6 +96,7 @@ RSpec.describe "MCP tool output schemas" do
 
     before do
       Rails.cache.clear
+      cross_listed
       create(:rating_distribution, faculty: faculty, r1: 1, r2: 0, r3: 2, r4: 3, r5: 4, total: 10)
       create(:teacher_rating_tag, faculty: faculty, tag_name: "Clear grading", tag_count: 4)
       create(:rmp_rating, faculty: faculty, comment: "Clear lectures.", course_name: "COMP2350", clarity_rating: 5,
@@ -111,8 +119,15 @@ RSpec.describe "MCP tool output schemas" do
           ]
         },
         corequisites:  [ { "subject_code" => "COMP", "course_number" => 2351 } ],
-        restrictions:  [ { "heading" => "Must be enrolled in one of the following Levels", "values" => [ "Undergraduate" ] } ]
+        restrictions:  [ { "heading" => "Must be enrolled in one of the following Levels", "values" => [ "Undergraduate" ] } ],
+        mutual_exclusions: [ { "subject_code" => "COMP", "course_number" => 6350, "level" => "Graduate", "min_grade" => nil } ],
+        college: "School of Computing and Data Science", division: "Undergraduate", department: "Computer Science",
+        levels: %w[Undergraduate Graduate], grading_modes: [ "Standard Letter" ],
+        fees: [ { "level" => "Undergraduate", "description" => "Course materials", "amount_cents" => 9500 },
+                { "level" => nil, "description" => nil, "amount_cents" => 1000 } ],
+        learning_objectives: "Implement a hash table.\nAnalyze the runtime of a sort."
       )
+      create(:catalog_course, subject_code: "COMP", course_number: 6350, title: "Graduate Algorithms")
       create(:course_prerequisite, catalog_course: create(:catalog_course, subject_code: "COMP", course_number: 3350),
                                    required_catalog_course: catalog_course)
       create(:course_prerequisite, catalog_course: catalog_course, required_catalog_course: prerequisite)
@@ -144,12 +159,18 @@ RSpec.describe "MCP tool output schemas" do
 
       section = expect_valid(McpTools::GetSection, crn: lecture.crn)
       expect(section[:course]).to include(code: "COMP 2350")
+      expect(section).to include(part_of_term: "FA1", campus: "Boston", waitlist: { capacity: 10, available: 8 },
+                                 cross_list: { identifier: "01", crns: [ cross_listed.crn ], seats: { capacity: 40, available: 12 } })
       expect(section[:final_exam]).to be_present
       expect(section[:advisory][:data_sources].first[:terms]).to be_present
 
       expect_valid(McpTools::SearchCourses, q: "COMP")
       course = expect_valid(McpTools::GetCourse, code: "COMP 2350", term_uid: term.uid)
       expect(course[:unlocks]).to be_present
+      expect(course).to include(college: "School of Computing and Data Science", levels: %w[Undergraduate Graduate],
+                                learning_objectives: a_string_including("hash table"))
+      expect(course[:fees].pluck("amount_cents")).to eq([ 9500, 1000 ])
+      expect(course[:mutual_exclusions]).to contain_exactly(include("code" => "COMP 6350", "title" => "Graduate Algorithms", "linked" => true))
       expect(course[:sections]).to be_present
 
       schedule = expect_valid(McpTools::CheckSchedule, crns: [ lecture.crn, lab.crn, 99_999 ])

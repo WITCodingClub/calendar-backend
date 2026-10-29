@@ -6,8 +6,12 @@ module Catalog
   # (McpTools::BaseTool) sends it, so a student can see how old the data is.
   #
   # A source of term data gives one time for each term that the nightly sync
-  # covers (the current and future terms). The time is when a full run for
-  # that term finished, not when one course changed.
+  # covers (the current and future terms) and that has sections. The time is
+  # when a full run for that term finished, not when one course changed.
+  #
+  # Catalog::EnsureFutureTermsJob makes terms up to two years ahead, before
+  # Banner lists them, so a student's upload always finds its term. Those
+  # terms have no sections and are left out.
   class Freshness
     CACHE_KEY = "catalog/freshness"
     # The times change only in jobs that write them with update_column, which
@@ -75,7 +79,7 @@ module Catalog
 
     # Plain strings, not records or times, so the cache holds plain values.
     def self.last_refreshed
-      terms  = Term.current_and_future.to_a
+      terms  = Term.current_and_future.where(id: Course.select(:term_id)).to_a
       finals = FinalsSchedule.completed.where(term: terms).group(:term_id).maximum(:processed_at)
 
       {
@@ -83,7 +87,7 @@ module Catalog
           {
             term_uid:       term.uid,
             term:           term.name,
-            sections:       term.sections_synced_at&.iso8601,
+            sections:       sections_refreshed_at(term)&.iso8601,
             course_details: term.details_synced_at&.iso8601,
             finals:         finals[term.id]&.iso8601
           }
@@ -93,5 +97,16 @@ module Catalog
         term_electives:      TermElectiveList.maximum(:fetched_at)&.iso8601
       }
     end
+
+    # The newest full refresh of a term's sections: a nightly
+    # Catalog::CourseDataSyncJob run, or a catalog import
+    # (Catalog::Importer), which fetches every section of the term too. The
+    # importer saves catalog_imported_at before a failed course fails the
+    # job, so a failed import does not count.
+    def self.sections_refreshed_at(term)
+      imported_at = term.catalog_imported_at unless term.catalog_import_failed?
+      [ term.sections_synced_at, imported_at ].compact.max
+    end
+    private_class_method :sections_refreshed_at
   end
 end

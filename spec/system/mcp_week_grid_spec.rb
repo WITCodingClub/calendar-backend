@@ -97,6 +97,21 @@ RSpec.describe "MCP week grid app", type: :system do
     end
   end
 
+  # Catalog::EnsureFutureTermsJob makes terms before Banner lists their
+  # sections, and Catalog::Freshness leaves them out.
+  it "says that a future term with no sections has not refreshed yet" do
+    create(:course, term: term, crn: 20397)
+    future = create(:term, year: term.year + 1)
+    allow(Term).to receive(:current).and_return(term)
+
+    start_host(McpTools::WeekGridApp)
+    send_tool_result(tool_result(McpTools::CheckSchedule, user, term_uid: future.uid, crns: [ 20397 ]))
+
+    within_frame("app") do
+      expect(page).to have_css(".advisory", text: "The section data of this term has not refreshed from Banner yet.")
+    end
+  end
+
   it "shows the error text of a tool error" do
     start_host(McpTools::WeekGridApp)
     send_tool_result(content: [ { type: "text", text: "No term with uid 1." } ], isError: true)

@@ -31,6 +31,8 @@ RSpec.describe "MCP finals app", type: :system do
   end
 
   it "says when the finals schedule is not published" do
+    # Catalog::Freshness lists a term once it has sections.
+    create(:course, term: term)
     start_host(McpTools::FinalsApp)
     send_tool_result(tool_result(McpTools::MyFinals, user, term_uid: term.uid))
 
