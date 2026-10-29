@@ -34,6 +34,35 @@ RSpec.describe "Admin courses", type: :request do
                                        "MATH 2300", "COMP 3450", %(href="#{admin_course_path(lab)}"))
     end
 
+    it "shows the section's Banner fields and its cross-listed sections" do
+      course = create(:course, :cross_listed, term: term, part_of_term: "FA1", campus: "Boston Main Campus",
+                                              seats_capacity: 30, seats_available: 5, waitlist_capacity: 10, waitlist_available: 10)
+      partner = create(:course, :cross_listed, term: term)
+
+      get admin_course_path(course)
+
+      expect(response.body).to include("FA1", "Boston Main Campus", "5 of 30 open", "10 of 10 open",
+                                       %(href="#{admin_course_path(partner)}"), "4 of 24 open across the group")
+    end
+
+    it "shows the catalog entry, fees, restrictions, learning objectives, and mutual exclusions" do
+      course = create(:course, term: term, subject: "Architecture (ARCH)", course_number: 4100)
+      create(:catalog_course, :with_details, subject_code: "ARCH", course_number: 4100,
+                                             college: "School of Architecture and Design", division: "Undergraduate",
+                                             department: "Architecture", levels: %w[Undergraduate Graduate],
+                                             grading_modes: [ "Standard Letter" ],
+                                             fees: [ { "level" => "Undergraduate", "description" => "Studio Fee", "amount_cents" => 15_000 } ],
+                                             restrictions: [ { "heading" => "Must be enrolled in one of the following Levels", "values" => [ "Undergraduate" ] } ],
+                                             learning_objectives: "Draw a plan.\nBuild a model.",
+                                             mutual_exclusions: [ { "subject_code" => "ARCH", "course_number" => 6100 } ])
+
+      get admin_course_path(course)
+
+      expect(response.body).to include("School of Architecture and Design", "Undergraduate, Graduate", "Standard Letter",
+                                       "Studio Fee (Undergraduate): $150.00", "Must be enrolled in one of the following Levels",
+                                       "<p>Draw a plan.\n<br />Build a model.</p>", "ARCH 6100")
+    end
+
     it "says when the course has no catalog details" do
       course = create(:course, term: term)
 
