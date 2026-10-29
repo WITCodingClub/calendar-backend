@@ -6,7 +6,11 @@ require "capybara/cuprite"
 # System specs run the page in headless Chrome, so the JavaScript runs too.
 # Cuprite talks to Chrome over CDP and needs no chromedriver. It finds Chrome
 # on its own; set BROWSER_PATH to use a different binary.
-Capybara.register_driver(:cuprite) do |app|
+#
+# The driver has its own name. `driven_by :cuprite` would register a new :cuprite
+# driver with Rails' defaults, which drops these options: CI then waited only
+# Ferrum's default 10 seconds for Chrome to start.
+Capybara.register_driver(:wit_cuprite) do |app|
   Capybara::Cuprite::Driver.new(
     app,
     window_size: [ 1280, 800 ],
@@ -26,6 +30,6 @@ Capybara.server = :puma, { Silent: true }
 
 RSpec.configure do |config|
   config.before(:each, type: :system) do
-    driven_by :cuprite
+    driven_by :wit_cuprite
   end
 end
