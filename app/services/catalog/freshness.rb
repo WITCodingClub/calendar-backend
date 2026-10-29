@@ -100,9 +100,12 @@ module Catalog
 
     # The newest full refresh of a term's sections: a nightly
     # Catalog::CourseDataSyncJob run, or a catalog import
-    # (Catalog::Importer), which fetches every section of the term too.
+    # (Catalog::Importer), which fetches every section of the term too. The
+    # importer saves catalog_imported_at before a failed course fails the
+    # job, so a failed import does not count.
     def self.sections_refreshed_at(term)
-      [ term.sections_synced_at, term.catalog_imported_at ].compact.max
+      imported_at = term.catalog_imported_at unless term.catalog_import_failed?
+      [ term.sections_synced_at, imported_at ].compact.max
     end
     private_class_method :sections_refreshed_at
   end

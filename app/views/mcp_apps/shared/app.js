@@ -248,8 +248,9 @@ var App = (function () {
 
   // The advisory (McpTools::BaseTool): not official, confirm with the program
   // director and advisor, and when the sections (or the finals) of the
-  // result's term last refreshed. Catalog::Freshness lists only the current
-  // and future terms, so a term that is not in the list has ended.
+  // result's term last refreshed. Catalog::Freshness lists the current and
+  // future terms that have sections. Uids sort in time order, so a term newer
+  // than a listed term has no data yet, and any other missing term has ended.
   function advisoryText(advisory, termUid) {
     if (!advisory) return null;
     var text = "WIT Calendar is not an official Wentworth service. Confirm your plan with your program " +
@@ -262,7 +263,10 @@ var App = (function () {
 
     var words = TERM_SOURCE_TEXT[source.key];
     var entry = source.terms.filter(function (term) { return term.term_uid === termUid; })[0];
-    if (!entry) return text + " " + words.ended;
+    if (!entry) {
+      var future = source.terms.some(function (term) { return term.term_uid < termUid; });
+      return text + " " + (future ? words.never : words.ended);
+    }
     if (!entry.last_refreshed_at) return text + " " + words.never;
 
     return text + " " + words.last +

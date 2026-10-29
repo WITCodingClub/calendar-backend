@@ -41,6 +41,12 @@ RSpec.describe Catalog::Freshness do
     expect(source(:sections)[:terms].first[:last_refreshed_at]).to eq((synced + 1.day).iso8601)
   end
 
+  it "ignores a catalog import that failed" do
+    term.update!(catalog_imported_at: synced + 1.day, catalog_import_failed: true)
+
+    expect(source(:sections)[:terms].first[:last_refreshed_at]).to eq(synced.iso8601)
+  end
+
   it "keeps the nightly run when it is newer than the catalog import" do
     term.update!(catalog_imported_at: synced - 1.day)
 
