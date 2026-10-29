@@ -17,6 +17,20 @@ RSpec.describe McpTools::GetSection do
     expect(result.structured_content[:final_exam]).to include(date: Date.new(2026, 12, 17))
   end
 
+  it "gives the part of term, the campus, the waitlist, and the cross-listed sections" do
+    section = create(:course, :cross_listed, part_of_term: "FA2", campus: "Boston", waitlist_capacity: 5, waitlist_available: 5)
+    partner = create(:course, :cross_listed, term: section.term)
+
+    result = call(crn: section.crn, term_uid: section.term.uid).structured_content
+
+    expect(result).to include(part_of_term: "FA2", campus: "Boston", waitlist: { capacity: 5, available: 5 },
+                              cross_list: { identifier: "01", crns: [ partner.crn ], seats: { capacity: 24, available: 4 } })
+  end
+
+  it "gives a null cross_list for a section that is not cross-listed" do
+    expect(call(crn: course.crn, term_uid: course.term.uid).structured_content[:cross_list]).to be_nil
+  end
+
   it "finds a cancelled section, the same as the REST API" do
     course.update!(status: :cancelled)
 

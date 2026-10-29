@@ -14,7 +14,10 @@ RSpec.describe Catalog::Freshness do
   let(:synced) { Time.zone.parse("2026-10-21 04:12") }
   let(:term) { create(:term, sections_synced_at: synced, details_synced_at: synced - 1.day) }
 
-  before { allow(Term).to receive(:current).and_return(term) }
+  before do
+    allow(Term).to receive(:current).and_return(term)
+    create(:course, term: term)
+  end
 
   def source(key) = described_class.call([ key ]).first
 
@@ -30,6 +33,25 @@ RSpec.describe Catalog::Freshness do
     create(:course, term: term, banner_synced_at: Time.current)
 
     expect(source(:sections)[:terms].first[:last_refreshed_at]).to eq(synced.iso8601)
+  end
+
+  it "gives the time of a catalog import when it is newer than the nightly run" do
+    term.update!(catalog_imported_at: synced + 1.day)
+
+    expect(source(:sections)[:terms].first[:last_refreshed_at]).to eq((synced + 1.day).iso8601)
+  end
+
+  it "keeps the nightly run when it is newer than the catalog import" do
+    term.update!(catalog_imported_at: synced - 1.day)
+
+    expect(source(:sections)[:terms].first[:last_refreshed_at]).to eq(synced.iso8601)
+  end
+
+  # Catalog::EnsureFutureTermsJob makes terms before Banner lists them.
+  it "leaves out a future term with no sections" do
+    create(:term, year: term.year + 2, season: term.season)
+
+    expect(source(:sections)[:terms].pluck(:term_uid)).to eq([ term.uid ])
   end
 
   it "gives the latest completed finals schedule of each term" do

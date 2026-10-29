@@ -18,6 +18,24 @@ RSpec.describe McpTools::GetCourse do
     expect(result.structured_content[:sections].pluck(:crn)).to eq([ section.crn ])
   end
 
+  it "gives the catalog entry, fees, learning objectives, and mutual exclusions" do
+    create(:catalog_course, subject_code: "ARCH", course_number: 6100, title: "Graduate Studio")
+    create(:catalog_course, :with_details, subject_code: "ARCH", course_number: 4100,
+                                           college: "School of Architecture and Design", department: "Architecture",
+                                           levels: [ "Undergraduate" ], grading_modes: [ "Standard Letter" ],
+                                           fees: [ { "level" => "Undergraduate", "description" => "Studio Fee", "amount_cents" => 15_000 } ],
+                                           learning_objectives: "Draw a plan.",
+                                           mutual_exclusions: [ { "subject_code" => "ARCH", "course_number" => 6100 } ])
+
+    course = call(code: "ARCH 4100").structured_content
+
+    expect(course).to include(college: "School of Architecture and Design", department: "Architecture",
+                              levels: [ "Undergraduate" ], grading_modes: [ "Standard Letter" ],
+                              learning_objectives: "Draw a plan.")
+    expect(course[:fees]).to eq([ { "level" => "Undergraduate", "description" => "Studio Fee", "amount_cents" => 15_000 } ])
+    expect(course[:mutual_exclusions]).to contain_exactly(include("code" => "ARCH 6100", "title" => "Graduate Studio", "linked" => true))
+  end
+
   it "returns tool errors for a bad code, an unknown course, or an unknown term" do
     create(:catalog_course, subject_code: "COMP", course_number: 2350)
 
