@@ -55,14 +55,13 @@ module Admin
     def search_rmp
       @faculty = Faculty.find(params[:id])
       authorize @faculty
-      service = Faculties::RateMyProfessorClient.new
-
-      search_result = service.search_professors(@faculty.full_name, count: 10)
-      @teachers = search_result.dig("data", "newSearch", "teachers", "edges") || []
+      matcher = Faculties::RmpMatcher.new(@faculty)
+      @teachers = matcher.candidates.sort_by { |teacher| -matcher.score(teacher) }
+      @best_match_id = matcher.best_match(@teachers)&.dig("id")
 
       respond_to do |format|
         format.html
-        format.json { render json: { teachers: @teachers } }
+        format.json { render json: { teachers: @teachers, best_match_id: @best_match_id } }
       end
     rescue => e
       Rails.error.report(e, handled: true, context: { faculty_id: params[:id] })
