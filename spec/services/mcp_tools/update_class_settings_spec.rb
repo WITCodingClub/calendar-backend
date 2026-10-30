@@ -35,6 +35,14 @@ RSpec.describe McpTools::UpdateClassSettings do
     expect(data[:sources][:title_template]).to eq("individual")
   end
 
+  it "refuses an unknown argument next to a valid setting and changes nothing" do
+    result = call(color: "tomato", colour: "grape")
+
+    expect(result.error?).to be(true)
+    expect(result.content.first[:text]).to start_with("Unknown argument colour.")
+    expect(EventPreference.count).to eq(0)
+  end
+
   it "changes only the fields passed" do
     create(:event_preference, user: user, preferenceable: meeting_time, title_template: "Keep me", color_id: "#039be5")
 
