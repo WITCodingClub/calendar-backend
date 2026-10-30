@@ -41,7 +41,7 @@ module Admin
 
     def missing_rmp_ids
       authorize Faculty, :missing_rmp_ids?
-      @faculties = policy_scope(Faculty).with_courses.where(rmp_id: nil).order(:last_name, :first_name)
+      @faculties = policy_scope(Faculty).teaching_current_or_future.where(rmp_id: nil).order(:last_name, :first_name)
 
       if params[:search].present?
         @faculties = @faculties.where("first_name ILIKE ? OR last_name ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
@@ -49,20 +49,19 @@ module Admin
 
       @faculties = @faculties.page(params[:page]).per(25)
       # One grouped count for the page, not one count for each row (#689).
-      @course_counts = CourseFaculty.where(faculty_id: @faculties.map(&:id)).group(:faculty_id).count
+      @course_counts = CourseFaculty.current_or_future.where(faculty_id: @faculties.map(&:id)).group(:faculty_id).count
     end
 
     def search_rmp
       @faculty = Faculty.find(params[:id])
       authorize @faculty
-      service = Faculties::RateMyProfessorClient.new
-
-      search_result = service.search_professors(@faculty.full_name, count: 10)
-      @teachers = search_result.dig("data", "newSearch", "teachers", "edges") || []
+      matcher = Faculties::RmpMatcher.new(@faculty)
+      @teachers = matcher.candidates.sort_by { |teacher| -matcher.score(teacher) }
+      @best_match_id = matcher.best_match(@teachers)&.dig("id")
 
       respond_to do |format|
         format.html
-        format.json { render json: { teachers: @teachers } }
+        format.json { render json: { teachers: @teachers, best_match_id: @best_match_id } }
       end
     rescue => e
       Rails.error.report(e, handled: true, context: { faculty_id: params[:id] })
@@ -112,7 +111,7 @@ module Admin
 
     def batch_auto_fill
       authorize Faculty
-      missing = Faculty.with_courses.where(rmp_id: nil)
+      missing = Faculty.teaching_current_or_future.where(rmp_id: nil)
       missing.find_each { |f| Faculties::UpdateRatingsJob.perform_later(f.id) }
       redirect_to missing_rmp_ids_admin_faculties_path, notice: "Enqueued auto-fill jobs for #{missing.count} faculty members"
     end

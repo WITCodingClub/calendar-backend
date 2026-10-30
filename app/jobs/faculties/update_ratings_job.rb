@@ -41,15 +41,7 @@ module Faculties
     private
 
     def search_and_link_faculty(faculty, service)
-      search_result = service.search_professors(faculty.full_name, count: 10)
-      teachers = search_result.dig("data", "newSearch", "teachers", "edges") || []
-
-      best_match = teachers.find do |edge|
-        teacher = edge["node"]
-        teacher["firstName"]&.downcase&.strip == faculty.first_name&.downcase&.strip &&
-          teacher["lastName"]&.downcase&.strip == faculty.last_name&.downcase&.strip
-      end&.dig("node")
-
+      best_match = Faculties::RmpMatcher.new(faculty, client: service).best_match
       return unless best_match
       return if faculty.update(rmp_id: best_match["id"])
 

@@ -79,7 +79,7 @@ module Admin
     # can open, are kept.
     def attention
       @attention ||= [
-        { label: "Professors missing RMP IDs", count: Faculty.with_courses.where(rmp_id: nil).count, path: :missing_rmp_ids_admin_faculties_path },
+        { label: "Professors missing RMP IDs", count: Faculty.teaching_current_or_future.where(rmp_id: nil).count, path: :missing_rmp_ids_admin_faculties_path },
         ({ label: "Failed catalog imports", count: Term.where(catalog_import_failed: true).count, path: :admin_course_catalog_path } if NavigationRegistry.item_for(@user, :course_catalog)),
         { label: "Failed finals schedules", count: FinalsSchedule.failed.count, path: :admin_finals_schedules_path },
         { label: "Users waiting for a calendar sync", count: sync_health[:users_needing_sync], path: :admin_users_path }

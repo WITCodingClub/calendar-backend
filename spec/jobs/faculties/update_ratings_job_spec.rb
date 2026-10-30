@@ -48,6 +48,18 @@ RSpec.describe Faculties::UpdateRatingsJob, type: :job do
     expect(faculty.reload.rmp_id).to eq("VGVhY2hlci0xMjM0NTY=")
   end
 
+  it "links a teacher whose first name RateMyProfessors spells differently" do
+    faculty = create(:faculty, first_name: "Muhammad", last_name: "Qorvin")
+    create(:course_faculty, faculty: faculty)
+    stub_graphql("NewSearchTeachersQuery", fixture: "search_spelling_variant.json")
+    stub_graphql("TeacherRatingsPageQuery", fixture: "teacher_details.json")
+    stub_graphql("RatingsListQuery", fixture: "ratings_empty.json")
+
+    described_class.perform_now(faculty.id)
+
+    expect(faculty.reload.rmp_id).to eq("VGVhY2hlci03Nzc3Nzc=")
+  end
+
   it "does not fetch ratings when the matched rmp_id is already taken by another faculty" do
     create(:faculty, rmp_id: "VGVhY2hlci0xMjM0NTY=")
     faculty = create(:faculty, first_name: "Ada", last_name: "Byron")

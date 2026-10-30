@@ -14,16 +14,14 @@
     </div>
   <% else %>
     <p class="text-sm text-on-surface-variant"><%= pluralize(@teachers.size, "result") %> on Rate My Professor.</p>
-    <% @teachers.each do |edge| %>
-      <% teacher = edge["node"] %>
-      <% exact = teacher["firstName"]&.downcase&.strip == @faculty.first_name&.downcase&.strip &&
-                 teacher["lastName"]&.downcase&.strip == @faculty.last_name&.downcase&.strip %>
-      <section class="m3-card p-4 sm:p-6 <%= "ring-2 ring-primary" if exact %>">
+    <% @teachers.each do |teacher| %>
+      <% best = teacher["id"] == @best_match_id %>
+      <section class="m3-card p-4 sm:p-6 <%= "ring-2 ring-primary" if best %>">
         <div class="flex flex-col sm:flex-row sm:items-start gap-4">
           <div class="flex-1 min-w-0">
             <h2 class="flex flex-wrap items-center gap-2 text-lg font-semibold text-on-surface">
               <%= teacher["firstName"] %> <%= teacher["lastName"] %>
-              <%= admin_badge("Exact name match", :success) if exact %>
+              <%= admin_badge("Best match", :success) if best %>
             </h2>
             <div class="mt-3">
               <%= admin_details(columns: 3) do |d| %>
