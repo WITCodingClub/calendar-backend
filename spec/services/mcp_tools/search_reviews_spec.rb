@@ -23,4 +23,11 @@ RSpec.describe McpTools::SearchReviews do
   it "returns a tool error for an unknown instructor" do
     expect(call(instructor_id: "fac_nope").content.first[:text]).to include("Unknown instructor")
   end
+
+  it "returns a tool error for an argument it does not take" do
+    result = call(instructor: "A Name")
+
+    expect(result.error?).to be(true)
+    expect(result.content.first[:text]).to start_with("Unknown argument instructor. search_reviews takes only instructor_id")
+  end
 end

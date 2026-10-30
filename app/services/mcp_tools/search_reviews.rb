@@ -13,7 +13,7 @@ module McpTools
     requires_scope "catalog"
     input_schema(
       properties: {
-        instructor_id: { type: "string", description: "Only reviews of this instructor (pub_id)." },
+        instructor_id: { type: "string", description: "Only reviews of this instructor: the pub_id from search_instructors, not a name." },
         q:             { type: "string", description: "Words to find in the comment or the course." },
         semantic:      { type: "boolean", description: "Rank q by meaning instead of by the literal words." },
         sentiment:     { type: "string", enum: Catalog::ReviewQuery::SENTIMENTS },

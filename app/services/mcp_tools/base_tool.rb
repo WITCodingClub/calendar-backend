@@ -124,6 +124,9 @@ module McpTools
           return error_response(missing_scope_message, links: links)
         end
 
+        unknown = arguments.keys.map(&:to_s) - argument_names
+        raise ToolError, unknown_arguments_message(unknown) if unknown.any?
+
         tool = new(server_context[:user], request: server_context[:request], server_context: server_context)
         data = tool.perform(**arguments)
         # A write tool asks the student to confirm first (McpTools::Confirmation).
@@ -145,6 +148,18 @@ module McpTools
       end
 
       private
+
+      # The SDK checks the arguments against the input schema, but the schema
+      # allows other keys. perform would then raise ArgumentError, and the
+      # client would get an internal error with no message.
+      def argument_names
+        input_schema_value.to_h.fetch(:properties, {}).keys.map(&:to_s)
+      end
+
+      def unknown_arguments_message(unknown)
+        accepted = argument_names.empty? ? "no arguments" : "only #{argument_names.join(', ')}"
+        "Unknown argument #{unknown.join(', ')}. #{tool_name} takes #{accepted}."
+      end
 
       def apply_output_schema
         return if @own_output_schema.nil?
