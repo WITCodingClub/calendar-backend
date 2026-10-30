@@ -1,6 +1,6 @@
 <%= render "admin/shared/page_header",
     title: "Professors Missing RMP IDs",
-    subtitle: "#{pluralize(@faculties.total_count, 'professor')} with courses and no Rate My Professor ID.",
+    subtitle: "#{pluralize(@faculties.total_count, 'professor')} teaching this term or a later term with no Rate My Professor ID.",
     back: [ "Faculty", admin_faculties_path ] do %>
   <% if @faculties.any? && policy(Faculty).batch_auto_fill? %>
     <%= button_to "Auto-fill all", batch_auto_fill_admin_faculties_path,
@@ -12,7 +12,7 @@
 
 <%= render "admin/shared/search", url: missing_rmp_ids_admin_faculties_path, placeholder: "Search by name" %>
 
-<%= admin_table(@faculties, empty: "Every professor with courses has an RMP ID.") do |t| %>
+<%= admin_table(@faculties, empty: "Every professor teaching this term or a later term has an RMP ID.") do |t| %>
   <% t.column("Name") { |faculty| link_to faculty.full_name, admin_faculty_path(faculty), class: "font-medium text-primary hover:underline" } %>
   <% t.column("Email") { |faculty| faculty.email } %>
   <% t.column("Courses", align: :right) { |faculty| @course_counts.fetch(faculty.id, 0).to_s } %>

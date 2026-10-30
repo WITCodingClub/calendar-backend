@@ -1,50 +1,71 @@
 # frozen_string_literal: true
 
-require "did_you_mean"
-
 module Faculties
   # Finds the RateMyProfessors teacher that is the same person as a faculty
   # member. Students add teachers to RateMyProfessors by hand, so the names
-  # differ from the WIT directory: "Muhammed" for "Muhammad", "Chris" for
-  # "Christopher", a middle name in place of the first name, or one half of a
+  # differ from the WIT directory: "Muhammed" for "Muhammad", "Bill" for
+  # "William", a middle name in place of the first name, or one half of a
   # hyphenated last name.
   #
-  # The matcher links a teacher only when exactly one candidate scores at or
-  # above MIN_SCORE. A tie is a guess, so it returns nil and an admin decides on
-  # the Missing RMP IDs page.
+  # A wrong link shows one professor's reviews on another professor's page, so
+  # the rules are strict. Only one of the two names can differ, and only in a
+  # way that keeps it the same name: a known nickname or a changed vowel inside
+  # a long name. "John" and "Joan", "Daniel" and "Daniela", or "Chen" and "Chan"
+  # never match. When the match is not clear, the matcher returns nil and an
+  # admin decides on the Missing RMP IDs page.
   class RmpMatcher
-    MIN_SCORE = 0.75
     EXACT = 1.0
+    MIN_SCORE = 0.85
 
-    # Short forms that are not a prefix of the full name. A prefix ("Chris",
-    # "Dan") already matches without an entry here.
+    VOWELS = "aeiouy"
+
+    # Words that many unrelated last names share.
+    PARTICLES = %w[van von der den de del della da di du la le los las st san bin ibn al el jr sr ii iii iv].freeze
+
     NICKNAMES = {
-      "william"   => %w[bill will billy liam],
-      "robert"    => %w[bob bobby rob],
-      "richard"   => %w[dick rick rich],
-      "michael"   => %w[mike mick],
-      "james"     => %w[jim jimmy],
-      "john"      => %w[jack],
-      "margaret"  => %w[peggy maggie meg],
-      "elizabeth" => %w[liz beth betsy lisa],
-      "katherine" => %w[kate kathy katie],
-      "catherine" => %w[kate cathy katie],
-      "edward"    => %w[ted ed ned],
-      "theodore"  => %w[ted teddy],
-      "charles"   => %w[chuck charlie],
-      "anthony"   => %w[tony],
-      "joseph"    => %w[joe joey],
-      "thomas"    => %w[tom tommy],
-      "steven"    => %w[steve],
-      "stephen"   => %w[steve],
-      "alexander" => %w[alex sasha],
-      "francis"   => %w[frank],
-      "henry"     => %w[hank],
-      "lawrence"  => %w[larry],
-      "patricia"  => %w[pat patty trish],
-      "rebecca"   => %w[becky],
-      "susan"     => %w[sue],
-      "deborah"   => %w[deb debbie]
+      "william"     => %w[bill will billy liam],
+      "robert"      => %w[bob bobby rob],
+      "richard"     => %w[dick rick rich],
+      "michael"     => %w[mike mick],
+      "james"       => %w[jim jimmy jamie],
+      "john"        => %w[jack],
+      "christopher" => %w[chris],
+      "daniel"      => %w[dan danny],
+      "matthew"     => %w[matt],
+      "nicholas"    => %w[nick],
+      "benjamin"    => %w[ben],
+      "samuel"      => %w[sam],
+      "jonathan"    => %w[jon],
+      "timothy"     => %w[tim],
+      "andrew"      => %w[andy drew],
+      "zachary"     => %w[zach],
+      "jeffrey"     => %w[jeff],
+      "gregory"     => %w[greg],
+      "kenneth"     => %w[ken],
+      "ronald"      => %w[ron],
+      "donald"      => %w[don],
+      "joseph"      => %w[joe joey],
+      "thomas"      => %w[tom tommy],
+      "steven"      => %w[steve],
+      "stephen"     => %w[steve],
+      "anthony"     => %w[tony],
+      "edward"      => %w[ed ted ned],
+      "theodore"    => %w[ted teddy],
+      "charles"     => %w[chuck charlie],
+      "alexander"   => %w[alex],
+      "francis"     => %w[frank],
+      "lawrence"    => %w[larry],
+      "margaret"    => %w[peggy maggie meg],
+      "elizabeth"   => %w[liz beth betsy],
+      "katherine"   => %w[kate kathy katie],
+      "catherine"   => %w[kate cathy katie],
+      "jennifer"    => %w[jen jenny],
+      "patricia"    => %w[pat patty trish],
+      "rebecca"     => %w[becky],
+      "susan"       => %w[sue],
+      "deborah"     => %w[deb debbie],
+      "victoria"    => %w[vicky tori],
+      "abigail"     => %w[abby]
     }.freeze
 
     def initialize(faculty, client: RateMyProfessorClient.new)
@@ -58,26 +79,31 @@ module Faculties
     def candidates
       @candidates ||= [ @faculty.full_name, @faculty.last_name ].uniq.flat_map { |text|
         @client.search_professors(text, count: 20).dig("data", "newSearch", "teachers", "edges") || []
-      }.map { |edge| edge["node"] }.compact.uniq { |node| node["id"] }
+      }.filter_map { |edge| edge["node"] }
+       .select { |node| node.dig("school", "id") == RateMyProfessorClient::WENTWORTH_SCHOOL_ID }
+       .uniq { |node| node["id"] }
     end
 
-    # The teacher node to link, or nil when no candidate is close enough or two
-    # candidates are equally close.
+    # The teacher node to link, or nil when the match is not clear. An exact
+    # name wins over close spellings. A close spelling must be the only
+    # candidate that qualifies. A teacher that another faculty member already
+    # has still counts as a candidate, so a weaker one does not win in its place.
     def best_match(nodes = candidates)
-      taken = Faculty.where(rmp_id: nodes.map { |node| node["id"] }).where.not(id: @faculty.id).pluck(:rmp_id)
-      scored = nodes.reject { |node| taken.include?(node["id"]) }
-                    .map { |node| [ node, score(node) ] }
-                    .select { |_, value| value >= MIN_SCORE }
-                    .sort_by { |_, value| -value }
+      qualified = nodes.map { |node| [ node, score(node) ] }
+                       .select { |_, value| value >= MIN_SCORE }
+                       .sort_by { |_, value| -value }
+      return if qualified.empty?
 
-      return if scored.empty?
-      return if scored.size > 1 && scored[0][1] == scored[1][1]
+      top, top_score = qualified.first
+      clear = top_score == EXACT ? qualified.count { |_, value| value == EXACT } == 1 : qualified.size == 1
+      return unless clear
+      return if Faculty.where(rmp_id: top["id"]).where.not(id: @faculty.id).exists?
 
-      scored.first.first
+      top
     end
 
-    # 1.0 for the same name. Lower for a spelling or nickname difference in one
-    # name. A difference in both names scores below MIN_SCORE.
+    # 1.0 for the same name. Lower when one of the two names differs in an
+    # allowed way. Below MIN_SCORE when both names differ.
     def score(node)
       last = last_name_score(node["lastName"])
       return 0.0 if last.zero?
@@ -93,8 +119,8 @@ module Faculties
       return 0.0 if ours.empty? || theirs.empty?
       return EXACT if ours.join == theirs.join
       # "Garcia-Lopez" in the directory and "Garcia" on RateMyProfessors.
-      return 0.9 if ours.intersect?(theirs)
-      return 0.8 if typo?(ours.join, theirs.join)
+      return 0.9 if significant(ours).intersect?(significant(theirs))
+      return 0.85 if spelling_variant?(ours.join, theirs.join)
 
       0.0
     end
@@ -116,8 +142,7 @@ module Faculties
     def name_similarity(ours, theirs)
       return EXACT if ours == theirs
       return 0.9 if nickname?(ours, theirs)
-      return 0.85 if typo?(ours, theirs)
-      return 0.85 if [ ours, theirs ].min_by(&:length).length >= 3 && (ours.start_with?(theirs) || theirs.start_with?(ours))
+      return 0.85 if spelling_variant?(ours, theirs)
 
       0.0
     end
@@ -126,13 +151,19 @@ module Faculties
       NICKNAMES.fetch(a, []).include?(b) || NICKNAMES.fetch(b, []).include?(a)
     end
 
-    # One changed letter in a name of 4 or more letters, or two in a name of 8
-    # or more. "Muhammad" and "Muhammed" are one letter apart.
-    def typo?(a, b)
-      shorter = [ a.length, b.length ].min
-      return false if shorter < 4
+    # Two spellings of one name: the same length of 6 or more letters, and
+    # only vowels differ, never the last letter. "Muhammad", "Muhammed", and
+    # "Mohammad" match. "Antonio" and "Antonia" differ in the last letter, and
+    # "Andrew" and "Andrea" differ in a consonant, so they do not.
+    def spelling_variant?(a, b)
+      return false if a.length != b.length || a.length < 6 || a[-1] != b[-1]
 
-      DidYouMean::Levenshtein.distance(a, b) <= (shorter >= 8 ? 2 : 1)
+      diffs = a.chars.zip(b.chars).reject { |x, y| x == y }
+      diffs.size.between?(1, a.length >= 8 ? 2 : 1) && diffs.flatten.all? { |c| VOWELS.include?(c) }
+    end
+
+    def significant(tokens)
+      tokens.reject { |token| token.length < 3 || PARTICLES.include?(token) }
     end
 
     def tokens(name)

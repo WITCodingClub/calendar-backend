@@ -80,6 +80,13 @@ RSpec.describe Faculty, type: :model do
       expect(described_class.teaching_current_or_future).to contain_exactly(current_faculty, future_faculty)
     end
 
+    it "leaves out faculty whose only current course is cancelled" do
+      cancelled = create(:faculty)
+      create(:course_faculty, faculty: cancelled, course: create(:course, term: current_term, status: :cancelled))
+
+      expect(described_class.teaching_current_or_future).not_to include(cancelled)
+    end
+
     it "lists a faculty with courses in many current terms once" do
       create(:course_faculty, faculty: current_faculty, course: create(:course, term: next_term))
 

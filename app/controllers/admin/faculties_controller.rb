@@ -41,7 +41,7 @@ module Admin
 
     def missing_rmp_ids
       authorize Faculty, :missing_rmp_ids?
-      @faculties = policy_scope(Faculty).with_courses.where(rmp_id: nil).order(:last_name, :first_name)
+      @faculties = policy_scope(Faculty).teaching_current_or_future.where(rmp_id: nil).order(:last_name, :first_name)
 
       if params[:search].present?
         @faculties = @faculties.where("first_name ILIKE ? OR last_name ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
@@ -49,7 +49,7 @@ module Admin
 
       @faculties = @faculties.page(params[:page]).per(25)
       # One grouped count for the page, not one count for each row (#689).
-      @course_counts = CourseFaculty.where(faculty_id: @faculties.map(&:id)).group(:faculty_id).count
+      @course_counts = CourseFaculty.current_or_future.where(faculty_id: @faculties.map(&:id)).group(:faculty_id).count
     end
 
     def search_rmp
@@ -111,7 +111,7 @@ module Admin
 
     def batch_auto_fill
       authorize Faculty
-      missing = Faculty.with_courses.where(rmp_id: nil)
+      missing = Faculty.teaching_current_or_future.where(rmp_id: nil)
       missing.find_each { |f| Faculties::UpdateRatingsJob.perform_later(f.id) }
       redirect_to missing_rmp_ids_admin_faculties_path, notice: "Enqueued auto-fill jobs for #{missing.count} faculty members"
     end

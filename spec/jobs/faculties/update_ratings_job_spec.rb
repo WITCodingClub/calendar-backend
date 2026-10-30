@@ -49,7 +49,7 @@ RSpec.describe Faculties::UpdateRatingsJob, type: :job do
   end
 
   it "links a teacher whose first name RateMyProfessors spells differently" do
-    faculty = create(:faculty, first_name: "Ahmad", last_name: "Qorvin")
+    faculty = create(:faculty, first_name: "Muhammad", last_name: "Qorvin")
     create(:course_faculty, faculty: faculty)
     stub_graphql("NewSearchTeachersQuery", fixture: "search_spelling_variant.json")
     stub_graphql("TeacherRatingsPageQuery", fixture: "teacher_details.json")

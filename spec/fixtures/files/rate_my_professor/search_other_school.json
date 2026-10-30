@@ -1,0 +1,52 @@
+{
+  "data": {
+    "newSearch": {
+      "teachers": {
+        "didFallback": true,
+        "edges": [
+          {
+            "cursor": "YXJyYXljb25uZWN0aW9uOjA=",
+            "node": {
+              "id": "VGVhY2hlci04ODg4ODg=",
+              "legacyId": 888888,
+              "firstName": "Ahmad",
+              "lastName": "Qorvin",
+              "department": "Computer Science",
+              "departmentId": "42",
+              "school": {
+                "legacyId": 9999,
+                "name": "Example State University",
+                "id": "U2Nob29sLTk5OTk="
+              },
+              "avgRating": 4.5,
+              "avgDifficulty": 2.3,
+              "numRatings": 42,
+              "wouldTakeAgainPercentRounded": 88,
+              "mandatoryAttendance": {
+                "yes": 10,
+                "no": 5,
+                "neither": 2,
+                "total": 17
+              },
+              "takenForCredit": {
+                "yes": 40,
+                "no": 2,
+                "neither": 0,
+                "total": 42
+              },
+              "ratingsDistribution": {
+                "total": 42,
+                "r1": 1,
+                "r2": 2,
+                "r3": 4,
+                "r4": 15,
+                "r5": 20
+              },
+              "lockStatus": "UNLOCKED"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
