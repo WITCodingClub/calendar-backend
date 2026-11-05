@@ -421,4 +421,23 @@ RSpec.describe "Reports", type: :request do
       expect(response.headers["Cache-Control"]).to include("public")
     end
   end
+
+  # Browser dashboards read these reports from other sites. Cloudflare caches
+  # the first response for every origin (#684), so each one must allow any
+  # origin, also when the request had no Origin. "null" is the origin of a
+  # sandboxed iframe, such as the SharePoint file preview.
+  describe "CORS" do
+    %w[/reports/meeting_times /reports/sections /reports/terms].each do |path|
+      [ nil, "https://mywentworth.sharepoint.com", "null" ].each do |origin|
+        it "allows any origin on #{path} (Origin: #{origin || 'none'})" do
+          get path, headers: origin ? { "Origin" => origin } : {}
+
+          expect(response).to have_http_status(:ok)
+          expect(response.headers["Access-Control-Allow-Origin"]).to eq("*")
+          expect(response.headers).not_to have_key("Access-Control-Allow-Credentials")
+          expect(response.headers).not_to have_key("Set-Cookie")
+        end
+      end
+    end
+  end
 end

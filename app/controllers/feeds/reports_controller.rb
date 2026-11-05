@@ -3,7 +3,8 @@
 module Feeds
   require "csv"
 
-  # Public read-only CSV exports for BI tools (Power BI Web connector, Excel).
+  # Public read-only CSV exports for BI tools (Power BI Web connector, Excel)
+  # and for browser dashboards, which read them across origins.
   # Course schedule data only — never expose user data through these reports.
   #
   # Inherits ActionController::Base, not ApplicationController: consumers are
@@ -62,7 +63,7 @@ module Feeds
     # One row per meeting time in one room. Use this grain for room and time
     # questions. For one row per section, use #sections instead.
     def meeting_times
-      expires_in 1.hour, public: true
+      set_public_cache
       send_data build_meeting_times_csv(meeting_time_rows),
                 type: "text/csv; charset=utf-8",
                 filename: "meeting_times.csv", disposition: "inline"
@@ -73,7 +74,7 @@ module Feeds
     # teach appears once. A section that meets twice a week reads as one course
     # here, where the meeting_times feed shows it as two rows.
     def sections
-      expires_in 1.hour, public: true
+      set_public_cache
       send_data build_sections_csv(meeting_time_rows),
                 type: "text/csv; charset=utf-8",
                 filename: "sections.csv", disposition: "inline"
@@ -102,12 +103,22 @@ module Feeds
         end
       end
 
-      expires_in 1.hour, public: true
+      set_public_cache
       send_data csv, type: "text/csv; charset=utf-8",
                      filename: "terms.csv", disposition: "inline"
     end
 
     private
+
+    # Public course data, cached for an hour. Any origin may read it, so a
+    # browser page (a dashboard in SharePoint, for example) can fetch a report
+    # directly. Rack::Cors adds the CORS header only when the request has an
+    # Origin, and Cloudflare caches the first response for every origin (#684),
+    # so the header is set here on every response.
+    def set_public_cache
+      expires_in 1.hour, public: true
+      response.headers["Access-Control-Allow-Origin"] = "*"
+    end
 
     # The one query both CSV feeds read. Returns meeting-time-by-room tuples,
     # ordered so a section's meetings arrive together and in week order.

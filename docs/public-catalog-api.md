@@ -112,7 +112,9 @@ When `r` reaches 0, wait `t` seconds. A client that goes over a limit gets HTTP
 
 Three URLs answer with a CSV body. Open one in Excel with **Data > From Web**,
 or point Power BI at it. They need no code and no key, and they refresh in
-place. They carry the same cache headers as the rest of the API.
+place. They carry the same cache headers as the rest of the API. They also
+send `Access-Control-Allow-Origin: *`, so a web page on any site can fetch
+them with `fetch()`.
 
 | Report | Grain | One row is |
 | --- | --- | --- |
