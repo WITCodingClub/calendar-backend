@@ -17,7 +17,8 @@ RSpec.describe DegreeRequirements::CourseComparison do
 
   def section(number, year:, season:)
     term = Term.find_by(year: year, season: season) || create(:term, year: year, season: season)
-    create(:course, term: term, subject: "COMP", course_number: number)
+    # Banner stores the subject as a label with the code in parentheses.
+    create(:course, term: term, subject: "Computer Science (COMP)", course_number: number)
   end
 
   it "lists a catalog course that Banner does not know" do

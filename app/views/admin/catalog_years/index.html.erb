@@ -54,5 +54,5 @@
 
 <p class="mt-4 flex items-start gap-2 text-sm text-on-surface-variant">
   <%= admin_icon(:information, css_class: "w-5 h-5 shrink-0") %>
-  <span>Imports run one at a time in the background. A year takes about one minute, and 2025-2026 takes about 10 minutes from the Wayback Machine. A year with no published catalog becomes missing. <%= link_to "Background Jobs", admin_mission_control_jobs_path, target: "_blank", rel: "noopener", class: "text-primary underline" %> shows the job status.</span>
+  <span>Imports run one at a time in the background. A year shows importing until its course import ends too. A year takes about one minute, and 2025-2026 takes about 10 minutes from the Wayback Machine. A year with no published catalog becomes missing.<% if current_user.super_admin_access? %> <%= link_to "Background Jobs", admin_mission_control_jobs_path, target: "_blank", rel: "noopener", class: "text-primary underline" %> shows the job status.<% end %></span>
 </p>

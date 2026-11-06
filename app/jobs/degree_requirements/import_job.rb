@@ -20,10 +20,11 @@ module DegreeRequirements
 
     retry_on FetchError, wait: :polynomially_longer, attempts: 3
 
-    # The start years with an import in the queue or running. The admin page
-    # of the catalog years shows them as importing.
+    # The start years with an import of programs or courses in the queue or
+    # running. The admin page of the catalog years shows them as importing,
+    # until the course import that this job queues has finished too.
     def self.queued_start_years
-      SolidQueue::Job.where(class_name: name, finished_at: nil)
+      SolidQueue::Job.where(class_name: [ name, CourseImportJob.name ], finished_at: nil)
                      .where.missing(:failed_execution)
                      .pluck(:arguments)
                      .filter_map { |job| Integer(job["arguments"]&.first, exception: false) if job.is_a?(Hash) }

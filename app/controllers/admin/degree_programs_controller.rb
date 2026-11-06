@@ -11,7 +11,7 @@ module Admin
 
       programs = DegreeProgram.includes(:parent_program).order(:name)
       if params[:search].present?
-        pattern = "%#{DegreeProgram.sanitize_sql_like(params[:search].strip)}%"
+        pattern = "%#{DegreeProgram.sanitize_sql_like(params[:search].to_s.strip)}%"
         programs = programs.where("degree_programs.name ILIKE :pattern OR degree_programs.slug ILIKE :pattern", pattern: pattern)
       end
       programs = programs.where(kind: params[:kind]) if DegreeProgram.kinds.key?(params[:kind])

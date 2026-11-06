@@ -26,7 +26,7 @@ module Admin
       authorize @catalog_year
 
       sets = @catalog_year.requirement_sets.includes(:degree_program, :catalog_year).order(:name)
-      sets = sets.where("requirement_sets.name ILIKE ?", "%#{RequirementSet.sanitize_sql_like(params[:search].strip)}%") if params[:search].present?
+      sets = sets.where("requirement_sets.name ILIKE ?", "%#{RequirementSet.sanitize_sql_like(params[:search].to_s.strip)}%") if params[:search].present?
       @requirement_sets = sets.page(params[:page]).per(50)
       @plan_counts = ProgramPlan.where(requirement_set_id: @requirement_sets.map(&:id)).group(:requirement_set_id).count
       @list_counts = ElectiveGroup.where(requirement_set_id: @requirement_sets.map(&:id)).group(:requirement_set_id).count

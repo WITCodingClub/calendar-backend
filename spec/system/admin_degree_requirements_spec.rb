@@ -16,6 +16,9 @@ RSpec.describe "Admin degree requirements", type: :system do
 
   it "queues the import of one catalog year from the button" do
     create(:requirement_set, catalog_year: catalog_year)
+    # The server runs in another thread, so the spy checks the call and not
+    # the queue adapter, which other specs swap.
+    allow(DegreeRequirements::ImportJob).to receive(:perform_later)
 
     visit admin_catalog_years_path
     within("#catalog-years-table tr", text: "2024-2025") do
@@ -23,8 +26,7 @@ RSpec.describe "Admin degree requirements", type: :system do
     end
 
     expect(page).to have_text("Queued the import of 2024-2025.")
-    jobs = ActiveJob::Base.queue_adapter.enqueued_jobs.select { |job| job["job_class"] == "DegreeRequirements::ImportJob" }
-    expect(jobs.map { |job| job["arguments"].first }).to eq([ 2024 ])
+    expect(DegreeRequirements::ImportJob).to have_received(:perform_later).with(2024, force: false).once
   end
 
   it "shows a program's plan semester by semester" do

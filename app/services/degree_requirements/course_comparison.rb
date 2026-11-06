@@ -48,11 +48,17 @@ module DegreeRequirements
     end
 
     def banner_only
-      @banner_only ||= CatalogCourse
-                       .where(sections_in_year.arel.exists)
-                       .where.not(catalog_year.catalog_year_courses.where(SAME_CODE).arel.exists)
-                       .order(:subject_code, :course_number)
+      @banner_only ||= begin
+        codes = codes_offered_in_year - catalog_year.catalog_year_courses.pluck(:subject_code, :course_number)
+        if codes.empty?
+          []
+        else
+          CatalogCourse.where(subject_code: codes.map(&:first).uniq, course_number: codes.map(&:last).uniq)
+                       .select { |course| codes.include?([ course.subject_code, course.course_number ]) }
+                       .sort_by { |course| [ course.subject_code, course.course_number ] }
                        .map { |course| row(nil, course) }
+        end
+      end
     end
 
     def title_differs
@@ -85,13 +91,15 @@ module DegreeRequirements
       end
     end
 
-    # The Banner sections of a course in the fall, spring, and summer terms
-    # of the catalog year (CatalogYear.start_year_for).
-    def sections_in_year
+    # The codes of the Banner sections in the fall, spring, and summer terms
+    # of the catalog year (CatalogYear.start_year_for). A section stores its
+    # subject as Banner labels it, "Computer Science (COMP)", so the code is
+    # read from the label the same way CatalogCourse rows get it.
+    def codes_offered_in_year
       start_year = catalog_year.start_year
       terms = Term.where(year: start_year, season: :fall).or(Term.where(year: start_year + 1, season: %i[spring summer]))
-      Course.where(term_id: terms.select(:id))
-            .where("courses.subject = catalog_courses.subject_code AND courses.course_number = catalog_courses.course_number")
+      Course.where(term_id: terms.select(:id)).distinct.pluck(:subject, :course_number)
+            .to_set { |subject, number| [ Catalog::CourseDetailsSync.prefix_of(subject), number ] }
     end
 
     def normalize(title)

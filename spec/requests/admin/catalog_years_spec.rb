@@ -45,6 +45,15 @@ RSpec.describe "Admin::CatalogYears", type: :request do
       expect(row.css("button")).to be_empty
     end
 
+    it "links to the background jobs only for a super admin, who can open them" do
+      get admin_catalog_years_path
+      expect(response.body).not_to include("shows the job status")
+
+      sign_in create(:user, access_level: :super_admin)
+      get admin_catalog_years_path
+      expect(response.body).to include("shows the job status")
+    end
+
     it "sends a user without admin access away" do
       sign_in create(:user)
 
@@ -102,6 +111,14 @@ RSpec.describe "Admin::CatalogYears", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Computer Science, B.S.", "Needs review")
       expect(response.body).to include(admin_degree_program_path(set.degree_program.slug, year: 2024))
+    end
+
+    it "answers a search given as an array" do
+      create(:catalog_year, :imported, start_year: 2024)
+
+      get admin_catalog_year_path(2024, search: [ "x" ])
+
+      expect(response).to have_http_status(:ok)
     end
 
     it "answers 404 for a year that is not stored" do
