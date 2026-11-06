@@ -102,6 +102,23 @@ Each table has an HNSW index with `vector_cosine_ops`. HNSW answers approximate
 nearest-neighbour queries; at catalog size the approximation is exact in
 practice.
 
+### Filters and the iterative scan
+
+An HNSW index scan reads `hnsw.ef_search` rows (40 by default), and the
+filters run after it. A filter that drops most rows, such as "has a section
+this term", can leave fewer rows than the limit, or none. Every filtered
+vector query goes through `Embeddable.nearest_ids`, which runs it in a
+transaction with `SET LOCAL hnsw.iterative_scan = strict_order`. The scan then
+keeps reading the index until the limit is full, in exact distance order.
+
+This needs pgvector 0.8 or later. The production image builds v0.8.6
+(`docker/postgres/Dockerfile`).
+
+The spec checks that the setting is on, not the result. With sequential scans
+and sorts off, a filtered query returned nothing without the setting and
+filled the limit with it. That check depends on the HNSW graph, and dead index
+entries from rolled-back examples change the graph, so it is not a spec.
+
 ## Commands
 
 ```bash

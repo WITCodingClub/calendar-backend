@@ -81,6 +81,48 @@ RSpec.describe Embeddable do
     end
   end
 
+  describe ".nearest_ids" do
+    # The behaviour itself (a filter that drops the 40 nearest rows still
+    # fills the limit) depends on the HNSW graph, and dead index entries left
+    # by rolled-back examples change that graph from run to run. So the spec
+    # checks that the query runs with the iterative scan on, and
+    # .with_iterative_scan checks what the setting is.
+    it "runs the query with the iterative scan on" do
+      give_embedding(course, 0.0)
+      statements = []
+      callback = ->(*, payload) { statements << payload[:sql] }
+
+      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+        CatalogCourse.nearest_ids(embedding_vector(0.0), limit: 5, among: CatalogCourse.select(:id))
+      end
+
+      set_at   = statements.index { |sql| sql.include?("hnsw.iterative_scan = strict_order") }
+      query_at = statements.index { |sql| sql.include?("<=>") }
+      expect(set_at).to be < query_at
+    end
+
+    it "leaves out the id it is told to leave out" do
+      give_embedding(course, 0.0)
+      near = give_embedding(create(:catalog_course), 0.1)
+
+      expect(CatalogCourse.nearest_ids(embedding_vector(0.0), limit: 5, except: course.id)).to eq([ near.id ])
+    end
+
+    it "returns nothing for a blank vector" do
+      expect(CatalogCourse.nearest_ids(nil, limit: 5)).to eq([])
+    end
+  end
+
+  describe ".with_iterative_scan" do
+    it "runs the block with the iterative scan on" do
+      CatalogCourse.nearest_ids(embedding_vector(0.0), limit: 1) # loads pgvector, so SHOW knows the setting
+
+      inside = CatalogCourse.with_iterative_scan { ActiveRecord::Base.connection.select_value("SHOW hnsw.iterative_scan") }
+
+      expect(inside).to eq("strict_order")
+    end
+  end
+
   describe "#similar" do
     it "returns the closest other rows" do
       give_embedding(course, 0.0)

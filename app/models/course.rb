@@ -175,9 +175,7 @@ class Course < ApplicationRecord
   # @param limit [Integer] the most courses to rank
   # @return [Array<Integer>]
   def self.ids_nearest_to(vector, scope:, limit:)
-    catalog_ids = CatalogCourse.nearest_to(vector, limit: limit)
-                               .where(id: catalog_course_ids_in(scope))
-                               .pluck(:id)
+    catalog_ids = CatalogCourse.nearest_ids(vector, limit: limit, among: catalog_course_ids_in(scope))
     ids_in_catalog_order(scope, catalog_ids)
   end
 
@@ -215,7 +213,9 @@ class Course < ApplicationRecord
     return Course.none if course&.embedding.nil?
 
     offered = Course.active.where(term_id: term_id)
-    catalog_ids = course.similar(limit: limit).where(id: Course.catalog_course_ids_in(offered)).pluck(:id)
+    catalog_ids = CatalogCourse.nearest_ids(course.embedding, limit: limit,
+                                                              among: Course.catalog_course_ids_in(offered),
+                                                              except: course.id)
     ids = Course.ids_in_catalog_order(offered, catalog_ids).first(limit)
 
     Course.where(id: ids).in_order_of(:id, ids)
