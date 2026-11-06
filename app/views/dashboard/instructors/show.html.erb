@@ -1,0 +1,100 @@
+<% content_for :title, @instructor[:name] %>
+
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header",
+      title: @instructor[:name],
+      back: [ "Instructors", dashboard_instructors_path ],
+      description: [ @instructor[:title], @instructor[:department], @instructor[:school] ].compact_blank.uniq.join(" · ") %>
+
+  <% rmp = @instructor[:rmp] %>
+  <%= render "shared/section_card", title: "Ratings", id: "ratings",
+      description: "From #{@instructor[:reviews_source]}. Students wrote these reviews there." do %>
+    <div class="px-5 py-4 space-y-4 text-sm text-on-surface">
+      <% if rmp %>
+        <dl class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <dt class="text-xs text-on-surface-variant">Rating</dt>
+            <dd class="text-xl font-semibold"><%= format("%.1f", rmp[:avg_rating]) %><span class="text-xs text-on-surface-variant"> / 5</span></dd>
+          </div>
+          <div>
+            <dt class="text-xs text-on-surface-variant">Difficulty</dt>
+            <dd class="text-xl font-semibold"><%= rmp[:avg_difficulty] ? format("%.1f", rmp[:avg_difficulty]) : "–" %><span class="text-xs text-on-surface-variant"> / 5</span></dd>
+          </div>
+          <div>
+            <dt class="text-xs text-on-surface-variant">Would take again</dt>
+            <dd class="text-xl font-semibold"><%= rmp[:would_take_again_percent] ? "#{rmp[:would_take_again_percent].round}%" : "–" %></dd>
+          </div>
+          <div>
+            <dt class="text-xs text-on-surface-variant">Ratings</dt>
+            <dd class="text-xl font-semibold"><%= rmp[:num_ratings] %></dd>
+          </div>
+        </dl>
+
+        <% if @instructor[:rmp_tags].any? %>
+          <div class="flex flex-wrap gap-2">
+            <% @instructor[:rmp_tags].each do |tag_info| %>
+              <span class="m3-badge m3-badge-secondary"><%= tag_info[:name] %></span>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% if @instructor[:recent_reviews].any? %>
+          <ul class="divide-y divide-outline-variant" id="reviews">
+            <% @instructor[:recent_reviews].each do |review| %>
+              <li class="py-3 space-y-1">
+                <p class="text-xs text-on-surface-variant">
+                  <%= [ review[:course_name], review[:rated_on]&.strftime("%b %Y"),
+                        ("Clarity #{review[:clarity_rating]}" if review[:clarity_rating]),
+                        ("Difficulty #{review[:difficulty_rating]}" if review[:difficulty_rating]) ].compact_blank.join(" · ") %>
+                </p>
+                <p><%= review[:comment] %></p>
+              </li>
+            <% end %>
+          </ul>
+          <% if @instructor[:review_count] > @instructor[:recent_reviews].size %>
+            <p class="text-xs text-on-surface-variant">The <%= @instructor[:recent_reviews].size %> newest of <%= @instructor[:review_count] %> reviews.</p>
+          <% end %>
+        <% end %>
+
+        <% if @rmp_url %>
+          <%= link_to @rmp_url,
+              target: "_blank", rel: "noopener noreferrer",
+              class: "inline-flex items-center gap-1 text-xs text-primary hover:underline" do %>
+            All reviews on Rate My Professors
+            <%= icon(:external, css_class: "w-3.5 h-3.5") %>
+          <% end %>
+        <% end %>
+      <% else %>
+        <p class="text-on-surface-variant">No ratings yet.</p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <section class="space-y-3" id="sections">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <h2 class="text-lg font-semibold text-on-surface">Sections<%= " in #{@term.name}" if @term %></h2>
+      <% if @offered_terms.size > 1 %>
+        <%= form_with url: dashboard_instructor_path(@instructor[:pub_id]), method: :get, class: "flex items-end gap-2" do |f| %>
+          <div>
+            <%= f.label :term_uid, "Term", class: "m3-label" %>
+            <%= f.select :term_uid, options_for_select(@offered_terms.map { |term| [ term.name, term.uid ] }, @term&.uid), {}, class: "m3-select" %>
+          </div>
+          <%= f.submit "Show", name: nil, class: "m3-btn-tonal" %>
+        <% end %>
+      <% end %>
+    </div>
+
+    <% sections = Array(@instructor[:sections]) %>
+    <% if sections.empty? %>
+      <%= render "shared/empty_state", icon: :calendar,
+          message: (@term ? "No sections in #{@term.name}." : "No sections on record."),
+          hint: ("Pick another term to see its sections." if @offered_terms.size > 1) %>
+    <% else %>
+      <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+        <% sections.each do |section| %>
+          <%= render "dashboard/courses/section", section: section, show_course: true %>
+        <% end %>
+      </div>
+    <% end %>
+  </section>
+</div>

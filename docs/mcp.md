@@ -261,7 +261,7 @@ Rules:
 
 - The JSON text stays the first content item. The links come after it. The links are not in `structuredContent`, so the output schemas do not change.
 - A tool error has no page link. The one exception is the missing permission error, which links to the connected apps card.
-- Link only to a page that exists in Rails. The catalog tools have no links, because the catalog has no web pages. `my_finals`, `my_busy_times`, `my_course_history`, `update_class_settings`, and `preview_template` have no links, because no page shows the same data.
+- Link only to a page that exists in Rails. The catalog tools have no links yet. The dashboard has catalog pages since #797, for signed-in students. `my_finals`, `my_busy_times`, `my_course_history`, `update_class_settings`, and `preview_template` have no links, because no page shows the same data.
 - Build each URL with a route helper through `page_url`. It adds `McpTools::Server.url_options`, so the host is correct in each environment. Do not write a host in the code.
 - A URL holds only the public ids that the page itself uses in its URLs. It never holds a token. A dashboard page needs a session, so the student signs in in the browser.
 - The `mcp` gem does not check content items. It sends each Hash as it is.
