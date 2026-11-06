@@ -8,7 +8,9 @@ module Api
     authenticate_with_token
 
     # GET /api/user/degree_progress
-    # Params (all optional): program (a slug), catalog_year and plan (with program).
+    # Params (all optional): program (a slug), catalog_year and plan (with
+    # program), include_planned (true also checks the planned programs, as
+    # the My programs dashboard page does).
     def show
       authorize current_user, :show?
 
@@ -18,7 +20,8 @@ module Api
       end
 
       render json: AcademicProfiles::DegreeProgress.new(
-        current_user, program: params[:program], catalog_year: params[:catalog_year], plan: params[:plan]
+        current_user, program: params[:program], catalog_year: params[:catalog_year], plan: params[:plan],
+                      include_planned: params[:include_planned].to_s == "true"
       ).call
     rescue AcademicProfiles::DegreeProgress::NoProgramError => e
       render_error e.message, status: :unprocessable_content, code: "no_program"

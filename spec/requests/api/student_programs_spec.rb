@@ -26,6 +26,23 @@ RSpec.describe "/api/user/programs and /api/user/planned_programs", type: :reque
       expect(body["ended_programs"].pluck("id")).to eq([ ended.public_id ])
     end
 
+    it "returns the plan and the start term of each program" do
+      create(:academic_profile, user: user, admit_term_uid: 202610)
+      major = create(:degree_program, slug: "widget-design-bs")
+      set = create(:requirement_set, degree_program: major, catalog_year: catalog_year)
+      create(:program_plan, requirement_set: set)
+      create(:program_plan, :accelerated, requirement_set: set)
+      create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: nil,
+                               plan_name: "Three Year Program")
+
+      get "/api/user/programs", headers: auth_headers_for(user)
+
+      expect(response.parsed_body["programs"].sole).to include(
+        "plan" => "Three Year Program", "plan_source" => "student", "plans" => [ "Four Year Program", "Three Year Program" ],
+        "start_term" => "Fall 2025", "start_term_source" => "admit_term"
+      )
+    end
+
     it "returns the same data as the my_programs tool" do
       create(:student_program, user: user)
 

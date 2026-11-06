@@ -52,7 +52,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `catalog_graphql` | Any read-only query on the catalog schema. | `POST /api/v1/graphql` | all |
 | `my_courses` | Your courses in one term, with their CRNs, weekly meeting times, and rooms. | `GET /api/user/processed_events` | |
 | `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
-| `my_programs` | Your programs from LeopardWeb with the catalog year and the program slug of each, your planned programs, and your ended programs. | `GET /api/user/programs` | |
+| `my_programs` | Your programs from LeopardWeb with the catalog year, the program slug, the plan of study, and the start term of each, your planned programs, and your ended programs. | `GET /api/user/programs` | |
 | `my_degree_progress` | The requirements of your programs next to the courses you took or take: each row done, in progress, or open, and the open rows. A planning help, not a degree audit. | `GET /api/user/degree_progress` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |

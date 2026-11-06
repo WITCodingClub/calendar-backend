@@ -28,6 +28,20 @@ RSpec.describe "/api/user/degree_progress", type: :request do
     expect(response.parsed_body["programs"].first).to include("program" => "widget-design-bs", "catalog_year" => "2025-2026")
   end
 
+  it "also checks the planned programs with include_planned" do
+    minor = create(:degree_program, :minor, slug: "gear-minor")
+    create(:requirement_set, degree_program: minor, catalog_year: catalog_year)
+    create(:student_program, user: user, degree_program: major, catalog_year: catalog_year)
+    create(:student_program, :planned, user: user, degree_program: minor, catalog_year: catalog_year)
+
+    get "/api/user/degree_progress", headers: auth_headers_for(user)
+    expect(response.parsed_body["programs"].pluck("program", "status")).to eq([ [ "widget-design-bs", "active" ] ])
+
+    get "/api/user/degree_progress", params: { include_planned: "true" }, headers: auth_headers_for(user)
+    expect(response.parsed_body["programs"].pluck("program", "status"))
+      .to eq([ [ "widget-design-bs", "active" ], [ "gear-minor", "planned" ] ])
+  end
+
   it "answers 422 with no_program when the student has no linked program, and for bad params" do
     get "/api/user/degree_progress", headers: auth_headers_for(user)
     expect(response).to have_http_status(:unprocessable_content)

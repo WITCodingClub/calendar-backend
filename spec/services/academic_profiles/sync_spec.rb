@@ -50,6 +50,7 @@ RSpec.describe AcademicProfiles::Sync do
   end
 
   it "keeps a value the student changed when LeopardWeb sends the same profile again" do
+    # Only the program the student changed gets source student.
     sync
     sync(source: "student", class_standing: "Junior", programs: [ major, minor.merge(name: "Data Science") ])
 
@@ -57,7 +58,7 @@ RSpec.describe AcademicProfiles::Sync do
 
     expect(user.academic_profile.reload.class_standing).to eq("Junior")
     expect(user.student_programs.active.pluck(:name, :source))
-      .to contain_exactly([ "Computer Science", "student" ], [ "Data Science", "student" ])
+      .to contain_exactly([ "Computer Science", "leopardweb" ], [ "Data Science", "student" ])
   end
 
   it "applies a LeopardWeb change to the profile fields and keeps the student's programs" do

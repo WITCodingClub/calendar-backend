@@ -111,7 +111,11 @@ module AcademicProfiles
         row = active.find { |candidate| kept.exclude?(candidate) && same_program?(candidate, attributes) }
 
         if row
-          row.update!(attributes.merge(source: source))
+          # A row whose values did not change keeps its source, so a student's
+          # change to one program does not mark the others as changed (#867).
+          row.assign_attributes(attributes)
+          row.source = source if row.changed?
+          row.save!
           kept << row
           row
         else

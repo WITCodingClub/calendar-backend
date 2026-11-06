@@ -8,9 +8,14 @@
 # program is the slug of the linked DegreeProgram, which degree_requirements
 # and GET /api/v1/catalog/programs/:slug take. It is null when the program
 # has no link to the degree catalog.
+#
+# plan, plan_source, plans, start_term, and start_term_source come from
+# AcademicProfiles::ProgramTimeline (#867). The My programs dashboard page
+# shows the same hash.
 class StudentProgramSerializer
-  def initialize(program)
+  def initialize(program, timeline: nil)
     @program = program
+    @timeline = timeline || AcademicProfiles::ProgramTimeline.for_program(program)
   end
 
   def as_json(*)
@@ -31,7 +36,12 @@ class StudentProgramSerializer
       program:           @program.degree_program&.slug,
       matched:           @program.matched?,
       source:            @program.source,
-      ended_at:          @program.ended_at&.iso8601
+      ended_at:          @program.ended_at&.iso8601,
+      plan:              @timeline.plan&.name,
+      plan_source:       @timeline.plan_source,
+      plans:             @timeline.plan_names,
+      start_term:        AcademicProfiles::TermCode.label(@timeline.start_term_uid),
+      start_term_source: @timeline.start_term_source
     }
   end
 end
