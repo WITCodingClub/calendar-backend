@@ -27,7 +27,13 @@ RSpec.describe AcademicProfiles::StudentCorrection do
     correction.program!(major, department: "Gadgets")
 
     expect(major.reload).to have_attributes(department: "Gadgets", source: "student", status: "active")
-    expect(minor.reload).to have_attributes(status: "active", name: "Gears")
+    expect(minor.reload).to have_attributes(status: "active", name: "Gears", source: "leopardweb")
+  end
+
+  it "keeps the LeopardWeb source of every program on a profile correction" do
+    correction.profile!(class_standing: "Junior")
+
+    expect([ major.reload.source, minor.reload.source ]).to eq(%w[leopardweb leopardweb])
   end
 
   it "ends the row and adds a new one when the catalog term changes, so the history stays" do

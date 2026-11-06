@@ -12,7 +12,8 @@ module AcademicProfiles
   #   the term the student started the program. Without one, it is the admit
   #   term of the profile. A planned program has no start term.
   # - Year 1 of a plan is the academic year of the start term. A Spring 2026
-  #   start puts "Year 1, fall" in Fall 2025.
+  #   start puts "Year 1, fall" in Fall 2025. A summer start counts as the
+  #   start of the next academic year.
   #
   # GET /api/user/programs, the my_programs MCP tool, and the My programs
   # dashboard page read it through StudentProgramSerializer.
@@ -91,11 +92,16 @@ module AcademicProfiles
     # each plan year.
     def term_uid(year_index, season) = self.class.term_uid(start_term_uid, year_index, season)
 
+    # A summer start is the end of a Banner academic year, so year 1 is the
+    # academic year that starts after it: Summer 2026 puts "Year 1, fall" in
+    # Fall 2026.
     def self.term_uid(start_term_uid, year_index, season)
       suffix = TermCode::SEASON_SUFFIXES[season.to_s]
       return nil if start_term_uid.nil? || suffix.nil? || year_index.nil?
 
-      (((start_term_uid / 100) + year_index - 1) * 100) + suffix
+      first_year = start_term_uid / 100
+      first_year += 1 if start_term_uid % 100 == TermCode::SEASON_SUFFIXES.fetch("summer")
+      ((first_year + year_index - 1) * 100) + suffix
     end
 
     private

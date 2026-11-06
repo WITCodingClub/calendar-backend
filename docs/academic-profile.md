@@ -92,7 +92,7 @@ flowchart TD
 | `start_term` | The catalog term from LeopardWeb, the term the student started the program. Without one, the admit term of the profile. Null for a planned program. |
 | `start_term_source` | `catalog_term` or `admit_term`. |
 
-- A semester of a plan maps to a real term from the start term. Year 1 is the academic year of the start term. With a Fall 2025 start, "Year 3, fall" is Fall 2027. With a Spring 2026 start, "Year 1, fall" is Fall 2025.
+- A semester of a plan maps to a real term from the start term. Year 1 is the academic year of the start term. With a Fall 2025 start, "Year 3, fall" is Fall 2027. With a Spring 2026 start, "Year 1, fall" is Fall 2025. A summer start counts as the start of the next academic year: with Summer 2026, "Year 1, fall" is Fall 2026.
 - A picked plan that a later import renamed falls back to the standard plan, with `plan_source: assumed`.
 - `AcademicProfiles::Sync` updates a matched row in place, so a LeopardWeb sync keeps the picked plan. A row that Sync ends and creates again (a change to a field that names the program) loses it.
 

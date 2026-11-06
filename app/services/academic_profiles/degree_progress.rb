@@ -81,7 +81,10 @@ module AcademicProfiles
     # with a catalog link. The plan name is the plan argument, or the plan
     # the student picked (#867), or nil for the standard plan.
     def requirement_sets
-      return [ [ find_argument_set(Catalog::ProgramQuery.new), @plan_name, nil ] ] if @program
+      if @program
+        set = find_argument_set(Catalog::ProgramQuery.new)
+        return [ [ set, argument_plan_name(set), nil ] ]
+      end
 
       statuses = @include_planned ? %w[active planned] : %w[active]
       rows = @user.student_programs.where(status: statuses).where.not(degree_program_id: nil)
@@ -91,7 +94,9 @@ module AcademicProfiles
       rows.filter_map do |row|
         set = sets[[ row.degree_program_id, row.catalog_year_id ]]
         [ set, @plan_name || row.plan_name.presence, row ] if set
-      end.uniq(&:first)
+        # A planned row can have the same program as a later active row, for
+        # example a minor the student then declared. Each keeps its entry.
+      end.uniq { |set, _, row| [ set.id, row.status ] }
     end
 
     # The requirement set of each row, with what Catalog::ProgramQuery#find
@@ -117,9 +122,26 @@ module AcademicProfiles
     # The catalog year of the student's own program with this slug, or the
     # newest catalog year.
     def own_catalog_year(query)
-      own = @user.student_programs.active.joins(:degree_program).includes(:catalog_year)
-                 .find_by(degree_programs: { slug: @program.to_s.strip.downcase })&.catalog_year
+      own = own_program&.catalog_year
       own&.imported? ? own : query.catalog_year(nil)
+    end
+
+    # The student's active row of the program argument, or nil.
+    def own_program
+      return @own_program if defined?(@own_program)
+
+      @own_program = @user.student_programs.active.joins(:degree_program).includes(:catalog_year)
+                          .find_by(degree_programs: { slug: @program.to_s.strip.downcase })
+    end
+
+    # The plan for the program argument: the plan argument, or the plan the
+    # student picked for their own row of that program in the same catalog
+    # year (#867).
+    def argument_plan_name(set)
+      return @plan_name if @plan_name
+
+      own = own_program
+      own.plan_name.presence if own && own.catalog_year_id == set.catalog_year_id
     end
 
     def program_json(set, plan_name, row)

@@ -68,6 +68,13 @@ RSpec.describe AcademicProfiles::ProgramTimeline do
     expect(AcademicProfiles::TermCode.label(spring_start.term_uid(1, "spring"))).to eq("Spring 2026")
   end
 
+  it "puts year 1 in the academic year after a summer start term" do
+    summer_start = timeline(program(catalog_term_uid: 202630)) # Summer 2026
+
+    expect(AcademicProfiles::TermCode.label(summer_start.term_uid(1, "fall"))).to eq("Fall 2026")
+    expect(AcademicProfiles::TermCode.label(summer_start.term_uid(3, "fall"))).to eq("Fall 2028")
+  end
+
   it "loads the plans of many programs with a fixed number of queries" do
     programs = [ program, program(catalog_term_uid: 202620) ]
     queries = 0

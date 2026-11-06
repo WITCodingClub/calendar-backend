@@ -22,34 +22,48 @@ module AcademicProfiles
 
     # Changes the profile fields. Raises InvalidProfileError.
     def profile!(changes)
-      sync(profile_payload.merge(changes.to_h.symbolize_keys.slice(*PROFILE_FIELDS)), programs_payload)
+      locked do |profile|
+        sync(profile_payload(profile).merge(changes.to_h.symbolize_keys.slice(*PROFILE_FIELDS)), programs_payload)
+      end
     end
 
     # Changes the fields of one active program. Raises InvalidProfileError.
     def program!(program, changes)
-      raise InvalidProfileError, "Only an active program can be corrected" unless program.active? && program.user_id == user.id
-
       changes = changes.to_h.symbolize_keys.slice(*PROGRAM_FIELDS)
-      programs = active_programs.map do |row|
-        attributes = program_attributes(row)
-        row.id == program.id ? attributes.merge(changes) : attributes
+
+      locked do |profile|
+        unless program.user_id == user.id && active_programs.any? { |row| row.id == program.id }
+          raise InvalidProfileError, "Only an active program can be corrected"
+        end
+
+        programs = active_programs.map do |row|
+          attributes = program_attributes(row)
+          row.id == program.id ? attributes.merge(changes) : attributes
+        end
+        sync(profile_payload(profile), programs)
       end
-      sync(profile_payload, programs)
     end
 
     private
+
+    # Reads the stored values and syncs under the lock that Sync takes, so a
+    # LeopardWeb sync at the same time cannot change them in between. Sync
+    # takes the same row lock again in the same transaction.
+    def locked
+      profile = AcademicProfile.create_or_find_by!(user_id: user.id)
+      profile.with_lock { yield profile }
+    end
 
     def sync(profile, programs)
       Sync.new(user, profile.merge(source: "student", programs: programs)).call
     end
 
-    def profile_payload
-      profile = user.academic_profile
+    def profile_payload(profile)
       {
-        level:          profile&.level,
-        class_standing: profile&.class_standing,
-        admit_type:     profile&.admit_type,
-        admit_term:     TermCode.label(profile&.admit_term_uid)
+        level:          profile.level,
+        class_standing: profile.class_standing,
+        admit_type:     profile.admit_type,
+        admit_term:     TermCode.label(profile.admit_term_uid)
       }
     end
 

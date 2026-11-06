@@ -240,6 +240,25 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     expect(programs.last[:requirements]).to contain_exactly(include(elective_list: "Gear Electives", status: "open"))
   end
 
+  it "keeps the active entry when an older planned row has the same program" do
+    set
+    user.student_programs.destroy_all
+    create(:student_program, :planned, user: user, degree_program: major, catalog_year: catalog_year)
+    create(:student_program, user: user, degree_program: major, catalog_year: catalog_year)
+
+    expect(progress(include_planned: true)[:programs].pluck(:status)).to eq(%w[planned active])
+    expect(progress[:programs].pluck(:status)).to eq(%w[active])
+  end
+
+  it "uses the student's picked plan for their own program named as the argument, unless a plan is given" do
+    plan
+    create(:program_plan, :accelerated, requirement_set: set)
+    user.student_programs.sole.update!(plan_name: "Three Year Program")
+
+    expect(progress(program: "widget-design-bs")[:programs].first[:plan]).to eq("Three Year Program")
+    expect(progress(program: "widget-design-bs", plan: "Four Year Program")[:programs].first[:plan]).to eq("Four Year Program")
+  end
+
   it "loads the requirements of every program with a fixed number of queries" do
     item(subject_code: "WDGT", course_number: 1000)
     one = progress
