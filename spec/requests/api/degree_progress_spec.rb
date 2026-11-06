@@ -38,5 +38,8 @@ RSpec.describe "/api/user/degree_progress", type: :request do
 
     get "/api/user/degree_progress", params: { program: "basket-weaving-bs" }, headers: auth_headers_for(user)
     expect(response).to have_http_status(:unprocessable_content)
+
+    get "/api/user/degree_progress", params: { program: "widget-design-bs", plan: [ "x" ] }, headers: auth_headers_for(user)
+    expect(response).to have_http_status(:unprocessable_content)
   end
 end

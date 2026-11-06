@@ -47,9 +47,10 @@ module AcademicProfiles
 
     def initialize(user, program: nil, catalog_year: nil, plan: nil, today: Time.zone.today)
       @user = user
-      @program = program.presence
-      @catalog_year = catalog_year.presence
-      @plan_name = plan.presence
+      # A query string can be an array or a hash, so each value becomes text.
+      @program = program.presence&.to_s
+      @catalog_year = catalog_year.presence&.to_s
+      @plan_name = plan.presence&.to_s
       @today = today
     end
 
