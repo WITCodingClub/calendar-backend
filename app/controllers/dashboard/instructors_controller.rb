@@ -25,7 +25,7 @@ module Dashboard
 
       authorize faculty
 
-      @offered_terms = Term.where(id: faculty.courses.select(:term_id)).reverse_chronological.to_a
+      @offered_terms = Term.where(id: faculty.courses.active.select(:term_id)).reverse_chronological.to_a
       current        = Term.current
       @term          = selected_term(default: @offered_terms.include?(current) ? current : @offered_terms.first)
       @instructor    = Catalog::InstructorDetailSerializer.new(faculty, term: @term).as_json

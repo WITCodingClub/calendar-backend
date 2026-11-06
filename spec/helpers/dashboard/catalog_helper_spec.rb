@@ -43,8 +43,9 @@ RSpec.describe Dashboard::CatalogHelper, type: :helper do
       expect(helper.rmp_summary({ avg_rating: BigDecimal("4.26"), num_ratings: 1 })).to eq("4.3 / 5 from 1 rating")
     end
 
-    it "is nil with no ratings" do
+    it "is nil with no ratings or no average" do
       expect(helper.rmp_summary(nil)).to be_nil
+      expect(helper.rmp_summary({ avg_rating: nil, num_ratings: 3 })).to be_nil
     end
   end
 

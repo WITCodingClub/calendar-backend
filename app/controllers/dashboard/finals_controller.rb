@@ -11,8 +11,12 @@ module Dashboard
 
       @terms = Term.where(id: FinalExam.select(:term_id)).reverse_chronological.to_a
       @term  = selected_term(default: default_term)
+      # Only a term with a finals schedule. Any other term has nothing to show.
+      raise ActiveRecord::RecordNotFound, "No finals for term #{@term.uid}" if @term && @terms.exclude?(@term)
+
+      @current_term = Term.current
       @query = params[:q].to_s.strip
-      @mine  = params[:mine] == "1"
+      @mine  = params[:mine].to_s == "1"
       @my_course_ids   = Set.new
       @catalog_courses = {}
 

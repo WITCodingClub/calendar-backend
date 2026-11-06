@@ -79,6 +79,26 @@ RSpec.describe "Dashboard::Instructors", type: :request do
       expect(page.css("#sections [data-crn]").size).to eq(1)
     end
 
+    it "leaves out a term where every section of the instructor is cancelled" do
+      newer = create(:term)
+      create(:course, term: newer, status: :cancelled).faculties << ada
+
+      get dashboard_instructor_path(ada.public_id)
+
+      expect(page.at_css("#sections h2").text).to eq("Sections in #{term.name}")
+    end
+
+    it "shows a dash for a rating with no average" do
+      create(:rating_distribution, faculty: ada, avg_rating: nil, num_ratings: 3)
+      ada.update!(rmp_id: "VGVhY2hlci0xMjM0NQ==")
+
+      get dashboard_instructor_path(ada.public_id)
+      expect(page.at_css("#ratings").text).to include("–")
+
+      get dashboard_instructors_path
+      expect(response).to have_http_status(:ok)
+    end
+
     it "answers 404 for an unknown instructor" do
       get dashboard_instructor_path("nope")
 

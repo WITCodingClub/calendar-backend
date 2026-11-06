@@ -14,11 +14,11 @@
         <dl class="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
             <dt class="text-xs text-on-surface-variant">Rating</dt>
-            <dd class="text-xl font-semibold"><%= format("%.1f", rmp[:avg_rating]) %><span class="text-xs text-on-surface-variant"> / 5</span></dd>
+            <dd class="text-xl font-semibold"><%= rating_value(rmp[:avg_rating]) %><span class="text-xs text-on-surface-variant"> / 5</span></dd>
           </div>
           <div>
             <dt class="text-xs text-on-surface-variant">Difficulty</dt>
-            <dd class="text-xl font-semibold"><%= rmp[:avg_difficulty] ? format("%.1f", rmp[:avg_difficulty]) : "–" %><span class="text-xs text-on-surface-variant"> / 5</span></dd>
+            <dd class="text-xl font-semibold"><%= rating_value(rmp[:avg_difficulty]) %><span class="text-xs text-on-surface-variant"> / 5</span></dd>
           </div>
           <div>
             <dt class="text-xs text-on-surface-variant">Would take again</dt>

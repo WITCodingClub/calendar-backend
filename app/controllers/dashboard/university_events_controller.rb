@@ -11,8 +11,8 @@ module Dashboard
       authorize UniversityCalendarEvent
 
       @query    = params[:q].to_s.strip
-      @past     = params[:past] == "1"
-      @category = params[:category].presence_in(UniversityCalendarEvent::CATEGORIES)
+      @past     = params[:past].to_s == "1"
+      @category = params[:category].to_s.presence_in(UniversityCalendarEvent::CATEGORIES)
       @events   = Catalog::UniversityEventQuery.new.call(past: @past, category: @category, q: @query)
                                                .page(page_param).per(CatalogPages::PER_PAGE)
     end

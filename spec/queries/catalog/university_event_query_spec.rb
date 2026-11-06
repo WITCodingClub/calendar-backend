@@ -22,6 +22,19 @@ RSpec.describe Catalog::UniversityEventQuery do
     expect(call(past: true)).to eq([ old ])
   end
 
+  it "keeps an event in progress in the upcoming list only" do
+    travel_to(zone.local(2026, 11, 26, 12))
+
+    expect(call).to include(break_event)
+    expect(call(past: true)).not_to include(break_event)
+  end
+
+  it "finds an event with no category under other" do
+    blank = create(:university_calendar_event, category: nil, start_time: zone.local(2026, 11, 20), end_time: zone.local(2026, 11, 21))
+
+    expect(call(category: "other")).to eq([ blank ])
+  end
+
   it "filters by category and ignores an unknown one" do
     expect(call(category: "holiday")).to eq([ break_event ])
     expect(call(category: "parties")).to eq([ fair, break_event ])

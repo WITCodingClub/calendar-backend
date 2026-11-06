@@ -36,7 +36,7 @@ RSpec.describe "Dashboard::Finals", type: :request do
       expect(crns).to eq([ my_exam.crn, other_exam.crn ])
       expect(page.at_css("[data-crn='#{my_exam.crn}']").text).to include("Yours", "8:00 AM", "WENTW 010")
       expect(page.at_css("[data-crn='#{other_exam.crn}']").text).not_to include("Yours")
-      expect(page.at_css("#finals").text).to include("Tuesday, December 15")
+      expect(page.at_css("#finals").text).to include("Tuesday, December 15, 2026")
     end
 
     it "shows only the user's exams with mine=1" do
@@ -74,6 +74,27 @@ RSpec.describe "Dashboard::Finals", type: :request do
       get dashboard_finals_path
 
       expect(page.at_css("[data-crn='55555']").text).to include("CRN 55555")
+    end
+
+    it "names the term, and says so when the current term has no schedule yet" do
+      allow(Term).to receive(:current).and_return(create(:term))
+
+      get dashboard_finals_path
+
+      expect(page.at_css("#finals-term").text).to eq("Finals in #{term.name}")
+      expect(response.body).to include("is not out yet")
+    end
+
+    it "answers 404 for a term with no finals" do
+      get dashboard_finals_path, params: { term_uid: create(:term).uid }
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "ignores an array param" do
+      get dashboard_finals_path, params: { page: [ "2" ], mine: [ "1" ] }
+
+      expect(response).to have_http_status(:ok)
     end
 
     it "says the user has no courses when mine=1 finds nothing" do

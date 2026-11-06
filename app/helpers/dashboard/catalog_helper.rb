@@ -35,7 +35,7 @@ module Dashboard
 
     # "4.2 / 5 from 31 ratings", or nil when Rate My Professors has no ratings.
     def rmp_summary(rmp)
-      return nil if rmp.nil?
+      return nil if rmp.nil? || rmp[:avg_rating].nil?
 
       "#{format('%.1f', rmp[:avg_rating])} / 5 from #{pluralize(rmp[:num_ratings], 'rating')}"
     end
@@ -49,6 +49,11 @@ module Dashboard
         place = meeting.dig(:location, :display)
         [ day, time ].join(" ") + (place.present? ? ", #{place}" : "")
       end
+    end
+
+    # "4.2", or "–" when there is no value.
+    def rating_value(value)
+      value.nil? ? "–" : format("%.1f", value)
     end
 
     # "Lab fee (Undergraduate): $150.00", from one entry of CatalogCourse#fees.

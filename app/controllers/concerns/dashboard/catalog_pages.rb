@@ -20,7 +20,8 @@ module Dashboard
     def selected_term(default: Term.current)
       return default if params[:term_uid].blank?
 
-      Term.find_by(uid: params[:term_uid].to_i) || raise(ActiveRecord::RecordNotFound, "No term #{params[:term_uid]}")
+      # to_s: a param such as term_uid[]=1 is an Array.
+      Term.find_by(uid: params[:term_uid].to_s.to_i) || raise(ActiveRecord::RecordNotFound, "No term #{params[:term_uid]}")
     end
 
     # The terms for the term picker, newest first.
@@ -29,7 +30,7 @@ module Dashboard
     end
 
     def page_param
-      [ params[:page].to_i, 1 ].max
+      [ params[:page].to_s.to_i, 1 ].max
     end
   end
 end

@@ -102,7 +102,7 @@
             or Escape closes it) with no JavaScript. Turbo replaces the body on
             each visit, so the sheet is closed on the next page. %>
         <div id="dashboard-more" popover
-             class="inset-x-2 top-auto bottom-16 m-0 w-auto p-2 space-y-1 rounded-3xl border border-outline-variant bg-surface-container-high text-on-surface shadow-lg backdrop:bg-black/30">
+             class="inset-x-2 top-auto bottom-16 m-0 w-auto max-h-[calc(100dvh-5rem)] overflow-y-auto p-2 space-y-1 rounded-3xl border border-outline-variant bg-surface-container-high text-on-surface shadow-lg backdrop:bg-black/30">
           <% dashboard_more_items.each do |item| %>
             <%= render "layouts/dashboard_more_item", **item %>
           <% end %>
