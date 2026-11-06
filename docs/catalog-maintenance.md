@@ -33,8 +33,10 @@ Each request logs one line: `[Courses::Processor] user=… sections=… from_cat
 
 Banner sends most course titles in capitals, for example `AGENTIC AI AND INTELLIGENT AGENTS`. `Course` formats each title when it is written (`normalizes :title`, with `Courses::TitleFormatter`). Code that reads a title uses it as it is.
 
-- The formatter writes each word with a capital first letter, and writes Roman numerals in capitals: `Calculus II`.
-- It writes the acronyms in `Courses::TitleFormatter::ACRONYMS` in capitals: `Agentic AI And Intelligent Agents`. To add an acronym, add it to that list. Leave out acronyms that are also English words, such as IT.
+- The formatter writes each word with a capital first letter, and writes Roman numerals in capitals: `Calculus II`. A word starts after a space, a hyphen, a slash or an opening parenthesis.
+- It keeps each hyphen as Banner sends it: `CO-OP` becomes `Co-Op`, and `STUDIO 01 - LAB` becomes `Studio 01 - Lab`.
+- It writes the acronyms in `Courses::TitleFormatter::ACRONYMS` in capitals: `Agentic AI And Intelligent Agents`. It also writes degree program codes that start with `BS` in capitals: `BSCE/BSEN`. To add an acronym, add it to that list. Leave out acronyms that are also English words, such as IT and BE.
+- It changes an HTML line break (`<br>`) in a title to ` - `.
 - SQL that sets `title` directly skips the formatter. Write a title with `create`, `update`, or an assignment.
 
 After a change to the formatter, format the stored titles again. The task needs no Banner request. It changes the current and future terms. Each changed course marks its students for a calendar sync and gets a new embedding.
@@ -47,6 +49,8 @@ ALL=1 bin/rails courses:normalize_titles
 ```
 
 The formatter gives the same result when it runs again on a formatted title, so a second run of the task changes nothing.
+
+`courses:normalize_titles` can only change a stored title. It cannot get back text that an older formatter removed, such as the spaces that it added around a hyphen (`Co - Op`). To get a title from Banner again, run `courses:refresh_titles`. It changes the current and next terms. The nightly sync also writes Banner titles again for the current and future terms.
 
 ## Re-import every term
 
