@@ -27,11 +27,18 @@ module DegreeRequirements
       raise InvalidSeedError, "#{path} must be a list" unless data.is_a?(Array)
 
       data.each_with_index.map { |entry, index| normalize(entry, index) }
+    rescue Psych::Exception => e
+      raise InvalidSeedError, e.message
     end
 
     def self.normalize(entry, index)
-      entry = entry.to_h.stringify_keys
-      steps = Array(entry["steps"]).map { |step| step.to_h.stringify_keys }
+      raise InvalidSeedError, "entry #{index}: must be a map" unless entry.is_a?(Hash)
+
+      entry = entry.stringify_keys
+      steps = Array(entry["steps"])
+      raise InvalidSeedError, "entry #{index}: each step must be a map with a program" unless steps.all?(Hash)
+
+      steps = steps.map(&:stringify_keys)
       missing = %w[slug name kind].select { |key| entry[key].blank? }
       missing << "steps" if steps.size < 2 || steps.any? { |step| step["program"].blank? }
       raise InvalidSeedError, "entry #{index}: needs #{missing.join(', ')}" if missing.any?

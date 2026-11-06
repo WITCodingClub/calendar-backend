@@ -51,17 +51,14 @@ module AcademicProfiles
       raise InvalidProfileError, "catalog_year must be a string" unless catalog_year.nil? || catalog_year.is_a?(String)
 
       record = ProgramPathway.active.includes(steps: :degree_program).find_by(slug: pathway.strip.downcase)
-      if record.nil?
-        raise InvalidProfileError.new("No pathway #{pathway}. Pathways: #{ProgramPathway.active.order(:slug).pluck(:slug).join(', ')}",
-                                      code: "unknown_pathway")
-      end
+      raise InvalidProfileError.new(unknown_pathway_message(pathway), code: "unknown_pathway") if record.nil?
 
-      query = Catalog::ProgramQuery.new
-      year = find_catalog_year(query, catalog_year)
-      rows = record.steps.filter_map do |step|
-        next if held_program_ids.include?(step.degree_program_id)
-
-        set = query.find(step.degree_program.slug, catalog_year: year)
+      year = find_catalog_year(Catalog::ProgramQuery.new, catalog_year)
+      steps = record.steps.reject { |step| held_program_ids.include?(step.degree_program_id) }
+      sets = year.requirement_sets.includes(:degree_program).where(degree_program_id: steps.map(&:degree_program_id))
+                 .index_by(&:degree_program_id)
+      rows = steps.map do |step|
+        set = sets[step.degree_program_id]
         raise InvalidProfileError.new("No program #{step.degree_program.slug} in the #{year.name} catalog", code: "unknown_program") if set.nil?
 
         row_for(set, year).tap { |row| row.program_pathway = record }
@@ -75,7 +72,8 @@ module AcademicProfiles
     def save_pathway!(pathway, rows)
       user.with_lock do
         @held_program_ids = nil
-        rows.each { |row| check_program!(row) }
+        held = rows.find { |row| held_program_ids.include?(row.degree_program_id) }
+        raise InvalidProfileError.new("#{held.name} is already in your programs", code: "duplicate_program") if held
         check_pathway!(pathway, rows)
         rows.each(&:save!)
       end
@@ -159,6 +157,13 @@ module AcademicProfiles
       return if user.student_programs.planned.count + added <= MAX_PLANNED
 
       raise InvalidProfileError.new("You can plan at most #{MAX_PLANNED} programs", code: "too_many_programs")
+    end
+
+    def unknown_pathway_message(key)
+      slugs = ProgramPathway.active.order(:slug).pluck(:slug)
+      return "No pathway #{key}. WIT Calendar has no program pathways yet" if slugs.empty?
+
+      "No pathway #{key}. Pathways: #{slugs.join(', ')}"
     end
 
     # The DegreeProgram ids of the user's active and planned rows.

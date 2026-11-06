@@ -182,10 +182,11 @@ module DegreeRequirements
     end
 
     # The pathways name programs by slug, so they can link only after the
-    # programs exist. A bad seed file does not stop the import.
+    # programs exist. A bad seed file, or a save that fails (such as a race
+    # with the rake task), does not stop the import.
     def seed_pathways
       PathwaySeed.new.call
-    rescue PathwaySeed::InvalidSeedError, ActiveRecord::RecordInvalid => e
+    rescue PathwaySeed::InvalidSeedError, ActiveRecord::ActiveRecordError => e
       Rails.error.report(e, handled: true, context: { catalog_year_id: @catalog_year.id })
     end
 

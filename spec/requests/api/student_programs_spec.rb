@@ -128,6 +128,13 @@ RSpec.describe "/api/user/programs, /api/user/planned_programs, and /api/user/pl
       expect(user.student_programs.reload).to eq([ active ])
     end
 
+    it "adds every program of a pathway for a student with no programs" do
+      post "/api/user/planned_pathways", params: { pathway: "gear-studies-4-plus-1" }, headers: auth_headers_for(user), as: :json
+
+      expect(response).to have_http_status(:created)
+      expect(user.student_programs.planned.map(&:degree_program)).to contain_exactly(bachelor, master)
+    end
+
     it "answers 422 for an unknown pathway and 404 for a pathway the student did not plan" do
       headers = auth_headers_for(user)
 

@@ -137,6 +137,9 @@ RSpec.describe AcademicProfiles::PlannedPrograms do
       create(:program_pathway, slug: "retired-4-plus-1", active: false)
 
       expect(error_code { planned.build_pathway(pathway: "retired-4-plus-1") }).to eq("unknown_pathway")
+      ProgramPathway.update_all(active: false)
+      expect { planned.build_pathway(pathway: "nope") }.to raise_error(AcademicProfiles::InvalidProfileError, /no program pathways yet/)
+      pathway.reload.update!(active: true)
       expect { planned.build_pathway(pathway: "nope") }.to raise_error(AcademicProfiles::InvalidProfileError, /Pathways: gear-studies-4-plus-1\z/)
 
       planned.save_pathway!(*planned.build_pathway(pathway: "gear-studies-4-plus-1"))

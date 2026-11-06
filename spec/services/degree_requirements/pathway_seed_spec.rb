@@ -59,6 +59,17 @@ RSpec.describe DegreeRequirements::PathwaySeed do
     FileUtils.rm_f(bad)
   end
 
+  it "raises InvalidSeedError for a file that does not parse and for a step that is not a map" do
+    bad = Rails.root.join("tmp/pathway_seed_syntax_#{Process.pid}.yml")
+    File.write(bad, "- slug: [unclosed\n")
+    expect { described_class.entries(bad) }.to raise_error(described_class::InvalidSeedError)
+
+    File.write(bad, [ { "slug" => "x", "name" => "X", "kind" => "four_plus_one", "steps" => %w[a b] } ].to_yaml)
+    expect { described_class.entries(bad) }.to raise_error(described_class::InvalidSeedError, /must be a map/)
+  ensure
+    FileUtils.rm_f(bad)
+  end
+
   # config/program_pathways.yml is the real list, so a typo there should fail
   # here and not only in production.
   it "reads config/program_pathways.yml with valid kinds and unique slugs" do

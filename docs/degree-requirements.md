@@ -50,7 +50,8 @@ The catalog has no list of pathways. Its Accelerated Programs page (`/programs-a
 - `DegreeRequirements::PathwaySeed` reads the file. Each step names a `DegreeProgram` slug. It runs at the end of each import, and `bin/rails degree_requirements:pathways` runs it now.
 - A pathway with a program that is not imported yet is skipped until a later run.
 - A pathway that leaves the file is set inactive, not deleted, because planned programs link to it.
-- `max_shared_courses` is 2 for each pathway, from the Double Leopard page. Neither source gives a credit limit, so `max_shared_credits` is empty.
+- After a deploy that changes the file, run `bin/rails degree_requirements:pathways`. Otherwise the change waits for the next monthly import.
+- `max_shared_courses` is 2 for each pathway, from the Double Leopard page, which also lists the M.Arch. Neither source gives a credit limit, so `max_shared_credits` is empty.
 - A 4+1 or 3+1 in the file pairs a B.S. with the master's of the same subject. A 3+1 uses the 3-year plan of the B.S.
 
 ## Where the requirements are on a program page
