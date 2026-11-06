@@ -89,6 +89,14 @@ RSpec.describe DegreeRequirements::CourseCodeAliasFinder do
       expect(pairs.map(&:second)).not_to include(102)
     end
 
+    it "leaves out two old codes that the sources pair with one new code" do
+      section(old_term, 105, "Widget Theory Lab", subject: "Widgets (WDGT)")
+      section(new_term, 1050, "Widget Theory Lab", subject: "Widgets (WDGT)")
+
+      expect(find.conflicts).to eq(2)
+      expect(pairs.map(&:third)).not_to include(1050)
+    end
+
     it "keeps one alias when both sources agree" do
       section(old_term, 102, "Widget Theory", subject: "Widgets (WDGT)")
       section(new_term, 1050, "Widget Theory", subject: "Widgets (WDGT)")
@@ -109,6 +117,15 @@ RSpec.describe DegreeRequirements::CourseCodeAliasFinder do
 
     expect(result).to have_attributes(created: 0, existing: 1, conflicts: 2)
     expect(CourseCodeAlias.where(from_course_number: 102).sole.source).to eq("admin")
+  end
+
+  it "does not pair a new code that a stored alias gives to another old code" do
+    create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 109, to_subject_code: "WDGT",
+                               to_course_number: 1050, source: "admin")
+
+    find
+
+    expect(CourseCodeAlias.where(to_course_number: 1050).pluck(:from_course_number)).to eq([ 109 ])
   end
 
   it "finds nothing in the catalogs without both texts" do

@@ -444,9 +444,10 @@ module McpTools
           program:      STRING,
           name:         STRING,
           catalog_year: STRING,
+          needs_review: BOOLEAN,
           plan:         nullable(STRING),
           plans:        STRINGS,
-          counts:       object(done: INTEGER, in_progress: INTEGER, open: INTEGER),
+          counts:     object(done: INTEGER, in_progress: INTEGER, open: INTEGER),
           requirements: array(DEGREE_REQUIREMENT),
           open:         array(
             object(

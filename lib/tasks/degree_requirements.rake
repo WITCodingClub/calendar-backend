@@ -36,6 +36,9 @@ namespace :degree_requirements do
        "Each new alias waits in /admin/course_code_alias_reviews."
   task course_code_aliases: :environment do
     result = DegreeRequirements::CourseCodeAliasJob.perform_now
+    # retry_on catches a fetch error, queues a retry, and perform_now returns the error.
+    abort "The catalog site did not answer (#{result.message}). A retry is queued." if result.is_a?(Exception)
+
     puts "#{result.created} new aliases (#{result.catalog} from the catalogs, #{result.banner} from Banner), " \
          "#{result.existing} already stored, #{result.conflicts} left out because the sources disagree."
   end

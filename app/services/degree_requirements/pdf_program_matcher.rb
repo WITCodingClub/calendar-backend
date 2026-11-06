@@ -17,7 +17,7 @@ module DegreeRequirements
     DEGREE_KINDS = %w[associate bachelor master].freeze
     # Words that name the degree, not the subject.
     DEGREE_WORDS = /\b(?:bachelor|master|associate)(?:'?s)?(?:\s+of(?:\s+(?:science|engineering|arts|applied\s+science))?)?(?:\s+degree)?\b|
-                    \bb\s?s\b|\bm\s?s\b|\bdegree\b|\bcurriculum(?:\s+for)?\b|\bprogram\b|\bwith\s+concentration\s+in\b|
+                    \bb\s?[sa]\b|\bm\s?[sa]\b|\bdegree\b|\bcurriculum(?:\s+for)?\b|\bprogram\b|\bwith\s+concentration\s+in\b|
                     \bconcentration\b|\bminor\b|\bin\s+applied\s+science\b/x
 
     def initialize(programs = DegreeProgram.all)
@@ -62,7 +62,9 @@ module DegreeRequirements
     # in Facilities Management" both give "construction management
     # facilities management".
     def subject(name)
+      # "B.S." and "M.S." lose their dots first, so DEGREE_WORDS finds them.
       name.to_s.downcase.gsub("&", " and ").gsub(/\([^)]*\)/, " ").gsub(/[–—]/, "-")
+          .gsub(/\b([bm])\.\s?([sa])\./, '\1\2').gsub(/\bm\.\s?arch\b/, " ")
           .gsub(DEGREE_WORDS, " ").gsub(/[^a-z0-9]+/, " ").squish
     end
 

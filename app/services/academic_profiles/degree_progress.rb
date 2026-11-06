@@ -110,6 +110,8 @@ module AcademicProfiles
         program:      set.degree_program.slug,
         name:         set.name,
         catalog_year: set.catalog_year.name,
+        # A set read from a PDF catalog that nobody has checked yet.
+        needs_review: set.needs_review,
         plan:         plan&.name,
         plans:        set.program_plans.map(&:name),
         counts:       %w[done in_progress open].index_with { |status| requirements.count { |r| r[:status] == status } },
@@ -243,8 +245,11 @@ module AcademicProfiles
       [ code, *aliases.fetch(code, []) ]
     end
 
+    # Only an alias that a person checked or wrote: the alias task writes its
+    # matches unchecked (#865), and a wrong match would count a course that
+    # does not meet the requirement.
     def aliases
-      @aliases ||= CourseCodeAlias.pluck(:from_subject_code, :from_course_number, :to_subject_code, :to_course_number)
+      @aliases ||= CourseCodeAlias.reviewed.or(CourseCodeAlias.source_admin).pluck(:from_subject_code, :from_course_number, :to_subject_code, :to_course_number)
                                   .each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(fs, fn, ts, tn), map|
         map[[ fs, fn ]] << [ ts, tn ]
         map[[ ts, tn ]] << [ fs, fn ]

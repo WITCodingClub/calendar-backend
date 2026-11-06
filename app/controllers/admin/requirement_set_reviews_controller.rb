@@ -28,6 +28,14 @@ module Admin
     def update
       authorize @requirement_set, policy_class: RequirementSetReviewPolicy
 
+      # An import may write the set again while the page is open. The check
+      # is for the rows the admin saw.
+      if params[:digest] != @requirement_set.source_digest
+        redirect_to admin_requirement_set_review_path(@requirement_set),
+                    alert: "The import changed this set after you opened it. Check the rows again."
+        return
+      end
+
       @requirement_set.update!(needs_review: false, reviewed_at: Time.current)
       redirect_to admin_requirement_set_reviews_path, notice: "Marked #{@requirement_set.name} " \
                                                               "(#{@requirement_set.catalog_year.name}) as checked."

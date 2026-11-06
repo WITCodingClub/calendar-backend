@@ -34,8 +34,12 @@ module DegreeRequirements
       catalog = catalog_pairs
       banner = banner_pairs
       pairs, conflicts = merge(catalog, banner)
+      # The catalogs and Banner can each pair a different old code with one
+      # new code. Then one of them is wrong, and neither is kept.
+      sources = pairs.group_by { |pair| [ pair.subject_code, pair.to_number ] }.transform_values { |group| group.map(&:from_number).uniq }
+      shared, pairs = pairs.partition { |pair| sources[[ pair.subject_code, pair.to_number ]].size > 1 }
       counts = Hash.new(0)
-      counts[:conflicts] = conflicts
+      counts[:conflicts] = conflicts + shared.map { |pair| [ pair.subject_code, pair.from_number ] }.uniq.size
       targets = pairs.group_by { |pair| [ pair.subject_code, pair.from_number ] }.transform_values { |group| group.map(&:to_number) }
       pairs.each { |pair| store(pair, counts, targets[[ pair.subject_code, pair.from_number ]]) }
       Result.new(**Result.members.index_with { |key| counts[key] })
@@ -184,7 +188,9 @@ module DegreeRequirements
         counts[:existing] += 1
         return
       end
-      if existing.where.not(to_subject_code: pair.subject_code, to_course_number: targets).exists?
+      other_old = CourseCodeAlias.where(to_subject_code: pair.subject_code, to_course_number: pair.to_number)
+                                 .where.not(from_subject_code: pair.subject_code, from_course_number: pair.from_number)
+      if existing.where.not(to_subject_code: pair.subject_code, to_course_number: targets).exists? || other_old.exists?
         counts[:conflicts] += 1
         return
       end

@@ -153,20 +153,24 @@ A wrong plan is worse than a missing one. A parser leaves a plan out when:
 
 - a cell does not read as a course, a choice ("MATH1750 or MATH1850"), or a placeholder ("ELECTIVE", "HSS ELECTIVE"),
 - credits or text have no row above them, or rows come after the last line of totals,
-- a year label does not count up from the first year,
-- text cuts the rows of a semester in two, and the plan goes on after it,
+- a year label does not count up from the first year, or one year has two labels (a line of totals is missing),
+- text cuts the rows of a semester in two and the plan goes on after it, or a row comes a line or two after text in the last semester,
+- a year has no semester between two years that have one,
+- the plan goes on after a long text (more than 25 lines),
 - a program name, such as a concentration, sits between two semesters of a plan,
 - the semesters do not start in the fall of the first year, or the plan has no program name above it.
 
-A printed total that does not match its rows only adds a line to `review_notes`. The catalogs have such typos: the 2014-2015 Computer Science plan prints 20 credits over four 4-credit rows.
+The importer also leaves out a program when another of its plans did not parse, because the program could keep only a part of its plans. A text with no plan at all stops the import, so a broken download does not mark the stored sets as unlisted.
+
+A printed total that does not match its rows only adds a line to `review_notes`. The catalogs have such typos: the 2014-2015 Computer Science plan prints 20 credits over four 4-credit rows. The 2016-2017 and 2017-2018 rows have no credits, so their totals cannot be checked, and `review_notes` says so.
 
 `PdfProgramMatcher` links a plan to a `DegreeProgram` from the HTML catalogs by its subject. The Banner code in the heading gives the kind: BCOS is a bachelor, MSCM a master. A concentration matches by its full name. A program that ended before 2019-2020, such as Computer Engineering Technology, has no `DegreeProgram`, so its plans are left out. A heading such as "(Two-Year)" names the plan: "Two Year Program".
 
 ### Review
 
-- Every set from a PDF has `needs_review`. The serializer gives it to API and MCP clients.
-- Marking a set as checked sets `needs_review: false` and `reviewed_at`.
-- An import that finds the same plans again keeps the review. A changed plan needs a review again.
+- Every set from a PDF has `needs_review`. `degree_requirements`, the public catalog API, and `my_degree_progress` give it to clients.
+- "Mark as checked" sets `needs_review: false` and `reviewed_at`. The button sends the `source_digest` of the rows on the page. When an import wrote the set again in the meantime, the check is refused.
+- An import that finds the same plans and notes again keeps the review. A changed plan needs a review again.
 - The PDF import never writes over a set from the HTML catalog or the Wayback Machine.
 
 ### Course code aliases
@@ -176,7 +180,9 @@ No catalog lists the old and new numbers of 2015-2016, so `DegreeRequirements::C
 - **Catalogs** (`title_match`): the same subject and title in the 2014-2015 and 2015-2016 PDFs, from the plans and the course tables.
 - **Banner** (`banner`): the same subject and title on a 3-digit and a 4-digit code in the Banner sections.
 
-A title gives an alias only when one old code and one new code of the subject have it. When a title has more new codes, the new codes that took the old code's place in a plan win: COMP128 became COMP1000 in Computer Science and COMP1070 in Applied Mathematics, so it gets two aliases. When the catalogs and Banner give different codes, the old code gets no alias. A stored alias is never changed. A deleted alias comes back when the task runs again and still finds it.
+A title gives an alias only when one old code and one new code of the subject have it. When a title has more new codes, the new codes that took the old code's place in a plan win: COMP128 became COMP1000 in Computer Science and COMP1070 in Applied Mathematics, so it gets two aliases. When the catalogs and Banner give different codes for one old code, or different old codes for one new code, neither gets an alias. A stored alias is never changed, and no new alias takes a new code that a stored alias already has.
+
+Degree progress uses only an alias that a person checked, or one with the `admin` source. A new alias waits in the review queue and changes nothing for students. Only a super admin can delete an alias. A deleted alias comes back unchecked when the task runs again and still finds it.
 
 ## API and MCP tools
 
@@ -196,7 +202,7 @@ Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read onl
 - It checks each active `StudentProgram` that links to a `DegreeProgram` in an imported catalog year, or the `program` argument. Without a linked program it answers with a message that says how to add one, and does not guess.
 - It uses the standard plan (the first plan that is not accelerated), or the `plan` argument. A program with no plan, such as a minor, is checked list by list against `min_courses`, `min_credits`, or every course of a list with neither.
 - A course with a passing `CourseOutcome` is done. A failed, withdrawn, or incomplete outcome does not count. A course with no outcome is done in a past term and in progress in the current or a future term. The result lists these assumptions.
-- A course meets a requirement with the same code, or through a `CourseCodeAlias` in either direction.
+- A course meets a requirement with the same code, or through a checked `CourseCodeAlias` in either direction.
 - Each course counts once. Course rows take a course first, then choice rows, then elective slots. A slot with no elective list, such as a free elective, stays open with `checkable: false`.
 
 ```mermaid

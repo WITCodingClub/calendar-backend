@@ -15,9 +15,11 @@
       <% unless row.reviewed_at %>
         <%= button_to "Mark as checked", admin_course_code_alias_review_path(row), method: :patch, class: "m3-btn-outlined px-3 py-1" %>
       <% end %>
-      <%= button_to "Delete", admin_course_code_alias_review_path(row), method: :delete,
+      <% if @can_delete %>
+        <%= button_to "Delete", admin_course_code_alias_review_path(row), method: :delete,
           form: { data: { turbo_confirm: "Delete the alias #{row.from_code} to #{row.to_code}?" } },
           class: "m3-btn-danger px-3 py-1" %>
+      <% end %>
     </div>
   <% end %>
 <% end %>

@@ -15,9 +15,11 @@ module DegreeRequirements
   # A row is a code and credits, then one or more lines of title. A line of
   # totals ends each year. The year label sits in the left margin.
   #
-  # Checks: the credits of each semester add up to its printed total, the
-  # year labels count up from the first year, and every cell reads as a
-  # course, a choice, or a placeholder. A plan that fails one is left out.
+  # A plan is left out when a year label does not count up from the first
+  # year, when one year has two labels (a line of totals is missing), or when
+  # a cell does not read as a course, a choice, or a placeholder. A semester
+  # whose credits do not add up to its printed total only gets a warning:
+  # the catalogs have such typos.
   class PdfGridParser
     HEADER = /\bFall Semester\s+Spring Semester\b/
     COURSE_COLUMN = /\bCourse\b/
@@ -120,6 +122,10 @@ module DegreeRequirements
           raise Invalid, "rows beside the text #{cells.first.text}" if cells.drop(1).any? { |cell| number?(cell) }
 
           return false
+        end
+
+        if state[:label] && state[:label].casecmp(match[1]).nonzero?
+          raise Invalid, "the labels #{state[:label]} Year and #{match[1]} Year with no line of totals between them"
         end
 
         state[:label] = match[1]

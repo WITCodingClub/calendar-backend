@@ -22,9 +22,13 @@ module DegreeRequirements
     SEMESTER = /\A(?:•\s*)?(Freshman|First|Sophomore|Second|Junior|Third|Senior|Fourth|Fifth)\s+Year,?\s+
                 (Fall|Spring|Summer)(?:\s+Semester)?\s*(?:\((?:total\s+)?credits:?\s*(\d+(?:-\d+)?)\))?\s*:?\z/ix
     BULLET = /\A•\s*/
+    # "or" before another code, or "OR" in capitals before a slot: the row
+    # is a choice. A lowercase "or" in a title, such as "Humanities or
+    # Social Change", is not.
+    ALTERNATIVE = /\b[Oo][Rr]\s+[A-Z]{2,5} ?\d{3,4}\b|\bOR\b/
     TWO_ROWS = /(?<=\d\scr\.|\dcr\.|\scredits\)|\scredit\))\s+(?=[A-Z]{2,5}\s?\d{3,4}\b|[A-Z]{2,}\s?,|ELECTIVE|ENGLISH)/
     ONLY_CREDITS =/\A\(?(\d{1,2})\s*credits?\)?\z/i
-    COURSE = /\A([A-Z]{2,5}) ?(\d{3,4})\b\s*[,.:]?\s*(.*)\z/
+    COURSE = /\A([A-Z]{2,5}) ?(\d{3,4})(?=[\s,.:]|\z)\s*[,.:]?\s*(.*)\z/
     # A slot in capitals and its text: "HSS ELECTIVE, See ENGL/HSS note
     # below", "EC   Engineering Concentration (4 credits)". A line in
     # capitals alone is a placeholder only with ELECTIVE or ENGLISH in it,
@@ -44,6 +48,9 @@ module DegreeRequirements
     HEADING_LIMIT = 90
     # After this many lines of text, a plan has ended.
     PROSE_LIMIT = 25
+    # A row this many lines of text after the last row is a part of the plan
+    # that the text cut off.
+    ORPHAN_WINDOW = 2
 
     class Invalid < StandardError; end
 
@@ -78,7 +85,12 @@ module DegreeRequirements
         start_semester(index, match)
         return index + 1
       end
-      return index + 1 if @plan.nil?
+      if @plan.nil?
+        # A program name after a plan that a long text ended: the semesters
+        # after it belong to another program.
+        @cut_short = nil if heading?(stripped)
+        return index + 1
+      end
 
       if @plan[:accepting] && item_line?(stripped)
         text = stripped.sub(BULLET, "")
@@ -96,13 +108,21 @@ module DegreeRequirements
         last = @plan[:semester_items].pop
         @plan[:semester_items] << last.with(min_credits: credits.to_i, max_credits: credits.to_i)
       else
-        # A row after text in a semester. When the plan goes on after it,
-        # the text cut the rows of the semester in two.
-        @plan[:orphan] ||= stripped if !@plan[:accepting] && item_line?(stripped)
+        # A row after text in a semester. When the plan goes on after it, the
+        # text cut the rows of the semester in two. In the last semester, only
+        # a row a line or two after the text counts: a list further down, such
+        # as the electives under a note, is not a part of the plan.
+        if !@plan[:accepting] && item_line?(stripped)
+          @plan[:orphan] ||= stripped
+          @plan[:near_orphan] ||= stripped if @plan[:prose] <= ORPHAN_WINDOW
+        end
         @plan[:accepting] = false
         @plan[:prose] += 1
         @plan[:interrupted] = true if heading?(stripped)
-        close_plan if @plan[:prose] > PROSE_LIMIT
+        if @plan[:prose] > PROSE_LIMIT
+          close_plan
+          @cut_short = @plans.last
+        end
       end
       index + 1
     end
@@ -110,8 +130,11 @@ module DegreeRequirements
     def start_semester(index, match)
       key = [ PdfCatalog::YEAR_WORDS.fetch(match[1].downcase), PdfCatalog::SEASONS.index(match[2].downcase) ]
       if @plan && key.<=>(@plan[:key]).positive?
-        if @plan[:interrupted] || @plan[:orphan]
-          @plan[:invalid] ||= @plan[:interrupted] ? "a program name between two semesters" : "text between the rows of a semester, before: #{@plan[:orphan]}"
+        if @plan[:interrupted] || @plan[:orphan] || key.first > @plan[:key].first + 1
+          @plan[:invalid] ||= if @plan[:interrupted] then "a program name between two semesters"
+          elsif @plan[:orphan] then "text between the rows of a semester, before: #{@plan[:orphan]}"
+          else "no semester in year #{@plan[:key].first + 1}"
+          end
           close_plan
         else
           close_semester
@@ -125,11 +148,18 @@ module DegreeRequirements
       # starts later, such as a concentration's own semesters, is left out.
       if key == [ 1, 0 ]
         @fragment_reported = false
+        @cut_short = nil
         @plan = { heading: heading_before(index), line: index + 1, items: [], warnings: [], prose: 0,
                   interrupted: false, invalid: nil }
         open_semester(key, match[3], index)
       elsif !@fragment_reported
         @fragment_reported = true
+        # The plan before went on after a long text, so it is not complete.
+        if @cut_short && @plans.delete(@cut_short)
+          @rejections << PdfCatalog::Rejection.new(heading: @cut_short.heading, line: @cut_short.line,
+                                                   reason: "the plan goes on after a long text")
+          @cut_short = nil
+        end
         @rejections << PdfCatalog::Rejection.new(heading: nil, line: index + 1,
                                                  reason: "semesters that do not start in the first year")
       end
@@ -140,7 +170,8 @@ module DegreeRequirements
     # the next plan is after it.
     def open_semester(key, total, index)
       total = total.to_s.match?(/\A\d+\z/) ? total.to_i : nil
-      @plan.merge!(key: key, total: total, semester_items: [], accepting: true, prose: 0, orphan: nil, last_line: index)
+      @plan.merge!(key: key, total: total, semester_items: [], accepting: true, prose: 0, orphan: nil,
+                   near_orphan: nil, last_line: index)
     end
 
     def close_semester
@@ -163,7 +194,11 @@ module DegreeRequirements
       plan = @plan
       @plan = nil
       reason = plan[:invalid]
+      reason ||= "text between the rows of the last semester, before: #{plan[:near_orphan]}" if plan[:near_orphan]
       reason ||= "no program name above the plan" if plan[:heading].nil?
+      if plan[:items].any? && plan[:items].none?(&:min_credits)
+        plan[:warnings] << "The rows have no credits, so the printed totals were not checked."
+      end
       reason ||= "no rows" if plan[:items].empty?
       if reason
         @rejections << PdfCatalog::Rejection.new(heading: plan[:heading], line: plan[:line], reason: reason)
@@ -189,7 +224,7 @@ module DegreeRequirements
       text, credits = PdfRowReader.split_credits(text)
       codes = text.scan(PdfRowReader::CODE)
       attributes =
-        if text.match?(/\bor\b/i) && text.match?(/\A#{PdfRowReader::CODE.source}/)
+        if text.match?(ALTERNATIVE) && text.match?(/\A#{PdfRowReader::CODE.source}/)
           # "MATH1750, Engineering Calculus I or MATH1775 Applications of
           # Calculus" is a choice. "ARCH8750, Concentration Studies OR
           # ELECTIVE, Architecture" is a slot that names both.

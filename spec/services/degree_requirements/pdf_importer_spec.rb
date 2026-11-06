@@ -82,6 +82,22 @@ RSpec.describe DegreeRequirements::PdfImporter do
     expect(RequirementSet.count).to eq(0)
   end
 
+  # The program may keep only a part of its plans, such as the first page.
+  it "leaves out a program when another of its plans did not parse" do
+    widget = text[/^ +WIDGET DESIGN \(BWID\)$.*?^ +TOTAL CREDITS +10 .*?$/m]
+    broken = "#{text}\n\n#{widget.sub('COOP400   ', 'COOP400/1 ')}\n\nThe end.\n"
+
+    expect(import(broken)).to have_attributes(imported: 0, left_out: 3)
+    expect(RequirementSet.count).to eq(0)
+  end
+
+  it "raises for text with no plan, and keeps the stored sets" do
+    import
+
+    expect { import("Nothing here.\n") }.to raise_error(DegreeRequirements::Error, /no plan of study/)
+    expect(set.reload.last_seen_at).to be_present
+  end
+
   it "raises for a year with no PDF parser" do
     expect { described_class.new(create(:catalog_year, start_year: 2020), text: text).call }
       .to raise_error(DegreeRequirements::Error, /no PDF parser/)

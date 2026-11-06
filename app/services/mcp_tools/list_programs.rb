@@ -54,7 +54,8 @@ module McpTools
       raise ToolError, "WIT Calendar has no degree program data yet." if years.empty?
 
       raise ToolError, "No #{value} catalog. WIT Calendar has these catalog years: #{years.join(', ')}. Catalogs " \
-                       "before 2019-2020 are not imported yet."
+                       "before 2013-2014 are not in WIT Calendar, and the PDF catalogs of 2013-2014 to 2018-2019 have " \
+                       "only some programs."
     end
 
     private

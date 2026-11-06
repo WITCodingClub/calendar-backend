@@ -8,7 +8,8 @@ module McpTools
     # The requirements come from the academic catalog (list_programs and
     # degree_requirements). my_programs gives the student's programs and
     # catalog years from LeopardWeb; without them, the model asks. The
-    # catalog has no data before 2019-2020; then the student gives the list.
+    # catalog has no data before 2013-2014, and plans from 2013-2014 to
+    # 2018-2019 come from PDFs (needs_review); then the student gives the list.
     class PlanDegreeProgression < BasePrompt
       prompt_name "plan_degree_progression"
       title "Plan my path to graduation"
@@ -78,7 +79,9 @@ module McpTools
           "Call list_programs with my catalog year and words from my program name to find my program. If more " \
           "than one program fits, ask me which one.",
           "Call degree_requirements with the program slug and my catalog year. If it lists more than one plan, " \
-          "such as the four-year and the three-year plan, ask me which plan I follow.",
+          "such as the four-year and the three-year plan, ask me which plan I follow. If it has needs_review " \
+          "true, the plan was read from a PDF catalog and nobody has checked it yet: tell me, and ask me to " \
+          "compare it with my degree audit.",
           "Compare the plan with my course history. Wentworth gave most courses 4-digit numbers in 2015-2016, so " \
           "a course I took before then can have an older 3-digit number. List the required courses I have not " \
           "completed, and ask me to correct the list.",

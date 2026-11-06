@@ -4,6 +4,7 @@
     back: [ "Catalog Review", admin_requirement_set_reviews_path ] do %>
   <% if @requirement_set.needs_review? %>
     <%= button_to "Mark as checked", admin_requirement_set_review_path(@requirement_set),
+        params: { digest: @requirement_set.source_digest },
         method: :patch,
         form: { data: { turbo_confirm: "Do the rows below match the PDF?" } },
         class: "m3-btn-filled px-3 py-1" %>

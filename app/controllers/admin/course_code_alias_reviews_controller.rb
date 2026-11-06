@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module Admin
-  # The course code aliases (#865). An admin marks an alias as checked, or
-  # deletes a wrong one. A deleted alias comes back when the alias task runs
-  # again and still finds it.
+  # The course code aliases (#865). An admin marks an alias as checked, and
+  # a super admin deletes a wrong one. A deleted alias comes back unchecked
+  # when the alias task runs again, and counts only after a new check.
   class CourseCodeAliasReviewsController < Admin::ApplicationController
     PER_PAGE = 100
 
@@ -16,6 +16,7 @@ module Admin
       aliases = @reviewed ? CourseCodeAlias.reviewed.order(reviewed_at: :desc) : CourseCodeAlias.where(reviewed_at: nil)
       @aliases = aliases.order(:from_subject_code, :from_course_number, :to_course_number).page(params[:page]).per(PER_PAGE)
       @waiting = CourseCodeAlias.where(reviewed_at: nil).count
+      @can_delete = CourseCodeAliasReviewPolicy.new(current_user, CourseCodeAlias).destroy?
     end
 
     def update

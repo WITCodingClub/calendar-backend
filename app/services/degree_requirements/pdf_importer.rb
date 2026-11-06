@@ -31,10 +31,25 @@ module DegreeRequirements
       raise Error, "#{@catalog_year.name} has no PDF parser" if parser.nil?
 
       parsed = parser.call(@text)
+      # Empty or broken text would mark every stored set as unlisted.
+      raise Error, "#{@catalog_year.name}: the PDF text has no plan of study" if parsed.plans.empty?
+
       parsed.rejections.each { |rejection| log("left out the plan at line #{rejection.line} (#{rejection.heading}): #{rejection.reason}") }
       @stats[:left_out] = parsed.rejections.size
+      # A program with a plan that the parser left out may keep only a part
+      # of its plans, such as the first page of a plan that goes on.
+      rejected = parsed.rejections.filter_map { |rejection| @matcher.call(rejection.heading)&.program&.id }.to_set
 
-      by_program(parsed.plans).each { |match, plans| import_program(match.first.program, plans) }
+      by_program(parsed.plans).each do |matches, plans|
+        program = matches.first.program
+        if rejected.include?(program.id)
+          @stats[:left_out] += plans.size
+          log("#{program.slug}: left out, another of its plans did not parse")
+          next
+        end
+
+        import_program(program, plans)
+      end
 
       ProgramPlanItem.link_catalog_courses
       AcademicProfiles::ProgramMatcher.relink_active
@@ -76,7 +91,7 @@ module DegreeRequirements
       end
 
       now = Time.current
-      digest = Digest::SHA256.hexdigest("#{VERSION}:#{named.map { |name, plan| [ name, plan.heading, plan.items.map(&:to_h) ] }.to_json}")
+      digest = Digest::SHA256.hexdigest("#{VERSION}:#{named.map { |name, plan| [ name, plan.heading, plan.items.map(&:to_h), plan.warnings ] }.to_json}")
       if set.persisted? && set.source_digest == digest
         set.update_columns(last_seen_at: now)
         @stats[:unchanged] += 1

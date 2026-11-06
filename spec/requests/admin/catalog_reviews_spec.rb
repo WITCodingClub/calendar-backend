@@ -42,10 +42,22 @@ RSpec.describe "Admin catalog reviews", type: :request do
     end
 
     it "marks a set as checked" do
-      patch admin_requirement_set_review_path(requirement_set)
+      requirement_set.update!(source_digest: "abc")
+
+      patch admin_requirement_set_review_path(requirement_set), params: { digest: "abc" }
 
       expect(response).to redirect_to(admin_requirement_set_reviews_path)
       expect(requirement_set.reload).to have_attributes(needs_review: false, reviewed_at: be_within(1.minute).of(Time.current))
+    end
+
+    # An import wrote the set again after the admin opened the page.
+    it "does not mark a set that changed after the admin opened it" do
+      requirement_set.update!(source_digest: "new")
+
+      patch admin_requirement_set_review_path(requirement_set), params: { digest: "old" }
+
+      expect(response).to redirect_to(admin_requirement_set_review_path(requirement_set))
+      expect(requirement_set.reload.needs_review).to be(true)
     end
 
     it "lists the checked sets" do
@@ -87,11 +99,25 @@ RSpec.describe "Admin catalog reviews", type: :request do
       expect(course_alias.reload.reviewed_at).to be_present
     end
 
-    it "deletes a wrong alias" do
+    it "lets a super admin delete a wrong alias" do
+      sign_in create(:user, :super_admin)
+
+      get admin_course_code_alias_reviews_path
+      expect(response.body).to include(">Delete<")
+
       delete admin_course_code_alias_review_path(course_alias)
 
       expect(response).to redirect_to(admin_course_code_alias_reviews_path)
       expect(CourseCodeAlias.exists?(course_alias.id)).to be(false)
+    end
+
+    it "does not let an admin delete an alias" do
+      get admin_course_code_alias_reviews_path
+      expect(response.body).not_to include(">Delete<")
+
+      delete admin_course_code_alias_review_path(course_alias)
+
+      expect(CourseCodeAlias.exists?(course_alias.id)).to be(true)
     end
   end
 

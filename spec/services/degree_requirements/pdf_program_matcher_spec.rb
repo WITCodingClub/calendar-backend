@@ -36,6 +36,16 @@ RSpec.describe DegreeRequirements::PdfProgramMatcher do
     expect(matcher.call("GADGET TECHNOLOGY (BGAT)")).to be_nil
   end
 
+  # The current catalog names programs "Computer Science, B.S.".
+  it "matches the program names with a comma and B.S." do
+    gadget = create(:degree_program, name: "Gadget Studies, B.S.", slug: "gadget-studies-bs")
+    gears = create(:degree_program, name: "Gadget Studies, B.S. - Gears Concentration", slug: "gadget-studies-bs-gears",
+                                    kind: "concentration")
+
+    expect(matcher.call("GADGET STUDIES (BGAD)").program).to eq(gadget)
+    expect(matcher.call("Gadget Studies (BGAD) with concentration in Gears").program).to eq(gears)
+  end
+
   it "names the plan of a heading without a length Plan of Study" do
     expect(matcher.call("WIDGET DESIGN (BWID)").plan_name).to eq("Plan of Study")
   end

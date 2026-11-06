@@ -101,12 +101,38 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     expect(statuses(progress)).to eq([ [ "Widget Elective", "open" ], [ "WDGT 1000", "done" ] ])
   end
 
-  it "meets an old course code with the new code, through a course code alias" do
-    create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 128, to_subject_code: "WDGT", to_course_number: 1000)
+  it "meets an old course code with the new code, through a checked course code alias" do
+    create(:course_code_alias, :reviewed, from_subject_code: "WDGT", from_course_number: 128, to_subject_code: "WDGT",
+                                          to_course_number: 1000)
     item(subject_code: "WDGT", course_number: 128)
     take(past_term, "WDGT", 1000)
 
     expect(progress[:programs].first[:requirements].first).to include(status: "done", course: "WDGT 1000")
+  end
+
+  # The alias task writes its matches unchecked (#865).
+  it "does not use an alias that nobody checked" do
+    create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 128, to_subject_code: "WDGT", to_course_number: 1000)
+    item(subject_code: "WDGT", course_number: 128)
+    take(past_term, "WDGT", 1000)
+
+    expect(progress[:programs].first[:requirements].first).to include(status: "open")
+  end
+
+  it "uses an alias that an admin wrote" do
+    create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 128, to_subject_code: "WDGT",
+                               to_course_number: 1000, source: "admin")
+    item(subject_code: "WDGT", course_number: 128)
+    take(past_term, "WDGT", 1000)
+
+    expect(progress[:programs].first[:requirements].first).to include(status: "done")
+  end
+
+  it "says when the requirement set waits for a review" do
+    set.update!(source: "pdf", needs_review: true)
+    item(subject_code: "WDGT", course_number: 128)
+
+    expect(progress[:programs].first[:needs_review]).to be(true)
   end
 
   it "checks the elective lists of a program with no plan, such as a minor" do
