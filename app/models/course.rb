@@ -13,8 +13,6 @@
 #  cross_list_available  :integer
 #  cross_list_capacity   :integer
 #  cross_list_identifier :string
-#  embedding             :vector(1536)
-#  embedding_digest      :string(64)
 #  end_date              :date             not null
 #  grade_mode            :string
 #  is_section_linked     :boolean          default(FALSE), not null
@@ -51,8 +49,21 @@
 #
 class Course < ApplicationRecord
   include CourseChangeTrackable
-  include Embeddable
   include EncodedIds::HashidIdentifiable
+
+  # The vector moved to CatalogCourse, one per course. A later migration drops
+  # these columns.
+  self.ignored_columns += %w[embedding embedding_digest]
+
+  # Joins each section to its CatalogCourse, the way
+  # Catalog::CourseDetailsSync.prefix_of reads the code out of the subject:
+  # "Computer Science (COMP)" to "COMP".
+  CATALOG_COURSE_JOIN = <<~'SQL'.squish
+    INNER JOIN catalog_courses
+      ON catalog_courses.course_number = courses.course_number
+     AND catalog_courses.subject_code =
+         UPPER(BTRIM(COALESCE(SUBSTRING(courses.subject FROM '\(([^)]+)\)\s*$'), courses.subject)))
+  SQL
 
   set_public_id_prefix :crs
 
@@ -81,6 +92,8 @@ class Course < ApplicationRecord
   after_destroy :update_term_dates
   after_save :update_term_dates, if: -> { saved_change_to_start_date? || saved_change_to_end_date? }
 
+  scope :joins_catalog_course, -> { joins(CATALOG_COURSE_JOIN) }
+
   enum :status, { active: "active", cancelled: "cancelled" }
   enum :schedule_type, Course::ScheduleType::TYPES.transform_values { |v| v[:code] }
 
@@ -88,19 +101,6 @@ class Course < ApplicationRecord
     return nil unless schedule_type
 
     Course::ScheduleType.new(schedule_type).readable_description
-  end
-
-  # What a section means to a student, in one sentence. Banner gives no course
-  # description, so the title and the subject carry the meaning. The term is
-  # left out on purpose: the same course in two terms should read the same, and
-  # callers filter by term themselves.
-  def embedding_text
-    [
-      "#{prefix}#{course_number} #{title}",
-      subject,
-      schedule_type_description,
-      credit_hours ? "#{credit_hours} credit hours" : nil
-    ].compact_blank.join(". ")
   end
 
   def prefix
@@ -162,18 +162,63 @@ class Course < ApplicationRecord
           .where("LEFT(link_identifier, 1) <> ?", link_slot)
   end
 
+  # The ids of the sections in `scope` whose course is closest to the vector,
+  # nearest course first and by CRN within a course. Catalog::SemanticSearch
+  # calls it.
+  #
+  # The vector belongs to the course, so the search ranks the courses that
+  # have a section in `scope`, and the scope's filters, such as the term, run
+  # before the cut.
+  #
+  # @param vector [Array<Float>]
+  # @param scope [ActiveRecord::Relation<Course>]
+  # @param limit [Integer] the most courses to rank
+  # @return [Array<Integer>]
+  def self.ids_nearest_to(vector, scope:, limit:)
+    catalog_ids = CatalogCourse.nearest_to(vector, limit: limit)
+                               .where(id: catalog_course_ids_in(scope))
+                               .pluck(:id)
+    ids_in_catalog_order(scope, catalog_ids)
+  end
+
+  def self.catalog_course_ids_in(scope)
+    scope.unscope(:order, :select).joins_catalog_course.select("catalog_courses.id")
+  end
+
+  # The ids of the sections in `scope` whose course is one of `catalog_ids`,
+  # in that order, and by CRN within a course.
+  def self.ids_in_catalog_order(scope, catalog_ids)
+    return [] if catalog_ids.empty?
+
+    rank = catalog_ids.each_with_index.to_h
+    scope.unscope(:order, :select).joins_catalog_course
+         .where(catalog_courses: { id: catalog_ids })
+         .pluck(:id, "catalog_courses.id", :crn)
+         .uniq
+         .sort_by { |_, catalog_id, crn| [ rank.fetch(catalog_id), crn ] }
+         .map(&:first)
+  end
+
+  # The CatalogCourse of this section. Catalog::CourseDetailsSync.seed makes
+  # one for every course that has a section.
+  def catalog_course
+    CatalogCourse.find_by(subject_code: Catalog::CourseDetailsSync.prefix_of(subject), course_number: course_number)
+  end
+
   # Sections that teach something close to this one, nearest first.
   #
   # Same term, because a student picks from what is offered now. The other
   # sections of this same course are left out: they carry the same words, so
   # they would fill the list with what the student is already looking at.
   def similar_sections(limit: Embeddable::DEFAULT_SIMILAR_LIMIT)
-    return Course.none if embedding.nil?
+    course = catalog_course
+    return Course.none if course&.embedding.nil?
 
-    Course.nearest_to(embedding, limit: limit)
-          .active
-          .where(term_id: term_id)
-          .where.not(subject: subject, course_number: course_number)
+    offered = Course.active.where(term_id: term_id)
+    catalog_ids = course.similar(limit: limit).where(id: Course.catalog_course_ids_in(offered)).pluck(:id)
+    ids = Course.ids_in_catalog_order(offered, catalog_ids).first(limit)
+
+    Course.where(id: ids).in_order_of(:id, ids)
   end
 
   # Returns deduplicated meeting times, preferring non-TBD locations when there are duplicates.

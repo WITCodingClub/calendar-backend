@@ -13,8 +13,6 @@
 #  cross_list_available  :integer
 #  cross_list_capacity   :integer
 #  cross_list_identifier :string
-#  embedding             :vector(1536)
-#  embedding_digest      :string(64)
 #  end_date              :date             not null
 #  grade_mode            :string
 #  is_section_linked     :boolean          default(FALSE), not null
@@ -105,21 +103,26 @@ RSpec.describe Course, type: :model do
            is_section_linked: link_identifier.present?)
   end
 
-  describe "#embedding_text" do
-    it "reads the section the way a student would describe it" do
-      section = create(:course, term: term, subject: "Computer Science (COMP)", course_number: 1050,
-                                title: "Computer Science II", schedule_type: "LEC", credit_hours: 4)
+  describe "#catalog_course" do
+    it "finds the catalog course by the code in the subject and the number" do
+      catalog = create(:catalog_course, subject_code: "COMP", course_number: 1050)
+      section = create(:course, term: term, subject: "Computer Science (COMP)", course_number: 1050)
 
-      expect(section.embedding_text).to eq(
-        "COMP1050 Computer Science II. Computer Science (COMP). lecture. 4 credit hours"
-      )
+      expect(section.catalog_course).to eq(catalog)
     end
 
-    it "leaves out the credit hours Banner has not published" do
-      section = create(:course, term: term, subject: "COMP", course_number: 1000,
-                                title: "Computer Science I", credit_hours: nil)
+    it "is nil before the catalog course exists" do
+      expect(create(:course, term: term).catalog_course).to be_nil
+    end
+  end
 
-      expect(section.embedding_text).to eq("COMP1000 Computer Science I. COMP. lecture")
+  describe ".joins_catalog_course" do
+    it "joins a section whose subject is a name with the code in brackets" do
+      catalog = create(:catalog_course, subject_code: "COMP", course_number: 1050)
+      create(:course, term: term, subject: "Computer Science (COMP)", course_number: 1050)
+      create(:course, term: term, subject: "COMP", course_number: 1050)
+
+      expect(described_class.joins_catalog_course.pluck("catalog_courses.id")).to eq([ catalog.id, catalog.id ])
     end
   end
 
@@ -136,6 +139,14 @@ RSpec.describe Course, type: :model do
       far    = section(number: 3000, angle: 0.90)
 
       expect(source.similar_sections).to eq([ near, far ])
+    end
+
+    it "lists every section of a similar course, by CRN" do
+      source = section(number: 1000, angle: 0.0)
+      first  = section(number: 2000, angle: 0.10)
+      second = create(:course, term: term, subject: "COMP", course_number: 2000, crn: first.crn + 100)
+
+      expect(source.similar_sections).to eq([ first, second ])
     end
 
     it "leaves out the other sections of the same course" do
@@ -167,7 +178,7 @@ RSpec.describe Course, type: :model do
       expect(source.similar_sections(limit: 1).length).to eq(1)
     end
 
-    it "returns nothing until the section has a vector" do
+    it "returns nothing until the course has a vector" do
       expect(create(:course, term: term).similar_sections).to be_empty
     end
   end

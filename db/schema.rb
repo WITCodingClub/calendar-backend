@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -226,6 +226,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_180000) do
     t.text "learning_objectives"
     t.jsonb "mutual_exclusions", default: [], null: false
     t.jsonb "fees", default: [], null: false
+    t.vector "embedding", limit: 1536
+    t.string "embedding_digest", limit: 64
+    t.index ["embedding"], name: "index_catalog_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["source_term_id"], name: "index_catalog_courses_on_source_term_id"
     t.index ["subject_code", "course_number"], name: "index_catalog_courses_on_subject_code_and_course_number", unique: true
   end

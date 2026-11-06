@@ -1,6 +1,6 @@
 # Embeddings
 
-The catalog stores a vector for each section, instructor and review. The
+The catalog stores a vector for each course, instructor and review. The
 vectors let a person search by meaning instead of by exact words, and let the
 API answer "what is like this one?".
 
@@ -21,11 +21,37 @@ API answer "what is like this one?".
 The backfill runs every night at 4:45am, after the catalog sync. Text that did
 not change never reaches the API, so a second run costs one table scan.
 
-| Model       | What the vector stands for                          |
-| ----------- | --------------------------------------------------- |
-| `Course`    | Subject, course number, title, schedule type, credits |
-| `Faculty`   | Name, title, department, school                     |
-| `RmpRating` | The review comment, with the course it is about     |
+| Model           | What the vector stands for                                                     |
+| --------------- | ------------------------------------------------------------------------------ |
+| `CatalogCourse` | Code, title, description, the first 1,000 characters of the learning objectives, department, college |
+| `Faculty`       | Name, title, department, school                                                |
+| `RmpRating`     | The review comment, with the course it is about                                |
+
+### Sections use the vector of their course
+
+Every section of a course teaches the same thing, so the vector belongs to the
+`CatalogCourse`, not to each `Course` row. `Catalog::CourseDetailsSync.seed`
+makes a `CatalogCourse` for every course that has a section.
+`Course::CATALOG_COURSE_JOIN` joins a section to its course by the code in the
+subject ("Computer Science (COMP)" to `COMP`) and the course number.
+
+The description comes from Banner. A course that Banner has not described
+takes the description from its newest catalog year (`CatalogYearCourse`).
+
+```mermaid
+flowchart LR
+  Q[Query text] -->|embed| V[Query vector]
+  V --> CC["CatalogCourse.nearest_to<br/>only courses with a section in the filtered scope"]
+  CC -->|ranked catalog ids| S["Sections of those courses<br/>course rank, then CRN"]
+```
+
+A semantic section search ranks the courses that have a section in the
+filtered scope, then lists their sections: nearest course first, and by CRN
+within a course. `Course#similar_sections` works the same way, and leaves out
+the sections of the course itself.
+
+`courses.embedding` and `courses.embedding_digest` are no longer read.
+`Course` ignores them, and a later migration drops them.
 
 Where the vectors are read:
 
@@ -83,10 +109,10 @@ practice.
 bin/rails embeddings:backfill
 
 # One model, still through the queue
-bin/rails 'embeddings:backfill[Course]'
+bin/rails 'embeddings:backfill[CatalogCourse]'
 
 # One model, right now, without the queue
-bin/rails 'embeddings:run[Course]'
+bin/rails 'embeddings:run[CatalogCourse]'
 
 # How much is embedded
 bin/rails embeddings:status

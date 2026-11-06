@@ -22,6 +22,8 @@
 #  description         :text
 #  details_fetched_at  :datetime
 #  division            :string
+#  embedding           :vector(1536)
+#  embedding_digest    :string(64)
 #  fees                :jsonb            not null
 #  grading_modes       :string           default([]), not null, is an Array
 #  learning_objectives :text
@@ -38,6 +40,7 @@
 #
 # Indexes
 #
+#  index_catalog_courses_on_embedding                       (embedding vector_cosine_ops) USING hnsw
 #  index_catalog_courses_on_source_term_id                  (source_term_id)
 #  index_catalog_courses_on_subject_code_and_course_number  (subject_code,course_number) UNIQUE
 #
@@ -46,7 +49,13 @@
 #  fk_rails_...  (source_term_id => terms.id)
 #
 class CatalogCourse < ApplicationRecord
+  include Embeddable
+
   CODE_PATTERN = /\A\s*([A-Za-z]{2,5})\s*-?\s*(\d{3,4})\s*\z/
+
+  # Learning objectives can run to several pages. The vector keeps the start,
+  # so the objectives add meaning without drowning out the title.
+  OBJECTIVES_LIMIT = 1_000
 
   belongs_to :source_term, class_name: "Term", optional: true
 
@@ -78,6 +87,28 @@ class CatalogCourse < ApplicationRecord
   end
 
   def code = "#{subject_code} #{course_number}"
+
+  # What the course teaches, in the words a student would search with. One
+  # vector stands for every section of the course (docs/embeddings.md).
+  #
+  # Banner's description wins. A course that Banner has not described yet
+  # takes the description from its newest catalog year. Offerings, fees and
+  # prerequisites stay out: filters answer those, and they say nothing about
+  # what the course is about.
+  def embedding_text
+    [
+      [ code, title.presence || newest_catalog_entry&.title ].compact_blank.join(" "),
+      description.presence || newest_catalog_entry&.description,
+      learning_objectives&.squish&.truncate(OBJECTIVES_LIMIT, separator: " ", omission: ""),
+      department,
+      college
+    ].compact_blank.join("\n")
+  end
+
+  # The entry from the newest catalog year that lists this course.
+  def newest_catalog_entry
+    catalog_year_courses.max_by { |entry| entry.catalog_year.start_year }
+  end
 
   # The sections of this course in one term.
   def sections_in(term)

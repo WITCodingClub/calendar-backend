@@ -113,15 +113,23 @@ RSpec.describe Catalog::SectionQuery do
       end
 
       it "ranks by meaning instead of by subject and number" do
-        expect(crns_for(q: "learn to program", semantic: true)).to eq([ 10_001, 10_002, 20_001 ])
+        expect(crns_for(q: "learn to program", semantic: true)).to eq([ 10_001, 10_002, 10_003, 20_001 ])
+      end
+
+      it "lists every section of a course next to each other, by CRN" do
+        # 10_002 and 10_003 are two sections of COMP 2000, so they share the
+        # vector of their CatalogCourse.
+        expect(crns_for(q: "learn to program", semantic: true, course_number: 2000)).to eq([ 10_002, 10_003 ])
       end
 
       it "ranks only the sections the other filters left" do
         expect(crns_for(q: "learn to program", semantic: true, term_uid: 202_620)).to eq([ 20_001 ])
       end
 
-      it "leaves out sections that have no vector yet" do
-        expect(crns_for(q: "learn to program", semantic: true)).not_to include(10_003)
+      it "leaves out the sections of a course that has no vector yet" do
+        math1750.catalog_course.update_columns(embedding: nil, embedding_digest: nil) # rubocop:disable Rails/SkipsModelValidations
+
+        expect(crns_for(q: "learn to program", semantic: true)).to eq([ 10_001, 10_002, 10_003 ])
       end
 
       it "keeps the keyword search when the caller does not ask for meaning" do

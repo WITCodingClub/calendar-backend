@@ -37,6 +37,17 @@ module Embeddable
       embedded.nearest_neighbors(:embedding, vector, distance: "cosine").limit(limit)
     end
 
+    # The ids of the rows in `scope` closest to the vector, nearest first.
+    # Catalog::SemanticSearch calls it. The scope goes inside the vector
+    # query, so filters such as the term run before the cut rather than after
+    # it. Course has its own version, because its vector lives on
+    # CatalogCourse.
+    #
+    # @return [Array<Integer>]
+    def ids_nearest_to(vector, scope:, limit:)
+      nearest_to(vector, limit: limit).where(id: scope.unscope(:order).select(:id)).pluck(:id)
+    end
+
     def digest_for(text)
       Digest::SHA256.hexdigest(text.to_s)
     end

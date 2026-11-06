@@ -48,7 +48,8 @@ module Catalog
 
     # The rows of `scope` that mean what the query means, nearest first.
     #
-    # @param scope [ActiveRecord::Relation] a relation of an Embeddable model
+    # @param scope [ActiveRecord::Relation] a relation of an Embeddable model,
+    #   or of Course
     # @param query [String]
     # @return [ActiveRecord::Relation, nil] nil when the caller should fall
     #   back to keyword search
@@ -63,15 +64,11 @@ module Catalog
     end
 
     # The ids of the rows in `scope` closest to the vector, nearest first.
-    #
-    # The scope goes inside the vector query, so filters such as the term are
-    # applied before the cut rather than after it.
+    # Each model says how (Embeddable.ids_nearest_to, Course.ids_nearest_to).
     #
     # @return [Array<Integer>]
     def ranked_ids(scope, vector, limit: CANDIDATE_LIMIT)
-      scope.model.nearest_to(vector, limit: limit)
-           .where(id: scope.unscope(:order).select(:id))
-           .pluck(:id)
+      scope.model.ids_nearest_to(vector, scope: scope, limit: limit)
     end
 
     def cache_key(text)
