@@ -71,8 +71,10 @@ module Embeddable
     # strict_order keeps the rows in exact distance order. It needs pgvector
     # 0.8 (docker/postgres/Dockerfile).
     #
-    # SET LOCAL lasts until the transaction ends, so the setting does not
-    # reach other queries on the connection.
+    # SET LOCAL lasts until the transaction ends. Called outside a
+    # transaction, the setting reaches no other query. Inside one, it lasts
+    # until that transaction ends; the rows stay correct, only later vector
+    # query plans can change.
     def with_iterative_scan(&)
       transaction do
         connection.execute("SET LOCAL hnsw.iterative_scan = strict_order")

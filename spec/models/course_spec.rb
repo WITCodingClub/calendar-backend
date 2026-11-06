@@ -126,6 +126,29 @@ RSpec.describe Course, type: :model do
     end
   end
 
+  describe ".ids_nearest_to" do
+    let(:spring_term) { create(:term, uid: 202_620, year: 2026, season: :spring) }
+
+    it "returns no more sections than the limit, even when one course has many" do
+      first = give_embedding(create(:course, term: term, course_number: 1000), 0.0)
+      3.times { create(:course, term: term, course_number: 1000) }
+
+      ids = described_class.ids_nearest_to(embedding_vector(0.0), scope: described_class.all, limit: 2)
+
+      expect(ids.length).to eq(2)
+      expect(ids.first).to eq(first.id)
+    end
+
+    it "orders two sections with the same CRN in different terms by id" do
+      fall   = give_embedding(create(:course, term: term, course_number: 1000, crn: 10_001), 0.0)
+      spring = create(:course, term: spring_term, course_number: 1000, crn: 10_001)
+
+      ids = described_class.ids_nearest_to(embedding_vector(0.0), scope: described_class.all, limit: 5)
+
+      expect(ids).to eq([ fall.id, spring.id ].sort)
+    end
+  end
+
   describe "#similar_sections" do
     let(:spring_term) { create(:term, uid: 202_620, year: 2026, season: :spring) }
 

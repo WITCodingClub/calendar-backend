@@ -172,11 +172,12 @@ class Course < ApplicationRecord
   #
   # @param vector [Array<Float>]
   # @param scope [ActiveRecord::Relation<Course>]
-  # @param limit [Integer] the most courses to rank
+  # @param limit [Integer] the most sections to return. A search with no term
+  #   can find many sections for each course, so the list is cut here too.
   # @return [Array<Integer>]
   def self.ids_nearest_to(vector, scope:, limit:)
     catalog_ids = CatalogCourse.nearest_ids(vector, limit: limit, among: catalog_course_ids_in(scope))
-    ids_in_catalog_order(scope, catalog_ids)
+    ids_in_catalog_order(scope, catalog_ids).first(limit)
   end
 
   def self.catalog_course_ids_in(scope)
@@ -184,7 +185,8 @@ class Course < ApplicationRecord
   end
 
   # The ids of the sections in `scope` whose course is one of `catalog_ids`,
-  # in that order, and by CRN within a course.
+  # in that order, and by CRN within a course. A CRN is unique only within a
+  # term, so the id breaks a tie, and every page of a search sees one order.
   def self.ids_in_catalog_order(scope, catalog_ids)
     return [] if catalog_ids.empty?
 
@@ -193,7 +195,7 @@ class Course < ApplicationRecord
          .where(catalog_courses: { id: catalog_ids })
          .pluck(:id, "catalog_courses.id", :crn)
          .uniq
-         .sort_by { |_, catalog_id, crn| [ rank.fetch(catalog_id), crn ] }
+         .sort_by { |id, catalog_id, crn| [ rank.fetch(catalog_id), crn, id ] }
          .map(&:first)
   end
 
