@@ -66,6 +66,7 @@ RSpec.describe Course, type: :model do
     it { is_expected.to have_many(:enrollments).dependent(:destroy) }
     it { is_expected.to have_many(:users).through(:enrollments) }
     it { is_expected.to have_one(:final_exam).dependent(:destroy) }
+    it { is_expected.to normalize(:title).from("AGENTIC AI AND INTELLIGENT AGENTS").to("Agentic AI And Intelligent Agents") }
 
     # allow_nil isn't checked here: the model validation allows a nil crn, but
     # the courses.crn column is NOT NULL at the database level, so the model's

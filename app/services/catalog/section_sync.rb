@@ -105,7 +105,7 @@ module Catalog
     end
 
     def course_data_changed?(course, fresh_data)
-      fresh_title           = fresh_data[:title].present? ? titleize_with_roman_numerals(fresh_data[:title].strip) : nil
+      fresh_title           = fresh_data[:title].present? ? Course.normalize_value_for(:title, fresh_data[:title].strip) : nil
       fresh_grade_mode      = fresh_data[:grade_mode]&.strip
       fresh_subject         = fresh_data[:subject]&.strip
       fresh_section_number  = normalize_section_number(fresh_data[:section_number])
@@ -126,7 +126,7 @@ module Catalog
     # for a lab. The catalog:repair_credit_hours task corrects rows this job overwrote.
     def update_course_from_fresh_data(course, fresh_data)
       attrs = {}
-      attrs[:title]          = titleize_with_roman_numerals(fresh_data[:title].strip) if fresh_data[:title].present?
+      attrs[:title]          = Course.normalize_value_for(:title, fresh_data[:title].strip) if fresh_data[:title].present?
       attrs[:grade_mode]     = fresh_data[:grade_mode]&.strip if fresh_data[:grade_mode]
       attrs[:subject]        = fresh_data[:subject]&.strip    if fresh_data[:subject]
       attrs[:section_number] = normalize_section_number(fresh_data[:section_number]) if fresh_data[:section_number]

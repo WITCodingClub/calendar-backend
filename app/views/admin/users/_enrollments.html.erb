@@ -19,7 +19,7 @@
               <% if enrollment.course.section_number.present? %>
                 <span class="text-on-surface-variant">(<%= enrollment.course.section_number %>)</span>
               <% end %>
-              <div class="text-xs text-on-surface-variant"><%= titleize_with_roman_numerals(enrollment.course.title) %></div>
+              <div class="text-xs text-on-surface-variant"><%= enrollment.course.title %></div>
             <% else %>
               <span class="text-on-surface-variant">Course not found</span>
             <% end %>

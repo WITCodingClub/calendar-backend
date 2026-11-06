@@ -8,7 +8,7 @@ RSpec.describe CourseCalendars::IcsFeed do
   let(:zone) { Time.find_zone!("America/New_York") }
   let(:user) { create(:user, first_name: "Sample", last_name: "Student") }
   let(:term) { create(:term, start_date: Date.new(2026, 9, 1), end_date: Date.new(2026, 12, 20)) }
-  let(:course) { create(:course, term: term, title: "data structures ii", subject: "COMP", course_number: 2000, section_number: "01") }
+  let(:course) { create(:course, term: term, title: "DATA STRUCTURES II", subject: "COMP", course_number: 2000, section_number: "01") }
   let!(:meeting_time) { create(:course_meeting_time, course: course, day_of_week: :monday, begin_time: 1300, end_time: 1445) }
 
   around { |example| travel_to(zone.local(2026, 8, 20, 12)) { example.run } }
@@ -91,7 +91,7 @@ RSpec.describe CourseCalendars::IcsFeed do
 
   describe "preferences and templates" do
     it "uses the default title template and the default lecture color when the user set no preference" do
-      expect(class_event.summary).to eq("data structures ii")
+      expect(class_event.summary).to eq("Data Structures II")
       expect(class_event.color).to eq(user.user_extension_config.default_color_lecture)
     end
 
@@ -101,7 +101,7 @@ RSpec.describe CourseCalendars::IcsFeed do
 
       event = class_event
 
-      expect(event.summary).to eq("COMP-2000-01 data structures ii")
+      expect(event.summary).to eq("COMP-2000-01 Data Structures II")
       expect(event.description).to eq("On Monday")
       expect(event.color).to eq("#1a2b3c")
       expect(event.custom_property("x_apple_calendar_color")).to eq([ "#1a2b3c" ])

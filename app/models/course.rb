@@ -76,6 +76,8 @@ class Course < ApplicationRecord
   has_many :users, through: :enrollments
   has_one :final_exam, dependent: :destroy
 
+  normalizes :title, with: Courses::TitleFormatter.method(:call)
+
   validates :crn, uniqueness: { scope: :term_id, message: "has already been taken for this term" }, allow_nil: true
 
   after_destroy :update_term_dates
