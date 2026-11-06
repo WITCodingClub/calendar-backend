@@ -12,8 +12,6 @@ module CourseCalendars
   #
   #   CourseCalendars::IcsFeed.new(user).to_ical
   class IcsFeed
-    include ApplicationHelper
-
     TZID = "America/New_York"
 
     # How often a calendar app should fetch the feed again, as an iCalendar
@@ -125,7 +123,7 @@ module CourseCalendars
       e.summary = if prefs[:title_template].present?
                     @template_renderer.render(prefs[:title_template], context)
       else
-                    titleize_with_roman_numerals(course.title)
+                    course.title
       end
 
       e.description = @template_renderer.render(prefs[:description_template], context) if prefs[:description_template].present?

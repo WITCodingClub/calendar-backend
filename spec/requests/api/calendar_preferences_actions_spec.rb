@@ -141,7 +141,7 @@ RSpec.describe "Api::CalendarPreferences actions", type: :request do
   end
 
   describe "POST /api/calendar_preferences/preview" do
-    let(:course)       { create(:course, title: "Intro to Testing") }
+    let(:course)       { create(:course, title: "Intro To Testing") }
     let(:meeting_time) { create(:course_meeting_time, course: course) }
 
     def preview(params) = post("/api/calendar_preferences/preview", params: params, headers: headers, as: :json)
@@ -186,7 +186,7 @@ RSpec.describe "Api::CalendarPreferences actions", type: :request do
       preview(template: "{{title}} {{day}}", meeting_time_id: meeting_time.id)
 
       expect(response).to have_http_status(:ok)
-      expect(json).to eq("rendered" => "Intro to Testing Monday", "valid" => true)
+      expect(json).to eq("rendered" => "Intro To Testing Monday", "valid" => true)
     end
 
     it "renders the template for an enrolled meeting time by public id" do
@@ -195,7 +195,7 @@ RSpec.describe "Api::CalendarPreferences actions", type: :request do
       preview(template: "{{title}}", meeting_time_id: meeting_time.public_id)
 
       expect(response).to have_http_status(:ok)
-      expect(json["rendered"]).to eq("Intro to Testing")
+      expect(json["rendered"]).to eq("Intro To Testing")
     end
 
     it "answers VALIDATION_FAILED with valid false for a bad template" do

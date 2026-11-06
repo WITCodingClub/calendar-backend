@@ -2,8 +2,6 @@
 
 module Courses
   class Courses::ProcessedEventsBuilder
-    include ApplicationHelper
-
     # term is needed only for build. classes_by_term takes its own terms.
     def initialize(user, term = nil)
       @user = user
@@ -49,7 +47,7 @@ module Courses
       filtered_meeting_times = filter_meeting_times(course.meeting_times)
 
       {
-        title: titleize_with_roman_numerals(course.title),
+        title: course.title,
         crn: course.crn,
         course_number: course.course_number,
         schedule_type: course.schedule_type,
@@ -156,7 +154,7 @@ module Courses
       if preferences[:title_template].present?
         @template_renderer.render(preferences[:title_template], context)
       else
-        titleize_with_roman_numerals(meeting_time.course.title)
+        meeting_time.course.title
       end
     end
 

@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class EnrolledCourseSerializer
-  include ApplicationHelper
-
   def initialize(enrollment, term:, preference_resolver:, template_renderer:, recurrence:)
     @enrollment = enrollment
     @term = term
@@ -17,7 +15,7 @@ class EnrolledCourseSerializer
     filtered_meeting_times = deduplicate_meeting_times(course.meeting_times)
 
     {
-      title:          titleize_with_roman_numerals(course.title),
+      title:          course.title,
       crn:            course.crn,
       subject:        course.prefix,
       course_number:  course.course_number,
