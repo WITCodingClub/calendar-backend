@@ -11,7 +11,7 @@ gem "pg", "~> 1.7"
 gem "strong_migrations", "~> 2.8"
 gem "puma", "~> 8.0"
 gem "importmap-rails", "~> 2.2"
-gem "tailwindcss-rails", "~> 4.6"
+gem "tailwindcss-rails", "~> 4.7"
 gem "turbo-rails", "~> 2.0"
 gem "stimulus-rails", "~> 1.3"
 
