@@ -48,22 +48,26 @@ module AcademicProfiles
       end
     end
 
-    def initialize(user, program: nil, catalog_year: nil, plan: nil, today: Time.zone.today)
+    # include_planned also checks the student's planned programs (#867), so
+    # the student sees the courses a planned minor adds. It does nothing with
+    # a program argument.
+    def initialize(user, program: nil, catalog_year: nil, plan: nil, include_planned: false, today: Time.zone.today)
       @user = user
       # A query string can be an array or a hash, so each value becomes text.
       @program = program.presence&.to_s
       @catalog_year = catalog_year.presence&.to_s
       @plan_name = plan.presence&.to_s
+      @include_planned = include_planned
       @today = today
     end
 
     # Raises NoProgramError, or Catalog::FilterError for a bad catalog year.
     def call
-      sets = requirement_sets
-      raise NoProgramError, NO_PROGRAM_MESSAGE if sets.empty?
+      entries = requirement_sets
+      raise NoProgramError, NO_PROGRAM_MESSAGE if entries.empty?
 
       {
-        programs:    sets.map { |set| program_json(set) },
+        programs:    entries.map { |set, plan_name, row| program_json(set, plan_name, row) },
         courses:     taken.map(&:as_json),
         assumptions: ASSUMPTIONS
       }
@@ -71,17 +75,40 @@ module AcademicProfiles
 
     private
 
-    # The requirement sets to check: the program argument, or each active
-    # program of the student with a catalog link.
+    # The requirement sets to check, each with its plan name and the
+    # student's row (nil for the program argument): the program argument, or
+    # each active (and with include_planned, planned) program of the student
+    # with a catalog link. The plan name is the plan argument, or the plan
+    # the student picked (#867), or nil for the standard plan.
     def requirement_sets
-      query = Catalog::ProgramQuery.new
-      return [ find_argument_set(query) ] if @program
+      if @program
+        set = find_argument_set(Catalog::ProgramQuery.new)
+        return [ [ set, argument_plan_name(set), nil ] ]
+      end
 
-      @user.student_programs.active.includes(:catalog_year, :degree_program).order(:id).filter_map do |program|
-        next if program.degree_program_id.nil? || !program.catalog_year&.imported?
+      statuses = @include_planned ? %w[active planned] : %w[active]
+      rows = @user.student_programs.where(status: statuses).where.not(degree_program_id: nil)
+                  .includes(:catalog_year).order(:id).select { |row| row.catalog_year&.imported? }
+      sets = linked_sets(rows)
 
-        query.find(program.degree_program.slug, catalog_year: program.catalog_year)
-      end.uniq
+      rows.filter_map do |row|
+        set = sets[[ row.degree_program_id, row.catalog_year_id ]]
+        [ set, @plan_name || row.plan_name.presence, row ] if set
+        # A planned row can have the same program as a later active row, for
+        # example a minor the student then declared. Each keeps its entry.
+      end.uniq { |set, _, row| [ set.id, row.status ] }
+    end
+
+    # The requirement set of each row, with what Catalog::ProgramQuery#find
+    # loads, in one query for every row.
+    def linked_sets(rows)
+      return {} if rows.empty?
+
+      RequirementSet.where(degree_program_id: rows.map(&:degree_program_id).uniq,
+                           catalog_year_id: rows.map(&:catalog_year_id).uniq)
+                    .includes(:catalog_year, degree_program: :parent_program,
+                              program_plans: { items: :elective_group }, elective_groups: %i[courses program_plan])
+                    .index_by { |set| [ set.degree_program_id, set.catalog_year_id ] }
     end
 
     def find_argument_set(query)
@@ -95,19 +122,39 @@ module AcademicProfiles
     # The catalog year of the student's own program with this slug, or the
     # newest catalog year.
     def own_catalog_year(query)
-      own = @user.student_programs.active.joins(:degree_program).includes(:catalog_year)
-                 .find_by(degree_programs: { slug: @program.to_s.strip.downcase })&.catalog_year
+      own = own_program&.catalog_year
       own&.imported? ? own : query.catalog_year(nil)
     end
 
-    def program_json(set)
-      plan = pick_plan(set)
+    # The student's active row of the program argument, or nil.
+    def own_program
+      return @own_program if defined?(@own_program)
+
+      @own_program = @user.student_programs.active.joins(:degree_program).includes(:catalog_year)
+                          .find_by(degree_programs: { slug: @program.to_s.strip.downcase })
+    end
+
+    # The plan for the program argument: the plan argument, or the plan the
+    # student picked for their own row of that program in the same catalog
+    # year (#867).
+    def argument_plan_name(set)
+      return @plan_name if @plan_name
+
+      own = own_program
+      own.plan_name.presence if own && own.catalog_year_id == set.catalog_year_id
+    end
+
+    def program_json(set, plan_name, row)
+      plan = pick_plan(set, plan_name)
       pool = attempts
       requirements = plan ? plan_requirements(set, plan, pool) : list_requirements(set, pool)
       open = requirements.reject { |requirement| requirement[:status] == "done" }
 
       {
         program:      set.degree_program.slug,
+        # active or planned: the status of the student's row. nil for a
+        # program argument.
+        status:       row&.status,
         name:         set.name,
         catalog_year: set.catalog_year.name,
         # A set read from a PDF catalog that nobody has checked yet.
@@ -120,15 +167,21 @@ module AcademicProfiles
       }
     end
 
-    # The plan the student follows. Without a plan argument, the standard
-    # plan, the same rule as RequirementSet#standard_plan, read from the
-    # loaded plans.
-    def pick_plan(set)
+    # The plan the student follows: the plan argument, or the plan the
+    # student picked for the program (#867). Without one, the standard plan,
+    # the same rule as RequirementSet#standard_plan, read from the loaded
+    # plans. A picked plan that a later import renamed falls back to the
+    # standard plan. An unknown plan argument raises FilterError.
+    def pick_plan(set, plan_name)
       plans = set.program_plans.to_a
-      return plans.find { |plan| !plan.accelerated } || plans.first if @plan_name.nil?
+      picked = plan_name && plans.find { |plan| plan.name.casecmp?(plan_name) }
+      return picked if picked
 
-      set.program_plans.find { |plan| plan.name.casecmp?(@plan_name) } ||
-        raise(Catalog::FilterError, "No plan #{@plan_name}. #{set.name} has: #{set.program_plans.map(&:name).join(', ')}")
+      if @plan_name
+        raise Catalog::FilterError, "No plan #{@plan_name}. #{set.name} has: #{plans.map(&:name).join(', ')}"
+      end
+
+      plans.find { |plan| !plan.accelerated } || plans.first
     end
 
     # Rows of a plan of study. Course rows take a course first, then choice

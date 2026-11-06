@@ -6,6 +6,7 @@ module Dashboard
     # rail lists each of them. The More item is active on any of these pages.
     def dashboard_more_items
       [
+        { path: dashboard_programs_path, label: "Programs", icon: "collection" },
         { path: dashboard_connected_accounts_path, label: "Accounts", icon: "link" },
         { path: dashboard_ics_feed_path, label: "ICS Feed", icon: "rss" },
         { path: dashboard_notifications_path, label: "Notifications", icon: "bell" },

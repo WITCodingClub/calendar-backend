@@ -15,6 +15,7 @@ require "rails_helper"
 #  department        :string
 #  ended_at          :datetime
 #  name              :string           not null
+#  plan_name         :string
 #  role              :string           not null
 #  source            :string           not null
 #  status            :string           default("active"), not null

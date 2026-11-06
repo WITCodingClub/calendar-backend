@@ -239,6 +239,64 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     expect { progress(plan: "Ten Year Program") }.to raise_error(Catalog::FilterError, /Three Year Program/)
   end
 
+  it "uses the plan the student picked, and the standard plan when an import renamed it" do
+    plan
+    create(:program_plan, :accelerated, requirement_set: set)
+
+    user.student_programs.sole.update!(plan_name: "Three Year Program")
+    expect(progress[:programs].first).to include(plan: "Three Year Program", status: "active")
+
+    user.student_programs.sole.update!(plan_name: "Old Plan")
+    expect(progress[:programs].first[:plan]).to eq("Four Year Program")
+  end
+
+  it "checks the planned programs too with include_planned, each marked by status" do
+    item(subject_code: "WDGT", course_number: 1000)
+    minor = create(:degree_program, :minor, slug: "gear-minor", name: "Gear Minor")
+    minor_set = create(:requirement_set, degree_program: minor, catalog_year: catalog_year, name: "Gear Minor")
+    group = create(:elective_group, requirement_set: minor_set, name: "Gear Electives", min_courses: 1)
+    create(:elective_group_course, elective_group: group, subject_code: "GEAR", course_number: 2000)
+    create(:student_program, :planned, user: user, degree_program: minor, catalog_year: catalog_year)
+
+    expect(progress[:programs].pluck(:program)).to eq([ "widget-design-bs" ])
+
+    programs = progress(include_planned: true)[:programs]
+    expect(programs.map { |entry| entry.values_at(:program, :status) })
+      .to eq([ [ "widget-design-bs", "active" ], [ "gear-minor", "planned" ] ])
+    expect(programs.last[:requirements]).to contain_exactly(include(elective_list: "Gear Electives", status: "open"))
+  end
+
+  it "keeps the active entry when an older planned row has the same program" do
+    set
+    user.student_programs.destroy_all
+    create(:student_program, :planned, user: user, degree_program: major, catalog_year: catalog_year)
+    create(:student_program, user: user, degree_program: major, catalog_year: catalog_year)
+
+    expect(progress(include_planned: true)[:programs].pluck(:status)).to eq(%w[planned active])
+    expect(progress[:programs].pluck(:status)).to eq(%w[active])
+  end
+
+  it "uses the student's picked plan for their own program named as the argument, unless a plan is given" do
+    plan
+    create(:program_plan, :accelerated, requirement_set: set)
+    user.student_programs.sole.update!(plan_name: "Three Year Program")
+
+    expect(progress(program: "widget-design-bs")[:programs].first[:plan]).to eq("Three Year Program")
+    expect(progress(program: "widget-design-bs", plan: "Four Year Program")[:programs].first[:plan]).to eq("Four Year Program")
+  end
+
+  it "loads the requirements of every program with a fixed number of queries" do
+    item(subject_code: "WDGT", course_number: 1000)
+    one = progress
+    minors = create_list(:degree_program, 3, :minor)
+    minors.each do |minor|
+      create(:requirement_set, degree_program: minor, catalog_year: catalog_year)
+      create(:student_program, :planned, user: user, degree_program: minor, catalog_year: catalog_year)
+    end
+
+    expect(Prosopite.scan { progress(include_planned: true) }[:programs].size).to eq(one[:programs].size + 3)
+  end
+
   it "counts a course in an old term with no end date as done when it is before the current term" do
     item(subject_code: "WDGT", course_number: 1000)
     take(create(:term, year: 2019, season: :fall), "WDGT", 1000)
