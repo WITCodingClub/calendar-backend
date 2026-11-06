@@ -32,7 +32,7 @@ module Courses
     def call(title)
       return title if title.nil?
 
-      result = HTMLEntities.new.decode(title.to_s)
+      result = decode_entities(title.to_s)
 
       preserved = {}
       PRESERVED_PATTERNS.each do |pattern|
@@ -43,9 +43,11 @@ module Courses
         end
       end
 
-      # "3 D" becomes "3D", and "a-b" becomes "a - b".
+      # "a-b" becomes "a - b", then "3 D" becomes "3D". The lookarounds expand
+      # a chain such as "K-12-A" in one pass. The hyphen goes first, so a
+      # second pass finds no new "3 D" to join.
+      result = result.gsub(/(?<=\w)-(?=\w)/, " - ")
       result = result.gsub(/(\d)\s+([A-Za-z])(?=\s|$)/, '\1\2')
-      result = result.gsub(/(\w)-(\w)/, '\1 - \2')
 
       result = result.downcase
                      .gsub(/(^|\s|-)(\w)/) { $1 + $2.upcase }
@@ -57,6 +59,19 @@ module Courses
       preserved.each { |key, val| result = result.gsub(/#{Regexp.escape(key)}/i, val) }
 
       result
+    end
+
+    # Banner sometimes encodes an entity twice ("&amp;amp;"). Decode until the
+    # text stops changing, so a second pass has nothing left to decode.
+    def decode_entities(text)
+      decoder = HTMLEntities.new
+      3.times do
+        decoded = decoder.decode(text)
+        return decoded if decoded == text
+
+        text = decoded
+      end
+      text
     end
   end
 end

@@ -39,10 +39,16 @@ RSpec.describe Courses::TitleFormatter do
 
   it "puts spaces around a hyphen between words" do
     expect(format("PRE-CALCULUS")).to eq("Pre - Calculus")
+    expect(format("PRE-K-12 EDUCATION")).to eq("Pre - K - 12 Education")
   end
 
-  it "decodes HTML entities" do
+  it "joins a number and a letter that come before a hyphen" do
+    expect(format("PART 2 B-SECTION")).to eq("Part 2B - Section")
+  end
+
+  it "decodes HTML entities, also when Banner encodes them twice" do
     expect(format("ETHICS &amp; SOCIETY")).to eq("Ethics & Society")
+    expect(format("ETHICS &amp;amp; SOCIETY")).to eq("Ethics & Society")
   end
 
   it "returns nil for nil" do
@@ -60,7 +66,12 @@ RSpec.describe Courses::TitleFormatter do
       "3D MODELING",
       "STUDIO 2 A",
       "PRE-CALCULUS",
-      "ETHICS &amp; SOCIETY"
+      "ETHICS &amp; SOCIETY",
+      "ETHICS &amp;amp; SOCIETY",
+      "PRE-K-12 EDUCATION",
+      "A-B-C-D",
+      "PART 2 B-SECTION",
+      "3 D-PRINTING"
     ].each do |raw|
       once = format(raw)
       expect(format(once)).to eq(once), "#{raw.inspect} changed on the second pass"

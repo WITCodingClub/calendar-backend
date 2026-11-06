@@ -37,11 +37,16 @@ Banner sends most course titles in capitals, for example `AGENTIC AI AND INTELLI
 - It writes the acronyms in `Courses::TitleFormatter::ACRONYMS` in capitals: `Agentic AI And Intelligent Agents`. To add an acronym, add it to that list. Leave out acronyms that are also English words, such as IT.
 - SQL that sets `title` directly skips the formatter. Write a title with `create`, `update`, or an assignment.
 
-After a change to the formatter, format the stored titles again. The task needs no Banner request, and each changed course marks its students for a calendar sync:
+After a change to the formatter, format the stored titles again. The task needs no Banner request. It changes the current and future terms. Each changed course marks its students for a calendar sync and gets a new embedding.
 
 ```sh
 bin/rails courses:normalize_titles
+
+# Every term, past terms included.
+ALL=1 bin/rails courses:normalize_titles
 ```
+
+The formatter gives the same result when it runs again on a formatted title, so a second run of the task changes nothing.
 
 ## Re-import every term
 

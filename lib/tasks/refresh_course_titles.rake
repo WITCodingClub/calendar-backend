@@ -77,19 +77,24 @@ namespace :courses do
 end
 
 namespace :courses do
-  desc "Run Courses::TitleFormatter on every stored course title (no LeopardWeb request)"
+  desc "Run Courses::TitleFormatter on stored course titles of the current and future terms (ALL=1 for every term; no LeopardWeb request)"
   task normalize_titles: :environment do
+    courses = Course.where.not(title: nil)
+    courses = courses.where(term: Term.current_and_future) unless ENV["ALL"] == "1"
     updated = 0
 
-    Course.where.not(title: nil).find_each do |course|
-      new_title = Course.normalize_value_for(:title, course.title)
-      next if new_title == course.title
+    # One EXISTS query for each changed course, not one for each save.
+    CourseChangeTrackable.with_enrollment_cache do
+      courses.find_each do |course|
+        new_title = Course.normalize_value_for(:title, course.title)
+        next if new_title == course.title
 
-      old_title = course.title
-      # update! runs the callbacks, so enrolled users get a calendar sync.
-      course.update!(title: new_title)
-      updated += 1
-      puts "CRN #{course.crn}: '#{old_title}' -> '#{new_title}'"
+        old_title = course.title
+        # update! runs the callbacks, so enrolled users get a calendar sync.
+        course.update!(title: new_title)
+        updated += 1
+        puts "CRN #{course.crn}: '#{old_title}' -> '#{new_title}'"
+      end
     end
 
     puts "Updated #{updated} course titles"
