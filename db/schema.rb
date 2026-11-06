@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -1186,6 +1186,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_130000) do
     t.string "source", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "plan_name"
     t.index ["catalog_year_id"], name: "index_student_programs_on_catalog_year_id"
     t.index ["degree_program_id"], name: "index_student_programs_on_degree_program_id"
     t.index ["user_id", "status"], name: "index_student_programs_on_user_id_and_status"

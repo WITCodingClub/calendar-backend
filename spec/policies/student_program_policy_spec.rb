@@ -17,6 +17,20 @@ RSpec.describe StudentProgramPolicy do
     expect(policy(other)).to have_attributes(create?: false, destroy?: false, show?: false)
   end
 
+  it "lets a student correct only their own active rows" do
+    expect(policy(build(:student_program, user: user))).to have_attributes(update?: true)
+    expect(policy(build(:student_program, :ended, user: user))).to have_attributes(update?: false)
+    expect(policy(build(:student_program, :planned, user: user))).to have_attributes(update?: false)
+    expect(policy(build(:student_program))).to have_attributes(update?: false)
+  end
+
+  it "lets a student pick the plan of their own active and planned rows, not of ended rows" do
+    expect(policy(build(:student_program, user: user))).to have_attributes(update_plan?: true)
+    expect(policy(build(:student_program, :planned, user: user))).to have_attributes(update_plan?: true)
+    expect(policy(build(:student_program, :ended, user: user))).to have_attributes(update_plan?: false)
+    expect(policy(build(:student_program))).to have_attributes(update_plan?: false)
+  end
+
   it "scopes rows to the student" do
     mine = create(:student_program, user: user)
     create(:student_program)
