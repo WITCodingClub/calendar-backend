@@ -217,7 +217,7 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
     end
 
     it "returns an empty list for a section with no vector" do
-      comp1000.update_columns(embedding: nil, embedding_digest: nil) # rubocop:disable Rails/SkipsModelValidations
+      comp1000.catalog_course.update_columns(embedding: nil, embedding_digest: nil) # rubocop:disable Rails/SkipsModelValidations
 
       get "/api/v1/catalog/sections/10001/similar"
 

@@ -15,6 +15,8 @@ require "rails_helper"
 #  description         :text
 #  details_fetched_at  :datetime
 #  division            :string
+#  embedding           :vector(1536)
+#  embedding_digest    :string(64)
 #  fees                :jsonb            not null
 #  grading_modes       :string           default([]), not null, is an Array
 #  learning_objectives :text
@@ -31,6 +33,7 @@ require "rails_helper"
 #
 # Indexes
 #
+#  index_catalog_courses_on_embedding                       (embedding vector_cosine_ops) USING hnsw
 #  index_catalog_courses_on_source_term_id                  (source_term_id)
 #  index_catalog_courses_on_subject_code_and_course_number  (subject_code,course_number) UNIQUE
 #
@@ -89,5 +92,39 @@ RSpec.describe CatalogCourse do
     section = create(:course, term: term, subject: "Computer Science (COMP)", course_number: subject.course_number)
 
     expect(subject.sections_in(term)).to eq([ section ])
+  end
+
+  describe "#embedding_text" do
+    it "reads the course the way a student would describe it" do
+      course = build(:catalog_course, subject_code: "COMP", course_number: 2350, title: "Databases",
+                                      description: "Relational design and SQL.",
+                                      learning_objectives: "Design a schema.\n  Write joins.",
+                                      department: "Computer Science", college: "Computing and Data Science")
+
+      expect(course.embedding_text).to eq(
+        "COMP 2350 Databases\nRelational design and SQL.\nDesign a schema. Write joins.\n" \
+        "Computer Science\nComputing and Data Science"
+      )
+    end
+
+    it "takes the title and description from the newest catalog year when Banner has none" do
+      course = create(:catalog_course, title: nil, description: nil)
+      older  = create(:catalog_year, start_year: 2023)
+      newer  = create(:catalog_year, start_year: 2025)
+      [ [ older, "OLD", "Old text." ], [ newer, "NEW", "New text." ] ].each do |year, title, description|
+        create(:catalog_year_course, catalog_year: year, subject_code: course.subject_code,
+                                     course_number: course.course_number, title: title, description: description)
+      end
+      CatalogYearCourse.link_catalog_courses
+
+      expect(course.reload.embedding_text).to eq("#{course.code} NEW\nNew text.")
+    end
+
+    it "keeps only the start of long learning objectives" do
+      course = build(:catalog_course, learning_objectives: "word " * 1_000)
+
+      objectives = course.embedding_text.lines.last
+      expect(objectives.length).to be <= described_class::OBJECTIVES_LIMIT
+    end
   end
 end

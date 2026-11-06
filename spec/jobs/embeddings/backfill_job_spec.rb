@@ -5,25 +5,27 @@ require "rails_helper"
 RSpec.describe Embeddings::BackfillJob, :embeddings do
   include ActiveJob::TestHelper
 
-  let(:term) { create(:term) }
-
   it "queues a batch job for the records that need a vector" do
-    course = create(:course, term: term)
+    course = create(:catalog_course)
 
-    expect { described_class.perform_now("Course") }
-      .to have_enqueued_job(Embeddings::GenerateJob).with("Course", [ course.id ])
+    expect { described_class.perform_now("CatalogCourse") }
+      .to have_enqueued_job(Embeddings::GenerateJob).with("CatalogCourse", [ course.id ])
   end
 
   it "queues nothing when every record is current" do
-    give_embedding(create(:course, term: term), 0.25)
+    give_embedding(create(:catalog_course), 0.25)
 
-    expect { described_class.perform_now("Course") }.not_to have_enqueued_job(Embeddings::GenerateJob)
+    expect { described_class.perform_now("CatalogCourse") }.not_to have_enqueued_job(Embeddings::GenerateJob)
   end
 
-  it "leaves out cancelled sections" do
-    create(:course, term: term, status: "cancelled")
+  it "queues a course again when its catalog year description changes" do
+    course = give_embedding(create(:catalog_course, description: nil), 0.25)
+    create(:catalog_year_course, subject_code: course.subject_code, course_number: course.course_number,
+                                 description: "Sorting and searching.")
+    CatalogYearCourse.link_catalog_courses
 
-    expect { described_class.perform_now("Course") }.not_to have_enqueued_job(Embeddings::GenerateJob)
+    expect { described_class.perform_now("CatalogCourse") }
+      .to have_enqueued_job(Embeddings::GenerateJob).with("CatalogCourse", [ course.id ])
   end
 
   it "leaves out reviews with no comment" do
@@ -34,13 +36,13 @@ RSpec.describe Embeddings::BackfillJob, :embeddings do
   end
 
   it "covers every model when it is given none" do
-    create(:course, term: term)
+    create(:catalog_course)
 
-    expect { described_class.perform_now }.to have_enqueued_job(Embeddings::GenerateJob).with("Course", anything)
+    expect { described_class.perform_now }.to have_enqueued_job(Embeddings::GenerateJob).with("CatalogCourse", anything)
   end
 
   it "queues nothing without an API key" do
-    create(:course, term: term)
+    create(:catalog_course)
     ENV.delete("OPENAI_API_KEY")
 
     expect { described_class.perform_now }.not_to have_enqueued_job(Embeddings::GenerateJob)

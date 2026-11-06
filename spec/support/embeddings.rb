@@ -51,9 +51,19 @@ module EmbeddingHelpers
   end
 
   # Writes a vector straight onto a record, the way a finished backfill would.
+  # A section has no vector of its own, so a Course gets the vector on its
+  # CatalogCourse, which is made when it is missing. Every section of that
+  # course shares it.
   def give_embedding(record, angle)
-    record.store_embedding(embedding_vector(angle))
+    target = record.is_a?(Course) ? catalog_course_for(record) : record
+    target.store_embedding(embedding_vector(angle))
     record
+  end
+
+  def catalog_course_for(section)
+    section.catalog_course ||
+      create(:catalog_course, subject_code: Catalog::CourseDetailsSync.prefix_of(section.subject),
+                              course_number: section.course_number, title: section.title)
   end
 end
 

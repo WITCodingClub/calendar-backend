@@ -38,7 +38,7 @@ module Types
     field :prerequisites, GraphQL::Types::JSON, null: true, description: "The course prerequisites, as on course"
 
     # Each call runs its own vector query, so the field costs more than a
-    # column and says so. It is empty until the section has been embedded.
+    # column and says so. It is empty until the course has been embedded.
     field :similar, [ SectionType ], null: false, complexity: 10,
           description: "Sections in the same term that teach something close to this one" do
       argument :limit, Integer, required: false, default_value: Embeddable::DEFAULT_SIMILAR_LIMIT

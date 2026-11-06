@@ -9,7 +9,7 @@ module Embeddings
   class GenerateJob < ApplicationJob
     queue_as :low
 
-    MODELS = %w[Course Faculty RmpRating].freeze
+    MODELS = %w[CatalogCourse Faculty RmpRating].freeze
 
     retry_on Embeddings::Generator::ApiError, wait: :polynomially_longer, attempts: 5
     discard_on Embeddings::Generator::ConfigurationError
@@ -24,7 +24,7 @@ module Embeddings
 
       return unless Embeddings::Generator.configured?
 
-      records = model_name.constantize.where(id: ids).select(&:embedding_stale?)
+      records = Embeddings::BackfillJob::SCOPES.fetch(model_name).call.where(id: ids).select(&:embedding_stale?)
       return if records.empty?
 
       texts   = records.map(&:embedding_text)

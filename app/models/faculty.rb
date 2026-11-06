@@ -104,11 +104,7 @@ class Faculty < ApplicationRecord
   # Instructors whose subject looks like this one's, nearest first. Only
   # people who teach are offered, because the catalog only shows those.
   def similar_instructors(limit: Embeddable::DEFAULT_SIMILAR_LIMIT)
-    return Faculty.none if embedding.nil?
-
-    Faculty.nearest_to(embedding, limit: limit)
-           .where(id: Faculty.joins(:courses).select("faculties.id"))
-           .where.not(id: id)
+    similar(limit: limit, among: Faculty.joins(:courses).select("faculties.id"))
   end
 
   def rmp_stats
