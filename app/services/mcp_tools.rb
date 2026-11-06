@@ -24,6 +24,7 @@ module McpTools
       CatalogGraphql,
       MyCourses,
       MyCourseHistory,
+      MyPrograms,
       MyBusyTimes,
       MyFinals,
       ListFriends,
@@ -33,7 +34,8 @@ module McpTools
       PreviewTemplate,
       UpdateClassSettings,
       UpdateCalendarSettings,
-      SetNotifications
+      SetNotifications,
+      UpdateMyPlannedPrograms
     ]
   end
 

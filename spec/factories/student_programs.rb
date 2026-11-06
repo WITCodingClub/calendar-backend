@@ -51,6 +51,17 @@ FactoryBot.define do
       degree { nil }
     end
 
+    # A program the student added from the degree catalog (#868).
+    trait :planned do
+      status { "planned" }
+      source { "student" }
+      code { nil }
+      degree { nil }
+      catalog_term_uid { nil }
+      degree_program
+      catalog_year
+    end
+
     trait :ended do
       status { "ended" }
       ended_at { 1.day.ago }

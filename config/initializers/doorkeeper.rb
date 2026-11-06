@@ -37,8 +37,8 @@ Doorkeeper.configure do
   # repeats the names, and spec/services/mcp_tools/scopes_spec.rb checks that
   # the two match. "read" is the scope of tokens issued before the split.
   default_scopes :catalog
-  optional_scopes :"schedule:read", :"friends:read", :"settings:read",
-                  :"settings:write", :"notifications:write",
+  optional_scopes :"schedule:read", :"friends:read", :"settings:read", :"programs:read",
+                  :"settings:write", :"notifications:write", :"programs:write",
                   :"friends:requests", :"friends:meetings", :"friends:groups",
                   :read
   enforce_configured_scopes

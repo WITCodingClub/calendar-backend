@@ -49,6 +49,35 @@ flowchart TD
 - A row is never deleted. A change of major ends the old row and creates a new one, so the history stays.
 - The student can change a value in the extension settings (`source: "student"`). Each course sync sends the LeopardWeb profile again. The backend keeps a digest of the profile fields and a digest of the program list from the last LeopardWeb payload. It skips each part that has the same digest. So a student's change to a program stays until LeopardWeb shows a different program list, even when the class standing changes.
 
+## Planned programs
+
+A student can add a program from the degree catalog that they think about taking, such as a minor or a master's degree (#868). The row is a `StudentProgram` with `status: planned` and `source: student`. It is only a plan in WIT Calendar: it does not declare the program at Wentworth.
+
+| Endpoint | MCP tool | Does |
+|---|---|---|
+| `GET /api/user/programs` | `my_programs` | Lists the profile fields, the active programs, the planned programs, and the ended programs (newest end first) |
+| `POST /api/user/planned_programs` | `update_my_planned_programs` (`action: add`) | Adds a planned program. Params: `program` (a slug from `GET /api/v1/catalog/programs`), `catalog_year` (optional, the newest catalog year when blank) |
+| `DELETE /api/user/planned_programs/:id` | `update_my_planned_programs` (`action: remove`) | Removes a planned program. `id` is its public id or its program slug |
+
+```mermaid
+flowchart TD
+  A[Add a planned program] --> Y{Catalog year imported?}
+  Y -- no --> E1[422 unknown_catalog_year]
+  Y -- yes --> P{Program in that catalog year?}
+  P -- no --> E2[422 unknown_program]
+  P -- yes --> D{Active or planned row with the same program?}
+  D -- yes --> E3[422 duplicate_program]
+  D -- no --> L{Fewer than 10 planned rows?}
+  L -- no --> E4[422 too_many_programs]
+  L -- yes --> S[Save the row with status planned]
+```
+
+- `AcademicProfiles::PlannedPrograms` does the checks. A planned row always has a `DegreeProgram` and a `CatalogYear`, and no catalog term. The role comes from the program kind: a `minor` program gives a `minor` row, and a bachelor's or master's program gives a `major` row.
+- `AcademicProfiles::Sync` and `ProgramMatcher.relink_active` read only active rows, so a LeopardWeb sync never changes or ends a planned row.
+- A planned row is deleted when the student removes it. A LeopardWeb row is never deleted.
+- An ended program can be planned again, for example a major the student changed.
+- Pathways (3+1, 4+1) cannot be planned yet, because no import fills `ProgramPathway`. A student can plan the master's program alone.
+
 ## Course outcomes
 
 - Each term in a request replaces the outcomes of that term: a stored CRN that is not in the request is removed. A term that is not in the request does not change.

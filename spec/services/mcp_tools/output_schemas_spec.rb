@@ -375,5 +375,34 @@ RSpec.describe "MCP tool output schemas" do
       expect(program).to include(plans: [], elective_lists: [], school: nil, catalog_url: nil, description: nil)
       expect_valid(McpTools::ListPrograms, kind: "minor", q: "nothing matches this")
     end
+
+    it "matches the program tools with active, planned, and ended programs" do
+      create(:academic_profile, user: user, level: "Undergraduate", class_standing: "Junior", admit_term_uid: 202410,
+                                leopardweb_synced_at: Time.current)
+      create(:student_program, user: user, degree_program: major, catalog_year: catalog_year)
+      create(:student_program, :ended, user: user)
+      minor = create(:degree_program, :minor, slug: "gear-minor", parent_program: nil)
+      create(:requirement_set, degree_program: minor, catalog_year: catalog_year)
+
+      programs = expect_valid(McpTools::MyPrograms)
+      expect(programs).to include(class_standing: "Junior", admit_term: "Fall 2023")
+      expect(programs[:ended_programs].size).to eq(1)
+
+      added = expect_valid(McpTools::UpdateMyPlannedPrograms, action: "add", program: "gear-minor")
+      expect(added).to include(result: "added", program: include(status: "planned", program: "gear-minor", catalog_term: nil))
+      expect(expect_valid(McpTools::UpdateMyPlannedPrograms, action: "remove", program: "gear-minor")[:planned_programs]).to eq([])
+    end
+
+    it "matches the program tools with no profile or programs, and a declined change" do
+      expect(expect_valid(McpTools::MyPrograms)).to include(level: nil, programs: [], message: McpTools::MyPrograms::NO_PROGRAMS_MESSAGE)
+
+      create(:requirement_set, degree_program: major, catalog_year: catalog_year)
+      question = McpTools::UpdateMyPlannedPrograms.call(server_context: mcp_modern_context(user), action: "add", program: "widget-design-bs")
+      context = mcp_modern_context(user, input_responses: mcp_confirmation("decline"), request_state: question.request_state)
+      result = McpTools::UpdateMyPlannedPrograms.call(server_context: context, action: "add", program: "widget-design-bs")
+
+      expect(schema_errors(McpTools::UpdateMyPlannedPrograms, result)).to be_empty
+      expect(result.structured_content).to include(result: "unchanged", program: nil, not_changed: include(reason: "declined"))
+    end
   end
 end

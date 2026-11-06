@@ -119,4 +119,4 @@ flowchart TD
 
 Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read only catalog years with `status: imported`. Without a catalog year, they use the newest one. Each course in a plan or a list gets its title as that catalog year printed it, or Banner's title when the year has no row.
 
-The tools do not read a student's own programs yet. `my_programs` and `my_degree_progress` come later (#868, #799).
+`my_programs` (`GET /api/user/programs`) gives a student's own programs with the slug and catalog year that `degree_requirements` takes. `update_my_planned_programs` adds a planned program (`docs/academic-profile.md`). `my_degree_progress` comes later (#799).

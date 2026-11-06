@@ -6,8 +6,8 @@ module McpTools
     # which term, in prerequisite order, in a term when it is usually offered.
     #
     # The requirements come from the academic catalog (list_programs and
-    # degree_requirements). The student's own programs are not read yet
-    # (#868), so the model asks for the program and the catalog year. The
+    # degree_requirements). my_programs gives the student's programs and
+    # catalog years from LeopardWeb; without them, the model asks. The
     # catalog has no data before 2019-2020; then the student gives the list.
     class PlanDegreeProgression < BasePrompt
       prompt_name "plan_degree_progression"
@@ -68,7 +68,9 @@ module McpTools
 
       def requirements_steps
         [
-          "If I did not give my program and my catalog year, ask me for them. My catalog year is the catalog of " \
+          "If I did not give my program and my catalog year, call my_programs. It lists my programs as LeopardWeb " \
+          "shows them, with the catalog year and the program slug of each. Show them to me and ask me to confirm " \
+          "them. If it has no programs, or I do not have that permission, ask me for them. My catalog year is the catalog of " \
           "the term I started my program in, not this year's catalog. If I changed my major, it is the catalog " \
           "of the term of the change. A catalog year starts in the fall, so a student who started in Spring 2024 " \
           "is on 2023-2024. You can pass the term to the tools, for example catalog_year: Spring 2024.",

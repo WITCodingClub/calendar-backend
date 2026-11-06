@@ -13,7 +13,7 @@ RSpec.describe Oauth::ConsentScopes do
 
     expect(shown(consent)).to eq(McpTools::Scopes::NAMES - [ "catalog" ])
     expect(consent.groups.keys).to eq(%i[read change])
-    expect(checked(consent)).to eq(%w[schedule:read friends:read settings:read])
+    expect(checked(consent)).to eq(%w[schedule:read friends:read settings:read programs:read])
   end
 
   it "checks a change scope the student gave this app before" do
@@ -33,7 +33,7 @@ RSpec.describe Oauth::ConsentScopes do
   it "turns the legacy read scope into the read scopes" do
     consent = described_class.new("read")
 
-    expect(consent.requested_scope).to eq("catalog schedule:read friends:read settings:read")
+    expect(consent.requested_scope).to eq("catalog schedule:read friends:read settings:read programs:read")
     expect(consent.groups).not_to have_key(:change)
   end
 

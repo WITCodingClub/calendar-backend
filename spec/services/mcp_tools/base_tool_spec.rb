@@ -48,6 +48,8 @@ RSpec.describe McpTools::BaseTool do
       "my_courses"        => %i[sections],
       "my_course_history" => %i[sections],
       "my_finals"         => %i[finals],
+      "my_programs"       => %i[degree_requirements],
+      "update_my_planned_programs" => %i[degree_requirements],
       "university_events" => %i[university_calendar]
     )
   end
