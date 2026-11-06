@@ -133,7 +133,7 @@ module Courses
             course = course_cache[[ course_data[:crn].to_s, term.id ]]
             if course.nil?
               course = Course.new(crn: course_data[:crn], term: term)
-              course.title          = titleize_with_roman_numerals(detailed_course_info[:title])
+              course.title          = detailed_course_info[:title]
               course.start_date     = start_date
               course.end_date       = end_date
               course.subject        = detailed_course_info[:subject]
@@ -156,7 +156,7 @@ module Courses
               update_attrs[:end_date] = end_date if end_date.present?
 
               if detailed_course_info[:title].present?
-                new_title = titleize_with_roman_numerals(detailed_course_info[:title])
+                new_title = Course.normalize_value_for(:title, detailed_course_info[:title])
                 update_attrs[:title] = new_title if course.title != new_title
               end
 

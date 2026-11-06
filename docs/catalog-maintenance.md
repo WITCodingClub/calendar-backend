@@ -29,6 +29,25 @@ Each request logs one line: `[Courses::Processor] user=… sections=… from_cat
 | Re-import every term | After a change to the importer, or to find missed sections | `bin/rails catalog:reimport_all_terms` |
 | Fetch every course's details again | After a new course detail column ships | `bin/rails catalog:backfill_course_details REFETCH=1` |
 
+## Course titles
+
+Banner sends most course titles in capitals, for example `AGENTIC AI AND INTELLIGENT AGENTS`. `Course` formats each title when it is written (`normalizes :title`, with `Courses::TitleFormatter`). Code that reads a title uses it as it is.
+
+- The formatter writes each word with a capital first letter, and writes Roman numerals in capitals: `Calculus II`.
+- It writes the acronyms in `Courses::TitleFormatter::ACRONYMS` in capitals: `Agentic AI And Intelligent Agents`. To add an acronym, add it to that list. Leave out acronyms that are also English words, such as IT.
+- SQL that sets `title` directly skips the formatter. Write a title with `create`, `update`, or an assignment.
+
+After a change to the formatter, format the stored titles again. The task needs no Banner request. It changes the current and future terms. Each changed course marks its students for a calendar sync and gets a new embedding.
+
+```sh
+bin/rails courses:normalize_titles
+
+# Every term, past terms included.
+ALL=1 bin/rails courses:normalize_titles
+```
+
+The formatter gives the same result when it runs again on a formatted title, so a second run of the task changes nothing.
+
 ## Re-import every term
 
 `catalog:reimport_all_terms` imports every term again from Banner, newest first, one term at a time. The current and future terms finish first.

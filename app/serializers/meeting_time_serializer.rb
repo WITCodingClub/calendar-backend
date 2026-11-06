@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class MeetingTimeSerializer
-  include ApplicationHelper
-
   # recurrence is a CourseCalendars::RecurrenceBuilder for the schedule owner.
   # It gives the same end date and no-class dates that calendar sync uses.
   def initialize(meeting_time, preference_resolver:, template_renderer:, recurrence:)
@@ -19,7 +17,7 @@ class MeetingTimeSerializer
     rendered_title = if preferences[:title_template].present?
                        @template_renderer.render(preferences[:title_template], context)
     else
-                       titleize_with_roman_numerals(@mt.course.title)
+                       @mt.course.title
     end
 
     rendered_description = if preferences[:description_template].present?

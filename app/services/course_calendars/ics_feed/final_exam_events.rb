@@ -4,8 +4,6 @@ module CourseCalendars
   class IcsFeed
     # One event for each upcoming final of the user's courses.
     class FinalExamEvents
-      include ApplicationHelper
-
       def initialize(final_exams)
         @final_exams = final_exams
       end
@@ -17,7 +15,7 @@ module CourseCalendars
           cal.event do |e|
             e.dtstart     = Icalendar::Values::DateTime.new(final_exam.start_datetime, tzid: TZID)
             e.dtend       = Icalendar::Values::DateTime.new(final_exam.end_datetime,   tzid: TZID)
-            e.summary     = "Final Exam: #{titleize_with_roman_numerals(final_exam.course_title)}"
+            e.summary     = "Final Exam: #{final_exam.course_title}"
             e.description = final_exam.course_code
             e.location    = final_exam.location_with_names if final_exam.location.present?
             e.uid         = "final-exam-#{final_exam.id}@calendar-util.wit.edu"

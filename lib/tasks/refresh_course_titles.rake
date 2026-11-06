@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
 namespace :courses do
-  desc "Refresh course titles from LeopardWeb (re-applies titleize_with_roman_numerals)"
+  desc "Refresh course titles from LeopardWeb (re-applies Courses::TitleFormatter)"
   task :refresh_titles, [ :term_uid ] => :environment do |_t, args|
-    include ApplicationHelper
-
     term_uid = args[:term_uid]
 
     if term_uid.blank?
@@ -54,7 +52,7 @@ namespace :courses do
           next
         end
 
-        new_title = titleize_with_roman_numerals(raw_title)
+        new_title = Course.normalize_value_for(:title, raw_title)
 
         if course.title != new_title
           begin
@@ -75,5 +73,30 @@ namespace :courses do
 
     puts "\n#{"=" * 50}"
     puts "TOTAL: Updated #{total_updated}, Failed #{total_failed}"
+  end
+end
+
+namespace :courses do
+  desc "Run Courses::TitleFormatter on stored course titles of the current and future terms (ALL=1 for every term; no LeopardWeb request)"
+  task normalize_titles: :environment do
+    courses = Course.where.not(title: nil)
+    courses = courses.where(term: Term.current_and_future) unless ENV["ALL"] == "1"
+    updated = 0
+
+    # One EXISTS query for each changed course, not one for each save.
+    CourseChangeTrackable.with_enrollment_cache do
+      courses.find_each do |course|
+        new_title = Course.normalize_value_for(:title, course.title)
+        next if new_title == course.title
+
+        old_title = course.title
+        # update! runs the callbacks, so enrolled users get a calendar sync.
+        course.update!(title: new_title)
+        updated += 1
+        puts "CRN #{course.crn}: '#{old_title}' -> '#{new_title}'"
+      end
+    end
+
+    puts "Updated #{updated} course titles"
   end
 end

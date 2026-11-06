@@ -168,7 +168,7 @@ module Catalog
       section_details = self.class.section_details_for(course_data)
 
       course = Course.find_or_create_by!(crn: crn, term: term) do |c|
-        c.title = titleize_with_roman_numerals(course_data["courseTitle"] || "Untitled Course")
+        c.title = course_data["courseTitle"] || "Untitled Course"
         c.subject = course_data["subject"] || course_data["subjectCode"]
         c.course_number = course_data["courseNumber"]
         c.schedule_type = schedule_type_key
@@ -195,7 +195,7 @@ module Catalog
         update_attrs[:end_date] = end_date if end_date.present?
 
         raw_title = course_data["courseTitle"] || "Untitled Course"
-        new_title = titleize_with_roman_numerals(raw_title)
+        new_title = Course.normalize_value_for(:title, raw_title)
         update_attrs[:title] = new_title if course.title != new_title
         update_attrs[:credit_hours] = credit_hours if course.credit_hours != credit_hours
 
