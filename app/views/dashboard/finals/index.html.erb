@@ -1,0 +1,76 @@
+<% content_for :title, "Finals" %>
+
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header",
+      title: "Finals",
+      description: "The final exam schedule from the Registrar. Your own exams have a badge." %>
+
+  <% if @term.nil? %>
+    <%= render "shared/empty_state", icon: :clipboard_check, message: "No finals schedule yet.",
+        hint: "The Registrar publishes it near the end of each term." %>
+  <% else %>
+    <%= form_with url: dashboard_finals_path, method: :get, class: "m3-card p-4 flex flex-col sm:flex-row gap-3 sm:items-end" do |f| %>
+      <div class="flex-1">
+        <%= f.label :q, "Search", class: "m3-label" %>
+        <%= f.search_field :q, value: @query, placeholder: "COMP 2350, a title, or a CRN", class: "m3-input w-full" %>
+      </div>
+      <div>
+        <%= f.label :term_uid, "Term", class: "m3-label" %>
+        <%= f.select :term_uid, options_for_select(@terms.map { |term| [ term.name, term.uid ] }, @term.uid), {}, class: "m3-select w-full" %>
+      </div>
+      <label class="flex items-center gap-2 text-sm text-on-surface sm:pb-2">
+        <%= f.check_box :mine, { checked: @mine }, "1", nil %>
+        Only my exams
+      </label>
+      <%= f.submit "Search", name: nil, class: "m3-btn-filled" %>
+    <% end %>
+
+    <h2 class="text-lg font-semibold text-on-surface" id="finals-term">Finals in <%= @term.name %></h2>
+    <% if @current_term && @term != @current_term && params[:term_uid].blank? %>
+      <p class="m3-card p-4 text-sm text-on-surface-variant">The finals schedule for <%= @current_term.name %> is not out yet. This is the newest schedule.</p>
+    <% end %>
+
+    <% unless @published %>
+      <p class="m3-card p-4 text-sm text-on-surface-variant">The finals schedule for <%= @term.name %> is still being processed. Times can change.</p>
+    <% end %>
+
+    <% if @exams.empty? %>
+      <%= render "shared/empty_state", icon: :clipboard_check,
+          message: (@mine ? "None of your courses has a final in #{@term.name}." : "No finals match."),
+          hint: ("Your courses come from the browser extension. Add them there first." if @mine && @my_course_ids.empty?) %>
+    <% else %>
+      <div class="m3-card divide-y divide-outline-variant overflow-hidden" id="finals">
+        <% @exams.group_by(&:exam_date).each do |date, exams| %>
+          <div class="px-5 py-2 bg-surface-container-low text-xs font-semibold text-on-surface-variant"><%= date.strftime("%A, %B %-d, %Y") %></div>
+          <% exams.each do |exam| %>
+            <% course = exam.course %>
+            <div class="px-5 py-3 flex flex-wrap items-start justify-between gap-3" data-crn="<%= exam.crn %>">
+              <div class="space-y-1 min-w-0">
+                <p class="text-sm font-medium text-on-surface">
+                  <% if course && @catalog_courses.key?([ course.prefix, course.course_number ]) %>
+                    <%= link_to "#{course.prefix} #{course.course_number}-#{course.section_number}: #{course.title}",
+                        dashboard_catalog_course_path("#{course.prefix} #{course.course_number}", term_uid: @term.uid),
+                        class: "text-primary hover:underline" %>
+                  <% elsif course %>
+                    <%= course.prefix %> <%= course.course_number %>-<%= course.section_number %>: <%= course.title %>
+                  <% else %>
+                    CRN <%= exam.crn %>
+                  <% end %>
+                </p>
+                <p class="text-xs text-on-surface-variant">
+                  <%= exam.formatted_start_time_ampm %> – <%= exam.formatted_end_time_ampm %>
+                  <%= " · #{exam.location}" if exam.location.present? %>
+                  <%= " · #{exam.all_instructors}" if course %>
+                </p>
+              </div>
+              <% if course && @my_course_ids.include?(course.id) %>
+                <span class="m3-badge m3-badge-primary">Yours</span>
+              <% end %>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+      <%= render "shared/pagination", collection: @exams %>
+    <% end %>
+  <% end %>
+</div>

@@ -36,6 +36,12 @@
         <%= render "layouts/dashboard_nav_item", path: dashboard_ics_feed_path, label: "ICS Feed", icon: "rss" %>
         <%= render "layouts/dashboard_nav_item", path: dashboard_notifications_path, label: "Notifications", icon: "bell" %>
         <%= render "layouts/dashboard_nav_item", path: dashboard_friends_path, label: "Friends", icon: "users" %>
+
+        <p class="hidden xl:block px-3 pt-4 pb-1 text-xs font-medium text-on-surface-variant">Browse</p>
+        <div class="xl:hidden mx-3 my-2 border-t border-outline-variant" aria-hidden="true"></div>
+        <% dashboard_catalog_items.each do |item| %>
+          <%= render "layouts/dashboard_nav_item", **item %>
+        <% end %>
       </div>
 
       <!-- Bottom: user + sign out -->
@@ -96,7 +102,7 @@
             or Escape closes it) with no JavaScript. Turbo replaces the body on
             each visit, so the sheet is closed on the next page. %>
         <div id="dashboard-more" popover
-             class="inset-x-2 top-auto bottom-16 m-0 w-auto p-2 space-y-1 rounded-3xl border border-outline-variant bg-surface-container-high text-on-surface shadow-lg backdrop:bg-black/30">
+             class="inset-x-2 top-auto bottom-16 m-0 w-auto max-h-[calc(100dvh-5rem)] overflow-y-auto p-2 space-y-1 rounded-3xl border border-outline-variant bg-surface-container-high text-on-surface shadow-lg backdrop:bg-black/30">
           <% dashboard_more_items.each do |item| %>
             <%= render "layouts/dashboard_more_item", **item %>
           <% end %>

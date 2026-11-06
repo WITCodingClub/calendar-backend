@@ -71,6 +71,15 @@ flowchart TD
 - **API route files:** `routes/api.rb` draws each file in `routes/api/` inside `namespace :api`. Put a new API route in the file for its area. The catch-all route stays last in `routes/api.rb`.
 - **API:** every API controller inherits from `Api::BaseController`. `CLAUDE.md` has the rules for auth, errors, and old paths.
 - **Fixed URLs:** the OAuth callbacks, `/risc/events`, and `/calendar/:token` never change. Google, Microsoft, and calendar apps store them.
+- **Catalog pages:** the dashboard pages for courses, instructors, finals, and university events (#797) are read-only and open to every signed-in user. They include `Dashboard::CatalogPages`. The course and instructor pages use the `Catalog::` query objects and render the hashes of the `Catalog::` serializers, so they show the same data as the public catalog API. The finals and events pages use `Catalog::FinalExamQuery` and `Catalog::UniversityEventQuery`. Do not show a field there that the API leaves out, such as a faculty email.
+
+```mermaid
+flowchart LR
+  Q["Catalog:: query objects"] --> S["Catalog:: serializers"]
+  S --> API["/api/v1/catalog (public API)"]
+  S --> MCP["MCP catalog tools"]
+  S --> D["/dashboard/courses and /dashboard/instructors"]
+```
 
 ## Views
 

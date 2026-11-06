@@ -1,0 +1,18 @@
+<%# Previous and next links for a Kaminari collection on a dashboard page. It
+    shows nothing when the collection fits on one page. %>
+<%# locals: (collection:) %>
+<% if collection.total_pages > 1 %>
+  <nav aria-label="Pagination" class="flex items-center justify-between gap-3 text-sm text-on-surface-variant">
+    <% if collection.first_page? %>
+      <span class="m3-btn-text opacity-40" aria-disabled="true">Previous</span>
+    <% else %>
+      <%= link_to "Previous", dashboard_page_url(collection.current_page - 1), rel: "prev", class: "m3-btn-text" %>
+    <% end %>
+    <span>Page <%= collection.current_page %> of <%= collection.total_pages %></span>
+    <% if collection.last_page? %>
+      <span class="m3-btn-text opacity-40" aria-disabled="true">Next</span>
+    <% else %>
+      <%= link_to "Next", dashboard_page_url(collection.current_page + 1), rel: "next", class: "m3-btn-text" %>
+    <% end %>
+  </nav>
+<% end %>

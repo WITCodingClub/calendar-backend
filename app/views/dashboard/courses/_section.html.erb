@@ -1,0 +1,44 @@
+<%# One section (CRN) from Catalog::SectionSerializer: its code, type,
+    instructors, meetings, seats, and final exam. With show_course, the title
+    links to the course page. %>
+<%# locals: (section:, show_course: false) %>
+<div class="px-5 py-4 space-y-2" data-crn="<%= section[:crn] %>">
+  <div class="flex flex-wrap items-baseline justify-between gap-2">
+    <p class="text-sm font-medium text-on-surface">
+      <% if show_course %>
+        <%= link_to "#{section[:course_code]}: #{section[:title]}",
+            dashboard_catalog_course_path("#{section[:subject_code]} #{section[:course_number]}", term_uid: section.dig(:term, :uid)),
+            class: "text-primary hover:underline" %>
+      <% else %>
+        <%= section[:course_code] %>
+      <% end %>
+      <span class="text-xs text-on-surface-variant">· CRN <%= section[:crn] %><%= " · #{section[:schedule_type]}" if section[:schedule_type].present? %></span>
+    </p>
+    <% if (seats = seats_line(section[:seats])) %>
+      <span class="m3-badge <%= section.dig(:seats, :available).to_i.positive? ? 'm3-badge-primary' : 'm3-badge-secondary' %>"><%= seats %></span>
+    <% end %>
+  </div>
+
+  <p class="text-xs text-on-surface-variant">
+    <% if section[:instructors].any? %>
+      <%= safe_join(section[:instructors].map { |person| link_to(person[:name], dashboard_instructor_path(person[:pub_id]), class: "text-primary hover:underline") }, ", ") %>
+    <% else %>
+      Instructor TBA
+    <% end %>
+  </p>
+
+  <% lines = section_meeting_lines(section) %>
+  <ul class="text-xs text-on-surface space-y-0.5">
+    <% if lines.empty? %>
+      <li>No meeting times</li>
+    <% else %>
+      <% lines.each do |line| %><li><%= line %></li><% end %>
+    <% end %>
+  </ul>
+
+  <% if (exam = section[:final_exam]) %>
+    <p class="text-xs text-on-surface-variant">
+      Final: <%= exam[:date].strftime("%a, %b %-d") %>, <%= exam[:start_time] %> – <%= exam[:end_time] %><%= ", #{exam[:location]}" if exam[:location].present? %>
+    </p>
+  <% end %>
+</div>
