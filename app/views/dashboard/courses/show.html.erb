@@ -1,0 +1,104 @@
+<% content_for :title, @course[:code] %>
+
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header",
+      title: "#{@course[:code]}: #{@course[:title]}",
+      back: [ "Courses", dashboard_courses_path ],
+      description: [ (pluralize(@course[:credit_hours], "credit") if @course[:credit_hours]),
+                     (Array(@course[:typically_offered]).map(&:capitalize).join(", ").presence&.then { |seasons| "Usually offered #{seasons}" }) ].compact.join(" · ") %>
+
+  <%= render "shared/section_card", title: "About this course", id: "about" do %>
+    <div class="px-5 py-4 space-y-4 text-sm text-on-surface">
+      <% if @course[:description].present? %>
+        <p><%= @course[:description] %></p>
+      <% else %>
+        <p class="text-on-surface-variant">No catalog description for this course yet.</p>
+      <% end %>
+
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+        <% if @course[:prerequisites] %>
+          <div class="sm:col-span-2">
+            <dt class="text-xs text-on-surface-variant">Prerequisites</dt>
+            <dd><%= catalog_requisite(@course[:prerequisites]) %></dd>
+          </div>
+        <% end %>
+        <% if @course[:corequisites].any? %>
+          <div>
+            <dt class="text-xs text-on-surface-variant">Corequisites</dt>
+            <dd><%= safe_join(@course[:corequisites].map { |ref| catalog_requisite(ref) }, ", ") %></dd>
+          </div>
+        <% end %>
+        <% if @course[:mutual_exclusions].any? %>
+          <div>
+            <dt class="text-xs text-on-surface-variant">Cannot also take</dt>
+            <dd><%= safe_join(@course[:mutual_exclusions].map { |ref| catalog_requisite(ref) }, ", ") %></dd>
+          </div>
+        <% end %>
+        <% if @course[:unlocks].any? %>
+          <div class="sm:col-span-2">
+            <dt class="text-xs text-on-surface-variant">Prerequisite for</dt>
+            <dd><%= safe_join(@course[:unlocks].map { |unlocked| link_to(unlocked[:code], dashboard_catalog_course_path(unlocked[:code]), class: "text-primary hover:underline whitespace-nowrap", title: unlocked[:title]) }, ", ") %></dd>
+          </div>
+        <% end %>
+        <% if @course[:restrictions].present? %>
+          <div class="sm:col-span-2">
+            <dt class="text-xs text-on-surface-variant">Restrictions</dt>
+            <dd>
+              <% @course[:restrictions].each do |group| %>
+                <div><span class="font-medium"><%= group["heading"] %>:</span> <%= Array(group["values"]).join(", ") %></div>
+              <% end %>
+            </dd>
+          </div>
+        <% end %>
+        <% if @course[:department].present? %>
+          <div>
+            <dt class="text-xs text-on-surface-variant">Department</dt>
+            <dd><%= @course[:department] %></dd>
+          </div>
+        <% end %>
+        <% if @course[:fees].present? %>
+          <div>
+            <dt class="text-xs text-on-surface-variant">Fees</dt>
+            <dd><%= safe_join(@course[:fees].map { |fee| tag.div(catalog_fee(fee)) }) %></dd>
+          </div>
+        <% end %>
+      </dl>
+
+      <% if @course[:learning_objectives].present? %>
+        <details>
+          <summary class="cursor-pointer text-xs font-medium text-on-surface-variant">Learning objectives</summary>
+          <div class="mt-2"><%= simple_format(@course[:learning_objectives]) %></div>
+        </details>
+      <% end %>
+    </div>
+  <% end %>
+
+  <section class="space-y-3" id="sections">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <h2 class="text-lg font-semibold text-on-surface">Sections<%= " in #{@term.name}" if @term %></h2>
+      <% if @offered_terms.size > 1 %>
+        <%= form_with url: dashboard_catalog_course_path(@course[:code]), method: :get, class: "flex items-end gap-2" do |f| %>
+          <div>
+            <%= f.label :term_uid, "Term", class: "m3-label" %>
+            <%= f.select :term_uid, options_for_select(@offered_terms.map { |term| [ term.name, term.uid ] }, @term&.uid), {}, class: "m3-select" %>
+          </div>
+          <%= f.submit "Show", name: nil, class: "m3-btn-tonal" %>
+        <% end %>
+      <% end %>
+    </div>
+
+    <% sections = Array(@course[:sections]) %>
+    <% if sections.empty? %>
+      <%= render "shared/empty_state", icon: :calendar,
+          message: (@term ? "No sections in #{@term.name}." : "No sections on record."),
+          hint: ("Pick another term to see its sections." if @offered_terms.size > 1) %>
+    <% else %>
+      <div class="m3-card divide-y divide-outline-variant overflow-hidden">
+        <% sections.each do |section| %>
+          <%= render "dashboard/courses/section", section: section %>
+        <% end %>
+      </div>
+      <p class="text-xs text-on-surface-variant">Seat counts come from Banner and can be out of date. Check myWentworth before you register.</p>
+    <% end %>
+  </section>
+</div>

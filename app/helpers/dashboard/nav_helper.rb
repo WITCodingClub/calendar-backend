@@ -9,7 +9,19 @@ module Dashboard
         { path: dashboard_connected_accounts_path, label: "Accounts", icon: "link" },
         { path: dashboard_ics_feed_path, label: "ICS Feed", icon: "rss" },
         { path: dashboard_notifications_path, label: "Notifications", icon: "bell" },
-        { path: dashboard_settings_path, label: "Settings", icon: "cog" }
+        { path: dashboard_settings_path, label: "Settings", icon: "cog" },
+        *dashboard_catalog_items
+      ]
+    end
+
+    # The read-only catalog pages (#797). The desktop rail lists them under
+    # "Browse", and the mobile More sheet lists them after Settings.
+    def dashboard_catalog_items
+      [
+        { path: dashboard_courses_path, label: "Courses", icon: "book" },
+        { path: dashboard_instructors_path, label: "Instructors", icon: "academic_cap" },
+        { path: dashboard_finals_path, label: "Finals", icon: "clipboard_check" },
+        { path: dashboard_university_events_path, label: "Events", icon: "flag" }
       ]
     end
 

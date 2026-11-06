@@ -18,7 +18,11 @@ RSpec.describe "Dashboard nav", type: :request do
       dashboard_ics_feed_path             => "ICS Feed",
       dashboard_notifications_path        => "Notifications",
       dashboard_friends_path              => "Friends",
-      dashboard_settings_path             => "Settings"
+      dashboard_settings_path             => "Settings",
+      dashboard_courses_path              => "Courses",
+      dashboard_instructors_path          => "Instructors",
+      dashboard_finals_path               => "Finals",
+      dashboard_university_events_path    => "Events"
     }
   end
 
@@ -43,7 +47,7 @@ RSpec.describe "Dashboard nav", type: :request do
     sheet = mobile.at_css("#dashboard-more[popover]")
 
     expect(mobile.at_css("button[popovertarget='dashboard-more']").text.strip).to eq("More")
-    expect(labels(sheet).values).to eq([ "Accounts", "ICS Feed", "Notifications", "Settings" ])
+    expect(labels(sheet).values).to eq([ "Accounts", "ICS Feed", "Notifications", "Settings", "Courses", "Instructors", "Finals", "Events" ])
   end
 
   it "signs out from the More sheet with a 44px target" do

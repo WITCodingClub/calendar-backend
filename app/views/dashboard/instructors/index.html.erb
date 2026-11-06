@@ -1,0 +1,34 @@
+<% content_for :title, "Instructors" %>
+
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header",
+      title: "Instructors",
+      description: "Everyone who teaches a section at WIT, with ratings from Rate My Professors." %>
+
+  <%= form_with url: dashboard_instructors_path, method: :get, class: "m3-card p-4 flex flex-col sm:flex-row gap-3 sm:items-end" do |f| %>
+    <div class="flex-1">
+      <%= f.label :q, "Search", class: "m3-label" %>
+      <%= f.search_field :q, value: @query, placeholder: "Name", class: "m3-input w-full" %>
+    </div>
+    <div>
+      <%= f.label :term_uid, "Teaching in", class: "m3-label" %>
+      <%= f.select :term_uid, options_for_select(@terms.map { |term| [ term.name, term.uid ] }, @term&.uid), { include_blank: "Any term" }, class: "m3-select w-full" %>
+    </div>
+    <%= f.submit "Search", name: nil, class: "m3-btn-filled" %>
+  <% end %>
+
+  <% if @instructors.empty? %>
+    <%= render "shared/empty_state", icon: :academic_cap, message: "No instructors match.", hint: "Try a first or last name." %>
+  <% else %>
+    <div class="m3-card divide-y divide-outline-variant overflow-hidden" id="instructors">
+      <% @instructors.each do |person| %>
+        <% hint = [ person[:department].presence || person[:title].presence, rmp_summary(person[:rmp]) ].compact.join(" · ") %>
+        <%= render "shared/list_link_row",
+            path: dashboard_instructor_path(person[:pub_id], term_uid: @term&.uid),
+            title: person[:name],
+            hint: hint %>
+      <% end %>
+    </div>
+    <%= render "shared/pagination", collection: @page %>
+  <% end %>
+</div>

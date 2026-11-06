@@ -28,7 +28,7 @@ RSpec.describe "Dashboard authorization", type: :request do
   let(:friend) { create(:user) }
 
   # The value for each param, per controller. Each one is a record that the
-  # signed-in user owns, so the lookup finds it.
+  # signed-in user owns, or a public catalog record, so the lookup finds it.
   let(:ids) do
     {
       "dashboard/calendar_preferences"  => { id: -> { "global" } },
@@ -41,7 +41,9 @@ RSpec.describe "Dashboard authorization", type: :request do
       "dashboard/shared_friend_groups"  => { id: -> { shared_group_with_user.public_id } },
       "dashboard/friends/requests"      => { id: -> { create(:friendship, addressee: user).id } },
       "dashboard/friends"               => { id: -> { friend.public_id } },
-      "dashboard/meeting_links"         => { id: -> { create(:meeting_link, user: user).public_id } }
+      "dashboard/meeting_links"         => { id: -> { create(:meeting_link, user: user).public_id } },
+      "dashboard/courses"               => { code: -> { create(:catalog_course).code.delete(" ") } },
+      "dashboard/instructors"           => { id: -> { create(:faculty).public_id } }
     }
   end
 

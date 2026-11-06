@@ -1,0 +1,35 @@
+<% content_for :title, "Courses" %>
+
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header",
+      title: "Courses",
+      description: "Every course in the WIT catalog. Open a course to see its description, prerequisites, and sections." %>
+
+  <%= form_with url: dashboard_courses_path, method: :get, class: "m3-card p-4 flex flex-col sm:flex-row gap-3 sm:items-end" do |f| %>
+    <div class="flex-1">
+      <%= f.label :q, "Search", class: "m3-label" %>
+      <%= f.search_field :q, value: @query, placeholder: "COMP 2350 or data structures", class: "m3-input w-full" %>
+    </div>
+    <div>
+      <%= f.label :term_uid, "Offered in", class: "m3-label" %>
+      <%= f.select :term_uid, options_for_select(@terms.map { |term| [ term.name, term.uid ] }, @term&.uid), { include_blank: "Any term" }, class: "m3-select w-full" %>
+    </div>
+    <%= f.submit "Search", name: nil, class: "m3-btn-filled" %>
+  <% end %>
+
+  <% if @courses.empty? %>
+    <%= render "shared/empty_state", icon: :book, message: "No courses match.", hint: "Try a course code such as COMP 2350, or fewer words." %>
+  <% else %>
+    <div class="m3-card divide-y divide-outline-variant overflow-hidden" id="courses">
+      <% @courses.each do |course| %>
+        <% hint = [ (pluralize(course.credit_hours, "credit") if course.credit_hours),
+                    Array(course.typically_offered).map(&:capitalize).join(", ").presence ].compact.join(" · ") %>
+        <%= render "shared/list_link_row",
+            path: dashboard_catalog_course_path(course.code, term_uid: @term&.uid),
+            title: "#{course.code}: #{course.title}",
+            hint: hint %>
+      <% end %>
+    </div>
+    <%= render "shared/pagination", collection: @courses %>
+  <% end %>
+</div>

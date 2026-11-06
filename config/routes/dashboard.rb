@@ -44,5 +44,12 @@ authenticate :user do
     end
     resources :meeting_links, only: [ :index, :create, :destroy ]
     resource :settings, only: [ :show ]
+
+    # Read-only catalog pages (#797): the data of the public catalog API, for
+    # any signed-in user. A course code in a path has no space ("COMP2350").
+    resources :courses,     only: [ :index, :show ], param: :code
+    resources :instructors, only: [ :index, :show ]
+    resources :finals,      only: [ :index ]
+    resources :university_events, path: "events", only: [ :index ]
   end
 end

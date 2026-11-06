@@ -1,0 +1,48 @@
+<% content_for :title, "University Events" %>
+
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header",
+      title: "University Events",
+      description: "Holidays, term dates, registration, deadlines, and campus events from the WIT calendar." %>
+
+  <%= form_with url: dashboard_university_events_path, method: :get, class: "m3-card p-4 flex flex-col sm:flex-row gap-3 sm:items-end" do |f| %>
+    <div class="flex-1">
+      <%= f.label :q, "Search", class: "m3-label" %>
+      <%= f.search_field :q, value: @query, placeholder: "Thanksgiving", class: "m3-input w-full" %>
+    </div>
+    <div>
+      <%= f.label :category, "Type", class: "m3-label" %>
+      <%= f.select :category, options_for_select(UniversityCalendarEvent::CATEGORIES.map { |category| [ event_category_label(category), category ] }, @category), { include_blank: "All types" }, class: "m3-select w-full" %>
+    </div>
+    <label class="flex items-center gap-2 text-sm text-on-surface sm:pb-2">
+      <%= f.check_box :past, { checked: @past }, "1", nil %>
+      Past events
+    </label>
+    <%= f.submit "Search", name: nil, class: "m3-btn-filled" %>
+  <% end %>
+
+  <% if @events.empty? %>
+    <%= render "shared/empty_state", icon: :calendar, message: (@past ? "No past events match." : "No upcoming events match.") %>
+  <% else %>
+    <div class="m3-card divide-y divide-outline-variant overflow-hidden" id="events">
+      <% @events.each do |event| %>
+        <div class="px-5 py-3 space-y-1">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <p class="text-sm font-medium text-on-surface"><%= event.summary %></p>
+            <span class="m3-badge <%= event_category_badge(event.category) %>"><%= event_category_label(event.category) %></span>
+          </div>
+          <p class="text-xs text-on-surface-variant">
+            <%= event_time_range(event) %><%= " · #{event.location}" if event.location.present? %>
+          </p>
+          <% if event.description.present? %>
+            <details>
+              <summary class="cursor-pointer text-xs text-on-surface-variant">Details</summary>
+              <p class="mt-1 text-xs text-on-surface whitespace-pre-line"><%= strip_tags(event.description) %></p>
+            </details>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+    <%= render "shared/pagination", collection: @events %>
+  <% end %>
+</div>
