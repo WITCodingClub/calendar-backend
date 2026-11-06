@@ -12,15 +12,24 @@ module Courses
   module TitleFormatter
     # Banner sends titles in capitals, so the formatter cannot tell an acronym
     # from a word. It writes these words in capitals. Leave out acronyms that
-    # are also English words, such as IT and STEM.
-    ACRONYMS = %w[AI AXP BIM BME CAD CADD GIS WWW].freeze
+    # are also English words, such as IT, STEM, BE and US.
+    ACRONYMS = %w[
+      AI AXP BIM BME CAD CADD CAM CE CIS CM FM GIS ML MSBA SCDS SOAD SOM SSH TCAD TPMC UI UX WWW
+      BBME BCET BCIS BCOS BCOT BCTS BEET BELM BFPM BIND BINT BMET BPM BPS
+    ].freeze
 
-    ACRONYM_PATTERN = /\b(#{ACRONYMS.join("|")})\b/i
+    # Degree program codes such as BSCE and BSEE, which co-op and lab titles
+    # list: "Engr Laboratory - BSCE/BSEN".
+    PROGRAM_CODE = "BS[A-Z]{1,3}"
+
+    ACRONYM_PATTERN = /\b(#{ACRONYMS.join("|")}|#{PROGRAM_CODE})\b/i
     ROMAN_NUMERAL_PATTERN = /\b(i{1,3}|iv|v|vi{1,3}|ix|x)\b/i
 
     # Tokens to keep exactly as Banner sends them: an acronym in parentheses
     # such as "(CAD)", dotted initials such as "U.S.", and a number with
     # letters such as "3D".
+    BREAK_PATTERN = %r{\s*<br\s*/?>\s*}i
+
     PRESERVED_PATTERNS = [
       /\(([A-Z]{2,})\)/,
       /\b([A-Z]\.[A-Z]\.?)/,
@@ -32,7 +41,16 @@ module Courses
     def call(title)
       return title if title.nil?
 
+      # Some Banner titles hold an HTML line break: "Intro To Design<br>BSCE/BSEN".
+      # A break between words becomes a dash, and a break at either end goes.
       result = decode_entities(title.to_s)
+               .gsub(BREAK_PATTERN, " - ")
+               .sub(/\A\s*-\s*/, "")
+               .sub(/\s*-\s*\z/, "")
+
+      # Banner fits a lab title in 30 characters as "PHYSICS I-LAB". The
+      # default lab title template removes " - Lab", so write it with spaces.
+      result = result.sub(/\s*-\s*(lab)\z/i, ' - \1')
 
       preserved = {}
       PRESERVED_PATTERNS.each do |pattern|
@@ -43,14 +61,12 @@ module Courses
         end
       end
 
-      # "a-b" becomes "a - b", then "3 D" becomes "3D". The lookarounds expand
-      # a chain such as "K-12-A" in one pass. The hyphen goes first, so a
-      # second pass finds no new "3 D" to join.
-      result = result.gsub(/(?<=\w)-(?=\w)/, " - ")
+      # "3 D" becomes "3D". Other hyphens stay as Banner sends them: "CO-OP"
+      # becomes "Co-Op".
       result = result.gsub(/(\d)\s+([A-Za-z])(?=\s|$)/, '\1\2')
 
       result = result.downcase
-                     .gsub(/(^|\s|-)(\w)/) { $1 + $2.upcase }
+                     .gsub(%r{(^|[\s\-/(&:])(\w)}) { $1 + $2.upcase }
                      .gsub(/(\d)([a-z])/i) { $1 + $2.upcase }
 
       result = result.gsub(ROMAN_NUMERAL_PATTERN, &:upcase)

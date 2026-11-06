@@ -1,72 +1,72 @@
 # frozen_string_literal: true
 
 namespace :courses do
-  desc "Refresh course titles from LeopardWeb (re-applies Courses::TitleFormatter)"
+  desc "Get course titles from LeopardWeb again (a term_uid, ALL=1 for every term with courses, or else the current and next terms)"
   task :refresh_titles, [ :term_uid ] => :environment do |_t, args|
-    term_uid = args[:term_uid]
-
-    if term_uid.blank?
-      current_term = Term.current
-      next_term    = Term.next
-      term_uids    = [ current_term&.uid, next_term&.uid ].compact
-      puts "No term specified, using current (#{current_term&.uid}) and next (#{next_term&.uid}) terms"
+    terms = if args[:term_uid].present?
+              Term.where(uid: args[:term_uid]).to_a
+    elsif ENV["ALL"] == "1"
+              Term.where(id: Course.select(:term_id)).reverse_chronological.to_a
     else
-      term_uids = [ term_uid ]
+              [ Term.current, Term.next ].compact
     end
 
-    if term_uids.empty?
+    if terms.empty?
       puts "No terms found to refresh"
       exit 1
     end
 
+    puts "Refreshing #{terms.size} terms: #{terms.map(&:uid).join(", ")}"
     total_updated = 0
     total_failed  = 0
 
-    term_uids.each do |uid|
+    terms.each do |term|
       puts "\n#{"=" * 50}"
-      puts "Fetching courses for term #{uid} from LeopardWeb..."
+      puts "Fetching courses for term #{term.uid} from LeopardWeb..."
 
-      result = Catalog::LeopardWebClient.get_course_catalog(term: uid)
+      result = Catalog::LeopardWebClient.get_course_catalog(term: term.uid)
 
       unless result[:success]
         puts "Failed to fetch courses: #{result[:error]}"
         next
       end
 
-      courses  = result[:courses]
-      puts "Fetched #{courses.count} courses from LeopardWeb"
+      puts "Fetched #{result[:courses].count} courses from LeopardWeb"
+      courses_by_crn = term.courses.index_by(&:crn)
+      updated = 0
+      failed  = 0
+      skipped = 0
 
-      updated  = 0
-      failed   = 0
-      skipped  = 0
+      # One EXISTS query for each changed course, not one for each save.
+      CourseChangeTrackable.with_enrollment_cache do
+        result[:courses].each do |course_data|
+          raw_title = course_data["courseTitle"]
+          next if raw_title.blank?
 
-      courses.each do |course_data|
-        crn       = course_data["courseReferenceNumber"]
-        raw_title = course_data["courseTitle"]
+          course = courses_by_crn[course_data["courseReferenceNumber"].to_i]
+          unless course
+            skipped += 1
+            next
+          end
 
-        next if raw_title.blank?
+          new_title = Course.normalize_value_for(:title, raw_title)
+          next if course.title == new_title
 
-        course = Course.find_by(crn: crn, term: Term.find_by(uid: uid))
-        unless course
-          skipped += 1
-          next
-        end
-
-        new_title = Course.normalize_value_for(:title, raw_title)
-
-        if course.title != new_title
+          old_title = course.title
           begin
+            # update! runs the callbacks, so enrolled users get a calendar sync.
             course.update!(title: new_title)
             updated += 1
-            puts "✓ CRN #{crn}: '#{course.title_was}' -> '#{new_title}'"
-          rescue => e
+            puts "CRN #{course.crn}: '#{old_title}' -> '#{new_title}'"
+          rescue ActiveRecord::ActiveRecordError => e
+            Rails.error.report(e, handled: true, context: { course_id: course.id })
             failed += 1
-            puts "✗ CRN #{crn}: #{e.message}"
+            puts "CRN #{course.crn}: #{e.message}"
           end
         end
       end
 
-      puts "\nTerm #{uid}: Updated #{updated}, Failed #{failed}, Skipped #{skipped}"
+      puts "Term #{term.uid}: Updated #{updated}, Failed #{failed}, Skipped #{skipped}"
       total_updated += updated
       total_failed  += failed
     end

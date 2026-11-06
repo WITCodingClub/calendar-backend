@@ -37,13 +37,41 @@ RSpec.describe Courses::TitleFormatter do
     expect(format("STUDIO 2 A")).to eq("Studio 2A")
   end
 
-  it "puts spaces around a hyphen between words" do
-    expect(format("PRE-CALCULUS")).to eq("Pre - Calculus")
-    expect(format("PRE-K-12 EDUCATION")).to eq("Pre - K - 12 Education")
+  # Banner writes "CO-OP" with no spaces and "STUDIO 01 - LAB" with spaces.
+  it "keeps each hyphen as Banner sends it and capitalizes the word after it" do
+    expect(format("INTRO TO CO-OP")).to eq("Intro To Co-Op")
+    expect(format("PRE-K-12 EDUCATION")).to eq("Pre-K-12 Education")
+    expect(format("STUDIO 01 - LAB")).to eq("Studio 01 - Lab")
   end
 
-  it "joins a number and a letter that come before a hyphen" do
-    expect(format("PART 2 B-SECTION")).to eq("Part 2B - Section")
+  it "capitalizes a word after a slash or an opening parenthesis" do
+    expect(format("BASICS OF ORGANIC/BIOCHEM")).to eq("Basics Of Organic/Biochem")
+    expect(format("STUDIO 07 (EMERGING TECH-BERLIN)")).to eq("Studio 07 (Emerging Tech-Berlin)")
+  end
+
+  it "writes degree program codes in capitals" do
+    expect(format("INTRO TO CO-OP: BE/BME/CE/SSH")).to eq("Intro To Co-Op: Be/BME/CE/SSH")
+    expect(format("ENGR LABORATORY - BSCE/BSEN")).to eq("Engr Laboratory - BSCE/BSEN")
+    expect(format("PRE CO-OP WORK TERM(BCOT/BSCO)")).to eq("Pre Co-Op Work Term(BCOT/BSCO)")
+  end
+
+  it "turns an HTML line break into a dash, and removes one at either end" do
+    expect(format("INTRODUCTION TO ENGINEERING DESIGN<br>BSCE/BSEN")).to eq("Introduction To Engineering Design - BSCE/BSEN")
+    expect(format("INTRO TO DESIGN<br>")).to eq("Intro To Design")
+    expect(format("<br>BSCE")).to eq("BSCE")
+  end
+
+  # The default lab title template removes " - Lab", so a lab title must end
+  # in " - Lab" also when Banner fits it in 30 characters as "-LAB".
+  it "puts spaces around the dash before a final Lab" do
+    expect(format("ADV ESTIMATING & BID ANALY-LAB")).to eq("Adv Estimating & Bid Analy - Lab")
+    expect(format("3D REALIZATION I -LAB")).to eq("3D Realization I - Lab")
+    expect(format("COLLABORATIVE LAB")).to eq("Collaborative Lab")
+  end
+
+  it "capitalizes a word after an ampersand or a colon" do
+    expect(format("LOCAL&WIDE AREA NETWORKS")).to eq("Local&Wide Area Networks")
+    expect(format("VISUALIZATION 3:DRAW/THINK")).to eq("Visualization 3:Draw/Think")
   end
 
   it "decodes HTML entities, also when Banner encodes them twice" do
@@ -71,7 +99,13 @@ RSpec.describe Courses::TitleFormatter do
       "PRE-K-12 EDUCATION",
       "A-B-C-D",
       "PART 2 B-SECTION",
-      "3 D-PRINTING"
+      "3 D-PRINTING",
+      "INTRO TO CO-OP: BE/BME/CE/SSH",
+      "STUDIO 07 (AI-URBINO)",
+      "INTRODUCTION TO ENGINEERING DESIGN<br>BSCE/BSEN",
+      "ADV ESTIMATING & BID ANALY-LAB",
+      "ENG SEC LANG II (LIT&COMP)-LAB",
+      "VISUALIZATION 3:DRAW/THINK"
     ].each do |raw|
       once = format(raw)
       expect(format(once)).to eq(once), "#{raw.inspect} changed on the second pass"
