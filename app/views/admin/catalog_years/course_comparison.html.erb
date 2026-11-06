@@ -1,0 +1,30 @@
+<%= render "admin/shared/page_header",
+    title: "Courses #{@catalog_year.name}: catalog and Banner",
+    subtitle: "Compares the courses from the catalog course search with Banner's catalog courses.",
+    back: [ "Catalog #{@catalog_year.name}", admin_catalog_year_path(@catalog_year.start_year) ] %>
+
+<%= render "admin/shared/stats" do %>
+  <% Admin::DegreeRequirementsHelper::COMPARISON_LABELS.each do |kind, label| %>
+    <%= render "admin/shared/stat", label: label, value: @counts[kind],
+        tone: (@counts[kind].positive? ? :warning : nil),
+        path: course_comparison_admin_catalog_year_path(@catalog_year.start_year, kind: kind) %>
+  <% end %>
+<% end %>
+
+<%= render "admin/shared/card", title: Admin::DegreeRequirementsHelper::COMPARISON_LABELS[@kind], subtitle: Admin::DegreeRequirementsHelper::COMPARISON_HINTS[@kind], flush: true do %>
+  <%= admin_table(@rows, card: false, empty: "No courses in this list.") do |t| %>
+    <% t.column("Course") { |row| tag.span(row.code, class: "font-medium whitespace-nowrap") } %>
+    <% unless @kind == :banner_only %>
+      <% t.column("Catalog title") { |row| row.catalog_title } %>
+    <% end %>
+    <% unless @kind == :catalog_only %>
+      <% t.column("Banner title") { |row| row.banner_title } %>
+    <% end %>
+    <% unless @kind == :banner_only %>
+      <% t.column("Catalog credits", align: :right) { |row| row.catalog_credits } %>
+    <% end %>
+    <% unless @kind == :catalog_only %>
+      <% t.column("Banner credits", align: :right) { |row| row.banner_credits&.to_s } %>
+    <% end %>
+  <% end %>
+<% end %>

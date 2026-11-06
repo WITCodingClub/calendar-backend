@@ -20,6 +20,16 @@ module DegreeRequirements
 
     retry_on FetchError, wait: :polynomially_longer, attempts: 3
 
+    # The start years with an import in the queue or running. The admin page
+    # of the catalog years shows them as importing.
+    def self.queued_start_years
+      SolidQueue::Job.where(class_name: name, finished_at: nil)
+                     .where.missing(:failed_execution)
+                     .pluck(:arguments)
+                     .filter_map { |job| Integer(job["arguments"]&.first, exception: false) if job.is_a?(Hash) }
+                     .to_set
+    end
+
     def perform(start_year, force: false)
       catalog_year = CatalogYear.find_or_create_by!(start_year: start_year)
       return PdfCatalog::Importer.new(catalog_year).call if PdfCatalog.pdf_only?(start_year)

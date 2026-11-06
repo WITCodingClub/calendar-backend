@@ -1,0 +1,119 @@
+<%= render "admin/shared/page_header",
+    title: @degree_program.name,
+    subtitle: "#{@degree_program.kind.capitalize}, #{@degree_program.level}. Slug #{@degree_program.slug}.",
+    back: [ "Degree Programs", admin_degree_programs_path ] %>
+
+<% if @degree_program.parent_program || @degree_program.concentrations.any? %>
+  <p class="mb-4 text-sm text-on-surface-variant">
+    <% if @degree_program.parent_program %>
+      A concentration of <%= link_to @degree_program.parent_program.name, admin_degree_program_path(@degree_program.parent_program.slug), class: "text-primary hover:underline" %>.
+    <% end %>
+    <% if @degree_program.concentrations.any? %>
+      Concentrations:
+      <%= safe_join(@degree_program.concentrations.sort_by(&:name).map { |concentration| link_to(concentration.name, admin_degree_program_path(concentration.slug), class: "text-primary hover:underline") }, ", ") %>.
+    <% end %>
+  </p>
+<% end %>
+
+<% if @requirement_set.nil? %>
+  <div class="m3-card px-4 py-10">
+    <%= render "admin/shared/empty_state", message: "No catalog year has requirements for this program." %>
+  </div>
+<% else %>
+  <nav aria-label="Catalog years" class="mb-6 flex flex-wrap gap-2">
+    <% @requirement_sets.each do |set| %>
+      <% current = set.id == @requirement_set.id %>
+      <%= link_to set.catalog_year.name, admin_degree_program_path(@degree_program.slug, year: set.catalog_year.start_year),
+          aria: { current: ("page" if current) },
+          class: current ? "m3-btn-tonal" : "m3-btn-text" %>
+    <% end %>
+  </nav>
+
+  <%# A set read from a PDF needs a person to check it. The review queue of #865 goes here. %>
+  <% if @requirement_set.needs_review? %>
+    <div class="mb-6 flex items-start gap-2 rounded-lg bg-secondary-container px-4 py-3 text-sm text-on-secondary-container" role="status">
+      <%= admin_icon(:exclamation, css_class: "w-5 h-5 shrink-0") %>
+      <span>This requirement set comes from a <%= catalog_source_label(@requirement_set.source) %> and needs a review. Check it against the catalog before you rely on it.</span>
+    </div>
+  <% end %>
+
+  <%= render "admin/shared/card", title: "#{@program[:name]}, #{@program[:catalog_year]}", css_class: "mb-6" do %>
+    <%= admin_details(columns: 3) do |d| %>
+      <% d.item("School") { @program[:school] } %>
+      <% d.item("Department") { @program[:department] } %>
+      <% d.item("Total credits") { @program[:total_credits]&.to_s } %>
+      <% d.item("Source") { catalog_source_label(@program[:source]) } %>
+      <% d.item("Listed") { @program[:listed] ? admin_badge("Listed", :success) : admin_badge("Not listed", :neutral, title: "The last import of this year did not find this program") } %>
+      <% d.item("Fetched") { l(@requirement_set.fetched_at) if @requirement_set.fetched_at } %>
+      <% d.item("Catalog page", wide: true) { link_to(@program[:catalog_url], @program[:catalog_url], target: "_blank", rel: "noopener", class: "text-primary hover:underline break-all") if @program[:catalog_url] } %>
+    <% end %>
+  <% end %>
+
+  <h2 class="mb-3 text-lg font-semibold text-on-surface">Plans of study</h2>
+  <% if @program[:plans].empty? %>
+    <div class="m3-card mb-6 px-4 py-10">
+      <%= render "admin/shared/empty_state", message: "This program has no plan of study in #{@program[:catalog_year]}." %>
+    </div>
+  <% end %>
+  <% @program[:plans].each do |plan| %>
+    <% subtitle = [ pluralize(plan[:years], "year"), ("#{plan[:total_credits]} credits" if plan[:total_credits]), ("accelerated" if plan[:accelerated]) ].compact.join(", ") %>
+    <%= render "admin/shared/card", title: plan[:name], subtitle: subtitle, css_class: "mb-6" do %>
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <% plan[:terms].each do |term| %>
+          <section>
+            <h3 class="mb-2 text-sm font-semibold text-on-surface"><%= plan_term_label(term) %></h3>
+            <ul class="divide-y divide-outline-variant rounded-lg border border-outline-variant">
+              <% term[:items].each do |item| %>
+                <li class="flex items-start justify-between gap-3 px-3 py-2 text-sm">
+                  <div class="min-w-0">
+                    <% case item[:kind] %>
+                    <% when "course" %>
+                      <span class="font-medium whitespace-nowrap"><%= item[:code] %></span>
+                      <span class="text-on-surface-variant"><%= item[:title] %></span>
+                    <% when "choice" %>
+                      <span class="font-medium">One of:</span>
+                      <%= safe_join(item[:options].map { |option| tag.span(option[:code], title: option[:title], class: "whitespace-nowrap") }, ", ") %>
+                    <% else %>
+                      <span class="font-medium"><%= item[:title] %></span>
+                    <% end %>
+                    <% if item[:footnote].present? %>
+                      <sup class="text-on-surface-variant"><%= item[:footnote] %></sup>
+                    <% end %>
+                    <% if item[:elective_list] %>
+                      <div class="text-xs text-on-surface-variant">From the list "<%= item[:elective_list] %>"</div>
+                    <% end %>
+                  </div>
+                  <span class="shrink-0 tabular-nums text-on-surface-variant"><%= credit_range(item[:min_credits], item[:max_credits]) %></span>
+                </li>
+              <% end %>
+            </ul>
+          </section>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <h2 class="mb-3 text-lg font-semibold text-on-surface">Elective lists</h2>
+  <% if @program[:elective_lists].empty? %>
+    <div class="m3-card mb-6 px-4 py-10">
+      <%= render "admin/shared/empty_state", message: "This program has no elective list in #{@program[:catalog_year]}." %>
+    </div>
+  <% end %>
+  <% @program[:elective_lists].each do |list| %>
+    <% minimum = [ ("at least #{pluralize(list[:min_courses], "course")}" if list[:min_courses]), ("at least #{list[:min_credits]} credits" if list[:min_credits]) ].compact.join(", ") %>
+    <% subtitle = [ minimum.presence&.upcase_first, ("Plan: #{list[:plan]}" if list[:plan]) ].compact.join(". ") %>
+    <%= render "admin/shared/card", title: list[:name], subtitle: subtitle, flush: true, css_class: "mb-6" do %>
+      <% if list[:heading].present? || list[:notes].present? %>
+        <div class="px-4 sm:px-6 py-3 text-sm text-on-surface-variant border-b border-outline-variant">
+          <% if list[:heading].present? %><p><%= list[:heading] %></p><% end %>
+          <% if list[:notes].present? %><p class="mt-1"><%= list[:notes] %></p><% end %>
+        </div>
+      <% end %>
+      <%= admin_table(list[:courses], card: false, paginate: false, empty: "This list names no courses.") do |t| %>
+        <% t.column("Course") { |course| tag.span(course[:code], class: "font-medium whitespace-nowrap") } %>
+        <% t.column("Title") { |course| course[:title] } %>
+        <% t.column("Approval", primary: false) { |course| admin_badge("School approval", :warning) if course[:requires_approval] } %>
+      <% end %>
+    <% end %>
+  <% end %>
+<% end %>

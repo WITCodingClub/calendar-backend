@@ -124,6 +124,32 @@ flowchart TD
 - **Plan ids.** A changed page keeps the ids of its plans. Its plan rows and elective lists are written again.
 - **Program names.** The newest catalog year sets the name and the parent of a `DegreeProgram`. A program that the index lists in two departments is imported once.
 
+### Admin pages
+
+Issue #864 added admin pages for the import. Every admin can open them. They are under Academics in the admin navigation.
+
+| Page | What it shows |
+|---|---|
+| `/admin/catalog_years` | Each stored catalog year and each HTML year from 2019-2020 to this year: source, status, import time, and the number of programs and courses. The Import button queues `DegreeRequirements::ImportJob` for one year. Force passes `force: true`, the same as `FORCE=1`. |
+| `/admin/catalog_years/:start_year` | The programs of one catalog year, with flags for a set that needs a review or that the last import did not find |
+| `/admin/catalog_years/:start_year/course_comparison` | `DegreeRequirements::CourseComparison`: the courses of the year that only the catalog has, the Banner courses with sections in the year that the catalog does not print, and the courses with a different title or credits |
+| `/admin/degree_programs` | Every program, with its kind and catalog years |
+| `/admin/degree_programs/:slug?year=2024` | The requirement set of one catalog year: its plans semester by semester and its elective lists. It renders `Catalog::ProgramSerializer`, so it shows the same data as the API. |
+
+- A year with an import in the queue or running shows "Importing…" and no button (`ImportJob.queued_start_years`). The page reloads every five seconds.
+- The Import button accepts only the HTML years. A PDF year has no button, because the HTML import cannot read it (#865).
+- Titles in the course comparison are compared without case, punctuation, or spaces, and "&" is the same as "and".
+
+```mermaid
+flowchart LR
+  A[Admin presses Import] --> C[Admin::CatalogYearsController#import]
+  C --> Q{HTML year, and no import in the queue?}
+  Q -- yes --> J[DegreeRequirements::ImportJob]
+  Q -- no --> F[Flash alert]
+  J --> S[Catalog year status and import time]
+  S --> P[/admin/catalog_years/]
+```
+
 ### How a page is read
 
 | On the page | Becomes |
