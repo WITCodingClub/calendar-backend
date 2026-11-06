@@ -6,8 +6,9 @@ module Oauth
   #
   # A box starts checked when its scope is a default, when the student gave
   # it to this app before, or when the client asked for fewer than all
-  # scopes. A client that asks for fewer is asking for what one tool call
-  # needs (step-up authorization), so the box it names starts checked.
+  # scopes. A client that asks for at most one change scope it does not have
+  # is asking for what one tool call needs (step-up authorization), so the
+  # boxes it names start checked.
   class ConsentScopes
     Item = Data.define(:scope, :checked)
 
@@ -48,8 +49,12 @@ module Oauth
       scope.default || @previous.include?(scope.name) || narrow_request?
     end
 
+    # A step-up request (Api::McpController) names the token's scopes and one
+    # more. A client can also send an old full list, cached from before a new
+    # scope was added. That list is not narrow: it names many change scopes
+    # the student never gave, so those boxes must start unchecked.
     def narrow_request?
-      (McpTools::Scopes::NAMES - @requested).any?
+      (@requested - @previous).count { |name| McpTools::Scopes::BY_NAME.fetch(name).group == :change } <= 1
     end
   end
 end

@@ -24,6 +24,7 @@ module McpTools
       CatalogGraphql,
       MyCourses,
       MyCourseHistory,
+      MyDegreeProgress,
       MyBusyTimes,
       MyFinals,
       ListFriends,

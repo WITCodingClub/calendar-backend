@@ -26,6 +26,9 @@ scope "user", as: :user do
   put "academic_profile", to: "academic_profiles#update"
   put "course_outcomes",  to: "course_outcomes#update"
 
+  # Degree requirements next to the courses taken (#799)
+  get "degree_progress", to: "degree_progresses#show"
+
   # One-time catch-up runs the extension marks done (calendar-extension#215)
   get "backfills",       to: "backfills#index"
   put "backfills/:name", to: "backfills#update"

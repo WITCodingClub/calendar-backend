@@ -52,6 +52,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `catalog_graphql` | Any read-only query on the catalog schema. | `POST /api/v1/graphql` | all |
 | `my_courses` | Your courses in one term, with their CRNs, weekly meeting times, and rooms. | `GET /api/user/processed_events` | |
 | `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
+| `my_degree_progress` | The requirements of your programs next to the courses you took or take: each row done, in progress, or open, and the open rows. A planning help, not a degree audit. | `GET /api/user/degree_progress` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |
 | `list_friends` | Your friends and their ids. | `GET /api/friends` | |
@@ -297,7 +298,7 @@ A prompt is a task that the student starts from the client, for example as a sla
 - The server cuts an argument at 500 characters. The message puts each argument in quotes.
 - Arguments that are not an object of strings get `-32602` (Invalid params). The server does not report this client error.
 - A prompt reads no student data. The tools read it when the model calls them, with the scopes of the token. `my_courses` gives the CRN of each course, so `check_my_schedule` can pass the CRNs to `check_schedule`.
-- `plan_degree_progression` reads the required courses with `list_programs` and `degree_requirements`. The tools do not read the student's own programs yet (#868), so the model asks for the program and the catalog year. The catalog has no data before 2019-2020. For an older catalog year, the model asks the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu.
+- `plan_degree_progression` reads the required courses with `list_programs` and `degree_requirements`. Without the `program` and `catalog_year` arguments, the model calls `my_degree_progress`, which gives the student's programs and catalog years. It asks for them when the student has no linked program or the token does not have `programs:read`. The catalog has no data before 2019-2020. For an older catalog year, the model asks the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu.
 
 ### Completions
 
@@ -330,6 +331,7 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 | `schedule:read` | `my_courses`, `my_finals`, `my_busy_times` | checked |
 | `friends:read` | `list_friends`, `friend_busy_times` | checked |
 | `settings:read` | `my_calendar_settings`, `preview_template` | checked |
+| `programs:read` | `my_degree_progress` | checked |
 | `settings:write` | `update_class_settings`, `update_calendar_settings` | unchecked |
 | `notifications:write` | `set_notifications` | unchecked |
 | `friends:requests`, `friends:meetings`, `friends:groups` | reserved for the friend tools | unchecked |
@@ -338,7 +340,7 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 - A call to a tool without its scope gets a tool error that tells the student how to add the permission: disconnect the app in its connector settings, connect again, and check the box. The error also links to Settings on the dashboard, which shows the permissions of each app. The server counts these in `calendar_mcp_scope_denials_total`.
 - The MCP spec also defines step-up authorization: the server answers `403` with `WWW-Authenticate: Bearer error="insufficient_scope", scope="..."`, and the client asks the student for the missing scope. Not every client does this, and in a client that does not, the `403` fails the whole request with no reason shown. So the server sends the `403` only to clients in `McpTools::Scopes::STEP_UP_CLIENTS`. Add a client there after a test shows that it signs in again and retries. The step-up consent page starts with the requested boxes checked.
 - A box the student checked for this app before starts checked the next time.
-- Tokens issued before the scopes were split have the scope `read`. The server treats it as every read scope, so those connections keep their tools. A client registered before the split lists only `read`; the consent page updates its list on the next sign-in.
+- Tokens issued before the scopes were split have the scope `read`. The server treats it as the four read scopes of that time (`catalog`, `schedule:read`, `friends:read`, `settings:read`), so those connections keep their tools. A read scope added later, such as `programs:read`, needs a new sign-in. A client registered before the split lists only `read`; the consent page updates its list on the next sign-in.
 - Settings on the dashboard lists each app's permissions.
 
 ## Rate limits

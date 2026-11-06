@@ -375,5 +375,31 @@ RSpec.describe "MCP tool output schemas" do
       expect(program).to include(plans: [], elective_lists: [], school: nil, catalog_url: nil, description: nil)
       expect_valid(McpTools::ListPrograms, kind: "minor", q: "nothing matches this")
     end
+
+    it "matches the degree progress of a plan with every row kind, and of a minor with lists" do
+      term = create(:term, year: 2026, season: :fall)
+      set = create(:requirement_set, degree_program: major, catalog_year: catalog_year)
+      plan = create(:program_plan, requirement_set: set)
+      group = create(:elective_group, requirement_set: set, program_plan: plan)
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3000)
+      create(:program_plan_item, program_plan: plan, subject_code: "WDGT", course_number: 1000)
+      create(:program_plan_item, :choice, program_plan: plan)
+      create(:program_plan_item, :placeholder, program_plan: plan, elective_group: group)
+      create(:program_plan_item, :placeholder, program_plan: plan, label: "Free Elective")
+      create(:student_program, user: user, degree_program: major, catalog_year: catalog_year)
+      done = create(:course, term: term, subject: "WDGT", course_number: 1000, credit_hours: nil)
+      create(:enrollment, user: user, course: done)
+      create(:course_outcome, user: user, course: done)
+      create(:enrollment, user: user, course: create(:course, term: term, subject: "WDGT", course_number: 3000))
+
+      result = expect_valid(McpTools::MyDegreeProgress)
+      expect(result[:programs].first[:requirements].pluck(:status)).to eq(%w[done open in_progress open])
+
+      minor = create(:degree_program, :minor, slug: "gear-minor", parent_program: nil)
+      create(:elective_group, requirement_set: create(:requirement_set, degree_program: minor, catalog_year: catalog_year),
+                              min_courses: nil, min_credits: 8)
+      expect(expect_valid(McpTools::MyDegreeProgress, program: "gear-minor")[:programs].first[:requirements].first)
+        .to include(kind: "elective_list", status: "open")
+    end
   end
 end

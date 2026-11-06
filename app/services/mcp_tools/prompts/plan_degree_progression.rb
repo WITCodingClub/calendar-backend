@@ -68,7 +68,9 @@ module McpTools
 
       def requirements_steps
         [
-          "If I did not give my program and my catalog year, ask me for them. My catalog year is the catalog of " \
+          "If I did not give my program and my catalog year, call my_degree_progress. It gives my programs, " \
+          "their catalog years, and which requirements are done, in progress, or open. If it has no program, " \
+          "or I do not have that permission, ask me for them. My catalog year is the catalog of " \
           "the term I started my program in, not this year's catalog. If I changed my major, it is the catalog " \
           "of the term of the change. A catalog year starts in the fall, so a student who started in Spring 2024 " \
           "is on 2023-2024. You can pass the term to the tools, for example catalog_year: Spring 2024.",
