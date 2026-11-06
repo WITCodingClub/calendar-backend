@@ -52,7 +52,7 @@ gem "googleauth", "~> 1.17"
 gem "doorkeeper", "~> 5.9"
 
 # Model Context Protocol server (docs/mcp.md)
-gem "mcp", "~> 1.7"
+gem "mcp", "~> 1.8"
 
 # Authorization
 gem "pundit", "~> 2.5"
