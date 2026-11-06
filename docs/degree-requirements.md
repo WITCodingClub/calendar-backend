@@ -144,3 +144,26 @@ flowchart TD
   T --> L
   L --> R[Rows: done, in_progress, open]
 ```
+
+## Curriculum graph
+
+`AcademicProfiles::CurriculumGraph` shows a student's plan of study as a prerequisite graph (#449, #448). `GET /api/user/curriculum_graph` sends it to the extension, and `/dashboard/curriculum` draws it. It takes the same `program`, `catalog_year`, and `plan` arguments as degree progress, and an optional `focus` course code.
+
+- Each plan row is a node, with its status from `AcademicProfiles::DegreeProgress`. The nodes are grouped by semester in plan order.
+- An edge goes from a prerequisite to the course that needs it, when both are in the plan. The edges come from the `CoursePrerequisite` rows. A choice stands for each of its options, and a met elective slot stands for the course that met it.
+- `next_semester` is the first semester with an open row that can be checked. A free elective cannot be checked, so it does not hold the next semester back.
+- `focus` adds the courses that come before the focus course and the courses it unlocks, each with the student's status. The focus can be any catalog course, also one outside the plan. An unknown code answers 422. The dashboard keeps the graph and shows the error.
+- The dashboard draws the graph as an SVG on the server (`Dashboard::CurriculumHelper`), with no JavaScript. Each course node links to the same page with that course as the focus.
+
+```mermaid
+flowchart LR
+  D[DegreeProgress] --> N[Nodes by semester]
+  P[CoursePrerequisite rows] --> E[Edges between plan nodes]
+  F[focus param] --> B[Before and after the focus course]
+  N --> J["GET /api/user/curriculum_graph"]
+  E --> J
+  B --> J
+  N --> V["/dashboard/curriculum (SVG)"]
+  E --> V
+  B --> V
+```

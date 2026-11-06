@@ -1,0 +1,177 @@
+<% content_for :title, "Curriculum" %>
+
+<div class="m3-page-wide space-y-6">
+  <%= render "shared/page_header",
+      title: "Curriculum",
+      description: "Your plan of study by semester. An arrow goes from a course to the courses that need it. Select a course to see what comes before it and what it unlocks." %>
+
+  <% if @error %>
+    <p class="m3-card p-4 text-sm text-on-error-container bg-error-container" role="alert"><%= @error %></p>
+  <% end %>
+
+  <% if @graph.nil? %>
+    <% unless @error %>
+      <%= render "shared/empty_state", icon: :academic_cap, message: "No major with a plan of study yet.",
+          hint: "The WIT Calendar browser extension reads your programs from LeopardWeb when you process a term. Open the extension and process a term." %>
+    <% end %>
+  <% else %>
+    <% if @graph[:programs].size > 1 || @graph[:plans].size > 1 %>
+      <%= form_with url: dashboard_curriculum_path, method: :get, class: "m3-card p-4 flex flex-col sm:flex-row gap-3 sm:items-end" do |f| %>
+        <% if @graph[:programs].size > 1 %>
+          <div class="flex-1">
+            <%= f.label :program, "Program", class: "m3-label" %>
+            <%= f.select :program, options_for_select(@graph[:programs].map { |program| [ "#{program[:name]} (#{program[:catalog_year]})", program[:program] ] }, @graph[:program]), {}, class: "m3-select w-full" %>
+          </div>
+        <% else %>
+          <%= f.hidden_field :program, value: @graph[:program] %>
+        <% end %>
+        <% if @graph[:plans].size > 1 %>
+          <div class="flex-1">
+            <%= f.label :plan, "Plan", class: "m3-label" %>
+            <%= f.select :plan, options_for_select(@graph[:plans], @graph[:plan]), {}, class: "m3-select w-full" %>
+          </div>
+        <% end %>
+        <%= f.submit "Show", name: nil, class: "m3-btn-filled" %>
+      <% end %>
+    <% end %>
+
+    <div class="flex flex-wrap items-center gap-2 text-sm text-on-surface-variant">
+      <span class="font-medium text-on-surface"><%= @graph[:name] %></span>
+      <span><%= @graph[:catalog_year] %> catalog</span>
+      <% if @graph[:plan] %><span>· <%= @graph[:plan] %></span><% end %>
+      <% @graph[:counts].each do |status, count| %>
+        <span class="<%= curriculum_status_badge(status) %>"><%= count %> <%= curriculum_status_label(status).downcase %></span>
+      <% end %>
+    </div>
+
+    <% if @graph[:semesters].empty? %>
+      <%= render "shared/empty_state", icon: :academic_cap, message: "#{@graph[:name]} has no plan of study by semester.",
+          hint: "A minor or a certificate lists courses without semesters. See the program in the catalog." %>
+    <% else %>
+      <% next_semester = @graph[:semesters].find { |semester| semester[:next] } %>
+      <%= render "shared/section_card", id: "next-semester",
+          title: (next_semester ? "Next in your plan: #{next_semester[:label]}" : "Every semester is done or in progress"),
+          description: "The first semester of your plan with a course you have not taken. Confirm your plan with your academic advisor." do %>
+        <% if next_semester %>
+          <ul class="divide-y divide-outline-variant">
+            <% next_semester[:nodes].each do |node| %>
+              <% lines = curriculum_node_lines(node) %>
+              <li class="px-5 py-3 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <% if (code = curriculum_node_course(node)) %>
+                    <%= link_to lines[0], curriculum_focus_path(code), class: "font-medium text-primary hover:underline" %>
+                  <% else %>
+                    <span class="font-medium text-on-surface"><%= lines[0] %></span>
+                  <% end %>
+                  <p class="text-xs text-on-surface-variant truncate"><%= lines[1] %></p>
+                </div>
+                <span class="<%= curriculum_status_badge(curriculum_node_status(node)) %>"><%= curriculum_status_label(curriculum_node_status(node)) %></span>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      <% end %>
+    <% end %>
+
+    <% if (focus = @graph[:focus]) %>
+      <%= render "shared/section_card", id: "focus", title: "#{focus[:code]}: #{focus[:title]}",
+          description: "#{curriculum_status_label(focus[:status])}. Select a course to move the focus to it." do %>
+        <div class="p-5 grid gap-5 sm:grid-cols-2">
+          <% [ [ "Comes before", focus[:before], "No prerequisites." ], [ "Unlocks", focus[:after], "No course lists it as a prerequisite." ] ].each do |heading, courses, none| %>
+            <div>
+              <h3 class="text-sm font-semibold text-on-surface mb-2"><%= heading %></h3>
+              <% if courses.empty? %>
+                <p class="text-sm text-on-surface-variant"><%= none %></p>
+              <% else %>
+                <ul class="space-y-1.5">
+                  <% courses.each do |course| %>
+                    <li class="flex items-center justify-between gap-3 text-sm">
+                      <span class="min-w-0 truncate">
+                        <%= link_to course[:code], curriculum_focus_path(course[:code]), class: "font-medium text-primary hover:underline whitespace-nowrap" %>
+                        <span class="text-on-surface-variant"><%= course[:title] %></span>
+                      </span>
+                      <span class="<%= curriculum_status_badge(course[:status]) %>"><%= curriculum_status_label(course[:status]) %></span>
+                    </li>
+                  <% end %>
+                </ul>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+        <% if focus[:prerequisites] %>
+          <p class="px-5 pb-4 text-sm text-on-surface-variant">Prerequisites as the catalog lists them: <%= catalog_requisite(focus[:prerequisites]) %></p>
+        <% end %>
+        <p class="px-5 pb-4 text-sm"><%= link_to "Course details", dashboard_catalog_course_path(focus[:code]), class: "text-primary hover:underline" %></p>
+      <% end %>
+    <% end %>
+
+    <% if @graph[:semesters].any? %>
+      <% layout = curriculum_layout(@graph) %>
+      <% focus_ids = curriculum_focus_ids(@graph) %>
+      <%= render "shared/section_card", id: "curriculum-graph", title: "Plan of study" do %>
+        <div class="px-5 pt-3 flex flex-wrap gap-2 text-xs">
+          <% %w[done in_progress open unchecked].each do |status| %>
+            <span class="<%= curriculum_status_badge(status) %>"><%= curriculum_status_label(status) %></span>
+          <% end %>
+        </div>
+        <div class="p-3 overflow-x-auto">
+          <svg width="<%= layout[:width] %>" height="<%= layout[:height] %>" viewBox="0 0 <%= layout[:width] %> <%= layout[:height] %>"
+               role="group" aria-label="Plan of study graph" class="text-on-surface">
+            <defs>
+              <marker id="curriculum-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L8,4 L0,8 z" class="fill-outline"></path>
+              </marker>
+              <marker id="curriculum-arrow-focus" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L8,4 L0,8 z" class="fill-primary"></path>
+              </marker>
+            </defs>
+
+            <% @graph[:semesters].each_with_index do |semester, column| %>
+              <text x="<%= curriculum_column_x(column) %>" y="18"
+                    class="text-xs font-semibold <%= semester[:next] ? 'fill-primary' : 'fill-on-surface-variant' %>"><%= semester[:label] %><%= " · next" if semester[:next] %></text>
+            <% end %>
+
+            <% @graph[:edges].sort_by { |edge| focus_ids.intersect?([ edge[:from], edge[:to] ]) ? 1 : 0 }.each do |edge| %>
+              <% focused = focus_ids.intersect?([ edge[:from], edge[:to] ]) %>
+              <path d="<%= curriculum_edge_path(layout[:positions][edge[:from]], layout[:positions][edge[:to]]) %>" fill="none"
+                    class="<%= focused ? 'stroke-primary' : 'stroke-outline-variant' %>" stroke-width="<%= focused ? 2.5 : 1.25 %>"
+                    marker-end="url(#<%= focused ? 'curriculum-arrow-focus' : 'curriculum-arrow' %>)"
+                    data-edge="<%= edge[:from] %>-<%= edge[:to] %>"></path>
+            <% end %>
+
+            <% @graph[:semesters].each do |semester| %>
+              <% semester[:nodes].each do |node| %>
+                <% position = layout[:positions][node[:id]] %>
+                <% lines = curriculum_node_lines(node) %>
+                <% focused = focus_ids.include?(node[:id]) %>
+                <% box = capture do %>
+                  <title><%= curriculum_node_name(node) %></title>
+                  <rect x="<%= position[:x] %>" y="<%= position[:y] %>" width="<%= Dashboard::CurriculumHelper::NODE_WIDTH %>" height="<%= Dashboard::CurriculumHelper::NODE_HEIGHT %>" rx="12"
+                        class="<%= curriculum_node_fill(curriculum_node_status(node), focused: focused) %>" stroke-width="<%= focused ? 3 : 1 %>"></rect>
+                  <text x="<%= position[:x] + 12 %>" y="<%= position[:y] + 21 %>" class="text-xs font-semibold fill-on-surface"><%= truncate(lines[0].to_s, length: 26) %></text>
+                  <text x="<%= position[:x] + 12 %>" y="<%= position[:y] + 38 %>" class="text-[10px] fill-on-surface-variant"><%= truncate(lines[1].to_s, length: 30) %></text>
+                <% end %>
+                <% if (code = curriculum_node_course(node)) %>
+                  <a href="<%= curriculum_focus_path(code) %>" aria-label="<%= curriculum_node_name(node) %>"
+                     data-node="<%= node[:id] %>" data-status="<%= curriculum_node_status(node) %>" data-focused="<%= focused %>" class="hover:opacity-80"><%= box %></a>
+                <% else %>
+                  <g data-node="<%= node[:id] %>" data-status="<%= curriculum_node_status(node) %>" role="img" aria-label="<%= curriculum_node_name(node) %>"><%= box %></g>
+                <% end %>
+              <% end %>
+            <% end %>
+          </svg>
+        </div>
+      <% end %>
+    <% end %>
+
+    <details class="m3-card p-4 text-sm text-on-surface-variant">
+      <summary class="cursor-pointer font-medium text-on-surface">How WIT Calendar reads your plan</summary>
+      <ul class="mt-2 list-disc pl-5 space-y-1">
+        <li>This is a help for planning, not a degree audit. The official audit is Stellic.</li>
+        <% @graph[:assumptions].each do |assumption| %>
+          <li><%= assumption %></li>
+        <% end %>
+      </ul>
+    </details>
+  <% end %>
+</div>

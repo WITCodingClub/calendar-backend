@@ -29,7 +29,7 @@ RSpec.describe Dashboard::NavHelper, type: :helper do
 
   describe "#dashboard_more_items" do
     it "lists the pages for the More sheet" do
-      expect(helper.dashboard_more_items.pluck(:label)).to eq([ "Programs", "Accounts", "ICS Feed", "Notifications", "Settings", "Courses", "Instructors", "Finals", "Events" ])
+      expect(helper.dashboard_more_items.pluck(:label)).to eq([ "Programs", "Curriculum", "Accounts", "ICS Feed", "Notifications", "Settings", "Courses", "Instructors", "Finals", "Events" ])
     end
   end
 end

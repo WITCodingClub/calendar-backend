@@ -44,6 +44,8 @@ authenticate :user do
     end
     resources :meeting_links, only: [ :index, :create, :destroy ]
     resource :settings, only: [ :show ]
+    # The plan of study as a prerequisite graph (#449, #448)
+    resource :curriculum, only: [ :show ], controller: "curricula"
 
     # My programs (#867): the programs from LeopardWeb, the plan of each,
     # corrections, planned programs, and ended programs. Before resources
