@@ -4,7 +4,9 @@
 # elective lists they name. name, school_name, and department_name are as
 # the catalog printed them that year, because they change between years.
 #
-# needs_review is set for a set read from a PDF, until a person checks it.
+# needs_review is set for a set read from a PDF, until a person checks it in
+# /admin/requirement_set_reviews and sets reviewed_at. review_notes holds the
+# checks that failed during the PDF import.
 # source_digest lets the import skip a page that did not change, and
 # last_seen_at shows a program that the current catalog no longer lists.
 # == Schema Information
@@ -19,6 +21,8 @@
 #  name              :string           not null
 #  needs_review      :boolean          default(FALSE), not null
 #  path              :string
+#  review_notes      :text
+#  reviewed_at       :datetime
 #  school_name       :string
 #  source            :string           default("html"), not null
 #  source_digest     :string

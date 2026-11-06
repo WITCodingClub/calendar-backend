@@ -12,6 +12,8 @@
 #  name              :string           not null
 #  needs_review      :boolean          default(FALSE), not null
 #  path              :string
+#  review_notes      :text
+#  reviewed_at       :datetime
 #  school_name       :string
 #  source            :string           default("html"), not null
 #  source_digest     :string

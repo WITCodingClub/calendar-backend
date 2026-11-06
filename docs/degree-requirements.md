@@ -8,7 +8,7 @@ The degree requirements come from the academic catalog at <https://catalog.wit.e
 |---|---|
 | 2019-2020 to 2024-2025, and the current year | CourseLeaf HTML. Past years are under `/previous-catalogs/YYYY-YYYY/`. |
 | 2025-2026 | No HTML archive. The Wayback Machine has most program pages, and the CourseLeaf PDF fills the gaps. |
-| 2013-2014 to 2018-2019 | PDF only. The first term with Banner sections is Spring 2014. |
+| 2013-2014 to 2018-2019 | PDF only. The first term with Banner sections is Spring 2014. See "PDF catalogs" below. |
 
 The course search on the catalog site has a JSON API with the courses of each year from 2019-2020 (`/course-search/api/?page=fose`). Its `srcdb` parameter is the first year of the catalog year.
 
@@ -109,6 +109,74 @@ flowchart TD
 | `table.sc_courselist` and the heading above it | An `ElectiveGroup`. "select four (4) courses" gives `min_courses`. |
 | An area header or a "Select ..." note inside a list | A new `ElectiveGroup`, such as "Required Courses: Select one (1) course from the following courses" |
 | "The following courses require School approval" | `requires_approval` on the courses after it |
+
+## PDF catalogs
+
+The catalogs from 2013-2014 to 2018-2019 are PDFs on <https://catalog.wit.edu/previous-catalogs/>. `DegreeRequirements::PdfCatalog::FILES` names the file of each year. Issue #865 added the import. The PDFs are not in the repo: the repo is public, and the specs use synthetic text in `spec/fixtures/files/degree_requirements/`.
+
+```mermaid
+flowchart TD
+  T["rake degree_requirements:import_pdf[2014]"] --> J[DegreeRequirements::PdfImportJob]
+  J --> D[Download the PDF, pdftotext -layout]
+  D --> P{Layout of the year}
+  P -- 2013 to 2015 --> G[PdfGridParser]
+  P -- 2016 to 2018 --> L[PdfListParser]
+  G --> C{Every check passes?}
+  L --> C
+  C -- no --> X[Plan left out, logged]
+  C -- yes --> M{PdfProgramMatcher finds one program?}
+  M -- no --> X
+  M -- yes --> W[Set with needs_review, failed totals in review_notes]
+  W --> R["/admin/requirement_set_reviews: a person marks it checked"]
+```
+
+| What | How |
+|---|---|
+| Import one PDF year | `bin/rails 'degree_requirements:import_pdf[2014]'` |
+| Import every PDF year | `bin/rails degree_requirements:import_pdf_all` |
+| Find the course code aliases | `bin/rails degree_requirements:course_code_aliases` |
+| Check the sets | `/admin/requirement_set_reviews` (Catalog Review) |
+| Check the aliases | `/admin/course_code_alias_reviews` (Course Code Aliases) |
+
+### Layouts
+
+| Years | Layout | Parser |
+|---|---|---|
+| 2013-2014 to 2015-2016 | A grid with a column for each semester. A row is a code and its credits, then the title on one or more lines. A line of totals ends each year, and the year label is in the left margin. | `PdfGridParser` |
+| 2016-2017 to 2018-2019 | A heading for each semester, such as "Freshman Year, Fall Semester (total credits 16)", and a row on each line: "COMP1000, Computer Science I". 2018-2019 adds the credits: "Studio 01 (6 credits)". | `PdfListParser` |
+
+The PDFs have no lecture or lab hours, so `lecture_hours` and `lab_hours` stay empty.
+
+### Checks
+
+A wrong plan is worse than a missing one. A parser leaves a plan out when:
+
+- a cell does not read as a course, a choice ("MATH1750 or MATH1850"), or a placeholder ("ELECTIVE", "HSS ELECTIVE"),
+- credits or text have no row above them, or rows come after the last line of totals,
+- a year label does not count up from the first year,
+- text cuts the rows of a semester in two, and the plan goes on after it,
+- a program name, such as a concentration, sits between two semesters of a plan,
+- the semesters do not start in the fall of the first year, or the plan has no program name above it.
+
+A printed total that does not match its rows only adds a line to `review_notes`. The catalogs have such typos: the 2014-2015 Computer Science plan prints 20 credits over four 4-credit rows.
+
+`PdfProgramMatcher` links a plan to a `DegreeProgram` from the HTML catalogs by its subject. The Banner code in the heading gives the kind: BCOS is a bachelor, MSCM a master. A concentration matches by its full name. A program that ended before 2019-2020, such as Computer Engineering Technology, has no `DegreeProgram`, so its plans are left out. A heading such as "(Two-Year)" names the plan: "Two Year Program".
+
+### Review
+
+- Every set from a PDF has `needs_review`. The serializer gives it to API and MCP clients.
+- Marking a set as checked sets `needs_review: false` and `reviewed_at`.
+- An import that finds the same plans again keeps the review. A changed plan needs a review again.
+- The PDF import never writes over a set from the HTML catalog or the Wayback Machine.
+
+### Course code aliases
+
+No catalog lists the old and new numbers of 2015-2016, so `DegreeRequirements::CourseCodeAliasFinder` matches them:
+
+- **Catalogs** (`title_match`): the same subject and title in the 2014-2015 and 2015-2016 PDFs, from the plans and the course tables.
+- **Banner** (`banner`): the same subject and title on a 3-digit and a 4-digit code in the Banner sections.
+
+A title gives an alias only when one old code and one new code of the subject have it. When a title has more new codes, the new codes that took the old code's place in a plan win: COMP128 became COMP1000 in Computer Science and COMP1070 in Applied Mathematics, so it gets two aliases. When the catalogs and Banner give different codes, the old code gets no alias. A stored alias is never changed. A deleted alias comes back when the task runs again and still finds it.
 
 ## API and MCP tools
 
