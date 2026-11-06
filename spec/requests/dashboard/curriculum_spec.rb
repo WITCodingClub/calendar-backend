@@ -47,6 +47,18 @@ RSpec.describe "/dashboard/curriculum", type: :request do
       expect(response.body).not_to include("<svg width")
     end
 
+    it "links each program without a plan, and keeps the links after an error" do
+      minor = create(:degree_program, slug: "gadget-minor", name: "Gadget Minor")
+      create(:requirement_set, degree_program: minor, catalog_year: catalog_year)
+      create(:student_program, :minor, user: user, degree_program: minor, catalog_year: catalog_year)
+
+      get dashboard_curriculum_path(program: "widget-design-bs", plan: "No Such Plan")
+
+      links = Nokogiri::HTML(response.body).css("nav[aria-label=Programs] a").pluck("href")
+      expect(response.body).to include("No plan No Such Plan")
+      expect(links).to eq([ dashboard_curriculum_path(program: "widget-design-bs"), dashboard_curriculum_path(program: "gadget-minor") ])
+    end
+
     it "says when the program has no plan of study" do
       plan.destroy!
 

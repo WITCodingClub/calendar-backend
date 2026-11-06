@@ -9,28 +9,31 @@
     <p class="m3-card p-4 text-sm text-on-error-container bg-error-container" role="alert"><%= @error %></p>
   <% end %>
 
+  <%# A program link sends no plan, because each program has its own plans. %>
+  <% if @programs.size > 1 || (@graph.nil? && @error && @programs.any?) %>
+    <nav aria-label="Programs" class="flex flex-wrap items-center gap-2 text-sm">
+      <span class="text-on-surface-variant">Program:</span>
+      <% @programs.each do |program| %>
+        <% current = @graph && @graph[:program] == program[:program] %>
+        <%= link_to "#{program[:name]} (#{program[:catalog_year]})", dashboard_curriculum_path(program: program[:program]),
+            class: (current ? "m3-badge-primary" : "m3-badge-secondary hover:underline"), "aria-current": (current ? "page" : nil) %>
+      <% end %>
+    </nav>
+  <% end %>
+
   <% if @graph.nil? %>
     <% unless @error %>
       <%= render "shared/empty_state", icon: :academic_cap, message: "No major with a plan of study yet.",
           hint: "The WIT Calendar browser extension reads your programs from LeopardWeb when you process a term. Open the extension and process a term." %>
     <% end %>
   <% else %>
-    <% if @graph[:programs].size > 1 || @graph[:plans].size > 1 %>
+    <% if @graph[:plans].size > 1 %>
       <%= form_with url: dashboard_curriculum_path, method: :get, class: "m3-card p-4 flex flex-col sm:flex-row gap-3 sm:items-end" do |f| %>
-        <% if @graph[:programs].size > 1 %>
-          <div class="flex-1">
-            <%= f.label :program, "Program", class: "m3-label" %>
-            <%= f.select :program, options_for_select(@graph[:programs].map { |program| [ "#{program[:name]} (#{program[:catalog_year]})", program[:program] ] }, @graph[:program]), {}, class: "m3-select w-full" %>
-          </div>
-        <% else %>
-          <%= f.hidden_field :program, value: @graph[:program] %>
-        <% end %>
-        <% if @graph[:plans].size > 1 %>
-          <div class="flex-1">
-            <%= f.label :plan, "Plan", class: "m3-label" %>
-            <%= f.select :plan, options_for_select(@graph[:plans], @graph[:plan]), {}, class: "m3-select w-full" %>
-          </div>
-        <% end %>
+        <%= f.hidden_field :program, value: @graph[:program] %>
+        <div class="flex-1">
+          <%= f.label :plan, "Plan", class: "m3-label" %>
+          <%= f.select :plan, options_for_select(@graph[:plans], @graph[:plan]), {}, class: "m3-select w-full" %>
+        </div>
         <%= f.submit "Show", name: nil, class: "m3-btn-filled" %>
       <% end %>
     <% end %>
@@ -50,8 +53,15 @@
     <% else %>
       <% next_semester = @graph[:semesters].find { |semester| semester[:next] } %>
       <%= render "shared/section_card", id: "next-semester",
-          title: (next_semester ? "Next in your plan: #{next_semester[:label]}" : "Every semester is done or in progress"),
-          description: "The first semester of your plan with a course you have not taken. Confirm your plan with your academic advisor." do %>
+          title: (next_semester ? "Next in your plan: #{next_semester[:label]}" : "No open course left to check"),
+          description: (next_semester ? "The first semester after the ones you started that has a course you have not taken. Confirm your plan with your academic advisor." : "The rows still open, such as free electives, are ones WIT Calendar cannot check. Ask your academic advisor.") do %>
+        <% if @graph[:behind].any? %>
+          <p class="px-5 pt-3 text-sm text-on-surface-variant" id="behind">
+            Still open from earlier semesters:
+            <%= safe_join(@graph[:behind].map { |row| row[:code] || row[:label] || row[:options].join(" or ") }, ", ") %>.
+            WIT Calendar does not know AP credit, transfer credit, or substitutions.
+          </p>
+        <% end %>
         <% if next_semester %>
           <ul class="divide-y divide-outline-variant">
             <% next_semester[:nodes].each do |node| %>

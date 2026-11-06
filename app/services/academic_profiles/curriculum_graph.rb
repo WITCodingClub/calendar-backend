@@ -6,10 +6,16 @@ module AcademicProfiles
   # course that lists it as a prerequisite. The status of each node comes from
   # AcademicProfiles::DegreeProgress, so it is done, in_progress, or open.
   #
-  # next_semester is the first semester with an open row that can be
-  # checked: the courses the student registers for next, when they follow the
-  # plan. A free elective cannot be checked, so it stays open and does not
-  # hold the next semester back.
+  # Without a program argument, it shows the student's major with a plan of
+  # study, before a minor.
+  #
+  # next_semester is the first semester after the last one with a done or
+  # in-progress row that still has an open row WIT Calendar can check: the
+  # courses the student registers for next, when they follow the plan. Open
+  # rows of earlier semesters are listed in behind, so a course with AP or
+  # transfer credit that WIT Calendar does not know does not hold the student
+  # in Year 1. A free elective cannot be checked, so it never makes a
+  # semester next.
   #
   # A focus course adds the courses that come before it (its prerequisites)
   # and the courses it unlocks, each with the student's status. The focus can
@@ -32,11 +38,13 @@ module AcademicProfiles
     # Raises DegreeProgress::NoProgramError, or Catalog::FilterError for a bad
     # program, catalog year, or plan.
     def call
-      progress = DegreeProgress.new(@user, program: @program, catalog_year: @catalog_year, plan: @plan, today: @today).call
+      @progress = DegreeProgress.new(@user, program: @program, catalog_year: @catalog_year, plan: @plan, today: @today)
+      progress = @progress.call
       @statuses = course_statuses(progress[:courses])
-      program = progress[:programs].first
+      program = pick_program(progress[:programs])
       nodes = nodes_for(program)
       semesters = semesters_for(nodes)
+      upcoming = semesters.find { |semester| semester[:next] }
 
       {
         program:       program[:program],
@@ -47,23 +55,41 @@ module AcademicProfiles
         programs:      own_programs,
         counts:        program[:counts],
         semesters:     semesters,
-        next_semester: semesters.find { |semester| semester[:next] }&.slice(:year, :season, :label),
+        next_semester: upcoming&.slice(:year, :season, :label),
+        behind:        behind(semesters, upcoming),
         edges:         edges_for(nodes),
         focus:         focus_json,
         assumptions:   progress[:assumptions]
       }
     end
 
+    # The student's own programs that link to an imported catalog year, so a
+    # page can switch between them. Majors come first.
+    def own_programs
+      @own_programs ||= begin
+        programs = @user.student_programs.active.includes(:degree_program, :catalog_year).order(:id).filter_map do |program|
+          next if program.degree_program.nil? || !program.catalog_year&.imported?
+
+          { program: program.degree_program.slug, name: program.degree_program.name,
+            catalog_year: program.catalog_year.name, role: program.role }
+        end
+        programs.uniq { |program| program[:program] }
+                .each_with_index.sort_by { |program, index| [ program[:role] == "major" ? 0 : 1, index ] }
+                .map(&:first)
+      end
+    end
+
     private
 
-    # The student's own programs that link to an imported catalog year, so a
-    # page can switch between them.
-    def own_programs
-      @user.student_programs.active.includes(:degree_program, :catalog_year).order(:id).filter_map do |program|
-        next if program.degree_program.nil? || !program.catalog_year&.imported?
+    # The program argument, or the student's first major with a plan of
+    # study. A minor has no plan, so it comes last.
+    def pick_program(programs)
+      return programs.first if @program
 
-        { program: program.degree_program.slug, name: program.degree_program.name, catalog_year: program.catalog_year.name }
-      end.uniq
+      order = own_programs.each_with_index.to_h { |program, index| [ program[:program], index ] }
+      programs.each_with_index.min_by do |program, index|
+        [ program[:plan] ? 0 : 1, order.fetch(program[:program], order.size), index ]
+      end.first
     end
 
     # One node for each plan row. A program with no plan of study, such as a
@@ -89,36 +115,59 @@ module AcademicProfiles
       end
     end
 
-    # The semesters in plan order. The first one with an open row is next.
+    # The semesters in plan order, with the next one marked.
     def semesters_for(nodes)
-      next_found = false
-      nodes.group_by { |node| [ node[:year], node[:season] ] }.map do |(year, season), group|
-        upcoming = !next_found && group.any? { |node| node[:status] == "open" && node[:checkable] }
-        next_found ||= upcoming
+      semesters = nodes.group_by { |node| [ node[:year], node[:season] ] }.map do |(year, season), group|
         { year: year, season: season, label: "Year #{year} #{SEASON_NAMES.fetch(season, season.to_s.titleize)}",
-          next: upcoming, nodes: group }
+          next: false, nodes: group }
+      end
+      index = next_index(semesters)
+      semesters[index][:next] = true if index
+      semesters
+    end
+
+    # The first semester after the last one the student started that has an
+    # open row to check. When no later semester has one, the first semester
+    # with an open row to check.
+    def next_index(semesters)
+      started = semesters.rindex { |semester| semester[:nodes].any? { |node| node[:status] != "open" } } || -1
+      openable = ->(semester) { semester[:nodes].any? { |node| open_to_check?(node) } }
+      later = semesters.each_index.find { |index| index > started && openable.call(semesters[index]) }
+      later || semesters.index(&openable)
+    end
+
+    def open_to_check?(node) = node[:status] == "open" && node[:checkable]
+
+    # The open rows to check in the semesters before the next one.
+    def behind(semesters, upcoming)
+      return [] if upcoming.nil?
+
+      semesters.take_while { |semester| !semester.equal?(upcoming) }.flat_map do |semester|
+        semester[:nodes].select { |node| open_to_check?(node) }
+                        .map { |node| node.slice(:id, :kind, :code, :label, :options).merge(semester: semester[:label]) }
       end
     end
 
-    # An edge from the node of a prerequisite to the node of the course that
-    # needs it. A node stands for its own code, the options of a choice, and
-    # the course that met it.
+    # An edge from each node of a prerequisite to each node of the course
+    # that needs it. A node stands for its own code and the course that met
+    # it. A choice that is still open stands for each of its options.
     def edges_for(nodes)
-      node_for = {}
+      nodes_for = Hash.new { |hash, code| hash[code] = [] }
       nodes.each do |node|
-        [ node[:code], *node[:options], node[:course] ].compact.each { |code| node_for[code] ||= node[:id] }
+        codes = node[:course] ? [ node[:code], node[:course] ] : [ node[:code], *node[:options] ]
+        codes.compact.uniq.each { |code| nodes_for[code] << node[:id] }
       end
-      return [] if node_for.empty?
+      return [] if nodes_for.empty?
 
-      courses = catalog_courses(node_for.keys)
+      courses = catalog_courses(nodes_for.keys)
       return [] if courses.empty?
 
       CoursePrerequisite.where(catalog_course_id: courses.keys, required_catalog_course_id: courses.keys)
                         .pluck(:required_catalog_course_id, :catalog_course_id)
-                        .filter_map do |required_id, course_id|
-        from = node_for[courses[required_id]]
-        to = node_for[courses[course_id]]
-        { from: from, to: to } if from && to && from != to
+                        .flat_map do |required_id, course_id|
+        nodes_for.fetch(courses[required_id], []).product(nodes_for.fetch(courses[course_id], []))
+                 .reject { |from, to| from == to }
+                 .map { |from, to| { from: from, to: to } }
       end.uniq
     end
 
@@ -159,13 +208,17 @@ module AcademicProfiles
       end
     end
 
-    # The best status of each course the student took, by code. A course not
-    # passed is open again.
+    # The best status of each course the student took, by code, also under
+    # its old or new codes (CourseCodeAlias). A course not passed is open
+    # again.
     def course_statuses(courses)
       courses.each_with_object({}) do |course, statuses|
         status = course[:status] == "not_passed" ? "open" : course[:status]
-        current = statuses[course[:code]]
-        statuses[course[:code]] = status if current.nil? || rank(status) < rank(current)
+        subject, number = course[:code].split
+        @progress.equivalent_keys([ subject, number.to_i ]).each do |key|
+          code = key.join(" ")
+          statuses[code] = status if statuses[code].nil? || rank(status) < rank(statuses[code])
+        end
       end
     end
 

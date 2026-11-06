@@ -73,6 +73,11 @@ module AcademicProfiles
       }
     end
 
+    # A course key ([subject_code, course_number]) and its old or new codes
+    # (CourseCodeAlias). AcademicProfiles::CurriculumGraph gives a course the
+    # status of its alias with it.
+    def equivalent_keys(key) = equivalents(key)
+
     private
 
     # The requirement sets to check, each with its plan name and the

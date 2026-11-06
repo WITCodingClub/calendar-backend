@@ -12,6 +12,7 @@ module Dashboard
     ROW_GAP = 14
     HEADER_HEIGHT = 32
     PADDING = 8
+    SAME_COLUMN_BEND = 32
 
     STATUS_LABELS = { "done" => "Done", "in_progress" => "In progress", "open" => "Open", "unchecked" => "Not checked" }.freeze
     STATUS_BADGES = { "done" => "m3-badge-tertiary", "in_progress" => "m3-badge-secondary", "open" => "m3-badge-primary",
@@ -37,7 +38,9 @@ module Dashboard
 
       {
         positions: positions,
-        width:     (PADDING * 2) + (columns * NODE_WIDTH) + ([ columns - 1, 0 ].max * COLUMN_GAP),
+        # The right side has room for an edge between two nodes of the last
+        # column, which bends out to the right.
+        width:     PADDING + SAME_COLUMN_BEND + (columns * NODE_WIDTH) + ([ columns - 1, 0 ].max * COLUMN_GAP),
         height:    HEADER_HEIGHT + (rows * NODE_HEIGHT) + ([ rows - 1, 0 ].max * ROW_GAP) + PADDING
       }
     end
@@ -53,7 +56,7 @@ module Dashboard
       y2 = to[:y] + (NODE_HEIGHT / 2)
       if from[:x] == to[:x]
         x = from[:x] + NODE_WIDTH
-        return "M#{x},#{y1} C#{x + 28},#{y1} #{x + 28},#{y2} #{x},#{y2}"
+        return "M#{x},#{y1} C#{x + SAME_COLUMN_BEND - 4},#{y1} #{x + SAME_COLUMN_BEND - 4},#{y2} #{x},#{y2}"
       end
 
       x1 = from[:x] + NODE_WIDTH

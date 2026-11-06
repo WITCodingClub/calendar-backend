@@ -151,7 +151,9 @@ flowchart TD
 
 - Each plan row is a node, with its status from `AcademicProfiles::DegreeProgress`. The nodes are grouped by semester in plan order.
 - An edge goes from a prerequisite to the course that needs it, when both are in the plan. The edges come from the `CoursePrerequisite` rows. A choice stands for each of its options, and a met elective slot stands for the course that met it.
-- `next_semester` is the first semester with an open row that can be checked. A free elective cannot be checked, so it does not hold the next semester back.
+- Without `program`, it shows the student's first major with a plan of study. A minor comes after the majors. `programs` lists the student's linked programs, majors first.
+- `next_semester` is the first semester after the last one with a done or in-progress row that has an open row WIT Calendar can check. `behind` lists the open rows of the semesters before it. WIT Calendar does not know AP credit, transfer credit, or substitutions, so such a row stays open and goes in `behind`. A free elective cannot be checked, so it never makes a semester next.
+- The status of a course in the focus lists also counts a course the student took under an old or new code (`CourseCodeAlias`), the same as the plan rows.
 - `focus` adds the courses that come before the focus course and the courses it unlocks, each with the student's status. The focus can be any catalog course, also one outside the plan. An unknown code answers 422. The dashboard keeps the graph and shows the error.
 - The dashboard draws the graph as an SVG on the server (`Dashboard::CurriculumHelper`), with no JavaScript. Each course node links to the same page with that course as the focus.
 
