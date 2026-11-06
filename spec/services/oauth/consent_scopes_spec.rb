@@ -30,10 +30,24 @@ RSpec.describe Oauth::ConsentScopes do
     expect(checked(consent)).to eq(%w[schedule:read notifications:write])
   end
 
-  it "turns the legacy read scope into the read scopes" do
+  it "checks the new box of a step-up from a token with other change scopes" do
+    consent = described_class.new("catalog schedule:read settings:write programs:write", previous: "catalog schedule:read settings:write")
+
+    expect(checked(consent)).to eq(%w[schedule:read settings:write programs:write])
+  end
+
+  # A client that cached the scope list before programs:read and
+  # programs:write existed asks for all the other scopes.
+  it "leaves the change boxes unchecked for an old full list" do
+    consent = described_class.new((McpTools::Scopes::NAMES - %w[programs:read programs:write]).join(" "))
+
+    expect(checked(consent)).to eq(%w[schedule:read friends:read settings:read])
+  end
+
+  it "turns the legacy read scope into the read scopes of the time before the split" do
     consent = described_class.new("read")
 
-    expect(consent.requested_scope).to eq("catalog schedule:read friends:read settings:read programs:read")
+    expect(consent.requested_scope).to eq("catalog schedule:read friends:read settings:read")
     expect(consent.groups).not_to have_key(:change)
   end
 

@@ -11,10 +11,10 @@ module Api
     # Params: program (a slug from GET /api/v1/catalog/programs), catalog_year
     # (optional, the newest catalog year when blank).
     def create
-      program = AcademicProfiles::PlannedPrograms.new(current_user)
-                                                 .build(program: params[:program], catalog_year: params[:catalog_year])
+      planned = AcademicProfiles::PlannedPrograms.new(current_user)
+      program = planned.build(program: params[:program], catalog_year: params[:catalog_year])
       authorize program, :create?
-      program.save!
+      planned.save!(program)
 
       render json: StudentProgramSerializer.new(program).as_json, status: :created
     rescue AcademicProfiles::InvalidProfileError => e

@@ -16,6 +16,10 @@ RSpec.describe McpTools::MyPrograms do
     expect(result.content.first[:text]).to include("Your programs")
   end
 
+  it "is not in a legacy read token, which gives only the read scopes from before the split" do
+    expect(call(scopes: McpTools::Scopes.expand("read")).error?).to be(true)
+  end
+
   it "lists the active, planned, and ended programs with the catalog link and the profile" do
     year = create(:catalog_year, :imported, start_year: 2025)
     major = create(:degree_program, slug: "widget-design-bs")

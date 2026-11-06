@@ -65,7 +65,7 @@ module McpTools
       message = "Add #{row.name} (#{row.catalog_year_name} catalog) to your planned programs in WIT Calendar. " \
                 "This is a plan only. It does not declare the program at Wentworth."
       with_confirmation(message, unchanged: -> { current(nil) }) do
-        row.save!
+        planned.save!(row)
         current(row, "added")
       end
     rescue AcademicProfiles::InvalidProfileError => e

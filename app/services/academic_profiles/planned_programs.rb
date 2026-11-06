@@ -34,17 +34,11 @@ module AcademicProfiles
       raise InvalidProfileError.new("No program #{program} in the #{year.name} catalog", code: "unknown_program") if set.nil?
 
       degree_program = set.degree_program
-      if user.student_programs.where(status: %w[active planned], degree_program: degree_program).exists?
-        raise InvalidProfileError.new("#{set.name} is already in your programs", code: "duplicate_program")
-      end
-      if user.student_programs.planned.count >= MAX_PLANNED
-        raise InvalidProfileError.new("You can plan at most #{MAX_PLANNED} programs", code: "too_many_programs")
-      end
 
       # StudentProgram.new, not user.student_programs.build: an unsaved row
       # in the association would show in the user's programs when the student
       # declines the change.
-      StudentProgram.new(
+      row = StudentProgram.new(
         user:           user,
         status:         :planned,
         source:         :student,
@@ -55,6 +49,19 @@ module AcademicProfiles
         degree_program: degree_program,
         catalog_year:   year
       )
+      check!(row)
+      row
+    end
+
+    # Saves a row from build. The checks run again under a lock on the user,
+    # so two adds at the same time cannot save the same program twice or
+    # pass MAX_PLANNED. Raises InvalidProfileError.
+    def save!(row)
+      user.with_lock do
+        check!(row)
+        row.save!
+      end
+      row
     end
 
     # A planned row of the user by its public id, or by the slug of its
@@ -70,6 +77,15 @@ module AcademicProfiles
     end
 
     private
+
+    def check!(row)
+      if user.student_programs.where(status: %w[active planned], degree_program_id: row.degree_program_id).exists?
+        raise InvalidProfileError.new("#{row.name} is already in your programs", code: "duplicate_program")
+      end
+      return if user.student_programs.planned.count < MAX_PLANNED
+
+      raise InvalidProfileError.new("You can plan at most #{MAX_PLANNED} programs", code: "too_many_programs")
+    end
 
     def find_catalog_year(query, value)
       year = query.catalog_year(value)

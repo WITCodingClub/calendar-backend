@@ -50,9 +50,11 @@ module McpTools
     NAMES   = ALL.map(&:name).freeze
 
     # The scope of tokens issued before the scopes were split. It still gives
-    # every read scope, so those connections keep the tools they had.
+    # the read scopes of that time, so those connections keep the tools they
+    # had. A read scope added later, such as programs:read, needs the
+    # student's consent, so the list is fixed.
     LEGACY_READ = "read"
-    LEGACY_READ_SCOPES = ALL.select { |scope| scope.group == :read }.map(&:name).freeze
+    LEGACY_READ_SCOPES = %w[catalog schedule:read friends:read settings:read].freeze
 
     # Public data. Every token gets it, so the consent page has no checkbox.
     ALWAYS = "catalog"

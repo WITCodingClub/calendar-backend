@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-# One StudentProgram, for GET /api/user/academic_profile, GET
-# /api/user/programs, POST /api/user/planned_programs, and the MCP tools
-# my_programs and update_my_planned_programs.
+# One StudentProgram, for GET /api/user/programs, POST
+# /api/user/planned_programs, and the MCP tools my_programs and
+# update_my_planned_programs. GET /api/user/academic_profile keeps its own
+# shape (AcademicProfileSerializer), the extension contract of #529.
 #
 # program is the slug of the linked DegreeProgram, which degree_requirements
 # and GET /api/v1/catalog/programs/:slug take. It is null when the program

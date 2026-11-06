@@ -76,6 +76,8 @@ flowchart TD
 - `AcademicProfiles::Sync` and `ProgramMatcher.relink_active` read only active rows, so a LeopardWeb sync never changes or ends a planned row.
 - A planned row is deleted when the student removes it. A LeopardWeb row is never deleted.
 - An ended program can be planned again, for example a major the student changed.
+- A planned program stays when LeopardWeb later shows the same program, because a sync never changes a planned row. The student removes it. The duplicate check finds an active row only when it links to the same `DegreeProgram`.
+- `save!` runs the duplicate and limit checks again under a lock on the user, so two adds at the same time cannot save the same program twice.
 - Pathways (3+1, 4+1) cannot be planned yet, because no import fills `ProgramPathway`. A student can plan the master's program alone.
 
 ## Course outcomes

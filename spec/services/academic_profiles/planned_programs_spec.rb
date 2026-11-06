@@ -69,6 +69,25 @@ RSpec.describe AcademicProfiles::PlannedPrograms do
     end
   end
 
+  describe "#save!" do
+    it "saves a built row" do
+      row = planned.save!(planned.build(program: "gear-minor"))
+
+      expect(row).to be_persisted
+    end
+
+    # Two adds of the same program at the same time both pass the check in
+    # build. The check in save! runs again under the lock.
+    it "checks again before it saves, so a second add of the same program fails" do
+      first = planned.build(program: "gear-minor")
+      second = described_class.new(user).build(program: "gear-minor")
+      planned.save!(first)
+
+      expect(error_code { planned.save!(second) }).to eq("duplicate_program")
+      expect(user.student_programs.planned.count).to eq(1)
+    end
+  end
+
   describe "#find" do
     it "finds a planned row of the user by public id or by program slug" do
       row = create(:student_program, :planned, catalog_year: newest_year, user: user, degree_program: minor)
