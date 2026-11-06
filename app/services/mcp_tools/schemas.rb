@@ -384,6 +384,38 @@ module McpTools
       location_name: nullable(STRING)
     ).freeze
 
+    # StudentProgramSerializer.
+    STUDENT_PROGRAM = object(
+      id:                STRING,
+      role:              { type: "string", enum: StudentProgram::ROLES.values },
+      status:            { type: "string", enum: StudentProgram::STATUSES.values },
+      code:              nullable(STRING),
+      name:              STRING,
+      degree:            nullable(STRING),
+      college:           nullable(STRING),
+      department:        nullable(STRING),
+      concentration:     nullable(STRING),
+      study_path:        nullable(STRING),
+      catalog_term:      nullable(STRING),
+      catalog_term_code: nullable(STRING),
+      catalog_year:      nullable(STRING),
+      program:           nullable(STRING),
+      matched:           nullable(BOOLEAN),
+      source:            { type: "string", enum: StudentProgram::SOURCES.values },
+      ended_at:          nullable(DATE_TIME)
+    ).freeze
+
+    # StudentProgramsSerializer.
+    STUDENT_PROGRAMS_PROPERTIES = {
+      level:                nullable(STRING),
+      class_standing:       nullable(STRING),
+      admit_term:           nullable(STRING),
+      leopardweb_synced_at: nullable(DATE_TIME),
+      programs:             array(STUDENT_PROGRAM),
+      planned_programs:     array(STUDENT_PROGRAM),
+      ended_programs:       array(STUDENT_PROGRAM)
+    }.freeze
+
     # AcademicProfiles::DegreeProgress. A plan row has the plan keys, and a
     # program with no plan (a minor) has one elective_list row for each list.
     PROGRESS_STATUS = { type: "string", enum: %w[done in_progress open] }.freeze

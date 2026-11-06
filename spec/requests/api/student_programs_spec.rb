@@ -1,0 +1,95 @@
+# frozen_string_literal: true
+
+require "rails_helper"
+
+RSpec.describe "/api/user/programs and /api/user/planned_programs", type: :request do
+  let(:user) { create(:user) }
+  let!(:catalog_year) { create(:catalog_year, :imported, start_year: 2026) }
+  let(:minor) { create(:degree_program, :minor, slug: "gear-minor", name: "Gear Minor") }
+
+  before { create(:requirement_set, degree_program: minor, catalog_year: catalog_year, name: "Gear Minor") }
+
+  describe "GET /api/user/programs" do
+    it "returns the active, planned, and ended programs of the user only" do
+      active = create(:student_program, user: user)
+      planned = create(:student_program, :planned, catalog_year: catalog_year, user: user, degree_program: minor)
+      ended = create(:student_program, :ended, user: user)
+      create(:student_program)
+
+      get "/api/user/programs", headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body["programs"].pluck("id")).to eq([ active.public_id ])
+      expect(body["planned_programs"]).to contain_exactly(include("id" => planned.public_id, "program" => "gear-minor",
+                                                                  "catalog_year" => "2026-2027", "status" => "planned"))
+      expect(body["ended_programs"].pluck("id")).to eq([ ended.public_id ])
+    end
+
+    it "returns the same data as the my_programs tool" do
+      create(:student_program, user: user)
+
+      get "/api/user/programs", headers: auth_headers_for(user)
+
+      tool = McpTools::MyPrograms.call(server_context: mcp_context(user)).structured_content.except(:advisory)
+      expect(response.parsed_body).to eq(JSON.parse(tool.to_json))
+    end
+  end
+
+  describe "POST /api/user/planned_programs" do
+    it "adds a planned program" do
+      post "/api/user/planned_programs", params: { program: "gear-minor" }, headers: auth_headers_for(user), as: :json
+
+      expect(response).to have_http_status(:created)
+      row = user.student_programs.sole
+      expect(row).to have_attributes(status: "planned", role: "minor", source: "student")
+      expect(response.parsed_body).to include("id" => row.public_id, "program" => "gear-minor", "status" => "planned")
+    end
+
+    it "answers 422 with a code for a missing, unknown, or duplicate program" do
+      headers = auth_headers_for(user)
+
+      post "/api/user/planned_programs", params: {}, headers: headers, as: :json
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body).to eq("error" => "program is required", "code" => "invalid_profile")
+
+      post "/api/user/planned_programs", params: { program: "basket-weaving-bs" }, headers: headers, as: :json
+      expect(response.parsed_body["code"]).to eq("unknown_program")
+
+      post "/api/user/planned_programs", params: { program: "gear-minor", catalog_year: "2016-2017" }, headers: headers, as: :json
+      expect(response.parsed_body["code"]).to eq("unknown_catalog_year")
+
+      create(:student_program, :minor, user: user, degree_program: minor)
+      post "/api/user/planned_programs", params: { program: "gear-minor" }, headers: headers, as: :json
+      expect(response.parsed_body["code"]).to eq("duplicate_program")
+    end
+  end
+
+  describe "DELETE /api/user/planned_programs/:id" do
+    it "removes a planned program by public id or slug" do
+      row = create(:student_program, :planned, catalog_year: catalog_year, user: user, degree_program: minor)
+
+      delete "/api/user/planned_programs/#{row.public_id}", headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:no_content)
+      expect(StudentProgram.exists?(row.id)).to be(false)
+
+      create(:student_program, :planned, catalog_year: catalog_year, user: user, degree_program: minor)
+      delete "/api/user/planned_programs/gear-minor", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:no_content)
+      expect(user.student_programs).to be_empty
+    end
+
+    it "answers 404 for a LeopardWeb program and for another user's planned program" do
+      active = create(:student_program, user: user)
+      other = create(:student_program, :planned, catalog_year: catalog_year)
+
+      delete "/api/user/planned_programs/#{active.public_id}", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:not_found)
+
+      delete "/api/user/planned_programs/#{other.public_id}", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:not_found)
+      expect(StudentProgram.where(id: [ active.id, other.id ]).count).to eq(2)
+    end
+  end
+end

@@ -57,6 +57,22 @@ RSpec.describe StudentProgram, type: :model do
     expect(program.catalog_year_name).to eq("2025-2026")
   end
 
+  # A conditional presence check: only a planned row needs the catalog link.
+  it "needs a degree program and a catalog year only when it is planned" do
+    planned = build(:student_program, :planned, degree_program: nil, catalog_year: nil)
+
+    expect(planned).not_to be_valid
+    expect(planned.errors.attribute_names).to contain_exactly(:degree_program, :catalog_year)
+    expect(build(:student_program, degree_program: nil, catalog_year: nil)).to be_valid
+  end
+
+  it "names the catalog year of a planned row from its CatalogYear" do
+    program = build(:student_program, :planned, catalog_year: build(:catalog_year, start_year: 2026))
+
+    expect(program.catalog_term).to be_nil
+    expect(program.catalog_year_name).to eq("2026-2027")
+  end
+
   describe "#matched?" do
     it "is true with a degree program, false for an imported year without one, and nil before the import" do
       imported = create(:catalog_year, :imported, start_year: 2025)

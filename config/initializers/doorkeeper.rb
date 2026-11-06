@@ -38,7 +38,7 @@ Doorkeeper.configure do
   # the two match. "read" is the scope of tokens issued before the split.
   default_scopes :catalog
   optional_scopes :"schedule:read", :"friends:read", :"settings:read", :"programs:read",
-                  :"settings:write", :"notifications:write",
+                  :"settings:write", :"notifications:write", :"programs:write",
                   :"friends:requests", :"friends:meetings", :"friends:groups",
                   :read
   enforce_configured_scopes

@@ -52,6 +52,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `catalog_graphql` | Any read-only query on the catalog schema. | `POST /api/v1/graphql` | all |
 | `my_courses` | Your courses in one term, with their CRNs, weekly meeting times, and rooms. | `GET /api/user/processed_events` | |
 | `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
+| `my_programs` | Your programs from LeopardWeb with the catalog year and the program slug of each, your planned programs, and your ended programs. | `GET /api/user/programs` | |
 | `my_degree_progress` | The requirements of your programs next to the courses you took or take: each row done, in progress, or open, and the open rows. A planning help, not a degree audit. | `GET /api/user/degree_progress` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |
@@ -63,6 +64,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `update_class_settings` | **Changes** the event title, description, location, color, visibility, or reminders of one class meeting. | `PATCH`, `DELETE /api/meeting_times/:id/preference` | |
 | `update_calendar_settings` | **Changes** the same settings for all classes, one kind of class, final exams, or university events. | `PATCH`, `DELETE /api/calendar_preferences/:scope` | |
 | `set_notifications` | **Changes** whether your reminders are paused. | `PATCH /api/user/notifications` | |
+| `update_my_planned_programs` | **Changes** your planned programs: adds or removes a program from the degree catalog that you think about taking. It never changes a program from LeopardWeb. | `POST /api/user/planned_programs`, `DELETE /api/user/planned_programs/:id` | |
 
 Times are in the `America/New_York` time zone.
 
@@ -290,7 +292,7 @@ A prompt is a task that the student starts from the client, for example as a sla
 | --- | --- | --- |
 | `plan_term_schedule` | `term`, `courses`, `preferences` | Plans one term: `list_terms`, `my_courses`, `my_course_history`, `get_course` for the prerequisites of each course, `search_sections` with the preferences as filters, then `check_schedule` until each option has no conflicts. Gives one to three options with their CRNs. |
 | `check_my_schedule` | `term` | Checks the student's courses: `my_courses`, `check_schedule` on their CRNs, `get_course` for corequisites, and `my_finals` for exams at the same time. |
-| `plan_degree_progression` | `program`, `catalog_year`, `graduation_term` | Plans each term to graduation: `my_course_history`, then `list_programs` and `degree_requirements` for the required courses, then `get_course` for prerequisites, corequisites, and the terms each course is usually offered. Lists the risks. |
+| `plan_degree_progression` | `program`, `catalog_year`, `graduation_term` | Plans each term to graduation: `my_course_history`, then `my_programs`, `list_programs`, and `degree_requirements` for the required courses, then `get_course` for prerequisites, corequisites, and the terms each course is usually offered. Lists the risks. |
 | `find_class_for_free_time` | `term`, `subject`, `days`, `times` | Finds sections that fit the student's free time: `my_busy_times`, `search_sections` with time filters, then `check_schedule`. |
 
 - `term` takes a term uid (`202710`) or a name (`Spring 2027`). Without it, `plan_term_schedule` and `find_class_for_free_time` use the next fall or spring term, and tell the model to confirm the term with the student. They skip summer, because a student in March registers for fall. `check_my_schedule` uses the next term if the student has courses in it, else the current term.
@@ -298,7 +300,7 @@ A prompt is a task that the student starts from the client, for example as a sla
 - The server cuts an argument at 500 characters. The message puts each argument in quotes.
 - Arguments that are not an object of strings get `-32602` (Invalid params). The server does not report this client error.
 - A prompt reads no student data. The tools read it when the model calls them, with the scopes of the token. `my_courses` gives the CRN of each course, so `check_my_schedule` can pass the CRNs to `check_schedule`.
-- `plan_degree_progression` reads the required courses with `list_programs` and `degree_requirements`. Without the `program` and `catalog_year` arguments, the model calls `my_degree_progress`, which gives the student's programs and catalog years. It asks for them when the student has no linked program or the token does not have `programs:read`. The catalog has no data before 2019-2020. For an older catalog year, the model asks the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu.
+- `plan_degree_progression` reads the required courses with `list_programs` and `degree_requirements`. Without the `program` and `catalog_year` arguments, the model calls `my_programs` and asks the student to confirm what it finds, then calls `my_degree_progress` for the requirements that are done, in progress, or open. It asks for them when the student has no programs or the token does not have `programs:read`. The catalog has no data before 2019-2020. For an older catalog year, the model asks the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu.
 
 ### Completions
 
@@ -328,12 +330,13 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 | Scope | Gives | Starts |
 | --- | --- | --- |
 | `catalog` | `list_terms`, `list_subjects`, `search_sections`, `get_section`, `search_courses`, `get_course`, `list_programs`, `degree_requirements`, `list_term_electives`, `similar_sections`, `check_schedule`, `search_instructors`, `get_instructor`, `similar_instructors`, `search_reviews`, `catalog_graphql`, `university_events` | always on, no checkbox (public data) |
-| `schedule:read` | `my_courses`, `my_finals`, `my_busy_times` | checked |
+| `schedule:read` | `my_courses`, `my_course_history`, `my_finals`, `my_busy_times` | checked |
 | `friends:read` | `list_friends`, `friend_busy_times` | checked |
 | `settings:read` | `my_calendar_settings`, `preview_template` | checked |
-| `programs:read` | `my_degree_progress` | checked |
+| `programs:read` | `my_programs`, `my_degree_progress` | checked |
 | `settings:write` | `update_class_settings`, `update_calendar_settings` | unchecked |
 | `notifications:write` | `set_notifications` | unchecked |
+| `programs:write` | `update_my_planned_programs` | unchecked |
 | `friends:requests`, `friends:meetings`, `friends:groups` | reserved for the friend tools | unchecked |
 
 - The server lists every tool to every token. A tool that needs a permission the token lacks says so in its description.

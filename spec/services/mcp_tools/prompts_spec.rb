@@ -149,7 +149,7 @@ RSpec.describe McpTools::Prompts do
     it "reads the requirements from the catalog, after the course history" do
       body = text(described_class)
 
-      expect_in_order(body, %w[my_course_history list_programs degree_requirements get_course])
+      expect_in_order(body, %w[my_course_history my_programs list_programs degree_requirements get_course])
       expect(body).to include("Program: I did not say. Ask me.", "the catalog of the term I started my program in")
     end
 

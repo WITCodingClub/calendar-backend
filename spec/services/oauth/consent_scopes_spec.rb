@@ -31,15 +31,15 @@ RSpec.describe Oauth::ConsentScopes do
   end
 
   it "checks the new box of a step-up from a token with other change scopes" do
-    consent = described_class.new("catalog schedule:read settings:write notifications:write", previous: "catalog schedule:read settings:write")
+    consent = described_class.new("catalog schedule:read settings:write programs:write", previous: "catalog schedule:read settings:write")
 
-    expect(checked(consent)).to eq(%w[schedule:read settings:write notifications:write])
+    expect(checked(consent)).to eq(%w[schedule:read settings:write programs:write])
   end
 
-  # A client that cached the scope list before programs:read existed asks
-  # for all the other scopes.
+  # A client that cached the scope list before programs:read and
+  # programs:write existed asks for all the other scopes.
   it "leaves the change boxes unchecked for an old full list" do
-    consent = described_class.new((McpTools::Scopes::NAMES - %w[programs:read]).join(" "))
+    consent = described_class.new((McpTools::Scopes::NAMES - %w[programs:read programs:write]).join(" "))
 
     expect(checked(consent)).to eq(%w[schedule:read friends:read settings:read])
   end
