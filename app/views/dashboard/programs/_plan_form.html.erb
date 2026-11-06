@@ -1,0 +1,12 @@
+<%# Picks the plan of study of a program, or confirms the assumed one (#867).
+    Locals: program (a StudentProgramSerializer hash with plans) %>
+<%= form_with url: plan_dashboard_program_path(program[:id]), method: :patch,
+    class: "flex flex-wrap items-end gap-2", data: { plan_form: program[:id] } do |f| %>
+  <div>
+    <%= f.label :plan, "Plan of study", for: "plan-#{program[:id]}", class: "m3-label" %>
+    <%= f.select :plan, options_for_select(program[:plans], program[:plan]), {},
+        id: "plan-#{program[:id]}", class: "m3-select" %>
+  </div>
+  <%= f.submit program[:plan_source] == "assumed" ? "Confirm plan" : "Save plan",
+      class: "m3-btn-tonal text-sm", data: { turbo_submits_with: "Saving…" } %>
+<% end %>

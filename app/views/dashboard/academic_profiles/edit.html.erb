@@ -1,0 +1,35 @@
+<% content_for :title, "Correct your profile" %>
+
+<div class="m3-page-narrow space-y-6">
+  <%= render "shared/page_header",
+      title: "Correct your profile",
+      back: [ "My programs", dashboard_programs_path ],
+      description: "Change a value that LeopardWeb sent. WIT Calendar keeps your change until LeopardWeb shows a different profile." %>
+
+  <%= form_with model: @profile, scope: :academic_profile, url: dashboard_academic_profile_path, method: :patch,
+      class: "m3-card p-4 space-y-4", id: "academic-profile-form" do |f| %>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <%= f.label :level, "Level", class: "m3-label" %>
+        <%= f.text_field :level, placeholder: "Undergraduate", maxlength: AcademicProfiles::Sync::MAX_LENGTH, class: "m3-input w-full" %>
+      </div>
+      <div>
+        <%= f.label :class_standing, "Class standing", class: "m3-label" %>
+        <%= f.text_field :class_standing, placeholder: "Junior", maxlength: AcademicProfiles::Sync::MAX_LENGTH, class: "m3-input w-full" %>
+      </div>
+      <div>
+        <%= f.label :admit_term, "Admit term", class: "m3-label" %>
+        <%= f.text_field :admit_term, value: AcademicProfiles::TermCode.label(@profile.admit_term_uid),
+            placeholder: "Fall 2025", class: "m3-input w-full" %>
+      </div>
+      <div>
+        <%= f.label :admit_type, "Admit type", class: "m3-label" %>
+        <%= f.text_field :admit_type, maxlength: AcademicProfiles::Sync::MAX_LENGTH, class: "m3-input w-full" %>
+      </div>
+    </div>
+    <p class="text-xs text-on-surface-variant">
+      WIT Calendar uses your admit term as the start term of a program that has no catalog term.
+    </p>
+    <%= f.submit "Save", class: "m3-btn-filled", data: { turbo_submits_with: "Saving…" } %>
+  <% end %>
+</div>

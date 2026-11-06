@@ -105,6 +105,45 @@ flowchart TD
 - A student can still remove one row of a pathway with `DELETE /api/user/planned_programs/:id`. The pathway stays in `planned_pathways` while one of its rows is planned.
 - Every step uses the same catalog year, the newest one when `catalog_year` is blank.
 
+## Plan of study and start term
+
+`AcademicProfiles::ProgramTimeline` gives each program its plan of study and its start term (#867). `GET /api/user/programs` and `my_programs` send them in each program:
+
+| Field | Value |
+|---|---|
+| `plan` | The plan the student picked (`StudentProgram#plan_name`), or the standard plan of the catalog year. Null for a program with no plan of study, such as a minor, or with no link to the degree catalog. |
+| `plan_source` | `student` when the student picked or confirmed the plan, `assumed` for the standard plan, null with no plan. |
+| `plans` | The names of the plans of the program in its catalog year. |
+| `start_term` | The catalog term from LeopardWeb, the term the student started the program. Without one, the admit term of the profile. Null for a planned program. |
+| `start_term_source` | `catalog_term` or `admit_term`. |
+
+- A semester of a plan maps to a real term from the start term. Year 1 is the academic year of the start term. With a Fall 2025 start, "Year 3, fall" is Fall 2027. With a Spring 2026 start, "Year 1, fall" is Fall 2025. A summer start counts as the start of the next academic year: with Summer 2026, "Year 1, fall" is Fall 2026.
+- A picked plan that a later import renamed falls back to the standard plan, with `plan_source: assumed`.
+- `AcademicProfiles::Sync` updates a matched row in place, so a LeopardWeb sync keeps the picked plan. A row that Sync ends and creates again (a change to a field that names the program) loses it.
+
+## My programs dashboard page
+
+`/dashboard/programs` (#867) shows the profile, the active programs, the planned programs, and the ended programs. It is a help for planning, not a degree audit, and the page says so. The official audit is Stellic.
+
+```mermaid
+flowchart TD
+  P["/dashboard/programs"] --> S["StudentProgramsSerializer, as GET /api/user/programs"]
+  P --> D["DegreeProgress include_planned, as GET /api/user/degree_progress?include_planned=true"]
+  S --> A[Active programs: plan by real term]
+  D --> A
+  S --> W[Planned programs: the courses each adds]
+  D --> W
+  S --> E[Ended programs]
+  C[Correct a profile or program value] --> X[AcademicProfiles::StudentCorrection]
+  X --> Y[AcademicProfiles::Sync with source student]
+  K[Pick or confirm a plan] --> N[StudentProgram#plan_name]
+  L[Add or remove a planned program] --> M[AcademicProfiles::PlannedPrograms]
+```
+
+- **Corrections.** `AcademicProfiles::StudentCorrection` sends the stored profile and every active program to `Sync` with `source: "student"`, with the student's change. It is the same path as the extension settings. Sync does not change the LeopardWeb digests, so the change stays until LeopardWeb shows a different profile or program list. A change to the role, code, name, concentration, study path, or catalog term ends the row and creates a new one, so the old values show in the ended programs.
+- **Plans.** `PATCH /dashboard/programs/:id/plan` saves a plan of an active or a planned program. A student confirms an assumed plan with the same form.
+- **What if.** The planned programs show their open requirements: the courses each one adds. A course that an active program also needs is marked "also in your programs". The planned rows use `AcademicProfiles::PlannedPrograms`, as the API does. Pathways (3+1, 4+1) are not on the page yet.
+
 ## Course outcomes
 
 - Each term in a request replaces the outcomes of that term: a stored CRN that is not in the request is removed. A term that is not in the request does not change.

@@ -45,6 +45,15 @@ authenticate :user do
     resources :meeting_links, only: [ :index, :create, :destroy ]
     resource :settings, only: [ :show ]
 
+    # My programs (#867): the programs from LeopardWeb, the plan of each,
+    # corrections, planned programs, and ended programs. Before resources
+    # :programs, so "profile" and "planned" are not read as a program id.
+    resource  :academic_profile, path: "programs/profile", only: [ :edit, :update ]
+    resources :planned_programs, path: "programs/planned", only: [ :create, :destroy ]
+    resources :programs, only: [ :index, :edit, :update ] do
+      member { patch :plan }
+    end
+
     # Read-only catalog pages (#797): the data of the public catalog API, for
     # any signed-in user. A course code in a path has no space ("COMP2350").
     resources :courses,     only: [ :index, :show ], param: :code

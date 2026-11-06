@@ -43,7 +43,9 @@ RSpec.describe "Dashboard authorization", type: :request do
       "dashboard/friends"               => { id: -> { friend.public_id } },
       "dashboard/meeting_links"         => { id: -> { create(:meeting_link, user: user).public_id } },
       "dashboard/courses"               => { code: -> { create(:catalog_course).code.delete(" ") } },
-      "dashboard/instructors"           => { id: -> { create(:faculty).public_id } }
+      "dashboard/instructors"           => { id: -> { create(:faculty).public_id } },
+      "dashboard/programs"              => { id: -> { create(:student_program, user: user).public_id } },
+      "dashboard/planned_programs"      => { id: -> { create(:student_program, :planned, user: user).public_id } }
     }
   end
 

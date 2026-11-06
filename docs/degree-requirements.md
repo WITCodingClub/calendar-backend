@@ -138,7 +138,8 @@ Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read onl
 `AcademicProfiles::DegreeProgress` is a help for planning, not a degree audit. The official audit is Stellic.
 
 - It checks each active `StudentProgram` that links to a `DegreeProgram` in an imported catalog year, or the `program` argument. Without a linked program it answers with a message that says how to add one, and does not guess.
-- It uses the standard plan (the first plan that is not accelerated), or the `plan` argument. A program with no plan, such as a minor, is checked list by list against `min_courses`, `min_credits`, or every course of a list with neither.
+- With `include_planned` (`GET /api/user/degree_progress?include_planned=true`), it also checks the planned programs. Each program in the result has `status`: `active` or `planned` (null for the `program` argument). The My programs dashboard page uses this to show the courses that a planned program adds (#867).
+- It uses the `plan` argument, or the plan the student picked on the My programs page (`StudentProgram#plan_name`), or the standard plan (the first plan that is not accelerated). A picked plan that a later import renamed falls back to the standard plan. A program with no plan, such as a minor, is checked list by list against `min_courses`, `min_credits`, or every course of a list with neither.
 - A course with a passing `CourseOutcome` is done. A failed, withdrawn, or incomplete outcome does not count. A course with no outcome is done in a past term and in progress in the current or a future term. The result lists these assumptions.
 - A course meets a requirement with the same code, or through a `CourseCodeAlias` in either direction.
 - Each course counts once. Course rows take a course first, then choice rows, then elective slots. A slot with no elective list, such as a free elective, stays open with `checkable: false`.

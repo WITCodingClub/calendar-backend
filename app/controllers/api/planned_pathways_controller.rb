@@ -17,8 +17,13 @@ module Api
       programs.each { |program| authorize program, :create? }
       planned.save_pathway!(pathway, programs)
 
-      render json: { pathway: ProgramPathwaySerializer.new(pathway).as_json,
-                     programs: programs.map { |program| StudentProgramSerializer.new(program).as_json } },
+      # One timeline batch for all rows, so a pathway with many steps does
+      # not query the requirement sets once for each row.
+      timelines = AcademicProfiles::ProgramTimeline.for_programs(
+        programs, admit_term_uid: current_user.academic_profile&.admit_term_uid
+      )
+      render json: { pathway:  ProgramPathwaySerializer.new(pathway).as_json,
+                     programs: programs.map { |program| StudentProgramSerializer.new(program, timeline: timelines.fetch(program)).as_json } },
              status: :created
     rescue AcademicProfiles::InvalidProfileError => e
       render_error e.message, status: :unprocessable_content, code: e.code

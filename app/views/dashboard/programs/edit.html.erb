@@ -1,0 +1,39 @@
+<% content_for :title, "Correct #{@program.name}" %>
+
+<div class="m3-page-narrow space-y-6">
+  <%= render "shared/page_header",
+      title: "Correct a program",
+      back: [ "My programs", dashboard_programs_path ],
+      description: "Change a value that LeopardWeb sent for #{@program.name}. " \
+                   "WIT Calendar keeps your change until LeopardWeb shows a different program list." %>
+
+  <%= form_with model: @program, scope: :program, url: dashboard_program_path(@program.public_id), method: :patch,
+      class: "m3-card p-4 space-y-4", id: "program-form" do |f| %>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <%= f.label :role, "Role", class: "m3-label" %>
+        <%= f.select :role, StudentProgram::ROLES.values.map { |role| [ role.humanize, role ] }, {}, class: "m3-select w-full" %>
+      </div>
+      <div>
+        <%= f.label :catalog_term, "Catalog term", class: "m3-label" %>
+        <%= f.text_field :catalog_term, placeholder: "Fall 2025", class: "m3-input w-full" %>
+      </div>
+      <div class="sm:col-span-2">
+        <%= f.label :name, "Name", class: "m3-label" %>
+        <%= f.text_field :name, required: true, maxlength: AcademicProfiles::Sync::MAX_LENGTH, class: "m3-input w-full" %>
+      </div>
+      <% %i[code degree concentration study_path college department].each do |field| %>
+        <div>
+          <%= f.label field, field.to_s.humanize, class: "m3-label" %>
+          <%= f.text_field field, maxlength: AcademicProfiles::Sync::MAX_LENGTH, class: "m3-input w-full" %>
+        </div>
+      <% end %>
+    </div>
+    <p class="text-xs text-on-surface-variant">
+      The catalog term is the term you started the program. It sets the catalog year of your requirements.
+      A change to the role, name, code, concentration, study path, or catalog term ends this program and adds a new one,
+      so the old values stay in your ended programs.
+    </p>
+    <%= f.submit "Save", class: "m3-btn-filled", data: { turbo_submits_with: "Saving…" } %>
+  <% end %>
+</div>

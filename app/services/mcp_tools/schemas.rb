@@ -403,7 +403,12 @@ module McpTools
       pathway:           nullable(STRING),
       matched:           nullable(BOOLEAN),
       source:            { type: "string", enum: StudentProgram::SOURCES.values },
-      ended_at:          nullable(DATE_TIME)
+      ended_at:          nullable(DATE_TIME),
+      plan:              nullable(STRING),
+      plan_source:       nullable({ type: "string", enum: [ *AcademicProfiles::ProgramTimeline::PLAN_SOURCES, nil ] }),
+      plans:             STRINGS,
+      start_term:        nullable(STRING),
+      start_term_source: nullable({ type: "string", enum: [ "catalog_term", "admit_term", nil ] })
     ).freeze
 
     # ProgramPathwaySerializer.
@@ -454,11 +459,12 @@ module McpTools
       programs:    array(
         object(
           program:      STRING,
+          status:       { type: %w[string null], enum: [ "active", "planned", nil ] },
           name:         STRING,
           catalog_year: STRING,
           plan:         nullable(STRING),
           plans:        STRINGS,
-          counts:       object(done: INTEGER, in_progress: INTEGER, open: INTEGER),
+          counts:      object(done: INTEGER, in_progress: INTEGER, open: INTEGER),
           requirements: array(DEGREE_REQUIREMENT),
           open:         array(
             object(

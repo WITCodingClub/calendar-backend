@@ -1,0 +1,118 @@
+<% content_for :title, "My programs" %>
+
+<div class="m3-page-medium space-y-6">
+  <%= render "shared/page_header",
+      title: "My programs",
+      description: "Your majors, minors, concentrations, and certificates as LeopardWeb shows them, with the plan of study of each." %>
+
+  <div class="m3-card-low p-4 flex items-start gap-3 text-sm text-on-surface" role="note" id="planning-help">
+    <%= icon(:information, css_class: "w-5 h-5 text-primary shrink-0 mt-0.5") %>
+    <p>
+      This page is a help for planning, not an official degree audit. Your official audit is in Stellic.
+      Confirm your plan with your program director and your academic advisor.
+    </p>
+  </div>
+
+  <%= render "shared/section_card", title: "Profile", id: "academic-profile",
+      description: "What the Student Profile page in LeopardWeb says. Correct a value that is wrong." do %>
+    <div class="px-5 py-4 flex flex-wrap items-start justify-between gap-4">
+      <dl class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-sm text-on-surface">
+        <div>
+          <dt class="text-xs text-on-surface-variant">Level</dt>
+          <dd><%= @programs[:level] || "Unknown" %></dd>
+        </div>
+        <div>
+          <dt class="text-xs text-on-surface-variant">Class standing</dt>
+          <dd><%= @programs[:class_standing] || "Unknown" %></dd>
+        </div>
+        <div>
+          <dt class="text-xs text-on-surface-variant">Admit term</dt>
+          <dd><%= @programs[:admit_term] || "Unknown" %></dd>
+        </div>
+        <div>
+          <dt class="text-xs text-on-surface-variant">Read from LeopardWeb</dt>
+          <dd>
+            <% if @programs[:leopardweb_synced_at] %>
+              <%= Time.zone.parse(@programs[:leopardweb_synced_at]).strftime("%b %-d, %Y") %>
+            <% else %>
+              Never
+            <% end %>
+          </dd>
+        </div>
+      </dl>
+      <%= link_to edit_dashboard_academic_profile_path, class: "m3-btn-text text-sm" do %>
+        <%= icon(:pencil, css_class: "w-4 h-4") %> Correct
+      <% end %>
+    </div>
+  <% end %>
+
+  <section class="space-y-3" id="active-programs" aria-labelledby="active-programs-title">
+    <h2 id="active-programs-title" class="text-lg font-semibold text-on-surface">Programs</h2>
+    <% if @programs[:programs].empty? %>
+      <%= render "shared/empty_state",
+          message: "No programs from LeopardWeb yet.",
+          icon: :academic_cap,
+          hint: "Open the WIT Calendar extension and process a term. It reads your programs from the Student Profile page in LeopardWeb." %>
+    <% else %>
+      <% @programs[:programs].each do |program| %>
+        <%= render "dashboard/programs/program", program: program, progress: program_progress(@progress, program) %>
+      <% end %>
+    <% end %>
+  </section>
+
+  <%= render "shared/section_card", title: "Planned programs", id: "planned-programs",
+      description: "What if: add a minor or another program to see the courses it adds. " \
+                   "A plan here does not declare the program at Wentworth, and LeopardWeb sync never changes it." do %>
+    <div class="divide-y divide-outline-variant">
+      <% @programs[:planned_programs].each do |program| %>
+        <%= render "dashboard/programs/planned_program", program: program, progress: @progress,
+            entry: program_progress(@progress, program) %>
+      <% end %>
+
+      <% if @catalog_programs.any? %>
+        <%= form_with url: dashboard_planned_programs_path, method: :post, class: "px-5 py-4 space-y-3", id: "plan-program-form" do |f| %>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="sm:col-span-2">
+              <%= f.label :program, "Program", class: "m3-label" %>
+              <%= f.select :program, grouped_options_for_select(catalog_program_options(@catalog_programs)),
+                  { prompt: "Pick a program" }, required: true, class: "m3-select w-full" %>
+            </div>
+            <div>
+              <%= f.label :catalog_year, "Catalog year", class: "m3-label" %>
+              <%= f.select :catalog_year, @catalog_years.map(&:name), {}, class: "m3-select w-full" %>
+            </div>
+          </div>
+          <p class="text-xs text-on-surface-variant">
+            3+1 and 4+1 pathways cannot be planned yet. You can plan the master's program alone.
+          </p>
+          <%= f.submit "Plan this program", class: "m3-btn-filled text-sm", data: { turbo_submits_with: "Adding…" } %>
+        <% end %>
+      <% else %>
+        <p class="px-5 py-4 text-sm text-on-surface-variant">WIT Calendar has no degree catalog yet, so you cannot plan a program.</p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%= render "shared/section_card", title: "Ended programs", id: "ended-programs",
+      description: "Programs that LeopardWeb no longer shows, such as a major you changed or a degree you completed." do %>
+    <% if @programs[:ended_programs].empty? %>
+      <p class="px-5 py-4 text-sm text-on-surface-variant">No ended programs.</p>
+    <% else %>
+      <ul class="divide-y divide-outline-variant">
+        <% @programs[:ended_programs].each do |program| %>
+          <li class="px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <div>
+              <p class="font-medium text-on-surface"><%= program[:name] %></p>
+              <p class="text-xs text-on-surface-variant">
+                <%= [ program_role_label(program[:role]), program[:degree], program[:catalog_term] && "catalog term #{program[:catalog_term]}" ].compact.join(" · ") %>
+              </p>
+            </div>
+            <span class="text-xs text-on-surface-variant">
+              Ended <%= Time.zone.parse(program[:ended_at]).strftime("%b %-d, %Y") if program[:ended_at] %>
+            </span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  <% end %>
+</div>
