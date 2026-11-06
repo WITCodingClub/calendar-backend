@@ -5,8 +5,7 @@
 # course is enough, and the catalog now has the description and the learning
 # objectives that say what the course teaches (docs/embeddings.md).
 #
-# courses.embedding stays for now. Course ignores it, and a later migration
-# drops it.
+# 20261106130000_remove_embedding_from_courses drops courses.embedding.
 class AddEmbeddingToCatalogCourses < ActiveRecord::Migration[8.1]
   disable_ddl_transaction!
 

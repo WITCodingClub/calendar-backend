@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -386,8 +386,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_120000) do
     t.bigint "term_id", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
-    t.vector "embedding", limit: 1536
-    t.string "embedding_digest", limit: 64
     t.datetime "banner_synced_at"
     t.integer "waitlist_capacity"
     t.integer "waitlist_available"
@@ -398,7 +396,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_120000) do
     t.integer "cross_list_available"
     t.index "((course_number)::text) gin_trgm_ops", name: "index_courses_on_course_number_text_trgm", using: :gin
     t.index ["crn", "term_id"], name: "index_courses_on_crn_and_term_id", unique: true
-    t.index ["embedding"], name: "index_courses_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["status"], name: "index_courses_on_status"
     t.index ["subject"], name: "index_courses_on_subject_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["term_id", "subject", "course_number", "link_identifier"], name: "index_courses_on_course_and_link_identifier"

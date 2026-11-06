@@ -50,8 +50,8 @@ filtered scope, then lists their sections: nearest course first, and by CRN
 within a course. `Course#similar_sections` works the same way, and leaves out
 the sections of the course itself.
 
-`courses.embedding` and `courses.embedding_digest` are no longer read.
-`Course` ignores them, and a later migration drops them.
+`courses` has no vector columns. They were never filled, and
+`20261106130000_remove_embedding_from_courses` dropped them.
 
 Where the vectors are read:
 
