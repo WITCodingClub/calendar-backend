@@ -384,6 +384,62 @@ module McpTools
       location_name: nullable(STRING)
     ).freeze
 
+    # AcademicProfiles::DegreeProgress. A plan row has the plan keys, and a
+    # program with no plan (a minor) has one elective_list row for each list.
+    PROGRESS_STATUS = { type: "string", enum: %w[done in_progress open] }.freeze
+    DEGREE_REQUIREMENT = object(
+      {
+        year:          INTEGER,
+        season:        STRING,
+        kind:          { type: "string", enum: [ *ProgramPlanItem::KINDS.values, "elective_list" ] },
+        code:          nullable(STRING),
+        label:         nullable(STRING),
+        options:       STRINGS,
+        elective_list: nullable(STRING),
+        min_courses:   nullable(INTEGER),
+        min_credits:   nullable(INTEGER),
+        checkable:     BOOLEAN,
+        status:        PROGRESS_STATUS,
+        course:        nullable(STRING),
+        term:          nullable(STRING),
+        courses:       STRINGS
+      },
+      optional: %i[year season code label options min_courses min_credits course term courses]
+    ).freeze
+    DEGREE_PROGRESS = object(
+      programs:    array(
+        object(
+          program:      STRING,
+          name:         STRING,
+          catalog_year: STRING,
+          plan:         nullable(STRING),
+          plans:        STRINGS,
+          counts:       object(done: INTEGER, in_progress: INTEGER, open: INTEGER),
+          requirements: array(DEGREE_REQUIREMENT),
+          open:         array(
+            object(
+              { code: nullable(STRING), label: nullable(STRING), options: STRINGS, elective_list: nullable(STRING),
+                status: PROGRESS_STATUS },
+              optional: %i[code label options]
+            )
+          )
+        )
+      ),
+      courses:     array(
+        object(
+          code:     STRING,
+          title:    STRING,
+          term:     STRING,
+          term_uid: INTEGER,
+          crn:      INTEGER,
+          credits:  nullable(INTEGER),
+          status:   { type: "string", enum: %w[done in_progress not_passed] },
+          outcome:  { type: %w[string null], enum: [ *CourseOutcome::OUTCOMES.values, nil ] }
+        )
+      ),
+      assumptions: STRINGS
+    ).freeze
+
     # UniversityCalendarEventSerializer.
     UNIVERSITY_EVENT = object(
       id:               STRING,
