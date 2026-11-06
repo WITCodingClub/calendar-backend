@@ -1,6 +1,6 @@
 # Embeddings
 
-The catalog stores a vector for each section, instructor and review. The
+The catalog stores a vector for each course, instructor and review. The
 vectors let a person search by meaning instead of by exact words, and let the
 API answer "what is like this one?".
 
@@ -21,11 +21,37 @@ API answer "what is like this one?".
 The backfill runs every night at 4:45am, after the catalog sync. Text that did
 not change never reaches the API, so a second run costs one table scan.
 
-| Model       | What the vector stands for                          |
-| ----------- | --------------------------------------------------- |
-| `Course`    | Subject, course number, title, schedule type, credits |
-| `Faculty`   | Name, title, department, school                     |
-| `RmpRating` | The review comment, with the course it is about     |
+| Model           | What the vector stands for                                                     |
+| --------------- | ------------------------------------------------------------------------------ |
+| `CatalogCourse` | Code, title, description, the first 1,000 characters of the learning objectives, department, college |
+| `Faculty`       | Name, title, department, school                                                |
+| `RmpRating`     | The review comment, with the course it is about                                |
+
+### Sections use the vector of their course
+
+Every section of a course teaches the same thing, so the vector belongs to the
+`CatalogCourse`, not to each `Course` row. `Catalog::CourseDetailsSync.seed`
+makes a `CatalogCourse` for every course that has a section.
+`Course::CATALOG_COURSE_JOIN` joins a section to its course by the code in the
+subject ("Computer Science (COMP)" to `COMP`) and the course number.
+
+The description comes from Banner. A course that Banner has not described
+takes the description from its newest catalog year (`CatalogYearCourse`).
+
+```mermaid
+flowchart LR
+  Q[Query text] -->|embed| V[Query vector]
+  V --> CC["CatalogCourse.nearest_to<br/>only courses with a section in the filtered scope"]
+  CC -->|ranked catalog ids| S["Sections of those courses<br/>course rank, then CRN"]
+```
+
+A semantic section search ranks the courses that have a section in the
+filtered scope, then lists their sections: nearest course first, and by CRN
+within a course. `Course#similar_sections` works the same way, and leaves out
+the sections of the course itself.
+
+`courses` has no vector columns. They were never filled, and
+`20261106130000_remove_embedding_from_courses` dropped them.
 
 Where the vectors are read:
 
@@ -76,6 +102,23 @@ Each table has an HNSW index with `vector_cosine_ops`. HNSW answers approximate
 nearest-neighbour queries; at catalog size the approximation is exact in
 practice.
 
+### Filters and the iterative scan
+
+An HNSW index scan reads `hnsw.ef_search` rows (40 by default), and the
+filters run after it. A filter that drops most rows, such as "has a section
+this term", can leave fewer rows than the limit, or none. Every filtered
+vector query goes through `Embeddable.nearest_ids`, which runs it in a
+transaction with `SET LOCAL hnsw.iterative_scan = strict_order`. The scan then
+keeps reading the index until the limit is full, in exact distance order.
+
+This needs pgvector 0.8 or later. The production image builds v0.8.6
+(`docker/postgres/Dockerfile`).
+
+The spec checks that the setting is on, not the result. With sequential scans
+and sorts off, a filtered query returned nothing without the setting and
+filled the limit with it. That check depends on the HNSW graph, and dead index
+entries from rolled-back examples change the graph, so it is not a spec.
+
 ## Commands
 
 ```bash
@@ -83,10 +126,10 @@ practice.
 bin/rails embeddings:backfill
 
 # One model, still through the queue
-bin/rails 'embeddings:backfill[Course]'
+bin/rails 'embeddings:backfill[CatalogCourse]'
 
 # One model, right now, without the queue
-bin/rails 'embeddings:run[Course]'
+bin/rails 'embeddings:run[CatalogCourse]'
 
 # How much is embedded
 bin/rails embeddings:status

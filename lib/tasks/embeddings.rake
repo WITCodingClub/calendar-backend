@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 namespace :embeddings do
-  desc "Queue embeddings for every record whose text changed. Pass a model to do one: embeddings:backfill[Course]"
+  desc "Queue embeddings for every record whose text changed. Pass a model to do one: embeddings:backfill[CatalogCourse]"
   task :backfill, [ :model ] => :environment do |_, args|
     unless Embeddings::Generator.configured?
       abort "OPENAI_API_KEY is not set. See docs/embeddings.md."
@@ -17,10 +17,10 @@ namespace :embeddings do
     puts "Done. Embeddings::GenerateJob runs the batches on the low queue."
   end
 
-  desc "Embed the records of one model right now, without the queue: embeddings:run[Course]"
+  desc "Embed the records of one model right now, without the queue: embeddings:run[CatalogCourse]"
   task :run, [ :model ] => :environment do |_, args|
     model = args[:model].presence
-    abort "Usage: rake embeddings:run[Course]" if model.blank?
+    abort "Usage: rake embeddings:run[CatalogCourse]" if model.blank?
     abort "OPENAI_API_KEY is not set. See docs/embeddings.md." unless Embeddings::Generator.configured?
 
     scope = Embeddings::BackfillJob::SCOPES.fetch(model) { abort "Unknown model #{model.inspect}" }.call

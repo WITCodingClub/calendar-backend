@@ -14,9 +14,9 @@ module Embeddings
 
     # Reviews are the largest table by far, so they come last.
     SCOPES = {
-      "Course"    => -> { Course.active },
-      "Faculty"   => -> { Faculty.with_courses },
-      "RmpRating" => -> { RmpRating.where.not(comment: [ nil, "" ]) }
+      "CatalogCourse" => -> { CatalogCourse.includes(catalog_year_courses: :catalog_year) },
+      "Faculty"       => -> { Faculty.with_courses },
+      "RmpRating"     => -> { RmpRating.where.not(comment: [ nil, "" ]) }
     }.freeze
 
     # @param model_name [String, nil] one model, or nil for all of them

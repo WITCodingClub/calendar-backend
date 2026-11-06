@@ -53,6 +53,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `my_courses` | Your courses in one term, with their CRNs, weekly meeting times, and rooms. | `GET /api/user/processed_events` | |
 | `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
 | `my_programs` | Your programs from LeopardWeb with the catalog year and the program slug of each, your planned programs, and your ended programs. | `GET /api/user/programs` | |
+| `my_degree_progress` | The requirements of your programs next to the courses you took or take: each row done, in progress, or open, and the open rows. A planning help, not a degree audit. | `GET /api/user/degree_progress` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |
 | `list_friends` | Your friends and their ids. | `GET /api/friends` | |
@@ -299,7 +300,7 @@ A prompt is a task that the student starts from the client, for example as a sla
 - The server cuts an argument at 500 characters. The message puts each argument in quotes.
 - Arguments that are not an object of strings get `-32602` (Invalid params). The server does not report this client error.
 - A prompt reads no student data. The tools read it when the model calls them, with the scopes of the token. `my_courses` gives the CRN of each course, so `check_my_schedule` can pass the CRNs to `check_schedule`.
-- `plan_degree_progression` reads the required courses with `list_programs` and `degree_requirements`. Without the `program` and `catalog_year` arguments, the model calls `my_programs` and asks the student to confirm what it finds. It asks for them when `my_programs` has no programs or the token does not have `programs:read`. The catalog has no data before 2019-2020. For an older catalog year, the model asks the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu.
+- `plan_degree_progression` reads the required courses with `list_programs` and `degree_requirements`. Without the `program` and `catalog_year` arguments, the model calls `my_programs` and asks the student to confirm what it finds, then calls `my_degree_progress` for the requirements that are done, in progress, or open. It asks for them when the student has no programs or the token does not have `programs:read`. The catalog has no data before 2019-2020. For an older catalog year, the model asks the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu.
 
 ### Completions
 
@@ -332,7 +333,7 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 | `schedule:read` | `my_courses`, `my_course_history`, `my_finals`, `my_busy_times` | checked |
 | `friends:read` | `list_friends`, `friend_busy_times` | checked |
 | `settings:read` | `my_calendar_settings`, `preview_template` | checked |
-| `programs:read` | `my_programs` | checked |
+| `programs:read` | `my_programs`, `my_degree_progress` | checked |
 | `settings:write` | `update_class_settings`, `update_calendar_settings` | unchecked |
 | `notifications:write` | `set_notifications` | unchecked |
 | `programs:write` | `update_my_planned_programs` | unchecked |

@@ -37,7 +37,7 @@ module Api
         end
 
         # Sections that teach something close to this one. The list is empty
-        # until the section has a vector, which the nightly backfill writes.
+        # until the course has a vector, which the nightly backfill writes.
         def similar
           course   = find_section(params[:crn], params[:term_uid])
           relation = ::Catalog::SectionQuery.with_associations(course.similar_sections(limit: similar_limit)).to_a

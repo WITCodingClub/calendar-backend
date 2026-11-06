@@ -37,6 +37,51 @@ module Embeddable
       embedded.nearest_neighbors(:embedding, vector, distance: "cosine").limit(limit)
     end
 
+    # The ids of the rows closest to the vector, nearest first.
+    #
+    # The filters go inside the vector query, so they run before the cut. The
+    # query runs with an iterative index scan (see with_iterative_scan), so a
+    # filter that drops most rows still fills the limit.
+    #
+    # @param among [ActiveRecord::Relation, nil] a select of the ids allowed
+    # @param except [Integer, nil] an id to leave out
+    # @return [Array<Integer>]
+    def nearest_ids(vector, limit:, among: nil, except: nil)
+      return [] if vector.blank?
+
+      relation = nearest_to(vector, limit: limit)
+      relation = relation.where(id: among) if among
+      relation = relation.where.not(id: except) if except
+      with_iterative_scan { relation.pluck(:id) }
+    end
+
+    # The ids of the rows in `scope` closest to the vector, nearest first.
+    # Catalog::SemanticSearch calls it. Course has its own version, because
+    # its vector lives on CatalogCourse.
+    #
+    # @return [Array<Integer>]
+    def ids_nearest_to(vector, scope:, limit:)
+      nearest_ids(vector, limit: limit, among: scope.unscope(:order).select(:id))
+    end
+
+    # An HNSW index scan reads hnsw.ef_search rows (40 by default), and the
+    # filters run after it. A filter such as "has a section this term" can
+    # drop all 40, and the query then returns fewer rows than the limit, or
+    # none. An iterative scan keeps reading the index until the limit is full.
+    # strict_order keeps the rows in exact distance order. It needs pgvector
+    # 0.8 (docker/postgres/Dockerfile).
+    #
+    # SET LOCAL lasts until the transaction ends. Called outside a
+    # transaction, the setting reaches no other query. Inside one, it lasts
+    # until that transaction ends; the rows stay correct, only later vector
+    # query plans can change.
+    def with_iterative_scan(&)
+      transaction do
+        connection.execute("SET LOCAL hnsw.iterative_scan = strict_order")
+        yield
+      end
+    end
+
     def digest_for(text)
       Digest::SHA256.hexdigest(text.to_s)
     end
@@ -63,10 +108,13 @@ module Embeddable
     update_columns(embedding: vector, embedding_digest: self.class.digest_for(text)) # rubocop:disable Rails/SkipsModelValidations
   end
 
-  # The records closest to this one, itself excluded.
-  def similar(limit: DEFAULT_SIMILAR_LIMIT)
+  # The records closest to this one, itself excluded, nearest first.
+  #
+  # @param among [ActiveRecord::Relation, nil] a select of the ids allowed
+  def similar(limit: DEFAULT_SIMILAR_LIMIT, among: nil)
     return self.class.none if embedding.nil?
 
-    self.class.nearest_to(embedding, limit: limit).where.not(id: id)
+    ids = self.class.nearest_ids(embedding, limit: limit, among: among, except: id)
+    self.class.where(id: ids).in_order_of(:id, ids)
   end
 end

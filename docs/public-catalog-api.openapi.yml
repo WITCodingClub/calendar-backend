@@ -480,7 +480,7 @@ paths:
       description: |
         Ranked by meaning, nearest first. Results stay inside the section's own
         term, and the other sections of the same course are left out. The list
-        is empty until the section has been embedded, which happens nightly.
+        is empty until the course has been embedded, which happens nightly.
       parameters:
         - name: crn
           in: path

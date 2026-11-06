@@ -13,6 +13,8 @@
 #  description         :text
 #  details_fetched_at  :datetime
 #  division            :string
+#  embedding           :vector(1536)
+#  embedding_digest    :string(64)
 #  fees                :jsonb            not null
 #  grading_modes       :string           default([]), not null, is an Array
 #  learning_objectives :text
@@ -29,6 +31,7 @@
 #
 # Indexes
 #
+#  index_catalog_courses_on_embedding                       (embedding vector_cosine_ops) USING hnsw
 #  index_catalog_courses_on_source_term_id                  (source_term_id)
 #  index_catalog_courses_on_subject_code_and_course_number  (subject_code,course_number) UNIQUE
 #

@@ -25,6 +25,7 @@ module McpTools
       MyCourses,
       MyCourseHistory,
       MyPrograms,
+      MyDegreeProgress,
       MyBusyTimes,
       MyFinals,
       ListFriends,

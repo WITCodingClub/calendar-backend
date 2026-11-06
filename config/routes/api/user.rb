@@ -31,6 +31,9 @@ scope "user", as: :user do
   post   "planned_programs",     to: "planned_programs#create"
   delete "planned_programs/:id", to: "planned_programs#destroy"
 
+  # Degree requirements next to the courses taken (#799)
+  get "degree_progress", to: "degree_progresses#show"
+
   # One-time catch-up runs the extension marks done (calendar-extension#215)
   get "backfills",       to: "backfills#index"
   put "backfills/:name", to: "backfills#update"

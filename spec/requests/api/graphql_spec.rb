@@ -269,7 +269,7 @@ RSpec.describe "Api::Graphql", type: :request do
       result = gql("{ section(crn: 10001) { similar(limit: 5) { crn } } }")
 
       expect(result["errors"]).to be_nil
-      expect(result["data"]["section"]["similar"].map { |s| s["crn"] }).to eq([ 10_002 ])
+      expect(result["data"]["section"]["similar"].map { |s| s["crn"] }).to eq([ 10_002, 10_003 ])
     end
 
     it "returns the instructors closest to one instructor" do
