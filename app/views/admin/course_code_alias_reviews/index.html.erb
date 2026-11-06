@@ -1,0 +1,23 @@
+<%= render "admin/shared/page_header",
+    title: "Course Code Aliases",
+    subtitle: "Old course codes and the codes that replaced them in 2015-2016. Each one comes from a title match. Check it, or delete it when it is wrong." do %>
+  <%= link_to "Waiting (#{@waiting})", admin_course_code_alias_reviews_path, class: @reviewed ? "m3-btn-outlined px-3 py-1" : "m3-btn-filled px-3 py-1" %>
+  <%= link_to "Checked", admin_course_code_alias_reviews_path(status: "reviewed"), class: @reviewed ? "m3-btn-filled px-3 py-1" : "m3-btn-outlined px-3 py-1" %>
+<% end %>
+
+<%= admin_table(@aliases, empty: @reviewed ? "No alias is checked yet." : "No alias waits for a review.") do |t| %>
+  <% t.column("Old code") { |row| tag.code(row.from_code) } %>
+  <% t.column("New code") { |row| tag.code(row.to_code) } %>
+  <% t.column("Source") { |row| admin_badge(row.source.humanize) } %>
+  <% t.column("Why") { |row| tag.span(row.note, class: "block max-w-xl whitespace-pre-line text-xs") } %>
+  <% t.column("Actions", align: :right, primary: false) do |row| %>
+    <div class="flex justify-end gap-2">
+      <% unless row.reviewed_at %>
+        <%= button_to "Mark as checked", admin_course_code_alias_review_path(row), method: :patch, class: "m3-btn-outlined px-3 py-1" %>
+      <% end %>
+      <%= button_to "Delete", admin_course_code_alias_review_path(row), method: :delete,
+          form: { data: { turbo_confirm: "Delete the alias #{row.from_code} to #{row.to_code}?" } },
+          class: "m3-btn-danger px-3 py-1" %>
+    </div>
+  <% end %>
+<% end %>

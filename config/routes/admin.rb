@@ -65,6 +65,10 @@ constraints AdminConstraint.new do
       end
     end
 
+    # The review queues of the PDF catalog import (#865).
+    resources :requirement_set_reviews,  only: [ :index, :show, :update ]
+    resources :course_code_alias_reviews, only: [ :index, :update, :destroy ]
+
     resources :rmp_ratings, only: [ :index ]
     resources :rooms,       only: [ :index, :show ]
 

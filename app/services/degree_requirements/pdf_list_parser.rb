@@ -90,6 +90,7 @@ module DegreeRequirements
         # "ELECTIVE, Biomedical Engineering 4cr. ELECTIVE, Engineering 4cr."
         # is two rows on one line.
         text.split(TWO_ROWS).each { |part| add_item(part) }
+        @plan[:last_line] = index
       elsif @plan[:accepting] && (credits = stripped[ONLY_CREDITS, 1]) && @plan[:semester_items].last&.min_credits.nil?
         # "(1 credit)" on its own line ends the row above it.
         last = @plan[:semester_items].pop
@@ -114,17 +115,19 @@ module DegreeRequirements
           close_plan
         else
           close_semester
-          open_semester(key, match[3])
+          open_semester(key, match[3], index)
           return
         end
       end
 
       close_plan
-      if key.first == 1
+      # A plan starts in the fall of the first year. A part of a plan that
+      # starts later, such as a concentration's own semesters, is left out.
+      if key == [ 1, 0 ]
         @fragment_reported = false
         @plan = { heading: heading_before(index), line: index + 1, items: [], warnings: [], prose: 0,
                   interrupted: false, invalid: nil }
-        open_semester(key, match[3])
+        open_semester(key, match[3], index)
       elsif !@fragment_reported
         @fragment_reported = true
         @rejections << PdfCatalog::Rejection.new(heading: nil, line: index + 1,
@@ -133,9 +136,11 @@ module DegreeRequirements
     end
 
     # A total such as "18-19" is a range, which the check cannot use.
-    def open_semester(key, total)
+    # last_line is the last heading or row of the plan. The program name of
+    # the next plan is after it.
+    def open_semester(key, total, index)
       total = total.to_s.match?(/\A\d+\z/) ? total.to_i : nil
-      @plan.merge!(key: key, total: total, semester_items: [], accepting: true, prose: 0, orphan: nil)
+      @plan.merge!(key: key, total: total, semester_items: [], accepting: true, prose: 0, orphan: nil, last_line: index)
     end
 
     def close_semester
@@ -166,7 +171,7 @@ module DegreeRequirements
         @plans << PdfCatalog::Plan.new(heading: plan[:heading], line: plan[:line], items: plan[:items],
                                        warnings: plan[:warnings])
       end
-      @last_end = plan[:line]
+      @last_end = plan[:last_line]
     end
 
     def add_item(text)

@@ -1,0 +1,54 @@
+<%= render "admin/shared/page_header",
+    title: @requirement_set.name,
+    subtitle: "#{@requirement_set.catalog_year.name} catalog, read from the PDF",
+    back: [ "Catalog Review", admin_requirement_set_reviews_path ] do %>
+  <% if @requirement_set.needs_review? %>
+    <%= button_to "Mark as checked", admin_requirement_set_review_path(@requirement_set),
+        method: :patch,
+        form: { data: { turbo_confirm: "Do the rows below match the PDF?" } },
+        class: "m3-btn-filled px-3 py-1" %>
+  <% else %>
+    <%= admin_badge("Checked #{@requirement_set.reviewed_at&.strftime('%b %-d, %Y')}", :success) %>
+  <% end %>
+<% end %>
+
+<%= render "admin/shared/card", title: "Source", css_class: "mb-6" do %>
+  <%= admin_details(columns: 3) do |d| %>
+    <% d.item("Program") { tag.code(@requirement_set.degree_program.slug, class: "text-xs") } %>
+    <% d.item("PDF") { @requirement_set.catalog_year.base_url ? link_to("Open the PDF", @requirement_set.catalog_year.base_url, target: "_blank", rel: "noopener", class: "text-primary hover:underline") : "Not known" } %>
+    <% d.item("Imported") { @requirement_set.fetched_at&.strftime("%b %-d, %Y") } %>
+    <% d.item("Checks", wide: true) do %>
+      <% if @requirement_set.review_notes.present? %>
+        <ul class="list-disc pl-5">
+          <% @requirement_set.review_notes.lines.each do |note| %>
+            <li><%= note %></li>
+          <% end %>
+        </ul>
+      <% else %>
+        Every check passed. Compare the rows with the PDF all the same.
+      <% end %>
+    <% end %>
+  <% end %>
+<% end %>
+
+<% @plans.each do |plan| %>
+  <%= render "admin/shared/card", title: plan.name, subtitle: "#{pluralize(plan.years, 'year')}#{", #{plan.total_credits} credits" if plan.total_credits}", flush: true, css_class: "mb-6" do %>
+    <%= admin_table(plan.items, card: false, paginate: false, empty: "This plan has no rows.") do |t| %>
+      <% t.column("Year") { |item| item.year_index.to_s } %>
+      <% t.column("Semester") { |item| item.season.capitalize } %>
+      <% t.column("Row") do |item| %>
+        <% case item.kind %>
+        <% when "course" %>
+          <%= tag.code("#{item.subject_code}#{item.course_number}") %>
+          <% if item.catalog_course %><span class="text-on-surface-variant"><%= item.catalog_course.title %></span><% end %>
+        <% when "choice" %>
+          <%= item.options.map { |option| "#{option['subject_code']}#{option['course_number']}" }.join(" or ") %>
+        <% else %>
+          <%= item.label %>
+        <% end %>
+      <% end %>
+      <% t.column("Kind") { |item| admin_badge(item.kind) } %>
+      <% t.column("Credits", align: :right) { |item| item.min_credits&.to_s } %>
+    <% end %>
+  <% end %>
+<% end %>

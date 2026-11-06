@@ -1,0 +1,14 @@
+<%= render "admin/shared/page_header",
+    title: "Catalog Review",
+    subtitle: "Plans of study read from the PDF catalogs, 2013-2014 to 2018-2019. Compare each one with its PDF, then mark it as checked." do %>
+  <%= link_to "Waiting (#{@waiting})", admin_requirement_set_reviews_path, class: @reviewed ? "m3-btn-outlined px-3 py-1" : "m3-btn-filled px-3 py-1" %>
+  <%= link_to "Checked", admin_requirement_set_reviews_path(status: "reviewed"), class: @reviewed ? "m3-btn-filled px-3 py-1" : "m3-btn-outlined px-3 py-1" %>
+<% end %>
+
+<%= admin_table(@requirement_sets, empty: @reviewed ? "No set is checked yet." : "No set waits for a review.") do |t| %>
+  <% t.column("Catalog year") { |set| set.catalog_year.name } %>
+  <% t.column("Program") { |set| link_to set.name, admin_requirement_set_review_path(set), class: "font-medium text-primary hover:underline" } %>
+  <% t.column("Slug") { |set| tag.code(set.degree_program.slug, class: "text-xs") } %>
+  <% t.column("Checks") { |set| set.review_notes.present? ? admin_badge("#{set.review_notes.lines.size} to check", :warning) : admin_badge("Passed", :success) } %>
+  <% t.column(@reviewed ? "Checked" : "Imported") { |set| (@reviewed ? set.reviewed_at : set.fetched_at)&.strftime("%b %-d, %Y") } %>
+<% end %>

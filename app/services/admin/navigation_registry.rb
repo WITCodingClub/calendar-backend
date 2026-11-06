@@ -33,7 +33,11 @@ module Admin
           { id: :rmp_ratings, title: "RMP Ratings", path: :admin_rmp_ratings_path, icon: :star,
             description: "View Rate My Professor ratings", keywords: [ "rate my professor" ], read_only: true },
           { id: :finals_schedules, title: "Finals Schedules", path: :admin_finals_schedules_path, icon: :clipboard_check,
-            description: "Manage finals exam schedules", keywords: [ "exams", "finals" ] }
+            description: "Manage finals exam schedules", keywords: [ "exams", "finals" ] },
+          { id: :requirement_set_reviews, title: "Catalog Review", path: :admin_requirement_set_reviews_path, icon: :check_circle,
+            description: "Check the plans of study read from the PDF catalogs", keywords: [ "degree", "requirements", "pdf", "plans" ] },
+          { id: :course_code_alias_reviews, title: "Course Code Aliases", path: :admin_course_code_alias_reviews_path, icon: :link,
+            description: "Check the old and new course codes of 2015-2016", keywords: [ "aliases", "renumbering", "codes" ] }
         ]
       },
       {

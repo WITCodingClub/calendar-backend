@@ -31,7 +31,8 @@ module DegreeRequirements
     # The page body, or nil for a 404. Raises FetchError for any other failure.
     # It follows redirects: the Wayback Machine sends each request on to the
     # nearest capture.
-    def get(url)
+    # binary: true gives the bytes as they are, for a PDF.
+    def get(url, binary: false)
       MAX_REDIRECTS.succ.times do
         (URI(url).host == WAYBACK_HOST ? @wayback_pacer : @pacer).wait
         response = connection.get(url)
@@ -45,7 +46,7 @@ module DegreeRequirements
 
         # A stray byte from another encoding would make every regex on the
         # page raise, so it is replaced.
-        return response.body.to_s.dup.force_encoding(Encoding::UTF_8).scrub
+        return binary ? response.body.to_s.b : response.body.to_s.dup.force_encoding(Encoding::UTF_8).scrub
       end
       raise FetchError, "GET #{url}: too many redirects"
     rescue Faraday::Error => e
