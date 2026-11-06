@@ -38,6 +38,7 @@ RSpec.describe McpTools::MyDegreeProgress do
   it "answers with a tool error that says how to add a program, and for a bad argument" do
     expect(text(call)).to include("process a term", "pass program and catalog_year")
     expect(text(call(catalog_year: "2025-2026"))).to include("catalog_year needs program")
+    expect(text(call(plan: "Three Year Program"))).to include("plan needs program")
     expect(text(call(program: "basket-weaving-bs"))).to include("No program basket-weaving-bs")
     expect(text(call(program: "widget-design-bs", catalog_year: "someday"))).to include("catalog_year must be")
   end

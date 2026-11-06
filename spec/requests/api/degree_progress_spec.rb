@@ -34,7 +34,10 @@ RSpec.describe "/api/user/degree_progress", type: :request do
     expect(response.parsed_body["code"]).to eq("no_program")
 
     get "/api/user/degree_progress", params: { catalog_year: "2025-2026" }, headers: auth_headers_for(user)
-    expect(response.parsed_body["error"]).to eq("catalog_year needs program")
+    expect(response.parsed_body["error"]).to eq("catalog_year and plan need program")
+
+    get "/api/user/degree_progress", params: { plan: "Three Year Program" }, headers: auth_headers_for(user)
+    expect(response.parsed_body["error"]).to eq("catalog_year and plan need program")
 
     get "/api/user/degree_progress", params: { program: "basket-weaving-bs" }, headers: auth_headers_for(user)
     expect(response).to have_http_status(:unprocessable_content)

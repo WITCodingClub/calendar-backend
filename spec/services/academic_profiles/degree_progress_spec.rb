@@ -130,6 +130,70 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     ])
   end
 
+  # A WIT lecture and its lab share the subject and number.
+  describe "a lecture and its lab" do
+    let(:minor_set) do
+      minor = create(:degree_program, :minor, slug: "gear-minor", name: "Gear Minor")
+      create(:requirement_set, degree_program: minor, catalog_year: catalog_year, name: "Gear Minor")
+    end
+
+    def lab(lecture, credits: nil)
+      section = create(:course, term: lecture.term, subject: lecture.subject, course_number: lecture.course_number,
+                                credit_hours: credits, schedule_type: :laboratory)
+      create(:enrollment, user: user, course: section)
+      section
+    end
+
+    it "counts as one course, with the credits of the lecture" do
+      group = create(:elective_group, requirement_set: minor_set, name: "Gear Electives", min_courses: nil, min_credits: 8)
+      create(:elective_group_course, elective_group: group, subject_code: "GEAR", course_number: 2000)
+      lab(take(past_term, "GEAR", 2000, credits: 4))
+
+      result = progress(program: "gear-minor")
+
+      expect(result[:courses].size).to eq(1)
+      expect(result[:courses].first).to include(code: "GEAR 2000", credits: 4)
+      expect(result[:programs].first[:requirements].first).to include(status: "open", courses: [ "GEAR 2000" ])
+    end
+
+    it "is not passed when the lecture failed and the lab has no outcome" do
+      item(subject_code: "GEAR", course_number: 1000)
+      lab(take(past_term, "GEAR", 1000, outcome: "failed"))
+
+      expect(statuses(progress)).to eq([ [ "GEAR 1000", "open" ] ])
+    end
+  end
+
+  it "counts a retake once, with the best attempt" do
+    group = create(:elective_group, requirement_set: set, name: "Math Electives", min_courses: 2)
+    create(:elective_group_course, elective_group: group, subject_code: "MATH", course_number: 2300)
+    create(:elective_group_course, elective_group: group, subject_code: "MATH", course_number: 2400)
+    item(:placeholder, label: "Math Elective", elective_group: group)
+    item(:placeholder, label: "Math Elective", elective_group: group)
+    take(past_term, "MATH", 2300, outcome: "passed_below_c")
+    take(current_term, "MATH", 2300)
+
+    rows = progress[:programs].first[:requirements]
+
+    expect(rows.map { |row| [ row[:status], row[:term] ] }).to eq([ [ "done", past_term.name ], [ "open", nil ] ])
+  end
+
+  it "does not check a list with no minimum the import could read, unless it is a required list" do
+    minor = create(:degree_program, :minor, slug: "gear-minor", name: "Gear Minor")
+    minor_set = create(:requirement_set, degree_program: minor, catalog_year: catalog_year)
+    create(:elective_group_course, subject_code: "GEAR", course_number: 3000,
+                                   elective_group: create(:elective_group, requirement_set: minor_set, name: "Gear Electives",
+                                                                           min_courses: nil, min_credits: nil))
+    take(past_term, "GEAR", 3000)
+
+    expect(progress(program: "gear-minor")[:programs].first[:requirements].first)
+      .to include(checkable: false, status: "open", courses: [])
+  end
+
+  it "names the minimum grade in its assumptions" do
+    expect(described_class::ASSUMPTIONS).to include(a_string_including("C or better"))
+  end
+
   it "checks a program argument in the student's own catalog year, or the one given" do
     set
     newer = create(:catalog_year, :imported, start_year: 2026)

@@ -21,8 +21,8 @@ module McpTools
           description: "With program: the catalog year. Leave it out for the catalog year of my own program with " \
                        "that slug, or else the newest catalog."
         ),
-        plan:         { type: "string", description: "The plan name, for example Three Year Program. Leave it " \
-                                                      "out for the standard plan." }
+        plan:         { type: "string", description: "With program: the plan name, for example Three Year " \
+                                                      "Program. Leave it out for the standard plan." }
       }
     )
     output_schema(Schemas::DEGREE_PROGRESS)
@@ -30,6 +30,7 @@ module McpTools
     def perform(program: nil, catalog_year: nil, plan: nil)
       authorize user, :show?
       raise ToolError, "catalog_year needs program." if catalog_year.present? && program.blank?
+      raise ToolError, "plan needs program." if plan.present? && program.blank?
 
       AcademicProfiles::DegreeProgress.new(user, program: program, catalog_year: catalog_year, plan: plan).call
     rescue AcademicProfiles::DegreeProgress::NoProgramError, Catalog::FilterError => e

@@ -8,12 +8,12 @@ module Api
     authenticate_with_token
 
     # GET /api/user/degree_progress
-    # Params (all optional): program (a slug), catalog_year (with program), plan.
+    # Params (all optional): program (a slug), catalog_year and plan (with program).
     def show
       authorize current_user, :show?
 
-      if params[:catalog_year].present? && params[:program].blank?
-        render_error "catalog_year needs program", status: :unprocessable_content
+      if params[:program].blank? && (params[:catalog_year].present? || params[:plan].present?)
+        render_error "catalog_year and plan need program", status: :unprocessable_content
         return
       end
 

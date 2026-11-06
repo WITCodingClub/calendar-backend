@@ -27,11 +27,14 @@ module AcademicProfiles
       "A course in a past term with no outcome from LeopardWeb counts as passed.",
       "A course in the current or a future term counts as in progress.",
       "A failed, withdrawn, or incomplete course does not count.",
+      "A D (passed_below_c) counts as done, but some requirements and prerequisites need a C or better.",
+      "A course taken more than once counts once, with its best attempt.",
       "A course meets a requirement with the same code, or with an old or new code of the same course " \
       "(course code aliases). Substitutions, transfer credit, and AP credit are not known."
     ].freeze
 
-    RANK = { "done" => 0, "in_progress" => 1 }.freeze
+    RANK = { "done" => 0, "in_progress" => 1, "not_passed" => 2 }.freeze
+    PASSED = %w[c_or_better passed_below_c].freeze
 
     # A course the student took or takes. status is done, in_progress, or
     # not_passed.
@@ -99,7 +102,7 @@ module AcademicProfiles
 
     def program_json(set)
       plan = pick_plan(set)
-      pool = taken.reject { |course| course.status == "not_passed" }
+      pool = attempts
       requirements = plan ? plan_requirements(set, plan, pool) : list_requirements(set, pool)
       open = requirements.reject { |requirement| requirement[:status] == "done" }
 
@@ -172,6 +175,8 @@ module AcademicProfiles
       used = []
       set.elective_groups.map do |group|
         codes = group.courses.map { |course| [ course.subject_code, course.course_number ] }
+        next unchecked_list_json(group) unless countable?(group)
+
         needed = group.min_courses || (group.min_credits ? nil : codes.size)
         courses = []
         while (course = take(pool, used, codes))
@@ -199,6 +204,27 @@ module AcademicProfiles
         status:        status,
         courses:       courses.map(&:code)
       }
+    end
+
+    # A list with no minimum that the import could read. A "Required ..."
+    # list needs every course. Any other such list cannot be checked.
+    def countable?(group)
+      group.min_courses || group.min_credits || group.name.to_s.match?(/\Arequired\b/i)
+    end
+
+    def unchecked_list_json(group)
+      { kind: "elective_list", elective_list: group.name, min_courses: nil, min_credits: nil, checkable: false,
+        status: "open", courses: [] }
+    end
+
+    # The courses that can meet a requirement: the best attempt of each
+    # course (a retake, or an old and a new code of one course, counts
+    # once), without the ones not passed.
+    def attempts
+      @attempts ||= taken.group_by { |course| equivalents(course.key).min }
+                         .values
+                         .map { |tries| tries.min_by { |course| [ RANK.fetch(course.status), -course.term.uid ] } }
+                         .reject { |course| course.status == "not_passed" }
     end
 
     # The best unused course that meets one of the codes: a done course
@@ -231,16 +257,23 @@ module AcademicProfiles
         enrollments = @user.enrollments.includes(course: :term).to_a
         outcomes = CourseOutcome.where(user: @user).to_h { |outcome| [ [ outcome.term_uid, outcome.crn ], outcome.outcome ] }
 
-        enrollments.map(&:course).uniq.map do |course|
-          outcome = outcomes[[ course.term.uid, course.crn ]]
-          Taken.new(course.subject, course.course_number, course.title, course.term, course.crn, course.credit_hours,
-                    taken_status(course.term, outcome), outcome)
+        # A lecture and its lab share the code, so the sections of one course
+        # in one term are one course: the most credits of a section (as
+        # Catalog::ScheduleCheck counts them), and not passed when any
+        # section was not passed.
+        sections = enrollments.map(&:course).uniq.group_by { |course| [ course.term_id, course.subject, course.course_number ] }
+        sections.values.map do |group|
+          section_outcomes = group.to_h { |course| [ course, outcomes[[ course.term.uid, course.crn ]] ] }.compact
+          failed = section_outcomes.find { |_, outcome| PASSED.exclude?(outcome) }
+          course, outcome = failed || section_outcomes.first || [ group.first, nil ]
+          Taken.new(course.subject, course.course_number, course.title, course.term, course.crn,
+                    group.filter_map(&:credit_hours).max, taken_status(course.term, outcome), outcome)
         end.sort_by { |course| [ -course.term.uid, course.code ] }
       end
     end
 
     def taken_status(term, outcome)
-      return %w[c_or_better passed_below_c].include?(outcome) ? "done" : "not_passed" if outcome
+      return PASSED.include?(outcome) ? "done" : "not_passed" if outcome
       return "done" if past?(term)
 
       "in_progress"
