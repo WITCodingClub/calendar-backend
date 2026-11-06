@@ -52,7 +52,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `catalog_graphql` | Any read-only query on the catalog schema. | `POST /api/v1/graphql` | all |
 | `my_courses` | Your courses in one term, with their CRNs, weekly meeting times, and rooms. | `GET /api/user/processed_events` | |
 | `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
-| `my_programs` | Your programs from LeopardWeb with the catalog year and the program slug of each, your planned programs, and your ended programs. | `GET /api/user/programs` | |
+| `my_programs` | Your programs from LeopardWeb with the catalog year and the program slug of each, your planned programs and pathways, and your ended programs. | `GET /api/user/programs` | |
 | `my_degree_progress` | The requirements of your programs next to the courses you took or take: each row done, in progress, or open, and the open rows. A planning help, not a degree audit. | `GET /api/user/degree_progress` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |
@@ -64,7 +64,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `update_class_settings` | **Changes** the event title, description, location, color, visibility, or reminders of one class meeting. | `PATCH`, `DELETE /api/meeting_times/:id/preference` | |
 | `update_calendar_settings` | **Changes** the same settings for all classes, one kind of class, final exams, or university events. | `PATCH`, `DELETE /api/calendar_preferences/:scope` | |
 | `set_notifications` | **Changes** whether your reminders are paused. | `PATCH /api/user/notifications` | |
-| `update_my_planned_programs` | **Changes** your planned programs: adds or removes a program from the degree catalog that you think about taking. It never changes a program from LeopardWeb. | `POST /api/user/planned_programs`, `DELETE /api/user/planned_programs/:id` | |
+| `update_my_planned_programs` | **Changes** your planned programs: adds or removes a program from the degree catalog that you think about taking, or a pathway such as a 4+1. It never changes a program from LeopardWeb. | `POST /api/user/planned_programs`, `DELETE /api/user/planned_programs/:id`, `POST /api/user/planned_pathways`, `DELETE /api/user/planned_pathways/:id` | |
 
 Times are in the `America/New_York` time zone.
 

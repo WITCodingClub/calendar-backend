@@ -25,6 +25,7 @@ RSpec.describe ProgramPathway do
 
   it { is_expected.to have_many(:steps).class_name("ProgramPathwayStep").dependent(:delete_all) }
   it { is_expected.to have_many(:degree_programs).through(:steps) }
+  it { is_expected.to have_many(:student_programs) }
   it { is_expected.to validate_presence_of(:name) }
   it { is_expected.to validate_presence_of(:slug) }
   it { is_expected.to validate_uniqueness_of(:slug) }

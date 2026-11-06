@@ -7,6 +7,9 @@
 # max_shared_courses and max_shared_credits are how much of one program can
 # also count toward the next: Double Leopard students take up to two
 # graduate courses in their senior year.
+#
+# DegreeRequirements::PathwaySeed fills the rows from
+# config/program_pathways.yml, because the catalog has no list of them.
 # == Schema Information
 #
 # Table name: program_pathways
@@ -33,6 +36,9 @@ class ProgramPathway < ApplicationRecord
   has_many :steps, -> { order(:position) }, class_name: "ProgramPathwayStep", dependent: :delete_all,
                                              inverse_of: :program_pathway
   has_many :degree_programs, through: :steps
+  # The planned programs a student added with this pathway (#868). The
+  # database sets the link to null when the pathway is deleted.
+  has_many :student_programs, dependent: nil
 
   scope :active, -> { where(active: true) }
 

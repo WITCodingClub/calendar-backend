@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_06_190100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -1186,8 +1186,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_130000) do
     t.string "source", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "program_pathway_id"
     t.index ["catalog_year_id"], name: "index_student_programs_on_catalog_year_id"
     t.index ["degree_program_id"], name: "index_student_programs_on_degree_program_id"
+    t.index ["program_pathway_id"], name: "index_student_programs_on_program_pathway_id"
     t.index ["user_id", "status"], name: "index_student_programs_on_user_id_and_status"
   end
 
@@ -1516,6 +1518,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_130000) do
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "student_programs", "catalog_years", on_delete: :nullify
   add_foreign_key "student_programs", "degree_programs", on_delete: :nullify
+  add_foreign_key "student_programs", "program_pathways", on_delete: :nullify
   add_foreign_key "student_programs", "users", on_delete: :cascade
   add_foreign_key "teacher_rating_tags", "faculties"
   add_foreign_key "term_elective_courses", "catalog_courses", on_delete: :nullify

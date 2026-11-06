@@ -393,6 +393,19 @@ RSpec.describe "MCP tool output schemas" do
       expect(expect_valid(McpTools::UpdateMyPlannedPrograms, action: "remove", program: "gear-minor")[:planned_programs]).to eq([])
     end
 
+    it "matches the program tools with a planned pathway" do
+      master = create(:degree_program, :master, slug: "widget-design-ms")
+      pathway = create(:program_pathway, slug: "widget-design-4-plus-1")
+      create(:program_pathway_step, program_pathway: pathway, degree_program: major, position: 1)
+      create(:program_pathway_step, program_pathway: pathway, degree_program: master, position: 2, plan_years: nil)
+      [ major, master ].each { |program| create(:requirement_set, degree_program: program, catalog_year: catalog_year) }
+
+      added = expect_valid(McpTools::UpdateMyPlannedPrograms, action: "add", pathway: "widget-design-4-plus-1")
+      expect(added[:pathway]).to include(id: "widget-design-4-plus-1")
+      expect(expect_valid(McpTools::MyPrograms)[:planned_pathways].size).to eq(1)
+      expect(expect_valid(McpTools::UpdateMyPlannedPrograms, action: "remove", pathway: "widget-design-4-plus-1")[:result]).to eq("removed")
+    end
+
     it "matches the program tools with no profile or programs, and a declined change" do
       expect(expect_valid(McpTools::MyPrograms)).to include(level: nil, programs: [], message: McpTools::MyPrograms::NO_PROGRAMS_MESSAGE)
 

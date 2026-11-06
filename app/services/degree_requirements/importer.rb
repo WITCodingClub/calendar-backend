@@ -45,6 +45,7 @@ module DegreeRequirements
       ElectiveGroupCourse.link_catalog_courses
       # Student programs saved before this import get their link now.
       AcademicProfiles::ProgramMatcher.relink_active
+      seed_pathways
 
       @catalog_year.update!(status: "imported", imported_at: Time.current)
       result(:imported, programs.size).tap do |done|
@@ -178,6 +179,14 @@ module DegreeRequirements
         program.parent_program = parent
         log("#{program.slug}: #{program.errors.full_messages.to_sentence}") unless program.save
       end
+    end
+
+    # The pathways name programs by slug, so they can link only after the
+    # programs exist. A bad seed file does not stop the import.
+    def seed_pathways
+      PathwaySeed.new.call
+    rescue PathwaySeed::InvalidSeedError, ActiveRecord::RecordInvalid => e
+      Rails.error.report(e, handled: true, context: { catalog_year_id: @catalog_year.id })
     end
 
     def name_key(name)

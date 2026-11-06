@@ -72,6 +72,21 @@ RSpec.describe DegreeRequirements::Importer do
                                               catalog_year: catalog_year)
   end
 
+  it "fills the program pathways after the programs, and goes on when the pathway file is bad" do
+    seed_path = file_fixture("degree_requirements/program_pathways.yml")
+    allow(DegreeRequirements::PathwaySeed).to receive(:new).and_wrap_original { |original| original.call(path: seed_path) }
+
+    import
+
+    expect(ProgramPathway.find_by!(slug: "widget-design-4-plus-1").degree_programs.pluck(:slug))
+      .to eq(%w[widget-design-bs widget-design-ms])
+
+    allow(DegreeRequirements::PathwaySeed).to receive(:new).and_raise(DegreeRequirements::PathwaySeed::InvalidSeedError)
+    allow(Rails.error).to receive(:report)
+    expect(described_class.new(catalog_year, client: client, force: true).call.status).to eq(:imported)
+    expect(Rails.error).to have_received(:report).with(DegreeRequirements::PathwaySeed::InvalidSeedError, hash_including(handled: true))
+  end
+
   it "reads the kind and level of each program, and links a concentration to its major" do
     import
 
