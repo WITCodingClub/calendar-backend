@@ -14,8 +14,8 @@ module Courses
     # from a word. It writes these words in capitals. Leave out acronyms that
     # are also English words, such as IT, STEM, BE and US.
     ACRONYMS = %w[
-      AI AXP BIM BME CAD CADD CAM CE CIS CM FM GIS ML MSBA SCDS SOM SSH TCAD TPMC UI UX WWW
-      BBME BCET BCOS BCOT BCTS BEET BELM BFPM BIND BINT BMET BPM BPS
+      AI AXP BIM BME CAD CADD CAM CE CIS CM FM GIS ML MSBA SCDS SOAD SOM SSH TCAD TPMC UI UX WWW
+      BBME BCET BCIS BCOS BCOT BCTS BEET BELM BFPM BIND BINT BMET BPM BPS
     ].freeze
 
     # Degree program codes such as BSCE and BSEE, which co-op and lab titles
@@ -28,6 +28,8 @@ module Courses
     # Tokens to keep exactly as Banner sends them: an acronym in parentheses
     # such as "(CAD)", dotted initials such as "U.S.", and a number with
     # letters such as "3D".
+    BREAK_PATTERN = %r{\s*<br\s*/?>\s*}i
+
     PRESERVED_PATTERNS = [
       /\(([A-Z]{2,})\)/,
       /\b([A-Z]\.[A-Z]\.?)/,
@@ -40,7 +42,15 @@ module Courses
       return title if title.nil?
 
       # Some Banner titles hold an HTML line break: "Intro To Design<br>BSCE/BSEN".
-      result = decode_entities(title.to_s).gsub(/\s*<br\s*\/?>\s*/i, " - ")
+      # A break between words becomes a dash, and a break at either end goes.
+      result = decode_entities(title.to_s)
+               .gsub(BREAK_PATTERN, " - ")
+               .sub(/\A\s*-\s*/, "")
+               .sub(/\s*-\s*\z/, "")
+
+      # Banner fits a lab title in 30 characters as "PHYSICS I-LAB". The
+      # default lab title template removes " - Lab", so write it with spaces.
+      result = result.sub(/\s*-\s*(lab)\z/i, ' - \1')
 
       preserved = {}
       PRESERVED_PATTERNS.each do |pattern|
@@ -51,12 +61,12 @@ module Courses
         end
       end
 
-      # "3 D" becomes "3D". A hyphen stays as Banner sends it: "CO-OP" becomes
-      # "Co-Op", and "DESIGN - LAB" keeps its spaces.
+      # "3 D" becomes "3D". Other hyphens stay as Banner sends them: "CO-OP"
+      # becomes "Co-Op".
       result = result.gsub(/(\d)\s+([A-Za-z])(?=\s|$)/, '\1\2')
 
       result = result.downcase
-                     .gsub(%r{(^|[\s\-/(])(\w)}) { $1 + $2.upcase }
+                     .gsub(%r{(^|[\s\-/(&:])(\w)}) { $1 + $2.upcase }
                      .gsub(/(\d)([a-z])/i) { $1 + $2.upcase }
 
       result = result.gsub(ROMAN_NUMERAL_PATTERN, &:upcase)

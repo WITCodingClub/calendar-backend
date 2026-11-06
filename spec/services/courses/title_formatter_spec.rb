@@ -55,8 +55,23 @@ RSpec.describe Courses::TitleFormatter do
     expect(format("PRE CO-OP WORK TERM(BCOT/BSCO)")).to eq("Pre Co-Op Work Term(BCOT/BSCO)")
   end
 
-  it "turns an HTML line break into a dash" do
+  it "turns an HTML line break into a dash, and removes one at either end" do
     expect(format("INTRODUCTION TO ENGINEERING DESIGN<br>BSCE/BSEN")).to eq("Introduction To Engineering Design - BSCE/BSEN")
+    expect(format("INTRO TO DESIGN<br>")).to eq("Intro To Design")
+    expect(format("<br>BSCE")).to eq("BSCE")
+  end
+
+  # The default lab title template removes " - Lab", so a lab title must end
+  # in " - Lab" also when Banner fits it in 30 characters as "-LAB".
+  it "puts spaces around the dash before a final Lab" do
+    expect(format("ADV ESTIMATING & BID ANALY-LAB")).to eq("Adv Estimating & Bid Analy - Lab")
+    expect(format("3D REALIZATION I -LAB")).to eq("3D Realization I - Lab")
+    expect(format("COLLABORATIVE LAB")).to eq("Collaborative Lab")
+  end
+
+  it "capitalizes a word after an ampersand or a colon" do
+    expect(format("LOCAL&WIDE AREA NETWORKS")).to eq("Local&Wide Area Networks")
+    expect(format("VISUALIZATION 3:DRAW/THINK")).to eq("Visualization 3:Draw/Think")
   end
 
   it "decodes HTML entities, also when Banner encodes them twice" do
@@ -87,7 +102,10 @@ RSpec.describe Courses::TitleFormatter do
       "3 D-PRINTING",
       "INTRO TO CO-OP: BE/BME/CE/SSH",
       "STUDIO 07 (AI-URBINO)",
-      "INTRODUCTION TO ENGINEERING DESIGN<br>BSCE/BSEN"
+      "INTRODUCTION TO ENGINEERING DESIGN<br>BSCE/BSEN",
+      "ADV ESTIMATING & BID ANALY-LAB",
+      "ENG SEC LANG II (LIT&COMP)-LAB",
+      "VISUALIZATION 3:DRAW/THINK"
     ].each do |raw|
       once = format(raw)
       expect(format(once)).to eq(once), "#{raw.inspect} changed on the second pass"

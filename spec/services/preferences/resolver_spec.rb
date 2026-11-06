@@ -120,6 +120,12 @@ RSpec.describe Preferences::Resolver do
         .to eq("Computer Science I - Lab")
     end
 
+    # Banner fits a long lab title in 30 characters with no spaces: "-LAB".
+    it "does not add Lab twice to a lab whose Banner title ends in -LAB" do
+      expect(default_title_for(create(:course, schedule_type: :laboratory, title: "ADV ESTIMATING & BID ANALY-LAB")))
+        .to eq("Adv Estimating & Bid Analy - Lab")
+    end
+
     it "leaves a lecture title alone" do
       expect(default_title_for(create(:course, schedule_type: :lecture, title: "Computer Science I")))
         .to eq("Computer Science I")
