@@ -81,6 +81,16 @@ constraints AdminConstraint.new do
     post "course_catalog/import/:term_uid",     to: "course_catalog#import",   as: :course_catalog_import
     post "course_catalog/provision/:term_uid",  to: "course_catalog#provision", as: :course_catalog_provision
 
+    # The degree requirements import (#864). The :id of a catalog year is its
+    # start year, and the :id of a program is its slug.
+    resources :catalog_years, only: [ :index, :show ] do
+      member do
+        post :import
+        get  :course_comparison
+      end
+    end
+    resources :degree_programs, only: [ :index, :show ]
+
     resources :buildings, only: [ :index ] do
       collection do
         post :sync

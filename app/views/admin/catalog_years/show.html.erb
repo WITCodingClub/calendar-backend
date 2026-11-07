@@ -1,0 +1,38 @@
+<%= render "admin/shared/page_header", title: "Catalog #{@catalog_year.name}", subtitle: "The programs that the import read for this catalog year.", back: [ "Catalog Years", admin_catalog_years_path ] do %>
+  <%= link_to "Compare courses with Banner", course_comparison_admin_catalog_year_path(@catalog_year.start_year), class: "m3-btn-outlined" %>
+<% end %>
+
+<%= render "admin/shared/card", title: "Import", css_class: "mb-6" do %>
+  <%= admin_details(columns: 3) do |d| %>
+    <% d.item("Status") { catalog_year_status_badge(@catalog_year, queued: @queued) } %>
+    <% d.item("Source") { catalog_source_label(@catalog_year.source) } %>
+    <% d.item("Imported") { l(@catalog_year.imported_at) if @catalog_year.imported_at } %>
+    <% d.item("Base URL", wide: true) { link_to(@catalog_year.base_url, @catalog_year.base_url, target: "_blank", rel: "noopener", class: "text-primary hover:underline") if @catalog_year.base_url.present? } %>
+  <% end %>
+<% end %>
+
+<%= render "admin/shared/search", url: admin_catalog_year_path(@catalog_year.start_year), placeholder: "Search programs by name" %>
+
+<%= admin_table(@requirement_sets, empty: "No programs for this catalog year.") do |t| %>
+  <% t.column("Program") do |set| %>
+    <%= link_to set.name, admin_degree_program_path(set.degree_program.slug, year: @catalog_year.start_year), class: "font-medium text-primary hover:underline" %>
+    <div class="text-xs text-on-surface-variant"><code><%= set.degree_program.slug %></code></div>
+  <% end %>
+  <% t.column("School") do |set| %>
+    <%= set.school_name %>
+    <% if set.department_name.present? %>
+      <div class="text-xs text-on-surface-variant"><%= set.department_name %></div>
+    <% end %>
+  <% end %>
+  <% t.column("Credits", align: :right) { |set| set.total_credits&.to_s } %>
+  <% t.column("Plans", align: :right) { |set| @plan_counts.fetch(set.id, 0).to_s } %>
+  <% t.column("Elective lists", align: :right) { |set| @list_counts.fetch(set.id, 0).to_s } %>
+  <% t.column("Flags", primary: false) do |set| %>
+    <% if set.needs_review? %>
+      <%= admin_badge("Needs review", :warning) %>
+    <% end %>
+    <% unless set.listed? %>
+      <%= admin_badge("Not listed", :neutral, title: "The last import of this year did not find this program") %>
+    <% end %>
+  <% end %>
+<% end %>

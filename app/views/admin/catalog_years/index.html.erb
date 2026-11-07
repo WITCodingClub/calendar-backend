@@ -1,0 +1,58 @@
+<%= render "admin/shared/page_header", title: "Catalog Years", subtitle: "Degree requirements from catalog.wit.edu for each catalog year. An import reads the programs of one year, then its courses." do %>
+  <%= link_to "Degree Programs", admin_degree_programs_path, class: "m3-btn-outlined" %>
+<% end %>
+
+<%# The frame reloads every five seconds, so a queued import updates in place. %>
+<%= turbo_frame_tag "catalog-years",
+    data: { controller: "auto-refresh", "auto-refresh-interval-value": 5000, "auto-refresh-url-value": request.path } do %>
+  <%= admin_table(@catalog_years, id: "catalog-years-table", empty: "No catalog years yet.") do |t| %>
+    <% t.column("Catalog year") do |catalog_year| %>
+      <% if catalog_year.persisted? %>
+        <%= link_to catalog_year.name, admin_catalog_year_path(catalog_year.start_year), data: { turbo_frame: "_top" }, class: "font-medium text-primary hover:underline" %>
+      <% else %>
+        <span class="font-medium"><%= catalog_year.name %></span>
+      <% end %>
+    <% end %>
+    <% t.column("Source") { |catalog_year| catalog_source_label(catalog_year.source) if catalog_year.persisted? } %>
+    <% t.column("Status") { |catalog_year| catalog_year_status_badge(catalog_year, queued: @queued.include?(catalog_year.start_year)) } %>
+    <% t.column("Imported") do |catalog_year| %>
+      <% if catalog_year.imported_at %>
+        <span title="<%= l(catalog_year.imported_at) %>"><%= time_ago_in_words(catalog_year.imported_at) %> ago</span>
+      <% end %>
+    <% end %>
+    <% t.column("Programs", align: :right) { |catalog_year| number_with_delimiter(@program_counts.fetch(catalog_year.id, 0)) if catalog_year.persisted? } %>
+    <% t.column("Courses", align: :right) do |catalog_year| %>
+      <% if catalog_year.persisted? %>
+        <%= link_to number_with_delimiter(@course_counts.fetch(catalog_year.id, 0)), course_comparison_admin_catalog_year_path(catalog_year.start_year),
+            data: { turbo_frame: "_top" }, title: "Compare with Banner", class: "text-primary hover:underline" %>
+      <% end %>
+    <% end %>
+    <% t.column("Actions", align: :right, primary: false) do |catalog_year| %>
+      <%# A PDF year has its own import (#865). %>
+      <% unless catalog_year.source_pdf? %>
+        <% queued = @queued.include?(catalog_year.start_year) %>
+        <div class="flex flex-wrap justify-end gap-2">
+          <%= button_to (queued ? "Importing…" : (catalog_year.imported? ? "Re-import" : "Import")),
+              import_admin_catalog_year_path(catalog_year.start_year),
+              method: :post,
+              disabled: queued,
+              form: { data: { turbo_frame: "_top", turbo_confirm: ("Import the degree requirements of #{catalog_year.name}?" unless queued) }.compact },
+              class: "m3-btn-outlined disabled:opacity-50 disabled:cursor-not-allowed" %>
+          <% if catalog_year.imported? && !queued %>
+            <%= button_to "Force",
+                import_admin_catalog_year_path(catalog_year.start_year, force: 1),
+                method: :post,
+                title: "Import even when the index lists far fewer programs than the last import",
+                form: { data: { turbo_frame: "_top", turbo_confirm: "Import #{catalog_year.name} even if the catalog lists far fewer programs than the last import?" } },
+                class: "m3-btn-text" %>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+  <% end %>
+<% end %>
+
+<p class="mt-4 flex items-start gap-2 text-sm text-on-surface-variant">
+  <%= admin_icon(:information, css_class: "w-5 h-5 shrink-0") %>
+  <span>Imports run one at a time in the background. A year shows importing until its course import ends too. A year takes about one minute, and 2025-2026 takes about 10 minutes from the Wayback Machine. A year with no published catalog becomes missing.<% if current_user.super_admin_access? %> <%= link_to "Background Jobs", admin_mission_control_jobs_path, target: "_blank", rel: "noopener", class: "text-primary underline" %> shows the job status.<% end %></span>
+</p>

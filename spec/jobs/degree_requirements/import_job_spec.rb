@@ -99,4 +99,28 @@ RSpec.describe DegreeRequirements::ImportJob do
 
     expect { described_class.perform_now(2024) }.to have_enqueued_job(described_class).with(2024)
   end
+
+  describe ".queued_start_years" do
+    def queue(job, finished: false)
+      SolidQueue::Job.create!(class_name: job.class.name, queue_name: "low", active_job_id: job.job_id,
+                              arguments: job.serialize, finished_at: (Time.current if finished))
+    end
+
+    it "gives the start year of each import in the queue" do
+      queue(described_class.new(2024))
+      queue(described_class.new(2023, force: true))
+      queue(DegreeRequirements::CourseImportJob.new(2022))
+
+      expect(described_class.queued_start_years).to contain_exactly(2024, 2023, 2022)
+    end
+
+    it "leaves out finished and failed imports, and other jobs" do
+      queue(described_class.new(2022), finished: true)
+      failed = queue(described_class.new(2021))
+      SolidQueue::FailedExecution.create!(job: failed, exception: StandardError.new("HTTP 503"))
+      queue(DegreeRequirements::CurrentYearImportJob.new)
+
+      expect(described_class.queued_start_years).to be_empty
+    end
+  end
 end

@@ -1,0 +1,29 @@
+<%= render "admin/shared/page_header", title: "Degree Programs", subtitle: "Every program that the degree requirements import found, across all catalog years." do %>
+  <%= link_to "Catalog Years", admin_catalog_years_path, class: "m3-btn-outlined" %>
+<% end %>
+
+<%= render "admin/shared/filters",
+    url: admin_degree_programs_path,
+    search: "Search by name or slug",
+    selects: [ { name: :kind, label: "Kind", options: DegreeProgram.kinds.keys.map { |kind| [ kind.capitalize, kind ] }, blank: "All kinds" } ] %>
+
+<%= admin_table(@degree_programs, empty: "No programs match.") do |t| %>
+  <% t.column("Program") do |program| %>
+    <%= link_to program.name, admin_degree_program_path(program.slug), class: "font-medium text-primary hover:underline" %>
+    <div class="text-xs text-on-surface-variant"><code><%= program.slug %></code></div>
+  <% end %>
+  <% t.column("Kind") do |program| %>
+    <%= program.kind.capitalize %>
+    <div class="text-xs text-on-surface-variant"><%= program.level.capitalize %></div>
+  <% end %>
+  <% t.column("Part of") { |program| link_to(program.parent_program.name, admin_degree_program_path(program.parent_program.slug), class: "text-primary hover:underline") if program.parent_program } %>
+  <% t.column("Catalog years", align: :right) do |program| %>
+    <% years = @start_years.fetch(program.id, []) %>
+    <% if years.any? %>
+      <span title="<%= years.map { |year| "#{year}-#{year + 1}" }.join(", ") %>">
+        <%= years.size == 1 ? "#{years.first}-#{years.first + 1}" : "#{years.first}-#{years.first + 1} to #{years.last}-#{years.last + 1}" %>
+      </span>
+      <div class="text-xs text-on-surface-variant"><%= pluralize(years.size, "year") %></div>
+    <% end %>
+  <% end %>
+<% end %>
