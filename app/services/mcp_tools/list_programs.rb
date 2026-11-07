@@ -15,7 +15,8 @@ module McpTools
     title "List degree programs"
     description "Lists the degree programs in one catalog year of the Wentworth academic catalog: majors, minors, " \
                 "concentrations, certificates, and graduate degrees, with the slug that degree_requirements takes. " \
-                "Also lists the catalog years WIT Calendar has."
+                "To list the concentrations of a major, pass the slug of the major as parent_program. Also lists " \
+                "the catalog years WIT Calendar has."
     requires_scope "catalog"
     academic_planning :degree_requirements
     input_schema(
@@ -23,7 +24,10 @@ module McpTools
         catalog_year: CATALOG_YEAR_SCHEMA,
         kind:         { type: "string", enum: DegreeProgram::KINDS.values, description: "Only programs of this kind." },
         level:        { type: "string", enum: DegreeProgram::LEVELS.values, description: "Only programs of this level." },
-        q:            { type: "string", description: "Words in the program name, for example computer science." }
+        q:            { type: "string", description: "Words in the program name, for example computer science." },
+        parent_program: { type: "string",
+                          description: "Only the concentrations of this major: its slug, for example " \
+                                       "construction-management-bs, from my_programs or this list." }
       }
     )
     output_schema(
@@ -34,10 +38,10 @@ module McpTools
       )
     )
 
-    def perform(catalog_year: nil, kind: nil, level: nil, q: nil)
+    def perform(catalog_year: nil, kind: nil, level: nil, q: nil, parent_program: nil)
       query = Catalog::ProgramQuery.new
       year = find_catalog_year(query, catalog_year)
-      programs = query.call(catalog_year: year, kind: kind, level: level, q: q)
+      programs = query.call(catalog_year: year, kind: kind, level: level, q: q, parent: parent_program)
 
       { catalog_year: year.name, catalog_years: query.catalog_years.map(&:name),
         programs: programs.map { |set| Catalog::ProgramSerializer.summary(set) } }
@@ -53,8 +57,7 @@ module McpTools
       years = query.catalog_years.map(&:name)
       raise ToolError, "WIT Calendar has no degree program data yet." if years.empty?
 
-      raise ToolError, "No #{value} catalog. WIT Calendar has these catalog years: #{years.join(', ')}. Catalogs " \
-                       "before 2019-2020 are not imported yet."
+      raise ToolError, "No #{value} catalog. WIT Calendar has these catalog years: #{years.join(', ')}."
     end
 
     private

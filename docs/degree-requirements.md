@@ -165,7 +165,7 @@ flowchart TD
 |---|---|---|
 | 2013-2014 to 2015-2016 | Word tables with a column for each semester. A cell is a code and its credits, with the title under it. A row of totals ends each year. | `GridParser` |
 | 2016-2017 to 2018-2019 | A heading for each semester ("Junior Year, Fall Semester (total credits 16)") with one course a line under it. | `ListParser` |
-| 2025-2026 | CourseLeaf, two columns on a page. The program name comes from the contents ("Computer Science Bachelor of Science ... 104") and the printed page number. | `CourseLeafParser` |
+| 2025-2026 | CourseLeaf, two columns on a page. The program name comes from the contents ("Computer Science Bachelor of Science ... 104") and the printed page number. A contents entry can take two lines. When programs share a page, the heading just above the plan names it. | `CourseLeafParser` |
 
 - **Programs.** `PdfCatalog::ProgramMatcher` compares the subject words and the kind (bachelor from a code such as BCOS, master from MSCM) with the `DegreeProgram` rows of the HTML years. A plan with no match, or with more than one, is logged and not written. The import never makes a `DegreeProgram`, so programs that closed before 2019 (the engineering technology degrees, the architecture concentrations) are left out. Add a renamed program to `ProgramMatcher::RENAMED`.
 - **What is read.** Course rows, choices ("MATH181 or MATH250"), pairs, placeholders ("Humanities or Social Science Elective"), and credits. The PDFs have no lecture or lab hours in their plans, and the elective lists are prose, so a PDF set has no `ElectiveGroup` rows. 2016-2017 and 2017-2018 print few credits: when a semester total is four credits for each course with none, each gets four.

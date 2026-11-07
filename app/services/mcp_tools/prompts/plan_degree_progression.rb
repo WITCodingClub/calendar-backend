@@ -7,8 +7,8 @@ module McpTools
     #
     # The requirements come from the academic catalog (list_programs and
     # degree_requirements). my_programs gives the student's programs and
-    # catalog years from LeopardWeb; without them, the model asks. The
-    # catalog has no data before 2019-2020; then the student gives the list.
+    # catalog years from LeopardWeb; without them, the model asks. When the
+    # catalog has no data for the year, the student gives the list.
     class PlanDegreeProgression < BasePrompt
       prompt_name "plan_degree_progression"
       title "Plan my path to graduation"

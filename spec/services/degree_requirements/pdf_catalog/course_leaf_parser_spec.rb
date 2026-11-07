@@ -41,4 +41,24 @@ RSpec.describe DegreeRequirements::PdfCatalog::CourseLeafParser do
   it "gives no program to a plan under a department heading" do
     expect(programs.second.title).to be_nil
   end
+
+  context "with programs that share a page" do
+    subject(:programs) { described_class.call(file_fixture("degree_requirements/pdf/courseleaf_shared_pages.txt").read) }
+
+    it "names each plan from the heading above it and joins contents entries over two lines" do
+      expect(programs.map(&:title)).to eq([
+        "Biological Engineering Bachelor of Science",
+        "Engineering Bachelor of Science with a Concentration in Biomedical Engineering",
+        "Engineering Bachelor of Science with a Concentration in Civil Engineering",
+        "Engineering - Robotics, B.S."
+      ])
+    end
+
+    it "uses the last program on the page when no heading names one" do
+      text = file_fixture("degree_requirements/pdf/courseleaf_shared_pages.txt").read
+                                                                               .sub("Engineering - Robotics, B.S.\n", "")
+
+      expect(described_class.call(text).last.title).to eq("Robotics Minor")
+    end
+  end
 end
