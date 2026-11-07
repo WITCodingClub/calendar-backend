@@ -16,6 +16,10 @@ module DegreeRequirements
   SITE_URL = "https://catalog.wit.edu"
   USER_AGENT = "WITCalendarBot/1.0"
 
+  # The Double Leopard (4+1 master's) page. The catalog does not list these
+  # programs, so PathwaySync reads them here.
+  DOUBLE_LEOPARD_URL = "https://wit.edu/admissions/graduate/accelerated-masters-degrees"
+
   # 2025-2026 has no archive on the catalog site. The Wayback Machine has its
   # pages; this is the capture time to ask for. Each page still has to name
   # the right catalog year (CatalogPage#start_year).

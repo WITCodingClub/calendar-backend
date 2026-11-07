@@ -100,4 +100,34 @@ RSpec.describe McpTools::UpdateMyPlannedPrograms do
       expect(user.student_programs.planned.count).to eq(1)
     end
   end
+
+  describe "with pathway" do
+    let(:master) { create(:degree_program, :master, slug: "gear-studies-ms", name: "Gear Studies, M.S.") }
+
+    before do
+      pathway = create(:program_pathway, slug: "gear-studies-4-plus-1", name: "Gear Studies 4+1")
+      create(:program_pathway_step, program_pathway: pathway, degree_program: minor, position: 1)
+      create(:program_pathway_step, program_pathway: pathway, degree_program: master, position: 2)
+      create(:requirement_set, degree_program: master, catalog_year: catalog_year, name: "Gear Studies, M.S.")
+    end
+
+    it "adds and removes the programs of a pathway" do
+      added = call(action: "add", pathway: "gear-studies-4-plus-1").structured_content
+
+      expect(added).to include(result: "added", program: nil, pathway: include(id: "gear-studies-4-plus-1"))
+      expect(added[:planned_programs].pluck(:pathway)).to eq(%w[gear-studies-4-plus-1 gear-studies-4-plus-1])
+      expect(added[:planned_pathways].pluck(:id)).to eq([ "gear-studies-4-plus-1" ])
+
+      removed = call(action: "remove", pathway: "gear-studies-4-plus-1").structured_content
+      expect(removed).to include(result: "removed", planned_programs: [], planned_pathways: [])
+      expect(user.student_programs).to be_empty
+    end
+
+    it "refuses both program and pathway, neither, and an unknown pathway" do
+      expect(text(call(action: "add", program: "gear-minor", pathway: "gear-studies-4-plus-1"))).to include("not both")
+      expect(text(call(action: "add"))).to include("Give program or pathway")
+      expect(text(call(action: "add", pathway: "nope"))).to include("Pathways: gear-studies-4-plus-1")
+      expect(text(call(action: "remove", pathway: "gear-studies-4-plus-1"))).to include("No planned pathway")
+    end
+  end
 end

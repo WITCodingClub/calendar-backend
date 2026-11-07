@@ -25,6 +25,7 @@ RSpec.describe ProgramPathway do
 
   it { is_expected.to have_many(:steps).class_name("ProgramPathwayStep").dependent(:delete_all) }
   it { is_expected.to have_many(:degree_programs).through(:steps) }
+  it { is_expected.to have_many(:student_programs) }
   it { is_expected.to validate_presence_of(:name) }
   it { is_expected.to validate_presence_of(:slug) }
   it { is_expected.to validate_uniqueness_of(:slug) }
@@ -33,7 +34,7 @@ RSpec.describe ProgramPathway do
 
   it do
     expect(subject).to define_enum_for(:kind)
-      .with_values(three_plus_one: "three_plus_one", four_plus_one: "four_plus_one", five_year: "five_year")
+      .with_values(combined: "combined", double_leopard: "double_leopard")
       .backed_by_column_of_type(:string).validating
   end
 

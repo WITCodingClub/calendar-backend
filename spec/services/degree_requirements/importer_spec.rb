@@ -72,6 +72,31 @@ RSpec.describe DegreeRequirements::Importer do
                                               catalog_year: catalog_year)
   end
 
+  it "syncs the program pathways only after an import of the current catalog, and goes on when the sync fails" do
+    sync = instance_double(DegreeRequirements::PathwaySync, call: nil)
+    allow(DegreeRequirements::PathwaySync).to receive(:new).and_return(sync)
+
+    import
+    expect(DegreeRequirements::PathwaySync).not_to have_received(:new)
+
+    current = create(:catalog_year, start_year: 2026)
+    stub_request(:get, "https://catalog.wit.edu/previous-catalogs/2026-2027/programs-az/").to_return(status: 404)
+    stub_request(:get, "https://catalog.wit.edu/programs-az/").to_return(
+      status: 200, body: "<div id=\"textcontainer\"><a href=\"/widgetry/widget-design-ms/\">Widget Design, M.S.</a></div>" \
+                         "<footer>Boston, MA 2026-2027</footer>"
+    )
+    stub_request(:get, "https://catalog.wit.edu/widgetry/widget-design-ms/").to_return(status: 200, body: plain_page("2026-2027"))
+
+    expect(described_class.new(current, client: client).call.status).to eq(:imported)
+    expect(DegreeRequirements::PathwaySync).to have_received(:new).with(client: client)
+    expect(sync).to have_received(:call)
+
+    allow(sync).to receive(:call).and_raise(DegreeRequirements::FetchError)
+    allow(Rails.error).to receive(:report)
+    expect(described_class.new(current, client: client, force: true).call.status).to eq(:imported)
+    expect(Rails.error).to have_received(:report).with(DegreeRequirements::FetchError, hash_including(handled: true))
+  end
+
   it "reads the kind and level of each program, and links a concentration to its major" do
     import
 

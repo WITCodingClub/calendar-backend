@@ -45,6 +45,7 @@ module DegreeRequirements
       ElectiveGroupCourse.link_catalog_courses
       # Student programs saved before this import get their link now.
       AcademicProfiles::ProgramMatcher.relink_active
+      sync_pathways if source.kind == :current
 
       @catalog_year.update!(status: "imported", imported_at: Time.current)
       result(:imported, programs.size).tap do |done|
@@ -178,6 +179,16 @@ module DegreeRequirements
         program.parent_program = parent
         log("#{program.slug}: #{program.errors.full_messages.to_sentence}") unless program.save
       end
+    end
+
+    # The pathways link to programs, so they sync after the programs exist.
+    # Only the current catalog has the Accelerated Programs page. A fetch
+    # error, a changed page, or a save that fails (such as a race with the
+    # rake task) keeps the stored pathways and does not stop the import.
+    def sync_pathways
+      PathwaySync.new(client: @client).call
+    rescue Error, ActiveRecord::ActiveRecordError => e
+      Rails.error.report(e, handled: true, context: { catalog_year_id: @catalog_year.id })
     end
 
     def name_key(name)

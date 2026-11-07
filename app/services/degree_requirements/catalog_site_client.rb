@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 module DegreeRequirements
-  # Fetches pages of the catalog site or of a Wayback Machine copy. It waits
+  # Fetches pages of the catalog site, of a Wayback Machine copy, or the
+  # Double Leopard page on wit.edu. It waits
   # `delay` seconds between requests, so an import of a whole year does not
   # load either site.
   class CatalogSiteClient
@@ -21,7 +22,7 @@ module DegreeRequirements
     # more than about 15 pages a minute.
     WAYBACK_HOST = "web.archive.org"
     WAYBACK_DELAY = 5
-    ALLOWED_HOSTS = [ URI(SITE_URL).host, WAYBACK_HOST ].freeze
+    ALLOWED_HOSTS = [ URI(SITE_URL).host, WAYBACK_HOST, URI(DOUBLE_LEOPARD_URL).host, "www.wit.edu" ].freeze
 
     def initialize(delay: 0.5, wayback_delay: WAYBACK_DELAY)
       @pacer = RequestPacer.new(delay)
@@ -54,7 +55,7 @@ module DegreeRequirements
 
     private
 
-    # A redirect is followed only to the catalog site or the Wayback Machine,
+    # A redirect is followed only to the catalog site, the Wayback Machine, or wit.edu,
     # over HTTPS, so a bad redirect cannot send the server to another host.
     def redirect_target(from, location)
       target = URI.join(from, location)

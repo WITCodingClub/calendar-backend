@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "/api/user/programs and /api/user/planned_programs", :degree_planning, type: :request do
+RSpec.describe "/api/user/programs, /api/user/planned_programs, and /api/user/planned_pathways", :degree_planning, type: :request do
   let(:user) { create(:user) }
   let!(:catalog_year) { create(:catalog_year, :imported, start_year: 2026) }
   let(:minor) { create(:degree_program, :minor, slug: "gear-minor", name: "Gear Minor") }
@@ -107,6 +107,60 @@ RSpec.describe "/api/user/programs and /api/user/planned_programs", :degree_plan
       delete "/api/user/planned_programs/#{other.public_id}", headers: auth_headers_for(user)
       expect(response).to have_http_status(:not_found)
       expect(StudentProgram.where(id: [ active.id, other.id ]).count).to eq(2)
+    end
+  end
+
+  describe "/api/user/planned_pathways" do
+    let(:bachelor) { create(:degree_program, slug: "gear-studies-bs", name: "Gear Studies, B.S.") }
+    let(:master) { create(:degree_program, :master, slug: "gear-studies-ms", name: "Gear Studies, M.S.") }
+
+    before do
+      pathway = create(:program_pathway, slug: "gear-studies-4-plus-1", name: "Gear Studies 4+1", max_shared_courses: 2)
+      create(:program_pathway_step, program_pathway: pathway, degree_program: bachelor, position: 1, plan_years: 4)
+      create(:program_pathway_step, program_pathway: pathway, degree_program: master, position: 2, plan_years: 1)
+      create(:requirement_set, degree_program: bachelor, catalog_year: catalog_year, name: "Gear Studies, B.S.")
+      create(:requirement_set, degree_program: master, catalog_year: catalog_year, name: "Gear Studies, M.S.")
+    end
+
+    it "adds the missing programs of a pathway, shows the pathway in GET programs, and removes only its rows" do
+      active = create(:student_program, user: user, degree_program: bachelor)
+      headers = auth_headers_for(user)
+
+      post "/api/user/planned_pathways", params: { pathway: "gear-studies-4-plus-1" }, headers: headers, as: :json
+
+      expect(response).to have_http_status(:created)
+      row = user.student_programs.planned.sole
+      expect(response.parsed_body).to include(
+        "pathway"  => include("id" => "gear-studies-4-plus-1", "kind" => "combined", "max_shared_courses" => 2,
+                              "steps" => [ { "program" => "gear-studies-bs", "plan_years" => 4 },
+                                           { "program" => "gear-studies-ms", "plan_years" => 1 } ]),
+        "programs" => [ include("id" => row.public_id, "program" => "gear-studies-ms", "pathway" => "gear-studies-4-plus-1") ]
+      )
+
+      get "/api/user/programs", headers: headers
+      expect(response.parsed_body["planned_pathways"].pluck("id")).to eq([ "gear-studies-4-plus-1" ])
+
+      delete "/api/user/planned_pathways/gear-studies-4-plus-1", headers: headers
+      expect(response).to have_http_status(:no_content)
+      expect(user.student_programs.reload).to eq([ active ])
+    end
+
+    it "adds every program of a pathway for a student with no programs" do
+      post "/api/user/planned_pathways", params: { pathway: "gear-studies-4-plus-1" }, headers: auth_headers_for(user), as: :json
+
+      expect(response).to have_http_status(:created)
+      expect(user.student_programs.planned.map(&:degree_program)).to contain_exactly(bachelor, master)
+    end
+
+    it "answers 422 for an unknown pathway and 404 for a pathway the student did not plan" do
+      headers = auth_headers_for(user)
+
+      post "/api/user/planned_pathways", params: { pathway: "nope" }, headers: headers, as: :json
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["code"]).to eq("unknown_pathway")
+
+      delete "/api/user/planned_pathways/gear-studies-4-plus-1", headers: headers
+      expect(response).to have_http_status(:not_found)
     end
   end
 end

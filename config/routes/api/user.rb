@@ -26,10 +26,12 @@ scope "user", as: :user do
   put "academic_profile", to: "academic_profiles#update"
   put "course_outcomes",  to: "course_outcomes#update"
 
-  # Active, planned, and ended programs, and the planned ones a student adds (#868)
+  # Active, planned, and ended programs, and the planned programs and pathways a student adds (#868)
   get    "programs",             to: "student_programs#index"
   post   "planned_programs",     to: "planned_programs#create"
   delete "planned_programs/:id", to: "planned_programs#destroy"
+  post   "planned_pathways",     to: "planned_pathways#create"
+  delete "planned_pathways/:id", to: "planned_pathways#destroy"
 
   # Degree requirements next to the courses taken (#799)
   get "degree_progress", to: "degree_progresses#show"

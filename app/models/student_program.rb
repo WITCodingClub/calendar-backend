@@ -4,36 +4,39 @@
 #
 # Table name: student_programs
 #
-#  id                :bigint           not null, primary key
-#  catalog_term_uid  :integer
-#  code              :string
-#  college           :string
-#  concentration     :string
-#  degree            :string
-#  department        :string
-#  ended_at          :datetime
-#  name              :string           not null
-#  plan_name         :string
-#  role              :string           not null
-#  source            :string           not null
-#  status            :string           default("active"), not null
-#  study_path        :string
-#  created_at        :datetime         not null
-#  updated_at        :datetime         not null
-#  catalog_year_id   :bigint
-#  degree_program_id :bigint
-#  user_id           :bigint           not null
+#  id                 :bigint           not null, primary key
+#  catalog_term_uid   :integer
+#  code               :string
+#  college            :string
+#  concentration      :string
+#  degree             :string
+#  department         :string
+#  ended_at           :datetime
+#  name               :string           not null
+#  plan_name          :string
+#  role               :string           not null
+#  source             :string           not null
+#  status             :string           default("active"), not null
+#  study_path         :string
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  catalog_year_id    :bigint
+#  degree_program_id  :bigint
+#  program_pathway_id :bigint
+#  user_id            :bigint           not null
 #
 # Indexes
 #
 #  index_student_programs_on_catalog_year_id     (catalog_year_id)
 #  index_student_programs_on_degree_program_id   (degree_program_id)
+#  index_student_programs_on_program_pathway_id  (program_pathway_id)
 #  index_student_programs_on_user_id_and_status  (user_id,status)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (catalog_year_id => catalog_years.id) ON DELETE => nullify
 #  fk_rails_...  (degree_program_id => degree_programs.id) ON DELETE => nullify
+#  fk_rails_...  (program_pathway_id => program_pathways.id) ON DELETE => nullify
 #  fk_rails_...  (user_id => users.id) ON DELETE => cascade
 #
 # One major, minor, concentration, or certificate of a student, as LeopardWeb
@@ -48,7 +51,8 @@
 # minor (#868). The student adds it from the degree catalog, so it always has
 # a degree_program and a catalog_year, and no catalog_term_uid. Sync and
 # ProgramMatcher read only active rows, so they never change a planned row.
-# AcademicProfiles::PlannedPrograms adds and removes planned rows.
+# AcademicProfiles::PlannedPrograms adds and removes planned rows, one
+# program at a time or all the programs of a ProgramPathway.
 class StudentProgram < ApplicationRecord
   include EncodedIds::HashidIdentifiable
 
@@ -65,6 +69,9 @@ class StudentProgram < ApplicationRecord
   belongs_to :user
   belongs_to :degree_program, optional: true
   belongs_to :catalog_year, optional: true
+  # Set on a planned row that the student added with a pathway, such as a
+  # 4+1. Removing the pathway removes its rows.
+  belongs_to :program_pathway, optional: true
 
   validates :name, presence: true
   validates :degree_program, :catalog_year, presence: true, if: :planned?

@@ -13,7 +13,8 @@ module McpTools
     description "Lists my majors, minors, concentrations, and certificates, as LeopardWeb shows them, with the " \
                 "catalog year of each. A student follows the requirements of that catalog year, so pass program " \
                 "and catalog_year to degree_requirements. Also lists the programs I plan to take " \
-                "(planned_programs, added with update_my_planned_programs) and my ended programs, such as a major " \
+                "(planned_programs, added with update_my_planned_programs), the pathways I plan, such as a 4+1 " \
+                "(planned_pathways; each planned program names its pathway), and my ended programs, such as a major " \
                 "I changed. program is null when WIT Calendar cannot link the program to the degree catalog."
     requires_scope "programs:read"
     academic_planning :degree_requirements

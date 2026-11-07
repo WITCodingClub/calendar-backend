@@ -400,6 +400,7 @@ module McpTools
       catalog_term_code: nullable(STRING),
       catalog_year:      nullable(STRING),
       program:           nullable(STRING),
+      pathway:           nullable(STRING),
       matched:           nullable(BOOLEAN),
       source:            { type: "string", enum: StudentProgram::SOURCES.values },
       ended_at:          nullable(DATE_TIME),
@@ -410,6 +411,16 @@ module McpTools
       start_term_source: nullable({ type: "string", enum: [ "catalog_term", "admit_term", nil ] })
     ).freeze
 
+    # ProgramPathwaySerializer.
+    PROGRAM_PATHWAY = object(
+      id:                 STRING,
+      name:               STRING,
+      kind:               { type: "string", enum: ProgramPathway::KINDS.values },
+      max_shared_courses: nullable(INTEGER),
+      max_shared_credits: nullable(INTEGER),
+      steps:              array(object(program: STRING, plan_years: nullable(INTEGER)))
+    ).freeze
+
     # StudentProgramsSerializer.
     STUDENT_PROGRAMS_PROPERTIES = {
       level:                nullable(STRING),
@@ -418,6 +429,7 @@ module McpTools
       leopardweb_synced_at: nullable(DATE_TIME),
       programs:             array(STUDENT_PROGRAM),
       planned_programs:     array(STUDENT_PROGRAM),
+      planned_pathways:     array(PROGRAM_PATHWAY),
       ended_programs:       array(STUDENT_PROGRAM)
     }.freeze
 

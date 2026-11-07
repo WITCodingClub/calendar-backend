@@ -79,6 +79,12 @@ RSpec.describe "degree_planning flag", type: :request do
       expect(response).to have_http_status(:not_found)
       expect(StudentProgram.exists?(planned.id)).to be(true)
 
+      post "/api/user/planned_pathways", params: { pathway: "gear-studies" }, headers: headers
+      expect(response).to have_http_status(:not_found)
+
+      delete "/api/user/planned_pathways/gear-studies", headers: headers
+      expect(response).to have_http_status(:not_found)
+
       get "/api/user/degree_progress", headers: headers
       expect(response).to have_http_status(:not_found)
     end

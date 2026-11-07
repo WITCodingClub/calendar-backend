@@ -17,7 +17,7 @@ The Flipper flag `degree_planning` (#944) is off by default. While it is off for
 |---|---|
 | Every `/dashboard/programs*` route: the page, edit, plan, planned programs, and profile | `GET` and `PUT /api/user/academic_profile` |
 | `GET /api/user/programs` | `PUT /api/user/course_outcomes` |
-| `POST` and `DELETE /api/user/planned_programs` | The MCP tools (`my_programs`, `my_degree_progress`, `update_my_planned_programs`) |
+| `POST` and `DELETE /api/user/planned_programs` and `/api/user/planned_pathways` | The MCP tools (`my_programs`, `my_degree_progress`, `update_my_planned_programs`) |
 | `GET /api/user/degree_progress` | |
 
 ```mermaid
@@ -102,7 +102,35 @@ flowchart TD
 - An ended program can be planned again, for example a major the student changed.
 - A planned program stays when LeopardWeb later shows the same program, because a sync never changes a planned row. The student removes it. The duplicate check finds an active row only when it links to the same `DegreeProgram`.
 - `save!` runs the duplicate and limit checks again under a lock on the user, so two adds at the same time cannot save the same program twice.
-- Pathways (3+1, 4+1) cannot be planned yet, because no import fills `ProgramPathway`. A student can plan the master's program alone.
+
+### Planned pathways
+
+A student can also plan a pathway: a Double Leopard master's (3+1 or 4+1), or a combined program such as the 5-year B.S. plus M.Arch. `ProgramPathway` has the list (`docs/degree-requirements.md`).
+
+| Endpoint | MCP tool | Does |
+|---|---|---|
+| `POST /api/user/planned_pathways` | `update_my_planned_programs` (`action: add`, `pathway`) | Adds a planned row for each program of the pathway that the student does not have yet. Params: `pathway` (a pathway slug), `catalog_year` (optional). Returns the pathway and the new rows |
+| `DELETE /api/user/planned_pathways/:id` | `update_my_planned_programs` (`action: remove`, `pathway`) | Removes the planned rows of the pathway. `id` is the pathway slug |
+
+```mermaid
+flowchart TD
+  A[Add a planned pathway] --> K{Active pathway with that slug?}
+  K -- no --> E1[422 unknown_pathway, with the list of slugs]
+  K -- yes --> B{Double Leopard, and no active or planned bachelor's?}
+  B -- yes --> E4[422 no_bachelors_program]
+  B -- no --> P[One row for each step program the student has no active or planned row for]
+  P --> D{A planned row already links to the pathway, or no row to add?}
+  D -- yes --> E2[422 duplicate_pathway]
+  D -- no --> L{Planned rows plus new rows at most 10?}
+  L -- no --> E3[422 too_many_programs]
+  L -- yes --> S[Save every row with program_pathway_id, all or none]
+```
+
+- A row that the pathway adds has `program_pathway_id`. `pathway` in each planned program is its slug. `planned_pathways` in `GET /api/user/programs` lists the pathways of the planned rows, with their steps and `max_shared_courses`.
+- A program the student already has stays as it is and does not link to the pathway. So removing the pathway never removes a LeopardWeb row or a program the student planned alone.
+- A student can still remove one row of a pathway with `DELETE /api/user/planned_programs/:id`. The pathway stays in `planned_pathways` while one of its rows is planned.
+- Every step uses the same catalog year, the newest one when `catalog_year` is blank.
+- A Double Leopard pathway adds only the master's programs. It follows the student's own bachelor's: a row whose program is a bachelor's, or a LeopardWeb row with no catalog program and a bachelor's degree.
 
 ## Plan of study and start term
 
@@ -141,7 +169,7 @@ flowchart TD
 
 - **Corrections.** `AcademicProfiles::StudentCorrection` sends the stored profile and every active program to `Sync` with `source: "student"`, with the student's change. It is the same path as the extension settings. Sync does not change the LeopardWeb digests, so the change stays until LeopardWeb shows a different profile or program list. A change to the role, code, name, concentration, study path, or catalog term ends the row and creates a new one, so the old values show in the ended programs.
 - **Plans.** `PATCH /dashboard/programs/:id/plan` saves a plan of an active or a planned program. A student confirms an assumed plan with the same form.
-- **What if.** The planned programs show their open requirements: the courses each one adds. A course that an active program also needs is marked "also in your programs". The planned rows use `AcademicProfiles::PlannedPrograms`, as the API does. Pathways (3+1, 4+1) are not on the page yet.
+- **What if.** The planned programs show their open requirements: the courses each one adds. A course that an active program also needs is marked "also in your programs". The planned rows use `AcademicProfiles::PlannedPrograms`, as the API does. Pathways are not on the page yet.
 
 ## Course outcomes
 

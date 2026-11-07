@@ -7,7 +7,8 @@
 #
 # program is the slug of the linked DegreeProgram, which degree_requirements
 # and GET /api/v1/catalog/programs/:slug take. It is null when the program
-# has no link to the degree catalog.
+# has no link to the degree catalog. pathway is the slug of the
+# ProgramPathway a planned row was added with, or null.
 #
 # plan, plan_source, plans, start_term, and start_term_source come from
 # AcademicProfiles::ProgramTimeline (#867). The My programs dashboard page
@@ -34,6 +35,7 @@ class StudentProgramSerializer
       catalog_term_code: @program.catalog_term_uid&.to_s,
       catalog_year:      @program.catalog_year_name,
       program:           @program.degree_program&.slug,
+      pathway:           @program.program_pathway&.slug,
       matched:           @program.matched?,
       source:            @program.source,
       ended_at:          @program.ended_at&.iso8601,
