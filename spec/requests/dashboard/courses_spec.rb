@@ -78,6 +78,27 @@ RSpec.describe "Dashboard::Courses", type: :request do
       expect(about.text).to include("COMP 128")
     end
 
+    # Issue #448: a map of the courses before and after this one.
+    it "shows a prerequisite map whose courses link to their own maps" do
+      later = create(:catalog_course, subject_code: "COMP", course_number: 3000, title: "Algorithms")
+      create(:course_prerequisite, catalog_course: later, required_catalog_course: comp2000)
+
+      get dashboard_course_path("COMP2000")
+
+      map = page.at_css("#prerequisite-map")
+      expect(map.at_css("[aria-current='page']").text).to include("COMP 2000", "Data Structures")
+      expect(map.css("a").pluck("href")).to contain_exactly("/dashboard/courses/COMP1050#prerequisite-map",
+                                                            "/dashboard/courses/COMP3000#prerequisite-map")
+      expect(map.text).to include("COMP 128", "Not in WIT Calendar", "One of several options")
+      expect(map.css("path[stroke-dasharray]").size).to eq(2)
+    end
+
+    it "leaves out the prerequisite map for a course with no links to other courses" do
+      get dashboard_course_path("COMP1050")
+
+      expect(page.at_css("#prerequisite-map")).to be_nil
+    end
+
     it "shows the sections of the current term with their instructors" do
       allow(Term).to receive(:current).and_return(term)
       faculty = create(:faculty, first_name: "Ada", last_name: "Lovelace")

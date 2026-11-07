@@ -25,6 +25,7 @@ module Dashboard
       @offered_terms = offered_terms(catalog_course)
       @term   = selected_term(default: default_term(@offered_terms))
       @course = Catalog::CourseSerializer.new(catalog_course, term: @term).as_json
+      @prerequisite_graph = Catalog::PrerequisiteGraph.new(catalog_course)
     end
 
     private
