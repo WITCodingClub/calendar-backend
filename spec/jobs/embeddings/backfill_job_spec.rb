@@ -66,4 +66,12 @@ RSpec.describe Embeddings::BackfillJob, :embeddings do
   ensure
     Embeddings::GenerateJob.queue_adapter = previous
   end
+
+  it "makes no batch when nothing needs a vector" do
+    give_embedding(create(:catalog_course), 0.25)
+
+    described_class.perform_now("CatalogCourse")
+
+    expect(SolidQueue::Batch.count).to eq(0)
+  end
 end

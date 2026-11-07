@@ -27,29 +27,36 @@ module Embeddings
       end
 
       names = model_name ? [ model_name ] : SCOPES.keys
+      jobs = names.flat_map { |name| stale_jobs(name) }
+      return if jobs.empty?
+
       # One Solid Queue batch for the run, so the log shows when the last
-      # vector is written and how many API calls failed.
+      # vector is written and how many API calls failed. The scan runs first,
+      # so the batch's transaction on the queue database stays short, and a
+      # scan that fails rolls back no job.
       SolidQueue::Batch.enqueue(description: "Embeddings backfill", on_finish: Batches::ReportJob, models: names) do
-        names.each { |name| enqueue_batches(name) }
+        ActiveJob.perform_all_later(jobs)
       end
     end
 
     private
 
-    def enqueue_batches(model_name)
+    def stale_jobs(model_name)
       scope = SCOPES.fetch(model_name) { raise ArgumentError, "Unknown model #{model_name.inspect}" }.call
 
       stale = 0
+      jobs = []
 
       scope.find_in_batches(batch_size: BATCH_SIZE) do |records|
         ids = records.select(&:embedding_stale?).map(&:id)
         next if ids.empty?
 
         stale += ids.length
-        Embeddings::GenerateJob.perform_later(model_name, ids)
+        jobs << Embeddings::GenerateJob.new(model_name, ids)
       end
 
-      Rails.logger.info("[Embeddings::BackfillJob] Queued #{stale} #{model_name} record(s)")
+      Rails.logger.info("[Embeddings::BackfillJob] #{stale} #{model_name} record(s) to embed")
+      jobs
     end
   end
 end
