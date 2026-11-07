@@ -443,7 +443,9 @@ GEM
       actionpack (>= 7.0.0)
       activesupport (>= 7.0.0)
       rack
-    prosopite (2.2.0)
+    prosopite (2.5.0)
+      activerecord (>= 6.1)
+      railties (>= 6.1)
     pstore (0.3.0)
     public_suffix (7.0.5)
     puma (8.0.2)
@@ -744,7 +746,7 @@ DEPENDENCIES
   pg_query (~> 6.2)
   pghero (~> 4.0)
   propshaft (~> 1.3)
-  prosopite (~> 2.2)
+  prosopite (~> 2.5)
   puma (~> 8.0)
   pundit (~> 2.5)
   rack-attack (~> 6.8)
@@ -934,7 +936,7 @@ CHECKSUMS
   prism (1.9.0) sha256=7b530c6a9f92c24300014919c9dcbc055bf4cdf51ec30aed099b06cd6674ef85
   prometheus-client (4.2.5) sha256=807bebc3e92ccd9f4d814d90be15e85338f3708d227badf80924ef3f6e7d5225
   propshaft (1.3.2) sha256=1d56a3e56a92c21bfc29caf07406b5386b00d4c47ddf357cf989a5a234b1389e
-  prosopite (2.2.0) sha256=14affaa3ff0ff15abe8f6ae2951de0984dc6da5df1c42333692d2c0789d08b91
+  prosopite (2.5.0) sha256=48ed8b147d119c58ad7ea6dfb9ff7f6741053db3161dcc01ccd53b144f2fd689
   pstore (0.3.0) sha256=97888d57cdc8b99b3587dde5e1d01fc5ca4a9124dfeb2afb84e3dd982e78f829
   public_suffix (7.0.5) sha256=1a8bb08f1bbea19228d3bed6e5ed908d1cb4f7c2726d18bd9cadf60bc676f623
   puma (8.0.2) sha256=c8ed871dfbbe66448ea9ffd46692342d9804d4071522b52b5331b7b6e7b686fb
