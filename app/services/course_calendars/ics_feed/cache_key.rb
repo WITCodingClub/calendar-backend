@@ -57,8 +57,8 @@ module CourseCalendars
 
       # One query with a scalar subquery for each table.
       def fingerprints
-        columns = parts.map { |name, sql| "(#{sql}) AS #{name}" }
-        ActiveRecord::Base.connection.select_one("SELECT #{columns.join(', ')}", "IcsFeed::CacheKey")
+        columns = parts.map { |name, sql| Arel::Nodes::Grouping.new(Arel.sql(sql)).as(name.to_s) }
+        ActiveRecord::Base.connection.select_one(Arel::SelectManager.new.project(*columns), "IcsFeed::CacheKey")
       end
 
       def parts # rubocop:disable Metrics/AbcSize
