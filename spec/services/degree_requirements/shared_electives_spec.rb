@@ -22,8 +22,7 @@ RSpec.describe DegreeRequirements::SharedElectives do
       "English Sequence*" => "English Sequence",
       "Co-op Semester" => "Co-op",
       "FREE Elective" => "Free Electives",
-      "General Elective 2" => "Free Electives",
-      "Electives" => "Free Electives"
+      "General Elective 2" => "Free Electives"
     }.each do |label, name|
       it "gives #{label.inspect} the #{name} list" do
         expect(described_class.rule_for(label).name).to eq(name)
@@ -37,8 +36,13 @@ RSpec.describe DegreeRequirements::SharedElectives do
     end
 
     it "names no rule for a program elective or a mixed label" do
-      expect([ "CONM Elective", "Math or Science Elective", "Technical Elective", nil ].map { |label| described_class.rule_for(label) })
-        .to all(be_nil)
+      labels = [ "CONM Elective", "Math or Science Elective", "Technical Elective", nil,
+                 # A bare "Elective" can mean a program elective, and "HSS 3000" a level.
+                 "Elective", "Electives 2", "HSS 3000 Elective",
+                 # A directed course only counts when the label is an HSS elective.
+                 "Math or HSS Elective (MATH2500)" ]
+
+      expect(labels.map { |label| described_class.rule_for(label) }).to all(be_nil)
     end
   end
 
@@ -77,7 +81,7 @@ RSpec.describe DegreeRequirements::SharedElectives do
       later = slot("Co-op Semester")
 
       expect { described_class.call(set) }.not_to change(ElectiveGroup, :count)
-      expect(later.reload.elective_group.subject_codes).to eq([ "COOP" ])
+      expect(later.reload.elective_group.courses.map(&:course_number)).to eq([ 3500, 4500, 5000 ])
     end
   end
 end

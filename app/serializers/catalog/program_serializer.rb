@@ -38,7 +38,11 @@ module Catalog
         needs_review:   @set.needs_review,
         source:         @set.source,
         plans:          @set.program_plans.map { |plan| plan_json(plan) },
-        elective_lists: @set.elective_groups.map { |group| group_json(group) }
+        elective_lists: @set.elective_groups.map { |group| group_json(group) },
+        # What the major adds to the humanities and social science
+        # requirement (DegreeRequirements::HssNoteParser), or nil for a set
+        # from a PDF.
+        hss_requirement: @set.hss_requirement
       )
     end
 

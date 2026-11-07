@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_173000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_173100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -929,6 +929,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_173000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "reviewed_at"
+    t.jsonb "hss_requirement"
     t.index ["catalog_year_id"], name: "index_requirement_sets_on_catalog_year_id"
     t.index ["degree_program_id", "catalog_year_id"], name: "idx_on_degree_program_id_catalog_year_id_10cd4884bd", unique: true
   end

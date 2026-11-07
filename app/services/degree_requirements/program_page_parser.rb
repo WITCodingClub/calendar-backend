@@ -9,7 +9,7 @@ module DegreeRequirements
     require "nokogiri"
 
     Page = Data.define(:name, :start_year, :school_name, :department_name, :description,
-                       :total_credits, :plans, :groups, :digest)
+                       :total_credits, :plans, :groups, :hss_requirement, :digest)
     Plan = Data.define(:name, :years, :accelerated, :total_credits, :items)
     # plan_index is the plan the list is printed under, or nil for a list that
     # belongs to the whole program.
@@ -33,7 +33,7 @@ module DegreeRequirements
     DESCRIPTION_LIMIT = 5_000
     # Part of the digest. Raise it when a change to this parser should write
     # every page again, also the pages that did not change.
-    VERSION = 1
+    VERSION = 2
 
     def initialize(html)
       @doc = Nokogiri::HTML(html)
@@ -68,6 +68,7 @@ module DegreeRequirements
       Page.new(name: squish((@doc.at_css("h1.page-title") || @doc.at_css("h1"))&.text), start_year: CatalogSource.page_start_year(@html),
                school_name: breadcrumb[0], department_name: breadcrumb[1], description: description,
                total_credits: total_credits(plans), plans: plans, groups: groups,
+               hss_requirement: HssNoteParser.new(@html).call,
                digest: Digest::SHA256.hexdigest("#{VERSION}:#{@content.to_html}"))
     end
 

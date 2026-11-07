@@ -285,6 +285,12 @@ module McpTools
             any_course:    BOOLEAN,
             courses:       array(object(code: STRING, title: nullable(STRING), requires_approval: BOOLEAN))
           )
+        ),
+        hss_requirement: nullable(
+          object(
+            min_credits: nullable(INTEGER),
+            categories:  array(object(name: STRING, subject_codes: STRINGS, courses: STRINGS))
+          )
         )
       )
     ).freeze
@@ -447,6 +453,7 @@ module McpTools
         label:         nullable(STRING),
         options:       STRINGS,
         elective_list: nullable(STRING),
+        hss_category:  nullable(STRING),
         min_courses:   nullable(INTEGER),
         min_credits:   nullable(INTEGER),
         checkable:     BOOLEAN,
@@ -455,7 +462,15 @@ module McpTools
         term:          nullable(STRING),
         courses:       STRINGS
       },
-      optional: %i[year season code label options min_courses min_credits course term courses]
+      optional: %i[year season code label options hss_category min_courses min_credits course term courses]
+    ).freeze
+    # The humanities and social science requirement of a major.
+    HSS_REQUIREMENT = nullable(
+      object(
+        min_credits: nullable(INTEGER),
+        credits:     INTEGER,
+        categories:  array(object(name: STRING, checkable: BOOLEAN, status: PROGRESS_STATUS, course: nullable(STRING)))
+      )
     ).freeze
     DEGREE_PROGRESS = object(
       programs:    array(
@@ -475,7 +490,8 @@ module McpTools
                 status: PROGRESS_STATUS },
               optional: %i[code label options]
             )
-          )
+          ),
+          hss:          HSS_REQUIREMENT
         )
       ),
       courses:     array(

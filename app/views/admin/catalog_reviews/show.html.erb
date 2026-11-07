@@ -55,4 +55,13 @@
       <% t.column("Notes") { |group| group.notes } %>
     <% end %>
   <% end %>
+
+  <% hss = @set.hss_requirement.presence || DegreeRequirements::HssNoteParser.default %>
+  <%= render "admin/shared/card", title: "HSS requirement", subtitle: @set.hss_requirement ? "Read from the ENGL/HSS note of the program page." : "This set has no note: the default categories of the HSS requirement page.", flush: true do %>
+    <%= admin_table(hss["categories"], empty: "No categories.", card: false, paginate: false) do |t| %>
+      <% t.column("Category", primary: true) { |category| category["name"] } %>
+      <% t.column("One course from") { |category| (category["subject_codes"] + category["courses"]).join(", ").presence || "Not readable: degree progress cannot check it" } %>
+    <% end %>
+    <p class="px-4 py-3 text-sm">English, humanities, and social science credits: <%= hss["min_credits"] || "not given" %></p>
+  <% end %>
 </div>

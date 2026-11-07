@@ -42,14 +42,21 @@ module DegreeRequirements
     ENGLISH = Rule.new(name: "English Sequence", heading: "One course of the student's English sequence",
                        notes: "The English sequence from the English placement (#{ENGLISH_URL})",
                        subject_codes: [], courses: ENGLISH_SEQUENCE, any_course: false)
-    CO_OP = Rule.new(name: "Co-op", heading: "Co-op semester", notes: "Any COOP course",
-                     subject_codes: %w[COOP], courses: [], any_course: false)
+    # A co-op semester is a work term. COOP2500 (Introduction to Cooperative
+    # Education) is a course row of its own, required before the first
+    # term, so it does not meet a co-op semester. Nor does COOP3000
+    # (optional co-op) or COOP6500 (graduate).
+    CO_OP_TERMS = [ [ "COOP", 3500 ], [ "COOP", 4500 ], [ "COOP", 5000 ] ].freeze
+    CO_OP = Rule.new(name: "Co-op", heading: "Co-op semester",
+                     notes: "COOP3500 and COOP4500 are required. COOP5000 is an additional co-op work semester.",
+                     subject_codes: [], courses: CO_OP_TERMS, any_course: false)
     FREE = Rule.new(name: "Free Electives", heading: "Free or general elective", notes: "Any course",
                     subject_codes: [], courses: [], any_course: true)
 
     # "HSS 03 Elective (PSYC4552)": a directed HSS elective names its course.
-    DIRECTED = /\b(?:hss|hhs)\b.*\(\s*([a-z]{4})\s*(\d{3,4})\s*\)/i
-    FREE_LABEL = /\A(?:free|general|open)?\s*electives?\z/
+    DIRECTED = /\A(?:hss|hhs)\b[^()]*\(\s*([a-z]{4})\s*(\d{3,4})\s*\)\z/i
+    # A bare "Elective" is left out: on some pages it means a program elective.
+    FREE_LABEL = /\A(?:free|general|open)\s+electives?\z/
 
     def self.call(set) = new(set).call
 
@@ -66,7 +73,7 @@ module DegreeRequirements
       bare = text.sub(/[\s\d]+\z/, "")
       case bare
       when /\Aenglish sequence\z/ then ENGLISH
-      when /\A(?:hss|hhs)(?:\s+\d+)?\s+electives?\z/, %r{\Ahumanities\s*(?:or|and|&|/)\s*social sciences?\s+electives?\z}
+      when /\A(?:hss|hhs)(?:\s+\d{1,2})?\s+electives?\z/, %r{\Ahumanities\s*(?:or|and|&|/)\s*social sciences?\s+electives?\z}
         HSS
       when /\Ahumanities\s+electives?\z/ then HUMANITIES_RULE
       when /\Asocial sciences?\s+electives?\z/ then SOCIAL_SCIENCES_RULE
@@ -87,6 +94,8 @@ module DegreeRequirements
       linked = 0
 
       ElectiveGroup.transaction do
+        # One run at a time for a set: each new list takes the next position.
+        RequirementSet.where(id: @set.id).lock.pluck(:id)
         items.find_each do |item|
           rule = self.class.rule_for(item.label)
           next if rule.nil?

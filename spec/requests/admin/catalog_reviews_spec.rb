@@ -49,7 +49,8 @@ RSpec.describe "Admin catalog review", type: :request do
 
     get admin_catalog_review_path(pdf_set)
 
-    expect(response.body).to include("Elective lists", "HSS Electives", "Any HIST, PSYC course", "None")
+    expect(response.body).to include("Elective lists", "HSS Electives", "Any HIST, PSYC course", "None",
+                                     "HSS requirement", "Humanities", "Social Sciences")
   end
 
   it "marks a set as checked" do

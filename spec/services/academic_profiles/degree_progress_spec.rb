@@ -93,22 +93,108 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
   it "meets a subject list with a course in a subject, and a free elective with any course left" do
     free = create(:elective_group, :any_course, requirement_set: set)
-    hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: %w[HIST PSYC])
+    science = create(:elective_group, :subjects, requirement_set: set, name: "Science Electives", subject_codes: %w[BIOL CHEM])
     item(:placeholder, label: "Free Elective", elective_group: free)
-    item(:placeholder, label: "HSS Elective", elective_group: hss)
-    item(:placeholder, label: "HSS Elective", elective_group: hss)
-    take(past_term, "PSYC", 1000)
+    item(:placeholder, label: "Science Elective", elective_group: science)
+    item(:placeholder, label: "Science Elective", elective_group: science)
+    take(past_term, "CHEM", 1000)
     take(current_term, "WDGT", 2000)
 
     rows = progress[:programs].first[:requirements]
 
     # The free elective is first in the plan, but takes a course only after
-    # the HSS slots, so it does not use the PSYC course.
+    # the subject slots, so it does not use the CHEM course.
     expect(rows.map { |row| row.slice(:label, :status, :course, :checkable) }).to eq([
       { label: "Free Elective", status: "in_progress", course: "WDGT 2000", checkable: true },
-      { label: "HSS Elective", status: "done", course: "PSYC 1000", checkable: true },
-      { label: "HSS Elective", status: "open", course: nil, checkable: true }
+      { label: "Science Elective", status: "done", course: "CHEM 1000", checkable: true },
+      { label: "Science Elective", status: "open", course: nil, checkable: true }
     ])
+    expect(progress[:programs].first[:hss]).to be_nil
+  end
+
+  describe "the HSS requirement of the major" do
+    let(:hss) { create(:elective_group, :subjects, requirement_set: set, subject_codes: DegreeRequirements::SharedElectives::HSS.subject_codes) }
+
+    def hss_rows(result) = result[:programs].first[:requirements].map { |row| row.slice(:status, :course, :hss_category) }
+
+    before { 3.times { item(:placeholder, label: "HSS Elective", elective_group: hss) } }
+
+    it "gives the first HSS slots to one humanities and one social science course, then any HSS course" do
+      take(past_term, "PSYC", 1000)
+      take(past_term, "PSYC", 2000)
+      take(past_term, "HIST", 1000)
+
+      expect(hss_rows(progress)).to eq([
+        { status: "done", course: "HIST 1000", hss_category: "Humanities" },
+        { status: "done", course: "PSYC 1000", hss_category: "Social Sciences" },
+        { status: "done", course: "PSYC 2000", hss_category: nil }
+      ])
+    end
+
+    it "keeps a slot open for a category no course meets, and reports the categories and credits" do
+      set.update!(hss_requirement: { "min_credits" => 20, "categories" => DegreeRequirements::HssNoteParser.base_categories + [
+        { "name" => "Ethics", "subject_codes" => [], "courses" => %w[PHIL4501] },
+        { "name" => "Design History", "subject_codes" => [], "courses" => [] }
+      ] })
+      english = create(:elective_group, requirement_set: set, name: "English Sequence")
+      create(:elective_group_course, elective_group: english, subject_code: "ENGL", course_number: 1100)
+      item(:placeholder, label: "English Sequence", elective_group: english)
+      take(past_term, "ENGL", 1100)
+      take(past_term, "HIST", 1000)
+      take(past_term, "PSYC", 1000)
+      take(past_term, "PSYC", 2000)
+
+      result = progress
+
+      expect(hss_rows(result).first(3)).to eq([
+        { status: "done", course: "HIST 1000", hss_category: "Humanities" },
+        { status: "done", course: "PSYC 1000", hss_category: "Social Sciences" },
+        { status: "open", course: nil, hss_category: "Ethics" }
+      ])
+      expect(result[:programs].first[:hss]).to eq(
+        min_credits: 20, credits: 12,
+        categories: [
+          { name: "Humanities", checkable: true, status: "done", course: "HIST 1000" },
+          { name: "Social Sciences", checkable: true, status: "done", course: "PSYC 1000" },
+          { name: "Ethics", checkable: true, status: "open", course: nil },
+          { name: "Design History", checkable: false, status: "open", course: nil }
+        ]
+      )
+    end
+
+    it "counts a course in a Humanities slot toward the humanities category" do
+      humanities = create(:elective_group, :subjects, requirement_set: set, name: "Humanities Electives", subject_codes: %w[HIST])
+      item(:placeholder, label: "Humanities Elective", elective_group: humanities)
+      take(past_term, "HIST", 1000)
+      take(past_term, "PSYC", 1000)
+
+      expect(hss_rows(progress)).to eq([
+        { status: "done", course: "PSYC 1000", hss_category: "Social Sciences" },
+        { status: "open", course: nil, hss_category: nil },
+        { status: "open", course: nil, hss_category: nil },
+        { status: "done", course: "HIST 1000", hss_category: nil }
+      ])
+    end
+  end
+
+  it "does not meet a free elective with a co-op or a course below 1000" do
+    free = create(:elective_group, :any_course, requirement_set: set)
+    item(:placeholder, label: "Free Elective", elective_group: free)
+    take(past_term, "COOP", 3000)
+    take(past_term, "ENGL", 700)
+
+    expect(statuses(progress)).to eq([ [ "Free Elective", "open" ] ])
+  end
+
+  it "gives a course to the shorter subject list first" do
+    hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: %w[HIST PSYC])
+    humanities = create(:elective_group, :subjects, requirement_set: set, name: "Humanities Electives", subject_codes: %w[HIST])
+    item(:placeholder, label: "HSS Elective", elective_group: hss)
+    item(:placeholder, label: "Humanities Elective", elective_group: humanities)
+    take(past_term, "HIST", 1000)
+    take(current_term, "PSYC", 1000)
+
+    expect(statuses(progress)).to eq([ [ "HSS Elective", "in_progress" ], [ "Humanities Elective", "done" ] ])
   end
 
   it "gives a course to a slot with a list of courses before a subject list" do

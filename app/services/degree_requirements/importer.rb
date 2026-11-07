@@ -116,7 +116,8 @@ module DegreeRequirements
       RequirementSet.transaction do
         set.update!(name: entry.name, path: entry.path, school_name: page.school_name,
                     department_name: page.department_name, description: page.description,
-                    total_credits: page.total_credits, source: source.catalog_year_source, needs_review: false,
+                    total_credits: page.total_credits, hss_requirement: page.hss_requirement,
+                    source: source.catalog_year_source, needs_review: false,
                     source_digest: page.digest, fetched_at: now, last_seen_at: now)
         PlanWriter.call(set, plans: page.plans, groups: page.groups)
       end

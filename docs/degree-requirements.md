@@ -34,7 +34,7 @@ erDiagram
 |---|---|
 | `CatalogYear` | One catalog, such as 2024-2025 (`start_year` 2024). `CatalogYear.for_term(term)` finds the catalog of a term. |
 | `DegreeProgram` | One program across every year, keyed by the last part of its catalog path (`computer-science-bs`). A concentration has a `parent_program`. |
-| `RequirementSet` | One program in one catalog year. The name, school, and department are as printed that year. |
+| `RequirementSet` | One program in one catalog year. The name, school, and department are as printed that year. `hss_requirement` is what the major adds to the HSS requirement. |
 | `ProgramPlan` | One plan of study, such as the "Four Year Program". `years` is its length. `RequirementSet#standard_plan` is the first plan that is not accelerated. |
 | `ProgramPlanItem` | One semester row of a plan: a `course`, a `placeholder` such as "Computer Science Elective", or a `choice` between courses. |
 | `ElectiveGroup` | One elective list and the minimum it asks for. A shared list can be a rule: `subject_codes` (any course in these subjects) or `any_course`. |
@@ -186,12 +186,38 @@ Most elective slots name a list that is not on the program page. The catalog def
 | "Social Science Elective" | Social Science Electives | COMM, CSAS, ECON, ENVM, HSSI, POLS, PSYC, SOCL |
 | "HSS 03 Elective (PSYC4552)" | HSS Elective (PSYC4552) | That one course |
 | "English Sequence" | English Sequence | ENGL0700, ENGL0800, ENGL0900, ENGL1100, ENGL2200 ([English placement](https://catalog.wit.edu/academic-policies-procedures/ug/english-placement/)) |
-| "Co-op Semester" | Co-op | A COOP course |
-| "Free Elective", "General Elective", "Elective" | Free Electives | Any course (`any_course`) |
+| "Co-op Semester" | Co-op | COOP3500, COOP4500, or COOP5000. COOP2500 (Introduction to Cooperative Education) is a course row of its own, required before the first co-op, so it does not meet this slot. |
+| "Free Elective", "General Elective" | Free Electives | Any course for degree credit (`any_course`): not a COOP course and not a course below 1000, such as ENGL0700 |
 
 - Each list is an `ElectiveGroup` of the set with no plan, after the page's own lists. A second run reuses it.
 - Only a slot with no list gets one. A slot the page linked keeps its list.
-- A label that names a program list ("CONM Elective") or two areas ("Math or Science Elective") matches no rule and stays open.
+- A label that names a program list ("CONM Elective") or two areas ("Math or Science Elective") matches no rule and stays open. So does a bare "Elective", which on some pages means a program elective.
+
+### HSS requirement of each major
+
+The HSS subjects are the same for every major. What a major adds is on its program page, in the "ENGL/HSS Note" (often in the footnote bubble of "English Sequence") and in a directed elective note. `DegreeRequirements::HssNoteParser` reads it into `RequirementSet#hss_requirement`:
+
+```json
+{ "min_credits": 20,
+  "categories": [
+    { "name": "Humanities", "subject_codes": ["CSAS", "HIST", "..."], "courses": [] },
+    { "name": "Social Sciences", "subject_codes": ["COMM", "ECON", "..."], "courses": [] },
+    { "name": "Ethics", "subject_codes": [], "courses": ["PHIL4401", "PHIL4501", "PHIL4525", "PHIL4600"] } ] }
+```
+
+| Page text | Category |
+|---|---|
+| Every page (the HSS requirement page asks every bachelor for it) | Humanities, Social Sciences |
+| "must include ... an Ethics elective", "must be an Ethics course" | Ethics. The courses the page lists, or `HssNoteParser::ETHICS_COURSES`. |
+| "must include the following: ECON4102 ... or ECON4152" | Directed: ECON4102, with the "or" courses as choices |
+| "At least one elective in Art History (HUMN4243, ...)" | Art History, with those courses |
+| "At least one elective in Psychology or Sociology" | Psychology or Sociology: PSYC, SOCL |
+| "At least one elective in Design History" (no courses) | Design History, with no matcher. Degree progress cannot check it. |
+| "A minimum of 28 credits total, including English, ..." | `min_credits` |
+
+A set from a PDF has no `hss_requirement`, and gets the Humanities and Social Sciences categories. A change to the parser bumps `ProgramPageParser::VERSION`, so the next import writes every page again.
+
+Degree progress: the courses in the Humanities, Social Science, and directed HSS slots count first. Then each "HSS Elective" slot takes a course for the first category that no course meets yet, and names it in `hss_category`. A slot stays open for a category that no course meets. With every category met, a slot takes any HSS course. Each program gets `hss`: the categories with their status and course, and the English and HSS credits against `min_credits`.
 
 ### Course code aliases
 
