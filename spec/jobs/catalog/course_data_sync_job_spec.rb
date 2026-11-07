@@ -377,5 +377,57 @@ RSpec.describe Catalog::CourseDataSyncJob do
       expect(reports).to be_empty
       expect(term.reload.sections_synced_at).to be_nil
     end
+
+    context "with a retry" do
+      before do
+        course
+        allow(Catalog::LeopardWebClient).to receive(:get_class_details)
+          .and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+      end
+
+      def job_started(ago, executions: 1)
+        described_class.new(term_uids: [ term.uid ]).tap do |job|
+          job.banner_first_attempt_at = ago.ago
+          job.executions = executions
+        end
+      end
+
+      it "keeps the time of the first attempt in the retry" do
+        described_class.perform_now(term_uids: [ term.uid ])
+
+        retry_data = ActiveJob::Base.queue_adapter.enqueued_jobs.find { |job| job["job_class"] == described_class.name }
+        first = Time.zone.parse(retry_data[Catalog::BannerCooldownRetry::FIRST_ATTEMPT_KEY])
+        expect(first).to be_within(5.seconds).of(Time.current)
+      end
+
+      it "reads the time of the first attempt back from the job data" do
+        first = 2.hours.ago.change(usec: 0)
+        data = job_started(2.hours).tap { |job| job.banner_first_attempt_at = first }.serialize
+
+        expect(described_class.new.tap { |job| job.deserialize(data) }.banner_first_attempt_at).to eq(first)
+      end
+
+      # Each cooldown used one of 10 attempts, so a run failed after about 35
+      # minutes, and an admin retry that kept the count failed at once.
+      it "tries again however many attempts it used, while the window lasts" do
+        reports = capture_error_reports do
+          expect { job_started(3.hours, executions: 40).perform_now }
+            .to have_enqueued_job(described_class).at(a_value >= Catalog::BannerThrottle::COOLDOWN.from_now)
+        end
+
+        expect(reports).to be_empty
+      end
+
+      it "stops at the end of the window and reports the cooldown as handled" do
+        reports = capture_error_reports do
+          expect { job_started(4.hours).perform_now }.not_to have_enqueued_job(described_class)
+        end
+
+        expect(reports.size).to eq(1)
+        expect(reports.first.error).to be_a(Catalog::BannerThrottle::CooldownError)
+        expect(reports.first).to be_handled
+        expect(reports.first.context).to include(job_class: described_class.name)
+      end
+    end
   end
 end

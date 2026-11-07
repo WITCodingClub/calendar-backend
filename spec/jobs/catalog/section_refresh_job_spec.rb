@@ -60,6 +60,18 @@ RSpec.describe Catalog::SectionRefreshJob do
     expect { described_class.perform_now([ course.id ]) }.to have_enqueued_job(described_class)
   end
 
+  it "gives up 15 minutes after the first attempt and reports the cooldown as handled" do
+    allow(Catalog::LeopardWebClient).to receive(:get_class_details)
+      .and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+    job = described_class.new([ course.id ]).tap { |j| j.banner_first_attempt_at = 15.minutes.ago }
+
+    reports = capture_error_reports do
+      expect { job.perform_now }.not_to have_enqueued_job(described_class)
+    end
+
+    expect(reports.map(&:error)).to contain_exactly(an_instance_of(Catalog::BannerThrottle::CooldownError))
+  end
+
   it "does nothing for sections that no longer exist" do
     allow(Catalog::LeopardWebClient).to receive(:get_class_details)
 
