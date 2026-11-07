@@ -27,8 +27,7 @@ RSpec.describe "Admin::CatalogYears", type: :request do
     end
 
     it "shows a year with an import in the queue as importing, with no button" do
-      job = DegreeRequirements::ImportJob.new(2024)
-      SolidQueue::Job.create!(class_name: job.class.name, queue_name: "low", active_job_id: job.job_id, arguments: job.serialize)
+      SolidQueue::Batch.create!(description: DegreeRequirements::ImportJob::BATCH_DESCRIPTION, metadata: { start_year: 2024 })
 
       get admin_catalog_years_path
 
@@ -92,8 +91,7 @@ RSpec.describe "Admin::CatalogYears", type: :request do
     end
 
     it "refuses a year with an import in the queue" do
-      job = DegreeRequirements::ImportJob.new(2024)
-      SolidQueue::Job.create!(class_name: job.class.name, queue_name: "low", active_job_id: job.job_id, arguments: job.serialize)
+      SolidQueue::Batch.create!(description: DegreeRequirements::ImportJob::BATCH_DESCRIPTION, metadata: { start_year: 2024 })
 
       expect { post import_admin_catalog_year_path(2024) }.not_to have_enqueued_job(DegreeRequirements::ImportJob)
       expect(flash[:alert]).to eq("An import of 2024-2025 is already in the queue.")

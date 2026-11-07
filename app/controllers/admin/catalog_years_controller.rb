@@ -47,7 +47,7 @@ module Admin
         redirect_to admin_catalog_years_path, alert: "An import of #{name} is already in the queue."
       else
         force = params[:force] == "1"
-        DegreeRequirements::ImportJob.perform_later(start_year, force: force)
+        DegreeRequirements::ImportJob.enqueue_in_batch(start_year, force: force)
         redirect_to admin_catalog_years_path, notice: "Queued the import of #{name}#{' with force' if force}."
       end
     end

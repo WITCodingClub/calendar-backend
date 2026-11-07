@@ -20,15 +20,26 @@ module DegreeRequirements
 
     retry_on FetchError, wait: :polynomially_longer, attempts: 3
 
+    BATCH_DESCRIPTION = "Degree requirements import"
+
+    # Queues the import of one year as a Solid Queue batch. The course import
+    # that the job queues joins the same batch, so the batch ends when both
+    # jobs have ended. Every caller uses this, not perform_later, or the admin
+    # page does not show the year as importing.
+    def self.enqueue_in_batch(start_year, force: false)
+      SolidQueue::Batch.enqueue(description: BATCH_DESCRIPTION, start_year: start_year) do
+        perform_later(start_year, force: force)
+      end
+    end
+
     # The start years with an import of programs or courses in the queue or
     # running. The admin page of the catalog years shows them as importing,
-    # until the course import that this job queues has finished too.
+    # until the course import that this job queues has finished too. A batch
+    # with a failed job is finished, so a failed import does not count.
     def self.queued_start_years
-      SolidQueue::Job.where(class_name: [ name, CourseImportJob.name ], finished_at: nil)
-                     .where.missing(:failed_execution)
-                     .pluck(:arguments)
-                     .filter_map { |job| Integer(job["arguments"]&.first, exception: false) if job.is_a?(Hash) }
-                     .to_set
+      SolidQueue::Batch.where(description: BATCH_DESCRIPTION, finished_at: nil)
+                       .filter_map { |batch| Integer(batch.metadata[:start_year], exception: false) }
+                       .to_set
     end
 
     def perform(start_year, force: false)
@@ -37,7 +48,7 @@ module DegreeRequirements
 
       result = Importer.new(catalog_year, force: force).call
       if result.status == :imported
-        CourseImportJob.perform_later(start_year)
+        enqueue_course_import(start_year)
         fill_from_pdf(catalog_year) if PdfCatalog::FILES.key?(start_year)
       end
       result
@@ -49,6 +60,16 @@ module DegreeRequirements
     end
 
     private
+
+    # Inside the batch, the course import joins it. A job queued with
+    # perform_later has no batch.
+    def enqueue_course_import(start_year)
+      if batch
+        batch.enqueue { CourseImportJob.perform_later(start_year) }
+      else
+        CourseImportJob.perform_later(start_year)
+      end
+    end
 
     # The PDF only adds programs to a year the site already imported. Its
     # failure is reported and the HTML data stays, so a bad PDF does not
