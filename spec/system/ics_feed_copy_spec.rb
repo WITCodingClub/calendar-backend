@@ -47,5 +47,29 @@ RSpec.describe "ICS feed copy button", type: :system do
     expect(page).to have_button("Copy failed")
     expect(page).to have_css("[role='status']", text: "Could not copy.", visible: :all)
     expect(page.evaluate_script("document.activeElement.id")).to eq("ics-url-field")
+    selection = page.evaluate_script("[document.activeElement.selectionStart, document.activeElement.selectionEnd]")
+    expect(selection).to eq([ 0, find_field("Your personal ICS URL").value.length ])
+  end
+
+  it "announces a second copy and puts the button back afterwards" do
+    stub_clipboard(succeeds: true)
+
+    click_button "Copy"
+    expect(page).to have_css("[role='status']", text: "Copied to the clipboard.", visible: :all)
+    click_button "Copied"
+
+    expect(page).to have_css("[role='status']", text: "Copied to the clipboard.", visible: :all)
+    expect(page).to have_button("Copy", exact: true, wait: 4)
+    expect(page).to have_css("[role='status']", exact_text: "", visible: :all)
+  end
+
+  it "puts the button back before Turbo caches the page" do
+    stub_clipboard(succeeds: true)
+    click_button "Copy"
+    expect(page).to have_button("Copied")
+
+    page.execute_script("document.dispatchEvent(new Event('turbo:before-cache'))")
+
+    expect(page).to have_button("Copy", exact: true, wait: 0)
   end
 end

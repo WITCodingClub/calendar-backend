@@ -32,29 +32,44 @@ export default class extends Controller {
     event.currentTarget.select()
   }
 
+  // Turbo copies the page into its cache before the controller disconnects.
+  // Put the button back first, so a page restored with Back does not keep
+  // "Copied" as its label.
+  connect() {
+    this.reset = this.reset.bind(this)
+    document.addEventListener("turbo:before-cache", this.reset)
+  }
+
   disconnect() {
-    clearTimeout(this.timer)
+    document.removeEventListener("turbo:before-cache", this.reset)
+    this.reset()
   }
 
   // private
 
-  report(label, message) {
-    const element = this.hasLabelTarget ? this.labelTarget : this.element
-    if (this.original === undefined) this.original = element.textContent
-    element.textContent = label
+  get labelElement() {
+    return this.hasLabelTarget ? this.labelTarget : this.element
+  }
 
-    // A screen reader announces a change to the status text. Set the same
-    // message on each click, so a second click is announced too.
+  report(label, message) {
+    this.reset()
+    this.original = this.labelElement.textContent
+    this.labelElement.textContent = label
+
+    // A screen reader announces a change to the status text. reset() empties
+    // it first, so a second click with the same message is announced too.
     if (this.hasStatusTarget) {
-      this.statusTarget.textContent = ""
-      requestAnimationFrame(() => { this.statusTarget.textContent = message })
+      this.announceTimer = setTimeout(() => { this.statusTarget.textContent = message }, 50)
     }
 
+    this.timer = setTimeout(() => this.reset(), 2000)
+  }
+
+  reset() {
     clearTimeout(this.timer)
-    this.timer = setTimeout(() => {
-      element.textContent = this.original
-      this.original = undefined
-      if (this.hasStatusTarget) this.statusTarget.textContent = ""
-    }, 2000)
+    clearTimeout(this.announceTimer)
+    if (this.original !== undefined) this.labelElement.textContent = this.original
+    this.original = undefined
+    if (this.hasStatusTarget) this.statusTarget.textContent = ""
   }
 }
