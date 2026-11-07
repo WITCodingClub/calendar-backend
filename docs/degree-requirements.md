@@ -165,7 +165,7 @@ flowchart TD
 |---|---|---|
 | 2013-2014 to 2015-2016 | Word tables with a column for each semester. A cell is a code and its credits, with the title under it. A row of totals ends each year. | `GridParser` |
 | 2016-2017 to 2018-2019 | A heading for each semester ("Junior Year, Fall Semester (total credits 16)") with one course a line under it. | `ListParser` |
-| 2025-2026 | CourseLeaf, two columns on a page. The program name comes from the contents ("Computer Science Bachelor of Science ... 104") and the printed page number. | `CourseLeafParser` |
+| 2025-2026 | CourseLeaf, two columns on a page. The program name comes from the contents ("Computer Science Bachelor of Science ... 104") and the printed page number. A contents entry can take two lines. When programs share a page, the heading just above the plan names it. | `CourseLeafParser` |
 
 - **Programs.** `PdfCatalog::ProgramMatcher` compares the subject words and the kind (bachelor from a code such as BCOS, master from MSCM) with the `DegreeProgram` rows of the HTML years. A plan with no match, or with more than one, is logged and not written. The import never makes a `DegreeProgram`, so programs that closed before 2019 (the engineering technology degrees, the architecture concentrations) are left out. Add a renamed program to `ProgramMatcher::RENAMED`.
 - **What is read.** Course rows, choices ("MATH181 or MATH250"), pairs, placeholders ("Humanities or Social Science Elective"), and credits. The PDFs have no lecture or lab hours in their plans, and the elective lists are prose, so a PDF set has no program elective lists. It gets only the shared lists (below). 2016-2017 and 2017-2018 print few credits: when a semester total is four credits for each course with none, each gets four.
@@ -263,4 +263,27 @@ flowchart TD
   T --> H
   T --> L
   L --> R[Rows: done, in_progress, open]
+```
+
+## Next term courses
+
+`AcademicProfiles::NextTermCourses` (#449) answers "what does my plan say I take next term?". The My programs page shows it in the "Plan for <term>" card. `GET /api/user/next_term_courses` and the MCP tool `my_next_term_courses` send the same hash.
+
+- The term is the `term` argument (a Banner code or a label), or the next fall or spring term after `Term.current`. Students register for fall during the spring term, so the default skips summer.
+- It reads the rows of `DegreeProgress` for each active program with a plan of study, and maps each plan semester to a term with `ProgramTimeline.term_uid` and the program's start term.
+- `planned` holds the rows of the plan semester in the term that are not done or in progress. `behind` holds the open rows of earlier plan semesters that already started (the current term or earlier). A row between the current term and a later `term` argument is in neither list.
+- Each course in a row has `offered` (the term has an active section; null when WIT Calendar has no sections of the term yet) and `prerequisites`: `met`, `not_met` with the `missing` courses, `unknown`, or null when `CatalogCourse` has no prerequisites. The options of an `or` are one `missing` entry, such as `WDGT 1100 or WDGT 1200`.
+- A course done or in progress in a term before the term meets a prerequisite, also through a `CourseCodeAlias`. A course in the same term does not, as in Banner.
+- A D (`passed_below_c`) meets a prerequisite with no minimum or a D minimum, but not a C minimum. A minimum above C is `unknown`, because outcomes do not store the letter grade. A test score is `unknown`.
+- The section check and the catalog lookup also try the aliases of a code, so a plan from an old catalog year finds the renumbered course.
+- It is a help for planning, not a registration check. Registration happens in LeopardWeb.
+
+```mermaid
+flowchart TD
+  D[DegreeProgress rows] --> M{Plan semester term vs next term}
+  P[Program start term] --> M
+  M -- same term, not done or in progress --> PL[planned]
+  M -- earlier term, open --> B[behind]
+  PL --> C[Each course: section in term? prerequisites met?]
+  B --> C
 ```

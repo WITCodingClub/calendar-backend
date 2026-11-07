@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe McpTools::MyPrograms do
+RSpec.describe McpTools::MyPrograms, :degree_planning do
   let(:user) { create(:user) }
 
   def call(scopes: McpTools::Scopes::NAMES) = described_class.call(server_context: mcp_context(user, scopes: scopes))

@@ -274,11 +274,14 @@ null when the section is not cross-listed.
 `GET /api/v1/catalog/programs` accepts `catalog_year` (`2024-2025`, `2024-25`,
 `2024`, or a term name such as `Spring 2024`, which is in 2023-2024),
 `kind` (`associate`, `bachelor`, `master`, `minor`, `concentration`,
-`certificate`, `exploratory`), `level` (`undergraduate`, `graduate`), and `q`
-(words in the name). Without `catalog_year`, it uses the newest catalog year.
+`certificate`, `exploratory`), `level` (`undergraduate`, `graduate`), `q`
+(words in the name), and `parent_program` (the slug of a major, for its
+concentrations). Without `catalog_year`, it uses the newest catalog year.
 `meta.catalog_years` lists the catalog years the API has, newest first. The data
-starts with 2019-2020. The list leaves out a program that the catalog no longer
-lists. The program endpoint still returns it, with `listed: false`.
+starts with 2013-2014. The years before 2019-2020 come from the PDF catalogs, and
+the program endpoint gives `needs_review: true` for a plan that a person has not
+checked yet. The list leaves out a program that the catalog no longer lists. The
+program endpoint still returns it, with `listed: false`.
 
 `GET /api/v1/catalog/programs/:slug` takes the slug from the list, such as
 `computer-science-bs`, or the exact program name, and the same `catalog_year`. Each plan of study lists

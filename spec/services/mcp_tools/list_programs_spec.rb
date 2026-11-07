@@ -33,8 +33,18 @@ RSpec.describe McpTools::ListPrograms do
     expect(call(q: "widget").structured_content[:programs].pluck(:slug)).to eq(%w[widget-design-bs])
   end
 
+  it "lists the concentrations of a major" do
+    major = DegreeProgram.find_by!(slug: "widget-design-bs")
+    concentration = create(:degree_program, :concentration, parent_program: major, slug: "widget-design-bs-gears")
+    create(:requirement_set, degree_program: concentration, catalog_year: newer)
+
+    expect(call(parent_program: "widget-design-bs").structured_content[:programs].pluck(:slug)).to eq(%w[widget-design-bs-gears])
+    expect(text(call(parent_program: "gear"))).to include("parent_program must be the slug")
+  end
+
   it "returns tool errors for a year that is not imported or a bad filter" do
     expect(text(call(catalog_year: "2015-2016"))).to include("No 2015-2016 catalog", "2024-2025, 2023-2024")
+    expect(text(call(catalog_year: "2015-2016"))).not_to include("not imported yet")
     expect(text(call(catalog_year: "soon"))).to include("catalog_year must be a catalog year")
     expect(text(call(kind: "doctorate"))).to include("kind must be one of")
   end

@@ -36,6 +36,9 @@ scope "user", as: :user do
   # Degree requirements next to the courses taken (#799)
   get "degree_progress", to: "degree_progresses#show"
 
+  # The plan courses of the term the student registers for next (#449)
+  get "next_term_courses", to: "next_term_courses#show"
+
   # One-time catch-up runs the extension marks done (calendar-extension#215)
   get "backfills",       to: "backfills#index"
   put "backfills/:name", to: "backfills#update"

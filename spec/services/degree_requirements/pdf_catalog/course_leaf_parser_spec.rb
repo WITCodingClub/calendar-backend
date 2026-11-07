@@ -41,4 +41,38 @@ RSpec.describe DegreeRequirements::PdfCatalog::CourseLeafParser do
   it "gives no program to a plan under a department heading" do
     expect(programs.second.title).to be_nil
   end
+
+  context "with programs that share a page" do
+    subject(:programs) { described_class.call(file_fixture("degree_requirements/pdf/courseleaf_shared_pages.txt").read) }
+
+    it "names each plan from the heading above it and joins contents entries over two lines" do
+      expect(programs.map(&:title)).to eq([
+        "Biological Engineering Bachelor of Science",
+        "Engineering Bachelor of Science with a Concentration in Biomedical Engineering",
+        "Engineering Bachelor of Science with a Concentration in Civil Engineering",
+        "Engineering - Robotics, B.S."
+      ])
+    end
+
+    it "gives no program when no heading names one of the programs on the page" do
+      text = file_fixture("degree_requirements/pdf/courseleaf_shared_pages.txt").read
+                                                                               .sub("Engineering - Robotics, B.S.\n", "")
+
+      expect(described_class.call(text).last.title).to be_nil
+    end
+
+    it "does not take a program named inside a sentence" do
+      text = file_fixture("degree_requirements/pdf/courseleaf_shared_pages.txt").read
+                                                                               .sub("Engineering - Robotics, B.S.\n", "Students can add the Robotics Minor.\n")
+
+      expect(described_class.call(text).last.title).to be_nil
+    end
+
+    it "gives no program to a plan before the first contents entry" do
+      text = file_fixture("degree_requirements/pdf/courseleaf_shared_pages.txt").read
+                 .gsub(/\.{4,} (\d)$/) { "..... #{Regexp.last_match(1).to_i + 5}" }
+
+      expect(described_class.call(text).map(&:title)).to all(be_nil)
+    end
+  end
 end

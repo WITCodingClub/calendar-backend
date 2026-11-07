@@ -51,6 +51,7 @@ RSpec.describe McpTools::BaseTool do
       "my_programs"       => %i[degree_requirements],
       "update_my_planned_programs" => %i[degree_requirements],
       "my_degree_progress" => %i[degree_requirements sections],
+      "my_next_term_courses" => %i[degree_requirements sections course_details],
       "university_events" => %i[university_calendar]
     )
   end
@@ -90,6 +91,53 @@ RSpec.describe McpTools::BaseTool do
 
       accepted = params.filter_map { |type, name| name if %i[key keyreq].include?(type) }
       expect(names - accepted).to be_empty, tool.name_value
+    end
+  end
+
+  describe "requires_flag" do
+    let(:flagged) do
+      Class.new(described_class) do
+        tool_name "flagged_tool"
+        requires_scope "catalog"
+        requires_flag FeatureFlags::DEGREE_PLANNING
+
+        def perform = { answer: 1 }
+      end
+    end
+
+    after { Flipper.disable(FeatureFlags::DEGREE_PLANNING) }
+
+    it "answers a tool error while the flag is off for the user" do
+      result = flagged.call(server_context: mcp_context(user, scopes: %w[catalog]))
+
+      expect(result.error?).to be(true)
+      expect(result.content.first[:text]).to eq(described_class::FLAG_OFF_MESSAGE)
+    end
+
+    it "runs the tool for a user the flag is on for" do
+      Flipper.enable_actor(FeatureFlags::DEGREE_PLANNING, user)
+
+      result = flagged.call(server_context: mcp_context(user, scopes: %w[catalog]))
+
+      expect(result.error?).to be(false)
+      expect(flagged.call(server_context: mcp_context(create(:user), scopes: %w[catalog])).error?).to be(true)
+    end
+
+    it "checks the scope before the flag" do
+      result = flagged.call(server_context: mcp_context(user, scopes: %w[schedule:read]))
+
+      expect(result.content.first[:text]).to include("permission")
+    end
+
+    it "gates every degree planning tool, the same as the API" do
+      gated = McpTools.all.select { |tool| tool.required_flag == FeatureFlags::DEGREE_PLANNING }.map(&:tool_name)
+
+      expect(gated).to contain_exactly("my_programs", "my_degree_progress", "my_next_term_courses",
+                                       "update_my_planned_programs")
+    end
+
+    it "refuses an unknown flag" do
+      expect { Class.new(described_class) { requires_flag :rumors } }.to raise_error(ArgumentError, /rumors/)
     end
   end
 

@@ -710,6 +710,12 @@ paths:
           in: query
           description: Words in the program name.
           schema: { type: string }
+        - name: parent_program
+          in: query
+          description: Only the concentrations of this major, by its slug.
+          schema:
+            type: string
+            examples: ["construction-management-bs"]
       responses:
         "200":
           description: The programs, by name

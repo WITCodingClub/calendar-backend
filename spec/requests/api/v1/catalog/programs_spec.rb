@@ -46,6 +46,19 @@ RSpec.describe "Catalog programs API", type: :request do
       expect(json["data"].pluck("slug")).to eq(%w[widget-design-bs])
     end
 
+    it "lists the concentrations of a major" do
+      concentration = create(:degree_program, :concentration, parent_program: program, slug: "widget-design-bs-gears")
+      create(:requirement_set, degree_program: concentration, catalog_year: newer, name: "Widget Design, B.S. - Gears")
+
+      get "/api/v1/catalog/programs", params: { parent_program: "widget-design-bs" }
+
+      expect(json["data"]).to contain_exactly(include("slug" => "widget-design-bs-gears", "parent_program" => "widget-design-bs"))
+
+      get "/api/v1/catalog/programs", params: { parent_program: "no-such-bs" }
+      expect(response).to have_http_status(:bad_request)
+      expect(json["code"]).to eq("INVALID_FILTER")
+    end
+
     it "rejects an unknown kind or a catalog year that is not a year" do
       get "/api/v1/catalog/programs", params: { kind: "doctorate" }
       expect(response).to have_http_status(:bad_request)

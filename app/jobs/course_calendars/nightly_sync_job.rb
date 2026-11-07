@@ -4,9 +4,6 @@ module CourseCalendars
   class NightlySyncJob < ApplicationJob
     queue_as :low
 
-    # Solid Queue runs the job with the lowest number first. Other jobs use 0.
-    SYNC_PRIORITY = 10
-
     def perform
       base = User.joins(:course_calendars).distinct
 
@@ -35,9 +32,6 @@ module CourseCalendars
     # lock, so the nightly sync cannot run at the same time as a sync that a
     # preference change starts, and the two cannot both create remote events.
     #
-    # The low priority puts the nightly syncs behind the syncs that people
-    # start. The worker threads limit how many syncs run at the same time.
-    #
     # The sync does not use force. Without force, the providers update only the
     # events whose data hash changed (CalendarEvent#data_changed?), and keep
     # the edits the person made in Google or Outlook. With force, every event
@@ -45,8 +39,7 @@ module CourseCalendars
     def sync_user(user, backfill_historical:)
       Rails.logger.info "Enqueueing calendar sync for user #{user.id} (backfill_historical=#{backfill_historical})"
 
-      CourseCalendars::SyncJob.set(queue: :low, priority: SYNC_PRIORITY)
-                              .perform_later(user, force: false, backfill_historical: backfill_historical, nightly: true)
+      CourseCalendars::SyncJob.perform_bulk_later(user, force: false, backfill_historical: backfill_historical, nightly: true)
     end
   end
 end

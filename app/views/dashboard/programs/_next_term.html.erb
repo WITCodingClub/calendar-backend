@@ -1,0 +1,56 @@
+<%# The plan courses of the term the student registers for next (#449).
+    Locals: next_term (an AcademicProfiles::NextTermCourses hash) %>
+<%= render "shared/section_card", title: "Plan for #{next_term[:term][:name]}", id: "next-term",
+    description: "The courses your plan of study puts in #{next_term[:term][:name]}, without the ones you did or take now. " \
+                 "Register in LeopardWeb, and confirm your choices with your academic advisor." do %>
+  <div class="divide-y divide-outline-variant">
+    <% unless next_term[:sections] %>
+      <p class="px-5 py-3 text-xs text-on-surface-variant" id="next-term-no-sections">
+        WIT Calendar has no sections of <%= next_term[:term][:name] %> yet, so it cannot say which courses are offered.
+      </p>
+    <% end %>
+    <% next_term[:programs].each do |program| %>
+      <div class="px-5 py-4 space-y-3 text-sm" id="next-term-<%= program[:program] %>">
+        <div>
+          <h3 class="font-medium text-on-surface"><%= program[:name] %></h3>
+          <p class="text-xs text-on-surface-variant">
+            <%= program[:plan] %><% if program[:semester] %> · <%= plan_semester_title(program[:semester][:year], program[:semester][:season]) %><% end %>
+          </p>
+        </div>
+        <% if program[:start_term].nil? %>
+          <p class="text-xs text-on-surface-variant">WIT Calendar does not know your start term, so it cannot match the plan to a term.</p>
+        <% else %>
+          <% [ [ :planned, "In the plan for this term" ], [ :behind, "Behind: open from earlier semesters" ] ].each do |key, heading| %>
+            <% rows = program[key] %>
+            <% next if key == :behind && rows.empty? %>
+            <div>
+              <h4 class="text-xs font-semibold text-on-surface-variant"><%= heading %></h4>
+              <% if rows.empty? %>
+                <p class="mt-1 text-xs text-on-surface-variant">Nothing to add: the plan has no open courses in this term.</p>
+              <% else %>
+                <ul class="mt-1 divide-y divide-outline-variant rounded-lg border border-outline-variant">
+                  <% rows.each do |row| %>
+                    <li class="px-3 py-2 space-y-1">
+                      <p class="text-on-surface">
+                        <%= next_term_row_text(row) %>
+                        <% if key == :behind %><span class="text-xs text-on-surface-variant">(<%= plan_semester_title(row[:year], row[:season]) %>)</span><% end %>
+                      </p>
+                      <% row[:courses].each do |course| %>
+                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                          <span class="font-medium whitespace-nowrap"><%= link_to course[:code], dashboard_catalog_course_path(course[:code]), class: "text-primary hover:underline" %></span>
+                          <% if course[:title] %><span class="text-on-surface-variant"><%= course[:title] %></span><% end %>
+                          <%= next_term_offered_badge(course[:offered]) %>
+                          <%= next_term_prerequisite_badge(course) %>
+                        </div>
+                      <% end %>
+                    </li>
+                  <% end %>
+                </ul>
+              <% end %>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

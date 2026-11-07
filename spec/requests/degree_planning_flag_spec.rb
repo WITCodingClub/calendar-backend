@@ -93,6 +93,9 @@ RSpec.describe "degree_planning flag", type: :request do
 
       get "/api/user/degree_progress", headers: headers
       expect(response).to have_http_status(:not_found)
+
+      get "/api/user/next_term_courses", headers: headers
+      expect(response).to have_http_status(:not_found)
     end
 
     it "keeps the academic profile endpoint on, so the extension still sends LeopardWeb data" do

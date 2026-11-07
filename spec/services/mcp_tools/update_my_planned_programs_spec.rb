@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe McpTools::UpdateMyPlannedPrograms do
+RSpec.describe McpTools::UpdateMyPlannedPrograms, :degree_planning do
   let(:user) { create(:user) }
   let!(:catalog_year) { create(:catalog_year, :imported, start_year: 2026) }
   let(:minor) { create(:degree_program, :minor, slug: "gear-minor", name: "Gear Minor") }

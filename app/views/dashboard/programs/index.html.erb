@@ -46,6 +46,10 @@
     </div>
   <% end %>
 
+  <% if @next_term && @next_term[:term][:uid] && @next_term[:programs].any? %>
+    <%= render "dashboard/programs/next_term", next_term: @next_term %>
+  <% end %>
+
   <section class="space-y-3" id="active-programs" aria-labelledby="active-programs-title">
     <h2 id="active-programs-title" class="text-lg font-semibold text-on-surface">Programs</h2>
     <% if @programs[:programs].empty? %>

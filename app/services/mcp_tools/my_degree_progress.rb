@@ -12,6 +12,7 @@ module McpTools
                 "student's official degree audit is Stellic. Without arguments it checks each of my programs " \
                 "in its own catalog year. Read assumptions in the result."
     requires_scope "programs:read"
+    requires_flag FeatureFlags::DEGREE_PLANNING
     academic_planning :degree_requirements, :sections
     input_schema(
       properties: {
