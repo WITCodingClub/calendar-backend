@@ -481,9 +481,17 @@ RSpec.describe Rack::Attack do
     end
 
     it "gives sign-in enough room for many students on one address" do
-      expect(described_class.throttles.fetch("oauth/callbacks").limit).to be >= 60
-      expect(described_class.throttles.fetch("api/ip").limit).to be >= 60
-      expect(described_class.throttles.fetch("api/token-mint").limit).to be >= 30
+      expect(described_class.throttles.fetch("oauth/callbacks").limit).to be >= 120
+      expect(described_class.throttles.fetch("api/ip").limit).to be >= 120
+      expect(described_class.throttles.fetch("api/token-mint").limit).to be >= 60
+    end
+
+    it "keeps the general per-IP limit above the sign-in and catalog limits it also counts" do
+      req_ip = described_class.throttles.fetch("req/ip")
+      per_minute = req_ip.limit * 60 / req_ip.period
+
+      expect(per_minute).to be >= described_class.throttles.fetch("catalog/ip").limit
+      expect(per_minute).to be >= described_class.throttles.fetch("oauth/callbacks").limit
     end
 
     it "keeps token minting tighter than the general anonymous API limit" do
