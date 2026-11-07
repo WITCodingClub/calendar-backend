@@ -3,7 +3,7 @@
 require "rails_helper"
 
 # Issue #691: both navs reach every dashboard page, with the same labels.
-RSpec.describe "Dashboard nav", type: :request do
+RSpec.describe "Dashboard nav", :degree_planning, type: :request do
   let(:user) { create(:user, :with_processed_courses) }
   let(:page) { Nokogiri::HTML(response.body) }
   let(:rail) { page.at_css("nav.lg\\:flex") }

@@ -11,6 +11,8 @@ module Dashboard
   # include_planned (AcademicProfiles::DegreeProgress), so it shows the same
   # data as the API.
   class ProgramsController < Dashboard::ApplicationController
+    include Dashboard::DegreePlanningFlag
+
     def index
       authorize current_user, :show?
 

@@ -13,6 +13,7 @@ module FeatureFlags
   FRIEND_GROUPS = :friend_groups
   FRIEND_EXPIRY = :friend_expiry
   MEETING_LINKS = :meeting_links
+  DEGREE_PLANNING = :degree_planning
 
   MAP = {
     envSwitcher: ENV_SWITCHER,
@@ -25,7 +26,8 @@ module FeatureFlags
     friendMeetingEvents: FRIEND_MEETING_EVENTS,
     friendGroups: FRIEND_GROUPS,
     friendExpiry: FRIEND_EXPIRY,
-    meetingLinks: MEETING_LINKS
+    meetingLinks: MEETING_LINKS,
+    degreePlanning: DEGREE_PLANNING
   }.freeze
 
   ALL_FLAGS = %i[
@@ -40,5 +42,6 @@ module FeatureFlags
     friendGroups
     friendExpiry
     meetingLinks
+    degreePlanning
   ].freeze
 end

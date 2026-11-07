@@ -28,8 +28,16 @@ RSpec.describe Dashboard::NavHelper, type: :helper do
   end
 
   describe "#dashboard_more_items" do
-    it "lists the pages for the More sheet" do
+    let(:user) { create(:user) }
+
+    before { allow(helper).to receive(:current_user).and_return(user) }
+
+    it "lists the pages for the More sheet", :degree_planning do
       expect(helper.dashboard_more_items.pluck(:label)).to eq([ "Programs", "Accounts", "ICS Feed", "Notifications", "Settings", "Courses", "Instructors", "Finals", "Events" ])
+    end
+
+    it "leaves out Programs while degree_planning is off for the user" do
+      expect(helper.dashboard_more_items.pluck(:label)).not_to include("Programs")
     end
   end
 end

@@ -5,14 +5,21 @@ module Dashboard
     # The pages that the mobile bottom nav puts in its More sheet. The desktop
     # rail lists each of them. The More item is active on any of these pages.
     def dashboard_more_items
+      programs = degree_planning_enabled? ? [ { path: dashboard_programs_path, label: "Programs", icon: "collection" } ] : []
+
       [
-        { path: dashboard_programs_path, label: "Programs", icon: "collection" },
+        *programs,
         { path: dashboard_connected_accounts_path, label: "Accounts", icon: "link" },
         { path: dashboard_ics_feed_path, label: "ICS Feed", icon: "rss" },
         { path: dashboard_notifications_path, label: "Notifications", icon: "bell" },
         { path: dashboard_settings_path, label: "Settings", icon: "cog" },
         *dashboard_catalog_items
       ]
+    end
+
+    # True when the My programs pages are on for the signed-in user (#944).
+    def degree_planning_enabled?
+      Flipper.enabled?(FeatureFlags::DEGREE_PLANNING, current_user)
     end
 
     # The read-only catalog pages (#797). The desktop rail lists them under

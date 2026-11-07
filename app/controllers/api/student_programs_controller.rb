@@ -5,6 +5,7 @@ module Api
   # my_programs MCP tool sends the same data.
   class StudentProgramsController < BaseController
     authenticate_with_token
+    include Api::DegreePlanningFlag
 
     # GET /api/user/programs
     def index
