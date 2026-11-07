@@ -48,6 +48,8 @@ module DegreeRequirements
       def initialize(text, credits: {})
         @lines = text.to_s.split("\n")
         @database_credits = credits
+        # The lines read as plan rows. A course list is any other line.
+        @plan_lines = Set.new
       end
 
       def call
@@ -118,6 +120,7 @@ module DegreeRequirements
           line = clean(index)
           break if line.match?(HEADING)
 
+          @plan_lines << index
           index += 1
           next if line.strip.empty? || line.match?(FOOTER)
 
@@ -163,9 +166,15 @@ module DegreeRequirements
       # between years.
       def fill_credits(items, total, known = {})
         items = with_credits(items, known)
-        from_database = from_total(with_credits(items, @database_credits), total)
-        return from_database if total.nil? || from_database.sum { |item| item.min_credits.to_i } == total
+        return items if total.nil?
 
+        # The database credits stay only when every row then has credits and
+        # they add up to the total. Four for each row left counts, but not
+        # a remainder, which would hide a wrong value.
+        from_database = from_total(with_credits(items, @database_credits), total, remainder: false)
+        if from_database.all?(&:min_credits) && from_database.sum(&:min_credits) == total
+          items = from_database
+        end
         from_total(items, total)
       end
 
@@ -178,13 +187,13 @@ module DegreeRequirements
         end
       end
 
-      def from_total(items, total)
+      def from_total(items, total, remainder: true)
         blank = items.select { |item| item.min_credits.nil? }
         return items if total.nil? || blank.empty?
 
         left = total - items.sum { |item| item.min_credits.to_i }
         each = 4 if left == 4 * blank.size
-        each ||= left if blank.size == 1 && left.between?(0, MAX_COURSE_CREDITS)
+        each ||= left if remainder && blank.size == 1 && left.between?(1, MAX_COURSE_CREDITS)
         return items if each.nil?
 
         items.map { |item| item.min_credits.nil? ? item.with(min_credits: each, max_credits: each) : item }
@@ -210,7 +219,8 @@ module DegreeRequirements
             items.each { |item| seen[[ item.subject_code, item.course_number ]] << item.min_credits if item.kind == "course" && item.min_credits }
           end
         end
-        @lines.each do |line|
+        @lines.each_with_index do |line, index|
+          next if @plan_lines.include?(index)
           next unless (match = LISTED_CREDITS.match(line.delete("\f")))
 
           seen[[ match[1], match[2].to_i ]] << match[3].to_i

@@ -18,8 +18,10 @@ module DegreeRequirements
     class Importer
       Result = Data.define(:status, :programs, :updated, :unchanged, :unmatched)
 
-      # Part of the digest. Raise it when a parser change should write every
-      # plan again; the sets it writes need a new review.
+      # Part of the digest. Raise it when a parser change should read every
+      # PDF again. A set whose plans then change is written again and needs
+      # a new review. A set whose plans are the same is not written, so a
+      # change to PlanWriter or SharedElectives needs its own rake task.
       VERSION = 2
 
       def initialize(catalog_year, client: CatalogSiteClient.new, matcher: nil)

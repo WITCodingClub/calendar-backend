@@ -65,6 +65,22 @@ RSpec.describe DegreeRequirements::PdfCatalog::GridParser do
     expect(described_class.call("Fall Semester is the first term.\nNo table here.")).to eq([])
   end
 
+  it "drops the repeated credits of a choice on a page with no break" do
+    text = <<~TEXT
+                                    TEST (BTST)
+                            Fall Semester                     Spring Semester                  Summer Semester
+                  ELECTIVE                           COMP1000                       4
+                  General                            OR
+                                                3    COMP1050                       4
+                  TOTAL CREDITS                 3                                  4
+    TEXT
+
+    expect(rows(described_class.call(text).sole)).to eq([
+      [ 1, "fall", "placeholder", nil, "General Elective", 3, 3 ],
+      [ 1, "spring", "choice", "COMP1000|COMP1050", nil, 4, 4 ]
+    ])
+  end
+
   describe "a table that a page break moves" do
     subject(:program) { described_class.call(file_fixture("degree_requirements/pdf/grid_page_break.txt").read).sole }
 

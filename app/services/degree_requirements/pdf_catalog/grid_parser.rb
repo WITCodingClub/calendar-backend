@@ -116,7 +116,9 @@ module DegreeRequirements
             next
           end
 
-          body.each { |text, x| add_token(cells, rows, columns, text, x, year, seasons) }
+          # The columns whose start on this page is still a guess.
+          guessed = page_base ? columns.each_index.to_a - placed : []
+          body.each { |text, x| add_token(cells, rows, columns, text, x, year, seasons, guessed) }
         end
         flush_all(cells, rows, year, seasons)
 
@@ -138,13 +140,15 @@ module DegreeRequirements
       # its credits, and other text is its title. A number goes to the
       # column it is in without slack: the credits are right-aligned close
       # to the code of the next column.
-      def add_token(cells, rows, columns, text, x, year, seasons)
+      def add_token(cells, rows, columns, text, x, year, seasons, guessed = [])
         number = text.match?(NUMBER)
         column = columns.rindex { |start| start - (number ? 0 : SLACK) <= x } || 0
         # After a page break a column start is a guess until a code is
         # under it. Credits with no open cell to take them are for the
         # column on the left.
-        column -= 1 if number && column.positive? && !open_cell?(cells[column]) && open_cell?(cells[column - 1])
+        if number && guessed.include?(column) && column.positive? && !open_cell?(cells[column]) && open_cell?(cells[column - 1])
+          column -= 1
+        end
         cell = cells[column]
 
         if ItemBuilder.code?(text)

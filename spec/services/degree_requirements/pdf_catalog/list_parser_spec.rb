@@ -101,6 +101,27 @@ RSpec.describe DegreeRequirements::PdfCatalog::ListParser do
       ])
     end
 
+    it "does not take them from the database for a semester with no total" do
+      text = "Business Management (BSM)\nFreshman Year, Fall Semester\nMGMT1000, Introduction to Management\n"
+
+      expect(credits(described_class.call(text, credits: { [ "MGMT", 1000 ] => 2 }))).to eq([ [ [ "MGMT1000", nil ] ] ])
+    end
+
+    it "does not take them from the database when only a remainder makes the total" do
+      text = <<~TEXT
+        Business Management (BSM)
+        Freshman Year, Fall Semester (total credits 12)
+        MGMT1000, Introduction to Management
+        MATH1000, College Mathematics I
+        PHYS1000, College Physics I
+        HSS ELECTIVE
+      TEXT
+      database = { [ "MGMT", 1000 ] => 4, [ "MATH", 1000 ] => 4, [ "PHYS", 1000 ] => 4 }
+
+      # 12 left for the elective would be 0 credits: no value stays.
+      expect(credits(described_class.call(text, credits: database)).first.map(&:last)).to eq([ nil, nil, nil, nil ])
+    end
+
     it "does not take them from the database when the semester total disagrees" do
       database = { [ "MGMT", 2750 ] => 4, [ "MATH", 1000 ] => 3 }
 

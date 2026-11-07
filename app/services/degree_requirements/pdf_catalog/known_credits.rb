@@ -8,10 +8,10 @@ module DegreeRequirements
     # row the PDF gives no credits for, and only when the semester total
     # that the PDF prints agrees.
     #
-    # A course takes the credits of the nearest other catalog year that has
+    # A course takes the credits of the nearest HTML catalog year that has
     # one value for it, else the credit hours that Banner gives now. The
-    # rows of the year itself came from an earlier import of the same PDF,
-    # so they are not used.
+    # rows of a PDF year are not used: they hold credits that an earlier
+    # parser version read or guessed, and an import does not change them.
     module KnownCredits
       module_function
 
@@ -19,7 +19,7 @@ module DegreeRequirements
         banner = CatalogCourse.where.not(credit_hours: nil).pluck(:subject_code, :course_number, :credit_hours)
         years = CatalogYearCourse.joins(:catalog_year).where.not(min_credits: nil)
                                  .where("catalog_year_courses.min_credits = catalog_year_courses.max_credits")
-                                 .where.not(catalog_years: { start_year: start_year })
+                                 .where(catalog_years: { start_year: FIRST_HTML_YEAR.. })
                                  .pluck("catalog_years.start_year", :subject_code, :course_number, :min_credits)
         build(start_year, banner, years)
       end
