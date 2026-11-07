@@ -80,7 +80,16 @@ RSpec.describe GoogleCalendar::EventWriter do
       expect(a_request(:any, /googleapis/)).not_to have_been_made
     end
 
-    it "writes the new data over an event the person did not edit" do
+    it "updates an event when only the description changed" do
+      row.update!(event_data_hash: CalendarEvent.generate_data_hash(event_data.merge(description: "Prof. Example")))
+      stub_request(:get, event_url).to_return(remote_body)
+      put = stub_request(:put, event_url).with(body: hash_including("description" => "Prof. Other")).to_return(json)
+
+      expect(writer.update(service, calendar, row, event_data.merge(description: "Prof. Other"))).to eq(:updated)
+      expect(put).to have_been_requested.once
+    end
+
+        it "writes the new data over an event the person did not edit" do
       stub_request(:get, event_url).to_return(remote_body)
       put = stub_request(:put, event_url).with(body: hash_including("summary" => "Synthetic Lecture")).to_return(json)
 
@@ -98,6 +107,16 @@ RSpec.describe GoogleCalendar::EventWriter do
 
       expect(put).to have_been_requested.once
       expect(row.reload).to have_attributes(location: "My Own Room", user_edited_fields: [ "location" ])
+    end
+
+    it "makes no request on the next sync of an event the person edited" do
+      stub_request(:get, event_url).to_return(remote_body(location: "My Own Room"))
+      stub_request(:put, event_url).to_return(json)
+      writer.update(service, calendar, row, event_data)
+      WebMock.reset_executed_requests!
+
+      expect(writer.update(service, calendar, row.reload, event_data)).to eq(:skipped_no_change)
+      expect(a_request(:any, /googleapis/)).not_to have_been_made
     end
 
     it "keeps the whole event when the person edited the recurrence" do

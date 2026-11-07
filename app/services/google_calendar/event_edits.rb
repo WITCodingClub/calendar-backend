@@ -36,8 +36,10 @@ module GoogleCalendar
     def edited_fields
       fields = []
 
-      fields << "summary"     if remote.summary  != row.summary
-      fields << "location"    if remote.location != row.location
+      # Google leaves an empty field out of its answer, so nil and "" are the
+      # same value here, as in MicrosoftGraph::EventEdits.
+      fields << "summary"     if text_changed?(remote.summary, row.summary)
+      fields << "location"    if text_changed?(remote.location, row.location)
       fields << "start_time"  if time_changed?(remote_start, row.start_time)
       fields << "end_time"    if time_changed?(remote_end, row.end_time)
 
@@ -76,6 +78,10 @@ module GoogleCalendar
     private
 
     attr_reader :row, :remote
+
+    def text_changed?(remote_value, row_value)
+      remote_value.to_s.strip != row_value.to_s.strip
+    end
 
     def remote_start
       self.class.parse_time(remote.start)
