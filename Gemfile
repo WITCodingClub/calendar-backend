@@ -39,7 +39,7 @@ gem "thruster", "~> 0.1.27", require: false
 gem "devise", "~> 5.0"
 
 # Passkeys (WebAuthn) for quick extension sign-in on a new device
-gem "webauthn", "~> 3.4"
+gem "webauthn", "~> 3.5"
 
 # Google OAuth + Calendar API
 gem "omniauth-google-oauth2", "~> 1.2"
