@@ -8,10 +8,11 @@ RSpec.describe DegreeRequirements::PdfCatalog::Importer do
   let!(:science) { create(:degree_program, slug: "computer-science-bs", name: "Computer Science, B.S.") }
   let!(:electrical) { create(:degree_program, slug: "electrical-engineering-bs", name: "Electrical Engineering, B.S.") }
 
-  def stub_pdf(start_year, text, body: pdf)
+  def stub_pdf(start_year, text, body: pdf, &change)
     stub_request(:get, DegreeRequirements::PdfCatalog.url_for(start_year)).to_return(status: 200, body: body)
     # pdftotext is a local program; the fixture is its output.
-    allow(DegreeRequirements::PdfCatalog::Text).to receive(:extract).and_return(file_fixture("degree_requirements/pdf/#{text}").read)
+    output = file_fixture("degree_requirements/pdf/#{text}").read
+    allow(DegreeRequirements::PdfCatalog::Text).to receive(:extract).and_return(change ? change.call(output) : output)
   end
 
   def import(catalog_year) = described_class.new(catalog_year, client: client).call
@@ -56,14 +57,25 @@ RSpec.describe DegreeRequirements::PdfCatalog::Importer do
       expect(set.reload.needs_review).to be(false)
     end
 
-    it "writes a changed PDF again and asks for a new review" do
+    it "writes a plan that a changed PDF changes again and asks for a new review" do
+      import(catalog_year)
+      set = catalog_year.requirement_sets.find_by!(degree_program: science)
+      set.update!(needs_review: false, reviewed_at: 1.day.ago)
+      stub_pdf(2014, "grid.txt", body: "%PDF-1.4 changed".b) { |text| text.sub("Computer Science I ", "Computer Science 1 ") }
+
+      expect(import(catalog_year)).to have_attributes(updated: 1, unchanged: 1)
+      expect(set.reload).to have_attributes(needs_review: true, reviewed_at: nil)
+      expect(set.program_plans.sole.items.first.label).to eq("Computer Science 1")
+    end
+
+    it "keeps a checked set when a changed PDF gives the same plans" do
       import(catalog_year)
       set = catalog_year.requirement_sets.find_by!(degree_program: science)
       set.update!(needs_review: false, reviewed_at: 1.day.ago)
       stub_pdf(2014, "grid.txt", body: "%PDF-1.4 changed".b)
 
-      expect(import(catalog_year)).to have_attributes(updated: 2)
-      expect(set.reload).to have_attributes(needs_review: true, reviewed_at: nil)
+      expect(import(catalog_year)).to have_attributes(updated: 0, unchanged: 2)
+      expect(set.reload).to have_attributes(needs_review: false, source_digest: Digest::SHA256.hexdigest("#{described_class::VERSION}:%PDF-1.4 changed"))
     end
 
     it "lists the plans with no program and writes nothing for them" do
@@ -89,6 +101,22 @@ RSpec.describe DegreeRequirements::PdfCatalog::Importer do
 
       expect(import(catalog_year).status).to eq(:missing)
       expect(catalog_year.reload.status).to eq("missing")
+    end
+  end
+
+  context "with a list year that prints few credits" do
+    let(:catalog_year) { create(:catalog_year, start_year: 2016) }
+
+    before { stub_pdf(2016, "list.txt") }
+
+    it "gives the list parser the credits the database has" do
+      create(:catalog_course, subject_code: "COMP", course_number: 1200, credit_hours: 4)
+      allow(DegreeRequirements::PdfCatalog::ListParser).to receive(:call).and_call_original
+
+      import(catalog_year)
+
+      expect(DegreeRequirements::PdfCatalog::ListParser)
+        .to have_received(:call).with(anything, credits: hash_including([ "COMP", 1200 ] => 4))
     end
   end
 

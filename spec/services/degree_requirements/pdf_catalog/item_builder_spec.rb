@@ -61,4 +61,28 @@ RSpec.describe DegreeRequirements::PdfCatalog::ItemBuilder do
     expect(described_class.total_credits(items)).to eq(7)
     expect(described_class.total_credits(build("MATH1776 & MATH1777"))).to be_nil
   end
+
+  it "corrects the subject codes that the catalogs misspell" do
+    expect(build("CONMM 890").first).to have_attributes(subject_code: "CONM", course_number: 890)
+    expect(build("PMATH1030").first).to have_attributes(subject_code: "MATH", course_number: 1030)
+    expect(build("ENGLISH1500").first).to have_attributes(subject_code: "ENGL", course_number: 1500)
+  end
+
+  it "builds a placeholder for a course slot named by its subject" do
+    expect(described_class.code?("COMP46XX")).to be(true)
+    expect(build("MGMTXXX", "Capstone", 4).first).to have_attributes(kind: "placeholder", label: "Capstone", min_credits: 4)
+    expect(build("CIVEXXXX").first.label).to eq("CIVE Elective")
+  end
+
+  describe ".split_choice" do
+    it "moves a course after \"or\" in the title to the code" do
+      expect(described_class.split_choice("ENGR1600", "Fundamentals of CAD & CAM or ENGR1800 Intro to MATLAB"))
+        .to eq([ "ENGR1600 or ENGR1800", "Fundamentals of CAD & CAM" ])
+    end
+
+    it "keeps a title with no course after \"or\"" do
+      expect(described_class.split_choice("MGMT5500", "Senior Project OR Advanced Practicum"))
+        .to eq([ "MGMT5500", "Senior Project OR Advanced Practicum" ])
+    end
+  end
 end

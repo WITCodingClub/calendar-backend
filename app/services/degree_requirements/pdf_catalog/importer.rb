@@ -12,14 +12,17 @@ module DegreeRequirements
     #
     # Every set it writes has needs_review, until a person checks it against
     # the PDF on the admin review page. A set with the same PDF digest and
-    # parser version is not written again, so a check is kept. A set from
-    # the HTML catalog is never replaced.
+    # parser version is not written again, so a check is kept. A new PDF or
+    # parser version that gives the same plans also keeps the check. A set
+    # from the HTML catalog is never replaced.
     class Importer
       Result = Data.define(:status, :programs, :updated, :unchanged, :unmatched)
 
-      # Part of the digest. Raise it when a parser change should write every
-      # plan again; the sets it writes need a new review.
-      VERSION = 1
+      # Part of the digest. Raise it when a parser change should read every
+      # PDF again. A set whose plans then change is written again and needs
+      # a new review. A set whose plans are the same is not written, so a
+      # change to PlanWriter or SharedElectives needs its own rake task.
+      VERSION = 2
 
       def initialize(catalog_year, client: CatalogSiteClient.new, matcher: nil)
         @catalog_year = catalog_year
@@ -40,7 +43,7 @@ module DegreeRequirements
         end
 
         digest = Digest::SHA256.hexdigest("#{VERSION}:#{pdf}")
-        programs = PdfCatalog.parser_for(start_year).call(Text.extract(pdf, columns: two_columns? ? 2 : 1))
+        programs = parse(Text.extract(pdf, columns: two_columns? ? 2 : 1))
         matched, unmatched = match(programs)
         log("no program for: #{unmatched.join('; ')}") if unmatched.any?
 
@@ -73,6 +76,12 @@ module DegreeRequirements
       def pdf_only? = PdfCatalog.pdf_only?(start_year)
 
       def two_columns? = PdfCatalog::LAYOUTS[start_year] == :courseleaf
+
+      def parse(text)
+        parser = PdfCatalog.parser_for(start_year)
+        # The list catalogs print no credits for most rows.
+        parser == ListParser ? parser.call(text, credits: KnownCredits.call(start_year)) : parser.call(text)
+      end
 
       def result(status, programs, unmatched)
         Result.new(status: status, programs: programs, updated: @stats[:updated], unchanged: @stats[:unchanged],
@@ -110,13 +119,32 @@ module DegreeRequirements
         end
 
         plans = programs.map(&:plan)
+        attributes = { name: programs.first.title, path: "/previous-catalogs/#{url.split('/').last}#page=#{programs.first.page}",
+                       total_credits: plans.first.total_credits, source: "pdf", source_digest: digest, fetched_at: now,
+                       last_seen_at: now }
+        if set.persisted? && stored_plans(set) == plans.map { |plan| plan_row(plan) }
+          set.update!(attributes)
+          @stats[:unchanged] += 1
+          return
+        end
+
         RequirementSet.transaction do
-          set.update!(name: programs.first.title, path: "/previous-catalogs/#{url.split('/').last}#page=#{programs.first.page}",
-                      total_credits: plans.first.total_credits, source: "pdf", needs_review: true, reviewed_at: nil,
-                      source_digest: digest, fetched_at: now, last_seen_at: now)
+          set.update!(attributes.merge(needs_review: true, reviewed_at: nil))
           PlanWriter.call(set, plans: plans, groups: [])
         end
         @stats[:updated] += 1
+      end
+
+      def stored_plans(set) = set.program_plans.includes(:items).map { |plan| plan_row(plan) }
+
+      # The values of a plan that a review checks, from a parsed plan or a
+      # saved one.
+      def plan_row(plan)
+        [ plan.name, plan.years, plan.accelerated, plan.total_credits,
+          plan.items.map do |item|
+            [ item.year_index, item.season, item.kind, item.subject_code, item.course_number, item.label.presence,
+              item.min_credits, item.max_credits, item.footnote, item.options ]
+          end ]
       end
 
       def log(message)
