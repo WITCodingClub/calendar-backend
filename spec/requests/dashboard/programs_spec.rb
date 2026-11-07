@@ -3,7 +3,7 @@
 require "rails_helper"
 
 # Issue #867: the My programs page.
-RSpec.describe "Dashboard::Programs", type: :request do
+RSpec.describe "Dashboard::Programs", :degree_planning, type: :request do
   let(:user) { create(:user, :with_processed_courses) }
   let(:page) { Nokogiri::HTML(response.body) }
   let!(:catalog_year) { create(:catalog_year, :imported, start_year: 2025) }

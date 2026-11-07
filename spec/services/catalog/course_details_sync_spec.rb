@@ -140,6 +140,43 @@ RSpec.describe Catalog::CourseDetailsSync do
     expect(described_class.seed(Course.none)).to eq(0)
   end
 
+  it "gives an existing row the newer title of its section" do
+    catalog_course = create(:catalog_course, subject_code: "AAIN", course_number: 4080, title: "Agentic Ai And Intelligent Agents")
+    create(:course, term: term, subject: "Applied AI (AAIN)", course_number: 4080, title: "Agentic AI And Intelligent Agents")
+
+    described_class.seed(Course.all)
+
+    expect(catalog_course.reload.title).to eq("Agentic AI And Intelligent Agents")
+  end
+
+  it "keeps the newest title when a seed passes only an older term" do
+    old_term = create(:term, uid: 202620, year: 2026, season: :spring)
+    catalog_course = create(:catalog_course, subject_code: "MATH", course_number: 2860, title: "Linear Algebra")
+    old_section = create(:course, term: old_term, subject: "Mathematics (MATH)", course_number: 2860, title: "Old Name")
+    create(:course, term: term, subject: "Mathematics (MATH)", course_number: 2860, title: "Linear Algebra")
+
+    described_class.seed(Course.where(id: old_section.id))
+
+    expect(catalog_course.reload.title).to eq("Linear Algebra")
+  end
+
+  it "takes the title of the lowest CRN when sections in one term differ" do
+    catalog_course = create(:catalog_course, subject_code: "MATH", course_number: 2860, title: "Something Else")
+    create(:course, term: term, subject: "Mathematics (MATH)", course_number: 2860, crn: 30002, title: "Topics B")
+    create(:course, term: term, subject: "Mathematics (MATH)", course_number: 2860, crn: 30001, title: "Topics A")
+
+    described_class.seed(Course.all)
+
+    expect(catalog_course.reload.title).to eq("Topics A")
+  end
+
+  it "leaves updated_at alone when the title did not change" do
+    catalog_course = create(:catalog_course, subject_code: "MATH", course_number: 2860, title: "Linear Algebra", updated_at: 1.day.ago)
+    create(:course, term: term, subject: "Mathematics (MATH)", course_number: 2860, title: "Linear Algebra")
+
+    expect { described_class.seed(Course.all) }.not_to(change { catalog_course.reload.updated_at })
+  end
+
   it "reads the subject code from either spelling" do
     expect(described_class.prefix_of("Computer Science (COMP)")).to eq("COMP")
     expect(described_class.prefix_of("comp")).to eq("COMP")

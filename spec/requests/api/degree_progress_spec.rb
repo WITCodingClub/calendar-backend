@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "/api/user/degree_progress", type: :request do
+RSpec.describe "/api/user/degree_progress", :degree_planning, type: :request do
   let(:user) { create(:user) }
   let!(:catalog_year) { create(:catalog_year, :imported, start_year: 2025) }
   let(:major) { create(:degree_program, slug: "widget-design-bs") }

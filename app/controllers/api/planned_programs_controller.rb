@@ -6,6 +6,7 @@ module Api
   # update_my_planned_programs does the same.
   class PlannedProgramsController < BaseController
     authenticate_with_token
+    include Api::DegreePlanningFlag
 
     # POST /api/user/planned_programs
     # Params: program (a slug from GET /api/v1/catalog/programs), catalog_year

@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "/api/user/programs, /api/user/planned_programs, and /api/user/planned_pathways", type: :request do
+RSpec.describe "/api/user/programs, /api/user/planned_programs, and /api/user/planned_pathways", :degree_planning, type: :request do
   let(:user) { create(:user) }
   let!(:catalog_year) { create(:catalog_year, :imported, start_year: 2026) }
   let(:minor) { create(:degree_program, :minor, slug: "gear-minor", name: "Gear Minor") }

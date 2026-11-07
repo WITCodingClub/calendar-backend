@@ -7,6 +7,7 @@ module Api
   # update_my_planned_programs (with pathway) does the same.
   class PlannedPathwaysController < BaseController
     authenticate_with_token
+    include Api::DegreePlanningFlag
 
     # POST /api/user/planned_pathways
     # Params: pathway (a pathway slug), catalog_year (optional, the newest

@@ -9,6 +9,30 @@ The extension reads two LeopardWeb pages and sends what it finds to the backend 
 
 `GET /api/user/academic_profile` returns the profile and the active programs. The full request and response shapes are in the [API contract](https://github.com/WITCodingClub/calendar-extension/issues/203#issuecomment-6354478653).
 
+## The flag
+
+The Flipper flag `degree_planning` (#944) is off by default. While it is off for a user, these routes answer 404 and the dashboard nav hides "Programs":
+
+| Gated | Not gated |
+|---|---|
+| Every `/dashboard/programs*` route: the page, edit, plan, planned programs, and profile | `GET` and `PUT /api/user/academic_profile` |
+| `GET /api/user/programs` | `PUT /api/user/course_outcomes` |
+| `POST` and `DELETE /api/user/planned_programs` and `/api/user/planned_pathways` | The MCP tools (`my_programs`, `my_degree_progress`, `update_my_planned_programs`) |
+| `GET /api/user/degree_progress` | |
+
+```mermaid
+flowchart LR
+  R[Request] --> T{Token or session valid?}
+  T -- no --> U[401 or sign-in redirect]
+  T -- yes --> F{degree_planning on for the user?}
+  F -- no --> N[404]
+  F -- yes --> A[The action runs]
+```
+
+- The extension keeps sending LeopardWeb data while the flag is off, so the data is ready when the flag turns on.
+- The MCP tools have no flag. The `programs:read` and `programs:write` scopes on the consent page are their gate.
+- Turn on the flag for one test account first in the Flipper UI (`/admin/flipper`). The extension can read it as `degreePlanning` from `GET /api/user/feature_flags`.
+
 ## What we do not store
 
 We do not store letter grades, GPA, or W numbers. The extension converts each letter grade to one outcome before it sends it:

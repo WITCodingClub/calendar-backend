@@ -24,7 +24,8 @@ FLIPPER_FLAGS = {
   FeatureFlags::FRIEND_MEETING_EVENTS => "Friends v6: make a calendar event from a suggested meeting time. Waits on the privacy policy update",
   FeatureFlags::FRIEND_GROUPS => "Friend groups in the API and dashboard. Off until the privacy policy update",
   FeatureFlags::FRIEND_EXPIRY => "Set, extend, or remove an expiry date on a friendship. Needs the privacy policy update first",
-  FeatureFlags::MEETING_LINKS => "One-time meeting links for people who are not friends. Checked for the link owner. Waits on the privacy policy update"
+  FeatureFlags::MEETING_LINKS => "One-time meeting links for people who are not friends. Checked for the link owner. Waits on the privacy policy update",
+  FeatureFlags::DEGREE_PLANNING => "My programs page and the programs and degree progress API. Checked per user. MCP tools stay on: their scopes are the gate"
 }.freeze
 
 Rails.application.configure do
