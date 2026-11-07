@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_06_210100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_07_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -926,6 +926,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_210100) do
     t.datetime "last_seen_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "reviewed_at"
     t.index ["catalog_year_id"], name: "index_requirement_sets_on_catalog_year_id"
     t.index ["degree_program_id", "catalog_year_id"], name: "idx_on_degree_program_id_catalog_year_id_10cd4884bd", unique: true
   end
@@ -1186,8 +1187,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_06_210100) do
     t.string "source", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "program_pathway_id"
     t.string "plan_name"
+    t.bigint "program_pathway_id"
     t.index ["catalog_year_id"], name: "index_student_programs_on_catalog_year_id"
     t.index ["degree_program_id"], name: "index_student_programs_on_degree_program_id"
     t.index ["program_pathway_id"], name: "index_student_programs_on_program_pathway_id"
