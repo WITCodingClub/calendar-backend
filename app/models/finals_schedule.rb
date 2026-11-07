@@ -55,7 +55,8 @@ class FinalsSchedule < ApplicationRecord
       .where(oauth_credentials: { provider: "google" })
       .distinct
 
-    users_to_sync.find_each { |user| CourseCalendars::SyncJob.perform_bulk_later(user, force: true) }
+    CourseCalendars::SyncJob.perform_bulk_in_batch(users_to_sync, reason: "finals", description: resync_batch_description,
+                                                                  force: true)
 
     Rails.logger.info({
       message:   "Queued calendar re-sync after finals schedule import",
@@ -64,7 +65,16 @@ class FinalsSchedule < ApplicationRecord
     }.to_json)
   end
 
+  # The newest calendar re-sync batch of this schedule, for its progress on
+  # the admin page. Nil before the first re-sync, and after the recurring task
+  # clears a finished batch (a day later).
+  def resync_batch
+    SolidQueue::Batch.where(description: resync_batch_description).order(:created_at).last
+  end
+
   private
+
+  def resync_batch_description = "Calendar sync: finals schedule #{id}"
 
   def pdf_file_is_pdf
     errors.add(:pdf_file, "must be a PDF") unless pdf_file.content_type == "application/pdf"

@@ -256,6 +256,21 @@ RSpec.describe "Admin pages", type: :request do
       expect(page.css("main").text.squish).to include("Unchanged 7")
     end
 
+    it "shows the progress of the calendar re-sync" do
+      # Built by hand with no tracking rows, so all four count as done.
+      SolidQueue::Batch.create!(description: "Calendar sync: finals schedule #{schedule.id}", total_jobs: 4)
+
+      get admin_finals_schedule_path(schedule)
+
+      expect(page.css("main").text.squish).to include("Calendar re-sync", "Students 4", "Done 4", "Failed 0", "Progress 100%")
+    end
+
+    it "leaves out the re-sync card before the first re-sync" do
+      get admin_finals_schedule_path(schedule)
+
+      expect(response.body).not_to include("Calendar re-sync")
+    end
+
     it "leaves out the unchanged count for stats saved before it existed" do
       schedule.update!(status: :completed, stats: { created: 0, updated: 250 })
 

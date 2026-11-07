@@ -49,6 +49,17 @@
       <% end %>
     </div>
 
+    <% if @resync_batch %>
+      <%= render "admin/shared/card", title: "Calendar re-sync", subtitle: "One sync for each student with a Google calendar and a course this term" do %>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <%= render "admin/shared/stat", label: "Students", value: @resync_batch.total_jobs %>
+          <%= render "admin/shared/stat", label: "Done", value: @resync_batch.completed_jobs, tone: :success %>
+          <%= render "admin/shared/stat", label: "Failed", value: @resync_batch.failed_jobs, tone: (:warning if @resync_batch.failed_jobs.positive?) %>
+          <%= render "admin/shared/stat", label: "Progress", value: "#{@resync_batch.progress_percentage.round}%" %>
+        </div>
+      <% end %>
+    <% end %>
+
     <% if @finals_schedule.error_message.present? %>
       <%= render "admin/shared/card", title: "Errors and warnings", subtitle: pluralize(@finals_schedule.error_message.lines.count, "message") do %>
         <pre class="max-h-64 overflow-y-auto whitespace-pre-wrap font-mono text-xs text-error"><%= @finals_schedule.error_message %></pre>

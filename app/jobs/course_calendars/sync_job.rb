@@ -33,6 +33,17 @@ module CourseCalendars
       set(queue: :default, priority: BULK_PRIORITY).perform_later(user, **)
     end
 
+    # Queues a bulk sync for each user as one Solid Queue batch, and returns
+    # the batch. When the last sync ends, CourseCalendars::BulkSyncFinishedJob
+    # logs the totals and counts them in calendar_bulk_calendar_syncs_total.
+    # `reason` is a short label for the metric (nightly, holidays, finals).
+    # Pass the description to find the batch again, as the finals page does.
+    def self.perform_bulk_in_batch(users, reason:, description: "Calendar sync: #{reason}", **)
+      SolidQueue::Batch.enqueue(description: description, on_finish: CourseCalendars::BulkSyncFinishedJob, reason: reason) do
+        users.find_each { |user| perform_bulk_later(user, **) }
+      end
+    end
+
     def perform(user, force: false, backfill_historical: force, nightly: false)
       user.sync_course_schedule(force: force, backfill_historical: backfill_historical)
 

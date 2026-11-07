@@ -15,12 +15,17 @@ module CourseCalendars
       Rails.logger.info "Nightly Calendar Sync: Processing #{first_time_count + needs_update_count} users " \
                         "(#{first_time_count} first-time, #{needs_update_count} updates)"
 
-      first_time.find_each do |user|
-        sync_user(user, backfill_historical: true)
-      end
+      # One batch for the run, so its totals are logged and counted when the
+      # last sync ends (CourseCalendars::BulkSyncFinishedJob).
+      SolidQueue::Batch.enqueue(description: "Calendar sync: nightly", on_finish: CourseCalendars::BulkSyncFinishedJob,
+                                reason: "nightly") do
+        first_time.find_each do |user|
+          sync_user(user, backfill_historical: true)
+        end
 
-      needs_update.find_each do |user|
-        sync_user(user, backfill_historical: false)
+        needs_update.find_each do |user|
+          sync_user(user, backfill_historical: false)
+        end
       end
 
       Rails.logger.info "Nightly Calendar Sync: Enqueued #{first_time_count + needs_update_count} syncs"
