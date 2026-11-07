@@ -226,7 +226,8 @@ module DegreeRequirements
     # "Computer Science Electives, select four (4) courses" names the list
     # "Computer Science Electives".
     def group_name(text)
-      name = text.split(/,|:|\bselect\b/i).first.to_s.strip
+      # "Finance Concentration Courses *** This concentration is not ...".
+      name = text.split(/,|:|\bselect\b|\*{3}/i).first.to_s.strip
       (name.presence || text).truncate(NAME_LIMIT, separator: " ")
     end
 
@@ -283,11 +284,18 @@ module DegreeRequirements
     # "BSCI Elective" and "Building Sciences Electives": the code is the
     # start of one word, or of each of a run of words. Only one list may
     # match.
+    #
+    # A code that names a shared list (HSS, FREE, ...) is left to
+    # SharedElectives, and a list of two areas ("Math or Computer Science
+    # Elective") never matches a code.
+    SHARED_CODES = %w[hss hhs free gen open engl coop].freeze
+
     def code_match(label, groups, indexes)
       code = label.to_s[/\A([A-Z]{2,5})\s+electives?\b/i, 1]&.downcase
-      return nil if code.nil?
+      return nil if code.nil? || SHARED_CODES.include?(code)
 
-      found = indexes.select { |i| abbreviates?(code, name_words(groups[i].name)) }
+      found = indexes.reject { |i| groups[i].name.to_s.match?(/\bor\b/i) }
+                     .select { |i| abbreviates?(code, name_words(groups[i].name)) }
       found.one? ? found.first : nil
     end
 
@@ -315,20 +323,18 @@ module DegreeRequirements
     end
 
     # The name of a list with no h2 to h5 above it: the paragraph just before
-    # it, such as "<p><strong>Building Sciences Electives:</strong></p>". A
-    # "Complete the following courses" paragraph is skipped. A long note is
-    # not a name.
+    # it, such as "<p><strong>Building Sciences Electives:</strong></p>", past
+    # one "Complete the following courses" paragraph. Only a short paragraph
+    # that names electives, courses, a concentration, or a domain is a name:
+    # a note is not.
     def paragraph_heading(table)
       node = table.previous_element
-      2.times do
-        break if node.nil? || node.name != "p"
+      node = node.previous_element if node&.name == "p" && squish(node.text).to_s.match?(LIST_START)
+      return nil if node.nil? || node.name != "p"
 
-        text = squish(node.text).to_s.sub(/\A[¹²³⁴⁵*†\s]+/, "").delete_suffix(":")
-        return text if text.present? && text.size <= NAME_LIMIT && !text.match?(LIST_START) && !text.match?(/\bmay alter\b/i)
-
-        node = node.previous_element
-      end
-      nil
+      text = squish(node.text).to_s.sub(/\A[¹²³⁴⁵*†\s]+/, "").delete_suffix(":")
+      named = text.match?(/\b(?:electives?|courses|concentration|domain)\b/i) && !text.match?(/[.!?]\z/)
+      text if named && text.size <= NAME_LIMIT
     end
 
     # -- Helpers ---------------------------------------------------------------

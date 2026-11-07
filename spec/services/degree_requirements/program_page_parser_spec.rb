@@ -176,11 +176,21 @@ RSpec.describe DegreeRequirements::ProgramPageParser do
       expect(links(body)).to eq([ [ "Building Sciences Elective", "Building Sciences Electives" ] ])
     end
 
-    it "does not name a list from a long note or a placement note" do
-      body = "<p>Math Placement may alter the course schedule above.</p>#{course_list}"
+    it "does not name a list from a note, or from the paragraph above a note" do
+      [ "<p>Math Placement may alter the course schedule above.</p>",
+        "<p>Student Success Electives</p><p>A note that is long enough to be a sentence and not a name.</p>",
+        "<p>Directed HSS electives are chosen with an advisor.</p>" ].each do |paragraphs|
+        page = described_class.new(%(<article id="content"><div id="textcontainer">#{paragraphs}#{course_list}</div></article>)).call
+
+        expect(page.groups.first.name).to eq("Course List"), paragraphs
+      end
+    end
+
+    it "leaves the end of a concentration heading after three stars out of its name" do
+      body = "<h5>Finance Concentration Courses *** This concentration is not accepting new students. ***</h5>#{course_list}"
       page = described_class.new(%(<article id="content"><div id="textcontainer">#{body}</div></article>)).call
 
-      expect(page.groups.first.name).to eq("Course List")
+      expect(page.groups.first.name).to eq("Finance Concentration Courses")
     end
 
     it "matches a list whose name starts with The" do
@@ -201,6 +211,14 @@ RSpec.describe DegreeRequirements::ProgramPageParser do
         [ "BSCI Elective", "Building Sciences Electives" ],
         [ "COMP Elective", nil ]
       ])
+    end
+
+    it "leaves a shared code to the shared lists, and never matches a list of two areas by code" do
+      body = plan_grid("HSS Elective", "MATH Elective") +
+             "<h4>Humanities and Social Science Studies Electives</h4>#{course_list}" \
+             "<h4>Math or Computer Science Elective</h4>#{course_list('WDGT3100')}"
+
+      expect(links(body)).to eq([ [ "HSS Elective", nil ], [ "MATH Elective", nil ] ])
     end
 
     it "uses a list of another plan with the same name when its own plan has none" do

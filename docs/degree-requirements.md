@@ -78,7 +78,7 @@ flowchart TD
 
 ## Links to Banner courses
 
-`ProgramPlanItem`, `ElectiveGroupCourse`, and `CatalogYearCourse` name a course by `subject_code` and `course_number`. `catalog_course_id` links the row to the `CatalogCourse` with that code (`CatalogCourseLinkable`). The link is nil when Banner does not know the code.
+`ProgramPlanItem`, `ElectiveGroupCourse`, and `CatalogYearCourse` name a course by `subject_code` and `course_number`. `catalog_course_id` links the row to the `CatalogCourse` with that code (`CatalogCourseLinkable`). The link is nil when no `CatalogCourse` has the code. `CatalogCourse` rows come from the sections of the imported terms, so a course with no section since Spring 2014 has none, even when Banner's course catalog lists it.
 
 - A save that changes the code clears the link.
 - `link_catalog_courses` on each model sets every link in bulk, and fixes a link that names another course.
