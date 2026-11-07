@@ -58,7 +58,13 @@ RSpec.describe GoogleCalendar::EventEdits do
       expect(described_class.new(row, remote).edited_fields).to eq(%w[summary location start_time end_time])
     end
 
-    it "does not count the description the app wrote" do
+    it "does not count an empty location that Google leaves out" do
+      row.location = " "
+
+      expect(described_class.new(row, remote_event(location: nil)).edited_fields).to eq([])
+    end
+
+        it "does not count the description the app wrote" do
       expect(described_class.new(row, remote_event(description: "CRN 10001")).edited_fields).to eq([])
     end
 

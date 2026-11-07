@@ -10,9 +10,7 @@ module CourseCalendars
     def perform
       base = User.joins(:course_calendars).distinct
 
-      # Never-synced users: first full sync, no force needed (nothing stale to skip)
-      first_time = base.where(last_calendar_sync_at: nil)
-      # Previously-synced users with a data change: force to bypass staleness cache
+      first_time   = base.where(last_calendar_sync_at: nil)
       needs_update = base.where(calendar_needs_sync: true).where.not(last_calendar_sync_at: nil)
 
       first_time_count = first_time.count
@@ -21,11 +19,11 @@ module CourseCalendars
                         "(#{first_time_count} first-time, #{needs_update_count} updates)"
 
       first_time.find_each do |user|
-        sync_user(user, force: false, backfill_historical: true)
+        sync_user(user, backfill_historical: true)
       end
 
       needs_update.find_each do |user|
-        sync_user(user, force: true, backfill_historical: false)
+        sync_user(user, backfill_historical: false)
       end
 
       Rails.logger.info "Nightly Calendar Sync: Enqueued #{first_time_count + needs_update_count} syncs"
@@ -39,11 +37,16 @@ module CourseCalendars
     #
     # The low priority puts the nightly syncs behind the syncs that people
     # start. The worker threads limit how many syncs run at the same time.
-    def sync_user(user, force:, backfill_historical:)
-      Rails.logger.info "Enqueueing calendar sync for user #{user.id} (force=#{force}, backfill_historical=#{backfill_historical})"
+    #
+    # The sync does not use force. Without force, the providers update only the
+    # events whose data hash changed (CalendarEvent#data_changed?), and keep
+    # the edits the person made in Google or Outlook. With force, every event
+    # gets an API call, and the person's edits are lost.
+    def sync_user(user, backfill_historical:)
+      Rails.logger.info "Enqueueing calendar sync for user #{user.id} (backfill_historical=#{backfill_historical})"
 
       CourseCalendars::SyncJob.set(queue: :low, priority: SYNC_PRIORITY)
-                              .perform_later(user, force: force, backfill_historical: backfill_historical, nightly: true)
+                              .perform_later(user, force: false, backfill_historical: backfill_historical, nightly: true)
     end
   end
 end

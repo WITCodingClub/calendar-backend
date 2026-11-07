@@ -388,7 +388,10 @@ module MicrosoftGraph
       return recreate_remote_event(calendar, row, event, data) if event_id.blank?
 
       cancel_excluded_occurrences(event_id, payload_data)
-      row.update!(row_attributes(payload_data).merge(external_event_id: event_id, user_edited_fields: edited.presence))
+      # The hash is of the app's data, not the merged data, like
+      # GoogleCalendar::EventWriter#update. Else an edited event updates on every sync.
+      row.update!(row_attributes(payload_data).merge(external_event_id: event_id, user_edited_fields: edited.presence,
+                                                     event_data_hash: CalendarEvent.generate_data_hash(data)))
       :updated
     end
 

@@ -192,4 +192,22 @@ RSpec.describe CalendarEvent, type: :model do
       expect(CalendarEvent.exists?(event.id)).to be(false)
     end
   end
+
+  describe "#data_changed?" do
+    let(:data) do
+      { summary: "COMP 1000", description: "Prof. Example", location: "WENTW 010",
+        start_time: Time.zone.parse("2026-09-08 09:00"), end_time: Time.zone.parse("2026-09-08 10:00") }
+    end
+    let(:row) { described_class.new(event_data_hash: described_class.generate_data_hash(data)) }
+
+    it "is false when the data is the same" do
+      expect(row.data_changed?(data.dup)).to be(false)
+    end
+
+    # The nightly sync does not force, so a new instructor in the description
+    # reaches the calendar only when the hash sees it.
+    it "is true when only the description changed" do
+      expect(row.data_changed?(data.merge(description: "Prof. Other"))).to be(true)
+    end
+  end
 end

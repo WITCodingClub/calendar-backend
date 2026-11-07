@@ -304,6 +304,18 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
       expect(row.summary).to eq("Renamed in Outlook")
     end
 
+    it "makes no request on the next sync of an event the person edited" do
+      stub_event_fetch(subject: "Renamed in Outlook", start: outlook_time(8), end: outlook_time(9, 15))
+      stub_request(:patch, "#{graph}/me/events/#{created_event_id}").to_return(graph_json_response("event_updated"))
+      service.update_calendar_events([ class_event ])
+      WebMock.reset_executed_requests!
+
+      stats = service.update_calendar_events([ class_event ])
+
+      expect(stats).to eq(created: 0, updated: 0, skipped: 1)
+      expect(a_request(:any, /graph\.microsoft\.com/)).not_to have_been_made
+    end
+
     it "keeps a field the person changed in an earlier sync" do
       row.update!(user_edited_fields: [ "location" ], location: "Room chosen in Outlook")
       stub_event_fetch(start: outlook_time(8), end: outlook_time(9, 15), location: { displayName: "Room chosen in Outlook" })

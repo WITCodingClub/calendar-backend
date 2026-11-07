@@ -86,7 +86,9 @@ module GoogleCalendar
         start_time:         merged_event_data[:start_time],
         end_time:           merged_event_data[:end_time],
         recurrence:         merged_event_data[:recurrence],
-        event_data_hash:    CalendarEvent.generate_data_hash(merged_event_data),
+        # The app's data, not the merged data: with the person's edits in the
+        # hash, the next sync sees a change and updates the event again.
+        event_data_hash:    CalendarEvent.generate_data_hash(course_event),
         last_synced_at:     Time.current,
         user_edited_fields: all_edited_fields.any? ? all_edited_fields : nil
       )
