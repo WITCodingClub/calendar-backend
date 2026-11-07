@@ -12,12 +12,24 @@
 # Configure Using Gemfile
 # gem "pg"
 #
+# Pool size for every database (#677). RAILS_MAX_THREADS sets the Puma
+# threads (config/puma.rb) and JOB_THREADS sets the Solid Queue worker threads
+# (config/queue.yml), so all three files read the same numbers.
+#
+# Solid Queue runs in forked processes, so the Puma process and the worker
+# process each have their own pools. One size covers both:
+# - primary and cache: every Puma thread and every worker thread can hold one
+#   connection, even in async mode, when they share one process.
+# - queue: a worker needs its threads + 2 (the poller and the heartbeat), and
+#   Puma threads enqueue jobs.
+# Pools open connections only when a thread needs one. Postgres allows 100.
+<% web_threads = Integer(ENV.fetch("RAILS_MAX_THREADS", 3)) %>
+<% job_threads = Integer(ENV.fetch("JOB_THREADS", 3)) %>
 default: &default
   adapter: postgresql
   encoding: unicode
-  # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
-  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  max_connections: <%= web_threads + job_threads + 2 %>
 
 development:
   <<: *default

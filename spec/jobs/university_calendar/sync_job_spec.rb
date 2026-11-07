@@ -82,6 +82,16 @@ RSpec.describe UniversityCalendar::SyncJob do
       end
     end
 
+    context "when a change syncs many users" do
+      let(:import_result) { no_changes.merge(created: 1, changed_categories: [ "holiday" ]) }
+
+      # A fan-out on high would hold up mail and the syncs that people start.
+      it "queues the syncs on low" do
+        expect { described_class.perform_now }
+          .to have_enqueued_job(CourseCalendars::SyncJob).on_queue("low").at_priority(CourseCalendars::SyncJob::BULK_PRIORITY).twice
+      end
+    end
+
     context "when the import result has no categories" do
       let(:import_result) { { created: 1, updated: 0, cancelled: 0 } }
 

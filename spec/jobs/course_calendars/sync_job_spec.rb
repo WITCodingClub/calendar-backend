@@ -27,6 +27,13 @@ RSpec.describe CourseCalendars::SyncJob do
     expect(user.reload).to have_attributes(calendar_needs_sync: false, last_calendar_sync_at: be_present)
   end
 
+  describe ".perform_bulk_later" do
+    it "queues the sync on low, behind the other low jobs" do
+      expect { described_class.perform_bulk_later(user, force: true) }
+        .to have_enqueued_job(described_class).with(user, force: true).on_queue("low").at_priority(described_class::BULK_PRIORITY)
+    end
+  end
+
   it "does not record the sync on a run that a person started" do
     described_class.perform_now(user)
 

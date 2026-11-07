@@ -41,6 +41,6 @@ RSpec.describe CourseCalendars::NightlySyncJob do
 
   it "puts the nightly syncs behind the syncs that people start" do
     expect { described_class.perform_now }
-      .to have_enqueued_job(CourseCalendars::SyncJob).on_queue("low").at_priority(described_class::SYNC_PRIORITY).twice
+      .to have_enqueued_job(CourseCalendars::SyncJob).on_queue("low").at_priority(CourseCalendars::SyncJob::BULK_PRIORITY).twice
   end
 end

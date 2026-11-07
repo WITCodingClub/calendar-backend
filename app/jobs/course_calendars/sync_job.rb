@@ -16,6 +16,17 @@ module CourseCalendars
 
     retry_on Google::Apis::RateLimitError, **GoogleCalendar::RateLimiter::JOB_RETRY
 
+    # Solid Queue runs the job with the lowest number first. Other jobs use 0.
+    BULK_PRIORITY = 10
+
+    # Enqueues a sync that is one of many (the nightly sync, a holiday change,
+    # a finals import). The worker takes high and default before low
+    # (config/queue.yml), so a fan-out does not hold up mail or the syncs that
+    # people start. The worker threads limit how many syncs run at once.
+    def self.perform_bulk_later(user, **)
+      set(queue: :low, priority: BULK_PRIORITY).perform_later(user, **)
+    end
+
     def perform(user, force: false, backfill_historical: force, nightly: false)
       user.sync_course_schedule(force: force, backfill_historical: backfill_historical)
 

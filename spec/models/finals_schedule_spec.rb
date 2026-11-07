@@ -47,6 +47,18 @@ RSpec.describe FinalsSchedule, type: :model do
       .with_default(:pending)
   end
 
+  describe "#trigger_calendar_resyncs_for_term" do
+    it "queues a bulk sync on low for each Google user in the term" do
+      schedule = create(:finals_schedule)
+      user = create(:user)
+      create(:course_calendar, oauth_credential: create(:oauth_credential, user: user, provider: "google"))
+      create(:enrollment, user: user, course: create(:course, term: schedule.term))
+
+      expect { schedule.trigger_calendar_resyncs_for_term }
+        .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).on_queue("low").at_priority(CourseCalendars::SyncJob::BULK_PRIORITY)
+    end
+  end
+
   # #pdf_file_is_pdf only runs `if: -> { pdf_file.attached? }`, so it needs a
   # real ActiveStorage attachment rather than a one-liner.
 end
