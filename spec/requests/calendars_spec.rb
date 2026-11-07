@@ -127,6 +127,46 @@ RSpec.describe "GET /calendar/:calendar_token", type: :request do
     end
   end
 
+  # The server keeps the rendered body in Rails.cache until a row that the
+  # feed reads changes (#680).
+  describe "server cache" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    around do |example|
+      original = Rails.cache
+      Rails.cache = ActiveSupport::Cache::MemoryStore.new
+      example.run
+    ensure
+      Rails.cache = original
+    end
+
+    before { allow(CourseCalendars::IcsFeed).to receive(:new).and_call_original }
+
+    it "builds the feed one time for two requests with the same data" do
+      user = student_in(%w[11111])
+
+      get "/calendar/#{user.calendar_token}"
+      first_body = response.body
+      get "/calendar/#{user.calendar_token}"
+
+      expect(response.body).to eq(first_body)
+      expect(CourseCalendars::IcsFeed).to have_received(:new).once
+    end
+
+    it "builds the feed again after a class changes" do
+      user = student_in(%w[11111])
+      get "/calendar/#{user.calendar_token}"
+
+      travel 1.minute do
+        Course.find_by!(crn: 11111).update!(title: "Advanced Data Structures")
+        get "/calendar/#{user.calendar_token}"
+      end
+
+      expect(response.body).to include("Advanced Data Structures")
+      expect(CourseCalendars::IcsFeed).to have_received(:new).twice
+    end
+  end
+
   # A calendar client keeps its copy of an event until LAST-MODIFIED or
   # SEQUENCE goes up. Settings and rows outside the course and meeting time
   # also change the event, so they must move these fields too.

@@ -41,10 +41,10 @@ module CourseCalendars
       # Prefers term start/end dates; falls back to meeting time dates when terms
       # lack end_date (e.g. Fall 2026 before finals are scheduled).
       def date_range_for_terms(enrolled_term_ids)
-        terms = Term.where(id: enrolled_term_ids).where.not(start_date: nil).where.not(end_date: nil)
-        if terms.any?
-          return [ terms.minimum(:start_date), terms.maximum(:end_date) ]
-        end
+        # One query for both ends. Both are nil when no term has its dates.
+        min, max = Term.where(id: enrolled_term_ids).where.not(start_date: nil).where.not(end_date: nil)
+                       .pick(Arel.sql("min(start_date)"), Arel.sql("max(end_date)"))
+        return [ min, max ] if min && max
 
         meeting_times = @courses.flat_map { |c| c.meeting_times.to_a }
         min = meeting_times.filter_map(&:start_date).min
