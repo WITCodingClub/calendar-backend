@@ -66,6 +66,15 @@ constraints AdminConstraint.new do
     end
 
     resources :rmp_ratings, only: [ :index ]
+
+    # Requirement sets read from a catalog PDF, and course code aliases,
+    # that wait for a person to check them (#865).
+    resources :catalog_reviews, only: [ :index, :show ] do
+      member { patch :review }
+    end
+    resources :course_code_aliases, only: [ :destroy ] do
+      member { patch :review }
+    end
     resources :rooms,       only: [ :index, :show ]
 
     get  "course_catalog",                      to: "course_catalog#index",    as: :course_catalog

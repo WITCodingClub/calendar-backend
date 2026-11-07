@@ -157,6 +157,8 @@ module AcademicProfiles
         status:       row&.status,
         name:         set.name,
         catalog_year: set.catalog_year.name,
+        # true for a plan read from a PDF that no person has checked yet.
+        needs_review: set.needs_review,
         plan:         plan&.name,
         plans:        set.program_plans.map(&:name),
         counts:       %w[done in_progress open].index_with { |status| requirements.count { |r| r[:status] == status } },
@@ -291,13 +293,15 @@ module AcademicProfiles
       course
     end
 
-    # A code and its old or new codes (CourseCodeAlias), both ways.
+    # A code and its old or new codes (CourseCodeAlias), both ways. Only the
+    # aliases a person checked count: the matches can pair two courses that
+    # only share a title (#865).
     def equivalents(code)
       [ code, *aliases.fetch(code, []) ]
     end
 
     def aliases
-      @aliases ||= CourseCodeAlias.pluck(:from_subject_code, :from_course_number, :to_subject_code, :to_course_number)
+      @aliases ||= CourseCodeAlias.reviewed.pluck(:from_subject_code, :from_course_number, :to_subject_code, :to_course_number)
                                   .each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(fs, fn, ts, tn), map|
         map[[ fs, fn ]] << [ ts, tn ]
         map[[ ts, tn ]] << [ fs, fn ]

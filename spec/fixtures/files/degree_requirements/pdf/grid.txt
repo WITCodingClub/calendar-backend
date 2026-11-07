@@ -1,0 +1,44 @@
+2014-2015 Academic Catalog                     129                  Rev 12 Feb 2015
+The plan below lists the courses in each semester.
+
+                                        COMPUTER SCIENCE (BCOS)
+                             Fall Semester                     Spring Semester                    Summer Semester
+                  Course                  Credits    Course                  Credits    Course                  Credits
+                  COMP128                      4     COMP201                      4
+                  Computer Science I                 Computer Science II
+
+ Freshman Year
+                  MATH205                      4     MATH250                      4
+                  College Math I                     Precalculus
+                  ENGLISH                      4     ELECTIVE*                    4
+                  English Sequence                   Humanities or Social
+                                                     Science
+                                               12                                 12
+                  COMP285                      4     COMP355                      4     COOP300                      0
+                  Object Oriented                    Database Management                Pre-Cooperative
+ Sopho            Programming                        Systems                            Work Term (Optional)
+ more
+2014-2015 Academic Catalog                     130                  Rev 12 Feb 2015
+        MATH181 or MATH250             4   ELECTIVE                     3-4
+        Statistics                         Computer Science
+                                       8                                  8                                  0
+
+Minor
+
+This minor gives students a grounding in computer science and is open to every major at the Institute.
+
+                                        ELECTRICAL ENGINEERING (BSEE)
+                            Fall Semester                      Spring Semester                  Summer Semester
+                               Course                               Course                          Course
+                  ENGLISH                            MATH1850
+                                                4                                   3
+                  English Sequence                   Engineering Calculus
+                  ENGR1600                           PHYS1750
+                  Fundamentals of CAD           1    Engineering Physics II         4
+                              OR
+                  ENGR1800
+                  Programming with MATLAB
+                  TOTAL CREDITS                 5                                   7
+
+FACULTY
+ Instructors                           Ada Example                                Grace Sample

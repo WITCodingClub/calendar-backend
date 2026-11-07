@@ -31,8 +31,9 @@ module DegreeRequirements
 
     # The page body, or nil for a 404. Raises FetchError for any other failure.
     # It follows redirects: the Wayback Machine sends each request on to the
-    # nearest capture.
-    def get(url)
+    # nearest capture. With binary: true the body is returned as bytes, for
+    # a PDF.
+    def get(url, binary: false)
       MAX_REDIRECTS.succ.times do
         (URI(url).host == WAYBACK_HOST ? @wayback_pacer : @pacer).wait
         response = connection.get(url)
@@ -43,6 +44,7 @@ module DegreeRequirements
           next
         end
         raise FetchError, "GET #{url}: HTTP #{response.status}" unless response.success?
+        return response.body.to_s.b if binary
 
         # A stray byte from another encoding would make every regex on the
         # page raise, so it is replaced.
@@ -67,7 +69,8 @@ module DegreeRequirements
     end
 
     def connection
-      @connection ||= Faraday.new(request: { open_timeout: 10, timeout: 30 }) do |f|
+      # A catalog PDF is about 5 MB.
+      @connection ||= Faraday.new(request: { open_timeout: 10, timeout: 60 }) do |f|
         f.request :retry, RETRY_OPTIONS
         f.headers["User-Agent"] = USER_AGENT
       end

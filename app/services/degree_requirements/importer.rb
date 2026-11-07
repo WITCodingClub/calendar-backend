@@ -65,7 +65,8 @@ module DegreeRequirements
     # Compares with the programs the last import saw. Sets of programs that
     # left the catalog earlier stay stored, so they do not count.
     def check_shrink!(count)
-      sets = @catalog_year.requirement_sets
+      # The 2025-2026 PDF adds sets that the index does not list.
+      sets = @catalog_year.requirement_sets.where.not(source: "pdf")
       sets = sets.where(last_seen_at: (@catalog_year.imported_at - 1.day)..) if @catalog_year.imported_at
       previous = sets.count
       return if previous < SHRINK_FLOOR || count >= previous / 2
@@ -117,53 +118,10 @@ module DegreeRequirements
                     department_name: page.department_name, description: page.description,
                     total_credits: page.total_credits, source: source.catalog_year_source, needs_review: false,
                     source_digest: page.digest, fetched_at: now, last_seen_at: now)
-        write_plans(set, page)
+        PlanWriter.call(set, plans: page.plans, groups: page.groups)
       end
       @stats[:updated] += 1
       program
-    end
-
-    def write_plans(set, page)
-      set.elective_groups.delete_all
-      plans = page.plans.each_with_index.map do |data, position|
-        plan = set.program_plans.find_or_initialize_by(position: position)
-        plan.update!(name: data.name, years: data.years, accelerated: data.accelerated, total_credits: data.total_credits)
-        plan
-      end
-      set.program_plans.where(position: page.plans.size..).delete_all
-      ProgramPlanItem.where(program_plan_id: plans.map(&:id)).delete_all
-
-      groups = page.groups.each_with_index.map do |data, position|
-        ElectiveGroup.create!(requirement_set: set, program_plan: data.plan_index && plans[data.plan_index],
-                              name: data.name, heading: data.heading, min_courses: data.min_courses,
-                              min_credits: data.min_credits, notes: data.notes, position: position)
-      end
-
-      insert_group_courses(page.groups, groups)
-      insert_plan_items(page.plans, plans, groups)
-    end
-
-    def insert_group_courses(data, groups)
-      rows = data.each_with_index.flat_map do |group, index|
-        group.courses.each_with_index.map do |course, position|
-          { elective_group_id: groups[index].id, subject_code: course.subject_code, course_number: course.course_number,
-            requires_approval: course.requires_approval, position: position }
-        end
-      end
-      ElectiveGroupCourse.insert_all!(rows) if rows.any?
-    end
-
-    def insert_plan_items(data, plans, groups)
-      rows = data.each_with_index.flat_map do |plan, index|
-        plan.items.each_with_index.map do |item, position|
-          { program_plan_id: plans[index].id, position: position, year_index: item.year_index, season: item.season,
-            kind: item.kind, subject_code: item.subject_code, course_number: item.course_number,
-            label: item.label.presence, min_credits: item.min_credits, max_credits: item.max_credits,
-            footnote: item.footnote, options: item.options,
-            elective_group_id: item.group_index && groups[item.group_index].id }
-        end
-      end
-      ProgramPlanItem.insert_all!(rows) if rows.any?
     end
 
     # "Building Sciences, B.S. - Construction Management Concentration" belongs
