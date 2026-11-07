@@ -73,6 +73,8 @@
     </div>
   <% end %>
 
+  <%= render "dashboard/courses/prerequisite_graph", graph: @prerequisite_graph unless @prerequisite_graph.empty? %>
+
   <section class="space-y-3" id="sections">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <h2 class="text-lg font-semibold text-on-surface">Sections<%= " in #{@term.name}" if @term %></h2>
