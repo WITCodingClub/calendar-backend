@@ -37,10 +37,21 @@ module DegreeRequirements
     # until the course import that this job queues has finished too. A batch
     # with a failed job is finished, so a failed import does not count.
     def self.queued_start_years
-      SolidQueue::Batch.where(description: BATCH_DESCRIPTION, finished_at: nil)
-                       .filter_map { |batch| Integer(batch.metadata[:start_year], exception: false) }
-                       .to_set
+      batched = SolidQueue::Batch.where(description: BATCH_DESCRIPTION, finished_at: nil)
+                                 .filter_map { |batch| Integer(batch.metadata[:start_year], exception: false) }
+      batched.to_set | unbatched_start_years
     end
+
+    # Jobs with no batch: queued before enqueue_in_batch existed, or a course
+    # import whose batch had finished (enqueue_course_import). Remove the
+    # first case when production has no such ImportJob left.
+    def self.unbatched_start_years
+      SolidQueue::Job.where(class_name: [ name, CourseImportJob.name ], finished_at: nil, batch_id: nil)
+                     .where.missing(:failed_execution)
+                     .pluck(:arguments)
+                     .filter_map { |job| Integer(job["arguments"]&.first, exception: false) if job.is_a?(Hash) }
+    end
+    private_class_method :unbatched_start_years
 
     def perform(start_year, force: false)
       catalog_year = CatalogYear.find_or_create_by!(start_year: start_year)
@@ -62,13 +73,17 @@ module DegreeRequirements
     private
 
     # Inside the batch, the course import joins it. A job queued with
-    # perform_later has no batch.
+    # perform_later has no batch. A failed import that someone retried from
+    # Mission Control keeps its batch, but that batch finished when the job
+    # failed and takes no new job, so the course import goes on its own.
     def enqueue_course_import(start_year)
-      if batch
+      if batch && !batch.finished?
         batch.enqueue { CourseImportJob.perform_later(start_year) }
       else
         CourseImportJob.perform_later(start_year)
       end
+    rescue SolidQueue::Batch::AlreadyFinished
+      CourseImportJob.perform_later(start_year)
     end
 
     # The PDF only adds programs to a year the site already imported. Its

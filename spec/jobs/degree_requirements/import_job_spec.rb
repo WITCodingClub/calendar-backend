@@ -116,6 +116,13 @@ RSpec.describe DegreeRequirements::ImportJob do
       expect(described_class.queued_start_years).to contain_exactly(2024, 2023)
     end
 
+    it "counts an import queued with no batch" do
+      job = described_class.new(2019)
+      SolidQueue::Job.create!(class_name: job.class.name, queue_name: "low", active_job_id: job.job_id, arguments: job.serialize)
+
+      expect(described_class.queued_start_years).to contain_exactly(2019)
+    end
+
     it "leaves out finished and failed imports, and other batches" do
       batch(2022, finished: true)
       batch(2021, failed: true)
@@ -160,6 +167,16 @@ RSpec.describe DegreeRequirements::ImportJob do
       expect(batch.total_jobs).to eq(1)
     ensure
       DegreeRequirements::CourseImportJob.queue_adapter = previous
+    end
+
+    it "is queued on its own when the import's batch has finished, as after a retry from Mission Control" do
+      batch = SolidQueue::Batch.create!(description: described_class::BATCH_DESCRIPTION, metadata: { start_year: 2024 },
+                                        finished_at: 1.hour.ago, failed_at: 1.hour.ago)
+      job = described_class.new(2024)
+      job.batch_id = batch.id
+
+      expect { job.perform_now }.to have_enqueued_job(DegreeRequirements::CourseImportJob).with(2024)
+      expect(batch.reload.total_jobs).to eq(0)
     end
   end
 end
