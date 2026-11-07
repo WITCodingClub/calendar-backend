@@ -26,8 +26,8 @@ module DegreeRequirements
 
       result = Importer.new(catalog_year, force: force).call
       if result.status == :imported
-        PdfCatalog::Importer.new(catalog_year).call if PdfCatalog::FILES.key?(start_year)
         CourseImportJob.perform_later(start_year)
+        fill_from_pdf(catalog_year) if PdfCatalog::FILES.key?(start_year)
       end
       result
     rescue StandardError
@@ -35,6 +35,17 @@ module DegreeRequirements
       # error, and the data from the last import is still good.
       catalog_year.update_columns(status: "failed") if catalog_year && !catalog_year.requirement_sets.exists?
       raise
+    end
+
+    private
+
+    # The PDF only adds programs to a year the site already imported. Its
+    # failure is reported and the HTML data stays, so a bad PDF does not
+    # retry the whole Wayback import.
+    def fill_from_pdf(catalog_year)
+      PdfCatalog::Importer.new(catalog_year).call
+    rescue StandardError => e
+      Rails.error.report(e, handled: true, context: { catalog_year_id: catalog_year.id })
     end
   end
 end

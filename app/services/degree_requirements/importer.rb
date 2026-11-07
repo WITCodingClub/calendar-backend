@@ -65,7 +65,8 @@ module DegreeRequirements
     # Compares with the programs the last import saw. Sets of programs that
     # left the catalog earlier stay stored, so they do not count.
     def check_shrink!(count)
-      sets = @catalog_year.requirement_sets
+      # The 2025-2026 PDF adds sets that the index does not list.
+      sets = @catalog_year.requirement_sets.where.not(source: "pdf")
       sets = sets.where(last_seen_at: (@catalog_year.imported_at - 1.day)..) if @catalog_year.imported_at
       previous = sets.count
       return if previous < SHRINK_FLOOR || count >= previous / 2

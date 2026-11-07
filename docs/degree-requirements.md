@@ -170,7 +170,9 @@ flowchart TD
 - **Programs.** `PdfCatalog::ProgramMatcher` compares the subject words and the kind (bachelor from a code such as BCOS, master from MSCM) with the `DegreeProgram` rows of the HTML years. A plan with no match, or with more than one, is logged and not written. The import never makes a `DegreeProgram`, so programs that closed before 2019 (the engineering technology degrees, the architecture concentrations) are left out. Add a renamed program to `ProgramMatcher::RENAMED`.
 - **What is read.** Course rows, choices ("MATH181 or MATH250"), pairs, placeholders ("Humanities or Social Science Elective"), and credits. The PDFs have no lecture or lab hours in their plans, and the elective lists are prose, so a PDF set has no `ElectiveGroup` rows. 2016-2017 and 2017-2018 print few credits: when a semester total is four credits for each course with none, each gets four.
 - **Review.** Every set from a PDF has `needs_review: true`, and its `path` points to its PDF page (`#page=140`). A person checks it at `/admin/catalog_reviews` and marks it checked (`reviewed_at`, `needs_review: false`). The digest of the PDF and `PdfCatalog::Importer::VERSION` decide if a set is written again. A new PDF or a new version writes the set again and asks for a new review.
-- **2025-2026.** The PDF only adds programs with no set for the year. A set from the Wayback Machine is never replaced, and the year keeps `source: wayback`.
+- **2025-2026.** The PDF only adds programs with no set for the year. A set from the Wayback Machine is never replaced, and the year keeps `source: wayback`. The short-index check of the Wayback import does not count the PDF sets. A failure in the PDF step is reported, and the course import still runs.
+- **No match at all.** A year where no plan matches a program gets `status: failed`, because that is a parser bug, not an empty catalog.
+- **Degree progress** returns `needs_review` for each program, so a client can say that a plan from a PDF is not checked yet.
 - **Course titles.** For 2013-2014 to 2018-2019, the plans are the only source of course titles, so the import saves them as `CatalogYearCourse` rows. A row that exists keeps its values.
 
 ### Course code aliases
@@ -182,7 +184,7 @@ Wentworth gave most courses 4-digit numbers in 2015-2016 (COMP128 to COMP1000). 
 | `title_match` | The same subject and title in the 2014-2015 catalog (3 digits) and the 2015-2016 catalog (4 digits) |
 | `banner` | A Banner term with sections of both codes, with the same subject and title |
 
-A title must name one course on each side. The finder only adds rows: a pair that is saved in either direction stays as it is. A person checks each pair on the same admin page, or removes a wrong one. A removed pair comes back only if a person runs the task again. Degree progress uses every alias, checked or not.
+A title must name one course on each side. The finder only adds rows: a pair that is saved in either direction stays as it is. A person checks each pair on the same admin page, or removes a wrong one. A removed pair comes back only if a person runs the task again. Degree progress uses only the checked aliases, because a match can pair two courses that only share a title.
 
 ## API and MCP tools
 
@@ -203,7 +205,7 @@ Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read onl
 - With `include_planned` (`GET /api/user/degree_progress?include_planned=true`), it also checks the planned programs. Each program in the result has `status`: `active` or `planned` (null for the `program` argument). The My programs dashboard page uses this to show the courses that a planned program adds (#867).
 - It uses the `plan` argument, or the plan the student picked on the My programs page (`StudentProgram#plan_name`), or the standard plan (the first plan that is not accelerated). A picked plan that a later import renamed falls back to the standard plan. A program with no plan, such as a minor, is checked list by list against `min_courses`, `min_credits`, or every course of a list with neither.
 - A course with a passing `CourseOutcome` is done. A failed, withdrawn, or incomplete outcome does not count. A course with no outcome is done in a past term and in progress in the current or a future term. The result lists these assumptions.
-- A course meets a requirement with the same code, or through a `CourseCodeAlias` in either direction.
+- A course meets a requirement with the same code, or through a checked `CourseCodeAlias` in either direction.
 - Each course counts once. Course rows take a course first, then choice rows, then elective slots. A slot with no elective list, such as a free elective, stays open with `checkable: false`.
 
 ```mermaid

@@ -44,6 +44,14 @@ module DegreeRequirements
         matched, unmatched = match(programs)
         log("no program for: #{unmatched.join('; ')}") if unmatched.any?
 
+        if matched.empty? && pdf_only? && !@catalog_year.requirement_sets.exists?
+          # Every plan failed to parse or to match: a parser bug, not an empty year.
+          @catalog_year.update!(status: "failed")
+          Rails.error.report(Error.new("#{@catalog_year.name}: the PDF gave no plan with a program"), handled: true,
+                                                                                                    context: { catalog_year_id: @catalog_year.id })
+          return result(:failed, 0, unmatched)
+        end
+
         @catalog_year.update!(source: "pdf", base_url: url) if pdf_only?
         matched.each { |program, plans| write(program, plans, digest, url) }
         CatalogYearCourses.call(@catalog_year, matched.values.flatten(1).map(&:plan)) if pdf_only?

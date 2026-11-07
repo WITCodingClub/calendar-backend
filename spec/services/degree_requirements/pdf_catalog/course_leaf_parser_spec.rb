@@ -30,6 +30,14 @@ RSpec.describe DegreeRequirements::PdfCatalog::CourseLeafParser do
     expect(science.plan.items.find { |item| item.kind == "placeholder" }.footnote).to eq("*")
   end
 
+  it "ends a plan with no total at the first year of the next plan" do
+    text = file_fixture("degree_requirements/pdf/courseleaf.txt").read.sub(/^ +Total Credits +24\n/, "")
+
+    plans = described_class.call(text)
+
+    expect(plans.map { |program| program.plan.items.size }).to eq([ 7, 1 ])
+  end
+
   it "gives no program to a plan under a department heading" do
     expect(programs.second.title).to be_nil
   end

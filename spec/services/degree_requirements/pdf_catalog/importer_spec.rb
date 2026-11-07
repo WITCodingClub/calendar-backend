@@ -75,6 +75,15 @@ RSpec.describe DegreeRequirements::PdfCatalog::Importer do
       expect(catalog_year.requirement_sets.count).to eq(1)
     end
 
+    it "marks the year failed when no plan matches a program" do
+      DegreeProgram.destroy_all
+      allow(Rails.error).to receive(:report)
+
+      expect(import(catalog_year).status).to eq(:failed)
+      expect(catalog_year.reload.status).to eq("failed")
+      expect(Rails.error).to have_received(:report)
+    end
+
     it "marks a year with no PDF missing" do
       stub_request(:get, DegreeRequirements::PdfCatalog.url_for(2014)).to_return(status: 404)
 

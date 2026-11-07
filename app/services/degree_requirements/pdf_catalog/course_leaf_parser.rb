@@ -51,6 +51,11 @@ module DegreeRequirements
         @pages.each_with_index do |lines, page_index|
           lines.each_with_index do |line, line_index|
             if (match = YEAR.match(line))
+              # A plan with no "Total Credits" line ends at the next plan.
+              if plan && plan[:rows].any? && match[1] == "First"
+                programs << finish(plan)
+                plan = nil
+              end
               plan ||= start_plan(page_index, line_index)
               plan[:year] = YEARS.index(match[1].downcase) + 1
             elsif plan.nil?

@@ -462,6 +462,7 @@ module McpTools
           status:       { type: %w[string null], enum: [ "active", "planned", nil ] },
           name:         STRING,
           catalog_year: STRING,
+          needs_review: BOOLEAN,
           plan:         nullable(STRING),
           plans:        STRINGS,
           counts:      object(done: INTEGER, in_progress: INTEGER, open: INTEGER),

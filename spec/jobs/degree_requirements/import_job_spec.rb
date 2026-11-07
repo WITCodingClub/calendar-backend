@@ -48,6 +48,16 @@ RSpec.describe DegreeRequirements::ImportJob do
       expect(pdf_importer).to have_received(:call)
     end
 
+    it "reports a failed PDF fill and keeps the course import" do
+      allow(importer).to receive(:call).and_return(result(:imported))
+      allow(pdf_importer).to receive(:call).and_raise(DegreeRequirements::Error, "bad PDF")
+      allow(Rails.error).to receive(:report)
+
+      expect { described_class.perform_now(2025) }.to have_enqueued_job(DegreeRequirements::CourseImportJob).with(2025)
+      expect(Rails.error).to have_received(:report).with(an_instance_of(DegreeRequirements::Error), handled: true,
+                                                                                                   context: hash_including(:catalog_year_id))
+    end
+
     it "reads no PDF for a year with an HTML archive" do
       allow(importer).to receive(:call).and_return(result(:imported))
 
