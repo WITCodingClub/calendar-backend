@@ -69,6 +69,8 @@ module Catalog
     # not have, and the nightly embedding backfill sees the new title by its
     # digest.
     def self.refresh_titles(rows, now)
+      return 0 if rows.empty?
+
       codes = rows.map { |subject, number, _| [ prefix_of(subject), number.to_i ] }.uniq
       catalog_ids = CatalogCourse.where([ :subject_code, :course_number ] => codes).select(:id)
 
