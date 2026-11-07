@@ -15,11 +15,13 @@ namespace :degree_requirements do
     puts "Queued the import of #{start_year}-#{start_year + 1}#{' with force' if force}."
   end
 
-  desc "Fill the program pathways (3+1, 4+1, 5-year) from config/program_pathways.yml now. Each import also runs it."
+  desc "Sync the program pathways (Double Leopard, 5-year) from the catalog and wit.edu now. " \
+       "Each import of the current catalog also runs it."
   task pathways: :environment do
-    result = DegreeRequirements::PathwaySeed.new.call
+    result = DegreeRequirements::PathwaySync.new.call
     puts "Saved #{result.saved.size} pathways, set #{result.deactivated} inactive."
     puts "Skipped (a program is not imported yet): #{result.skipped.join(', ')}" if result.skipped.any?
+    puts "No master's program for these Double Leopard names: #{result.unmatched.join(', ')}" if result.unmatched.any?
   end
 
   desc "Queue the import of every catalog year from #{first_html_year}-#{first_html_year + 1} to this year"

@@ -41,18 +41,34 @@ erDiagram
 | `ElectiveGroupCourse` | One course in an elective list. |
 | `CatalogYearCourse` | One course as one catalog year printed it. |
 | `CourseCodeAlias` | An old course code and the code that replaced it (COMP128 to COMP1000, 2015-2016). |
-| `ProgramPathway`, `ProgramPathwayStep` | A path through more than one program: 3+1, 4+1, or the 5-year B.S. plus M.Arch. |
+| `ProgramPathway`, `ProgramPathwayStep` | A path through more than one program: a Double Leopard master's (3+1 or 4+1), or a combined program such as the 5-year B.S. plus M.Arch. |
 
 ## Program pathways
 
-The catalog has no list of pathways. Its Accelerated Programs page (`/programs-az/accelerated-programs/`) names the 3-year B.S. programs and the 5-year Architecture B.S. plus M.Arch only. The Double Leopard (4+1) master's programs are on wit.edu (`/admissions/graduate/accelerated-masters-degrees`), with "up to two courses during your senior year". So people keep the pathways in `config/program_pathways.yml` (#868).
+No person keeps a list of pathways. `DegreeRequirements::PathwaySync` reads two pages (#868):
 
-- `DegreeRequirements::PathwaySeed` reads the file. Each step names a `DegreeProgram` slug. It runs at the end of each import, and `bin/rails degree_requirements:pathways` runs it now.
-- A pathway with a program that is not imported yet is skipped until a later run.
-- A pathway that leaves the file is set inactive, not deleted, because planned programs link to it.
-- After a deploy that changes the file, run `bin/rails degree_requirements:pathways`. Otherwise the change waits for the next monthly import.
-- `max_shared_courses` is 2 for each pathway, from the Double Leopard page, which also lists the M.Arch. Neither source gives a credit limit, so `max_shared_credits` is empty.
-- A 4+1 or 3+1 in the file pairs a B.S. with the master's of the same subject. A 3+1 uses the 3-year plan of the B.S.
+| Source | Gives | Kind |
+|---|---|---|
+| The Accelerated Programs page of the current catalog (`/programs-az/accelerated-programs/`) | Each option with two or more programs and a bachelor's, such as "Architecture, B.S. and Master of Architecture 5-Year". The steps are those programs. | `combined` |
+| The Double Leopard page on wit.edu (`/admissions/graduate/accelerated-masters-degrees`) | Each master's program under "Double Leopard Programs", and the limit in "Take up to two courses during your senior year". | `double_leopard` |
+
+```mermaid
+flowchart TD
+  A[Accelerated Programs page] --> C{Two or more programs and a bachelor's?}
+  C -- yes --> P1[combined pathway: those programs]
+  C -- no --> X[Left out: a 3-year plan, which the program page has, or a master's pair, which Double Leopard has]
+  W[Double Leopard page] --> M{Name matches a master's of the newest catalog year by subject?}
+  M -- yes --> P2[double_leopard pathway: the master's programs only]
+  M -- no --> U[Result#unmatched, and a log line]
+```
+
+- A Double Leopard pathway names only the master's programs. A senior in any bachelor's program can apply, so the student's own bachelor's is the first part. Its plan (3 or 4 years) makes the pathway a 3+1 or a 4+1. Planning one needs a bachelor's program (`docs/academic-profile.md`).
+- A name matches by subject: "Computer Science" is "Computer Science, M.S.", and "Architecture" is "Architecture, M. Arch.". The whole name is tried first, so "Electrical and Computer Engineering" stays one program. "Architecture & Construction Management Dual Degree" splits at "&" into one pathway with two master's steps.
+- `max_shared_courses` comes from the Double Leopard page. The catalog gives no limit for a combined pathway, and neither page gives a credit limit, so those stay empty.
+- It runs at the end of each import of the current catalog, and `bin/rails degree_requirements:pathways` runs it now.
+- A fetch error, or a page with none of the parts it reads, raises before any change, and the import reports it and goes on. The stored pathways stay.
+- A combined option with a program that is not imported yet is skipped, and its stored pathway stays as it is.
+- A pathway that neither page lists is set inactive, not deleted, because planned programs link to it.
 
 ## Where the requirements are on a program page
 
@@ -89,7 +105,7 @@ flowchart TD
 | What | How |
 |---|---|
 | Import one catalog year | `bin/rails 'degree_requirements:import[2024]'` |
-| Fill the program pathways from `config/program_pathways.yml` | `bin/rails degree_requirements:pathways` |
+| Sync the program pathways from the catalog and wit.edu | `bin/rails degree_requirements:pathways` |
 | Import a year whose index is much shorter than the last import | `FORCE=1 bin/rails 'degree_requirements:import[2024]'` |
 | Import 2019-2020 to this year | `bin/rails degree_requirements:import_all` |
 | Import the current year and the year before again | `DegreeRequirements::CurrentYearImportJob`, on the 2nd of each month (`config/recurring.yml`) |

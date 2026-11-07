@@ -20,9 +20,14 @@
 #
 FactoryBot.define do
   factory :program_pathway do
-    sequence(:slug) { |n| "pathway-#{n}-4-plus-1" }
-    name { "#{Faker::Educator.subject} 4+1" }
-    kind { "four_plus_one" }
-    max_shared_courses { 2 }
+    sequence(:slug) { |n| "pathway-#{n}" }
+    name { "#{Faker::Educator.subject} B.S. and M.S." }
+    kind { "combined" }
+
+    trait :double_leopard do
+      sequence(:slug) { |n| "double-leopard-pathway-#{n}" }
+      kind { "double_leopard" }
+      max_shared_courses { 2 }
+    end
   end
 end

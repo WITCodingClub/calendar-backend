@@ -179,6 +179,33 @@ RSpec.describe AcademicProfiles::PlannedPrograms do
       expect(rows).not_to include(alone)
       expect(planned.find_pathway("nope")).to be_nil
     end
+
+    describe "a Double Leopard pathway" do
+      let!(:leopard) do
+        create(:program_pathway, :double_leopard, slug: "double-leopard-gear-studies-ms").tap do |record|
+          create(:program_pathway_step, program_pathway: record, degree_program: master, position: 1, plan_years: nil)
+        end
+      end
+
+      it "plans the master's after any bachelor's the student has, from the catalog or from LeopardWeb" do
+        other_bachelor = create(:degree_program, slug: "widget-design-bs")
+        create(:student_program, :planned, user: user, degree_program: other_bachelor, catalog_year: newest_year)
+
+        planned.save_pathway!(*planned.build_pathway(pathway: "double-leopard-gear-studies-ms"))
+        expect(user.student_programs.planned.where(program_pathway: leopard).map(&:degree_program)).to eq([ master ])
+
+        leopardweb = described_class.new(create(:user))
+        create(:student_program, user: leopardweb.user, degree_program: nil, degree: "Bachelor of Science")
+        expect(leopardweb.build_pathway(pathway: "double-leopard-gear-studies-ms").last.map(&:degree_program)).to eq([ master ])
+      end
+
+      it "refuses a student with no bachelor's program" do
+        create(:student_program, user: user, degree_program: master)
+        create(:student_program, :ended, user: user, degree_program: bachelor)
+
+        expect(error_code { planned.build_pathway(pathway: "double-leopard-gear-studies-ms") }).to eq("no_bachelors_program")
+      end
+    end
   end
 
   it "keeps planned rows when a LeopardWeb sync replaces the program list" do

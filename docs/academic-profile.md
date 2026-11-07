@@ -81,7 +81,7 @@ flowchart TD
 
 ### Planned pathways
 
-A student can also plan a pathway: a 3+1 or 4+1 master's (Double Leopard), or the 5-year B.S. plus M.Arch. `ProgramPathway` has the list (`docs/degree-requirements.md`).
+A student can also plan a pathway: a Double Leopard master's (3+1 or 4+1), or a combined program such as the 5-year B.S. plus M.Arch. `ProgramPathway` has the list (`docs/degree-requirements.md`).
 
 | Endpoint | MCP tool | Does |
 |---|---|---|
@@ -92,7 +92,9 @@ A student can also plan a pathway: a 3+1 or 4+1 master's (Double Leopard), or th
 flowchart TD
   A[Add a planned pathway] --> K{Active pathway with that slug?}
   K -- no --> E1[422 unknown_pathway, with the list of slugs]
-  K -- yes --> P[One row for each step program the student has no active or planned row for]
+  K -- yes --> B{Double Leopard, and no active or planned bachelor's?}
+  B -- yes --> E4[422 no_bachelors_program]
+  B -- no --> P[One row for each step program the student has no active or planned row for]
   P --> D{A planned row already links to the pathway, or no row to add?}
   D -- yes --> E2[422 duplicate_pathway]
   D -- no --> L{Planned rows plus new rows at most 10?}
@@ -104,6 +106,7 @@ flowchart TD
 - A program the student already has stays as it is and does not link to the pathway. So removing the pathway never removes a LeopardWeb row or a program the student planned alone.
 - A student can still remove one row of a pathway with `DELETE /api/user/planned_programs/:id`. The pathway stays in `planned_pathways` while one of its rows is planned.
 - Every step uses the same catalog year, the newest one when `catalog_year` is blank.
+- A Double Leopard pathway adds only the master's programs. It follows the student's own bachelor's: a row whose program is a bachelor's, or a LeopardWeb row with no catalog program and a bachelor's degree.
 
 ## Plan of study and start term
 
@@ -142,7 +145,7 @@ flowchart TD
 
 - **Corrections.** `AcademicProfiles::StudentCorrection` sends the stored profile and every active program to `Sync` with `source: "student"`, with the student's change. It is the same path as the extension settings. Sync does not change the LeopardWeb digests, so the change stays until LeopardWeb shows a different profile or program list. A change to the role, code, name, concentration, study path, or catalog term ends the row and creates a new one, so the old values show in the ended programs.
 - **Plans.** `PATCH /dashboard/programs/:id/plan` saves a plan of an active or a planned program. A student confirms an assumed plan with the same form.
-- **What if.** The planned programs show their open requirements: the courses each one adds. A course that an active program also needs is marked "also in your programs". The planned rows use `AcademicProfiles::PlannedPrograms`, as the API does. Pathways (3+1, 4+1) are not on the page yet.
+- **What if.** The planned programs show their open requirements: the courses each one adds. A course that an active program also needs is marked "also in your programs". The planned rows use `AcademicProfiles::PlannedPrograms`, as the API does. Pathways are not on the page yet.
 
 ## Course outcomes
 

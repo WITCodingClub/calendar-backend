@@ -2,7 +2,7 @@
 
 module McpTools
   # POST and DELETE /api/user/planned_programs and /api/user/planned_pathways
-  # (#868): adds or removes a program or a pathway (3+1, 4+1, 5-year) the
+  # (#868): adds or removes a program or a pathway (Double Leopard, 5-year) the
   # student plans to take. It changes only planned programs, never a program
   # from LeopardWeb (AcademicProfiles::PlannedPrograms).
   class UpdateMyPlannedPrograms < BaseWriteTool
@@ -13,10 +13,11 @@ module McpTools
                 "it does not declare the program at Wentworth, and it never changes the programs that LeopardWeb " \
                 "shows. To declare a program, the student asks their academic advisor. Call list_programs " \
                 "to find the slug, and my_programs to see the planned programs. With pathway in place of " \
-                "program, it adds or removes a pathway, such as a Double Leopard 4+1 (a B.S. and a master's " \
-                "with up to two graduate courses in the senior year): adding plans each program of the " \
-                "pathway that I do not have yet, and removing removes only those planned programs. An " \
-                "unknown pathway gives the list of pathway slugs."
+                "program, it adds or removes a pathway: a Double Leopard master's (a 3+1 or 4+1 after my own " \
+                "bachelor's, with up to two graduate courses in the senior year), or a combined program such " \
+                "as the 5-year B.S. plus M.Arch. Adding plans each program of the pathway that I do not have " \
+                "yet, and removing removes only those planned programs. A Double Leopard pathway needs a " \
+                "bachelor's program in my programs. An unknown pathway gives the list of pathway slugs."
     requires_scope "programs:write"
     academic_planning :degree_requirements
     input_schema(
@@ -29,7 +30,7 @@ module McpTools
         },
         pathway:      {
           type:        "string",
-          description: "In place of program: a pathway slug, for example computer-science-4-plus-1. To remove, " \
+          description: "In place of program: a pathway slug, for example double-leopard-computer-science-ms. To remove, " \
                        "the pathway id from my_programs planned_pathways."
         },
         catalog_year: ListPrograms::CATALOG_YEAR_SCHEMA.merge(

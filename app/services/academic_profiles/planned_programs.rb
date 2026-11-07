@@ -6,9 +6,11 @@ module AcademicProfiles
   # POST and DELETE /api/user/planned_programs and /api/user/planned_pathways
   # and the MCP tool update_my_planned_programs use it.
   #
-  # A planned pathway (a 3+1, 4+1, or 5-year ProgramPathway) is a planned row
-  # for each of its programs that the student does not have yet, each linked
-  # to the pathway. Removing the pathway removes those rows only.
+  # A planned pathway (a ProgramPathway) is a planned row for each of its
+  # programs that the student does not have yet, each linked to the pathway.
+  # Removing the pathway removes those rows only. A Double Leopard pathway
+  # names only the master's programs: it follows the student's own
+  # bachelor's, so the student must have one.
   #
   # It changes only rows with status planned. LeopardWeb rows (active and
   # ended) never change here.
@@ -52,6 +54,8 @@ module AcademicProfiles
 
       record = ProgramPathway.active.includes(steps: :degree_program).find_by(slug: pathway.strip.downcase)
       raise InvalidProfileError.new(unknown_pathway_message(pathway), code: "unknown_pathway") if record.nil?
+
+      check_bachelors!(record)
 
       year = find_catalog_year(Catalog::ProgramQuery.new, catalog_year)
       steps = record.steps.reject { |step| held_program_ids.include?(step.degree_program_id) }
@@ -151,6 +155,20 @@ module AcademicProfiles
       end
 
       check_limit!(rows.size)
+    end
+
+    # A Double Leopard master's follows a bachelor's. A LeopardWeb row with no
+    # catalog program counts when its degree is a bachelor's.
+    def check_bachelors!(pathway)
+      return unless pathway.double_leopard?
+
+      rows = user.student_programs.where(status: %w[active planned]).left_joins(:degree_program)
+      bachelors = rows.where(degree_programs: { kind: "bachelor" })
+                      .or(rows.where(degree_program_id: nil).where("student_programs.degree ILIKE ?", "%bachelor%"))
+      return if bachelors.exists?
+
+      raise InvalidProfileError.new("#{pathway.name} follows a bachelor's program. Add your bachelor's program first",
+                                    code: "no_bachelors_program")
     end
 
     def check_limit!(added)

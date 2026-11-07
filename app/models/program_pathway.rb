@@ -1,15 +1,19 @@
 # frozen_string_literal: true
 
-# A path through more than one program, such as a 3+1 or 4+1 master's
-# degree (Double Leopard) or the 5-year B.S. plus M.Arch. The steps name the
-# programs in order.
+# A path through more than one program. The steps name the programs in order.
+#
+# - combined: a fixed list of programs from the catalog's Accelerated
+#   Programs page, such as the 5-year Architecture B.S. plus M.Arch.
+# - double_leopard: a 3+1 or 4+1 master's. The steps are the master's
+#   programs only, because a senior in any bachelor's program can apply. The
+#   student's own bachelor's is the first part, and its plan (3 or 4 years)
+#   makes it a 3+1 or a 4+1.
 #
 # max_shared_courses and max_shared_credits are how much of one program can
 # also count toward the next: Double Leopard students take up to two
 # graduate courses in their senior year.
 #
-# DegreeRequirements::PathwaySeed fills the rows from
-# config/program_pathways.yml, because the catalog has no list of them.
+# DegreeRequirements::PathwaySync fills the rows from the catalog and wit.edu.
 # == Schema Information
 #
 # Table name: program_pathways
@@ -29,7 +33,7 @@
 #  index_program_pathways_on_slug  (slug) UNIQUE
 #
 class ProgramPathway < ApplicationRecord
-  KINDS = { three_plus_one: "three_plus_one", four_plus_one: "four_plus_one", five_year: "five_year" }.freeze
+  KINDS = { combined: "combined", double_leopard: "double_leopard" }.freeze
 
   enum :kind, KINDS, validate: true
 

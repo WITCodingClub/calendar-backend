@@ -115,7 +115,7 @@ RSpec.describe "/api/user/programs, /api/user/planned_programs, and /api/user/pl
     let(:master) { create(:degree_program, :master, slug: "gear-studies-ms", name: "Gear Studies, M.S.") }
 
     before do
-      pathway = create(:program_pathway, slug: "gear-studies-4-plus-1", name: "Gear Studies 4+1", kind: "four_plus_one")
+      pathway = create(:program_pathway, slug: "gear-studies-4-plus-1", name: "Gear Studies 4+1", max_shared_courses: 2)
       create(:program_pathway_step, program_pathway: pathway, degree_program: bachelor, position: 1, plan_years: 4)
       create(:program_pathway_step, program_pathway: pathway, degree_program: master, position: 2, plan_years: 1)
       create(:requirement_set, degree_program: bachelor, catalog_year: catalog_year, name: "Gear Studies, B.S.")
@@ -131,7 +131,7 @@ RSpec.describe "/api/user/programs, /api/user/planned_programs, and /api/user/pl
       expect(response).to have_http_status(:created)
       row = user.student_programs.planned.sole
       expect(response.parsed_body).to include(
-        "pathway"  => include("id" => "gear-studies-4-plus-1", "kind" => "four_plus_one", "max_shared_courses" => 2,
+        "pathway"  => include("id" => "gear-studies-4-plus-1", "kind" => "combined", "max_shared_courses" => 2,
                               "steps" => [ { "program" => "gear-studies-bs", "plan_years" => 4 },
                                            { "program" => "gear-studies-ms", "plan_years" => 1 } ]),
         "programs" => [ include("id" => row.public_id, "program" => "gear-studies-ms", "pathway" => "gear-studies-4-plus-1") ]

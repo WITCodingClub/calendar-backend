@@ -34,7 +34,7 @@ RSpec.describe ProgramPathway do
 
   it do
     expect(subject).to define_enum_for(:kind)
-      .with_values(three_plus_one: "three_plus_one", four_plus_one: "four_plus_one", five_year: "five_year")
+      .with_values(combined: "combined", double_leopard: "double_leopard")
       .backed_by_column_of_type(:string).validating
   end
 
