@@ -81,14 +81,14 @@ module Catalog
         program_plans: { items: :elective_group }, elective_groups: %i[courses program_plan]
       )
       key = program.to_s.strip.downcase
-      relation.find_by(degree_programs: { slug: key }) ||
+      relation.find_by(degree_programs: { slug: DegreeProgram.current_slug(key) }) ||
         relation.where("lower(requirement_sets.name) = ?", key).order(:id).first
     end
 
     private
 
     def parent_id(slug)
-      id = DegreeProgram.where(slug: slug.to_s.strip.downcase).pick(:id)
+      id = DegreeProgram.where(slug: DegreeProgram.current_slug(slug.to_s.strip.downcase)).pick(:id)
       raise FilterError, "parent_program must be the slug of a program, such as computer-science-bs" if id.nil?
 
       id

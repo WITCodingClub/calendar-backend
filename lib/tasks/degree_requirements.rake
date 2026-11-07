@@ -41,6 +41,20 @@ namespace :degree_requirements do
     puts "Queued #{first_year}..#{Date.current.year}. A year that is not published yet is marked missing."
   end
 
+  desc "Move the stored catalog years of each renamed program (DegreeProgram::RENAMED_SLUGS) to its new slug. " \
+       "Each import also does it."
+  task merge_renamed: :environment do
+    DegreeRequirements::ProgramMerge.renamed.each do |result|
+      case result.status
+      when :merged then puts "#{result.old_slug}: moved #{result.moved_sets} catalog years to #{result.new_slug}."
+      when :renamed then puts "#{result.old_slug}: renamed to #{result.new_slug}."
+      when :stopped then puts "#{result.old_slug}: stopped, #{result.error}."
+      else puts "#{result.old_slug}: no program, nothing to do."
+      end
+    end
+    AcademicProfiles::ProgramMatcher.relink_active
+  end
+
   desc "Find course code aliases (COMP128 to COMP1000) from the catalogs and Banner, for review on the admin page"
   task aliases: :environment do
     result = DegreeRequirements::AliasFinder.call

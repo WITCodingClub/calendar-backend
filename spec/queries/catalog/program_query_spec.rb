@@ -58,6 +58,13 @@ RSpec.describe Catalog::ProgramQuery do
       expect(described_class.new.find("OLD-WIDGETS-BS", catalog_year: catalog_year)).to eq(dropped)
     end
 
+    it "finds a renamed program by its old slug" do
+      renamed = create(:requirement_set, catalog_year: catalog_year,
+                                         degree_program: create(:degree_program, slug: "biological-engineering-bs"))
+
+      expect(described_class.new.find("biological-engineering-program", catalog_year: catalog_year)).to eq(renamed)
+    end
+
     it "lists the concentrations of a major, and rejects a slug that is no program" do
       major = DegreeProgram.find_by!(slug: "widgets-bs")
       concentration = create(:degree_program, :concentration, parent_program: major, slug: "widgets-bs-gears")

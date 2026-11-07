@@ -2,8 +2,10 @@
 
 # One program across every catalog year, such as the Computer Science B.S.
 # The slug is the last part of its catalog path (`computer-science-bs`),
-# which stays the same when the school or department changes. What the
-# program requires in one catalog year is a RequirementSet.
+# which stays the same when the school or department changes. A few
+# programs moved to a new path: RENAMED_SLUGS maps the old slug to the new
+# one, so all their years stay on one program. What the program requires in
+# one catalog year is a RequirementSet.
 #
 # A concentration points to the major it belongs to with parent_program.
 # == Schema Information
@@ -39,6 +41,20 @@ class DegreeProgram < ApplicationRecord
     exploratory: "exploratory"
   }.freeze
   LEVELS = { undergraduate: "undergraduate", graduate: "graduate" }.freeze
+
+  # Old catalog slugs of programs that moved to a new path, with the slug
+  # of the newest catalog. Without this, the import makes two programs with
+  # the same name, and a matcher that finds both links neither.
+  # `bin/rails degree_requirements:merge_renamed` moves the stored years of
+  # an old slug to the new one.
+  RENAMED_SLUGS = {
+    # 2019-2020 to 2021-2022, in the sciences department.
+    "biological-engineering-program" => "biological-engineering-bs",
+    # 2019-2020 to 2025-2026, in the mechanical engineering department.
+    "aerospace-engineering-minor" => "aerospace-minor"
+  }.freeze
+
+  def self.current_slug(slug) = RENAMED_SLUGS.fetch(slug, slug)
 
   enum :kind, KINDS, validate: true
   enum :level, LEVELS, validate: true

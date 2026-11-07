@@ -131,7 +131,7 @@ module AcademicProfiles
       return @own_program if defined?(@own_program)
 
       @own_program = @user.student_programs.active.joins(:degree_program).includes(:catalog_year)
-                          .find_by(degree_programs: { slug: @program.to_s.strip.downcase })
+                          .find_by(degree_programs: { slug: DegreeProgram.current_slug(@program.to_s.strip.downcase) })
     end
 
     # The plan for the program argument: the plan argument, or the plan the

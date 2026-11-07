@@ -34,7 +34,12 @@ module DegreeRequirements
       end
 
       index = ProgramIndexParser.new(source.index_html, home_path: source.home_path)
-      entries = index.entries.uniq(&:slug)
+      # A program that moved keeps one row. The import holds the one lock of
+      # all years, so no other import writes while the merge runs.
+      ProgramMerge.renamed
+      # The current slug first, so a year that lists both paths keeps it.
+      current, renamed = index.entries.partition { |entry| DegreeProgram.current_slug(entry.slug) == entry.slug }
+      entries = (current + renamed).uniq { |entry| DegreeProgram.current_slug(entry.slug) }
       check_shrink!(entries.size) unless @force
       log("left out #{index.unclassified.size} links with no program kind: #{index.unclassified.join(', ')}") if index.unclassified.any?
 
@@ -96,7 +101,7 @@ module DegreeRequirements
     end
 
     def import_program(source, entry, page)
-      program = DegreeProgram.find_or_initialize_by(slug: entry.slug)
+      program = DegreeProgram.find_or_initialize_by(slug: DegreeProgram.current_slug(entry.slug))
       # The newest catalog year names the program.
       if program.new_record? || program.catalog_years.maximum(:start_year).to_i <= start_year
         program.assign_attributes(name: entry.name, kind: entry.kind, level: entry.level)
@@ -108,7 +113,8 @@ module DegreeRequirements
       if set.persisted? && set.source_digest == page.digest
         # The path moves from the site root to /previous-catalogs/ when the
         # current year goes to the archive, and the page itself stays the same.
-        set.update_columns(last_seen_at: now, path: entry.path)
+        # The index can also name the program again.
+        set.update_columns(last_seen_at: now, path: entry.path, name: entry.name)
         @stats[:unchanged] += 1
         return program
       end

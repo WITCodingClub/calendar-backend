@@ -63,19 +63,28 @@ module DegreeRequirements
     private
 
     def program_links
-      seen = {}
+      names = Hash.new { |hash, path| hash[path] = [] }
       @doc.css(CONTAINERS).each do |container|
         container.css("li").each do |li|
           link = li.at_css("> a[href]")
           next if link.nil? || li.at_css("ul")
 
           path = program_path(link["href"])
-          next if path.nil? || seen.key?(path)
-
-          seen[path] = link.text.gsub(/[[:space:]]+/, " ").strip
+          names[path] << link.text.gsub(/[[:space:]]+/, " ").strip unless path.nil?
         end
       end
-      seen.map { |path, name| [ name, path ] }
+      names.map { |path, list| [ best_name(list.uniq, path), path ] }
+    end
+
+    # The 2026-2027 index also links "Computer Science Minor" to the page of
+    # the Data Science Minor (/data-science/). When a page has more than one
+    # name, the name with the most words of the slug wins, and the first name
+    # on a tie.
+    def best_name(names, path)
+      return names.first if names.one?
+
+      slug_words = path.split("/").compact_blank.last.split("-")
+      names.max_by { |name| (name.downcase.scan(/[a-z0-9]+/) & slug_words).size }
     end
 
     # The site path of a program page, or nil for a link that is not one: a

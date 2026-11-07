@@ -109,6 +109,7 @@ flowchart TD
 | Import a year whose index is much shorter than the last import | `FORCE=1 bin/rails 'degree_requirements:import[2024]'` |
 | Import 2013-2014 to this year | `bin/rails degree_requirements:import_all` |
 | Find course code aliases | `bin/rails degree_requirements:aliases`, after the 2014 and 2015 imports |
+| Move the years of a renamed program to its new slug | `bin/rails degree_requirements:merge_renamed`, or the next import |
 | Import the current year and the year before again | `DegreeRequirements::CurrentYearImportJob`, on the 2nd of each month (`config/recurring.yml`) |
 
 - **Source of a year.** `CatalogSource.locate` tries `/previous-catalogs/YYYY-YYYY/`, then the current site, then the Wayback Machine (only for the years in `DegreeRequirements::WAYBACK_TIMESTAMPS`). Every page must end with "Boston, MA YYYY-YYYY" for the right year. A page for another year is skipped. This catches the current site moving to a new year in the summer, and an old Wayback capture.
@@ -122,7 +123,8 @@ flowchart TD
 - **Redirects.** The client follows a redirect only over HTTPS to catalog.wit.edu or web.archive.org.
 - **Speed.** Requests to the catalog site are 0.5 seconds apart, so a year takes about one minute. The Wayback Machine refuses a client that asks for more than about 15 pages a minute, so its requests are 5 seconds apart. 2025-2026 takes about 10 minutes.
 - **Plan ids.** A changed page keeps the ids of its plans. Its plan rows and elective lists are written again.
-- **Program names.** The newest catalog year sets the name and the parent of a `DegreeProgram`. A program that the index lists in two departments is imported once.
+- **Program names.** The newest catalog year sets the name and the parent of a `DegreeProgram`. A program that the index lists in two departments is imported once. When the index gives one page two names, the name with the most words of the slug wins: the 2026-2027 index also links "Computer Science Minor" to `/data-science/`. An unchanged page still takes the name from the index.
+- **Renamed programs.** A program that moved to a new catalog path gets a new slug, so the import would make a second `DegreeProgram` with the same name. Two programs with one name break the PDF and student program matchers, which link neither. `DegreeProgram::RENAMED_SLUGS` maps the old slug to the new one, and the import stores the old years on the new program. Each import first runs `DegreeRequirements::ProgramMerge`, under the import lock: it moves the years that were stored on the old program, then deletes the empty old program. `degree_requirements:merge_renamed` runs the same merge at once. When both programs have a set for one year, the merge drops the old copy if it came from the same page. If the two sets differ, that merge stops and reports the error, and the other merges go on. The public API, the MCP tools and the admin pages still find a program by its old slug.
 
 ### Admin pages
 

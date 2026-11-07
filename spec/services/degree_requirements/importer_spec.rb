@@ -137,6 +137,15 @@ RSpec.describe DegreeRequirements::Importer do
       expect(ProgramPlanItem.where(course_number: 5500)).to be_empty
     end
 
+    it "names the set again from the index when the page did not change" do
+      import
+      RequirementSet.find_by!(name: "Widget Design Minor").update_columns(name: "Gadget Minor")
+
+      described_class.new(catalog_year, client: client).call
+
+      expect(RequirementSet.where(name: "Gadget Minor")).to be_empty
+    end
+
     it "keeps the name from the newest catalog year" do
       program = create(:degree_program, slug: "widget-design-bs", name: "Widget Engineering, B.S.")
       create(:requirement_set, degree_program: program, catalog_year: create(:catalog_year, start_year: 2026))
@@ -145,6 +154,28 @@ RSpec.describe DegreeRequirements::Importer do
 
       expect(program.reload.name).to eq("Widget Engineering, B.S.")
     end
+  end
+
+  it "stores a program under an old slug on the program of its new slug" do
+    stub_const("DegreeProgram::RENAMED_SLUGS", { "widget-design-minor" => "widget-minor" })
+    program = create(:degree_program, :minor, slug: "widget-minor")
+
+    import
+
+    expect(DegreeProgram.where(slug: "widget-design-minor")).to be_empty
+    expect(program.requirement_sets.sole.catalog_year).to eq(catalog_year)
+  end
+
+  it "merges a renamed program that an earlier import stored, before it writes" do
+    import
+    old = DegreeProgram.find_by!(slug: "widget-design-minor")
+    stub_const("DegreeProgram::RENAMED_SLUGS", { "widget-design-minor" => "widget-minor" })
+    program = create(:degree_program, :minor, slug: "widget-minor")
+
+    expect(described_class.new(catalog_year, client: client).call).to have_attributes(unchanged: 8)
+
+    expect(DegreeProgram.exists?(old.id)).to be(false)
+    expect(program.requirement_sets.sole.catalog_year).to eq(catalog_year)
   end
 
   it "marks a year that no source has as missing" do

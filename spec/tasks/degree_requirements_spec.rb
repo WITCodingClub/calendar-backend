@@ -47,6 +47,17 @@ RSpec.describe "degree_requirements rake tasks" do
       .to output(%r{Added 3 aliases \(2 from the catalogs, 1 from Banner\).*/admin/catalog_reviews}).to_stdout
   end
 
+  it "merges each renamed program into the program of its new slug" do
+    old = create(:degree_program, slug: "biological-engineering-program")
+    create(:requirement_set, degree_program: old)
+    create(:degree_program, slug: "biological-engineering-bs")
+
+    expect { run_task("degree_requirements:merge_renamed") }
+      .to output(/biological-engineering-program: moved 1 catalog years to biological-engineering-bs\.\n.*no program/m)
+      .to_stdout
+    expect(DegreeProgram.find_by!(slug: "biological-engineering-bs").requirement_sets.count).to eq(1)
+  end
+
   it "links the shared elective lists of every stored plan" do
     plan = create(:program_plan)
     slot = create(:program_plan_item, :placeholder, program_plan: plan, label: "English Sequence")
