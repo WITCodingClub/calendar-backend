@@ -23,6 +23,8 @@ enqueues the course details jobs as one Solid Queue batch, and the batch's
 `on_finish` callback is `Embeddings::BackfillJob`. A fallback run at 11am
 (`config/recurring.yml`) covers a night with no finished sync. Text that did
 not change never reaches the API, so a second run costs one table scan.
+`Embeddings::GenerateJob` runs one job at a time for each model, so when two
+runs queue the same ids, the second job finds the vectors already written.
 
 ```mermaid
 flowchart LR

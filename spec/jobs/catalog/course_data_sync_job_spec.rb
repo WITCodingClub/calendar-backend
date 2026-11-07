@@ -94,6 +94,19 @@ RSpec.describe Catalog::CourseDataSyncJob do
       Catalog::CourseDetailsSyncJob.queue_adapter = previous
     end
 
+    it "still starts the embeddings backfill when a details job fails" do
+      previous = Catalog::CourseDetailsSyncJob.queue_adapter
+      Catalog::CourseDetailsSyncJob.queue_adapter = :solid_queue
+      described_class.perform_now(term_uids: [ term.uid ])
+
+      SolidQueue::Batch.last.jobs.sole.failed_with(StandardError.new("Banner is down"))
+
+      expect(SolidQueue::Batch.last).to be_finished
+      expect(SolidQueue::Job.where(class_name: "Embeddings::BackfillJob").count).to eq(1)
+    ensure
+      Catalog::CourseDetailsSyncJob.queue_adapter = previous
+    end
+
     it "starts the embeddings backfill when the batch finishes" do
       described_class.perform_now(term_uids: [ term.uid ])
 
