@@ -30,9 +30,12 @@ module AcademicProfiles
     # the spring term, so a summer term is never the default.
     # programs and progress: the hashes of StudentProgramsSerializer and
     # DegreeProgress (active programs) when the caller already has them.
-    def initialize(user, term_uid: nil, programs: nil, progress: nil, today: Time.zone.today)
+    # current_term_uid: the Banner code of the current term, Term.current
+    # when not given.
+    def initialize(user, term_uid: nil, current_term_uid: nil, programs: nil, progress: nil, today: Time.zone.today)
       @user = user
       @term_uid = term_uid
+      @current_term_uid = current_term_uid
       @programs = programs
       @progress = progress
       @today = today
@@ -56,7 +59,7 @@ module AcademicProfiles
     end
 
     def term_uid
-      @term_uid ||= self.class.default_term_uid
+      @term_uid ||= self.class.default_term_uid(current_term_uid)
     end
 
     # The next fall or spring term after the current term, as a Banner code,
@@ -70,6 +73,10 @@ module AcademicProfiles
 
     private
 
+    def current_term_uid
+      @current_term_uid ||= Term.current_uid
+    end
+
     def programs
       @programs ||= StudentProgramsSerializer.new(@user).as_json
     end
@@ -79,7 +86,10 @@ module AcademicProfiles
     end
 
     def program_entries
-      programs[:programs].filter_map do |program|
+      # Two LeopardWeb rows can link to one catalog program, and
+      # DegreeProgress checks it once.
+      programs[:programs].uniq { |program| [ program[:program], program[:catalog_year], program[:status] ] }
+                         .filter_map do |program|
         entry = progress[:programs].find do |candidate|
           candidate[:program] == program[:program] && candidate[:catalog_year] == program[:catalog_year] &&
             candidate[:status] == program[:status]
@@ -100,7 +110,7 @@ module AcademicProfiles
           uid = ProgramTimeline.term_uid(start, row[:year], row[:season])
           if uid == term_uid && COUNTED.exclude?(row[:status])
             planned << row_json(row)
-          elsif uid < term_uid && row[:status] == "open"
+          elsif uid < term_uid && uid <= behind_limit && row[:status] == "open"
             behind << row_json(row)
           end
         end
@@ -117,6 +127,13 @@ module AcademicProfiles
         planned:    planned,
         behind:     behind
       }
+    end
+
+    # A row is behind only when its term started: the current term or
+    # earlier. A row between the current term and a later term argument is
+    # still ahead.
+    def behind_limit
+      @behind_limit ||= [ current_term_uid, term_uid ].compact.min
     end
 
     def semester_of(rows, start)
@@ -147,14 +164,15 @@ module AcademicProfiles
     end
 
     def course_json(code)
-      catalog = catalog_courses[code]
+      keys = equivalent_codes(code)
+      catalog = keys.lazy.filter_map { |key| catalog_courses[key] }.first
       tree = catalog&.prerequisites.presence
       result = tree ? check(tree) : nil
 
       {
         code:          code,
         title:         catalog&.title,
-        offered:       sections_known? ? offered_codes.include?(code) : nil,
+        offered:       sections_known? ? keys.any? { |key| offered_codes.include?(key) } : nil,
         prerequisites: result && result[:status],
         missing:       result ? result[:missing] : []
       }
@@ -175,29 +193,58 @@ module AcademicProfiles
         elsif statuses.all?(NOT_MET) then NOT_MET
         else UNKNOWN
         end
-        { status: status, missing: status == MET ? [] : results.flat_map { |result| result[:missing] }.uniq }
+        { status: status, missing: status == MET ? [] : missing_of(node["type"], results) }
       when "course"
         code = "#{node['subject_code']} #{node['course_number']}"
-        met = counted?(node["subject_code"], node["course_number"].to_i, node["min_grade"])
-        { status: met ? MET : NOT_MET, missing: met ? [] : [ code ] }
+        status = course_status(node["subject_code"], node["course_number"].to_i, node["min_grade"])
+        { status: status, missing: status == MET ? [] : [ code ] }
       else
         { status: UNKNOWN, missing: [] }
       end
     end
 
-    # True when the student did or takes the course or an alias of it. A
-    # minimum grade of C does not count a D.
-    def counted?(subject, number, min_grade)
-      keys = [ [ subject, number ], *aliases.fetch([ subject, number ], []) ]
-      keys.any? do |key|
-        counted_courses[key]&.any? { |course| !(min_grade.to_s.start_with?("C") && course[:outcome] == "passed_below_c") }
+    # The missing courses of an and or an or node. The options of an or
+    # are one entry, such as "WDGT 1100 or WDGT 1200", so a reader does not
+    # think it needs both.
+    def missing_of(type, results)
+      lists = results.map { |result| result[:missing] }.reject(&:empty?)
+      return lists.flatten.uniq if type == "and"
+
+      lists.map { |list| list.size == 1 ? list.first : "(#{list.join(' and ')})" }.uniq.then do |options|
+        options.size > 1 ? [ options.join(" or ") ] : options
       end
     end
 
-    # The courses from DegreeProgress that count, by [subject, number].
+    # met when the student did or takes the course or an alias of it before
+    # the term, with a grade the minimum allows. Outcomes say only "C or
+    # better" or "passed below C", so a minimum above C is unknown.
+    def course_status(subject, number, min_grade)
+      keys = [ [ subject, number ], *aliases.fetch([ subject, number ], []) ]
+      courses = keys.flat_map { |key| counted_courses.fetch(key, []) }
+      return NOT_MET if courses.empty?
+
+      grade = min_grade.to_s.strip.upcase
+      return MET if grade.empty? || grade.start_with?("D")
+      return UNKNOWN unless grade.start_with?("C")
+
+      courses.any? { |course| course[:outcome] != "passed_below_c" } ? MET : NOT_MET
+    end
+
+    # The courses from DegreeProgress that count, by [subject, number]: done
+    # or in progress, in a term before the term. Banner does not let a
+    # course in the same term meet a prerequisite.
     def counted_courses
       @counted_courses ||= progress[:courses].select { |course| COUNTED.include?(course[:status]) }
+                                             .select { |course| term_uid.nil? || course[:term_uid] < term_uid }
                                              .group_by { |course| CatalogCourse.parse_code(course[:code]) }
+    end
+
+    # A code and its old or new codes, as "SUBJ 1234".
+    def equivalent_codes(code)
+      pair = CatalogCourse.parse_code(code)
+      return [ code ] if pair.nil?
+
+      [ pair, *aliases.fetch(pair, []) ].map { |subject, number| "#{subject} #{number}" }.uniq
     end
 
     def aliases
@@ -209,7 +256,7 @@ module AcademicProfiles
     end
 
     def all_codes
-      @all_codes ||= program_rows.flat_map { |row| row_codes(row) }.uniq
+      @all_codes ||= program_rows.flat_map { |row| row_codes(row) }.flat_map { |code| equivalent_codes(code) }.uniq
     end
 
     def program_rows

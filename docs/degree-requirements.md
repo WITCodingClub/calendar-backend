@@ -179,9 +179,11 @@ flowchart TD
 
 - The term is the `term` argument (a Banner code or a label), or the next fall or spring term after `Term.current`. Students register for fall during the spring term, so the default skips summer.
 - It reads the rows of `DegreeProgress` for each active program with a plan of study, and maps each plan semester to a term with `ProgramTimeline.term_uid` and the program's start term.
-- `planned` holds the rows of the plan semester in the term that are not done or in progress. `behind` holds the open rows of earlier plan semesters.
-- Each course in a row has `offered` (the term has an active section; null when WIT Calendar has no sections of the term yet) and `prerequisites`: `met`, `not_met` with the `missing` courses, `unknown` for a test score, or null when `CatalogCourse` has no prerequisites.
-- A course done or in progress meets a prerequisite, also through a `CourseCodeAlias`. A D (`passed_below_c`) does not meet a prerequisite with a minimum grade of C.
+- `planned` holds the rows of the plan semester in the term that are not done or in progress. `behind` holds the open rows of earlier plan semesters that already started (the current term or earlier). A row between the current term and a later `term` argument is in neither list.
+- Each course in a row has `offered` (the term has an active section; null when WIT Calendar has no sections of the term yet) and `prerequisites`: `met`, `not_met` with the `missing` courses, `unknown`, or null when `CatalogCourse` has no prerequisites. The options of an `or` are one `missing` entry, such as `WDGT 1100 or WDGT 1200`.
+- A course done or in progress in a term before the term meets a prerequisite, also through a `CourseCodeAlias`. A course in the same term does not, as in Banner.
+- A D (`passed_below_c`) meets a prerequisite with no minimum or a D minimum, but not a C minimum. A minimum above C is `unknown`, because outcomes do not store the letter grade. A test score is `unknown`.
+- The section check and the catalog lookup also try the aliases of a code, so a plan from an old catalog year finds the renumbered course.
 - It is a help for planning, not a registration check. Registration happens in LeopardWeb.
 
 ```mermaid

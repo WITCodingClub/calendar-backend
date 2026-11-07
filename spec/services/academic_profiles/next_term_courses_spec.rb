@@ -10,8 +10,8 @@ RSpec.describe AcademicProfiles::NextTermCourses do
   let(:major) { create(:degree_program, slug: "widget-design-bs", name: "Widget Design, B.S.") }
   let(:set) { create(:requirement_set, degree_program: major, catalog_year: catalog_year) }
   let(:plan) { create(:program_plan, requirement_set: set) }
-  let(:past_term) { create(:term, year: 2025, season: :fall, end_date: Date.new(2025, 12, 20)) }
-  let(:current_term) { create(:term, year: 2026, season: :fall, end_date: Date.new(2026, 12, 20)) }
+  let(:past_term) { create(:term, uid: 202610, year: 2025, season: :fall, end_date: Date.new(2025, 12, 20)) }
+  let(:current_term) { create(:term, uid: 202710, year: 2026, season: :fall, end_date: Date.new(2026, 12, 20)) }
   # Spring 2027: year 2, spring of a Fall 2025 start.
   let(:spring_uid) { 202720 }
 
@@ -19,7 +19,9 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202610)
   end
 
-  def result(term_uid: spring_uid) = described_class.new(user, term_uid: term_uid, today: today).call
+  def result(term_uid: spring_uid)
+    described_class.new(user, term_uid: term_uid, current_term_uid: 202710, today: today).call
+  end
 
   def item(kind = nil, year: 2, season: "spring", **attributes)
     create(:program_plan_item, *[ kind ].compact, program_plan: plan, year_index: year, season: season, **attributes)
@@ -99,7 +101,7 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     courses = program[:planned].map { |row| row[:courses].first }
     expect(courses.pluck(:code, :prerequisites, :missing)).to eq([
       [ "WDGT 2100", "met", [] ],
-      [ "WDGT 2200", "not_met", [ "WDGT 1100", "WDGT 1200" ] ],
+      [ "WDGT 2200", "not_met", [ "WDGT 1100 or WDGT 1200" ] ],
       [ "WDGT 2300", "unknown", [] ],
       [ "WDGT 2400", nil, [] ]
     ])
@@ -116,6 +118,54 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     take(past_term, "WDGT", 105)
 
     expect(program[:planned].map { |row| row[:courses].first[:prerequisites] }).to eq(%w[not_met met])
+  end
+
+  it "does not count a course in the term or later for a prerequisite, and a minimum above C is unknown" do
+    item(subject_code: "WDGT", course_number: 2100)
+    item(subject_code: "WDGT", course_number: 2200)
+    requires("WDGT", 2100, course_leaf("WDGT", 1500))
+    requires("WDGT", 2200, course_leaf("WDGT", 1000, min_grade: "B-"))
+    take(create(:term, uid: spring_uid, year: 2027, season: :spring), "WDGT", 1500)
+    take(past_term, "WDGT", 1000)
+
+    expect(program[:planned].map { |row| row[:courses].first[:prerequisites] }).to eq(%w[not_met unknown])
+  end
+
+  it "keeps an and inside an or as one missing option" do
+    item(subject_code: "WDGT", course_number: 2100)
+    requires("WDGT", 2100, { "type" => "or", "operands" => [
+      course_leaf("WDGT", 1100),
+      { "type" => "and", "operands" => [ course_leaf("WDGT", 1200), course_leaf("WDGT", 1300) ] }
+    ] })
+
+    expect(program[:planned].first[:courses].first[:missing]).to eq([ "WDGT 1100 or (WDGT 1200 and WDGT 1300)" ])
+  end
+
+  it "finds the sections and catalog details of an old plan code through its alias" do
+    item(subject_code: "WDGT", course_number: 210)
+    create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 210, to_subject_code: "WDGT", to_course_number: 2100)
+    create(:catalog_course, subject_code: "WDGT", course_number: 2100, title: "Widget Studio")
+    create(:course, term: create(:term, uid: spring_uid, year: 2027, season: :spring), subject: "WDGT", course_number: 2100)
+
+    expect(program[:planned].first[:courses].first).to include(code: "WDGT 210", title: "Widget Studio", offered: true)
+  end
+
+  it "does not list a row as behind before its term starts" do
+    item(year: 2, season: "fall", subject_code: "WDGT", course_number: 2000)
+    item(year: 2, season: "spring", subject_code: "WDGT", course_number: 2100)
+    item(year: 3, season: "fall", subject_code: "WDGT", course_number: 3000)
+
+    future = result(term_uid: 202810)[:programs].first
+    expect(future[:planned].pluck(:code)).to eq([ "WDGT 3000" ])
+    expect(future[:behind].pluck(:code)).to eq([ "WDGT 2000" ])
+  end
+
+  it "lists a program once when two LeopardWeb rows link to it" do
+    create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202610,
+                             concentration: "Gears")
+    item(subject_code: "WDGT", course_number: 2100)
+
+    expect(result[:programs].size).to eq(1)
   end
 
   it "has no plan semester and no rows when the term is after the end of the plan" do
