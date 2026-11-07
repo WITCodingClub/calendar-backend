@@ -24,7 +24,7 @@ module Admin
     end
 
     def show
-      @degree_program = DegreeProgram.includes(:parent_program, :concentrations).find_by!(slug: params[:id])
+      @degree_program = DegreeProgram.includes(:parent_program, :concentrations).find_by!(slug: DegreeProgram.current_slug(params[:id]))
       authorize @degree_program
 
       @requirement_sets = @degree_program.requirement_sets.includes(:catalog_year).sort_by { |set| -set.catalog_year.start_year }

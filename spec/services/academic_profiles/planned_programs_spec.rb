@@ -96,6 +96,13 @@ RSpec.describe AcademicProfiles::PlannedPrograms do
       expect(planned.find("GEAR-MINOR")).to eq(row)
     end
 
+    it "finds a row by the old slug of a renamed program" do
+      stub_const("DegreeProgram::RENAMED_SLUGS", { "gear-design-minor" => "gear-minor" })
+      row = create(:student_program, :planned, catalog_year: newest_year, user: user, degree_program: minor)
+
+      expect(planned.find("gear-design-minor")).to eq(row)
+    end
+
     it "does not find another user's row, a LeopardWeb row, or a blank key" do
       other = create(:student_program, :planned, catalog_year: newest_year, degree_program: minor)
       active = create(:student_program, user: user, degree_program: minor)

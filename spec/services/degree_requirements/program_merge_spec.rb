@@ -41,7 +41,31 @@ RSpec.describe DegreeRequirements::ProgramMerge do
     create(:requirement_set, degree_program: old, catalog_year: year)
     create(:requirement_set, degree_program: current, catalog_year: year)
 
-    expect { merge }.to raise_error(DegreeRequirements::Error, /both have a set for 2024/)
+    expect { merge }.to raise_error(DegreeRequirements::Error, /both have a different set for 2024/)
     expect(old.reload.requirement_sets.count).to eq(1)
+  end
+
+  it "drops the copy on the old program of a set from the same page" do
+    year = create(:catalog_year, start_year: 2025)
+    create(:requirement_set, degree_program: old, catalog_year: year, source_digest: "abc")
+    kept = create(:requirement_set, degree_program: current, catalog_year: year, source_digest: "abc")
+
+    expect(merge).to have_attributes(status: :merged, moved_sets: 0)
+    expect(current.requirement_sets).to eq([ kept ])
+  end
+
+  it "merges every renamed program, and goes on after one that stops" do
+    stub_const("DegreeProgram::RENAMED_SLUGS", { "widget-design-program" => "widget-design-bs", "gear-program" => "gear-bs" })
+    year = create(:catalog_year, start_year: 2024)
+    create(:requirement_set, degree_program: old, catalog_year: year)
+    create(:requirement_set, degree_program: current, catalog_year: year)
+    gear = create(:degree_program, slug: "gear-program")
+    allow(Rails.error).to receive(:report)
+
+    results = described_class.renamed
+
+    expect(results.map(&:status)).to eq(%i[stopped renamed])
+    expect(gear.reload.slug).to eq("gear-bs")
+    expect(Rails.error).to have_received(:report).with(an_instance_of(DegreeRequirements::Error), hash_including(handled: true))
   end
 end

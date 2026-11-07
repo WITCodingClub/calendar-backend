@@ -112,7 +112,7 @@ module AcademicProfiles
       row = StudentProgram.find_by_public_id(key)
       return row if row&.user_id == user.id && row.planned?
 
-      user.student_programs.planned.joins(:degree_program).find_by(degree_programs: { slug: key.downcase })
+      user.student_programs.planned.joins(:degree_program).find_by(degree_programs: { slug: DegreeProgram.current_slug(key.downcase) })
     end
 
     private

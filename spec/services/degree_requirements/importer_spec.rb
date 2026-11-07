@@ -166,6 +166,18 @@ RSpec.describe DegreeRequirements::Importer do
     expect(program.requirement_sets.sole.catalog_year).to eq(catalog_year)
   end
 
+  it "merges a renamed program that an earlier import stored, before it writes" do
+    import
+    old = DegreeProgram.find_by!(slug: "widget-design-minor")
+    stub_const("DegreeProgram::RENAMED_SLUGS", { "widget-design-minor" => "widget-minor" })
+    program = create(:degree_program, :minor, slug: "widget-minor")
+
+    expect(described_class.new(catalog_year, client: client).call).to have_attributes(unchanged: 8)
+
+    expect(DegreeProgram.exists?(old.id)).to be(false)
+    expect(program.requirement_sets.sole.catalog_year).to eq(catalog_year)
+  end
+
   it "marks a year that no source has as missing" do
     other = create(:catalog_year, start_year: 2030)
     stub_request(:get, "https://catalog.wit.edu/previous-catalogs/2030-2031/programs-az/").to_return(status: 404)

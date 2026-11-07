@@ -34,7 +34,12 @@ module DegreeRequirements
       end
 
       index = ProgramIndexParser.new(source.index_html, home_path: source.home_path)
-      entries = index.entries.uniq(&:slug)
+      # A program that moved keeps one row. The import holds the one lock of
+      # all years, so no other import writes while the merge runs.
+      ProgramMerge.renamed
+      # The current slug first, so a year that lists both paths keeps it.
+      current, renamed = index.entries.partition { |entry| DegreeProgram.current_slug(entry.slug) == entry.slug }
+      entries = (current + renamed).uniq { |entry| DegreeProgram.current_slug(entry.slug) }
       check_shrink!(entries.size) unless @force
       log("left out #{index.unclassified.size} links with no program kind: #{index.unclassified.join(', ')}") if index.unclassified.any?
 
