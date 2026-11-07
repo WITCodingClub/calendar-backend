@@ -41,8 +41,12 @@ RSpec.describe "config/queue.yml and config/database.yml" do
   it "lists every queue that a job class names" do
     Rails.application.eager_load!
     # Leave out classes that other specs made with stub_const. They stay in
-    # descendants after the constant is gone.
+    # descendants after the constant is gone. Also leave out the job proxy of
+    # mission_control-jobs: it stands in for a stored job on the admin jobs
+    # page and is never enqueued. It loads only when the app eager loads, as
+    # it does when CI is set, so this spec failed only in CI.
     jobs = ActiveJob::Base.descendants.select { |job| job.name&.safe_constantize.equal?(job) }
+    jobs -= [ ActiveJob::JobProxy ] if defined?(ActiveJob::JobProxy)
     queues = jobs.to_h do |job|
       # A Proc queue name needs an instance. The mail job's Proc reads the
       # mailer class from the first argument.
