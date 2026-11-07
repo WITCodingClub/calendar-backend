@@ -78,7 +78,7 @@ flowchart TD
 
 ## Links to Banner courses
 
-`ProgramPlanItem`, `ElectiveGroupCourse`, and `CatalogYearCourse` name a course by `subject_code` and `course_number`. `catalog_course_id` links the row to the `CatalogCourse` with that code (`CatalogCourseLinkable`). The link is nil when Banner does not know the code.
+`ProgramPlanItem`, `ElectiveGroupCourse`, and `CatalogYearCourse` name a course by `subject_code` and `course_number`. `catalog_course_id` links the row to the `CatalogCourse` with that code (`CatalogCourseLinkable`). The link is nil when no `CatalogCourse` has the code. `CatalogCourse` rows come from the sections of the imported terms, so a course with no section since Spring 2014 has none, even when Banner's course catalog lists it.
 
 - A save that changes the code clears the link.
 - `link_catalog_courses` on each model sets every link in bulk, and fixes a link that names another course.
@@ -159,9 +159,9 @@ flowchart LR
 | "MATH1776 & MATH1777" | Two `course` rows with no credits. The credits on the page are for the pair. |
 | "COMP1100 or COMP2100" | A `choice` row |
 | "Select one of the following:" with indented courses under it | A `choice` row with the indented courses as its options |
-| `span.comment`, such as "Computer Science Elective<sup>1</sup>" | A `placeholder` row, linked to the elective list with the same name in its plan |
+| `span.comment`, such as "Computer Science Elective<sup>1</sup>" | A `placeholder` row, linked to an elective list of its plan or of the whole program: the same name ("Advanced Security Elective" and "The Advanced Security Electives"), or a subject code that starts the words of exactly one list ("NET Elective" and "The Computer Networking Electives", "BSCI Elective" and "Building Sciences Electives"). The last choice is a list with the same name in another plan, because a second plan can print its list under a long note. |
 | An indented note with no credits | Nothing. It explains the row above it. |
-| `table.sc_courselist` and the heading above it | An `ElectiveGroup`. "select four (4) courses" gives `min_courses`. |
+| `table.sc_courselist` and the heading above it (h2 to h5) | An `ElectiveGroup`. "select four (4) courses" gives `min_courses`. With no heading, the paragraph just above the list names it ("<p><strong>Building Sciences Electives:</strong></p>"), past a "Complete the following courses" note. A long note or a placement note is not a name, and the list is "Course List". |
 | An area header or a "Select ..." note inside a list | A new `ElectiveGroup`, such as "Required Courses: Select one (1) course from the following courses" |
 | "The following courses require School approval" | `requires_approval` on the courses after it |
 

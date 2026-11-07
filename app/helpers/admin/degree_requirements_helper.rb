@@ -7,13 +7,14 @@ module Admin
     SOURCE_LABELS = { "html" => "HTML", "wayback" => "Wayback", "pdf" => "PDF" }.freeze
     # The lists of the course comparison report (DegreeRequirements::CourseComparison).
     COMPARISON_LABELS = {
-      catalog_only: "Only in the catalog",
+      catalog_only: "No section in WIT Calendar",
       banner_only: "Only in Banner",
       title_differs: "Different title",
       credits_differ: "Different credits"
     }.freeze
     COMPARISON_HINTS = {
-      catalog_only: "The catalog year prints the course. Banner does not know the code.",
+      catalog_only: "The catalog year prints the course, and WIT Calendar has no section of it in any term it imported. " \
+                    "Banner can still have the course: an old code (COMP128), or a course with no section since Spring 2014.",
       banner_only: "Banner has sections of the course in a term of this catalog year. The catalog year does not print it.",
       title_differs: "Both have the course. The titles differ in more than case and punctuation.",
       credits_differ: "Both have the course. Banner's credits are outside the catalog's credits."

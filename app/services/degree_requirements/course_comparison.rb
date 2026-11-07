@@ -5,7 +5,10 @@ module DegreeRequirements
   # course search API of the catalog site) with Banner's CatalogCourse rows.
   # The admin report of #864 shows the four lists.
   #
-  #   catalog_only    the catalog year prints the code, Banner does not know it
+  #   catalog_only    the catalog year prints the code, and no CatalogCourse
+  #                   has it. CatalogCourse rows come from the sections of the
+  #                   imported terms (CourseDetailsSync.seed), so Banner can
+  #                   still know a course with no section in those terms.
   #   banner_only     Banner has sections of the code in a term of the catalog
   #                   year, and the catalog year does not print it
   #   title_differs   both have the code, with a different title
