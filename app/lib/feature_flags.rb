@@ -44,4 +44,15 @@ module FeatureFlags
     meetingLinks
     degreePlanning
   ].freeze
+
+  # How long one process keeps flag reads (config/initializers/flipper.rb).
+  CACHE_TTL = 1.minute
+
+  # The cache in front of the Flipper tables. Rails.cache is Solid Cache in
+  # production, so a read there is a database query on every request (#682).
+  # Outside specs, flags stay in this process instead. Specs keep Rails.cache
+  # (a null store), so no flag state carries over between examples.
+  def self.build_cache(env: Rails.env)
+    env.test? ? Rails.cache : ActiveSupport::Cache::MemoryStore.new(size: 1.megabyte)
+  end
 end
