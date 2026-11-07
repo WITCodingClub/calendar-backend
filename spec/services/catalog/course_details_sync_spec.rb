@@ -140,6 +140,25 @@ RSpec.describe Catalog::CourseDetailsSync do
     expect(described_class.seed(Course.none)).to eq(0)
   end
 
+  it "gives an existing row the newer title of its section" do
+    catalog_course = create(:catalog_course, subject_code: "AAIN", course_number: 4080, title: "Agentic Ai And Intelligent Agents")
+    create(:course, term: term, subject: "Applied AI (AAIN)", course_number: 4080, title: "Agentic AI And Intelligent Agents")
+
+    described_class.seed(Course.all)
+
+    expect(catalog_course.reload.title).to eq("Agentic AI And Intelligent Agents")
+  end
+
+  it "keeps the title of a row whose details came from a newer term" do
+    newer = create(:term, uid: 202730, year: 2027, season: :summer)
+    catalog_course = create(:catalog_course, subject_code: "MATH", course_number: 2860, title: "Linear Algebra", source_term: newer)
+    create(:course, term: term, subject: "Mathematics (MATH)", course_number: 2860, title: "Old Name")
+
+    described_class.seed(Course.all)
+
+    expect(catalog_course.reload.title).to eq("Linear Algebra")
+  end
+
   it "reads the subject code from either spelling" do
     expect(described_class.prefix_of("Computer Science (COMP)")).to eq("COMP")
     expect(described_class.prefix_of("comp")).to eq("COMP")
