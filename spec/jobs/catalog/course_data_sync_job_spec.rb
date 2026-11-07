@@ -75,6 +75,35 @@ RSpec.describe Catalog::CourseDataSyncJob do
       .to have_enqueued_job(Catalog::CourseDetailsSyncJob).with(term.uid)
   end
 
+  describe "details batch" do
+    before { stub_leopard_web([ banner_meeting_time(room: "308") ]) }
+
+    it "puts the details jobs in one batch, which waits for them" do
+      # The :test adapter gives a job no batch, so the details job goes to the
+      # Solid Queue tables here, as in production.
+      previous = Catalog::CourseDetailsSyncJob.queue_adapter
+      Catalog::CourseDetailsSyncJob.queue_adapter = :solid_queue
+      described_class.perform_now(term_uids: [ term.uid ])
+
+      batch = SolidQueue::Batch.last
+      expect(batch.metadata[:term_uids]).to eq([ term.uid ])
+      expect(batch.jobs.pluck(:class_name)).to eq([ "Catalog::CourseDetailsSyncJob" ])
+      expect(batch).not_to be_finished
+      expect(SolidQueue::Job.where(class_name: "Embeddings::BackfillJob")).to be_empty
+    ensure
+      Catalog::CourseDetailsSyncJob.queue_adapter = previous
+    end
+
+    it "starts the embeddings backfill when the batch finishes" do
+      described_class.perform_now(term_uids: [ term.uid ])
+
+      # The :test adapter does not run the details job, so the batch has no
+      # Solid Queue jobs and finishes at once. Its callback always goes
+      # through Solid Queue.
+      expect(SolidQueue::Job.where(class_name: "Embeddings::BackfillJob").count).to eq(1)
+    end
+  end
+
   it "writes the new room when the registrar moves the section" do
     stub_leopard_web([ banner_meeting_time(room: "308") ])
 

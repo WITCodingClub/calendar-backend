@@ -99,12 +99,16 @@ production:
     queue: low
     schedule: every 6 hours
 
-  # Embeds the sections the catalog sync just wrote, and any instructor or
-  # review text that changed. Text that did not change never reaches the API.
+  # The catalog sync starts the backfill itself, when its details batch ends
+  # (Catalog::CourseDataSyncJob#enqueue_details_sync). This run is the
+  # fallback for a night with no finished sync, and for instructor or review
+  # text that changed. It comes after the sync's 8am cooldown window. Text
+  # that did not change never reaches the API, so a run after the batch's own
+  # run costs one table scan.
   backfill_embeddings:
     class: Embeddings::BackfillJob
     queue: low
-    schedule: every day at 4:45am
+    schedule: every day at 11am
 
   cleanup_orphaned_calendar_events:
     class: Cleanup::OrphanedCalendarEventsJob
