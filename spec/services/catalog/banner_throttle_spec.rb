@@ -49,6 +49,49 @@ RSpec.describe Catalog::BannerThrottle do
     end
   end
 
+  describe "timeouts" do
+    # Records the timeouts that reach the adapter.
+    let(:seen) { [] }
+    let(:connection) do
+      seen = self.seen
+      recorder = Class.new(Faraday::Middleware) do
+        define_method(:call) do |env|
+          seen << [ env.request.open_timeout, env.request.timeout ]
+          @app.call(env)
+        end
+      end
+
+      Faraday.new(url: base, request: { open_timeout: 99, timeout: 99 }) do |f|
+        f.use described_class
+        f.use recorder
+        f.adapter Faraday.default_adapter
+      end
+    end
+
+    before { stub_request(:get, "#{base}x").to_return(status: 200) }
+
+    it "gives a web request the short timeouts of its budget" do
+      connection.get("x")
+
+      budget = described_class::BUDGETS[:request]
+      expect(seen).to eq([ [ budget.open_timeout, budget.read_timeout ] ])
+    end
+
+    it "gives a job the long timeouts of its budget" do
+      ActiveSupport::ExecutionContext.set(job: Object.new) { connection.get("x") }
+
+      budget = described_class::BUDGETS[:job]
+      expect(seen).to eq([ [ budget.open_timeout, budget.read_timeout ] ])
+    end
+
+    it "keeps a web request shorter than a job" do
+      request, job = described_class::BUDGETS.values_at(:request, :job)
+
+      expect(request.read_timeout).to be < job.read_timeout
+      expect(request.open_timeout).to be < job.open_timeout
+    end
+  end
+
   describe "retries" do
     it "retries a 500 and returns the answer that follows" do
       stub = stub_request(:get, "#{base}searchResults/getClassDetails")

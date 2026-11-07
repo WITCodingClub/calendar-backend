@@ -25,6 +25,11 @@ flowchart TD
 ```
 
 Each request logs one line: `[Courses::Processor] user=… sections=… from_catalog=… from_banner=… refresh=… banner_ms=… total_ms=…`.
+
+The Banner calls of a web request run inside a Puma thread, so two limits keep that thread short (#683):
+
+- A payload can have at most `Courses::Processor::MAX_SECTIONS` (40) sections, counted as distinct CRN and term pairs. A larger payload gets a `400` before any Banner call. In `POST /api/process_courses/batch`, the term fails.
+- `Catalog::BannerThrottle::BUDGETS` sets the timeouts of each Banner request by caller. A web request waits 3 seconds to connect and 8 seconds to read. A job waits 10 and 30 seconds.
 | Course details and prerequisites | After each import, and nightly | `Catalog::CourseDetailsSyncJob` |
 | Re-import every term | After a change to the importer, or to find missed sections | `bin/rails catalog:reimport_all_terms` |
 | Fetch every course's details again | After a new course detail column ships | `bin/rails catalog:backfill_course_details REFETCH=1` |

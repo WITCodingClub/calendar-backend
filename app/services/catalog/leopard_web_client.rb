@@ -18,9 +18,6 @@ module Catalog
     class SessionError < StandardError; end
     class ParseError < StandardError; end
 
-    OPEN_TIMEOUT = 10
-    READ_TIMEOUT = 30
-
     attr_reader :term, :course_reference_number, :action
 
     def initialize(action:, term: nil, course_reference_number: nil)
@@ -308,10 +305,8 @@ module Catalog
 
     def connection
       @connection ||= Faraday.new(url: BASE_URL) do |faraday|
-        faraday.options.open_timeout = OPEN_TIMEOUT
-        faraday.options.timeout = READ_TIMEOUT
         faraday.request :url_encoded
-        # Pacing, retries, and the cooldown for every Banner request.
+        # Pacing, retries, timeouts, and the cooldown for every Banner request.
         faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
@@ -533,10 +528,8 @@ module Catalog
 
     def terms_connection
       @terms_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-        faraday.options.open_timeout = OPEN_TIMEOUT
-        faraday.options.timeout = READ_TIMEOUT
         faraday.request :url_encoded
-        # Pacing, retries, and the cooldown for every Banner request.
+        # Pacing, retries, timeouts, and the cooldown for every Banner request.
         faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
@@ -545,10 +538,8 @@ module Catalog
 
     def session_connection
       @session_connection ||= Faraday.new(url: "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/") do |faraday|
-        faraday.options.open_timeout = OPEN_TIMEOUT
-        faraday.options.timeout = READ_TIMEOUT
         faraday.request :url_encoded
-        # Pacing, retries, and the cooldown for every Banner request.
+        # Pacing, retries, timeouts, and the cooldown for every Banner request.
         faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter
@@ -568,10 +559,8 @@ module Catalog
         faraday.headers["Referer"] = "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/courseSearch/courseSearch"
         faraday.headers["Cookie"] = "JSESSIONID=#{@session_cookie}"
 
-        faraday.options.open_timeout = OPEN_TIMEOUT
-        faraday.options.timeout = READ_TIMEOUT
         faraday.request :url_encoded
-        # Pacing, retries, and the cooldown for every Banner request.
+        # Pacing, retries, timeouts, and the cooldown for every Banner request.
         faraday.use Catalog::BannerThrottle
         faraday.response :json, content_type: /\bjson$/
         faraday.adapter Faraday.default_adapter

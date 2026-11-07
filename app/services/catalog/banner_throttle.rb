@@ -6,7 +6,7 @@ module Catalog
   #
   # On 2026-10-14 Banner answered HTTP 500 to every searchResults request after
   # about 40 requests in a minute, and worked again a few minutes later. So the
-  # middleware does three things:
+  # middleware does four things:
   #
   # 1. Pacing. A token bucket for each kind of caller (BUCKETS): a burst of
   #    requests at once, then a fixed rate. Web requests and jobs have separate
@@ -17,7 +17,8 @@ module Catalog
   #    exponential backoff and jitter, and Retry-After when Banner sends it. A
   #    web request has a small budget, so a student does not wait long. A job
   #    has a large one.
-  # 3. Cooldown. After COOLDOWN_AFTER failures in a row, no request goes to
+  # 3. Timeouts. Each attempt has the open and read timeouts of its budget.
+  # 4. Cooldown. After COOLDOWN_AFTER failures in a row, no request goes to
   #    Banner for COOLDOWN. Requests raise CooldownError at once, and jobs retry
   #    later.
   #
@@ -45,11 +46,14 @@ module Catalog
     COOLDOWN_AFTER = 5
     COOLDOWN       = 3.minutes
 
-    # How long one request may spend in retries, by caller.
-    Budget = Data.define(:retries, :max_wait)
+    # How long one request may wait for Banner, by caller: the retries, the
+    # total retry delay, and the timeouts of each attempt in seconds. Banner
+    # answers getClassDetails in under a second, so a web request gives up
+    # early and keeps its Puma thread free (#683). A job waits longer.
+    Budget = Data.define(:retries, :max_wait, :open_timeout, :read_timeout)
     BUDGETS = {
-      request: Budget.new(retries: 2, max_wait: 3),
-      job:     Budget.new(retries: 6, max_wait: 90)
+      request: Budget.new(retries: 2, max_wait: 3, open_timeout: 3, read_timeout: 8),
+      job:     Budget.new(retries: 6, max_wait: 90, open_timeout: 10, read_timeout: 30)
     }.freeze
 
     # Banner answers these two only over POST, but neither changes data:
@@ -160,6 +164,8 @@ module Catalog
       name   = self.class.current_budget
       budget = BUDGETS.fetch(name)
       request_body = env.body
+      env.request.open_timeout = budget.open_timeout
+      env.request.timeout = budget.read_timeout
       retries = 0
       waited  = 0.0
 

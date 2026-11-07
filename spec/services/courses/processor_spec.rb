@@ -124,6 +124,25 @@ RSpec.describe Courses::Processor do
 
   # Prosopite raises in Prosopite.scan when the same query runs once for each
   # course (#723).
+  describe "the section limit" do
+    def payload(count, meetings_each: 1)
+      Array.new(count) { |i| Array.new(meetings_each) { { crn: (20_000 + i).to_s, term: "202710" } } }.flatten
+    end
+
+    it "refuses more sections than MAX_SECTIONS before it asks Banner" do
+      processor = described_class.new(payload(described_class::MAX_SECTIONS + 1), user)
+
+      expect { processor.call }.to raise_error(Courses::InvalidPayloadError, /at most #{described_class::MAX_SECTIONS} sections/)
+      expect(Catalog::LeopardWebClient).not_to have_received(:get_class_details)
+    end
+
+    it "counts a section once, however many meetings it has" do
+      processor = described_class.new(payload(described_class::MAX_SECTIONS, meetings_each: 2), user)
+
+      expect { processor.validate! }.not_to raise_error
+    end
+  end
+
   describe "with several courses" do
     let(:crns) { %w[11111 22222 33333] }
     let(:courses_payload) { crns.map { |crn| { crn: crn, term: "202710", courseNumber: "2000" } } }

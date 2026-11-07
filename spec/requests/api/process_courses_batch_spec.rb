@@ -177,6 +177,15 @@ RSpec.describe "POST /api/process_courses/batch", type: :request do
       expect(term_results.first).to include("status" => "failed", "error" => "course at index 0 missing required field: crn")
     end
 
+    it "fails a term with more sections than the limit, without asking Banner" do
+      crns = Array.new(Courses::Processor::MAX_SECTIONS + 1) { |i| (20_000 + i).to_s }
+      post_batch([ term_entry("202710", crns) ])
+
+      expect(term_results.first).to include("status" => "failed")
+      expect(term_results.first["error"]).to start_with("A request can have at most #{Courses::Processor::MAX_SECTIONS} sections")
+      expect(Catalog::LeopardWebClient).not_to have_received(:get_class_details)
+    end
+
     it "fails a term with no courses" do
       post_batch([ { term: "202710", courses: [] } ])
 
