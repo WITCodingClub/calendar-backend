@@ -29,6 +29,18 @@ RSpec.describe DegreeRequirements::PdfCatalog::ProgramMatcher do
     expect(matcher.call(program("ENGINEERING-INTERDISCIPLINARY(BSEN)", "BSEN"))).to eq(engineering)
   end
 
+  it "matches a concentration that the contents name with a concentration in" do
+    biomedical = create(:degree_program, :concentration, slug: "engineering-bs-biomedical",
+                                          name: "Engineering B.S. - Biomedical Engineering Concentration")
+    facilities = create(:degree_program, :concentration, slug: "construction-management-bs-facilities",
+                                          name: "Construction Management Bachelor of Science - Facilities Management Concentration")
+
+    expect(matcher.call(program("Engineering Bachelor of Science with a Concentration in Biomedical Engineering")))
+      .to eq(biomedical)
+    expect(matcher.call(program("Construction Management Bachelor of Science - Real Estate and Facilities " \
+                                "Management Concentration"))).to eq(facilities)
+  end
+
   it "matches no program when the name fits more than one" do
     expect(matcher.call(program("ARCHITECTURE (TWO YEAR)"))).to be_nil
   end

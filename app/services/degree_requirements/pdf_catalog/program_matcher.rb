@@ -17,11 +17,12 @@ module DegreeRequirements
       # program, as subject words.
       RENAMED = {
         "engineering interdisciplinary" => "engineering",
-        "facility planning and management" => "facility management"
+        "facility planning and management" => "facility management",
+        "construction management real estate and facilities management" => "construction management facilities management"
       }.freeze
 
       DEGREE_WORDS = /
-        \bcurriculum\s+for\b | \bbachelor\s+of\s+science(?:\s+degree)? | \bmaster\s+of\s+science |
+        \bwith\s+a\s+concentration\s+in\b | \bcurriculum\s+for\b | \bbachelor\s+of\s+science(?:\s+degree)? | \bmaster\s+of\s+science |
         \bmasters?\s+degree | \bb\.\s?s\.? | \bm\.\s?s\.? | \bm\.\s?arch\.? |
         \bconcentration\b | \bminor\b | \bcertificate\b | \bprofessional\b
       /xi

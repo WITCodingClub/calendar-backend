@@ -40,7 +40,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `get_section` | One section by CRN, cancelled or not, with its part of term, campus, and cross-listed sections. | `GET /api/v1/catalog/sections/:crn` | `section` |
 | `search_courses` | Courses (not sections) by code or title words. | `GET /api/v1/catalog/courses` | `courses` |
 | `get_course` | One course: description, prerequisites, corequisites, restrictions, mutual exclusions, catalog entry, fees, learning objectives, terms usually offered, what it unlocks. | `GET /api/v1/catalog/courses/:code` | `course` |
-| `list_programs` | The degree programs of one catalog year, and the catalog years WIT Calendar has. | `GET /api/v1/catalog/programs` | |
+| `list_programs` | The degree programs of one catalog year, and the catalog years WIT Calendar has. `parent_program` lists the concentrations of one major. | `GET /api/v1/catalog/programs` | |
 | `degree_requirements` | What one program requires in one catalog year: each plan of study by semester, and the elective lists. | `GET /api/v1/catalog/programs/:slug` | |
 | `list_term_electives` | The elective lists that each school publishes for one term, with the heading of each course and the full text of each PDF. | `GET /api/v1/catalog/terms/:uid/electives` | |
 | `similar_sections` | Sections that teach something close to one section. | `GET /api/v1/catalog/sections/:crn/similar` | |
@@ -300,7 +300,7 @@ A prompt is a task that the student starts from the client, for example as a sla
 - The server cuts an argument at 500 characters. The message puts each argument in quotes.
 - Arguments that are not an object of strings get `-32602` (Invalid params). The server does not report this client error.
 - A prompt reads no student data. The tools read it when the model calls them, with the scopes of the token. `my_courses` gives the CRN of each course, so `check_my_schedule` can pass the CRNs to `check_schedule`.
-- `plan_degree_progression` reads the required courses with `list_programs` and `degree_requirements`. Without the `program` and `catalog_year` arguments, the model calls `my_programs` and asks the student to confirm what it finds, then calls `my_degree_progress` for the requirements that are done, in progress, or open. It asks for them when the student has no programs or the token does not have `programs:read`. The catalog has no data before 2019-2020. For an older catalog year, the model asks the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu.
+- `plan_degree_progression` reads the required courses with `list_programs` and `degree_requirements`. Without the `program` and `catalog_year` arguments, the model calls `my_programs` and asks the student to confirm what it finds, then calls `my_degree_progress` for the requirements that are done, in progress, or open. It asks for them when the student has no programs or the token does not have `programs:read`. The catalog has data from 2013-2014. When `degree_requirements` has no data for the catalog year, the model asks the student for the list of required courses, from their degree audit or their program page on catalog.wit.edu.
 
 ### Completions
 

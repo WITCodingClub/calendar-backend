@@ -56,11 +56,14 @@ module Catalog
     # the catalog keeps its stored set, so the list leaves it out.
     #
     # @return [ActiveRecord::Relation<RequirementSet>]
-    def call(catalog_year:, kind: nil, level: nil, q: nil)
+    #
+    # parent is the slug of a major, for its concentrations.
+    def call(catalog_year:, kind: nil, level: nil, q: nil, parent: nil)
       relation = catalog_year.requirement_sets.joins(:degree_program).includes(:catalog_year, degree_program: :parent_program)
       relation = relation.where(last_seen_at: RequirementSet.listed_since(catalog_year)..) if catalog_year.imported_at
       relation = relation.where(degree_programs: { kind: validated(kind, DegreeProgram::KINDS, "kind") }) if kind.present?
       relation = relation.where(degree_programs: { level: validated(level, DegreeProgram::LEVELS, "level") }) if level.present?
+      relation = relation.where(degree_programs: { parent_program_id: parent_id(parent) }) if parent.present?
       q.to_s.split.each do |word|
         pattern = "%#{RequirementSet.sanitize_sql_like(word)}%"
         relation = relation.where("requirement_sets.name ILIKE :p OR degree_programs.slug ILIKE :p", p: pattern)
@@ -83,6 +86,13 @@ module Catalog
     end
 
     private
+
+    def parent_id(slug)
+      id = DegreeProgram.where(slug: slug.to_s.strip.downcase).pick(:id)
+      raise FilterError, "parent_program must be the slug of a program, such as computer-science-bs" if id.nil?
+
+      id
+    end
 
     def validated(value, allowed, name)
       values = Array(value).map { |v| v.to_s.strip.downcase }
