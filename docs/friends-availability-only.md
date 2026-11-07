@@ -34,7 +34,7 @@ A 403 from the friend routes has a `code`:
 sequenceDiagram
     participant E as Extension (viewer)
     participant A as API
-    E->>A: POST /api/friends/:id/processed_events
+    E->>A: GET /api/friends/:id/processed_events
     alt friend shares full
         A-->>E: 200 course list
     else friend shares availability_only
@@ -116,6 +116,34 @@ Unchanged for a friend who shares `full`. For a friend who shares `availability_
 ```
 
 with status 403.
+
+### POST /api/friends/processed_events
+
+Returns the schedules of many friends in one request (#681). Before this route, the extension sent one request for each friend, and 50 friends used half of the `api/user` limit (100 requests in 1 minute).
+
+```json
+{ "term_uid": 202620, "friend_ids": ["usr_a", "usr_b", "usr_c"] }
+```
+
+The response has one entry for each id, in the order of `friend_ids`. Repeated ids appear once. A readable entry is the body of `GET /api/friends/:friend_id/processed_events` with `friend_id` added. An entry that the user cannot read has `error` and `code`, and the response status stays 200:
+
+```json
+{
+  "term_uid": 202620,
+  "schedules": [
+    { "friend_id": "usr_a", "classes": [], "notifications_disabled": false },
+    { "friend_id": "usr_b", "error": "This friend shares only availability", "code": "AVAILABILITY_ONLY", "visibility": "availability_only" },
+    { "friend_id": "usr_c", "error": "You are not friends with this user", "code": "NOT_FRIENDS" }
+  ]
+}
+```
+
+- `friend_ids` takes public ids (`usr_...`), as `GET /api/friends` gives them. An unknown id gives `NOT_FRIENDS`, so the response does not show which ids exist.
+- `friend_ids` takes at most 100 ids. Send more than one request for more friends. There is no limit on the number of friends.
+- 400: `friend_ids` is missing, is not a list of strings, or has more than 100 ids. `term_uid` is missing.
+- 404: no term has the `term_uid`.
+
+The number of queries does not change with the number of friends. `Courses::ProcessedEventsBuilder.build_for_users` loads the enrollments, preferences, and recurrence lookups of all friends at once.
 
 ## Code
 

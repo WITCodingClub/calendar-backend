@@ -4,6 +4,7 @@ Each `meeting_times` entry in these responses has two fields that tell a client 
 
 - `GET /api/user/processed_events`
 - `GET /api/friends/:friend_id/processed_events`
+- `POST /api/friends/processed_events` (each entry)
 - the `my_courses` and `my_course_history` MCP tools
 
 | Field | Format | Meaning |
