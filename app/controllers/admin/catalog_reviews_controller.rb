@@ -18,7 +18,8 @@ module Admin
     end
 
     def show
-      @set = RequirementSet.includes(:degree_program, :catalog_year, program_plans: :items).find(params[:id])
+      @set = RequirementSet.includes(:degree_program, :catalog_year, elective_groups: :courses,
+                                     program_plans: { items: :elective_group }).find(params[:id])
       authorize @set
     end
 

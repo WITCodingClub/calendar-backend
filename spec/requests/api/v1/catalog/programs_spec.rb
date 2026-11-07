@@ -106,7 +106,7 @@ RSpec.describe "Catalog programs API", type: :request do
       expect(plan["terms"].last["items"].first["options"].pluck("code")).to eq([ "COMP 1000", "COMP 1099" ])
       expect(data["elective_lists"]).to eq([
         { "name" => "Widget Electives", "heading" => set.elective_groups.first.heading, "plan" => nil, "min_courses" => 2,
-          "min_credits" => nil, "notes" => nil,
+          "min_credits" => nil, "notes" => nil, "subject_codes" => [], "any_course" => false,
           "courses" => [ { "code" => "WDGT 3000", "title" => "SPINNING", "requires_approval" => true } ] }
       ])
     end

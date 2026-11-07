@@ -38,7 +38,11 @@ module Catalog
         needs_review:   @set.needs_review,
         source:         @set.source,
         plans:          @set.program_plans.map { |plan| plan_json(plan) },
-        elective_lists: @set.elective_groups.map { |group| group_json(group) }
+        elective_lists: @set.elective_groups.map { |group| group_json(group) },
+        # What the major adds to the humanities and social science
+        # requirement (DegreeRequirements::HssNoteParser), or nil for a set
+        # from a PDF.
+        hss_requirement: @set.hss_requirement
       )
     end
 
@@ -71,13 +75,17 @@ module Catalog
 
     def group_json(group)
       {
-        name:        group.name,
-        heading:     group.heading,
-        plan:        group.program_plan&.name,
-        min_courses: group.min_courses,
-        min_credits: group.min_credits,
-        notes:       group.notes,
-        courses:     group.courses.map do |course|
+        name:          group.name,
+        heading:       group.heading,
+        plan:          group.program_plan&.name,
+        min_courses:   group.min_courses,
+        min_credits:   group.min_credits,
+        notes:         group.notes,
+        # A rule in place of, or next to, the courses: any course in these
+        # subjects, or any course at all (DegreeRequirements::SharedElectives).
+        subject_codes: group.subject_codes,
+        any_course:    group.any_course,
+        courses:       group.courses.map do |course|
           course_json(course.subject_code, course.course_number).merge(requires_approval: course.requires_approval)
         end
       }

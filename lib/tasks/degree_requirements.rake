@@ -16,6 +16,14 @@ namespace :degree_requirements do
     puts "Queued the import of #{start_year}-#{start_year + 1}#{' with force' if force}."
   end
 
+  desc "Link the elective slots of every stored plan to the shared lists: HSS, English sequence, co-op, " \
+       "and free electives. Each import also does it."
+  task shared_electives: :environment do
+    linked = RequirementSet.find_each.sum { |set| DegreeRequirements::SharedElectives.call(set) }
+    ElectiveGroupCourse.link_catalog_courses
+    puts "Linked #{linked} elective slots."
+  end
+
   desc "Sync the program pathways (Double Leopard, 5-year) from the catalog and wit.edu now. " \
        "Each import of the current catalog also runs it."
   task pathways: :environment do

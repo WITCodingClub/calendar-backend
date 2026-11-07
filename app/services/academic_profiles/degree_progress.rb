@@ -147,7 +147,7 @@ module AcademicProfiles
     def program_json(set, plan_name, row)
       plan = pick_plan(set, plan_name)
       pool = attempts
-      requirements = plan ? plan_requirements(set, plan, pool) : list_requirements(set, pool)
+      requirements, hss = plan ? plan_requirements(set, plan, pool) : [ list_requirements(set, pool), nil ]
       open = requirements.reject { |requirement| requirement[:status] == "done" }
 
       {
@@ -163,7 +163,10 @@ module AcademicProfiles
         plans:        set.program_plans.map(&:name),
         counts:       %w[done in_progress open].index_with { |status| requirements.count { |r| r[:status] == status } },
         requirements: requirements,
-        open:         open.map { |requirement| requirement.slice(:code, :label, :options, :elective_list, :status) }
+        open:         open.map { |requirement| requirement.slice(:code, :label, :options, :elective_list, :status) },
+        # The humanities and social science requirement of the major, or nil
+        # when the plan has no HSS slot.
+        hss:          hss
       }
     end
 
@@ -198,15 +201,164 @@ module AcademicProfiles
       items.select(&:choice?).each do |item|
         results[item.id] = take(pool, used, item.options.map { |option| [ option["subject_code"], option["course_number"].to_i ] })
       end
-      items.select(&:placeholder?).each do |item|
-        group = groups[item.elective_group_id]
-        results[item.id] = group ? take(pool, used, group.courses.map { |course| [ course.subject_code, course.course_number ] }) : nil
+      # A slot with a list of courses goes first, then a slot with a list of
+      # subjects (an HSS elective), then a free elective. A broad slot then
+      # does not use a course that a narrow one needs.
+      slots = items.select(&:placeholder?).filter_map { |item| [ item, groups[item.elective_group_id] ] if item.elective_group_id }
+      hss_slots, slots = slots.partition { |_, group| group.name == DegreeRequirements::SharedElectives::HSS.name }
+      needs = {}
+      narrow, broad = slots.partition { |_, group| !group.any_course }
+      narrow.sort_by.with_index { |(_, group), index| [ breadth(group), width(group), index ] }.each do |item, group|
+        results[item.id] = take_for(pool, used, group)
       end
+      hss = hss_progress(set, items, groups, results, pool, used)
+      assign_hss(hss, hss_slots, results, needs, pool, used)
+      broad.each { |item, group| results[item.id] = take_for(pool, used, group) }
 
-      items.map { |item| item_json(item, results[item.id]) }
+      rows = items.map { |item| item_json(item, results[item.id], needs[item.id]) }
+      [ rows, hss_json(hss, items, groups, results) ]
     end
 
-    def item_json(item, course)
+    # What counts toward the HSS requirement before the "HSS Elective" slots
+    # take a course: the courses in the other HSS slots (Humanities Elective,
+    # a directed course), the required course rows in an HSS category
+    # (ECON4102 in Construction Management, PHIL4525 in Applied AI), and a
+    # third English course, which the notes let count as Humanities. nil for
+    # a program with no HSS requirement and no HSS slot.
+    def hss_progress(set, items, groups, results, pool, used)
+      slots = items.any? { |item| hss_group?(groups[item.elective_group_id]) }
+      return nil if set.hss_requirement.blank? && !slots
+
+      categories = hss_categories(set)
+      rows = items.reject(&:placeholder?).filter_map { |item| results[item.id] }
+                  .select { |course| categories.any? { |category| in_category?(category, course) } }
+      english = take_where(pool, used) { |candidate| english_sequence?(candidate) } if english_slots_full?(items, groups, results)
+      { categories: categories, min_credits: set.hss_requirement&.dig("min_credits"), english_humanities: english,
+        met: hss_courses(items, groups, results) + rows + [ english ].compact, rows: rows }
+    end
+
+    def english_sequence?(course)
+      DegreeRequirements::SharedElectives::ENGLISH_SEQUENCE.any? { |code| equivalents(code).include?(course.key) }
+    end
+
+    def english_slots_full?(items, groups, results)
+      slots = items.select { |item| groups[item.elective_group_id]&.name == DegreeRequirements::SharedElectives::ENGLISH.name }
+      slots.any? && slots.all? { |item| results[item.id] }
+    end
+
+    # The HSS slots of a plan, such as "HSS Elective", take courses so that
+    # the major's categories are met: one humanities course, one social
+    # science course, an Ethics course, ... (RequirementSet#hss_requirement).
+    # A course in another HSS slot (Humanities Elective, a directed course)
+    # already counts. Each slot takes a course for the first category that
+    # no course meets yet, or stays open for it, and names it in needs.
+    # With every category met, a slot takes any HSS course.
+    def assign_hss(hss, slots, results, needs, pool, used)
+      return if slots.empty? || hss.nil?
+
+      met = hss[:met].dup
+      categories = hss[:categories].select { |category| checkable_category?(category) }
+      slots.each do |item, group|
+        category = categories.find do |candidate|
+          met.none? { |course| in_category?(candidate, course, hss) } && needs.values.exclude?(candidate["name"])
+        end
+        if category
+          needs[item.id] = category["name"]
+          course = take_where(pool, used) { |candidate| in_category?(category, candidate) }
+        else
+          course = take_for(pool, used, group)
+        end
+        results[item.id] = course
+        met << course if course
+      end
+    end
+
+    # The courses in the HSS slots of a plan.
+    def hss_courses(items, groups, results)
+      items.select { |item| item.placeholder? && hss_group?(groups[item.elective_group_id]) }.filter_map { |item| results[item.id] }
+    end
+
+    def hss_group?(group)
+      return false if group.nil?
+
+      names = DegreeRequirements::SharedElectives
+      [ names::HSS, names::HUMANITIES_RULE, names::SOCIAL_SCIENCES_RULE ].map(&:name).include?(group.name) ||
+        group.name.start_with?("HSS Elective (")
+    end
+
+    def hss_categories(set)
+      (set.hss_requirement.presence || DegreeRequirements::HssNoteParser.default)["categories"]
+    end
+
+    def checkable_category?(category)
+      category["subject_codes"].any? || category["courses"].any?
+    end
+
+    # With hss, the third English course counts as Humanities.
+    def in_category?(category, course, hss = nil)
+      return true if hss && category["name"] == "Humanities" && course.equal?(hss[:english_humanities])
+      return true if category["subject_codes"].include?(course.subject_code)
+
+      category["courses"].any? do |code|
+        subject, number = code.match(/\A([A-Z]+)(\d+)\z/)&.captures
+        subject && equivalents([ subject, number.to_i ]).include?(course.key)
+      end
+    end
+
+    # The HSS requirement of the major: each category with the course that
+    # meets it, and the English and HSS credits against the minimum.
+    def hss_json(hss, items, groups, results)
+      return nil if hss.nil?
+
+      english = items.select { |item| groups[item.elective_group_id]&.name == DegreeRequirements::SharedElectives::ENGLISH.name }
+                     .filter_map { |item| results[item.id] }
+      courses = (hss_courses(items, groups, results) + hss[:rows] + [ hss[:english_humanities] ].compact).uniq
+      {
+        min_credits: hss[:min_credits],
+        credits:     (english + courses).uniq.sum { |course| course.credits.to_i },
+        categories:  hss[:categories].map { |category| hss_category_json(category, courses, hss) }
+      }
+    end
+
+    def hss_category_json(category, courses, hss)
+      checkable = checkable_category?(category)
+      course = checkable && courses.select { |candidate| in_category?(category, candidate, hss) }.min_by { |c| RANK.fetch(c.status) }
+      { name: category["name"], checkable: checkable, status: course ? course.status : "open", course: course ? course.code : nil }
+    end
+
+    def breadth(group)
+      return 2 if group.any_course
+      return 1 if group.subject_codes.any?
+
+      0
+    end
+
+    # Among lists of one kind, the shorter list first: "Humanities" before
+    # "HSS".
+    def width(group) = group.subject_codes.any? ? group.subject_codes.size : group.courses.size
+
+    # The best unused course that meets an elective list: a course on the
+    # list, a course in one of its subjects, or any course. Any course means
+    # a course for degree credit: not a co-op and not a course below 1000,
+    # such as ENGL0700.
+    def take_for(pool, used, group)
+      codes = group.courses.map { |course| [ course.subject_code, course.course_number ] }
+      return take(pool, used, codes) unless group.any_course || group.subject_codes.any?
+
+      keys = codes.flat_map { |code| equivalents(code) }
+      take_where(pool, used) do |candidate|
+        (group.any_course && degree_credit?(candidate)) || keys.include?(candidate.key) ||
+          group.subject_codes.include?(candidate.subject_code)
+      end
+    end
+
+    def degree_credit?(course)
+      course.subject_code != "COOP" && course.course_number.to_i >= 1000
+    end
+
+    # hss_category: the category of the major's HSS requirement that a
+    # generic HSS slot stands for, such as "Ethics", or nil.
+    def item_json(item, course, hss_category = nil)
       {
         year:          item.year_index,
         season:        item.season,
@@ -215,8 +367,9 @@ module AcademicProfiles
         label:         item.label,
         options:       item.options.map { |option| "#{option['subject_code']} #{option['course_number']}" },
         elective_list: item.elective_group&.name,
-        # A slot with no elective list, such as a free elective, cannot be
-        # checked, so it stays open.
+        hss_category:  hss_category,
+        # A slot with no elective list, such as a "CONM Elective" whose page
+        # prints no list, cannot be checked, so it stays open.
         checkable:     !item.placeholder? || item.elective_group.present?,
         status:        course ? course.status : "open",
         course:        course&.code,
@@ -286,8 +439,12 @@ module AcademicProfiles
     # before one in progress. Marks it used.
     def take(pool, used, codes)
       keys = codes.flat_map { |code| equivalents(code) }.uniq
+      take_where(pool, used) { |candidate| keys.include?(candidate.key) }
+    end
+
+    def take_where(pool, used)
       course = pool.reject { |candidate| used.include?(candidate) }
-                   .select { |candidate| keys.include?(candidate.key) }
+                   .select { |candidate| yield candidate }
                    .min_by { |candidate| RANK.fetch(candidate.status) }
       used << course if course
       course

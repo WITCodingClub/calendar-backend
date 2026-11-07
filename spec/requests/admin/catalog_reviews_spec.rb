@@ -41,6 +41,18 @@ RSpec.describe "Admin catalog review", type: :request do
     expect(response.body).to include("Computer Science (BCOS)", "COMP128", "Computer Science I", "Mark as checked")
   end
 
+  it "shows the elective list of each slot, and what each list counts" do
+    plan = create(:program_plan, requirement_set: pdf_set)
+    hss = create(:elective_group, :subjects, requirement_set: pdf_set, subject_codes: %w[HIST PSYC])
+    create(:program_plan_item, :placeholder, program_plan: plan, label: "HSS Elective", elective_group: hss)
+    create(:program_plan_item, :placeholder, program_plan: plan, label: "CONM Elective")
+
+    get admin_catalog_review_path(pdf_set)
+
+    expect(response.body).to include("Elective lists", "HSS Electives", "Any HIST, PSYC course", "None",
+                                     "HSS requirement", "Humanities", "Social Sciences")
+  end
+
   it "marks a set as checked" do
     patch review_admin_catalog_review_path(pdf_set)
 

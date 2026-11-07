@@ -10,6 +10,7 @@ require "rails_helper"
 #  department_name   :string
 #  description       :text
 #  fetched_at        :datetime
+#  hss_requirement   :jsonb
 #  last_seen_at      :datetime
 #  name              :string           not null
 #  needs_review      :boolean          default(FALSE), not null

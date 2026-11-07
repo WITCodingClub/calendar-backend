@@ -46,4 +46,12 @@ RSpec.describe "degree_requirements rake tasks" do
     expect { run_task("degree_requirements:aliases") }
       .to output(%r{Added 3 aliases \(2 from the catalogs, 1 from Banner\).*/admin/catalog_reviews}).to_stdout
   end
+
+  it "links the shared elective lists of every stored plan" do
+    plan = create(:program_plan)
+    slot = create(:program_plan_item, :placeholder, program_plan: plan, label: "English Sequence")
+
+    expect { run_task("degree_requirements:shared_electives") }.to output(/Linked 1 elective slots\./).to_stdout
+    expect(slot.reload.elective_group.name).to eq("English Sequence")
+  end
 end
