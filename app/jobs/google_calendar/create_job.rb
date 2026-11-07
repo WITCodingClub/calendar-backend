@@ -4,6 +4,8 @@ module GoogleCalendar
   class CreateJob < ApplicationJob
     queue_as :high
 
+    retry_on Google::Apis::RateLimitError, **GoogleCalendar::RateLimiter::JOB_RETRY
+
     def perform(user_id)
       user = User.find_by(id: user_id)
       return unless user

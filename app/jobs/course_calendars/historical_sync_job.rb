@@ -13,6 +13,8 @@ module CourseCalendars
     limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(user, force: false) { "google_calendar_historical_user_#{user.id}" },
                        duration: 1.hour
 
+    retry_on Google::Apis::RateLimitError, **GoogleCalendar::RateLimiter::JOB_RETRY
+
     def perform(user, force: false)
       user.sync_historical_events(force: force)
     end

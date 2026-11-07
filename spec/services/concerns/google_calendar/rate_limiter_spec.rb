@@ -126,4 +126,47 @@ RSpec.describe GoogleCalendar::RateLimiter do
       expect(attempts).to eq(2)
     end
   end
+  # The google-apis gem picks the error class from the reason in a 403 body.
+  # These examples send the real client through a stubbed response.
+  describe "with a 403 from the Calendar API" do
+    let(:service) { Google::Apis::CalendarV3::CalendarService.new }
+    let(:url) { "https://www.googleapis.com/calendar/v3/calendars/cal-1/events/evt-1" }
+
+    def forbidden(fixture)
+      { status: 403, body: file_fixture("google_calendar/#{fixture}.json").read,
+        headers: { "Content-Type" => "application/json" } }
+    end
+
+    def event_found
+      { status: 200, body: file_fixture("google_calendar/event_created.json").read,
+        headers: { "Content-Type" => "application/json" } }
+    end
+
+    %w[rate_limit_exceeded user_rate_limit_exceeded].each do |fixture|
+      it "retries #{fixture.camelize(:lower)}" do
+        stub = stub_request(:get, url).to_return(forbidden(fixture)).then.to_return(event_found)
+
+        event = limiter.call_rate_limited { service.get_event("cal-1", "evt-1") }
+
+        expect(event.id).to be_present
+        expect(stub).to have_been_requested.twice
+      end
+    end
+
+    it "raises RateLimitError, so a job can retry it later, when the limit lasts" do
+      stub = stub_request(:get, url).to_return(forbidden("rate_limit_exceeded"))
+
+      expect { limiter.call_rate_limited { service.get_event("cal-1", "evt-1") } }
+        .to raise_error(Google::Apis::RateLimitError, /rateLimitExceeded/)
+      expect(stub).to have_been_requested.times(described_class.config.max_retries + 1)
+    end
+
+    it "does not retry quotaExceeded, the Calendar usage limit" do
+      stub = stub_request(:get, url).to_return(forbidden("quota_exceeded"))
+
+      expect { limiter.call_rate_limited { service.get_event("cal-1", "evt-1") } }
+        .to raise_error(Google::Apis::ClientError, /quotaExceeded/)
+      expect(stub).to have_been_requested.once
+    end
+  end
 end

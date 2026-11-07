@@ -4,6 +4,8 @@ module GoogleCalendar
   class DeleteJob < ApplicationJob
     queue_as :high
 
+    retry_on Google::Apis::RateLimitError, **GoogleCalendar::RateLimiter::JOB_RETRY
+
     def perform(calendar_id)
       GoogleCalendar::Provider.new.delete_calendar(calendar_id)
     rescue Google::Apis::ClientError => e
