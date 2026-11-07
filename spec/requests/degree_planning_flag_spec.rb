@@ -27,6 +27,12 @@ RSpec.describe "degree_planning flag", type: :request do
       delete dashboard_planned_program_path(planned.public_id)
       expect(response).to have_http_status(:not_found)
       expect(StudentProgram.exists?(planned.id)).to be(true)
+
+      post dashboard_planned_pathways_path, params: { pathway: "gear-studies" }
+      expect(response).to have_http_status(:not_found)
+
+      delete dashboard_planned_pathway_path("gear-studies")
+      expect(response).to have_http_status(:not_found)
     end
 
     it "changes no plan or profile while the flag is off" do
