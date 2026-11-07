@@ -121,7 +121,7 @@ group :development, :test do
 
   # N+1 query detection (#654). Prosopite needs pg_query to fingerprint
   # PostgreSQL queries. See config/initializers/prosopite.rb.
-  gem "prosopite", "~> 2.2"
+  gem "prosopite", "~> 2.5"
   gem "pg_query", "~> 6.2"
 end
 
