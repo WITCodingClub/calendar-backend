@@ -12,7 +12,7 @@ namespace :calendar do
     User.find_each.with_index do |user, index|
       if user.google_credential&.course_calendar
         puts "#{index + 1}/#{total_users}: Queuing sync for user #{user.id} (#{user.email})"
-        CourseCalendars::SyncJob.perform_later(user, force: true)
+        CourseCalendars::SyncJob.perform_bulk_later(user, force: true)
         queued_count += 1
       else
         puts "#{index + 1}/#{total_users}: Skipping user #{user.id} (no Google Calendar setup)"

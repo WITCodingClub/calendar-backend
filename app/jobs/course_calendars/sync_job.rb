@@ -20,11 +20,17 @@ module CourseCalendars
     BULK_PRIORITY = 10
 
     # Enqueues a sync that is one of many (the nightly sync, a holiday change,
-    # a finals import). The worker takes high and default before low
-    # (config/queue.yml), so a fan-out does not hold up mail or the syncs that
-    # people start. The worker threads limit how many syncs run at once.
+    # a finals import, a rake task over all users). A fan-out on high would
+    # hold up every default job, mail too, because the worker takes high first
+    # (config/queue.yml). On default at a higher number, mail and the other
+    # default jobs go first.
+    #
+    # Not on low: Solid Queue takes the per-user lock at enqueue, so a sync
+    # that the person starts waits until their bulk sync runs. Behind a low
+    # backlog (catalog imports, embeddings) that wait could pass the lock
+    # duration, and then both syncs run at once.
     def self.perform_bulk_later(user, **)
-      set(queue: :low, priority: BULK_PRIORITY).perform_later(user, **)
+      set(queue: :default, priority: BULK_PRIORITY).perform_later(user, **)
     end
 
     def perform(user, force: false, backfill_historical: force, nightly: false)

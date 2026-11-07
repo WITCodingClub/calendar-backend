@@ -3,11 +3,13 @@ default: &default
     - polling_interval: 1
       batch_size: 500
   # The worker takes every ready job from high before default, and from
-  # default before low. Bulk fan-outs go to low (CourseCalendars::SyncJob::BULK),
-  # so they do not hold up mail and the syncs that people start.
+  # default before low. Bulk syncs go to default at a higher priority number
+  # (CourseCalendars::SyncJob.perform_bulk_later), behind mail.
+  # console1984 schedules its session cleanup on its own queue.
+  # spec/config/queue_spec.rb checks that every job's queue is listed.
   # JOB_THREADS also sizes the database pools (config/database.yml, #677).
   workers:
-    - queues: [ high, default, low ]
+    - queues: [ high, default, low, console1984_incineration ]
       threads: <%= Integer(ENV.fetch("JOB_THREADS", 3)) %>
       processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
       polling_interval: 1

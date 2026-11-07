@@ -19,7 +19,7 @@ namespace :calendar do
       puts "Emergency resync for ALL users..."
       User.joins(oauth_credentials: :course_calendar).find_each do |user|
         puts "Resyncing user #{user.id}..."
-        CourseCalendars::SyncJob.perform_later(user, force: true)
+        CourseCalendars::SyncJob.perform_bulk_later(user, force: true)
       end
       puts "All sync jobs queued!"
     end

@@ -28,9 +28,9 @@ RSpec.describe CourseCalendars::SyncJob do
   end
 
   describe ".perform_bulk_later" do
-    it "queues the sync on low, behind the other low jobs" do
+    it "queues the sync on default, behind the other default jobs" do
       expect { described_class.perform_bulk_later(user, force: true) }
-        .to have_enqueued_job(described_class).with(user, force: true).on_queue("low").at_priority(described_class::BULK_PRIORITY)
+        .to have_enqueued_job(described_class).with(user, force: true).on_queue("default").at_priority(described_class::BULK_PRIORITY)
     end
   end
 

@@ -54,7 +54,9 @@ Each slot runs Puma, and the Solid Queue plugin forks the supervisor, a dispatch
 
 Postgres allows 100 connections. With the defaults, one slot uses about 25 at most: Puma uses one for each thread on each database, the worker uses its threads + 2 on the queue database, and the dispatcher, scheduler and supervisor use the queue database only. Two slots run during a swap, so that is about 50, plus Blazer. Before you raise a thread count, do this sum again.
 
-The worker takes `high`, then `default`, then `low`, and polls each second when the queues are empty. A job that queues a sync for many users calls `CourseCalendars::SyncJob.perform_bulk_later`, which puts it on `low`. A new queue name must go in `config/queue.yml`, or no worker runs its jobs.
+The worker takes `high`, then `default`, then `low`, and polls each second when the queues are empty. Code that queues a sync for many users calls `CourseCalendars::SyncJob.perform_bulk_later`. It puts the sync on `default` at priority 10, so mail and the other `default` jobs go first. It does not use `low`: Solid Queue takes the per-user lock at enqueue, so a sync that the person starts waits behind their bulk sync.
+
+A new queue name, also one from a gem, must go in `config/queue.yml`, or no worker runs its jobs. `spec/config/queue_spec.rb` checks every job class and every recurring task.
 
 ## Checks after a deploy
 

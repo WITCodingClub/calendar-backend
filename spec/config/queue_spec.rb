@@ -30,16 +30,37 @@ RSpec.describe "config/queue.yml and config/database.yml" do
     end
   end
 
+  let(:worker_queues) { render("queue.yml", {}).fetch("workers").sole.fetch("queues") }
+
   it "takes high before default, and default before low" do
-    expect(render("queue.yml", {}).fetch("workers").sole.fetch("queues")).to eq(%w[high default low])
+    expect(worker_queues.first(3)).to eq(%w[high default low])
   end
 
+  # A job on a queue that no worker reads stays ready forever. Gem jobs count
+  # too: console1984 schedules its cleanup on its own queue.
   it "lists every queue that a job class names" do
     Rails.application.eager_load!
-    queues = ApplicationJob.descendants.map(&:queue_name).uniq
-    # deliver_later uses this queue; nil means the default queue.
-    queues << (ActionMailer::Base.deliver_later_queue_name || "default").to_s
+    # Leave out classes that other specs made with stub_const. They stay in
+    # descendants after the constant is gone.
+    jobs = ActiveJob::Base.descendants.select { |job| job.name&.safe_constantize.equal?(job) }
+    queues = jobs.to_h do |job|
+      # A Proc queue name needs an instance. The mail job's Proc reads the
+      # mailer class from the first argument.
+      args = job <= ActionMailer::MailDeliveryJob ? [ ApplicationMailer.name ] : []
+      [ job.name, job.queue_name.is_a?(Proc) ? job.new(*args).queue_name : job.queue_name ]
+    rescue StandardError => e
+      [ job.name, "#{e.class}: #{e.message}" ]
+    end
 
-    expect(queues - %w[high default low]).to be_empty
+    # SolidQueue::RecurringJob runs only for a recurring task with no queue.
+    # The recurring spec below covers that case.
+    readable = worker_queues + [ SolidQueue::RecurringJob.queue_name ]
+    expect(queues.reject { |_job, queue| readable.include?(queue) }).to be_empty
+  end
+
+  it "gives every recurring task a queue that a worker reads" do
+    tasks = YAML.load_file(Rails.root.join("config/recurring.yml")).fetch("production")
+
+    expect(tasks.values.map { |task| task["queue"] }.uniq - worker_queues).to be_empty
   end
 end

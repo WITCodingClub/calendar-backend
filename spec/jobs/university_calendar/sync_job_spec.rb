@@ -86,9 +86,9 @@ RSpec.describe UniversityCalendar::SyncJob do
       let(:import_result) { no_changes.merge(created: 1, changed_categories: [ "holiday" ]) }
 
       # A fan-out on high would hold up mail and the syncs that people start.
-      it "queues the syncs on low" do
+      it "queues bulk syncs" do
         expect { described_class.perform_now }
-          .to have_enqueued_job(CourseCalendars::SyncJob).on_queue("low").at_priority(CourseCalendars::SyncJob::BULK_PRIORITY).twice
+          .to have_enqueued_job(CourseCalendars::SyncJob).on_queue("default").at_priority(CourseCalendars::SyncJob::BULK_PRIORITY).twice
       end
     end
 
