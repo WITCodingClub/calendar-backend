@@ -54,11 +54,14 @@ module Preferences
       [ SYSTEM_DEFAULTS, FINAL_EXAM_DEFAULTS, UNI_CAL_DEFAULTS, UNI_CAL_ALL_DAY_REMINDERS, UNI_CAL_TIMED_REMINDERS ]
     end
 
-    def initialize(user)
+    # A caller that resolves for many users at once can pass each user's
+    # preference rows, loaded for all users in one query. Then this object
+    # sends no query of its own.
+    def initialize(user, event_preferences: nil, calendar_preferences: nil)
       @user = user
       @cache = {}
       @notifications_disabled = user.notifications_disabled?
-      preload_preferences
+      preload_preferences(event_preferences, calendar_preferences)
     end
 
     def notifications_disabled?
@@ -123,12 +126,12 @@ module Preferences
 
     private
 
-    def preload_preferences
-      @event_preferences = EventPreference.where(user: @user)
-                                          .index_by { |ep| [ ep.preferenceable_type, ep.preferenceable_id ] }
+    def preload_preferences(event_preferences, calendar_preferences)
+      @event_preferences = (event_preferences || EventPreference.where(user: @user))
+                           .index_by { |ep| [ ep.preferenceable_type, ep.preferenceable_id ] }
 
-      @calendar_preferences = CalendarPreference.where(user: @user)
-                                                .index_by { |cp| [ cp.scope, cp.event_type ] }
+      @calendar_preferences = (calendar_preferences || CalendarPreference.where(user: @user))
+                              .index_by { |cp| [ cp.scope, cp.event_type ] }
 
       @user.user_extension_config if @user.association(:user_extension_config).loaded? == false
     end

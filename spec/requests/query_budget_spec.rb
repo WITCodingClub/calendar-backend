@@ -88,6 +88,32 @@ RSpec.describe "Query budget for hot paths", type: :request do
     end
   end
 
+  describe "POST /api/friends/processed_events" do
+    it "builds 20 friends' schedules with the same number of queries as 2 friends" do
+      friends = create_list(:user, 20)
+      friends.each do |friend|
+        create(:friendship, :accepted, requester: user, addressee: friend)
+        enroll(friend, 2)
+        create(:calendar_preference, user: friend)
+      end
+      params = { term_uid: term.uid }
+
+      post "/api/friends/processed_events", params: params.merge(friend_ids: friends.first(2).map(&:public_id)),
+                                            headers: headers, as: :json
+      small = count_queries do
+        post "/api/friends/processed_events", params: params.merge(friend_ids: friends.first(2).map(&:public_id)),
+                                              headers: headers, as: :json
+      end
+      large = count_queries do
+        post "/api/friends/processed_events", params: params.merge(friend_ids: friends.map(&:public_id)),
+                                              headers: headers, as: :json
+      end
+
+      expect(response.parsed_body["schedules"].map { |entry| entry["classes"].size }).to all(eq(2))
+      expect(large).to eq(small)
+    end
+  end
+
   describe "GET /api/user/processed_events" do
     it "builds the user's schedule with the same number of queries for 1 class and 6 classes" do
       params = { term_uid: term.uid }

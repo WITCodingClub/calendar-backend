@@ -25,6 +25,39 @@ module CourseCalendars
       end
     end
 
+    # One builder for each user, keyed by user id, for a response that lists
+    # the schedules of many users. The final exam dates, the finals dates, and
+    # the no-class events load once for all of the courses, so the number of
+    # queries does not grow with the number of users. The courses must have
+    # their meeting_times loaded: their date range picks the no-class events.
+    def self.preloaded_for_users(users, courses)
+      template = new(nil)
+      template.preload_final_exam_dates!(courses.map(&:id).uniq)
+      template.preload_term_finals_dates!(courses.map(&:term_id).uniq)
+      template.preload_holidays_for_meeting_times!(courses.flat_map(&:meeting_times))
+
+      users.to_h { |user| [ user.id, template.copy_for(user) ] }
+    end
+
+    # A new builder for the user that shares the loaded lookups of this one.
+    # The lookups do not depend on the user.
+    def copy_for(other_user)
+      self.class.new(other_user).tap { |copy| copy.share_lookups_from(self) }
+    end
+
+    protected
+
+    attr_reader :course_final_dates, :term_finals_start_dates, :term_finals_period_dates, :all_holidays_preloaded
+
+    def share_lookups_from(other)
+      @course_final_dates       = other.course_final_dates.dup
+      @term_finals_start_dates  = other.term_finals_start_dates.dup
+      @term_finals_period_dates = other.term_finals_period_dates.dup
+      @all_holidays_preloaded   = other.all_holidays_preloaded
+    end
+
+    public
+
     def find_first_meeting_date(meeting_time)
       return nil if meeting_time.day_of_week.blank?
 
@@ -258,9 +291,17 @@ module CourseCalendars
       # Collect start/end dates from all enrolled meeting times without re-querying later
       dates = user.enrollments.joins(course: :meeting_times)
                   .pluck("course_meeting_times.start_date", "course_meeting_times.end_date")
-      min_start = dates.map(&:first).compact.min
-      max_end   = dates.map(&:last).compact.max
+      preload_holidays_between!(dates.map(&:first).compact.min, dates.map(&:last).compact.max)
+    end
 
+    # The same as preload_holidays_for_user!, for meeting times that are
+    # already loaded. It sends no query for the dates.
+    def preload_holidays_for_meeting_times!(meeting_times)
+      preload_holidays_between!(meeting_times.filter_map(&:start_date).min,
+                                meeting_times.filter_map(&:end_date).max)
+    end
+
+    def preload_holidays_between!(min_start, max_end)
       @all_holidays_preloaded = if min_start && max_end
                                   UniversityCalendarEvent.no_class_spans_between(min_start, max_end)
       else
