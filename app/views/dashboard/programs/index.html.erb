@@ -64,9 +64,30 @@
       description: "What if: add a minor or another program to see the courses it adds. " \
                    "A plan here does not declare the program at Wentworth, and LeopardWeb sync never changes it." do %>
     <div class="divide-y divide-outline-variant">
+      <% pathway_names = @programs[:planned_pathways].to_h { |pathway| [ pathway[:id], pathway[:name] ] } %>
+      <% if @programs[:planned_pathways].any? %>
+        <ul class="px-5 py-4 space-y-2 text-sm" id="planned-pathways" aria-label="Planned pathways">
+          <% @programs[:planned_pathways].each do |pathway| %>
+            <li class="flex flex-wrap items-center justify-between gap-3" id="pathway-<%= pathway[:id] %>">
+              <div>
+                <p class="font-medium text-on-surface"><%= pathway[:name] %></p>
+                <p class="text-xs text-on-surface-variant">
+                  Pathway<% if pathway[:max_shared_courses] %> · up to <%= pluralize(pathway[:max_shared_courses], "course") %> can count toward both programs<% end %>
+                </p>
+              </div>
+              <%= button_to dashboard_planned_pathway_path(pathway[:id]), method: :delete,
+                  class: "m3-btn-text text-sm", aria: { label: "Remove #{pathway[:name]}" },
+                  data: { turbo_confirm: "Remove #{pathway[:name]} and the programs it planned?" } do %>
+                <%= icon(:trash, css_class: "w-4 h-4") %> Remove
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+
       <% @programs[:planned_programs].each do |program| %>
         <%= render "dashboard/programs/planned_program", program: program, progress: @progress,
-            entry: program_progress(@progress, program) %>
+            entry: program_progress(@progress, program), pathway_name: pathway_names[program[:pathway]] %>
       <% end %>
 
       <% if @catalog_programs.any? %>
@@ -82,10 +103,28 @@
               <%= f.select :catalog_year, @catalog_years.map(&:name), {}, class: "m3-select w-full" %>
             </div>
           </div>
-          <p class="text-xs text-on-surface-variant">
-            3+1 and 4+1 pathways cannot be planned yet. You can plan the master's program alone.
-          </p>
           <%= f.submit "Plan this program", class: "m3-btn-filled text-sm", data: { turbo_submits_with: "Adding…" } %>
+        <% end %>
+
+        <% if @pathways.any? %>
+          <%= form_with url: dashboard_planned_pathways_path, method: :post, class: "px-5 py-4 space-y-3", id: "plan-pathway-form" do |f| %>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="sm:col-span-2">
+                <%= f.label :pathway, "Pathway", class: "m3-label" %>
+                <%= f.select :pathway, @pathways.map { |pathway| [ pathway.name, pathway.slug ] },
+                    { prompt: "Pick a pathway" }, required: true, class: "m3-select w-full" %>
+              </div>
+              <div>
+                <%= f.label :catalog_year, "Catalog year", class: "m3-label", for: "pathway_catalog_year" %>
+                <%= f.select :catalog_year, @catalog_years.map(&:name), {}, id: "pathway_catalog_year", class: "m3-select w-full" %>
+              </div>
+            </div>
+            <p class="text-xs text-on-surface-variant">
+              A Double Leopard master's is a 3+1 or a 4+1: it follows your bachelor's program, and its plan of study sets the length.
+              A pathway plans each of its programs that you do not have yet.
+            </p>
+            <%= f.submit "Plan this pathway", class: "m3-btn-filled text-sm", data: { turbo_submits_with: "Adding…" } %>
+          <% end %>
         <% end %>
       <% else %>
         <p class="px-5 py-4 text-sm text-on-surface-variant">WIT Calendar has no degree catalog yet, so you cannot plan a program.</p>

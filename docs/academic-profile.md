@@ -15,7 +15,7 @@ The Flipper flag `degree_planning` (#944) is off by default. While it is off for
 
 | Gated | Not gated |
 |---|---|
-| Every `/dashboard/programs*` route: the page, edit, plan, planned programs, and profile | `GET` and `PUT /api/user/academic_profile` |
+| Every `/dashboard/programs*` route: the page, edit, plan, planned programs, planned pathways, and profile | `GET` and `PUT /api/user/academic_profile` |
 | `GET /api/user/programs` | `PUT /api/user/course_outcomes` |
 | `POST` and `DELETE /api/user/planned_programs` and `/api/user/planned_pathways` | The MCP tools (`my_programs`, `my_degree_progress`, `update_my_planned_programs`) |
 | `GET /api/user/degree_progress` | |
@@ -165,11 +165,13 @@ flowchart TD
   X --> Y[AcademicProfiles::Sync with source student]
   K[Pick or confirm a plan] --> N[StudentProgram#plan_name]
   L[Add or remove a planned program] --> M[AcademicProfiles::PlannedPrograms]
+  Q[Add or remove a planned pathway] --> M
 ```
 
 - **Corrections.** `AcademicProfiles::StudentCorrection` sends the stored profile and every active program to `Sync` with `source: "student"`, with the student's change. It is the same path as the extension settings. Sync does not change the LeopardWeb digests, so the change stays until LeopardWeb shows a different profile or program list. A change to the role, code, name, concentration, study path, or catalog term ends the row and creates a new one, so the old values show in the ended programs.
 - **Plans.** `PATCH /dashboard/programs/:id/plan` saves a plan of an active or a planned program. A student confirms an assumed plan with the same form.
-- **What if.** The planned programs show their open requirements: the courses each one adds. A course that an active program also needs is marked "also in your programs". The planned rows use `AcademicProfiles::PlannedPrograms`, as the API does. Pathways are not on the page yet.
+- **What if.** The planned programs show their open requirements: the courses each one adds. A course that an active program also needs is marked "also in your programs". The planned rows use `AcademicProfiles::PlannedPrograms`, as the API does.
+- **Pathways.** `POST /dashboard/programs/pathways` plans a 3+1, 4+1, or 5-year pathway with `build_pathway` and `save_pathway!`, as `POST /api/user/planned_pathways` does. The form lists the active pathways. Each program that the pathway added says "part of" the pathway. `DELETE /dashboard/programs/pathways/:slug` removes only the planned rows of that pathway.
 
 ## Course outcomes
 

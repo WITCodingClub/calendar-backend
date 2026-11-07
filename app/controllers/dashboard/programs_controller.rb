@@ -21,6 +21,7 @@ module Dashboard
       query = Catalog::ProgramQuery.new
       @catalog_years = query.catalog_years.to_a
       @catalog_programs = @catalog_years.first ? query.call(catalog_year: @catalog_years.first).to_a : []
+      @pathways = ProgramPathway.active.order(:name).to_a
     end
 
     # The form to correct a value that LeopardWeb sent.

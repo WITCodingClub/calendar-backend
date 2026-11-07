@@ -84,6 +84,31 @@ RSpec.describe "My programs", :degree_planning, type: :system do
     expect(user.student_programs.planned).to be_empty
   end
 
+  it "plans a Double Leopard pathway and removes it" do
+    master = create(:degree_program, :master, slug: "widget-design-ms", name: "Widget Design, M.S.")
+    create(:requirement_set, degree_program: master, catalog_year: catalog_year, name: "Widget Design, M.S.")
+    pathway = create(:program_pathway, :double_leopard, name: "Widget Design, M.S. (Double Leopard)")
+    create(:program_pathway_step, program_pathway: pathway, degree_program: master, position: 1, plan_years: 1)
+    visit dashboard_programs_path
+
+    within("#plan-pathway-form") do
+      select pathway.name, from: "Pathway"
+      click_on "Plan this pathway"
+    end
+
+    expect(page).to have_text("#{pathway.name} added to your planned programs.")
+    within("#planned-programs") do
+      expect(page).to have_css("#pathway-#{pathway.slug}")
+      expect(page).to have_text("part of #{pathway.name}")
+    end
+    screenshot("my-programs-pathway", "#planned-programs")
+
+    accept_confirm { click_button("Remove #{pathway.name}") }
+
+    expect(page).to have_text("#{pathway.name} removed from your planned programs.")
+    expect(user.student_programs.planned).to be_empty
+  end
+
   it "corrects a value that LeopardWeb sent" do
     click_link("Correct Widget Design")
     fill_in "Department", with: "Gadgets"

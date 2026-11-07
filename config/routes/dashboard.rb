@@ -46,10 +46,13 @@ authenticate :user do
     resource :settings, only: [ :show ]
 
     # My programs (#867): the programs from LeopardWeb, the plan of each,
-    # corrections, planned programs, and ended programs. Before resources
-    # :programs, so "profile" and "planned" are not read as a program id.
+    # corrections, planned programs and pathways, and ended programs. Before
+    # resources :programs, so "profile", "planned", and "pathways" are not
+    # read as a program id.
     resource  :academic_profile, path: "programs/profile", only: [ :edit, :update ]
     resources :planned_programs, path: "programs/planned", only: [ :create, :destroy ]
+    # A 3+1, 4+1, or 5-year pathway. The id is the pathway slug.
+    resources :planned_pathways, path: "programs/pathways", only: [ :create, :destroy ], constraints: { id: %r{[^/]+} }
     resources :programs, only: [ :index, :edit, :update ] do
       member { patch :plan }
     end

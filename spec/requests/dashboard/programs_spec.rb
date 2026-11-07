@@ -237,4 +237,96 @@ RSpec.describe "Dashboard::Programs", :degree_planning, type: :request do
       expect(major.reload.status).to eq("active")
     end
   end
+
+  describe "planned pathways" do
+    let(:master_program) { create(:degree_program, :master, slug: "widget-design-ms", name: "Widget Design, M.S.") }
+    let!(:pathway) do
+      create(:program_pathway, :double_leopard, slug: "double-leopard-widget-design-ms", name: "Widget Design, M.S. (Double Leopard)")
+    end
+
+    before do
+      create(:requirement_set, degree_program: master_program, catalog_year: catalog_year, name: "Widget Design, M.S.")
+      create(:program_pathway_step, program_pathway: pathway, degree_program: master_program, position: 1, plan_years: 1)
+    end
+
+    it "offers the active pathways and shows a planned pathway with its programs" do
+      create(:program_pathway, name: "Old Pathway", active: false)
+
+      get dashboard_programs_path
+      expect(page.css("#plan-pathway-form #pathway option").map(&:text)).to eq([ "Pick a pathway", pathway.name ])
+
+      post dashboard_planned_pathways_path, params: { pathway: pathway.slug, catalog_year: "2025-2026" }
+      expect(response).to redirect_to(dashboard_programs_path(anchor: "planned-programs"))
+      expect(flash[:notice]).to eq("#{pathway.name} added to your planned programs.")
+      planned = user.student_programs.planned.sole
+      expect(planned).to have_attributes(degree_program: master_program, program_pathway: pathway)
+
+      get dashboard_programs_path
+      shown = Nokogiri::HTML(response.body)
+      expect(shown.at_css("#pathway-#{pathway.slug}").text).to include(pathway.name, "up to 2 courses")
+      expect(shown.at_css("#program-#{planned.public_id}").text.squish).to include("part of #{pathway.name}")
+    end
+
+    it "shows the error when the pathway is already planned" do
+      post dashboard_planned_pathways_path, params: { pathway: pathway.slug }
+      post dashboard_planned_pathways_path, params: { pathway: pathway.slug }
+
+      expect(flash[:alert]).to include("already in your")
+      expect(user.student_programs.planned.count).to eq(1)
+    end
+
+    it "plans only the programs of a pathway that the student does not have" do
+      combined = create(:program_pathway, name: "Widget Design, B.S. and M.S.")
+      create(:program_pathway_step, program_pathway: combined, degree_program: major_program, position: 1)
+      create(:program_pathway_step, program_pathway: combined, degree_program: master_program, position: 2, plan_years: 1)
+
+      post dashboard_planned_pathways_path, params: { pathway: combined.slug }
+
+      expect(user.student_programs.planned.sole).to have_attributes(degree_program: master_program, program_pathway: combined)
+    end
+
+    it "asks for a bachelor's program before a Double Leopard master's" do
+      major.update!(degree: "Master of Science", degree_program: nil)
+
+      post dashboard_planned_pathways_path, params: { pathway: pathway.slug }
+
+      expect(flash[:alert]).to include("Add your bachelor's program first")
+      expect(user.student_programs.planned).to be_empty
+    end
+
+    it "shortens a long error so the flash fits in the session cookie" do
+      post dashboard_planned_pathways_path, params: { pathway: "x" * 5000 }
+
+      expect(response).to redirect_to(dashboard_programs_path(anchor: "planned-programs"))
+      expect(flash[:alert].length).to be <= 300
+    end
+
+    it "shows the error for an unknown pathway" do
+      post dashboard_planned_pathways_path, params: { pathway: "basket-weaving" }
+
+      expect(flash[:alert]).to include("No pathway basket-weaving")
+      expect(user.student_programs.planned).to be_empty
+    end
+
+    it "removes only the planned rows of the pathway" do
+      alone = create(:student_program, :planned, user: user, degree_program: minor_program, catalog_year: catalog_year)
+      post dashboard_planned_pathways_path, params: { pathway: pathway.slug }
+
+      delete dashboard_planned_pathway_path(pathway.slug)
+
+      expect(flash[:notice]).to eq("#{pathway.name} removed from your planned programs.")
+      expect(user.student_programs.planned.to_a).to eq([ alone ])
+      expect(major.reload.status).to eq("active")
+    end
+
+    it "does not find a pathway the student did not plan" do
+      other = create(:user)
+      create(:student_program, :planned, user: other, degree_program: master_program, catalog_year: catalog_year, program_pathway: pathway)
+
+      delete dashboard_planned_pathway_path(pathway.slug)
+
+      expect(flash[:alert]).to eq("Planned pathway not found.")
+      expect(other.student_programs.planned.count).to eq(1)
+    end
+  end
 end
