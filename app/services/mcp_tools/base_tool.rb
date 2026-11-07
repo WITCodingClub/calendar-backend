@@ -65,6 +65,8 @@ module McpTools
       )
     ).freeze
 
+    FLAG_OFF_MESSAGE = "This feature is not enabled for this student yet. Do not call the tool again."
+
     PAGE_SCHEMA = { type: "integer", minimum: 1, description: "The page, from 1." }.freeze
     TERM_SCHEMA = {
       type:        "integer",
@@ -77,7 +79,7 @@ module McpTools
         subclass.annotations(READ_ONLY)
       end
 
-      attr_reader :required_scope, :links_block
+      attr_reader :required_scope, :required_flag, :links_block
 
       # The pages of a result: links { |result| [ page_link(...) ] }. The
       # block runs on the tool instance, so it can read user.
@@ -117,12 +119,23 @@ module McpTools
         description("#{description} Needs the \"#{Scopes.label(name)}\" permission.") unless Scopes::BY_NAME[name].default
       end
 
+      # The Flipper flag (FeatureFlags) that must be on for the user to call
+      # this tool. Use the flag of the matching API endpoint. tools/list
+      # still lists the tool to every token (McpTools::Server, CACHE_SCOPE),
+      # so only the call checks the flag.
+      def requires_flag(name)
+        raise ArgumentError, "unknown feature flag #{name}" unless FeatureFlags::MAP.value?(name)
+
+        @required_flag = name
+      end
+
       def call(server_context:, **arguments)
         unless Array(server_context[:scopes]).include?(required_scope)
           Yabeda.calendar.mcp_scope_denials_total.increment({ scope: required_scope.to_s, mode: "tool_error" })
           links = PageLinks.supported?(server_context) ? [ PageLinks.connected_apps_link ] : []
           return error_response(missing_scope_message, links: links)
         end
+        return error_response(FLAG_OFF_MESSAGE) if required_flag && !Flipper.enabled?(required_flag, server_context[:user])
 
         unknown = arguments.keys.map(&:to_s) - argument_names
         raise ToolError, unknown_arguments_message(unknown) if unknown.any?

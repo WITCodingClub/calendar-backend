@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe McpTools::MyNextTermCourses do
+RSpec.describe McpTools::MyNextTermCourses, :degree_planning do
   let(:user) { create(:user) }
 
   def call(scopes: McpTools::Scopes::NAMES, **arguments)

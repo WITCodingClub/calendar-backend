@@ -347,7 +347,7 @@ RSpec.describe "MCP tool output schemas" do
     end
   end
 
-  context "with degree programs" do
+  context "with degree programs", :degree_planning do
     let(:catalog_year) { create(:catalog_year, :imported, start_year: 2026) }
     let(:major) { create(:degree_program, slug: "widget-design-bs", name: "Widget Design, B.S.") }
 

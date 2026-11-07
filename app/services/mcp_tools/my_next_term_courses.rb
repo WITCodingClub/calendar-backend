@@ -11,6 +11,7 @@ module McpTools
                 "with the courses I did or take now. This is a help for planning, not a degree audit or a " \
                 "registration check. Read assumptions in the result."
     requires_scope "programs:read"
+    requires_flag FeatureFlags::DEGREE_PLANNING
     academic_planning :degree_requirements, :sections, :course_details
     input_schema(
       properties: {
