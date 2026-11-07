@@ -54,11 +54,25 @@ RSpec.describe DegreeRequirements::PdfCatalog::CourseLeafParser do
       ])
     end
 
-    it "uses the last program on the page when no heading names one" do
+    it "gives no program when no heading names one of the programs on the page" do
       text = file_fixture("degree_requirements/pdf/courseleaf_shared_pages.txt").read
                                                                                .sub("Engineering - Robotics, B.S.\n", "")
 
-      expect(described_class.call(text).last.title).to eq("Robotics Minor")
+      expect(described_class.call(text).last.title).to be_nil
+    end
+
+    it "does not take a program named inside a sentence" do
+      text = file_fixture("degree_requirements/pdf/courseleaf_shared_pages.txt").read
+                                                                               .sub("Engineering - Robotics, B.S.\n", "Students can add the Robotics Minor.\n")
+
+      expect(described_class.call(text).last.title).to be_nil
+    end
+
+    it "gives no program to a plan before the first contents entry" do
+      text = file_fixture("degree_requirements/pdf/courseleaf_shared_pages.txt").read
+                 .gsub(/\.{4,} (\d)$/) { "..... #{Regexp.last_match(1).to_i + 5}" }
+
+      expect(described_class.call(text).map(&:title)).to all(be_nil)
     end
   end
 end

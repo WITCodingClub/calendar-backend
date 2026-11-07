@@ -25,7 +25,7 @@ module DegreeRequirements
       SEASON = /\A\s*(Fall|Spring|Summer) Semester\b/
       # "Computer Science Bachelor of Science ........ 104" or "Engineering -
       # Robotics, B.S. ........ 137" in the table of contents at the front.
-      TOC = /\A(?<indent>\s*)(?<name>[A-Z](?:(?!\.{3}).)*?[a-z).])\s*\.{4,}\s*(?<page>\d{1,3})\s*\z/
+      TOC = /\A(?<indent>\s*)(?<name>[A-Z](?:(?!\.{3}).)*?(?:[a-z)]|[A-Z]\.))\s*\.{4,}\s*(?<page>\d{1,3})\s*\z/
       # A long entry starts on the line above, with the same indent:
       #   Engineering Bachelor of Science with a Concentration in
       #   Biomedical Engineering ........................ 139
@@ -39,7 +39,7 @@ module DegreeRequirements
       # "Four Year Program", "Master of Architecture (2-Year Track)",
       # "Construction Management (Dual Degree)". A line of a paragraph ends
       # with a full stop.
-      PLAN_NAME = /\A[A-Z][^.•]*\b(?:Program|Track|Degree\)|Plan|Option)\s*\z/
+      PLAN_NAME = /\A[A-Z][^.•]*\b(?:Program|Track\)?|Degree\)|Plan|Option)\s*\z/
       CONTENTS_PAGES = 12
       PROGRAM_NAME = /Bachelor|Master|Minor|Certificate|Concentration|Track|Degree|\b[BM]\.S\./
       # A plan on the page of a department heading belongs to the program
@@ -154,13 +154,19 @@ module DegreeRequirements
         lines.map(&:strip).find { |line| line.match?(PLAN_NAME) && line.length <= 70 }
       end
 
-      # The text of the lines just above a plan, also from the page before,
-      # in one line: "Engineering Bachelor of Science with a Concentration
-      # in Biomedical Engineering" is on 3 lines over its plan.
+      # The lines just above a plan, also from the page before.
       def text_before(page_index, line_index)
         lines = @pages[page_index][0...line_index]
         lines = (@pages[page_index - 1] || []) + lines if page_index.positive?
-        lines.last(HEADING_LINES).map(&:strip).join(" ").squeeze(" ")
+        lines.last(HEADING_LINES).map { |line| line.strip.squeeze(" ") }
+      end
+
+      # The last of the lines where a heading with the name starts. A
+      # heading can take several lines: "Engineering Bachelor of Science /
+      # with a Concentration in Biomedical / Engineering". A name inside a
+      # sentence does not count.
+      def heading_line(lines, name)
+        lines.each_index.select { |index| lines[index..].join(" ").start_with?(name) }.max
       end
 
       # The program whose page in the table of contents is the last one at
@@ -170,20 +176,25 @@ module DegreeRequirements
         return nil if printed.nil?
 
         entries = contents.select { |_, start| start <= printed }
+        return nil if entries.empty?
+
         start = entries.map(&:last).max
         # A department and its first program start on the same page, and
         # the program is listed after the department. When programs share a
-        # page, a heading just above the plan can name it. Without one, the
-        # plan is of the last program on the page.
+        # page, a heading just above the plan must name it: a plan can also
+        # be of a program on an earlier page.
         names = entries.filter_map { |name, page| name if page == start && name.match?(PROGRAM_NAME) }
-        return names.select { |name| heading.include?(name) }.max_by { |name| heading.rindex(name) } || names.last if names.any?
+        if names.many?
+          lines = names.index_with { |name| heading_line(heading, name) }.compact
+          return lines.max_by(&:last)&.first
+        end
+        return names.first if names.any?
 
         # A department heading ("Biomedical Engineering") can start below a
         # plan of the program before it, on the same page. A plan under the
         # heading is of one of the department's programs, and the contents
         # do not say which.
-        department = entries.select { |_, page| page == start }.last.first
-        return nil if heading.include?(department)
+        return nil if heading_line(heading, entries.last.first)
 
         program, page = entries.reverse.find { |name, _| name.match?(PROGRAM_NAME) }
         program if page && printed - page <= DEPARTMENT_SLACK
@@ -199,7 +210,7 @@ module DegreeRequirements
             next if match.nil?
 
             name = match[:name]
-            name = "#{start[:name]} #{name}" if start && start[:indent] == match[:indent]
+            name = "#{start[:name]} #{name}" if start && start[:indent] == match[:indent] && !start[:name].match?(/contents/i)
             [ name.squeeze(" "), match[:page].to_i ]
           end
         end
