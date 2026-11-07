@@ -97,6 +97,45 @@ RSpec.describe Catalog::PrerequisiteGraph do
     expect(graph.edges).to all(satisfy { |edge| layer[edge.from] < layer[edge.to] })
   end
 
+  # Review of #448: the old walk capped depths by the node count, so a cycle
+  # moved courses outside it and dropped their real edges. The filler courses
+  # give the graph an odd and an even node count.
+  [ 0, 1 ].each do |fillers|
+    it "drops only the edge that closes a cycle, with #{fillers} extra courses" do
+      outside = create(:catalog_course, subject_code: "COMP", course_number: 4300)
+      first   = create(:catalog_course, subject_code: "COMP", course_number: 4100)
+      second  = create(:catalog_course, subject_code: "COMP", course_number: 4200, prerequisites: all_of(ref(first), ref(outside)))
+      first.update!(prerequisites: ref(second))
+      extra  = create_list(:catalog_course, fillers, subject_code: "FILL").map { |filler| ref(filler) }
+      course = create(:catalog_course, subject_code: "COMP", course_number: 4900, prerequisites: all_of(ref(first), *extra))
+
+      graph = described_class.new(course)
+
+      expect(edges(graph).keys).to include([ "COMP 4300", "COMP 4200" ], [ "COMP 4200", "COMP 4100" ], [ "COMP 4100", "COMP 4900" ])
+      expect(edges(graph).keys).not_to include([ "COMP 4100", "COMP 4200" ])
+      expect(layers(graph)).to include("COMP 4100" => -1, "COMP 4200" => -2, "COMP 4300" => -3)
+    end
+  end
+
+  it "keeps the chain below a prerequisite that lists the course itself" do
+    course = create(:catalog_course, subject_code: "COMP", course_number: 4900)
+    loop_back = create(:catalog_course, subject_code: "COMP", course_number: 4800, prerequisites: ref(course))
+    course.update!(prerequisites: all_of(ref(loop_back), ref(middle)))
+
+    graph = described_class.new(course)
+
+    expect(layers(graph)).to include("COMP 4800" => -1, "COMP 2000" => -1, "COMP 1000" => -2)
+    expect(edges(graph).keys).to include([ "COMP 1000", "COMP 2000" ])
+  end
+
+  it "draws an unlock edge as required when any mention of the course is required" do
+    course = create(:catalog_course, subject_code: "COMP", course_number: 2500)
+    unlocked = create(:catalog_course, prerequisites: all_of(any_of(ref(course), ref(intro)), ref(course)))
+    create(:course_prerequisite, catalog_course: unlocked, required_catalog_course: course)
+
+    expect(described_class.new(course).edges.sole.required).to be(true)
+  end
+
   it "is empty for a course with no prerequisites that unlocks nothing" do
     graph = described_class.new(create(:catalog_course))
 

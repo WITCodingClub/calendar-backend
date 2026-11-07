@@ -20,7 +20,7 @@
         <% position = "left: #{box.x}px; top: #{box.y}px; width: #{Dashboard::PrerequisiteGraphHelper::GRAPH_NODE_WIDTH}px; height: #{Dashboard::PrerequisiteGraphHelper::GRAPH_NODE_HEIGHT}px" %>
         <% label = capture do %>
           <span class="block text-sm font-medium whitespace-nowrap"><%= node.code %></span>
-          <span class="block text-xs truncate <%= node.root? ? 'text-on-primary-container' : 'text-on-surface-variant' %>"><%= node.title.presence || "Not in WIT Calendar" %></span>
+          <span class="block text-xs truncate <%= node.root? ? 'text-on-primary-container' : 'text-on-surface-variant' %>"><%= node.linked ? node.title : "Not in WIT Calendar" %></span>
         <% end %>
         <% if node.root? %>
           <div class="absolute rounded-lg px-3 py-1.5 bg-primary-container text-on-primary-container ring-2 ring-primary"

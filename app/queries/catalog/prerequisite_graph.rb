@@ -19,6 +19,9 @@ module Catalog
     MAX_PREREQUISITES = 40
     MAX_UNLOCKS       = 24
 
+    # The graph reads only these columns. A full row carries the embedding.
+    SUMMARY_COLUMNS = %i[id subject_code course_number title prerequisites].freeze
+
     # code is "COMP 2000". linked is true when WIT Calendar has the course.
     Node = Data.define(:code, :title, :linked, :layer) do
       def root? = layer.zero?
@@ -89,14 +92,15 @@ module Catalog
       drop_backward_edges
     end
 
-    # Breadth first, one query for each level.
+    # Breadth first, in memory. ancestors loads every course the walk can
+    # reach, so the walk itself sends no query.
     def walk_prerequisites
+      known    = ancestors
       frontier = [ course ]
       visited  = Set[course.code]
 
       MAX_DEPTH.times do
         refs = frontier.to_h { |item| [ item, requirement_refs(item.prerequisites) ] }
-        known = find_courses(refs.values.flatten(1).map { |subject, number, _| [ subject, number ] })
         frontier = []
 
         refs.each do |item, list|
@@ -124,39 +128,72 @@ module Catalog
 
     # Each prerequisite goes as far left as its longest chain to the course.
     def assign_prerequisite_layers
-      before = Hash.new { |hash, key| hash[key] = [] }
-      @edges.each_value { |edge| before[edge.to] << edge.from }
+      drop_cycle_edges
 
+      before = prerequisites_of
+      order  = []
+      seen   = Set.new
+      visit  = lambda do |code|
+        next unless seen.add?(code)
+
+        before[code].each { |prerequisite| visit.call(prerequisite) }
+        order << code
+      end
+      visit.call(course.code)
+
+      # The reverse of a depth-first finish order visits a course before its
+      # prerequisites, so each depth is final before it moves left.
       depth = { course.code => 0 }
-      queue = [ course.code ]
-      # A depth only grows, and it stops below the number of nodes, so the
-      # loop ends even when Banner's data has a cycle.
-      while (code = queue.shift)
-        before[code].each do |prerequisite|
-          next if depth.fetch(prerequisite, -1) >= depth[code] + 1 || depth[code] + 1 >= @nodes.size
+      order.reverse_each do |code|
+        next unless depth.key?(code)
 
-          depth[prerequisite] = depth[code] + 1
-          queue << prerequisite
-        end
+        before[code].each { |prerequisite| depth[prerequisite] = [ depth.fetch(prerequisite, 0), depth[code] + 1 ].max }
       end
 
       @nodes.transform_values! { |node| node.with(layer: -depth.fetch(node.code, 1)) }
       @nodes[course.code] = @nodes[course.code].with(layer: 0)
     end
 
+    # Banner's data can have a cycle, such as two courses that list each
+    # other. A depth-first walk from the course finds the edges that close a
+    # cycle. Only those edges go. Every other edge stays.
+    def drop_cycle_edges
+      before   = prerequisites_of
+      on_path  = Set.new
+      finished = Set.new
+      visit    = lambda do |code|
+        on_path << code
+        before[code].each do |prerequisite|
+          if on_path.include?(prerequisite)
+            @edges.delete([ prerequisite, code ])
+          elsif !finished.include?(prerequisite)
+            visit.call(prerequisite)
+          end
+        end
+        on_path.delete(code)
+        finished << code
+      end
+      visit.call(course.code)
+    end
+
+    # { "COMP 2000" => ["COMP 1050", ...] }: the prerequisites of each course.
+    def prerequisites_of
+      @edges.each_value.with_object(Hash.new { |hash, key| hash[key] = [] }) { |edge, map| map[edge.to] << edge.from }
+    end
+
     def add_unlocks
-      unlocks = course.unlocks.distinct.order(:subject_code, :course_number).to_a
+      unlocks = course.unlocks.distinct.select(*SUMMARY_COLUMNS).order(:subject_code, :course_number).to_a
       unlocks.reject! { |unlocked| @nodes.key?(unlocked.code) }
       @hidden_unlocks = [ unlocks.size - MAX_UNLOCKS, 0 ].max
 
       unlocks.first(MAX_UNLOCKS).each do |unlocked|
         add_node(unlocked, unlocked.code, layer: 1)
-        ref = requirement_refs(unlocked.prerequisites).find { |subject, number, _| subject == course.subject_code && number == course.course_number }
-        add_edge(course.code, unlocked.code, ref ? ref.last : true)
+        refs = requirement_refs(unlocked.prerequisites).select { |subject, number, _| subject == course.subject_code && number == course.course_number }
+        add_edge(course.code, unlocked.code, refs.empty? || refs.any?(&:last))
       end
     end
 
-    # A cycle in Banner's data can leave an edge that points right to left.
+    # A last guard: an edge that still points right to left is not drawn.
     def drop_backward_edges
       @edges.select! { |_, edge| @nodes[edge.from].layer < @nodes[edge.to].layer }
     end
@@ -189,12 +226,27 @@ module Catalog
       end
     end
 
-    def find_courses(pairs)
-      pairs = pairs.uniq
-      return {} if pairs.empty?
+    # Every CatalogCourse that the prerequisite trees name, up to MAX_DEPTH
+    # levels from the course, keyed by [subject_code, course_number]. One
+    # recursive query reads the same trees that requirement_refs reads, so a
+    # course with no course_prerequisites row is still found.
+    def ancestors
+      ids = CatalogCourse.connection.select_values(CatalogCourse.sanitize_sql_array([ <<~SQL.squish, { root: course.id, max_depth: MAX_DEPTH } ]))
+        WITH RECURSIVE walk(id, depth) AS (
+          SELECT id, 0 FROM catalog_courses WHERE id = :root
+          UNION
+          SELECT required.id, walk.depth + 1
+          FROM walk
+          JOIN catalog_courses parent ON parent.id = walk.id
+          CROSS JOIN LATERAL jsonb_path_query(parent.prerequisites, 'lax $.** ? (@.type == "course")') AS leaf
+          JOIN catalog_courses required ON required.subject_code = upper(leaf ->> 'subject_code')
+                                       AND required.course_number = (leaf ->> 'course_number')::integer
+          WHERE walk.depth < :max_depth
+        )
+        SELECT DISTINCT id FROM walk
+      SQL
 
-      conditions = pairs.map { "(subject_code = ? AND course_number = ?)" }.join(" OR ")
-      CatalogCourse.where(conditions, *pairs.flatten).index_by { |found| [ found.subject_code, found.course_number ] }
+      CatalogCourse.select(*SUMMARY_COLUMNS).where(id: ids).index_by { |found| [ found.subject_code, found.course_number ] }
     end
 
     # Moving left from the course, sort each column by the mean position of
