@@ -51,10 +51,11 @@ Rails.application.configure do
   # Keep the cache in Solid Cache, in the calendar_production_cache database
   # (config/cache.yml, db/cache_schema.rb). Production is one Puma process that
   # also runs the jobs (SOLID_QUEUE_IN_PUMA), so a memory store was accurate,
-  # but every deploy started it empty: Rack::Attack counters, Flipper gates,
-  # and the Rate My Professor and faculty directory pages all reset. Solid
-  # Cache keeps them across deploys and stays correct if a second process
-  # (Puma workers or a separate jobs container) comes later.
+  # but every deploy started it empty: Rack::Attack counters and the Rate My
+  # Professor and faculty directory pages all reset. Solid Cache keeps them
+  # across deploys and stays correct if a second process (Puma workers or a
+  # separate jobs container) comes later. Flipper does not use Rails.cache: it
+  # keeps a short cache in each process (config/initializers/flipper.rb).
   # Solid Cache has no delete_matched. Overwrite keys with fetch(force: true)
   # or put a version in the key instead.
   config.cache_store = :solid_cache_store

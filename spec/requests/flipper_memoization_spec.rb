@@ -30,10 +30,35 @@ RSpec.describe "Flipper memoization" do
     expect(memoizing).not_to include(false)
   end
 
-  it "keeps flag reads out of Rails.cache outside the test environment" do
-    initializer = Rails.root.join("config/initializers/flipper.rb").read
+  describe "the flag cache" do
+    def cache_adapter
+      adapter = Flipper.adapter
+      adapter = adapter.adapter until adapter.is_a?(Flipper::Adapters::ActiveSupportCacheStore)
+      adapter
+    end
 
-    expect(initializer).to include("ActiveSupportCacheStore, FLIPPER_CACHE, FLIPPER_CACHE_TTL")
-    expect(initializer).to match(/FLIPPER_CACHE = Rails\.env\.test\? \? Rails\.cache : ActiveSupport::Cache::MemoryStore\.new/)
+    it "puts the cache from FeatureFlags.build_cache in front of the flag store" do
+      expect(cache_adapter.cache).to be(Rails.cache)
+      expect(cache_adapter.ttl).to eq(FeatureFlags::CACHE_TTL)
+    end
+
+    it "keeps flag reads in the process outside the test environment" do
+      cache = FeatureFlags.build_cache(env: ActiveSupport::EnvironmentInquirer.new("production"))
+
+      expect(cache).to be_a(ActiveSupport::Cache::MemoryStore)
+      expect(cache).not_to be(Rails.cache)
+    end
+
+    it "shows a flag change from the same process at once" do
+      store = Flipper::Adapters::Memory.new
+      cache = FeatureFlags.build_cache(env: ActiveSupport::EnvironmentInquirer.new("production"))
+      flipper = Flipper.new(Flipper::Adapters::ActiveSupportCacheStore.new(store, cache, FeatureFlags::CACHE_TTL))
+      flipper.add(:sample_flag)
+      flipper.preload_all
+
+      flipper.enable(:sample_flag)
+
+      expect(flipper.enabled?(:sample_flag)).to be(true)
+    end
   end
 end

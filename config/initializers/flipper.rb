@@ -37,18 +37,16 @@ Rails.application.configure do
   config.middleware.insert_before Rack::Attack, Flipper::Middleware::Memoizer, preload: true
 end
 
-# Flag reads stay in this process for FLIPPER_CACHE_TTL. Rails.cache is Solid
-# Cache in production, so a cache read there is a database query on every
-# request (#682). A flag change through the Flipper UI clears this cache at
-# once. A change from another process, such as `rails runner` or the other
-# deploy slot, shows after at most FLIPPER_CACHE_TTL. Specs keep Rails.cache
-# (a null store), so no flag state carries over between examples.
-FLIPPER_CACHE_TTL = 1.minute
-FLIPPER_CACHE = Rails.env.test? ? Rails.cache : ActiveSupport::Cache::MemoryStore.new(size: 1.megabyte)
-
+# Flag reads stay in this process for FeatureFlags::CACHE_TTL (#682). A flag
+# change, from the Flipper UI or from another process such as `rails runner`
+# or the other deploy slot, shows in every process within that time. The
+# Flipper UI usually clears this process's copy at once, but a request that
+# read the flags just before the change can write the old value back. Before
+# you add Puma workers or a separate jobs container, remember that each process
+# has its own copy.
 Flipper.configure do |config|
   config.use FeatureFlags::UserActorAdapter
-  config.use Flipper::Adapters::ActiveSupportCacheStore, FLIPPER_CACHE, FLIPPER_CACHE_TTL
+  config.use Flipper::Adapters::ActiveSupportCacheStore, FeatureFlags.build_cache, FeatureFlags::CACHE_TTL
 end
 
 Flipper::UI.configure do |config|
