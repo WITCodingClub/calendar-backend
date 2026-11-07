@@ -104,6 +104,9 @@ class CalendarEvent < ApplicationRecord
     meeting_time || final_exam || university_calendar_event || friend_meeting
   end
 
+  # Every field the providers send, so a sync without force sees each change.
+  # The description is last: rows saved before it was in the hash differ once
+  # and update on their next sync.
   def self.generate_data_hash(event_data)
     hash_input = [
       event_data[:summary],
@@ -114,7 +117,8 @@ class CalendarEvent < ApplicationRecord
       event_data[:reminder_settings]&.to_json,
       event_data[:color_id]&.to_s,
       event_data[:visibility],
-      event_data[:all_day]
+      event_data[:all_day],
+      event_data[:description]
     ].join("|")
 
     Digest::SHA256.hexdigest(hash_input)

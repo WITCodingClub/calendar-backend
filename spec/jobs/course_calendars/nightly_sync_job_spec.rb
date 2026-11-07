@@ -18,7 +18,12 @@ RSpec.describe CourseCalendars::NightlySyncJob do
       .to have_enqueued_job(CourseCalendars::SyncJob)
       .with(first_time, force: false, backfill_historical: true, nightly: true)
       .and have_enqueued_job(CourseCalendars::SyncJob)
-      .with(needs_update, force: true, backfill_historical: false, nightly: true)
+      .with(needs_update, force: false, backfill_historical: false, nightly: true)
+  end
+
+  it "does not force any sync, so only changed events reach the provider" do
+    expect { described_class.perform_now }
+      .not_to have_enqueued_job(CourseCalendars::SyncJob).with(anything, hash_including(force: true))
   end
 
   it "does not enqueue a sync for a user who is up to date" do
