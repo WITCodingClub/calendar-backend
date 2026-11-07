@@ -27,9 +27,12 @@
           <% elsif schedule.view_mode == "month" %>
             <input type="hidden" name="month" value="<%= schedule.month_date.strftime("%Y-%m") %>">
           <% end %>
-          <select name="term_uid" aria-label="Term" data-action="change->auto-submit#submit" class="m3-select w-auto">
+          <label for="schedule-term" class="sr-only">Term</label>
+          <select name="term_uid" id="schedule-term" data-action="change->auto-submit#submit" class="m3-select w-auto">
             <%= options_for_select(schedule.terms.map { |term| [ term.name, term.uid ] }, schedule.selected_term&.uid) %>
           </select>
+          <%# Without JavaScript, the select cannot submit the form by itself. %>
+          <noscript><button type="submit" class="m3-btn-tonal text-sm ml-2">Go</button></noscript>
         </form>
       <% end %>
 

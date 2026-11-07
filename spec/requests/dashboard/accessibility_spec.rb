@@ -50,6 +50,32 @@ RSpec.describe "Dashboard accessibility", type: :request do
     end
   end
 
+  # Issue #695: every form field has a label that names it.
+  describe "form labels" do
+    it "labels the template fields and lists the template tokens" do
+      create(:enrollment, user: user)
+      get dashboard_calendar_preferences_path
+
+      %w[title_template description_template location_template].each do |field|
+        input = page.at_css("[name='calendar_preference[#{field}]']")
+        expect(page.at_css("label[for='#{input['id']}']")).to be_present
+        expect(input["aria-describedby"]).to eq("template-tokens")
+      end
+      tokens = page.css("#template-tokens code").map(&:text)
+      expect(tokens).to include("{{course_code}}", "{{building}}", "{{room}}")
+    end
+
+    it "labels the schedule term select and gives it a submit button without JavaScript" do
+      term = create(:term)
+      create(:enrollment, user: user, course: create(:course, term: term))
+      get dashboard_schedule_path, params: { term_uid: term.uid }
+
+      select = page.at_css("select[name='term_uid']")
+      expect(page.at_css("label[for='#{select['id']}']").text).to eq("Term")
+      expect(select.ancestors("form").first.at_css("noscript").inner_html).to include("Go")
+    end
+  end
+
   describe "schedule view toggle" do
     let(:term) { create(:term) }
 

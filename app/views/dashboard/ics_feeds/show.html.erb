@@ -23,6 +23,7 @@
                class="m3-input font-mono text-xs flex-1"
                id="ics-url-field"
                aria-describedby="ics-privacy-warning"
+               data-clipboard-target="source"
                data-action="click->clipboard#select">
         <button type="button"
                 class="m3-btn-tonal text-sm"
@@ -30,12 +31,12 @@
                 data-clipboard-target="label">
           Copy
         </button>
+        <span class="sr-only" role="status" data-clipboard-target="status"></span>
       </div>
     </div>
 
     <div class="flex flex-wrap gap-2 pt-1">
-      <%= link_to "webcal://#{URI.parse(@ics_url).host}#{URI.parse(@ics_url).path}?#{URI.parse(@ics_url).query}",
-          class: "m3-btn-outlined text-sm" do %>
+      <%= link_to @webcal_url, class: "m3-btn-outlined text-sm" do %>
         Open in Calendar app
       <% end %>
     </div>

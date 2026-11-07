@@ -20,6 +20,15 @@ RSpec.describe "Dashboard::IcsFeeds", type: :request do
       expect(response.body.index('id="ics-privacy-warning"')).to be < response.body.index('id="ics-url-field"')
     end
 
+    it "links to the same feed with the webcal scheme" do
+      get dashboard_ics_feed_path
+
+      ics_url = Nokogiri::HTML(response.body).at_css("#ics-url-field")["value"]
+      link = Nokogiri::HTML(response.body).css("a").find { |a| a.text.strip == "Open in Calendar app" }
+      expect(link["href"]).to eq(ics_url.sub(%r{\Ahttps?://}, "webcal://"))
+      expect(link["href"]).to start_with("webcal://")
+    end
+
     it "makes a token for a user who has none" do
       user.update_column(:calendar_token, nil) # rubocop:disable Rails/SkipsModelValidations
 
