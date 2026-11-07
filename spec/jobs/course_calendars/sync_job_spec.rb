@@ -53,12 +53,13 @@ RSpec.describe CourseCalendars::SyncJob do
       previous = described_class.queue_adapter
       described_class.queue_adapter = :solid_queue
 
-      batch = described_class.perform_bulk_in_batch(User.where(id: users.map(&:id)), reason: "finals", force: true)
+      batch = described_class.perform_bulk_in_batch(User.where(id: users.map(&:id)).order(id: :desc), reason: "finals", force: true)
 
       expect(batch.metadata[:reason]).to eq("finals")
       expect(batch.description).to eq("Calendar sync: finals")
       expect(batch.jobs.pluck(:queue_name, :priority).uniq).to eq([ [ "default", described_class::BULK_PRIORITY ] ])
-      expect(batch.jobs.count).to eq(2)
+      expect(batch.jobs.order(:id).map { |job| GlobalID::Locator.locate(job.arguments["arguments"].first["_aj_globalid"]).id })
+        .to eq(users.map(&:id).sort)
       expect(SolidQueue::Job.where(class_name: "CourseCalendars::BulkSyncFinishedJob")).to be_empty
     ensure
       described_class.queue_adapter = previous

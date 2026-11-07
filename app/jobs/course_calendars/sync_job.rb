@@ -33,14 +33,31 @@ module CourseCalendars
       set(queue: :default, priority: BULK_PRIORITY).perform_later(user, **)
     end
 
+    # A bulk sync job that is not enqueued yet, for enqueue_bulk_batch.
+    def self.bulk_job(user, **)
+      new(user, **).set(queue: :default, priority: BULK_PRIORITY)
+    end
+
     # Queues a bulk sync for each user as one Solid Queue batch, and returns
     # the batch. When the last sync ends, CourseCalendars::BulkSyncFinishedJob
     # logs the totals and counts them in calendar_bulk_calendar_syncs_total.
     # `reason` is a short label for the metric (nightly, holidays, finals).
     # Pass the description to find the batch again, as the finals page does.
     def self.perform_bulk_in_batch(users, reason:, description: "Calendar sync: #{reason}", **)
+      enqueue_bulk_batch(users.to_a.map { |user| bulk_job(user, **) }, reason: reason, description: description)
+    end
+
+    # The batch opens one transaction on the queue database, and each job
+    # takes its user's lock row in it (limits_concurrency). The row stays
+    # locked until the commit, so a sync that the person starts waits until
+    # then. So the users are loaded before the transaction, and the jobs go in
+    # with one bulk enqueue, which keeps the transaction short. The jobs go in
+    # by user id, so two bulk batches at the same time take the rows in the
+    # same order and cannot deadlock.
+    def self.enqueue_bulk_batch(jobs, reason:, description: "Calendar sync: #{reason}")
+      jobs = jobs.sort_by { |job| job.arguments.first.id }
       SolidQueue::Batch.enqueue(description: description, on_finish: CourseCalendars::BulkSyncFinishedJob, reason: reason) do
-        users.find_each { |user| perform_bulk_later(user, **) }
+        ActiveJob.perform_all_later(jobs)
       end
     end
 
