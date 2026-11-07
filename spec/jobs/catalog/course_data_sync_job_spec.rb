@@ -418,6 +418,23 @@ RSpec.describe Catalog::CourseDataSyncJob do
         expect(reports).to be_empty
       end
 
+      # A job in the queue at deploy has no first attempt time in its data.
+      it "starts the window at the first attempt of a job queued without the time" do
+        data = job_started(1.hour).serialize.except(Catalog::BannerCooldownRetry::FIRST_ATTEMPT_KEY)
+        job = described_class.new.tap { |j| j.deserialize(data) }
+
+        expect { job.perform_now }.to have_enqueued_job(described_class)
+        expect(job.banner_first_attempt_at).to be_within(5.seconds).of(Time.current)
+      end
+
+      it "tries again when the retry starts exactly at the end of the window" do
+        freeze_time do
+          job = job_started(4.hours - Catalog::BannerCooldownRetry::WAIT)
+
+          expect { job.perform_now }.to have_enqueued_job(described_class)
+        end
+      end
+
       it "stops at the end of the window and reports the cooldown as handled" do
         reports = capture_error_reports do
           expect { job_started(4.hours).perform_now }.not_to have_enqueued_job(described_class)

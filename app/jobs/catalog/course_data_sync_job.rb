@@ -18,8 +18,9 @@ module Catalog
     # for a few minutes. Stop the run and start again after the cooldown,
     # instead of reporting one error for each remaining course. Banner stops
     # answering about every 10 minutes, so a full run needs many attempts.
-    # The run starts at 4am and stops trying at 8am, before most students use
-    # the site and share Banner with it. The next night continues the work.
+    # The run stops trying 4 hours after its first attempt, about 8am for the
+    # 4am run, before most students use the site and share Banner with it. The
+    # next night continues the work.
     include Catalog::BannerCooldownRetry
     retry_banner_cooldown within: 4.hours
 

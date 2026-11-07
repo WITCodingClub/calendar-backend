@@ -37,14 +37,16 @@ The Banner calls of a web request run inside a Puma thread, so these limits keep
 
 ## When Banner cools down
 
-After 5 failed Banner requests in a row, `Catalog::BannerThrottle` refuses every Banner request for 3 minutes and raises `CooldownError`. `Catalog::CourseDataSyncJob` and `Catalog::SectionRefreshJob` include `Catalog::BannerCooldownRetry`. On a cooldown, the job tries again after 3.5 minutes. It continues until a time window from its first attempt ends:
+After 5 failed Banner requests in a row, `Catalog::BannerThrottle` refuses every Banner request for 3 minutes and raises `CooldownError`. `Catalog::CourseDataSyncJob` and `Catalog::SectionRefreshJob` include `Catalog::BannerCooldownRetry`. On a cooldown, the job tries again after 3.5 minutes, plus up to 15% at random so that jobs do not all wake at the same time. It continues until a time window from its first attempt ends:
 
 | Job | Window |
 | --- | --- |
-| `Catalog::CourseDataSyncJob` | 4 hours: the 4am run stops trying at 8am |
+| `Catalog::CourseDataSyncJob` | 4 hours: the 4am run stops trying at about 8am |
 | `Catalog::SectionRefreshJob` | 15 minutes |
 
 At the end of the window, the job reports the `CooldownError` as handled and stops. It does not go to the failed list. The nightly sync syncs the sections confirmed longest ago first, so the next night continues the work.
+
+The time of the first attempt stays in the job data. A retry from the admin page of a job whose window ended gets no new window, so it stops at its first cooldown.
 
 Each retry is a new Solid Queue job, so the admin page shows it as a scheduled job that was enqueued seconds ago, with a retry count. That is a normal wait, not a stuck job.
 

@@ -15,12 +15,21 @@ module Catalog
   # first attempt ends. Then it reports the error as handled and stops, so the
   # failed list keeps only real errors.
   #
+  # The time of the first attempt stays in the job data. A retry from the admin
+  # page of a job that failed after its window ended gets no new window: it
+  # stops at its first cooldown. The next nightly run does the work.
+  #
   #   include Catalog::BannerCooldownRetry
   #   retry_banner_cooldown within: 4.hours
   module BannerCooldownRetry
     extend ActiveSupport::Concern
 
     WAIT = Catalog::BannerThrottle::COOLDOWN + 30.seconds
+
+    # Up to this share of WAIT is added at random, as retry_on does. Without
+    # it, every job that hit the same cooldown wakes in the same second and can
+    # open the next cooldown together.
+    JITTER = 0.15
 
     # The key in the serialized job. Each retry is a new Solid Queue job, so the
     # time of the first attempt travels with the job data.
@@ -34,7 +43,7 @@ module Catalog
 
       rescue_from Catalog::BannerThrottle::CooldownError do |error|
         if banner_cooldown_retry?
-          retry_job(wait: WAIT, error: error)
+          retry_job(wait: WAIT + (WAIT * JITTER * rand), error: error)
         else
           Rails.logger.warn "[#{self.class.name}] Banner did not answer for #{banner_cooldown_window.inspect}. Stopped."
           Rails.error.report(error, handled: true,
