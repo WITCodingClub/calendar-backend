@@ -198,12 +198,34 @@ module AcademicProfiles
       items.select(&:choice?).each do |item|
         results[item.id] = take(pool, used, item.options.map { |option| [ option["subject_code"], option["course_number"].to_i ] })
       end
-      items.select(&:placeholder?).each do |item|
-        group = groups[item.elective_group_id]
-        results[item.id] = group ? take(pool, used, group.courses.map { |course| [ course.subject_code, course.course_number ] }) : nil
+      # A slot with a list of courses goes first, then a slot with a list of
+      # subjects (an HSS elective), then a free elective. A broad slot then
+      # does not use a course that a narrow one needs.
+      slots = items.select(&:placeholder?).filter_map { |item| [ item, groups[item.elective_group_id] ] if item.elective_group_id }
+      slots.sort_by.with_index { |(_, group), index| [ breadth(group), index ] }.each do |item, group|
+        results[item.id] = take_for(pool, used, group)
       end
 
       items.map { |item| item_json(item, results[item.id]) }
+    end
+
+    def breadth(group)
+      return 2 if group.any_course
+      return 1 if group.subject_codes.any?
+
+      0
+    end
+
+    # The best unused course that meets an elective list: a course on the
+    # list, a course in one of its subjects, or any course.
+    def take_for(pool, used, group)
+      codes = group.courses.map { |course| [ course.subject_code, course.course_number ] }
+      return take(pool, used, codes) unless group.any_course || group.subject_codes.any?
+
+      keys = codes.flat_map { |code| equivalents(code) }
+      take_where(pool, used) do |candidate|
+        group.any_course || keys.include?(candidate.key) || group.subject_codes.include?(candidate.subject_code)
+      end
     end
 
     def item_json(item, course)
@@ -215,8 +237,8 @@ module AcademicProfiles
         label:         item.label,
         options:       item.options.map { |option| "#{option['subject_code']} #{option['course_number']}" },
         elective_list: item.elective_group&.name,
-        # A slot with no elective list, such as a free elective, cannot be
-        # checked, so it stays open.
+        # A slot with no elective list, such as a "CONM Elective" whose page
+        # prints no list, cannot be checked, so it stays open.
         checkable:     !item.placeholder? || item.elective_group.present?,
         status:        course ? course.status : "open",
         course:        course&.code,
@@ -286,8 +308,12 @@ module AcademicProfiles
     # before one in progress. Marks it used.
     def take(pool, used, codes)
       keys = codes.flat_map { |code| equivalents(code) }.uniq
+      take_where(pool, used) { |candidate| keys.include?(candidate.key) }
+    end
+
+    def take_where(pool, used)
       course = pool.reject { |candidate| used.include?(candidate) }
-                   .select { |candidate| keys.include?(candidate.key) }
+                   .select { |candidate| yield candidate }
                    .min_by { |candidate| RANK.fetch(candidate.status) }
       used << course if course
       course

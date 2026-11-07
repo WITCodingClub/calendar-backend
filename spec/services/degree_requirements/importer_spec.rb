@@ -48,7 +48,9 @@ RSpec.describe DegreeRequirements::Importer do
       .to eq([ [ "Four Year Program", 2, false ], [ "Three Year Program", 3, true ] ])
     expect(set.program_plans.first.items.pluck(:kind).tally).to eq("course" => 4, "placeholder" => 3, "choice" => 2)
     expect(set.elective_groups.map { |group| [ group.name, group.program_plan&.position, group.courses.size ] })
-      .to eq([ [ "Widget Electives", 0, 3 ], [ "Widget Electives", 1, 2 ] ])
+      .to eq([ [ "Widget Electives", 0, 3 ], [ "Widget Electives", 1, 2 ], [ "English Sequence", nil, 5 ] ])
+    # The page prints no English list: SharedElectives adds the shared one.
+    expect(set.program_plans.first.items.find_by!(label: "English Sequence").elective_group.name).to eq("English Sequence")
   end
 
   it "links a placeholder to its elective list, and a course code to the Banner course" do

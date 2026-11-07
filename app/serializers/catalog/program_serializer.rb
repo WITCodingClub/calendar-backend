@@ -71,13 +71,17 @@ module Catalog
 
     def group_json(group)
       {
-        name:        group.name,
-        heading:     group.heading,
-        plan:        group.program_plan&.name,
-        min_courses: group.min_courses,
-        min_credits: group.min_credits,
-        notes:       group.notes,
-        courses:     group.courses.map do |course|
+        name:          group.name,
+        heading:       group.heading,
+        plan:          group.program_plan&.name,
+        min_courses:   group.min_courses,
+        min_credits:   group.min_credits,
+        notes:         group.notes,
+        # A rule in place of, or next to, the courses: any course in these
+        # subjects, or any course at all (DegreeRequirements::SharedElectives).
+        subject_codes: group.subject_codes,
+        any_course:    group.any_course,
+        courses:       group.courses.map do |course|
           course_json(course.subject_code, course.course_number).merge(requires_approval: course.requires_approval)
         end
       }

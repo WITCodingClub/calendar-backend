@@ -56,6 +56,8 @@ module DegreeRequirements
         matched.each { |program, plans| write(program, plans, digest, url) }
         CatalogYearCourses.call(@catalog_year, matched.values.flatten(1).map(&:plan)) if pdf_only?
         ProgramPlanItem.link_catalog_courses
+        # SharedElectives (in PlanWriter) adds the English sequence courses.
+        ElectiveGroupCourse.link_catalog_courses
         AcademicProfiles::ProgramMatcher.relink_active
         @catalog_year.update!(status: "imported", imported_at: Time.current) if pdf_only?
 

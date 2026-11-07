@@ -5,12 +5,14 @@
 # Table name: elective_groups
 #
 #  id                 :bigint           not null, primary key
+#  any_course         :boolean          default(FALSE), not null
 #  heading            :text
 #  min_courses        :integer
 #  min_credits        :integer
 #  name               :string           not null
 #  notes              :text
 #  position           :integer          default(0), not null
+#  subject_codes      :string           default([]), not null, is an Array
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
 #  program_plan_id    :bigint
@@ -33,6 +35,21 @@ FactoryBot.define do
     heading { "#{name}, select two (2) courses from the following list:" }
     min_courses { 2 }
     sequence(:position)
+
+    # A shared list from DegreeRequirements::SharedElectives.
+    trait :subjects do
+      name { "HSS Electives" }
+      heading { "Humanities or social science elective" }
+      min_courses { nil }
+      subject_codes { %w[HIST PSYC] }
+    end
+
+    trait :any_course do
+      name { "Free Electives" }
+      heading { "Free or general elective" }
+      min_courses { nil }
+      any_course { true }
+    end
 
     trait :for_plan do
       program_plan { association :program_plan, requirement_set: requirement_set }

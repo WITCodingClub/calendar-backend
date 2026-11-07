@@ -275,13 +275,15 @@ module McpTools
         ),
         elective_lists: array(
           object(
-            name:        STRING,
-            heading:     nullable(STRING),
-            plan:        nullable(STRING),
-            min_courses: nullable(INTEGER),
-            min_credits: nullable(INTEGER),
-            notes:       nullable(STRING),
-            courses:     array(object(code: STRING, title: nullable(STRING), requires_approval: BOOLEAN))
+            name:          STRING,
+            heading:       nullable(STRING),
+            plan:          nullable(STRING),
+            min_courses:   nullable(INTEGER),
+            min_credits:   nullable(INTEGER),
+            notes:         nullable(STRING),
+            subject_codes: STRINGS,
+            any_course:    BOOLEAN,
+            courses:       array(object(code: STRING, title: nullable(STRING), requires_approval: BOOLEAN))
           )
         )
       )

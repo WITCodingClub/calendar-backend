@@ -91,6 +91,37 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     expect(rows.first[:options]).to eq([ "WDGT 2000", "WDGT 2100" ])
   end
 
+  it "meets a subject list with a course in a subject, and a free elective with any course left" do
+    free = create(:elective_group, :any_course, requirement_set: set)
+    hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: %w[HIST PSYC])
+    item(:placeholder, label: "Free Elective", elective_group: free)
+    item(:placeholder, label: "HSS Elective", elective_group: hss)
+    item(:placeholder, label: "HSS Elective", elective_group: hss)
+    take(past_term, "PSYC", 1000)
+    take(current_term, "WDGT", 2000)
+
+    rows = progress[:programs].first[:requirements]
+
+    # The free elective is first in the plan, but takes a course only after
+    # the HSS slots, so it does not use the PSYC course.
+    expect(rows.map { |row| row.slice(:label, :status, :course, :checkable) }).to eq([
+      { label: "Free Elective", status: "in_progress", course: "WDGT 2000", checkable: true },
+      { label: "HSS Elective", status: "done", course: "PSYC 1000", checkable: true },
+      { label: "HSS Elective", status: "open", course: nil, checkable: true }
+    ])
+  end
+
+  it "gives a course to a slot with a list of courses before a subject list" do
+    hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: %w[PSYC])
+    directed = create(:elective_group, requirement_set: set, name: "HSS Elective (PSYC4552)")
+    create(:elective_group_course, elective_group: directed, subject_code: "PSYC", course_number: 4552)
+    item(:placeholder, label: "HSS Elective", elective_group: hss)
+    item(:placeholder, label: "HSS Elective (PSYC4552)", elective_group: directed)
+    take(past_term, "PSYC", 4552)
+
+    expect(statuses(progress)).to eq([ [ "HSS Elective", "open" ], [ "HSS Elective (PSYC4552)", "done" ] ])
+  end
+
   it "counts each course once, and gives it to a required row before an elective slot" do
     group = create(:elective_group, requirement_set: set)
     create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 1000)

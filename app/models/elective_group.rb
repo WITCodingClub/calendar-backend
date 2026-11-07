@@ -12,12 +12,14 @@
 # Table name: elective_groups
 #
 #  id                 :bigint           not null, primary key
+#  any_course         :boolean          default(FALSE), not null
 #  heading            :text
 #  min_courses        :integer
 #  min_credits        :integer
 #  name               :string           not null
 #  notes              :text
 #  position           :integer          default(0), not null
+#  subject_codes      :string           default([]), not null, is an Array
 #  created_at         :datetime         not null
 #  updated_at         :datetime         not null
 #  program_plan_id    :bigint

@@ -4,7 +4,8 @@ module DegreeRequirements
   # Writes the plans and elective lists of one requirement set, from a
   # program page (Importer) or a PDF (PdfCatalog::Importer). Plans keep
   # their ids, so later tables can point to them. Plan rows and elective
-  # lists are written again each time.
+  # lists are written again each time. Then SharedElectives links the slots
+  # whose list is on a catalog policy page, such as "HSS Elective".
   class PlanWriter
     def self.call(set, plans:, groups:) = new(set, plans, groups).call
 
@@ -32,6 +33,7 @@ module DegreeRequirements
 
       insert_group_courses(@groups, groups)
       insert_plan_items(@plans, plans, groups)
+      SharedElectives.call(@set)
     end
 
     private

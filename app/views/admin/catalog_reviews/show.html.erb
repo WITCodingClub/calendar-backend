@@ -1,6 +1,6 @@
 <%= render "admin/shared/page_header",
     title: "#{@set.name} (#{@set.catalog_year.name})",
-    subtitle: "Compare each plan with the PDF page. The import reads course codes, titles, and credits; it does not read the elective lists.",
+    subtitle: "Compare each plan with the PDF page. The import reads course codes, titles, and credits. It does not read the program's own elective lists: only the shared lists from the catalog policy pages (HSS, English sequence, co-op, free electives) are linked.",
     back: [ "Catalog review", admin_catalog_reviews_path ] do %>
   <% if @set.source_pdf? && @set.path.present? %>
     <%# A PDF set's path is on the catalog site: "/previous-catalogs/<file>.pdf#page=140". %>
@@ -36,7 +36,23 @@
         <% end %>
         <% t.column("Title or label") { |item| item.label } %>
         <% t.column("Credits", align: :right) { |item| [ item.min_credits, item.max_credits ].compact.uniq.join("-") } %>
+        <% t.column("Elective list") { |item| item.elective_group&.name || (item.placeholder? ? "None" : nil) } %>
       <% end %>
+    <% end %>
+  <% end %>
+
+  <%= render "admin/shared/card", title: "Elective lists", subtitle: "A slot with no list stays open in degree progress.", flush: true do %>
+    <%= admin_table(@set.elective_groups, empty: "This set has no elective lists.", card: false, paginate: false) do |t| %>
+      <% t.column("Name", primary: true) { |group| group.name } %>
+      <% t.column("Counts") do |group| %>
+        <% if group.any_course %>
+          Any course
+        <% elsif group.subject_codes.any? %>
+          Any <%= group.subject_codes.join(", ") %> course
+        <% end %>
+        <%= group.courses.map { |course| "#{course.subject_code}#{course.course_number}" }.join(", ") %>
+      <% end %>
+      <% t.column("Notes") { |group| group.notes } %>
     <% end %>
   <% end %>
 </div>
