@@ -220,3 +220,26 @@ flowchart TD
   T --> L
   L --> R[Rows: done, in_progress, open]
 ```
+
+## Next term courses
+
+`AcademicProfiles::NextTermCourses` (#449) answers "what does my plan say I take next term?". The My programs page shows it in the "Plan for <term>" card. `GET /api/user/next_term_courses` and the MCP tool `my_next_term_courses` send the same hash.
+
+- The term is the `term` argument (a Banner code or a label), or the next fall or spring term after `Term.current`. Students register for fall during the spring term, so the default skips summer.
+- It reads the rows of `DegreeProgress` for each active program with a plan of study, and maps each plan semester to a term with `ProgramTimeline.term_uid` and the program's start term.
+- `planned` holds the rows of the plan semester in the term that are not done or in progress. `behind` holds the open rows of earlier plan semesters that already started (the current term or earlier). A row between the current term and a later `term` argument is in neither list.
+- Each course in a row has `offered` (the term has an active section; null when WIT Calendar has no sections of the term yet) and `prerequisites`: `met`, `not_met` with the `missing` courses, `unknown`, or null when `CatalogCourse` has no prerequisites. The options of an `or` are one `missing` entry, such as `WDGT 1100 or WDGT 1200`.
+- A course done or in progress in a term before the term meets a prerequisite, also through a `CourseCodeAlias`. A course in the same term does not, as in Banner.
+- A D (`passed_below_c`) meets a prerequisite with no minimum or a D minimum, but not a C minimum. A minimum above C is `unknown`, because outcomes do not store the letter grade. A test score is `unknown`.
+- The section check and the catalog lookup also try the aliases of a code, so a plan from an old catalog year finds the renumbered course.
+- It is a help for planning, not a registration check. Registration happens in LeopardWeb.
+
+```mermaid
+flowchart TD
+  D[DegreeProgress rows] --> M{Plan semester term vs next term}
+  P[Program start term] --> M
+  M -- same term, not done or in progress --> PL[planned]
+  M -- earlier term, open --> B[behind]
+  PL --> C[Each course: section in term? prerequisites met?]
+  B --> C
+```

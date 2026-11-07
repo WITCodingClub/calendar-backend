@@ -54,6 +54,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
 | `my_programs` | Your programs from LeopardWeb with the catalog year, the program slug, the plan of study, and the start term of each, your planned programs and pathways, and your ended programs. | `GET /api/user/programs` | |
 | `my_degree_progress` | The requirements of your programs next to the courses you took or take: each row done, in progress, or open, and the open rows. A planning help, not a degree audit. | `GET /api/user/degree_progress` | |
+| `my_next_term_courses` | The plan courses of the term you register for next, and the open rows you are behind on, each with a section check and a prerequisite check. A planning help, not a registration check. | `GET /api/user/next_term_courses` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |
 | `list_friends` | Your friends and their ids. | `GET /api/friends` | |
@@ -242,7 +243,7 @@ Rules:
 - The templates share `app/views/mcp_apps/shared/base.css` (the colors, the type, and the course colors) and `shared/app.js` (the host bridge and the time helpers). A line `/* @include shared/base.css */` or `// @include shared/app.js` in a template becomes the file when `McpTools::AppResource` serves it. A template calls `App.start({ name, render })`.
 - One course has one color in every app: a lecture and its lab (`CHEM 1100-13E`, `CHEM 1100-15E`) match.
 - The page uses the host CSS variables (for example `--color-background-primary`) and has its own `light-dark()` values when the host gives none.
-- Do not put an app behind a Flipper flag. The tool scope is the gate, the same as for the tool.
+- Do not put an app template behind a Flipper flag. The scope and the flag of its tool (`requires_flag`) are the gate.
 - Each app has a system spec, `spec/system/mcp_<app>_spec.rb`. It puts the template in an iframe with the fake host of `spec/support/mcp_app_host.rb`, and sends it a real tool result.
 
 To add an app: add the HTML file with the two include lines, add a `McpTools::AppResource` subclass in `app/services/mcp_tools/` (see `McpTools::FinalsApp`), add it to `McpTools.app_resources`, call `meta YourApp.tool_meta` in each tool that uses it, and add a system spec.
@@ -333,7 +334,7 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 | `schedule:read` | `my_courses`, `my_course_history`, `my_finals`, `my_busy_times` | checked |
 | `friends:read` | `list_friends`, `friend_busy_times` | checked |
 | `settings:read` | `my_calendar_settings`, `preview_template` | checked |
-| `programs:read` | `my_programs`, `my_degree_progress` | checked |
+| `programs:read` | `my_programs`, `my_degree_progress`, `my_next_term_courses` | checked |
 | `settings:write` | `update_class_settings`, `update_calendar_settings` | unchecked |
 | `notifications:write` | `set_notifications` | unchecked |
 | `programs:write` | `update_my_planned_programs` | unchecked |
@@ -438,9 +439,10 @@ Rules:
 5. Call `authorize` for any record that belongs to a user. Reuse the policies, queries, and serializers of the matching API endpoint. If no endpoint gives the data, add one too, so the extension and the MCP server stay equal.
 6. A tool with a semantic search calls `spend_semantic_search!` first. A tool whose answer a student can use to plan courses calls `academic_planning` with the keys of its data sources (`Catalog::Freshness::SOURCES`), so its result carries the advisory.
    If a WIT Calendar page shows the same data, call `links` (see [Page links](#page-links)).
-7. Add the class to `McpTools.all`, and add a row to the table above and to the permissions table.
-8. Write a spec in `spec/services/mcp_tools/`. Check that a token without the scope gets a tool error.
-9. Add calls of the tool to `spec/services/mcp_tools/output_schemas_spec.rb`. Use full data and sparse data: nil fields and empty lists.
+7. If the matching API endpoint is behind a Flipper flag, call `requires_flag` with the same flag (`FeatureFlags`). While the flag is off for the user, a call gets a tool error. `tools/list` still lists the tool, because the list is the same for every token (see "Cache hints").
+8. Add the class to `McpTools.all`, and add a row to the table above and to the permissions table.
+9. Write a spec in `spec/services/mcp_tools/`. Check that a token without the scope gets a tool error. Tag a flagged tool spec with the flag, for example `:degree_planning`.
+10. Add calls of the tool to `spec/services/mcp_tools/output_schemas_spec.rb`. Use full data and sparse data: nil fields and empty lists.
 
 ### Output schemas
 

@@ -25,7 +25,7 @@ Rails 8 app that scrapes WIT course data and syncs it to Google Calendar. Specs 
 ## MCP tools
 
 - Every MCP tool names the OAuth scope it needs with `requires_scope`, from `McpTools::Scopes`. A read tool inherits `McpTools::BaseTool`. A tool that changes data inherits `McpTools::BaseWriteTool`, changes only the signed-in student's own data, and has a matching API endpoint. A tool that reaches other people gets its own scope. `docs/mcp.md` gives the steps to add one.
-- Do not put MCP tools behind a Flipper flag. The scopes on the consent page are the gate.
+- An MCP tool uses the same Flipper flag as its matching API endpoint: call `requires_flag` with the flag from `FeatureFlags`. The scope is still needed. A flag-off call gets a tool error; `tools/list` still shows the tool to every token.
 - A tool that reads a user's record calls `authorize` with the same policy as the matching API endpoint.
 - Raise `McpTools::ToolError` for a bad argument. The client gets the message as a tool error.
 - Each catalog tool matches a public catalog endpoint (the table in `docs/mcp.md`). When a catalog endpoint or filter changes, change the tool in the same PR. Put shared logic in the `Catalog::` query objects, not in a controller.

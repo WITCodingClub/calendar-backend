@@ -17,6 +17,7 @@ module McpTools
                 "(planned_pathways; each planned program names its pathway), and my ended programs, such as a major " \
                 "I changed. program is null when WIT Calendar cannot link the program to the degree catalog."
     requires_scope "programs:read"
+    requires_flag FeatureFlags::DEGREE_PLANNING
     academic_planning :degree_requirements
     input_schema(properties: {})
     # message is there only when the student has no programs.

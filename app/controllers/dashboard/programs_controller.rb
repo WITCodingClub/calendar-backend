@@ -18,6 +18,7 @@ module Dashboard
 
       @programs = StudentProgramsSerializer.new(current_user).as_json
       @progress = degree_progress
+      @next_term = @progress && AcademicProfiles::NextTermCourses.new(current_user, programs: @programs, progress: @progress).call
       query = Catalog::ProgramQuery.new
       @catalog_years = query.catalog_years.to_a
       @catalog_programs = @catalog_years.first ? query.call(catalog_year: @catalog_years.first).to_a : []

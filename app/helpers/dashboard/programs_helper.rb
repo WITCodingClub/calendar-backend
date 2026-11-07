@@ -62,6 +62,29 @@ module Dashboard
       row[:label] || row[:code] || row[:elective_list].to_s
     end
 
+    # The text of one row of AcademicProfiles::NextTermCourses: its code,
+    # "one of" its options, or its label with its elective list.
+    def next_term_row_text(row)
+      return row[:code] if row[:kind] == "course"
+      return "One of: #{row[:courses].pluck(:code).join(', ')}" if row[:kind] == "choice"
+
+      [ row[:label], (row[:elective_list] if row[:elective_list] && row[:elective_list] != row[:label]) ].compact.join(": ")
+    end
+
+    def next_term_offered_badge(offered)
+      return nil if offered.nil?
+
+      offered ? tag.span("Offered", class: "m3-badge m3-badge-primary") : tag.span("No section", class: "m3-badge m3-badge-secondary")
+    end
+
+    def next_term_prerequisite_badge(course)
+      case course[:prerequisites]
+      when "met" then tag.span("Prerequisites met", class: "m3-badge m3-badge-primary")
+      when "not_met" then tag.span("Needs #{course[:missing].join(', ')}", class: "m3-badge m3-badge-tertiary")
+      when "unknown" then tag.span("Check prerequisites", class: "m3-badge m3-badge-secondary")
+      end
+    end
+
     # The open rows of a planned program: the courses it adds. A row that an
     # active program also requires is marked shared, because one course can count for both. For a
     # choice, one shared option is enough.

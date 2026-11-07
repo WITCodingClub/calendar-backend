@@ -17,8 +17,8 @@ The Flipper flag `degree_planning` (#944) is off by default. While it is off for
 |---|---|
 | Every `/dashboard/programs*` route: the page, edit, plan, planned programs, planned pathways, and profile | `GET` and `PUT /api/user/academic_profile` |
 | `GET /api/user/programs` | `PUT /api/user/course_outcomes` |
-| `POST` and `DELETE /api/user/planned_programs` and `/api/user/planned_pathways` | The MCP tools (`my_programs`, `my_degree_progress`, `update_my_planned_programs`) |
-| `GET /api/user/degree_progress` | |
+| `POST` and `DELETE /api/user/planned_programs` and `/api/user/planned_pathways` | The MCP tools (`my_programs`, `my_degree_progress`, `my_next_term_courses`, `update_my_planned_programs`) |
+| `GET /api/user/degree_progress` and `GET /api/user/next_term_courses` | |
 
 ```mermaid
 flowchart LR
@@ -30,7 +30,7 @@ flowchart LR
 ```
 
 - The extension keeps sending LeopardWeb data while the flag is off, so the data is ready when the flag turns on.
-- The MCP tools have no flag. The `programs:read` and `programs:write` scopes on the consent page are their gate.
+- The MCP tools `my_programs`, `my_degree_progress`, `my_next_term_courses` and `update_my_planned_programs` have the same flag (`requires_flag`). While it is off, a call gets a tool error. They also need the `programs:read` or `programs:write` scope. `tools/list` still lists them, because that list is the same for every token.
 - Turn on the flag for one test account first in the Flipper UI (`/admin/flipper`). The extension can read it as `degreePlanning` from `GET /api/user/feature_flags`.
 
 ## What we do not store
