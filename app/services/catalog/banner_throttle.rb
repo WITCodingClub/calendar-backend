@@ -121,14 +121,18 @@ module Catalog
         end
       end
 
-      # A job waits longer for Banner than a web request. ActiveJob puts the
-      # job in ActiveSupport::ExecutionContext. Code that starts threads copies
-      # the context into them (Concurrently, Courses::Processor), so a request
-      # sent from a worker thread gets the budget of the job or the request
-      # that started it. with_budget picks a budget by hand, for a rake task.
+      # A web request waits less for Banner than anything else. Rails puts
+      # the controller (or the job) in ActiveSupport::ExecutionContext. Code
+      # that starts threads copies the context into them (Concurrently,
+      # Courses::Processor), so a request sent from a worker thread gets the
+      # budget of the request or job that started it. A rake task, a runner
+      # script, or the console has neither and gets the job budget.
+      # with_budget picks a budget by hand.
       def current_budget
         context = ActiveSupport::ExecutionContext.to_h
-        context[:banner_budget] || (context[:job] ? :job : :request)
+        return context[:banner_budget] if context[:banner_budget]
+
+        context[:controller] && !context[:job] ? :request : :job
       end
 
       def with_budget(name, &)
@@ -176,6 +180,19 @@ module Catalog
 
         begin
           response = @app.call(env)
+        rescue Faraday::TimeoutError
+          # Banner answers, but slower than a web request may wait. Another
+          # try would hold the Puma thread longer, and the shared cooldown
+          # would also stop the jobs, which have time to wait. So a web request
+          # gives up at once and does not count toward the cooldown (#683).
+          if name == :request
+            self.class.count(:failed)
+            raise
+          end
+
+          self.class.record_failure
+          delay = backoff(retries)
+          raise unless retry?(env, budget, retries, waited + delay)
         rescue *RETRY_EXCEPTIONS
           self.class.record_failure
           delay = backoff(retries)

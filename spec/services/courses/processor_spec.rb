@@ -136,6 +136,13 @@ RSpec.describe Courses::Processor do
       expect(Catalog::LeopardWebClient).not_to have_received(:get_class_details)
     end
 
+    # #call groups by the raw values and asks Banner once for each group.
+    it "counts a CRN sent as a number and as a string as two sections" do
+      mixed = payload(described_class::MAX_SECTIONS / 2 + 1) + payload(described_class::MAX_SECTIONS / 2 + 1).map { |c| c.merge(crn: c[:crn].to_i) }
+
+      expect { described_class.new(mixed, user).validate! }.to raise_error(Courses::InvalidPayloadError)
+    end
+
     it "counts a section once, however many meetings it has" do
       processor = described_class.new(payload(described_class::MAX_SECTIONS, meetings_each: 2), user)
 

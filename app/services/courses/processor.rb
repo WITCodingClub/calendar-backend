@@ -356,7 +356,10 @@ module Courses
         end
       end
 
-      sections = courses.map { |c| [ c[:crn].to_s, c[:term].to_s ] }.uniq.size
+      # The same key as the grouping in #call, so the count matches the number
+      # of Banner lookups. "12345" and 12345 are two keys there, so they count
+      # twice here too.
+      sections = courses.map { |c| [ c[:crn], c[:term] ] }.uniq.size
       return if sections <= MAX_SECTIONS
 
       raise Courses::InvalidPayloadError, "A request can have at most #{MAX_SECTIONS} sections, got #{sections}"

@@ -61,6 +61,14 @@ RSpec.describe Courses::Reprocessor do
 
       expect { described_class.new(unknown, user).call }.to raise_error(ArgumentError, "Term with UID 209910 not found")
     end
+
+    it "keeps the enrollments when the payload has more sections than the limit" do
+      enrollment = create(:enrollment, user: user, course: create(:course, term: term, crn: 55555))
+      too_many = Array.new(Courses::Processor::MAX_SECTIONS + 1) { |i| { crn: (20_000 + i).to_s, term: "202710" } }
+
+      expect { described_class.new(too_many, user).call }.to raise_error(Courses::InvalidPayloadError)
+      expect(Enrollment.exists?(enrollment.id)).to be(true)
+    end
   end
 
   describe "#term_uid" do
