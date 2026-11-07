@@ -1,0 +1,36 @@
+# frozen_string_literal: true
+
+require "rails_helper"
+
+RSpec.describe DegreeRequirements::PdfCatalog::CourseLeafParser do
+  subject(:programs) { described_class.call(file_fixture("degree_requirements/pdf/courseleaf.txt").read) }
+
+  let(:science) { programs.first }
+
+  it "names the program from the table of contents and the printed page number" do
+    expect(science).to have_attributes(title: "Computer Science Bachelor of Science", page: 3)
+    expect(science.plan).to have_attributes(name: "Four Year Program", years: 2, total_credits: 20)
+  end
+
+  it "reads courses, choices, pairs, placeholders, and titles over two lines" do
+    rows = science.plan.items.map do |item|
+      code = item.subject_code ? "#{item.subject_code}#{item.course_number}" : item.options.map(&:values).map(&:join).join("|")
+      [ item.year_index, item.season, item.kind, code.presence, item.label, item.min_credits ]
+    end
+
+    expect(rows).to eq([
+      [ 1, "fall", "course", "COMP1000", "Computer Science I", 4 ],
+      [ 1, "fall", "choice", "COMP1100|COMP2100", "Networking", 4 ],
+      [ 1, "fall", "course", "MATH1776", "Calculus A and B", nil ],
+      [ 1, "fall", "course", "MATH1777", "Calculus A and B", nil ],
+      [ 1, "fall", "placeholder", nil, "HSS Elective", 4 ],
+      [ 1, "spring", "course", "COMP1050", "Computer Science II", 4 ],
+      [ 2, "summer", "choice", "COMP2000|COMP2005", "Data Structures and Algorithms", 4 ]
+    ])
+    expect(science.plan.items.find { |item| item.kind == "placeholder" }.footnote).to eq("*")
+  end
+
+  it "gives no program to a plan under a department heading" do
+    expect(programs.second.title).to be_nil
+  end
+end

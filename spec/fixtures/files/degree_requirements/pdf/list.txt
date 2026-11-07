@@ -1,0 +1,44 @@
+Computer Science (BCOS)
+Total credits for degree: 128
+
+This is a four-year program. The courses are as follows:
+
+Freshman Year, Fall Semester (total credits 16)
+    • COMP1000, Computer Science I
+    • MATH2300, Discrete Math
+    • MATH1750, Engineering Calculus I
+    •   ENGLISH, English Sequence, See ENGL/HSS note below *
+
+Freshman Year, Spring Semester (total credits 15)
+    • COMP1050, Computer Science II 4cr.
+    • COMP1200, Computer Organization
+    • HSS ELECTIVE, See ENGL/HSS note below *
+
+Sophomore Year, Summer Semester
+    • COOP3000, Pre-Cooperative Work Term (Optional)
+
+Elective Courses- Select one course from the following list
+COMP3800, Special Topics
+
+Civil Engineering (BSCE)
+All courses are four (4) credits unless otherwise noted
+
+      Freshman Year Fall Semester (16 credits)
+      MATH1750                Engineering Calculus
+      FYS1000 		              First Year Seminar (0 credit)
+      ENGR1600                Fundamentals of CAD & CAM (1 credit) or ENGR1800 Introduction to MATLAB
+                              (1 credit)
+      SCIENCE 		             Elective Biology or Geology
+
+166
+Sophomore Year, Fall Semester (19 credits)
+CIVE2000               Statics and Mech Materials I (3 credits)
+or
+CIVE2005               Statics for Engineers (3 credits)
+
+Sophomore Year, Fall Semester (18 credits)
+CIVE2400               Civil Engineering Materials (3 credits)
+
+Architecture - Urbanism Concentration
+Freshman Year, Fall Semester (total credits 14)
+ARCH1000, Studio 01

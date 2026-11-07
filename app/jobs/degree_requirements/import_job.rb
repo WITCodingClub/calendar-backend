@@ -4,6 +4,10 @@ module DegreeRequirements
   # Imports the programs of one catalog year (DegreeRequirements::Importer),
   # then queues the course import. `bin/rails degree_requirements:import`
   # queues it, and CurrentYearImportJob queues it each month.
+  #
+  # A year before 2019-2020 has only a PDF (PdfCatalog::Importer), and the
+  # course search API does not have it. 2025-2026 reads the PDF after the
+  # Wayback Machine, for the programs that the Wayback Machine does not have.
   class ImportJob < ApplicationJob
     CONCURRENCY_GROUP = "DegreeRequirementsImportJob"
 
@@ -18,8 +22,13 @@ module DegreeRequirements
 
     def perform(start_year, force: false)
       catalog_year = CatalogYear.find_or_create_by!(start_year: start_year)
+      return PdfCatalog::Importer.new(catalog_year).call if PdfCatalog.pdf_only?(start_year)
+
       result = Importer.new(catalog_year, force: force).call
-      CourseImportJob.perform_later(start_year) if result.status == :imported
+      if result.status == :imported
+        PdfCatalog::Importer.new(catalog_year).call if PdfCatalog::FILES.key?(start_year)
+        CourseImportJob.perform_later(start_year)
+      end
       result
     rescue StandardError
       # A year with stored data keeps its status. The executor reports the

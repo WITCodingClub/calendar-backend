@@ -36,7 +36,9 @@ RSpec.describe "Admin authorization", type: :request do
       "admin/rooms"                     => -> { create(:room).public_id },
       "admin/terms"                     => -> { create(:term).public_id },
       "admin/calendars"                 => -> { create(:course_calendar).id },
-      "admin/buildings"                 => -> { create(:building).id }
+      "admin/buildings"                 => -> { create(:building).id },
+      "admin/catalog_reviews"           => -> { create(:requirement_set, :from_pdf).id },
+      "admin/course_code_aliases"       => -> { create(:course_code_alias).id }
     }
   end
 

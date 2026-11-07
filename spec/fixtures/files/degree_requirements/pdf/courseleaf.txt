@@ -1,0 +1,38 @@
+Table of Contents
+The School of Computing and Data Science ......................... 2
+   Computer Science & Networking ................................ 3
+   Computer Science Bachelor of Science ......................... 2
+   Engineering ................................................... 3
+
+2025-2026 Academic CatalogAbout the school.
+
+                                                                      1Students in Computer Science gain skills in software design.
+
+Four Year Program
+Course                  Title                                       Credits
+First Year
+Fall Semester                                                       Credits
+COMP1000                COMPUTER SCIENCE I                                4
+COMP1100 or COMP2100    NETWORKING                                        4
+MATH1776 & MATH1777     CALCULUS A AND B                                  4
+HSS Elective*                                                             4
+                        Credits                                          16
+Spring Semester
+COMP1050                COMPUTER SCIENCE II                               4
+                        Credits                                           4
+
+                                                                      2
+2025-2026 Academic Catalog
+Second Year
+Summer Semester
+COMP2000                DATA STRUCTURES AND                               4
+                        ALGORITHMS
+or COMP2005             DATA STRUCTURES FOR ENGINEERS
+                        Credits                                           4
+                        Total Credits                                    24Engineering
+Plan of Study
+First Year
+Fall Semester
+ENGR1000                INTRODUCTION TO ENGINEERING                       4
+                        Total Credits                                     4
+                                                                      3

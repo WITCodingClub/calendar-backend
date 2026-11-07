@@ -1,0 +1,37 @@
+<%= render "admin/shared/page_header",
+    title: "Catalog Review",
+    subtitle: "Degree plans read from the catalog PDFs, and old and new course codes found by matching titles. Check each one against its source." %>
+
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+  <%= render "admin/shared/stat", label: "Plans to check", value: @counts[:sets], tone: (@counts[:sets].positive? ? :warning : :success) %>
+  <%= render "admin/shared/stat", label: "Plans checked", value: @counts[:reviewed_sets] %>
+  <%= render "admin/shared/stat", label: "Aliases to check", value: @counts[:aliases], tone: (@counts[:aliases].positive? ? :warning : :success) %>
+  <%= render "admin/shared/stat", label: "Aliases checked", value: @counts[:reviewed_aliases] %>
+</div>
+
+<div class="space-y-6">
+  <%= render "admin/shared/card", title: "Degree plans from PDFs", subtitle: "Open a plan, compare it with its PDF page, then mark it checked.", flush: true do %>
+    <%= admin_table(@sets, empty: "No plans to check.", card: false, paginate: false) do |t| %>
+      <% t.column("Program", primary: true) { |set| link_to(set.name, admin_catalog_review_path(set), class: "font-medium text-primary hover:underline") } %>
+      <% t.column("Catalog year") { |set| set.catalog_year.name } %>
+      <% t.column("Catalog program") { |set| set.degree_program.slug } %>
+      <% t.column("PDF") { |set| link_to("Open page", "#{DegreeRequirements::SITE_URL}#{set.path}", target: "_blank", rel: "noopener", class: "text-primary hover:underline") if set.source_pdf? && set.path.present? } %>
+    <% end %>
+  <% end %>
+
+  <%= render "admin/shared/card", id: "aliases", title: "Course code aliases", subtitle: "Mark a pair checked when the old code is the same course as the new code. Remove a wrong pair.", flush: true do %>
+    <%= admin_table(@aliases, empty: "No aliases to check.", card: false, paginate: false) do |t| %>
+      <% t.column("Old code", primary: true) { |course_alias| course_alias.from_code } %>
+      <% t.column("New code") { |course_alias| course_alias.to_code } %>
+      <% t.column("Found by") { |course_alias| admin_badge(course_alias.source.humanize) } %>
+      <% t.column("Match") { |course_alias| tag.span(course_alias.note, class: "block max-w-md") } %>
+      <% t.column("", align: :right) do |course_alias| %>
+        <div class="flex justify-end gap-2">
+          <%= button_to "Checked", review_admin_course_code_alias_path(course_alias), method: :patch, class: "m3-btn-tonal" %>
+          <%= button_to "Remove", admin_course_code_alias_path(course_alias), method: :delete,
+              form: { data: { turbo_confirm: "Remove #{course_alias.from_code} to #{course_alias.to_code}?" } }, class: "m3-btn-danger" %>
+        </div>
+      <% end %>
+    <% end %>
+  <% end %>
+</div>

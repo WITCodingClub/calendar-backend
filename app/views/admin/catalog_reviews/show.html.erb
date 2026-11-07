@@ -1,0 +1,42 @@
+<%= render "admin/shared/page_header",
+    title: "#{@set.name} (#{@set.catalog_year.name})",
+    subtitle: "Compare each plan with the PDF page. The import reads course codes, titles, and credits; it does not read the elective lists.",
+    back: [ "Catalog review", admin_catalog_reviews_path ] do %>
+  <% if @set.source_pdf? && @set.path.present? %>
+    <%# A PDF set's path is on the catalog site: "/previous-catalogs/<file>.pdf#page=140". %>
+    <%= link_to "Open the PDF page", "#{DegreeRequirements::SITE_URL}#{@set.path}", target: "_blank", rel: "noopener", class: "m3-btn-outlined" %>
+  <% end %>
+  <% if @set.needs_review? && policy(@set).review? %>
+    <%= button_to "Mark as checked", review_admin_catalog_review_path(@set), method: :patch, class: "m3-btn-filled" %>
+  <% end %>
+<% end %>
+
+<div class="space-y-6">
+  <%= render "admin/shared/card", title: "Requirement set" do %>
+    <%= admin_details do |d| %>
+      <% d.item("Catalog program") { @set.degree_program.slug } %>
+      <% d.item("Source") { @set.source.upcase } %>
+      <% d.item("Status") { @set.needs_review? ? admin_badge("To check", :warning) : admin_badge("Checked", :success) } %>
+      <% d.item("Checked") { @set.reviewed_at&.strftime("%b %-d, %Y %-l:%M %p") } %>
+      <% d.item("Imported") { @set.fetched_at&.strftime("%b %-d, %Y %-l:%M %p") } %>
+      <% d.item("Total credits") { @set.total_credits&.to_s } %>
+    <% end %>
+  <% end %>
+
+  <% @set.program_plans.each do |plan| %>
+    <%= render "admin/shared/card", title: plan.name, subtitle: "#{pluralize(plan.years, 'year')}, #{plan.total_credits || '?'} credits", flush: true do %>
+      <%= admin_table(plan.items, empty: "This plan has no rows.", card: false, paginate: false) do |t| %>
+        <% t.column("Semester", primary: true) { |item| "Year #{item.year_index}, #{item.season.capitalize}" } %>
+        <% t.column("Code") do |item| %>
+          <% if item.course? %>
+            <%= item.subject_code %><%= item.course_number %>
+          <% elsif item.choice? %>
+            <%= item.options.map { |option| "#{option['subject_code']}#{option['course_number']}" }.join(" or ") %>
+          <% end %>
+        <% end %>
+        <% t.column("Title or label") { |item| item.label } %>
+        <% t.column("Credits", align: :right) { |item| [ item.min_credits, item.max_credits ].compact.uniq.join("-") } %>
+      <% end %>
+    <% end %>
+  <% end %>
+</div>

@@ -31,11 +31,19 @@ RSpec.describe "degree_requirements rake tasks" do
       .and output(/with force/).to_stdout
   end
 
-  it "queues every year from 2019 to this year" do
+  it "queues every year from 2013, the first year with Banner data, to this year" do
     travel_to Date.new(2026, 10, 22) do
       expect { run_task("degree_requirements:import_all") }
-        .to have_enqueued_job(DegreeRequirements::ImportJob).exactly(8).times
-        .and output(/Queued 2019..2026/).to_stdout
+        .to have_enqueued_job(DegreeRequirements::ImportJob).exactly(14).times
+        .and output(/Queued 2013..2026/).to_stdout
     end
+  end
+
+  it "finds the course code aliases" do
+    allow(DegreeRequirements::AliasFinder).to receive(:call)
+      .and_return(DegreeRequirements::AliasFinder::Result.new(added: 3, title_match: 2, banner: 1))
+
+    expect { run_task("degree_requirements:aliases") }
+      .to output(%r{Added 3 aliases \(2 from the catalogs, 1 from Banner\).*/admin/catalog_reviews}).to_stdout
   end
 end

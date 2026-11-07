@@ -24,6 +24,39 @@ RSpec.describe DegreeRequirements::ImportJob do
     expect(DegreeRequirements::Importer).to have_received(:new).with(an_instance_of(CatalogYear), force: true)
   end
 
+  context "with a catalog PDF" do
+    let(:pdf_importer) { instance_double(DegreeRequirements::PdfCatalog::Importer) }
+    let(:pdf_result) do
+      DegreeRequirements::PdfCatalog::Importer::Result.new(status: :imported, programs: 0, updated: 0, unchanged: 0, unmatched: [])
+    end
+
+    before do
+      allow(DegreeRequirements::PdfCatalog::Importer).to receive(:new).and_return(pdf_importer)
+      allow(pdf_importer).to receive(:call).and_return(pdf_result)
+    end
+
+    it "imports a year before 2019-2020 from its PDF only, with no course import" do
+      expect { described_class.perform_now(2014) }.not_to have_enqueued_job(DegreeRequirements::CourseImportJob)
+      expect(DegreeRequirements::PdfCatalog::Importer).to have_received(:new).with(CatalogYear.find_by!(start_year: 2014))
+      expect(DegreeRequirements::Importer).not_to have_received(:new)
+    end
+
+    it "fills 2025-2026 from its PDF after the Wayback Machine" do
+      allow(importer).to receive(:call).and_return(result(:imported))
+
+      expect { described_class.perform_now(2025) }.to have_enqueued_job(DegreeRequirements::CourseImportJob).with(2025)
+      expect(pdf_importer).to have_received(:call)
+    end
+
+    it "reads no PDF for a year with an HTML archive" do
+      allow(importer).to receive(:call).and_return(result(:imported))
+
+      described_class.perform_now(2024)
+
+      expect(DegreeRequirements::PdfCatalog::Importer).not_to have_received(:new)
+    end
+  end
+
   it "runs one import at a time for every year" do
     expect(described_class.concurrency_key).to be_present
     expect(described_class.new(2019).concurrency_key).to eq(described_class.new(2024).concurrency_key)

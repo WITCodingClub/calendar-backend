@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 namespace :degree_requirements do
-  # The first catalog year the catalog site has as HTML. Older years are PDFs (#865).
-  first_html_year = 2019
+  # The first catalog year that matches Banner data (Spring 2014). Years
+  # before 2019-2020 are PDFs (#865): DegreeRequirements::PdfCatalog::FILES.
+  first_year = 2013
 
   desc "Queue the import of one catalog year: bin/rails 'degree_requirements:import[2024]'. " \
        "FORCE=1 imports an index that lists far fewer programs than the last import."
@@ -24,11 +25,18 @@ namespace :degree_requirements do
     puts "No master's program for these Double Leopard names: #{result.unmatched.join(', ')}" if result.unmatched.any?
   end
 
-  desc "Queue the import of every catalog year from #{first_html_year}-#{first_html_year + 1} to this year"
+  desc "Queue the import of every catalog year from #{first_year}-#{first_year + 1} to this year"
   task import_all: :environment do
-    (first_html_year..Date.current.year).each do |start_year|
+    (first_year..Date.current.year).each do |start_year|
       DegreeRequirements::ImportJob.perform_later(start_year)
     end
-    puts "Queued #{first_html_year}..#{Date.current.year}. A year that is not published yet is marked missing."
+    puts "Queued #{first_year}..#{Date.current.year}. A year that is not published yet is marked missing."
+  end
+
+  desc "Find course code aliases (COMP128 to COMP1000) from the catalogs and Banner, for review on the admin page"
+  task aliases: :environment do
+    result = DegreeRequirements::AliasFinder.call
+    puts "Added #{result.added} aliases (#{result.title_match} from the catalogs, #{result.banner} from Banner). " \
+         "Review them at /admin/catalog_reviews."
   end
 end

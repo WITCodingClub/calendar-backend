@@ -13,6 +13,13 @@ RSpec.describe DegreeRequirements::CatalogSiteClient do
     expect(client.get(url)).to eq("<p>café</p>")
   end
 
+  it "returns the bytes of a PDF" do
+    stub_request(:get, url).to_return(status: 200, body: "%PDF-1.4\xFF\x00".b)
+
+    expect(client.get(url, binary: true)).to eq("%PDF-1.4\xFF\x00".b)
+    expect(client.get(url, binary: true).encoding).to eq(Encoding::BINARY)
+  end
+
   it "sends the bot user agent" do
     stub_request(:get, url).with(headers: { "User-Agent" => "WITCalendarBot/1.0" }).to_return(status: 200, body: "ok")
 
