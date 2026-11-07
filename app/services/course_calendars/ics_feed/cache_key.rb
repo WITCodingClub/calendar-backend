@@ -9,10 +9,11 @@ module CourseCalendars
     # feed reads, and a change to any of them gives a new key.
     #
     # One query reads a fingerprint of each table. For the user's own rows
-    # (courses, meeting times, rooms, preferences, friend meetings), the
-    # fingerprint is the id and updated_at of each row, so an insert, an update,
-    # or a delete changes it. The finals of the user's terms and the university
-    # events are many rows, so they use the count and the latest updated_at.
+    # (courses, meeting times, preferences, friend meetings), the fingerprint is
+    # the id and updated_at of each row, so an insert, an update, or a delete
+    # changes it. The finals of the user's terms, the university events, and all
+    # rooms and buildings are many rows, so they use the count and the latest
+    # updated_at.
     #
     # The key also holds the date (the feed drops past finals), the deploy
     # revision (a code change can change the body), and the user row.
@@ -44,6 +45,10 @@ module CourseCalendars
           user: [ @user.id, @user.updated_at&.iso8601(6), @user.notifications_disabled? ],
           today: @today.iso8601,
           revision: VersionService.current_sha,
+          # The holidays come from their own cache entry, which can lag the
+          # table by up to its TTL. Its value goes in the key, so a feed built
+          # from an old entry is not kept after that entry is refreshed.
+          no_class_spans: Digest::SHA256.hexdigest(UniversityCalendarEvent.cached_no_class_spans.to_json),
           rows: fingerprints
         }
 
@@ -61,7 +66,6 @@ module CourseCalendars
         term_ids          = Course.where(id: course_ids).select(:term_id)
         meeting_time_ids  = Course::MeetingTime.where(course_id: course_ids).select(:id)
         meeting_time_rooms = Course::MeetingTimeRoom.where(meeting_time_id: meeting_time_ids)
-        room_ids          = meeting_time_rooms.select(:room_id)
         course_faculties  = CourseFaculty.where(course_id: course_ids)
         friend_meetings   = FriendMeeting.where(user_id: @user.id)
         attendees         = FriendMeetingAttendee.where(friend_meeting_id: friend_meetings.select(:id))
@@ -72,8 +76,10 @@ module CourseCalendars
           terms: rows(Term.where(id: term_ids)),
           meeting_times: rows(Course::MeetingTime.where(id: meeting_time_ids)),
           meeting_time_rooms: rows(meeting_time_rooms),
-          rooms: rows(Room.where(id: room_ids)),
-          buildings: rows(Building.where(id: Room.where(id: room_ids).select(:building_id))),
+          # All rooms and buildings: a final's LOCATION names any room that its
+          # location text matches, not only the rooms of the user's classes.
+          rooms: summary(Room.all),
+          buildings: summary(Building.all),
           # courses_faculties has no timestamps: its columns are the data.
           course_faculties: rows(course_faculties, :faculty_id, :primary_indicator, timestamps: false),
           faculties: rows(Faculty.where(id: course_faculties.select(:faculty_id))),

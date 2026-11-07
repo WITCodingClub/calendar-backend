@@ -15,7 +15,9 @@ RSpec.describe CourseCalendars::IcsFeed::CacheKey do
   let(:meeting_time) { create(:course_meeting_time, course: course, day_of_week: :monday) }
   let!(:course_faculty) { create(:course_faculty, course: course, faculty: faculty) }
 
-  around { |example| travel_to(zone.local(2026, 10, 7, 12)) { example.run } }
+  # A time after the real clock: rows that other specs leave in the table
+  # (fixtures) have the real time, and they would hide a newer updated_at.
+  around { |example| travel_to(zone.local(2030, 10, 7, 12)) { example.run } }
 
   before do
     create(:course_meeting_time_room, meeting_time: meeting_time, room: room)
@@ -39,6 +41,8 @@ RSpec.describe CourseCalendars::IcsFeed::CacheKey do
   end
 
   it "reads every fingerprint in one query" do
+    # The no-class days come from their own cache entry, not this query.
+    allow(UniversityCalendarEvent).to receive(:cached_no_class_spans).and_return([])
     user.reload
     queries = count_queries { described_class.new(user).to_s }
 
@@ -90,6 +94,36 @@ RSpec.describe CourseCalendars::IcsFeed::CacheKey do
     expect_new_key { create(:university_calendar_event) }
   end
 
+  it "changes when a university event is deleted" do
+    event = create(:university_calendar_event)
+    expect_new_key { event.destroy! }
+  end
+
+  it "changes when the building of a final's location changes, though no class meets there" do
+    other_building = create(:building)
+    create(:final_exam, term: term, course: course, location: "#{other_building.abbreviation} 201")
+    expect_new_key { other_building.update!(name: "Synthetic Exam Hall") }
+  end
+
+  it "changes when the faculty member of a course is replaced" do
+    expect_new_key { course_faculty.update!(faculty: create(:faculty)) }
+  end
+
+  it "changes when the user turns on university events" do
+    config = user.user_extension_config
+    expect_new_key { config.update!(sync_university_events: !config.sync_university_events) }
+  end
+
+  it "changes when the cached no-class days change" do
+    allow(UniversityCalendarEvent).to receive(:cached_no_class_spans).and_return([])
+    before = key
+
+    allow(UniversityCalendarEvent).to receive(:cached_no_class_spans)
+      .and_return([ [ zone.local(2030, 11, 11), zone.local(2030, 11, 11, 23, 59), Time.current ] ])
+
+    expect(key).not_to eq(before)
+  end
+
   it "changes when the user saves a preference" do
     expect_new_key { create(:event_preference, user: user, preferenceable: meeting_time) }
   end
@@ -107,9 +141,9 @@ RSpec.describe CourseCalendars::IcsFeed::CacheKey do
 
   it "changes when a friend meeting in the feed ends" do
     create(:friend_meeting, user: user, destinations: %w[ics],
-                            start_time: zone.local(2026, 10, 7, 13), end_time: zone.local(2026, 10, 7, 14))
+                            start_time: zone.local(2030, 10, 7, 13), end_time: zone.local(2030, 10, 7, 14))
     before = key
-    travel_to(zone.local(2026, 10, 7, 15))
+    travel_to(zone.local(2030, 10, 7, 15))
 
     expect(key).not_to eq(before)
   end
