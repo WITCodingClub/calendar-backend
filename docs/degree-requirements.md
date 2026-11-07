@@ -213,11 +213,11 @@ The HSS subjects are the same for every major. What a major adds is on its progr
 | "At least one elective in Art History (HUMN4243, ...)" | Art History, with those courses |
 | "At least one elective in Psychology or Sociology" | Psychology or Sociology: PSYC, SOCL |
 | "At least one elective in Design History" (no courses) | Design History, with no matcher. Degree progress cannot check it. |
-| "A minimum of 28 credits total, including English, ..." | `min_credits` |
+| "A minimum of 28 credits total, including English, ..." | `min_credits`. The page body wins. The footnote notes are copies of one template and some disagree with the page, so a footnote total counts only when every footnote gives the same one. |
 
-A set from a PDF has no `hss_requirement`, and gets the Humanities and Social Sciences categories. A change to the parser bumps `ProgramPageParser::VERSION`, so the next import writes every page again.
+A page with no HSS note (a minor, a master's) has no `hss_requirement`. A set from a PDF has none either, and degree progress gives its HSS slots the Humanities and Social Sciences categories. A change to the parser bumps `ProgramPageParser::VERSION`, so the next import writes every page again.
 
-Degree progress: the courses in the Humanities, Social Science, and directed HSS slots count first. Then each "HSS Elective" slot takes a course for the first category that no course meets yet, and names it in `hss_category`. A slot stays open for a category that no course meets. With every category met, a slot takes any HSS course. Each program gets `hss`: the categories with their status and course, and the English and HSS credits against `min_credits`.
+Degree progress: these count first: the courses in the Humanities, Social Science, and directed HSS slots, the required course rows in a category (ECON4102 in Construction Management, PHIL4525 in Applied AI), and a third English course, which the notes let count as Humanities. Then each "HSS Elective" slot takes a course for the first category that no course meets yet, and names it in `hss_category`. A slot stays open for a category that no course meets. With every category met, a slot takes any HSS course. Each program gets `hss`: the categories with their status and course, and the English and HSS credits against `min_credits`. It is nil for a program with no HSS requirement and no HSS slot. The Ethics courses for a page that lists none come from the Computer Networking page (`HssNoteParser::ETHICS_COURSES`), so an Ethics course outside that list does not count.
 
 ### Course code aliases
 

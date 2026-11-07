@@ -47,13 +47,19 @@ module DegreeRequirements
       @html = html.to_s
     end
 
+    NOTE = %r{ENGL/HSS Note|humanities and social science}i
+
+    # nil for a page with no HSS note, such as a minor or a master's.
     def call
-      text = page_text
+      body, notes = page_text
+      text = [ body, *notes ].join(" ")
+      return nil unless text.match?(NOTE)
+
       categories = self.class.base_categories + extra_categories(text)
       categories << { "name" => "Ethics", "subject_codes" => [], "courses" => ethics_courses(text) } if text.match?(ETHICS)
       categories += directed_categories(text)
 
-      { "min_credits" => text[MIN_CREDITS, 1]&.to_i, "categories" => categories.uniq { |category| category["name"] } }
+      { "min_credits" => min_credits(body, notes), "categories" => categories.uniq { |category| category["name"] } }
     end
 
     private
@@ -67,7 +73,17 @@ module DegreeRequirements
         script = link["onclick"][/lfjs\.bubble\(this,\s*'(.*?)'\s*,/m, 1]
         script && spaced(Nokogiri::HTML.fragment(script.gsub(/\\x(\h{2})/) { Regexp.last_match(1).hex.chr }.gsub("\\'", "'")))
       end
-      [ spaced(node), *notes.uniq ].join(" ")
+      [ spaced(node), notes.uniq ]
+    end
+
+    # The page body wins. The footnote notes are copies of one template, and
+    # some disagree with the page (28 against 24), so a note counts only
+    # when every note gives the same total.
+    def min_credits(body, notes)
+      return body[MIN_CREDITS, 1].to_i if body.match?(MIN_CREDITS)
+
+      totals = notes.flat_map { |note| note.scan(MIN_CREDITS).flatten }.uniq
+      totals.one? ? totals.first.to_i : nil
     end
 
     # The text of each node with a space between, so table cells do not run
@@ -108,7 +124,10 @@ module DegreeRequirements
         end
         position = match.end(0)
       end
-      groups.map { |codes| { "name" => "Directed: #{codes.first}", "subject_codes" => [], "courses" => codes.uniq } }
+      # Only HSS courses: a footnote after the list can name MATH courses.
+      hss = SharedElectives::HSS.subject_codes
+      groups.map { |codes| codes.select { |code| hss.include?(code[0, 4]) }.uniq }.reject(&:empty?)
+            .map { |codes| { "name" => "Directed: #{codes.first}", "subject_codes" => [], "courses" => codes } }
     end
   end
 end

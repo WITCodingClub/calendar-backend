@@ -36,17 +36,17 @@ RSpec.describe DegreeRequirements::HssNoteParser do
   end
 
   it "uses the known Ethics courses when the page names none" do
-    result = parse("<p>At least one of the HSS electives must be an Ethics course.</p>")
+    result = parse("<p>ENGL/HSS Note: At least one of the HSS electives must be an Ethics course.</p>")
 
     expect(categories(result).last).to eq([ "Ethics", [], described_class::ETHICS_COURSES ])
   end
 
   it "reads directed courses, with the courses after or as choices for the same course" do
-    result = parse("<p>Of the four electives, students must include the following:</p><table class=\"sc_courselist\">" \
+    result = parse("<p>Of the four humanities and social science electives, students must include the following:</p><table class=\"sc_courselist\">" \
                    "<tr><td>ECON4102</td><td>PRINCIPLES OF ECONOMICS</td><td>4</td></tr>" \
                    "<tr><td>or ECON4152</td><td>MACROECONOMICS</td></tr>" \
-                   "<tr><td>PSYC4552</td><td>INDUSTRIAL ORGANIZATION PSYCHOLOGY</td><td>4</td></tr></table>" \
-                   "<p>1 In lieu of MATH1000, MATH1750 can be used.</p>")
+                   "<tr><td>PSYC4552</td><td>INDUSTRIAL ORGANIZATION PSYCHOLOGY</td><td>4</td></tr>" \
+                   "<tr><td>MATH1750</td><td>A footnote course with no stop word before it</td></tr></table>")
 
     expect(categories(result).drop(2)).to eq([
       [ "Directed: ECON4102", [], %w[ECON4102 ECON4152] ],
@@ -55,7 +55,7 @@ RSpec.describe DegreeRequirements::HssNoteParser do
   end
 
   it "reads a category of the major, with its courses, its subjects, or neither" do
-    result = parse("<ul><li>At least one elective in Art History (HUMN4243, HUMN4260);</li>" \
+    result = parse("<p>ENGL/HSS Note</p><ul><li>At least one elective in Art History (HUMN4243, HUMN4260);</li>" \
                    "<li>At least one elective in Psychology or Sociology.</li>" \
                    "<li>At least one elective in Design History;</li></ul>")
 
@@ -66,7 +66,19 @@ RSpec.describe DegreeRequirements::HssNoteParser do
     ])
   end
 
-  it "gives only the two base categories and no credit total for a page with no note" do
-    expect(parse("<p>Nothing here.</p>")).to eq(described_class.default)
+  it "gives nil for a page with no HSS note, such as a minor" do
+    expect(parse("<p>Select four courses from the following list.</p>")).to be_nil
+  end
+
+  it "takes the credit total from the page body over the footnote notes" do
+    body = "<p>ENGL/HSS Note: A minimum of 24 credits total, including English, humanities, and social science credit.</p>"
+
+    expect(parse(body + standard_note)["min_credits"]).to eq(24)
+  end
+
+  it "takes a footnote total only when every footnote gives the same one" do
+    other = standard_note.sub("20 credits", "28 credits").sub("English Sequence", "HSS Elective")
+
+    expect(parse(standard_note + other)["min_credits"]).to be_nil
   end
 end
