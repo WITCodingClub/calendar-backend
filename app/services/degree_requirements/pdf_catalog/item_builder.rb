@@ -12,8 +12,16 @@ module DegreeRequirements
       # The first line of a placeholder: ELECTIVE, ENGLISH, HSS ELECTIVE.
       # Other upper-case lines are headings ("FACULTY") or titles ("MATLAB").
       PLACEHOLDER = %r{\A(?:[A-Z][A-Z&/-]* ){0,3}(?:ELECTIVES?|ENGLISH)\z}
+      # A course slot named by its subject only: "MGMTXXX", "COMP46XX".
+      PLACEHOLDER_CODE = /\A([A-Z]{3,5}?) ?\d{0,2}X{2,4}\z/
       # Words that stay upper case in a placeholder label.
       ACRONYMS = %w[HSS ENGL STEM GE].freeze
+      # Subject codes that the catalogs misspell: "CONMM 890", "PMATH1030".
+      SUBJECT_TYPOS = { "CONMM" => "CONM", "COPP" => "COOP", "ENGLISH" => "ENGL", "FMG" => "FMGT", "PMATH" => "MATH",
+                        "TNGT" => "TMGT" }.freeze
+      # "Fundamentals of CAD & CAM or ENGR1800 Intro to MATLAB": a second
+      # course in the title.
+      OR_CODE = /\s+(?i:or)\s+([A-Z]{2,7} ?\d{3,4})\b/
 
       module_function
 
@@ -21,7 +29,7 @@ module DegreeRequirements
       def code?(text)
         text = clean_code(text)
         text.match?(COURSE) || choice_codes(text).present? || both_codes(text).present? ||
-          text.match?(PLACEHOLDER)
+          text.match?(PLACEHOLDER) || text.match?(PLACEHOLDER_CODE)
       end
 
       # The rows for one cell. `code` is its first line and `title` the rest.
@@ -46,6 +54,8 @@ module DegreeRequirements
             Item.new(**base, kind: "course", subject_code: subject, course_number: number, label: title.presence,
                              min_credits: nil, max_credits: nil)
           end
+        elsif (match = PLACEHOLDER_CODE.match(code))
+          [ Item.new(**base, kind: "placeholder", subject_code: nil, course_number: nil, label: title.presence || "#{match[1]} Elective") ]
         else
           [ Item.new(**base, kind: "placeholder", subject_code: nil, course_number: nil, label: placeholder_label(code, title)) ]
         end
@@ -69,7 +79,20 @@ module DegreeRequirements
         credits.sum if credits.any?
       end
 
-      def clean_code(text) = text.to_s.strip.delete_suffix(",").delete_suffix("*").delete_suffix(",").squeeze(" ")
+      def clean_code(text)
+        text.to_s.strip.delete_suffix(",").delete_suffix("*").delete_suffix(",").squeeze(" ")
+            .gsub(/\b(#{SUBJECT_TYPOS.keys.join('|')})(?= ?\d{3,4}\b)/) { SUBJECT_TYPOS.fetch(::Regexp.last_match(1)) }
+      end
+
+      # [code, title] with a course named after "or" in the title moved to
+      # the code: "ENGR1600", "Fundamentals of CAD & CAM or ENGR1800 Intro
+      # to MATLAB" is "ENGR1600 or ENGR1800", "Fundamentals of CAD & CAM".
+      def split_choice(code, title)
+        other = title.to_s.match(OR_CODE)
+        return [ code, title ] if other.nil? || !COURSE.match?(clean_code(code).split(/\s+or\s+/i).last)
+
+        [ "#{clean_code(code)} or #{clean_code(other[1])}", title[0...other.begin(0)] ]
+      end
 
       # "COMP1100 or COMP2100" or "COMP1000/ELEC3150".
       def choice_codes(text)

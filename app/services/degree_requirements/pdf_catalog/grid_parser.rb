@@ -21,11 +21,13 @@ module DegreeRequirements
     class GridParser
       HEADER = /Fall Semester\s+Spring Semester/
       SEMESTER = /(Fall|Spring|Summer) Semester/
-      FOOTER = /Academic Catalog\s+\d+|\A\s*\d{1,3}\s*\z/
+      FOOTER = /Academic Catalog\s+\d+/
+      PAGE_NUMBER = /\A\s*\d{1,3}\s*\z/
       # Word sometimes breaks the year name over lines: "S", "o", "p", or
       # "Fres", "hma", "n".
       YEAR_LABEL = /\A(?:(?i:(?:Freshman|Sophomore|Sopho|more|Junior|Senior|Middler|First|Second|Third|Fourth|Fifth)(?: Year)?|Year)|[A-Z]?[a-z]{1,3}|[A-Z])\z/
-      NUMBER = %r{\A\d{1,3}(?:[-/]\d{1,2})?\z}
+      # "4", "3-4", "3/4", or "(6)" for an optional course.
+      NUMBER = %r{\A\(?\d{1,3}(?:[-/]\d{1,2})?\)?\z}
       TOTAL = /\ATOTAL( CREDITS)?\z/i
       # A title or code this far left of a column start is still in it.
       SLACK = 3
@@ -33,12 +35,14 @@ module DegreeRequirements
       # cell: a table cell is narrower.
       MARGIN = 8
       PROSE_LENGTH = 45
-      # The furthest a table moves left over a page break.
+      # The furthest a table moves over a page break.
       MAX_SHIFT = 14
       # Codes this far apart are in different columns.
       COLUMN_GAP = 12
       # The longest table, with its page breaks, is about 90 lines.
       SURVEY_LINES = 140
+      # "TMGT8000 Strategic" or "ELECTIVE CONM 3800": a code with more text.
+      CODE_AND_TITLE = /\A(?:ELECTIVE )?([A-Z]{2,7} ?\d{3,4}[A-Z]?)(?: ([A-Z][a-z].*))?\z/
 
       def self.call(text) = new(text).call
 
@@ -76,7 +80,10 @@ module DegreeRequirements
         # The total rows. Their numbers are not used: some print a grand total
         # in a semester column.
         totals = []
-        new_page = false
+        # The column starts before the last page break, and the columns
+        # with a code on this page so far.
+        page_base = nil
+        placed = []
         index = header_index + 1
 
         while index < @lines.size
@@ -84,14 +91,16 @@ module DegreeRequirements
           index += 1
           next if line.strip.empty? || line.match?(/\bCourse\b.*\bCourse\b/)
 
-          if line.match?(FOOTER)
-            new_page = true
+          if footer?(index - 1)
+            page_base = columns
+            placed = []
             next
           end
 
           tokens = tokens_of(line)
-          columns = realign(columns, tokens) if new_page
-          new_page = false
+          if page_base && placed.size < columns.size
+            columns, placed = realign(page_base, columns, placed, code_xs(tokens))
+          end
           # A page break can move the "TOTAL CREDITS" row into the margin.
           margin, body = tokens.partition { |text, x| outside?(text, x, columns.first) }
           if margin.any? { |text, _| !text.match?(YEAR_LABEL) } || line.match?(HEADER) || prose?(line)
@@ -132,11 +141,16 @@ module DegreeRequirements
       def add_token(cells, rows, columns, text, x, year, seasons)
         number = text.match?(NUMBER)
         column = columns.rindex { |start| start - (number ? 0 : SLACK) <= x } || 0
+        # After a page break a column start is a guess until a code is
+        # under it. Credits with no open cell to take them are for the
+        # column on the left.
+        column -= 1 if number && column.positive? && !open_cell?(cells[column]) && open_cell?(cells[column - 1])
         cell = cells[column]
 
         if ItemBuilder.code?(text)
           if cell&.dig(:or)
             cell[:code] = "#{cell[:code]} or #{ItemBuilder.clean_code(text)}"
+            cell[:title] << "or" if cell[:title].any?
             cell[:or] = false
           else
             flush(cells, column, rows, year, seasons)
@@ -146,12 +160,19 @@ module DegreeRequirements
           nil
         elsif text.match?(/\AOR\z/i)
           cell[:or] = true
-        elsif number && cell[:credits].nil?
-          cell[:credits] = text
+        elsif !cell[:or] && text.match?(/\s+OR\z/)
+          # "Mechanical Graphics OR" over the next code.
+          cell[:title] << text.sub(/\s+OR\z/, "")
+          cell[:or] = true
+        elsif number
+          # The second number of a choice repeats the credits.
+          cell[:credits] ||= text
         elsif !cell[:or]
           cell[:title] << text
         end
       end
+
+      def open_cell?(cell) = cell && cell[:credits].nil?
 
       # Reads ahead to the end of the table. Returns the x where each column
       # starts (the leftmost code of each cluster of codes), and whether the
@@ -159,35 +180,85 @@ module DegreeRequirements
       # credits on a line of their own, so a line of numbers is a total only
       # when the table has no such label.
       def survey(start)
-        xs = []
+        # The x of each code, one list for each page.
+        pages = [ [] ]
         labelled = false
         (start...[ start + SURVEY_LINES, @lines.size ].min).each do |i|
           line = clean(@lines[i])
-          next if line.strip.empty? || line.match?(FOOTER)
+          next if line.strip.empty?
+
+          if footer?(i)
+            pages << [] if pages.last.any?
+            next
+          end
           break if line.match?(HEADER) || prose?(line)
 
           tokens = tokens_of(line)
           # Text left of every code so far, other than a year name, is past the end.
-          left = xs.min
+          left = pages.flatten.min
           break if left && tokens.any? { |text, x| outside?(text, x, left) && !text.match?(YEAR_LABEL) }
 
           labelled ||= line.match?(/TOTAL CREDITS/)
-          tokens.each { |text, x| xs << x if ItemBuilder.code?(text) }
+          pages.last.concat(code_xs(tokens))
         end
 
-        columns = []
-        xs.sort.each { |x| columns << x if columns.empty? || x - columns.last > COLUMN_GAP }
+        columns = pages.reject(&:empty?).reduce([]) { |base, xs| add_page(base, columns_of(xs)) }
         [ columns.first(3), labelled ]
       end
 
-      # Word can print the rest of a table further left on the next page.
-      # The first line there moves every column by the same amount.
-      def realign(columns, tokens)
-        text, x = tokens.first
-        shift = x - columns.first
-        return columns if text.nil? || text.match?(YEAR_LABEL) || !shift.between?(-MAX_SHIFT, -SLACK - 1)
+      def columns_of(xs)
+        xs.sort.each_with_object([]) { |x, columns| columns << x if columns.empty? || x - columns.last > COLUMN_GAP }
+      end
 
-        columns.map { |start| start + shift }
+      def code_xs(tokens) = tokens.filter_map { |text, x| x if ItemBuilder.code?(text) }
+
+      # The columns of the first page, with any column that only a later
+      # page has (often the summer column) moved back to first-page x.
+      def add_page(base, page_columns)
+        return page_columns if base.empty?
+
+        matched = align(base, page_columns)
+        return base if matched.empty?
+
+        back = matched.map { |i, x| [ x, base[i] ] }
+        extra = (page_columns - matched.values).map { |x| map_x(back, x) }
+        columns_of(base + extra)
+      end
+
+      # Word can print the rest of a table a few characters further left or
+      # right on the next page, and can stretch it, so each column can move
+      # by a different amount. Each code on the first lines of the new page
+      # places the column it is in. Returns the columns and the indexes of
+      # the columns placed so far.
+      def realign(page_base, columns, placed, xs)
+        return [ columns, placed ] if xs.empty?
+
+        matched = align(page_base, xs)
+        placed |= matched.keys
+        moved = placed.to_h { |i| [ i, matched[i] || columns[i] ] }
+        pairs = moved.map { |i, x| [ page_base[i], x ] }
+        [ page_base.each_index.map { |i| moved[i] || map_x(pairs, page_base[i]) }, placed ]
+      end
+
+      # { column index => x } for each column with an x up to MAX_SHIFT from
+      # its start.
+      def align(columns, xs)
+        columns.each_with_index.each_with_object({}) do |(start, i), found|
+          x = xs.select { |candidate| (candidate - start).abs <= MAX_SHIFT }.min_by { |candidate| (candidate - start).abs }
+          found[i] = x if x
+        end
+      end
+
+      # Moves x from one page to the other with [[x on one page, x on the
+      # other], ...] of the columns placed on both: one pair gives a shift,
+      # two give a shift and a scale.
+      def map_x(pairs, x)
+        return x if pairs.empty?
+
+        (from_a, to_a), (from_b, to_b) = pairs.sort.values_at(0, -1)
+        return x + to_a - from_a if from_a == from_b
+
+        (to_a + ((to_b - to_a).to_f / (from_b - from_a) * (x - from_a))).round
       end
 
       # Is a token left of the table? A page break can move the next page
@@ -219,8 +290,8 @@ module DegreeRequirements
         cells[column] = nil
         season = seasons[column] || "fall"
         key = [ year, %w[fall spring summer].index(season) || column ]
-        rows[key].concat(ItemBuilder.build(cell[:code], cell[:title].join(" "), cell[:credits],
-                                           year_index: year, season: season))
+        code, title = ItemBuilder.split_choice(cell[:code], cell[:title].join(" "))
+        rows[key].concat(ItemBuilder.build(code, title, cell[:credits], year_index: year, season: season))
       end
 
       def flush_all(cells, rows, year, seasons)
@@ -232,7 +303,7 @@ module DegreeRequirements
       def title_before(header_index)
         (header_index - 1).downto([ header_index - 6, 0 ].max) do |i|
           line = clean(@lines[i]).strip
-          next if line.empty? || line.match?(FOOTER)
+          next if line.empty? || footer?(i)
 
           # "(BSAM[MM10])": a Word comment mark.
           return line.gsub(/\[[A-Z]{1,4}\d*\]/, "").gsub(/\s+/, " ")
@@ -251,12 +322,16 @@ module DegreeRequirements
       # [[text, x], ...]: runs of text with less than two spaces in them. A
       # narrow column can leave one space between the credits and the next
       # code ("6 ARCH1500"), so a number at the start of a run is split off.
+      # A code with its title on the same line ("TMGT8000 Strategic") and
+      # "ELECTIVE CONM 3800" are split into a code and a title.
       def tokens_of(line)
         line.enum_for(:scan, /\S+(?: \S+)*/).flat_map do
           text = Regexp.last_match(0)
           x = Regexp.last_match.begin(0)
           if (split = text.match(/\A(\d{1,2}) (\S.*)\z/)) && ItemBuilder.code?(split[2])
             [ [ split[1], x ], [ split[2], x + split.begin(2) ] ]
+          elsif (split = text.match(CODE_AND_TITLE)) && ItemBuilder.code?(split[1])
+            [ [ split[1], x + split.begin(1) ], ([ split[2], x + split.begin(2) ] if split[2]) ].compact
           else
             [ [ text, x ] ]
           end
@@ -268,7 +343,16 @@ module DegreeRequirements
         1 + @page_starts.count { |start| start <= index }
       end
 
-      def clean(line) = line.to_s.delete("\f")
+      # A page footer: "2015-2016 Academic Catalog 124", or a page number
+      # just before a page break. A number alone on a line in a table is
+      # the credits of a cell.
+      def footer?(index)
+        line = clean(@lines[index])
+        line.match?(FOOTER) || (line.match?(PAGE_NUMBER) && @lines[index..(index + 3)].any? { |raw| raw.to_s.include?("\f") })
+      end
+
+      # "¾" is a range of 3 to 4 credits.
+      def clean(line) = line.to_s.delete("\f").gsub("¾", "3/4").tr("⁄", "/")
     end
   end
 end

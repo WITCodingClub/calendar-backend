@@ -49,7 +49,7 @@ RSpec.describe DegreeRequirements::PdfCatalog::GridParser do
   it "reads credits on their own line and an OR between two cells" do
     expect(rows(electrical)).to eq([
       [ 1, "fall", "placeholder", nil, "English Sequence", 4, 4 ],
-      [ 1, "fall", "choice", "ENGR1600|ENGR1800", "Fundamentals of CAD Programming with MATLAB", 1, 1 ],
+      [ 1, "fall", "choice", "ENGR1600|ENGR1800", "Fundamentals of CAD or Programming with MATLAB", 1, 1 ],
       [ 1, "spring", "course", "MATH1850", "Engineering Calculus", 3, 3 ],
       [ 1, "spring", "course", "PHYS1750", "Engineering Physics II", 4, 4 ]
     ])
@@ -63,5 +63,31 @@ RSpec.describe DegreeRequirements::PdfCatalog::GridParser do
 
   it "reads nothing from text with no plan" do
     expect(described_class.call("Fall Semester is the first term.\nNo table here.")).to eq([])
+  end
+
+  describe "a table that a page break moves" do
+    subject(:program) { described_class.call(file_fixture("degree_requirements/pdf/grid_page_break.txt").read).sole }
+
+    it "places each column again on the new page, and reads codes the catalog writes in other ways" do
+      expect(rows(program)).to eq([
+        [ 1, "fall", "course", "MGMT1000", "Introduction to Management", 4, 4 ],
+        # "Mechanical Graphics OR" over the next code.
+        [ 1, "fall", "choice", "MECH124|MANF1000", "Mechanical Graphics or Manufacturing Processes", 4, 4 ],
+        # A code with words after it, and a second code after "or" in the title.
+        [ 1, "fall", "choice", "ENGR1600|ENGR1800", "Fundamentals of CAD & CAM", 1, 1 ],
+        # "MGMTXXX" is a slot for any management course.
+        [ 1, "spring", "placeholder", nil, "Information Systems Capstone", 4, 4 ],
+        [ 1, "spring", "course", "TMGT8000", "Strategic Technology Business Management", 3, 3 ],
+        [ 1, "spring", "course", "CONM3800", "Construction Management", 3, 3 ],
+        [ 2, "fall", "course", "PHYS1000", "College Physics I", 4, 4 ],
+        # A number alone on a line is credits, not a page number.
+        [ 2, "fall", "placeholder", nil, "General Elective", 3, 3 ],
+        # "CONMM 890" is a typo for CONM.
+        [ 2, "spring", "course", "CONM890", "Capstone Research in CM", 3, 3 ],
+        [ 2, "spring", "placeholder", nil, "Technical Elective II", 3, 4 ],
+        [ 2, "summer", "course", "COOP3000", nil, 0, 0 ],
+        [ 2, "summer", "course", "FMGT8900", "Optional Thesis", 6, 6 ]
+      ])
+    end
   end
 end

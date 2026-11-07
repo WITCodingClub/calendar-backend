@@ -26,19 +26,28 @@ module DegreeRequirements
       TITLE = /\A\s*(?:Curriculum for\s+)?([A-Z][\w&,.'’\/ -]+?)\s*\(([A-Z]{2,6})\)\s*\z|\A\s*([A-Z][\w&,.'’\/ –-]+ Concentration)\s*\z/
       # "CODE, Title", "CODE<tab or spaces>Title", or the code alone.
       ITEM = /\A\s*(?:[•·▪]\s*)?(?<code>[A-Z]{2,5} ?\d{3,4}[A-Z]?|(?:[A-Z][A-Z&\/-]* ){0,3}(?:ELECTIVES?|ENGLISH|SCIENCE))\*?(?:,\s*|\s{2,}|\t+\s*|\s+|\z)(?<title>.*)\z/
-      CREDITS = /\((\d{1,2}(?:-\d{1,2})?)\s*credits?\)|\b(\d{1,2}(?:-\d{1,2})?)\s*cr\.?(?=\s|\z)/i
+      # "(4 credits)", "4cr.", or "4 credits" at the end of the line.
+      CREDITS = /\((\d{1,2}(?:-\d{1,2})?)\s*credits?\)|\b(\d{1,2}(?:-\d{1,2})?)\s*cr\.?(?=\s|\z)|\b(\d{1,2}(?:-\d{1,2})?)\s+credits?\.?\s*\z/i
       DEFAULT_FOUR = /all courses are four \(4\) credits/i
       FOOTER = /\A\s*\d{1,3}\s*\z/
+      # A course in a list with its credits at the end: "MGMT7000 Business
+      # Relations & Human Resources Management (3)".
+      LISTED_CREDITS = /\A\s*([A-Z]{3,5}) ?(\d{4})[,.]?\s+[A-Z][^()]*\((\d{1,2})\)\s*\z/
+      # One row with no credits takes what the semester total leaves, up to this.
+      MAX_COURSE_CREDITS = 6
       # How far before the first heading the program name can be.
       TITLE_LINES = 20
       # How far back to look for the name of a program with no name near
       # its first heading: its description can run for a few pages.
       FAR_TITLE_LINES = 200
 
-      def self.call(text) = new(text).call
+      # `credits` is KnownCredits: the credits the database has for each
+      # course, for the rows that print none.
+      def self.call(text, credits: {}) = new(text, credits: credits).call
 
-      def initialize(text)
+      def initialize(text, credits: {})
         @lines = text.to_s.split("\n")
+        @database_credits = credits
       end
 
       def call
@@ -68,11 +77,13 @@ module DegreeRequirements
           current[:heading_index] = index
 
           items, index = read_semester(index + 1, key[0], SEASON_ORDER[key[1]], current[:default_credits])
-          items = fill_credits(items, match[3]&.to_i)
-          current[:items].concat(items)
+          current[:semesters] << [ items, match[3]&.to_i ]
         end
         programs << finish(current) if current
-        programs.compact
+        # Credits are filled after the whole catalog is read: a course with no
+        # credits in one plan often has them in another.
+        known = known_credits(programs.compact)
+        programs.compact.filter_map { |program| build(program, known) }
       end
 
       private
@@ -82,13 +93,17 @@ module DegreeRequirements
         prelude = ((title_index || heading_index)...heading_index).map { |i| clean(i) }.join(" ")
         name = title && (title[3] ? title[3].squeeze(" ") : "#{title[1].strip} (#{title[2]})")
         { title: name, code: title && title[2], page: page_of(heading_index),
-          default_credits: prelude.match?(DEFAULT_FOUR) ? 4 : nil, items: [] }
+          default_credits: prelude.match?(DEFAULT_FOUR) ? 4 : nil, semesters: [] }
       end
 
       def finish(program)
-        return nil if program[:items].empty? || program[:title].nil?
+        return nil if program[:semesters].sum { |items, _| items.size }.zero? || program[:title].nil?
 
-        items = program[:items]
+        program
+      end
+
+      def build(program, known)
+        items = program[:semesters].flat_map { |semester, total| fill_credits(semester, total, known) }
         plan = ProgramPageParser::Plan.new(name: program[:title], years: items.map(&:year_index).max,
                                            accelerated: program[:title].match?(/three[\s-]year|accelerated/i),
                                            total_credits: ItemBuilder.total_credits(items), items: items)
@@ -126,7 +141,9 @@ module DegreeRequirements
           else
             cells << cell
           end
-          join_next = false
+          # "ENGR1800, Introduction to MATLAB OR" joins the next line to it.
+          join_next = cells.last[:title].match?(/\s+or\z/i)
+          cells.last[:title] = cells.last[:title].sub(/\s+or\z/i, "") if join_next
         end
 
         items = cells.flat_map do |cell|
@@ -136,17 +153,69 @@ module DegreeRequirements
         [ items, index ]
       end
 
-      # Most lines in 2016-2017 and 2017-2018 print no credits. When the
-      # semester total is four credits for each course with none, each of
-      # them has four, the usual size of a course.
-      def fill_credits(items, total)
-        blank = items.select { |item| item.min_credits.nil? && item.kind != "choice" || item.kind == "choice" && item.min_credits.nil? }
+      # Most lines in 2016-2017 and 2017-2018 print no credits. A course
+      # with none takes the credits another plan of the catalog prints for
+      # it, then the credits the database has for it. Then, when the
+      # semester total is four credits for each row with none, each of them
+      # has four, the usual size of a course. One row left with none takes
+      # what the total leaves. The database credits are kept only when the
+      # semester then adds up to its total: a course can change credits
+      # between years.
+      def fill_credits(items, total, known = {})
+        items = with_credits(items, known)
+        from_database = from_total(with_credits(items, @database_credits), total)
+        return from_database if total.nil? || from_database.sum { |item| item.min_credits.to_i } == total
+
+        from_total(items, total)
+      end
+
+      def with_credits(items, known)
+        items.map do |item|
+          next item unless item.min_credits.nil?
+
+          credits = credits_of(item, known)
+          credits ? item.with(min_credits: credits, max_credits: credits) : item
+        end
+      end
+
+      def from_total(items, total)
+        blank = items.select { |item| item.min_credits.nil? }
         return items if total.nil? || blank.empty?
 
-        known = items.sum { |item| item.min_credits.to_i }
-        return items unless total - known == 4 * blank.size
+        left = total - items.sum { |item| item.min_credits.to_i }
+        each = 4 if left == 4 * blank.size
+        each ||= left if blank.size == 1 && left.between?(0, MAX_COURSE_CREDITS)
+        return items if each.nil?
 
-        items.map { |item| item.min_credits.nil? ? item.with(min_credits: 4, max_credits: 4) : item }
+        items.map { |item| item.min_credits.nil? ? item.with(min_credits: each, max_credits: each) : item }
+      end
+
+      # The credits of a course, or of a choice whose options all have the
+      # same credits, from the other plans.
+      def credits_of(item, known)
+        codes = item.kind == "choice" ? item.options.map { |o| [ o["subject_code"], o["course_number"] ] } : [ [ item.subject_code, item.course_number ] ]
+        return nil if item.kind == "placeholder"
+
+        credits = codes.map { |code| known[code] }.uniq
+        credits.size == 1 ? credits.first : nil
+      end
+
+      # { [subject, number] => credits } from every course row that prints
+      # its credits, and from course lists such as "MGMT7000 Business
+      # Relations (3)". A course printed with different credits is left out.
+      def known_credits(programs)
+        seen = Hash.new { |hash, key| hash[key] = Set.new }
+        programs.each do |program|
+          program[:semesters].each do |items, _|
+            items.each { |item| seen[[ item.subject_code, item.course_number ]] << item.min_credits if item.kind == "course" && item.min_credits }
+          end
+        end
+        @lines.each do |line|
+          next unless (match = LISTED_CREDITS.match(line.delete("\f")))
+
+          seen[[ match[1], match[2].to_i ]] << match[3].to_i
+        end
+        seen.select { |_, credits| credits.size == 1 }.transform_values(&:first)
       end
 
       def cell_for(match, _default_credits)
@@ -156,13 +225,8 @@ module DegreeRequirements
       # [code, title, credits] of a cell. "ENGR1600 Fundamentals of CAD &
       # CAM (1 credit) or ENGR1800 Introduction to MATLAB" is a choice.
       def finish_cell(cell, default_credits)
-        code = cell[:code]
-        title = cell[:title]
-        if (other = title.match(/\s+or\s+([A-Z]{2,5} ?\d{3,4})\b/))
-          code = "#{code} or #{other[1]}"
-          title = title[0...other.begin(0)]
-        end
-        credits = title[CREDITS, 1] || title[CREDITS, 2]
+        code, title = ItemBuilder.split_choice(cell[:code], cell[:title])
+        credits = title.match(CREDITS)&.captures&.compact&.first
         title = title.gsub(CREDITS, "").strip.delete_suffix(",").strip
         credits ||= code.start_with?("COOP") ? 0 : default_credits
         [ code, title, credits ]
