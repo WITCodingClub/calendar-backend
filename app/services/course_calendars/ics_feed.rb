@@ -26,6 +26,12 @@ module CourseCalendars
     # Move it forward when a code change alters the event body.
     CLASS_EVENT_LOGIC_CHANGED_AT = Time.find_zone!(TZID).local(2026, 10, 28, 18, 0)
 
+    # The rendered feed, from Rails.cache when no row that it reads has
+    # changed (CacheKey). A miss builds it and keeps it for CacheKey::TTL.
+    def self.cached_ical(user)
+      Rails.cache.fetch(CacheKey.new(user).to_s, expires_in: CacheKey::TTL) { new(user).to_ical }
+    end
+
     def initialize(user)
       @user    = user
       @courses = user.courses

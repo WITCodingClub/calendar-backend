@@ -84,8 +84,10 @@ RSpec.describe "GET /calendar/:calendar_token friend meetings", type: :request d
 
   it "reads friend_meetings once, with a cheap query, for a person with no meetings" do
     queries = []
+    # The cache key reads every table in one query of its own (#680).
+    skipped = [ "SCHEMA", "IcsFeed::CacheKey" ]
     callback = lambda do |*, payload|
-      queries << payload[:sql] if payload[:name] != "SCHEMA" && payload[:sql].include?("FROM \"friend_meetings\"")
+      queries << payload[:sql] if skipped.exclude?(payload[:name]) && payload[:sql].include?("FROM \"friend_meetings\"")
     end
 
     ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { feed_events }

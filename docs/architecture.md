@@ -22,7 +22,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `Courses` | A user's course list: enrollments, processed events |
 | `AcademicProfiles` | A student's level, class standing, and programs from LeopardWeb (`docs/academic-profile.md`) |
 | `CourseOutcomes` | The outcome of each finished course, without the letter grade (`docs/academic-profile.md`) |
-| `CourseCalendars` | Calendar sync for every provider: sync jobs, provider selection, sync markers, the ICS feed |
+| `CourseCalendars` | Calendar sync for every provider: sync jobs, provider selection, sync markers, the ICS feed (`docs/ics-feed.md`) |
 | `GoogleCalendar` | Google Calendar: the provider, event labels, colors, rate limits, calendar jobs |
 | `MicrosoftGraph` | Microsoft Graph: the HTTP client, the calendar provider, calendar jobs |
 | `GoogleSignIn` | Google sign-in and account linking: token checks, code exchange, OAuth state |

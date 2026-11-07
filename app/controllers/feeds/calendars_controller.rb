@@ -2,17 +2,17 @@
 
 module Feeds
   # The iCalendar feed at /calendar/:token. Calendar apps poll this URL, so it
-  # never changes. CourseCalendars::IcsFeed builds the body.
+  # never changes. CourseCalendars::IcsFeed builds the body, and Rails.cache
+  # keeps it until a row that it reads changes (#680).
   class CalendarsController < ApplicationController
     skip_before_action :verify_authenticity_token
 
     def show
       user = User.find_by!(calendar_token: params[:calendar_token])
-      feed = CourseCalendars::IcsFeed.new(user)
 
       respond_to do |format|
         format.ics do
-          body = feed.to_ical
+          body = CourseCalendars::IcsFeed.cached_ical(user)
 
           refresh = CourseCalendars::IcsFeed::REFRESH_INTERVAL
           seconds = ActiveSupport::Duration.parse(refresh).to_i
