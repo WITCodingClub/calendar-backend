@@ -93,7 +93,7 @@ gem "jwt", "~> 3.3"
 gem "neighbor", "~> 1.2"
 
 # Pagination
-gem "kaminari", "~> 1.2"
+gem "kaminari", "~> 1.3"
 
 # Server uptime monitoring
 gem "okcomputer", "~> 1.20"
