@@ -33,7 +33,7 @@ module DegreeRequirements
     DESCRIPTION_LIMIT = 5_000
     # Part of the digest. Raise it when a change to this parser should write
     # every page again, also the pages that did not change.
-    VERSION = 2
+    VERSION = 3
 
     def initialize(html)
       @doc = Nokogiri::HTML(html)
@@ -46,11 +46,12 @@ module DegreeRequirements
       groups = []
       heading = nil
 
-      @content.css("h2, h3, h4, table.sc_plangrid, table.sc_courselist").each do |node|
+      @content.css("h2, h3, h4, h5, table.sc_plangrid, table.sc_courselist").each do |node|
         if node.name == "table"
           # A heading names the table only from the same tab. The last
           # heading of the overview tab says nothing about the plan.
           title = heading&.first if heading&.last == tab_of(node)
+          title ||= paragraph_heading(node) unless node["class"].to_s.include?("sc_plangrid")
           if node["class"].to_s.include?("sc_plangrid")
             plans << parse_plan(node, title || "Plan of Study")
           else
@@ -253,25 +254,81 @@ module DegreeRequirements
 
     # A placeholder such as "Computer Science Elective 1" names the list
     # "Computer Science Electives" of its own plan or of the whole program.
+    # "NET Elective" names "The Computer Networking Electives" by its subject
+    # code. A list of another plan with the same name is the last choice: a
+    # second plan can print its list under a long note in place of a name.
     def link_placeholders(plans, groups)
       plans.each_with_index.map do |plan, plan_index|
         items = plan.items.map do |item|
           next item unless item.kind == "placeholder"
 
-          key = match_key(item.label)
-          index = groups.each_index.find do |i|
-            group_key = match_key(groups[i].name)
-            groups[i].plan_index.in?([ nil, plan_index ]) && key.present? && group_key.present? &&
-              (group_key.start_with?(key) || key.start_with?(group_key))
-          end
-          item.with(group_index: index)
+          own = groups.each_index.select { |i| groups[i].plan_index.in?([ nil, plan_index ]) }
+          item.with(group_index: name_match(item.label, groups, own) || code_match(item.label, groups, own) ||
+                                 name_match(item.label, groups, groups.each_index.to_a))
         end
         plan.with(items: items)
       end
     end
 
+    def name_match(label, groups, indexes)
+      key = match_key(label)
+      return nil if key.blank?
+
+      indexes.find do |i|
+        group_key = match_key(groups[i].name)
+        group_key.present? && (group_key.start_with?(key) || key.start_with?(group_key))
+      end
+    end
+
+    # "BSCI Elective" and "Building Sciences Electives": the code is the
+    # start of one word, or of each of a run of words. Only one list may
+    # match.
+    def code_match(label, groups, indexes)
+      code = label.to_s[/\A([A-Z]{2,5})\s+electives?\b/i, 1]&.downcase
+      return nil if code.nil?
+
+      found = indexes.select { |i| abbreviates?(code, name_words(groups[i].name)) }
+      found.one? ? found.first : nil
+    end
+
+    def name_words(name)
+      name.to_s.downcase.scan(/[a-z]+/) - %w[the electives elective and of in courses course list]
+    end
+
+    def abbreviates?(code, words)
+      words.each_index.any? { |start| consumes?(code, words, start) }
+    end
+
+    def consumes?(code, words, index)
+      return true if code.empty?
+      return false if index >= words.size
+
+      word = words[index]
+      (1..[ code.size, word.size ].min).reverse_each.any? do |length|
+        word.start_with?(code[0, length]) && consumes?(code[length..], words, index + 1)
+      end
+    end
+
     def match_key(text)
-      text.to_s.downcase.sub(/[\s\d*†]+\z/, "").gsub(/electives?/, "elective").gsub(/[^a-z]/, "")
+      text.to_s.downcase.sub(/\A[\s¹²³⁴⁵*†]*(?:the\s+)?/, "").sub(/[\s\d*†:]+\z/, "")
+          .gsub(/electives?/, "elective").gsub(/[^a-z]/, "")
+    end
+
+    # The name of a list with no h2 to h5 above it: the paragraph just before
+    # it, such as "<p><strong>Building Sciences Electives:</strong></p>". A
+    # "Complete the following courses" paragraph is skipped. A long note is
+    # not a name.
+    def paragraph_heading(table)
+      node = table.previous_element
+      2.times do
+        break if node.nil? || node.name != "p"
+
+        text = squish(node.text).to_s.sub(/\A[¹²³⁴⁵*†\s]+/, "").delete_suffix(":")
+        return text if text.present? && text.size <= NAME_LIMIT && !text.match?(LIST_START) && !text.match?(/\bmay alter\b/i)
+
+        node = node.previous_element
+      end
+      nil
     end
 
     # -- Helpers ---------------------------------------------------------------

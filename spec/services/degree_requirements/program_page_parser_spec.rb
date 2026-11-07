@@ -150,6 +150,68 @@ RSpec.describe DegreeRequirements::ProgramPageParser do
     end
   end
 
+  describe "linking a slot to a list" do
+    def plan_grid(*labels)
+      rows = labels.map { |label| %(<tr><td class="codecol"><span class="comment">#{label}</span></td><td class="hourscol">4</td></tr>) }
+      %(<table class="sc_plangrid"><tr class="plangridyear"><th>First Year</th></tr>) +
+        %(<tr class="plangridterm"><th>Fall Semester</th></tr>#{rows.join}</table>)
+    end
+
+    def course_list(code = "WDGT3000")
+      %(<table class="sc_courselist"><tr><td class="codecol"><a class="bubblelink code">#{code}</a></td></tr></table>)
+    end
+
+    def links(body)
+      page = described_class.new(%(<article id="content"><div id="textcontainer">#{body}</div></article>)).call
+      page.plans.flat_map(&:items).map { |item| [ item.label, item.group_index && page.groups[item.group_index].name ] }
+    end
+
+    it "names a list from the paragraph above it, past a complete-the-following note" do
+      body = plan_grid("Building Sciences Elective") +
+             "<p><strong>Building Sciences Electives:</strong></p>#{course_list}" \
+             "<h5>Project Management Concentration Courses</h5><p>Complete the following courses:</p>#{course_list('WDGT3100')}"
+      page = described_class.new(%(<article id="content"><div id="textcontainer">#{body}</div></article>)).call
+
+      expect(page.groups.map(&:name)).to eq([ "Building Sciences Electives", "Project Management Concentration Courses" ])
+      expect(links(body)).to eq([ [ "Building Sciences Elective", "Building Sciences Electives" ] ])
+    end
+
+    it "does not name a list from a long note or a placement note" do
+      body = "<p>Math Placement may alter the course schedule above.</p>#{course_list}"
+      page = described_class.new(%(<article id="content"><div id="textcontainer">#{body}</div></article>)).call
+
+      expect(page.groups.first.name).to eq("Course List")
+    end
+
+    it "matches a list whose name starts with The" do
+      body = plan_grid("Advanced Security Elective") + "<p>The Advanced Security Electives</p>#{course_list}"
+
+      expect(links(body)).to eq([ [ "Advanced Security Elective", "The Advanced Security Electives" ] ])
+    end
+
+    it "matches a subject code to the words of one list, and leaves a code that fits two lists" do
+      body = plan_grid("NET Elective", "BSCI Elective", "COMP Elective") +
+             "<p>The Computer Networking Electives</p>#{course_list}" \
+             "<p>Building Sciences Electives</p>#{course_list('WDGT3100')}" \
+             "<p>Computer Science Electives</p>#{course_list('WDGT3200')}" \
+             "<p>Computer Engineering Electives</p>#{course_list('WDGT3300')}"
+
+      expect(links(body)).to eq([
+        [ "NET Elective", "The Computer Networking Electives" ],
+        [ "BSCI Elective", "Building Sciences Electives" ],
+        [ "COMP Elective", nil ]
+      ])
+    end
+
+    it "uses a list of another plan with the same name when its own plan has none" do
+      body = "<h3>Four Year Program</h3>#{plan_grid('Technical Elective')}<h4>Technical Electives</h4>#{course_list}" \
+             "<h3>Accelerated Program</h3>#{plan_grid('Technical Elective')}" \
+             "<h4>A total of 16 semester credit hours of technical electives must be taken</h4>#{course_list('WDGT3100')}"
+
+      expect(links(body).map(&:last)).to eq([ "Technical Electives", "Technical Electives" ])
+    end
+  end
+
   it "reads a page with no catalog year mark as having no year" do
     expect(described_class.new("<html><body><h1>Lost</h1></body></html>").call.start_year).to be_nil
   end
