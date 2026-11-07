@@ -124,6 +124,32 @@ RSpec.describe Courses::Processor do
 
   # Prosopite raises in Prosopite.scan when the same query runs once for each
   # course (#723).
+  describe "the section limit" do
+    def payload(count, meetings_each: 1)
+      Array.new(count) { |i| Array.new(meetings_each) { { crn: (20_000 + i).to_s, term: "202710" } } }.flatten
+    end
+
+    it "refuses more sections than MAX_SECTIONS before it asks Banner" do
+      processor = described_class.new(payload(described_class::MAX_SECTIONS + 1), user)
+
+      expect { processor.call }.to raise_error(Courses::InvalidPayloadError, /at most #{described_class::MAX_SECTIONS} sections/)
+      expect(Catalog::LeopardWebClient).not_to have_received(:get_class_details)
+    end
+
+    # #call groups by the raw values and asks Banner once for each group.
+    it "counts a CRN sent as a number and as a string as two sections" do
+      mixed = payload(described_class::MAX_SECTIONS / 2 + 1) + payload(described_class::MAX_SECTIONS / 2 + 1).map { |c| c.merge(crn: c[:crn].to_i) }
+
+      expect { described_class.new(mixed, user).validate! }.to raise_error(Courses::InvalidPayloadError)
+    end
+
+    it "counts a section once, however many meetings it has" do
+      processor = described_class.new(payload(described_class::MAX_SECTIONS, meetings_each: 2), user)
+
+      expect { processor.validate! }.not_to raise_error
+    end
+  end
+
   describe "with several courses" do
     let(:crns) { %w[11111 22222 33333] }
     let(:courses_payload) { crns.map { |crn| { crn: crn, term: "202710", courseNumber: "2000" } } }

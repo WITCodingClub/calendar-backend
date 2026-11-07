@@ -9,6 +9,8 @@ RSpec.describe Catalog::CourseDetailsSync do
 
   def fixture(name) = file_fixture("leopard_web/#{name}.html").read
 
+  # A failing page answers 404, which Catalog::BannerThrottle does not retry.
+  # A 500 would retry under the job budget until the cooldown opens.
   def stub_banner(crn, prerequisites: fixture("prerequisites_and_or_groups"), status: 200, failing: [])
     {
       "getCourseDescription"        => fixture("course_description"),
@@ -22,7 +24,7 @@ RSpec.describe Catalog::CourseDetailsSync do
     }.each do |path, body|
       stub_request(:get, "#{Catalog::LeopardWebClient::BASE_URL}#{path}")
         .with(query: { term: term.uid.to_s, courseReferenceNumber: crn.to_s })
-        .to_return(status: failing.include?(path) ? 500 : status, body: body)
+        .to_return(status: failing.include?(path) ? 404 : status, body: body)
     end
   end
 

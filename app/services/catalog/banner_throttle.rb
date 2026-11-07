@@ -6,7 +6,7 @@ module Catalog
   #
   # On 2026-10-14 Banner answered HTTP 500 to every searchResults request after
   # about 40 requests in a minute, and worked again a few minutes later. So the
-  # middleware does three things:
+  # middleware does four things:
   #
   # 1. Pacing. A token bucket for each kind of caller (BUCKETS): a burst of
   #    requests at once, then a fixed rate. Web requests and jobs have separate
@@ -17,7 +17,8 @@ module Catalog
   #    exponential backoff and jitter, and Retry-After when Banner sends it. A
   #    web request has a small budget, so a student does not wait long. A job
   #    has a large one.
-  # 3. Cooldown. After COOLDOWN_AFTER failures in a row, no request goes to
+  # 3. Timeouts. Each attempt has the open and read timeouts of its budget.
+  # 4. Cooldown. After COOLDOWN_AFTER failures in a row, no request goes to
   #    Banner for COOLDOWN. Requests raise CooldownError at once, and jobs retry
   #    later.
   #
@@ -45,11 +46,14 @@ module Catalog
     COOLDOWN_AFTER = 5
     COOLDOWN       = 3.minutes
 
-    # How long one request may spend in retries, by caller.
-    Budget = Data.define(:retries, :max_wait)
+    # How long one request may wait for Banner, by caller: the retries, the
+    # total retry delay, and the timeouts of each attempt in seconds. Banner
+    # answers getClassDetails in under a second, so a web request gives up
+    # early and keeps its Puma thread free (#683). A job waits longer.
+    Budget = Data.define(:retries, :max_wait, :open_timeout, :read_timeout)
     BUDGETS = {
-      request: Budget.new(retries: 2, max_wait: 3),
-      job:     Budget.new(retries: 6, max_wait: 90)
+      request: Budget.new(retries: 2, max_wait: 3, open_timeout: 3, read_timeout: 8),
+      job:     Budget.new(retries: 6, max_wait: 90, open_timeout: 10, read_timeout: 30)
     }.freeze
 
     # Banner answers these two only over POST, but neither changes data:
@@ -117,14 +121,18 @@ module Catalog
         end
       end
 
-      # A job waits longer for Banner than a web request. ActiveJob puts the
-      # job in ActiveSupport::ExecutionContext. Code that starts threads copies
-      # the context into them (Concurrently, Courses::Processor), so a request
-      # sent from a worker thread gets the budget of the job or the request
-      # that started it. with_budget picks a budget by hand, for a rake task.
+      # A web request waits less for Banner than anything else. Rails puts
+      # the controller (or the job) in ActiveSupport::ExecutionContext. Code
+      # that starts threads copies the context into them (Concurrently,
+      # Courses::Processor), so a request sent from a worker thread gets the
+      # budget of the request or job that started it. A rake task, a runner
+      # script, or the console has neither and gets the job budget.
+      # with_budget picks a budget by hand.
       def current_budget
         context = ActiveSupport::ExecutionContext.to_h
-        context[:banner_budget] || (context[:job] ? :job : :request)
+        return context[:banner_budget] if context[:banner_budget]
+
+        context[:controller] && !context[:job] ? :request : :job
       end
 
       def with_budget(name, &)
@@ -160,6 +168,8 @@ module Catalog
       name   = self.class.current_budget
       budget = BUDGETS.fetch(name)
       request_body = env.body
+      env.request.open_timeout = budget.open_timeout
+      env.request.timeout = budget.read_timeout
       retries = 0
       waited  = 0.0
 
@@ -170,6 +180,19 @@ module Catalog
 
         begin
           response = @app.call(env)
+        rescue Faraday::TimeoutError
+          # Banner answers, but slower than a web request may wait. Another
+          # try would hold the Puma thread longer, and the shared cooldown
+          # would also stop the jobs, which have time to wait. So a web request
+          # gives up at once and does not count toward the cooldown (#683).
+          if name == :request
+            self.class.count(:failed)
+            raise
+          end
+
+          self.class.record_failure
+          delay = backoff(retries)
+          raise unless retry?(env, budget, retries, waited + delay)
         rescue *RETRY_EXCEPTIONS
           self.class.record_failure
           delay = backoff(retries)

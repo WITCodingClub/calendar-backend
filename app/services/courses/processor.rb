@@ -21,6 +21,12 @@ module Courses
     # refresh in the background (Catalog::SectionRefreshJob).
     REFRESH_AFTER = 6.hours
 
+    # The most sections (CRN and term pairs) in one payload. A full-time
+    # schedule with labs has about 14. Each section that is not in the catalog
+    # costs three Banner requests, and a web request runs inside a Puma
+    # thread, so the cap bounds how long one request can hold it (#683).
+    MAX_SECTIONS = 40
+
     def call
       validate_courses_data!
       started_at = monotonic_now
@@ -288,7 +294,7 @@ module Courses
     end
 
     # Checks the payload shape without calling Banner or writing anything.
-    # Raises ArgumentError when the payload is not valid.
+    # Raises Courses::InvalidPayloadError when the payload is not valid.
     def validate!
       validate_courses_data!
     end
@@ -328,27 +334,35 @@ module Courses
     end
 
     def validate_courses_data!
-      raise ArgumentError, "courses cannot be nil" if courses.nil?
-      raise ArgumentError, "courses must be an array" unless courses.is_a?(Array)
-      raise ArgumentError, "courses cannot be empty" if courses.empty?
+      raise Courses::InvalidPayloadError, "courses cannot be nil" if courses.nil?
+      raise Courses::InvalidPayloadError, "courses must be an array" unless courses.is_a?(Array)
+      raise Courses::InvalidPayloadError, "courses cannot be empty" if courses.empty?
 
       courses.each_with_index do |course_data, index|
         unless course_data.is_a?(Hash)
-          raise ArgumentError, "course at index #{index} must be a hash"
+          raise Courses::InvalidPayloadError, "course at index #{index} must be a hash"
         end
 
         if course_data[:crn].blank?
-          raise ArgumentError, "course at index #{index} missing required field: crn"
+          raise Courses::InvalidPayloadError, "course at index #{index} missing required field: crn"
         end
 
         if course_data[:term].blank?
-          raise ArgumentError, "course at index #{index} missing required field: term"
+          raise Courses::InvalidPayloadError, "course at index #{index} missing required field: term"
         end
 
         unless course_data[:term].to_s.match?(/^\d+$/)
-          raise ArgumentError, "course at index #{index} has invalid term UID: #{course_data[:term]}"
+          raise Courses::InvalidPayloadError, "course at index #{index} has invalid term UID: #{course_data[:term]}"
         end
       end
+
+      # The same key as the grouping in #call, so the count matches the number
+      # of Banner lookups. "12345" and 12345 are two keys there, so they count
+      # twice here too.
+      sections = courses.map { |c| [ c[:crn], c[:term] ] }.uniq.size
+      return if sections <= MAX_SECTIONS
+
+      raise Courses::InvalidPayloadError, "A request can have at most #{MAX_SECTIONS} sections, got #{sections}"
     end
 
     # Prefer structured meeting times from getFacultyMeetingTimes — correct room/time data

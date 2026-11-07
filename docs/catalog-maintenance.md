@@ -7,6 +7,9 @@ The course catalog comes from Banner (LeopardWeb). These jobs and tasks keep it 
 | Import one term | A new term appears | Admin, Course catalog, Import (`Catalog::ImportJob`) |
 | Nightly sync | Every night, current and future terms | `Catalog::CourseDataSyncJob` (`config/recurring.yml`) |
 | Refresh one schedule's sections | After `POST /api/process_courses` serves sections from the catalog that Banner confirmed more than 6 hours ago | `Catalog::SectionRefreshJob` |
+| Course details and prerequisites | After each import, and nightly | `Catalog::CourseDetailsSyncJob` |
+| Re-import every term | After a change to the importer, or to find missed sections | `bin/rails catalog:reimport_all_terms` |
+| Fetch every course's details again | After a new course detail column ships | `bin/rails catalog:backfill_course_details REFETCH=1` |
 
 ## Where a schedule's sections come from
 
@@ -25,9 +28,12 @@ flowchart TD
 ```
 
 Each request logs one line: `[Courses::Processor] user=… sections=… from_catalog=… from_banner=… refresh=… banner_ms=… total_ms=…`.
-| Course details and prerequisites | After each import, and nightly | `Catalog::CourseDetailsSyncJob` |
-| Re-import every term | After a change to the importer, or to find missed sections | `bin/rails catalog:reimport_all_terms` |
-| Fetch every course's details again | After a new course detail column ships | `bin/rails catalog:backfill_course_details REFETCH=1` |
+
+The Banner calls of a web request run inside a Puma thread, so these limits keep that thread short (#683):
+
+- A payload can have at most `Courses::Processor::MAX_SECTIONS` (40) sections, counted as distinct CRN and term pairs. A larger payload gets a `400` before any Banner call. `POST /api/courses/reprocess` checks it before it removes an enrollment. In `POST /api/process_courses/batch`, the term fails.
+- `Catalog::BannerThrottle::BUDGETS` sets the timeouts of each Banner request by caller. A web request waits 3 seconds to connect and 8 seconds to read. A job, a rake task, and the console wait 10 and 30 seconds.
+- A web request that hits the read timeout fails at once. It does not retry, and it does not count toward the cooldown, so a slow Banner does not stop the jobs.
 
 ## Course titles
 

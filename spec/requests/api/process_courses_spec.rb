@@ -36,6 +36,22 @@ RSpec.describe "POST /api/process_courses", type: :request do
     expect(reports).to be_empty
   end
 
+  it "answers 400 for more sections than the limit, before Banner, and reports nothing" do
+    allow(Catalog::LeopardWebClient).to receive(:get_class_details)
+    courses = Array.new(Courses::Processor::MAX_SECTIONS + 1) { |i| { crn: 20_000 + i, term: 202710 } }
+
+    reports = capture_error_reports do
+      post "/api/process_courses", params: { courses: courses }, headers: auth_headers_for(user), as: :json
+    end
+
+    expect(response).to have_http_status(:bad_request)
+    expect(response.parsed_body["error"]).to eq(
+      "A request can have at most #{Courses::Processor::MAX_SECTIONS} sections, got #{Courses::Processor::MAX_SECTIONS + 1}"
+    )
+    expect(Catalog::LeopardWebClient).not_to have_received(:get_class_details)
+    expect(reports).to be_empty
+  end
+
   it "answers 503 on reprocess while Banner cools down" do
     allow(Courses::Reprocessor).to receive(:new).and_raise(Catalog::BannerThrottle::CooldownError.new(42))
 

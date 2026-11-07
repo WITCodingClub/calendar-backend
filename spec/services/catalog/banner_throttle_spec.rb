@@ -5,6 +5,11 @@ require "rails_helper"
 RSpec.describe Catalog::BannerThrottle do
   include ActiveSupport::Testing::TimeHelpers
 
+  # Most examples are about a web request. rails_helper clears the context
+  # before each example, and this runs after it. An example that needs a job
+  # sets job: inside it.
+  before { ActiveSupport::ExecutionContext[:controller] = Object.new }
+
   let(:base) { "https://selfservice.wit.edu/StudentRegistrationSsb/ssb/" }
   let(:connection) do
     Faraday.new(url: base) do |f|
@@ -46,6 +51,68 @@ RSpec.describe Catalog::BannerThrottle do
         expect(described_class.acquire).to be_positive
       end
       expect(described_class.acquire).to eq(0.0)
+    end
+  end
+
+  describe "timeouts" do
+    # Records the timeouts that reach the adapter.
+    let(:seen) { [] }
+    let(:connection) do
+      seen = self.seen
+      recorder = Class.new(Faraday::Middleware) do
+        define_method(:call) do |env|
+          seen << [ env.request.open_timeout, env.request.timeout ]
+          @app.call(env)
+        end
+      end
+
+      Faraday.new(url: base, request: { open_timeout: 99, timeout: 99 }) do |f|
+        f.use described_class
+        f.use recorder
+        f.adapter Faraday.default_adapter
+      end
+    end
+
+    before { stub_request(:get, "#{base}x").to_return(status: 200) }
+
+    it "gives a web request the short timeouts of its budget" do
+      connection.get("x")
+
+      budget = described_class::BUDGETS[:request]
+      expect(seen).to eq([ [ budget.open_timeout, budget.read_timeout ] ])
+    end
+
+    it "gives a job the long timeouts of its budget" do
+      ActiveSupport::ExecutionContext.set(job: Object.new) { connection.get("x") }
+
+      budget = described_class::BUDGETS[:job]
+      expect(seen).to eq([ [ budget.open_timeout, budget.read_timeout ] ])
+    end
+
+    it "gives up on a web request after one read timeout, without a retry or a cooldown" do
+      stub = stub_request(:get, "#{base}slow").to_raise(Faraday::TimeoutError)
+
+      (described_class::COOLDOWN_AFTER + 1).times do
+        expect { connection.get("slow") }.to raise_error(Faraday::TimeoutError)
+      end
+
+      expect(stub).to have_been_requested.times(described_class::COOLDOWN_AFTER + 1)
+      expect(described_class.cooldown_remaining).to be_nil
+    end
+
+    it "retries a read timeout in a job, and counts it toward the cooldown" do
+      stub = stub_request(:get, "#{base}slow").to_raise(Faraday::TimeoutError).then.to_return(status: 200)
+
+      ActiveSupport::ExecutionContext.set(job: Object.new) { connection.get("slow") }
+
+      expect(stub).to have_been_requested.twice
+    end
+
+    it "keeps a web request shorter than a job" do
+      request, job = described_class::BUDGETS.values_at(:request, :job)
+
+      expect(request.read_timeout).to be < job.read_timeout
+      expect(request.open_timeout).to be < job.open_timeout
     end
   end
 
@@ -152,10 +219,18 @@ RSpec.describe Catalog::BannerThrottle do
   end
 
   describe ".current_budget" do
-    it "is :request by default, :job inside a job, and what with_budget names" do
+    it "is :request in a web request, :job inside a job, and what with_budget names" do
       expect(described_class.current_budget).to eq(:request)
       ActiveSupport::ExecutionContext.set(job: Object.new) { expect(described_class.current_budget).to eq(:job) }
       described_class.with_budget(:job) { expect(described_class.current_budget).to eq(:job) }
+    end
+
+    # A rake task or the console must not get the short web timeouts.
+    it "is :job outside a web request and a job" do
+      ActiveSupport::ExecutionContext.clear
+
+      expect(described_class.current_budget).to eq(:job)
+      described_class.with_budget(:request) { expect(described_class.current_budget).to eq(:request) }
     end
   end
 end

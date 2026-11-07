@@ -23,6 +23,8 @@ module Api
         user_pub: current_user.public_id,
         ics_url:  current_user.cal_url_with_extension
       }, status: :ok
+    rescue Courses::InvalidPayloadError => e
+      render_error e.message, status: :bad_request
     rescue Catalog::BannerThrottle::CooldownError => e
       render_banner_unavailable(e)
     rescue => e

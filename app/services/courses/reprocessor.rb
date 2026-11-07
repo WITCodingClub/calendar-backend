@@ -70,6 +70,11 @@ module Courses
 
       term_uids = courses.map { |c| c[:term] || c["term"] }.uniq
       raise ArgumentError, "All courses must be from the same term" if term_uids.length > 1
+
+      # Check the whole payload before any enrollment is removed below. A
+      # payload that Courses::Processor refuses must not cost the user their
+      # enrollments and calendar events.
+      Courses::Processor.new(courses, user).validate!
     end
 
     def cleanup_calendar_events_for_enrollment(enrollment)
