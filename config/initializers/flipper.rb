@@ -28,13 +28,27 @@ FLIPPER_FLAGS = {
   FeatureFlags::DEGREE_PLANNING => "My programs page and the programs and degree progress API. Checked per user. MCP tools stay on: their scopes are the gate"
 }.freeze
 
+# The Flipper engine adds its memoizer after Rack::Attack, so the
+# privileged-users safelist read its flag outside the memoized request. Turn
+# the engine's memoizer off and put one in front of Rack::Attack instead. It
+# preloads every flag once for each request (#682).
 Rails.application.configure do
-  config.flipper.memoize = true
+  config.flipper.memoize = false
+  config.middleware.insert_before Rack::Attack, Flipper::Middleware::Memoizer, preload: true
 end
+
+# Flag reads stay in this process for FLIPPER_CACHE_TTL. Rails.cache is Solid
+# Cache in production, so a cache read there is a database query on every
+# request (#682). A flag change through the Flipper UI clears this cache at
+# once. A change from another process, such as `rails runner` or the other
+# deploy slot, shows after at most FLIPPER_CACHE_TTL. Specs keep Rails.cache
+# (a null store), so no flag state carries over between examples.
+FLIPPER_CACHE_TTL = 1.minute
+FLIPPER_CACHE = Rails.env.test? ? Rails.cache : ActiveSupport::Cache::MemoryStore.new(size: 1.megabyte)
 
 Flipper.configure do |config|
   config.use FeatureFlags::UserActorAdapter
-  config.use Flipper::Adapters::ActiveSupportCacheStore, Rails.cache, 5.minutes
+  config.use Flipper::Adapters::ActiveSupportCacheStore, FLIPPER_CACHE, FLIPPER_CACHE_TTL
 end
 
 Flipper::UI.configure do |config|
