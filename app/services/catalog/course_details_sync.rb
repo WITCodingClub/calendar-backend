@@ -69,11 +69,11 @@ module Catalog
     # not have, and the nightly embedding backfill sees the new title by its
     # digest.
     def self.refresh_titles(rows, now)
-      codes = rows.map { |subject, number, _| [ prefix_of(subject), number ] }.uniq
-      values = codes.map { |code, number| CatalogCourse.sanitize_sql_array([ "(?, ?::integer)", code, number ]) }
+      codes = rows.map { |subject, number, _| [ prefix_of(subject), number.to_i ] }.uniq
+      catalog_ids = CatalogCourse.where([ :subject_code, :course_number ] => codes).select(:id)
 
       newest = Course.joins(:term).joins_catalog_course
-                     .where("(catalog_courses.subject_code, catalog_courses.course_number) IN (VALUES #{values.join(', ')})")
+                     .where(catalog_courses: { id: catalog_ids })
                      .select("DISTINCT ON (catalog_courses.id) catalog_courses.id AS catalog_course_id, courses.title")
                      .order(Arel.sql("catalog_courses.id, terms.uid DESC, courses.crn ASC"))
 
