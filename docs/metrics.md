@@ -119,6 +119,7 @@ Turn enforcement on when the reports show no violation from the app's own pages.
 Rack::Attack refuses a request over a throttle with `429` before Rails sees it (`config/initializers/rack_attack.rb`). The Rails request metrics do not count these requests.
 
 - `calendar_rate_limited_total` counts each refused request, by throttle name.
+- `catalog/semantic` also counts a semantic search that Rails refuses: a GraphQL query (`Analyzers::SemanticSearchLimit`, a 429 that the Rails metrics also count) or an MCP tool call (`McpTools::SemanticBudget`, a tool error, not a 429).
 - The first refused request for one key in one window also writes one warning log line:
 
   ```json

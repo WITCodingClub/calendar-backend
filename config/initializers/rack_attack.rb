@@ -126,10 +126,15 @@ class Rack::Attack
 
   # A request with a valid API token counts against api/user instead. Many
   # students share one campus address, and their extension calls would use up
-  # one budget for all of them. 3000 in 5 minutes is 600 a minute, so this
-  # rule does not stop sign-in or the catalog before their own rules do.
+  # one budget for all of them.
+  #
+  # Sign-in callbacks, extension events, and CSP reports have their own
+  # per-IP budgets and skip this rule, so a busy campus address cannot use up
+  # req/ip and then lose sign-in. 3000 in 5 minutes is 600 a minute, which is
+  # more than catalog/ip and api/ip together (spec/initializers/rack_attack_spec.rb).
   throttle("req/ip", limit: 3000, period: 5.minutes) do |req|
-    next if req.path.start_with?("/assets", "/packs", "/rails/active_storage")
+    next if req.path.start_with?("/assets", "/packs", "/rails/active_storage", "/auth/", "/oauth/")
+    next if [ EXTENSION_EVENTS_PATH, CSP_REPORTS_PATH ].include?(req.path)
 
     ip_key(req) unless extract_user_id(req)
   end

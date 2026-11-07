@@ -5,8 +5,8 @@
 # "RateLimit header fields for HTTP":
 # https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers-11
 #
-#   RateLimit-Policy: "req/ip";q=600;w=300, "catalog/ip";q=300;w=60
-#   RateLimit: "req/ip";r=599;t=180, "catalog/ip";r=299;t=42
+#   RateLimit-Policy: "req/ip";q=3000;w=300, "catalog/ip";q=300;w=60
+#   RateLimit: "req/ip";r=2999;t=180, "catalog/ip";r=299;t=42
 #
 # Rack::Attack puts each throttle that counted the request in
 # env["rack.attack.throttle_data"]. Each of those throttles is one policy. A

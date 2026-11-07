@@ -486,12 +486,23 @@ RSpec.describe Rack::Attack do
       expect(described_class.throttles.fetch("api/token-mint").limit).to be >= 60
     end
 
-    it "keeps the general per-IP limit above the sign-in and catalog limits it also counts" do
+    it "keeps the general per-IP limit above the per-IP limits that it also counts, added together" do
       req_ip = described_class.throttles.fetch("req/ip")
       per_minute = req_ip.limit * 60 / req_ip.period
+      overlapping = %w[catalog/ip api/ip].sum { |name| described_class.throttles.fetch(name).limit }
 
-      expect(per_minute).to be >= described_class.throttles.fetch("catalog/ip").limit
-      expect(per_minute).to be >= described_class.throttles.fetch("oauth/callbacks").limit
+      expect(per_minute).to be > overlapping
+    end
+
+    [ "/auth/google_oauth2/callback", "/oauth/success", "/api/extension_events", "/api/csp_reports" ].each do |path|
+      it "does not count #{path} against req/ip, because it has its own per-IP budget" do
+        expect(discriminator("req/ip", path)).to be_nil
+      end
+    end
+
+    it "still counts the catalog and anonymous API requests against req/ip" do
+      expect(discriminator("req/ip", "/api/v1/catalog/terms")).to eq("1.2.3.4")
+      expect(discriminator("req/ip", "/api/user/onboard")).to eq("1.2.3.4")
     end
 
     it "keeps token minting tighter than the general anonymous API limit" do
