@@ -275,6 +275,32 @@ RSpec.describe "Dashboard::Programs", :degree_planning, type: :request do
       expect(user.student_programs.planned.count).to eq(1)
     end
 
+    it "plans only the programs of a pathway that the student does not have" do
+      combined = create(:program_pathway, name: "Widget Design, B.S. and M.S.")
+      create(:program_pathway_step, program_pathway: combined, degree_program: major_program, position: 1)
+      create(:program_pathway_step, program_pathway: combined, degree_program: master_program, position: 2, plan_years: 1)
+
+      post dashboard_planned_pathways_path, params: { pathway: combined.slug }
+
+      expect(user.student_programs.planned.sole).to have_attributes(degree_program: master_program, program_pathway: combined)
+    end
+
+    it "asks for a bachelor's program before a Double Leopard master's" do
+      major.update!(degree: "Master of Science", degree_program: nil)
+
+      post dashboard_planned_pathways_path, params: { pathway: pathway.slug }
+
+      expect(flash[:alert]).to include("Add your bachelor's program first")
+      expect(user.student_programs.planned).to be_empty
+    end
+
+    it "shortens a long error so the flash fits in the session cookie" do
+      post dashboard_planned_pathways_path, params: { pathway: "x" * 5000 }
+
+      expect(response).to redirect_to(dashboard_programs_path(anchor: "planned-programs"))
+      expect(flash[:alert].length).to be <= 300
+    end
+
     it "shows the error for an unknown pathway" do
       post dashboard_planned_pathways_path, params: { pathway: "basket-weaving" }
 

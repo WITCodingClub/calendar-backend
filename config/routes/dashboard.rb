@@ -52,7 +52,7 @@ authenticate :user do
     resource  :academic_profile, path: "programs/profile", only: [ :edit, :update ]
     resources :planned_programs, path: "programs/planned", only: [ :create, :destroy ]
     # A 3+1, 4+1, or 5-year pathway. The id is the pathway slug.
-    resources :planned_pathways, path: "programs/pathways", only: [ :create, :destroy ]
+    resources :planned_pathways, path: "programs/pathways", only: [ :create, :destroy ], constraints: { id: %r{[^/]+} }
     resources :programs, only: [ :index, :edit, :update ] do
       member { patch :plan }
     end

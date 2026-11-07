@@ -23,7 +23,9 @@ module Dashboard
       # build_pathway makes the rows for current_user, so no other check is
       # needed.
       skip_authorization unless pundit_policy_authorized?
-      redirect_to dashboard_programs_path(anchor: "planned-programs"), alert: e.message
+      # The message can echo the pathway param, and the flash lives in the
+      # session cookie, so a long param must not overflow it.
+      redirect_to dashboard_programs_path(anchor: "planned-programs"), alert: e.message.truncate(300)
     end
 
     # id is the pathway slug.
