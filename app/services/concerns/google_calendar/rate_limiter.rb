@@ -8,13 +8,25 @@ module GoogleCalendar
       attr_accessor :max_retries, :initial_delay, :max_delay, :backoff_multiplier, :batch_throttle_delay
 
       def initialize
-        @max_retries          = 5
+        @max_retries          = 2
         @initial_delay        = 1.0
-        @max_delay            = 32.0
+        @max_delay            = 8.0
         @backoff_multiplier   = 2.0
         @batch_throttle_delay = 0.1
       end
     end
+
+    # A job sleeps for at most a few seconds in the calls above, because a
+    # sleep holds a worker thread. When the limit lasts longer, the error leaves
+    # the job, and the job retries later with these options:
+    #
+    #   retry_on Google::Apis::RateLimitError, **GoogleCalendar::RateLimiter::JOB_RETRY
+    #
+    # The waits are about 3 s, 18 s, 83 s and 258 s. The google-apis gem raises
+    # RateLimitError for a 429 and for a 403 with the reason rateLimitExceeded,
+    # userRateLimitExceeded or sharingRateLimitExceeded. See
+    # docs/google-calendar-rate-limits.md.
+    JOB_RETRY = { wait: :polynomially_longer, attempts: 5 }.freeze
 
     # Inside a web request, a long backoff holds one of the few Puma threads.
     # A request retries once, after a short wait, and leaves longer waits to

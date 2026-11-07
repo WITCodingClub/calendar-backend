@@ -1,0 +1,13 @@
+{
+  "error": {
+    "errors": [
+      {
+        "domain": "usageLimits",
+        "reason": "quotaExceeded",
+        "message": "Calendar usage limits exceeded."
+      }
+    ],
+    "code": 403,
+    "message": "Calendar usage limits exceeded."
+  }
+}

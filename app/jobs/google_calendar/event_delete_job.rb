@@ -8,6 +8,8 @@ module GoogleCalendar
   class EventDeleteJob < ApplicationJob
     queue_as :high
 
+    retry_on Google::Apis::RateLimitError, **GoogleCalendar::RateLimiter::JOB_RETRY
+
     def perform(calendar_id, external_event_id)
       return if calendar_id.blank? || external_event_id.blank?
 

@@ -82,6 +82,26 @@ RSpec.describe GoogleCalendar::Provider do
     end
   end
 
+  describe "#create_or_get_course_calendar" do
+    let(:user) { create(:user) }
+
+    before do
+      stub_google_service_account
+      allow_any_instance_of(described_class).to receive(:sleep)
+    end
+
+    # GoogleCalendar::CreateJob retries a RateLimitError later. A wrapped
+    # RuntimeError would make the job fail with no retry.
+    it "raises a rate limit as it is, so the job can retry it" do
+      stub_request(:post, "https://www.googleapis.com/calendar/v3/calendars")
+        .to_return(status: 403, body: file_fixture("google_calendar/rate_limit_exceeded.json").read,
+                   headers: { "Content-Type" => "application/json" })
+
+      expect { described_class.new(user).create_or_get_course_calendar }
+        .to raise_error(Google::Apis::RateLimitError)
+    end
+  end
+
   describe "#remove_calendar_from_user_list_for_email" do
     let(:user) { create(:user) }
     let(:credential) do

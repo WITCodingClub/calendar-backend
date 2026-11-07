@@ -122,6 +122,22 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
       end
     end
 
+    context "when Google hits a rate limit and the other provider works" do
+      before do
+        allow(google).to receive(:update_calendar_events)
+          .and_raise(Google::Apis::RateLimitError.new("rateLimitExceeded: Rate Limit Exceeded", status_code: 403))
+        allow(Rails.error).to receive(:report)
+      end
+
+      it "raises the rate limit, so the job retries, and does not record a sync" do
+        expect { syncer.sync_schedule }.to raise_error(Google::Apis::RateLimitError)
+
+        expect(microsoft).to have_received(:update_calendar_events)
+        expect(Rails.error).not_to have_received(:report)
+        expect(user.reload).to have_attributes(calendar_needs_sync: true, last_calendar_sync_at: nil)
+      end
+    end
+
     context "when every provider fails" do
       before do
         allow(google).to receive(:update_calendar_events).and_raise(Signet::AuthorizationError, "token revoked")

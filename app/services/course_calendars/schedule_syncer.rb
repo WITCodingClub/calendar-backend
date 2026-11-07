@@ -123,6 +123,11 @@ module CourseCalendars
       end
 
       raised = errors.shift.first if errors.any? && errors.size == services.size
+      # A Google rate limit also fails the run when another provider worked.
+      # The job then retries later (docs/google-calendar-rate-limits.md), and
+      # the user is not recorded as synced. Syncing the other provider again
+      # changes nothing.
+      raised ||= errors.delete(errors.find { |error, _| error.is_a?(Google::Apis::RateLimitError) })&.first
       errors.each do |error, service|
         Rails.error.report(error, handled: true, context: { user_id: user.id, provider: service.class.name })
       end
