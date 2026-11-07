@@ -10,7 +10,7 @@ The `google-apis-core` gem picks the error class from the HTTP status and the re
 | --- | --- | --- |
 | `429` | `Google::Apis::RateLimitError` | Retries |
 | `403` `rateLimitExceeded`, `userRateLimitExceeded`, `sharingRateLimitExceeded` | `Google::Apis::RateLimitError` | Retries |
-| `403` with "Quota exceeded ... per minute" in the message | `Google::Apis::ClientError` | Retries |
+| `403` with "Quota exceeded ... per minute" in the message and another reason | `Google::Apis::ClientError` | Retries in process only |
 | `403` `quotaExceeded` ("Calendar usage limits exceeded") | `Google::Apis::ClientError` | Does not retry |
 | `403` `dailyLimitExceeded` | `Google::Apis::ClientError` | Does not retry |
 
@@ -43,7 +43,9 @@ flowchart TD
 
 These jobs retry: `CourseCalendars::SyncJob`, `CourseCalendars::HistoricalSyncJob`, `GoogleCalendar::CreateJob`, `GoogleCalendar::DeleteJob`, `GoogleCalendar::EventDeleteJob`, and the `FriendMeetings::` jobs. Add the `retry_on` line to a new job that calls Google.
 
-When a user has a Google and a Microsoft calendar, `CourseCalendars::ScheduleSyncer` raises an error only when every provider fails. A Google rate limit with a Microsoft success is reported, and the next sync fixes the Google calendar.
+When a user has a Google and a Microsoft calendar, `CourseCalendars::ScheduleSyncer` raises an error only when every provider fails. A Google rate limit is the exception: the syncer raises it after the other providers finish. The job then retries, and the user is not recorded as synced, so the nightly sync still picks the user.
+
+The cleanup jobs (`Cleanup::`) have no `retry_on`. They log a failed item, skip it, and get it on the next run.
 
 ## Batch requests
 

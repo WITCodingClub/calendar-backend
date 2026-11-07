@@ -54,6 +54,9 @@ module GoogleCalendar
       end
 
       calendar_id
+    rescue Google::Apis::RateLimitError
+      # GoogleCalendar::CreateJob retries this class later.
+      raise
     rescue Google::Apis::Error => e
       Rails.logger.error "Failed to create Google Calendar: #{e.message}"
       raise "Failed to create course calendar: #{e.message}"
