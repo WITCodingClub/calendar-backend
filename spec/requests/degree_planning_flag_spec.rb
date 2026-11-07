@@ -29,6 +29,22 @@ RSpec.describe "degree_planning flag", type: :request do
       expect(StudentProgram.exists?(planned.id)).to be(true)
     end
 
+    it "changes no plan or profile while the flag is off" do
+      program = create(:student_program, user: user, plan_name: "Four Year Program")
+      profile = create(:academic_profile, user: user, class_standing: "Sophomore")
+
+      patch plan_dashboard_program_path(program.public_id), params: { plan: "Three Year Program" }
+      expect(response).to have_http_status(:not_found)
+
+      patch dashboard_program_path(program.public_id), params: { plan_name: "Three Year Program" }
+      expect(response).to have_http_status(:not_found)
+      expect(program.reload.plan_name).to eq("Four Year Program")
+
+      patch dashboard_academic_profile_path, params: { academic_profile: { class_standing: "Senior" } }
+      expect(response).to have_http_status(:not_found)
+      expect(profile.reload.class_standing).to eq("Sophomore")
+    end
+
     it "hides the Programs nav item while the flag is off" do
       get dashboard_schedule_path
 
