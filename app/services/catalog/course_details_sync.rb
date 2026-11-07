@@ -29,14 +29,14 @@ module Catalog
     # title of its newest section. Links prerequisite rows that named a course
     # before it had a row. Sends no request to Banner.
     def self.seed(sections)
-      rows = sections.joins(:term).order("terms.uid": :desc)
-                     .pluck(:subject, :course_number, :title, "terms.uid")
+      rows = sections.joins(:term).order("terms.uid": :desc, crn: :asc)
+                     .pluck(:subject, :course_number, :title)
                      .uniq { |subject, number, _| [ prefix_of(subject), number ] }
       return 0 if rows.empty?
 
       now = Time.current
       inserted = CatalogCourse.insert_all(
-        rows.map do |subject, number, title, _|
+        rows.map do |subject, number, title|
           { subject_code: prefix_of(subject), course_number: number, title: title, created_at: now, updated_at: now }
         end,
         unique_by: %i[subject_code course_number]
@@ -60,28 +60,29 @@ module Catalog
 
     # The insert skips a course that already has a row, so a title that
     # changed after the first seed stays old: "Agentic Ai" from before #932
-    # (#943). Give an existing row the title of the section, unless its
-    # details came from a newer term, because the newest term wins.
+    # (#943). Give each seeded row the title of its newest section in any
+    # term, not only in the sections passed in. A sync of an old term then
+    # cannot write an old title back. The lowest CRN breaks a tie, as in
+    # one_section_per_course, so two runs pick the same title.
     #
     # One UPDATE for every row. It skips callbacks, which CatalogCourse does
     # not have, and the nightly embedding backfill sees the new title by its
     # digest.
     def self.refresh_titles(rows, now)
-      values = rows.map do |subject, number, title, term_uid|
-        CatalogCourse.sanitize_sql_array([ "(?, ?::integer, ?, ?::integer)", prefix_of(subject), number, title, term_uid ])
-      end
+      codes = rows.map { |subject, number, _| [ prefix_of(subject), number ] }.uniq
+      values = codes.map { |code, number| CatalogCourse.sanitize_sql_array([ "(?, ?::integer)", code, number ]) }
+
+      newest = Course.joins(:term).joins_catalog_course
+                     .where("(catalog_courses.subject_code, catalog_courses.course_number) IN (VALUES #{values.join(', ')})")
+                     .select("DISTINCT ON (catalog_courses.id) catalog_courses.id AS catalog_course_id, courses.title")
+                     .order(Arel.sql("catalog_courses.id, terms.uid DESC, courses.crn ASC"))
 
       CatalogCourse.connection.exec_update(<<~SQL.squish, "CatalogCourse Refresh Titles")
         UPDATE catalog_courses
-        SET title = seed.title, updated_at = #{CatalogCourse.connection.quote(now)}
-        FROM (VALUES #{values.join(', ')}) AS seed(subject_code, course_number, title, term_uid)
-        WHERE catalog_courses.subject_code = seed.subject_code
-          AND catalog_courses.course_number = seed.course_number
-          AND catalog_courses.title IS DISTINCT FROM seed.title
-          AND NOT EXISTS (
-            SELECT 1 FROM terms
-            WHERE terms.id = catalog_courses.source_term_id AND terms.uid > seed.term_uid
-          )
+        SET title = newest.title, updated_at = #{CatalogCourse.connection.quote(now)}
+        FROM (#{newest.to_sql}) AS newest
+        WHERE catalog_courses.id = newest.catalog_course_id
+          AND catalog_courses.title IS DISTINCT FROM newest.title
       SQL
     end
 
