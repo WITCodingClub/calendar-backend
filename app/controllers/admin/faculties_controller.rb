@@ -112,7 +112,9 @@ module Admin
     def batch_auto_fill
       authorize Faculty
       missing = Faculty.teaching_current_or_future.where(rmp_id: nil)
-      missing.find_each { |f| Faculties::UpdateRatingsJob.perform_later(f.id) }
+      SolidQueue::Batch.enqueue(description: "RateMyProfessor auto-fill", on_finish: Batches::ReportJob) do
+        missing.find_each { |f| Faculties::UpdateRatingsJob.perform_later(f.id) }
+      end
       redirect_to missing_rmp_ids_admin_faculties_path, notice: "Enqueued auto-fill jobs for #{missing.count} faculty members"
     end
 

@@ -27,7 +27,11 @@ module Embeddings
       end
 
       names = model_name ? [ model_name ] : SCOPES.keys
-      names.each { |name| enqueue_batches(name) }
+      # One Solid Queue batch for the run, so the log shows when the last
+      # vector is written and how many API calls failed.
+      SolidQueue::Batch.enqueue(description: "Embeddings backfill", on_finish: Batches::ReportJob, models: names) do
+        names.each { |name| enqueue_batches(name) }
+      end
     end
 
     private
