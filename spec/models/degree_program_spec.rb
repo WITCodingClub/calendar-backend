@@ -62,6 +62,11 @@ RSpec.describe DegreeProgram do
     expect(subject.errors[:parent_program]).to be_present
   end
 
+  it "maps an old catalog slug of a renamed program to its new slug" do
+    expect(described_class.current_slug("biological-engineering-program")).to eq("biological-engineering-bs")
+    expect(described_class.current_slug("computer-science-bs")).to eq("computer-science-bs")
+  end
+
   it "finds its requirement set for a catalog year" do
     catalog_year = create(:catalog_year)
     requirement_set = create(:requirement_set, degree_program: subject, catalog_year: catalog_year)

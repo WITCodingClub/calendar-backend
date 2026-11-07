@@ -96,7 +96,7 @@ module DegreeRequirements
     end
 
     def import_program(source, entry, page)
-      program = DegreeProgram.find_or_initialize_by(slug: entry.slug)
+      program = DegreeProgram.find_or_initialize_by(slug: DegreeProgram.current_slug(entry.slug))
       # The newest catalog year names the program.
       if program.new_record? || program.catalog_years.maximum(:start_year).to_i <= start_year
         program.assign_attributes(name: entry.name, kind: entry.kind, level: entry.level)
@@ -108,7 +108,8 @@ module DegreeRequirements
       if set.persisted? && set.source_digest == page.digest
         # The path moves from the site root to /previous-catalogs/ when the
         # current year goes to the archive, and the page itself stays the same.
-        set.update_columns(last_seen_at: now, path: entry.path)
+        # The index can also name the program again.
+        set.update_columns(last_seen_at: now, path: entry.path, name: entry.name)
         @stats[:unchanged] += 1
         return program
       end

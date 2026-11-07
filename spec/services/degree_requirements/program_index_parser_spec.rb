@@ -76,6 +76,22 @@ RSpec.describe DegreeRequirements::ProgramIndexParser do
     end
   end
 
+  context "when one page has two names in the index" do
+    it "takes the name with the most words of the slug" do
+      html = <<~HTML
+        <div id="textcontainer"><ul><li><a href="/maths/data-science/">Computer Science Minor</a></li>
+        <li><a href="/maths/data-science/">Data Science Minor</a></li>
+        <li><a href="/cs/computer-science-minor/">Computer Science Minor</a></li></ul></div>
+      HTML
+
+      entries = described_class.new(html, home_path: "/").entries
+
+      expect(entries.map { |entry| [ entry.slug, entry.name ] }).to eq([
+        [ "data-science", "Data Science Minor" ], [ "computer-science-minor", "Computer Science Minor" ]
+      ])
+    end
+  end
+
   describe ".kind_for" do
     {
       "Exploratory Track in Engineering" => "exploratory",
