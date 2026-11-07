@@ -17,8 +17,8 @@ The Flipper flag `degree_planning` (#944) is off by default. While it is off for
 |---|---|
 | Every `/dashboard/programs*` route: the page, edit, plan, planned programs, planned pathways, and profile | `GET` and `PUT /api/user/academic_profile` |
 | `GET /api/user/programs` | `PUT /api/user/course_outcomes` |
-| `POST` and `DELETE /api/user/planned_programs` and `/api/user/planned_pathways` | The MCP tools (`my_programs`, `my_degree_progress`, `update_my_planned_programs`) |
-| `GET /api/user/degree_progress` | |
+| `POST` and `DELETE /api/user/planned_programs` and `/api/user/planned_pathways` | The MCP tools (`my_programs`, `my_degree_progress`, `my_next_term_courses`, `update_my_planned_programs`) |
+| `GET /api/user/degree_progress` and `GET /api/user/next_term_courses` | |
 
 ```mermaid
 flowchart LR

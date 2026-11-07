@@ -443,5 +443,26 @@ RSpec.describe "MCP tool output schemas" do
       expect(expect_valid(McpTools::MyDegreeProgress, program: "gear-minor")[:programs].first[:requirements].first)
         .to include(kind: "elective_list", status: "open")
     end
+
+    it "matches the next term courses with a course, a choice, and an elective slot" do
+      past = create(:term, uid: 202610, year: 2025, season: :fall, end_date: Date.new(2025, 12, 20))
+      spring = create(:term, uid: 202720, year: 2027, season: :spring)
+      set = create(:requirement_set, degree_program: major, catalog_year: catalog_year)
+      plan = create(:program_plan, requirement_set: set)
+      create(:program_plan_item, program_plan: plan, year_index: 1, season: "fall", subject_code: "WDGT", course_number: 1000)
+      create(:program_plan_item, program_plan: plan, year_index: 1, season: "spring", subject_code: "WDGT", course_number: 2000)
+      create(:program_plan_item, :choice, program_plan: plan, year_index: 1, season: "spring")
+      create(:program_plan_item, :placeholder, program_plan: plan, year_index: 1, season: "spring", label: "Free Elective")
+      create(:catalog_course, subject_code: "WDGT", course_number: 2000,
+                              prerequisites: { "type" => "course", "subject_code" => "WDGT", "course_number" => 1000 })
+      create(:course, term: spring, subject: "WDGT", course_number: 2000)
+      create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202710)
+      create(:enrollment, user: user, course: create(:course, term: past, subject: "WDGT", course_number: 1000))
+
+      result = expect_valid(McpTools::MyNextTermCourses, term: "Spring 2027")
+
+      expect(result[:programs].first[:planned].first[:courses].first).to include(code: "WDGT 2000", offered: true,
+                                                                                 prerequisites: "met")
+    end
   end
 end

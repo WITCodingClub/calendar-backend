@@ -4,6 +4,8 @@ require "rails_helper"
 
 # Issue #867: the My programs page.
 RSpec.describe "Dashboard::Programs", :degree_planning, type: :request do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:user) { create(:user, :with_processed_courses) }
   let(:page) { Nokogiri::HTML(response.body) }
   let!(:catalog_year) { create(:catalog_year, :imported, start_year: 2025) }
@@ -43,6 +45,22 @@ RSpec.describe "Dashboard::Programs", :degree_planning, type: :request do
       expect(card.at_css("[data-plan-form] input[type=submit]")["value"]).to eq("Confirm plan")
       semesters = card.css("[data-plan-terms] h4").map { |heading| heading.text.squish }
       expect(semesters).to eq([ "Year 1, spring: Spring 2026", "Year 3, fall: Fall 2027" ])
+    end
+
+    it "shows the plan courses of the next term, with the offered and prerequisite checks" do
+      create(:program_plan_item, program_plan: four_year, year_index: 2, season: "spring", subject_code: "WDGT", course_number: 2100)
+      create(:catalog_course, subject_code: "WDGT", course_number: 2100, title: "Widget Studio",
+                              prerequisites: { "type" => "course", "subject_code" => "WDGT", "course_number" => 1999 })
+      create(:term, uid: 202710, year: 2026, season: :fall, start_date: Date.new(2026, 9, 1), end_date: Date.new(2026, 12, 20))
+
+      travel_to(Date.new(2026, 11, 6)) { get dashboard_programs_path }
+
+      card = page.at_css("#next-term")
+      expect(card.at_css("h2").text).to eq("Plan for Spring 2027")
+      expect(card.at_css("#next-term-no-sections")).to be_present
+      planned = card.at_css("#next-term-widget-design-bs").text.squish
+      expect(planned).to include("Year 2, spring", "WDGT 2100", "Widget Studio", "Needs WDGT 1999")
+      expect(planned).to include("Behind", "GEAR 2000", "(Year 1, spring)")
     end
 
     it "shows the same programs as GET /api/user/programs" do

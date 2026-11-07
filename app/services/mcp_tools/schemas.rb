@@ -490,6 +490,41 @@ module McpTools
       assumptions: STRINGS
     ).freeze
 
+    # AcademicProfiles::NextTermCourses.
+    NEXT_TERM_ROW = object(
+      year:          INTEGER,
+      season:        STRING,
+      kind:          { type: "string", enum: ProgramPlanItem::KINDS.values },
+      code:          nullable(STRING),
+      label:         nullable(STRING),
+      elective_list: nullable(STRING),
+      courses:       array(
+        object(
+          code:          STRING,
+          title:         nullable(STRING),
+          offered:       nullable(BOOLEAN),
+          prerequisites: { type: %w[string null], enum: [ "met", "not_met", "unknown", nil ] },
+          missing:       STRINGS
+        )
+      )
+    ).freeze
+    NEXT_TERM_COURSES = object(
+      term:        object(uid: nullable(INTEGER), name: nullable(STRING)),
+      sections:    BOOLEAN,
+      programs:    array(
+        object(
+          program:    STRING,
+          name:       STRING,
+          plan:       STRING,
+          start_term: nullable(STRING),
+          semester:   nullable(object(year: INTEGER, season: STRING)),
+          planned:    array(NEXT_TERM_ROW),
+          behind:     array(NEXT_TERM_ROW)
+        )
+      ),
+      assumptions: STRINGS
+    ).freeze
+
     # UniversityCalendarEventSerializer.
     UNIVERSITY_EVENT = object(
       id:               STRING,
