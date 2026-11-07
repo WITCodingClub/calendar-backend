@@ -36,7 +36,9 @@
         <%= render "layouts/dashboard_nav_item", path: dashboard_ics_feed_path, label: "ICS Feed", icon: "rss" %>
         <%= render "layouts/dashboard_nav_item", path: dashboard_notifications_path, label: "Notifications", icon: "bell" %>
         <%= render "layouts/dashboard_nav_item", path: dashboard_friends_path, label: "Friends", icon: "users" %>
-        <%= render "layouts/dashboard_nav_item", path: dashboard_programs_path, label: "Programs", icon: "collection" %>
+        <% if degree_planning_enabled? %>
+          <%= render "layouts/dashboard_nav_item", path: dashboard_programs_path, label: "Programs", icon: "collection" %>
+        <% end %>
 
         <p class="hidden xl:block px-3 pt-4 pb-1 text-xs font-medium text-on-surface-variant">Browse</p>
         <div class="xl:hidden mx-3 my-2 border-t border-outline-variant" aria-hidden="true"></div>

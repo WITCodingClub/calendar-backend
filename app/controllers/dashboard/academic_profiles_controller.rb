@@ -6,6 +6,8 @@ module Dashboard
   # AcademicProfiles::Sync with source "student", the same path as the
   # extension settings.
   class AcademicProfilesController < Dashboard::ApplicationController
+    include Dashboard::DegreePlanningFlag
+
     def edit
       authorize current_user, :update?
 

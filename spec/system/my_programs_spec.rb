@@ -3,7 +3,7 @@
 require "rails_helper"
 
 # Issue #867: the My programs page in a browser.
-RSpec.describe "My programs", type: :system do
+RSpec.describe "My programs", :degree_planning, type: :system do
   let(:user) { create(:user, :with_processed_courses) }
   let!(:catalog_year) { create(:catalog_year, :imported, start_year: 2025) }
   let(:major_program) { create(:degree_program, slug: "widget-design-bs", name: "Widget Design, B.S.") }
