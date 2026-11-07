@@ -67,6 +67,23 @@ RSpec.describe "POST /api/friends/processed_events", type: :request do
       expect(entries.last["classes"].sole["meeting_times"].sole["calendar_config"]["title"]).to start_with("Ada: ")
     end
 
+    it "keeps each friend's preferences when two friends share a class" do
+      shared = enroll(ada, day: :tuesday)
+      create(:enrollment, user: grace, course: shared.course, term: term)
+      create(:event_preference, user: ada, preferenceable: shared, color_id: "11")
+
+      post_batch([ ada.public_id, grace.public_id ])
+
+      configs = entries.to_h do |entry|
+        config = entry["classes"].find { |c| c["crn"] == shared.course.crn }["meeting_times"].sole["calendar_config"]
+        [ entry["friend_id"], config ]
+      end
+      ada_color = GoogleCalendar::Colors.normalize("11")
+      expect(configs[ada.public_id]).to include("color_id" => ada_color, "title" => start_with("Ada: "))
+      expect(configs[grace.public_id]["color_id"]).not_to eq(ada_color)
+      expect(configs[grace.public_id]["title"]).to start_with("Grace: ")
+    end
+
     it "lists a repeated id once" do
       post_batch([ ada.public_id, ada.public_id ])
 
@@ -96,13 +113,39 @@ RSpec.describe "POST /api/friends/processed_events", type: :request do
       )
     end
 
-    it "gives NOT_FRIENDS for a stranger, a pending request, an expired friendship, and an unknown id" do
+    it "gives no classes for an availability-only friend next to a readable friend" do
+      readable = create(:user)
+      enroll(readable)
+      befriend(readable)
+      hidden = create(:user)
+      enroll(hidden)
+      befriend(hidden).update_visibility_for!(hidden, :availability_only)
+
+      post_batch([ readable.public_id, hidden.public_id ])
+
+      expect(entries.first["classes"].size).to eq(1)
+      expect(entries.last).to eq(
+        "friend_id" => hidden.public_id, "error" => "This friend shares only availability",
+        "code" => "AVAILABILITY_ONLY", "visibility" => "availability_only"
+      )
+    end
+
+    it "gives NOT_FRIENDS for a numeric id, because the route takes only public ids" do
+      friend = create(:user)
+      befriend(friend)
+
+      post_batch([ friend.id.to_s ])
+
+      expect(entries.sole).to include("friend_id" => friend.id.to_s, "code" => "NOT_FRIENDS")
+    end
+
+    it "gives NOT_FRIENDS for a stranger, a pending request, an expired friendship, and unknown ids" do
       stranger = create(:user)
       pending  = create(:friendship, requester: user).addressee
       expired  = create(:user)
       befriend(expired).update_columns(expires_at: 1.minute.ago)
 
-      ids = [ stranger.public_id, pending.public_id, expired.public_id, "usr_doesnotexist" ]
+      ids = [ stranger.public_id, pending.public_id, expired.public_id, "usr_doesnotexist", "crs_abc", "usr_" ]
       post_batch(ids)
 
       expect(response).to have_http_status(:ok)
