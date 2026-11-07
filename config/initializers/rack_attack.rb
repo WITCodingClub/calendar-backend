@@ -127,8 +127,14 @@ class Rack::Attack
   # A request with a valid API token counts against api/user instead. Many
   # students share one campus address, and their extension calls would use up
   # one budget for all of them.
-  throttle("req/ip", limit: 600, period: 5.minutes) do |req|
-    next if req.path.start_with?("/assets", "/packs", "/rails/active_storage")
+  #
+  # Sign-in callbacks, extension events, and CSP reports have their own
+  # per-IP budgets and skip this rule, so a busy campus address cannot use up
+  # req/ip and then lose sign-in. 3000 in 5 minutes is 600 a minute, which is
+  # more than catalog/ip and api/ip together (spec/initializers/rack_attack_spec.rb).
+  throttle("req/ip", limit: 3000, period: 5.minutes) do |req|
+    next if req.path.start_with?("/assets", "/packs", "/rails/active_storage", "/auth/", "/oauth/")
+    next if [ EXTENSION_EVENTS_PATH, CSP_REPORTS_PATH ].include?(req.path)
 
     ip_key(req) unless extract_user_id(req)
   end
@@ -139,7 +145,8 @@ class Rack::Attack
 
   # One sign-in uses at least two of these requests, and many students share
   # one campus address. Google and Microsoft check the codes themselves.
-  throttle("oauth/callbacks", limit: 60, period: 1.minute) do |req|
+  # 120 a minute lets about 60 students on one address sign in each minute.
+  throttle("oauth/callbacks", limit: 120, period: 1.minute) do |req|
     req.ip if req.path.start_with?("/auth/", "/oauth/")
   end
 
@@ -165,7 +172,7 @@ class Rack::Attack
   end
 
   # Sized for a campus address that many students share.
-  throttle("api/ip", limit: 60, period: 1.minute) do |req|
+  throttle("api/ip", limit: 120, period: 1.minute) do |req|
     if req.path.start_with?("/api/") && !PUBLIC_CATALOG_PATH.call(req) &&
        ![ EXTENSION_EVENTS_PATH, CSP_REPORTS_PATH ].include?(req.path) && !extract_user_id(req)
       ip_key(req)
@@ -181,7 +188,7 @@ class Rack::Attack
   end
 
   # The public catalog API is meant to be consumed anonymously, so it gets its
-  # own, more generous budget instead of the 20/min anonymous API limit.
+  # own, more generous budget instead of the anonymous API limit (api/ip).
   throttle("catalog/ip", limit: 300, period: 1.minute) do |req|
     ip_key(req) if PUBLIC_CATALOG_PATH.call(req)
   end
@@ -232,7 +239,7 @@ class Rack::Attack
     "/api/user/passkeys/authenticate"
   ].freeze
 
-  throttle("api/token-mint", limit: 30, period: 1.minute) do |req|
+  throttle("api/token-mint", limit: 60, period: 1.minute) do |req|
     req.ip if req.post? && UNAUTHENTICATED_TOKEN_PATHS.include?(route_path(req))
   end
 
@@ -444,4 +451,10 @@ class Rack::Attack
   def self.ip_key(req)
     req.ip unless McpPlatforms.include?(req.ip)
   end
+end
+
+# Counts each 429 in calendar_rate_limited_total, by throttle (docs/metrics.md).
+# The block looks up the class on each call, so code reloading still works.
+ActiveSupport::Notifications.subscribe("throttle.rack_attack") do |*, payload|
+  RateLimitSubscriber.call(payload[:request])
 end

@@ -34,6 +34,10 @@ Yabeda.configure do
           comment: "Requests to an old API path in config/routes/api/legacy.rb, by path.",
           tags: %i[route]
 
+  counter :rate_limited_total,
+          comment: "Requests that a Rack::Attack throttle refused with 429, by throttle.",
+          tags: %i[throttle]
+
   counter :errors_reported_total,
           comment: "Errors that reach Rails.error, handled (rescued and reported) or not.",
           tags: %i[error_class handled severity source]

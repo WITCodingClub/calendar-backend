@@ -49,6 +49,7 @@ The host side lives in [jaspermayone/infra](https://github.com/jaspermayone/infr
 | `calendar_extension_events_total` | counter | `event`, `version`, `browser` | `ExtensionUsage` |
 | `calendar_csp_reports_total` | counter | `directive`: the violated directive, for example `script-src-elem`, or `other` | `CspReports` |
 | `calendar_api_legacy_requests_total` | counter | `route`: the old path, for example `GET user/email` | `Api::LegacyRouteCounting` |
+| `calendar_rate_limited_total` | counter | `throttle`: the Rack::Attack throttle that refused the request, for example `api/ip` | `RateLimitSubscriber` |
 | `calendar_errors_reported_total` | counter | `error_class`, `handled`, `severity`, `source` | `ErrorReportSubscriber` |
 | `calendar_banner_requests_total` | counter | `outcome`: `ok`, `retried` (one for each retry), `failed`, or `cooldown` (refused while Banner cools down) | `Catalog::BannerThrottle` |
 | `calendar_mcp_tool_calls_total` | counter | `tool`: a tool name, or `unknown`; `status`: `ok`, `error`, `input_required` (a write tool asks the student to confirm), `declined`, or `cancelled` (the student did not confirm, so nothing changed). A retry with a bad request state counts as `error` under the tool name in the request. | `McpTools::Server` |
@@ -112,3 +113,19 @@ The Content Security Policy is in report-only mode (`config/initializers/content
   `blocked` is the URL without its query string, or a keyword such as `inline` or `eval`. `document` is the route of the page, not its path, because some paths hold a token.
 
 Turn enforcement on when the reports show no violation from the app's own pages.
+
+## Rate limits
+
+Rack::Attack refuses a request over a throttle with `429` before Rails sees it (`config/initializers/rack_attack.rb`). The Rails request metrics do not count these requests.
+
+- `calendar_rate_limited_total` counts each refused request, by throttle name.
+- `catalog/semantic` also counts a semantic search that Rails refuses: a GraphQL query (`Analyzers::SemanticSearchLimit`, a 429 that the Rails metrics also count) or an MCP tool call (`McpTools::SemanticBudget`, a tool error, not a 429).
+- The first refused request for one key in one window also writes one warning log line:
+
+  ```json
+  {"message":"rate_limited","throttle":"api/ip","limit":120,"period":60}
+  ```
+
+  The line has no key, because a key is an IP address, a user id, or a token digest.
+
+Many students share one campus IP address. If `req/ip`, `api/ip`, `oauth/callbacks`, or `api/token-mint` counts go up during registration, the per-IP limits are too low for the campus address. Look at this counter before you change a per-IP limit.

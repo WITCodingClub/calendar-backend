@@ -871,12 +871,12 @@ components:
       description: |
         The quota that is left under each policy. `r` is the number of requests
         left, and `t` is the number of seconds until the window resets.
-      schema: { type: string, examples: ['"req/ip";r=599;t=180, "catalog/ip";r=299;t=42'] }
+      schema: { type: string, examples: ['"req/ip";r=2999;t=180, "catalog/ip";r=299;t=42'] }
     RateLimitPolicy:
       description: |
         The quota policies that apply to the request. `q` is the number of
         requests allowed in a window of `w` seconds.
-      schema: { type: string, examples: ['"req/ip";q=600;w=300, "catalog/ip";q=300;w=60'] }
+      schema: { type: string, examples: ['"req/ip";q=3000;w=300, "catalog/ip";q=300;w=60'] }
     RetryAfter:
       description: The number of seconds to wait before the next request.
       schema: { type: integer, examples: [60] }

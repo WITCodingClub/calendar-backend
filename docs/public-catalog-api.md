@@ -78,8 +78,8 @@ Every API response sends two headers from the IETF draft
 Each list item is one policy:
 
 ```http
-RateLimit-Policy: "req/ip";q=600;w=300, "catalog/ip";q=300;w=60
-RateLimit: "req/ip";r=599;t=180, "catalog/ip";r=299;t=42
+RateLimit-Policy: "req/ip";q=3000;w=300, "catalog/ip";q=300;w=60
+RateLimit: "req/ip";r=2999;t=180, "catalog/ip";r=299;t=42
 ```
 
 - In `RateLimit-Policy`, `q` is the number of requests allowed in a window of
