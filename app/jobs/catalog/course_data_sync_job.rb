@@ -17,8 +17,12 @@ module Catalog
     # Banner stopped answering, and Catalog::BannerThrottle holds every request
     # for a few minutes. Stop the run and start again after the cooldown,
     # instead of reporting one error for each remaining course. Banner stops
-    # answering about every 10 minutes, so a full run needs several attempts.
-    retry_on Catalog::BannerThrottle::CooldownError, wait: Catalog::BannerThrottle::COOLDOWN + 30.seconds, attempts: 10
+    # answering about every 10 minutes, so a full run needs many attempts.
+    # The run stops trying 4 hours after its first attempt, about 8am for the
+    # 4am run, before most students use the site and share Banner with it. The
+    # next night continues the work.
+    include Catalog::BannerCooldownRetry
+    retry_banner_cooldown within: 4.hours
 
     # Each attempt syncs the sections that Banner confirmed longest ago first,
     # across all the terms, and skips a section confirmed more recently than

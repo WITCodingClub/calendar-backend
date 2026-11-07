@@ -35,6 +35,21 @@ The Banner calls of a web request run inside a Puma thread, so these limits keep
 - `Catalog::BannerThrottle::BUDGETS` sets the timeouts of each Banner request by caller. A web request waits 3 seconds to connect and 8 seconds to read. A job, a rake task, and the console wait 10 and 30 seconds.
 - A web request that hits the read timeout fails at once. It does not retry, and it does not count toward the cooldown, so a slow Banner does not stop the jobs.
 
+## When Banner cools down
+
+After 5 failed Banner requests in a row, `Catalog::BannerThrottle` refuses every Banner request for 3 minutes and raises `CooldownError`. `Catalog::CourseDataSyncJob` and `Catalog::SectionRefreshJob` include `Catalog::BannerCooldownRetry`. On a cooldown, the job tries again after 3.5 minutes, plus up to 15% at random so that jobs do not all wake at the same time. It continues until a time window from its first attempt ends:
+
+| Job | Window |
+| --- | --- |
+| `Catalog::CourseDataSyncJob` | 4 hours: the 4am run stops trying at about 8am |
+| `Catalog::SectionRefreshJob` | 15 minutes |
+
+At the end of the window, the job reports the `CooldownError` as handled and stops. It does not go to the failed list. The nightly sync syncs the sections confirmed longest ago first, so the next night continues the work.
+
+The time of the first attempt stays in the job data. On the admin jobs page, "Retry" on one failed job sets its attempt count to 0, so it starts a new window. "Retry all" keeps the attempt count and the window, so a job whose window ended stops at its first cooldown.
+
+Each retry is a new Solid Queue job, so the admin page shows it as a scheduled job that was enqueued seconds ago, with a retry count. That is a normal wait, not a stuck job.
+
 ## Course titles
 
 Banner sends most course titles in capitals, for example `AGENTIC AI AND INTELLIGENT AGENTS`. `Course` formats each title when it is written (`normalizes :title`, with `Courses::TitleFormatter`). Code that reads a title uses it as it is.

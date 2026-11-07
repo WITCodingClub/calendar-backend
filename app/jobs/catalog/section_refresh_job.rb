@@ -9,8 +9,9 @@ module Catalog
     queue_as :default
 
     # Banner stopped answering. The sections stay as the nightly sync left
-    # them, so try once more after the cooldown and then give up.
-    retry_on Catalog::BannerThrottle::CooldownError, wait: Catalog::BannerThrottle::COOLDOWN + 30.seconds, attempts: 2
+    # them, so try again after each cooldown for a short time, then give up.
+    include Catalog::BannerCooldownRetry
+    retry_banner_cooldown within: 15.minutes
 
     def perform(course_ids)
       courses = Course.where(id: course_ids)
