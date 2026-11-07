@@ -64,7 +64,29 @@ RSpec.describe Faculties::RefreshRatingsJob, type: :job do
     expect { described_class.perform_now }.not_to have_enqueued_job(Faculties::UpdateRatingsJob)
   end
 
+  it "skips the run while an earlier refresh has jobs left" do
+    teaching(create(:faculty, rmp_id: nil))
+    SolidQueue::Batch.create!(description: described_class::BATCH_DESCRIPTION)
+
+    expect { described_class.perform_now }.not_to have_enqueued_job(Faculties::UpdateRatingsJob)
+  end
+
   describe "batch" do
+    it "runs the faculty with no rmp_id first, and holds the rest behind the concurrency limit" do
+      linked  = teaching(create(:faculty, rmp_id: "already-has-one"))
+      missing = teaching(create(:faculty, rmp_id: nil))
+      previous = Faculties::UpdateRatingsJob.queue_adapter
+      Faculties::UpdateRatingsJob.queue_adapter = :solid_queue
+
+      described_class.perform_now
+
+      ids = ->(executions) { executions.map { |execution| execution.job.arguments["arguments"].first } }
+      expect(ids.call(SolidQueue::ReadyExecution.all)).to eq([ missing.id ])
+      expect(ids.call(SolidQueue::BlockedExecution.all)).to eq([ linked.id ])
+    ensure
+      Faculties::UpdateRatingsJob.queue_adapter = previous
+    end
+
     it "puts the rating jobs in one batch, which waits for them" do
       faculty = teaching(create(:faculty, rmp_id: nil))
       # The :test adapter gives a job no batch, so the rating jobs go to the
@@ -95,7 +117,10 @@ RSpec.describe Faculties::RefreshRatingsJob, type: :job do
     end
   end
 
-  it "keeps the old class name for jobs already in the queue" do
-    expect(Faculties::FillMissingRmpIdsJob).to eq(described_class)
+  it "runs a job queued under the old class name" do
+    teaching(create(:faculty, rmp_id: nil))
+    old_job = Faculties::RefreshRatingsJob.new.serialize.merge("job_class" => "Faculties::FillMissingRmpIdsJob")
+
+    expect { ActiveJob::Base.execute(old_job) }.to have_enqueued_job(Faculties::UpdateRatingsJob)
   end
 end

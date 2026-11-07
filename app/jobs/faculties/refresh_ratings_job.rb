@@ -16,11 +16,19 @@ module Faculties
   class RefreshRatingsJob < ApplicationJob
     queue_as :low
 
+    BATCH_DESCRIPTION = "RateMyProfessor refresh"
+
     def perform
+      # A second run while the first one's jobs wait would give each
+      # professor two jobs again.
+      if SolidQueue::Batch.exists?(description: BATCH_DESCRIPTION, finished_at: nil)
+        return Rails.logger.info("[Faculties::RefreshRatingsJob] A refresh is still running; skipped")
+      end
+
       scope = Faculty.teaching_current_or_future
       ids = scope.where(rmp_id: nil).order(:id).pluck(:id) + scope.where.not(rmp_id: nil).order(:id).pluck(:id)
 
-      SolidQueue::Batch.enqueue(description: "RateMyProfessor refresh",
+      SolidQueue::Batch.enqueue(description: BATCH_DESCRIPTION,
                                 on_finish: Embeddings::BackfillJob.new("RmpRating"),
                                 faculty_count: ids.size) do
         ActiveJob.perform_all_later(ids.map { |id| Faculties::UpdateRatingsJob.new(id) })

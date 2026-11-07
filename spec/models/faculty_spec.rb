@@ -93,10 +93,8 @@ RSpec.describe Faculty, type: :model do
       expect(described_class.teaching_current_or_future.to_a.count(current_faculty)).to eq(1)
     end
 
-    it "enqueues a ratings update only for current and future faculty" do
-      expect { described_class.update_all_ratings! }
-        .to have_enqueued_job(Faculties::UpdateRatingsJob).exactly(:twice)
-      expect(Faculties::UpdateRatingsJob).not_to have_been_enqueued.with(past_faculty.id)
+    it "queues the batched ratings refresh" do
+      expect { described_class.update_all_ratings! }.to have_enqueued_job(Faculties::RefreshRatingsJob)
     end
   end
 

@@ -207,8 +207,9 @@ class Faculty < ApplicationRecord
     false
   end
 
+  # One batch with one job for each professor (Faculties::RefreshRatingsJob).
   def self.update_all_ratings!
-    teaching_current_or_future.find_each(&:update_ratings!)
+    Faculties::RefreshRatingsJob.perform_later
   end
 
   def self.sync_all_from_directory!

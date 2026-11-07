@@ -36,7 +36,8 @@ RSpec.describe "Job concurrency groups" do
     CourseCalendars::SyncJob => 1.hour,
     CourseCalendars::HistoricalSyncJob => 1.hour,
     Courses::ProcessTermJob => 1.hour,
-    Catalog::CourseDataSyncJob => 6.hours
+    Catalog::CourseDataSyncJob => 6.hours,
+    Faculties::UpdateRatingsJob => 30.minutes
   }.each do |job, duration|
     it "holds the lock of #{job.name} for #{duration.inspect}" do
       expect(job.concurrency_duration).to eq(duration)
