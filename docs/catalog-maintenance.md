@@ -46,7 +46,7 @@ After 5 failed Banner requests in a row, `Catalog::BannerThrottle` refuses every
 
 At the end of the window, the job reports the `CooldownError` as handled and stops. It does not go to the failed list. The nightly sync syncs the sections confirmed longest ago first, so the next night continues the work.
 
-The time of the first attempt stays in the job data. A retry from the admin page of a job whose window ended gets no new window, so it stops at its first cooldown.
+The time of the first attempt stays in the job data. On the admin jobs page, "Retry" on one failed job sets its attempt count to 0, so it starts a new window. "Retry all" keeps the attempt count and the window, so a job whose window ended stops at its first cooldown.
 
 Each retry is a new Solid Queue job, so the admin page shows it as a scheduled job that was enqueued seconds ago, with a retry count. That is a normal wait, not a stuck job.
 

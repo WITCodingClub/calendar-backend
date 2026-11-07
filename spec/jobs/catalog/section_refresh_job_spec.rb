@@ -63,7 +63,7 @@ RSpec.describe Catalog::SectionRefreshJob do
   it "tries again later in the 15 minute window" do
     allow(Catalog::LeopardWebClient).to receive(:get_class_details)
       .and_raise(Catalog::BannerThrottle::CooldownError.new(60))
-    job = described_class.new([ course.id ]).tap { |j| j.banner_first_attempt_at = 10.minutes.ago }
+    job = described_class.new([ course.id ]).tap { |j| j.banner_first_attempt_at = 10.minutes.ago; j.executions = 1 }
 
     expect { job.perform_now }.to have_enqueued_job(described_class)
   end
@@ -71,7 +71,7 @@ RSpec.describe Catalog::SectionRefreshJob do
   it "gives up 15 minutes after the first attempt and reports the cooldown as handled" do
     allow(Catalog::LeopardWebClient).to receive(:get_class_details)
       .and_raise(Catalog::BannerThrottle::CooldownError.new(60))
-    job = described_class.new([ course.id ]).tap { |j| j.banner_first_attempt_at = 15.minutes.ago }
+    job = described_class.new([ course.id ]).tap { |j| j.banner_first_attempt_at = 15.minutes.ago; j.executions = 1 }
 
     reports = capture_error_reports do
       expect { job.perform_now }.not_to have_enqueued_job(described_class)

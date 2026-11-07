@@ -427,6 +427,14 @@ RSpec.describe Catalog::CourseDataSyncJob do
         expect(job.banner_first_attempt_at).to be_within(5.seconds).of(Time.current)
       end
 
+      # SolidQueue::FailedExecution#retry sets executions to 0.
+      it "starts a new window when Retry on the admin page started the job again" do
+        job = job_started(5.hours, executions: 0)
+
+        expect { job.perform_now }.to have_enqueued_job(described_class)
+        expect(job.banner_first_attempt_at).to be_within(5.seconds).of(Time.current)
+      end
+
       it "tries again when the retry starts exactly at the end of the window" do
         freeze_time do
           job = job_started(4.hours - Catalog::BannerCooldownRetry::WAIT)
