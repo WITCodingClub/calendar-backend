@@ -54,23 +54,18 @@ module UniversityCalendar
     def trigger_sync_for_all_users
       Rails.logger.info("Holiday changes detected - syncing all users")
 
-      User.joins(oauth_credentials: :course_calendar)
-          .distinct
-          .find_each do |user|
-            CourseCalendars::SyncJob.perform_bulk_later(user, force: true)
-          end
+      users = User.joins(oauth_credentials: :course_calendar).distinct
+      CourseCalendars::SyncJob.perform_bulk_in_batch(users, reason: "holidays", force: true)
     end
 
     def trigger_sync_for_opted_in_users
       Rails.logger.info("Non-holiday changes detected - syncing opted-in users only")
 
-      User.joins(:user_extension_config)
-          .where(user_extension_configs: { sync_university_events: true })
-          .joins(oauth_credentials: :course_calendar)
-          .distinct
-          .find_each do |user|
-            CourseCalendars::SyncJob.perform_bulk_later(user, force: true)
-          end
+      users = User.joins(:user_extension_config)
+                  .where(user_extension_configs: { sync_university_events: true })
+                  .joins(oauth_credentials: :course_calendar)
+                  .distinct
+      CourseCalendars::SyncJob.perform_bulk_in_batch(users, reason: "university_events", force: true)
     end
 
     def update_term_dates_from_events

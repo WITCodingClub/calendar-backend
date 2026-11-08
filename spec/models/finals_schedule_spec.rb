@@ -57,6 +57,14 @@ RSpec.describe FinalsSchedule, type: :model do
       expect { schedule.trigger_calendar_resyncs_for_term }
         .to have_enqueued_job(CourseCalendars::SyncJob).with(user, force: true).on_queue("default").at_priority(CourseCalendars::SyncJob::BULK_PRIORITY)
     end
+
+    it "puts the syncs in a batch that the schedule finds again" do
+      schedule = create(:finals_schedule)
+
+      schedule.trigger_calendar_resyncs_for_term
+
+      expect(schedule.resync_batch.metadata[:reason]).to eq("finals")
+    end
   end
 
   # #pdf_file_is_pdf only runs `if: -> { pdf_file.attached? }`, so it needs a

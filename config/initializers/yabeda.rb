@@ -55,6 +55,11 @@ Yabeda.configure do
                    "step_up (HTTP 403) or tool_error (docs/mcp.md).",
           tags: %i[scope mode]
 
+  counter :bulk_calendar_syncs_total,
+          comment: "Calendar syncs in a bulk batch, by reason and result: completed or failed " \
+                   "(CourseCalendars::BulkSyncFinishedJob).",
+          tags: %i[reason result]
+
   counter :oauth_clients_registered_total,
           comment: "OAuth clients that MCP clients registered at /api/oauth/register.",
           tags: []

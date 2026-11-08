@@ -15,13 +15,11 @@ module CourseCalendars
       Rails.logger.info "Nightly Calendar Sync: Processing #{first_time_count + needs_update_count} users " \
                         "(#{first_time_count} first-time, #{needs_update_count} updates)"
 
-      first_time.find_each do |user|
-        sync_user(user, backfill_historical: true)
-      end
-
-      needs_update.find_each do |user|
-        sync_user(user, backfill_historical: false)
-      end
+      # One batch for the run, so its totals are logged and counted when the
+      # last sync ends (CourseCalendars::BulkSyncFinishedJob).
+      jobs = first_time.map { |user| sync_job(user, backfill_historical: true) } +
+             needs_update.map { |user| sync_job(user, backfill_historical: false) }
+      CourseCalendars::SyncJob.enqueue_bulk_batch(jobs, reason: "nightly")
 
       Rails.logger.info "Nightly Calendar Sync: Enqueued #{first_time_count + needs_update_count} syncs"
     end
@@ -36,10 +34,10 @@ module CourseCalendars
     # events whose data hash changed (CalendarEvent#data_changed?), and keep
     # the edits the person made in Google or Outlook. With force, every event
     # gets an API call, and the person's edits are lost.
-    def sync_user(user, backfill_historical:)
+    def sync_job(user, backfill_historical:)
       Rails.logger.info "Enqueueing calendar sync for user #{user.id} (backfill_historical=#{backfill_historical})"
 
-      CourseCalendars::SyncJob.perform_bulk_later(user, force: false, backfill_historical: backfill_historical, nightly: true)
+      CourseCalendars::SyncJob.bulk_job(user, force: false, backfill_historical: backfill_historical, nightly: true)
     end
   end
 end

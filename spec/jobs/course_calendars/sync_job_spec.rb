@@ -46,4 +46,30 @@ RSpec.describe CourseCalendars::SyncJob do
 
     expect(nightly.concurrency_key).to eq(plain.concurrency_key)
   end
+  describe ".perform_bulk_in_batch" do
+    let(:users) { create_list(:user, 2) }
+
+    it "queues a bulk sync for each user in one batch, which waits for them" do
+      previous = described_class.queue_adapter
+      described_class.queue_adapter = :solid_queue
+
+      batch = described_class.perform_bulk_in_batch(User.where(id: users.map(&:id)).order(id: :desc), reason: "finals", force: true)
+
+      expect(batch.metadata[:reason]).to eq("finals")
+      expect(batch.description).to eq("Calendar sync: finals")
+      expect(batch.jobs.pluck(:queue_name, :priority).uniq).to eq([ [ "default", described_class::BULK_PRIORITY ] ])
+      expect(batch.jobs.order(:id).map { |job| GlobalID::Locator.locate(job.arguments["arguments"].first["_aj_globalid"]).id })
+        .to eq(users.map(&:id).sort)
+      expect(SolidQueue::Job.where(class_name: "CourseCalendars::BulkSyncFinishedJob")).to be_empty
+    ensure
+      described_class.queue_adapter = previous
+    end
+
+    it "reports the totals when the batch finishes" do
+      described_class.perform_bulk_in_batch(User.where(id: users.map(&:id)), reason: "finals")
+
+      # The :test adapter puts no job in the batch, so it finishes at once.
+      expect(SolidQueue::Job.where(class_name: "CourseCalendars::BulkSyncFinishedJob").count).to eq(1)
+    end
+  end
 end

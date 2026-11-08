@@ -24,6 +24,7 @@ module Admin
       @final_exams = FinalExam.where(term: @finals_schedule.term)
                               .includes(course: :faculties)
                               .order(:exam_date, :start_time)
+      @resync_batch = @finals_schedule.resync_batch
     end
 
     def new

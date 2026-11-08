@@ -43,4 +43,17 @@ RSpec.describe CourseCalendars::NightlySyncJob do
     expect { described_class.perform_now }
       .to have_enqueued_job(CourseCalendars::SyncJob).on_queue("default").at_priority(CourseCalendars::SyncJob::BULK_PRIORITY).twice
   end
+  it "puts the run in one batch that reports its totals" do
+    previous = CourseCalendars::SyncJob.queue_adapter
+    CourseCalendars::SyncJob.queue_adapter = :solid_queue
+
+    described_class.perform_now
+
+    batch = SolidQueue::Batch.sole
+    expect(batch.metadata[:reason]).to eq("nightly")
+    expect(batch.jobs.count).to eq(2)
+    expect(batch.on_finish["job_class"]).to eq("CourseCalendars::BulkSyncFinishedJob")
+  ensure
+    CourseCalendars::SyncJob.queue_adapter = previous
+  end
 end

@@ -90,6 +90,12 @@ RSpec.describe UniversityCalendar::SyncJob do
         expect { described_class.perform_now }
           .to have_enqueued_job(CourseCalendars::SyncJob).on_queue("default").at_priority(CourseCalendars::SyncJob::BULK_PRIORITY).twice
       end
+
+      it "puts the syncs in one batch labelled holidays" do
+        described_class.perform_now
+
+        expect(SolidQueue::Batch.sole.metadata[:reason]).to eq("holidays")
+      end
     end
 
     context "when the import result has no categories" do
