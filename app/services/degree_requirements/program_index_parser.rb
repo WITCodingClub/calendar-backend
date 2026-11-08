@@ -49,6 +49,13 @@ module DegreeRequirements
       @unclassified
     end
 
+    # The last part of the path, in the form DegreeProgram allows. The
+    # 2025-2026 and 2026-2027 catalogs have one path with an underscore
+    # (construction-management-bs-realest_facmgmt), so it becomes a hyphen.
+    def self.slug_for(path)
+      path.split("/").compact_blank.last.downcase.tr("_", "-")
+    end
+
     def self.kind_for(name)
       KIND_RULES.find { |_, pattern| name.match?(pattern) }&.first
     end
@@ -83,7 +90,7 @@ module DegreeRequirements
     def best_name(names, path)
       return names.first if names.one?
 
-      slug_words = path.split("/").compact_blank.last.split("-")
+      slug_words = self.class.slug_for(path).split("-")
       names.max_by { |name| (name.downcase.scan(/[a-z0-9]+/) & slug_words).size }
     end
 
@@ -107,7 +114,7 @@ module DegreeRequirements
       end
 
       parent_name = kind == "concentration" && name.match?(PARENT_SPLIT) ? name.split(PARENT_SPLIT, 2).first.strip : nil
-      Entry.new(name: name, path: path, slug: path.split("/").compact_blank.last, kind: kind,
+      Entry.new(name: name, path: path, slug: self.class.slug_for(path), kind: kind,
                 level: self.class.level_for(name, kind), parent_name: parent_name)
     end
   end

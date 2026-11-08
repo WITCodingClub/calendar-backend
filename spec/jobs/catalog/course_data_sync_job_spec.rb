@@ -156,6 +156,35 @@ RSpec.describe Catalog::CourseDataSyncJob do
     expect(course.reload).to have_attributes(seats_capacity: 30, seats_available: 5, waitlist_capacity: 5, waitlist_available: 1)
   end
 
+  describe "schedule type" do
+    def stub_schedule_type(text, title: "Data Structures")
+      stub_leopard_web([ banner_meeting_time ])
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
+        .and_return(class_details(meeting_times: [ banner_meeting_time ]).merge(schedule_type: text, title: title))
+    end
+
+    it "writes a new schedule type from Banner's code" do
+      stub_schedule_type("Laboratory (LAB)")
+
+      described_class.perform_now
+
+      expect(course.reload.schedule_type).to eq("laboratory")
+    end
+
+    # Banner sends this text for some sections. It has no code, so the enum
+    # raised and the title and other details were not written.
+    it "keeps the stored type when Banner sends text with no known code, and writes the rest" do
+      stub_schedule_type("No Section specified schedule type, please see Catalog link below for more information.",
+                         title: "Data Structures II")
+      allow(Rails.error).to receive(:report)
+
+      described_class.perform_now
+
+      expect(course.reload).to have_attributes(schedule_type: "lecture", title: "Data Structures II")
+      expect(Rails.error).not_to have_received(:report)
+    end
+  end
+
   describe "credit hours" do
     # getClassDetails gives the course's credits, so it says 4 for a lab.
     it "keeps the section's own credit hours from the import" do

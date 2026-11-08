@@ -74,6 +74,17 @@ RSpec.describe DegreeRequirements::ProgramIndexParser do
 
       expect(entries.map(&:path)).to eq([ "/widgetry/widget-design/widget-design-bs/" ])
     end
+
+    it "turns an underscore in the path into a hyphen in the slug, and keeps the path" do
+      html = %(<div id="textcontainer"><ul><li><a href="/widgetry/widget-design/widget-design-bs-gears_cogs/">) +
+             %(Widget Design Bachelor of Science - Gears Concentration</a></li></ul></div>)
+
+      entry = described_class.new(html, home_path: "/").entries.first
+
+      expect(entry).to have_attributes(slug: "widget-design-bs-gears-cogs", path: "/widgetry/widget-design/widget-design-bs-gears_cogs/")
+      program = DegreeProgram.new(slug: entry.slug).tap(&:validate)
+      expect(program.errors[:slug]).to be_empty
+    end
   end
 
   context "when one page has two names in the index" do
