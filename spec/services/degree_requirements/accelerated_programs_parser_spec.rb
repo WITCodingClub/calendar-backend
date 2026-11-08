@@ -16,6 +16,13 @@ RSpec.describe DegreeRequirements::AcceleratedProgramsParser do
     )
   end
 
+  it "reads a link with an underscore as the slug the program index gives" do
+    html = %(<div id="textcontainer"><p>Gears B.S. and Gears M.S.</p><p><a href="/widgetry/gears_bs/">Gears, B.S.</a> ) +
+           %(<a href="/widgetry/gears-ms/">Gears, M.S.</a></p></div>)
+
+    expect(described_class.new(html).entries.flat_map(&:slugs)).to eq(%w[gears-bs gears-ms])
+  end
+
   it "lists nothing for a page with no catalog text" do
     expect(described_class.new("<html><body><p><a href='/a/'>A</a><a href='/b/'>B</a></p></body></html>").entries).to be_empty
   end

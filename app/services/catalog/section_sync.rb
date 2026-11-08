@@ -158,11 +158,14 @@ module Catalog
       fresh_data.slice(:waitlist_capacity, :waitlist_available)
     end
 
+    # The enum key of Banner's schedule type, "Lecture (LEC)" or "LEC", or nil
+    # when Banner sends text with no known code, such as "No Section specified
+    # schedule type, ...". A nil keeps the stored type.
     def extract_schedule_type(raw)
       return nil if raw.blank?
 
       match = raw.to_s.match(/\(([^)]+)\)/)
-      match ? match[1].strip : raw.strip
+      Course::ScheduleType.key_for_code(match ? match[1].strip : raw.strip)
     end
   end
 end

@@ -51,10 +51,22 @@ class DegreeProgram < ApplicationRecord
     # 2019-2020 to 2021-2022, in the sciences department.
     "biological-engineering-program" => "biological-engineering-bs",
     # 2019-2020 to 2025-2026, in the mechanical engineering department.
-    "aerospace-engineering-minor" => "aerospace-minor"
+    "aerospace-engineering-minor" => "aerospace-minor",
+    # 2025-2026 merged the Commercial Real Estate and the Facilities
+    # Management concentrations into one, at a new path. It keeps the stored
+    # Facilities Management program and its years. This entry goes the other
+    # way (new to old), so the import names the program with the newest name.
+    "construction-management-bs-realest-facmgmt" => "construction-management-bs-facilities-management"
   }.freeze
 
   def self.current_slug(slug) = RENAMED_SLUGS.fetch(slug, slug)
+
+  # The slug of a catalog path: its last part, in the form the slug allows.
+  # The 2025-2026 and 2026-2027 catalogs have one path with an underscore
+  # (construction-management-bs-realest_facmgmt), so it becomes a hyphen.
+  def self.slug_for_path(path)
+    path.to_s.split("/").compact_blank.last&.downcase&.tr("_", "-")
+  end
 
   enum :kind, KINDS, validate: true
   enum :level, LEVELS, validate: true

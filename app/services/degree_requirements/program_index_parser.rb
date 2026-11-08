@@ -83,7 +83,7 @@ module DegreeRequirements
     def best_name(names, path)
       return names.first if names.one?
 
-      slug_words = path.split("/").compact_blank.last.split("-")
+      slug_words = DegreeProgram.slug_for_path(path).split("-")
       names.max_by { |name| (name.downcase.scan(/[a-z0-9]+/) & slug_words).size }
     end
 
@@ -107,7 +107,7 @@ module DegreeRequirements
       end
 
       parent_name = kind == "concentration" && name.match?(PARENT_SPLIT) ? name.split(PARENT_SPLIT, 2).first.strip : nil
-      Entry.new(name: name, path: path, slug: path.split("/").compact_blank.last, kind: kind,
+      Entry.new(name: name, path: path, slug: DegreeProgram.slug_for_path(path), kind: kind,
                 level: self.class.level_for(name, kind), parent_name: parent_name)
     end
   end

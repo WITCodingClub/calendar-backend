@@ -67,6 +67,22 @@ RSpec.describe DegreeProgram do
     expect(described_class.current_slug("computer-science-bs")).to eq("computer-science-bs")
   end
 
+  it "makes a valid slug from a catalog path with an underscore or capitals" do
+    slug = described_class.slug_for_path("/management/construction-management/Construction-Management-BS-realest_facmgmt/")
+
+    expect(slug).to eq("construction-management-bs-realest-facmgmt")
+    expect(build(:degree_program, slug: slug)).to be_valid
+    expect(described_class.slug_for_path("/")).to be_nil
+  end
+
+  # Every renamed slug points at a slug the model accepts, or the import of
+  # that program fails validation.
+  it "maps each renamed slug to a valid slug" do
+    described_class::RENAMED_SLUGS.each_value do |slug|
+      expect(build(:degree_program, slug: slug)).to be_valid, slug
+    end
+  end
+
   it "finds its requirement set for a catalog year" do
     catalog_year = create(:catalog_year)
     requirement_set = create(:requirement_set, degree_program: subject, catalog_year: catalog_year)
