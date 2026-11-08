@@ -473,7 +473,8 @@ A write tool changes only the signed-in student's own data, through the same mod
 `server.json` at the repo root describes the server for the official MCP Registry. The registry holds only this metadata. It does not call the endpoint.
 
 - The `MCP Registry` workflow (`.github/workflows/mcp-registry.yml`) validates `server.json` on each pull request that changes it. When the change reaches `main`, the workflow publishes it.
-- The registry refuses a version that it already has. Increase `version` in `server.json` with each change.
+- The registry refuses a version that it already has. Increase `version` in `server.json` with each change. The pull request check fails when `server.json` changes and `version` does not.
+- A failed publish does not run again by itself. Fix the cause, then run the workflow by hand on `main` (`gh workflow run "MCP Registry" --ref main`).
 - The name `dev.witcc/calendar` is a domain namespace. The registry checks the `v=MCPv1` TXT record on the apex of `witcc.dev` (in `WITCodingClub/dns`) against the Ed25519 key in the `MCP_PRIVATE_KEY` secret. Only the `mcp-registry` environment holds that secret, and it deploys from `main` only.
 - The key can publish any `dev.witcc.*` name. To rotate it, make a new key pair, replace the TXT value, and replace the secret. Remove the old TXT value: the registry tries a stale record first and fails.
 

@@ -7,7 +7,7 @@ name: MCP Registry
 
 on:
   pull_request:
-    paths: [ server.json, .github/workflows/mcp-registry.yml ]
+    paths: [ server.json, bin/install-mcp-publisher, .github/workflows/mcp-registry.yml ]
   push:
     branches: [ main ]
     paths: [ server.json ]
@@ -34,6 +34,30 @@ jobs:
 
       - name: Validate server.json
         run: ./mcp-publisher validate server.json
+
+      # The registry refuses a version it already has, and that error shows only
+      # in the publish job after the merge. Catch it here instead.
+      - name: Check that server.json changes come with a new version
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin "$BASE_REF"
+          if ! git cat-file -e FETCH_HEAD:server.json 2>/dev/null; then
+            echo "server.json is new on this branch."
+            exit 0
+          fi
+          if git diff --quiet FETCH_HEAD -- server.json; then
+            echo "server.json did not change."
+            exit 0
+          fi
+          old="$(git show FETCH_HEAD:server.json | jq -r .version)"
+          new="$(jq -r .version server.json)"
+          if [ "$old" = "$new" ]; then
+            echo "::error file=server.json::server.json changed, but version is still $new. Increase it."
+            exit 1
+          fi
 
   publish:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
