@@ -47,8 +47,8 @@ RSpec.describe DegreeRequirements::PdfCatalog::ListParser do
       [ 1, "fall", "choice", "ENGR1600|ENGR1800", "Fundamentals of CAD & CAM", 1 ],
       [ 1, "fall", "placeholder", nil, "Elective Biology or Geology", 4 ],
       [ 2, "fall", "choice", "CIVE2000|CIVE2005", "Statics and Mech Materials I", 3 ],
-      # The catalog prints "Sophomore Year, Fall Semester" twice. The plan goes on.
-      [ 2, "fall", "course", "CIVE2400", "Civil Engineering Materials", 3 ]
+      # The catalog prints "Sophomore Year, Fall Semester" twice. The second is the spring.
+      [ 2, "spring", "course", "CIVE2400", "Civil Engineering Materials", 3 ]
     ])
   end
 
@@ -149,6 +149,7 @@ RSpec.describe DegreeRequirements::PdfCatalog::ListParser do
         "MATH/SCIENCE, Math/Science Elective\n" \
         "MGMT1500/MATH1030, Decision Analysis for Business or Statistics\n" \
         "MGMT7000. Business Relations\n" \
+        "FYS100, First Year Seminar (0 credits)\n" \
         "ELECTIVE, Biomedical Engineering 4cr. ELECTIVE, Engineering 4cr.\n" \
         "COOP3500, Co-op Work Term IFreshman Year, Summer Semester (total credits 4)\n" \
         "HSS ELECTIVE, See ENGL/HSS note below *\n" \
@@ -173,6 +174,8 @@ RSpec.describe DegreeRequirements::PdfCatalog::ListParser do
         [ 1, "spring", "placeholder", nil, "Math/Science Elective", nil ],
         [ 1, "spring", "choice", "MGMT1500|MATH1030", "Decision Analysis for Business or Statistics", nil ],
         [ 1, "spring", "course", "MGMT7000", "Business Relations", nil ],
+        # "FYS100" is a typo for FYS1000.
+        [ 1, "spring", "course", "FYS1000", "First Year Seminar", 0 ],
         # Two rows on one line.
         [ 1, "spring", "placeholder", nil, "Biomedical Engineering Elective", 4 ],
         [ 1, "spring", "placeholder", nil, "Engineering Elective", 4 ],

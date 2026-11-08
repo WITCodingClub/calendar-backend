@@ -40,6 +40,9 @@ module DegreeRequirements
       # A course in a list with its credits at the end: "MGMT7000 Business
       # Relations & Human Resources Management (3)".
       LISTED_CREDITS = /\A\s*([A-Z]{3,5}) ?(\d{4})[,.]?\s+[A-Z][^()]*\((\d{1,2})\)\s*\z/
+      # Course codes that a list catalog prints with a digit missing. The
+      # grid catalogs use three-digit codes, so this is not in ItemBuilder.
+      CODE_TYPOS = { "FYS100" => "FYS1000", "ELMC550" => "ELMC5505" }.freeze
       # The credits of the last row, alone on the next line: "(1 credit)".
       CREDITS_LINE = /\A\s*\(\d{1,2}(?:-\d{1,2})?\s*credits?\)\s*\z/i
       # The English sequence and HSS elective slots: four credits in every
@@ -87,8 +90,11 @@ module DegreeRequirements
           key = [ YEARS.fetch(match[1].downcase), SEASON_ORDER.index(match[2].downcase) ]
           title_index = title_before(index, current && current[:heading_index])
           # A plan starts again at the first fall. Another step back is a typo
-          # in the catalog, such as two "Sophomore Year, Fall Semester".
+          # in the catalog.
           restart = current.nil? || title_index || (key == [ 1, 0 ] && last_key && last_key != key)
+          # The same heading twice in a row is a typo for the next semester:
+          # 2018 BSCE prints "Sophomore Year, Fall Semester" over its spring.
+          key = [ key[0], key[1] + 1 ] if !restart && key == last_key && key[1] < SEASON_ORDER.size - 1
           title_index ||= title_before(index, current && current[:heading_index], FAR_TITLE_LINES) if restart
           if restart
             programs << finish(current) if current
@@ -286,7 +292,8 @@ module DegreeRequirements
       end
 
       def cell_for(match, _default_credits)
-        { code: match[:code].squeeze(" "), title: match[:title].to_s.strip, x: match.begin(:code) }
+        code = match[:code].squeeze(" ")
+        { code: CODE_TYPOS.fetch(code.delete(" "), code), title: match[:title].to_s.strip, x: match.begin(:code) }
       end
 
       # [code, title, credits] of a cell. "ENGR1600 Fundamentals of CAD &
