@@ -78,29 +78,6 @@ RSpec.describe AcademicProfiles::Sync do
     expect(user.student_programs.active.pluck(:name)).to contain_exactly("Computer Science", "Computer Networking")
   end
 
-  it "puts a row that a student changed back to the LeopardWeb list on the next sync, even with the same list" do
-    sync
-    changed = user.student_programs.find_by!(role: "minor")
-    changed.update_columns(name: "Data Science", source: "student")
-
-    sync
-
-    expect(changed.reload.status).to eq("ended")
-    expect(user.student_programs.active.pluck(:name, :source))
-      .to contain_exactly([ "Computer Science", "leopardweb" ], [ "Computer Networking", "leopardweb" ])
-  end
-
-  it "gives a matching row that a student changed the LeopardWeb source again" do
-    sync
-    row = user.student_programs.find_by!(role: "major")
-    row.update_columns(department: "Gadgets", source: "student")
-
-    sync
-
-    expect(row.reload).to have_attributes(status: "active", source: "leopardweb",
-                                          department: "Computer Science & Networking")
-  end
-
   it "accepts an empty list and a profile with no terms" do
     profile = sync(programs: [], admit_term: nil)
 

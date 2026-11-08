@@ -71,11 +71,7 @@ module AcademicProfiles
       programs_digest = digest(programs)
 
       profile.assign_attributes(profile_attributes) unless profile.leopardweb_profile_digest == profile_digest
-      # Rows that a student changed before the programs became LeopardWeb
-      # only go back to the LeopardWeb list on the next sync.
-      if profile.leopardweb_programs_digest != programs_digest || user.student_programs.active.source_student.exists?
-        sync_programs(programs)
-      end
+      sync_programs(programs) unless profile.leopardweb_programs_digest == programs_digest
 
       profile.update!(leopardweb_profile_digest: profile_digest, leopardweb_programs_digest: programs_digest,
                       leopardweb_synced_at: Time.current)
