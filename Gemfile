@@ -30,7 +30,7 @@ gem "flipper-active_support_cache_store", "~> 1.4"
 gem "blazer", "~> 3.5"
 gem "pghero", "~> 4.0"
 gem "audits1984", "~> 0.1.7"
-gem "console1984", "~> 0.2.4"
+gem "console1984", "~> 0.2.5"
 
 gem "bootsnap", "~> 1.26", require: false
 gem "thruster", "~> 0.1.27", require: false
