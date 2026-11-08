@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "dev.witcc/calendar",
+  "title": "WIT Calendar",
+  "description": "Unofficial Wentworth (WIT) course catalog and student schedule. Needs a WIT sign-in.",
+  "websiteUrl": "https://calendar.witcc.dev/docs/mcp",
+  "repository": {
+    "url": "https://github.com/WITCodingClub/calendar-backend",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://calendar.witcc.dev/api/mcp"
+    }
+  ]
+}
