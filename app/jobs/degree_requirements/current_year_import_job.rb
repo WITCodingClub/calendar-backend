@@ -17,8 +17,8 @@ module DegreeRequirements
       start_year = CatalogSource.page_start_year(html)
       raise Error, "the catalog site names no catalog year" if start_year.nil?
 
-      ImportJob.perform_later(start_year - 1)
-      ImportJob.perform_later(start_year)
+      ImportJob.enqueue_in_batch(start_year - 1)
+      ImportJob.enqueue_in_batch(start_year)
       start_year
     end
   end

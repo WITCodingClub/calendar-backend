@@ -101,26 +101,82 @@ RSpec.describe DegreeRequirements::ImportJob do
   end
 
   describe ".queued_start_years" do
-    def queue(job, finished: false)
-      SolidQueue::Job.create!(class_name: job.class.name, queue_name: "low", active_job_id: job.job_id,
-                              arguments: job.serialize, finished_at: (Time.current if finished))
+    # Built by hand: the :test adapter puts no job in a batch, so a batch
+    # from enqueue_in_batch finishes at once.
+    def batch(start_year, description: described_class::BATCH_DESCRIPTION, finished: false, failed: false)
+      SolidQueue::Batch.create!(description: description, metadata: { start_year: start_year },
+                                finished_at: (Time.current if finished || failed),
+                                failed_at: (Time.current if failed))
     end
 
-    it "gives the start year of each import in the queue" do
-      queue(described_class.new(2024))
-      queue(described_class.new(2023, force: true))
-      queue(DegreeRequirements::CourseImportJob.new(2022))
+    it "gives the start year of each import batch that has not finished" do
+      batch(2024)
+      batch(2023)
 
-      expect(described_class.queued_start_years).to contain_exactly(2024, 2023, 2022)
+      expect(described_class.queued_start_years).to contain_exactly(2024, 2023)
     end
 
-    it "leaves out finished and failed imports, and other jobs" do
-      queue(described_class.new(2022), finished: true)
-      failed = queue(described_class.new(2021))
-      SolidQueue::FailedExecution.create!(job: failed, exception: StandardError.new("HTTP 503"))
-      queue(DegreeRequirements::CurrentYearImportJob.new)
+    it "counts an import queued with no batch" do
+      job = described_class.new(2019)
+      SolidQueue::Job.create!(class_name: job.class.name, queue_name: "low", active_job_id: job.job_id, arguments: job.serialize)
+
+      expect(described_class.queued_start_years).to contain_exactly(2019)
+    end
+
+    it "leaves out finished and failed imports, and other batches" do
+      batch(2022, finished: true)
+      batch(2021, failed: true)
+      batch(2020, description: "Catalog details sync")
 
       expect(described_class.queued_start_years).to be_empty
+    end
+  end
+
+  describe ".enqueue_in_batch" do
+    around do |example|
+      previous = described_class.queue_adapter
+      described_class.queue_adapter = :solid_queue
+      example.run
+    ensure
+      described_class.queue_adapter = previous
+    end
+
+    it "queues the import in a batch named for the year" do
+      described_class.enqueue_in_batch(2024, force: true)
+
+      batch = SolidQueue::Batch.sole
+      expect(batch.metadata[:start_year]).to eq(2024)
+      expect(batch.jobs.sole.arguments["arguments"].first).to eq(2024)
+      expect(described_class.queued_start_years).to contain_exactly(2024)
+    end
+  end
+
+  describe "the course import" do
+    before { allow(importer).to receive(:call).and_return(result(:imported)) }
+
+    it "joins the batch of the import" do
+      batch = SolidQueue::Batch.create!(description: described_class::BATCH_DESCRIPTION, metadata: { start_year: 2024 })
+      job = described_class.new(2024)
+      job.batch_id = batch.id
+      previous = DegreeRequirements::CourseImportJob.queue_adapter
+      DegreeRequirements::CourseImportJob.queue_adapter = :solid_queue
+
+      job.perform_now
+
+      expect(batch.reload.jobs.pluck(:class_name)).to eq([ "DegreeRequirements::CourseImportJob" ])
+      expect(batch.total_jobs).to eq(1)
+    ensure
+      DegreeRequirements::CourseImportJob.queue_adapter = previous
+    end
+
+    it "is queued on its own when the import's batch has finished, as after a retry from Mission Control" do
+      batch = SolidQueue::Batch.create!(description: described_class::BATCH_DESCRIPTION, metadata: { start_year: 2024 },
+                                        finished_at: 1.hour.ago, failed_at: 1.hour.ago)
+      job = described_class.new(2024)
+      job.batch_id = batch.id
+
+      expect { job.perform_now }.to have_enqueued_job(DegreeRequirements::CourseImportJob).with(2024)
+      expect(batch.reload.total_jobs).to eq(0)
     end
   end
 end

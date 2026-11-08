@@ -12,7 +12,7 @@ namespace :degree_requirements do
     abort "Give the first year of the catalog year, for example degree_requirements:import[2024]" if start_year.nil?
 
     force = ENV["FORCE"].present?
-    DegreeRequirements::ImportJob.perform_later(start_year, force: force)
+    DegreeRequirements::ImportJob.enqueue_in_batch(start_year, force: force)
     puts "Queued the import of #{start_year}-#{start_year + 1}#{' with force' if force}."
   end
 
@@ -36,7 +36,7 @@ namespace :degree_requirements do
   desc "Queue the import of every catalog year from #{first_year}-#{first_year + 1} to this year"
   task import_all: :environment do
     (first_year..Date.current.year).each do |start_year|
-      DegreeRequirements::ImportJob.perform_later(start_year)
+      DegreeRequirements::ImportJob.enqueue_in_batch(start_year)
     end
     puts "Queued #{first_year}..#{Date.current.year}. A year that is not published yet is marked missing."
   end
