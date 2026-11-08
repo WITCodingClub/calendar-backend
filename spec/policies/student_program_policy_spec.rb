@@ -17,8 +17,9 @@ RSpec.describe StudentProgramPolicy do
     expect(policy(other)).to have_attributes(create?: false, destroy?: false, show?: false)
   end
 
-  it "lets a student correct only their own active rows" do
-    expect(policy(build(:student_program, user: user))).to have_attributes(update?: true)
+  # The programs come only from LeopardWeb, so no one changes a row.
+  it "lets no student change a program row" do
+    expect(policy(build(:student_program, user: user))).to have_attributes(update?: false)
     expect(policy(build(:student_program, :ended, user: user))).to have_attributes(update?: false)
     expect(policy(build(:student_program, :planned, user: user))).to have_attributes(update?: false)
     expect(policy(build(:student_program))).to have_attributes(update?: false)

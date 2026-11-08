@@ -10,6 +10,9 @@ module Dashboard
   # (StudentProgramsSerializer) and GET /api/user/degree_progress with
   # include_planned (AcademicProfiles::DegreeProgress), so it shows the same
   # data as the API.
+  #
+  # The programs come only from LeopardWeb, through the extension. A student
+  # cannot change them here.
   class ProgramsController < Dashboard::ApplicationController
     include Dashboard::DegreePlanningFlag
 
@@ -23,22 +26,6 @@ module Dashboard
       @catalog_years = query.catalog_years.to_a
       @catalog_programs = @catalog_years.first ? query.call(catalog_year: @catalog_years.first).to_a : []
       @pathways = ProgramPathway.active.order(:name).to_a
-    end
-
-    # The form to correct a value that LeopardWeb sent.
-    def edit
-      @program = find_program
-      authorize @program, :update?
-    end
-
-    def update
-      program = find_program
-      authorize program, :update?
-
-      AcademicProfiles::StudentCorrection.new(current_user).program!(program, program_params)
-      redirect_to dashboard_programs_path, notice: "Program saved. WIT Calendar keeps your change until LeopardWeb shows a different program list."
-    rescue AcademicProfiles::InvalidProfileError => e
-      redirect_to edit_dashboard_program_path(program.public_id), alert: e.message
     end
 
     # Picks the plan of study of an active or a planned program, or confirms
@@ -62,10 +49,6 @@ module Dashboard
     # policy refuses an admin's request for another student's row.
     def find_program
       policy_scope(StudentProgram).find_by_public_id!(params[:id])
-    end
-
-    def program_params
-      params.expect(program: AcademicProfiles::StudentCorrection::PROGRAM_FIELDS)
     end
 
     def degree_progress

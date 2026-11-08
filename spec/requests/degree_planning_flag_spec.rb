@@ -42,8 +42,6 @@ RSpec.describe "degree_planning flag", type: :request do
       patch plan_dashboard_program_path(program.public_id), params: { plan: "Three Year Program" }
       expect(response).to have_http_status(:not_found)
 
-      patch dashboard_program_path(program.public_id), params: { plan_name: "Three Year Program" }
-      expect(response).to have_http_status(:not_found)
       expect(program.reload.plan_name).to eq("Four Year Program")
 
       patch dashboard_academic_profile_path, params: { academic_profile: { class_standing: "Senior" } }

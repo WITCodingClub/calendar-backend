@@ -7,6 +7,10 @@ module AcademicProfiles
   # Student Profile page, or from its settings when the student changes a
   # value (PUT /api/user/academic_profile).
   #
+  # The programs come only from LeopardWeb. A payload with source "student"
+  # changes only the profile fields (level, class standing, admit type, admit
+  # term), and must send an empty program list.
+  #
   # The programs in the payload are the full list. A program that matches an
   # active row keeps that row. An active row that is not in the list ends, and
   # is never deleted, so a change of major keeps the old major.
@@ -41,6 +45,9 @@ module AcademicProfiles
 
       profile_attributes = normalize_profile
       programs = normalize_programs
+      if source == "student" && programs.any?
+        raise InvalidProfileError, "programs come only from LeopardWeb: send an empty list with source student"
+      end
 
       # user_id, not user: with user, a create that loses the race sets the
       # unsaved record on user.academic_profile.
@@ -64,15 +71,18 @@ module AcademicProfiles
       programs_digest = digest(programs)
 
       profile.assign_attributes(profile_attributes) unless profile.leopardweb_profile_digest == profile_digest
-      sync_programs(programs, "leopardweb") unless profile.leopardweb_programs_digest == programs_digest
+      # Rows that a student changed before the programs became LeopardWeb
+      # only go back to the LeopardWeb list on the next sync.
+      if profile.leopardweb_programs_digest != programs_digest || user.student_programs.active.source_student.exists?
+        sync_programs(programs)
+      end
 
       profile.update!(leopardweb_profile_digest: profile_digest, leopardweb_programs_digest: programs_digest,
                       leopardweb_synced_at: Time.current)
     end
 
-    def apply_student(profile, profile_attributes, programs)
+    def apply_student(profile, profile_attributes, _programs)
       profile.update!(profile_attributes)
-      sync_programs(programs, "student")
     end
 
     def digest(value) = Digest::SHA256.hexdigest(value.to_json)
@@ -103,7 +113,7 @@ module AcademicProfiles
       end
     end
 
-    def sync_programs(programs, source)
+    def sync_programs(programs)
       active = user.student_programs.active.to_a
       kept = []
 
@@ -111,15 +121,12 @@ module AcademicProfiles
         row = active.find { |candidate| kept.exclude?(candidate) && same_program?(candidate, attributes) }
 
         if row
-          # A row whose values did not change keeps its source, so a student's
-          # change to one program does not mark the others as changed (#867).
-          row.assign_attributes(attributes)
-          row.source = source if row.changed?
+          row.assign_attributes(attributes.merge(source: "leopardweb"))
           row.save!
           kept << row
           row
         else
-          user.student_programs.create!(attributes.merge(source: source))
+          user.student_programs.create!(attributes.merge(source: "leopardweb"))
         end
       end
 
