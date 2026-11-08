@@ -156,16 +156,12 @@ production:
     queue: low
     schedule: every saturday at 2:30am
 
-  # Sunday: RateMyProfessor maintenance (fill IDs first, then update ratings)
-  fill_missing_rmp_ids:
-    class: Faculties::FillMissingRmpIdsJob
+  # Sunday: RateMyProfessor. One job for each professor, the ones with no
+  # RMP ID first. The batch embeds the new reviews when the last job ends.
+  refresh_faculty_rmp_ratings:
+    class: Faculties::RefreshRatingsJob
     queue: low
     schedule: every sunday at 2am
-
-  update_faculty_rmp_ratings:
-    command: "Faculty.update_all_ratings!"
-    queue: low
-    schedule: every sunday at 3am
 
   # ---------------------------------------------------------------------------
   # MONTHLY

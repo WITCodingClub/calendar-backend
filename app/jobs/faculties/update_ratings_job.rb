@@ -9,7 +9,9 @@ module Faculties
     # wait in the queue, not on a worker thread (#712).
     CONCURRENCY_GROUP = "UpdateFacultyRatingsJob"
 
-    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(*) { "rate_my_professor" }
+    # The lock must last longer than one job. With the 3-minute default, a
+    # slow professor let the next job start, and both sent requests at once.
+    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(*) { "rate_my_professor" }, duration: 30.minutes
 
     def perform(faculty_id)
       faculty = Faculty.find(faculty_id)
