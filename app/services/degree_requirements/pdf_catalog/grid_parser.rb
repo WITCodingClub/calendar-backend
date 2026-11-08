@@ -43,6 +43,9 @@ module DegreeRequirements
       SURVEY_LINES = 140
       # "TMGT8000 Strategic" or "ELECTIVE CONM 3800": a code with more text.
       CODE_AND_TITLE = /\A(?:ELECTIVE )?([A-Z]{2,7} ?\d{3,4}[A-Z]?)(?: ([A-Z][a-z].*))?\z/
+      # A subject with no number ("CIVE" over "Civil Engineering Capstone
+      # Design") is a course slot of that subject when credits follow it.
+      SUBJECT_ONLY = /\A[A-Z]{4}\z/
 
       def self.call(text) = new(text).call
 
@@ -171,8 +174,23 @@ module DegreeRequirements
         elsif number
           # The second number of a choice repeats the credits.
           cell[:credits] ||= text
-        elsif !cell[:or]
+        elsif cell[:or]
+          # "Concentration Course II OR" over "Advanced Practicum": the other
+          # choice has no code, so the cell is one slot with both names.
+          cell[:title] << "or" << text
+          cell[:or] = false
+        else
           cell[:title] << text
+        end
+      end
+
+      # The tokens of a line with "CIVE" followed by its credits changed to
+      # the slot code "CIVEXXX".
+      def subject_slots(body)
+        body.each_with_index.map do |(text, x), i|
+          following = body[i + 1]
+          slot = text.match?(SUBJECT_ONLY) && following && following[0].match?(NUMBER) && !ItemBuilder.code?(text)
+          slot ? [ "#{text}XXX", x ] : [ text, x ]
         end
       end
 
@@ -327,8 +345,13 @@ module DegreeRequirements
       # narrow column can leave one space between the credits and the next
       # code ("6 ARCH1500"), so a number at the start of a run is split off.
       # A code with its title on the same line ("TMGT8000 Strategic") and
-      # "ELECTIVE CONM 3800" are split into a code and a title.
+      # "ELECTIVE CONM 3800" are split into a code and a title, and "CIVE"
+      # before its credits is the slot "CIVEXXX".
       def tokens_of(line)
+        subject_slots(raw_tokens(line))
+      end
+
+      def raw_tokens(line)
         line.enum_for(:scan, /\S+(?: \S+)*/).flat_map do
           text = Regexp.last_match(0)
           x = Regexp.last_match.begin(0)

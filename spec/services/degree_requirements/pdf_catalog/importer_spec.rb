@@ -118,6 +118,17 @@ RSpec.describe DegreeRequirements::PdfCatalog::Importer do
       expect(DegreeRequirements::PdfCatalog::ListParser)
         .to have_received(:call).with(anything, credits: hash_including([ "COMP", 1200 ] => 4))
     end
+
+    it "reads the PDF again when the credits the database has change" do
+      import(catalog_year)
+      first = catalog_year.requirement_sets.first.source_digest
+      # The grid years are imported after this year.
+      create(:catalog_course, subject_code: "COMP", course_number: 1200, credit_hours: 4)
+
+      import(catalog_year)
+
+      expect(catalog_year.requirement_sets.first.source_digest).not_to eq(first)
+    end
   end
 
   context "with 2025-2026, read from the Wayback Machine first" do
