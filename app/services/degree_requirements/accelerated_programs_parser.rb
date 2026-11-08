@@ -37,7 +37,7 @@ module DegreeRequirements
       return nil if uri.host.present? && uri.host != URI(SITE_URL).host
       return nil unless uri.path.to_s.start_with?("/")
 
-      uri.path.split("/").compact_blank.last
+      DegreeProgram.slug_for_path(uri.path)
     rescue URI::InvalidURIError
       nil
     end

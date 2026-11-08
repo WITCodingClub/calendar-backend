@@ -17,8 +17,7 @@ module DegreeRequirements
       # program, as subject words.
       RENAMED = {
         "engineering interdisciplinary" => "engineering",
-        "facility planning and management" => "facility management",
-        "construction management real estate and facilities management" => "construction management facilities management"
+        "facility planning and management" => "facility management"
       }.freeze
 
       DEGREE_WORDS = /

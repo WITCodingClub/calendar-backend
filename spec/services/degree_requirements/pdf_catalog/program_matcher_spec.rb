@@ -32,8 +32,9 @@ RSpec.describe DegreeRequirements::PdfCatalog::ProgramMatcher do
   it "matches a concentration that the contents name with a concentration in" do
     biomedical = create(:degree_program, :concentration, slug: "engineering-bs-biomedical",
                                           name: "Engineering B.S. - Biomedical Engineering Concentration")
-    facilities = create(:degree_program, :concentration, slug: "construction-management-bs-facilities",
-                                          name: "Construction Management Bachelor of Science - Facilities Management Concentration")
+    # The HTML import names this program from 2026-2027 (DegreeProgram::RENAMED_SLUGS).
+    facilities = create(:degree_program, :concentration, slug: "construction-management-bs-facilities-management",
+                                          name: "Construction Management, B.S. - Real Estate and Facilities Management Concentration")
 
     expect(matcher.call(program("Engineering Bachelor of Science with a Concentration in Biomedical Engineering")))
       .to eq(biomedical)

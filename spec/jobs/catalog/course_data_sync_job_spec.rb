@@ -171,6 +171,24 @@ RSpec.describe Catalog::CourseDataSyncJob do
       expect(course.reload.schedule_type).to eq("laboratory")
     end
 
+    it "reads a bare code with no description" do
+      stub_schedule_type("LAB")
+
+      described_class.perform_now
+
+      expect(course.reload.schedule_type).to eq("laboratory")
+    end
+
+    # The stored enum key ("lecture") was compared with Banner's code ("LEC"),
+    # so every section counted as changed.
+    it "counts a section with the same schedule type as unchanged" do
+      stub_schedule_type("Lecture (LEC)")
+      sync = Catalog::SectionSync.new
+
+      expect(sync.send(:course_data_changed?, course, Catalog::LeopardWebClient.get_class_details(term: term.uid, course_reference_number: course.crn)))
+        .to be(false)
+    end
+
     # Banner sends this text for some sections. It has no code, so the enum
     # raised and the title and other details were not written.
     it "keeps the stored type when Banner sends text with no known code, and writes the rest" do
