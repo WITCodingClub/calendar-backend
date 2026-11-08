@@ -11,6 +11,17 @@ module Embeddings
 
     MODELS = %w[CatalogCourse Faculty RmpRating].freeze
 
+    # Solid Queue puts this string in every lock key, so it must never change.
+    CONCURRENCY_GROUP = "EmbeddingsGenerateJob"
+
+    # Two backfills can queue the same ids: the catalog details batch starts
+    # one, and the 11am fallback is another. One job at a time for each model
+    # means the second job checks embedding_stale? after the first one wrote
+    # the vector, so the same text never reaches the API twice. A batch of 100
+    # takes seconds, so 10 minutes is a large margin.
+    limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: ->(model_name, *) { "embeddings_#{model_name}" },
+                       duration: 10.minutes
+
     retry_on Embeddings::Generator::ApiError, wait: :polynomially_longer, attempts: 5
     discard_on Embeddings::Generator::ConfigurationError
 

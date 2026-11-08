@@ -18,8 +18,21 @@ API answer "what is like this one?".
    data, so the write must not touch `updated_at` and must not mark a
    student's calendar for sync.
 
-The backfill runs every night at 4:45am, after the catalog sync. Text that did
+The nightly catalog sync starts the backfill. `Catalog::CourseDataSyncJob`
+enqueues the course details jobs as one Solid Queue batch, and the batch's
+`on_finish` callback is `Embeddings::BackfillJob`. A fallback run at 11am
+(`config/recurring.yml`) covers a night with no finished sync. Text that did
 not change never reaches the API, so a second run costs one table scan.
+`Embeddings::GenerateJob` runs one job at a time for each model, so when two
+runs queue the same ids, the second job finds the vectors already written.
+
+```mermaid
+flowchart LR
+  A[CourseDataSyncJob<br/>4am, retries until ~8am] --> B[Batch: CourseDetailsSyncJob<br/>one per term]
+  B -- on_finish --> C[Embeddings::BackfillJob]
+  D[recurring 11am fallback] --> C
+  C --> E[Embeddings::GenerateJob<br/>100 ids each]
+```
 
 | Model           | What the vector stands for                                                     |
 | --------------- | ------------------------------------------------------------------------------ |

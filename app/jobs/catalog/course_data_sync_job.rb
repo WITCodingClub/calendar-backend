@@ -56,15 +56,29 @@ module Catalog
       # run that stops on a Banner cooldown raises before this line.
       Term.where(id: terms.map(&:id)).update_all(sections_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
 
-      # Prerequisites and descriptions change rarely. The details job skips a
-      # course it fetched for the same term in the last week.
-      terms.each { |term| Catalog::CourseDetailsSyncJob.perform_later(term.uid) }
+      enqueue_details_sync(terms)
 
       Rails.logger.info "[Catalog::CourseDataSyncJob] Completed sync for #{terms.length} terms: " \
                         "#{counts[:synced]} synced, #{counts[:errors]} errors"
     end
 
     private
+
+    # Prerequisites and descriptions change rarely. The details job skips a
+    # course it fetched for the same term in the last week.
+    #
+    # The details jobs are one Solid Queue batch. When the last one ends, the
+    # batch starts Embeddings::BackfillJob, so the new descriptions get their
+    # vectors the same night. A run can last until about 8am (the cooldown
+    # window above), so a fixed time for the backfill came too early on most
+    # nights. on_finish also runs when a details job failed: the courses that
+    # did sync still need their vectors.
+    def enqueue_details_sync(terms)
+      SolidQueue::Batch.enqueue(description: "Catalog details sync", on_finish: Embeddings::BackfillJob,
+                                term_uids: terms.map(&:uid)) do
+        terms.each { |term| Catalog::CourseDetailsSyncJob.perform_later(term.uid) }
+      end
+    end
 
     # Rooms and times only move for a term that is running or has not started yet.
     # Term.active_uids asks Banner, which lists every term back to 2014. That is
