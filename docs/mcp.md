@@ -28,6 +28,8 @@ Then run `/mcp` in Claude Code and complete the sign-in in the browser.
 
 Any MCP client that supports OAuth with dynamic client registration or client ID metadata documents can connect. Give it the endpoint URL. The client finds the rest from the `401` response.
 
+The server is in the [official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=dev.witcc/calendar) as `dev.witcc/calendar`. A client that reads the registry can find it by that name.
+
 ## Tools
 
 Each catalog tool matches a public catalog endpoint, so the MCP server, the REST API, and GraphQL give the same answers. The catalog tools share the query objects of those endpoints (`Catalog::SectionQuery`, `Catalog::InstructorQuery`, `Catalog::ReviewQuery`, `Catalog::SubjectQuery`, `Catalog::ProgramQuery`, `Catalog::TermElectiveQuery`).
@@ -465,6 +467,26 @@ A write tool changes only the signed-in student's own data, through the same mod
 4. Add the class to `McpTools::Prompts.all`, and add a row to the prompts table above.
 5. If an argument can complete, use the name `term`, `subject`, or `courses`, or add a case to `McpTools::Completions`.
 6. Add examples to `spec/services/mcp_tools/prompts_spec.rb`.
+
+### Publish to the MCP Registry
+
+`server.json` at the repo root describes the server for the official MCP Registry. The registry holds only this metadata. It does not call the endpoint.
+
+- The `MCP Registry` workflow (`.github/workflows/mcp-registry.yml`) validates `server.json` on each pull request that changes it. When the change reaches `main`, the workflow publishes it.
+- The registry refuses a version that it already has. Increase `version` in `server.json` with each change. The pull request check fails when `server.json` changes and `version` does not.
+- A failed publish does not run again by itself. Fix the cause, then run the workflow by hand on `main` (`gh workflow run "MCP Registry" --ref main`).
+- The name `dev.witcc/calendar` is a domain namespace. The registry checks the `v=MCPv1` TXT record on the apex of `witcc.dev` (in `WITCodingClub/dns`) against the Ed25519 key in the `MCP_PRIVATE_KEY` secret. Only the `mcp-registry` environment holds that secret, and it deploys from `main` only.
+- The key can publish any `dev.witcc.*` name. To rotate it, make a new key pair, replace the TXT value, and replace the secret. Remove the old TXT value: the registry tries a stale record first and fails.
+
+```mermaid
+flowchart LR
+  accTitle: Publish to the MCP Registry
+  accDescr: A pull request that changes server.json is validated. After the merge to main, the workflow signs in with the witcc.dev DNS key and publishes server.json to the registry.
+  PR[PR changes server.json] -->|validate| CI[MCP Registry workflow]
+  CI -->|merge to main| Login[mcp-publisher login dns]
+  Login -->|reads TXT on witcc.dev| Registry[(MCP Registry)]
+  Login --> Publish[mcp-publisher publish] --> Registry
+```
 
 ### Try it locally
 

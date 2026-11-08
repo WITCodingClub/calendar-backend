@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Downloads the mcp-publisher release in MCP_PUBLISHER_VERSION to ./mcp-publisher
+# and checks its Sigstore bundle first. CI uses it (.github/workflows/mcp-registry.yml).
+# Needs cosign on the PATH.
+set -euo pipefail
+
+: "${MCP_PUBLISHER_VERSION:?set MCP_PUBLISHER_VERSION, for example v1.8.8}"
+
+os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+archive="mcp-publisher_${os}_${arch}.tar.gz"
+base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT
+
+curl --fail --location --silent --show-error --output "$workdir/$archive" "$base_url/$archive"
+curl --fail --location --silent --show-error --output "$workdir/$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+cosign verify-blob \
+  --bundle "$workdir/$archive.sigstore.json" \
+  --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  "$workdir/$archive"
+tar xzf "$workdir/$archive" -C . mcp-publisher

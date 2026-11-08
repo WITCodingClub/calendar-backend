@@ -73,3 +73,6 @@ mise.local.toml
 
 # Claude Code agent worktrees
 /.claude/worktrees/
+
+# mcp-publisher binary (bin/install-mcp-publisher)
+/mcp-publisher

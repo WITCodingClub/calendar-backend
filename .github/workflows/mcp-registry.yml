@@ -1,0 +1,88 @@
+name: MCP Registry
+
+# Validates server.json on each pull request. Publishes it to the official MCP
+# Registry when a change to server.json reaches main (docs/mcp.md).
+# The registry refuses a version it already has, so bump "version" in
+# server.json with each change.
+
+on:
+  pull_request:
+    paths: [ server.json, bin/install-mcp-publisher, .github/workflows/mcp-registry.yml ]
+  push:
+    branches: [ main ]
+    paths: [ server.json ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MCP_PUBLISHER_VERSION: v1.8.8
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Download and verify mcp-publisher
+        run: bin/install-mcp-publisher
+
+      - name: Validate server.json
+        run: ./mcp-publisher validate server.json
+
+      # The registry refuses a version it already has, and that error shows only
+      # in the publish job after the merge. Catch it here instead.
+      - name: Check that server.json changes come with a new version
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin "$BASE_REF"
+          if ! git cat-file -e FETCH_HEAD:server.json 2>/dev/null; then
+            echo "server.json is new on this branch."
+            exit 0
+          fi
+          if git diff --quiet FETCH_HEAD -- server.json; then
+            echo "server.json did not change."
+            exit 0
+          fi
+          old="$(git show FETCH_HEAD:server.json | jq -r .version)"
+          new="$(jq -r .version server.json)"
+          if [ "$old" = "$new" ]; then
+            echo "::error file=server.json::server.json changed, but version is still $new. Increase it."
+            exit 1
+          fi
+
+  publish:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    # The DNS key for witcc.dev lives only on this environment, which deploys
+    # from main only. It can publish any dev.witcc.* server.
+    environment: mcp-registry
+    concurrency:
+      group: mcp-registry-publish
+      cancel-in-progress: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Download and verify mcp-publisher
+        run: bin/install-mcp-publisher
+
+      - name: Sign in to the MCP Registry
+        env:
+          MCP_PRIVATE_KEY: ${{ secrets.MCP_PRIVATE_KEY }}
+        run: ./mcp-publisher login dns --domain witcc.dev --private-key "$MCP_PRIVATE_KEY"
+
+      - name: Publish server.json
+        run: ./mcp-publisher publish server.json
