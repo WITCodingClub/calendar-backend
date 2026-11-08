@@ -71,7 +71,7 @@ flowchart TD
 
 - A program matches an active row when the role, code, name, concentration, study path, and catalog term are the same. A change in another field, such as the department, updates the row.
 - A row is never deleted. A change of major ends the old row and creates a new one, so the history stays.
-- The programs come only from LeopardWeb. No API, MCP tool or dashboard page lets a student or an AI client change an active or ended program.
+- The programs come only from LeopardWeb. No API, MCP tool or dashboard page lets a student or an AI client change an active or ended program. The `source` of a payload is what the client says: the server cannot prove that a payload came from LeopardWeb, so a `leopardweb` row is not a verified record.
 - The student can change a profile field (level, class standing, admit type, admit term) in the extension settings (`source: "student"`). A payload with `source: "student"` must send an empty program list, or Sync refuses it. Each course sync sends the LeopardWeb profile again. The backend keeps a digest of the profile fields and a digest of the program list from the last LeopardWeb payload. It skips each part that has the same digest, so a student's change to a profile field stays until LeopardWeb shows a different profile.
 - An active row with `source: "student"` is from before the programs became LeopardWeb only. The next LeopardWeb sync writes the program list again, even when its digest did not change, and every synced row gets `source: "leopardweb"`.
 

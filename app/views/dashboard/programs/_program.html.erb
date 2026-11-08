@@ -9,7 +9,9 @@
       <h3 id="<%= dom_id %>-title" class="text-base font-semibold text-on-surface"><%= program[:name] %></h3>
       <div class="flex flex-wrap gap-2">
         <span class="m3-badge m3-badge-primary"><%= program_role_label(program[:role]) %></span>
-        <span class="m3-badge m3-badge-secondary">From LeopardWeb</span>
+        <span class="m3-badge m3-badge-secondary">
+          <%= program[:source] == "student" ? "Changed by you" : "From LeopardWeb" %>
+        </span>
       </div>
     </div>
   </div>
