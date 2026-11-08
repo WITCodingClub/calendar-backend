@@ -44,7 +44,7 @@ module DegreeRequirements
       CREDITS_LINE = /\A\s*\(\d{1,2}(?:-\d{1,2})?\s*credits?\)\s*\z/i
       # The English sequence and HSS elective slots: four credits in every
       # list catalog that prints them.
-      FOUR_CREDIT_SLOT = /\A(?:English Sequence|HSS Elective|Humanities(?: and|\/| or) Social Sciences? Elective)\z/i
+      FOUR_CREDIT_SLOT = /\A(?:English Sequence|HSS Elective|Humanities(?:\s+and\s+|\s*\/\s*|\s+or\s+)Social Sciences? Elective)\z/i
       # One row with no credits takes what the semester total leaves, up to this.
       MAX_COURSE_CREDITS = 6
       # How far before the first heading the program name can be.
@@ -232,13 +232,21 @@ module DegreeRequirements
 
         left = total - items.sum { |item| item.min_credits.to_i }
         each = 4 if left == 4 * blank.size
-        # An English or HSS slot has four credits, so it takes no other remainder.
         each ||= left if remainder == true && blank.size == 1 && left.between?(1, MAX_COURSE_CREDITS) &&
-                         !four_credit_slot?(blank.first)
+                         remainder_fits?(blank.first, left)
         each ||= left if remainder == :slot && blank.size == 1 && blank.first.kind == "placeholder" && left.between?(3, 4)
         return items if each.nil?
 
         items.map { |item| item.min_credits.nil? ? item.with(min_credits: each, max_credits: each) : item }
+      end
+
+      # An English or HSS slot has four credits, and a course the database
+      # gives other credits is not the one the total is short of.
+      def remainder_fits?(item, left)
+        return false if four_credit_slot?(item)
+
+        database = credits_of(item, @database_credits)
+        database.nil? || database == left
       end
 
       def four_credit_slot?(item) = item.kind == "placeholder" && item.label.to_s.match?(FOUR_CREDIT_SLOT)

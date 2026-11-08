@@ -42,8 +42,12 @@ module DegreeRequirements
           return result(:missing, 0, [])
         end
 
-        digest = Digest::SHA256.hexdigest("#{VERSION}:#{pdf}")
-        programs = parse(Text.extract(pdf, columns: two_columns? ? 2 : 1))
+        # The list catalogs print no credits for most rows. The credits the
+        # database knows are part of the digest: a list year imported before
+        # the grid years reads its PDF again once they are stored.
+        credits = KnownCredits.call(start_year) if PdfCatalog.parser_for(start_year) == ListParser
+        digest = Digest::SHA256.hexdigest("#{VERSION}:#{pdf}#{":#{credits.sort}" if credits}")
+        programs = parse(Text.extract(pdf, columns: two_columns? ? 2 : 1), credits)
         matched, unmatched = match(programs)
         log("no program for: #{unmatched.join('; ')}") if unmatched.any?
 
@@ -77,10 +81,9 @@ module DegreeRequirements
 
       def two_columns? = PdfCatalog::LAYOUTS[start_year] == :courseleaf
 
-      def parse(text)
+      def parse(text, credits)
         parser = PdfCatalog.parser_for(start_year)
-        # The list catalogs print no credits for most rows.
-        parser == ListParser ? parser.call(text, credits: KnownCredits.call(start_year)) : parser.call(text)
+        parser == ListParser ? parser.call(text, credits: credits) : parser.call(text)
       end
 
       def result(status, programs, unmatched)

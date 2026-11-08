@@ -213,6 +213,33 @@ RSpec.describe DegreeRequirements::PdfCatalog::ListParser do
       ])
     end
 
+    it "include the Humanities/Social Science slot of the engineering plans" do
+      text = <<~TEXT
+        Engineering (BSEN)
+        Freshman Year, Fall Semester (total credits 9)
+        HUSS, Humanities/Social Science Elective*
+        ENGR1000, Introduction to Engineering (4 credits)
+      TEXT
+
+      # 9 leaves 5, but the slot has four.
+      expect(credits(described_class.call(text))).to eq([ [ "Humanities/Social Science Elective", 4 ], [ "ENGR1000", 4 ] ])
+    end
+
+    it "do not give a course a remainder that the database disagrees with" do
+      text = <<~TEXT
+        Engineering (BSEN)
+        Freshman Year, Fall Semester (total credits 9)
+        ENGLISH, English Sequence
+        ENGR1000, Introduction to Engineering (4 credits)
+        FYS1000, First Year Seminar
+      TEXT
+
+      # 1 left, but the database gives FYS1000 0: the total is wrong, not the course.
+      expect(credits(described_class.call(text, credits: { [ "FYS", 1000 ] => 0 }))).to eq([
+        [ "English Sequence", 4 ], [ "ENGR1000", 4 ], [ "FYS1000", nil ]
+      ])
+    end
+
     it "do not let the database leave an elective more than a course" do
       database = { [ "MGMT", 2500 ] => 1, [ "MGMT", 3250 ] => 4 }
 
