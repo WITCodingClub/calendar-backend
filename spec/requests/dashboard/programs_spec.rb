@@ -171,40 +171,15 @@ RSpec.describe "Dashboard::Programs", :degree_planning, type: :request do
     end
   end
 
-  describe "PATCH /dashboard/programs/:id" do
-    it "corrects a value through the student path of AcademicProfiles::Sync" do
-      patch dashboard_program_path(major.public_id), params: { program: { role: "major", name: "Widget Design",
-                                                                           department: "Gadgets", catalog_term: "Fall 2025" } }
+  # The programs come only from LeopardWeb.
+  it "has no page or route to change a program" do
+    patch "/dashboard/programs/#{major.public_id}", params: { program: { name: "Changed" } }
+    expect(response).to have_http_status(:not_found)
 
-      expect(response).to redirect_to(dashboard_programs_path)
-      expect(major.reload).to have_attributes(department: "Gadgets", source: "student", status: "active")
-    end
+    get dashboard_programs_path
 
-    it "shows the Sync error and changes nothing for a bad term" do
-      patch dashboard_program_path(major.public_id), params: { program: { name: "Widget Design", catalog_term: "Winter" } }
-
-      expect(response).to redirect_to(edit_dashboard_program_path(major.public_id))
-      expect(flash[:alert]).to include("catalog_term")
-      expect(major.reload.catalog_term_uid).to eq(202610)
-    end
-
-    it "refuses a planned program" do
-      planned = create(:student_program, :planned, user: user)
-
-      patch dashboard_program_path(planned.public_id), params: { program: { name: "Changed" } }
-
-      expect(flash[:alert]).to include("not authorized")
-      expect(planned.reload.name).not_to eq("Changed")
-    end
-  end
-
-  describe "GET /dashboard/programs/:id/edit" do
-    it "fills the form with the stored values" do
-      get edit_dashboard_program_path(major.public_id)
-
-      expect(page.at_css("#program_name")["value"]).to eq("Widget Design")
-      expect(page.at_css("#program_catalog_term")["value"]).to eq("Fall 2025")
-    end
+    expect(page.css("a[aria-label^='Correct']")).to be_empty
+    expect(major.reload.name).to eq("Widget Design")
   end
 
   describe "the profile" do

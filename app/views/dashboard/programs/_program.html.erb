@@ -9,15 +9,9 @@
       <h3 id="<%= dom_id %>-title" class="text-base font-semibold text-on-surface"><%= program[:name] %></h3>
       <div class="flex flex-wrap gap-2">
         <span class="m3-badge m3-badge-primary"><%= program_role_label(program[:role]) %></span>
-        <span class="m3-badge m3-badge-secondary">
-          <%= program[:source] == "student" ? "Corrected by you" : "From LeopardWeb" %>
-        </span>
+        <span class="m3-badge m3-badge-secondary">From LeopardWeb</span>
       </div>
     </div>
-    <%= link_to edit_dashboard_program_path(program[:id]), class: "m3-btn-text text-sm",
-        aria: { label: "Correct #{program[:name]}" } do %>
-      <%= icon(:pencil, css_class: "w-4 h-4") %> Correct
-    <% end %>
   </div>
 
   <div class="px-5 py-4 space-y-4 text-sm text-on-surface">

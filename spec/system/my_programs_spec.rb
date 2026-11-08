@@ -109,17 +109,6 @@ RSpec.describe "My programs", :degree_planning, type: :system do
     expect(user.student_programs.planned).to be_empty
   end
 
-  it "corrects a value that LeopardWeb sent" do
-    click_link("Correct Widget Design")
-    fill_in "Department", with: "Gadgets"
-    screenshot("my-programs-correct", "#program-form")
-    click_on "Save"
-
-    expect(page).to have_text("Program saved.")
-    expect(find("#program-#{major.public_id}")).to have_text("Corrected by you")
-    expect(major.reload).to have_attributes(department: "Gadgets", source: "student")
-  end
-
   it "lists the ended programs" do
     expect(find("#ended-programs")).to have_text("Old Major")
   end

@@ -8,10 +8,6 @@ class StudentProgramPolicy < ApplicationPolicy
   def create?  = owner_of_record? && record.planned?
   def destroy? = owner_of_record? && record.planned?
 
-  # A student corrects a value that LeopardWeb sent on an active program.
-  # An ended program is history and does not change.
-  def update? = owner_of_record? && record.active?
-
   # A student picks the plan of study of an active or a planned program.
   def update_plan? = owner_of_record? && !record.ended?
 

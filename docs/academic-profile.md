@@ -71,7 +71,8 @@ flowchart TD
 
 - A program matches an active row when the role, code, name, concentration, study path, and catalog term are the same. A change in another field, such as the department, updates the row.
 - A row is never deleted. A change of major ends the old row and creates a new one, so the history stays.
-- The student can change a value in the extension settings (`source: "student"`). Each course sync sends the LeopardWeb profile again. The backend keeps a digest of the profile fields and a digest of the program list from the last LeopardWeb payload. It skips each part that has the same digest. So a student's change to a program stays until LeopardWeb shows a different program list, even when the class standing changes.
+- The programs come only from LeopardWeb. No API, MCP tool or dashboard page lets a student or an AI client change an active or ended program. The `source` of a payload is what the client says: the server cannot prove that a payload came from LeopardWeb, so a `leopardweb` row is not a verified record.
+- The student can change a profile field (level, class standing, admit type, admit term) in the extension settings (`source: "student"`). A payload with `source: "student"` must send an empty program list, or Sync refuses it. Each course sync sends the LeopardWeb profile again. The backend keeps a digest of the profile fields and a digest of the program list from the last LeopardWeb payload. It skips each part that has the same digest, so a student's change to a profile field stays until LeopardWeb shows a different profile.
 
 ## Planned programs
 
@@ -161,14 +162,14 @@ flowchart TD
   S --> W[Planned programs: the courses each adds]
   D --> W
   S --> E[Ended programs]
-  C[Correct a profile or program value] --> X[AcademicProfiles::StudentCorrection]
+  C[Correct a profile value] --> X[AcademicProfiles::StudentCorrection]
   X --> Y[AcademicProfiles::Sync with source student]
   K[Pick or confirm a plan] --> N[StudentProgram#plan_name]
   L[Add or remove a planned program] --> M[AcademicProfiles::PlannedPrograms]
   Q[Add or remove a planned pathway] --> M
 ```
 
-- **Corrections.** `AcademicProfiles::StudentCorrection` sends the stored profile and every active program to `Sync` with `source: "student"`, with the student's change. It is the same path as the extension settings. Sync does not change the LeopardWeb digests, so the change stays until LeopardWeb shows a different profile or program list. A change to the role, code, name, concentration, study path, or catalog term ends the row and creates a new one, so the old values show in the ended programs.
+- **Corrections.** `AcademicProfiles::StudentCorrection` sends the stored profile to `Sync` with `source: "student"`, with the student's change, and an empty program list. It is the same path as the extension settings. Sync does not change the LeopardWeb digests, so the change stays until LeopardWeb shows a different profile. A student cannot correct a program: the programs come only from LeopardWeb.
 - **Plans.** `PATCH /dashboard/programs/:id/plan` saves a plan of an active or a planned program. A student confirms an assumed plan with the same form.
 - **What if.** The planned programs show their open requirements: the courses each one adds. A course that an active program also needs is marked "also in your programs". The planned rows use `AcademicProfiles::PlannedPrograms`, as the API does.
 - **Pathways.** `POST /dashboard/programs/pathways` plans a 3+1, 4+1, or 5-year pathway with `build_pathway` and `save_pathway!`, as `POST /api/user/planned_pathways` does. The form lists the active pathways. Each program that the pathway added says "part of" the pathway. `DELETE /dashboard/programs/pathways/:slug` removes only the planned rows of that pathway.

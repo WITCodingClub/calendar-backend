@@ -50,35 +50,32 @@ RSpec.describe AcademicProfiles::Sync do
   end
 
   it "keeps a value the student changed when LeopardWeb sends the same profile again" do
-    # Only the program the student changed gets source student.
     sync
-    sync(source: "student", class_standing: "Junior", programs: [ major, minor.merge(name: "Data Science") ])
+    sync(source: "student", class_standing: "Junior", programs: [])
 
     sync
 
     expect(user.academic_profile.reload.class_standing).to eq("Junior")
-    expect(user.student_programs.active.pluck(:name, :source))
-      .to contain_exactly([ "Computer Science", "leopardweb" ], [ "Data Science", "student" ])
-  end
-
-  it "applies a LeopardWeb change to the profile fields and keeps the student's programs" do
-    sync
-    sync(source: "student", class_standing: "Junior", programs: [ major, minor.merge(name: "Data Science") ])
-
-    sync(class_standing: "Senior")
-
-    expect(user.academic_profile.reload.class_standing).to eq("Senior")
-    expect(user.student_programs.active.pluck(:name)).to contain_exactly("Computer Science", "Data Science")
+    expect(user.student_programs.active.pluck(:name)).to contain_exactly("Computer Science", "Computer Networking")
   end
 
   it "applies a LeopardWeb change to the programs and keeps the student's profile fields" do
     sync
-    sync(source: "student", class_standing: "Junior")
+    sync(source: "student", class_standing: "Junior", programs: [])
 
     sync(programs: [ major ])
 
     expect(user.academic_profile.reload.class_standing).to eq("Junior")
     expect(user.student_programs.active.pluck(:name, :source)).to eq([ [ "Computer Science", "leopardweb" ] ])
+  end
+
+  # The programs come only from LeopardWeb.
+  it "refuses programs from the student and changes nothing" do
+    sync
+
+    expect { sync(source: "student", programs: [ major, minor.merge(name: "Data Science") ]) }
+      .to raise_error(AcademicProfiles::InvalidProfileError, /only from LeopardWeb/)
+    expect(user.student_programs.active.pluck(:name)).to contain_exactly("Computer Science", "Computer Networking")
   end
 
   it "accepts an empty list and a profile with no terms" do
