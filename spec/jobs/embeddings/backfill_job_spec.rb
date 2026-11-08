@@ -51,4 +51,27 @@ RSpec.describe Embeddings::BackfillJob, :embeddings do
   it "raises for a model it does not own" do
     expect { described_class.perform_now("User") }.to raise_error(ArgumentError, /Unknown model/)
   end
+
+  it "queues the run as one batch that reports when the last vector is written" do
+    previous = Embeddings::GenerateJob.queue_adapter
+    Embeddings::GenerateJob.queue_adapter = :solid_queue
+    create(:catalog_course)
+
+    described_class.perform_now("CatalogCourse")
+
+    batch = SolidQueue::Batch.sole
+    expect(batch.metadata[:models]).to eq([ "CatalogCourse" ])
+    expect(batch.jobs.pluck(:class_name)).to eq([ "Embeddings::GenerateJob" ])
+    expect(batch.on_finish["job_class"]).to eq("Batches::ReportJob")
+  ensure
+    Embeddings::GenerateJob.queue_adapter = previous
+  end
+
+  it "makes no batch when nothing needs a vector" do
+    give_embedding(create(:catalog_course), 0.25)
+
+    described_class.perform_now("CatalogCourse")
+
+    expect(SolidQueue::Batch.count).to eq(0)
+  end
 end

@@ -48,4 +48,14 @@ RSpec.describe "catalog Banner fix rake tasks" do
       expect(uids).to eq([ future_term.uid, old_term.uid ])
     end
   end
+
+  it "reports each fix run when its last job ends" do
+    create(:course, term: future_term)
+
+    run_task("catalog:repair_credit_hours")
+
+    # The :test adapter puts no job in the batch, so it finishes at once.
+    expect(SolidQueue::Batch.sole.description).to eq("Credit hours repair")
+    expect(SolidQueue::Job.where(class_name: "Batches::ReportJob").count).to eq(1)
+  end
 end

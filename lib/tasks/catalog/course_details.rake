@@ -16,7 +16,9 @@ namespace :catalog do
     puts "Seeded #{seeded} courses."
 
     terms = Term.where(id: Course.select(:term_id)).order(uid: :desc)
-    terms.each { |term| Catalog::CourseDetailsSyncJob.perform_later(term.uid) }
+    SolidQueue::Batch.enqueue(description: "Course details backfill", on_finish: Batches::ReportJob) do
+      terms.each { |term| Catalog::CourseDetailsSyncJob.perform_later(term.uid) }
+    end
 
     # The job runs one term at a time. The newest term wins, so older terms
     # only fill the courses that newer terms do not offer.

@@ -8,7 +8,9 @@ namespace :catalog do
     older   = Term.reverse_chronological.where.not(id: current.map(&:id)).to_a
     terms   = (current.uniq + older).select { |term| term.courses.where(is_section_linked: true).exists? }
 
-    terms.each { |term| Catalog::SectionLinksSyncJob.perform_later(term.uid) }
+    SolidQueue::Batch.enqueue(description: "Section links backfill", on_finish: Batches::ReportJob) do
+      terms.each { |term| Catalog::SectionLinksSyncJob.perform_later(term.uid) }
+    end
     puts "Enqueued Catalog::SectionLinksSyncJob for #{terms.size} terms: #{terms.map(&:uid).join(', ')}"
   end
 end
@@ -20,7 +22,9 @@ namespace :catalog do
     older   = Term.reverse_chronological.where.not(id: current.map(&:id)).to_a
     terms   = (current + older).select { |term| term.courses.exists? }
 
-    terms.each { |term| Catalog::CreditHoursRepairJob.perform_later(term.uid) }
+    SolidQueue::Batch.enqueue(description: "Credit hours repair", on_finish: Batches::ReportJob) do
+      terms.each { |term| Catalog::CreditHoursRepairJob.perform_later(term.uid) }
+    end
     puts "Enqueued Catalog::CreditHoursRepairJob for #{terms.size} terms: #{terms.map(&:uid).join(', ')}"
   end
 end

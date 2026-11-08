@@ -112,8 +112,15 @@ module Admin
     def batch_auto_fill
       authorize Faculty
       missing = Faculty.teaching_current_or_future.where(rmp_id: nil)
-      missing.find_each { |f| Faculties::UpdateRatingsJob.perform_later(f.id) }
-      redirect_to missing_rmp_ids_admin_faculties_path, notice: "Enqueued auto-fill jobs for #{missing.count} faculty members"
+      # The ids load first and go in with one bulk enqueue, so the batch's
+      # transaction (which holds the RateMyProfessor lock row) stays short.
+      jobs = missing.pluck(:id).map { |id| Faculties::UpdateRatingsJob.new(id) }
+      if jobs.any?
+        SolidQueue::Batch.enqueue(description: "RateMyProfessor auto-fill", on_finish: Batches::ReportJob) do
+          ActiveJob.perform_all_later(jobs)
+        end
+      end
+      redirect_to missing_rmp_ids_admin_faculties_path, notice: "Enqueued auto-fill jobs for #{jobs.size} faculty members"
     end
 
     def sync_directory
