@@ -81,6 +81,28 @@ RSpec.describe DegreeRequirements::PdfCatalog::GridParser do
     ])
   end
 
+  it "reads a choice with no second code, a subject with no number, and a science slot" do
+    text = <<~TEXT
+                                    TEST (BTST)
+                            Fall Semester                         Spring Semester                     Summer Semester
+                  MGMT ELECTIVE                    3-4    SCIENCE                          4    CIVE                             4
+                  Concentration Course II OR              Science Elective                      Civil Engineering Capstone
+                  Advanced Practicum                                                            Design
+                  ELECTIVE                           3
+                  General
+                  TOTAL CREDITS                    6-7                                     4                                     4
+    TEXT
+
+    expect(rows(described_class.call(text).sole)).to eq([
+      # The title ends in "OR", but the next line is the other name, not a code.
+      [ 1, "fall", "placeholder", nil, "Concentration Course II or Advanced Practicum Elective", 3, 4 ],
+      [ 1, "fall", "placeholder", nil, "General Elective", 3, 3 ],
+      [ 1, "spring", "placeholder", nil, "Science Elective", 4, 4 ],
+      # "CIVE" with no course number is a slot for a civil engineering course.
+      [ 1, "summer", "placeholder", nil, "Civil Engineering Capstone Design", 4, 4 ]
+    ])
+  end
+
   describe "a table that a page break moves" do
     subject(:program) { described_class.call(file_fixture("degree_requirements/pdf/grid_page_break.txt").read).sole }
 

@@ -9,9 +9,10 @@ module DegreeRequirements
 
       # A code with an optional space: "COMP128", "COMP 1000", "MATH1776A".
       COURSE = /\A([A-Z]{2,5}) ?(\d{3,4})[A-Z]?\z/
-      # The first line of a placeholder: ELECTIVE, ENGLISH, HSS ELECTIVE.
-      # Other upper-case lines are headings ("FACULTY") or titles ("MATLAB").
-      PLACEHOLDER = %r{\A(?:[A-Z][A-Z&/-]* ){0,3}(?:ELECTIVES?|ENGLISH)\z}
+      # The first line of a placeholder: ELECTIVE, ENGLISH, HSS ELECTIVE,
+      # SCIENCE. Other upper-case lines are headings ("FACULTY") or titles
+      # ("MATLAB").
+      PLACEHOLDER = %r{\A(?:[A-Z][A-Z&/-]* ){0,3}(?:ELECTIVES?|ENGLISH|SCIENCE)\z}
       # A course slot named by its subject only: "MGMTXXX", "COMP46XX".
       PLACEHOLDER_CODE = /\A([A-Z]{3,5}?) ?\d{0,2}X{2,4}\z/
       # Words that stay upper case in a placeholder label.

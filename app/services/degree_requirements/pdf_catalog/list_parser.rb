@@ -24,8 +24,15 @@ module DegreeRequirements
                 "senior" => 4, "fourth" => 4, "fifth" => 5 }.freeze
       SEASON_ORDER = %w[fall spring summer].freeze
       TITLE = /\A\s*(?:Curriculum for\s+)?([A-Z][\w&,.'’\/ -]+?)\s*\(([A-Z]{2,6})\)\s*\z|\A\s*([A-Z][\w&,.'’\/ –-]+ Concentration)\s*\z/
-      # "CODE, Title", "CODE<tab or spaces>Title", or the code alone.
-      ITEM = /\A\s*(?:[•·▪]\s*)?(?<code>[A-Z]{2,5} ?\d{3,4}[A-Z]?|(?:[A-Z][A-Z&\/-]* ){0,3}(?:ELECTIVES?|ENGLISH|SCIENCE))\*?(?:,\s*|\s{2,}|\t+\s*|\s+|\z)(?<title>.*)\z/
+      # "CODE, Title", "CODE. Title", "CODE<tab or spaces>Title", or the code
+      # alone. A row can name a choice ("MGMT1500/MATH1030"), and a slot two
+      # subjects ("MATH or SCIENCE").
+      ITEM = %r{\A\s*(?:[•·▪]\s*)?(?<code>[A-Z]{2,5} ?\d{3,4}[A-Z]?(?:/[A-Z]{2,5} ?\d{3,4}[A-Z]?)*|(?:(?:[A-Z][A-Z&/-]*|or) ){0,3}(?:ELECTIVES?|ENGLISH|SCIENCE))\*?(?:[,.]\s*|\s{2,}|\t+\s*|\s+|\z)(?<title>.*)\z}
+      # A slot named by a short word: "EC, Engineering Concentration",
+      # "COMP Computer Science Elective (4 credits)", "MATH/SCIENCE",
+      # "ENGINEERING COURSE (EC)". Without a comma the line must print its
+      # credits: other upper-case words start headings.
+      SLOT = %r{\A\s*(?<code>[A-Z]{2,5}(?:/[A-Z]{2,8})?|[A-Z][A-Z ]+\([A-Z]{2,4}\))(?<sep>,\s+|\s{2,}|\t+\s*|(?<=\))\s+)(?<title>[A-Z].*)\z}
       # "(4 credits)", "4cr.", or "4 credits" at the end of the line.
       CREDITS = /\((\d{1,2}(?:-\d{1,2})?)\s*credits?\)|\b(\d{1,2}(?:-\d{1,2})?)\s*cr\.?(?=\s|\z)|\b(\d{1,2}(?:-\d{1,2})?)\s+credits?\.?\s*\z/i
       DEFAULT_FOUR = /all courses are four \(4\) credits/i
@@ -33,6 +40,11 @@ module DegreeRequirements
       # A course in a list with its credits at the end: "MGMT7000 Business
       # Relations & Human Resources Management (3)".
       LISTED_CREDITS = /\A\s*([A-Z]{3,5}) ?(\d{4})[,.]?\s+[A-Z][^()]*\((\d{1,2})\)\s*\z/
+      # The credits of the last row, alone on the next line: "(1 credit)".
+      CREDITS_LINE = /\A\s*\(\d{1,2}(?:-\d{1,2})?\s*credits?\)\s*\z/i
+      # The English sequence and HSS elective slots: four credits in every
+      # list catalog that prints them.
+      FOUR_CREDIT_SLOT = /\A(?:English Sequence|HSS Elective|Humanities(?: and|\/| or) Social Sciences? Elective)\z/i
       # One row with no credits takes what the semester total leaves, up to this.
       MAX_COURSE_CREDITS = 6
       # How far before the first heading the program name can be.
@@ -45,11 +57,18 @@ module DegreeRequirements
       # course, for the rows that print none.
       def self.call(text, credits: {}) = new(text, credits: credits).call
 
+      # A heading that the PDF runs onto the end of a row: "COOP3500, Co-op
+      # Work Term IJunior Year, Summer Semester".
+      INLINE_HEADING = /(?<=\S)(?=(?:Freshman|Sophomore|Junior|Senior|First|Second|Third|Fourth|Fifth)\s+Year,?\s+(?:Fall|Spring|Summer)\s+Semester\b)/
+
       def initialize(text, credits: {})
-        @lines = text.to_s.split("\n")
+        @lines = text.to_s.split("\n").flat_map { |line| line.split(INLINE_HEADING) }
         @database_credits = credits
         # The lines read as plan rows. A course list is any other line.
         @plan_lines = Set.new
+        # The lines that are rows or the rest of a row. "EC, Engineering
+        # Concentration" is a row, not the name of a concentration.
+        @row_lines = Set.new
       end
 
       def call
@@ -116,10 +135,14 @@ module DegreeRequirements
       def read_semester(index, year, season, default_credits)
         cells = []
         join_next = false
+        # The page of each row. A new page can start further right, so a
+        # line is the rest of a title only on the page of its row.
+        page = 0
         while index < @lines.size
           line = clean(index)
           break if line.match?(HEADING)
 
+          page += 1 if @lines[index].include?("\f")
           @plan_lines << index
           index += 1
           next if line.strip.empty? || line.match?(FOOTER)
@@ -129,20 +152,31 @@ module DegreeRequirements
             next
           end
 
-          match = ITEM.match(line)
+          match = ITEM.match(line) || slot_match(line)
           if match.nil?
-            # A title that runs onto a second, deeper line: "(1 credit)".
-            break unless cells.any? && line[/\A */].size > cells.last[:x] + 4
+            # A title that runs onto a second, deeper line, or the credits
+            # of the row alone on the next line: "(1 credit)".
+            break unless cells.any? && cells.last[:page] == page &&
+                         (line[/\A */].size > cells.last[:x] + 4 || line.match?(CREDITS_LINE))
 
             cells.last[:title] = "#{cells.last[:title]} #{line.strip}"
+            @row_lines << (index - 1)
             next
           end
 
-          cell = cell_for(match, default_credits)
+          @row_lines << (index - 1)
+
+          cell = cell_for(match, default_credits).merge(page: page)
           if join_next && ItemBuilder::COURSE.match?(cell[:code]) && ItemBuilder::COURSE.match?(cells.last[:code].split(" or ").last)
             cells.last[:code] = "#{cells.last[:code]} or #{cell[:code]}"
           else
             cells << cell
+          end
+          # Two rows on one line: "ELECTIVE, Biomedical Engineering 4cr.
+          # ELECTIVE, Engineering 4cr.".
+          if (two = cells.last[:title].match(/\A(.*?\d\s*cr\.)\s+(?=\S)/)) && (second = ITEM.match(two.post_match))
+            cells.last[:title] = two[1]
+            cells << cell_for(second, default_credits).merge(page: page, x: cells.last[:x])
           end
           # "ENGR1800, Introduction to MATLAB OR" joins the next line to it.
           join_next = cells.last[:title].match?(/\s+or\z/i)
@@ -158,46 +192,56 @@ module DegreeRequirements
 
       # Most lines in 2016-2017 and 2017-2018 print no credits. A course
       # with none takes the credits another plan of the catalog prints for
-      # it, then the credits the database has for it. Then, when the
+      # it (an English or HSS slot has four), then the credits the database
+      # has for it. Then, when the
       # semester total is four credits for each row with none, each of them
       # has four, the usual size of a course. One row left with none takes
       # what the total leaves. The database credits are kept only when the
       # semester then adds up to its total: a course can change credits
       # between years.
       def fill_credits(items, total, known = {})
-        items = with_credits(items, known)
+        items = with_credits(items, known, slots: true)
         return items if total.nil?
 
         # The database credits stay only when every row then has credits and
-        # they add up to the total. Four for each row left counts, but not
-        # a remainder, which would hide a wrong value.
-        from_database = from_total(with_credits(items, @database_credits), total, remainder: false)
+        # they add up to the total. Four for each row left counts. A
+        # remainder counts only for one elective slot, and only when it is
+        # the size of a course: a remainder can hide a wrong value.
+        from_database = from_total(with_credits(items, @database_credits), total, remainder: :slot)
         if from_database.all?(&:min_credits) && from_database.sum(&:min_credits) == total
           items = from_database
         end
         from_total(items, total)
       end
 
-      def with_credits(items, known)
+      # `slots` also gives the English and HSS slots their four credits.
+      def with_credits(items, known, slots: false)
         items.map do |item|
           next item unless item.min_credits.nil?
 
           credits = credits_of(item, known)
+          credits ||= 4 if slots && four_credit_slot?(item)
           credits ? item.with(min_credits: credits, max_credits: credits) : item
         end
       end
 
+      # `remainder` is true, false, or :slot (one placeholder row, 3 or 4 left).
       def from_total(items, total, remainder: true)
         blank = items.select { |item| item.min_credits.nil? }
         return items if total.nil? || blank.empty?
 
         left = total - items.sum { |item| item.min_credits.to_i }
         each = 4 if left == 4 * blank.size
-        each ||= left if remainder && blank.size == 1 && left.between?(1, MAX_COURSE_CREDITS)
+        # An English or HSS slot has four credits, so it takes no other remainder.
+        each ||= left if remainder == true && blank.size == 1 && left.between?(1, MAX_COURSE_CREDITS) &&
+                         !four_credit_slot?(blank.first)
+        each ||= left if remainder == :slot && blank.size == 1 && blank.first.kind == "placeholder" && left.between?(3, 4)
         return items if each.nil?
 
         items.map { |item| item.min_credits.nil? ? item.with(min_credits: each, max_credits: each) : item }
       end
+
+      def four_credit_slot?(item) = item.kind == "placeholder" && item.label.to_s.match?(FOUR_CREDIT_SLOT)
 
       # The credits of a course, or of a choice whose options all have the
       # same credits, from the other plans.
@@ -228,6 +272,11 @@ module DegreeRequirements
         seen.select { |_, credits| credits.size == 1 }.transform_values(&:first)
       end
 
+      def slot_match(line)
+        match = SLOT.match(line)
+        match if match && (match[:sep].start_with?(",") || line.match?(CREDITS))
+      end
+
       def cell_for(match, _default_credits)
         { code: match[:code].squeeze(" "), title: match[:title].to_s.strip, x: match.begin(:code) }
       end
@@ -246,7 +295,7 @@ module DegreeRequirements
       # one, or nil.
       def title_before(index, previous_heading, lines = TITLE_LINES)
         floor = [ index - lines, (previous_heading || -1) + 1, 0 ].max
-        (index - 1).downto(floor).find { |i| clean(i).match?(TITLE) }
+        (index - 1).downto(floor).find { |i| !@row_lines.include?(i) && clean(i).match?(TITLE) }
       end
 
       def page_of(index)

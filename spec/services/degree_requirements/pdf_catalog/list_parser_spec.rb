@@ -25,10 +25,11 @@ RSpec.describe DegreeRequirements::PdfCatalog::ListParser do
       [ 1, "fall", "course", "MATH2300", "Discrete Math", 4 ],
       [ 1, "fall", "course", "MATH1750", "Engineering Calculus I", 4 ],
       [ 1, "fall", "placeholder", nil, "English Sequence", 4 ],
-      # 15 credits is not four a course, so only the printed credits stay.
+      # An HSS slot has four. 15 leaves 7 for one course, more than a course
+      # has, so it stays without credits.
       [ 1, "spring", "course", "COMP1050", "Computer Science II", 4 ],
       [ 1, "spring", "course", "COMP1200", "Computer Organization", nil ],
-      [ 1, "spring", "placeholder", nil, "HSS Elective", nil ],
+      [ 1, "spring", "placeholder", nil, "HSS Elective", 4 ],
       [ 2, "summer", "course", "COOP3000", "Pre-Cooperative Work Term (Optional)", 0 ]
     ])
   end
@@ -84,8 +85,9 @@ RSpec.describe DegreeRequirements::PdfCatalog::ListParser do
         # MGMT1500 takes 3 from the other plan, MGMT2000 from the list under it.
         # 15 - 7 leaves 8 for the two rows with no credits: four each.
         [ [ "MGMT1000", 4 ], [ "MGMT1500", 3 ], [ "MGMT2750", 4 ], [ "MATH1000", 4 ],
-          # "OR" at the end of a line makes a choice with the next line.
-          [ "MGMT2000", 3 ], [ "ENGR1800|ENGR1600", nil ], [ "HSS Elective", nil ] ],
+          # "OR" at the end of a line makes a choice with the next line. The
+          # HSS slot has four, and the choice takes the 1 left.
+          [ "MGMT2000", 3 ], [ "ENGR1800|ENGR1600", 1 ], [ "HSS Elective", 4 ] ],
         # FMGT1000 is the one row with no credits, so it takes the 5 left.
         [ [ "MGMT1500", 3 ], [ "FMGT1000", 5 ] ]
       ])
@@ -114,7 +116,7 @@ RSpec.describe DegreeRequirements::PdfCatalog::ListParser do
         MGMT1000, Introduction to Management
         MATH1000, College Mathematics I
         PHYS1000, College Physics I
-        HSS ELECTIVE
+        MGMT ELECTIVE, Management Elective
       TEXT
       database = { [ "MGMT", 1000 ] => 4, [ "MATH", 1000 ] => 4, [ "PHYS", 1000 ] => 4 }
 
@@ -129,6 +131,92 @@ RSpec.describe DegreeRequirements::PdfCatalog::ListParser do
       expect(credits(described_class.call(text, credits: database)).first.first(4)).to eq([
         [ "MGMT1000", 4 ], [ "MGMT1500", 3 ], [ "MGMT2750", 4 ], [ "MATH1000", 4 ]
       ])
+    end
+  end
+  describe "rows that the catalog writes in other ways" do
+    # The tabs and the page break are as pdftotext prints them.
+    let(:text) do
+      "Engineering (BSEN)\n" \
+        "Freshman Year, Fall Semester (total credits 16)\n" \
+        "ENGR1800                 Introduction to MATLAB (1 credit) Or ENGR1600 Fundamentals of CAD and CAM\n" \
+        "(1 credit)\n" \
+        "MATH1750                 Engineering Calculus I (4 credits)\n" \
+        "MATH or SCIENCE          Math or Science Elective (4 credits)\n" \
+        "EC \t\t                  Engineering Concentration (3 credits)\n" \
+        "ENGINEERING COURSE (EC) Engineering Concentration (4 credits)\n" \
+        "Freshman Year, Spring Semester (total credits 16)\n" \
+        "EC, Engineering Concentration\n" \
+        "MATH/SCIENCE, Math/Science Elective\n" \
+        "MGMT1500/MATH1030, Decision Analysis for Business or Statistics\n" \
+        "MGMT7000. Business Relations\n" \
+        "ELECTIVE, Biomedical Engineering 4cr. ELECTIVE, Engineering 4cr.\n" \
+        "COOP3500, Co-op Work Term IFreshman Year, Summer Semester (total credits 4)\n" \
+        "HSS ELECTIVE, See ENGL/HSS note below *\n" \
+        "                                     145\n" \
+        "\f      Concentration Courses (Optional)\n" \
+        "      MGMT2060               Introduction to Technology Project Management (3 credits)\n"
+    end
+
+    it "reads each of them as a row" do
+      programs = described_class.call(text)
+
+      # "EC, Engineering Concentration" is a row, not the name of a concentration.
+      expect(programs.map(&:title)).to eq([ "Engineering (BSEN)" ])
+      expect(rows(programs.sole)).to eq([
+        # The credits of a row alone on the next line.
+        [ 1, "fall", "choice", "ENGR1800|ENGR1600", "Introduction to MATLAB", 1 ],
+        [ 1, "fall", "course", "MATH1750", "Engineering Calculus I", 4 ],
+        [ 1, "fall", "placeholder", nil, "Math or Science Elective", 4 ],
+        [ 1, "fall", "placeholder", nil, "Engineering Concentration", 3 ],
+        [ 1, "fall", "placeholder", nil, "Engineering Concentration", 4 ],
+        [ 1, "spring", "placeholder", nil, "Engineering Concentration", nil ],
+        [ 1, "spring", "placeholder", nil, "Math/Science Elective", nil ],
+        [ 1, "spring", "choice", "MGMT1500|MATH1030", "Decision Analysis for Business or Statistics", nil ],
+        [ 1, "spring", "course", "MGMT7000", "Business Relations", nil ],
+        # Two rows on one line.
+        [ 1, "spring", "placeholder", nil, "Biomedical Engineering Elective", 4 ],
+        [ 1, "spring", "placeholder", nil, "Engineering Elective", 4 ],
+        # The next heading runs onto the end of this row.
+        [ 1, "spring", "course", "COOP3500", "Co-op Work Term I", 0 ],
+        # The list after the page break is not part of the plan.
+        [ 1, "summer", "placeholder", nil, "HSS Elective", 4 ]
+      ])
+    end
+  end
+
+  describe "English and HSS slots" do
+    let(:text) do
+      <<~TEXT
+        Business Management (BSM)
+        Freshman Year, Fall Semester (total credits 14)
+        MGMT2500, Systems Analysis and Design
+        MGMT3250, Marketing
+        HSS ELECTIVE, See ENGL/HSS note below *
+        MGMT ELECTIVE, Concentration Course I
+        Freshman Year, Spring Semester (total credits 17)
+        ENGLISH, English Sequence
+        MGMT1000, Introduction to Management (4 credits)
+        MGMT1025, Introduction to Business (4 credits)
+        MATH1000, College Mathematics I (4 credits)
+      TEXT
+    end
+
+    def credits(programs) = rows(programs.sole).map { |row| [ row[3] || row[4], row[5] ] }
+
+    it "have four credits, and the database credits leave one elective what the total leaves" do
+      database = { [ "MGMT", 2500 ] => 3, [ "MGMT", 3250 ] => 4 }
+
+      expect(credits(described_class.call(text, credits: database))).to eq([
+        [ "MGMT2500", 3 ], [ "MGMT3250", 4 ], [ "HSS Elective", 4 ], [ "Concentration Course I Elective", 3 ],
+        # 17 leaves 5, but an English slot has four.
+        [ "English Sequence", 4 ], [ "MGMT1000", 4 ], [ "MGMT1025", 4 ], [ "MATH1000", 4 ]
+      ])
+    end
+
+    it "do not let the database leave an elective more than a course" do
+      database = { [ "MGMT", 2500 ] => 1, [ "MGMT", 3250 ] => 4 }
+
+      expect(credits(described_class.call(text, credits: database)).first(4).map(&:last)).to eq([ nil, nil, 4, nil ])
     end
   end
 end
