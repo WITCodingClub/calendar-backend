@@ -245,6 +245,37 @@ RSpec.describe Catalog::CourseDataSyncJob do
     end
   end
 
+  describe "subject" do
+    before do
+      stub_leopard_web([ banner_meeting_time ])
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details)
+        .and_return(class_details(meeting_times: [ banner_meeting_time ]).merge(subject: "Climate Resilience"))
+    end
+
+    # getClassDetails gives "Climate Resilience" with no code. Stored like
+    # that, the section had no code, and its catalog course was
+    # "CLIMATE RESILIENCE", not CRES.
+    it "adds the code from Banner's subject list to a label without one" do
+      allow(Catalog::LeopardWebClient).to receive(:get_subjects).with(term: term.uid)
+                                                                .and_return([ { code: "CRES", description: "Climate Resilience" } ])
+
+      described_class.perform_now
+
+      expect(course.reload.subject).to eq("Climate Resilience (CRES)")
+    end
+
+    it "counts a section with the same label as unchanged, and does not ask for the subject list" do
+      course.update!(subject: "Climate Resilience (CRES)")
+      allow(Catalog::LeopardWebClient).to receive(:get_subjects)
+      fresh = Catalog::LeopardWebClient.get_class_details(term: term.uid, course_reference_number: course.crn)
+      fresh[:subject] = Catalog::SubjectLabels.for_term(fresh[:subject], term.uid, stored: course.subject)
+
+      expect(Catalog::SectionSync.new.send(:course_data_changed?, course, fresh.merge(title: course.title)))
+        .to be(false)
+      expect(Catalog::LeopardWebClient).not_to have_received(:get_subjects)
+    end
+  end
+
   describe "credit hours" do
     # getClassDetails gives the course's credits, so it says 4 for a lab.
     it "keeps the section's own credit hours from the import" do

@@ -10,6 +10,7 @@ The course catalog comes from Banner (LeopardWeb). These jobs and tasks keep it 
 | Course details and prerequisites | After each import, and nightly | `Catalog::CourseDetailsSyncJob` |
 | Re-import every term | After a change to the importer, or to find missed sections | `bin/rails catalog:reimport_all_terms` |
 | Fetch every course's details again | After a new course detail column ships | `bin/rails catalog:backfill_course_details REFETCH=1` |
+| Add subject codes to stored sections | Once, after the subject label fix ships | `bin/rails catalog:repair_subject_labels` |
 
 ## Where a schedule's sections come from
 
@@ -49,6 +50,23 @@ At the end of the window, the job reports the `CooldownError` as handled and sto
 The time of the first attempt stays in the job data. On the admin jobs page, "Retry" on one failed job sets its attempt count to 0, so it starts a new window. "Retry all" keeps the attempt count and the window, so a job whose window ended stops at its first cooldown.
 
 Each retry is a new Solid Queue job, so the admin page shows it as a scheduled job that was enqueued seconds ago, with a retry count. That is a normal wait, not a stuck job.
+
+## Subject labels
+
+`Course.subject` holds Banner's subject label with the code at the end: `Computer Science (COMP)`. Code that needs the code reads it with `Course.prefix_of`, and the section filter matches `%(COMP)`. A code is 2 to 6 capital letters or digits, so `(optional)` is not a code.
+
+Banner's label for most subjects ends with the code. Some labels do not:
+
+- `Climate Resilience` is CRES, `Building Construction` is BLDG, and `Graduate Internship (optional)` is INTN.
+- `Facilities Management (CPCE)` is CPFM: the label ends with a different code.
+
+`getClassDetails` gives only the label. `Catalog::SubjectLabels` gets the code from Banner's subject list for the term (`classSearch/get_subject`, cached for one day) and writes the label with the real code: `Climate Resilience (CRES)`, `Facilities Management (CPFM)`. The importer, the nightly sync and `Courses::Processor` all use it.
+
+Before this fix, a section of such a subject had no code, and its `CatalogCourse` got the label as its code (`BUILDING CONSTRUCTION`, `CPCE`). The catalog year comparison then listed the course as having no section. To correct stored sections and their catalog courses, run the task once. It sends one Banner request for each term with sections.
+
+```sh
+bin/rails catalog:repair_subject_labels
+```
 
 ## Course titles
 

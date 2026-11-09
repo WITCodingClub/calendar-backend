@@ -274,6 +274,24 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
     end
   end
 
+  describe ".get_subjects" do
+    it "returns the code and description of each subject in the term" do
+      stub_request(:get, %r{\Ahttps://selfservice\.wit\.edu/StudentRegistrationSsb/ssb/classSearch/get_subject})
+        .with(query: hash_including("term" => "202710", "max" => "500"))
+        .to_return(status: 200, body: file_fixture("leopard_web/subjects.json").read,
+                   headers: { "Content-Type" => "application/json" })
+
+      expect(described_class.get_subjects(term: 202710))
+        .to include({ code: "CRES", description: "Climate Resilience" }, { code: "COMP", description: "Computer Science (COMP)" })
+    end
+
+    it "raises on a failed request" do
+      stub_request(:get, %r{classSearch/get_subject}).to_return(status: 400, body: "")
+
+      expect { described_class.get_subjects(term: 202710) }.to raise_error(described_class::RequestError)
+    end
+  end
+
   describe "Banner errors" do
     let(:url) { "#{described_class::BASE_URL}getFacultyMeetingTimes" }
 

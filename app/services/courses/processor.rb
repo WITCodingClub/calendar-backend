@@ -142,7 +142,7 @@ module Courses
               course.title          = detailed_course_info[:title]
               course.start_date     = start_date
               course.end_date       = end_date
-              course.subject        = detailed_course_info[:subject]
+              course.subject        = Catalog::SubjectLabels.for_term(detailed_course_info[:subject], course_data[:term])
               course.course_number  = course_data[:courseNumber]
               course.schedule_type  = schedule_type_match ? schedule_type_match[1] : nil
               course.section_number = normalize_section_number(detailed_course_info[:section_number])

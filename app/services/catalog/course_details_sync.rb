@@ -48,7 +48,7 @@ module Catalog
     end
 
     def self.prefix_of(subject)
-      (subject.to_s[/\(([^)]+)\)\s*\z/, 1] || subject.to_s).strip.upcase
+      Course.prefix_of(subject).upcase
     end
 
     # The degree requirements and the term elective lists name courses by

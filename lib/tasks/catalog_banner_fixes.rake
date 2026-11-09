@@ -28,3 +28,12 @@ namespace :catalog do
     puts "Enqueued Catalog::CreditHoursRepairJob for #{terms.size} terms: #{terms.map(&:uid).join(', ')}"
   end
 end
+
+namespace :catalog do
+  desc "Add the subject code to section subjects that Banner labels without it, and move their catalog courses to the code"
+  task repair_subject_labels: :environment do
+    result = Catalog::SubjectLabelRepair.call
+    puts "Relabeled #{result[:sections]} sections. Catalog courses: #{result[:catalog_courses_moved]} moved, " \
+         "#{result[:catalog_courses_merged]} merged into an existing row."
+  end
+end

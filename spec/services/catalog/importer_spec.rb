@@ -68,6 +68,22 @@ RSpec.describe Catalog::Importer do
     end
   end
 
+  describe "subject" do
+    it "stores Banner's label with the code at the end" do
+      row = catalog_row(crn: 17267, sequence: "01").merge("subject" => "CRES", "subjectDescription" => "Climate Resilience")
+      described_class.new([ row ]).call!
+
+      expect(Course.find_by(crn: 17267, term: term).subject).to eq("Climate Resilience (CRES)")
+    end
+
+    it "keeps a label that already ends with the code" do
+      row = catalog_row(crn: 17268, sequence: "01").merge("subjectDescription" => "Chemistry (CHEM)")
+      described_class.new([ row ]).call!
+
+      expect(Course.find_by(crn: 17268, term: term).subject).to eq("Chemistry (CHEM)")
+    end
+  end
+
   describe "schedule types" do
     it "imports a Study Away Domestic (SAD) section" do
       described_class.new([ catalog_row(crn: 32115, sequence: "01", schedule_type: "Study Away Domestic (SAD)") ]).call!

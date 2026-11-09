@@ -58,4 +58,14 @@ RSpec.describe "catalog Banner fix rake tasks" do
     expect(SolidQueue::Batch.sole.description).to eq("Credit hours repair")
     expect(SolidQueue::Job.where(class_name: "Batches::ReportJob").count).to eq(1)
   end
+
+  describe "catalog:repair_subject_labels" do
+    it "runs the repair and prints the counts" do
+      allow(Catalog::SubjectLabelRepair).to receive(:call)
+        .and_return({ sections: 3, catalog_courses_moved: 2, catalog_courses_merged: 1 })
+
+      expect { run_task("catalog:repair_subject_labels") }
+        .to output(/Relabeled 3 sections\. Catalog courses: 2 moved, 1 merged/).to_stdout
+    end
+  end
 end

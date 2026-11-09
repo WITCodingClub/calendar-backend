@@ -53,11 +53,15 @@ class Course < ApplicationRecord
   # Joins each section to its CatalogCourse, the way
   # Catalog::CourseDetailsSync.prefix_of reads the code out of the subject:
   # "Computer Science (COMP)" to "COMP".
+  # The subject code at the end of a label: "Computer Science (COMP)".
+  # "(optional)" is not a code (Catalog::SubjectLabels).
+  SUBJECT_CODE_SUFFIX = /\(([A-Z0-9]{2,6})\)\s*\z/
+
   CATALOG_COURSE_JOIN = <<~'SQL'.squish
     INNER JOIN catalog_courses
       ON catalog_courses.course_number = courses.course_number
      AND catalog_courses.subject_code =
-         UPPER(BTRIM(COALESCE(SUBSTRING(courses.subject FROM '\(([^)]+)\)\s*$'), courses.subject)))
+         UPPER(BTRIM(COALESCE(SUBSTRING(courses.subject FROM '\(([A-Z0-9]{2,6})\)\s*$'), courses.subject)))
   SQL
 
   set_public_id_prefix :crs
@@ -101,7 +105,14 @@ class Course < ApplicationRecord
   end
 
   def prefix
-    subject =~ /\(([^)]+)\)/ ? $1 : subject
+    self.class.prefix_of(subject)
+  end
+
+  # "Computer Science (COMP)" => "COMP". A subject stored as the bare code,
+  # "COMP", is the code.
+  def self.prefix_of(subject)
+    subject = subject.to_s.strip
+    subject[SUBJECT_CODE_SUFFIX, 1] || subject
   end
 
   # Banner writes linked sections as <slot><key>. The slot says what the section

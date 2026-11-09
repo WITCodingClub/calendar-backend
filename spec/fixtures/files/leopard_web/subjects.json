@@ -1,0 +1,7 @@
+[
+  { "code": "COMP", "description": "Computer Science (COMP)" },
+  { "code": "CRES", "description": "Climate Resilience" },
+  { "code": "BLDG", "description": "Building Construction" },
+  { "code": "INTN", "description": "Graduate Internship (optional)" },
+  { "code": "CPFM", "description": "Facilities Management (CPCE)" }
+]
