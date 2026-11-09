@@ -464,7 +464,9 @@ module Catalog
                                       })
       handle_error(response) unless response.success?
 
-      parse_json_response(response.body).map { |s| { code: s["code"], description: s["description"] } }
+      # The JSON escapes HTML: "Hum &amp; Soc Sci". getClassDetails, read
+      # with Nokogiri, gives "Hum & Soc Sci".
+      parse_json_response(response.body).map { |s| { code: s["code"], description: CGI.unescapeHTML(s["description"].to_s) } }
     end
 
     def get_course_catalog

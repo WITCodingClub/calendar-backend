@@ -76,6 +76,13 @@ RSpec.describe Catalog::Importer do
       expect(Course.find_by(crn: 17267, term: term).subject).to eq("Climate Resilience (CRES)")
     end
 
+    it "decodes the HTML entities in Banner's label" do
+      row = catalog_row(crn: 17269, sequence: "01").merge("subject" => "EPIC", "subjectDescription" => "EPIC Themes in Hum &amp; Soc Sci")
+      described_class.new([ row ]).call!
+
+      expect(Course.find_by(crn: 17269, term: term).subject).to eq("EPIC Themes in Hum & Soc Sci (EPIC)")
+    end
+
     it "keeps a label that already ends with the code" do
       row = catalog_row(crn: 17268, sequence: "01").merge("subjectDescription" => "Chemistry (CHEM)")
       described_class.new([ row ]).call!

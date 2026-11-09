@@ -3,5 +3,6 @@
   { "code": "CRES", "description": "Climate Resilience" },
   { "code": "BLDG", "description": "Building Construction" },
   { "code": "INTN", "description": "Graduate Internship (optional)" },
-  { "code": "CPFM", "description": "Facilities Management (CPCE)" }
+  { "code": "CPFM", "description": "Facilities Management (CPCE)" },
+  { "code": "EPIC", "description": "EPIC Themes in Hum &amp; Soc Sci" }
 ]

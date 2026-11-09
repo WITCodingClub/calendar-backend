@@ -285,6 +285,15 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
         .to include({ code: "CRES", description: "Climate Resilience" }, { code: "COMP", description: "Computer Science (COMP)" })
     end
 
+    # getClassDetails gives "&", so the lookup by label needs it too.
+    it "decodes the HTML entities in a description" do
+      stub_request(:get, %r{classSearch/get_subject})
+        .to_return(status: 200, body: file_fixture("leopard_web/subjects.json").read,
+                   headers: { "Content-Type" => "application/json" })
+
+      expect(described_class.get_subjects(term: 202710)).to include({ code: "EPIC", description: "EPIC Themes in Hum & Soc Sci" })
+    end
+
     it "raises on a failed request" do
       stub_request(:get, %r{classSearch/get_subject}).to_return(status: 400, body: "")
 

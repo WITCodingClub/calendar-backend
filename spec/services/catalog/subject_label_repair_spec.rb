@@ -63,6 +63,34 @@ RSpec.describe Catalog::SubjectLabelRepair do
     expect(CatalogCourse.where(course_number: 1100)).to eq([ real ])
   end
 
+  # The first run relabeled the sections and then failed, so the sections no
+  # longer name the bad code.
+  it "moves the bad rows on a run after the sections are relabeled" do
+    create(:course, term: term, subject: "Climate Resilience (CRES)", course_number: 1000)
+    catalog = create(:catalog_course, subject_code: "CLIMATE RESILIENCE", course_number: 1000)
+
+    described_class.call
+
+    expect(catalog.reload.subject_code).to eq("CRES")
+  end
+
+  it "does not move a row whose code is a real subject code" do
+    real = create(:catalog_course, subject_code: "COMP", course_number: 1000)
+
+    described_class.call
+
+    expect(real.reload.subject_code).to eq("COMP")
+  end
+
+  it "marks the students of a relabeled section for a calendar sync" do
+    section = create(:course, term: term, subject: "Climate Resilience", course_number: 1000)
+    allow(CourseCalendars::SyncMarker).to receive(:mark)
+
+    described_class.call
+
+    expect(CourseCalendars::SyncMarker).to have_received(:mark).with([ section.id ])
+  end
+
   it "links catalog year courses to the moved row" do
     create(:course, term: term, subject: "Climate Resilience", course_number: 1000)
     catalog = create(:catalog_course, subject_code: "CLIMATE RESILIENCE", course_number: 1000)

@@ -30,13 +30,24 @@ module Catalog
     # ("COMP") is kept. stored is the section's current label: when it has a
     # code and the same name, Banner is not asked again. When Banner's subject
     # list does not have the label, it is kept as it is.
-    def self.for_term(description, term_uid, stored: nil)
+    #
+    # A stored label with the same name is kept, so the nightly sync does not
+    # correct a stored wrong code ("Facilities Management (CPCE)").
+    # catalog:repair_subject_labels does. codes is the term's subject list,
+    # when the caller has it already.
+    def self.for_term(description, term_uid, stored: nil, codes: nil)
       description = description.to_s.strip
-      return description if description.empty? || description.match?(BARE_CODE)
+      return description unless needs_codes?(description)
       return stored if stored.present? && code_suffix?(stored) && name(stored) == name(description)
 
-      code = codes(term_uid)[description]
+      code = (codes || self.codes(term_uid))[description]
       code ? label(description, code) : description
+    end
+
+    # A bare code ("COMP") needs no subject list. Every label does.
+    def self.needs_codes?(description)
+      description = description.to_s.strip
+      description.present? && !description.match?(BARE_CODE)
     end
 
     # The label without a code at the end: "Computer Science".

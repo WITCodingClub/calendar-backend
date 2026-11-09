@@ -29,8 +29,12 @@ module Catalog
     # title of its newest section. Links prerequisite rows that named a course
     # before it had a row. Sends no request to Banner.
     def self.seed(sections)
+      # A label with no code ("Climate Resilience") would give the course
+      # the label as its code. The nightly sync adds the code
+      # (Catalog::SubjectLabels), and the next seed makes the row.
       rows = sections.joins(:term).order("terms.uid": :desc, crn: :asc)
                      .pluck(:subject, :course_number, :title)
+                     .select { |subject, _, _| code?(prefix_of(subject)) }
                      .uniq { |subject, number, _| [ prefix_of(subject), number ] }
       return 0 if rows.empty?
 
@@ -45,6 +49,10 @@ module Catalog
       link_orphan_prerequisites
       link_degree_requirements if inserted.length.positive?
       rows.size
+    end
+
+    def self.code?(prefix)
+      prefix.match?(SubjectLabels::BARE_CODE)
     end
 
     def self.prefix_of(subject)
@@ -123,6 +131,7 @@ module Catalog
     def one_section_per_course
       @term.courses.order(:crn).pluck(:subject, :course_number, :crn)
            .map { |subject, number, crn| [ self.class.prefix_of(subject), number, crn ] }
+           .select { |code, _, _| self.class.code?(code) }
            .uniq { |code, number, _| [ code, number ] }
     end
 
