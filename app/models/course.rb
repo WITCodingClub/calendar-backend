@@ -57,11 +57,15 @@ class Course < ApplicationRecord
   # "(optional)" is not a code (Catalog::SubjectLabels).
   SUBJECT_CODE_SUFFIX = /\(([A-Z0-9]{2,6})\)\s*\z/
 
-  CATALOG_COURSE_JOIN = <<~'SQL'.squish
+  # Course.prefix_of in SQL.
+  SUBJECT_CODE_SQL = <<~'SQL'.squish
+    UPPER(BTRIM(COALESCE(SUBSTRING(courses.subject FROM '\(([A-Z0-9]{2,6})\)\s*$'), courses.subject)))
+  SQL
+
+  CATALOG_COURSE_JOIN = <<~SQL.squish
     INNER JOIN catalog_courses
       ON catalog_courses.course_number = courses.course_number
-     AND catalog_courses.subject_code =
-         UPPER(BTRIM(COALESCE(SUBSTRING(courses.subject FROM '\(([A-Z0-9]{2,6})\)\s*$'), courses.subject)))
+     AND catalog_courses.subject_code = #{SUBJECT_CODE_SQL}
   SQL
 
   set_public_id_prefix :crs

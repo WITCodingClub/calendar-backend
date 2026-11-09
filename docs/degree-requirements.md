@@ -141,6 +141,10 @@ Issue #864 added admin pages for the import. Every admin can open them. They are
 - A year with an import in the queue or running shows "Importing…" and no button (`ImportJob.queued_start_years`). The page reloads every five seconds.
 - The Import button accepts only the HTML years. A PDF year has no button, because the HTML import cannot read it (#865).
 - Titles in the course comparison are compared without case, punctuation, or spaces, and "&" is the same as "and".
+- For each course that only the catalog has, the comparison shows where it was likely taught (`DegreeRequirements::LikelySections`). It looks for sections of other codes with a similar title (pg_trgm similarity of 0.7 or more, without a lab suffix) in the 5 academic years up to the catalog year. Older sections use the numbers from before the 2015 renumbering. Each match has a kind:
+  - Special topics: a number that ends in 800, such as COMP 7800 for COMP 5100 Natural Language Processing.
+  - Same number: the same number in another subject, which is usually a cross-listing, such as CYBR 6520 for COMP 6520.
+  - Similar title: any other code. A generic title such as "Senior Project" gives false matches.
 
 ```mermaid
 flowchart LR
