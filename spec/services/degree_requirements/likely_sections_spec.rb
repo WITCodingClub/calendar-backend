@@ -58,6 +58,34 @@ RSpec.describe DegreeRequirements::LikelySections do
     expect(match).to have_attributes(sections: 2, last_term: "Spring 2026")
   end
 
+  # pg_trgm gives "calculus i" and "calculus ii" 0.77.
+  it "does not match another place in a sequence, and reads 2 as II" do
+    section("Electrical Engineering (ELEC)", 6000, "Power Systems Analysis I")
+    section("Electrical Engineering (ELEC)", 7800, "Power System Analysis 2")
+
+    result = likely.call([ row("ELEC 5660", "POWER SYSTEMS ANALYSIS II") ])["ELEC 5660"]
+
+    expect(result.map(&:code)).to eq([ "ELEC 7800" ])
+  end
+
+  it "removes a lab suffix from both titles, but keeps Matlab whole" do
+    section("Mechanical Engineering (MECH)", 3800, "Intermediate Matlab")
+    section("Mechanical Engineering (MECH)", 2750, "Thermodynamics_lab")
+
+    result = likely.call([ row("MECH 3250", "INTERMEDIATE MATLAB"), row("MECH 2275", "THERMODYNAMICS LAB") ])
+
+    expect(result["MECH 3250"].map(&:code)).to eq([ "MECH 3800" ])
+    expect(result["MECH 2275"].map(&:code)).to eq([ "MECH 2750" ])
+  end
+
+  it "calls a same-number match with a weaker title a similar title" do
+    section("Engineering (ENGR)", 1000, "Introduction To Engineering")
+
+    match = likely.call([ row("BMED 1000", "INTRODUCTION TO BIOMEDICAL ENGINEERING") ])["BMED 1000"].sole
+
+    expect(match.kind).to eq(:other_number)
+  end
+
   it "returns nothing for no rows" do
     expect(likely.call([])).to eq({})
   end
