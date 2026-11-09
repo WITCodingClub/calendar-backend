@@ -28,7 +28,7 @@ module Catalog
 
     # Stored as "Computer Science (COMP)"; students search by the code.
     def self.code_for(subject)
-      subject =~ /\(([^)]+)\)/ ? ::Regexp.last_match(1) : subject
+      Course.prefix_of(subject)
     end
   end
 end

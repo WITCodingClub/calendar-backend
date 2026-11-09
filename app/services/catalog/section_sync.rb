@@ -23,6 +23,10 @@ module Catalog
       fresh_data = fetch_fresh_course_data(course.crn, term_uid)
       return false unless fresh_data
 
+      if fresh_data[:subject]
+        fresh_data[:subject] = Catalog::SubjectLabels.for_term(fresh_data[:subject], term_uid, stored: course.subject)
+      end
+
       course_changed = if course_data_changed?(course, fresh_data)
                          update_course_from_fresh_data(course, fresh_data)
                          true

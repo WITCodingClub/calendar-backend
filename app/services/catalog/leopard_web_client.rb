@@ -39,6 +39,8 @@ module Catalog
         get_course_catalog
       when :get_active_terms
         get_active_terms
+      when :get_subjects
+        get_subjects
       when :fetch_linked_sections
         fetch_linked_sections
       else
@@ -148,6 +150,13 @@ module Catalog
       result = new(action: :get_active_terms).call
       Rails.cache.write(ACTIVE_TERMS_CACHE_KEY, result, expires_in: 10.minutes) if result[:success]
       result
+    end
+
+    # The subjects of one term, as { code:, description: }. Most descriptions
+    # end with the code, "Computer Science (COMP)", and some do not:
+    # "Climate Resilience" is CRES (Catalog::SubjectLabels).
+    def self.get_subjects(term:)
+      new(action: :get_subjects, term: term).call
     end
 
     private
@@ -442,6 +451,22 @@ module Catalog
           terms: []
         }
       end
+    end
+
+    def get_subjects
+      raise ArgumentError, "term is required" unless term
+
+      response = terms_connection.get("classSearch/get_subject", {
+                                        searchTerm: "",
+                                        term: term,
+                                        offset: 1,
+                                        max: 500
+                                      })
+      handle_error(response) unless response.success?
+
+      # The JSON escapes HTML: "Hum &amp; Soc Sci". getClassDetails, read
+      # with Nokogiri, gives "Hum & Soc Sci".
+      parse_json_response(response.body).map { |s| { code: s["code"], description: CGI.unescapeHTML(s["description"].to_s) } }
     end
 
     def get_course_catalog

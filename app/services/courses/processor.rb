@@ -57,6 +57,7 @@ module Courses
 
       banner_started_at = monotonic_now
       class_details = fetch_class_details(grouped_courses.keys - catalog_courses.keys)
+      subject_codes = fetch_subject_codes(class_details)
       banner_ms = elapsed_ms(banner_started_at)
 
       # Check every term before the first write. Enrollments and the removal of
@@ -142,7 +143,8 @@ module Courses
               course.title          = detailed_course_info[:title]
               course.start_date     = start_date
               course.end_date       = end_date
-              course.subject        = detailed_course_info[:subject]
+              course.subject        = Catalog::SubjectLabels.for_term(detailed_course_info[:subject], course_data[:term],
+                                                                     codes: subject_codes[course_data[:term].to_s])
               course.course_number  = course_data[:courseNumber]
               course.schedule_type  = schedule_type_match ? schedule_type_match[1] : nil
               course.section_number = normalize_section_number(detailed_course_info[:section_number])
@@ -315,6 +317,15 @@ module Courses
       end
 
       keys.zip(details).to_h
+    end
+
+    # Banner's subject list for each term with a new section whose label has
+    # no code (Catalog::SubjectLabels). Read before the first write, so a
+    # Banner cooldown cannot stop the loop halfway.
+    def fetch_subject_codes(class_details)
+      class_details.filter_map do |(_, term_uid), details|
+        term_uid.to_s if details && Catalog::SubjectLabels.needs_codes?(details[:subject])
+      end.uniq.index_with { |term_uid| Catalog::SubjectLabels.codes(term_uid) }
     end
 
     def link_orphan_exam(orphan_exam_cache, course, term)

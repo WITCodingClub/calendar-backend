@@ -179,6 +179,15 @@ RSpec.describe Catalog::CourseDetailsSync do
     expect { described_class.seed(Course.all) }.not_to(change { catalog_course.reload.updated_at })
   end
 
+  # The label would become the code: "CLIMATE RESILIENCE". The nightly sync
+  # adds the code, and the next seed makes the row.
+  it "seeds no row for a section whose label has no code" do
+    unlabeled = create(:course, subject: "Climate Resilience", course_number: 1000)
+
+    expect(described_class.seed(Course.where(id: unlabeled.id))).to eq(0)
+    expect(CatalogCourse.where(course_number: 1000)).to be_empty
+  end
+
   it "reads the subject code from either spelling" do
     expect(described_class.prefix_of("Computer Science (COMP)")).to eq("COMP")
     expect(described_class.prefix_of("comp")).to eq("COMP")

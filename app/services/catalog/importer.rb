@@ -169,7 +169,8 @@ module Catalog
 
       course = Course.find_or_create_by!(crn: crn, term: term) do |c|
         c.title = course_data["courseTitle"] || "Untitled Course"
-        c.subject = course_data["subject"] || course_data["subjectCode"]
+        c.subject = Catalog::SubjectLabels.label(CGI.unescapeHTML(course_data["subjectDescription"].to_s),
+                                                 course_data["subject"] || course_data["subjectCode"])
         c.course_number = course_data["courseNumber"]
         c.schedule_type = schedule_type_key
         c.section_number = normalize_section_number(course_data["sequenceNumber"] || course_data["sectionNumber"])

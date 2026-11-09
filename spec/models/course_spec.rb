@@ -116,7 +116,30 @@ RSpec.describe Course, type: :model do
     end
   end
 
+  describe ".prefix_of" do
+    it "reads the code at the end of the label" do
+      expect(described_class.prefix_of("Computer Science (COMP)")).to eq("COMP")
+      expect(described_class.prefix_of("Graduate Internship (optional) (INTN)")).to eq("INTN")
+    end
+
+    it "gives a bare code as it is" do
+      expect(described_class.prefix_of("COMP")).to eq("COMP")
+    end
+
+    # "(optional)" is part of the name, not a code.
+    it "does not read lower-case parentheses as a code" do
+      expect(described_class.prefix_of("Graduate Internship (optional)")).to eq("Graduate Internship (optional)")
+    end
+  end
+
   describe ".joins_catalog_course" do
+    it "reads the code after parentheses that are not a code" do
+      catalog = create(:catalog_course, subject_code: "INTN", course_number: 6000)
+      create(:course, term: term, subject: "Graduate Internship (optional) (INTN)", course_number: 6000)
+
+      expect(described_class.joins_catalog_course.pluck("catalog_courses.id")).to eq([ catalog.id ])
+    end
+
     it "joins a section whose subject is a name with the code in brackets" do
       catalog = create(:catalog_course, subject_code: "COMP", course_number: 1050)
       create(:course, term: term, subject: "Computer Science (COMP)", course_number: 1050)

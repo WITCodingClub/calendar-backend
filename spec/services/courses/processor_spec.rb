@@ -51,6 +51,35 @@ RSpec.describe Courses::Processor do
     process!
   end
 
+  describe "subject" do
+    it "adds the code from Banner's subject list to a label without one" do
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(class_details.merge(subject: "Climate Resilience"))
+      allow(Catalog::LeopardWebClient).to receive(:get_subjects).with(term: "202710")
+                                                                .and_return([ { code: "CRES", description: "Climate Resilience" } ])
+
+      process!
+
+      expect(Course.find_by(crn: 12345, term: term).subject).to eq("Climate Resilience (CRES)")
+    end
+
+    # A raise inside the write loop would leave a course with no enrollment.
+    it "asks for the subject list before it writes a course" do
+      allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_return(class_details.merge(subject: "Climate Resilience"))
+      allow(Catalog::LeopardWebClient).to receive(:get_subjects).and_raise(Catalog::BannerThrottle::CooldownError.new(60))
+
+      expect { process! }.to raise_error(Catalog::BannerThrottle::CooldownError)
+      expect(Course.count).to eq(0)
+    end
+
+    it "does not ask for the subject list for a bare code" do
+      allow(Catalog::LeopardWebClient).to receive(:get_subjects)
+
+      process!
+
+      expect(Catalog::LeopardWebClient).not_to have_received(:get_subjects)
+    end
+  end
+
   it "creates the course, meeting times, and enrollment" do
     process!
 
