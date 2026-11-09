@@ -14,12 +14,37 @@ module Admin
     }.freeze
     COMPARISON_HINTS = {
       catalog_only: "The catalog year prints the course, and WIT Calendar has no section of it in any term it imported. " \
-                    "Banner can still have the course: an old code (COMP128), or a course with no section since Spring 2014.",
+                    "\"Likely taught as\" lists codes with a similar title in the last " \
+                    "#{DegreeRequirements::LikelySections::RECENT_YEARS} academic years: " \
+                    "a special topics number (COMP 7800), the same number in another subject, or another number.",
       banner_only: "Banner has sections of the course in a term of this catalog year. The catalog year does not print it.",
       title_differs: "Both have the course. The titles differ in more than case and punctuation.",
       credits_differ: "Both have the course. Banner's credits are outside the catalog's credits."
     }.freeze
     SEASON_LABELS = { "fall" => "Fall", "spring" => "Spring", "summer" => "Summer" }.freeze
+    LIKELY_KINDS = {
+      special_topics: [ "Special topics", :info ],
+      same_number: [ "Same number", :warning ],
+      other_number: [ "Similar title", :neutral ]
+    }.freeze
+
+    # The codes a catalog-only course likely ran under
+    # (DegreeRequirements::LikelySections), one line each.
+    def likely_sections_cell(matches)
+      return tag.span("None found", class: "text-on-surface-variant") if matches.blank?
+
+      safe_join(matches.map do |match|
+        label, tone = LIKELY_KINDS.fetch(match.kind)
+        tag.div(class: "flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5") do
+          safe_join([
+            tag.span(match.code, class: "font-medium whitespace-nowrap"),
+            tag.span(match.title),
+            admin_badge(label, tone),
+            tag.span("last #{match.last_term}", class: "text-xs text-on-surface-variant whitespace-nowrap")
+          ])
+        end
+      end)
+    end
 
     # The status of a catalog year. A year with an import in the queue shows
     # that first, because its stored status is from the last import.

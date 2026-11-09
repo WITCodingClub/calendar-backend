@@ -143,6 +143,15 @@ RSpec.describe "Admin::CatalogYears", type: :request do
       expect(response.body).not_to include("Intro to Operating Systems")
     end
 
+    it "shows where a catalog-only course was likely taught" do
+      term = create(:term, year: 2024, season: :fall)
+      create(:course, term: term, subject: "Computer Science (COMP)", course_number: 7800, title: "Catalog Only Course")
+
+      get course_comparison_admin_catalog_year_path(2024)
+
+      expect(response.body).to include("Likely taught as", "COMP 7800", "Special topics", "last Fall 2024")
+    end
+
     it "shows one list" do
       get course_comparison_admin_catalog_year_path(2024, kind: "title_differs")
 

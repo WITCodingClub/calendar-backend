@@ -20,6 +20,9 @@
     <% unless @kind == :catalog_only %>
       <% t.column("Banner title") { |row| row.banner_title } %>
     <% end %>
+    <% if @kind == :catalog_only %>
+      <% t.column("Likely taught as") { |row| likely_sections_cell(@likely_sections[row.code]) } %>
+    <% end %>
     <% unless @kind == :banner_only %>
       <% t.column("Catalog credits", align: :right) { |row| row.catalog_credits } %>
     <% end %>

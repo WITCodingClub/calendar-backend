@@ -60,6 +60,7 @@ module Admin
       @kind = DegreeRequirements::CourseComparison::KINDS.find { |kind| kind.to_s == params[:kind] } || :catalog_only
       @counts = @comparison.counts
       @rows = Kaminari.paginate_array(@comparison.rows(@kind)).page(params[:page]).per(50)
+      @likely_sections = @kind == :catalog_only ? DegreeRequirements::LikelySections.new(@catalog_year).call(@rows) : {}
     end
   end
 end
