@@ -67,13 +67,29 @@ module AcademicProfiles
       raise NoProgramError, NO_PROGRAM_MESSAGE if entries.empty?
 
       {
-        programs:    entries.map { |set, plan_name, row| program_json(set, plan_name, row) },
+        programs:    entries.map { |set, plan_name, row| with_terms(program_json(set, plan_name, row), row) },
         courses:     taken.map(&:as_json),
         assumptions: ASSUMPTIONS
       }
     end
 
     private
+
+    # The real terms of the plan (#990): start_term, timeline, expected_end,
+    # and the planned term of each row. The start term is the one of
+    # GET /api/user/programs (ProgramTimeline). A program argument has no
+    # student row, so it has no start term.
+    def with_terms(entry, row)
+      start = row && ProgramTimeline.new(row, requirement_set: nil, admit_term_uid: admit_term_uid).start_term_uid
+      PlanTerms.new(start, current_term_uid: current_term&.uid).call(entry)
+    end
+
+    # The admit term of the academic profile, read once for every program.
+    def admit_term_uid
+      return @admit_term_uid if defined?(@admit_term_uid)
+
+      @admit_term_uid = @user.academic_profile&.admit_term_uid
+    end
 
     # The requirement sets to check, each with its plan name and the
     # student's row (nil for the program argument): the program argument, or

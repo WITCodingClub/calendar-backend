@@ -460,7 +460,11 @@ module McpTools
         status:        PROGRESS_STATUS,
         course:        nullable(STRING),
         term:          nullable(STRING),
-        courses:       STRINGS
+        courses:       STRINGS,
+        # The real term of the plan semester (#990), or null.
+        planned_term:     nullable(STRING),
+        planned_term_uid: nullable(INTEGER),
+        behind:           BOOLEAN
       },
       optional: %i[year season code label options hss_category min_courses min_credits course term courses]
     ).freeze
@@ -471,6 +475,16 @@ module McpTools
         credits:     INTEGER,
         categories:  array(object(name: STRING, checkable: BOOLEAN, status: PROGRESS_STATUS, course: nullable(STRING)))
       )
+    ).freeze
+    # One plan semester of a program against its real term (#990).
+    PLAN_SEMESTER = object(
+      term:      STRING,
+      uid:       INTEGER,
+      year:      INTEGER,
+      season:    STRING,
+      when:      { type: %w[string null], enum: [ "past", "current", "registering", "future", nil ] },
+      estimated: BOOLEAN,
+      co_op:     BOOLEAN
     ).freeze
     DEGREE_PROGRESS = object(
       programs:    array(
@@ -491,7 +505,12 @@ module McpTools
               optional: %i[code label options]
             )
           ),
-          hss:          HSS_REQUIREMENT
+          hss:          HSS_REQUIREMENT,
+          # The plan against real terms (#990). Empty and null without a
+          # start term or a plan of study.
+          start_term:   nullable(STRING),
+          expected_end: nullable(object(term: STRING, estimated: BOOLEAN)),
+          timeline:     array(PLAN_SEMESTER)
         )
       ),
       courses:     array(

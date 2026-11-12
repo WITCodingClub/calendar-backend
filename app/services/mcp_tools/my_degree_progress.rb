@@ -7,7 +7,11 @@ module McpTools
     title "My degree progress"
     description "Compares the requirements of my programs with the courses I took or take in every term I " \
                 "processed in WIT Calendar. Marks each requirement of the plan of study as done, in_progress, " \
-                "or open, and lists the open ones. This is a help for planning, not a degree audit: it does not " \
+                "or open, and lists the open ones. Each plan row has its planned_term (the real term of its plan " \
+                "semester) and behind (open, and its term already started). Each program has its start_term, " \
+                "a timeline of the plan semesters with their real terms (when: past, current, registering, or " \
+                "future; estimated after year 2; co_op), and expected_end. A planned program or a program " \
+                "argument has no start term, so it has no timeline. This is a help for planning, not a degree audit: it does not " \
                 "know substitutions, transfer credit, or AP credit, and the history can have gaps. The " \
                 "student's official degree audit is Stellic. Without arguments it checks each of my programs " \
                 "in its own catalog year. Read assumptions in the result."

@@ -458,4 +458,43 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
     expect(statuses(progress)).to eq([ [ "WDGT 1000", "done" ] ])
   end
+
+  describe "the plan against real terms (#990)" do
+    before { allow(Term).to receive(:current).and_return(build_stubbed(:term, uid: 202710, year: 2026, season: :fall)) }
+
+    it "gives the start term of GET /api/user/programs, the timeline, and the planned term of each row" do
+      item(subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 2000, year_index: 2, season: "fall")
+      item(subject_code: "WDGT", course_number: 3000, year_index: 3, season: "spring")
+
+      program = progress[:programs].sole
+
+      expect(program[:start_term]).to eq(StudentProgramsSerializer.new(user).as_json[:programs].sole[:start_term])
+      expect(program[:timeline].map { |semester| semester.values_at(:term, :when, :estimated) })
+        .to eq([ [ "Fall 2025", "past", false ], [ "Fall 2026", "current", false ], [ "Spring 2028", "future", true ] ])
+      expect(program[:expected_end]).to eq(term: "Spring 2028", estimated: true)
+      expect(program[:requirements].map { |row| row.values_at(:code, :planned_term, :planned_term_uid, :behind) })
+        .to eq([ [ "WDGT 1000", "Fall 2025", 202610, true ], [ "WDGT 2000", "Fall 2026", 202710, true ],
+                 [ "WDGT 3000", "Spring 2028", 202820, false ] ])
+    end
+
+    it "takes the start term from the admit term when the program has no catalog term" do
+      item(subject_code: "WDGT", course_number: 1000)
+      user.student_programs.sole.update!(catalog_term_uid: nil)
+      create(:academic_profile, user: user, admit_term_uid: 202620)
+
+      expect(progress[:programs].sole).to include(start_term: "Spring 2026", expected_end: include(term: "Fall 2025"))
+    end
+
+    it "has no start term or timeline for a planned program or a program argument" do
+      item(subject_code: "WDGT", course_number: 1000)
+      user.student_programs.sole.update!(status: "planned", catalog_term_uid: nil)
+
+      [ progress(include_planned: true), progress(program: "widget-design-bs") ].each do |result|
+        program = result[:programs].sole
+        expect(program).to include(start_term: nil, timeline: [], expected_end: nil)
+        expect(program[:requirements].sole).to include(planned_term: nil, planned_term_uid: nil, behind: false)
+      end
+    end
+  end
 end
