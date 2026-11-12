@@ -28,6 +28,12 @@ module Types
     argument :credit_hours, [ Integer ], required: false
     argument :instructor, String, required: false
     argument :include_cancelled, Boolean, required: false, default_value: false
+    argument :open_only, Boolean, required: false, default_value: false,
+             description: "Keep sections with a free seat (seats.available > 0). " \
+                          "Drops sections with no seat data. During registration, seat counts can be up to 30 minutes old."
+    argument :include_waitlist, Boolean, required: false, default_value: false,
+             description: "With openOnly, also keep full sections whose waitlist has room " \
+                          "(waitlist.available > 0). No effect without openOnly."
 
     def to_query_filters
       to_h.compact

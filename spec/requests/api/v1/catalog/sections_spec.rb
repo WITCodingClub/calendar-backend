@@ -165,6 +165,27 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       expect(json["meta"]["filters"]).to eq("subject" => [ "COMP" ])
     end
 
+    it "filters by open seats and echoes the seat filters as booleans" do
+      comp1000.update!(seats_capacity: 30, seats_available: 5)
+      comp2000.update!(seats_capacity: 30, seats_available: 0, waitlist_capacity: 10, waitlist_available: 10)
+      comp2000b.update!(seats_capacity: 30, seats_available: 0, waitlist_capacity: 10, waitlist_available: 0)
+
+      get "/api/v1/catalog/sections",
+          params: { term_uid: 202_710, subject: "COMP", open_only: "true", include_waitlist: "true" }
+
+      expect(crns).to eq([ 10_001, 10_002 ])
+      expect(json["meta"]["filters"]).to eq(
+        "term_uid" => "202710", "subject" => [ "COMP" ], "open_only" => true, "include_waitlist" => true
+      )
+    end
+
+    it "echoes open_only=false as a boolean and applies no seat filter" do
+      get "/api/v1/catalog/sections", params: { open_only: "false" }
+
+      expect(crns).to eq([ 10_001, 10_002, 10_003, 20_001 ])
+      expect(json["meta"]["filters"]).to eq("open_only" => false)
+    end
+
     it "returns a structured 400 for an unknown day" do
       get "/api/v1/catalog/sections", params: { meets_on: "funday" }
 

@@ -43,6 +43,16 @@ RSpec.describe McpTools::SearchSections do
     expect(result.structured_content[:sections].pluck(:crn)).to eq([ cancelled.crn ])
   end
 
+  it "takes the open seat filters" do
+    open       = create(:course, term: term, seats_capacity: 30, seats_available: 2)
+    waitlisted = create(:course, term: term, seats_capacity: 30, seats_available: 0, waitlist_capacity: 5, waitlist_available: 1)
+    create(:course, term: term, seats_capacity: 30, seats_available: 0, waitlist_capacity: 5, waitlist_available: 0)
+
+    expect(call(term_uid: term.uid, open_only: true).structured_content[:sections].pluck(:crn)).to eq([ open.crn ])
+    result = call(term_uid: term.uid, open_only: true, include_waitlist: true)
+    expect(result.structured_content[:sections].pluck(:crn)).to contain_exactly(open.crn, waitlisted.crn)
+  end
+
   it "counts a semantic search against the token's budget" do
     budget = instance_double(McpTools::SemanticBudget)
     allow(McpTools::SemanticBudget).to receive(:new).and_return(budget)

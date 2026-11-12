@@ -13,7 +13,8 @@ module McpTools
     description "Searches the Wentworth course catalog for sections. Combine filters to narrow the list. " \
                 "Set semantic to true to rank q by meaning, for example q: \"intro to machine learning\". " \
                 "Without term_uid it searches the current term. Use it for \"when does COMP 2350 meet next " \
-                "semester\" and \"which sections have open seats\". Not every section has a waitlist: a " \
+                "semester\". For \"which sections have open seats\", set open_only to true, and add include_waitlist " \
+                "to also keep full sections whose waitlist has room. During registration, seat counts can be up to 30 minutes old. Not every section has a waitlist: a " \
                 "waitlist capacity of 0 means none, and null means WIT Calendar does not know yet. For a full section with a waitlist, the student joins it " \
                 "before they ask for a capacity override. A Technical or HSS elective can be missing until its school sends the list: " \
                 "list_term_electives gives the lists the schools sent. For an elective that is still missing, the " \
@@ -38,6 +39,8 @@ module McpTools
         credit_hours:      { type: "array", items: { type: "integer" }, description: "Credit hours, for example 4." },
         instructor:        { type: "string", description: "Part of an instructor name." },
         include_cancelled: { type: "boolean", description: "Also return cancelled sections." },
+        open_only:         { type: "boolean", description: "Keep only sections with a free seat. Drops sections with no seat data." },
+        include_waitlist:  { type: "boolean", description: "With open_only, also keep full sections whose waitlist has room." },
         page:              PAGE_SCHEMA,
         per_page:          { type: "integer", minimum: 1, maximum: MAX_PER_PAGE, description: "Default #{DEFAULT_PER_PAGE}." }
       }

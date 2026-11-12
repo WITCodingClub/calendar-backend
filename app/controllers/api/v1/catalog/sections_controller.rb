@@ -83,8 +83,16 @@ module Api
             ends_before:       params[:ends_before],
             credit_hours:      array_param(:credit_hours),
             instructor:        params[:instructor],
-            include_cancelled: params[:include_cancelled]
+            include_cancelled: params[:include_cancelled],
+            open_only:         optional_boolean_param(:open_only),
+            include_waitlist:  optional_boolean_param(:include_waitlist)
           }.compact
+        end
+
+        # The seat filters echo in meta.filters as booleans. A missing or empty
+        # value is nil, so compact leaves it out.
+        def optional_boolean_param(key)
+          ActiveModel::Type::Boolean.new.cast(params[key].presence)
         end
       end
     end

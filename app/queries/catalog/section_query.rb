@@ -17,7 +17,7 @@ module Catalog
     FILTERS = %i[
       term_uid subject course_number crns pub_ids q semantic schedule_types
       meets_on free_days begins_after ends_before
-      credit_hours instructor include_cancelled
+      credit_hours instructor include_cancelled open_only include_waitlist
     ].freeze
 
     DEFAULT_ORDER = "courses.subject ASC, courses.course_number ASC, courses.section_number ASC"
@@ -45,6 +45,7 @@ module Catalog
       relation = apply_free_days(relation, filters[:free_days])
       relation = apply_begins_after(relation, filters[:begins_after])
       relation = apply_ends_before(relation, filters[:ends_before])
+      relation = apply_open_only(relation, filters[:open_only], include_waitlist: filters[:include_waitlist])
 
       # The text filter comes last, because a semantic search ranks whatever
       # the other filters left and replaces the default order.
@@ -209,6 +210,22 @@ module Catalog
       return relation if hhmm.nil?
 
       relation.where.not(id: Course::MeetingTime.where("end_time > ?", hhmm).select(:course_id))
+    end
+
+    # Keeps sections with a free seat. With include_waitlist, also keeps full
+    # sections whose waitlist has room. A section with no seat data
+    # (seats_available is null) is left out, because no one knows that it is
+    # open. include_waitlist has no effect without open_only.
+    def apply_open_only(relation, open_only, include_waitlist:)
+      return relation unless truthy?(open_only)
+
+      courses = Course.arel_table
+      open    = courses[:seats_available].gt(0)
+      if truthy?(include_waitlist)
+        open = open.or(courses[:seats_available].not_eq(nil).and(courses[:waitlist_available].gt(0)))
+      end
+
+      relation.where(open)
     end
 
     def meeting_times_for_days(values)
