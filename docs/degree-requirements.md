@@ -293,6 +293,19 @@ Both use `Catalog::ProgramQuery` and `Catalog::ProgramSerializer`. They read onl
 - A course meets a requirement with the same code, or through a checked `CourseCodeAlias` in either direction.
 - Each course counts once. Course rows take a course first, then choice rows, then elective slots. Among the slots, a list of courses goes first, then a subject list (HSS), then a free elective, so a broad slot does not use a course that a narrow one needs. A slot with no elective list, such as a "CONM Elective" whose page prints no list, stays open with `checkable: false`.
 
+### Course details and program totals
+
+The student routes give the course details, so a client does not call `GET /api/v1/catalog/courses/:code` for each course (#989). `AcademicProfiles::CourseDetails` loads the `CatalogCourse` rows of the whole response in one query.
+
+- Each course row has `title`, `description`, `credit_hours`, and `typically_offered` from `CatalogCourse`. `CatalogCourse` has one row for each code, the same for every catalog year. A code with no row takes the row of a checked `CourseCodeAlias`, so a plan from an old catalog year finds the renumbered course. A code with neither gets null for each field.
+- Each plan row has `list`: the `heading`, `notes`, `min_courses`, `min_credits`, and `subject_codes` of its elective list, or null for a row with no list (a course row, most choice rows, a slot that the import could not link).
+- An elective slot or a choice row has `filled_course`: the `code` and the same details of the course that fills it, or null when the row is open. A course with no `CatalogCourse` row keeps the title of its section.
+- Each program has `summary`:
+  - `total_credits`, `school`, and `department` from the `RequirementSet`.
+  - `credits: { earned, in_progress }`: the sum of the credits of `courses[]`, with the rules of the rows. Each course counts once, with its best attempt, and a course not passed does not count. Done courses are `earned`, courses in progress are `in_progress`. The sum is over every course the student took, not only the courses that fill a row of the program, so it compares with `total_credits`. A course with no credit hours counts as 0.
+  - `co_ops: { required, done }`: the plan rows in the Co-op elective list, and the course rows that name a co-op semester (COOP3500, COOP4500, COOP5000), with the number of them that are done. COOP2500 is a normal course row and does not count. A program with no plan has 0 and 0.
+- `GET /api/user/next_term_courses` gives the same details for each course of a row, and each row has the `list` of its plan row.
+
 ```mermaid
 flowchart TD
   P[Active linked programs or program argument] --> S[Plan: standard or named]
@@ -350,6 +363,7 @@ flowchart TD
 - A course done or in progress in a term before the term meets a prerequisite, also through a `CourseCodeAlias`. A course in the same term does not, as in Banner.
 - A D (`passed_below_c`) meets a prerequisite with no minimum or a D minimum, but not a C minimum. A minimum above C is `unknown`, because outcomes do not store the letter grade. A test score is `unknown`.
 - The section check and the catalog lookup also try the aliases of a code, so a plan from an old catalog year finds the renumbered course.
+- Each course has `description`, `credit_hours`, and `typically_offered` next to `title`, from the same `CatalogCourse` row (#989). Each row has `list`, the elective list of its plan row, or null.
 - It is a help for planning, not a registration check. Registration happens in LeopardWeb.
 
 ```mermaid

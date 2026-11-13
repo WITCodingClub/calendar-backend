@@ -428,6 +428,7 @@ RSpec.describe "MCP tool output schemas" do
       create(:program_plan_item, :choice, program_plan: plan)
       create(:program_plan_item, :placeholder, program_plan: plan, elective_group: group)
       create(:program_plan_item, :placeholder, program_plan: plan, label: "Free Elective")
+      create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 1000)
       create(:student_program, user: user, degree_program: major, catalog_year: catalog_year)
       done = create(:course, term: term, subject: "WDGT", course_number: 1000, credit_hours: nil)
       create(:enrollment, user: user, course: done)
@@ -453,8 +454,9 @@ RSpec.describe "MCP tool output schemas" do
       create(:program_plan_item, program_plan: plan, year_index: 1, season: "fall", subject_code: "WDGT", course_number: 1000)
       create(:program_plan_item, program_plan: plan, year_index: 1, season: "spring", subject_code: "WDGT", course_number: 2000)
       create(:program_plan_item, :choice, program_plan: plan, year_index: 1, season: "spring")
-      create(:program_plan_item, :placeholder, program_plan: plan, year_index: 1, season: "spring", label: "Free Elective")
-      create(:catalog_course, subject_code: "WDGT", course_number: 2000,
+      create(:program_plan_item, :placeholder, program_plan: plan, year_index: 1, season: "spring", label: "Free Elective",
+                                               elective_group: create(:elective_group, :any_course, requirement_set: set))
+      create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 2000,
                               prerequisites: { "type" => "course", "subject_code" => "WDGT", "course_number" => 1000 })
       create(:course, term: spring, subject: "WDGT", course_number: 2000)
       create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202710)

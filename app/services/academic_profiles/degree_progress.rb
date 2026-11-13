@@ -35,6 +35,8 @@ module AcademicProfiles
 
     RANK = { "done" => 0, "in_progress" => 1, "not_passed" => 2 }.freeze
     PASSED = %w[c_or_better passed_below_c].freeze
+    # The codes of a co-op semester, as "COOP 3500".
+    CO_OP_CODES = DegreeRequirements::SharedElectives::CO_OP_TERMS.map { |code| code.join(" ") }.freeze
 
     # A course the student took or takes. status is done, in_progress, or
     # not_passed.
@@ -66,6 +68,7 @@ module AcademicProfiles
       entries = requirement_sets
       raise NoProgramError, NO_PROGRAM_MESSAGE if entries.empty?
 
+      @course_details = CourseDetails.new(detail_codes(entries), aliases)
       {
         programs:    entries.map { |set, plan_name, row| with_terms(program_json(set, plan_name, row), row) },
         courses:     taken.map(&:as_json),
@@ -178,6 +181,7 @@ module AcademicProfiles
         plan:         plan&.name,
         plans:        set.program_plans.map(&:name),
         counts:       %w[done in_progress open].index_with { |status| requirements.count { |r| r[:status] == status } },
+        summary:      summary_json(set, requirements),
         requirements: requirements,
         open:         open.map { |requirement| requirement.slice(:code, :label, :options, :elective_list, :status) },
         # The humanities and social science requirement of the major, or nil
@@ -390,7 +394,64 @@ module AcademicProfiles
         status:        course ? course.status : "open",
         course:        course&.code,
         term:          course&.term&.name
+      }.merge(details_json(item, course))
+    end
+
+    # The catalog details of a plan row (#989). A course row gets the details
+    # of its course. Every row gets the elective list it draws from, or nil.
+    # An elective slot or a choice gets the course that fills it, or nil.
+    def details_json(item, course)
+      json = { list: elective_list_json(item.elective_group) }
+      return json.merge(@course_details.for([ item.subject_code, item.course_number ])) if item.course?
+
+      json.merge(filled_course: course && filled_course_json(course))
+    end
+
+    def elective_list_json(group)
+      return nil if group.nil?
+
+      { heading: group.heading, notes: group.notes, min_courses: group.min_courses, min_credits: group.min_credits,
+        subject_codes: group.subject_codes }
+    end
+
+    # A course with no CatalogCourse row keeps the title of its section.
+    def filled_course_json(course)
+      details = @course_details.for(course.key)
+      { code: course.code, **details, title: details[:title] || course.title }
+    end
+
+    # The codes to load details for: the course rows of each plan and the
+    # courses the student took, which fill the slots and choices.
+    def detail_codes(entries)
+      rows = entries.flat_map { |set, _, _| set.program_plans.flat_map(&:items) }.select(&:course?)
+      rows.map { |item| [ item.subject_code, item.course_number ] } + taken.map(&:key)
+    end
+
+    # The program totals (#989). credits sums the credits of the courses the
+    # student took, each course once with its best attempt, as the rows count
+    # them: done courses are earned, courses in progress are in_progress.
+    # co_ops counts the co-op semester rows of the plan and the done ones.
+    def summary_json(set, requirements)
+      co_ops = requirements.select { |row| co_op_row?(row) }
+      {
+        total_credits: set.total_credits,
+        school:        set.school_name,
+        department:    set.department_name,
+        credits:       { earned: credits_with("done"), in_progress: credits_with("in_progress") },
+        co_ops:        { required: co_ops.size, done: co_ops.count { |row| row[:status] == "done" } }
       }
+    end
+
+    def credits_with(status)
+      attempts.select { |course| course.status == status }.sum { |course| course.credits.to_i }
+    end
+
+    # A slot in the Co-op list, or a course row that names a co-op semester
+    # (COOP3500, COOP4500, COOP5000). COOP2500 is a normal course.
+    def co_op_row?(row)
+      return row[:elective_list] == DegreeRequirements::SharedElectives::CO_OP.name if row[:kind] == "placeholder"
+
+      row[:kind] == "course" && CO_OP_CODES.include?(row[:code])
     end
 
     # A program with no plan of study, such as a minor: each elective list
