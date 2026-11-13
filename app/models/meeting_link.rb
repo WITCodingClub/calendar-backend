@@ -48,6 +48,9 @@ class MeetingLink < ApplicationRecord
   MAX_EXPIRY       = 60.days
   MAX_ACTIVE_LINKS = 20
   TITLE_MAX_LENGTH = FriendMeeting::TITLE_MAX_LENGTH
+  # A revoked or expired link stays in the list this long, then
+  # Cleanup::OldMeetingLinksJob deletes it (#854).
+  KEEP_STOPPED_FOR = 7.days
 
   STATUSES = %w[active used revoked expired].freeze
 
@@ -70,6 +73,11 @@ class MeetingLink < ApplicationRecord
 
   scope :usable, -> { where(used_at: nil, revoked_at: nil).where(expires_at: Time.current..) }
   scope :newest_first, -> { order(created_at: :desc) }
+  # Links that were never used and stopped working before the time: revoked
+  # or expired. A used link keeps its booking, so it is not in this scope.
+  scope :stopped_before, lambda { |time|
+    where(used_at: nil).and(where(revoked_at: ...time).or(where(expires_at: ...time)))
+  }
 
   def self.digest(token)
     OpenSSL::Digest::SHA256.hexdigest(token.to_s)
@@ -89,6 +97,10 @@ class MeetingLink < ApplicationRecord
 
   def used?    = used_at.present?
   def revoked? = revoked_at.present?
+
+  # A revoked or expired link that was never used. The owner can delete it.
+  # A used link keeps its booking.
+  def removable? = !used? && !usable?
 
   def status
     if used? then "used"

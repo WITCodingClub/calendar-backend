@@ -131,6 +131,49 @@ RSpec.describe "Api::MeetingLinks", type: :request do
         expect(response).to have_http_status(:not_found)
         expect(link.reload).not_to be_revoked
       end
+
+      context "with permanent=true" do
+        it "deletes a revoked or expired link" do
+          revoked = create(:meeting_link, :revoked, user: user)
+          expired = create(:meeting_link, :expired, user: user)
+
+          [ revoked, expired ].each do |link|
+            delete "/api/meeting_links/#{link.public_id}", params: { permanent: true }, headers: headers
+
+            expect(response).to have_http_status(:no_content)
+          end
+          expect(MeetingLink.where(id: [ revoked.id, expired.id ])).to be_empty
+        end
+
+        it "answers 409 for an active link, and keeps it active" do
+          link = create(:meeting_link, user: user)
+
+          delete "/api/meeting_links/#{link.public_id}", params: { permanent: true }, headers: headers
+
+          expect(response).to have_http_status(:conflict)
+          expect(response.parsed_body["code"]).to eq("MEETING_LINK_ACTIVE")
+          expect(link.reload).to be_usable
+        end
+
+        it "answers 409 for a used link, and keeps it" do
+          link = create(:meeting_link, :used, user: user)
+
+          delete "/api/meeting_links/#{link.public_id}", params: { permanent: true }, headers: headers
+
+          expect(response).to have_http_status(:conflict)
+          expect(response.parsed_body["code"]).to eq("MEETING_LINK_USED")
+          expect(MeetingLink.exists?(link.id)).to be(true)
+        end
+
+        it "answers 404 for another person's link, and keeps it" do
+          link = create(:meeting_link, :revoked)
+
+          delete "/api/meeting_links/#{link.public_id}", params: { permanent: true }, headers: headers
+
+          expect(response).to have_http_status(:not_found)
+          expect(MeetingLink.exists?(link.id)).to be(true)
+        end
+      end
     end
   end
 end

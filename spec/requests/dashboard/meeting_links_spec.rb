@@ -91,6 +91,29 @@ RSpec.describe "Dashboard::MeetingLinks", type: :request do
       expect(flash[:alert]).to include("already used")
     end
 
+    it "deletes a revoked link and offers no delete for an active link" do
+      revoked = create(:meeting_link, :revoked, user: user)
+      active  = create(:meeting_link, user: user)
+
+      get dashboard_meeting_links_path
+      expect(response.body).to include(dashboard_meeting_link_path(revoked.public_id, permanent: true))
+      expect(response.body).not_to include(dashboard_meeting_link_path(active.public_id, permanent: true))
+
+      delete dashboard_meeting_link_path(revoked.public_id, permanent: true)
+
+      expect(MeetingLink.exists?(revoked.id)).to be(false)
+      expect(flash[:notice]).to eq("Link deleted.")
+    end
+
+    it "does not delete an active link" do
+      link = create(:meeting_link, user: user)
+
+      delete dashboard_meeting_link_path(link.public_id, permanent: true)
+
+      expect(link.reload).to be_usable
+      expect(flash[:alert]).to eq("Only a revoked or expired link can be deleted.")
+    end
+
     it "does not find another person's link" do
       link = create(:meeting_link)
 

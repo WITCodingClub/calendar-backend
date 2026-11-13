@@ -153,6 +153,28 @@ RSpec.describe MeetingLink do
     end
   end
 
+  describe "#removable?" do
+    it "is true only for a revoked or expired link that was never used" do
+      links = [ create(:meeting_link), create(:meeting_link, :used), create(:meeting_link, :revoked), create(:meeting_link, :expired) ]
+
+      expect(links.map(&:removable?)).to eq([ false, false, true, true ])
+    end
+  end
+
+  describe ".stopped_before" do
+    it "finds unused links revoked or expired before the time" do
+      cutoff      = 7.days.ago
+      old_revoked = create(:meeting_link, :revoked, revoked_at: 8.days.ago)
+      old_expired = create(:meeting_link, :expired).tap { |link| link.update_columns(expires_at: 8.days.ago) }
+      create(:meeting_link, :revoked, revoked_at: 6.days.ago)
+      create(:meeting_link, :expired)
+      create(:meeting_link)
+      create(:meeting_link, :used).tap { |link| link.update_columns(expires_at: 8.days.ago) }
+
+      expect(described_class.stopped_before(cutoff)).to contain_exactly(old_revoked, old_expired)
+    end
+  end
+
   describe "#revoke!" do
     it "sets revoked_at once" do
       link = create(:meeting_link)

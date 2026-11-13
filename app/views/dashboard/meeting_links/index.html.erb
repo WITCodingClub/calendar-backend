@@ -6,7 +6,8 @@
       back: [ "Friends", dashboard_friends_path ],
       description: "Make a link for a person who is not your friend, such as a professor or a project partner. " \
                    "They pick one time when you are free, and the meeting goes in your calendar. " \
-                   "They see only your free times, never your courses." %>
+                   "They see only your free times, never your courses. " \
+                   "Revoked and expired links leave this list after #{MeetingLink::KEEP_STOPPED_FOR.in_days.to_i} days." %>
 
   <% if @new_url.present? %>
     <div class="m3-card p-4 space-y-2" id="new-meeting-link">
@@ -71,6 +72,11 @@
               <%= button_to "Revoke", dashboard_meeting_link_path(link.public_id),
                   method: :delete,
                   data: { turbo_confirm: "Revoke this link? It stops working at once." },
+                  class: "text-xs text-on-surface-variant hover:text-error transition-colors" %>
+            <% elsif link.removable? %>
+              <%= button_to "Delete", dashboard_meeting_link_path(link.public_id, permanent: true),
+                  method: :delete,
+                  data: { turbo_confirm: "Delete this link from the list?" },
                   class: "text-xs text-on-surface-variant hover:text-error transition-colors" %>
             <% end %>
           </div>
