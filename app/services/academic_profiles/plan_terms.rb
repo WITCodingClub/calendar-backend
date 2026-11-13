@@ -54,8 +54,20 @@ module AcademicProfiles
         season:    semester.season,
         when:      time_of(semester.uid),
         estimated: semester.year > EXACT_YEARS,
-        co_op:     semester.rows.all? { |row| row[:elective_list] == DegreeRequirements::SharedElectives::CO_OP.name }
+        co_op:     semester.rows.all? { |row| co_op?(row) }
       }
+    end
+
+    CO_OP_CODES = DegreeRequirements::SharedElectives::CO_OP_TERMS.map { |code| code.join(" ") }.freeze
+
+    # A row of the Co-op elective list, or a co-op course row (COOP 3500),
+    # or a choice of co-op courses. Most plans list a co-op semester as a
+    # course row with no elective list.
+    def co_op?(row)
+      return true if row[:elective_list] == DegreeRequirements::SharedElectives::CO_OP.name
+
+      codes = [ row[:code], *row[:options] ].compact
+      codes.any? && codes.all? { |code| CO_OP_CODES.include?(code) }
     end
 
     # A row with no plan semester (an elective list of a minor) or no start

@@ -43,6 +43,13 @@ RSpec.describe AcademicProfiles::PlanTerms do
       .to eq([ [ "Fall 2027", true ], [ "Spring 2028", false ] ])
   end
 
+  it "marks a semester co-op when its rows are co-op courses or a choice of them" do
+    rows = [ row(3, "summer").merge(code: "COOP 3500"), row(4, "fall").merge(code: nil, kind: "choice", options: [ "COOP 3500", "COOP 4500" ]),
+             row(4, "spring").merge(code: "COOP 2500") ]
+
+    expect(call(rows)[:timeline].pluck(:co_op)).to eq([ true, true, false ])
+  end
+
   it "gives each row its planned term, and marks open rows of the current term or earlier behind" do
     rows = [ row(1, "fall"), row(1, "fall", status: "done"), row(1, "spring", status: "in_progress"), row(2, "spring"),
              row(3, "fall") ]
