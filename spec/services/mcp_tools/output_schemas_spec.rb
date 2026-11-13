@@ -463,6 +463,24 @@ RSpec.describe "MCP tool output schemas" do
         .to include(kind: "elective_list", status: "open")
     end
 
+    it "matches the estimate of degree progress (#1011)" do
+      allow(Term).to receive(:current).and_return(build_stubbed(:term, uid: 202710, year: 2026, season: :fall))
+      summer = create(:term, year: 2026, season: :summer)
+      set = create(:requirement_set, degree_program: major, catalog_year: catalog_year)
+      plan = create(:program_plan, requirement_set: set)
+      create(:program_plan_item, program_plan: plan, subject_code: "WDGT", course_number: 1000)
+      create(:program_plan_item, program_plan: plan, year_index: 2, season: "spring", subject_code: "COOP", course_number: 3500)
+      create(:program_plan_item, :placeholder, program_plan: plan, year_index: 3, season: "fall", label: "Free Elective")
+      create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202610)
+      create(:enrollment, user: user, course: create(:course, term: summer, subject: "WDGT", course_number: 1000))
+
+      program = expect_valid(McpTools::MyDegreeProgress)[:programs].first
+
+      expect(program[:requirements].pluck(:moved)).to eq([ "taken", nil, nil ])
+      expect(program[:timeline].pluck(:basis)).to eq(%w[taken plan plan])
+      expect(program[:expected_end]).to include(plan_end: "Fall 2027")
+    end
+
     it "matches the HSS details of degree progress (#991)" do
       term = create(:term, year: 2026, season: :fall)
       set = create(:requirement_set, degree_program: major, catalog_year: catalog_year, hss_requirement: {

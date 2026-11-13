@@ -37,12 +37,21 @@ module AcademicProfiles
     # The details of a [subject_code, course_number] pair, from its own row
     # or the row of an alias.
     def for(pair)
-      self.class.json(keys(pair).lazy.filter_map { |key| rows[key] }.first)
+      self.class.json(row(pair))
+    end
+
+    # The prerequisite tree of a [subject_code, course_number] pair, or nil
+    # (no row, or no prerequisites). PlanEstimate (#1011) reads it. It comes
+    # from the same query as the details, and the response does not send it.
+    def prerequisites(pair)
+      row(pair)&.prerequisites.presence
     end
 
     private
 
     def keys(pair) = [ pair, *@aliases.fetch(pair, []) ]
+
+    def row(pair) = keys(pair).lazy.filter_map { |key| rows[key] }.first
 
     def rows
       @rows ||= begin
@@ -54,7 +63,7 @@ module AcademicProfiles
                .map { |subject, list| CatalogCourse.where(subject_code: subject, course_number: list.map(&:last)) }
                .reduce(:or)
                .select(:id, :subject_code, :course_number, :title, :description, :credit_hours, :typically_offered,
-                       :details_fetched_at)
+                       :details_fetched_at, :prerequisites)
                .index_by { |row| [ row.subject_code, row.course_number ] }
         end
       end

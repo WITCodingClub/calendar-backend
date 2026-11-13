@@ -15,8 +15,13 @@ module McpTools
                 "a row of that program, the credits and codes of my other courses (not_counted), and the " \
                 "co-op semesters. Each program also has its start_term, a timeline of the plan semesters with their " \
                 "real terms (when: past, current, registering, or future; estimated after year 2; co_op), and " \
-                "expected_end. A planned program or a program argument has no start term, so it has no " \
-                "timeline. The hss entry of a program has each HSS category with a hint (the subjects or " \
+                "expected_end. For my active program, the terms are an estimate from what I really took: each " \
+                "row has expected_term and moved (null when it matches the plan, or taken, behind, prerequisite, " \
+                "offered, co_op, or load), the timeline lists each term with a row and its basis (taken, plan, " \
+                "or estimate), and expected_end has the estimate and plan_end. The estimate puts at most 20 " \
+                "credits in a term and no classes in a co-op term, keeps the co-op spacing of my plan, and " \
+                "does not check that a term has sections. A planned program or a program argument has no " \
+                "start term, so it has no timeline and no estimate. The hss entry of a program has each HSS category with a hint (the subjects or " \
                 "courses that meet it), the English sequence courses and their credits, each course that " \
                 "counts toward HSS with its category, and the open HSS slots with their planned terms. " \
                 "Each program has total_credits and school. A program with no plan of study, such as " \

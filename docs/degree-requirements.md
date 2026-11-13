@@ -342,8 +342,9 @@ Each program in the result also gives its plan against real terms (#990). `Acade
 - `timeline` has one entry for each plan semester, in plan order: `term`, `uid`, `year`, `season`, `when`, `estimated`, and `co_op`. It is empty without a start term, or for a program with no plan of study (a minor).
 - `when` compares the Banner code with `Term.current`, as `NextTermCourses` does. `past` is before the current term. `current` is the current term. `registering` is the default term of `NextTermCourses`: the next fall or spring term after the current term. `future` is every later term. A summer term between the current term and the registering term is `future`, because the registering term is never a summer term. `when` is null when WIT Calendar has no current term.
 - `estimated` is true for each semester after plan year 2. A co-op or a summer class can move these terms. The timeline keeps the order of the plan.
-- `co_op` is true when every row of the semester is a co-op row: a row of the `Co-op` elective list (`DegreeRequirements::SharedElectives::CO_OP`), a co-op course row (`COOP 3500`, `COOP 4500`, `COOP 5000`), or a choice of those courses. Most plans list a co-op semester as a course row.
+- `co_op` is true when every row of the semester is a co-op row: a row of the `Co-op` elective list (`DegreeRequirements::SharedElectives::CO_OP`), a co-op course row (`COOP 3500`, `COOP 4500`, `COOP 5000`), or a choice of those courses. Most plans list a co-op semester as a course row. `AcademicProfiles::CoOpRows.co_op?` is the one test for a co-op row. `PlanTerms`, `PlanEstimate`, and `summary.co_ops` use it. `COOP 2500` is a normal course row.
 - `expected_end` is `{ term, estimated }` of the last semester of the timeline, or null when the timeline is empty.
+- For an active program, `PlanEstimate` then replaces `timeline` and `expected_end` with the estimate (see the next section). The fields below keep their meaning.
 - Each requirement row has `planned_term` (such as `Fall 2027`) and `planned_term_uid`. Both are null for a row with no plan semester (an elective list of a minor) and for a program with no start term.
 - Each requirement row has `behind`. It is true for an open row whose planned term is the current term or earlier, the same rule as the `behind` rows of `NextTermCourses`. It is false for every other row, and for a row with no planned term.
 
@@ -365,6 +366,70 @@ flowchart TD
   PT --> RT[planned_term on each row]
   TC --> B[behind: open, term is current or earlier]
   RT --> B
+```
+
+### Estimate from the student's history
+
+`AcademicProfiles::PlanEstimate` (#1011) estimates the terms of the plan from the courses the student really took. The fixed plan terms of `PlanTerms` are right for a student who follows the standard plan, and wrong for a student who took a summer class, did a co-op in another term, or took courses out of order. The estimate is a help for planning, not a degree audit. It does not check that a term has sections of a course.
+
+`DegreeProgress` runs it after `PlanTerms`, only for an active program with a start term, a plan of study, and a current term. A planned program, the `program` argument, and an active program without a start term keep the fields of #990 only: their rows have no `expected_term`, `expected_term_uid`, or `moved` key, the timeline entries have no `basis`, and `expected_end` has no `plan_end`. `NextTermCourses` calls `DegreeProgress` with `course_details: false`, and that also leaves out the estimate, because the estimate needs the course details.
+
+Fields:
+
+- Each row has `expected_term` and `expected_term_uid`: the term of the estimate, or null for a row that the estimate cannot place.
+- Each row has `moved`: null when `expected_term` is `planned_term`, else the one reason why it is not. See the order below.
+- `timeline` has one entry for each term that has a row, by `expected_term`, oldest first. A term with no plan semester but a course taken in it (a summer class) is in the list. A past term where the student took nothing is not. Each entry has `term`, `uid`, `year`, `season`, `when`, `estimated`, `co_op`, and `basis`.
+  - `basis` is `taken` when every row of the term is done or in progress, `plan` when the term has exactly the rows that the plan puts in it, and `estimate` for any other term.
+  - `year` is the plan year of the term, with the same rule as `ProgramTimeline.term_uid`: a summer term after year 1 is in year 1. It is null for a term before plan year 1, such as a course taken before the student started the program.
+  - `estimated` is false for a `taken` term, true for an `estimate` term, and true after plan year 2 for a `plan` term, as in #990.
+  - `co_op` is true when every row of the term is a co-op row.
+- `expected_end` is `{ term, estimated, plan_end }`. `term` and `estimated` are those of the last term of the timeline. `plan_end` is the end of the plan of #990.
+- `planned_term`, `planned_term_uid`, and `behind` keep their meaning of #990. `ProgramOverlap#major_term`, the HSS `open_slots`, `NextTermCourses`, and the My programs page still read the plan terms.
+
+Placement (`PlanEstimate::Placement`):
+
+1. Done and in-progress rows sit in the term the student took them (the row's `term`). A done co-op is a co-op term. A row in a term after the current term (the student registered) counts in the load of that term.
+2. The walk starts at the term after the current term. That is the registering term, or the summer term before it. Each term gets one co-op or a load of classes, until every open row has a term.
+3. A co-op term gets no classes. The next open co-op goes in a term when the plan's gap after the previous co-op is over and its prerequisites are placed. The gap is the number of co-op terms (fall, spring, and the summers where the plan has a semester) between the two co-ops in the plan. The previous co-op is the done co-op or the co-op the walk placed. The first co-op of the plan has no co-op before it, so it keeps its plan term, or takes the first term of the walk when its plan term is past. A term with classes the student registered for gets no co-op.
+4. A class term takes open rows in queue order: behind rows first, then the other rows in plan order. A row waits when a prerequisite is not placed before the term, or when the term is a season it is not offered. The term is full when the next row would go over its load. A term with no row always takes one.
+5. The load of a term is the credits of the class rows of its plan semester (done rows too, so a term has room when the student took one of its courses early). A term with no class semester in the plan, such as a plan co-op semester after the co-op moved or a term after the plan, takes the average load of the plan semesters. No term takes more than 20 credits (`Rules::MAX_TERM_CREDITS`).
+6. A fall or spring term takes classes. A summer term takes classes only where the plan has a class row in that summer. A summer term where the student took classes is in the timeline, but the student's past summers do not open later summers.
+7. The walk stops 9 terms (`Rules::EXTRA_TERMS`, three years) after the later of the plan end and the current term. A row it cannot place by then, such as a row in a prerequisite cycle, has a null `expected_term`, and the last term of the timeline does not count it.
+
+Rules:
+
+- **Credits.** A row has the credit hours of its course, or of the course that fills a slot or a choice, or 4 (`Rules::DEFAULT_CREDITS`) for an open slot or choice and for a course with no credit hours.
+- **Prerequisites.** A course row waits for its prerequisite tree (`CatalogCourse.prerequisites`), walked by `AcademicProfiles::PrerequisiteCheck`, the same walk as `NextTermCourses`. A course counts as passed when it is not a row of the plan, or when its row (or a row of an alias of it) is placed in an earlier term. So a prerequisite that is not a row of the plan never makes a row wait, and the estimate does not look at grades. A prerequisite in the same term does not count. An elective slot and a choice name no single course, so they never wait. A choice option is a course that a prerequisite can wait for.
+- **Terms offered.** A course with `typically_offered` of only fall or only spring (#989) goes in a term of that season. A null or empty list, or a list with both fall and spring, places it in any term.
+- **Co-ops.** The rules come from the student (2026-11-12), not from the co-op office: "20 credits is max per semester without an overload code", and "you cant usually take classes during coop semester without approval". The spacing of co-ops follows the student's plan, and it is not a rule of the co-op office: "spacing is major dependent, the catalog site does outline the typical cadence, but as long as you meet the coop requirements you can do it whenever you like it". A co-op course row also waits for its own prerequisite tree, as a course does. `PlanEstimate::Rules` has each rule as one constant or method, so a later answer is a small change.
+- **A student who follows the plan exactly** gets `expected_term` equal to `planned_term` on every row, `moved: null`, and `expected_end.term` equal to `plan_end`. A plan semester with more than 20 credits of rows, or a class row in a plan co-op semester, breaks this, because the estimate moves those rows.
+
+`moved` has one value. A done or in-progress row in another term is `taken`. An open row of a plan term before the walk starts is `behind`. An open row in an earlier term than planned is `load` (an earlier term has room), or `co_op` for a co-op. An open row in a later term has the first reason that held in its plan term, in this order: `co_op` (the term is a co-op term, or for a co-op: the plan's gap or another co-op), `prerequisite`, `offered`, `load` (the term was full).
+
+The estimate makes no query. The prerequisite trees come from the `CatalogCourse` query of `CourseDetails`, which loads them with the details. The response does not send them.
+
+```mermaid
+flowchart TD
+  PT[PlanTerms: planned_term, behind, plan timeline] --> E{Active, start term, plan, current term?}
+  E -->|no| K[Keep the fields of #990]
+  E -->|yes| F[Done and in-progress rows: the term taken]
+  F --> W[Walk terms from the term after the current term]
+  W --> C{Next co-op: gap over and prerequisites placed?}
+  C -->|yes| CO[Co-op term: the co-op, no classes]
+  C -->|no| U{Fall, spring, or a plan summer with classes?}
+  U -->|no| N[Next term]
+  U -->|yes| Q[Take queue rows: behind first, then plan order]
+  Q --> P{Prerequisite placed earlier and season offered?}
+  P -->|no| S[Skip the row, it waits]
+  P -->|yes| L{Over the load, max 20 credits?}
+  L -->|yes| N
+  L -->|no| A[Place the row]
+  S --> Q
+  A --> Q
+  CO --> N
+  N --> B{All rows placed or bound reached?}
+  B -->|no| C
+  B -->|yes| T[timeline by expected_term, expected_end with plan_end]
 ```
 
 ### Minor course lists and overlap
