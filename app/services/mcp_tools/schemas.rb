@@ -519,6 +519,24 @@ module McpTools
       estimated: BOOLEAN,
       co_op:     BOOLEAN
     ).freeze
+    # One elective list of a program with no plan of study, with its courses
+    # (AcademicProfiles::ProgramOverlap, #992).
+    PROGRAM_LIST = object(
+      name:        STRING,
+      min_courses: nullable(INTEGER),
+      min_credits: nullable(INTEGER),
+      notes:       nullable(STRING),
+      checkable:   BOOLEAN,
+      courses:     array(
+        object(
+          code:       STRING,
+          title:      nullable(STRING),
+          status:     PROGRESS_STATUS,
+          term:       nullable(STRING),
+          major_term: nullable(STRING)
+        )
+      )
+    ).freeze
     DEGREE_PROGRESS = object(
       programs:    array(
         object(
@@ -550,7 +568,16 @@ module McpTools
           # start term or a plan of study.
           start_term:   nullable(STRING),
           expected_end: nullable(object(term: STRING, estimated: BOOLEAN)),
-          timeline:     array(PLAN_SEMESTER)
+          timeline:     array(PLAN_SEMESTER),
+          # The same values as summary (#992).
+          total_credits: nullable(INTEGER),
+          school:        nullable(STRING),
+          # The elective lists of a program with no plan of study (#992).
+          # Empty for a program with a plan.
+          lists:        array(PROGRAM_LIST),
+          # Only for a planned program (#992).
+          overlap:      object(shared: INTEGER, extra: INTEGER),
+          optional:     %i[overlap]
         )
       ),
       courses:     array(

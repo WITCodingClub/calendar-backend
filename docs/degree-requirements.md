@@ -363,6 +363,50 @@ flowchart TD
   RT --> B
 ```
 
+### Minor course lists and overlap
+
+`AcademicProfiles::ProgramOverlap` adds these fields to each program of the result (#992). `DegreeProgress` calls it after `PlanTerms`, so it reads the planned terms of the active programs that `PlanTerms` already set. It makes no query of its own, and the titles come from the same `CourseDetails` query, which also loads the codes of the list courses.
+
+- `total_credits` and `school` have the same values as `summary`. `summary` stays.
+- `lists` has one entry for each elective list of a program with no plan of study, such as a minor: `name`, `min_courses`, `min_credits`, `notes`, `checkable`, and `courses`. It is empty for a program with a plan of study, because its rows already name each course. An active minor and a minor named as the `program` argument also get `lists`.
+- `min_courses` of a "Required ..." list with no minimum is the number of its courses. A list that cannot be checked (`checkable: false`) keeps its courses, and `min_courses` and `min_credits` are null.
+- `courses` of a list of courses has every course on the list. A list of subjects (`subject_codes`) or of any course has no fixed courses, so `courses` has the same courses as `courses` of its requirement row. Today that row counts only the courses named on a list, so for these lists it is empty.
+- Each course has `code`, `title` (from `CatalogCourse`, or the title of the section the student took, or null), `status` (`done`, `in_progress`, or `open`), `term` (the term of the best attempt, or null), and `major_term`. A course that the student did not pass is `open`. The status does not say which list the course counts for. `requirements` keeps that.
+- `major_term` is the earliest `planned_term` of a row of an active program that has the course: a course row, an option of a choice row, or the course that fills a row. It is null when no active program has the course, when the active program has no start term, and for the `program` argument, which checks no active program. A planned program that the student also declared as active does not count as its own active program.
+- A course code matches through a checked `CourseCodeAlias`, as in the rest of the service.
+- The existing `requirements` rows of a minor do not change.
+
+`overlap: { shared, extra }` is only on a planned program. It says how many of the program's needed courses an active program already has, and how many courses the program adds. The My programs page uses the same class (`ProgramOverlap#added_rows`) to mark the rows of a planned program that an active program also has.
+
+- **A program with a plan of study:** each row is one needed course. A row is shared when an active row has its code (for a choice, one option is enough). It is extra when it is open and not shared. A row that the student took and that no active program has is neither. Course rows match before choice rows, so a choice does not use an active row that a course row needs.
+- **A list with `min_courses`:** it needs `min_courses` courses. A "Required ..." list with no minimum needs every course.
+- **A list with only `min_credits`:** it needs courses until their credits meet the minimum. A course the student took counts the credits of its section, or 0, the same rule as the requirement row. Any other course counts the credits of `CatalogCourse`, or 3 (`ProgramOverlap::ASSUMED_CREDITS`). The extra courses are the open list courses in list order. When the list runs out, each further course counts 3 credits.
+- **A list of subjects or of any course:** no course is shared. The courses of its requirement row count, and the rest is extra.
+- **A list that cannot be checked:** it needs nothing, so it adds 0 and 0.
+
+For each list, the needed courses come in this order: the courses that the student took for this list (`shared` when an active program has them), then the other list courses that an active program has (`shared`), then the courses still to take (`extra`). The taken courses go first, so a list that a taken course meets does not use an active row that a later list needs. Each active row counts as shared once, for one list course. A course the student took for the minor is never extra. So `shared + extra` can be smaller than the needed courses: the difference is the courses the student took that no active program has. With no active program, `shared` is 0 and `extra` is the needed courses minus the taken ones.
+
+Example. The major plans MATH 1750 (Fall 2025), MATH 2500 (Fall 2026), and MATH 2300 (Spring 2027). The student passed MATH 1750. The minor has two lists:
+
+| List | Needs | Courses | Shared | Taken, not shared | Extra |
+| --- | --- | --- | --- | --- | --- |
+| Required Mathematics (no minimum) | 3 | MATH 1750, MATH 2300, MATH 2100 | MATH 1750, MATH 2300 | none | MATH 2100 |
+| Upper-level Mathematics (`min_courses: 2`) | 2 | MATH 2500, MATH 3500, MATH 3600 | MATH 2500 | none | 1 more course |
+
+`overlap` is `{ shared: 3, extra: 2 }`. MATH 1750 is done and the major has it, so it is shared, not taken-only. Issue #998 adds where the extra courses fit in the major plan.
+
+```mermaid
+flowchart TD
+  DP[DegreeProgress: program_json + PlanTerms for each program] --> A[Active entries with planned_term on each row]
+  DP --> PO[ProgramOverlap.call for each program]
+  A --> PO
+  PO --> L[lists: courses with status, term, major_term]
+  PO --> O{planned?}
+  O -->|plan of study| R[overlap from the plan rows]
+  O -->|no plan| LO[overlap list by list: shared, then taken, then extra]
+  A --> D[My programs page: added_rows]
+```
+
 ## Next term courses
 
 `AcademicProfiles::NextTermCourses` (#449) answers "what does my plan say I take next term?". The My programs page shows it in the "Plan for <term>" card. `GET /api/user/next_term_courses` and the MCP tool `my_next_term_courses` send the same hash.

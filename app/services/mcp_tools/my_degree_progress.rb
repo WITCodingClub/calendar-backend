@@ -18,7 +18,10 @@ module McpTools
                 "timeline. The hss entry of a program has each HSS category with a hint (the subjects or " \
                 "courses that meet it), the English sequence courses and their credits, each course that " \
                 "counts toward HSS with its category, and the open HSS slots with their planned terms. " \
-                "This is a help for planning, not a degree audit: it does not know substitutions, " \
+                "Each program has total_credits and school. A program with no plan of study, such as " \
+                "a minor, has lists: each elective list with its minimum and its courses, each course with " \
+                "its status, the term I took it, and major_term (its planned term in one of my active " \
+                "programs, or null). This is a help for planning, not a degree audit: it does not know substitutions, " \
                 "transfer credit, or AP credit, and the history can have gaps. The student's official degree " \
                 "audit is Stellic. Without arguments it checks each of my programs in its own catalog year. " \
                 "Read assumptions in the result."

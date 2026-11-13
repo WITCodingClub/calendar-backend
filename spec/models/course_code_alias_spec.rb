@@ -75,4 +75,15 @@ RSpec.describe CourseCodeAlias do
 
     expect(described_class.reviewed).to eq([ reviewed ])
   end
+
+  it "maps each code of a reviewed row to the other code, both ways" do
+    create(:course_code_alias, :reviewed, from_subject_code: "MATH", from_course_number: 175,
+                                          to_subject_code: "MATH", to_course_number: 1750)
+    create(:course_code_alias, from_subject_code: "MATH", from_course_number: 180, to_subject_code: "MATH", to_course_number: 1800)
+
+    pairs = described_class.reviewed_pairs
+
+    expect(pairs).to eq([ "MATH", 175 ] => [ [ "MATH", 1750 ] ], [ "MATH", 1750 ] => [ [ "MATH", 175 ] ])
+    expect(pairs[[ "MATH", 1800 ]]).to eq([])
+  end
 end
