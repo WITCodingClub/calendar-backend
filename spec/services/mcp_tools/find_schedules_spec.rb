@@ -77,10 +77,12 @@ RSpec.describe McpTools::FindSchedules, :schedule_builder do
 
   it "asks the client to try again when every slot is in use" do
     allow(Catalog::ScheduleOptions::Slots::SEMAPHORE).to receive(:try_acquire).and_return(false)
+    allow(Yabeda.calendar.schedule_builder_busy_total).to receive(:increment)
 
     result = call(term_uid: term.uid, courses: [ { codes: [ "COMP 3350" ] } ])
 
     expect(result.error?).to be(true)
     expect(result.content.first[:text]).to include("busy", "call find_schedules again")
+    expect(Yabeda.calendar.schedule_builder_busy_total).to have_received(:increment).with({ surface: "mcp" })
   end
 end

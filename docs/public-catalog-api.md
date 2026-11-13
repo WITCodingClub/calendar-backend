@@ -390,18 +390,6 @@ only `{ "data": { "count": 12, "capped": false } }`, so a client can show
 other catalog routes. This is not a registration check: holds, restrictions,
 and registration times are Banner's.
 
-The schedule builder is behind the `schedule_builder` feature flag while it is
-tested. While the flag is off, both routes answer 404 `NOT_FOUND`. The routes
-need no token. When the request has a valid extension token, the flag can also
-be on for that one user. A bad or ended token is the same as no token. Apart
-from that 404, the answer is the same for every caller.
-
-One server process runs a fixed number of searches at the same time: one
-fewer than its threads, at least one (`Catalog::ScheduleOptions::Slots`). A
-request that finds every slot in use does not wait. It gets 503
-`SCHEDULE_BUILDER_BUSY` with `Retry-After: 1`. The body also has
-`retry_after`, and a browser on another origin can read the header.
-
 ```json
 {
   "term_uid": 202720,
@@ -539,6 +527,22 @@ returns 400 `INVALID_FILTER`, the same as the other catalog routes. So does a
 pinned CRN that is not a section of its entry's codes (or of a section linked
 to one), or that is cancelled.
 Unknown keys at the top level of the body are ignored.
+
+#### Flag and busy answers
+
+The schedule builder is behind the `schedule_builder` feature flag while it is
+tested. While the flag is off, both routes answer 404 `NOT_FOUND`. The routes
+need no token. When the request has a valid extension token in the
+`Authorization` header, the flag can also be on for that one user, so a client
+that tests the flag for one user must send the token. A bad, expired, or
+revoked token is the same as no token. Apart from that 404, the answer is the
+same for every caller.
+
+One server process runs a fixed number of searches at the same time: one
+fewer than its threads, at least one (`Catalog::ScheduleOptions::Slots`). A
+request that finds every slot in use does not wait. It gets 503
+`SCHEDULE_BUILDER_BUSY` with `Retry-After: 1`. The body also has
+`retry_after`, and a browser on another origin can read the header.
 
 How the search works:
 

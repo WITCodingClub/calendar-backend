@@ -108,7 +108,7 @@ RSpec.describe McpTools::Prompts do
       expect_in_order(body, [ "find_schedules with the term_uid", described_class::FALLBACK, "check_schedule with the term_uid" ])
       # The fallback names the words of the flag-off tool error.
       expect([ described_class::FALLBACK, McpTools::BaseTool::FLAG_OFF_MESSAGE ]).to all(include("not enabled"))
-      expect(described_class::FALLBACK).to include("search_sections", "check_schedule")
+      expect(described_class::FALLBACK).to include("search_sections", "check_schedule", "my_busy_times")
       expect(body).to include("check_schedule must show no conflicts")
       expect(body).to include("If a prerequisite has a min_grade, ask me for my grade")
     end

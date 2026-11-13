@@ -24,8 +24,8 @@ module McpTools
       FALLBACK = "If find_schedules answers that the feature is not enabled, build the options by hand instead: for " \
                  "each course, call search_sections with the term_uid, the subject, and the course_number, and use my " \
                  "preferences as filters: begins_after, ends_before, free_days, meets_on, and open_only. Pick sections " \
-                 "with no time conflict, and call check_schedule on each option until it shows no conflicts, no " \
-                 "missing lecture or lab pair, and no course two times."
+                 "with no time conflict and none at my busy times from my_busy_times, and call check_schedule on " \
+                 "each option until it shows no conflicts, no missing lecture or lab pair, and no course two times."
 
       prompt_name "plan_term_schedule"
       title "Plan a term schedule"
@@ -71,7 +71,8 @@ module McpTools
             "If I care about instructors, call get_section for the CRNs of the best schedules, then get_instructor " \
             "or search_reviews for their instructors.",
             "If I saved meetings with friends or have other fixed times, call my_busy_times for one typical week " \
-            "of the term, and call find_schedules again with those times in blocked.",
+            "of the term, and call find_schedules again with those times in blocked. In the fallback, drop the " \
+            "sections that meet at those times.",
             "Pick one to three options from the schedules. Call check_schedule with the term_uid and every CRN of " \
             "each option, labs included, to show me its totals and to confirm it has no conflicts.",
             "Call university_events for the dates of the term, to give me the registration dates and the last day " \

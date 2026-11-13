@@ -144,15 +144,26 @@ RSpec.describe "POST /api/v1/catalog/schedule_options", :schedule_builder, type:
       end
     end
 
-    it "answers 404 for a user with the flag when the session ended" do
+    it "answers 404 for a user with the flag when the session was revoked or expired" do
       user = create(:user)
       Flipper.enable_actor(FeatureFlags::SCHEDULE_BUILDER, user)
-      headers = auth_headers_for(user)
-      UserSession.where(user: user).update_all(revoked_at: Time.current)
 
-      post_options(body, headers: headers)
+      [ { revoked_at: Time.current }, { expires_at: 1.minute.ago } ].each do |ended|
+        headers = auth_headers_for(user)
+        UserSession.where(user: user).update_all(ended)
 
-      expect(response).to have_http_status(:not_found)
+        post_options(body, headers: headers)
+
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    it "takes no search slot while the flag is off" do
+      allow(Catalog::ScheduleOptions::Slots::SEMAPHORE).to receive(:try_acquire).and_call_original
+
+      post_options(body)
+
+      expect(Catalog::ScheduleOptions::Slots::SEMAPHORE).not_to have_received(:try_acquire)
     end
 
     it "answers 404 for a user without the flag or with a bad token" do
@@ -165,8 +176,9 @@ RSpec.describe "POST /api/v1/catalog/schedule_options", :schedule_builder, type:
   end
 
   describe "the search slots" do
-    it "answers 503 with Retry-After when every slot is in use" do
+    it "answers 503 with Retry-After when every slot is in use, and counts it" do
       allow(Catalog::ScheduleOptions::Slots::SEMAPHORE).to receive(:try_acquire).and_return(false)
+      allow(Yabeda.calendar.schedule_builder_busy_total).to receive(:increment)
 
       [ "/api/v1/catalog/schedule_options", "/api/v1/catalog/schedule_options/count" ].each do |path|
         post_options(body, path: path)
@@ -175,6 +187,7 @@ RSpec.describe "POST /api/v1/catalog/schedule_options", :schedule_builder, type:
         expect(response.headers["Retry-After"]).to eq("1")
         expect(response.parsed_body).to include("code" => "SCHEDULE_BUILDER_BUSY", "retry_after" => 1)
       end
+      expect(Yabeda.calendar.schedule_builder_busy_total).to have_received(:increment).with({ surface: "api" }).twice
     end
 
     it "frees the slot when the search fails" do
