@@ -60,11 +60,14 @@ office locations.
 
 ## Limits
 
-- Responses are public and cacheable for 1 hour. Cloudflare caches REST
-  responses at the edge for the same hour.
+- `GET` responses are public and cacheable for 1 hour. Cloudflare caches
+  them at the edge for the same hour. The `POST` routes of the schedule
+  builder are not cached.
 - Rate limit: 300 requests per minute per IP address. A response from the
   Cloudflare cache does not count. Its `RateLimit` fields are those of the
   request that filled the cache.
+- The schedule builder has its own limits too: 30 searches and 90 counts
+  per minute per IP address. A request with a token counts against the user. See [Schedule builder](#schedule-builder).
 - REST page size: 50 by default, 200 maximum.
 - GraphQL page size: 50 by default, 200 maximum.
 - GraphQL query depth: 12 maximum. Query cost: 500 maximum. See
@@ -233,6 +236,8 @@ message:
 | `GET /api/v1/catalog/courses` | Courses (not sections), by code or title words |
 | `GET /api/v1/catalog/courses/:code` | One course: description, prerequisites, corequisites, restrictions, mutual exclusions, catalog entry, fees, learning objectives, what it unlocks |
 | `GET /api/v1/catalog/schedule_check` | Check a set of sections taken together |
+| `POST /api/v1/catalog/schedule_options` | Build and rank schedules for a list of courses. See [Schedule builder](#schedule-builder) |
+| `POST /api/v1/catalog/schedule_options/count` | Count the schedules for the same input |
 | `GET /api/v1/catalog/programs` | Degree programs of one catalog year |
 | `GET /api/v1/catalog/programs/:slug` | One program: its plans of study and elective lists |
 
@@ -373,6 +378,183 @@ Points to know:
   `cross_list` group.
 - `meta.filters` gives both values as booleans, for example
   `"open_only": true`.
+
+### Schedule builder
+
+`POST /api/v1/catalog/schedule_options` builds the schedules for a list of
+courses in one term, and ranks them by the student's preferences.
+`POST /api/v1/catalog/schedule_options/count` takes the same body and returns
+only `{ "data": { "count": 12, "capped": false } }`, so a client can show
+"12 schedules" while the student changes an answer. Both are public, like the
+other catalog routes. This is not a registration check: holds, restrictions,
+and registration times are Banner's.
+
+```json
+{
+  "term_uid": 202720,
+  "courses": [
+    { "codes": ["COMP 3350"] },
+    { "codes": ["MATH 2300", "MATH 2860"] },
+    { "codes": ["COMP 2280"], "crns": ["20230", "20231"] }
+  ],
+  "preferences": {
+    "blocked": [{ "days": ["friday"], "after": "13:00" }],
+    "avoid": [{ "days": ["monday", "wednesday"], "before": "10:00" }],
+    "earliest": "09:00",
+    "latest": "18:00",
+    "day_off": "any",
+    "open_only": true,
+    "days": "fewer",
+    "breaks": "lunch"
+  },
+  "limit": 6
+}
+```
+
+The request:
+
+| Field | Meaning |
+| --- | --- |
+| `term_uid` | The term. Required. |
+| `courses` | 1 to 10 course entries. Each entry has `codes`: one code, or 2 to 5 codes for "one of". A code is `COMP 3350` or `COMP3350`. An old or new code that a person checked (a course code alias) finds the sections of the other code. At most 20 codes in all. Two entries with the same codes return 400. |
+| `courses[].crns` | Optional. CRNs that the student already picked for the entry. Each schedule keeps every pinned CRN. A pinned CRN must be a section of one of the entry's codes in the term, or a section that Banner links to one, and not cancelled. When the pinned CRNs are not linked to each other (a lecture and a lab with no Banner pair), they stay together as one choice if they keep the `schedule_check` rules. At most 30 CRNs in all. |
+| `preferences` | Optional. See the table below. |
+| `limit` | How many schedules to return: 1 to 20, 6 by default. |
+
+The preferences. A hard rule removes a schedule. A soft rule only changes the
+order.
+
+| Preference | Kind | Values | Effect |
+| --- | --- | --- | --- |
+| `blocked` | hard | up to 10 ranges | No meeting in any range |
+| `earliest` | hard | `HH:MM` | No meeting starts before this time |
+| `latest` | hard | `HH:MM` | No meeting ends after this time |
+| `day_off` | hard | `none` (default), `any`, or a list of days | `any`: at least one weekday (Monday to Friday) has no class. A list: no class on those days |
+| `open_only` | hard | `true` or `false` | Only sections with a free seat, by the rule of the `open_only` section filter. A section with no seat data is left out. A pinned CRN stays when it is full, because the student already picked it |
+| `avoid` | soft | up to 10 ranges | Fewer meetings in the ranges rank higher |
+| `days` | soft | `fewer`, `spread`, or `any` (default) | `fewer`: fewer days with classes. `spread`: classes on more weekdays, with days of a more even length |
+| `breaks` | soft | `tight`, `lunch`, or `any` (default) | `tight`: shorter gaps between classes. `lunch`: a free 30 minutes from 11:00 to 14:00 on each class day |
+
+A range is `{ "days": [...], "after": "HH:MM", "before": "HH:MM" }`. It covers
+a meeting on one of its days that overlaps the time from `after` to `before`.
+Without `after`, the range starts at midnight. Without `before`, it runs to the
+end of the day. Without `days`, it is on every day. A range needs at least one
+of the three keys.
+
+The response:
+
+```json
+{
+  "data": {
+    "term": { "uid": 202720, "name": "Spring 2027" },
+    "count": 12,
+    "capped": false,
+    "schedules": [
+      {
+        "rank": 1,
+        "score": 0.92,
+        "crns": ["20410", "20411", "20520", "20230", "20231"],
+        "courses": [
+          { "code": "COMP 3350", "crns": ["20410", "20411"] },
+          { "code": "MATH 2300", "crns": ["20520"] },
+          { "code": "COMP 2280", "crns": ["20230", "20231"] }
+        ],
+        "highlights": ["Fridays off", "Lunch break every day", "Done by 4 PM"],
+        "avoid_hits": 0,
+        "totals": { "credit_hours": 12, "days": ["monday", "tuesday", "wednesday", "thursday"], "earliest_start": "10:00", "latest_end": "15:50", "meetings_before_nine": 0 }
+      }
+    ],
+    "relax": [],
+    "not_offered": []
+  }
+}
+```
+
+- `count` is the number of schedules that keep the hard rules. The search
+  stops at 500 schedules, and also when it reaches its work budget. In both
+  cases `capped` is `true`, and `count` is the lowest possible count. A capped
+  search ranks only the schedules that it found.
+- Each schedule has one section of each entry, with the lab or other linked
+  sections that Banner pairs with it (the stored section links, not the link
+  identifiers when Banner's pairs are there). A schedule never has a time
+  conflict, a missing linked partner, a cancelled section, or the same course
+  two times: the same rules as `schedule_check`. Two sections conflict only
+  when their days, times, and dates overlap, so half-term sections in
+  different halves can share a time.
+- A lab alone does not stand for a course that has an active lecture or
+  another kind of section, unless the student pinned it.
+- An entry for a lab with its own code, such as `PHYS 1251` next to
+  `PHYS 1250`, joins the entry of the lecture that Banner links it to. The
+  lab is then part of the lecture's choice, not a second course.
+- `crns` and the `crns` of each course are strings, in the order of the
+  request's entries. `totals` has the same fields as in `schedule_check`.
+  Sections with no meeting time (online, arranged) take up no time and add
+  no day.
+- `score` is from 0 to 1. It is the mean of one part for each soft rule that
+  the request sets. With no soft rule, every schedule scores 1. The higher
+  score comes first, then fewer `avoid_hits`, then the lower CRN list, so the
+  same request gives the same order. Only a server that is too slow to finish
+  the search budget in time can stop a search earlier.
+- The search tries the sections that look best for the soft rules first, so
+  when it is capped, the schedules it found are likely the best ones.
+- `avoid_hits` is the number of meetings in an `avoid` range.
+- `highlights` are up to 4 short statements that are true of the schedule:
+  the free weekdays ("Fridays off"), "Lunch break every day", "Done by 4 PM"
+  (when the last class ends by 17:00), "No classes before 10 AM" (when the
+  first class starts at 10:00 or later), and "No classes in times to avoid".
+- `not_offered` lists each requested code with no active section in the term.
+  This is not an error. An entry with no offered code is left out of the
+  search, and the other entries still get schedules.
+- `relax` is empty unless `count` is 0. Then it lists each hard rule that the
+  request sets, with the count that the search gives without that one rule,
+  the higher count first. A rule whose removal still gives 0 is left out. The
+  relax searches share a second budget, in equal parts, so the main search
+  cannot use up their budget.
+  `preference` is `day_off`, `earliest`, `latest`, `blocked`, or `open_only`,
+  and `label` says what the student allows, such as "Allow classes every
+  weekday".
+
+```json
+{ "data": { "count": 0, "capped": false, "schedules": [], "relax": [
+  { "preference": "day_off", "label": "Allow classes every weekday", "count": 4 },
+  { "preference": "earliest", "label": "Allow classes before 9 AM", "count": 2 }
+] } }
+```
+
+Errors: an unknown course code, term, preference key, or preference value
+returns 400 `INVALID_FILTER`, the same as the other catalog routes. So does a
+pinned CRN that is not a section of its entry's codes (or of a section linked
+to one), or that is cancelled.
+Unknown keys at the top level of the body are ignored.
+
+How the search works:
+
+```mermaid
+flowchart TD
+  accTitle: How the schedule builder searches
+  accDescr: The request is read and checked. One set of queries loads the sections of every course with their meetings and links. Each course entry becomes its units, a section with its linked partners. The hard rules remove units. A depth-first search adds one unit for each entry, the entry with the fewest units first, and drops a branch at the first clash. It stops at 500 schedules or at the budget. The soft rules rank the schedules. When the count is 0, the relax step searches again without each hard rule.
+  A[Read and check the body] --> B[Load the term, the aliases, and the sections with their meetings and links, in a fixed number of queries]
+  B --> C[Build the units of each entry: a section and one option group of its linked partners]
+  C --> D[Keep the units that keep the hard rules for a section]
+  D --> E[Depth-first search, the entry with the fewest units first]
+  E --> F{Clash with a chosen unit, or no free weekday with day_off any?}
+  F -- yes --> E
+  F -- no --> G{500 schedules or budget used up?}
+  G -- yes --> H[capped: true]
+  G -- no --> E
+  E -- search done --> I[Rank by the soft rules, add highlights and totals]
+  H --> I
+  I --> J{count is 0?}
+  J -- yes --> K[Relax: search again without each hard rule]
+  J -- no --> L[Response]
+  K --> L
+```
+
+The work of one request is bounded: the limits on the input above, the cap of
+500 schedules, and a budget of 30,000 search steps or 0.25 seconds. The relax
+step gets one more budget of the same size, split between its rules. The code is `Catalog::ScheduleOptions`
+(`app/services/catalog/schedule_options/`). `Catalog::ScheduleRules` holds the
+rules that it shares with `schedule_check`.
 
 ### Search by meaning
 

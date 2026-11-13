@@ -144,6 +144,15 @@ module McpTools
       options:    array(INTEGERS)
     ).freeze
 
+    # Catalog::ScheduleRules.totals: check_schedule and find_schedules.
+    SCHEDULE_TOTALS = object(
+      credit_hours:         INTEGER,
+      days:                 array(DAY),
+      earliest_start:       nullable(TIME),
+      latest_end:           nullable(TIME),
+      meetings_before_nine: INTEGER
+    ).freeze
+
     # Catalog::SectionSerializer. Catalog::CourseSerializer leaves out course.
     SECTION_PROPERTIES = {
       crn:                INTEGER,

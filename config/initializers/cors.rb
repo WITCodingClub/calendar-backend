@@ -32,6 +32,14 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     origins "*"
 
+    # The schedule builder takes its input in a POST body. It comes before
+    # the catalog rule, because Rack::Cors uses the first resource that
+    # matches the path.
+    resource "/api/v1/catalog/schedule_options*",
+             headers: :any,
+             methods: [ :post, :options ],
+             credentials: false
+
     resource "/api/v1/catalog/*",
              headers: :any,
              methods: [ :get, :options, :head ],

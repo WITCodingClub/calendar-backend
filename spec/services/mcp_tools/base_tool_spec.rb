@@ -44,6 +44,7 @@ RSpec.describe McpTools::BaseTool do
       "list_term_electives" => %i[term_electives],
       "similar_sections"  => %i[sections],
       "check_schedule"    => %i[sections],
+      "find_schedules"    => %i[sections],
       "catalog_graphql"   => %i[sections course_details],
       "my_courses"        => %i[sections],
       "my_course_history" => %i[sections],

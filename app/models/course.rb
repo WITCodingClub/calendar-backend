@@ -174,6 +174,15 @@ class Course < ApplicationRecord
           .where("LEFT(link_identifier, 1) <> ?", link_slot)
   end
 
+  # linked_sections for one section in memory: the same rule, with no query.
+  # Catalog::SectionLinks uses it for sections that are already loaded.
+  def link_partner?(other)
+    return false if link_key.blank? || other.id == id || other.link_identifier.nil?
+
+    other.active? && other.term_id == term_id && other.subject == subject &&
+      other.course_number == course_number && other.link_key == link_key && other.link_slot != link_slot
+  end
+
   # The ids of the sections in `scope` whose course is closest to the vector,
   # nearest course first and by CRN within a course. Catalog::SemanticSearch
   # calls it.

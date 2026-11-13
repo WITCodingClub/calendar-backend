@@ -2,8 +2,9 @@
 
 module McpTools
   module Prompts
-    # Plans a schedule for one term: prerequisites, sections, and a check for
-    # conflicts and lecture and lab pairs, then one to three options.
+    # Plans a schedule for one term: prerequisites, then find_schedules for
+    # the schedules with no conflicts and with their lecture and lab pairs,
+    # then one to three options.
     class PlanTermSchedule < BasePrompt
       # How registration works at Wentworth, from the Registrar's notice for
       # Spring 2027. The server instructions say the same.
@@ -48,17 +49,21 @@ module McpTools
             "my history has no grades. Do not put a course in an option until its prerequisites " \
             "are met or I confirm them. Add each corequisite to the plan. If a course has no sections in the term, " \
             "tell me, and give the terms it is usually offered.",
-            "For each course, call search_sections with the term_uid, the subject, and the course_number. Use my " \
-            "preferences as filters: begins_after, ends_before, free_days, meets_on, and instructor. If a filter " \
-            "removes every section of a course, tell me and show the sections without that filter.",
-            "If I care about instructors, call get_instructor or search_reviews for the instructors of the sections " \
-            "that are left.",
+            "Call find_schedules with the term_uid and one course entry for each course I want. If I may take " \
+            "one of several courses, such as an elective, put their codes in one entry. Add one entry for each " \
+            "course I already have from my_courses, with its code and its CRNs in crns, so every schedule keeps " \
+            "it. Give my preferences as hard " \
+            "rules only when I said that I must have them: blocked, earliest, latest, day_off, and open_only. Give " \
+            "the others as soft rules: avoid, days, and breaks. find_schedules gives the lecture and lab pairs from " \
+            "Banner: do not guess a pair from the section numbers. If count is 0, show me the relax list and ask " \
+            "me which preference to drop, then call find_schedules again. If not_offered lists a course, tell me, " \
+            "and give the terms it is usually offered.",
+            "If I care about instructors, call get_section for the CRNs of the best schedules, then get_instructor " \
+            "or search_reviews for their instructors.",
             "If I saved meetings with friends or have other fixed times, call my_busy_times for one typical week " \
-            "of the term and keep those times free.",
-            "Make one to three options. For each option, call check_schedule with the term_uid and every CRN in " \
-            "the option, labs included. check_schedule gives the lecture and lab pairs from Banner: do not guess a " \
-            "pair from the section numbers. Change the option and call check_schedule again until it shows no time " \
-            "conflicts, no missing lecture or lab pair, and no course two times.",
+            "of the term, and call find_schedules again with those times in blocked.",
+            "Pick one to three options from the schedules. Call check_schedule with the term_uid and every CRN of " \
+            "each option, labs included, to show me its totals and to confirm it has no conflicts.",
             "Call university_events for the dates of the term, to give me the registration dates and the last day " \
             "to add or drop a course."
           ),

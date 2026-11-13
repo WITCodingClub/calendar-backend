@@ -177,6 +177,17 @@ RSpec.describe "MCP tool output schemas" do
       expect(schedule[:conflicts]).to be_present
       expect(schedule[:not_found]).to eq([ 99_999 ])
 
+      # COMP 2350's lecture and lab meet at the same time, so it has no schedule.
+      create(:catalog_course, subject_code: "COMP", course_number: 9100)
+      create(:course_meeting_time, course: cross_listed, day_of_week: :friday)
+      options = expect_valid(McpTools::FindSchedules, term_uid: term.uid, courses: [ { codes: [ "COMP 6350" ] }, { codes: [ "COMP 9100" ] } ],
+                                                      preferences: { avoid: [ { before: "10:00" } ], days: "fewer", breaks: "lunch" })
+      expect(options[:schedules]).to be_present
+      expect(options[:not_offered]).to eq([ "COMP 9100" ])
+      relax = expect_valid(McpTools::FindSchedules, term_uid: term.uid, courses: [ { codes: [ "COMP 6350" ] } ],
+                                                    preferences: { earliest: "18:00" })
+      expect(relax[:relax]).to be_present
+
       expect_valid(McpTools::SearchInstructors, q: faculty.last_name)
       instructor = expect_valid(McpTools::GetInstructor, instructor_id: faculty.public_id, term_uid: term.uid)
       expect(instructor[:rmp]).to be_present
@@ -281,6 +292,10 @@ RSpec.describe "MCP tool output schemas" do
 
       schedule = expect_valid(McpTools::CheckSchedule, term_uid: term.uid, crns: [ cancelled.crn ])
       expect(schedule[:totals]).to include(earliest_start: nil, latest_end: nil)
+
+      create(:catalog_course, subject_code: "COMP", course_number: bare.course_number)
+      options = expect_valid(McpTools::FindSchedules, term_uid: term.uid, courses: [ { codes: [ "COMP #{bare.course_number}" ] } ])
+      expect(options[:schedules].first[:totals]).to include(earliest_start: nil, latest_end: nil)
     end
 
     it "matches a course with no details and an instructor with no ratings" do

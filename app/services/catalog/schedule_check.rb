@@ -10,19 +10,15 @@ module Catalog
   # Linked sections: Banner's own pairs (Catalog::SectionLinks, source
   # "banner") once they are fetched, else the link identifier guess.
   #
-  # Credit hours: Banner's pairs carry each partner's credits as Banner counts
-  # them in the pair, 0 for a lab. A section uses those credits when another
-  # chosen section's pair names it. Otherwise it uses its own credit hours.
-  # A course (subject and number) with no Banner credits counts once, at the
-  # highest credit hours among its chosen sections, because older rows can
-  # still give a lab the lecture's credits.
+  # Catalog::ScheduleRules has the rules and the totals, which
+  # Catalog::ScheduleOptions shares.
   class ScheduleCheck
     class TermNotFoundError < ::Catalog::FilterError; end
 
     MAX_CRNS = 30
-    EARLY_START = 900 # HHMM: a meeting that starts before 9:00
+    EARLY_START = ScheduleRules::EARLY_START
 
-    DAYS = Course::MeetingTime.day_of_weeks.keys.freeze
+    DAYS = ScheduleRules::DAYS
 
     def initialize(term_uid:, crns:)
       @term_uid = term_uid
@@ -80,9 +76,7 @@ module Catalog
       }
     end
 
-    def meetings(course)
-      course.filtered_meeting_times.reject(&:all_day?).select { |mt| mt.begin_time.present? && mt.end_time.present? }
-    end
+    def meetings(course) = ScheduleRules.meetings(course)
 
     # Two sections conflict when they meet on the same day at overlapping
     # times, during overlapping dates. Half-term sections in different halves
@@ -90,9 +84,7 @@ module Catalog
     def conflicts
       sections.combination(2).flat_map do |a, b|
         meetings(a).product(meetings(b)).filter_map do |x, y|
-          next unless x.day_of_week == y.day_of_week
-          next unless x.begin_time < y.end_time && y.begin_time < x.end_time
-          next unless dates_overlap?(x, y)
+          next unless ScheduleRules.overlap?(x, y)
 
           {
             crns:  [ a.crn, b.crn ],
@@ -104,12 +96,6 @@ module Catalog
       end
     end
 
-    def dates_overlap?(x, y)
-      return true if [ x.start_date, x.end_date, y.start_date, y.end_date ].any?(&:nil?)
-
-      x.start_date <= y.end_date && y.start_date <= x.end_date
-    end
-
     # A linked section needs every section of one of its option groups.
     def link_problems
       chosen = sections.map(&:crn)
@@ -118,9 +104,9 @@ module Catalog
         links = SectionLinks.new(course)
         next unless links.required?
 
-        groups = links.options.map { |group| group.map(&:crn) }
-        next if groups.any? { |group| (group - chosen).empty? }
+        next if links.met_by?(chosen)
 
+        groups = links.options.map { |group| group.map(&:crn) }
         link_problem(course, links, groups)
       end
     end
@@ -142,42 +128,13 @@ module Catalog
 
     # The same course twice, other than a linked lecture and lab.
     def duplicates
-      sections.group_by { |course| [ course.subject, course.course_number, course.schedule_type ] }
+      sections.group_by { |course| ScheduleRules.duplicate_key(course) }
               .select { |_key, group| group.size > 1 }
               .map do |_key, group|
                 { course_code: code(group.first).split("-").first, crns: group.map(&:crn) }
               end
     end
 
-    def totals
-      all = sections.flat_map { |course| meetings(course) }
-      used_days = DAYS.select { |day| all.any? { |mt| mt.day_of_week == day } }
-
-      {
-        credit_hours:         credit_hours,
-        days:                 used_days,
-        earliest_start:       all.min_by(&:begin_time)&.fmt_begin_time_military,
-        latest_end:           all.max_by(&:end_time)&.fmt_end_time_military,
-        meetings_before_nine: all.count { |mt| mt.begin_time < EARLY_START }
-      }
-    end
-
-    def credit_hours
-      sections.group_by { |course| [ course.subject, course.course_number ] }.sum do |_key, group|
-        banner = group.map { |course| banner_credits[course.id] }
-        if banner.any?
-          group.zip(banner).sum { |course, hours| (hours || course.credit_hours).to_i }
-        else
-          group.filter_map(&:credit_hours).max.to_i
-        end
-      end
-    end
-
-    # Credits Banner gives a section in a chosen partner's pair, by course id.
-    def banner_credits
-      @banner_credits ||= sections.flat_map(&:section_links)
-                                  .reject { |link| link.credit_hours.nil? }
-                                  .to_h { |link| [ link.linked_course_id, link.credit_hours ] }
-    end
+    def totals = ScheduleRules.totals(sections)
   end
 end

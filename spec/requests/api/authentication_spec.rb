@@ -26,6 +26,8 @@ RSpec.describe "API authentication" do
     api/v1/catalog/term_electives#index
     api/v1/catalog/reviews#index
     api/v1/catalog/schedule_checks#show
+    api/v1/catalog/schedule_options#count
+    api/v1/catalog/schedule_options#create
     api/v1/catalog/sections#index
     api/v1/catalog/sections#show
     api/v1/catalog/sections#similar

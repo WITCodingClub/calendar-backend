@@ -9,9 +9,15 @@ module Catalog
   # identifiers applies (Course#linked_sections): source "link_identifier".
   # The identifiers can be wrong: in Spring 2027 they pair COMP 4960 lab 20455
   # with lecture 20451, but Banner pairs it with 20452.
+  #
+  # siblings: sections that are already in memory. When it is given, the
+  # link identifier guess picks the partners from it (Course#link_partner?)
+  # with no query. Catalog::ScheduleOptions loads every section of a course
+  # in one query and passes them.
   class SectionLinks
-    def initialize(course)
-      @course = course
+    def initialize(course, siblings: nil)
+      @course   = course
+      @siblings = siblings
     end
 
     def banner?
@@ -24,7 +30,7 @@ module Catalog
         @course.section_links.sort_by { |link| [ link.option_group, link.linked_course.crn ] }
                .group_by(&:option_group).values.map { |links| links.map(&:linked_course) }
       else
-        partners = @course.is_section_linked ? @course.linked_sections.to_a : []
+        partners = @course.is_section_linked ? guessed_partners : []
         partners.map { |partner| [ partner ] }
       end
     end
@@ -34,6 +40,14 @@ module Catalog
     # section stands alone.
     def required?
       banner? ? options.any? : @course.is_section_linked
+    end
+
+    # True when the CRNs hold every section of one option group, or when the
+    # section needs no partner (Catalog::ScheduleRules).
+    def met_by?(crns)
+      return true unless required?
+
+      options.any? { |group| (group.map(&:crn) - crns).empty? }
     end
 
     def as_json(*)
@@ -47,6 +61,14 @@ module Catalog
         pub_ids:    partners.map(&:public_id),
         options:    options.map { |group| group.map(&:crn) }
       }
+    end
+
+    private
+
+    def guessed_partners
+      return @course.linked_sections.to_a if @siblings.nil?
+
+      @siblings.select { |sibling| @course.link_partner?(sibling) }.sort_by(&:id)
     end
   end
 end

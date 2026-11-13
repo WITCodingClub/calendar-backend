@@ -587,4 +587,41 @@ RSpec.describe Rack::Attack do
       expect(described_class.throttles.fetch("catalog/semantic").block.call(request)).to be_nil
     end
   end
+
+  describe "schedule builder throttles" do
+    let(:claude_ip) { "160.79.104.10" }
+
+    def discriminator(name, path, ip: "1.2.3.4", method: "POST", **env)
+      request = Rack::Attack::Request.new(Rack::MockRequest.env_for(path, method: method, "REMOTE_ADDR" => ip, **env))
+      described_class.throttles.fetch(name).block.call(request)
+    end
+
+    after { McpPlatforms.reset! }
+
+    it "gives the count route a larger budget than the full search" do
+      expect(described_class.throttles.fetch("catalog/schedule-options")).to have_attributes(limit: 30, period: 60)
+      expect(described_class.throttles.fetch("catalog/schedule-options-count")).to have_attributes(limit: 90, period: 60)
+    end
+
+    it "counts each route against its own budget, and catalog/ip too" do
+      expect(discriminator("catalog/schedule-options", "/api/v1/catalog/schedule_options")).to eq("1.2.3.4")
+      expect(discriminator("catalog/schedule-options", "/api/v1/catalog/schedule_options/count")).to be_nil
+      expect(discriminator("catalog/schedule-options-count", "/api/v1/catalog/schedule_options/count")).to eq("1.2.3.4")
+      expect(discriminator("catalog/schedule-options-count", "/api/v1/catalog/schedule_options/count/")).to eq("1.2.3.4")
+      expect(discriminator("catalog/schedule-options-count", "/api/v1/catalog/schedule_options/count", method: "GET")).to be_nil
+      expect(discriminator("catalog/ip", "/api/v1/catalog/schedule_options/count")).to eq("1.2.3.4")
+    end
+
+    it "counts a request with a token against the user" do
+      key = discriminator("catalog/schedule-options-count", "/api/v1/catalog/schedule_options/count",
+                          "HTTP_AUTHORIZATION" => "Bearer #{api_token_for(user)}")
+
+      expect(key).to eq("user:#{user.id}")
+    end
+
+    it "skips a hosted MCP client's address, the same as the other per-IP rules" do
+      expect(discriminator("catalog/schedule-options", "/api/v1/catalog/schedule_options", ip: claude_ip)).to be_nil
+      expect(discriminator("catalog/schedule-options-count", "/api/v1/catalog/schedule_options/count", ip: claude_ip)).to be_nil
+    end
+  end
 end

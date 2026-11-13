@@ -47,6 +47,7 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `list_term_electives` | The elective lists that each school publishes for one term, with the heading of each course and the full text of each PDF. | `GET /api/v1/catalog/terms/:uid/electives` | |
 | `similar_sections` | Sections that teach something close to one section. | `GET /api/v1/catalog/sections/:crn/similar` | |
 | `check_schedule` | Time conflicts, lecture and lab pairs, duplicates, and totals for a set of CRNs. | `GET /api/v1/catalog/schedule_check` | `scheduleCheck` |
+| `find_schedules` | Builds and ranks schedules for a list of courses: one section of each course with its lab, no conflicts, with the hard and soft preferences, highlights, and the preferences to drop when none fits. | `POST /api/v1/catalog/schedule_options` | |
 | `search_instructors` | Instructors who teach, by name or by meaning. | `GET /api/v1/catalog/instructors` | `instructors` |
 | `get_instructor` | One instructor, with RateMyProfessor ratings, distribution, tags, recent reviews, and the sections in a term. | `GET /api/v1/catalog/instructors/:pub_id` | |
 | `similar_instructors` | Instructors who teach something close to one instructor. | `GET /api/v1/catalog/instructors/:pub_id/similar` | |
@@ -293,7 +294,7 @@ A prompt is a task that the student starts from the client, for example as a sla
 
 | Prompt | Arguments | What it does |
 | --- | --- | --- |
-| `plan_term_schedule` | `term`, `courses`, `preferences` | Plans one term: `list_terms`, `my_courses`, `my_course_history`, `get_course` for the prerequisites of each course, `search_sections` with the preferences as filters, then `check_schedule` until each option has no conflicts. Gives one to three options with their CRNs. |
+| `plan_term_schedule` | `term`, `courses`, `preferences` | Plans one term: `list_terms`, `my_courses`, `my_course_history`, `get_course` for the prerequisites of each course, then `find_schedules` with the courses and the preferences. When no schedule fits, it asks the student which preference from `relax` to drop. Then `check_schedule` on each option. Gives one to three options with their CRNs. |
 | `check_my_schedule` | `term` | Checks the student's courses: `my_courses`, `check_schedule` on their CRNs, `get_course` for corequisites, and `my_finals` for exams at the same time. |
 | `plan_degree_progression` | `program`, `catalog_year`, `graduation_term` | Plans each term to graduation: `my_course_history`, then `my_programs`, `list_programs`, and `degree_requirements` for the required courses, then `get_course` for prerequisites, corequisites, and the terms each course is usually offered. Lists the risks. |
 | `find_class_for_free_time` | `term`, `subject`, `days`, `times` | Finds sections that fit the student's free time: `my_busy_times`, `search_sections` with time filters, then `check_schedule`. |
@@ -332,7 +333,7 @@ Each tool needs one OAuth scope. The consent page shows one checkbox for each sc
 
 | Scope | Gives | Starts |
 | --- | --- | --- |
-| `catalog` | `list_terms`, `list_subjects`, `search_sections`, `get_section`, `search_courses`, `get_course`, `list_programs`, `degree_requirements`, `list_term_electives`, `similar_sections`, `check_schedule`, `search_instructors`, `get_instructor`, `similar_instructors`, `search_reviews`, `catalog_graphql`, `university_events` | always on, no checkbox (public data) |
+| `catalog` | `list_terms`, `list_subjects`, `search_sections`, `get_section`, `search_courses`, `get_course`, `list_programs`, `degree_requirements`, `list_term_electives`, `similar_sections`, `check_schedule`, `find_schedules`, `search_instructors`, `get_instructor`, `similar_instructors`, `search_reviews`, `catalog_graphql`, `university_events` | always on, no checkbox (public data) |
 | `schedule:read` | `my_courses`, `my_course_history`, `my_finals`, `my_busy_times` | checked |
 | `friends:read` | `list_friends`, `friend_busy_times` | checked |
 | `settings:read` | `my_calendar_settings`, `preview_template` | checked |
