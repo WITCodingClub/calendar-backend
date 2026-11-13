@@ -62,6 +62,25 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     expect(result[:assumptions]).to include(a_string_including("past term with no outcome from LeopardWeb counts as passed"))
   end
 
+  # Banner sections store the subject as a label, "Widget Design (WDGT)".
+  it "reads the subject code out of a Banner subject label" do
+    item(subject_code: "WDGT", course_number: 1000)
+    take(past_term, "Widget Design (WDGT)", 1000)
+
+    result = progress
+
+    expect(statuses(result)).to eq([ [ "WDGT 1000", "done" ] ])
+    expect(result[:courses].pluck(:code)).to eq([ "WDGT 1000" ])
+  end
+
+  it "counts a lecture with a subject label and its lab with the bare code as one course" do
+    item(subject_code: "WDGT", course_number: 1000)
+    take(past_term, "Widget Design (WDGT)", 1000, credits: 4)
+    take(past_term, "WDGT", 1000, credits: 1)
+
+    expect(progress[:courses].map { |course| course.slice(:code, :credits) }).to eq([ { code: "WDGT 1000", credits: 4 } ])
+  end
+
   it "counts a passed outcome in the current term as done, and a D as done" do
     item(subject_code: "WDGT", course_number: 1000)
     item(subject_code: "WDGT", course_number: 1100)
