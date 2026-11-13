@@ -11,8 +11,9 @@ module McpTools
                 "hours, and the terms it is usually offered. An elective slot has its elective list and the " \
                 "course that fills it. Each plan row has its planned_term (the real term of its plan " \
                 "semester) and behind (open, and its term already started). Each program has a summary: its " \
-                "total credits, school, department, the credits I earned and take now, and the co-op " \
-                "semesters. Each program also has its start_term, a timeline of the plan semesters with their " \
+                "total credits, school, department, the credits I earned and take now in courses that fill " \
+                "a row of that program, the credits and codes of my other courses (not_counted), and the " \
+                "co-op semesters. Each program also has its start_term, a timeline of the plan semesters with their " \
                 "real terms (when: past, current, registering, or future; estimated after year 2; co_op), and " \
                 "expected_end. A planned program or a program argument has no start term, so it has no " \
                 "timeline. The hss entry of a program has each HSS category with a hint (the subjects or " \

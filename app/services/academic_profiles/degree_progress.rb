@@ -175,7 +175,8 @@ module AcademicProfiles
     def program_json(set, plan_name, row)
       plan = pick_plan(set, plan_name)
       pool = attempts
-      requirements, hss = plan ? plan_requirements(set, plan, pool) : [ list_requirements(set, pool), nil ]
+      # counted: the courses that fill a row of this program (#1012).
+      requirements, hss, counted = plan ? plan_requirements(set, plan, pool) : list_requirements(set, pool)
       open = requirements.reject { |requirement| requirement[:status] == "done" }
 
       {
@@ -190,7 +191,7 @@ module AcademicProfiles
         plan:         plan&.name,
         plans:        set.program_plans.map(&:name),
         counts:       %w[done in_progress open].index_with { |status| requirements.count { |r| r[:status] == status } },
-        summary:      summary_json(set, requirements),
+        summary:      summary_json(set, requirements, counted),
         requirements: requirements,
         open:         open.map { |requirement| requirement.slice(:code, :label, :options, :elective_list, :status) },
         # The humanities and social science requirement of the major, or nil
@@ -217,7 +218,8 @@ module AcademicProfiles
     end
 
     # Rows of a plan of study. Course rows take a course first, then choice
-    # rows, then elective slots.
+    # rows, then elective slots. Returns the rows, the HSS entry, and the
+    # courses that fill the rows.
     def plan_requirements(set, plan, pool)
       groups = set.elective_groups.index_by(&:id)
       items = plan.items.to_a
@@ -245,7 +247,7 @@ module AcademicProfiles
       broad.each { |item, group| results[item.id] = take_for(pool, used, group) }
 
       rows = items.map { |item| item_json(item, results[item.id], needs[item.id]) }
-      [ rows, hss_json(hss, items, groups, results) ]
+      [ rows, hss_json(hss, items, groups, results), results.values.compact.uniq ]
     end
 
     # What counts toward the HSS requirement before the "HSS Elective" slots
@@ -413,25 +415,35 @@ module AcademicProfiles
       (rows + lists).map { |course| [ course.subject_code, course.course_number ] } + taken.map(&:key)
     end
 
-    # The program totals (#989). credits sums the credits of the courses the
-    # student took, each course once with its best attempt, as the rows count
-    # them: done courses are earned, courses in progress are in_progress. A
-    # course whose sections have no credit hours takes those of CatalogCourse.
-    # co_ops counts the co-op semester rows of the plan and the done ones.
-    def summary_json(set, requirements)
+    # The program totals (#989, #1012). credits sums the credits of the
+    # courses that fill a row of this program (counted), each course once:
+    # done courses are earned, courses in progress are in_progress.
+    # not_counted has the other best attempts the student passed or takes,
+    # such as ENGL 700 or a course past a list's minimum. A third English
+    # course that counts as Humanities fills no row, so it is not counted
+    # here, but hss.credits counts it. A course whose sections have no credit
+    # hours takes those of CatalogCourse. co_ops counts the co-op semester
+    # rows of the plan and the done ones.
+    def summary_json(set, requirements, counted)
       co_ops = requirements.select { |row| co_op_row?(row) }
+      other = attempts - counted
       {
         total_credits: set.total_credits,
         school:        set.school_name,
         department:    set.department_name,
-        credits:       { earned: credits_with("done"), in_progress: credits_with("in_progress") },
+        credits:       {
+          earned:      credits_with(counted, "done"),
+          in_progress: credits_with(counted, "in_progress"),
+          not_counted: { earned: credits_with(other, "done"), in_progress: credits_with(other, "in_progress"),
+                         courses: other.sort_by(&:key).map(&:code) }
+        },
         co_ops:        { required: co_ops.size, done: co_ops.count { |row| row[:status] == "done" } }
       }
     end
 
-    def credits_with(status)
-      attempts.select { |course| course.status == status }
-              .sum { |course| (course.credits || @course_details.for(course.key)[:credit_hours]).to_i }
+    def credits_with(courses, status)
+      courses.select { |course| course.status == status }
+             .sum { |course| (course.credits || @course_details.for(course.key)[:credit_hours]).to_i }
     end
 
     # A slot in the Co-op list, or a course row that names a co-op semester
@@ -443,10 +455,11 @@ module AcademicProfiles
     end
 
     # A program with no plan of study, such as a minor: each elective list
-    # with its minimum.
+    # with its minimum. Returns the rows, no HSS entry, and the courses the
+    # lists count.
     def list_requirements(set, pool)
       used = []
-      set.elective_groups.map do |group|
+      rows = set.elective_groups.map do |group|
         codes = group.courses.map { |course| [ course.subject_code, course.course_number ] }
         next unchecked_list_json(group) unless countable?(group)
 
@@ -459,6 +472,7 @@ module AcademicProfiles
         end
         list_json(group, courses, needed)
       end
+      [ rows, nil, used ]
     end
 
     def list_json(group, courses, needed)
