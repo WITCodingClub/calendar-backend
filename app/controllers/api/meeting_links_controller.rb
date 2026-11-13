@@ -44,13 +44,17 @@ module Api
       return render_not_found unless link
 
       authorize link, :destroy?
-      return delete_permanently(link) if ActiveModel::Type::Boolean.new.cast(params[:permanent])
+      return delete_permanently(link) if permanent?
 
       link.revoke! unless link.used?
       render json: { meeting_link: MeetingLinkSerializer.new(link).as_json }
     end
 
     private
+
+    # Only "true" or "1" deletes. Any other value revokes, so a typo never
+    # deletes a link.
+    def permanent? = params[:permanent].to_s.in?(%w[true 1])
 
     def delete_permanently(link)
       if link.used?

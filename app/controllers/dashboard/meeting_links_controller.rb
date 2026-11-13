@@ -42,7 +42,7 @@ module Dashboard
       end
 
       authorize link, :destroy?
-      return delete_permanently(link) if ActiveModel::Type::Boolean.new.cast(params[:permanent])
+      return delete_permanently(link) if permanent?
 
       if link.used?
         redirect_to dashboard_meeting_links_path, alert: "This link was already used. Delete the event in your calendar to cancel the meeting."
@@ -53,6 +53,10 @@ module Dashboard
     end
 
     private
+
+    # Only "true" or "1" deletes. Any other value revokes, so a typo never
+    # deletes a link.
+    def permanent? = params[:permanent].to_s.in?(%w[true 1])
 
     def delete_permanently(link)
       if link.removable?

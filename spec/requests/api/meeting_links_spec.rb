@@ -132,6 +132,15 @@ RSpec.describe "Api::MeetingLinks", type: :request do
         expect(link.reload).not_to be_revoked
       end
 
+      it "revokes and keeps the link when permanent is not true" do
+        link = create(:meeting_link, :revoked, user: user)
+
+        delete "/api/meeting_links/#{link.public_id}", params: { permanent: "no" }, headers: headers
+
+        expect(response).to have_http_status(:ok)
+        expect(MeetingLink.exists?(link.id)).to be(true)
+      end
+
       context "with permanent=true" do
         it "deletes a revoked or expired link" do
           revoked = create(:meeting_link, :revoked, user: user)
