@@ -90,6 +90,17 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     expect(slot[:list]).to eq(heading: "Widget elective", notes: nil, min_courses: 1, min_credits: nil, subject_codes: [])
   end
 
+  it "loads the catalog courses in one query" do
+    create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 2100)
+    item(subject_code: "WDGT", course_number: 2100)
+
+    queries = []
+    callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { result }
+
+    expect(queries.size).to eq(1)
+  end
+
   it "says if the term has a section, and nothing when the term has no sections yet" do
     item(subject_code: "WDGT", course_number: 2100)
     item(subject_code: "WDGT", course_number: 2200)

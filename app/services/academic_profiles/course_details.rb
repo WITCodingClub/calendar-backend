@@ -13,7 +13,9 @@ module AcademicProfiles
     # The details of a code that CatalogCourse does not know.
     UNKNOWN = { title: nil, description: nil, credit_hours: nil, typically_offered: nil }.freeze
 
-    # The details of one CatalogCourse row, or UNKNOWN for nil.
+    # The details of one CatalogCourse row, or UNKNOWN for nil. A row that
+    # Catalog::CourseDetailsSync did not fill yet has no typically_offered,
+    # so an empty list does not read as "never offered".
     def self.json(catalog_course)
       return UNKNOWN if catalog_course.nil?
 
@@ -21,7 +23,7 @@ module AcademicProfiles
         title:             catalog_course.title,
         description:       catalog_course.description,
         credit_hours:      catalog_course.credit_hours,
-        typically_offered: catalog_course.typically_offered
+        typically_offered: catalog_course.details_fetched_at ? catalog_course.typically_offered : nil
       }
     end
 
@@ -51,7 +53,8 @@ module AcademicProfiles
           pairs.group_by(&:first)
                .map { |subject, list| CatalogCourse.where(subject_code: subject, course_number: list.map(&:last)) }
                .reduce(:or)
-               .select(:id, :subject_code, :course_number, :title, :description, :credit_hours, :typically_offered)
+               .select(:id, :subject_code, :course_number, :title, :description, :credit_hours, :typically_offered,
+                       :details_fetched_at)
                .index_by { |row| [ row.subject_code, row.course_number ] }
         end
       end

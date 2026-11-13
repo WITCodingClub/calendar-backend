@@ -52,14 +52,18 @@ module AcademicProfiles
 
     # include_planned also checks the student's planned programs (#867), so
     # the student sees the courses a planned minor adds. It does nothing with
-    # a program argument.
-    def initialize(user, program: nil, catalog_year: nil, plan: nil, include_planned: false, today: Time.zone.today)
+    # a program argument. course_details: false leaves out the catalog
+    # details of the rows (#989) and their query, for a caller that does not
+    # send them, such as NextTermCourses.
+    def initialize(user, program: nil, catalog_year: nil, plan: nil, include_planned: false, course_details: true,
+                   today: Time.zone.today)
       @user = user
       # A query string can be an array or a hash, so each value becomes text.
       @program = program.presence&.to_s
       @catalog_year = catalog_year.presence&.to_s
       @plan_name = plan.presence&.to_s
       @include_planned = include_planned
+      @with_details = course_details
       @today = today
     end
 
@@ -68,7 +72,7 @@ module AcademicProfiles
       entries = requirement_sets
       raise NoProgramError, NO_PROGRAM_MESSAGE if entries.empty?
 
-      @course_details = CourseDetails.new(detail_codes(entries), aliases)
+      @course_details = CourseDetails.new(@with_details ? detail_codes(entries) : [], aliases)
       {
         programs:    entries.map { |set, plan_name, row| with_terms(program_json(set, plan_name, row), row) },
         courses:     taken.map(&:as_json),
@@ -402,7 +406,12 @@ module AcademicProfiles
     # An elective slot or a choice gets the course that fills it, or nil.
     def details_json(item, course)
       json = { list: elective_list_json(item.elective_group) }
-      return json.merge(@course_details.for([ item.subject_code, item.course_number ])) if item.course?
+      if item.course?
+        # A course with no CatalogCourse row keeps the title of the section
+        # that meets the row.
+        details = @course_details.for([ item.subject_code, item.course_number ])
+        return json.merge(details, title: details[:title] || course&.title)
+      end
 
       json.merge(filled_course: course && filled_course_json(course))
     end
@@ -429,7 +438,8 @@ module AcademicProfiles
 
     # The program totals (#989). credits sums the credits of the courses the
     # student took, each course once with its best attempt, as the rows count
-    # them: done courses are earned, courses in progress are in_progress.
+    # them: done courses are earned, courses in progress are in_progress. A
+    # course whose sections have no credit hours takes those of CatalogCourse.
     # co_ops counts the co-op semester rows of the plan and the done ones.
     def summary_json(set, requirements)
       co_ops = requirements.select { |row| co_op_row?(row) }
@@ -443,7 +453,8 @@ module AcademicProfiles
     end
 
     def credits_with(status)
-      attempts.select { |course| course.status == status }.sum { |course| course.credits.to_i }
+      attempts.select { |course| course.status == status }
+              .sum { |course| (course.credits || @course_details.for(course.key)[:credit_hours]).to_i }
     end
 
     # A slot in the Co-op list, or a course row that names a co-op semester

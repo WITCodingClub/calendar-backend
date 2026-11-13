@@ -515,6 +515,33 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       )
     end
 
+    it "keeps the section title of a course row with no catalog row, and its catalog credits when the section has none" do
+      create(:catalog_course, subject_code: "WDGT", course_number: 1100, credit_hours: 3)
+      item(subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 1100)
+      section = take(past_term, "WDGT", 1000)
+      take(past_term, "WDGT", 1100, credits: nil)
+
+      program = progress[:programs].first
+
+      expect(program[:requirements].first).to include(title: section.title, description: nil)
+      # Not fetched from Banner yet: no list, not an empty one.
+      expect(program[:requirements].second).to include(credit_hours: 3, typically_offered: nil)
+      expect(program[:summary][:credits]).to eq(earned: 7, in_progress: 0)
+    end
+
+    it "leaves out the details and their query with course_details: false" do
+      create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 1000)
+
+      queries = []
+      callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
+      result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { progress(course_details: false) }
+
+      expect(queries).to be_empty
+      expect(result[:programs].first[:requirements].first).to include(description: nil, list: nil)
+    end
+
     it "counts a course row that names a co-op semester" do
       item(subject_code: "COOP", course_number: 3500)
       item(subject_code: "COOP", course_number: 4500)

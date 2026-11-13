@@ -82,7 +82,9 @@ module AcademicProfiles
     end
 
     def progress
-      @progress ||= DegreeProgress.new(@user, today: @today).call
+      # The rows carry no course details: course_json loads them with the
+      # prerequisites, in one query (#989).
+      @progress ||= DegreeProgress.new(@user, course_details: false, today: @today).call
     end
 
     def program_entries
