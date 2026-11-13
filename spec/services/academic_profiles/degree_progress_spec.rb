@@ -942,9 +942,11 @@ RSpec.describe AcademicProfiles::DegreeProgress do
         overlap = minor_entry[:overlap]
 
         # MATH 3500 fits the Mathematics Elective. The free slot takes one of
-        # the five other courses, so four have no slot: one more term.
+        # the five other courses, so four have no slot: one more term after
+        # the major's expected end. Both slots are behind, so the estimate
+        # (#1011) puts that end in Spring 2028, a year after the plan end.
         expect(overlap[:slots].pluck(:label)).to eq([ "Free Elective", "Mathematics Elective" ])
-        expect(overlap).to include(extra: 6, unplaced: 4, expected_end_with_minor: { term: "Fall 2027", estimated: true })
+        expect(overlap).to include(extra: 6, unplaced: 4, expected_end_with_minor: { term: "Fall 2028", estimated: true })
       end
 
       it "moves a course to another slot so that the most courses get a slot" do
