@@ -902,9 +902,12 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       program = progress[:programs].sole
 
       expect(program[:start_term]).to eq(StudentProgramsSerializer.new(user).as_json[:programs].sole[:start_term])
-      expect(program[:timeline].map { |semester| semester.values_at(:term, :when, :estimated) })
-        .to eq([ [ "Fall 2025", "past", false ], [ "Fall 2026", "current", false ], [ "Spring 2028", "future", true ] ])
-      expect(program[:expected_end]).to eq(term: "Spring 2028", estimated: true)
+      # The timeline is the estimate (#1011): the two behind rows move to the
+      # registering term and the next fall, and the plan end stays.
+      expect(program[:timeline].map { |semester| semester.values_at(:term, :when, :estimated, :basis) })
+        .to eq([ [ "Spring 2027", "registering", true, "estimate" ], [ "Fall 2027", "future", true, "estimate" ],
+                 [ "Spring 2028", "future", true, "plan" ] ])
+      expect(program[:expected_end]).to eq(term: "Spring 2028", estimated: true, plan_end: "Spring 2028")
       expect(program[:requirements].map { |row| row.values_at(:code, :planned_term, :planned_term_uid, :behind) })
         .to eq([ [ "WDGT 1000", "Fall 2025", 202610, true ], [ "WDGT 2000", "Fall 2026", 202710, true ],
                  [ "WDGT 3000", "Spring 2028", 202820, false ] ])
@@ -915,7 +918,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       user.student_programs.sole.update!(catalog_term_uid: nil)
       create(:academic_profile, user: user, admit_term_uid: 202620)
 
-      expect(progress[:programs].sole).to include(start_term: "Spring 2026", expected_end: include(term: "Fall 2025"))
+      expect(progress[:programs].sole).to include(start_term: "Spring 2026", expected_end: include(plan_end: "Fall 2025"))
     end
 
     it "has no start term or timeline for a planned program or a program argument" do
@@ -926,7 +929,61 @@ RSpec.describe AcademicProfiles::DegreeProgress do
         program = result[:programs].sole
         expect(program).to include(start_term: nil, timeline: [], expected_end: nil)
         expect(program[:requirements].sole).to include(planned_term: nil, planned_term_uid: nil, behind: false)
+        # No estimate (#1011): the rows keep the fields of #990 only.
+        expect(program[:requirements].sole.keys).not_to include(:expected_term, :expected_term_uid, :moved)
       end
+    end
+  end
+
+  describe "the estimate from the student's history (#1011)" do
+    let(:summer) { create(:term, year: 2026, season: :summer, end_date: Date.new(2026, 8, 15)) }
+
+    before { allow(Term).to receive(:current).and_return(build_stubbed(:term, uid: 202710, year: 2026, season: :fall)) }
+
+    it "puts a done course in the term the student took it, and builds the timeline from the estimate" do
+      create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 2000, typically_offered: %w[spring])
+      item(subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 2000, year_index: 2, season: "fall")
+      item(subject_code: "WDGT", course_number: 3000, year_index: 2, season: "spring")
+      take(past_term, "WDGT", 1000, outcome: "c_or_better")
+      take(summer, "WDGT", 2000, outcome: "c_or_better")
+
+      program = progress[:programs].sole
+
+      expect(program[:requirements].map { |row| row.values_at(:code, :planned_term, :expected_term, :expected_term_uid, :moved) })
+        .to eq([ [ "WDGT 1000", "Fall 2025", "Fall 2025", 202610, nil ], [ "WDGT 2000", "Fall 2026", "Summer 2026", 202630, "taken" ],
+                 [ "WDGT 3000", "Spring 2027", "Spring 2027", 202720, nil ] ])
+      expect(program[:timeline].map { |term| term.values_at(:term, :season, :when, :basis) })
+        .to eq([ [ "Fall 2025", "fall", "past", "taken" ], [ "Summer 2026", "summer", "past", "taken" ],
+                 [ "Spring 2027", "spring", "registering", "plan" ] ])
+      expect(program[:expected_end]).to eq(term: "Spring 2027", estimated: false, plan_end: "Spring 2027")
+    end
+
+    it "reads the prerequisite trees in the one catalog course query" do
+      create(:catalog_course, subject_code: "WDGT", course_number: 1000)
+      create(:catalog_course, subject_code: "WDGT", course_number: 2000,
+                              prerequisites: { "type" => "course", "subject_code" => "WDGT", "course_number" => "1000" })
+      item(subject_code: "WDGT", course_number: 1000, year_index: 2, season: "spring")
+      item(subject_code: "WDGT", course_number: 2000, year_index: 2, season: "spring")
+
+      queries = []
+      callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
+      result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { Prosopite.scan { progress } }
+
+      expect(queries.size).to eq(1)
+      expect(result[:programs].sole[:requirements].pluck(:expected_term, :moved))
+        .to eq([ [ "Spring 2027", nil ], [ "Fall 2027", "prerequisite" ] ])
+      # The tree is not part of the response.
+      expect(result[:programs].sole[:requirements].first).not_to have_key(:prerequisites)
+    end
+
+    it "leaves out the estimate with course_details: false, as NextTermCourses calls it" do
+      item(subject_code: "WDGT", course_number: 1000)
+
+      program = progress(course_details: false)[:programs].sole
+
+      expect(program[:requirements].sole.keys).not_to include(:expected_term, :moved)
+      expect(program[:expected_end]).to eq(term: "Fall 2025", estimated: false)
     end
   end
 end

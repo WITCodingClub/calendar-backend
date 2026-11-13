@@ -35,8 +35,6 @@ module AcademicProfiles
 
     RANK = { "done" => 0, "in_progress" => 1, "not_passed" => 2 }.freeze
     PASSED = %w[c_or_better passed_below_c].freeze
-    # The codes of a co-op semester, as "COOP 3500".
-    CO_OP_CODES = DegreeRequirements::SharedElectives::CO_OP_TERMS.map { |code| code.join(" ") }.freeze
 
     # A course the student took or takes. status is done, in_progress, or
     # not_passed.
@@ -90,10 +88,27 @@ module AcademicProfiles
     # The real terms of the plan (#990): start_term, timeline, expected_end,
     # and the planned term of each row. The start term is the one of
     # GET /api/user/programs (ProgramTimeline). A program argument has no
-    # student row, so it has no start term.
+    # student row, so it has no start term. An active program then gets the
+    # estimate from the student's history (PlanEstimate, #1011).
     def with_terms(entry, row)
       start = row && ProgramTimeline.new(row, requirement_set: nil, admit_term_uid: admit_term_uid).start_term_uid
-      HssDetails.with_open_slots(PlanTerms.new(start, current_term_uid: current_term&.uid).call(entry))
+      entry = PlanTerms.new(start, current_term_uid: current_term&.uid).call(entry)
+      entry = estimate(entry, start) if estimate?(entry, row, start)
+      HssDetails.with_open_slots(entry)
+    end
+
+    # The estimate needs a start term, a current term with a Banner code, a
+    # plan of study, and the course details (credits, terms offered,
+    # prerequisites). A planned program and a program argument keep the
+    # fields of #990 only.
+    def estimate?(entry, row, start)
+      @with_details && row&.status == "active" && start && entry[:plan] &&
+        current_term&.uid.to_s.match?(TermCode::CODE)
+    end
+
+    def estimate(entry, start)
+      PlanEstimate.new(start, current_term_uid: current_term.uid, prerequisites: @course_details, aliases: aliases,
+                              taken: attempts.map(&:key)).call(entry)
     end
 
     # The admit term of the academic profile, read once for every program.
@@ -446,13 +461,8 @@ module AcademicProfiles
              .sum { |course| (course.credits || @course_details.for(course.key)[:credit_hours]).to_i }
     end
 
-    # A slot in the Co-op list, or a course row that names a co-op semester
-    # (COOP3500, COOP4500, COOP5000). COOP2500 is a normal course.
-    def co_op_row?(row)
-      return row[:elective_list] == DegreeRequirements::SharedElectives::CO_OP.name if row[:kind] == "placeholder"
-
-      row[:kind] == "course" && CO_OP_CODES.include?(row[:code])
-    end
+    # A co-op semester row (CoOpRows). COOP2500 is a normal course.
+    def co_op_row?(row) = CoOpRows.co_op?(row)
 
     # A program with no plan of study, such as a minor: each elective list
     # with its minimum. Returns the rows, no HSS entry, and the courses the

@@ -465,6 +465,8 @@ module McpTools
       object(heading: nullable(STRING), notes: nullable(STRING), min_courses: nullable(INTEGER),
              min_credits: nullable(INTEGER), subject_codes: STRINGS)
     ).freeze
+    # Why a row of the estimate is not in its plan term (#1011).
+    ESTIMATE_MOVES = %w[taken behind prerequisite offered co_op load].freeze
     DEGREE_REQUIREMENT = object(
       {
         year:          INTEGER,
@@ -486,6 +488,11 @@ module McpTools
         planned_term:     nullable(STRING),
         planned_term_uid: nullable(INTEGER),
         behind:           BOOLEAN,
+        # The estimate from the student's history (#1011): only on the rows
+        # of an active program with a start term and a plan of study.
+        expected_term:     nullable(STRING),
+        expected_term_uid: nullable(INTEGER),
+        moved:             { type: %w[string null], enum: [ *ESTIMATE_MOVES, nil ] },
         # A course row: the details of its course.
         title:         nullable(STRING),
         **COURSE_DETAILS,
@@ -495,7 +502,7 @@ module McpTools
         filled_course: nullable(object(code: STRING, title: nullable(STRING), **COURSE_DETAILS))
       },
       optional: %i[year season code label options hss_category min_courses min_credits course term courses
-                   title description credit_hours typically_offered list filled_course]
+                   title description credit_hours typically_offered list filled_course expected_term expected_term_uid moved]
     ).freeze
     # The humanities and social science requirement of a major.
     HSS_REQUIREMENT = nullable(
@@ -518,15 +525,21 @@ module McpTools
         )
       )
     ).freeze
-    # One plan semester of a program against its real term (#990).
+    # One term of the timeline of a program (#990). With the estimate
+    # (#1011), each term that has a row, with its basis. year is null for a
+    # term before plan year 1.
     PLAN_SEMESTER = object(
-      term:      STRING,
-      uid:       INTEGER,
-      year:      INTEGER,
-      season:    STRING,
-      when:      { type: %w[string null], enum: [ "past", "current", "registering", "future", nil ] },
-      estimated: BOOLEAN,
-      co_op:     BOOLEAN
+      {
+        term:      STRING,
+        uid:       INTEGER,
+        year:      nullable(INTEGER),
+        season:    STRING,
+        when:      { type: %w[string null], enum: [ "past", "current", "registering", "future", nil ] },
+        estimated: BOOLEAN,
+        co_op:     BOOLEAN,
+        basis:     { type: "string", enum: %w[taken plan estimate] }
+      },
+      optional: %i[basis]
     ).freeze
     # One elective list of a program with no plan of study, with its courses
     # (AcademicProfiles::ProgramOverlap, #992).
@@ -580,7 +593,9 @@ module McpTools
           # The plan against real terms (#990). Empty and null without a
           # start term or a plan of study.
           start_term:   nullable(STRING),
-          expected_end: nullable(object(term: STRING, estimated: BOOLEAN)),
+          # With the estimate (#1011), term is the estimate and plan_end
+          # is the end of the plan.
+          expected_end: nullable(object({ term: STRING, estimated: BOOLEAN, plan_end: nullable(STRING) }, optional: %i[plan_end])),
           timeline:     array(PLAN_SEMESTER),
           # The same values as summary (#992).
           total_credits: nullable(INTEGER),

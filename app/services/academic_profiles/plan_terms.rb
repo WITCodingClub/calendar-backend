@@ -27,7 +27,6 @@ module AcademicProfiles
     def initialize(start_term_uid, current_term_uid:)
       @start = start_term_uid
       @current = current_term_uid
-      @registering = NextTermCourses.default_term_uid(current_term_uid)
     end
 
     # The program entry of DegreeProgress with the term fields.
@@ -44,6 +43,19 @@ module AcademicProfiles
       )
     end
 
+    # past, current, registering, or future. A summer term between the
+    # current term and the registering term is future: the registering term
+    # is the next fall or spring term, as in NextTermCourses. nil without a
+    # current term. PlanEstimate also uses it.
+    def self.time_of(uid, current)
+      return nil if current.nil?
+      return PAST if uid < current
+      return CURRENT if uid == current
+      return REGISTERING if uid == NextTermCourses.default_term_uid(current)
+
+      FUTURE
+    end
+
     private
 
     def semester_json(semester)
@@ -54,20 +66,8 @@ module AcademicProfiles
         season:    semester.season,
         when:      time_of(semester.uid),
         estimated: semester.year > EXACT_YEARS,
-        co_op:     semester.rows.all? { |row| co_op?(row) }
+        co_op:     semester.rows.all? { |row| CoOpRows.co_op?(row) }
       }
-    end
-
-    CO_OP_CODES = DegreeRequirements::SharedElectives::CO_OP_TERMS.map { |code| code.join(" ") }.freeze
-
-    # A row of the Co-op elective list, or a co-op course row (COOP 3500),
-    # or a choice of co-op courses. Most plans list a co-op semester as a
-    # course row with no elective list.
-    def co_op?(row)
-      return true if row[:elective_list] == DegreeRequirements::SharedElectives::CO_OP.name
-
-      codes = [ row[:code], *row[:options] ].compact
-      codes.any? && codes.all? { |code| CO_OP_CODES.include?(code) }
     end
 
     # A row with no plan semester (an elective list of a minor) or no start
@@ -83,16 +83,6 @@ module AcademicProfiles
       !uid.nil? && !@current.nil? && row[:status] == "open" && uid <= @current
     end
 
-    # A summer term between the current term and the registering term is
-    # future: the registering term is the next fall or spring term, as in
-    # NextTermCourses. nil without a current term.
-    def time_of(uid)
-      return nil if @current.nil?
-      return PAST if uid < @current
-      return CURRENT if uid == @current
-      return REGISTERING if uid == @registering
-
-      FUTURE
-    end
+    def time_of(uid) = self.class.time_of(uid, @current)
   end
 end

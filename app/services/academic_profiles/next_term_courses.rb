@@ -28,10 +28,6 @@ module AcademicProfiles
   #
   # GET /api/user/next_term_courses and the My programs dashboard page send it.
   class NextTermCourses
-    # A prerequisite tree node is met, not met, or unknown (a test score).
-    MET = "met"
-    NOT_MET = "not_met"
-    UNKNOWN = "unknown"
     COUNTED = %w[done in_progress].freeze
     # An assumed course counts as passed with a C or better.
     ASSUMED = { status: "assumed", outcome: nil }.freeze
@@ -259,56 +255,11 @@ module AcademicProfiles
       { prerequisites: result && result[:status], missing: missing, missing_in_plan: missing_in_plan(missing) }
     end
 
-    # status of one prerequisite tree node, and the courses not met under it.
-    def check(node)
-      case node["type"]
-      when "and", "or"
-        results = node["operands"].map { |operand| check(operand) }
-        statuses = results.pluck(:status)
-        status = if node["type"] == "and"
-          if statuses.all?(MET) then MET
-          elsif statuses.include?(NOT_MET) then NOT_MET
-          else UNKNOWN
-          end
-        elsif statuses.include?(MET) then MET
-        elsif statuses.all?(NOT_MET) then NOT_MET
-        else UNKNOWN
-        end
-        { status: status, missing: status == MET ? [] : missing_of(node["type"], results) }
-      when "course"
-        code = "#{node['subject_code']} #{node['course_number']}"
-        status = course_status(node["subject_code"], node["course_number"].to_i, node["min_grade"])
-        { status: status, missing: status == MET ? [] : [ code ] }
-      else
-        { status: UNKNOWN, missing: [] }
-      end
-    end
-
-    # The missing courses of an and or an or node. The options of an or
-    # are one entry, such as "WDGT 1100 or WDGT 1200", so a reader does not
-    # think it needs both.
-    def missing_of(type, results)
-      lists = results.map { |result| result[:missing] }.reject(&:empty?)
-      return lists.flatten.uniq if type == "and"
-
-      lists.map { |list| list.size == 1 ? list.first : "(#{list.join(' and ')})" }.uniq.then do |options|
-        options.size > 1 ? [ options.join(" or ") ] : options
-      end
-    end
-
-    # met when the student did or takes the course or an alias of it before
-    # the term, with a grade the minimum allows. Outcomes say only "C or
-    # better" or "passed below C", so a minimum above C is unknown.
-    def course_status(subject, number, min_grade)
-      keys = [ [ subject, number ], *aliases.fetch([ subject, number ], []) ]
-      courses = keys.flat_map { |key| counted_courses.fetch(key, []) }
-      return NOT_MET if courses.empty?
-
-      grade = min_grade.to_s.strip.upcase
-      return MET if grade.empty? || grade.start_with?("D")
-      return UNKNOWN unless grade.start_with?("C")
-
-      courses.any? { |course| course[:outcome] != "passed_below_c" } ? MET : NOT_MET
+    # The prerequisite tree walk (PrerequisiteCheck) with the courses that
+    # count.
+    def check(tree)
+      @prerequisite_check ||= PrerequisiteCheck.new(counted_courses, aliases)
+      @prerequisite_check.call(tree)
     end
 
     # The course codes of missing that a planned or behind row of the term
