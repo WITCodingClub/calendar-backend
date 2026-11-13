@@ -89,10 +89,18 @@ module Api
           }.compact
         end
 
+        STRICT_BOOLEANS = { "true" => true, "1" => true, "false" => false, "0" => false }.freeze
+
         # The seat filters echo in meta.filters as booleans. A missing or empty
-        # value is nil, so compact leaves it out.
+        # value is nil, so compact leaves it out. Any value other than true,
+        # false, 1, or 0 is an invalid filter value, so it returns HTTP 400.
         def optional_boolean_param(key)
-          ActiveModel::Type::Boolean.new.cast(params[key].presence)
+          value = params[key]
+          return nil if value.blank?
+
+          STRICT_BOOLEANS.fetch(value.to_s.strip.downcase) do
+            raise ::Catalog::FilterError, "Invalid #{key} #{value.inspect}; use true or false"
+          end
         end
       end
     end

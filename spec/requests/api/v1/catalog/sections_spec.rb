@@ -186,6 +186,22 @@ RSpec.describe "Api::V1::Catalog::Sections", type: :request do
       expect(json["meta"]["filters"]).to eq("open_only" => false)
     end
 
+    it "ignores include_waitlist without open_only" do
+      comp2000.update!(seats_capacity: 30, seats_available: 0)
+      get "/api/v1/catalog/sections", params: { include_waitlist: "true" }
+
+      expect(crns).to eq([ 10_001, 10_002, 10_003, 20_001 ])
+      expect(json["meta"]["filters"]).to eq("include_waitlist" => true)
+    end
+
+    it "returns a structured 400 for a seat filter that is not true or false" do
+      get "/api/v1/catalog/sections", params: { open_only: "no" }
+
+      expect(response).to have_http_status(:bad_request)
+      expect(json["code"]).to eq("INVALID_FILTER")
+      expect(json["error"]).to match(/Invalid open_only/)
+    end
+
     it "returns a structured 400 for an unknown day" do
       get "/api/v1/catalog/sections", params: { meets_on: "funday" }
 

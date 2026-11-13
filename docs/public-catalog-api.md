@@ -367,6 +367,8 @@ Points to know:
   `include_waitlist`, a full section stays only when `waitlist.available` is
   more than 0.
 - `include_waitlist` has no effect without `open_only`.
+- Both filters accept `true`, `false`, `1`, or `0`. Any other value returns
+  HTTP 400.
 - The filter reads the seats of the section itself, not the seats of its
   `cross_list` group.
 - `meta.filters` gives both values as booleans, for example
