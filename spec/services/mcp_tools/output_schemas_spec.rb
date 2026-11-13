@@ -446,6 +446,33 @@ RSpec.describe "MCP tool output schemas" do
         .to include(kind: "elective_list", status: "open")
     end
 
+    it "matches the HSS details of degree progress (#991)" do
+      term = create(:term, year: 2026, season: :fall)
+      set = create(:requirement_set, degree_program: major, catalog_year: catalog_year, hss_requirement: {
+        "min_credits" => 24, "categories" => DegreeRequirements::HssNoteParser.base_categories + [
+          { "name" => "Ethics", "subject_codes" => [], "courses" => %w[PHIL4501] },
+          { "name" => "Writing intensive", "subject_codes" => [], "courses" => [] }
+        ]
+      })
+      plan = create(:program_plan, requirement_set: set)
+      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: DegreeRequirements::SharedElectives::HSS.subject_codes)
+      english = create(:elective_group, requirement_set: set, name: "English Sequence")
+      create(:elective_group_course, elective_group: english, subject_code: "ENGL", course_number: 1100)
+      create(:program_plan_item, :placeholder, program_plan: plan, label: "English Sequence", elective_group: english)
+      2.times { create(:program_plan_item, :placeholder, program_plan: plan, label: "HSS Elective", elective_group: hss) }
+      create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202710)
+      [ [ "ENGL", 1100 ], [ "HIST", 1000 ] ].each do |subject, number|
+        create(:enrollment, user: user, course: create(:course, term: term, subject: subject, course_number: number))
+      end
+
+      hss_result = expect_valid(McpTools::MyDegreeProgress)[:programs].first[:hss]
+      expect(hss_result[:categories].pluck(:hint)).to include(nil, { subject_codes: [], courses: [ "PHIL 4501" ] })
+      expect(hss_result[:english][:courses]).to eq([ "ENGL 1100" ])
+      expect(hss_result[:courses].pluck(:category)).to eq([ "Humanities" ])
+      expect(hss_result[:open_slots]).to eq([ { label: "HSS Elective", planned_term: "Fall 2026", planned_term_uid: 202710,
+                                                hss_category: "Social Sciences" } ])
+    end
+
     it "matches the next term courses with a course, a choice, and an elective slot" do
       past = create(:term, uid: 202610, year: 2025, season: :fall, end_date: Date.new(2025, 12, 20))
       spring = create(:term, uid: 202720, year: 2027, season: :spring)

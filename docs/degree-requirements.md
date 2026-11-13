@@ -264,10 +264,12 @@ Degree progress: these count first: the courses in the Humanities, Social Scienc
 |---|---|
 | `min_credits` | The HSS minimum of the major, or null. |
 | `credits` | The English and HSS credits: `english.credits` plus the `credits` of each entry of `courses`. A course counts in one of them only. A course with no credit hours counts 0. |
-| `categories[]` | `name`, `checkable`, `status`, and `course` (the best course that meets the category). `hint` is what counts: `{ subject_codes, courses }`, with codes as "PHIL 4401". It is null for a category with no matcher (`checkable: false`). |
+| `categories[]` | `name`, `checkable`, `status`, and `course` (the best course that meets the category). `hint` is what counts: `{ subject_codes, courses }`, with codes as "PHIL 4401". It is null for a category with no matcher (`checkable: false`). The hint lists the catalog codes only: an old or new code of a listed course (a course code alias) also counts, but the hint does not name it. |
 | `english` | `{ credits, courses }`: the courses in the English Sequence slots. A third English course that counts as Humanities is in `courses`, not here. |
 | `courses[]` | Each course that counts toward HSS: the courses in the HSS slots, the required course rows in a category, and the third English course. Each has `code`, `title` (the section title, as in the top-level `courses`), `credits`, `status` (done or in_progress), and `category`. `category` is the first category, in the order of `categories`, that the course meets, or null when it meets none (for example a course in a Humanities slot with a subject of no category). |
-| `open_slots[]` | Each open row of an HSS slot (HSS, Humanities, Social Science, or directed HSS elective) with its `label`, `planned_term`, `planned_term_uid`, and `hss_category`. The terms come from the planned terms of the rows (#990), so they are null without a start term. | The Ethics courses for a page that lists none come from the Computer Networking page (`HssNoteParser::ETHICS_COURSES`), so an Ethics course outside that list does not count.
+| `open_slots[]` | Each open row of an HSS slot (HSS, Humanities, Social Science, or directed HSS elective) with its `label`, `planned_term`, `planned_term_uid`, and `hss_category`. The terms come from the planned terms of the rows (#990), so they are null without a start term. |
+
+The Ethics courses for a page that lists none come from the Computer Networking page (`HssNoteParser::ETHICS_COURSES`), so an Ethics course outside that list does not count.
 
 ### Course code aliases
 
