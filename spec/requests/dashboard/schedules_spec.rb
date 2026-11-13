@@ -94,6 +94,19 @@ RSpec.describe "Dashboard::Schedules", type: :request do
         end
       end
 
+      # A holiday showed the "No Classes" label over the class blocks (#999).
+      it "shows no course blocks on a day with no classes" do
+        create(:university_calendar_event, category: "holiday", term: term,
+               start_time: Time.zone.local(2026, 9, 14), end_time: Time.zone.local(2026, 9, 14, 23, 59))
+
+        get dashboard_schedule_path, params: { term_uid: term.uid, view: "week", week_start: "2026-09-14" }
+        expect(page.at_css("ul[aria-label='Monday, September 14'] li[title]")).to be_nil
+        expect(page.at_css("ul[aria-label='Monday, September 14']").text).to include("No classes")
+
+        get dashboard_schedule_path, params: { term_uid: term.uid, view: "month", month: "2026-09" }
+        expect(page.at_css("ul[aria-label='Monday, September 14'] li[title]")).to be_nil
+      end
+
       it "labels each month day as a list of its courses" do
         get dashboard_schedule_path, params: { term_uid: term.uid, view: "month", month: "2026-09" }
 
