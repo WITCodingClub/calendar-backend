@@ -82,7 +82,9 @@ module AcademicProfiles
     end
 
     def progress
-      @progress ||= DegreeProgress.new(@user, today: @today).call
+      # The rows carry no course details: course_json loads them with the
+      # prerequisites, in one query (#989).
+      @progress ||= DegreeProgress.new(@user, course_details: false, today: @today).call
     end
 
     def program_entries
@@ -149,6 +151,8 @@ module AcademicProfiles
         code:          row[:code],
         label:         row[:label],
         elective_list: row[:elective_list],
+        # The elective list of a slot, from DegreeProgress (#989), or nil.
+        list:          row[:list],
         courses:       row_codes(row).map { |code| course_json(code) }
       }
     end
@@ -175,7 +179,7 @@ module AcademicProfiles
         offered:       sections_known? ? keys.any? { |key| offered_codes.include?(key) } : nil,
         prerequisites: result && result[:status],
         missing:       result ? result[:missing] : []
-      }
+      }.merge(CourseDetails.json(catalog).except(:title))
     end
 
     # status of one prerequisite tree node, and the courses not met under it.

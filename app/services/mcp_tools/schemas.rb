@@ -444,6 +444,18 @@ module McpTools
     # AcademicProfiles::DegreeProgress. A plan row has the plan keys, and a
     # program with no plan (a minor) has one elective_list row for each list.
     PROGRESS_STATUS = { type: "string", enum: %w[done in_progress open] }.freeze
+    # The catalog details of a course (AcademicProfiles::CourseDetails, #989).
+    # Each is null when CatalogCourse does not know the course.
+    COURSE_DETAILS = {
+      description:       nullable(STRING),
+      credit_hours:      nullable(INTEGER),
+      typically_offered: nullable(STRINGS)
+    }.freeze
+    # The elective list of a plan row, or null for a row with no list.
+    PROGRESS_LIST = nullable(
+      object(heading: nullable(STRING), notes: nullable(STRING), min_courses: nullable(INTEGER),
+             min_credits: nullable(INTEGER), subject_codes: STRINGS)
+    ).freeze
     DEGREE_REQUIREMENT = object(
       {
         year:          INTEGER,
@@ -464,9 +476,17 @@ module McpTools
         # The real term of the plan semester (#990), or null.
         planned_term:     nullable(STRING),
         planned_term_uid: nullable(INTEGER),
-        behind:           BOOLEAN
+        behind:           BOOLEAN,
+        # A course row: the details of its course.
+        title:         nullable(STRING),
+        **COURSE_DETAILS,
+        # A plan row: its elective list. A slot or a choice: the course that
+        # fills it.
+        list:          PROGRESS_LIST,
+        filled_course: nullable(object(code: STRING, title: nullable(STRING), **COURSE_DETAILS))
       },
-      optional: %i[year season code label options hss_category min_courses min_credits course term courses]
+      optional: %i[year season code label options hss_category min_courses min_credits course term courses
+                   title description credit_hours typically_offered list filled_course]
     ).freeze
     # The humanities and social science requirement of a major.
     HSS_REQUIREMENT = nullable(
@@ -497,6 +517,13 @@ module McpTools
           plan:         nullable(STRING),
           plans:        STRINGS,
           counts:      object(done: INTEGER, in_progress: INTEGER, open: INTEGER),
+          summary:      object(
+            total_credits: nullable(INTEGER),
+            school:        nullable(STRING),
+            department:    nullable(STRING),
+            credits:       object(earned: INTEGER, in_progress: INTEGER),
+            co_ops:        object(required: INTEGER, done: INTEGER)
+          ),
           requirements: array(DEGREE_REQUIREMENT),
           open:         array(
             object(
@@ -536,13 +563,15 @@ module McpTools
       code:          nullable(STRING),
       label:         nullable(STRING),
       elective_list: nullable(STRING),
+      list:          PROGRESS_LIST,
       courses:       array(
         object(
           code:          STRING,
           title:         nullable(STRING),
           offered:       nullable(BOOLEAN),
           prerequisites: { type: %w[string null], enum: [ "met", "not_met", "unknown", nil ] },
-          missing:       STRINGS
+          missing:       STRINGS,
+          **COURSE_DETAILS
         )
       )
     ).freeze

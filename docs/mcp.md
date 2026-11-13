@@ -55,8 +55,8 @@ Each catalog tool matches a public catalog endpoint, so the MCP server, the REST
 | `my_courses` | Your courses in one term, with their CRNs, weekly meeting times, and rooms. | `GET /api/user/processed_events` | |
 | `my_course_history` | Every term you processed, newest first, with your courses in each term. | `GET /api/user/course_history` | |
 | `my_programs` | Your programs from LeopardWeb with the catalog year, the program slug, the plan of study, and the start term of each, your planned programs and pathways, and your ended programs. | `GET /api/user/programs` | |
-| `my_degree_progress` | The requirements of your programs next to the courses you took or take: each row done, in progress, or open, and the open rows. Each plan row has its real term, and each program has a timeline of its plan semesters with real terms. A planning help, not a degree audit. | `GET /api/user/degree_progress` | |
-| `my_next_term_courses` | The plan courses of the term you register for next, and the open rows you are behind on, each with a section check and a prerequisite check. A planning help, not a registration check. | `GET /api/user/next_term_courses` | |
+| `my_degree_progress` | The requirements of your programs next to the courses you took or take: each row done, in progress, or open, with the course details, and the open rows. Each plan row has its real term, and each program has a timeline of its plan semesters with real terms, its total credits, the credits done and in progress, and the co-op semesters. A planning help, not a degree audit. | `GET /api/user/degree_progress` | |
+| `my_next_term_courses` | The plan courses of the term you register for next, and the open rows you are behind on, each with a section check, a prerequisite check, and the course details. A planning help, not a registration check. | `GET /api/user/next_term_courses` | |
 | `my_busy_times` | The times you are busy between two dates: classes, finals, and friend meetings. | `GET /api/user/busy_blocks` | |
 | `my_finals` | Your final exams in one term. | `GET /api/user/finals` | |
 | `list_friends` | Your friends and their ids. | `GET /api/friends` | |

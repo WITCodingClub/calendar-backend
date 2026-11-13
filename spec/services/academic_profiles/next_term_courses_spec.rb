@@ -71,6 +71,36 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     expect(rows.last).to include(kind: "placeholder", label: "Free Elective", courses: [])
   end
 
+  it "gives each course its catalog details, and an elective slot its list (#989)" do
+    create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 2100, title: "Widget Design",
+                                           description: "Designing widgets.", typically_offered: %w[Spring])
+    group = create(:elective_group, requirement_set: set, name: "Widget Electives", heading: "Widget elective",
+                                    min_courses: 1, notes: nil)
+    item(:choice, options: [ { "subject_code" => "WDGT", "course_number" => 2100 },
+                             { "subject_code" => "WDGT", "course_number" => 2150 } ])
+    item(:placeholder, label: "Widget Elective", elective_group: group)
+
+    choice, slot = program[:planned]
+
+    expect(choice[:list]).to be_nil
+    expect(choice[:courses].first).to include(code: "WDGT 2100", title: "Widget Design", description: "Designing widgets.",
+                                              credit_hours: 4, typically_offered: %w[Spring])
+    expect(choice[:courses].second).to include(code: "WDGT 2150", title: nil, description: nil, credit_hours: nil,
+                                               typically_offered: nil)
+    expect(slot[:list]).to eq(heading: "Widget elective", notes: nil, min_courses: 1, min_credits: nil, subject_codes: [])
+  end
+
+  it "loads the catalog courses in one query" do
+    create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 2100)
+    item(subject_code: "WDGT", course_number: 2100)
+
+    queries = []
+    callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { result }
+
+    expect(queries.size).to eq(1)
+  end
+
   it "says if the term has a section, and nothing when the term has no sections yet" do
     item(subject_code: "WDGT", course_number: 2100)
     item(subject_code: "WDGT", course_number: 2200)

@@ -451,6 +451,121 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     expect(Prosopite.scan { progress(include_planned: true) }[:programs].size).to eq(one[:programs].size + 3)
   end
 
+  describe "course details and program totals (#989)" do
+    it "gives each course row the details of its course, also through an alias" do
+      create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 1000, title: "Widget Basics",
+                                             description: "Making widgets.", typically_offered: %w[Fall])
+      create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 2000, title: "Widget Design")
+      create(:course_code_alias, :reviewed, from_subject_code: "WDGT", from_course_number: 200, to_subject_code: "WDGT", to_course_number: 2000)
+      item(subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 200)
+      item(subject_code: "WDGT", course_number: 9999)
+
+      rows = progress[:programs].first[:requirements]
+
+      expect(rows.first).to include(title: "Widget Basics", description: "Making widgets.", credit_hours: 4,
+                                    typically_offered: %w[Fall], list: nil)
+      expect(rows.second).to include(code: "WDGT 200", title: "Widget Design")
+      expect(rows.third).to include(title: nil, description: nil, credit_hours: nil, typically_offered: nil)
+      expect(rows.first).not_to have_key(:filled_course)
+    end
+
+    it "gives a slot its list and the course that fills it, and a choice no list" do
+      create(:catalog_course, :with_details, subject_code: "HUMN", course_number: 1500, title: "Intro to Humanities")
+      group = create(:elective_group, :subjects, requirement_set: set, name: "Humanities Electives", heading: "Humanities elective",
+                                                 notes: "Any humanities course", subject_codes: %w[HUMN PHIL])
+      item(:placeholder, label: "Humanities Elective", elective_group: group)
+      item(:placeholder, label: "Humanities Elective", elective_group: group)
+      item(:choice, options: [ { "subject_code" => "WDGT", "course_number" => 2000 },
+                               { "subject_code" => "WDGT", "course_number" => 2100 } ])
+      take(past_term, "HUMN", 1500)
+      take(past_term, "WDGT", 2100)
+
+      filled, open, choice = progress[:programs].first[:requirements]
+
+      expect(filled[:list]).to eq(heading: "Humanities elective", notes: "Any humanities course", min_courses: nil,
+                                  min_credits: nil, subject_codes: %w[HUMN PHIL])
+      expect(filled[:filled_course]).to include(code: "HUMN 1500", title: "Intro to Humanities", credit_hours: 4)
+      expect(open).to include(filled_course: nil, list: filled[:list])
+      expect(choice).to include(list: nil)
+      # WDGT 2100 has no CatalogCourse row, so it keeps the title of its section.
+      expect(choice[:filled_course]).to include(code: "WDGT 2100", title: be_present, description: nil)
+      expect(filled).not_to have_key(:title)
+    end
+
+    it "sums the credits of the courses taken and counts the co-op semesters" do
+      set.update!(total_credits: 132, school_name: "School of Widgets", department_name: "Widget Design")
+      co_op = create(:elective_group, requirement_set: set, name: DegreeRequirements::SharedElectives::CO_OP.name)
+      create(:elective_group_course, elective_group: co_op, subject_code: "COOP", course_number: 3500)
+      item(subject_code: "COOP", course_number: 2500)
+      item(:placeholder, label: "Co-op Semester", elective_group: co_op)
+      item(:placeholder, label: "Co-op Semester", elective_group: co_op)
+      take(past_term, "COOP", 2500, credits: nil)
+      take(past_term, "COOP", 3500, credits: nil)
+      take(past_term, "WDGT", 1000, credits: 4)
+      take(past_term, "WDGT", 1100, credits: 3, outcome: "failed")
+      take(current_term, "WDGT", 1100, credits: 3)
+      take(current_term, "WDGT", 1200, credits: 4)
+
+      expect(progress[:programs].first[:summary]).to eq(
+        total_credits: 132, school: "School of Widgets", department: "Widget Design",
+        # The failed WDGT 1100 counts once, with the attempt in progress.
+        credits: { earned: 4, in_progress: 7 },
+        co_ops: { required: 2, done: 1 }
+      )
+    end
+
+    it "keeps the section title of a course row with no catalog row, and its catalog credits when the section has none" do
+      create(:catalog_course, subject_code: "WDGT", course_number: 1100, credit_hours: 3)
+      item(subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 1100)
+      section = take(past_term, "WDGT", 1000)
+      take(past_term, "WDGT", 1100, credits: nil)
+
+      program = progress[:programs].first
+
+      expect(program[:requirements].first).to include(title: section.title, description: nil)
+      # Not fetched from Banner yet: no list, not an empty one.
+      expect(program[:requirements].second).to include(credit_hours: 3, typically_offered: nil)
+      expect(program[:summary][:credits]).to eq(earned: 7, in_progress: 0)
+    end
+
+    it "leaves out the details and their query with course_details: false" do
+      create(:catalog_course, :with_details, subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 1000)
+
+      queries = []
+      callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
+      result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { progress(course_details: false) }
+
+      expect(queries).to be_empty
+      expect(result[:programs].first[:requirements].first).to include(description: nil, list: nil)
+    end
+
+    it "counts a course row that names a co-op semester" do
+      item(subject_code: "COOP", course_number: 3500)
+      item(subject_code: "COOP", course_number: 4500)
+      take(past_term, "COOP", 3500, credits: nil)
+
+      expect(progress[:programs].first[:summary][:co_ops]).to eq(required: 2, done: 1)
+    end
+
+    it "loads the catalog courses of every program in one query" do
+      create(:catalog_course, subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 1000)
+      minor = create(:degree_program, :minor)
+      minor_plan = create(:program_plan, requirement_set: create(:requirement_set, degree_program: minor, catalog_year: catalog_year))
+      create(:program_plan_item, program_plan: minor_plan, subject_code: "GEAR", course_number: 1000)
+      create(:student_program, :planned, user: user, degree_program: minor, catalog_year: catalog_year)
+
+      queries = []
+      callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
+      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { progress(include_planned: true) }
+
+      expect(queries.size).to eq(1)
+    end
+  end
+
   it "counts a course in an old term with no end date as done when it is before the current term" do
     item(subject_code: "WDGT", course_number: 1000)
     take(create(:term, year: 2019, season: :fall), "WDGT", 1000)
