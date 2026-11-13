@@ -107,7 +107,8 @@ module AcademicProfiles
     end
 
     def estimate(entry, start)
-      PlanEstimate.new(start, current_term_uid: current_term.uid, prerequisites: @course_details, aliases: aliases).call(entry)
+      PlanEstimate.new(start, current_term_uid: current_term.uid, prerequisites: @course_details, aliases: aliases,
+                              taken: attempts.map(&:key)).call(entry)
     end
 
     # The admit term of the academic profile, read once for every program.

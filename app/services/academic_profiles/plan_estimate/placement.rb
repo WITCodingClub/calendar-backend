@@ -8,17 +8,24 @@ module AcademicProfiles
     # docs/degree-requirements.md for the rules and a flow chart.
     class Placement
       DONE = %w[done in_progress].freeze
+      # When an open row moved later for more than one reason, moved is the
+      # first of these.
+      REASONS = %w[co_op prerequisite offered load].freeze
       # The value that PrerequisiteCheck counts as passed with a C or better.
       PASSED = [ { outcome: nil } ].freeze
 
       # The courses that count for the prerequisite check of a row in one
-      # term. A course is waiting while a row of the plan that names it is
-      # not placed before the term. Every other course counts as passed: the
-      # estimate waits only for the rows of the plan.
-      Counted = Struct.new(:waiting, :placed_at, :term) do
+      # term. A course of the plan (waiting) counts when its row is placed
+      # before the term, or always with plan: :passed. A course outside the
+      # plan counts when the student took it, or always with outside:
+      # :passed.
+      Counted = Struct.new(:waiting, :placed_at, :term, :taken, :outside, :plan) do
         def fetch(key, default)
-          wait = waiting.include?(key) && !(placed_at[key] && placed_at[key] < term)
-          wait ? default : PASSED
+          if waiting.include?(key)
+            plan == :passed || (placed_at[key] && placed_at[key] < term) ? PASSED : default
+          else
+            outside == :passed || taken.include?(key) ? PASSED : default
+          end
         end
       end
 
@@ -26,13 +33,16 @@ module AcademicProfiles
       # prerequisites: answers prerequisites([subject, number]) with a tree
       # or nil (CourseDetails). aliases: each pair with its old and new
       # pairs.
-      def initialize(rows, current_term_uid:, prerequisites:, aliases:)
+      # taken: the [subject, number] keys of the courses the student did or
+      # takes.
+      def initialize(rows, current_term_uid:, prerequisites:, aliases:, taken: [])
         @rows = rows
+        @taken = taken.to_set
         @current = current_term_uid
         @prerequisites = prerequisites
         @aliases = aliases
         @placed = {}
-        @reasons = {}
+        @reasons = Hash.new { |hash, index| hash[index] = Set.new }
         @credits = Hash.new(0)
         @counts = Hash.new(0)
         @co_op_terms = Set.new
@@ -115,7 +125,7 @@ module AcademicProfiles
           next if @placed.key?(index) || waits?(index, uid)
 
           credits = Rules.credits(@rows[index])
-          break if @counts[uid].positive? && (@credits[uid] >= limit || @credits[uid] + credits > limit)
+          break if @counts[uid].positive? && full?(uid, limit, index, credits)
 
           place(index, uid)
           @credits[uid] += credits
@@ -123,28 +133,54 @@ module AcademicProfiles
         end
       end
 
+      # Over the load, or at the load for a row of a later plan term. A row
+      # with 0 credits of this term (or a behind row) still fits a full term.
+      def full?(uid, limit, index, credits)
+        @credits[uid] + credits > limit || (@credits[uid] >= limit && @rows[index][:planned_term_uid] > uid)
+      end
+
       def place(index, uid)
         @placed[index] = uid
         keys(index).each { |key| @placed_at[key] = [ @placed_at[key], uid ].compact.min }
       end
 
-      def waits?(index, uid) = blocked?(index, uid) || !Rules.offered_in?(@rows[index], uid)
+      def waits?(index, uid) = blocked?(index, uid) || !offered?(index, uid)
 
-      # The first reason an open row is not in its planned term, in this
-      # order: co_op, prerequisite, offered, load.
+      # The plan's own term always counts as offered, so a plan that puts a
+      # fall-only course in a spring term keeps it there.
+      def offered?(index, uid)
+        uid == @rows[index][:planned_term_uid] || Rules.offered_in?(@rows[index], uid)
+      end
+
+      # Why an open row is not in a term, from its planned term until it has
+      # a term: in its planned term any reason (reason_in), in a later class
+      # term only prerequisite or offered. So a spring-only course that a
+      # full term pushes out of spring, and then waits a year, is offered.
       def note_reasons(uid)
         open_rows.each do |index|
-          next if @placed[index] == uid || @reasons.key?(index) || @rows[index][:planned_term_uid] != uid
+          planned = @rows[index][:planned_term_uid]
+          next if @placed.key?(index) || planned > uid || planned < first_term
 
-          @reasons[index] = reason_in(index, uid)
+          if planned == uid
+            @reasons[index] << reason_in(index, uid)
+          elsif later_reason = later_reason_in(index, uid)
+            @reasons[index] << later_reason
+          end
         end
+      end
+
+      def later_reason_in(index, uid)
+        return nil if co_op?(index) || @co_op_terms.include?(uid) || !class_term?(uid)
+        return "prerequisite" if blocked?(index, uid)
+
+        "offered" unless offered?(index, uid)
       end
 
       def reason_in(index, uid)
         return blocked?(index, uid) ? "prerequisite" : "co_op" if co_op?(index)
         return "co_op" if @co_op_terms.include?(uid)
         return "prerequisite" if blocked?(index, uid)
-        return "offered" unless Rules.offered_in?(@rows[index], uid)
+        return "offered" unless offered?(index, uid)
 
         "load"
       end
@@ -152,7 +188,8 @@ module AcademicProfiles
       # null when the row is in its planned term. A done or in-progress row
       # is "taken". An open row that was behind is "behind". An open row in
       # an earlier term than planned moved for "load" (an earlier term has
-      # room), or "co_op" for a co-op.
+      # room), or "co_op" for a co-op. An open row in a later term, or with
+      # no term, has the first of its reasons in REASONS order.
       def moved(index)
         row = @rows[index]
         planned = row[:planned_term_uid]
@@ -162,7 +199,7 @@ module AcademicProfiles
         return "behind" if planned < first_term
         return co_op?(index) ? "co_op" : "load" if uid && uid < planned
 
-        @reasons[index] || "load"
+        REASONS.find { |reason| @reasons[index].include?(reason) } || "load"
       end
 
       # The earliest term of an open co-op: its planned term for the first
@@ -207,9 +244,14 @@ module AcademicProfiles
                             .sort_by { |index| [ @rows[index][:planned_term_uid], index ] }
       end
 
-      # A course row waits while one of its prerequisites is a row of the
-      # plan that is not placed before the term. A slot or a choice names no
-      # single course, so it never waits.
+      # A course row waits while its prerequisites need a row of the plan
+      # that is not placed before the term. A course outside the plan that
+      # the student did not take never makes it wait. So it waits when:
+      # - the tree is not met with every course outside the plan counted, or
+      # - the tree is not met with only the courses the student took, and
+      #   it would be met with every row of the plan placed. This is an "or"
+      #   with an old code outside the plan, such as COMP 2070 or COMP 285.
+      # A slot or a choice names no single course, so it never waits.
       def blocked?(index, uid)
         row = @rows[index]
         return false unless row[:kind] == "course" && (pair = CatalogCourse.parse_code(row[:code]))
@@ -217,8 +259,19 @@ module AcademicProfiles
         tree = @prerequisites.prerequisites(pair)
         return false if tree.nil?
 
-        PrerequisiteCheck.new(Counted.new(waiting, @placed_at, uid), @aliases).call(tree)[:status] ==
-          PrerequisiteCheck::NOT_MET
+        not_met?(tree, uid, :passed, :placed) ||
+          (not_met?(tree, uid, :not_met, :placed) && !not_met?(tree, uid, :not_met, :passed))
+      end
+
+      def not_met?(tree, uid, outside, plan)
+        counted = Counted.new(waiting, @placed_at, uid, taken_keys, outside, plan)
+        PrerequisiteCheck.new(counted, @aliases).call(tree)[:status] == PrerequisiteCheck::NOT_MET
+      end
+
+      # The courses the student did or takes, and the courses of the done
+      # and in-progress rows.
+      def taken_keys
+        @taken_keys ||= @taken | fixed.flat_map { |index| keys(index) }
       end
 
       # The course keys that a prerequisite can wait for: the codes of the

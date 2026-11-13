@@ -142,15 +142,37 @@ RSpec.describe AcademicProfiles::PlanEstimate do
       .to eq([ [ "Fall 2025", true ], [ "Spring 2026", false ], [ "Fall 2026", false ] ])
   end
 
-  it "puts a fall-only course in a fall term, and a course with no data anywhere" do
+  it "puts a spring-only course that does not fit its plan term in the next spring term" do
     rows = [
-      course("WDGT 2200", 2, "spring", offered: %w[fall]),
-      course("WDGT 2201", 2, "spring"),
-      course("WDGT 2202", 2, "spring", offered: %w[fall spring])
+      *(1..4).map { |number| course("WDGT 220#{number}", 2, "spring") },
+      course("WDGT 2205", 2, "spring"),
+      course("WDGT 2206", 2, "spring", offered: %w[spring])
     ]
 
-    expect(placed(estimate(rows))).to eq("WDGT 2200" => [ "Fall 2027", "offered" ], "WDGT 2201" => [ "Spring 2027", nil ],
-                                         "WDGT 2202" => [ "Spring 2027", nil ])
+    # Spring 2027 is full at 20 credits, so the spring-only course does not
+    # fit. It waits for Spring 2028, not Fall 2027.
+    expect(placed(estimate(rows))).to include("WDGT 2205" => [ "Spring 2027", nil ], "WDGT 2206" => [ "Spring 2028", "offered" ])
+  end
+
+  it "counts a course the student registered for in the load of its term, and puts no co-op there" do
+    rows = [ course("WDGT 2201", 2, "spring"), course("COOP 3500", 2, "spring", credits: 0),
+             course("WDGT 3100", 3, "fall", status: "in_progress", term: "Spring 2027") ]
+
+    expect(placed(estimate(rows))).to eq("WDGT 2201" => [ "Spring 2028", "load" ], "COOP 3500" => [ "Fall 2027", "co_op" ],
+                                         "WDGT 3100" => [ "Spring 2027", "taken" ])
+  end
+
+  it "keeps a fall-only course in the spring term where the plan puts it" do
+    rows = [ course("MATH 3900", 2, "spring", offered: %w[fall]), course("WDGT 2201", 2, "spring") ]
+
+    expect(placed(estimate(rows))).to eq("MATH 3900" => [ "Spring 2027", nil ], "WDGT 2201" => [ "Spring 2027", nil ])
+  end
+
+  it "keeps a 0-credit row in its plan term when the term is at its load" do
+    rows = [ *(1..4).map { |number| course("WDGT 220#{number}", 2, "spring") }, course("WDGT 2209", 2, "spring", credits: 0),
+             course("WDGT 3100", 3, "fall", credits: 0) ]
+
+    expect(placed(estimate(rows))).to include("WDGT 2209" => [ "Spring 2027", nil ], "WDGT 3100" => [ "Fall 2027", nil ])
   end
 
   it "places a course after the term of an open prerequisite, and does not wait for a course outside the plan" do
@@ -160,6 +182,18 @@ RSpec.describe AcademicProfiles::PlanEstimate do
 
     expect(placed(estimate(rows))).to eq("WDGT 1100" => [ "Spring 2027", "behind" ], "WDGT 2200" => [ "Fall 2027", "prerequisite" ],
                                          "WDGT 2201" => [ "Spring 2027", nil ])
+  end
+
+  it "waits for a plan row in an or with a course outside the plan, unless the student took that course" do
+    trees[[ "COMP", 2071 ]] = { "type" => "or", "operands" => [ requires("COMP 2070"), requires("COMP 285") ] }
+    rows = [ course("COMP 2070", 1, "spring"), course("COMP 2071", 2, "spring"), course("WDGT 2201", 2, "spring") ]
+    entry = AcademicProfiles::PlanTerms.new(start, current_term_uid: current).call({ requirements: rows })
+
+    waits = described_class.new(start, current_term_uid: current, prerequisites: prerequisites).call(entry)
+    taken = described_class.new(start, current_term_uid: current, prerequisites: prerequisites, taken: [ [ "COMP", 285 ] ]).call(entry)
+
+    expect(placed(waits)["COMP 2071"]).to eq([ "Fall 2027", "prerequisite" ])
+    expect(placed(taken)["COMP 2071"]).to eq([ "Spring 2027", nil ])
   end
 
   it "counts a prerequisite through a course code alias" do
