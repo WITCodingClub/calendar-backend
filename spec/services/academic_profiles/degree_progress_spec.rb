@@ -73,6 +73,14 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     expect(result[:courses].pluck(:code)).to eq([ "WDGT 1000" ])
   end
 
+  it "counts a lecture with a subject label and its lab with the bare code as one course" do
+    item(subject_code: "WDGT", course_number: 1000)
+    take(past_term, "Widget Design (WDGT)", 1000, credits: 4)
+    take(past_term, "WDGT", 1000, credits: 1)
+
+    expect(progress[:courses].map { |course| course.slice(:code, :credits) }).to eq([ { code: "WDGT 1000", credits: 4 } ])
+  end
+
   it "counts a passed outcome in the current term as done, and a D as done" do
     item(subject_code: "WDGT", course_number: 1000)
     item(subject_code: "WDGT", course_number: 1100)
