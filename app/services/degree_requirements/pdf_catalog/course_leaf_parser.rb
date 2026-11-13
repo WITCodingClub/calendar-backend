@@ -51,7 +51,11 @@ module DegreeRequirements
       def self.call(text) = new(text).call
 
       def initialize(text)
-        @pages = text.to_s.split("\f").map { |page| page.split("\n") }
+        pages = text.to_s.split("\f")
+        @pages = pages.map { |page| page.split("\n") }
+        # The index in text.split("\n") of the first line of each page: the
+        # line that holds the form feed before it.
+        @page_starts = pages.reduce([ 0 ]) { |starts, page| starts << (starts.last + page.count("\n")) }
       end
 
       def call
@@ -72,10 +76,12 @@ module DegreeRequirements
             elsif (match = SEASON.match(line))
               plan[:season] = match[1].downcase
             elsif line.strip.start_with?("Total Credits")
+              plan[:last_line] = global_line(page_index, line_index)
               programs << finish(plan)
               plan = nil
             else
               read_row(plan, line)
+              plan[:last_line] = global_line(page_index, line_index)
             end
           end
         end
@@ -85,9 +91,11 @@ module DegreeRequirements
 
       private
 
+      def global_line(page_index, line_index) = @page_starts[page_index] + line_index
+
       def start_plan(page_index, line_index)
         { name: plan_name(page_index, line_index), page: page_index + 1, year: 1, season: "fall", rows: [],
-          heading: text_before(page_index, line_index) }
+          heading: text_before(page_index, line_index), first_line: global_line(page_index, line_index) }
       end
 
       # One line of a semester: a course, a choice, a placeholder, the
@@ -119,6 +127,7 @@ module DegreeRequirements
 
         name = plan[:name] || "Plan of Study"
         Program.new(title: program_name(plan[:page], plan[:heading]), code: nil, page: plan[:page],
+                    lines: plan[:first_line]..(plan[:last_line] || plan[:first_line]),
                     plan: ProgramPageParser::Plan.new(name: name, years: items.map(&:year_index).max,
                                                       accelerated: name.match?(/three[\s-]year|3[\s-]year|accelerated/i),
                                                       total_credits: ItemBuilder.total_credits(items), items: items))

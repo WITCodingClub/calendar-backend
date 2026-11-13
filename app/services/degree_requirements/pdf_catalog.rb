@@ -29,7 +29,16 @@ module DegreeRequirements
     # One plan of study as a PDF prints it. `title` is the heading over it,
     # such as "COMPUTER NETWORKING (BSCN)", and `code` the program code in
     # it. `page` is the 1-based PDF page the plan starts on.
-    Program = Data.define(:title, :code, :page, :plan)
+    #
+    # `lines` is the range of the plan's rows in the text, as
+    # text.split("\n") indexes them. `groups` are the program's own elective
+    # lists (ProgramPageParser::Group) that ElectiveLists reads near the plan,
+    # and a placeholder's group_index points into them.
+    Program = Data.define(:title, :code, :page, :plan, :lines, :groups) do
+      def initialize(title:, code:, page:, plan:, lines: nil, groups: [])
+        super
+      end
+    end
 
     module_function
 

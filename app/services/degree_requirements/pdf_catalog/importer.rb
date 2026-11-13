@@ -22,7 +22,7 @@ module DegreeRequirements
       # PDF again. A set whose plans then change is written again and needs
       # a new review. A set whose plans are the same is not written, so a
       # change to PlanWriter or SharedElectives needs its own rake task.
-      VERSION = 4
+      VERSION = 5
 
       def initialize(catalog_year, client: CatalogSiteClient.new, matcher: nil)
         @catalog_year = catalog_year
@@ -81,9 +81,11 @@ module DegreeRequirements
 
       def two_columns? = PdfCatalog::LAYOUTS[start_year] == :courseleaf
 
+      # The plans, each with the program's own elective lists (#962).
       def parse(text, credits)
         parser = PdfCatalog.parser_for(start_year)
-        parser == ListParser ? parser.call(text, credits: credits) : parser.call(text)
+        programs = parser == ListParser ? parser.call(text, credits: credits) : parser.call(text)
+        ElectiveLists.call(text, programs)
       end
 
       def result(status, programs, unmatched)
@@ -121,11 +123,11 @@ module DegreeRequirements
           return
         end
 
-        plans = programs.map(&:plan)
+        plans, groups = plans_and_groups(programs)
         attributes = { name: programs.first.title, path: "/previous-catalogs/#{url.split('/').last}#page=#{programs.first.page}",
                        total_credits: plans.first.total_credits, source: "pdf", source_digest: digest, fetched_at: now,
                        last_seen_at: now }
-        if set.persisted? && stored_plans(set) == plans.map { |plan| plan_row(plan) }
+        if set.persisted? && stored_plans(set) == plans.map { |plan| plan_row(plan, groups) }
           set.update!(attributes)
           @stats[:unchanged] += 1
           return
@@ -133,21 +135,44 @@ module DegreeRequirements
 
         RequirementSet.transaction do
           set.update!(attributes.merge(needs_review: true, reviewed_at: nil))
-          PlanWriter.call(set, plans: plans, groups: [])
+          PlanWriter.call(set, plans: plans, groups: groups)
         end
         @stats[:updated] += 1
       end
 
-      def stored_plans(set) = set.program_plans.includes(:items).map { |plan| plan_row(plan) }
+      # The plans of a set and their elective lists. Each program's lists
+      # follow those of the programs before it, so group_index moves up. A
+      # list belongs to its plan when the set has more than one.
+      def plans_and_groups(programs)
+        groups = []
+        plans = programs.each_with_index.map do |program, plan_index|
+          offset = groups.size
+          groups.concat(program.groups.map { |group| group.with(plan_index: programs.many? ? plan_index : nil) })
+          program.plan.with(items: program.plan.items.map do |item|
+            item.group_index ? item.with(group_index: item.group_index + offset) : item
+          end)
+        end
+        [ plans, groups ]
+      end
 
-      # The values of a plan that a review checks, from a parsed plan or a
-      # saved one.
-      def plan_row(plan)
+      def stored_plans(set) = set.program_plans.includes(items: { elective_group: :courses }).map { |plan| plan_row(plan) }
+
+      # The values of a plan that a review checks, from a parsed plan with
+      # its `groups` or a saved one. A slot's list counts unless
+      # SharedElectives links it: the parsed plans do not have those lists.
+      def plan_row(plan, groups = nil)
         [ plan.name, plan.years, plan.accelerated, plan.total_credits,
           plan.items.map do |item|
+            group = groups ? item.group_index && groups[item.group_index] : item.elective_group
+            group = nil if SharedElectives.rule_for(item.label)
             [ item.year_index, item.season, item.kind, item.subject_code, item.course_number, item.label.presence,
-              item.min_credits, item.max_credits, item.footnote, item.options ]
+              item.min_credits, item.max_credits, item.footnote, item.options, group && group_row(group) ]
           end ]
+      end
+
+      def group_row(group)
+        [ group.name, group.min_courses, group.min_credits,
+          group.courses.map { |course| [ course.subject_code, course.course_number ] } ]
       end
 
       def log(message)

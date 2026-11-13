@@ -136,7 +136,8 @@ module DegreeRequirements
         plan = ProgramPageParser::Plan.new(name: plan_name(title), years: items.map(&:year_index).max,
                                            accelerated: title.to_s.match?(/three[\s-]year|accelerated/i),
                                            total_credits: ItemBuilder.total_credits(items), items: items)
-        [ Program.new(title: title, code: title.to_s[/\(([A-Z]{2,6})\)\s*\z/, 1], page: page_of(header_index), plan: plan), index ]
+        [ Program.new(title: title, code: title.to_s[/\(([A-Z]{2,6})\)\s*\z/, 1], page: page_of(header_index), plan: plan,
+                      lines: header_index..(index - 1)), index ]
       end
 
       # A code starts a cell, "OR" joins the next code to it, a number is
