@@ -178,6 +178,7 @@ RSpec.describe "MCP tool output schemas" do
       expect(schedule[:not_found]).to eq([ 99_999 ])
 
       # COMP 2350's lecture and lab meet at the same time, so it has no schedule.
+      Flipper.enable(FeatureFlags::SCHEDULE_BUILDER)
       create(:catalog_course, subject_code: "COMP", course_number: 9100)
       create(:course_meeting_time, course: cross_listed, day_of_week: :friday)
       options = expect_valid(McpTools::FindSchedules, term_uid: term.uid, courses: [ { codes: [ "COMP 6350" ] }, { codes: [ "COMP 9100" ] } ],
@@ -294,6 +295,7 @@ RSpec.describe "MCP tool output schemas" do
       expect(schedule[:totals]).to include(earliest_start: nil, latest_end: nil)
 
       create(:catalog_course, subject_code: "COMP", course_number: bare.course_number)
+      Flipper.enable(FeatureFlags::SCHEDULE_BUILDER)
       options = expect_valid(McpTools::FindSchedules, term_uid: term.uid, courses: [ { codes: [ "COMP #{bare.course_number}" ] } ])
       expect(options[:schedules].first[:totals]).to include(earliest_start: nil, latest_end: nil)
     end

@@ -14,6 +14,7 @@ module FeatureFlags
   FRIEND_EXPIRY = :friend_expiry
   MEETING_LINKS = :meeting_links
   DEGREE_PLANNING = :degree_planning
+  SCHEDULE_BUILDER = :schedule_builder
 
   MAP = {
     envSwitcher: ENV_SWITCHER,
@@ -27,7 +28,8 @@ module FeatureFlags
     friendGroups: FRIEND_GROUPS,
     friendExpiry: FRIEND_EXPIRY,
     meetingLinks: MEETING_LINKS,
-    degreePlanning: DEGREE_PLANNING
+    degreePlanning: DEGREE_PLANNING,
+    scheduleBuilder: SCHEDULE_BUILDER
   }.freeze
 
   ALL_FLAGS = %i[
@@ -43,6 +45,7 @@ module FeatureFlags
     friendExpiry
     meetingLinks
     degreePlanning
+    scheduleBuilder
   ].freeze
 
   # How long one process keeps flag reads (config/initializers/flipper.rb).

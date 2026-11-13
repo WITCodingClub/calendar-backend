@@ -18,6 +18,15 @@ module McpTools
                      "Technical or HSS elective that I need is not in the schedule yet, tell me to ask the dean or " \
                      "associate dean of my school."
 
+      # find_schedules is behind the schedule_builder flag. While the flag is
+      # off for the student, the tool answers that it is not enabled, and the
+      # model builds the options by hand, as before #997.
+      FALLBACK = "If find_schedules answers that the feature is not enabled, build the options by hand instead: for " \
+                 "each course, call search_sections with the term_uid, the subject, and the course_number, and use my " \
+                 "preferences as filters: begins_after, ends_before, free_days, meets_on, and open_only. Pick sections " \
+                 "with no time conflict and none at my busy times from my_busy_times, and call check_schedule on " \
+                 "each option until it shows no conflicts, no missing lecture or lab pair, and no course two times."
+
       prompt_name "plan_term_schedule"
       title "Plan a term schedule"
       description "Plan a class schedule for one term: check prerequisites, find sections that fit your " \
@@ -58,10 +67,12 @@ module McpTools
             "Banner: do not guess a pair from the section numbers. If count is 0, show me the relax list and ask " \
             "me which preference to drop, then call find_schedules again. If not_offered lists a course, tell me, " \
             "and give the terms it is usually offered.",
+            FALLBACK,
             "If I care about instructors, call get_section for the CRNs of the best schedules, then get_instructor " \
             "or search_reviews for their instructors.",
             "If I saved meetings with friends or have other fixed times, call my_busy_times for one typical week " \
-            "of the term, and call find_schedules again with those times in blocked.",
+            "of the term, and call find_schedules again with those times in blocked. In the fallback, drop the " \
+            "sections that meet at those times.",
             "Pick one to three options from the schedules. Call check_schedule with the term_uid and every CRN of " \
             "each option, labs included, to show me its totals and to confirm it has no conflicts.",
             "Call university_events for the dates of the term, to give me the registration dates and the last day " \

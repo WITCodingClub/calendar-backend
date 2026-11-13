@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "POST /api/v1/catalog/schedule_options", type: :request do
+RSpec.describe "POST /api/v1/catalog/schedule_options", :schedule_builder, type: :request do
   let(:term) { create(:term, uid: 202720) }
 
   def section(crn, code, schedule_type: "LEC", **attributes)
@@ -98,6 +98,12 @@ RSpec.describe "POST /api/v1/catalog/schedule_options", type: :request do
     expect(response.headers["Access-Control-Allow-Methods"]).to include("POST")
   end
 
+  it "lets a browser on another origin read Retry-After" do
+    post_options(body, path: "/api/v1/catalog/schedule_options/count", headers: { "Origin" => "https://example.com" })
+
+    expect(response.headers["Access-Control-Expose-Headers"]).to include("Retry-After")
+  end
+
   # The term, the aliases, the catalog courses, the sections, and the fixed
   # levels of the preload: meetings, rooms, buildings, links, partners, and
   # the partners' links and meetings. Rails skips a level that it already
@@ -112,5 +118,91 @@ RSpec.describe "POST /api/v1/catalog/schedule_options", type: :request do
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body.dig("data", "count")).to eq(2)
     expect([ small, large ]).to all(be <= 14)
+  end
+
+  describe "the schedule_builder flag" do
+    before { Flipper.disable(FeatureFlags::SCHEDULE_BUILDER) }
+
+    it "answers 404 on both routes while the flag is off" do
+      [ "/api/v1/catalog/schedule_options", "/api/v1/catalog/schedule_options/count" ].each do |path|
+        post_options(body, path: path)
+
+        expect(response).to have_http_status(:not_found)
+        expect(response.parsed_body).to eq("error" => "The schedule builder is not enabled", "code" => "NOT_FOUND")
+      end
+    end
+
+    it "answers on both routes for a user with the flag, by the token" do
+      user = create(:user)
+      Flipper.enable_actor(FeatureFlags::SCHEDULE_BUILDER, user)
+
+      [ "/api/v1/catalog/schedule_options", "/api/v1/catalog/schedule_options/count" ].each do |path|
+        post_options(body, path: path, headers: auth_headers_for(user))
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body.dig("data", "count")).to eq(2)
+      end
+    end
+
+    it "answers 404 for a user with the flag when the session was revoked or expired" do
+      user = create(:user)
+      Flipper.enable_actor(FeatureFlags::SCHEDULE_BUILDER, user)
+
+      [ { revoked_at: Time.current }, { expires_at: 1.minute.ago } ].each do |ended|
+        headers = auth_headers_for(user)
+        UserSession.where(user: user).update_all(ended)
+
+        post_options(body, headers: headers)
+
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    it "takes no search slot while the flag is off" do
+      allow(Catalog::ScheduleOptions::Slots::SEMAPHORE).to receive(:try_acquire).and_call_original
+
+      post_options(body)
+
+      expect(Catalog::ScheduleOptions::Slots::SEMAPHORE).not_to have_received(:try_acquire)
+    end
+
+    it "answers 404 for a user without the flag or with a bad token" do
+      post_options(body, headers: auth_headers_for(create(:user)))
+      expect(response).to have_http_status(:not_found)
+
+      post_options(body, headers: { "Authorization" => "Bearer not-a-token" })
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
+  describe "the search slots" do
+    it "answers 503 with Retry-After when every slot is in use, and counts it" do
+      allow(Catalog::ScheduleOptions::Slots::SEMAPHORE).to receive(:try_acquire).and_return(false)
+      allow(Yabeda.calendar.schedule_builder_busy_total).to receive(:increment)
+
+      [ "/api/v1/catalog/schedule_options", "/api/v1/catalog/schedule_options/count" ].each do |path|
+        post_options(body, path: path)
+
+        expect(response).to have_http_status(:service_unavailable)
+        expect(response.headers["Retry-After"]).to eq("1")
+        expect(response.parsed_body).to include("code" => "SCHEDULE_BUILDER_BUSY", "retry_after" => 1)
+      end
+      expect(Yabeda.calendar.schedule_builder_busy_total).to have_received(:increment).with({ surface: "api" }).twice
+    end
+
+    it "frees the slot when the search fails" do
+      allow(Catalog::ScheduleOptions::Search).to receive(:new).and_raise(ArgumentError, "boom")
+
+      post_options(body)
+
+      expect(response).to have_http_status(:internal_server_error)
+      expect(Catalog::ScheduleOptions::Slots::SEMAPHORE.available_permits).to eq(Catalog::ScheduleOptions::Slots::LIMIT)
+    end
+
+    it "frees the slot after an answer" do
+      post_options(body)
+
+      expect(Catalog::ScheduleOptions::Slots::SEMAPHORE.available_permits).to eq(Catalog::ScheduleOptions::Slots::LIMIT)
+    end
   end
 end

@@ -2,7 +2,8 @@
 
 module McpTools
   # POST /api/v1/catalog/schedule_options. Catalog::ScheduleOptions::Finder
-  # has the rules.
+  # has the rules. The schedule_builder flag gates it, the same as the
+  # endpoint.
   class FindSchedules < BaseTool
     TIME = { type: "string", description: "A 24-hour time, HH:MM, for example 13:00." }.freeze
     DAYS = {
@@ -32,6 +33,7 @@ module McpTools
                 "with no section in the term. Use it in place of trying sections by hand, then show the student the " \
                 "best options with their CRNs. It does not check holds, restrictions, or registration times."
     requires_scope "catalog"
+    requires_flag FeatureFlags::SCHEDULE_BUILDER
     academic_planning :sections
     input_schema(
       properties: {
@@ -115,9 +117,11 @@ module McpTools
 
     def perform(courses:, term_uid: nil, preferences: nil, limit: nil)
       params = { term_uid: find_term(term_uid).uid, courses: courses, preferences: preferences, limit: limit }.compact
-      Catalog::ScheduleOptions::Finder.new(params).call
+      Catalog::ScheduleOptions::Finder.new(params, surface: "mcp").call
     rescue Catalog::FilterError => e
       raise ToolError, e.message
+    rescue Catalog::ScheduleOptions::BusyError
+      raise ToolError, "The schedule builder is busy. Wait a moment, then call find_schedules again."
     end
   end
 end

@@ -61,6 +61,22 @@ module Api
       @current_session.touch_last_seen!
     end
 
+    # The user of a valid token, or nil. For a public route that reads a
+    # per-user flag only: it never answers 401 and never sets current_user,
+    # so a bad or ended token is the same as no token. It makes the same
+    # checks as authenticate_user_from_token!: the signature, then an active
+    # session.
+    def optional_token_user
+      token = extract_token_from_header
+      return nil if token.blank?
+
+      decoded = JsonWebTokenService.decode(token)
+      return nil if decoded.nil?
+
+      session = UserSession.find_by(jti: decoded[:jti])
+      session.user if session&.active?
+    end
+
     # The Rack::Attack safelist for privileged users loads the user of the
     # token on every API request. Use that record when it is the user of the
     # session, so the request does not load the user a second time (#712).

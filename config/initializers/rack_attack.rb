@@ -216,7 +216,10 @@ class Rack::Attack
   # changes an answer, so the count gets a larger budget than the full
   # search. Each search stops at 0.25 seconds of work, and a search with no
   # schedule at 0.5 (Catalog::ScheduleOptions::Budget), so one address uses
-  # at most about 0.6 of one CPU. A request with a token counts against the user. A hosted MCP
+  # at most about 0.6 of one CPU. Many addresses together cannot take every
+  # Puma thread: Catalog::ScheduleOptions::Slots runs at most one search fewer
+  # than the thread count at once, and answers 503 when every slot is in use.
+  # A request with a token counts against the user. A hosted MCP
   # client's address skips both, the same as the other per-IP rules (ip_key).
   SCHEDULE_OPTIONS_PATH       = "/api/v1/catalog/schedule_options"
   SCHEDULE_OPTIONS_COUNT_PATH = "/api/v1/catalog/schedule_options/count"

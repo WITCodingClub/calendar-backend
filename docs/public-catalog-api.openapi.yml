@@ -397,8 +397,10 @@ paths:
                         description: Requested codes with no active section in the term.
                         items: { type: string }
         "400": { $ref: "#/components/responses/InvalidFilter" }
+        "404": { $ref: "#/components/responses/ScheduleBuilderOff" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
+        "503": { $ref: "#/components/responses/ScheduleBuilderBusy" }
 
   /api/v1/catalog/schedule_options/count:
     post:
@@ -432,8 +434,10 @@ paths:
                       count: { type: integer, maximum: 500 }
                       capped: { type: boolean }
         "400": { $ref: "#/components/responses/InvalidFilter" }
+        "404": { $ref: "#/components/responses/ScheduleBuilderOff" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
+        "503": { $ref: "#/components/responses/ScheduleBuilderBusy" }
 
   /api/v1/catalog/sections:
     get:
@@ -1032,6 +1036,20 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
+    ScheduleBuilderBusy:
+      description: >-
+        Every schedule search slot of the server is in use (SCHEDULE_BUILDER_BUSY). Wait for the
+        number of seconds in Retry-After (also in the body as retry_after), then send the request again.
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ScheduleBuilderOff:
+      description: The schedule builder is not enabled (NOT_FOUND). It is behind a feature flag while it is tested.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     InternalError:
       description: An unexpected server error
       content:
@@ -1048,9 +1066,9 @@ components:
         code:
           type: string
           description: A stable, machine-readable code. Branch on this, not on `error`.
-          enum: [INVALID_FILTER, NOT_FOUND, RATE_LIMITED, INTERNAL_ERROR]
+          enum: [INVALID_FILTER, NOT_FOUND, RATE_LIMITED, SCHEDULE_BUILDER_BUSY, INTERNAL_ERROR]
         message: { type: string, description: More detail. Only RATE_LIMITED sends it. }
-        retry_after: { type: integer, description: Seconds to wait. Only RATE_LIMITED sends it. }
+        retry_after: { type: integer, description: Seconds to wait. Only RATE_LIMITED and SCHEDULE_BUILDER_BUSY send it. }
 
     ScheduleRange:
       type: object
