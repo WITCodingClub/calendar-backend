@@ -104,6 +104,47 @@ RSpec.describe DegreeRequirements::PdfCatalog::Importer do
     end
   end
 
+  context "with a program elective list near a plan (#962)" do
+    let(:catalog_year) { create(:catalog_year, start_year: 2014) }
+
+    def with_list(text, codes = "COMP406 Special Topics                    COMP613 Computer Graphics")
+      text.sub("\nMinor\n", "\nThe Computer Science Elective courses may include:\n\n #{codes}\n\nMinor\n")
+    end
+
+    before { stub_pdf(2014, "grid.txt") { |text| with_list(text) } }
+
+    it "writes the list and links the slot that names it" do
+      import(catalog_year)
+
+      set = catalog_year.requirement_sets.find_by!(degree_program: science)
+      slot = set.program_plans.sole.items.find_by!(label: "Computer Science Elective")
+      expect(slot.elective_group).to have_attributes(name: "Computer Science Electives", program_plan_id: nil)
+      expect(slot.elective_group.courses.map { |course| [ course.subject_code, course.course_number ] })
+        .to eq([ [ "COMP", 406 ], [ "COMP", 613 ] ])
+    end
+
+    it "keeps a checked set when its lists are the same" do
+      import(catalog_year)
+      set = catalog_year.requirement_sets.find_by!(degree_program: science)
+      set.update!(needs_review: false, reviewed_at: 1.day.ago)
+      stub_pdf(2014, "grid.txt", body: "%PDF-1.4 changed".b) { |text| with_list(text) }
+
+      expect(import(catalog_year)).to have_attributes(updated: 0, unchanged: 2)
+      expect(set.reload.needs_review).to be(false)
+    end
+
+    it "asks for a new review when only a list changes" do
+      import(catalog_year)
+      set = catalog_year.requirement_sets.find_by!(degree_program: science)
+      set.update!(needs_review: false, reviewed_at: 1.day.ago)
+      stub_pdf(2014, "grid.txt", body: "%PDF-1.4 changed".b) { |text| with_list(text, "COMP406 Special Topics") }
+
+      expect(import(catalog_year)).to have_attributes(updated: 1, unchanged: 1)
+      expect(set.reload.needs_review).to be(true)
+      expect(set.elective_groups.find_by!(name: "Computer Science Electives").courses.size).to eq(1)
+    end
+  end
+
   context "with a list year that prints few credits" do
     let(:catalog_year) { create(:catalog_year, start_year: 2016) }
 

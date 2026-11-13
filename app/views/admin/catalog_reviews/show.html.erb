@@ -1,6 +1,6 @@
 <%= render "admin/shared/page_header",
     title: "#{@set.name} (#{@set.catalog_year.name})",
-    subtitle: "Compare each plan with the PDF page. The import reads course codes, titles, and credits. It does not read the program's own elective lists: only the shared lists from the catalog policy pages (HSS, English sequence, co-op, free electives) are linked.",
+    subtitle: "Compare each plan with the PDF page. The import reads course codes, titles, and credits. It reads the program's own elective lists from the text near the plan, and keeps only the lists that a slot names: check each list against the PDF. The shared lists (HSS, English sequence, co-op, free electives) come from the catalog policy pages.",
     back: [ "Catalog review", admin_catalog_reviews_path ] do %>
   <% if @set.source_pdf? && @set.path.present? %>
     <%# A PDF set's path is on the catalog site: "/previous-catalogs/<file>.pdf#page=140". %>

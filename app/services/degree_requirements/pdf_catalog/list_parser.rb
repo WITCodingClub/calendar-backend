@@ -65,7 +65,12 @@ module DegreeRequirements
       INLINE_HEADING = /(?<=\S)(?=(?:Freshman|Sophomore|Junior|Senior|First|Second|Third|Fourth|Fifth)\s+Year,?\s+(?:Fall|Spring|Summer)\s+Semester\b)/
 
       def initialize(text, credits: {})
-        @lines = text.to_s.split("\n").flat_map { |line| line.split(INLINE_HEADING) }
+        split = text.to_s.split("\n").each_with_index.flat_map do |line, index|
+          line.split(INLINE_HEADING).map { |part| [ part, index ] }
+        end
+        @lines = split.map(&:first)
+        # The index of each line in text.split("\n"), for Program#lines.
+        @origin = split.map(&:last)
         @database_credits = credits
         # The lines read as plan rows. A course list is any other line.
         @plan_lines = Set.new
@@ -103,8 +108,11 @@ module DegreeRequirements
           last_key = key
           current[:heading_index] = index
 
+          @last_row = nil
           items, index = read_semester(index + 1, key[0], SEASON_ORDER[key[1]], current[:default_credits])
           current[:semesters] << [ items, match[3]&.to_i ]
+          # The line that ends the semester is not part of the plan.
+          current[:last_line] = @last_row || current[:last_line] || current[:heading_index]
         end
         programs << finish(current) if current
         # Credits are filled after the whole catalog is read: a course with no
@@ -119,7 +127,7 @@ module DegreeRequirements
         title = title_index && TITLE.match(clean(title_index))
         prelude = ((title_index || heading_index)...heading_index).map { |i| clean(i) }.join(" ")
         name = title && (title[3] ? title[3].squeeze(" ") : "#{title[1].strip} (#{title[2]})")
-        { title: name, code: title && title[2], page: page_of(heading_index),
+        { title: name, code: title && title[2], page: page_of(heading_index), first_line: heading_index,
           default_credits: prelude.match?(DEFAULT_FOUR) ? 4 : nil, semesters: [] }
       end
 
@@ -134,7 +142,8 @@ module DegreeRequirements
         plan = ProgramPageParser::Plan.new(name: program[:title], years: items.map(&:year_index).max,
                                            accelerated: program[:title].match?(/three[\s-]year|accelerated/i),
                                            total_credits: ItemBuilder.total_credits(items), items: items)
-        Program.new(title: program[:title], code: program[:code], page: program[:page], plan: plan)
+        Program.new(title: program[:title], code: program[:code], page: program[:page], plan: plan,
+                    lines: @origin[program[:first_line]]..@origin[program[:last_line]])
       end
 
       # The rows under one heading, and the index of the line after them.
@@ -167,10 +176,12 @@ module DegreeRequirements
 
             cells.last[:title] = "#{cells.last[:title]} #{line.strip}"
             @row_lines << (index - 1)
+            @last_row = index - 1
             next
           end
 
           @row_lines << (index - 1)
+          @last_row = index - 1
 
           cell = cell_for(match, default_credits).merge(page: page)
           if join_next && ItemBuilder::COURSE.match?(cell[:code]) && ItemBuilder::COURSE.match?(cells.last[:code].split(" or ").last)

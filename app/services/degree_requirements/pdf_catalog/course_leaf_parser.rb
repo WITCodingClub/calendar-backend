@@ -51,7 +51,11 @@ module DegreeRequirements
       def self.call(text) = new(text).call
 
       def initialize(text)
-        @pages = text.to_s.split("\f").map { |page| page.split("\n") }
+        pages = text.to_s.split("\f")
+        @pages = pages.map { |page| page.split("\n") }
+        # The index in text.split("\n") of the first line of each page: the
+        # line that holds the form feed before it.
+        @page_starts = pages.reduce([ 0 ]) { |starts, page| starts << (starts.last + page.count("\n")) }
       end
 
       def call
@@ -72,10 +76,13 @@ module DegreeRequirements
             elsif (match = SEASON.match(line))
               plan[:season] = match[1].downcase
             elsif line.strip.start_with?("Total Credits")
+              plan[:last_line] = global_line(page_index, line_index)
               programs << finish(plan)
               plan = nil
             else
-              read_row(plan, line)
+              # A plan with no "Total Credits" line ends at its last row, so
+              # a list under it is not part of it.
+              plan[:last_line] = global_line(page_index, line_index) if read_row(plan, line, page_index)
             end
           end
         end
@@ -85,32 +92,37 @@ module DegreeRequirements
 
       private
 
+      def global_line(page_index, line_index) = @page_starts[page_index] + line_index
+
       def start_plan(page_index, line_index)
         { name: plan_name(page_index, line_index), page: page_index + 1, year: 1, season: "fall", rows: [],
-          heading: text_before(page_index, line_index) }
+          heading: text_before(page_index, line_index), first_line: global_line(page_index, line_index) }
       end
 
       # One line of a semester: a course, a choice, a placeholder, the
       # semester total, or the rest of a title.
-      def read_row(plan, line)
+      def read_row(plan, line, page_index)
         tokens = line.strip.split(/\s{2,}/)
         return if tokens.empty? || tokens.first == "Credits" || line.match?(PAGE_NUMBER) || line.match?(FOOTER)
 
         credits = tokens.last.match?(NUMBER) ? tokens.pop : nil
         first = tokens.first.to_s
-        row = { year: plan[:year], season: plan[:season], credits: credits }
+        row = { year: plan[:year], season: plan[:season], credits: credits, page: page_index }
 
         if first.match?(/\Aor\s+#{CODE}/) && (last = plan[:rows].last)
           last[:codes].concat(first.scan(CODE))
           last[:choice] = true
+          true
         elsif first.match?(/\A#{CODE}/)
           codes = first.scan(CODE)
           plan[:rows] << row.merge(codes: codes, choice: first.match?(/\bor\b/), title: tokens[1..].join(" "))
         elsif line.match?(/\A\S/) && credits
           plan[:rows] << row.merge(codes: [], label: first)
-        elsif (last = plan[:rows].last) && last[:codes].any? && credits.nil?
+        elsif (last = plan[:rows].last) && last[:codes].any? && credits.nil? && last[:page] == page_index
+          # The rest of a title is on the page of its row: a heading on the
+          # next page is not.
           last[:title] = [ last[:title], tokens.join(" ") ].compact_blank.join(" ")
-        end
+        end.present?
       end
 
       def finish(plan)
@@ -119,6 +131,7 @@ module DegreeRequirements
 
         name = plan[:name] || "Plan of Study"
         Program.new(title: program_name(plan[:page], plan[:heading]), code: nil, page: plan[:page],
+                    lines: plan[:first_line]..(plan[:last_line] || plan[:first_line]),
                     plan: ProgramPageParser::Plan.new(name: name, years: items.map(&:year_index).max,
                                                       accelerated: name.match?(/three[\s-]year|3[\s-]year|accelerated/i),
                                                       total_credits: ItemBuilder.total_credits(items), items: items))
