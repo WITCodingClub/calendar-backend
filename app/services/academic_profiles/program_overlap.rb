@@ -30,11 +30,17 @@ module AcademicProfiles
     # the fields of PlanTerms. aliases: CourseCodeAlias.reviewed_pairs.
     # attempts: the best attempt of each course the student took, without
     # the ones not passed. course_details: the CourseDetails of the response.
-    def initialize(active_entries, aliases: {}, attempts: [], course_details: CourseDetails.new([]))
+    # slots: the open elective slots of each active entry (MinorFit::Slot,
+    # #998), keyed by the entry. hss_matcher: the HssMatcher of
+    # DegreeProgress, for the HSS slots.
+    def initialize(active_entries, aliases: {}, attempts: [], course_details: CourseDetails.new([]), slots: {},
+                   hss_matcher: nil)
       @active = active_entries
       @aliases = aliases
       @attempts = attempts
       @details = course_details
+      @slots = slots
+      @hss_matcher = hss_matcher || HssMatcher.new(aliases)
       @rows = {}
     end
 
@@ -66,7 +72,10 @@ module AcademicProfiles
     # course. It is shared when an active row has the course (each active
     # row counts once), and extra when it is open and not shared. Course
     # rows match first, then choice rows, as in DegreeProgress, so a choice
-    # does not use an active row that a course row needs.
+    # does not use an active row that a course row needs. A program with its
+    # own plan has its own semesters and slots, so its courses get no slot
+    # in the major plan (#998): slots is empty, every extra course is
+    # unplaced, and expected_end_with_minor is null.
     def plan_overlap(entry)
       free = active_rows(entry[:program]).dup
       shared = extra = 0
@@ -80,13 +89,44 @@ module AcademicProfiles
           extra += 1
         end
       end
-      { shared: shared, extra: extra }
+      { shared: shared, extra: extra, slots: [], unplaced: extra, expected_end_with_minor: nil }
     end
 
     def list_overlap(lists, program)
       free = active_rows(program).dup
       counts = lists.map { |list| list_counts(list, free) }
-      { shared: counts.sum(&:first), extra: counts.sum(&:last) }
+      needs = lists.zip(counts).map { |list, (_, extra)| need(list, extra, program) }
+      fit = MinorFit.new(other_slots(program), major_end: major_end(program), matcher: @hss_matcher).call(needs)
+      { shared: counts.sum(&:first), extra: counts.sum(&:last), **fit }
+    end
+
+    # The extra courses of one list for MinorFit: the list courses that the
+    # student did not take and that no active program has, in list order. A
+    # list of subjects or of any course names no fixed course, so it gives
+    # its rule in place of courses.
+    def need(list, extra, program)
+      group = list[:group]
+      return MinorFit::Need.new(courses: [], subjects: group.subject_codes, any_course: group.any_course, count: extra) if open_list?(group)
+
+      rows = active_rows(program)
+      courses = group.courses.map { |course| [ course.subject_code, course.course_number ] }.reject do |key|
+        attempt_for(key) || rows.any? { |active| active.keys.include?(key) }
+      end
+      MinorFit::Need.new(courses: courses, subjects: [], any_course: false, count: extra)
+    end
+
+    # The open slots of the active programs, without the program itself.
+    def other_slots(program)
+      @active.reject { |entry| entry[:program] == program }.flat_map { |entry| @slots.fetch(entry, []) }
+    end
+
+    # The latest expected_end of an active program with a timeline, with
+    # the Banner code of its term, or nil.
+    def major_end(program)
+      last = @active.reject { |entry| entry[:program] == program }
+                    .filter_map { |entry| entry[:timeline]&.last }
+                    .max_by { |semester| semester[:uid] }
+      last && { term: last[:term], uid: last[:uid], estimated: last[:estimated] }
     end
 
     # [shared, extra] of one list. The courses the student took for this

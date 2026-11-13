@@ -27,7 +27,12 @@ module McpTools
                 "Each program has total_credits and school. A program with no plan of study, such as " \
                 "a minor, has lists: each elective list with its minimum and its courses, each course with " \
                 "its status, the term I took it, and major_term (its planned term in one of my active " \
-                "programs, or null). This is a help for planning, not a degree audit: it does not know substitutions, " \
+                "programs, or null). A planned program, which only GET /api/user/degree_progress with " \
+                "include_planned sends, has overlap: the shared and extra courses, the open elective slots of " \
+                "my active programs that the extra courses of a minor fill (slots), the extra courses with no " \
+                "slot (unplaced), and expected_end_with_minor. That is an estimate: it does not check that a " \
+                "course is offered in the term of a slot. " \
+                "This is a help for planning, not a degree audit: it does not know substitutions, " \
                 "transfer credit, or AP credit, and the history can have gaps. The student's official degree " \
                 "audit is Stellic. Without arguments it checks each of my programs in its own catalog year. " \
                 "Read assumptions in the result."

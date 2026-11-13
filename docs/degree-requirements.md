@@ -462,7 +462,53 @@ Example. The major plans MATH 1750 (Fall 2025), MATH 2500 (Fall 2026), and MATH 
 | Required Mathematics (no minimum) | 3 | MATH 1750, MATH 2300, MATH 2100 | MATH 1750, MATH 2300 | none | MATH 2100 |
 | Upper-level Mathematics (`min_courses: 2`) | 2 | MATH 2500, MATH 3500, MATH 3600 | MATH 2500 | none | 1 more course |
 
-`overlap` is `{ shared: 3, extra: 2 }`. MATH 1750 is done and the major has it, so it is shared, not taken-only. Issue #998 adds where the extra courses fit in the major plan.
+`overlap` has `shared: 3` and `extra: 2`. MATH 1750 is done and the major has it, so it is shared, not taken-only.
+
+### Where a minor fits in the major plan
+
+`overlap` of a planned program also says where its extra courses go in the plans of the active programs (#998). `AcademicProfiles::MinorFit` calculates it. It is an estimate for planning: it does not check that a course is offered in the term of a slot.
+
+```jsonc
+"overlap": {
+  "shared": 4,
+  "extra": 1,
+  "slots": [
+    { "label": "Free Elective", "planned_term": "Summer 2028", "planned_term_uid": 202830,
+      "courses": ["MATH 2860", "MATH 3500", "MATH 4100"] }
+  ],
+  "unplaced": 0,
+  "expected_end_with_minor": { "term": "Summer 2029", "estimated": true }
+}
+```
+
+- **The slots:** the open elective slots (placeholder rows with `status: open`) in the plans of the active programs. A planned program that the student also declared as active does not count. A co-op slot never takes a course of a minor. A slot with no elective list (`checkable: false`) is not a slot here.
+- **Which courses a slot takes:** the rule of `DegreeProgress#take_for`, which `AcademicProfiles::ElectiveListRule` holds for both. A free elective (a list of any course) takes any course for degree credit. A program elective takes only the courses on its list, or the courses of its subjects. An HSS slot takes a course of its subjects, and when the slot stands for a category (`hss_category`, such as Humanities), only a course of that category.
+- **The extra courses:** for each list of the minor, the list courses that the student did not take and that no active program has, in list order. Each list needs as many of them as its part of `extra`.
+- **A list of subjects or of any course** names no fixed courses. Its extra courses can go to a slot that takes a course of one of its subjects, or that names a course of one of its subjects (with the HSS category rule above). A list of any course goes only to a free elective. These lists add no codes to `courses`.
+- **One slot per extra course:** each slot takes at most one course, and each course uses one slot, so the result has at most `extra` slots. A course on two lists of the minor fills one slot only. The narrow slots (program electives and HSS slots) take courses first, in term order, then the free electives in term order. A free elective is then not used where a narrow slot fits. The assignment is a maximum matching: a later slot can move a course from an earlier slot to another slot that also takes it, so the most courses get a slot.
+- **`slots`** has the slots that got a course, in term order. A slot with no planned term (the active program has no start term) comes last. Each slot has its `label`, `planned_term`, `planned_term_uid`, and `courses`: the extra courses of the minor that the slot takes, as `SUBJ 1234`, in list order, at most 10 (`MinorFit::MAX_COURSES`). The list does not say which course the assignment gave the slot, because the student picks.
+- **`unplaced`** is `extra` minus the number of slots.
+- **`expected_end_with_minor`** starts from the major's `expected_end`. For an active program with a start term and a plan, that end is the estimate from the student's history (#1011), not the plan end. Each slot keeps its `planned_term`, the term of the plan, also when the estimate moves the row to a later term. With several active programs, it is the latest `expected_end` of an active program with a timeline. With `unplaced: 0` it is that `expected_end`, with its `estimated`. Else it is one more term for each 4 unplaced courses (rounded up), with `estimated: true`. The extra terms are fall and spring terms (`NextTermCourses.default_term_uid`), because a summer term is optional: after Spring 2029 comes Fall 2029. It is null with no active program with a timeline.
+- **A planned program with a plan of study**, such as a second major, has its own semesters and its own slots. Its courses do not go into the major plan: `slots` is empty, `unplaced` is `extra`, and `expected_end_with_minor` is null.
+- **Each planned program is fitted alone**, against every open slot. Two planned minors can get the same slots. The open courses of an active minor (a minor with no plan of study) do not take slots either. So with more than one minor, the estimate can be too early.
+- **A slot in a past term** (`behind: true` on its row) keeps its planned term. The student takes that course in a later term.
+- Without `include_planned`, nothing changes. The slots use the elective lists that `DegreeProgress` already loaded, so there is no new query.
+
+```mermaid
+flowchart TD
+  A[Active programs: open placeholder rows with an elective list] --> S{Slot kind}
+  S -->|Co-op| X[Not a slot]
+  S -->|Program elective or HSS| N[Narrow slots, term order]
+  S -->|Free elective| F[Free slots, term order]
+  M[Minor lists: extra count and courses not taken, not in an active plan] --> MF[MinorFit matching]
+  N --> MF
+  F --> MF
+  MF --> SL[slots: one course each]
+  MF --> U[unplaced = extra - slots]
+  U --> E{unplaced is 0?}
+  E -->|yes| EE[expected_end of the major]
+  E -->|no| EP[plus one fall or spring term per 4 courses, estimated]
+```
 
 ```mermaid
 flowchart TD

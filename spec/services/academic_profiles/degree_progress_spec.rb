@@ -766,7 +766,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       entry = minor_entry
 
       expect(entry).to include(status: "planned", total_credits: 20, school: "School of Sciences and Humanities",
-                               overlap: { shared: 3, extra: 2 })
+                               overlap: include(shared: 3, extra: 2))
       expect(entry[:summary]).to include(total_credits: 20)
       expect(entry[:lists].map { |group| group.slice(:name, :min_courses, :min_credits, :notes, :checkable) }).to eq([
         { name: "Required Mathematics", min_courses: 3, min_credits: nil, notes: "Take all three.", checkable: true },
@@ -791,7 +791,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
       entry = minor_entry
 
-      expect(entry[:overlap]).to eq(shared: 0, extra: 2)
+      expect(entry[:overlap]).to include(shared: 0, extra: 2)
       expect(entry[:lists].sole[:courses].pluck(:major_term)).to all(be_nil)
     end
 
@@ -806,7 +806,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
       entry = minor_entry
 
-      expect(entry[:overlap]).to eq(shared: 0, extra: 3)
+      expect(entry[:overlap]).to include(shared: 0, extra: 3)
       expect(entry[:lists].map { |group| group.values_at(:name, :min_courses, :min_credits, :checkable) }).to eq([
         [ "Mathematics Electives", nil, 8, true ], [ "Approved courses", nil, nil, false ],
         [ "Mathematics or Physics", 1, nil, true ]
@@ -826,7 +826,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       entry = minor_entry
 
       expect(entry[:lists].first[:courses].sole[:major_term]).to eq("Fall 2025")
-      expect(entry[:overlap]).to eq(shared: 1, extra: 1)
+      expect(entry[:overlap]).to include(shared: 1, extra: 1)
     end
 
     it "meets a list with a taken course first, so a later list keeps the major course" do
@@ -836,7 +836,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       take(past_term, "MATH", 1750)
       plan_minor
 
-      expect(minor_entry[:overlap]).to eq(shared: 1, extra: 0)
+      expect(minor_entry[:overlap]).to include(shared: 1, extra: 0)
     end
 
     it "matches the course rows of a planned plan before its choice rows" do
@@ -852,7 +852,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
       entry = progress(include_planned: true)[:programs].find { |program| program[:program] == "other-bs" }
 
-      expect(entry[:overlap]).to eq(shared: 2, extra: 0)
+      expect(entry[:overlap]).to include(shared: 2, extra: 0)
     end
 
     it "does not overlap a planned minor with the same minor declared as active" do
@@ -860,7 +860,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       plan_minor
       create(:student_program, user: user, degree_program: minor, catalog_year: catalog_year)
 
-      expect(minor_entry[:overlap]).to eq(shared: 0, extra: 1)
+      expect(minor_entry[:overlap]).to include(shared: 0, extra: 1)
       active = progress(include_planned: true)[:programs].find { |entry| entry[:program] == "math-minor" && entry[:status] == "active" }
       expect(active[:lists].sole[:courses].sole).to include(code: "MATH 1750", major_term: nil)
     end
@@ -877,7 +877,7 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
       entry = progress(include_planned: true)[:programs].find { |program| program[:program] == "gadgets-bs" }
 
-      expect(entry).to include(overlap: { shared: 1, extra: 1 }, lists: [])
+      expect(entry).to include(overlap: include(shared: 1, extra: 1), lists: [])
     end
 
     it "gives the lists of a minor named as the program argument, with no overlap" do
@@ -888,6 +888,141 @@ RSpec.describe AcademicProfiles::DegreeProgress do
 
       expect(entry[:lists].sole[:courses].sole).to include(code: "MATH 1750", status: "open", major_term: nil)
       expect(entry).not_to have_key(:overlap)
+    end
+
+    describe "where the minor fits in the major plan (#998)" do
+      let(:free) { create(:elective_group, :any_course, requirement_set: set) }
+      let(:math_electives) do
+        group = create(:elective_group, requirement_set: set, name: "Mathematics Electives", min_courses: nil)
+        [ 3500, 3600 ].each { |code| create(:elective_group_course, elective_group: group, subject_code: "MATH", course_number: code) }
+        group
+      end
+
+      def slot(group, year, season, label: group.name)
+        item(:placeholder, label: label, elective_group: group, year_index: year, season: season)
+      end
+
+      it "fills the open slots in term order, a narrow slot only with courses on its list" do
+        item(subject_code: "MATH", course_number: 1750)
+        slot(math_electives, 3, "spring", label: "Mathematics Elective")
+        slot(free, 2, "spring", label: "Free Elective")
+        slot(free, 3, "fall", label: "Free Elective")
+        slot(free, 3, "summer", label: "Free Elective")
+        co_op = create(:elective_group, requirement_set: set, name: DegreeRequirements::SharedElectives::CO_OP.name)
+        slot(co_op, 2, "summer", label: "Co-op Semester")
+        item(subject_code: "WDGT", course_number: 4000, year_index: 4, season: "spring")
+        list("Required Mathematics", [ 1750, 2100 ], min_courses: nil)
+        list("Upper-level Mathematics", [ 3500, 3600, 4100 ], min_courses: 2)
+        plan_minor
+
+        overlap = minor_entry[:overlap]
+
+        expect(overlap).to include(shared: 1, extra: 3, unplaced: 0,
+                                   expected_end_with_minor: { term: "Spring 2029", estimated: true })
+        # Three extra courses take three slots: the narrow slot first, then
+        # the earliest free slots. The co-op slot takes no course.
+        expect(overlap[:slots]).to eq([
+          { label: "Free Elective", planned_term: "Spring 2027", planned_term_uid: 202720,
+            courses: [ "MATH 2100", "MATH 3500", "MATH 3600", "MATH 4100" ] },
+          { label: "Free Elective", planned_term: "Fall 2027", planned_term_uid: 202810,
+            courses: [ "MATH 2100", "MATH 3500", "MATH 3600", "MATH 4100" ] },
+          { label: "Mathematics Elective", planned_term: "Spring 2028", planned_term_uid: 202820,
+            courses: [ "MATH 3500", "MATH 3600" ] }
+        ])
+      end
+
+      it "uses a narrow slot before a free one, and adds a term for each 4 courses with no slot" do
+        slot(free, 1, "spring", label: "Free Elective")
+        slot(math_electives, 2, "fall", label: "Mathematics Elective")
+        item(subject_code: "WDGT", course_number: 4000, year_index: 2, season: "spring")
+        list("Upper-level Mathematics", [ 3500 ], min_courses: 1)
+        list("More Mathematics", [ 4100, 4200, 4300, 4400, 4500 ], min_courses: 5)
+        plan_minor
+
+        overlap = minor_entry[:overlap]
+
+        # MATH 3500 fits the Mathematics Elective. The free slot takes one of
+        # the five other courses, so four have no slot: one more term after
+        # the major's expected end. Both slots are behind, so the estimate
+        # (#1011) puts that end in Spring 2028, a year after the plan end.
+        expect(overlap[:slots].pluck(:label)).to eq([ "Free Elective", "Mathematics Elective" ])
+        expect(overlap).to include(extra: 6, unplaced: 4, expected_end_with_minor: { term: "Fall 2028", estimated: true })
+      end
+
+      it "moves a course to another slot so that the most courses get a slot" do
+        # The first slot takes MATH 3500 first. The second slot takes only
+        # MATH 3500, so the first slot moves to MATH 3600.
+        only_3500 = create(:elective_group, requirement_set: set, name: "Analysis Electives", min_courses: nil)
+        create(:elective_group_course, elective_group: only_3500, subject_code: "MATH", course_number: 3500)
+        slot(math_electives, 1, "spring", label: "Mathematics Elective")
+        slot(only_3500, 2, "fall", label: "Analysis Elective")
+        list("Upper-level Mathematics", [ 3500, 3600 ], min_courses: 2)
+        plan_minor
+
+        overlap = minor_entry[:overlap]
+
+        expect(overlap).to include(extra: 2, unplaced: 0)
+        expect(overlap[:slots].map { |fit| fit.values_at(:label, :courses) })
+          .to eq([ [ "Mathematics Elective", [ "MATH 3500", "MATH 3600" ] ], [ "Analysis Elective", [ "MATH 3500" ] ] ])
+      end
+
+      it "gives an HSS slot only a course of its category, and a list of subjects only a slot of its subjects" do
+        hss = create(:elective_group, :subjects, requirement_set: set)
+        slot(hss, 1, "spring", label: "HSS Elective")
+        create(:elective_group, requirement_set: minor_set, name: "Psychology", min_courses: 1, subject_codes: %w[PSYC])
+        humanities = create(:elective_group, requirement_set: minor_set, name: "History", min_courses: 1)
+        [ [ "PSYC", 3000 ], [ "HIST", 3000 ] ].each do |subject, number|
+          create(:elective_group_course, elective_group: humanities, subject_code: subject, course_number: number)
+        end
+        plan_minor
+
+        entry = minor_entry
+        active = progress(include_planned: true)[:programs].find { |program| program[:status] == "active" }
+
+        # The HSS slot stands for Humanities, so it takes HIST 3000 and no
+        # PSYC course.
+        expect(active[:requirements].sole[:hss_category]).to eq("Humanities")
+        expect(entry[:overlap][:slots]).to eq([
+          { label: "HSS Elective", planned_term: "Spring 2026", planned_term_uid: 202620, courses: [ "HIST 3000" ] }
+        ])
+        expect(entry[:overlap]).to include(extra: 2, unplaced: 1)
+      end
+
+      it "fits a list of subjects into a slot that names a course of the subject, and a course on two lists into one slot" do
+        slot(math_electives, 1, "spring", label: "Mathematics Elective")
+        create(:elective_group, requirement_set: minor_set, name: "Any Mathematics", min_courses: 1, subject_codes: %w[MATH])
+        plan_minor
+
+        expect(minor_entry[:overlap]).to include(extra: 1, unplaced: 0)
+
+        minor_set.elective_groups.destroy_all
+        list("Analysis", [ 3500 ], min_courses: 1)
+        list("Also Analysis", [ 3500 ], min_courses: 1)
+        slot(math_electives, 2, "fall", label: "Mathematics Elective")
+
+        # Each list needs MATH 3500. The course fills one slot only.
+        expect(minor_entry[:overlap]).to include(extra: 2, unplaced: 1)
+        expect(minor_entry[:overlap][:slots].size).to eq(1)
+      end
+
+      it "gives no major end without a timeline, and no slots to a planned program with a plan" do
+        slot(free, 1, "spring", label: "Free Elective")
+        list("Calculus", [ 1750 ], min_courses: 1)
+        plan_minor
+        user.student_programs.where(status: "active").update_all(catalog_term_uid: nil) # rubocop:disable Rails/SkipsModelValidations
+
+        expect(minor_entry[:overlap]).to include(unplaced: 0, expected_end_with_minor: nil)
+        expect(minor_entry[:overlap][:slots].sole).to include(planned_term: nil, courses: [ "MATH 1750" ])
+
+        gadgets = create(:degree_program, slug: "gadgets-bs")
+        gadget_plan = create(:program_plan, requirement_set: create(:requirement_set, degree_program: gadgets, catalog_year: catalog_year))
+        create(:program_plan_item, program_plan: gadget_plan, subject_code: "GADG", course_number: 1000)
+        create(:student_program, :planned, user: user, degree_program: gadgets, catalog_year: catalog_year)
+
+        entry = progress(include_planned: true)[:programs].find { |program| program[:program] == "gadgets-bs" }
+
+        expect(entry[:overlap]).to eq(shared: 0, extra: 1, slots: [], unplaced: 1, expected_end_with_minor: nil)
+      end
     end
   end
 

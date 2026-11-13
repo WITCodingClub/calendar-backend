@@ -45,7 +45,9 @@ RSpec.describe "/api/user/degree_progress", :degree_planning, type: :request do
     expect(response.parsed_body["programs"].pluck("program", "status"))
       .to eq([ [ "widget-design-bs", "active" ], [ "gear-minor", "planned" ] ])
     planned = response.parsed_body["programs"].last
-    expect(planned["overlap"]).to eq("shared" => 0, "extra" => 1)
+    # The major plan has no elective slot, so the course has no slot (#998).
+    expect(planned["overlap"]).to include("shared" => 0, "extra" => 1, "slots" => [], "unplaced" => 1,
+                                          "expected_end_with_minor" => anything)
     expect(planned["lists"].sole).to include("name" => "Gear Electives", "min_courses" => 1,
                                              "courses" => [ include("code" => "GEAR 2000", "status" => "open", "major_term" => nil) ])
   end

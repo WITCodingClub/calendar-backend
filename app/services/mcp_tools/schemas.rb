@@ -603,8 +603,19 @@ module McpTools
           # The elective lists of a program with no plan of study (#992).
           # Empty for a program with a plan.
           lists:        array(PROGRAM_LIST),
-          # Only for a planned program (#992).
-          overlap:      object(shared: INTEGER, extra: INTEGER),
+          # Only for a planned program (#992). slots, unplaced, and
+          # expected_end_with_minor: where the extra courses fit in the plans
+          # of the active programs (#998).
+          overlap:      object(
+            shared:                  INTEGER,
+            extra:                   INTEGER,
+            slots:                   array(
+              object(label: nullable(STRING), planned_term: nullable(STRING), planned_term_uid: nullable(INTEGER),
+                     courses: STRINGS)
+            ),
+            unplaced:                INTEGER,
+            expected_end_with_minor: nullable(object(term: STRING, estimated: BOOLEAN))
+          ),
           optional:     %i[overlap]
         )
       ),

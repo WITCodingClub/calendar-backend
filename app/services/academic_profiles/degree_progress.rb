@@ -74,8 +74,12 @@ module AcademicProfiles
       programs = entries.map { |set, plan_name, row| with_terms(program_json(set, plan_name, row), row) }
       # The lists and the overlap (#992) read the planned terms of the active
       # programs, so they come after with_terms of every program.
-      overlap = ProgramOverlap.new(programs.select { |entry| entry[:status] == "active" },
-                                   aliases: aliases, attempts: attempts, course_details: @course_details)
+      # The open slots (#998) need the elective lists of the active sets.
+      active = entries.zip(programs).select { |_, entry| entry[:status] == "active" }
+      slots = {}.compare_by_identity
+      active.each { |(set, plan_name, _), entry| slots[entry] = fit_slots(set, plan_name, entry) } if @include_planned
+      overlap = ProgramOverlap.new(active.map(&:last), aliases: aliases, attempts: attempts,
+                                                       course_details: @course_details, slots: slots, hss_matcher: hss_matcher)
       {
         programs:    entries.zip(programs).map { |(set, _, _), entry| overlap.call(set, entry) },
         courses:     taken.map(&:as_json),
@@ -353,23 +357,39 @@ module AcademicProfiles
     # "HSS".
     def width(group) = group.subject_codes.any? ? group.subject_codes.size : group.courses.size
 
-    # The best unused course that meets an elective list: a course on the
-    # list, a course in one of its subjects, or any course. Any course means
-    # a course for degree credit: not a co-op and not a course below 1000,
-    # such as ENGL0700.
+    # The best unused course that meets an elective list (ElectiveListRule):
+    # a course on the list, a course in one of its subjects, or any course
+    # for degree credit.
     def take_for(pool, used, group)
-      codes = group.courses.map { |course| [ course.subject_code, course.course_number ] }
-      return take(pool, used, codes) unless group.any_course || group.subject_codes.any?
-
-      keys = codes.flat_map { |code| equivalents(code) }
-      take_where(pool, used) do |candidate|
-        (group.any_course && degree_credit?(candidate)) || keys.include?(candidate.key) ||
-          group.subject_codes.include?(candidate.subject_code)
-      end
+      rule = list_rule(group)
+      take_where(pool, used) { |candidate| rule.accepts?(candidate.key) }
     end
 
-    def degree_credit?(course)
-      course.subject_code != "COOP" && course.course_number.to_i >= 1000
+    def list_rule(group)
+      @list_rules ||= {}
+      @list_rules[group.id] ||= ElectiveListRule.new(group, aliases)
+    end
+
+    # The open elective slots of an active program that a course of a planned
+    # minor can fill (#998): the open plan rows with an elective list, without
+    # the co-op slots. An HSS slot that stands for a category (hss_category)
+    # takes only a course of that category. The rows are in the order of the
+    # plan items, so each row has its item. pick_plan gives the same plan as
+    # program_json, also when two plans have the same name.
+    def fit_slots(set, plan_name, entry)
+      plan = pick_plan(set, plan_name)
+      return [] if plan.nil? || plan.items.size != entry[:requirements].size
+
+      groups = set.elective_groups.index_by(&:id)
+      plan.items.zip(entry[:requirements]).filter_map do |item, row|
+        group = groups[item.elective_group_id]
+        next unless item.placeholder? && group && row[:status] == "open"
+        next if group.name == DegreeRequirements::SharedElectives::CO_OP.name
+
+        category = row[:hss_category] && HssMatcher.categories(set).find { |found| found["name"] == row[:hss_category] }
+        MinorFit::Slot.new(label: row[:label], term: row[:planned_term], term_uid: row[:planned_term_uid],
+                           rule: list_rule(group), category: category)
+      end
     end
 
     # hss_category: the category of the major's HSS requirement that a
