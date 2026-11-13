@@ -83,8 +83,24 @@ module Api
             ends_before:       params[:ends_before],
             credit_hours:      array_param(:credit_hours),
             instructor:        params[:instructor],
-            include_cancelled: params[:include_cancelled]
+            include_cancelled: params[:include_cancelled],
+            open_only:         optional_boolean_param(:open_only),
+            include_waitlist:  optional_boolean_param(:include_waitlist)
           }.compact
+        end
+
+        STRICT_BOOLEANS = { "true" => true, "1" => true, "false" => false, "0" => false }.freeze
+
+        # The seat filters echo in meta.filters as booleans. A missing or empty
+        # value is nil, so compact leaves it out. Any value other than true,
+        # false, 1, or 0 is an invalid filter value, so it returns HTTP 400.
+        def optional_boolean_param(key)
+          value = params[key]
+          return nil if value.blank?
+
+          STRICT_BOOLEANS.fetch(value.to_s.strip.downcase) do
+            raise ::Catalog::FilterError, "Invalid #{key} #{value.inspect}; use true or false"
+          end
         end
       end
     end

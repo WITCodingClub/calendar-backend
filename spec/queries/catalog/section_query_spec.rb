@@ -55,6 +55,49 @@ RSpec.describe Catalog::SectionQuery do
     end
   end
 
+  describe "open_only and include_waitlist" do
+    # COMP 1000-01 has a free seat. COMP 2000-01 is full with room on the
+    # waitlist. COMP 2000-02 is full with a full waitlist. MATH 1750-01 has no
+    # seat data, only a waitlist count.
+    before do
+      comp1000.update!(seats_capacity: 30, seats_available: 5, waitlist_capacity: 10, waitlist_available: 10)
+      comp2000.update!(seats_capacity: 30, seats_available: 0, waitlist_capacity: 10, waitlist_available: 3)
+      comp2000b.update!(seats_capacity: 30, seats_available: 0, waitlist_capacity: 10, waitlist_available: 0)
+      math1750.update!(seats_capacity: nil, seats_available: nil, waitlist_capacity: 10, waitlist_available: 4)
+    end
+
+    it "keeps only sections with a free seat" do
+      expect(crns_for(open_only: true)).to eq([ 10_001 ])
+    end
+
+    it "accepts the string \"true\" from a query string" do
+      expect(crns_for(open_only: "true")).to eq([ 10_001 ])
+    end
+
+    it "also keeps full sections whose waitlist has room with include_waitlist" do
+      expect(crns_for(open_only: true, include_waitlist: true)).to eq([ 10_001, 10_002 ])
+    end
+
+    it "leaves out a section with no seat data, even when its waitlist has room" do
+      expect(crns_for(open_only: true, include_waitlist: true)).not_to include(20_001)
+    end
+
+    it "treats an over-enrolled section as full" do
+      comp2000b.update_columns(seats_available: -2, waitlist_available: 1)
+
+      expect(crns_for(open_only: true)).not_to include(10_003)
+      expect(crns_for(open_only: true, include_waitlist: true)).to include(10_003)
+    end
+
+    it "changes nothing for open_only \"false\"" do
+      expect(crns_for(open_only: "false", include_waitlist: true)).to eq(crns_for)
+    end
+
+    it "ignores include_waitlist without open_only" do
+      expect(crns_for(include_waitlist: true)).to eq(crns_for)
+    end
+  end
+
   describe "term_uid" do
     it "keeps only sections in that term" do
       expect(crns_for(term_uid: 202_710)).to eq([ 10_001, 10_002, 10_003 ])

@@ -333,6 +333,8 @@ All filters are optional. Give a list as a comma-separated value, for example
 | `begins_after` | `10:00` | Drop sections with any meeting before this time |
 | `ends_before` | `16:00` | Drop sections with any meeting after this time |
 | `include_cancelled` | `true` | Add cancelled sections |
+| `open_only` | `true` | Keep sections with a free seat (`seats.available` > 0) |
+| `include_waitlist` | `true` | With `open_only`, also keep full sections whose waitlist has room (`waitlist.available` > 0) |
 | `page`, `per_page` | `2`, `100` | Page through the result |
 
 `begins_after` and `ends_before` accept `HH:MM` or `HHMM`. Both are inclusive at
@@ -343,6 +345,34 @@ section is dropped if **any** of its meetings breaks the rule. This is what a
 student wants: one Friday afternoon lab still ruins a free Friday.
 
 An unknown filter value returns HTTP 400. An unknown query parameter is ignored.
+
+### Open seats
+
+`open_only=true` keeps the sections that have a free seat. Add
+`include_waitlist=true` to also keep full sections whose waitlist has room.
+
+```bash
+curl "https://calendar.witcc.dev/api/v1/catalog/sections?term_uid=202720&subject=PHIL&open_only=true&include_waitlist=true"
+```
+
+Points to know:
+
+- Seat counts can be up to 30 minutes old during registration, and up to a
+  day old outside it. The response cache adds at most one more hour. See
+  [Notes on the data](#notes-on-the-data). Do not show the result as a
+  real-time seat count.
+- `open_only` leaves out a section with no seat data (`seats.available` is
+  `null`), because the API does not know that the section is open.
+- A section with `seats.available` of 0 or less is full. With
+  `include_waitlist`, a full section stays only when `waitlist.available` is
+  more than 0.
+- `include_waitlist` has no effect without `open_only`.
+- Both filters accept `true`, `false`, `1`, or `0`. Any other value returns
+  HTTP 400.
+- The filter reads the seats of the section itself, not the seats of its
+  `cross_list` group.
+- `meta.filters` gives both values as booleans, for example
+  `"open_only": true`.
 
 ### Search by meaning
 

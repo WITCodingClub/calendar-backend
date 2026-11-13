@@ -93,6 +93,17 @@ RSpec.describe "Api::Graphql", type: :request do
       expect(result["data"]["sections"]["pageInfo"]["hasNextPage"]).to be(true)
     end
 
+    it "filters by open seats with openOnly and includeWaitlist" do
+      comp1000.update!(seats_capacity: 30, seats_available: 5)
+      comp2000.update!(seats_capacity: 30, seats_available: 0, waitlist_capacity: 10, waitlist_available: 2)
+
+      open_only = gql(query, variables: { filter: { openOnly: true } })
+      with_waitlist = gql(query, variables: { filter: { openOnly: true, includeWaitlist: true } })
+
+      expect(open_only["data"]["sections"]["totalCount"]).to eq(1)
+      expect(with_waitlist["data"]["sections"]["totalCount"]).to eq(2)
+    end
+
     it "includes cancelled sections only when asked" do
       result = gql(query, variables: { filter: { includeCancelled: true } })
 
