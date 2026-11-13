@@ -56,6 +56,7 @@ The host side lives in [jaspermayone/infra](https://github.com/jaspermayone/infr
 | `calendar_mcp_scope_denials_total` | counter | `scope`: the missing scope; `mode`: `step_up` (HTTP 403) or `tool_error` | `Api::McpController`, `McpTools::BaseTool` |
 | `calendar_bulk_calendar_syncs_total` | counter | `reason`: `nightly`, `holidays`, `university_events` or `finals`; `result`: `completed` (did not fail: a discarded job counts here too) or `failed`. Added when the bulk sync batch ends. | `CourseCalendars::BulkSyncFinishedJob` |
 | `calendar_oauth_clients_registered_total` | counter | | `Oauth::RegistrationsController` |
+| `calendar_schedule_builder_busy_total` | counter | `surface`: `api` (HTTP 503) or `mcp` (a tool error) | `Catalog::ScheduleOptions::Slots` |
 
 The request metrics skip the health checks (`/up` and OkComputer). The gauges are counted on each scrape. If one count fails, `AppMetrics` reports the error to `Rails.error` and sets the others, so the scrape still succeeds.
 

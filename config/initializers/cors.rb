@@ -35,10 +35,12 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
     # The schedule builder takes its input in a POST body. It comes before
     # the catalog rule, because Rack::Cors uses the first resource that
     # matches the path.
+    # expose: a browser on another origin can read Retry-After of a 503.
     resource "/api/v1/catalog/schedule_options*",
              headers: :any,
              methods: [ :post, :options ],
-             credentials: false
+             credentials: false,
+             expose: [ "Retry-After" ]
 
     resource "/api/v1/catalog/*",
              headers: :any,

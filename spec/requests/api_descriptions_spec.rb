@@ -57,7 +57,7 @@ RSpec.describe "API descriptions", type: :request do
 
     it "lists every error code that the API sends" do
       expect(document.dig("components", "schemas", "Error", "properties", "code", "enum"))
-        .to contain_exactly("INVALID_FILTER", "NOT_FOUND", "RATE_LIMITED", "INTERNAL_ERROR")
+        .to contain_exactly("INVALID_FILTER", "NOT_FOUND", "RATE_LIMITED", "SCHEDULE_BUILDER_BUSY", "INTERNAL_ERROR")
     end
 
     it "declares the rate limit headers on every success and on the 429" do

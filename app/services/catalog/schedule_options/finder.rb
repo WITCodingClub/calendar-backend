@@ -6,7 +6,7 @@ module Catalog
     # (POST /api/v1/catalog/schedule_options, the find_schedules MCP tool),
     # or only counts them (POST /api/v1/catalog/schedule_options/count).
     #
-    #   Catalog::ScheduleOptions::Finder.new(term_uid: 202720, courses: [ { codes: [ "COMP 3350" ] } ]).call
+    #   Catalog::ScheduleOptions::Finder.new({ term_uid: 202720, courses: [ { codes: [ "COMP 3350" ] } ] }).call
     #
     # Input reads the request, Candidates loads the sections and builds the
     # units, Search finds the schedules that keep the hard rules, Ranking
@@ -16,11 +16,27 @@ module Catalog
     # twice. It is not a registration check: holds, restrictions, and
     # registration times are Banner's.
     class Finder
-      def initialize(params)
-        @input = Input.new(params)
+      # surface: "api" or "mcp", for the busy metric (Slots).
+      def initialize(params, surface: "api")
+        @input   = Input.new(params)
+        @surface = surface
       end
 
+      # Raises BusyError when every search slot is in use (Slots).
       def call
+        Slots.run(surface: @surface) { build }
+      end
+
+      def count
+        Slots.run(surface: @surface) do
+          result = search
+          { count: result.count, capped: result.capped }
+        end
+      end
+
+      private
+
+      def build
         result = search
 
         {
@@ -32,13 +48,6 @@ module Catalog
           not_offered: candidates.not_offered
         }
       end
-
-      def count
-        result = search
-        { count: result.count, capped: result.capped }
-      end
-
-      private
 
       def preferences = @input.preferences
 

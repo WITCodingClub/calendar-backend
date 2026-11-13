@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe McpTools::FindSchedules do
+RSpec.describe McpTools::FindSchedules, :schedule_builder do
   let(:user) { create(:user) }
   let(:term) { create(:term) }
 
@@ -53,9 +53,34 @@ RSpec.describe McpTools::FindSchedules do
     expect(call(scopes: [], term_uid: term.uid, courses: [ { codes: [ "COMP 3350" ] } ]).error?).to be(true)
   end
 
-  it "is read-only and has no flag, like its endpoint" do
+  it "is read-only and uses the flag of its endpoint" do
     expect(described_class.annotations.read_only_hint).to be(true)
-    expect(described_class.required_flag).to be_nil
+    expect(described_class.required_flag).to eq(FeatureFlags::SCHEDULE_BUILDER)
     expect(described_class.required_scope).to eq("catalog")
+  end
+
+  it "answers with a tool error while the flag is off for the student" do
+    Flipper.disable(FeatureFlags::SCHEDULE_BUILDER)
+
+    result = call(term_uid: term.uid, courses: [ { codes: [ "COMP 3350" ] } ])
+
+    expect(result.error?).to be(true)
+    expect(result.content.first[:text]).to eq(McpTools::BaseTool::FLAG_OFF_MESSAGE)
+  end
+
+  it "answers for a student who has the flag" do
+    Flipper.disable(FeatureFlags::SCHEDULE_BUILDER)
+    Flipper.enable_actor(FeatureFlags::SCHEDULE_BUILDER, user)
+
+    expect(call(term_uid: term.uid, courses: [ { codes: [ "COMP 3350" ] } ]).error?).to be(false)
+  end
+
+  it "asks the client to try again when every slot is in use" do
+    allow(Catalog::ScheduleOptions::Slots::SEMAPHORE).to receive(:try_acquire).and_return(false)
+
+    result = call(term_uid: term.uid, courses: [ { codes: [ "COMP 3350" ] } ])
+
+    expect(result.error?).to be(true)
+    expect(result.content.first[:text]).to include("busy", "call find_schedules again")
   end
 end

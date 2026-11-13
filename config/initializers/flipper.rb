@@ -25,7 +25,8 @@ FLIPPER_FLAGS = {
   FeatureFlags::FRIEND_GROUPS => "Friend groups in the API and dashboard. Off until the privacy policy update",
   FeatureFlags::FRIEND_EXPIRY => "Set, extend, or remove an expiry date on a friendship. Needs the privacy policy update first",
   FeatureFlags::MEETING_LINKS => "One-time meeting links for people who are not friends. Checked for the link owner. Waits on the privacy policy update",
-  FeatureFlags::DEGREE_PLANNING => "My programs page and the programs and degree progress API. Checked per user. MCP tools stay on: their scopes are the gate"
+  FeatureFlags::DEGREE_PLANNING => "My programs page and the programs and degree progress API. Checked per user. MCP tools stay on: their scopes are the gate",
+  FeatureFlags::SCHEDULE_BUILDER => "The schedule builder: POST /api/v1/catalog/schedule_options and the find_schedules MCP tool. Global, or per user with a token"
 }.freeze
 
 # The Flipper engine adds its memoizer after Rack::Attack, so the

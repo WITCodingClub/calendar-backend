@@ -250,7 +250,7 @@ RSpec.describe Catalog::ScheduleOptions::Finder do
 
       expect { find([ { codes: [ "ZZZZ 9999" ] } ]) }.to raise_error(Catalog::FilterError, /Unknown course ZZZZ 9999/)
       expect { find([ { codes: [ "not a code" ] } ]) }.to raise_error(Catalog::FilterError, /Unknown course/)
-      expect { described_class.new(term_uid: 1, courses: [ { codes: [ "MATH 2300" ] } ]).call }
+      expect { described_class.new({ term_uid: 1, courses: [ { codes: [ "MATH 2300" ] } ] }).call }
         .to raise_error(Catalog::FilterError, /Unknown term_uid/)
       expect { find([ { codes: [ "MATH 2300" ] } ], preferences: { lunch: true }) }
         .to raise_error(Catalog::FilterError, /Unknown preference/)

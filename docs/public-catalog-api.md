@@ -214,6 +214,7 @@ message:
 | `INVALID_FILTER` | 400 | A filter value is not valid |
 | `NOT_FOUND` | 404 | No record matches |
 | `RATE_LIMITED` | 429 | The client went over a rate limit. The body also has `retry_after`. |
+| `SCHEDULE_BUILDER_BUSY` | 503 | Every schedule search slot is in use. The body also has `retry_after`. Wait that many seconds, then try again. Only the schedule builder sends it |
 | `INTERNAL_ERROR` | 500 | An unexpected server error |
 
 ### Endpoints
@@ -388,6 +389,18 @@ only `{ "data": { "count": 12, "capped": false } }`, so a client can show
 "12 schedules" while the student changes an answer. Both are public, like the
 other catalog routes. This is not a registration check: holds, restrictions,
 and registration times are Banner's.
+
+The schedule builder is behind the `schedule_builder` feature flag while it is
+tested. While the flag is off, both routes answer 404 `NOT_FOUND`. The routes
+need no token. When the request has a valid extension token, the flag can also
+be on for that one user. A bad or ended token is the same as no token. Apart
+from that 404, the answer is the same for every caller.
+
+One server process runs a fixed number of searches at the same time: one
+fewer than its threads, at least one (`Catalog::ScheduleOptions::Slots`). A
+request that finds every slot in use does not wait. It gets 503
+`SCHEDULE_BUILDER_BUSY` with `Retry-After: 1`. The body also has
+`retry_after`, and a browser on another origin can read the header.
 
 ```json
 {

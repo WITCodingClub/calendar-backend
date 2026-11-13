@@ -60,6 +60,11 @@ Yabeda.configure do
                    "(CourseCalendars::BulkSyncFinishedJob).",
           tags: %i[reason result]
 
+  counter :schedule_builder_busy_total,
+          comment: "Schedule searches refused because every slot was in use, by surface: api or mcp " \
+                   "(Catalog::ScheduleOptions::Slots).",
+          tags: %i[surface]
+
   counter :oauth_clients_registered_total,
           comment: "OAuth clients that MCP clients registered at /api/oauth/register.",
           tags: []
