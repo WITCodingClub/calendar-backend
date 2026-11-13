@@ -19,6 +19,7 @@ The Flipper flag `degree_planning` (#944) is off by default. While it is off for
 | `GET /api/user/programs` | `PUT /api/user/course_outcomes` |
 | `POST` and `DELETE /api/user/planned_programs` and `/api/user/planned_pathways` | The MCP tools (`my_programs`, `my_degree_progress`, `my_next_term_courses`, `update_my_planned_programs`) |
 | `GET /api/user/degree_progress` and `GET /api/user/next_term_courses` | |
+| `GET`, `PUT`, and `DELETE /api/user/registration_plans*` | |
 
 ```mermaid
 flowchart LR
@@ -173,6 +174,61 @@ flowchart TD
 - **Plans.** `PATCH /dashboard/programs/:id/plan` saves a plan of an active or a planned program. A student confirms an assumed plan with the same form.
 - **What if.** The planned programs show their open requirements: the courses each one adds. A course that an active program also needs is marked "also in your programs". The planned rows use `AcademicProfiles::PlannedPrograms`, as the API does.
 - **Pathways.** `POST /dashboard/programs/pathways` plans a 3+1, 4+1, or 5-year pathway with `build_pathway` and `save_pathway!`, as `POST /api/user/planned_pathways` does. The form lists the active pathways. Each program that the pathway added says "part of" the pathway. `DELETE /dashboard/programs/pathways/:slug` removes only the planned rows of that pathway.
+
+## Registration plans
+
+A student builds a schedule for a term in the schedule builder of the extension. The backend keeps one `RegistrationPlan` per student per term (#995), so the plan stays when the panel closes and follows the student to another device. A plan is a help for planning, not a registration. The student still registers in LeopardWeb.
+
+| Endpoint | Does |
+|---|---|
+| `GET /api/user/registration_plans` | Lists the student's plans, newest term first, without the schedule check: `{ plans: [ { term, crns, course_count, updated_at } ] }` |
+| `GET /api/user/registration_plans/:term_uid` | Returns one plan with a fresh schedule check of its CRNs |
+| `PUT /api/user/registration_plans/:term_uid` | Creates or replaces the plan, then returns it with the schedule check |
+| `DELETE /api/user/registration_plans/:term_uid` | Deletes the plan. Answers 204 |
+
+- `term_uid` is a Banner term code, for example `202720`. It can only be digits: another value matches no route and answers 404. A code that is not a `Term` row answers 404 `Term not found`. A term with no plan for the student answers 404 `Registration plan not found`.
+- The body of `PUT` has `courses` (required) and `preferences` (optional, `{}` when it is not sent). Each entry of `courses` has `code`, `crns` (the lecture and lab CRNs), and `fills`. `fills` is the plan row that the course fills (`kind` and `label`), or `null` for an extra course. The backend keeps only these keys, and stores each CRN as a string without leading zeros (`020410` is `20410`).
+- `preferences` holds the answers of the schedule builder as the extension sends them. The backend does not read them.
+- `crns` in a response is the list of the CRNs of all courses, in order, each one time.
+- `schedule_check` has the shape of `GET /api/v1/catalog/schedule_check` without `term` (`Catalog::ScheduleCheck`): `sections`, `not_found`, `cancelled`, `conflicts`, `link_problems`, `duplicates`, and `totals`. The check runs on each `GET` and `PUT` of one plan, so seats, conflicts, and cancelled sections are current. A plan with conflicts still saves. The check says what is wrong.
+- `RegistrationPlanPolicy` lets a student see and change only their own plans. A plan of another student answers 404.
+- A plan is deleted with its user, and with its term (foreign keys with `ON DELETE CASCADE`).
+- Two `PUT` requests for the same term at the same time do not fail. When the second one finds the plan of the first one at save time (the uniqueness validation or the unique index), it locks that plan and replaces it.
+- `RegistrationPlan.before_term(term_uid)` and `#course_codes` give the plans of earlier terms and their courses (for #996).
+
+A bad body answers 422 with `{ error, code: "VALIDATION_FAILED" }`. These are the limits:
+
+| Field | Limit |
+|---|---|
+| `courses` | A list of 1 to 15 courses |
+| `courses[].code` | A string of 1 to 20 characters |
+| `courses[].crns` | 1 to 4 CRNs. Each CRN is 1 to 6 digits, as a string or a number |
+| All CRNs of a plan | At most 30, the limit of the schedule check |
+| `courses[].fills` | `null`, or an object with `kind` (1 to 30 characters) and `label` (1 to 200 characters) |
+| `preferences` | An object of at most 2,048 bytes as JSON |
+
+```mermaid
+erDiagram
+  users ||--o{ registration_plans : "has (ON DELETE CASCADE)"
+  terms ||--o{ registration_plans : "uid = term_uid (ON DELETE CASCADE)"
+  registration_plans {
+    bigint user_id
+    integer term_uid "Banner term code, unique with user_id"
+    jsonb courses "code, crns, fills"
+    jsonb preferences "stored as sent"
+  }
+```
+
+```mermaid
+flowchart TD
+  P[PUT registration_plans/:term_uid] --> T{Term with this uid?}
+  T -- no --> N[404 Term not found]
+  T -- yes --> V{Body inside the limits?}
+  V -- no --> E[422 VALIDATION_FAILED]
+  V -- yes --> S[Create or replace the plan]
+  S --> C[Catalog::ScheduleCheck of the CRNs]
+  C --> R[200 with the plan and schedule_check]
+```
 
 ## Course outcomes
 
