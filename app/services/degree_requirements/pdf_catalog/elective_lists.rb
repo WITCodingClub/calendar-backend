@@ -25,9 +25,9 @@ module DegreeRequirements
     # in the text just above it, and its minimum comes from the last lines
     # ("Select one course from the following list").
     #
-    # A plan takes only the lists between the plan before it and the plan
-    # after it, and only the lists that one of its slots names, nearest
-    # first. A slot that SharedElectives links (HSS, English, co-op, free)
+    # A plan takes only the lists that one of its slots names, nearest
+    # first, and only the lists that no other program's plan separates from
+    # it (reachable?). A slot that SharedElectives links (HSS, English, co-op, free)
     # is left to it. A list no slot names is not kept: the text around the
     # plans also holds minors and concentrations.
     class ElectiveLists
@@ -63,6 +63,8 @@ module DegreeRequirements
       COURSE_CREDITS = /all courses are \S+ (?:\(\d+\) )?credits?/i
       # How far a list can be from the plan it belongs to.
       MAX_DISTANCE = 300
+      # The most lines between two plans of one run (see reachable?).
+      PLAN_RUN_GAP = 60
       # "The Advanced Security Elective courses may include: COMP3800".
       MIN_COURSES = 1
 
@@ -71,7 +73,8 @@ module DegreeRequirements
       def initialize(text, programs)
         @lines = text.to_s.split("\n").map { |line| line.delete("\f") }
         @programs = programs
-        @plan_lines = Set.new(programs.flat_map { |program| program.lines.to_a })
+        @spans = programs.filter_map(&:lines).uniq
+        @plan_lines = Set.new(@spans.flat_map(&:to_a))
       end
 
       # The programs, each with its lists and its slots linked to them.
@@ -86,11 +89,16 @@ module DegreeRequirements
         span = program.lines
         # Nearest first. At the same distance, a list after the plan wins:
         # most programs print their lists under the plan.
-        near = lists.map { |list| [ list, distance(list, span) ] }.select { |_, gap| gap <= MAX_DISTANCE }
+        near = lists.map { |list| [ list, distance(list, span) ] }
+                    .select { |list, gap| gap <= MAX_DISTANCE && reachable?(list, span) }
                     .sort_by { |list, gap| [ gap, list[:end] < span.begin ? 1 : 0 ] }.map(&:first)
         return program if near.empty?
 
-        groups = near.map { |list| list[:group] }
+        # A list with the name of a shared list ("Humanities Electives") is
+        # not kept: SharedElectives would take it for its own list.
+        groups = near.map { |list| list[:group] }.reject { |group| SharedElectives.rule_for(group.name) }
+        return program if groups.empty?
+
         plan = program.plan.with(items: program.plan.items.map { |item| shared?(item) ? item : item.with(group_index: nil) })
         linked = PlaceholderLinker.call([ plan ], groups).first
         linked = linked.with(items: linked.items.zip(plan.items).map { |item, before| shared?(before) ? before : item })
@@ -100,6 +108,20 @@ module DegreeRequirements
 
         items = linked.items.map { |item| item.group_index ? item.with(group_index: used.index(item.group_index)) : item }
         program.with(plan: linked.with(items: items), groups: used.map { |i| groups[i] })
+      end
+
+      # A list reaches a plan when no other plan is between them, or when
+      # the plans between them form one run with the plan, each at most
+      # PLAN_RUN_GAP lines from the next: the architecture plans print one
+      # list under the last of them. A program description is longer, so the
+      # plan of another program does not pass on its list.
+      def reachable?(list, span)
+        after = list[:start] > span.end
+        between = @spans.select { |other| after ? other.begin > span.end && other.end < list[:start] : other.end < span.begin && other.begin > list[:end] }
+        return true if between.empty?
+
+        chain = ([ span ] + between).sort_by(&:begin)
+        chain.each_cons(2).all? { |first, second| second.begin - first.end <= PLAN_RUN_GAP }
       end
 
       # A slot that SharedElectives links, or not a slot.
@@ -124,7 +146,8 @@ module DegreeRequirements
 
             # "In addition, BSCN students may use ... as Advanced Networking
             # Elective courses": a second part of the list before it.
-            if (last = lists.last) && last[:group].name == list[:group].name && no_plan_between?(last[:end], list[:start])
+            if (last = lists.last) && last[:group].name == list[:group].name && list[:start] - last[:end] <= CONTEXT_LINES &&
+               no_plan_between?(last[:end], list[:start])
               courses = (last[:group].courses + list[:group].courses).uniq { |c| [ c.subject_code, c.course_number ] }
               lists[-1] = last.merge(end: list[:end], group: last[:group].with(courses: courses))
             else

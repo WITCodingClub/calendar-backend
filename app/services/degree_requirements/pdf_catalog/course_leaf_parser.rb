@@ -80,8 +80,9 @@ module DegreeRequirements
               programs << finish(plan)
               plan = nil
             else
-              read_row(plan, line)
-              plan[:last_line] = global_line(page_index, line_index)
+              # A plan with no "Total Credits" line ends at its last row, so
+              # a list under it is not part of it.
+              plan[:last_line] = global_line(page_index, line_index) if read_row(plan, line, page_index)
             end
           end
         end
@@ -100,25 +101,28 @@ module DegreeRequirements
 
       # One line of a semester: a course, a choice, a placeholder, the
       # semester total, or the rest of a title.
-      def read_row(plan, line)
+      def read_row(plan, line, page_index)
         tokens = line.strip.split(/\s{2,}/)
         return if tokens.empty? || tokens.first == "Credits" || line.match?(PAGE_NUMBER) || line.match?(FOOTER)
 
         credits = tokens.last.match?(NUMBER) ? tokens.pop : nil
         first = tokens.first.to_s
-        row = { year: plan[:year], season: plan[:season], credits: credits }
+        row = { year: plan[:year], season: plan[:season], credits: credits, page: page_index }
 
         if first.match?(/\Aor\s+#{CODE}/) && (last = plan[:rows].last)
           last[:codes].concat(first.scan(CODE))
           last[:choice] = true
+          true
         elsif first.match?(/\A#{CODE}/)
           codes = first.scan(CODE)
           plan[:rows] << row.merge(codes: codes, choice: first.match?(/\bor\b/), title: tokens[1..].join(" "))
         elsif line.match?(/\A\S/) && credits
           plan[:rows] << row.merge(codes: [], label: first)
-        elsif (last = plan[:rows].last) && last[:codes].any? && credits.nil?
+        elsif (last = plan[:rows].last) && last[:codes].any? && credits.nil? && last[:page] == page_index
+          # The rest of a title is on the page of its row: a heading on the
+          # next page is not.
           last[:title] = [ last[:title], tokens.join(" ") ].compact_blank.join(" ")
-        end
+        end.present?
       end
 
       def finish(plan)

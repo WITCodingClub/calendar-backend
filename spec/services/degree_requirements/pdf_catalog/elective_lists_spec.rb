@@ -233,6 +233,88 @@ RSpec.describe DegreeRequirements::PdfCatalog::ElectiveLists do
     expect(codes(list_of(networking, "Computer Science Elective"))).to eq(%w[COMP4450])
   end
 
+  it "does not link the list of another program across that program's plan" do
+    description = Array.new(70) { |i| "Line #{i} of the description of the next program." }.join("\n")
+    text = <<~TEXT
+      Computer Networking (BSCN)
+      Freshman Year, Fall Semester (total credits 8)
+      COMP1100, Introduction to Networks
+      COMP ELECTIVE, Computer Science Elective
+
+      #{description}
+
+      Computer Science (BCOS)
+      Freshman Year, Fall Semester (total credits 8)
+      COMP1000, Computer Science I
+      COMP ELECTIVE, Computer Science Elective
+
+      Computer Science Electives:
+      COMP3100                System Administration
+    TEXT
+
+    networking, science = programs_of(text)
+
+    expect(slot(networking, "Computer Science Elective").group_index).to be_nil
+    expect(codes(list_of(science, "Computer Science Elective"))).to eq(%w[COMP3100])
+  end
+
+  it "links one list to each plan of a run of plans above it" do
+    text = <<~TEXT
+      Architecture - Urbanism Concentration
+      Freshman Year, Fall Semester (total credits 8)
+      ARCH1000, Design Studio
+      ELECTIVE, Architecture Elective
+
+      Architecture - Emerging Technologies Concentration
+      Freshman Year, Fall Semester (total credits 8)
+      ARCH1000, Design Studio
+      ELECTIVE, Architecture Elective
+
+      Architecture Electives
+      ARCH3800                Design Methods
+    TEXT
+
+    expect(programs_of(text).map { |program| codes(list_of(program, "Architecture Elective")) }).to eq([ %w[ARCH3800], %w[ARCH3800] ])
+  end
+
+  it "does not keep a list with the name of a shared list" do
+    text = <<~TEXT
+      Computer Science (BCOS)
+      Freshman Year, Fall Semester (total credits 8)
+      COMP1000, Computer Science I
+      ELECTIVE, Humanities Elective (Literature)
+
+      Humanities Electives:
+      LITR3000                Literature
+    TEXT
+
+    program = programs_of(text).sole
+
+    expect(program.groups).to be_empty
+    expect(slot(program, "Humanities Elective (Literature)").group_index).to be_nil
+  end
+
+  it "does not join two lists with one name far apart" do
+    filler = Array.new(20) { |i| "Line #{i} of a note." }.join("\n")
+    text = <<~TEXT
+      Computer Science (BCOS)
+      Freshman Year, Fall Semester (total credits 8)
+      COMP1000, Computer Science I
+      ELECTIVE, Technical Elective
+
+      Technical Electives:
+      COMP3100                System Administration
+
+      #{filler}
+
+      Minor in Computing
+      Technical Electives:
+      COMP4450                Systems Programming
+    TEXT
+
+    expect(codes(list_of(programs_of(text).sole, "Technical Elective"))).to eq(%w[COMP3100])
+  end
+
   it "gives each line of a list year plan to its program" do
     lines = DegreeRequirements::PdfCatalog::ListParser.call(networking).sole.lines
 

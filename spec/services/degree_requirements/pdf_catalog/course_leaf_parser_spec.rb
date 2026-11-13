@@ -30,6 +30,27 @@ RSpec.describe DegreeRequirements::PdfCatalog::CourseLeafParser do
     expect(science.plan.items.find { |item| item.kind == "placeholder" }.footnote).to eq("*")
   end
 
+  it "gives each plan the lines of its rows in the whole text, past form feeds" do
+    text = file_fixture("degree_requirements/pdf/courseleaf.txt").read
+    lines = text.split("\n")
+
+    programs.each do |program|
+      expect(lines[program.lines.begin]).to match(/First Year/)
+      expect(lines[program.lines.end]).to match(/\S/)
+    end
+  end
+
+  it "ends a plan with no total at its last row, not at a list under it" do
+    text = <<~TEXT
+      First Year
+      Fall Semester                                   Credits
+      COMP1000         COMPUTER SCIENCE I                 4
+      \fComputer Science Electives:
+    TEXT
+
+    expect(described_class.call(text).sole.lines).to eq(0..2)
+  end
+
   it "ends a plan with no total at the first year of the next plan" do
     text = file_fixture("degree_requirements/pdf/courseleaf.txt").read.sub(/^ +Total Credits +24\n/, "")
 
