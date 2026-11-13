@@ -386,3 +386,27 @@ flowchart TD
   PL --> C[Each course: section in term? prerequisites met?]
   B --> C
 ```
+
+### Assumed courses and missing_in_plan
+
+A student who plans a later term needs the prerequisite check to count the courses of the terms between now and then (#996). `AcademicProfiles::AssumedCourses` gives those courses to `NextTermCourses`.
+
+- `assume`: course codes to count as passed before the term. The API takes them separated by commas (`assume=COMP3350,MATH 2300`) or as a list (`assume[]=COMP3350`). The MCP tool takes a list of strings. `CatalogCourse.parse_code` reads each code. A value that is not a course code, or more than 50 codes, gives 422 with the usual error body (a tool error in MCP).
+- `assume_plans=true`: also count the courses of the student's saved registration plans (#995) for the terms after the current term and before the term. The enrollments of the current term and of earlier terms are the real record, so the plans of those terms do not count. Without a current term, no plan counts. The client writes the codes of a plan, so a code that does not parse is skipped. One query reads the plans.
+- An assumed course counts as a course in progress counts: as passed with a C or better, also through a `CourseCodeAlias`.
+- With either argument, the hash has `assumed` after `term`: `courses` holds the assumed codes as `SUBJ 1234`, sorted, each one time, and `from_plans` holds the terms of the plans that gave at least one of them, oldest first. A course that the student did or takes before the term with a C or better (also through an alias) is not in `courses`, because it already counts. A course passed below C stays, because a retake can meet a minimum grade of C. Without the arguments, the hash has no `assumed`, and the rest is the same as before.
+- `assumptions` gets the line "A course in assumed counts toward prerequisites, as if you pass it with a C or better." only when `assumed.courses` is not empty.
+- Each course has `missing_in_plan`: the course codes of `missing` that a `planned` or `behind` row of the term names, in any program of the hash. A row names its code, or each option of a choice. The check also tries the aliases of each code. An entry with options or a group, such as `WDGT 1100 or WDGT 1200` or `(WDGT 1200 and WDGT 1300)`, gives each of its codes that a row names, as a plain code. The client can then say "take WDGT 1100 first" in place of "not eligible". Without such a course, `missing_in_plan` is empty.
+- The My programs page passes no arguments, so it shows the same data as before.
+
+```mermaid
+flowchart TD
+  A[assume codes] --> AC[AssumedCourses]
+  RP["Saved plans: current term < plan term < term"] -- assume_plans --> AC
+  T[Done or in progress before the term] -- skip these --> AC
+  AC --> CC[Counted courses]
+  T --> CC
+  CC --> PR[Prerequisite check of each course]
+  PR --> MI[missing]
+  MI --> MP[missing_in_plan: codes that a planned or behind row names]
+```

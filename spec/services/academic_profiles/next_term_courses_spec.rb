@@ -221,6 +221,132 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     expect(program).to include(start_term: nil, semester: nil, planned: [], behind: [])
   end
 
+  describe "assumed courses and missing_in_plan (#996)" do
+    let(:fall_uid) { 202810 }
+
+    def result(term_uid: spring_uid, **options)
+      described_class.new(user, term_uid: term_uid, current_term_uid: 202710, today: today, **options).call
+    end
+
+    def plan_for(uid, *codes)
+      term = Term.find_by(uid: uid) || create(:term, uid: uid, year: uid / 100, season: uid % 100 == 10 ? :fall : :spring)
+      create(:registration_plan, user: user, term: term, courses: codes.map { |code| { "code" => code, "crns" => [ "20410" ] } })
+    end
+
+    def first_course(hash) = hash[:programs].first[:planned].first[:courses].first
+
+    it "leaves out assumed and gives an empty missing_in_plan without the new arguments" do
+      item(subject_code: "WDGT", course_number: 2100)
+      requires("WDGT", 2100, course_leaf("WDGT", 1000))
+
+      hash = result
+      expect(hash).not_to have_key(:assumed)
+      expect(first_course(hash)).to include(prerequisites: "not_met", missing: [ "WDGT 1000" ], missing_in_plan: [])
+      expect(hash[:assumptions].size).to eq(3)
+    end
+
+    it "counts an assumed course as passed with a C or better, and lists it" do
+      item(subject_code: "WDGT", course_number: 2100)
+      requires("WDGT", 2100, { "type" => "and", "operands" => [ course_leaf("WDGT", 1000, min_grade: "C"),
+                                                                course_leaf("WDGT", 1100) ] })
+
+      hash = result(assume: [ [ "WDGT", 1100 ], [ "WDGT", 1000 ] ])
+
+      expect(hash.keys.first(2)).to eq(%i[term assumed])
+      expect(hash[:assumed]).to eq(courses: [ "WDGT 1000", "WDGT 1100" ], from_plans: [])
+      expect(first_course(hash)).to include(prerequisites: "met", missing: [], missing_in_plan: [])
+      expect(hash[:assumptions]).to include(a_string_including("A course in assumed counts toward prerequisites"))
+    end
+
+    it "does not list a course the student did or takes, also through an alias" do
+      item(subject_code: "WDGT", course_number: 2100)
+      create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 105, to_subject_code: "WDGT", to_course_number: 1050)
+      take(past_term, "WDGT", 105)
+      take(current_term, "WDGT", 1000)
+
+      hash = result(assume: [ [ "WDGT", 1000 ], [ "WDGT", 1050 ] ])
+
+      expect(hash[:assumed]).to eq(courses: [], from_plans: [])
+      expect(hash[:assumptions]).not_to include(a_string_including("assumed"))
+    end
+
+    it "keeps an assumed retake of a course passed below C, so it meets a minimum grade of C" do
+      item(subject_code: "WDGT", course_number: 2100)
+      requires("WDGT", 2100, course_leaf("WDGT", 1000, min_grade: "C"))
+      take(past_term, "WDGT", 1000, outcome: "passed_below_c")
+
+      hash = result(assume: [ [ "WDGT", 1000 ] ])
+
+      expect(hash[:assumed][:courses]).to eq([ "WDGT 1000" ])
+      expect(first_course(hash)[:prerequisites]).to eq("met")
+    end
+
+    it "counts no plan without a current term" do
+      item(year: 3, season: "fall", subject_code: "WDGT", course_number: 3100)
+      plan_for(spring_uid, "WDGT 2350")
+      allow(Term).to receive(:current_uid).and_return(nil)
+
+      hash = described_class.new(user, term_uid: fall_uid, assume_plans: true, today: today).call
+
+      expect(hash[:assumed]).to eq(courses: [], from_plans: [])
+    end
+
+    it "counts the courses of the saved plans after the current term and before the term" do
+      item(year: 3, season: "fall", subject_code: "WDGT", course_number: 3100)
+      requires("WDGT", 3100, { "type" => "and", "operands" => [ course_leaf("WDGT", 2350), course_leaf("WDGT", 2450) ] })
+      plan_for(current_term.uid, "WDGT 2450")
+      plan_for(spring_uid, "wdgt2350", "not a code", "WDGT 2000")
+      plan_for(fall_uid, "WDGT 2450")
+      take(current_term, "WDGT", 2000)
+
+      hash = result(term_uid: fall_uid, assume_plans: true)
+
+      expect(hash[:assumed]).to eq(courses: [ "WDGT 2350" ], from_plans: [ spring_uid ])
+      expect(first_course(hash)).to include(prerequisites: "not_met", missing: [ "WDGT 2450" ])
+    end
+
+    it "reads the plans only with assume_plans" do
+      item(year: 3, season: "fall", subject_code: "WDGT", course_number: 3100)
+      requires("WDGT", 3100, course_leaf("WDGT", 2350))
+      plan_for(spring_uid, "WDGT 2350")
+
+      expect(first_course(result(term_uid: fall_uid))[:prerequisites]).to eq("not_met")
+      expect(first_course(result(term_uid: fall_uid, assume_plans: true))[:prerequisites]).to eq("met")
+    end
+
+    it "gives an empty assumed with assume_plans and no plan" do
+      item(subject_code: "WDGT", course_number: 2100)
+
+      expect(result(assume_plans: true)[:assumed]).to eq(courses: [], from_plans: [])
+    end
+
+    it "lists in missing_in_plan the missing courses that a planned or behind row names" do
+      item(year: 1, season: "spring", subject_code: "WDGT", course_number: 1100)
+      item(subject_code: "WDGT", course_number: 2100)
+      item(:choice, options: [ { "subject_code" => "WDGT", "course_number" => 1280 },
+                               { "subject_code" => "WDGT", "course_number" => 1290 } ])
+      item(subject_code: "WDGT", course_number: 2200)
+      requires("WDGT", 2100, { "type" => "and", "operands" => [
+        course_leaf("WDGT", 1100), course_leaf("WDGT", 1280), course_leaf("WDGT", 1500)
+      ] })
+      requires("WDGT", 2200, { "type" => "or", "operands" => [ course_leaf("WDGT", 1290), course_leaf("WDGT", 1300) ] })
+
+      courses = program[:planned].flat_map { |row| row[:courses] }.index_by { |course| course[:code] }
+      expect(courses["WDGT 2100"]).to include(missing: [ "WDGT 1100", "WDGT 1280", "WDGT 1500" ],
+                                              missing_in_plan: [ "WDGT 1100", "WDGT 1280" ])
+      expect(courses["WDGT 2200"]).to include(missing: [ "WDGT 1290 or WDGT 1300" ], missing_in_plan: [ "WDGT 1290" ])
+    end
+
+    it "finds a missing course in a row through an alias" do
+      item(subject_code: "WDGT", course_number: 2100)
+      item(subject_code: "WDGT", course_number: 128)
+      create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 128, to_subject_code: "WDGT", to_course_number: 1280)
+      requires("WDGT", 2100, course_leaf("WDGT", 1280))
+
+      expect(program[:planned].first[:courses].first[:missing_in_plan]).to eq([ "WDGT 1280" ])
+    end
+  end
+
   describe ".default_term_uid" do
     it "is the spring after a fall term, and the fall after a spring or summer term" do
       expect(described_class.default_term_uid(202710)).to eq(202720)
