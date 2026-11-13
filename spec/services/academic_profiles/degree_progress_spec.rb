@@ -151,15 +151,66 @@ RSpec.describe AcademicProfiles::DegreeProgress do
         { status: "done", course: "PSYC 1000", hss_category: "Social Sciences" },
         { status: "open", course: nil, hss_category: "Ethics" }
       ])
-      expect(result[:programs].first[:hss]).to eq(
+      expect(result[:programs].first[:hss].except(:english, :courses, :open_slots)).to eq(
         min_credits: 20, credits: 12,
         categories: [
-          { name: "Humanities", checkable: true, status: "done", course: "HIST 1000" },
-          { name: "Social Sciences", checkable: true, status: "done", course: "PSYC 1000" },
-          { name: "Ethics", checkable: true, status: "open", course: nil },
-          { name: "Design History", checkable: false, status: "open", course: nil }
+          { name: "Humanities", checkable: true, status: "done", course: "HIST 1000",
+            hint: { subject_codes: DegreeRequirements::HssNoteParser.base_categories.first["subject_codes"], courses: [] } },
+          { name: "Social Sciences", checkable: true, status: "done", course: "PSYC 1000",
+            hint: { subject_codes: DegreeRequirements::HssNoteParser.base_categories.second["subject_codes"], courses: [] } },
+          { name: "Ethics", checkable: true, status: "open", course: nil, hint: { subject_codes: [], courses: [ "PHIL 4501" ] } },
+          { name: "Design History", checkable: false, status: "open", course: nil, hint: nil }
         ]
       )
+    end
+
+    it "lists the English courses, each HSS course with its category, and the open HSS slots (#991)" do
+      set.update!(hss_requirement: { "min_credits" => 24, "categories" => DegreeRequirements::HssNoteParser.base_categories + [
+        { "name" => "Ethics", "subject_codes" => [], "courses" => %w[PHIL4501] }
+      ] })
+      english = create(:elective_group, requirement_set: set, name: "English Sequence")
+      create(:elective_group_course, elective_group: english, subject_code: "ENGL", course_number: 1100)
+      item(:placeholder, label: "English Sequence", elective_group: english)
+      plan.items.where(label: "HSS Elective").last.update!(year_index: 2, season: "spring")
+      take(past_term, "ENGL", 1100, credits: 4)
+      take(past_term, "HIST", 1000)
+      take(current_term, "PSYC", 1000, credits: 3)
+
+      hss = progress[:programs].first[:hss]
+
+      expect(hss[:english]).to eq(credits: 4, courses: [ "ENGL 1100" ])
+      expect(hss[:courses]).to contain_exactly(
+        { code: "HIST 1000", title: a_kind_of(String), credits: 4, status: "done", category: "Humanities" },
+        { code: "PSYC 1000", title: a_kind_of(String), credits: 3, status: "in_progress", category: "Social Sciences" }
+      )
+      # credits is the English credits and the credits of the HSS courses.
+      expect(hss[:credits]).to eq(hss[:english][:credits] + hss[:courses].sum { |course| course[:credits] })
+      expect(hss[:open_slots]).to eq([
+        { label: "HSS Elective", planned_term: "Spring 2027", planned_term_uid: 202720, hss_category: "Ethics" }
+      ])
+    end
+
+    it "gives each HSS course the first category it meets, or nil" do
+      set.update!(hss_requirement: { "min_credits" => 24, "categories" => DegreeRequirements::HssNoteParser.base_categories + [
+        { "name" => "Ethics", "subject_codes" => [], "courses" => %w[PHIL4501] }
+      ] })
+      humanities = create(:elective_group, :subjects, requirement_set: set, name: "Humanities Electives", subject_codes: %w[WDGT])
+      item(:placeholder, label: "Humanities Elective", elective_group: humanities)
+      take(past_term, "PHIL", 4501)
+      take(past_term, "WDGT", 1000)
+
+      hss = progress[:programs].first[:hss]
+
+      # PHIL 4501 meets Humanities and Ethics: Humanities is first.
+      expect(hss[:courses].pluck(:code, :category)).to contain_exactly([ "PHIL 4501", "Humanities" ], [ "WDGT 1000", nil ])
+      expect(hss[:categories].find { |category| category[:name] == "Ethics" }).to include(status: "done", course: "PHIL 4501")
+    end
+
+    it "gives null terms to the open HSS slots of a program with no start term" do
+      user.student_programs.sole.update!(catalog_term_uid: nil)
+
+      expect(progress[:programs].first[:hss][:open_slots]).to all(include(planned_term: nil, planned_term_uid: nil))
+      expect(progress[:programs].first[:hss][:open_slots].size).to eq(3)
     end
 
     it "counts a required course row in a category, and its credits" do
@@ -198,6 +249,11 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       # No slot waits for Humanities: the third English course meets it.
       expect(hss_rows(result).first(3).pluck(:hss_category)).to eq([ "Social Sciences", nil, nil ])
       expect(result[:programs].first[:hss][:categories].first).to include(name: "Humanities", status: "done")
+      # The third English course is an HSS course, not an English course.
+      hss = result[:programs].first[:hss]
+      expect(hss[:english][:courses].size).to eq(2)
+      expect(hss[:courses].pluck(:category)).to include("Humanities")
+      expect(hss[:courses].find { |course| course[:category] == "Humanities" }[:code]).to start_with("ENGL")
     end
 
     it "reports the HSS requirement of a plan with no HSS slot" do

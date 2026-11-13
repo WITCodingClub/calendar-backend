@@ -88,7 +88,7 @@ module AcademicProfiles
     # student row, so it has no start term.
     def with_terms(entry, row)
       start = row && ProgramTimeline.new(row, requirement_set: nil, admit_term_uid: admit_term_uid).start_term_uid
-      PlanTerms.new(start, current_term_uid: current_term&.uid).call(entry)
+      HssDetails.with_open_slots(PlanTerms.new(start, current_term_uid: current_term&.uid).call(entry))
     end
 
     # The admit term of the academic profile, read once for every program.
@@ -253,9 +253,9 @@ module AcademicProfiles
       slots = items.any? { |item| hss_group?(groups[item.elective_group_id]) }
       return nil if set.hss_requirement.blank? && !slots
 
-      categories = hss_categories(set)
+      categories = HssMatcher.categories(set)
       rows = items.reject(&:placeholder?).filter_map { |item| results[item.id] }
-                  .select { |course| categories.any? { |category| in_category?(category, course) } }
+                  .select { |course| categories.any? { |category| hss_matcher.in_category?(category, course) } }
       english = take_where(pool, used) { |candidate| english_sequence?(candidate) } if english_slots_full?(items, groups, results)
       { categories: categories, min_credits: set.hss_requirement&.dig("min_credits"), english_humanities: english,
         met: hss_courses(items, groups, results) + rows + [ english ].compact, rows: rows }
@@ -281,14 +281,15 @@ module AcademicProfiles
       return if slots.empty? || hss.nil?
 
       met = hss[:met].dup
-      categories = hss[:categories].select { |category| checkable_category?(category) }
+      categories = hss[:categories].select { |category| HssMatcher.checkable?(category) }
       slots.each do |item, group|
         category = categories.find do |candidate|
-          met.none? { |course| in_category?(candidate, course, hss) } && needs.values.exclude?(candidate["name"])
+          met.none? { |course| hss_matcher.in_category?(candidate, course, english_humanities: hss[:english_humanities]) } &&
+            needs.values.exclude?(candidate["name"])
         end
         if category
           needs[item.id] = category["name"]
-          course = take_where(pool, used) { |candidate| in_category?(category, candidate) }
+          course = take_where(pool, used) { |candidate| hss_matcher.in_category?(category, candidate) }
         else
           course = take_for(pool, used, group)
         end
@@ -302,52 +303,21 @@ module AcademicProfiles
       items.select { |item| item.placeholder? && hss_group?(groups[item.elective_group_id]) }.filter_map { |item| results[item.id] }
     end
 
-    def hss_group?(group)
-      return false if group.nil?
+    def hss_group?(group) = HssMatcher.slot_list?(group&.name)
 
-      names = DegreeRequirements::SharedElectives
-      [ names::HSS, names::HUMANITIES_RULE, names::SOCIAL_SCIENCES_RULE ].map(&:name).include?(group.name) ||
-        group.name.start_with?("HSS Elective (")
+    # The HSS categories and matching rules (HssMatcher), with the course
+    # code aliases of this student.
+    def hss_matcher
+      @hss_matcher ||= HssMatcher.new(aliases)
     end
 
-    def hss_categories(set)
-      (set.hss_requirement.presence || DegreeRequirements::HssNoteParser.default)["categories"]
-    end
-
-    def checkable_category?(category)
-      category["subject_codes"].any? || category["courses"].any?
-    end
-
-    # With hss, the third English course counts as Humanities.
-    def in_category?(category, course, hss = nil)
-      return true if hss && category["name"] == "Humanities" && course.equal?(hss[:english_humanities])
-      return true if category["subject_codes"].include?(course.subject_code)
-
-      category["courses"].any? do |code|
-        subject, number = code.match(/\A([A-Z]+)(\d+)\z/)&.captures
-        subject && equivalents([ subject, number.to_i ]).include?(course.key)
-      end
-    end
-
-    # The HSS requirement of the major: each category with the course that
-    # meets it, and the English and HSS credits against the minimum.
+    # The HSS requirement of the major (HssDetails).
     def hss_json(hss, items, groups, results)
       return nil if hss.nil?
 
       english = items.select { |item| groups[item.elective_group_id]&.name == DegreeRequirements::SharedElectives::ENGLISH.name }
                      .filter_map { |item| results[item.id] }
-      courses = (hss_courses(items, groups, results) + hss[:rows] + [ hss[:english_humanities] ].compact).uniq
-      {
-        min_credits: hss[:min_credits],
-        credits:     (english + courses).uniq.sum { |course| course.credits.to_i },
-        categories:  hss[:categories].map { |category| hss_category_json(category, courses, hss) }
-      }
-    end
-
-    def hss_category_json(category, courses, hss)
-      checkable = checkable_category?(category)
-      course = checkable && courses.select { |candidate| in_category?(category, candidate, hss) }.min_by { |c| RANK.fetch(c.status) }
-      { name: category["name"], checkable: checkable, status: course ? course.status : "open", course: course ? course.code : nil }
+      HssDetails.new(hss, english: english, slot_courses: hss_courses(items, groups, results), matcher: hss_matcher).call
     end
 
     def breadth(group)

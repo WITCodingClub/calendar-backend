@@ -493,7 +493,20 @@ module McpTools
       object(
         min_credits: nullable(INTEGER),
         credits:     INTEGER,
-        categories:  array(object(name: STRING, checkable: BOOLEAN, status: PROGRESS_STATUS, course: nullable(STRING)))
+        categories:  array(
+          object(name: STRING, checkable: BOOLEAN, status: PROGRESS_STATUS, course: nullable(STRING),
+                 hint: nullable(object(subject_codes: STRINGS, courses: STRINGS)))
+        ),
+        # #991: english.credits plus the credits of courses is credits.
+        english:     object(credits: INTEGER, courses: STRINGS),
+        courses:     array(
+          object(code: STRING, title: STRING, credits: nullable(INTEGER), status: { type: "string", enum: %w[done in_progress] },
+                 category: nullable(STRING))
+        ),
+        open_slots:  array(
+          object(label: nullable(STRING), planned_term: nullable(STRING), planned_term_uid: nullable(INTEGER),
+                 hss_category: nullable(STRING))
+        )
       )
     ).freeze
     # One plan semester of a program against its real term (#990).

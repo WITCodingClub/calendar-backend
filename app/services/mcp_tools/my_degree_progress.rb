@@ -15,7 +15,10 @@ module McpTools
                 "semesters. Each program also has its start_term, a timeline of the plan semesters with their " \
                 "real terms (when: past, current, registering, or future; estimated after year 2; co_op), and " \
                 "expected_end. A planned program or a program argument has no start term, so it has no " \
-                "timeline. This is a help for planning, not a degree audit: it does not know substitutions, " \
+                "timeline. The hss entry of a program has each HSS category with a hint (the subjects or " \
+                "courses that meet it), the English sequence courses and their credits, each course that " \
+                "counts toward HSS with its category, and the open HSS slots with their planned terms. " \
+                "This is a help for planning, not a degree audit: it does not know substitutions, " \
                 "transfer credit, or AP credit, and the history can have gaps. The student's official degree " \
                 "audit is Stellic. Without arguments it checks each of my programs in its own catalog year. " \
                 "Read assumptions in the result."
