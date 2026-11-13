@@ -536,12 +536,15 @@ module AcademicProfiles
         # in one term are one course: the most credits of a section (as
         # Catalog::ScheduleCheck counts them), and not passed when any
         # section was not passed.
-        sections = enrollments.map(&:course).uniq.group_by { |course| [ course.term_id, course.subject, course.course_number ] }
-        sections.values.map do |group|
+        # A section stores the subject as Banner's label, "Computer Science
+        # (COMP)". The requirements name a course by its subject code.
+        sections = enrollments.map(&:course).uniq
+                              .group_by { |course| [ course.term_id, Course.prefix_of(course.subject).upcase, course.course_number ] }
+        sections.map do |(_, subject_code, _), group|
           section_outcomes = group.to_h { |course| [ course, outcomes[[ course.term.uid, course.crn ]] ] }.compact
           failed = section_outcomes.find { |_, outcome| PASSED.exclude?(outcome) }
           course, outcome = failed || section_outcomes.first || [ group.first, nil ]
-          Taken.new(course.subject, course.course_number, course.title, course.term, course.crn,
+          Taken.new(subject_code, course.course_number, course.title, course.term, course.crn,
                     group.filter_map(&:credit_hours).max, taken_status(course.term, outcome), outcome)
         end.sort_by { |course| [ -course.term.uid, course.code ] }
       end
