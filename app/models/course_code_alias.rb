@@ -45,6 +45,17 @@ class CourseCodeAlias < ApplicationRecord
   validate :codes_differ
   validate :no_reverse_alias
 
+  # Each [subject_code, course_number] pair with the pairs of its old and
+  # new codes, both ways, from the reviewed aliases only. A pair with no
+  # alias gives an empty list.
+  def self.reviewed_pairs
+    reviewed.pluck(:from_subject_code, :from_course_number, :to_subject_code, :to_course_number)
+            .each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(fs, fn, ts, tn), map|
+      map[[ fs, fn ]] << [ ts, tn ]
+      map[[ ts, tn ]] << [ fs, fn ]
+    end
+  end
+
   def from_code = "#{from_subject_code} #{from_course_number}"
   def to_code = "#{to_subject_code} #{to_course_number}"
 

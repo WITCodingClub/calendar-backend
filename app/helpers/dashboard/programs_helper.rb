@@ -79,18 +79,16 @@ module Dashboard
       end
     end
 
-    # The open rows of a planned program: the courses it adds. A row that an
-    # active program also requires is marked shared, because one course can count for both. For a
-    # choice, one shared option is enough.
+    # The rows of a planned program that are not done: the courses it adds.
+    # A row that an active program also has is marked shared, because one
+    # course can count for both. AcademicProfiles::ProgramOverlap holds the
+    # rule, the same as the overlap of GET /api/user/degree_progress.
     def courses_added(progress, planned_entry)
-      active_codes = progress[:programs].select { |entry| entry[:status] == "active" }
-                                        .flat_map { |entry| entry[:requirements] }
-                                        .flat_map { |row| [ row[:code], *row[:options] ] }
-                                        .compact.to_set
-      planned_entry[:requirements].reject { |row| row[:status] == "done" }.map do |row|
-        codes = [ row[:code], *row[:options] ].compact
-        { row: row, shared: codes.any? { |code| active_codes.include?(code) } }
-      end
+      @program_overlaps ||= {}.compare_by_identity
+      overlap = @program_overlaps[progress] ||= AcademicProfiles::ProgramOverlap.new(
+        progress[:programs].select { |entry| entry[:status] == "active" }, aliases: CourseCodeAlias.reviewed_pairs
+      )
+      overlap.added_rows(planned_entry)
     end
 
     # Options for the "plan a program" select, grouped by kind.

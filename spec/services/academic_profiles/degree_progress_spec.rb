@@ -613,12 +613,18 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       minor_plan = create(:program_plan, requirement_set: create(:requirement_set, degree_program: minor, catalog_year: catalog_year))
       create(:program_plan_item, program_plan: minor_plan, subject_code: "GEAR", course_number: 1000)
       create(:student_program, :planned, user: user, degree_program: minor, catalog_year: catalog_year)
+      list_minor = create(:degree_program, :minor)
+      group = create(:elective_group, requirement_set: create(:requirement_set, degree_program: list_minor, catalog_year: catalog_year))
+      create(:elective_group_course, elective_group: group, subject_code: "GEAR", course_number: 2000)
+      create(:catalog_course, subject_code: "GEAR", course_number: 2000, title: "Gear Trains")
+      create(:student_program, :planned, user: user, degree_program: list_minor, catalog_year: catalog_year)
 
       queries = []
       callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
-      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { progress(include_planned: true) }
+      result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { progress(include_planned: true) }
 
       expect(queries.size).to eq(1)
+      expect(result[:programs].last[:lists].sole[:courses].sole).to include(code: "GEAR 2000", title: "Gear Trains")
     end
   end
 
@@ -628,6 +634,163 @@ RSpec.describe AcademicProfiles::DegreeProgress do
     allow(Term).to receive(:current).and_return(current_term)
 
     expect(statuses(progress)).to eq([ [ "WDGT 1000", "done" ] ])
+  end
+
+  describe "minor course lists and overlap (#992)" do
+    let(:minor) { create(:degree_program, :minor, slug: "math-minor", name: "Mathematics Minor") }
+    let(:minor_set) do
+      create(:requirement_set, degree_program: minor, catalog_year: catalog_year, total_credits: 20,
+                               school_name: "School of Sciences and Humanities")
+    end
+
+    before { allow(Term).to receive(:current).and_return(build_stubbed(:term, uid: 202710, year: 2026, season: :fall)) }
+
+    def list(name, codes, **attributes)
+      group = create(:elective_group, requirement_set: minor_set, name: name, **attributes)
+      codes.each { |code| create(:elective_group_course, elective_group: group, subject_code: "MATH", course_number: code) }
+      group
+    end
+
+    def plan_minor = create(:student_program, :planned, user: user, degree_program: minor, catalog_year: catalog_year)
+
+    def minor_entry = progress(include_planned: true)[:programs].find { |entry| entry[:program] == "math-minor" }
+
+    it "gives each list with its courses, their status, and their planned term in the major" do
+      item(subject_code: "MATH", course_number: 1750)
+      item(subject_code: "MATH", course_number: 2500, year_index: 2, season: "fall")
+      item(subject_code: "MATH", course_number: 2300, year_index: 2, season: "spring")
+      list("Required Mathematics", [ 1750, 2300, 2100 ], min_courses: nil, notes: "Take all three.")
+      list("Upper-level Mathematics", [ 2500, 3500, 3600 ], min_courses: 2, notes: "Pick two.")
+      create(:catalog_course, subject_code: "MATH", course_number: 1750, title: "Calculus I")
+      take(past_term, "MATH", 1750)
+      plan_minor
+
+      entry = minor_entry
+
+      expect(entry).to include(status: "planned", total_credits: 20, school: "School of Sciences and Humanities",
+                               overlap: { shared: 3, extra: 2 })
+      expect(entry[:summary]).to include(total_credits: 20)
+      expect(entry[:lists].map { |group| group.slice(:name, :min_courses, :min_credits, :notes, :checkable) }).to eq([
+        { name: "Required Mathematics", min_courses: 3, min_credits: nil, notes: "Take all three.", checkable: true },
+        { name: "Upper-level Mathematics", min_courses: 2, min_credits: nil, notes: "Pick two.", checkable: true }
+      ])
+      expect(entry[:lists].first[:courses]).to eq([
+        { code: "MATH 1750", title: "Calculus I", status: "done", term: past_term.name, major_term: "Fall 2025" },
+        { code: "MATH 2300", title: nil, status: "open", term: nil, major_term: "Spring 2027" },
+        { code: "MATH 2100", title: nil, status: "open", term: nil, major_term: nil }
+      ])
+      expect(entry[:lists].last[:courses].map { |course| course.values_at(:code, :major_term) })
+        .to eq([ [ "MATH 2500", "Fall 2026" ], [ "MATH 3500", nil ], [ "MATH 3600", nil ] ])
+      active = progress(include_planned: true)[:programs].find { |program| program[:status] == "active" }
+      expect(active).to include(lists: [], total_credits: 120)
+      expect(active).not_to have_key(:overlap)
+    end
+
+    it "counts a course the student took for the minor as neither shared nor extra without an active program" do
+      list("Required Mathematics", [ 1750, 2300, 2100 ], min_courses: nil)
+      take(past_term, "MATH", 1750)
+      plan_minor
+
+      entry = minor_entry
+
+      expect(entry[:overlap]).to eq(shared: 0, extra: 2)
+      expect(entry[:lists].sole[:courses].pluck(:major_term)).to all(be_nil)
+    end
+
+    it "fills a credit minimum with the credits of the list courses, and skips a list it cannot check" do
+      list("Mathematics Electives", [ 3000, 3100, 3200 ], min_courses: nil, min_credits: 8)
+      list("Approved courses", [ 4000 ], min_courses: nil)
+      create(:elective_group, requirement_set: minor_set, name: "Mathematics or Physics", min_courses: 1,
+                              subject_codes: %w[MATH PHYS])
+      create(:catalog_course, subject_code: "MATH", course_number: 3000, credit_hours: 4)
+      create(:catalog_course, subject_code: "MATH", course_number: 3100, credit_hours: 4)
+      plan_minor
+
+      entry = minor_entry
+
+      expect(entry[:overlap]).to eq(shared: 0, extra: 3)
+      expect(entry[:lists].map { |group| group.values_at(:name, :min_courses, :min_credits, :checkable) }).to eq([
+        [ "Mathematics Electives", nil, 8, true ], [ "Approved courses", nil, nil, false ],
+        [ "Mathematics or Physics", 1, nil, true ]
+      ])
+      expect(entry[:lists].second[:courses].pluck(:code)).to eq([ "MATH 4000" ])
+      expect(entry[:lists].third[:courses]).to eq([])
+    end
+
+    it "matches a major course through a course code alias, and counts each major row once" do
+      item(subject_code: "MATH", course_number: 175)
+      create(:course_code_alias, :reviewed, from_subject_code: "MATH", from_course_number: 175,
+                                            to_subject_code: "MATH", to_course_number: 1750)
+      list("Calculus", [ 1750 ], min_courses: 1)
+      list("Also Calculus", [ 1750, 1850 ], min_courses: 1)
+      plan_minor
+
+      entry = minor_entry
+
+      expect(entry[:lists].first[:courses].sole[:major_term]).to eq("Fall 2025")
+      expect(entry[:overlap]).to eq(shared: 1, extra: 1)
+    end
+
+    it "meets a list with a taken course first, so a later list keeps the major course" do
+      item(subject_code: "MATH", course_number: 1800)
+      list("List A", [ 1750, 1800 ], min_courses: 1)
+      list("List B", [ 1800 ], min_courses: 1)
+      take(past_term, "MATH", 1750)
+      plan_minor
+
+      expect(minor_entry[:overlap]).to eq(shared: 1, extra: 0)
+    end
+
+    it "matches the course rows of a planned plan before its choice rows" do
+      item(subject_code: "MATH", course_number: 1850)
+      item(subject_code: "MATH", course_number: 1750)
+      other = create(:degree_program, slug: "other-bs")
+      other_plan = create(:program_plan, requirement_set: create(:requirement_set, degree_program: other, catalog_year: catalog_year))
+      create(:program_plan_item, :choice, program_plan: other_plan,
+                                          options: [ { "subject_code" => "MATH", "course_number" => 1750 },
+                                                     { "subject_code" => "MATH", "course_number" => 1850 } ])
+      create(:program_plan_item, program_plan: other_plan, subject_code: "MATH", course_number: 1850)
+      create(:student_program, :planned, user: user, degree_program: other, catalog_year: catalog_year)
+
+      entry = progress(include_planned: true)[:programs].find { |program| program[:program] == "other-bs" }
+
+      expect(entry[:overlap]).to eq(shared: 2, extra: 0)
+    end
+
+    it "does not overlap a planned minor with the same minor declared as active" do
+      list("Calculus", [ 1750 ], min_courses: 1)
+      plan_minor
+      create(:student_program, user: user, degree_program: minor, catalog_year: catalog_year)
+
+      expect(minor_entry[:overlap]).to eq(shared: 0, extra: 1)
+      active = progress(include_planned: true)[:programs].find { |entry| entry[:program] == "math-minor" && entry[:status] == "active" }
+      expect(active[:lists].sole[:courses].sole).to include(code: "MATH 1750", major_term: nil)
+    end
+
+    it "counts the rows of a planned program with a plan: shared, extra when open, neither when taken" do
+      item(subject_code: "WDGT", course_number: 3000)
+      gadgets = create(:degree_program, slug: "gadgets-bs")
+      gadget_plan = create(:program_plan, requirement_set: create(:requirement_set, degree_program: gadgets, catalog_year: catalog_year))
+      create(:program_plan_item, program_plan: gadget_plan, subject_code: "WDGT", course_number: 3000)
+      create(:program_plan_item, program_plan: gadget_plan, subject_code: "GADG", course_number: 1000)
+      create(:program_plan_item, program_plan: gadget_plan, subject_code: "GADG", course_number: 1100)
+      take(past_term, "GADG", 1100)
+      create(:student_program, :planned, user: user, degree_program: gadgets, catalog_year: catalog_year)
+
+      entry = progress(include_planned: true)[:programs].find { |program| program[:program] == "gadgets-bs" }
+
+      expect(entry).to include(overlap: { shared: 1, extra: 1 }, lists: [])
+    end
+
+    it "gives the lists of a minor named as the program argument, with no overlap" do
+      list("Calculus", [ 1750 ], min_courses: 1)
+      minor_set
+
+      entry = progress(program: "math-minor")[:programs].sole
+
+      expect(entry[:lists].sole[:courses].sole).to include(code: "MATH 1750", status: "open", major_term: nil)
+      expect(entry).not_to have_key(:overlap)
+    end
   end
 
   describe "the plan against real terms (#990)" do

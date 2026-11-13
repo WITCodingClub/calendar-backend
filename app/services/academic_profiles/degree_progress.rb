@@ -73,8 +73,13 @@ module AcademicProfiles
       raise NoProgramError, NO_PROGRAM_MESSAGE if entries.empty?
 
       @course_details = CourseDetails.new(@with_details ? detail_codes(entries) : [], aliases)
+      programs = entries.map { |set, plan_name, row| with_terms(program_json(set, plan_name, row), row) }
+      # The lists and the overlap (#992) read the planned terms of the active
+      # programs, so they come after with_terms of every program.
+      overlap = ProgramOverlap.new(programs.select { |entry| entry[:status] == "active" },
+                                   aliases: aliases, attempts: attempts, course_details: @course_details)
       {
-        programs:    entries.map { |set, plan_name, row| with_terms(program_json(set, plan_name, row), row) },
+        programs:    entries.zip(programs).map { |(set, _, _), entry| overlap.call(set, entry) },
         courses:     taken.map(&:as_json),
         assumptions: ASSUMPTIONS
       }
@@ -399,11 +404,13 @@ module AcademicProfiles
       { code: course.code, **details, title: details[:title] || course.title }
     end
 
-    # The codes to load details for: the course rows of each plan and the
-    # courses the student took, which fill the slots and choices.
+    # The codes to load details for: the course rows of each plan, the
+    # courses the student took, which fill the slots and choices, and the
+    # courses on the lists of a program with no plan (#992).
     def detail_codes(entries)
       rows = entries.flat_map { |set, _, _| set.program_plans.flat_map(&:items) }.select(&:course?)
-      rows.map { |item| [ item.subject_code, item.course_number ] } + taken.map(&:key)
+      lists = entries.flat_map { |set, _, _| set.program_plans.empty? ? set.elective_groups.flat_map(&:courses) : [] }
+      (rows + lists).map { |course| [ course.subject_code, course.course_number ] } + taken.map(&:key)
     end
 
     # The program totals (#989). credits sums the credits of the courses the
@@ -516,11 +523,7 @@ module AcademicProfiles
     end
 
     def aliases
-      @aliases ||= CourseCodeAlias.reviewed.pluck(:from_subject_code, :from_course_number, :to_subject_code, :to_course_number)
-                                  .each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(fs, fn, ts, tn), map|
-        map[[ fs, fn ]] << [ ts, tn ]
-        map[[ ts, tn ]] << [ fs, fn ]
-      end
+      @aliases ||= CourseCodeAlias.reviewed_pairs
     end
 
     # Each enrolled course, newest term first.
