@@ -104,6 +104,22 @@ module AcademicProfiles
       ((first_year + year_index - 1) * 100) + suffix
     end
 
+    # One plan semester of the rows of DegreeProgress: its plan year and
+    # season, its term (nil without a start term), and its rows.
+    Semester = Data.define(:year, :season, :uid, :rows)
+
+    # The plan semesters of the rows with a year and a season, in plan order
+    # (fall, spring, summer in each year). DegreeProgress (#990) and the My
+    # programs dashboard page read it.
+    def self.semesters(start_term_uid, rows)
+      rows.select { |row| row[:year] && row[:season] }
+          .group_by { |row| [ row[:year], row[:season] ] }
+          .sort_by { |(year, season), _| [ year, TermCode::SEASON_SUFFIXES.fetch(season, 99) ] }
+          .map do |(year, season), semester_rows|
+            Semester.new(year: year, season: season, uid: term_uid(start_term_uid, year, season), rows: semester_rows)
+          end
+    end
+
     private
 
     def picked_plan

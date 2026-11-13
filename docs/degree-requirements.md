@@ -306,6 +306,39 @@ flowchart TD
   L --> R[Rows: done, in_progress, open]
 ```
 
+### Plan against real terms
+
+Each program in the result also gives its plan against real terms (#990). `AcademicProfiles::PlanTerms` adds the fields. It maps each plan semester to a term with `ProgramTimeline.semesters` and `ProgramTimeline.term_uid`, the same calculation as the My programs dashboard page and `NextTermCourses`.
+
+- `start_term` is the start term of `ProgramTimeline`: the program's catalog term, else the admit term of the academic profile. It is the same value as `start_term` of `GET /api/user/programs`. A planned program and the `program` argument have no student start term, so `start_term` is null.
+- `timeline` has one entry for each plan semester, in plan order: `term`, `uid`, `year`, `season`, `when`, `estimated`, and `co_op`. It is empty without a start term, or for a program with no plan of study (a minor).
+- `when` compares the Banner code with `Term.current`, as `NextTermCourses` does. `past` is before the current term. `current` is the current term. `registering` is the default term of `NextTermCourses`: the next fall or spring term after the current term. `future` is every later term. A summer term between the current term and the registering term is `future`, because the registering term is never a summer term. `when` is null when WIT Calendar has no current term.
+- `estimated` is true for each semester after plan year 2. A co-op or a summer class can move these terms. The timeline keeps the order of the plan.
+- `co_op` is true when every row of the semester is a co-op row: a row of the `Co-op` elective list (`DegreeRequirements::SharedElectives::CO_OP`), a co-op course row (`COOP 3500`, `COOP 4500`, `COOP 5000`), or a choice of those courses. Most plans list a co-op semester as a course row.
+- `expected_end` is `{ term, estimated }` of the last semester of the timeline, or null when the timeline is empty.
+- Each requirement row has `planned_term` (such as `Fall 2027`) and `planned_term_uid`. Both are null for a row with no plan semester (an elective list of a minor) and for a program with no start term.
+- Each requirement row has `behind`. It is true for an open row whose planned term is the current term or earlier, the same rule as the `behind` rows of `NextTermCourses`. It is false for every other row, and for a row with no planned term.
+
+The service reads the admit term once for every program. It makes no query for each program.
+
+```mermaid
+flowchart TD
+  SP[StudentProgram: catalog term] --> ST[start_term]
+  AP[AcademicProfile: admit term] --> ST
+  ST --> PT[ProgramTimeline.term_uid per plan semester]
+  R[DegreeProgress rows: year, season] --> PT
+  PT --> TL[timeline entry]
+  TC[Term.current] --> W{when}
+  TL --> W
+  W --> P1[past]
+  W --> P2[current]
+  W --> P3[registering: next fall or spring]
+  W --> P4[future]
+  PT --> RT[planned_term on each row]
+  TC --> B[behind: open, term is current or earlier]
+  RT --> B
+```
+
 ## Next term courses
 
 `AcademicProfiles::NextTermCourses` (#449) answers "what does my plan say I take next term?". The My programs page shows it in the "Plan for <term>" card. `GET /api/user/next_term_courses` and the MCP tool `my_next_term_courses` send the same hash.

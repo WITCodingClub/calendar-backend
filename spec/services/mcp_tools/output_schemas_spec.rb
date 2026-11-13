@@ -436,6 +436,7 @@ RSpec.describe "MCP tool output schemas" do
 
       result = expect_valid(McpTools::MyDegreeProgress)
       expect(result[:programs].first[:requirements].pluck(:status)).to eq(%w[done open in_progress open])
+      expect(result[:programs].first[:timeline]).to be_present
 
       minor = create(:degree_program, :minor, slug: "gear-minor", parent_program: nil)
       create(:elective_group, requirement_set: create(:requirement_set, degree_program: minor, catalog_year: catalog_year),

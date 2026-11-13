@@ -4,7 +4,6 @@ module Dashboard
   # The My programs page (#867). It reads the hashes of
   # StudentProgramsSerializer and AcademicProfiles::DegreeProgress.
   module ProgramsHelper
-    SEASON_ORDER = AcademicProfiles::TermCode::SEASON_SUFFIXES
     PROGRESS_BADGES = {
       "done"        => [ "Done", "m3-badge-primary" ],
       "in_progress" => [ "In progress", "m3-badge-tertiary" ],
@@ -36,14 +35,9 @@ module Dashboard
     # with its real term: [[year, season, term label or nil], rows].
     def plan_semesters(program, progress_entry)
       start = AcademicProfiles::TermCode.parse(program[:start_term])
-      rows = progress_entry[:requirements].select { |row| row[:year] && row[:season] }
-
-      rows.group_by { |row| [ row[:year], row[:season] ] }
-          .sort_by { |(year, season), _| [ year, SEASON_ORDER.fetch(season, 99) ] }
-          .map do |(year, season), semester_rows|
-            term = AcademicProfiles::TermCode.label(AcademicProfiles::ProgramTimeline.term_uid(start, year, season))
-            [ [ year, season, term ], semester_rows ]
-          end
+      AcademicProfiles::ProgramTimeline.semesters(start, progress_entry[:requirements]).map do |semester|
+        [ [ semester.year, semester.season, AcademicProfiles::TermCode.label(semester.uid) ], semester.rows ]
+      end
     end
 
     def plan_semester_title(year, season) = "Year #{year}, #{season}"
