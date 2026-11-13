@@ -63,6 +63,31 @@ RSpec.describe "/api/user/next_term_courses", :degree_planning, type: :request d
     expect(response.parsed_body["assumed"]).to eq("courses" => [ "WDGT 1000", "WDGT 1100" ], "from_plans" => [])
   end
 
+  it "adds candidates with include=candidates, also in a list, and the tool does the same (#993)" do
+    create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202610)
+    set = RequirementSet.last
+    group = create(:elective_group, requirement_set: set, name: "Gizmo Electives", subject_codes: %w[GIZM])
+    create(:program_plan_item, :placeholder, program_plan: set.program_plans.first, year_index: 2, season: "spring",
+                                             label: "Gizmo Elective", elective_group: group)
+    spring = create(:term, uid: 202720, year: 2027, season: :spring)
+    create(:course, term: spring, subject: "GIZM", course_number: 2000, seats_available: 4, seats_capacity: 20)
+
+    get "/api/user/next_term_courses", params: { term: "202720" }, headers: auth_headers_for(user)
+    expect(response.parsed_body.dig("programs", 0, "planned").pluck("hss_category")).to eq([ nil, nil ])
+    expect(response.parsed_body.dig("programs", 0, "planned", 1)).not_to have_key("candidates")
+
+    get "/api/user/next_term_courses", params: { term: "202720", include: "details,candidates" }, headers: auth_headers_for(user)
+
+    slot = response.parsed_body.dig("programs", 0, "planned", 1)
+    expect(slot["candidates"].pluck("code", "open_seats")).to eq([ [ "GIZM 2000", true ] ])
+    expect(response.parsed_body.dig("programs", 0, "planned", 0)).not_to have_key("candidates")
+    tool = McpTools::MyNextTermCourses.call(server_context: mcp_context(user), term: "202720", include_candidates: true)
+    expect(response.parsed_body).to eq(JSON.parse(tool.structured_content.except(:advisory).to_json))
+
+    get "/api/user/next_term_courses", params: { term: "202720", include: [ "candidates" ] }, headers: auth_headers_for(user)
+    expect(response.parsed_body.dig("programs", 0, "planned", 1, "candidates")).to be_present
+  end
+
   it "answers 422 for an assume value that is not a course code" do
     create(:student_program, user: user, degree_program: major, catalog_year: catalog_year, catalog_term_uid: 202610)
 

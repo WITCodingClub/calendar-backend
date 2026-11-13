@@ -13,6 +13,8 @@ module Api
     # assume: course codes to count as passed before the term, separated by
     # commas (COMP3350,MATH2300). assume_plans=true: also count the courses
     # of the saved registration plans before the term (#996).
+    # include=candidates: add the candidates of each elective slot and
+    # choice (#993). It also takes a list separated by commas.
     def show
       authorize current_user, :show?
 
@@ -24,7 +26,9 @@ module Api
 
       assume = AcademicProfiles::AssumedCourses.parse(params[:assume])
       assume_plans = params[:assume_plans].to_s == "true"
-      render json: AcademicProfiles::NextTermCourses.new(current_user, term_uid: term_uid, assume: assume, assume_plans: assume_plans).call
+      candidates = AcademicProfiles::NextTermCourses.candidates_requested?(params[:include])
+      render json: AcademicProfiles::NextTermCourses.new(current_user, term_uid: term_uid, assume: assume, assume_plans: assume_plans,
+                                                                       include_candidates: candidates).call
     rescue AcademicProfiles::AssumedCourses::InvalidCodesError => e
       render_error e.message, status: :unprocessable_content
     rescue AcademicProfiles::DegreeProgress::NoProgramError => e

@@ -605,25 +605,44 @@ module McpTools
     ).freeze
 
     # AcademicProfiles::NextTermCourses.
+    PREREQUISITE_STATUS = { type: %w[string null], enum: [ "met", "not_met", "unknown", nil ] }.freeze
+    # AcademicProfiles::ElectiveCandidates (#993).
+    NEXT_TERM_CANDIDATE = object(
+      code:            STRING,
+      title:           nullable(STRING),
+      credits:         nullable(INTEGER),
+      hss_category:    nullable(STRING),
+      prerequisites:   PREREQUISITE_STATUS,
+      missing:         STRINGS,
+      missing_in_plan: STRINGS,
+      open_seats:      nullable(BOOLEAN)
+    ).freeze
     NEXT_TERM_ROW = object(
-      year:          INTEGER,
-      season:        STRING,
-      kind:          { type: "string", enum: ProgramPlanItem::KINDS.values },
-      code:          nullable(STRING),
-      label:         nullable(STRING),
-      elective_list: nullable(STRING),
-      list:          PROGRESS_LIST,
-      courses:       array(
-        object(
-          code:            STRING,
-          title:           nullable(STRING),
-          offered:         nullable(BOOLEAN),
-          prerequisites:   { type: %w[string null], enum: [ "met", "not_met", "unknown", nil ] },
-          missing:         STRINGS,
-          missing_in_plan: STRINGS,
-          **COURSE_DETAILS
-        )
-      )
+      {
+        year:          INTEGER,
+        season:        STRING,
+        kind:          { type: "string", enum: ProgramPlanItem::KINDS.values },
+        code:          nullable(STRING),
+        label:         nullable(STRING),
+        elective_list: nullable(STRING),
+        list:          PROGRESS_LIST,
+        hss_category:  nullable(STRING),
+        courses:       array(
+          object(
+            code:            STRING,
+            title:           nullable(STRING),
+            offered:         nullable(BOOLEAN),
+            prerequisites:   PREREQUISITE_STATUS,
+            missing:         STRINGS,
+            missing_in_plan: STRINGS,
+            **COURSE_DETAILS
+          )
+        ),
+        # Only with include_candidates, and only on an elective slot or a
+        # choice (#993).
+        candidates:    array(NEXT_TERM_CANDIDATE)
+      },
+      optional: %i[candidates]
     ).freeze
     NEXT_TERM_COURSES = object(
       {

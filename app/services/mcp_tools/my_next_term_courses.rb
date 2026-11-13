@@ -13,7 +13,11 @@ module McpTools
                 "missing_in_plan lists the missing prerequisites that a planned or behind row of the term " \
                 "names: tell me to take those first. To plan a later term, pass assume_plans to count the " \
                 "courses of my saved registration plans before the term as passed, or assume to name courses " \
-                "to count as passed. The result lists them in assumed. This is a help for planning, not a " \
+                "to count as passed. The result lists them in assumed. Pass include_candidates to get, for each " \
+                "elective slot and choice, the courses of the term that fill it (candidates, at most " \
+                "#{AcademicProfiles::ElectiveCandidates::LIMIT}, best first: prerequisites met, then open seats). " \
+                "hss_category names the HSS category a slot still needs. Pick a course for a slot from its " \
+                "candidates. This is a help for planning, not a " \
                 "degree audit or a registration check. Read assumptions in the result."
     requires_scope "programs:read"
     requires_flag FeatureFlags::DEGREE_PLANNING
@@ -32,12 +36,17 @@ module McpTools
           type:        "boolean",
           description: "Also count as passed the courses of my saved registration plans for the terms after " \
                        "the current term and before the term."
+        },
+        include_candidates: {
+          type:        "boolean",
+          description: "Add candidates to each elective slot and choice: the courses with a section in the term " \
+                       "that fill it, with their prerequisite check and open seats."
         }
       }
     )
     output_schema(Schemas::NEXT_TERM_COURSES)
 
-    def perform(term: nil, assume: nil, assume_plans: false)
+    def perform(term: nil, assume: nil, assume_plans: false, include_candidates: false)
       authorize user, :show?
 
       term_uid = nil
@@ -47,7 +56,8 @@ module McpTools
       end
 
       assume = AcademicProfiles::AssumedCourses.parse(assume)
-      AcademicProfiles::NextTermCourses.new(user, term_uid: term_uid, assume: assume, assume_plans: assume_plans == true).call
+      AcademicProfiles::NextTermCourses.new(user, term_uid: term_uid, assume: assume, assume_plans: assume_plans == true,
+                                                  include_candidates: include_candidates == true).call
     rescue AcademicProfiles::AssumedCourses::InvalidCodesError, AcademicProfiles::DegreeProgress::NoProgramError => e
       raise ToolError, e.message
     end
