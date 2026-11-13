@@ -579,30 +579,36 @@ module McpTools
       list:          PROGRESS_LIST,
       courses:       array(
         object(
-          code:          STRING,
-          title:         nullable(STRING),
-          offered:       nullable(BOOLEAN),
-          prerequisites: { type: %w[string null], enum: [ "met", "not_met", "unknown", nil ] },
-          missing:       STRINGS,
+          code:            STRING,
+          title:           nullable(STRING),
+          offered:         nullable(BOOLEAN),
+          prerequisites:   { type: %w[string null], enum: [ "met", "not_met", "unknown", nil ] },
+          missing:         STRINGS,
+          missing_in_plan: STRINGS,
           **COURSE_DETAILS
         )
       )
     ).freeze
     NEXT_TERM_COURSES = object(
-      term:        object(uid: nullable(INTEGER), name: nullable(STRING)),
-      sections:    BOOLEAN,
-      programs:    array(
-        object(
-          program:    STRING,
-          name:       STRING,
-          plan:       STRING,
-          start_term: nullable(STRING),
-          semester:   nullable(object(year: INTEGER, season: STRING)),
-          planned:    array(NEXT_TERM_ROW),
-          behind:     array(NEXT_TERM_ROW)
-        )
-      ),
-      assumptions: STRINGS
+      {
+        term:        object(uid: nullable(INTEGER), name: nullable(STRING)),
+        # Only with assume or assume_plans (#996).
+        assumed:     object(courses: STRINGS, from_plans: INTEGERS),
+        sections:    BOOLEAN,
+        programs:    array(
+          object(
+            program:    STRING,
+            name:       STRING,
+            plan:       STRING,
+            start_term: nullable(STRING),
+            semester:   nullable(object(year: INTEGER, season: STRING)),
+            planned:    array(NEXT_TERM_ROW),
+            behind:     array(NEXT_TERM_ROW)
+          )
+        ),
+        assumptions: STRINGS
+      },
+      optional: %i[assumed]
     ).freeze
 
     # UniversityCalendarEventSerializer.

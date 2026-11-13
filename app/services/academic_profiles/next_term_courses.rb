@@ -17,6 +17,11 @@ module AcademicProfiles
   # its prerequisites with the courses done or in progress. It is a help for
   # planning, not a degree audit or a registration check.
   #
+  # With assume or assume_plans (#996), it also counts the assumed courses
+  # (AssumedCourses) as passed before the term, and the hash lists them in
+  # assumed. Each course also has missing_in_plan: the courses of missing
+  # that a planned or behind row of the term names.
+  #
   # GET /api/user/next_term_courses and the My programs dashboard page send it.
   class NextTermCourses
     # A prerequisite tree node is met, not met, or unknown (a test score).
@@ -24,6 +29,10 @@ module AcademicProfiles
     NOT_MET = "not_met"
     UNKNOWN = "unknown"
     COUNTED = %w[done in_progress].freeze
+    # An assumed course counts as passed with a C or better.
+    ASSUMED = { status: "assumed", outcome: nil }.freeze
+    # A course code inside a missing entry, such as "WDGT 1100 or WDGT 1200".
+    MISSING_CODE = /[A-Z]{2,5} \d{3,4}/
 
     # term_uid: the Banner code of the term. Without one, the next fall or
     # spring term after the current term. Students register for fall in
@@ -32,12 +41,18 @@ module AcademicProfiles
     # DegreeProgress (active programs) when the caller already has them.
     # current_term_uid: the Banner code of the current term, Term.current
     # when not given.
-    def initialize(user, term_uid: nil, current_term_uid: nil, programs: nil, progress: nil, today: Time.zone.today)
+    # assume: [subject, number] pairs (AssumedCourses.parse) to count as
+    # passed. assume_plans: also count the courses of the saved registration
+    # plans of the terms between the current term and the term.
+    def initialize(user, term_uid: nil, current_term_uid: nil, programs: nil, progress: nil, assume: [],
+                   assume_plans: false, today: Time.zone.today)
       @user = user
       @term_uid = term_uid
       @current_term_uid = current_term_uid
       @programs = programs
       @progress = progress
+      @assume = assume
+      @assume_plans = assume_plans
       @today = today
     end
 
@@ -47,14 +62,18 @@ module AcademicProfiles
       progress # raises NoProgramError before the rest
       {
         term:        { uid: term_uid, name: TermCode.label(term_uid) },
+        # Only with assume or assume_plans, so the hash stays the same
+        # without them.
+        **(assumed_courses.requested? ? { assumed: assumed_courses.to_h } : {}),
         sections:    sections_known?,
         programs:    program_entries,
         assumptions: [
           "A course in progress this term counts toward prerequisites, as if you pass it with a C or better.",
+          ("A course in assumed counts toward prerequisites, as if you pass it with a C or better." if assumed_courses.pairs.any?),
           "A prerequisite that needs a test score shows as unknown. A course with no prerequisite data from " \
           "Banner shows no prerequisite check.",
           "Behind rows are open rows of earlier plan semesters. Ask your advisor which ones to take first."
-        ]
+        ].compact
       }
     end
 
@@ -88,35 +107,48 @@ module AcademicProfiles
     end
 
     def program_entries
+      term_rows.map { |program, entry, planned, behind| program_json(program, entry, planned, behind) }
+    end
+
+    # [program, DegreeProgress entry, planned rows, behind rows] for each
+    # active program with a plan of study.
+    def term_rows
       # Two LeopardWeb rows can link to one catalog program, and
       # DegreeProgress checks it once.
-      programs[:programs].uniq { |program| [ program[:program], program[:catalog_year], program[:status] ] }
-                         .filter_map do |program|
+      @term_rows ||= programs[:programs].uniq { |program| [ program[:program], program[:catalog_year], program[:status] ] }
+                                        .filter_map do |program|
         entry = progress[:programs].find do |candidate|
           candidate[:program] == program[:program] && candidate[:catalog_year] == program[:catalog_year] &&
             candidate[:status] == program[:status]
         end
         next if entry.nil? || entry[:plan].nil?
 
-        program_json(program, entry)
+        [ program, entry, *split_rows(program, entry) ]
       end
     end
 
-    def program_json(program, entry)
+    def split_rows(program, entry)
       start = TermCode.parse(program[:start_term])
-      rows = entry[:requirements].select { |row| row[:year] && row[:season] }
       planned, behind = [], []
+      return [ planned, behind ] unless start && term_uid
 
-      if start && term_uid
-        rows.each do |row|
-          uid = ProgramTimeline.term_uid(start, row[:year], row[:season])
-          if uid == term_uid && COUNTED.exclude?(row[:status])
-            planned << row_json(row)
-          elsif uid < term_uid && uid <= behind_limit && row[:status] == "open"
-            behind << row_json(row)
-          end
+      plan_rows(entry).each do |row|
+        uid = ProgramTimeline.term_uid(start, row[:year], row[:season])
+        if uid == term_uid && COUNTED.exclude?(row[:status])
+          planned << row
+        elsif uid < term_uid && uid <= behind_limit && row[:status] == "open"
+          behind << row
         end
       end
+      [ planned, behind ]
+    end
+
+    def plan_rows(entry)
+      entry[:requirements].select { |row| row[:year] && row[:season] }
+    end
+
+    def program_json(program, entry, planned, behind)
+      start = TermCode.parse(program[:start_term])
 
       {
         program:    program[:program],
@@ -125,9 +157,9 @@ module AcademicProfiles
         start_term: program[:start_term],
         # The plan semester of the term, such as year 2, spring. nil without a
         # start term, or when the term is after the end of the plan.
-        semester:   start && term_uid && semester_of(rows, start),
-        planned:    planned,
-        behind:     behind
+        semester:   start && term_uid && semester_of(plan_rows(entry), start),
+        planned:    planned.map { |row| row_json(row) },
+        behind:     behind.map { |row| row_json(row) }
       }
     end
 
@@ -172,13 +204,15 @@ module AcademicProfiles
       catalog = keys.lazy.filter_map { |key| catalog_courses[key] }.first
       tree = catalog&.prerequisites.presence
       result = tree ? check(tree) : nil
+      missing = result ? result[:missing] : []
 
       {
-        code:          code,
-        title:         catalog&.title,
-        offered:       sections_known? ? keys.any? { |key| offered_codes.include?(key) } : nil,
-        prerequisites: result && result[:status],
-        missing:       result ? result[:missing] : []
+        code:            code,
+        title:           catalog&.title,
+        offered:         sections_known? ? keys.any? { |key| offered_codes.include?(key) } : nil,
+        prerequisites:   result && result[:status],
+        missing:         missing,
+        missing_in_plan: missing_in_plan(missing)
       }.merge(CourseDetails.json(catalog).except(:title))
     end
 
@@ -234,13 +268,54 @@ module AcademicProfiles
       courses.any? { |course| course[:outcome] != "passed_below_c" } ? MET : NOT_MET
     end
 
+    # The course codes of missing that a planned or behind row of the term
+    # names, in any program, also through an alias. A missing entry with
+    # options, such as "WDGT 1100 or WDGT 1200", gives each of its codes
+    # that a row names.
+    def missing_in_plan(missing)
+      missing.flat_map { |entry| entry.scan(MISSING_CODE) }.uniq.select do |code|
+        equivalent_codes(code).any? { |key| term_row_codes.include?(key) }
+      end
+    end
+
+    def term_row_codes
+      @term_row_codes ||= term_rows.flat_map { |_program, _entry, planned, behind| planned + behind }
+                                   .flat_map { |row| row_codes(row) }
+                                   .flat_map { |code| equivalent_codes(code) }
+                                   .to_set
+    end
+
+    # The courses that count, by [subject, number]: the taken courses and
+    # the assumed courses.
+    def counted_courses
+      @counted_courses ||= assumed_courses.pairs.each_with_object(taken_courses.dup) do |pair, map|
+        map[pair] = [ *map[pair], ASSUMED ]
+      end
+    end
+
     # The courses from DegreeProgress that count, by [subject, number]: done
     # or in progress, in a term before the term. Banner does not let a
     # course in the same term meet a prerequisite.
-    def counted_courses
-      @counted_courses ||= progress[:courses].select { |course| COUNTED.include?(course[:status]) }
-                                             .select { |course| term_uid.nil? || course[:term_uid] < term_uid }
-                                             .group_by { |course| CatalogCourse.parse_code(course[:code]) }
+    def taken_courses
+      @taken_courses ||= progress[:courses].select { |course| COUNTED.include?(course[:status]) }
+                                           .select { |course| term_uid.nil? || course[:term_uid] < term_uid }
+                                           .group_by { |course| CatalogCourse.parse_code(course[:code]) }
+    end
+
+    # The assumed courses, without the ones the student did or takes (also
+    # through an alias). A course passed below C stays, because a retake can
+    # meet a minimum grade of C.
+    def assumed_courses
+      @assumed_courses ||= AssumedCourses.new(
+        @user, term_uid: term_uid, current_term_uid: current_term_uid, codes: @assume, plans: @assume_plans,
+               skip: ->(pair) { taken_with_c?(pair) }
+      )
+    end
+
+    def taken_with_c?(pair)
+      [ pair, *aliases.fetch(pair, []) ].any? do |key|
+        taken_courses.fetch(key, []).any? { |course| course[:outcome] != "passed_below_c" }
+      end
     end
 
     # A code and its old or new codes, as "SUBJ 1234".

@@ -26,4 +26,8 @@ RSpec.describe McpTools::MyNextTermCourses, :degree_planning do
     expect(text(call(term: "Winter 2027"))).to include("Banner term code")
     expect(text(call(term: "Spring 2027"))).to include("process a term")
   end
+
+  it "answers with a tool error for an assume value that is not a course code" do
+    expect(text(call(assume: [ "Widgets" ]))).to include("course codes such as COMP3350")
+  end
 end
