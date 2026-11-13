@@ -39,6 +39,12 @@ scope "user", as: :user do
   # The plan courses of the term the student registers for next (#449)
   get "next_term_courses", to: "next_term_courses#show"
 
+  # Saved registration plans, one per term (#995)
+  get    "registration_plans",           to: "registration_plans#index"
+  get    "registration_plans/:term_uid", to: "registration_plans#show",    constraints: { term_uid: /\d{1,6}/ }
+  put    "registration_plans/:term_uid", to: "registration_plans#update",  constraints: { term_uid: /\d{1,6}/ }
+  delete "registration_plans/:term_uid", to: "registration_plans#destroy", constraints: { term_uid: /\d{1,6}/ }
+
   # One-time catch-up runs the extension marks done (calendar-extension#215)
   get "backfills",       to: "backfills#index"
   put "backfills/:name", to: "backfills#update"

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_173100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_12_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_stat_statements"
@@ -899,6 +899,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_173100) do
     t.index ["faculty_id"], name: "index_rating_distributions_on_faculty_id", unique: true
   end
 
+  create_table "registration_plans", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.integer "term_uid", null: false
+    t.jsonb "courses", default: [], null: false
+    t.jsonb "preferences", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["term_uid"], name: "index_registration_plans_on_term_uid"
+    t.index ["user_id", "term_uid"], name: "index_registration_plans_on_user_id_and_term_uid", unique: true
+  end
+
   create_table "related_professors", force: :cascade do |t|
     t.decimal "avg_rating", precision: 3, scale: 2
     t.datetime "created_at", null: false
@@ -1502,6 +1513,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_173100) do
   add_foreign_key "program_plan_items", "program_plans", on_delete: :cascade
   add_foreign_key "program_plans", "requirement_sets", on_delete: :cascade
   add_foreign_key "rating_distributions", "faculties"
+  add_foreign_key "registration_plans", "terms", column: "term_uid", primary_key: "uid", on_delete: :cascade
+  add_foreign_key "registration_plans", "users", on_delete: :cascade
   add_foreign_key "related_professors", "faculties"
   add_foreign_key "related_professors", "faculties", column: "related_faculty_id"
   add_foreign_key "requirement_sets", "catalog_years"
