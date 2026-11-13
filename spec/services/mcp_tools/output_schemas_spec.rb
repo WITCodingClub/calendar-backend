@@ -461,6 +461,14 @@ RSpec.describe "MCP tool output schemas" do
                               min_courses: nil, min_credits: 8)
       expect(expect_valid(McpTools::MyDegreeProgress, program: "gear-minor")[:programs].first[:requirements].first)
         .to include(kind: "elective_list", status: "open")
+
+      # The overlap of a planned minor (#992, #998) comes only from the API
+      # with include_planned. It has the same schema.
+      create(:student_program, :planned, user: user, degree_program: minor, catalog_year: catalog_year)
+      planned = AcademicProfiles::DegreeProgress.new(user, include_planned: true).call
+      response = MCP::Tool::Response.new([], structured_content: planned.merge(advisory: result[:advisory]))
+      expect(planned[:programs].last[:overlap]).to include(:slots, :unplaced, :expected_end_with_minor)
+      expect(schema_errors(McpTools::MyDegreeProgress, response)).to be_empty
     end
 
     it "matches the estimate of degree progress (#1011)" do
