@@ -17,6 +17,7 @@ module McpTools
       ListTermElectives,
       SimilarSections,
       CheckSchedule,
+      FindSchedules,
       SearchInstructors,
       GetInstructor,
       SimilarInstructors,

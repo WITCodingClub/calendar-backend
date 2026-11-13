@@ -23,6 +23,10 @@ namespace :v1 do
     get "subjects", to: "subjects#index"
 
     get "schedule_check", to: "schedule_checks#show", as: :schedule_check
+    # Builds schedules from a list of courses. POST, because the body holds
+    # the courses and the preferences.
+    post "schedule_options",       to: "schedule_options#create", as: :schedule_options
+    post "schedule_options/count", to: "schedule_options#count",  as: :schedule_options_count
 
     get "sections",              to: "sections#index"
     get "sections/:crn",         to: "sections#show",    as: :section,          constraints: { crn: /\d+/ }

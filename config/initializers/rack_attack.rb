@@ -210,6 +210,25 @@ class Rack::Attack
     end
   end
 
+  # The schedule builder (docs/public-catalog-api.md) searches in each
+  # request, and POST responses get no edge cache. catalog/ip also counts
+  # these requests. The extension calls the count route each time the student
+  # changes an answer, so the count gets a larger budget than the full
+  # search. Each search stops at 0.25 seconds of work, and a search with no
+  # schedule at 0.5 (Catalog::ScheduleOptions::Budget), so one address uses
+  # at most about 0.6 of one CPU. A request with a token counts against the user. A hosted MCP
+  # client's address skips both, the same as the other per-IP rules (ip_key).
+  SCHEDULE_OPTIONS_PATH       = "/api/v1/catalog/schedule_options"
+  SCHEDULE_OPTIONS_COUNT_PATH = "/api/v1/catalog/schedule_options/count"
+
+  throttle("catalog/schedule-options", limit: 30, period: 1.minute) do |req|
+    schedule_options_key(req) if req.post? && route_path(req) == SCHEDULE_OPTIONS_PATH
+  end
+
+  throttle("catalog/schedule-options-count", limit: 90, period: 1.minute) do |req|
+    schedule_options_key(req) if req.post? && route_path(req) == SCHEDULE_OPTIONS_COUNT_PATH
+  end
+
   # The batch path shares this budget. A batch counts as one request, and it
   # processes only its first term inside the request.
   #
@@ -398,6 +417,11 @@ class Rack::Attack
   # same budget as the plain path.
   def self.route_path(req)
     ActionDispatch::Journey::Router::Utils.normalize_path(req.path).sub(%r{\.[^/.]+\z}, "")
+  end
+
+  def self.schedule_options_key(req)
+    user_id = extract_user_id(req)
+    user_id ? "user:#{user_id}" : ip_key(req)
   end
 
   # Devise keeps the signed-in user id in the session. Reading it needs no

@@ -60,13 +60,7 @@ module McpTools
           )
         ),
         duplicates:    Schemas.array(Schemas.object(course_code: Schemas::STRING, crns: Schemas::INTEGERS)),
-        totals:        Schemas.object(
-          credit_hours:         Schemas::INTEGER,
-          days:                 Schemas.array(Schemas::DAY),
-          earliest_start:       Schemas.nullable(Schemas::TIME),
-          latest_end:           Schemas.nullable(Schemas::TIME),
-          meetings_before_nine: Schemas::INTEGER
-        )
+        totals:        Schemas::SCHEDULE_TOTALS
       )
     )
 

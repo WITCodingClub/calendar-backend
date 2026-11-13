@@ -14,7 +14,8 @@ info:
 
     The API contains course schedule data only. It contains no student data.
 
-    Responses are public and cacheable for 1 hour. The rate limit is 300
+    GET responses are public and cacheable for 1 hour. The POST routes of
+    the schedule builder are not cached. The rate limit is 300
     requests per minute per IP address. Every response sends the
     `RateLimit-Policy` and `RateLimit` headers from the IETF draft "RateLimit
     header fields for HTTP", so a client can slow down before it reaches the
@@ -319,6 +320,117 @@ paths:
                           earliest_start: { type: [string, "null"] }
                           latest_end: { type: [string, "null"] }
                           meetings_before_nine: { type: integer }
+        "400": { $ref: "#/components/responses/InvalidFilter" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/schedule_options:
+    post:
+      tags: [sections]
+      operationId: findSchedules
+      summary: Build and rank schedules for a list of courses
+      description: >-
+        One section of each course, with the sections that Banner links to it, and no
+        time conflict, missing partner, cancelled section, or course two times. Hard
+        preferences remove schedules, soft preferences rank them. The search stops at
+        500 schedules or at its work budget (capped). When count is 0, relax lists the
+        hard preferences to drop. Not cached. Rate limit: 30 per minute per IP address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScheduleOptionsRequest" }
+      responses:
+        "200":
+          description: The ranked schedules
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [term, count, capped, schedules, relax, not_offered]
+                    properties:
+                      term: { $ref: "#/components/schemas/Term" }
+                      count: { type: integer, maximum: 500 }
+                      capped: { type: boolean, description: True when the search stopped at 500 schedules or at its budget. }
+                      schedules:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            rank: { type: integer }
+                            score: { type: number, minimum: 0, maximum: 1 }
+                            crns: { type: array, items: { type: string } }
+                            courses:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  code: { type: string }
+                                  crns: { type: array, items: { type: string } }
+                            highlights: { type: array, items: { type: string } }
+                            avoid_hits: { type: integer }
+                            totals:
+                              type: object
+                              properties:
+                                credit_hours: { type: integer }
+                                days: { type: array, items: { $ref: "#/components/schemas/Day" } }
+                                earliest_start: { type: [string, "null"] }
+                                latest_end: { type: [string, "null"] }
+                                meetings_before_nine: { type: integer }
+                      relax:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            preference: { type: string, enum: [day_off, earliest, latest, blocked, open_only] }
+                            label: { type: string }
+                            count: { type: integer }
+                      not_offered:
+                        type: array
+                        description: Requested codes with no active section in the term.
+                        items: { type: string }
+        "400": { $ref: "#/components/responses/InvalidFilter" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/v1/catalog/schedule_options/count:
+    post:
+      tags: [sections]
+      operationId: countSchedules
+      summary: Count the schedules for a list of courses
+      description: >-
+        The same input and search as findSchedules, with no ranking. Not cached. Rate
+        limit: 90 per minute per IP address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScheduleOptionsRequest" }
+      responses:
+        "200":
+          description: The count
+          headers:
+            RateLimit: { $ref: "#/components/headers/RateLimit" }
+            RateLimit-Policy: { $ref: "#/components/headers/RateLimitPolicy" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [count, capped]
+                    properties:
+                      count: { type: integer, maximum: 500 }
+                      capped: { type: boolean }
         "400": { $ref: "#/components/responses/InvalidFilter" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
@@ -939,6 +1051,59 @@ components:
           enum: [INVALID_FILTER, NOT_FOUND, RATE_LIMITED, INTERNAL_ERROR]
         message: { type: string, description: More detail. Only RATE_LIMITED sends it. }
         retry_after: { type: integer, description: Seconds to wait. Only RATE_LIMITED sends it. }
+
+    ScheduleRange:
+      type: object
+      description: >-
+        A time range. It covers a meeting on one of its days that overlaps the time from
+        after to before. Give at least one key.
+      additionalProperties: false
+      properties:
+        days: { type: array, items: { $ref: "#/components/schemas/Day" }, description: Every day when left out. }
+        after: { type: string, examples: ["13:00"], description: Midnight when left out. }
+        before: { type: string, examples: ["10:00"], description: The end of the day when left out. }
+
+    ScheduleOptionsRequest:
+      type: object
+      required: [term_uid, courses]
+      properties:
+        term_uid: { type: integer, examples: [202720] }
+        courses:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required: [codes]
+            additionalProperties: false
+            properties:
+              codes:
+                type: array
+                minItems: 1
+                maxItems: 5
+                description: One course code, or several for "one of". At most 20 codes in all.
+                items: { type: string, examples: ["COMP 3350"] }
+              crns:
+                type: array
+                description: CRNs the student already picked. Each schedule keeps them. At most 30 in all.
+                items: { type: [string, integer] }
+        preferences:
+          type: object
+          additionalProperties: false
+          properties:
+            blocked: { type: array, maxItems: 10, items: { $ref: "#/components/schemas/ScheduleRange" }, description: Hard. }
+            avoid: { type: array, maxItems: 10, items: { $ref: "#/components/schemas/ScheduleRange" }, description: Soft. }
+            earliest: { type: string, examples: ["09:00"], description: Hard. No meeting starts before this time. }
+            latest: { type: string, examples: ["18:00"], description: Hard. No meeting ends after this time. }
+            day_off:
+              description: Hard. none, any (at least one weekday free), or a list of days.
+              oneOf:
+                - { type: string, enum: [none, any] }
+                - { type: array, items: { $ref: "#/components/schemas/Day" } }
+            open_only: { type: boolean, description: Hard. Pinned CRNs stay when full. }
+            days: { type: string, enum: [fewer, spread, any], description: Soft. }
+            breaks: { type: string, enum: [tight, lunch, any], description: Soft. }
+        limit: { type: integer, minimum: 1, maximum: 20, default: 6 }
 
     PageMeta:
       type: object
