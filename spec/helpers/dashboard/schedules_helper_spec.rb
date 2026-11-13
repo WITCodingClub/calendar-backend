@@ -20,7 +20,7 @@ RSpec.describe Dashboard::SchedulesHelper, type: :helper do
     }
   end
 
-  def schedule_with(*entries)
+  def schedule_with(*entries, no_class_dates: [])
     ScheduleLoading::Schedule.new(
       terms:           [],
       selected_term:   term,
@@ -30,7 +30,7 @@ RSpec.describe Dashboard::SchedulesHelper, type: :helper do
       month_date:      Date.new(2026, 9, 1),
       courses:         [],
       schedule_by_day: entries.group_by { |e| e[:meeting_time][:day].to_s },
-      no_class_dates:  []
+      no_class_dates:  no_class_dates
     )
   end
 
@@ -66,6 +66,12 @@ RSpec.describe Dashboard::SchedulesHelper, type: :helper do
       later = entry(:monday, start_date: Date.new(2026, 10, 1), end_date: Date.new(2026, 12, 1))
 
       expect(helper.schedule_sessions_on(schedule_with(later), Date.new(2026, 9, 14))).to be_empty
+    end
+
+    it "returns no meetings on a day with no classes" do
+      schedule = schedule_with(entry(:monday), no_class_dates: [ Date.new(2026, 9, 14) ])
+
+      expect(helper.schedule_sessions_on(schedule, Date.new(2026, 9, 14))).to be_empty
     end
   end
 

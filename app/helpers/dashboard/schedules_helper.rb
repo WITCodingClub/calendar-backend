@@ -18,8 +18,11 @@ module Dashboard
     end
 
     # The meetings on `day`, in start time order. A meeting shows only between
-    # its own start and end dates, or the term dates when it has none.
+    # its own start and end dates, or the term dates when it has none. A day
+    # with no classes (a holiday, study day, or finals day) has no meetings.
     def schedule_sessions_on(schedule, day)
+      return [] if schedule.no_class_dates.include?(day)
+
       term = schedule.selected_term
 
       sessions = schedule.schedule_by_day.fetch(day.strftime("%A").downcase, []).select do |entry|
