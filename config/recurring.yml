@@ -93,6 +93,12 @@ production:
     queue: low
     schedule: every day at 4:45am
 
+  # Revoked and expired meeting links, one week after they stop (#854).
+  cleanup_old_meeting_links:
+    class: Cleanup::OldMeetingLinksJob
+    queue: low
+    schedule: every day at 4:50am
+
   # The ChatGPT connector addresses that skip the per-IP limits (McpPlatforms).
   refresh_openai_mcp_ranges:
     class: McpPlatforms::RefreshOpenaiRangesJob

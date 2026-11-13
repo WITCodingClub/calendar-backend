@@ -74,6 +74,19 @@ The answer is `201`:
 
 `DELETE /api/meeting_links/:id` answers `200` with `{ "meeting_link": { ... } }`. A used link stays used and keeps its meeting. To cancel the meeting, delete the event in the calendar.
 
+### Delete a link
+
+`DELETE /api/meeting_links/:id?permanent=true` deletes a revoked or expired link, so it leaves the list. It answers `204` with no body. It does not delete an active or a used link:
+
+| Status | `code` | When |
+| --- | --- | --- |
+| `409` | `MEETING_LINK_ACTIVE` | The link still works. Revoke it first. |
+| `409` | `MEETING_LINK_USED` | The link has a booking. A used link keeps its meeting. |
+
+The app also deletes each revoked or expired link that was never used, 7 days after it stopped working (`MeetingLink::KEEP_STOPPED_FOR`). `Cleanup::OldMeetingLinksJob` runs every day at 4:50 AM. A used link stays, because it holds the booking.
+
+### Errors
+
 | Status | When |
 | --- | --- |
 | `400` | A required field is missing, or a date or time is not ISO 8601. |
@@ -83,7 +96,7 @@ The answer is `201`:
 
 ## The owner: dashboard
 
-`/dashboard/meeting_links` makes, lists, and revokes links. The friends page links to it while the flag is on. The new URL shows once, on the page after the link is made.
+`/dashboard/meeting_links` makes, lists, revokes, and deletes links. A revoked or expired link has a Delete button. The friends page links to it while the flag is on. The new URL shows once, on the page after the link is made.
 
 ## The guest: public page
 

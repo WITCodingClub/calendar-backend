@@ -36,16 +36,36 @@ module Api
     #
     # Revokes the link. A used link keeps its meeting: delete the event in the
     # calendar to cancel it.
+    #
+    # With permanent=true, deletes a revoked or expired link, so it leaves the
+    # list (#854). An active or used link answers 409.
     def destroy
       link = policy_scope(MeetingLink).find_by_public_id(params[:id])
       return render_not_found unless link
 
       authorize link, :destroy?
+      return delete_permanently(link) if permanent?
+
       link.revoke! unless link.used?
       render json: { meeting_link: MeetingLinkSerializer.new(link).as_json }
     end
 
     private
+
+    # Only "true" or "1" deletes. Any other value revokes, so a typo never
+    # deletes a link.
+    def permanent? = params[:permanent].to_s.in?(%w[true 1])
+
+    def delete_permanently(link)
+      if link.used?
+        render_error "A used link keeps its meeting, so it cannot be deleted", status: :conflict, code: "MEETING_LINK_USED"
+      elsif link.usable?
+        render_error "Revoke the link before you delete it", status: :conflict, code: "MEETING_LINK_ACTIVE"
+      else
+        link.destroy!
+        head :no_content
+      end
+    end
 
     # Off for everyone until the privacy policy covers meeting links.
     def require_meeting_links

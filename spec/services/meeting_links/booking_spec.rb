@@ -71,6 +71,15 @@ RSpec.describe MeetingLinks::Booking do
     expect(FriendMeeting.count).to eq(0)
   end
 
+  it "refuses a link that the owner deleted after the guest page loaded it" do
+    loaded = MeetingLink.find(link.id)
+    link.revoke!
+    link.destroy!
+
+    expect { book(loaded) }.to raise_error(described_class::Gone)
+    expect(FriendMeeting.count).to eq(0)
+  end
+
   it "refuses a time that is not free, and leaves the link usable" do
     course = create(:course)
     create(:course_meeting_time, course: course, day_of_week: :thursday, begin_time: 1000, end_time: 1050)
