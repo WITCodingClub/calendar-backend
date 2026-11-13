@@ -272,7 +272,10 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       hss = result[:programs].first[:hss]
       expect(hss[:english][:courses].size).to eq(2)
       expect(hss[:courses].pluck(:category)).to include("Humanities")
-      expect(hss[:courses].find { |course| course[:category] == "Humanities" }[:code]).to start_with("ENGL")
+      third = hss[:courses].find { |course| course[:category] == "Humanities" }[:code]
+      expect(third).to start_with("ENGL")
+      # It fills no row, so the summary does not count it (#1012). hss.credits counts it.
+      expect(result[:programs].first[:summary][:credits][:not_counted]).to eq(earned: 4, in_progress: 0, courses: [ third ])
     end
 
     it "reports the HSS requirement of a plan with no HSS slot" do
@@ -568,11 +571,13 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       expect(filled).not_to have_key(:title)
     end
 
-    it "sums the credits of the courses taken and counts the co-op semesters" do
+    it "sums the credits of the courses that fill a row and counts the co-op semesters" do
       set.update!(total_credits: 132, school_name: "School of Widgets", department_name: "Widget Design")
       co_op = create(:elective_group, requirement_set: set, name: DegreeRequirements::SharedElectives::CO_OP.name)
       create(:elective_group_course, elective_group: co_op, subject_code: "COOP", course_number: 3500)
       item(subject_code: "COOP", course_number: 2500)
+      item(subject_code: "WDGT", course_number: 1000)
+      item(subject_code: "WDGT", course_number: 1100)
       item(:placeholder, label: "Co-op Semester", elective_group: co_op)
       item(:placeholder, label: "Co-op Semester", elective_group: co_op)
       take(past_term, "COOP", 2500, credits: nil)
@@ -585,7 +590,8 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       expect(progress[:programs].first[:summary]).to eq(
         total_credits: 132, school: "School of Widgets", department: "Widget Design",
         # The failed WDGT 1100 counts once, with the attempt in progress.
-        credits: { earned: 4, in_progress: 7 },
+        # WDGT 1200 fills no row.
+        credits: { earned: 4, in_progress: 3, not_counted: { earned: 0, in_progress: 4, courses: [ "WDGT 1200" ] } },
         co_ops: { required: 2, done: 1 }
       )
     end
@@ -602,7 +608,80 @@ RSpec.describe AcademicProfiles::DegreeProgress do
       expect(program[:requirements].first).to include(title: section.title, description: nil)
       # Not fetched from Banner yet: no list, not an empty one.
       expect(program[:requirements].second).to include(credit_hours: 3, typically_offered: nil)
-      expect(program[:summary][:credits]).to eq(earned: 7, in_progress: 0)
+      expect(program[:summary][:credits]).to eq(earned: 7, in_progress: 0, not_counted: { earned: 0, in_progress: 0, courses: [] })
+    end
+
+    describe "only the courses that fill a row count (#1012)" do
+      def credits(entry = progress[:programs].first) = entry[:summary][:credits]
+
+      it "does not count a course below 1000 that fills no row, and sorts the codes" do
+        free = create(:elective_group, :any_course, requirement_set: set)
+        item(subject_code: "WDGT", course_number: 1000)
+        item(:placeholder, label: "Free Elective", elective_group: free)
+        take(past_term, "WDGT", 1000)
+        take(past_term, "ENGL", 700, credits: 4)
+        take(current_term, "WDGT", 2000, credits: 3)
+        take(past_term, "ARCH", 2000, outcome: "failed")
+
+        # A free elective takes no course below 1000, so WDGT 2000 fills it.
+        # The failed ARCH 2000 is in no sum.
+        expect(credits).to eq(earned: 4, in_progress: 3, not_counted: { earned: 4, in_progress: 0, courses: [ "ENGL 700" ] })
+      end
+
+      it "does not count an extra course past the slots of an elective list" do
+        group = create(:elective_group, requirement_set: set, name: "Widget Electives")
+        [ 3000, 3100, 3200 ].each { |number| create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: number) }
+        2.times { item(:placeholder, label: "Widget Elective", elective_group: group) }
+        take(past_term, "WDGT", 3200, credits: 3)
+        take(past_term, "WDGT", 3000, credits: 4)
+        take(current_term, "WDGT", 3100, credits: 4)
+
+        # The done courses fill the slots first.
+        expect(credits).to eq(earned: 7, in_progress: 0, not_counted: { earned: 0, in_progress: 4, courses: [ "WDGT 3100" ] })
+      end
+
+      it "counts a course with its own credits, even with more than the slot" do
+        group = create(:elective_group, requirement_set: set, name: "Widget Electives")
+        create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3000)
+        item(:placeholder, label: "Widget Elective", elective_group: group, min_credits: 3, max_credits: 3)
+        take(past_term, "WDGT", 3000, credits: 6)
+
+        expect(credits[:earned]).to eq(6)
+      end
+
+      it "counts a course for the minor but not the major, and a course past a list's minimum for neither" do
+        minor = create(:degree_program, :minor, slug: "gear-minor")
+        group = create(:elective_group, requirement_set: create(:requirement_set, degree_program: minor, catalog_year: catalog_year),
+                                        name: "Gear Electives", min_courses: 1)
+        [ 1000, 2000 ].each { |number| create(:elective_group_course, elective_group: group, subject_code: "GEAR", course_number: number) }
+        create(:student_program, user: user, degree_program: minor, catalog_year: catalog_year)
+        item(subject_code: "WDGT", course_number: 1000)
+        take(past_term, "WDGT", 1000, credits: 4)
+        take(past_term, "GEAR", 1000, credits: 3)
+        take(current_term, "GEAR", 2000, credits: 3)
+
+        major_entry, minor_entry = progress[:programs]
+
+        expect(credits(major_entry)).to eq(earned: 4, in_progress: 0,
+                                           not_counted: { earned: 3, in_progress: 3, courses: [ "GEAR 1000", "GEAR 2000" ] })
+        expect(credits(minor_entry)).to eq(earned: 3, in_progress: 0,
+                                           not_counted: { earned: 4, in_progress: 3, courses: [ "GEAR 2000", "WDGT 1000" ] })
+      end
+
+      it "counts the catalog credits of a filling course with course_details: false as 0, with no query" do
+        create(:catalog_course, subject_code: "WDGT", course_number: 1000, credit_hours: 3)
+        item(subject_code: "WDGT", course_number: 1000)
+        take(past_term, "WDGT", 1000, credits: nil)
+        take(past_term, "WDGT", 2000, credits: 4)
+
+        queries = []
+        callback = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?(%("catalog_courses")) }
+        result = ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { progress(course_details: false) }
+
+        expect(queries).to be_empty
+        expect(credits(result[:programs].first)).to eq(earned: 0, in_progress: 0,
+                                                       not_counted: { earned: 4, in_progress: 0, courses: [ "WDGT 2000" ] })
+      end
     end
 
     it "leaves out the details and their query with course_details: false" do

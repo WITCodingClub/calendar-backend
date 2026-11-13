@@ -18,7 +18,7 @@ RSpec.describe "/api/user/degree_progress", :degree_planning, type: :request do
     get "/api/user/degree_progress", headers: auth_headers_for(user)
 
     expect(response).to have_http_status(:ok)
-    expect(response.parsed_body["programs"].first["summary"]).to include("credits" => { "earned" => 0, "in_progress" => 0 })
+    expect(response.parsed_body["programs"].first["summary"]).to include("credits" => { "earned" => 0, "in_progress" => 0, "not_counted" => { "earned" => 0, "in_progress" => 0, "courses" => [] } })
     expect(response.parsed_body["programs"].first["requirements"].first).to include("title" => nil, "list" => nil)
     tool = McpTools::MyDegreeProgress.call(server_context: mcp_context(user)).structured_content.except(:advisory)
     expect(response.parsed_body).to eq(JSON.parse(tool.to_json))

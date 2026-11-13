@@ -561,7 +561,11 @@ module McpTools
             total_credits: nullable(INTEGER),
             school:        nullable(STRING),
             department:    nullable(STRING),
-            credits:       object(earned: INTEGER, in_progress: INTEGER),
+            credits:       object(
+              earned:      INTEGER,
+              in_progress: INTEGER,
+              not_counted: object(earned: INTEGER, in_progress: INTEGER, courses: STRINGS)
+            ),
             co_ops:        object(required: INTEGER, done: INTEGER)
           ),
           requirements: array(DEGREE_REQUIREMENT),
