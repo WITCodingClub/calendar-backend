@@ -508,6 +508,11 @@ RSpec.describe "MCP tool output schemas" do
 
       expect(result[:programs].first[:planned].first[:courses].first).to include(code: "WDGT 2000", offered: true,
                                                                                  prerequisites: "met")
+      create(:course, term: spring, subject: "COMP", course_number: 1000, seats_available: 3)
+      with_candidates = expect_valid(McpTools::MyNextTermCourses, term: "Spring 2027", include_candidates: true)
+
+      choice = with_candidates[:programs].first[:planned].find { |row| row[:kind] == "choice" }
+      expect(choice[:candidates]).to contain_exactly(include(code: "COMP 1000", open_seats: true))
     end
   end
 end

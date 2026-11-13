@@ -418,7 +418,9 @@ flowchart TD
 - A course done or in progress in a term before the term meets a prerequisite, also through a `CourseCodeAlias`. A course in the same term does not, as in Banner.
 - A D (`passed_below_c`) meets a prerequisite with no minimum or a D minimum, but not a C minimum. A minimum above C is `unknown`, because outcomes do not store the letter grade. A test score is `unknown`.
 - The section check and the catalog lookup also try the aliases of a code, so a plan from an old catalog year finds the renumbered course.
+- A section stores its subject as a Banner label, such as `Computer Science (COMP)`. The section check reads the code in it (`Course::SUBJECT_CODE_SQL`).
 - Each course has `description`, `credit_hours`, and `typically_offered` next to `title`, from the same `CatalogCourse` row (#989). Each row has `list`, the elective list of its plan row, or null.
+- Each row has `hss_category`: the HSS category that an HSS slot still needs, as in `degree_progress` (#991), or null.
 - It is a help for planning, not a registration check. Registration happens in LeopardWeb.
 
 ```mermaid
@@ -429,6 +431,47 @@ flowchart TD
   M -- earlier term, open --> B[behind]
   PL --> C[Each course: section in term? prerequisites met?]
   B --> C
+```
+
+### Elective candidates
+
+An elective slot names a list, not a course. With `include=candidates` (#993), `AcademicProfiles::ElectiveCandidates` adds `candidates` to each `placeholder` and `choice` row of `planned` and `behind`: the courses of the term that can fill the row. The client then does not pick a course that does not meet the slot, such as PSYC 1500 for a slot that still needs Ethics.
+
+- The API takes `include=candidates`, or a list separated by commas (`include=candidates,other`), or `include[]=candidates`. The MCP tool takes `include_candidates: true`. A course row gets no `candidates`. Without the argument, the hash has no `candidates` and no new assumption.
+- A candidate has an active section in the term. When WIT Calendar has no sections of the term yet (`sections` is false), `candidates` is an empty list.
+- A course that the student did or takes (done or in progress, in any term, also through a checked `CourseCodeAlias`) is not a candidate, because it cannot fill a slot again. A course in the term itself counts too: a registered course already fills its slot. A course not passed can be a candidate.
+- An assumed course (`assume`, `assume_plans`) and a course that a `course` row of `planned` or `behind` names are not candidates either. The first counts as passed, and the row takes the second.
+- The source of the candidates depends on the row. For a choice, an HSS slot, and a slot with a list, the rules are the rules of `DegreeProgress#take_for`, so a candidate is a course that `degree_progress` counts for the row. A term elective list is only a recommendation: `degree_progress` cannot check a slot with no list, and a free elective takes any course.
+
+| Row | Candidates |
+|---|---|
+| A choice | Its options, also through an alias. |
+| A slot with an `hss_category` | Only the courses in that category (`HssMatcher#in_category?`). |
+| A slot whose elective list names courses or subjects | The courses of the list (also through an alias) and the courses in its subjects. |
+| A slot with no list, or with a list that names no course and no subject | The courses of the term elective lists (`docs/term-electives.md`) under a heading that names the slot. |
+| A free elective (`any_course`) | The same as the row above, and only courses for degree credit (not COOP, number 1000 or more). With no such heading, no candidates: every course of the term fills the slot, so a list would not help. |
+
+- A heading names a slot when the two have the same words after this cleanup: lowercase, no text in parentheses or after a colon, no leading "The", no trailing number, no trailing "Elective" or "Electives". A leading subject code in the label is also dropped, so "COMP Cryptography Elective 1" matches the heading "Cryptography Elective". Only the lists of the program's school (from `summary.school`), the HSS lists, and lists with no school count. A program whose school has no list code reads every list.
+- Each candidate has `code`, `title`, `credits` (from `CatalogCourse`, or from the sections), `hss_category`, `prerequisites`, `missing`, `missing_in_plan` (the same check as the course rows, with `assume` and `assume_plans`), and `open_seats`. `missing_in_plan` is not in the issue text. It is there so a candidate reads the same as a course of a row.
+- `hss_category` of a candidate is the category of the slot when the slot needs one. Otherwise it is the first category of the major that the course meets (`HssMatcher#category_of`), or null. PHIL 4501 is "Ethics" in an Ethics slot and "Humanities" in other rows.
+- `open_seats` is true when an active section of the course has `seats_available` above 0, false when every section with seat data has 0, and null when no section has seat data.
+- Sort: prerequisites `met` first, then `unknown` or null, then `not_met`. Then open seats first (true, null, false). Then by subject and course number, so ENGL 700 comes before ENGL 1000. Each row keeps the first 25 candidates (`ElectiveCandidates::LIMIT`). The hash has no flag for a cut list.
+- `assumptions` gets the line "Candidates are recommendations, not a registration check. Banner checks restrictions when you register."
+- Queries: a fixed number for the whole hash, whatever the number of rows. One grouped query reads the sections of the term with their seats, one reads the catalog rows of all candidates, one reads the term elective courses, one reads the checked aliases, and a few preload the requirement sets with their elective lists.
+
+```mermaid
+flowchart TD
+  R[placeholder or choice row] --> K{Row}
+  K -- choice --> O[Its options]
+  K -- hss_category --> H[Courses in the category]
+  K -- list with courses or subjects --> L[Courses and subjects of the list]
+  K -- no list, empty list, or free elective --> T[Term elective list courses under a matching heading]
+  O --> S[Active section in the term]
+  H --> S
+  L --> S
+  T --> S
+  S --> X[Not done or in progress]
+  X --> C[Sort, keep 25]
 ```
 
 ### Assumed courses and missing_in_plan

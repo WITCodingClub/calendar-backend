@@ -116,6 +116,14 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     expect(program[:planned].map { |row| row[:courses].first[:offered] }).to eq([ true, false ])
   end
 
+  it "finds the section of a course whose subject is a Banner label" do
+    item(subject_code: "WDGT", course_number: 2100)
+    spring = create(:term, uid: spring_uid, year: 2027, season: :spring)
+    create(:course, term: spring, subject: "Widget Design (WDGT)", course_number: 2100)
+
+    expect(program[:planned].first[:courses].first[:offered]).to be(true)
+  end
+
   it "checks prerequisites with the courses done or in progress, and lists the missing ones" do
     item(subject_code: "WDGT", course_number: 2100)
     item(subject_code: "WDGT", course_number: 2200)
@@ -344,6 +352,248 @@ RSpec.describe AcademicProfiles::NextTermCourses do
       requires("WDGT", 2100, course_leaf("WDGT", 1280))
 
       expect(program[:planned].first[:courses].first[:missing_in_plan]).to eq([ "WDGT 1280" ])
+    end
+  end
+
+  describe "candidates (#993)" do
+    let(:spring) { create(:term, uid: spring_uid, year: 2027, season: :spring) }
+
+    def with_candidates(term_uid: spring_uid)
+      described_class.new(user, term_uid: term_uid, current_term_uid: 202710, include_candidates: true, today: today).call
+    end
+
+    def offer(subject, number, seats: nil, **attributes)
+      create(:course, term: spring, subject: subject, course_number: number, seats_available: seats,
+                      seats_capacity: seats && 30, **attributes)
+    end
+
+    def codes(row) = row[:candidates].pluck(:code)
+
+    it "adds hss_category to each row, and no candidates or new assumption without include" do
+      offer("WDGT", 2100)
+      item(:choice, options: [ { "subject_code" => "WDGT", "course_number" => 2100 }, { "subject_code" => "WDGT", "course_number" => 2150 } ])
+
+      result = described_class.new(user, term_uid: spring_uid, current_term_uid: 202710, today: today).call
+      row = result[:programs].first[:planned].first
+
+      expect(row).to include(hss_category: nil)
+      expect(row).not_to have_key(:candidates)
+      expect(result[:assumptions].join).not_to include("Candidates")
+      expect(with_candidates[:assumptions].last).to start_with("Candidates are recommendations, not a registration check.")
+    end
+
+    it "lists the offered options of a choice, with an active section only, and not the course of a course row" do
+      offer("Widget Design (WDGT)", 2100)
+      offer("WDGT", 2150)
+      offer("WDGT", 2175, status: "cancelled")
+      item(:choice, options: [ { "subject_code" => "WDGT", "course_number" => 2100 }, { "subject_code" => "WDGT", "course_number" => 2150 },
+                               { "subject_code" => "WDGT", "course_number" => 2175 }, { "subject_code" => "WDGT", "course_number" => 2199 } ])
+      item(subject_code: "WDGT", course_number: 2100)
+
+      course_row, choice = with_candidates[:programs].first[:planned].partition { |row| row[:kind] == "course" }.map(&:first)
+
+      # The course row takes WDGT 2100, so the choice does not list it.
+      expect(codes(choice)).to eq([ "WDGT 2150" ])
+      expect(course_row).not_to have_key(:candidates)
+    end
+
+    it "takes the courses and subjects of the elective list, with the catalog details, prerequisites, and seats" do
+      group = create(:elective_group, requirement_set: set, name: "Widget Electives", subject_codes: %w[GIZM])
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3100)
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3200)
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3300)
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3400)
+      # WDGT 3400 fills the first slot, so the second slot does not list it.
+      2.times { item(:placeholder, label: "Widget Elective", elective_group: group) }
+      create(:catalog_course, subject_code: "WDGT", course_number: 3100, title: "Widget Theory", credit_hours: 4,
+                              prerequisites: course_leaf("WDGT", 1000))
+      requires("WDGT", 3200, course_leaf("WDGT", 2000))
+      take(past_term, "WDGT", 1000)
+      take(past_term, "WDGT", 3400)
+      offer("WDGT", 3100, seats: 0)
+      offer("WDGT", 3100, seats: 5)
+      offer("WDGT", 3200, seats: 3)
+      offer("WDGT", 3300, title: "Widget Lab", credit_hours: 3)
+      offer("WDGT", 3400)
+      offer("GIZM", 1000, seats: 0)
+      offer("OTHR", 1000)
+
+      slot = with_candidates[:programs].first[:planned].first
+
+      expect(slot[:candidates]).to match([
+        { code: "WDGT 3100", title: "Widget Theory", credits: 4, hss_category: nil, prerequisites: "met", missing: [],
+          missing_in_plan: [], open_seats: true },
+        { code: "WDGT 3300", title: "Widget Lab", credits: 3, hss_category: nil, prerequisites: nil, missing: [],
+          missing_in_plan: [], open_seats: nil },
+        { code: "GIZM 1000", title: anything, credits: nil, hss_category: nil, prerequisites: nil, missing: [],
+          missing_in_plan: [], open_seats: false },
+        { code: "WDGT 3200", title: anything, credits: anything, hss_category: nil, prerequisites: "not_met",
+          missing: [ "WDGT 2000" ], missing_in_plan: [], open_seats: true }
+      ])
+    end
+
+    it "uses a checked alias to find a course of the list and to leave out a course the student took" do
+      group = create(:elective_group, requirement_set: set, name: "Widget Electives")
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 310)
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3200)
+      create(:course_code_alias, :reviewed, from_subject_code: "WDGT", from_course_number: 310, to_subject_code: "WDGT", to_course_number: 3100)
+      create(:course_code_alias, :reviewed, from_subject_code: "WDGT", from_course_number: 320, to_subject_code: "WDGT", to_course_number: 3200)
+      2.times { item(:placeholder, label: "Widget Elective", elective_group: group) }
+      take(past_term, "WDGT", 320)
+      offer("WDGT", 3100)
+      offer("WDGT", 3200)
+
+      expect(codes(with_candidates[:programs].first[:planned].first)).to eq([ "WDGT 3100" ])
+    end
+
+    it "lists only the courses of the HSS category that the slot still needs, each with its category" do
+      set.update!(hss_requirement: { "min_credits" => 20, "categories" => DegreeRequirements::HssNoteParser.base_categories + [
+        { "name" => "Ethics", "subject_codes" => [], "courses" => %w[PHIL4501] }
+      ] })
+      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: DegreeRequirements::SharedElectives::HSS.subject_codes)
+      item(:placeholder, year: 1, season: "fall", label: "HSS Elective", elective_group: hss)
+      item(:placeholder, year: 1, season: "fall", label: "HSS Elective", elective_group: hss)
+      item(:placeholder, label: "HSS Elective", elective_group: hss)
+      take(past_term, "HIST", 1000)
+      take(past_term, "PSYC", 1000)
+      offer("PHIL", 4501)
+      offer("PSYC", 1500)
+      offer("HIST", 2000)
+
+      slot = with_candidates[:programs].first[:planned].first
+
+      expect(slot).to include(hss_category: "Ethics")
+      expect(slot[:candidates]).to contain_exactly(include(code: "PHIL 4501", hss_category: "Ethics"))
+    end
+
+    it "gives an HSS slot with every category met the HSS courses, each with its category" do
+      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: %w[HIST PSYC])
+      3.times { item(:placeholder, label: "HSS Elective", elective_group: hss) }
+      take(past_term, "HIST", 1000)
+      take(past_term, "PSYC", 1000)
+      offer("PSYC", 1500)
+      offer("HIST", 2000)
+      offer("WDGT", 2000)
+
+      slot = with_candidates[:programs].first[:planned].first
+
+      expect(slot[:candidates].pluck(:code, :hss_category)).to eq([ [ "HIST 2000", "Humanities" ], [ "PSYC 1500", "Social Sciences" ] ])
+    end
+
+    it "reads the term elective lists for a slot with no list, by heading and school" do
+      set.update!(school_name: "The School of Computing and Data Science")
+      item(:placeholder, label: "COMP Cryptography Elective 1")
+      item(:placeholder, label: "Domain Elective")
+      scds = create(:term_elective_list, term: spring, school: "SCDS")
+      soe = create(:term_elective_list, term: spring, school: "SOE")
+      create(:term_elective_course, term_elective_list: scds, subject_code: "COMP", course_number: 4500, heading: "Cryptography Elective")
+      create(:term_elective_course, term_elective_list: scds, subject_code: "COMP", course_number: 4600, heading: "Computer Science Elective")
+      create(:term_elective_course, term_elective_list: soe, subject_code: "MECH", course_number: 4500, heading: "Domain Electives")
+      offer("COMP", 4500)
+      offer("COMP", 4600)
+      offer("MECH", 4500)
+
+      crypto, domain = with_candidates[:programs].first[:planned]
+
+      expect(codes(crypto)).to eq([ "COMP 4500" ])
+      expect(domain[:candidates]).to eq([])
+    end
+
+    it "gives a free elective only the courses of a term list heading that names it, for degree credit" do
+      free = create(:elective_group, :any_course, requirement_set: set)
+      item(:placeholder, label: "Free Elective", elective_group: free)
+      offer("WDGT", 2000)
+
+      expect(with_candidates[:programs].first[:planned].first[:candidates]).to eq([])
+
+      list = create(:term_elective_list, term: spring, school: "HSS")
+      create(:term_elective_course, term_elective_list: list, subject_code: "WDGT", course_number: 2000, heading: "Free Electives")
+      create(:term_elective_course, term_elective_list: list, subject_code: "ENGL", course_number: 700, heading: "Free Electives")
+      offer("ENGL", 700)
+
+      expect(codes(with_candidates[:programs].first[:planned].first)).to eq([ "WDGT 2000" ])
+    end
+
+    it "leaves out an assumed course and a course that a course row of the term names" do
+      group = create(:elective_group, requirement_set: set, name: "Widget Electives", subject_codes: %w[WDGT])
+      item(:placeholder, label: "Widget Elective", elective_group: group)
+      item(subject_code: "WDGT", course_number: 3200)
+      [ 3100, 3200, 3300 ].each { |number| offer("WDGT", number) }
+
+      result = described_class.new(user, term_uid: spring_uid, current_term_uid: 202710, assume: [ [ "WDGT", 3100 ] ],
+                                          include_candidates: true, today: today).call
+      slot = result[:programs].first[:planned].find { |row| row[:kind] == "placeholder" }
+
+      expect(codes(slot)).to eq([ "WDGT 3300" ])
+    end
+
+    it "sorts candidates by subject and number, and reads a term list with no school" do
+      set.update!(school_name: "The School of Computing and Data Science")
+      item(:placeholder, label: "Cryptography Elective")
+      list = create(:term_elective_list, term: spring, school: nil)
+      [ 1000, 700 ].each do |number|
+        create(:term_elective_course, term_elective_list: list, subject_code: "ENGL", course_number: number, heading: "Cryptography Electives")
+        offer("ENGL", number)
+      end
+
+      expect(codes(with_candidates[:programs].first[:planned].first)).to eq([ "ENGL 700", "ENGL 1000" ])
+    end
+
+    it "has no candidates when WIT Calendar has no sections of the term yet" do
+      item(:choice, options: [ { "subject_code" => "WDGT", "course_number" => 2100 }, { "subject_code" => "WDGT", "course_number" => 2150 } ])
+
+      result = with_candidates
+
+      expect(result[:sections]).to be(false)
+      expect(result[:programs].first[:planned].first[:candidates]).to eq([])
+    end
+
+    it "keeps the first candidates up to the limit" do
+      stub_const("AcademicProfiles::ElectiveCandidates::LIMIT", 2)
+      item(:choice, options: [ 2100, 2200, 2300 ].map { |number| { "subject_code" => "WDGT", "course_number" => number } })
+      [ 2300, 2200, 2100 ].each { |number| offer("WDGT", number) }
+
+      expect(codes(with_candidates[:programs].first[:planned].first)).to eq([ "WDGT 2100", "WDGT 2200" ])
+    end
+
+    it "gives behind rows candidates too" do
+      item(:choice, year: 1, season: "fall", options: [ { "subject_code" => "WDGT", "course_number" => 1000 },
+                                                        { "subject_code" => "WDGT", "course_number" => 1050 } ])
+      offer("WDGT", 1000)
+
+      expect(codes(with_candidates[:programs].first[:behind].first)).to eq([ "WDGT 1000" ])
+    end
+
+    it "runs the same number of queries for one row and for several rows" do
+      group = create(:elective_group, requirement_set: set, name: "Widget Electives", subject_codes: %w[GIZM])
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3100)
+      create(:term_elective_list, term: spring, school: "SCDS").then do |list|
+        create(:term_elective_course, term_elective_list: list, subject_code: "COMP", course_number: 4500, heading: "Cryptography Elective")
+      end
+      item(:placeholder, label: "Cryptography Elective")
+      item(:placeholder, label: "Widget Elective", elective_group: group)
+      item(:choice, options: [ { "subject_code" => "COMP", "course_number" => 4500 }, { "subject_code" => "COMP", "course_number" => 4510 } ])
+      requires("WDGT", 3100, course_leaf("WDGT", 1000))
+      offer("WDGT", 3100, seats: 2)
+      offer("GIZM", 1000)
+      offer("COMP", 4500)
+
+      count = lambda do
+        queries = 0
+        callback = ->(*, payload) { queries += 1 unless payload[:name] == "SCHEMA" || payload[:cached] }
+        ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { with_candidates }
+        queries
+      end
+      count.call # warms the caches of the first request
+      one = count.call
+
+      item(:placeholder, label: "Cryptography Elective")
+      item(:placeholder, label: "Widget Elective", elective_group: group)
+      item(:placeholder, label: "Widget Elective", elective_group: group)
+      item(:choice, options: [ { "subject_code" => "GIZM", "course_number" => 1000 }, { "subject_code" => "COMP", "course_number" => 4510 } ])
+
+      expect(with_candidates[:programs].first[:planned].count { |row| row[:candidates].any? }).to eq(7)
+      expect(count.call).to eq(one)
     end
   end
 

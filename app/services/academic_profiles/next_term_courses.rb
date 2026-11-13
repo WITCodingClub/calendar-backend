@@ -22,6 +22,10 @@ module AcademicProfiles
   # assumed. Each course also has missing_in_plan: the courses of missing
   # that a planned or behind row of the term names.
   #
+  # With include_candidates (#993), each elective slot and choice row also
+  # has candidates: the courses of the term that can fill it
+  # (ElectiveCandidates).
+  #
   # GET /api/user/next_term_courses and the My programs dashboard page send it.
   class NextTermCourses
     # A prerequisite tree node is met, not met, or unknown (a test score).
@@ -33,6 +37,8 @@ module AcademicProfiles
     ASSUMED = { status: "assumed", outcome: nil }.freeze
     # A course code inside a missing entry, such as "WDGT 1100 or WDGT 1200".
     MISSING_CODE = /[A-Z]{2,5} \d{3,4}/
+    # The rows that get candidates.
+    CANDIDATE_KINDS = %w[placeholder choice].freeze
 
     # term_uid: the Banner code of the term. Without one, the next fall or
     # spring term after the current term. Students register for fall in
@@ -44,8 +50,9 @@ module AcademicProfiles
     # assume: [subject, number] pairs (AssumedCourses.parse) to count as
     # passed. assume_plans: also count the courses of the saved registration
     # plans of the terms between the current term and the term.
+    # include_candidates: add candidates to each elective slot and choice.
     def initialize(user, term_uid: nil, current_term_uid: nil, programs: nil, progress: nil, assume: [],
-                   assume_plans: false, today: Time.zone.today)
+                   assume_plans: false, include_candidates: false, today: Time.zone.today)
       @user = user
       @term_uid = term_uid
       @current_term_uid = current_term_uid
@@ -53,6 +60,7 @@ module AcademicProfiles
       @progress = progress
       @assume = assume
       @assume_plans = assume_plans
+      @include_candidates = include_candidates
       @today = today
     end
 
@@ -72,9 +80,18 @@ module AcademicProfiles
           ("A course in assumed counts toward prerequisites, as if you pass it with a C or better." if assumed_courses.pairs.any?),
           "A prerequisite that needs a test score shows as unknown. A course with no prerequisite data from " \
           "Banner shows no prerequisite check.",
-          "Behind rows are open rows of earlier plan semesters. Ask your advisor which ones to take first."
+          "Behind rows are open rows of earlier plan semesters. Ask your advisor which ones to take first.",
+          ("Candidates are recommendations, not a registration check. Banner checks restrictions when you " \
+           "register." if @include_candidates)
         ].compact
       }
+    end
+
+    # true when an include value names candidates. It takes "candidates",
+    # a list separated by commas ("candidates,other"), or an array.
+    def self.candidates_requested?(value)
+      values = value.is_a?(Array) ? value : [ value ]
+      values.flat_map { |item| item.is_a?(String) ? item.split(",") : [] }.map(&:strip).include?("candidates")
     end
 
     def term_uid
@@ -158,8 +175,8 @@ module AcademicProfiles
         # The plan semester of the term, such as year 2, spring. nil without a
         # start term, or when the term is after the end of the plan.
         semester:   start && term_uid && semester_of(plan_rows(entry), start),
-        planned:    planned.map { |row| row_json(row) },
-        behind:     behind.map { |row| row_json(row) }
+        planned:    planned.map { |row| row_json(entry, row) },
+        behind:     behind.map { |row| row_json(entry, row) }
       }
     end
 
@@ -175,8 +192,8 @@ module AcademicProfiles
       row && { year: row[:year], season: row[:season] }
     end
 
-    def row_json(row)
-      {
+    def row_json(entry, row)
+      json = {
         year:          row[:year],
         season:        row[:season],
         kind:          row[:kind],
@@ -185,8 +202,30 @@ module AcademicProfiles
         elective_list: row[:elective_list],
         # The elective list of a slot, from DegreeProgress (#989), or nil.
         list:          row[:list],
+        # The HSS category that the slot still needs, from DegreeProgress
+        # (#991), or nil.
+        hss_category:  row[:hss_category],
         courses:       row_codes(row).map { |code| course_json(code) }
       }
+      return json unless @include_candidates && CANDIDATE_KINDS.include?(row[:kind])
+
+      json.merge(candidates: elective_candidates.for(entry, row))
+    end
+
+    def elective_candidates
+      @elective_candidates ||= ElectiveCandidates.new(
+        term: term, taken: progress[:courses], prerequisites: ->(catalog) { prerequisite_json(catalog) },
+        entries: term_rows.map { |_program, entry, planned, behind| [ entry, planned + behind ] },
+        # An assumed course counts as passed, and a course row of the term
+        # takes its course, so neither can fill a slot.
+        skip: assumed_courses.pairs + term_course_rows
+      )
+    end
+
+    def term_course_rows
+      term_rows.flat_map { |_program, _entry, planned, behind| planned + behind }
+               .select { |row| row[:kind] == "course" }
+               .filter_map { |row| CatalogCourse.parse_code(row[:code]) }
     end
 
     # The courses a row names: its code, or the options of a choice. An
@@ -202,18 +241,22 @@ module AcademicProfiles
     def course_json(code)
       keys = equivalent_codes(code)
       catalog = keys.lazy.filter_map { |key| catalog_courses[key] }.first
+
+      {
+        code:    code,
+        title:   catalog&.title,
+        offered: sections_known? ? keys.any? { |key| offered_codes.include?(key) } : nil,
+        **prerequisite_json(catalog)
+      }.merge(CourseDetails.json(catalog).except(:title))
+    end
+
+    # The prerequisite check of a CatalogCourse (or nil): the status, the
+    # missing courses, and the ones a row of the term names.
+    def prerequisite_json(catalog)
       tree = catalog&.prerequisites.presence
       result = tree ? check(tree) : nil
       missing = result ? result[:missing] : []
-
-      {
-        code:            code,
-        title:           catalog&.title,
-        offered:         sections_known? ? keys.any? { |key| offered_codes.include?(key) } : nil,
-        prerequisites:   result && result[:status],
-        missing:         missing,
-        missing_in_plan: missing_in_plan(missing)
-      }.merge(CourseDetails.json(catalog).except(:title))
+      { prerequisites: result && result[:status], missing: missing, missing_in_plan: missing_in_plan(missing) }
     end
 
     # status of one prerequisite tree node, and the courses not met under it.
@@ -370,8 +413,11 @@ module AcademicProfiles
       @sections_known = term.present? && Course.where(term: term).exists?
     end
 
+    # A section stores its subject as a label, such as "Computer Science
+    # (COMP)", so the codes take the code in it (Course.prefix_of).
     def offered_codes
-      @offered_codes ||= Course.active.where(term: term).distinct.pluck(:subject, :course_number)
+      @offered_codes ||= Course.active.where(term: term).distinct
+                               .pluck(Arel.sql(Course::SUBJECT_CODE_SQL), :course_number)
                                .to_set { |subject, number| "#{subject} #{number}" }
     end
   end
