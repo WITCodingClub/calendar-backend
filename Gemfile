@@ -140,5 +140,5 @@ group :test do
   # System specs drive headless Chrome over CDP, so the Stimulus controllers
   # run in a real browser. See spec/support/system.rb.
   gem "capybara", "~> 3.40"
-  gem "cuprite", "~> 0.19"
+  gem "cuprite", "~> 0.20"
 end
