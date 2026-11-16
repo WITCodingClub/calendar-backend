@@ -5,12 +5,10 @@
 #
 # Drawn inside namespace :api in config/routes/api.rb.
 
-# Course processing
 post "process_courses",       to: "courses#process_courses"
 post "process_courses/batch", to: "courses#process_courses_batch"
 post "courses/reprocess",     to: "courses#reprocess"
 
-# Calendar preferences (global + per event-type + per university calendar category)
 resources :calendar_preferences, only: [ :index, :show, :update, :destroy ] do
   collection { post :preview }
 end
@@ -24,7 +22,6 @@ resources :calendar_events, only: [] do
   resource :preference, controller: "event_preferences", only: [ :show, :update, :destroy ]
 end
 
-# University calendar events
 resources :university_calendar_events, only: [ :index, :show ] do
   collection do
     get  :categories

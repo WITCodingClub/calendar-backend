@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-# The user dashboard. Any signed-in user.
-
-# User dashboard (session-authenticated, any signed-in user)
 authenticate :user do
   namespace :dashboard do
     root to: "overview#index"

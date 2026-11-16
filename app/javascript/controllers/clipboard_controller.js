@@ -45,8 +45,6 @@ export default class extends Controller {
     this.reset()
   }
 
-  // private
-
   get labelElement() {
     return this.hasLabelTarget ? this.labelTarget : this.element
   }
