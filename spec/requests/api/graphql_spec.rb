@@ -451,7 +451,7 @@ RSpec.describe "Api::Graphql", type: :request do
     end
 
     it "caps page size so one query cannot pull the whole catalog" do
-      expect(CatalogSchema.default_max_page_size).to eq(Catalog::SectionQuery::MAX_PER_PAGE)
+      expect(CatalogSchema.default_max_page_size).to eq(200)
     end
   end
 end

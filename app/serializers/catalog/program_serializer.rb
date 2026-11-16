@@ -108,9 +108,9 @@ module Catalog
           {}
         else
           # The year's title wins. A year row with no title keeps Banner's.
-          banner = CatalogCourse.where(code_condition(codes), *codes.flatten).where.not(title: nil)
+          banner = CatalogCourse.by_codes(codes).where.not(title: nil)
                                 .pluck(:subject_code, :course_number, :title)
-          year = @set.catalog_year.catalog_year_courses.where(code_condition(codes), *codes.flatten).where.not(title: nil)
+          year = @set.catalog_year.catalog_year_courses.by_codes(codes).where.not(title: nil)
                      .pluck(:subject_code, :course_number, :title)
           (banner + year).to_h { |subject, number, title| [ [ subject, number ], title ] }
         end
@@ -120,10 +120,6 @@ module Catalog
     def item_codes(item)
       codes = item.options.map { |option| [ option["subject_code"], option["course_number"].to_i ] }
       item.course? ? codes << [ item.subject_code, item.course_number ] : codes
-    end
-
-    def code_condition(codes)
-      codes.map { "(subject_code = ? AND course_number = ?)" }.join(" OR ")
     end
   end
 end

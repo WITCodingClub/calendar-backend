@@ -27,8 +27,10 @@
 #  fk_rails_...  (course_id => courses.id)
 #
 class Course::MeetingTime < ApplicationRecord
-  include MeetingTimeChangeTrackable
+  include CourseChangeTrackable
   include EncodedIds::HashidIdentifiable
+
+  tracks_calendar_changes "begin_time", "end_time", "day_of_week", "start_date", "end_date", course_id: :course_id
 
   self.table_name = "course_meeting_times"
 

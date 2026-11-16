@@ -116,7 +116,7 @@ RSpec.describe Catalog::ScheduleCheck do
     expect(check(20397, 20399)[:duplicates]).to eq([ { course_code: section_code(20397), crns: [ 20397, 20399 ] } ])
   end
 
-  def section_code(crn) = Catalog::SectionSerializer.course_code_for(Course.find_by(crn: crn)).split("-").first
+  def section_code(crn) = Catalog::Fields.section_code(Course.find_by(crn: crn)).split("-").first
 
   it "counts a course once when old rows give its lab the lecture's credits" do
     section(20397)

@@ -191,29 +191,19 @@ RSpec.describe Faculty, type: :model do
       expect(described_class.staff_only).to contain_exactly(staff)
     end
 
-    it "filters by school and department" do
-      match = create(:faculty, school: "School of Computing", department: "Computer Science")
-      create(:faculty, school: "School of Arts", department: "Design")
-
-      expect(described_class.by_school("School of Computing")).to contain_exactly(match)
-      expect(described_class.by_department("Computer Science")).to contain_exactly(match)
-    end
-
-    it "splits faculty by courses" do
+    it "finds the faculty who teach" do
       teacher = create(:faculty)
-      idle = create(:faculty)
+      create(:faculty)
       create(:course_faculty, faculty: teacher, course: create(:course))
 
       expect(described_class.with_courses).to contain_exactly(teacher)
-      expect(described_class.without_courses).to contain_exactly(idle)
     end
 
-    it "splits faculty by directory data and finds stale syncs" do
-      fresh = create(:faculty, directory_last_synced_at: 1.day.ago)
+    it "finds stale directory syncs" do
+      create(:faculty, directory_last_synced_at: 1.day.ago)
       stale = create(:faculty, directory_last_synced_at: 8.days.ago)
       never = create(:faculty)
 
-      expect(described_class.with_directory_data).to contain_exactly(fresh, stale)
       expect(described_class.needs_directory_sync).to contain_exactly(stale, never)
     end
   end
@@ -235,9 +225,8 @@ RSpec.describe Faculty, type: :model do
       expect(build(:faculty, first_name: "Ada", middle_name: nil, last_name: "Lovelace", title: "").formal_name).to eq("Ada Lovelace")
     end
 
-    it "#initials and #u_name use the first letters" do
+    it "#initials uses the first letters" do
       expect(faculty.initials).to eq("AL")
-      expect(faculty.u_name).to eq(fwd: "A. Lovelace", rev: "Lovelace, A.")
     end
   end
 
@@ -273,17 +262,6 @@ RSpec.describe Faculty, type: :model do
     end
   end
 
-  describe "#matched_related_faculty" do
-    it "returns related professors that exist as faculty" do
-      faculty = create(:faculty)
-      related = create(:faculty)
-      create(:related_professor, faculty: faculty, related_faculty_id: related.id)
-      create(:related_professor, faculty: faculty, related_faculty_id: nil)
-
-      expect(faculty.matched_related_faculty).to contain_exactly(related)
-    end
-  end
-
   describe "job wrappers" do
     include ActiveJob::TestHelper
 
@@ -292,17 +270,6 @@ RSpec.describe Faculty, type: :model do
     it "enqueues a ratings update and a directory sync" do
       expect { faculty.update_ratings! }.to have_enqueued_job(Faculties::UpdateRatingsJob).with(faculty.id)
       expect { faculty.sync_from_directory! }.to have_enqueued_job(Faculties::DirectoryLookupJob).with(faculty.id)
-    end
-
-    it "runs the jobs now" do
-      allow(Faculties::UpdateRatingsJob).to receive(:perform_now)
-      allow(Faculties::DirectoryLookupJob).to receive(:perform_now)
-
-      faculty.update_ratings_now!
-      faculty.sync_from_directory_now!
-
-      expect(Faculties::UpdateRatingsJob).to have_received(:perform_now).with(faculty.id)
-      expect(Faculties::DirectoryLookupJob).to have_received(:perform_now).with(faculty.id)
     end
 
     it ".sync_all_from_directory! enqueues the sync job" do
@@ -320,11 +287,6 @@ RSpec.describe Faculty, type: :model do
     it "has data when synced or when raw data exists" do
       expect(build(:faculty, directory_last_synced_at: Time.current).has_directory_data?).to be(true)
       expect(build(:faculty, directory_raw_data: { "mail" => "x" }).has_directory_data?).to be(true)
-    end
-
-    it "#directory_data_age is nil until synced, then counts seconds" do
-      expect(build(:faculty).directory_data_age).to be_nil
-      expect(build(:faculty, directory_last_synced_at: 2.hours.ago).directory_data_age).to be_within(5).of(7200)
     end
 
     it "#teaches_courses? reflects the courses" do

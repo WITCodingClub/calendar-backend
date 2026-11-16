@@ -125,7 +125,7 @@ module Catalog
     # Credit hours are not taken from getClassDetails. Its "Credit Hours" is the
     # course's credits, so it gives a lab the lecture's 4. The import keeps the
     # section's own credits (Catalog::Importer.credit_hours_for), which are nil
-    # for a lab. The catalog:repair_credit_hours task corrects rows this job overwrote.
+    # for a lab.
     def update_course_from_fresh_data(course, fresh_data)
       attrs = {}
       attrs[:title]          = Course.normalize_value_for(:title, fresh_data[:title].strip) if fresh_data[:title].present?

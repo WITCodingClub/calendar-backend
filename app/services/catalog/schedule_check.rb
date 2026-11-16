@@ -16,9 +16,6 @@ module Catalog
     class TermNotFoundError < ::Catalog::FilterError; end
 
     MAX_CRNS = 30
-    EARLY_START = ScheduleRules::EARLY_START
-
-    DAYS = ScheduleRules::DAYS
 
     def initialize(term_uid:, crns:)
       @term_uid = term_uid
@@ -62,7 +59,7 @@ module Catalog
     end
 
     def code(course)
-      SectionSerializer.course_code_for(course)
+      Fields.section_code(course)
     end
 
     def section_json(course)

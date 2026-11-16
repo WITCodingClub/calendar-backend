@@ -8,8 +8,8 @@ namespace :embeddings do
     end
 
     model = args[:model].presence
-    if model && !Embeddings::BackfillJob::SCOPES.key?(model)
-      abort "Unknown model #{model.inspect}. Use one of: #{Embeddings::BackfillJob::SCOPES.keys.join(', ')}"
+    if model && !Embeddings::Models::SCOPES.key?(model)
+      abort "Unknown model #{model.inspect}. Use one of: #{Embeddings::Models::SCOPES.keys.join(', ')}"
     end
 
     puts "Queueing #{model || 'all models'}..."
@@ -23,7 +23,7 @@ namespace :embeddings do
     abort "Usage: rake embeddings:run[CatalogCourse]" if model.blank?
     abort "OPENAI_API_KEY is not set. See docs/embeddings.md." unless Embeddings::Generator.configured?
 
-    scope = Embeddings::BackfillJob::SCOPES.fetch(model) { abort "Unknown model #{model.inspect}" }.call
+    scope = Embeddings::Models::SCOPES.fetch(model) { abort "Unknown model #{model.inspect}" }.call
     done  = 0
 
     scope.find_in_batches(batch_size: Embeddings::BackfillJob::BATCH_SIZE) do |records|
@@ -44,7 +44,7 @@ namespace :embeddings do
     puts "Model: #{Embeddings::Generator::MODEL} (#{Embeddings::Generator::DIMENSIONS} dimensions)"
     puts
 
-    Embeddings::BackfillJob::SCOPES.each do |model, scope|
+    Embeddings::Models::SCOPES.each do |model, scope|
       relation = scope.call
       total    = relation.count
       embedded = relation.embedded.count

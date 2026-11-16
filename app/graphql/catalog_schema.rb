@@ -11,8 +11,8 @@ class CatalogSchema < GraphQL::Schema
 
   max_depth 12
   max_complexity 500
-  default_page_size 50
-  default_max_page_size 200
+  default_page_size ::Catalog::Page::GRAPHQL_SIZES.values.pluck(:default).max
+  default_max_page_size ::Catalog::Page::GRAPHQL_SIZES.values.pluck(:max).max
 
   # At most one semantic search per query, counted against the REST budget.
   query_analyzer Analyzers::SemanticSearchLimit

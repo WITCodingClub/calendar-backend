@@ -6,7 +6,7 @@ module Catalog
   # The text belongs to the student who wrote it on ratemyprofessors.com. The
   # payload names the source so a client can credit it and link back.
   class ReviewSerializer
-    SOURCE = "ratemyprofessors.com"
+    SOURCE = Fields::REVIEW_SOURCE
 
     def initialize(rating)
       @rating = rating
@@ -24,7 +24,7 @@ module Catalog
         difficulty_rating: @rating.difficulty_rating,
         would_take_again:  @rating.would_take_again,
         sentiment:         @rating.overall_sentiment,
-        tags:              tags,
+        tags:              Fields.review_tags(@rating),
         thumbs_up:         @rating.thumbs_up_total,
         thumbs_down:       @rating.thumbs_down_total,
         rated_on:          @rating.rating_date&.to_date,
@@ -39,11 +39,6 @@ module Catalog
       return nil if faculty.nil?
 
       { pub_id: faculty.public_id, name: faculty.full_name }
-    end
-
-    # Rate My Professors joins the tags of one review with "--".
-    def tags
-      @rating.rating_tags.to_s.split("--").map(&:strip).reject(&:empty?)
     end
   end
 end

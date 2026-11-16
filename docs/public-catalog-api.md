@@ -68,7 +68,8 @@ office locations.
   request that filled the cache.
 - The schedule builder has its own limits too: 30 searches and 90 counts
   per minute per IP address. A request with a token counts against the user. See [Schedule builder](#schedule-builder).
-- REST page size: 50 by default, 200 maximum.
+- REST page size: 50 by default, 200 maximum. Courses and reviews: 25 by
+  default, 100 maximum.
 - GraphQL page size: 50 by default, 200 maximum.
 - GraphQL query depth: 12 maximum. Query cost: 500 maximum. See
   [Cost and limits](#cost-and-limits).
@@ -431,7 +432,7 @@ order.
 | `earliest` | hard | `HH:MM` | No meeting starts before this time |
 | `latest` | hard | `HH:MM` | No meeting ends after this time |
 | `day_off` | hard | `none` (default), `any`, or a list of days | `any`: at least one weekday (Monday to Friday) has no class. A list: no class on those days |
-| `open_only` | hard | `true` or `false` | Only sections with a free seat, by the rule of the `open_only` section filter. A section with no seat data is left out. A pinned CRN stays when it is full, because the student already picked it |
+| `open_only` | hard | `true` or `false` (empty or missing is `false`) | Only sections with a free seat, by the rule of the `open_only` section filter. A section with no seat data is left out. A pinned CRN stays when it is full, because the student already picked it |
 | `avoid` | soft | up to 10 ranges | Fewer meetings in the ranges rank higher |
 | `days` | soft | `fewer`, `spread`, or `any` (default) | `fewer`: fewer days with classes. `spread`: classes on more weekdays, with days of a more even length |
 | `breaks` | soft | `tight`, `lunch`, or `any` (default) | `tight`: shorter gaps between classes. `lunch`: a free 30 minutes from 11:00 to 14:00 on each class day |
@@ -588,9 +589,10 @@ Points to know:
 - Results come back ranked, nearest first, not sorted by subject and number.
 - Every other filter still applies. The ranking covers what the filters left.
 - A section stays out until it has been embedded, which happens nightly.
-- Semantic requests are limited to 30 per minute per IP. The keyword search
-  keeps the standard 300 per minute. A GraphQL query that runs a semantic
-  search uses the same 30 per minute.
+- Semantic requests are limited to 30 per minute per IP. A request counts
+  when `semantic` is true and `q` has words. The keyword search keeps the
+  standard 300 per minute. A GraphQL query that runs a semantic search uses
+  the same 30 per minute.
 - A GraphQL query can run one semantic search. A query that asks for more gets
   the error code `TOO_MANY_SEMANTIC_SEARCHES` and runs nothing.
 - The server falls back to the keyword search when semantic search is off. The
@@ -684,7 +686,7 @@ it sends it.
 | Directive | Where | Meaning |
 | --- | --- | --- |
 | `@cost(weight: "1")` | Every field | The field adds 1 to the cost of a query. |
-| `@listSize(slicingArguments: ["first", "last"], sizedFields: ["edges", "nodes"], assumedSize: 200, requireOneSlicingArgument: false)` | `sections`, `instructors` | `first` or `last` sets the length of `edges` and `nodes`. A page never has more than 200 items. |
+| `@listSize(slicingArguments: ["first", "last"], sizedFields: ["edges", "nodes"], assumedSize: 200, requireOneSlicingArgument: false)` | `sections`, `courses`, `instructors`, `reviews` | `first` or `last` sets the length of `edges` and `nodes`. A page never has more than 200 items. |
 | `@queryLimits(maxCost: 500, maxDepth: 12, defaultPageSize: 50, maxPageSize: 200)` | The schema | The server rejects a query that costs more than `maxCost` or nests deeper than `maxDepth`. |
 | `@rateLimit(max: 300, window: 60)` | The schema | One IP address can send at most 300 requests in 60 seconds. REST and GraphQL share this limit. |
 

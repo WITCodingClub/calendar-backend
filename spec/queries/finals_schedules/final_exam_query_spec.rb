@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe Catalog::FinalExamQuery do
+RSpec.describe FinalsSchedules::FinalExamQuery do
   let(:term) { create(:term) }
   let(:comp) { create(:course, term: term, subject: "Computer Science (COMP)", course_number: 2000, title: "Data Structures") }
   let(:math) { create(:course, term: term, subject: "MATH", course_number: 1800, title: "Calculus I") }

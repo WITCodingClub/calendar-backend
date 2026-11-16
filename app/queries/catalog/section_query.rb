@@ -9,11 +9,6 @@ module Catalog
   class SectionQuery
     class FilterError < ::Catalog::FilterError; end
 
-    MAX_PER_PAGE     = 200
-    DEFAULT_PER_PAGE = 50
-
-    DAYS = Course::MeetingTime.day_of_weeks.freeze
-
     FILTERS = %i[
       term_uid subject course_number crns pub_ids q semantic schedule_types
       meets_on free_days begins_after ends_before
@@ -26,13 +21,12 @@ module Catalog
       @scope = scope
     end
 
-    # @return [ActiveRecord::Relation<Course>]
     def call(**filters)
       unknown = filters.keys.map(&:to_sym) - FILTERS
       raise FilterError, "Unknown filter(s): #{unknown.join(', ')}" if unknown.any?
 
       relation = @scope
-      relation = relation.active unless truthy?(filters[:include_cancelled])
+      relation = relation.active unless Params.boolean(filters[:include_cancelled])
       relation = apply_term(relation, filters[:term_uid])
       relation = apply_subject(relation, filters[:subject])
       relation = apply_course_number(relation, filters[:course_number])
@@ -49,33 +43,23 @@ module Catalog
 
       # The text filter comes last, because a semantic search ranks whatever
       # the other filters left and replaces the default order.
-      apply_text(relation, filters[:q], semantic: truthy?(filters[:semantic]))
+      apply_text(relation, filters[:q], semantic: Params.boolean(filters[:semantic]))
     end
 
-    # Eager-loads everything the serializers and GraphQL types read.
+    # One section by CRN, cancelled or not. term_uid matters when a CRN
+    # repeats across terms; without it the lookup takes any term.
+    def self.find(crn, term_uid = nil)
+      with_associations(new.call(crns: [ crn ], term_uid: term_uid, include_cancelled: true)).first
+    end
+
+    def self.find!(crn, term_uid = nil)
+      find(crn, term_uid) ||
+        raise(ActiveRecord::RecordNotFound, [ "No section with CRN #{crn}", term_uid.presence && "in term #{term_uid}" ].compact.join(" "))
+    end
+
     def self.with_associations(relation)
       relation.includes(:term, { faculties: :rating_distribution }, :final_exam,
                         { section_links: :linked_course }, meeting_times: { rooms: :building })
-    end
-
-    # Converts an "HH:MM", "HHMM", or integer time into the HHMM integer the
-    # course_meeting_times columns store.
-    def self.parse_time(value)
-      return nil if value.blank?
-
-      string = value.to_s.strip
-      hhmm =
-        case string
-        when /\A(\d{1,2}):(\d{2})\z/ then (::Regexp.last_match(1).to_i * 100) + ::Regexp.last_match(2).to_i
-        when /\A\d{3,4}\z/           then string.to_i
-        else raise FilterError, "Invalid time #{value.inspect}; use HH:MM or HHMM"
-        end
-
-      unless hhmm.between?(0, 2359) && (hhmm % 100) < 60
-        raise FilterError, "Invalid time #{value.inspect}; use HH:MM or HHMM"
-      end
-
-      hhmm
     end
 
     private
@@ -91,12 +75,10 @@ module Catalog
     def apply_subject(relation, subject)
       return relation if subject.blank?
 
-      values = Array(subject).map { |s| s.to_s.strip }.reject(&:empty?)
+      values = Array(subject).map { |s| s.to_s.strip }.compact_blank
       return relation if values.empty?
 
-      clauses = values.map { "courses.subject = ? OR courses.subject ILIKE ?" }.join(" OR ")
-      binds   = values.flat_map { |value| [ value, "%(#{value})" ] }
-      relation.where(clauses, *binds)
+      relation.where(*CourseCode.subject_condition("courses.subject", values))
     end
 
     def apply_course_number(relation, course_number)
@@ -180,7 +162,6 @@ module Catalog
       )
     end
 
-    # Keeps sections that meet on at least one of the given days.
     def apply_meets_on(relation, days)
       values = day_values(days)
       return relation if values.empty?
@@ -188,7 +169,6 @@ module Catalog
       relation.where(id: meeting_times_for_days(values).select(:course_id))
     end
 
-    # Drops sections that meet on any of the given days — "no Friday classes".
     def apply_free_days(relation, days)
       values = day_values(days)
       return relation if values.empty?
@@ -196,17 +176,15 @@ module Catalog
       relation.where.not(id: meeting_times_for_days(values).select(:course_id))
     end
 
-    # Drops sections with any meeting starting before the given time.
     def apply_begins_after(relation, time)
-      hhmm = self.class.parse_time(time)
+      hhmm = Params.time(time)
       return relation if hhmm.nil?
 
       relation.where.not(id: Course::MeetingTime.where(begin_time: ...hhmm).select(:course_id))
     end
 
-    # Drops sections with any meeting ending after the given time.
     def apply_ends_before(relation, time)
-      hhmm = self.class.parse_time(time)
+      hhmm = Params.time(time)
       return relation if hhmm.nil?
 
       relation.where.not(id: Course::MeetingTime.where("end_time > ?", hhmm).select(:course_id))
@@ -217,11 +195,11 @@ module Catalog
     # (seats_available is null) is left out, because no one knows that it is
     # open. include_waitlist has no effect without open_only.
     def apply_open_only(relation, open_only, include_waitlist:)
-      return relation unless truthy?(open_only)
+      return relation unless Params.boolean(open_only)
 
       courses = Course.arel_table
       open    = courses[:seats_available].gt(0)
-      if truthy?(include_waitlist)
+      if Params.boolean(include_waitlist)
         open = open.or(courses[:seats_available].not_eq(nil).and(courses[:waitlist_available].gt(0)))
       end
 
@@ -233,22 +211,11 @@ module Catalog
     end
 
     def day_values(days)
-      Array(days).filter_map do |day|
-        next if day.blank?
-
-        key = day.to_s.downcase
-        raise FilterError, "Unknown day #{day.inspect}" unless DAYS.key?(key)
-
-        key
-      end
+      Array(days).compact_blank.map { |day| Params.day(day) }
     end
 
     def sanitize_like(value)
       ActiveRecord::Base.sanitize_sql_like(value)
-    end
-
-    def truthy?(value)
-      ActiveModel::Type::Boolean.new.cast(value).present?
     end
   end
 end

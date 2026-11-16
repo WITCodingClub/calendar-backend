@@ -198,13 +198,14 @@ class Rack::Attack
   # GraphQL carries its query in the body, so this rule cannot see it.
   # Analyzers::SemanticSearchLimit runs this throttle again, through
   # semantic_search_throttled?, when a GraphQL query asks for a search. The
-  # MCP tools run it the same way (McpTools::SemanticBudget). A request with
-  # a user's token counts against that user, not the address.
+  # MCP tools run it the same way (McpTools::BaseTool). All three count by
+  # Catalog::SemanticSearch.requested?. A request with a user's token counts
+  # against that user, not the address.
   GRAPHQL_SEMANTIC_SEARCH_ENV_KEY = "calendar.graphql_semantic_search"
 
   throttle("catalog/semantic", limit: 30, period: 1.minute) do |req|
     if req.env[GRAPHQL_SEMANTIC_SEARCH_ENV_KEY] ||
-       (req.path.start_with?("/api/v1/catalog") && req.GET["semantic"].present?)
+       (req.path.start_with?("/api/v1/catalog") && Catalog::SemanticSearch.requested?(req.GET["semantic"], req.GET["q"]))
       user_id = extract_user_id(req)
       user_id ? "user:#{user_id}" : ip_key(req)
     end

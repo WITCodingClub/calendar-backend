@@ -53,22 +53,21 @@ RSpec.describe McpTools::SearchSections do
     expect(result.structured_content[:sections].pluck(:crn)).to contain_exactly(open.crn, waitlisted.crn)
   end
 
-  it "counts a semantic search against the token's budget" do
-    budget = instance_double(McpTools::SemanticBudget)
-    allow(McpTools::SemanticBudget).to receive(:new).and_return(budget)
-    allow(budget).to receive(:spend!).and_raise(McpTools::ToolError, "Too many semantic searches.")
+  it "refuses a semantic search when the token's budget is used up" do
+    allow(Rack::Attack).to receive(:semantic_search_throttled?).and_return(true)
 
-    result = call(term_uid: term.uid, q: "machine learning", semantic: true)
+    result = described_class.call(server_context: mcp_context(user, request: ActionDispatch::Request.new(Rack::MockRequest.env_for("/api/mcp", method: "POST"))),
+                                  term_uid: term.uid, q: "machine learning", semantic: true)
 
-    expect(result.content.first[:text]).to eq("Too many semantic searches.")
+    expect(result.content.first[:text]).to start_with("Too many semantic searches.")
   end
 
   it "does not count a semantic search with no words" do
-    allow(McpTools::SemanticBudget).to receive(:new)
+    allow(Rack::Attack).to receive(:semantic_search_throttled?)
 
-    call(term_uid: term.uid, semantic: true)
+    described_class.call(server_context: mcp_context(user, request: ActionDispatch::Request.new(Rack::MockRequest.env_for("/api/mcp", method: "POST"))), term_uid: term.uid, semantic: true)
 
-    expect(McpTools::SemanticBudget).not_to have_received(:new)
+    expect(Rack::Attack).not_to have_received(:semantic_search_throttled?)
   end
 
   it "returns a tool error for a bad filter value" do
@@ -82,7 +81,7 @@ RSpec.describe McpTools::SearchSections do
     result = call(term_uid: 1)
 
     expect(result.error?).to be(true)
-    expect(result.content.first[:text]).to include("No term with uid 1")
+    expect(result.content.first[:text]).to include("No term 1")
   end
 
   it "returns a tool error when there is no current term" do

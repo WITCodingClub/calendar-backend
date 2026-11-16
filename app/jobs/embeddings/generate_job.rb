@@ -9,8 +9,6 @@ module Embeddings
   class GenerateJob < ApplicationJob
     queue_as :low
 
-    MODELS = %w[CatalogCourse Faculty RmpRating].freeze
-
     # Solid Queue puts this string in every lock key, so it must never change.
     CONCURRENCY_GROUP = "EmbeddingsGenerateJob"
 
@@ -25,17 +23,16 @@ module Embeddings
     retry_on Embeddings::Generator::ApiError, wait: :polynomially_longer, attempts: 5
     discard_on Embeddings::Generator::ConfigurationError
 
-    # @param model_name [String] one of MODELS
-    # @param ids [Array<Integer>]
+    # model_name: one of Embeddings::Models.names.
     def perform(model_name, ids)
-      unless MODELS.include?(model_name)
+      unless Embeddings::Models.known?(model_name)
         Rails.logger.error("[Embeddings::GenerateJob] Unknown model #{model_name.inspect}")
         return
       end
 
       return unless Embeddings::Generator.configured?
 
-      records = Embeddings::BackfillJob::SCOPES.fetch(model_name).call.where(id: ids).select(&:embedding_stale?)
+      records = Embeddings::Models.scope(model_name).where(id: ids).select(&:embedding_stale?)
       return if records.empty?
 
       texts   = records.map(&:embedding_text)

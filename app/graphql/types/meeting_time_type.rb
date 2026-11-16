@@ -30,9 +30,6 @@ module Types
       Course::MeetingTime.day_of_weeks[object.day_of_week]
     end
 
-    def duration_minutes
-      ::Catalog::MeetingTimeSerializer.minutes_since_midnight(object.end_time) -
-        ::Catalog::MeetingTimeSerializer.minutes_since_midnight(object.begin_time)
-    end
+    def duration_minutes = ::Catalog::Fields.duration_minutes(object)
   end
 end

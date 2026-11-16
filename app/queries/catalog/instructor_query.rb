@@ -14,7 +14,6 @@ module Catalog
       @scope = scope
     end
 
-    # @return [ActiveRecord::Relation<Faculty>]
     def call(term_uid: nil, q: nil, semantic: false)
       # Subquery rather than joins(:courses): a join would multiply rows by
       # section count and break both the page size and the total.
@@ -22,10 +21,15 @@ module Catalog
       relation = relation.where(id: teaching_in(term_uid)) if term_uid.present?
       return relation.order(:last_name, :first_name) if q.blank?
 
-      ranked = semantic ? SemanticSearch.ranked_scope(relation, q) : nil
+      ranked = Params.boolean(semantic) ? SemanticSearch.ranked_scope(relation, q) : nil
       return ranked if ranked
 
       name_match(relation, q).order(:last_name, :first_name)
+    end
+
+    def self.find!(pub_id)
+      Faculty.includes(:rating_distribution).find_by_public_id(pub_id.to_s.strip) ||
+        raise(ActiveRecord::RecordNotFound, "No instructor #{pub_id}")
     end
 
     private

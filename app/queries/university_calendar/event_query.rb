@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-module Catalog
+module UniversityCalendar
   # Finds university calendar events: upcoming and ongoing events soonest
   # first, or past events newest first. The dashboard events page uses this
   # object.
   #
   # q matches the summary or the location, each word on its own. An unknown
   # category is ignored.
-  class UniversityEventQuery
+  class EventQuery
     def initialize(scope = UniversityCalendarEvent.all)
       @scope = scope
     end

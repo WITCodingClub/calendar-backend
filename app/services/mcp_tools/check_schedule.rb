@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/v1/catalog/schedule_check. GraphQL: scheduleCheck.
   class CheckSchedule < BaseTool
     tool_name "check_schedule"
     title "Check a schedule"
@@ -10,7 +9,7 @@ module McpTools
                 "and totals (credits, days, earliest start, latest end, meetings before 9:00). " \
                 "Lecture and lab pairs come from Banner, so trust this over link identifiers. " \
                 "Use it before you suggest a schedule. Sections with data older than " \
-                "#{Courses::Processor::CATALOG_FRESH_FOR.in_hours.to_i} hours in a current or future term get a Banner refresh in the background. " \
+                "#{Catalog::StaleSections::FRESH_FOR.in_hours.to_i} hours in a current or future term get a Banner refresh in the background. " \
                 "To read Banner itself, see get_section. A schedule with a time conflict needs a time conflict " \
                 "override from #{Policy::OVERRIDE_OFFICE}: give the minutes of overlap."
     requires_scope "catalog"

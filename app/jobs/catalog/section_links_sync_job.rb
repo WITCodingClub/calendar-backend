@@ -3,8 +3,7 @@
 module Catalog
   # Fetches Banner's lecture and lab pairs for every linked section in a term
   # (Catalog::SectionLinksSync). Catalog::ImportJob enqueues it after a new
-  # import, and the catalog:backfill_section_links task enqueues it for the
-  # terms imported before.
+  # import.
   class SectionLinksSyncJob < ApplicationJob
     queue_as :low
 

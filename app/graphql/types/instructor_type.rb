@@ -26,15 +26,10 @@ module Types
     end
 
     def similar(limit:)
-      object.similar_instructors(limit: limit.clamp(1, Embeddable::MAX_SIMILAR_LIMIT))
+      object.similar_instructors(limit: Embeddable.similar_limit(limit))
     end
 
-    # Email and phone are intentionally absent: this schema is unauthenticated.
-    #
-    # Returns a plain hash: graphql-ruby resolves object fields from symbol
-    # keys, and this avoids depending on ostruct, which is no longer a default gem.
-    def rmp
-      ::Catalog::InstructorSerializer.rmp_for(object)
-    end
+    # Email and phone are absent on purpose: this schema needs no sign-in.
+    def rmp = ::Catalog::Fields.rmp(object)
   end
 end

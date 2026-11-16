@@ -4,15 +4,14 @@ module Types
   class QueryType < BaseObject
     description "Public, read-only WIT course catalog"
 
-    # IBM @listSize for a Relay connection. first or last sets the length of
-    # edges and nodes. No page is ever longer than the maximum page size, so that
-    # is the assumed size when a query gives neither.
-    CONNECTION_LIST_SIZE = {
-      slicing_arguments:            %w[first last],
-      sized_fields:                 %w[edges nodes],
-      assumed_size:                 ::Catalog::SectionQuery::MAX_PER_PAGE,
-      require_one_slicing_argument: false
-    }.freeze
+    # IBM @listSize for a Relay connection of a catalog list. first or last
+    # sets the length of edges and nodes. No page is ever longer than the
+    # list's maximum page size (Catalog::Page), so that is the assumed size
+    # when a query gives neither.
+    CONNECTION_LIST_SIZE = ::Catalog::Page::GRAPHQL_SIZES.to_h do |list, sizes|
+      [ list, { slicing_arguments: %w[first last], sized_fields: %w[edges nodes],
+                assumed_size: sizes[:max], require_one_slicing_argument: false }.freeze ]
+    end.freeze
 
     field :terms, [ TermType ], null: false,
           description: "All known terms, newest first"
@@ -35,10 +34,10 @@ module Types
       argument :term_uid, Integer, required: false
     end
 
-    field :sections, SectionType.connection_type, null: false,
+    field :sections, SectionType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:sections, surface: :graphql),
           description: "Course sections matching the given filters" do
       argument :filter, SectionFilterInput, required: false
-      directive Directives::ListSize, **CONNECTION_LIST_SIZE
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE[:sections]
     end
 
     field :section, SectionType, null: true,
@@ -52,25 +51,25 @@ module Types
       argument :code, String, required: true
     end
 
-    field :courses, CourseType.connection_type, null: false,
+    field :courses, CourseType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:courses, surface: :graphql),
           description: "Courses (not sections) by code or title words" do
       argument :q, String, required: false
       argument :subject, [ String ], required: false, description: "Subject codes, e.g. [\"COMP\"]"
       argument :term_uid, Integer, required: false, description: "Only courses with a section in this term"
-      directive Directives::ListSize, **CONNECTION_LIST_SIZE
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE[:courses]
     end
 
-    field :instructors, InstructorType.connection_type, null: false,
+    field :instructors, InstructorType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:instructors, surface: :graphql),
           description: "Faculty who teach at least one section" do
       argument :term_uid, Integer, required: false
       argument :q, String, required: false, description: "Each word must match the first, last, or display name"
       argument :semantic, Boolean, required: false, default_value: false,
                description: "Rank q by meaning instead of by the literal name. " \
                             "A query can run one semantic search."
-      directive Directives::ListSize, **CONNECTION_LIST_SIZE
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE[:instructors]
     end
 
-    field :reviews, ReviewType.connection_type, null: false,
+    field :reviews, ReviewType.connection_type, null: false, max_page_size: ::Catalog::Page.max_size(:reviews, surface: :graphql),
           description: "Rate My Professors reviews of WIT instructors" do
       argument :instructor, String, required: false, description: "An instructor public id"
       argument :q, String, required: false, description: "Free text over the comment and the course"
@@ -78,7 +77,7 @@ module Types
                description: "Rank q by meaning instead of by the literal words. " \
                             "A query can run one semantic search."
       argument :sentiment, String, required: false, description: "\"positive\" or \"negative\""
-      directive Directives::ListSize, **CONNECTION_LIST_SIZE
+      directive Directives::ListSize, **CONNECTION_LIST_SIZE[:reviews]
     end
 
     def terms
@@ -105,18 +104,11 @@ module Types
     end
 
     def section(crn:, term_uid: nil)
-      relation = ::Catalog::SectionQuery.new.call(
-        crns:              [ crn ],
-        term_uid:          term_uid,
-        include_cancelled: true
-      )
-
-      ::Catalog::SectionQuery.with_associations(relation).first
+      ::Catalog::SectionQuery.find(crn, term_uid)
     end
 
     def reviews(instructor: nil, q: nil, semantic: false, sentiment: nil)
-      filters  = { instructor: instructor, q: q, semantic: semantic, sentiment: sentiment }.compact
-      relation = ::Catalog::ReviewQuery.new.call(**filters)
+      relation = ::Catalog::ReviewQuery.new.call(instructor: instructor, q: q, semantic: semantic, sentiment: sentiment)
 
       ::Catalog::ReviewQuery.with_associations(relation)
     end

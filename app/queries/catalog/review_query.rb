@@ -10,9 +10,6 @@ module Catalog
   class ReviewQuery
     class FilterError < ::Catalog::FilterError; end
 
-    MAX_PER_PAGE     = 100
-    DEFAULT_PER_PAGE = 25
-
     FILTERS = %i[instructor q semantic sentiment].freeze
 
     SENTIMENTS = %w[positive negative].freeze
@@ -23,7 +20,6 @@ module Catalog
       @scope = scope
     end
 
-    # @return [ActiveRecord::Relation<RmpRating>]
     def call(**filters)
       unknown = filters.keys.map(&:to_sym) - FILTERS
       raise FilterError, "Unknown filter(s): #{unknown.join(', ')}" if unknown.any?
@@ -32,7 +28,7 @@ module Catalog
       relation = apply_instructor(relation, filters[:instructor])
       relation = apply_sentiment(relation, filters[:sentiment])
 
-      apply_text(relation, filters[:q], semantic: truthy?(filters[:semantic]))
+      apply_text(relation, filters[:q], semantic: Params.boolean(filters[:semantic]))
     end
 
     def self.with_associations(relation)
@@ -70,10 +66,6 @@ module Catalog
       term = "%#{ActiveRecord::Base.sanitize_sql_like(query.to_s.strip)}%"
       relation.where("rmp_ratings.comment ILIKE :q OR rmp_ratings.course_name ILIKE :q", q: term)
               .order(DEFAULT_ORDER)
-    end
-
-    def truthy?(value)
-      ActiveModel::Type::Boolean.new.cast(value).present?
     end
   end
 end

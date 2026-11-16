@@ -64,16 +64,12 @@ class Faculty < ApplicationRecord
 
   scope :faculty_only,        -> { where(employee_type: "faculty") }
   scope :staff_only,          -> { where(employee_type: "staff") }
-  scope :by_school,           ->(school) { where(school: school) }
-  scope :by_department,       ->(dept) { where(department: dept) }
   scope :with_courses,        -> { joins(:courses).distinct }
-  scope :without_courses,     -> { where.missing(:courses) }
   # Faculty who teach a course that is not cancelled in the current term or a
   # later term. Only these need a RateMyProfessor ID. The weekly RateMyProfessor
   # jobs and the Missing RMP IDs page use this scope, not every professor who
   # ever taught (#712).
   scope :teaching_current_or_future, -> { where(id: CourseFaculty.current_or_future.select(:faculty_id)) }
-  scope :with_directory_data, -> { where.not(directory_last_synced_at: nil) }
   scope :needs_directory_sync, -> {
     where(directory_last_synced_at: nil).or(where(directory_last_synced_at: ...7.days.ago))
   }
@@ -88,10 +84,6 @@ class Faculty < ApplicationRecord
 
   def initials
     "#{first_name[0]}#{last_name[0]}"
-  end
-
-  def u_name
-    { fwd: "#{first_name[0]}. #{last_name}", rev: "#{last_name}, #{first_name[0]}." }
   end
 
   # Who this person is, in the words a student would use to look for them. The
@@ -129,16 +121,8 @@ class Faculty < ApplicationRecord
     }
   end
 
-  def matched_related_faculty
-    Faculty.joins("INNER JOIN related_professors ON related_professors.related_faculty_id = faculties.id")
-           .where(related_professors: { faculty_id: id })
-           .distinct
-  end
-
   def update_ratings!      = Faculties::UpdateRatingsJob.perform_later(id)
-  def update_ratings_now!  = Faculties::UpdateRatingsJob.perform_now(id)
   def sync_from_directory! = Faculties::DirectoryLookupJob.perform_later(id)
-  def sync_from_directory_now! = Faculties::DirectoryLookupJob.perform_now(id)
   def teaches_courses?     = courses.exists?
   def has_directory_data?  = directory_last_synced_at.present? || directory_raw_data.present?
   def needs_directory_data? = !has_directory_data?
@@ -169,12 +153,6 @@ class Faculty < ApplicationRecord
     Time.zone.parse(timestamp)
   rescue ArgumentError
     nil
-  end
-
-  def directory_data_age
-    return nil unless directory_last_synced_at
-
-    Time.current - directory_last_synced_at
   end
 
   def photo_display_url

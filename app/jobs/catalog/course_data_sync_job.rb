@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Catalog
-  class Catalog::CourseDataSyncJob < ApplicationJob
+  class CourseDataSyncJob < ApplicationJob
     queue_as :low
 
     # SolidQueue calls this key with the job's arguments, so it has to accept them.
@@ -40,7 +40,7 @@ module Catalog
     BATCH_SIZE = 50
 
     def perform(term_uids: nil)
-      term_uids ||= default_term_uids
+      term_uids ||= Term.synced_uids
 
       return if term_uids.empty?
 
@@ -78,14 +78,6 @@ module Catalog
                                 term_uids: terms.map(&:uid)) do
         terms.each { |term| Catalog::CourseDetailsSyncJob.perform_later(term.uid) }
       end
-    end
-
-    # Rooms and times only move for a term that is running or has not started yet.
-    # Term.active_uids asks Banner, which lists every term back to 2014. That is
-    # about 39,500 courses and 118,000 Banner requests a night, nearly all of them
-    # for terms that ended years ago.
-    def default_term_uids
-      (Term.active.pluck(:uid) + Term.current_and_future.pluck(:uid)).uniq
     end
 
     def sync_courses(terms)

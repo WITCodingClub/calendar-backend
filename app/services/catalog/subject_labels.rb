@@ -3,7 +3,7 @@
 module Catalog
   # Course.subject holds Banner's subject label with the code at the end:
   # "Computer Science (COMP)". Every lookup by code reads the code from there
-  # (Course.prefix_of), and Catalog::SectionQuery matches "%(COMP)".
+  # (CourseCode.subject_of), and Catalog::SectionQuery matches "%(COMP)".
   #
   # Banner's label for most subjects already ends with the code. Some labels do
   # not: "Climate Resilience" is CRES, "Building Construction" is BLDG, and
@@ -12,7 +12,6 @@ module Catalog
   # the label, so the code comes from Banner's subject list for the term.
   module SubjectLabels
     CACHE_TTL = 1.day
-    BARE_CODE = /\A[A-Z0-9]{2,6}\z/
 
     # The label with the code at the end. A different code at the end of the
     # label is replaced: "Facilities Management (CPCE)" with CPFM gives
@@ -32,9 +31,8 @@ module Catalog
     # list does not have the label, it is kept as it is.
     #
     # A stored label with the same name is kept, so the nightly sync does not
-    # correct a stored wrong code ("Facilities Management (CPCE)").
-    # catalog:repair_subject_labels does. codes is the term's subject list,
-    # when the caller has it already.
+    # correct a stored wrong code ("Facilities Management (CPCE)"). codes is
+    # the term's subject list, when the caller has it already.
     def self.for_term(description, term_uid, stored: nil, codes: nil)
       description = description.to_s.strip
       return description unless needs_codes?(description)
@@ -47,12 +45,12 @@ module Catalog
     # A bare code ("COMP") needs no subject list. Every label does.
     def self.needs_codes?(description)
       description = description.to_s.strip
-      description.present? && !description.match?(BARE_CODE)
+      description.present? && !description.match?(CourseCode::BARE_SUBJECT)
     end
 
     # The label without a code at the end: "Computer Science".
     def self.name(label)
-      label.to_s.sub(Course::SUBJECT_CODE_SUFFIX, "").strip
+      label.to_s.sub(CourseCode::LABEL_SUFFIX, "").strip
     end
 
     # description => code for one term, from Banner's subject list. A failed
@@ -75,7 +73,7 @@ module Catalog
     # "Computer Science (COMP)" ends with a code. "Graduate Internship
     # (optional)" does not: a code is upper case.
     def self.code_suffix?(label)
-      label.match?(Course::SUBJECT_CODE_SUFFIX)
+      label.match?(CourseCode::LABEL_SUFFIX)
     end
   end
 end

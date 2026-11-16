@@ -352,7 +352,7 @@ RSpec.describe Courses::Processor do
 
     it "asks Banner only about a section that is new or that the sync has not confirmed lately" do
       stored_course(12345, 2.hours.ago)
-      stale = stored_course(67890, (described_class::CATALOG_FRESH_FOR + 1.hour).ago)
+      stale = stored_course(67890, (Catalog::StaleSections::FRESH_FOR + 1.hour).ago)
 
       freeze_time do
         process!
@@ -373,7 +373,7 @@ RSpec.describe Courses::Processor do
     end
 
     it "refreshes a section from Banner in the background when the catalog copy is a few hours old" do
-      older = stored_course(12345, (described_class::REFRESH_AFTER + 1.hour).ago)
+      older = stored_course(12345, (Catalog::StaleSections::REFRESH_AFTER + 1.hour).ago)
       stored_course(67890, 1.hour.ago)
 
       expect { process! }.to have_enqueued_job(Catalog::SectionRefreshJob).with([ older.id ])

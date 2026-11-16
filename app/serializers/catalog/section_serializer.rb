@@ -3,9 +3,16 @@
 module Catalog
   # A single course section (one CRN) as the public catalog API returns it.
   class SectionSerializer
+    # A list of sections, with their catalog courses loaded in one query.
+    def self.collection(sections)
+      sections = sections.to_a
+      catalog_courses = CatalogCourse.for_sections(sections)
+      sections.map { |section| new(section, catalog_courses: catalog_courses).as_json }
+    end
+
     # catalog_courses: the CatalogCourse rows of a list of sections, from
-    # CourseQuery.for_sections, so a list sends one query. Without it, the
-    # serializer looks the one course up.
+    # CatalogCourse.for_sections. Without it, the serializer looks the one
+    # course up.
     def initialize(course, catalog_courses: nil)
       @course = course
       @catalog_courses = catalog_courses
@@ -22,7 +29,7 @@ module Catalog
         subject_code:       @course.prefix,
         course_number:      @course.course_number,
         section_number:     @course.section_number,
-        course_code:        course_code,
+        course_code:        Fields.section_code(@course),
         title:              @course.title,
         schedule_type:      @course.schedule_type,
         schedule_type_code: Course::ScheduleType.new(@course.schedule_type).code,
@@ -32,7 +39,7 @@ module Catalog
         seats:              seats,
         waitlist:           waitlist,
         linked:             linked,
-        cross_list:         cross_list,
+        cross_list:         Fields.cross_list(@course),
         part_of_term:       @course.part_of_term,
         campus:             @course.campus,
         start_date:         @course.start_date,
@@ -44,28 +51,7 @@ module Catalog
       }
     end
 
-    def self.course_code_for(course)
-      "#{course.prefix} #{course.course_number}-#{course.section_number}"
-    end
-
-    # Sections of other courses that meet with this one, such as an
-    # undergraduate and a graduate studio. The seats count the whole group.
-    # Nil when the section is not cross-listed.
-    def self.cross_list_for(course)
-      return nil if course.cross_list_identifier.nil?
-
-      {
-        identifier: course.cross_list_identifier,
-        crns:       course.cross_listed_crns,
-        seats:      { capacity: course.cross_list_capacity, available: course.cross_list_available }
-      }
-    end
-
     private
-
-    def course_code
-      self.class.course_code_for(@course)
-    end
 
     # What Banner says about the course: the description, the prerequisites,
     # and the terms it is usually offered. GET /api/v1/catalog/courses/:code
@@ -75,7 +61,7 @@ module Catalog
         if @catalog_courses
           @catalog_courses[[ @course.prefix, @course.course_number ]]
         else
-          CatalogCourse.find_by(subject_code: @course.prefix, course_number: @course.course_number)
+          @course.catalog_course
         end
       return nil if catalog_course.nil?
 
@@ -91,10 +77,9 @@ module Catalog
       { uid: @course.term.uid, name: @course.term.name }
     end
 
-    # Enrollment numbers from Banner. The catalog import sets them,
-    # Catalog::CourseDataSyncJob refreshes them every night, and
-    # Catalog::SeatRefreshJob every 30 minutes while students register. Do not
-    # present them as a real-time seat count. Null when Banner did not return
+    # Enrollment numbers from Banner. The catalog import sets them, and
+    # Catalog::CourseDataSyncJob and Catalog::SeatRefreshJob refresh them
+    # (Catalog::Freshness). Do not present them as a real-time seat count. Null when Banner did not return
     # enrollment data for the CRN.
     def seats
       { capacity: @course.seats_capacity, available: @course.seats_available }
@@ -112,14 +97,8 @@ module Catalog
       SectionLinks.new(@course).as_json
     end
 
-    def cross_list
-      self.class.cross_list_for(@course)
-    end
-
     def meeting_times
-      @course.filtered_meeting_times
-             .sort_by { |mt| [ Course::MeetingTime.day_of_weeks[mt.day_of_week], mt.begin_time ] }
-             .map { |mt| MeetingTimeSerializer.new(mt).as_json }
+      Fields.meeting_times(@course).map { |mt| MeetingTimeSerializer.new(mt).as_json }
     end
 
     def final_exam

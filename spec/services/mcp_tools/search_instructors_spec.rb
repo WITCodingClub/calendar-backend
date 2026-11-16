@@ -34,11 +34,19 @@ RSpec.describe McpTools::SearchInstructors do
   end
 
   it "counts a semantic search against the token's budget" do
-    budget = instance_double(McpTools::SemanticBudget, spend!: nil)
-    allow(McpTools::SemanticBudget).to receive(:new).and_return(budget)
+    allow(Rack::Attack).to receive(:semantic_search_throttled?).and_return(false)
+
+    request = ActionDispatch::Request.new(Rack::MockRequest.env_for("/api/mcp", method: "POST"))
+    described_class.call(server_context: mcp_context(user, request: request), q: "robotics", semantic: true)
+
+    expect(Rack::Attack).to have_received(:semantic_search_throttled?).with(request.env)
+  end
+
+  it "counts nothing outside a request" do
+    allow(Rack::Attack).to receive(:semantic_search_throttled?)
 
     call(q: "robotics", semantic: true)
 
-    expect(budget).to have_received(:spend!)
+    expect(Rack::Attack).not_to have_received(:semantic_search_throttled?)
   end
 end

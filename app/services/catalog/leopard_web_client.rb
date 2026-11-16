@@ -139,8 +139,8 @@ module Catalog
 
     ACTIVE_TERMS_CACHE_KEY = "leopard_web/active_terms"
 
-    # Banner's term list changes a few times a year. The admin catalog page and
-    # Term#registration_start ask for it on each call, and the request can take
+    # Banner's term list changes a few times a year. The admin catalog page,
+    # the reimport plan, and term date detection ask for it, and the request can take
     # up to 30 seconds, so keep a good answer for ten minutes. A failed answer is
     # not kept.
     def self.get_active_terms

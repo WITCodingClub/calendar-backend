@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/v1/catalog/sections/:crn. GraphQL: section.
   class GetSection < BaseTool
     BANNER_URL = "#{Catalog::LeopardWebClient::BASE_URL}%s?term=<term_uid>&courseReferenceNumber=<crn>".freeze
 
@@ -23,7 +22,7 @@ module McpTools
                 "cross-listed sections that meet with it. " \
                 "It also finds cancelled sections. Not every section has a waitlist: a waitlist capacity of 0 " \
                 "means none, and null means WIT Calendar does not know yet. For a full section with a waitlist, the student joins it before they ask for a " \
-                "capacity override. When the data is more than #{Courses::Processor::CATALOG_FRESH_FOR.in_hours.to_i} " \
+                "capacity override. When the data is more than #{Catalog::StaleSections::FRESH_FOR.in_hours.to_i} " \
                 "hours old in a current or future term, this tool asks WIT Calendar to read Banner again in the " \
                 "background. The answer does not wait for it. #{BANNER_HINT}"
     requires_scope "catalog"
@@ -39,7 +38,7 @@ module McpTools
     output_schema(Schemas::SECTION)
 
     def perform(crn:, term_uid: nil)
-      section = find_section(crn, term_uid)
+      section = Catalog::SectionQuery.find!(crn, find_term(term_uid).uid)
       refresh_stale_sections(section.term.uid, [ section.crn ])
       Catalog::SectionSerializer.new(section).as_json
     end

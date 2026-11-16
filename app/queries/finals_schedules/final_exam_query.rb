@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Catalog
+module FinalsSchedules
   # Finds the final exams of one term, in date and time order. The dashboard
   # finals page uses this object.
   #
@@ -23,12 +23,10 @@ module Catalog
 
     def search(relation, query)
       relation = relation.left_joins(:course)
-      subject_code, course_number = CatalogCourse.parse_code(query)
+      subject_code, course_number = CourseCode.parse(query)
       if subject_code
-        # Course#prefix: the subject is "Computer Science (COMP)" or "COMP".
         return relation.where(courses: { course_number: course_number })
-                       .where("courses.subject ILIKE :code OR courses.subject ILIKE :wrapped",
-                              code: subject_code, wrapped: "%(#{subject_code})")
+                       .where(*CourseCode.subject_condition("courses.subject", [ subject_code ]))
       end
 
       query.split.reduce(relation) do |scope, word|

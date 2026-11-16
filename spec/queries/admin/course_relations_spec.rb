@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe Catalog::CourseRelations do
+RSpec.describe Admin::CourseRelations do
   let(:term)   { create(:term) }
   let(:course) { create(:course, term: term, subject: "Computer Science (COMP)", course_number: 2650) }
 

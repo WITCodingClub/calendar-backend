@@ -10,23 +10,17 @@ module Embeddings
   class BackfillJob < ApplicationJob
     queue_as :low
 
+    # One GenerateJob sends one API request.
     BATCH_SIZE = Embeddings::Generator::MAX_BATCH_SIZE
 
-    # Reviews are the largest table by far, so they come last.
-    SCOPES = {
-      "CatalogCourse" => -> { CatalogCourse.includes(catalog_year_courses: :catalog_year) },
-      "Faculty"       => -> { Faculty.with_courses },
-      "RmpRating"     => -> { RmpRating.where.not(comment: [ nil, "" ]) }
-    }.freeze
-
-    # @param model_name [String, nil] one model, or nil for all of them
+    # model_name: one model, or nil for all of them.
     def perform(model_name = nil)
       unless Embeddings::Generator.configured?
         Rails.logger.info("[Embeddings::BackfillJob] OPENAI_API_KEY is not set; nothing to do")
         return
       end
 
-      names = model_name ? [ model_name ] : SCOPES.keys
+      names = model_name ? [ model_name ] : Embeddings::Models.names
       jobs = names.flat_map { |name| stale_jobs(name) }
       return if jobs.empty?
 
@@ -42,7 +36,9 @@ module Embeddings
     private
 
     def stale_jobs(model_name)
-      scope = SCOPES.fetch(model_name) { raise ArgumentError, "Unknown model #{model_name.inspect}" }.call
+      raise ArgumentError, "Unknown model #{model_name.inspect}" unless Embeddings::Models.known?(model_name)
+
+      scope = Embeddings::Models.scope(model_name)
 
       stale = 0
       jobs = []

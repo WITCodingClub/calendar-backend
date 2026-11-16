@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/v1/catalog/sections/:crn/similar.
   class SimilarSections < BaseTool
     tool_name "similar_sections"
     title "Similar sections"
@@ -14,19 +13,17 @@ module McpTools
       properties: {
         crn:      { type: "integer", description: "The section CRN." },
         term_uid: TERM_SCHEMA,
-        limit:    { type: "integer", minimum: 1, maximum: Embeddable::MAX_SIMILAR_LIMIT }
+        limit:    SIMILAR_LIMIT_SCHEMA
       },
       required: [ "crn" ]
     )
     output_schema(Schemas.object(crn: Schemas::INTEGER, sections: Schemas.array(Schemas::SECTION)))
 
     def perform(crn:, term_uid: nil, limit: nil)
-      course = find_section(crn, term_uid)
-      limit  = limit_value(limit, default: Embeddable::DEFAULT_SIMILAR_LIMIT, max: Embeddable::MAX_SIMILAR_LIMIT)
-      similar = Catalog::SectionQuery.with_associations(course.similar_sections(limit: limit)).to_a
-      catalog_courses = Catalog::CourseQuery.for_sections(similar)
+      course  = Catalog::SectionQuery.find!(crn, find_term(term_uid).uid)
+      similar = Catalog::SectionQuery.with_associations(course.similar_sections(limit: Embeddable.similar_limit(limit)))
 
-      { crn: course.crn, sections: similar.map { |section| Catalog::SectionSerializer.new(section, catalog_courses: catalog_courses).as_json } }
+      { crn: course.crn, sections: Catalog::SectionSerializer.collection(similar) }
     end
   end
 end

@@ -7,7 +7,7 @@ API answer "what is like this one?".
 ## How it works
 
 1. A model includes `Embeddable` and defines `embedding_text`, the sentence
-   that stands for the record.
+   that stands for the record. Add the model and the rows that get a vector to `Embeddings::Models`.
 2. `Embeddings::BackfillJob` finds the rows whose text has no vector, or whose
    text changed since the vector was made, and hands them to
    `Embeddings::GenerateJob` in batches of 100.

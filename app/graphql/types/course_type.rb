@@ -30,15 +30,15 @@ module Types
     field :unlocks, [ CourseType ], null: false, complexity: 5, description: "Courses that list this one as a prerequisite"
 
     # The same shapes as GET /api/v1/catalog/courses/:code.
-    def prerequisites     = serialized[:prerequisites]
-    def corequisites      = serialized[:corequisites]
-    def mutual_exclusions = serialized[:mutual_exclusions]
+    def prerequisites     = requisites.prerequisites
+    def corequisites      = requisites.corequisites
+    def mutual_exclusions = requisites.mutual_exclusions
     def unlocks           = object.unlocks.order(:subject_code, :course_number).distinct
 
     private
 
-    def serialized
-      @serialized ||= ::Catalog::CourseSerializer.new(object).as_json
+    def requisites
+      @requisites ||= ::Catalog::CourseRequisites.new(object)
     end
   end
 end

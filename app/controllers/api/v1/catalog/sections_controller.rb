@@ -3,72 +3,33 @@
 module Api
   module V1
     module Catalog
-      # GET /api/v1/catalog/sections
-      # GET /api/v1/catalog/sections/:crn
-      # GET /api/v1/catalog/sections/:crn/similar
       class SectionsController < Api::V1::PublicController
         def index
-          page, per_page = pagination
-
+          page     = page_for(:sections)
           relation = ::Catalog::SectionQuery.new.call(**filters)
           total    = relation.count("DISTINCT courses.id")
-          sections = ::Catalog::SectionQuery
-                     .with_associations(relation)
-                     .page(page).per(per_page)
+          sections = page.of(::Catalog::SectionQuery.with_associations(relation))
 
-          catalog_courses = ::Catalog::CourseQuery.for_sections(sections)
-
-          render_collection(
-            sections.map { |course| ::Catalog::SectionSerializer.new(course, catalog_courses: catalog_courses).as_json },
-            meta: {
-              page:        page,
-              per_page:    per_page,
-              total_count: total,
-              total_pages: (total.to_f / per_page).ceil,
-              filters:     filters.compact
-            }
-          )
+          render_collection(::Catalog::SectionSerializer.collection(sections), meta: page.meta(total).merge(filters: filters))
         end
 
         def show
-          course = find_section(params[:crn], params[:term_uid], with_associations: true)
-
-          render_resource(::Catalog::SectionSerializer.new(course).as_json)
+          render_resource(::Catalog::SectionSerializer.new(::Catalog::SectionQuery.find!(params[:crn], params[:term_uid])).as_json)
         end
 
-        # Sections that teach something close to this one. The list is empty
-        # until the course has a vector, which the nightly backfill writes.
+        # The list is empty until the course has a vector, which the nightly
+        # backfill writes.
         def similar
-          course   = find_section(params[:crn], params[:term_uid])
-          relation = ::Catalog::SectionQuery.with_associations(course.similar_sections(limit: similar_limit)).to_a
-          catalog_courses = ::Catalog::CourseQuery.for_sections(relation)
+          course   = ::Catalog::SectionQuery.find!(params[:crn], params[:term_uid])
+          sections = ::Catalog::SectionQuery.with_associations(course.similar_sections(limit: similar_limit))
 
-          render_collection(
-            relation.map { |section| ::Catalog::SectionSerializer.new(section, catalog_courses: catalog_courses).as_json },
-            meta: { crn: course.crn, limit: similar_limit }
-          )
+          render_collection(::Catalog::SectionSerializer.collection(sections), meta: { crn: course.crn, limit: similar_limit })
         end
 
         private
 
-        def find_section(crn, term_uid, with_associations: false)
-          relation = ::Catalog::SectionQuery.new.call(
-            crns:              [ crn ],
-            term_uid:          term_uid,
-            include_cancelled: true
-          )
-          relation = ::Catalog::SectionQuery.with_associations(relation) if with_associations
-
-          relation.first || raise(ActiveRecord::RecordNotFound, "No section with CRN #{crn}")
-        end
-
-        def similar_limit
-          @similar_limit ||= (params[:limit].presence&.to_i || Embeddable::DEFAULT_SIMILAR_LIMIT)
-                            .clamp(1, Embeddable::MAX_SIMILAR_LIMIT)
-        end
-
         def filters
-          {
+          @filters ||= {
             term_uid:          params[:term_uid],
             subject:           array_param(:subject),
             course_number:     array_param(:course_number),
@@ -84,23 +45,10 @@ module Api
             credit_hours:      array_param(:credit_hours),
             instructor:        params[:instructor],
             include_cancelled: params[:include_cancelled],
-            open_only:         optional_boolean_param(:open_only),
-            include_waitlist:  optional_boolean_param(:include_waitlist)
+            # The seat filters echo in meta.filters as booleans.
+            open_only:         ::Catalog::Params.strict_boolean(params[:open_only], :open_only),
+            include_waitlist:  ::Catalog::Params.strict_boolean(params[:include_waitlist], :include_waitlist)
           }.compact
-        end
-
-        STRICT_BOOLEANS = { "true" => true, "1" => true, "false" => false, "0" => false }.freeze
-
-        # The seat filters echo in meta.filters as booleans. A missing or empty
-        # value is nil, so compact leaves it out. Any value other than true,
-        # false, 1, or 0 is an invalid filter value, so it returns HTTP 400.
-        def optional_boolean_param(key)
-          value = params[key]
-          return nil if value.blank?
-
-          STRICT_BOOLEANS.fetch(value.to_s.strip.downcase) do
-            raise ::Catalog::FilterError, "Invalid #{key} #{value.inspect}; use true or false"
-          end
         end
       end
     end

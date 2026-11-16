@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Catalog
+module Admin
   # The courses around one section, for the admin course page: the
   # prerequisite tree, the corequisites, the mutual exclusions, the courses it
   # is a prerequisite for, the sections a student registers with it, and the
@@ -18,7 +18,7 @@ module Catalog
     def catalog_course
       return @catalog_course if defined?(@catalog_course)
 
-      @catalog_course = CatalogCourse.find_by(subject_code: course.prefix, course_number: course.course_number)
+      @catalog_course = course.catalog_course
     end
 
     # The tree from CatalogCourse#prerequisites, or nil.
@@ -43,7 +43,7 @@ module Catalog
 
     # Each group is one set of partner sections (Catalog::SectionLinks).
     def linked_options
-      @linked_options ||= SectionLinks.new(course).options
+      @linked_options ||= Catalog::SectionLinks.new(course).options
     end
 
     # The other sections in this section's cross-list group, by CRN.
@@ -64,29 +64,24 @@ module Catalog
         if pairs.empty?
           {}
         else
-          clauses = pairs.map { "((courses.subject = ? OR courses.subject ILIKE ?) AND courses.course_number = ?)" }.join(" OR ")
-          binds   = pairs.flat_map { |code, number| [ code, "%(#{code})", number ] }
+          conditions = pairs.map do |code, number|
+            Course.sanitize_sql_array(CourseCode.subject_condition("courses.subject", [ code ])) +
+              Course.sanitize_sql_array([ " AND courses.course_number = ?", number ])
+          end
           same_term = ActiveRecord::Base.sanitize_sql_array([ "courses.term_id = ? DESC", course.term_id ])
 
           Course.joins(:term)
-                .where(clauses, *binds)
+                .where(conditions.map { |condition| "(#{condition})" }.join(" OR "))
                 .order(Arel.sql(same_term), Arel.sql("terms.start_date DESC NULLS LAST"), "terms.year DESC", :section_number)
-                .each_with_object({}) { |section, map| map[[ section.prefix.upcase, section.course_number ]] ||= section }
+                .each_with_object({}) { |section, map| map[[ section.prefix, section.course_number ]] ||= section }
         end
       end
     end
 
     def codes
-      refs = course_refs(prerequisites) + corequisites + mutual_exclusions
+      refs = PrerequisiteTree.new(prerequisites).courses + corequisites + mutual_exclusions
       refs.map { |ref| [ ref["subject_code"].to_s.upcase, ref["course_number"].to_i ] } +
         unlocks.map { |unlocked| [ unlocked.subject_code, unlocked.course_number ] }
-    end
-
-    def course_refs(node)
-      return [] if node.nil?
-      return [ node ] if node["type"] == "course"
-
-      Array(node["operands"]).flat_map { |operand| course_refs(operand) }
     end
   end
 end
