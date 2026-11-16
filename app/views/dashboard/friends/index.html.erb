@@ -27,7 +27,7 @@
       <%= f.text_field :friend_id,
           placeholder: "Friend's user ID (usr_...)",
           class: "m3-input flex-1" %>
-      <% if Flipper.enabled?(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user) %>
+      <% if Friendships::Features.availability_only?(current_user) %>
         <%= f.select :visibility,
             [ [ "Share full schedule", "full" ], [ "Share only when I am busy", "availability_only" ] ],
             {}, class: "m3-select w-auto" %>

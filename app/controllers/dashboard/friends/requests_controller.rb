@@ -17,39 +17,40 @@ module Dashboard
       def index
         authorize current_user, :show?
 
-        @friend_expiry_enabled = friend_expiry_enabled?
+        @friend_expiry_enabled = Friendships::Features.expiry?(current_user)
         @incoming = current_user.incoming_friend_requests.includes(:requester).pending
         @outgoing = current_user.outgoing_friend_requests.includes(:addressee).pending
       end
 
-      # PATCH /dashboard/friends/requests/:id
-      #
       # Accepts the incoming request, with the optional sharing level.
       def update
-        authorize current_user, :update?
+        request = find_incoming_request
+        return unless request
 
-        fr = current_user.incoming_friend_requests.find_by(id: params[:id])
-        return redirect_to friend_requests_return_path, alert: "Request not found." unless fr
-
-        level = requested_visibility
-        return redirect_to dashboard_friends_path, alert: "Choose a valid sharing level." if level == false
-
-        fr.addressee_visibility = level if level
-        fr.accepted!
-        redirect_to friend_requests_return_path, notice: "#{fr.requester.first_name} added as a friend."
+        authorize request, :accept?
+        Friendships::Request.accept!(request, visibility: params[:visibility])
+        redirect_to friend_requests_return_path, notice: "#{request.requester.first_name} added as a friend."
       end
 
-      # DELETE /dashboard/friends/requests/:id
-      #
       # Declines the incoming request.
       def destroy
-        authorize current_user, :update?
+        request = find_incoming_request
+        return unless request
 
-        fr = current_user.incoming_friend_requests.find_by(id: params[:id])
-        return redirect_to friend_requests_return_path, alert: "Request not found." unless fr
-
-        fr.destroy!
+        authorize request, :decline?
+        request.destroy!
         redirect_to friend_requests_return_path, notice: "Request declined."
+      end
+
+      private
+
+      def find_incoming_request
+        request = current_user.incoming_friend_requests.find_by(id: params[:id])
+        return request if request
+
+        skip_authorization
+        redirect_to friend_requests_return_path, alert: "Request not found."
+        nil
       end
     end
   end

@@ -12,13 +12,8 @@ module Api
       authenticate_with_token
 
       def processed_events
-        friend_user = find_by_any_id!(User, params[:friend_id])
-        friendship  = find_friendship_with(friend_user)
-
-        if friendship.nil?
-          render_not_friends
-          return
-        end
+        friendship = find_accepted_friendship!
+        return if performed?
 
         authorize friendship, :view_schedule?
         return if render_availability_only_unless_full(friendship)
@@ -26,7 +21,7 @@ module Api
         term = find_term_by_uid
         return if performed?
 
-        result = Courses::ProcessedEventsBuilder.new(friend_user, term).build
+        result = Courses::ProcessedEventsBuilder.new(friendship.friend_for(current_user), term).build
         render json: result, status: :ok
       end
 
@@ -34,7 +29,6 @@ module Api
       # friends sends more than one request.
       MAX_BATCH_FRIENDS = 100
 
-      # POST /api/friends/processed_events
       # { "term_uid": "...", "friend_ids": ["usr_...", ...] }
       #
       # The schedules of many friends in one request (#681), in the order of
@@ -64,13 +58,8 @@ module Api
       end
 
       def processed
-        friend_user = find_by_any_id!(User, params[:friend_id])
-        friendship  = find_friendship_with(friend_user)
-
-        if friendship.nil?
-          render_not_friends
-          return
-        end
+        friendship = find_accepted_friendship!
+        return if performed?
 
         authorize friendship, :view_schedule?
         # A friend who shares only availability must not learn whether the user
@@ -80,12 +69,10 @@ module Api
         term = find_term_by_uid
         return if performed?
 
-        processed = friend_user.enrollments.exists?(term_id: term.id)
+        processed = friendship.friend_for(current_user).enrollments.exists?(term_id: term.id)
         render json: { processed: processed }, status: :ok
       end
 
-      # GET /api/friends/:friend_id/busy_blocks?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
-      #
       # The times the friend is in class, with no course data. Every accepted
       # friend can read it, whatever the friend's visibility level.
       def busy_blocks

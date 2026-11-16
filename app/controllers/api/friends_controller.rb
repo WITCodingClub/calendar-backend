@@ -9,11 +9,11 @@ module Api
     def index
       authorize :friendship, :index?
 
-      flag_on     = Flipper.enabled?(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, current_user)
+      flag_on     = Friendships::Features.availability_only?(current_user)
       friendships = current_user.accepted_friendships.includes(:requester, :addressee)
       # Each friend gets a "groups" key only while the friend groups flag is on.
       # The groups for the whole list load in one pass, not one query per friend.
-      groups_by_friend = FriendGroup.by_friend_id_for(current_user) if FriendGroup.enabled_for?(current_user)
+      groups_by_friend = FriendGroup.by_friend_id_for(current_user) if Friendships::Features.groups?(current_user)
 
       friends = friendships.map do |friendship|
         friend = friendship.friend_for(current_user)
@@ -27,8 +27,6 @@ module Api
       render json: { friends: friends }, status: :ok
     end
 
-    # PATCH /api/friends/:friend_id/expiry
-    #
     # Asks for a new end date on the friendship or the pending request with
     # this user. Send "expires_at": null for a permanent friendship. A sooner
     # date applies at once. A later date, or null, becomes a proposal that the
@@ -37,7 +35,7 @@ module Api
     # The API cannot accept, decline, or withdraw a proposal (#719). The other
     # user gets an email and answers on the web dashboard.
     def update_expiry
-      return render_friend_expiry_disabled unless friend_expiry_enabled?
+      return render_friend_expiry_disabled unless Friendships::Features.expiry?(current_user)
 
       friendship = find_unexpired_friendship_or_request
       return if performed?
@@ -49,8 +47,7 @@ module Api
         return
       end
 
-      expires_at = params[:expires_at].nil? ? nil : parse_expires_at
-      return if performed?
+      expires_at = params[:expires_at].nil? ? nil : Friendships::Request.expiry_for(current_user, params[:expires_at])
 
       change = friendship.change_expiry!(to: expires_at, by: current_user)
       render json: FriendshipSerializer.new(friendship, current_user).as_json.merge(expiry_change: change.to_s),
@@ -59,13 +56,8 @@ module Api
 
     def destroy
       friend_user = find_by_any_id!(User, params[:friend_id])
-
-      friendship = Friendship.accepted_between(current_user, friend_user)
-
-      if friendship.nil?
-        render_error "Friendship not found", status: :not_found
-        return
-      end
+      friendship  = Friendship.accepted_between(current_user, friend_user)
+      return render_error("Friendship not found", status: :not_found) if friendship.nil?
 
       authorize friendship, :destroy?
       friendship.destroy!

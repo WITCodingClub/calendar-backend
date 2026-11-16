@@ -37,7 +37,9 @@ module McpTools
     def perform(friend_id:, start_date:, end_date:)
       friendship = find_friendship(friend_id)
       authorize friendship, :view_availability?
-      ensure_readable!(friendship)
+      unless Friendships::Features.busy_times_readable?(friendship, user)
+        raise ToolError, "Busy times for this friend are not available yet."
+      end
 
       from, to = date_range(start_date, end_date)
       friend   = friendship.friend_for(user)
@@ -52,15 +54,6 @@ module McpTools
       friend = User.find_by_public_id(friend_id)
       friendship = friend && Friendship.accepted_between(user, friend)
       friendship || raise(ToolError, "You are not friends with #{friend_id}. Call list_friends for the ids.")
-    end
-
-    # While the availability-only flag is off, busy times are open only for a
-    # friend who shares availability only (Api::FriendLookup#readable_without_flag?).
-    def ensure_readable!(friendship)
-      return if Flipper.enabled?(FeatureFlags::FRIENDS_AVAILABILITY_ONLY, user)
-      return unless friendship.full_schedule_visible_to?(user)
-
-      raise ToolError, "Busy times for this friend are not available yet."
     end
   end
 end
