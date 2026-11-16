@@ -31,7 +31,7 @@ RSpec.describe McpTools::MyDegreeProgress, :degree_planning do
 
     result = call.structured_content
 
-    expect(result[:programs].first).to include(program: "widget-design-bs", counts: { "done" => 0, "in_progress" => 0, "open" => 1 })
+    expect(result[:programs].first).to include(program: "widget-design-bs", counts: { "done" => 0, "in_progress" => 0, "registered" => 0, "open" => 1 })
     expect(result[:advisory][:data_sources].pluck(:key)).to eq(%w[degree_requirements sections course_details])
   end
 

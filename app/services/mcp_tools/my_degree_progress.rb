@@ -6,12 +6,13 @@ module McpTools
     tool_name "my_degree_progress"
     title "My degree progress"
     description "Compares the requirements of my programs with the courses I took or take in every term I " \
-                "processed in WIT Calendar. Marks each requirement of the plan of study as done, in_progress, " \
-                "or open, and lists the open ones. Each course row has the course title, description, credit " \
+                "processed in WIT Calendar. Marks each requirement of the plan of study as done, in_progress " \
+                "(the current term), registered (a course I registered for in a later term), or open, and " \
+                "lists the open ones. Each course row has the course title, description, credit " \
                 "hours, and the terms it is usually offered. An elective slot has its elective list and the " \
                 "course that fills it. Each plan row has its planned_term (the real term of its plan " \
                 "semester) and behind (open, and its term already started). Each program has a summary: its " \
-                "total credits, school, department, the credits I earned and take now in courses that fill " \
+                "total credits, school, department, the credits I earned, take now, and registered for in courses that fill " \
                 "a row of that program, the credits and codes of my other courses (not_counted), and the " \
                 "co-op semesters. Each program also has its start_term, a timeline of the plan semesters with their " \
                 "real terms (when: past, current, registering, or future; estimated after year 2; co_op), and " \

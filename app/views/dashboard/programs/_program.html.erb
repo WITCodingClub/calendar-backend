@@ -74,6 +74,7 @@
       <% semesters = plan_semesters(program, progress) %>
       <p class="text-xs text-on-surface-variant">
         <%= progress[:counts]["done"] %> done, <%= progress[:counts]["in_progress"] %> in progress,
+        <%= progress[:counts]["registered"] %> registered,
         <%= progress[:counts]["open"] %> to do.
       </p>
       <% if semesters.any? %>

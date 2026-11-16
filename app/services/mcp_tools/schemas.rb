@@ -452,7 +452,7 @@ module McpTools
 
     # AcademicProfiles::DegreeProgress. A plan row has the plan keys, and a
     # program with no plan (a minor) has one elective_list row for each list.
-    PROGRESS_STATUS = { type: "string", enum: %w[done in_progress open] }.freeze
+    PROGRESS_STATUS = { type: "string", enum: %w[done in_progress registered open] }.freeze
     # The catalog details of a course (AcademicProfiles::CourseDetails, #989).
     # Each is null when CatalogCourse does not know the course.
     COURSE_DETAILS = {
@@ -518,7 +518,7 @@ module McpTools
         # #991: english.credits plus the credits of courses is credits.
         english:     object(credits: INTEGER, courses: STRINGS),
         courses:     array(
-          object(code: STRING, title: STRING, credits: nullable(INTEGER), status: { type: "string", enum: %w[done in_progress] },
+          object(code: STRING, title: STRING, credits: nullable(INTEGER), status: { type: "string", enum: %w[done in_progress registered] },
                  category: nullable(STRING))
         ),
         open_slots:  array(
@@ -571,7 +571,7 @@ module McpTools
           needs_review: BOOLEAN,
           plan:         nullable(STRING),
           plans:        STRINGS,
-          counts:      object(done: INTEGER, in_progress: INTEGER, open: INTEGER),
+          counts:       object(done: INTEGER, in_progress: INTEGER, registered: INTEGER, open: INTEGER),
           summary:      object(
             total_credits: nullable(INTEGER),
             school:        nullable(STRING),
@@ -579,7 +579,8 @@ module McpTools
             credits:       object(
               earned:      INTEGER,
               in_progress: INTEGER,
-              not_counted: object(earned: INTEGER, in_progress: INTEGER, courses: STRINGS)
+              registered:  INTEGER,
+              not_counted: object(earned: INTEGER, in_progress: INTEGER, registered: INTEGER, courses: STRINGS)
             ),
             co_ops:        object(required: INTEGER, done: INTEGER)
           ),
@@ -631,7 +632,7 @@ module McpTools
           term_uid: nullable(INTEGER),
           crn:      nullable(INTEGER),
           credits:  nullable(INTEGER),
-          status:   { type: "string", enum: %w[done in_progress not_passed] },
+          status:   { type: "string", enum: %w[done in_progress registered not_passed] },
           outcome:  { type: %w[string null], enum: [ *CourseOutcome::OUTCOMES.values, nil ] },
           transfer: BOOLEAN,
           source:   { type: %w[string null], enum: [ *TransferCredit::SOURCES.values, nil ] }
@@ -694,7 +695,9 @@ module McpTools
             start_term: nullable(STRING),
             semester:   nullable(object(year: INTEGER, season: STRING)),
             planned:    array(NEXT_TERM_ROW),
-            behind:     array(NEXT_TERM_ROW)
+            behind:     array(NEXT_TERM_ROW),
+            # The courses of the term the student registered for (#1019).
+            registered: array(object(code: STRING, title: nullable(STRING), crns: INTEGERS))
           )
         ),
         assumptions: STRINGS

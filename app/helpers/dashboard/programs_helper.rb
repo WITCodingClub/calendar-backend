@@ -7,6 +7,7 @@ module Dashboard
     PROGRESS_BADGES = {
       "done"        => [ "Done", "m3-badge-primary" ],
       "in_progress" => [ "In progress", "m3-badge-tertiary" ],
+      "registered"  => [ "Registered", "m3-badge-tertiary" ],
       "open"        => [ "To do", "m3-badge-secondary" ]
     }.freeze
     KIND_GROUPS = {

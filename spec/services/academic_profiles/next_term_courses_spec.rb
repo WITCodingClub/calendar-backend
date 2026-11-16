@@ -182,6 +182,61 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     expect(program[:planned].map { |row| row[:courses].first[:prerequisites] }).to eq(%w[not_met unknown])
   end
 
+  describe "registered courses (#1019)" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    let(:spring) { create(:term, uid: spring_uid, year: 2027, season: :spring, end_date: Date.new(2027, 5, 1)) }
+
+    around { |example| travel_to(today) { example.run } }
+
+    before { current_term }
+
+    it "counts a registered course for a prerequisite in a term after its term, not in its own term" do
+      item(subject_code: "WDGT", course_number: 2100)
+      item(year: 3, season: "fall", subject_code: "WDGT", course_number: 3000)
+      requires("WDGT", 2100, course_leaf("WDGT", 1500))
+      requires("WDGT", 3000, course_leaf("WDGT", 1500))
+      take(spring, "WDGT", 1500)
+
+      expect(progress_status("WDGT 1500")).to eq("registered")
+      expect(program[:planned].first[:courses].first[:prerequisites]).to eq("not_met")
+      fall = result(term_uid: 202810)[:programs].first
+      expect(fall[:planned].first[:courses].first).to include(code: "WDGT 3000", prerequisites: "met", missing: [])
+    end
+
+    it "leaves a registered row out of planned and lists it in registered with its CRNs" do
+      item(subject_code: "WDGT", course_number: 2100)
+      item(subject_code: "WDGT", course_number: 2200)
+      item(year: 3, season: "fall", subject_code: "WDGT", course_number: 3000)
+      lecture = create(:course, term: spring, subject: "Widget Design (WDGT)", course_number: 2100, crn: 20_412, title: "Widget Studio")
+      lab = create(:course, term: spring, subject: "WDGT", course_number: 2100, crn: 20_411, title: "Widget Studio Lab")
+      [ lecture, lab ].each { |course| create(:enrollment, user: user, course: course) }
+      take(spring, "WDGT", 9900)
+
+      expect(program[:planned].pluck(:code)).to eq([ "WDGT 2200" ])
+      expect(program[:registered]).to eq([ { code: "WDGT 2100", title: progress_title("WDGT 2100"), crns: [ 20_411, 20_412 ] } ])
+      expect(result(term_uid: 202810)[:programs].first[:registered]).to eq([])
+    end
+
+    it "lists a registered retake of a course passed with a D, and no course of the current term" do
+      item(year: 1, season: "fall", subject_code: "WDGT", course_number: 1000)
+      item(year: 2, season: "fall", subject_code: "WDGT", course_number: 2000)
+      take(past_term, "WDGT", 1000, outcome: "passed_below_c")
+      take(spring, "WDGT", 1000)
+      take(current_term, "WDGT", 2000)
+
+      expect(program[:registered].pluck(:code)).to eq([ "WDGT 1000" ])
+      expect(result(term_uid: 202710)[:programs].first[:registered]).to eq([])
+    end
+
+    def progress_course(code)
+      AcademicProfiles::DegreeProgress.new(user, course_details: false, today: today).call[:courses].find { |course| course[:code] == code }
+    end
+
+    def progress_status(code) = progress_course(code)[:status]
+    def progress_title(code) = progress_course(code)[:title]
+  end
+
   it "keeps an and inside an or as one missing option" do
     item(subject_code: "WDGT", course_number: 2100)
     requires("WDGT", 2100, { "type" => "or", "operands" => [
@@ -263,7 +318,7 @@ RSpec.describe AcademicProfiles::NextTermCourses do
       hash = result
       expect(hash).not_to have_key(:assumed)
       expect(first_course(hash)).to include(prerequisites: "not_met", missing: [ "WDGT 1000" ], missing_in_plan: [])
-      expect(hash[:assumptions].size).to eq(3)
+      expect(hash[:assumptions].size).to eq(4)
     end
 
     it "counts an assumed course as passed with a C or better, and lists it" do
