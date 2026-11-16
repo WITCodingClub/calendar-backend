@@ -6,6 +6,9 @@ module Catalog
   # use this object. docs/degree-requirements.md describes the data.
   class ProgramQuery
     class FilterError < ::Catalog::FilterError; end
+    # No imported catalog year matches. The message lists the years there
+    # are.
+    class UnknownCatalogYearError < FilterError; end
 
     YEAR_SPAN = /\A(\d{4})(?:\s*[-\u2013\u2014]\s*(\d{2}|\d{4}))?\z/
 
@@ -31,7 +34,6 @@ module Catalog
       ending == start + 1 ? start : nil
     end
 
-    # The imported catalog years, newest first.
     def catalog_years
       CatalogYear.where(status: "imported").order(start_year: :desc)
     end
@@ -48,6 +50,18 @@ module Catalog
       end
 
       catalog_years.find_by(start_year: start_year)
+    end
+
+    # catalog_year, or UnknownCatalogYearError when no imported year matches.
+    def catalog_year!(value)
+      year = catalog_year(value)
+      return year if year
+
+      names = catalog_years.map(&:name)
+      raise UnknownCatalogYearError, "WIT Calendar has no degree program data yet." if names.empty?
+
+      raise UnknownCatalogYearError, "No #{value.presence || 'imported'} catalog. WIT Calendar has these catalog years: " \
+                                     "#{names.join(', ')}."
     end
 
     # The programs that the last import of the year saw. A program that left

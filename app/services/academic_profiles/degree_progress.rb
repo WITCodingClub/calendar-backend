@@ -161,8 +161,7 @@ module AcademicProfiles
     end
 
     def find_argument_set(query)
-      year = @catalog_year ? query.catalog_year(@catalog_year) : own_catalog_year(query)
-      raise Catalog::FilterError, "No #{@catalog_year || 'imported'} catalog in WIT Calendar" if year.nil?
+      year = @catalog_year ? query.catalog_year!(@catalog_year) : own_catalog_year(query)
 
       query.find(@program, catalog_year: year) ||
         raise(Catalog::FilterError, "No program #{@program} in the #{year.name} catalog. Call list_programs to find the slug.")
@@ -172,7 +171,7 @@ module AcademicProfiles
     # newest catalog year.
     def own_catalog_year(query)
       own = own_program&.catalog_year
-      own&.imported? ? own : query.catalog_year(nil)
+      own&.imported? ? own : query.catalog_year!(nil)
     end
 
     # The student's active row of the program argument, or nil.

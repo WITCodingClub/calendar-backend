@@ -72,7 +72,7 @@ RSpec.describe "Catalog programs API", type: :request do
       get "/api/v1/catalog/programs", params: { catalog_year: 2030 }
 
       expect(response).to have_http_status(:not_found)
-      expect(json["error"]).to eq("No catalog year 2030")
+      expect(json["error"]).to start_with("No 2030 catalog. WIT Calendar has these catalog years:")
     end
   end
 
