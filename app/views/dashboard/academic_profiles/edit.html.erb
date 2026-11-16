@@ -19,7 +19,7 @@
       </div>
       <div>
         <%= f.label :admit_term, "Admit term", class: "m3-label" %>
-        <%= f.text_field :admit_term, value: AcademicProfiles::TermCode.label(@profile.admit_term_uid),
+        <%= f.text_field :admit_term, value: TermCode.label(@profile.admit_term_uid),
             placeholder: "Fall 2025", class: "m3-input w-full" %>
       </div>
       <div>

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module AcademicProfiles
-  # A profile or outcome payload the backend cannot store. The controller
+  # A profile payload the backend cannot store. The controller
   # renders it as a 422 with the code.
   class InvalidProfileError < StandardError
     attr_reader :code

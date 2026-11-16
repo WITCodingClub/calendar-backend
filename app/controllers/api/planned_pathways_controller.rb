@@ -9,7 +9,6 @@ module Api
     authenticate_with_token
     include DegreePlanningFlag
 
-    # POST /api/user/planned_pathways
     # Params: pathway (a pathway slug), catalog_year (optional, the newest
     # catalog year when blank).
     def create
@@ -30,7 +29,6 @@ module Api
       render_error e.message, status: :unprocessable_content, code: e.code
     end
 
-    # DELETE /api/user/planned_pathways/:id
     # id is the pathway slug.
     def destroy
       _pathway, programs = AcademicProfiles::PlannedPrograms.new(current_user).find_pathway(params[:id])

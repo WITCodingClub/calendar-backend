@@ -22,21 +22,20 @@ module AcademicProfiles
     ESTIMATE = "estimate"
 
     # start_term_uid and current_term_uid: Banner codes. prerequisites:
-    # answers prerequisites([subject, number]) (CourseDetails). aliases:
-    # each pair with its old and new pairs. taken: the [subject, number]
-    # keys of the courses the student did or takes.
-    def initialize(start_term_uid, current_term_uid:, prerequisites:, aliases: {}, taken: [])
+    # answers prerequisites([subject, number]) (CourseDetails). taken: the
+    # [subject, number] keys of the courses the student did or takes.
+    def initialize(start_term_uid, current_term_uid:, prerequisites:, course_keys: CourseKeys.new, taken: [])
       @start = start_term_uid
       @current = current_term_uid
       @prerequisites = prerequisites
-      @aliases = aliases
+      @course_keys = course_keys
       @taken = taken
     end
 
     # The program entry of PlanTerms with the estimate.
     def call(entry)
       rows = entry[:requirements]
-      places = Placement.new(rows, current_term_uid: @current, prerequisites: @prerequisites, aliases: @aliases,
+      places = Placement.new(rows, current_term_uid: @current, prerequisites: @prerequisites, course_keys: @course_keys,
                                      taken: @taken).call
       rows = rows.each_with_index.map do |row, index|
         uid, moved = places.fetch(index)
@@ -57,12 +56,12 @@ module AcademicProfiles
     def timeline(rows)
       rows.select { |row| row[:expected_term_uid] }.group_by { |row| row[:expected_term_uid] }.sort.map do |uid, term_rows|
         basis = basis_of(uid, term_rows, rows)
-        year = year_of(uid)
+        year = TermCode.plan_year(@start, uid)
         {
           term:      TermCode.label(uid),
           uid:       uid,
           year:      year,
-          season:    Rules.season(uid),
+          season:    TermCode.season(uid),
           when:      PlanTerms.time_of(uid, @current),
           estimated: estimated?(basis, year),
           co_op:     term_rows.all? { |row| CoOpRows.co_op?(row) },
@@ -88,16 +87,6 @@ module AcademicProfiles
       return true if basis == ESTIMATE || year.nil?
 
       year > PlanTerms::EXACT_YEARS
-    end
-
-    # The plan year of a term, the inverse of ProgramTimeline.term_uid, so a
-    # summer term after year 1 is in year 1. nil for a term before year 1,
-    # such as a course taken before the program started.
-    def year_of(uid)
-      first_year = @start / 100
-      first_year += 1 if Rules.summer?(@start)
-      year = (uid / 100) - first_year + 1
-      year.positive? ? year : nil
     end
   end
 end

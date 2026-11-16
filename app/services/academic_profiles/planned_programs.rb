@@ -184,7 +184,6 @@ module AcademicProfiles
       "No pathway #{key}. Pathways: #{slugs.join(', ')}"
     end
 
-    # The DegreeProgram ids of the user's active and planned rows.
     def held_program_ids
       @held_program_ids ||= user.student_programs.where(status: %w[active planned]).where.not(degree_program_id: nil)
                                 .pluck(:degree_program_id).to_set

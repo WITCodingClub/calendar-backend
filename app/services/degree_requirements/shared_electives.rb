@@ -55,10 +55,30 @@ module DegreeRequirements
 
     # "HSS 03 Elective (PSYC4552)": a directed HSS elective names its course.
     DIRECTED = /\A(?:hss|hhs)\b[^()]*\(\s*([a-z]{4})\s*(\d{3,4})\s*\)\z/i
+    # The list name of a directed HSS elective, such as "HSS Elective
+    # (PSYC4552)".
+    DIRECTED_NAME = "HSS Elective ("
+    # The kind of each shared list, by its name. Degree progress decides how
+    # a slot fills from its kind, not from its display name.
+    KINDS = { HSS.name => :hss, HUMANITIES_RULE.name => :humanities, SOCIAL_SCIENCES_RULE.name => :social_science,
+              ENGLISH.name => :english, CO_OP.name => :co_op, FREE.name => :free }.freeze
+    HSS_KINDS = %i[hss humanities social_science directed_hss].freeze
     # A bare "Elective" is left out: on some pages it means a program elective.
     FREE_LABEL = /\A(?:free|general|open)\s+electives?\z/
 
     def self.call(set) = new(set).call
+
+    # The kind of a list by its name: one of KINDS, :directed_hss, or nil
+    # for a list of the program's own page.
+    def self.kind_of(name)
+      return nil if name.nil?
+
+      KINDS[name] || (:directed_hss if name.start_with?(DIRECTED_NAME))
+    end
+
+    # true for the list of an HSS slot: HSS Electives, Humanities Electives,
+    # Social Science Electives, or a directed HSS elective.
+    def self.hss_list?(name) = HSS_KINDS.include?(kind_of(name))
 
     # The rule for a slot label, or nil. Only a label that names the whole
     # requirement matches: "Math or Science Elective" names no rule.
@@ -66,7 +86,7 @@ module DegreeRequirements
       text = label.to_s.downcase.gsub(/[*†]/, "").squish
       if (match = DIRECTED.match(text))
         code = [ match[1].upcase, match[2].to_i ]
-        return Rule.new(name: "HSS Elective (#{code.join})", heading: label.to_s.squish,
+        return Rule.new(name: "#{DIRECTED_NAME}#{code.join})", heading: label.to_s.squish,
                         notes: "A directed HSS elective (#{HSS_URL})", subject_codes: [], courses: [ code ], any_course: false)
       end
 

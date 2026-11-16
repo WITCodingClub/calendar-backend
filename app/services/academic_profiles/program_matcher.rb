@@ -68,10 +68,6 @@ module AcademicProfiles
       end
     end
 
-    # A catalog year starts in the fall, so the code 202620 (Spring 2026) is in
-    # 2025-2026.
-    def start_year(program)
-      program.catalog_term_uid && ((program.catalog_term_uid / 100) - 1)
-    end
+    def start_year(program) = TermCode.catalog_start_year(program.catalog_term_uid)
   end
 end

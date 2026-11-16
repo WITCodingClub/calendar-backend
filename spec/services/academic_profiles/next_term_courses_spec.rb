@@ -151,7 +151,7 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     item(subject_code: "WDGT", course_number: 2200)
     requires("WDGT", 2100, course_leaf("WDGT", 1000, min_grade: "C"))
     requires("WDGT", 2200, course_leaf("WDGT", 1050))
-    create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 105, to_subject_code: "WDGT", to_course_number: 1050)
+    create(:course_code_alias, :reviewed, from_subject_code: "WDGT", from_course_number: 105, to_subject_code: "WDGT", to_course_number: 1050)
     take(past_term, "WDGT", 1000, outcome: "passed_below_c")
     take(past_term, "WDGT", 105)
 
@@ -249,11 +249,20 @@ RSpec.describe AcademicProfiles::NextTermCourses do
 
   it "finds the sections and catalog details of an old plan code through its alias" do
     item(subject_code: "WDGT", course_number: 210)
-    create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 210, to_subject_code: "WDGT", to_course_number: 2100)
+    create(:course_code_alias, :reviewed, from_subject_code: "WDGT", from_course_number: 210, to_subject_code: "WDGT", to_course_number: 2100)
     create(:catalog_course, subject_code: "WDGT", course_number: 2100, title: "Widget Studio")
     create(:course, term: create(:term, uid: spring_uid, year: 2027, season: :spring), subject: "WDGT", course_number: 2100)
 
     expect(program[:planned].first[:courses].first).to include(code: "WDGT 210", title: "Widget Studio", offered: true)
+  end
+
+  it "does not use an alias that no person checked, as DegreeProgress does not" do
+    item(subject_code: "WDGT", course_number: 2200)
+    requires("WDGT", 2200, course_leaf("WDGT", 1050))
+    create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 105, to_subject_code: "WDGT", to_course_number: 1050)
+    take(past_term, "WDGT", 105)
+
+    expect(program[:planned].first[:courses].first).to include(prerequisites: "not_met", missing: [ "WDGT 1050" ])
   end
 
   it "does not list a row as behind before its term starts" do
@@ -336,7 +345,7 @@ RSpec.describe AcademicProfiles::NextTermCourses do
 
     it "does not list a course the student did or takes, also through an alias" do
       item(subject_code: "WDGT", course_number: 2100)
-      create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 105, to_subject_code: "WDGT", to_course_number: 1050)
+      create(:course_code_alias, :reviewed, from_subject_code: "WDGT", from_course_number: 105, to_subject_code: "WDGT", to_course_number: 1050)
       take(past_term, "WDGT", 105)
       take(current_term, "WDGT", 1000)
 
@@ -416,7 +425,7 @@ RSpec.describe AcademicProfiles::NextTermCourses do
     it "finds a missing course in a row through an alias" do
       item(subject_code: "WDGT", course_number: 2100)
       item(subject_code: "WDGT", course_number: 128)
-      create(:course_code_alias, from_subject_code: "WDGT", from_course_number: 128, to_subject_code: "WDGT", to_course_number: 1280)
+      create(:course_code_alias, :reviewed, from_subject_code: "WDGT", from_course_number: 128, to_subject_code: "WDGT", to_course_number: 1280)
       requires("WDGT", 2100, course_leaf("WDGT", 1280))
 
       expect(program[:planned].first[:courses].first[:missing_in_plan]).to eq([ "WDGT 1280" ])
@@ -463,6 +472,20 @@ RSpec.describe AcademicProfiles::NextTermCourses do
       # The course row takes WDGT 2100, so the choice does not list it.
       expect(codes(choice)).to eq([ "WDGT 2150" ])
       expect(course_row).not_to have_key(:candidates)
+    end
+
+    it "gives a candidate the credits of its catalog row before the credits of its sections" do
+      group = create(:elective_group, requirement_set: set, name: "Widget Electives")
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3100)
+      create(:elective_group_course, elective_group: group, subject_code: "WDGT", course_number: 3300)
+      item(:placeholder, label: "Widget Elective", elective_group: group)
+      create(:catalog_course, subject_code: "WDGT", course_number: 3100, credit_hours: 4)
+      offer("WDGT", 3100, credit_hours: 3)
+      offer("WDGT", 3300, credit_hours: 2)
+
+      candidates = with_candidates[:programs].first[:planned].first[:candidates]
+
+      expect(candidates.pluck(:code, :credits)).to contain_exactly([ "WDGT 3100", 4 ], [ "WDGT 3300", 2 ])
     end
 
     it "takes the courses and subjects of the elective list, with the catalog details, prerequisites, and seats" do
@@ -662,15 +685,6 @@ RSpec.describe AcademicProfiles::NextTermCourses do
 
       expect(with_candidates[:programs].first[:planned].count { |row| row[:candidates].any? }).to eq(7)
       expect(count.call).to eq(one)
-    end
-  end
-
-  describe ".default_term_uid" do
-    it "is the spring after a fall term, and the fall after a spring or summer term" do
-      expect(described_class.default_term_uid(202710)).to eq(202720)
-      expect(described_class.default_term_uid(202720)).to eq(202810)
-      expect(described_class.default_term_uid(202730)).to eq(202810)
-      expect(described_class.default_term_uid(nil)).to be_nil
     end
   end
 end

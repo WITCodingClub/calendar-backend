@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/user/next_term_courses (#449).
+  # The tool of GET /api/user/next_term_courses (#449).
   class MyNextTermCourses < BaseTool
     tool_name "my_next_term_courses"
     title "My courses for next term"
@@ -50,16 +50,9 @@ module McpTools
     def perform(term: nil, assume: nil, assume_plans: false, include_candidates: false)
       authorize user, :show?
 
-      term_uid = nil
-      if term.present?
-        term_uid = AcademicProfiles::TermCode.parse(term)
-        raise ToolError, "term must be a Banner term code or a label such as Spring 2027." if term_uid.nil?
-      end
-
-      assume = AcademicProfiles::AssumedCourses.parse(assume)
-      AcademicProfiles::NextTermCourses.new(user, term_uid: term_uid, assume: assume, assume_plans: assume_plans == true,
-                                                  include_candidates: include_candidates == true).call
-    rescue AcademicProfiles::AssumedCourses::InvalidCodesError, AcademicProfiles::DegreeProgress::NoProgramError => e
+      AcademicProfiles::NextTermRequest.new(term: term, assume: assume, assume_plans: assume_plans == true,
+                                            include_candidates: include_candidates == true).call(user)
+    rescue AcademicProfiles::PlanningError => e
       raise ToolError, e.message
     end
   end

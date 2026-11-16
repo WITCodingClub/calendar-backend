@@ -202,7 +202,7 @@ RSpec.describe AcademicProfiles::PlanEstimate do
     entry = AcademicProfiles::PlanTerms.new(start, current_term_uid: current).call({ requirements: rows })
     aliases = { [ "WDGT", 1000 ] => [ [ "WDGT", 1100 ] ], [ "WDGT", 1100 ] => [ [ "WDGT", 1000 ] ] }
 
-    result = described_class.new(start, current_term_uid: current, prerequisites: prerequisites, aliases: aliases).call(entry)
+    result = described_class.new(start, current_term_uid: current, prerequisites: prerequisites, course_keys: AcademicProfiles::CourseKeys.new(aliases)).call(entry)
 
     expect(placed(result)["WDGT 2200"]).to eq([ "Fall 2027", "prerequisite" ])
   end

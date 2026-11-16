@@ -25,7 +25,7 @@ module CourseOutcomes
       super()
     end
 
-    # Returns one Result per term. Raises AcademicProfiles::InvalidProfileError
+    # Returns one Result per term. Raises InvalidOutcomesError
     # before any write when an entry is not valid.
     def call
       terms = normalize
@@ -47,7 +47,7 @@ module CourseOutcomes
         raise invalid("terms[#{index}] must be an object") unless entry.is_a?(Hash)
 
         entry = entry.with_indifferent_access
-        uid = AcademicProfiles::TermCode.parse(entry[:term])
+        uid = TermCode.parse(entry[:term])
         unless uid
           raise invalid("terms[#{index}].term must be a term code or a term such as \"Fall 2025\"", code: "invalid_term")
         end
@@ -95,13 +95,12 @@ module CourseOutcomes
       Result.new(term: uid, updated: enrolled.size, unknown_crns: unknown.map(&:to_s))
     end
 
-    # The CRNs of the term that the user is enrolled in.
     def enrolled_crns(term, crns)
       Course.where(term: term, crn: crns).where(id: user.enrollments.select(:course_id)).pluck(:crn)
     end
 
     def invalid(message, code: "invalid_outcome")
-      AcademicProfiles::InvalidProfileError.new(message, code: code)
+      InvalidOutcomesError.new(message, code: code)
     end
   end
 end

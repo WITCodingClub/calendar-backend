@@ -7,7 +7,6 @@ module Api
     authenticate_with_token
     include DegreePlanningFlag
 
-    # GET /api/user/programs
     def index
       authorize current_user, :show?
 

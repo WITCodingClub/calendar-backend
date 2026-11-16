@@ -43,21 +43,4 @@ RSpec.describe CatalogYear do
   it "names the year span" do
     expect(build(:catalog_year, start_year: 2024).name).to eq("2024-2025")
   end
-
-  describe ".for_term" do
-    let!(:catalog_year) { create(:catalog_year, start_year: 2026) }
-
-    it "puts a fall term in the catalog year that starts that fall" do
-      expect(described_class.for_term(build(:term, year: 2026, season: :fall))).to eq(catalog_year)
-    end
-
-    it "puts spring and summer terms in the catalog year that started the fall before" do
-      expect(described_class.for_term(build(:term, year: 2027, season: :spring))).to eq(catalog_year)
-      expect(described_class.for_term(build(:term, year: 2027, season: :summer))).to eq(catalog_year)
-    end
-
-    it "returns nil when the catalog year is not stored" do
-      expect(described_class.for_term(build(:term, year: 2030, season: :fall))).to be_nil
-    end
-  end
 end

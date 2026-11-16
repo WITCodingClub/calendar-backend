@@ -21,7 +21,7 @@ class StudentProgramsSerializer
     {
       level:                profile&.level,
       class_standing:       profile&.class_standing,
-      admit_term:           AcademicProfiles::TermCode.label(profile&.admit_term_uid),
+      admit_term:           TermCode.label(profile&.admit_term_uid),
       leopardweb_synced_at: profile&.leopardweb_synced_at&.iso8601,
       programs:             json(programs["active"]),
       planned_programs:     json(programs["planned"]),

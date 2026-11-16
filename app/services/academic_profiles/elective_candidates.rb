@@ -14,7 +14,7 @@ module AcademicProfiles
   # - A slot whose HSS category is open (hss_category): the courses in that
   #   category (HssMatcher), as DegreeProgress fills the slot.
   # - A slot whose elective list names courses or subjects: the courses that
-  #   DegreeProgress#take_for accepts for the list.
+  #   its ElectiveListRule takes, as DegreeProgress fills the slot.
   # - A slot with no list, with a list that names no course, or a free
   #   elective (any course): the courses of the term elective lists under a
   #   heading that names the slot, such as "Cryptography Elective". The
@@ -37,7 +37,7 @@ module AcademicProfiles
     LIMIT = 25
     PREREQUISITE_RANK = { "met" => 0, "unknown" => 1, nil => 1, "not_met" => 2 }.freeze
     SEATS_RANK = { true => 0, nil => 1, false => 2 }.freeze
-    COUNTED = DegreeProgress::STATUSES
+    COUNTED = CourseHistory::STATUSES
     # The school code of a term elective list (TermElectives::SCHOOLS) for
     # the school of a requirement set. A list of the HSS school, or with no
     # school, is for every program. A set of a school with no code (an old
@@ -58,7 +58,7 @@ module AcademicProfiles
     # and nil when no section has seat data.
     Offered = Struct.new(:subject_code, :course_number, :title, :credit_hours, :open_seats) do
       def key = [ subject_code, course_number ]
-      def code = "#{subject_code} #{course_number}"
+      def code = CourseKeys.format(key)
     end
 
     # term: the Term, or nil. entries: [DegreeProgress program entry, rows]
@@ -81,7 +81,7 @@ module AcademicProfiles
     def for(entry, row)
       pools.fetch(row, []).map { |course| candidate_json(entry, row, course) }
            .sort_by { |json| [ PREREQUISITE_RANK.fetch(json[:prerequisites]), SEATS_RANK.fetch(json[:open_seats]),
-                               CatalogCourse.parse_code(json[:code]) ] }
+                               CourseKeys.parse(json[:code]) ] }
            .first(LIMIT)
     end
 
@@ -108,23 +108,21 @@ module AcademicProfiles
     # candidates.
     def accepts(entry, row)
       return nil if offered.empty?
-      return keys_test(row[:options].filter_map { |code| CatalogCourse.parse_code(code) }) if row[:kind] == "choice"
+      return keys_test(row[:options].filter_map { |code| CourseKeys.parse(code) }) if row[:kind] == "choice"
       return nil unless row[:kind] == "placeholder"
 
       category = row[:hss_category] && open_category(entry, row)
       return ->(course) { matcher.in_category?(category, course) } if category
 
       group = group_for(entry, row)
-      if group && (group.courses.any? || group.subject_codes.any?)
-        keys = keys_test(group.courses.map { |course| [ course.subject_code, course.course_number ] })
-        return ->(course) { keys.call(course) || group.subject_codes.include?(course.subject_code) }
-      end
+      rule = group && ElectiveListRule.new(group, course_keys)
+      return ->(course) { rule.accepts?(course.key) } if rule&.names_courses?
 
       term_list_test(entry, row, group)
     end
 
     def keys_test(pairs)
-      keys = pairs.flat_map { |pair| equivalents(pair) }.to_set
+      keys = course_keys.expand(pairs).to_set
       ->(course) { keys.include?(course.key) }
     end
 
@@ -141,7 +139,7 @@ module AcademicProfiles
       test = keys_test(keys.map(&:last))
       return test unless group&.any_course
 
-      ->(course) { test.call(course) && course.subject_code != "COOP" && course.course_number >= 1000 }
+      ->(course) { test.call(course) && ElectiveListRule.degree_credit?(course.key) }
     end
 
     # The elective list of a slot. A row names its list by name only, so
@@ -159,11 +157,7 @@ module AcademicProfiles
       end
     end
 
-    # The HSS categories of the major, or the default categories.
-    def categories(entry)
-      set = set_for(entry)
-      set ? HssMatcher.categories(set) : DegreeRequirements::HssNoteParser.default["categories"]
-    end
+    def categories(entry) = HssMatcher.categories(set_for(entry))
 
     def set_for(entry)
       sets[[ entry[:program], entry[:catalog_year].to_i ]]
@@ -185,7 +179,7 @@ module AcademicProfiles
     end
 
     def candidate_json(entry, row, course)
-      catalog = catalog_for(course)
+      catalog = catalog_rows.catalog(course.key)
       {
         code:         course.code,
         title:        catalog&.title || course.title,
@@ -209,25 +203,9 @@ module AcademicProfiles
       categories(entry).find { |category| category["name"] == row[:hss_category] }
     end
 
-    def catalog_for(course)
-      equivalents(course.key).lazy.filter_map { |key| catalog_rows[key] }.first
-    end
-
-    # The catalog rows of every candidate of every row, and of their
-    # aliases, in one query.
+    # The catalog rows of every candidate of every row, in one query.
     def catalog_rows
-      @catalog_rows ||= begin
-        pairs = pools.values.flatten.uniq.flat_map { |course| equivalents(course.key) }.uniq
-        if pairs.empty?
-          {}
-        else
-          pairs.group_by(&:first)
-               .map { |subject, list| CatalogCourse.where(subject_code: subject, course_number: list.map(&:last)) }
-               .reduce(:or)
-               .select(:id, :subject_code, :course_number, :title, :credit_hours, :prerequisites)
-               .index_by { |row| [ row.subject_code, row.course_number ] }
-        end
-      end
+      @catalog_rows ||= CourseDetails.new(pools.values.flatten.uniq.map(&:key), course_keys)
     end
 
     # The courses with an active section in the term, in one grouped query.
@@ -261,29 +239,18 @@ module AcademicProfiles
     # cannot fill a slot again. A course not passed can be taken again. A
     # skipped course (assumed, or a course row of the term) is left out too.
     def taken?(course)
-      equivalents(course.key).any? { |key| taken_keys.include?(key) }
+      course_keys.equivalents(course.key).any? { |key| taken_keys.include?(key) }
     end
 
     def taken_keys
       @taken_keys ||= (@taken.select { |course| COUNTED.include?(course[:status]) }
-                             .filter_map { |course| CatalogCourse.parse_code(course[:code]) } + @skip).to_set
+                             .filter_map { |course| CourseKeys.parse(course[:code]) } + @skip).to_set
     end
 
     def matcher
-      @matcher ||= HssMatcher.new(aliases)
+      @matcher ||= HssMatcher.new(course_keys)
     end
 
-    def equivalents(pair) = [ pair, *aliases.fetch(pair, []) ]
-
-    # The checked aliases, as DegreeProgress reads them, so a candidate is a
-    # course that DegreeProgress counts for the row.
-    def aliases
-      @aliases ||= CourseCodeAlias.reviewed
-                                  .pluck(:from_subject_code, :from_course_number, :to_subject_code, :to_course_number)
-                                  .each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(fs, fn, ts, tn), map|
-        map[[ fs, fn ]] << [ ts, tn ]
-        map[[ ts, tn ]] << [ fs, fn ]
-      end
-    end
+    def course_keys = CourseKeys.current
   end
 end

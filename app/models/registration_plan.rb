@@ -53,7 +53,6 @@ class RegistrationPlan < ApplicationRecord
 
   # Banner term codes sort by date, so the newest term has the largest uid.
   scope :newest_first, -> { order(term_uid: :desc) }
-  scope :before_term, ->(term_uid) { where(term_uid: ...term_uid) }
 
   # Keeps only the keys of a course entry, and stores each CRN as a string
   # without leading zeros.
@@ -72,7 +71,7 @@ class RegistrationPlan < ApplicationRecord
   end
 
   def course_codes
-    Array(courses).pluck("code")
+    Array(courses).filter_map { |course| course["code"] if course.is_a?(Hash) }
   end
 
   def course_count

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module McpTools
-  # GET /api/user/degree_progress (#799).
+  # The tool of GET /api/user/degree_progress (#799).
   class MyDegreeProgress < BaseTool
     tool_name "my_degree_progress"
     title "My degree progress"
@@ -60,11 +60,9 @@ module McpTools
 
     def perform(program: nil, catalog_year: nil, plan: nil)
       authorize user, :show?
-      raise ToolError, "catalog_year needs program." if catalog_year.present? && program.blank?
-      raise ToolError, "plan needs program." if plan.present? && program.blank?
 
-      AcademicProfiles::DegreeProgress.new(user, program: program, catalog_year: catalog_year, plan: plan).call
-    rescue AcademicProfiles::DegreeProgress::NoProgramError, Catalog::FilterError => e
+      AcademicProfiles::DegreeProgressRequest.new(program: program, catalog_year: catalog_year, plan: plan).call(user)
+    rescue AcademicProfiles::PlanningError, Catalog::FilterError => e
       raise ToolError, e.message
     end
   end

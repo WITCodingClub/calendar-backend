@@ -42,7 +42,7 @@ module Admin
         return
       end
 
-      parsed = parse_term_uid(term_uid)
+      parsed = TermCode.year_and_season(term_uid)
       unless parsed
         flash[:alert] = "Invalid term UID format: #{term_uid}"
         redirect_to admin_course_catalog_path
@@ -61,7 +61,7 @@ module Admin
     def build_combined_terms_list
       combined = @api_terms.filter_map do |api_term|
         uid    = api_term[:code].to_i
-        parsed = parse_term_uid(uid)
+        parsed = TermCode.year_and_season(uid)
         next unless parsed && parsed[:year] >= MIN_TERM_YEAR
 
         db_term = @db_terms[uid]
@@ -75,21 +75,6 @@ module Admin
       end
 
       combined.sort_by { |t| -t[:uid] }
-    end
-
-    def parse_term_uid(uid)
-      uid_str = uid.to_s
-      return nil unless uid_str.length == 6
-
-      uid_year    = uid_str[0..3].to_i
-      season_code = uid_str[4..5].to_i
-
-      case season_code
-      when 10 then { year: uid_year - 1, season: :fall }
-      when 20 then { year: uid_year,     season: :spring }
-      when 30 then { year: uid_year,     season: :summer }
-      else nil
-      end
     end
   end
 end

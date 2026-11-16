@@ -71,7 +71,7 @@
     <% elsif progress.nil? %>
       <p class="text-xs text-on-surface-variant">The degree catalog for this catalog year is not imported yet.</p>
     <% else %>
-      <% semesters = plan_semesters(program, progress) %>
+      <% semesters = plan_semesters(progress) %>
       <p class="text-xs text-on-surface-variant">
         <%= progress[:counts]["done"] %> done, <%= progress[:counts]["in_progress"] %> in progress,
         <%= progress[:counts]["registered"] %> registered,

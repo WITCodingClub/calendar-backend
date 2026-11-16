@@ -22,22 +22,15 @@ module Dashboard
 
     def program_role_label(role) = role.to_s.humanize
 
-    # The DegreeProgress result for one serialized program, or nil.
     def program_progress(progress, program)
-      return nil if progress.nil? || program[:program].nil?
-
-      progress[:programs].find do |entry|
-        entry[:program] == program[:program] && entry[:catalog_year] == program[:catalog_year] &&
-          entry[:status] == program[:status]
-      end
+      progress && AcademicProfiles::DegreeProgress.entry_for(progress, program)
     end
 
     # The plan rows of a program, by semester in plan order, each semester
-    # with its real term: [[year, season, term label or nil], rows].
-    def plan_semesters(program, progress_entry)
-      start = AcademicProfiles::TermCode.parse(program[:start_term])
-      AcademicProfiles::ProgramTimeline.semesters(start, progress_entry[:requirements]).map do |semester|
-        [ [ semester.year, semester.season, AcademicProfiles::TermCode.label(semester.uid) ], semester.rows ]
+    # with its planned term (PlanTerms): [[year, season, term label or nil], rows].
+    def plan_semesters(progress_entry)
+      AcademicProfiles::ProgramTimeline.semesters(nil, progress_entry[:requirements]).map do |semester|
+        [ [ semester.year, semester.season, semester.rows.first[:planned_term] ], semester.rows ]
       end
     end
 
@@ -82,14 +75,14 @@ module Dashboard
 
     # The rows of a planned program that are not done: the courses it adds.
     # A row that an active program also has is marked shared, because one
-    # course can count for both. AcademicProfiles::ProgramOverlap holds the
-    # rule, the same as the overlap of GET /api/user/degree_progress.
+    # course can count for both, with the rows that the overlap of
+    # GET /api/user/degree_progress compares (AcademicProfiles::ActiveRows).
     def courses_added(progress, planned_entry)
-      @program_overlaps ||= {}.compare_by_identity
-      overlap = @program_overlaps[progress] ||= AcademicProfiles::ProgramOverlap.new(
-        progress[:programs].select { |entry| entry[:status] == "active" }, aliases: CourseCodeAlias.reviewed_pairs
+      @active_rows ||= {}.compare_by_identity
+      rows = @active_rows[progress] ||= AcademicProfiles::ActiveRows.new(
+        progress[:programs].select { |entry| entry[:status] == "active" }, AcademicProfiles::CourseKeys.current
       )
-      overlap.added_rows(planned_entry)
+      rows.added_rows(planned_entry)
     end
 
     # Options for the "plan a program" select, grouped by kind.

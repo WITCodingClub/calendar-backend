@@ -50,7 +50,7 @@ We do not store letter grades, GPA, or W numbers. The extension converts each le
 
 ## Terms
 
-LeopardWeb shows a term as a label, for example "Fall 2025". `AcademicProfiles::TermCode` converts a label to a Banner term code (Fall 2025 is `202610`). The tables store the code as an integer, not a `terms` row, because a catalog term can be older than the first row in `terms`.
+LeopardWeb shows a term as a label, for example "Fall 2025". `TermCode` (`app/lib/term_code.rb`) converts a label to a Banner term code (Fall 2025 is `202610`), and owns all term code arithmetic: the next term, the catalog year of a term, and the term of a plan semester. The tables store the code as an integer, not a `terms` row, because a catalog term can be older than the first row in `terms`.
 
 ## Profile sync
 
@@ -196,7 +196,7 @@ A student builds a schedule for a term in the schedule builder of the extension.
 - `RegistrationPlanPolicy` lets a student see and change only their own plans. A plan of another student answers 404.
 - A plan is deleted with its user, and with its term (foreign keys with `ON DELETE CASCADE`).
 - Two `PUT` requests for the same term at the same time do not fail. When the second one finds the plan of the first one at save time (the uniqueness validation or the unique index), it locks that plan and replaces it.
-- `RegistrationPlan.before_term(term_uid)` and `#course_codes` give the plans of earlier terms and their courses (for #996).
+- `RegistrationPlan#course_codes` gives the course codes of a plan. `AcademicProfiles::AssumedCourses` reads it (#996).
 
 A bad body answers 422 with `{ error, code: "VALIDATION_FAILED" }`. These are the limits:
 

@@ -4,44 +4,26 @@ module AcademicProfiles
   # The course lists of a program with no plan of study, such as a minor, and
   # the overlap of a planned program with the student's active programs
   # (#992). DegreeProgress calls it for each program after PlanTerms, so the
-  # planned terms of the active programs are at hand. The My programs page
-  # uses added_rows for "Courses it adds".
+  # planned terms of the active programs are at hand.
   #
   # A course of an active program is a course row, an option of a choice
-  # row, or the course that fills a row. A code matches through a checked
-  # CourseCodeAlias, as in the rest of DegreeProgress. See
+  # row, or the course that fills a row (ActiveRows). See
   # docs/degree-requirements.md for the rules and a worked example.
   class ProgramOverlap
-    # The credits of a course with no credit hours, and of each course still
-    # to take on a list with a credit minimum.
-    ASSUMED_CREDITS = 3
-
-    # One row of an active program: the course keys it names (with their
-    # aliases) and its planned term.
-    ActiveRow = Struct.new(:keys, :term, :term_uid)
-
-    # "MATH 1750" as [ "MATH", 1750 ], or nil.
-    def self.key(code)
-      subject, number = code.to_s.split(" ", 2)
-      [ subject, number.to_i ] if subject.present? && number.to_s.match?(/\A\d+\z/)
-    end
-
     # active_entries: the DegreeProgress entries of the active programs, with
-    # the fields of PlanTerms. aliases: CourseCodeAlias.reviewed_pairs.
-    # attempts: the best attempt of each course the student took, without
-    # the ones not passed. course_details: the CourseDetails of the response.
-    # slots: the open elective slots of each active entry (MinorFit::Slot,
-    # #998), keyed by the entry. hss_matcher: the HssMatcher of
-    # DegreeProgress, for the HSS slots.
-    def initialize(active_entries, aliases: {}, attempts: [], course_details: CourseDetails.new([]), slots: {},
-                   hss_matcher: nil)
+    # the fields of PlanTerms. attempts: the best attempt of each course the
+    # student took, without the ones not passed. credits: answers of(course)
+    # and of_key(key) (CourseCredits). slots: the open elective slots of each
+    # active entry (MinorFit::Slot, #998), keyed by the entry.
+    def initialize(active_entries, course_keys:, attempts:, course_details:, credits:, slots:, hss_matcher:)
       @active = active_entries
-      @aliases = aliases
+      @active_rows = ActiveRows.new(active_entries, course_keys)
+      @course_keys = course_keys
       @attempts = attempts
       @details = course_details
+      @credits = credits
       @slots = slots
-      @hss_matcher = hss_matcher || HssMatcher.new(aliases)
-      @rows = {}
+      @hss_matcher = hss_matcher
     end
 
     # The program entry with total_credits, school, and lists. A planned
@@ -56,16 +38,6 @@ module AcademicProfiles
       json.merge(overlap: entry[:plan].nil? ? list_overlap(lists, entry[:program]) : plan_overlap(entry))
     end
 
-    # The rows of a planned program that are not done, each with shared:
-    # true when an active program also has the course. For a choice, one
-    # shared option is enough.
-    def added_rows(entry)
-      rows = active_rows(entry[:program])
-      entry[:requirements].reject { |row| row[:status] == "done" }.map do |row|
-        { row: row, shared: row_keys(row).any? { |key| rows.any? { |active| active.keys.include?(key) } } }
-      end
-    end
-
     private
 
     # Each requirement row of a planned program with a plan is one needed
@@ -77,10 +49,10 @@ module AcademicProfiles
     # in the major plan (#998): slots is empty, every extra course is
     # unplaced, and expected_end_with_minor is null.
     def plan_overlap(entry)
-      free = active_rows(entry[:program]).dup
+      free = @active_rows.other_than(entry[:program]).dup
       shared = extra = 0
       entry[:requirements].sort_by.with_index { |row, index| [ row[:kind] == "choice" ? 1 : 0, index ] }.each do |row|
-        keys = row_keys(row)
+        keys = ActiveRows.keys(row)
         match = free.index { |active| keys.any? { |key| active.keys.include?(key) } }
         if match
           free.delete_at(match)
@@ -93,7 +65,7 @@ module AcademicProfiles
     end
 
     def list_overlap(lists, program)
-      free = active_rows(program).dup
+      free = @active_rows.other_than(program).dup
       counts = lists.map { |list| list_counts(list, free) }
       needs = lists.zip(counts).map { |list, (_, extra)| need(list, extra, program) }
       fit = MinorFit.new(other_slots(program), major_end: major_end(program), matcher: @hss_matcher).call(needs)
@@ -108,7 +80,7 @@ module AcademicProfiles
       group = list[:group]
       return MinorFit::Need.new(courses: [], subjects: group.subject_codes, any_course: group.any_course, count: extra) if open_list?(group)
 
-      rows = active_rows(program)
+      rows = @active_rows.other_than(program)
       courses = group.courses.map { |course| [ course.subject_code, course.course_number ] }.reject do |key|
         attempt_for(key) || rows.any? { |active| active.keys.include?(key) }
       end
@@ -137,7 +109,7 @@ module AcademicProfiles
       group, row = list.values_at(:group, :row)
       return [ 0, 0 ] unless row[:checkable]
 
-      counted = row[:courses].filter_map { |code| self.class.key(code) }
+      counted = row[:courses].filter_map { |code| CourseKeys.parse(code) }
       return open_list_counts(group, counted) if open_list?(group)
 
       keys = group.courses.map { |course| [ course.subject_code, course.course_number ] }
@@ -158,7 +130,7 @@ module AcademicProfiles
     # A list with a credit minimum: the taken courses, then the other shared
     # courses, then the open courses of the list in list order, until the
     # credits meet the minimum. When the list runs out, each further course
-    # counts ASSUMED_CREDITS.
+    # counts CourseCredits::DEFAULT.
     def credit_counts(minimum, keys, taken, free)
       shared = take_shared(taken, free) { |found| credits(found) >= minimum }
       credits = credits(taken)
@@ -171,7 +143,7 @@ module AcademicProfiles
         credits += credits_of(key)
         extra += 1
       end
-      extra += ((minimum - credits) / ASSUMED_CREDITS.to_f).ceil if credits < minimum
+      extra += ((minimum - credits) / CourseCredits::DEFAULT.to_f).ceil if credits < minimum
       [ shared.size + more.size, extra ]
     end
 
@@ -182,7 +154,7 @@ module AcademicProfiles
         [ 0, [ group.min_courses - counted.size, 0 ].max ]
       elsif group.min_credits
         rest = group.min_credits - credits(counted)
-        [ 0, rest.positive? ? (rest / ASSUMED_CREDITS.to_f).ceil : 0 ]
+        [ 0, rest.positive? ? (rest / CourseCredits::DEFAULT.to_f).ceil : 0 ]
       else
         [ 0, 0 ]
       end
@@ -233,14 +205,14 @@ module AcademicProfiles
     def list_courses(group, row, fixed)
       return group.courses.map { |course| [ course.subject_code, course.course_number ] } if fixed
 
-      row[:courses].filter_map { |code| self.class.key(code) }
+      row[:courses].filter_map { |code| CourseKeys.parse(code) }
     end
 
     def course_json(key)
       attempt = attempt_for(key)
       details = @details.for(key)
       {
-        code:       key.join(" "),
+        code:       CourseKeys.format(key),
         title:      details[:title] || attempt&.title,
         status:     attempt ? attempt.status : "open",
         term:       attempt&.term&.name,
@@ -250,7 +222,7 @@ module AcademicProfiles
 
     # The earliest planned term of an active row with the course, or nil.
     def major_term(key)
-      @active.flat_map { |entry| active_rows_of(entry) }
+      @active.flat_map { |entry| @active_rows.of(entry) }
              .select { |active| active.keys.include?(key) && active.term }
              .min_by(&:term_uid)&.term
     end
@@ -261,37 +233,13 @@ module AcademicProfiles
       @attempts.find { |course| same?(key, course.key) }
     end
 
-    # A course the student took counts the credits of its section, or 0, as
-    # the requirement rows count it. Any other course counts the credits of
-    # CatalogCourse, or ASSUMED_CREDITS.
+    # A course the student took counts as the requirement rows count it.
+    # Any other course counts the credits of CatalogCourse (CourseCredits).
     def credits_of(key)
       attempt = attempt_for(key)
-      return attempt.credits.to_i if attempt
-
-      @details.for(key)[:credit_hours] || ASSUMED_CREDITS
+      attempt ? @credits.of(attempt) : @credits.of_key(key)
     end
 
-    def same?(key, other) = equivalents(key).include?(other)
-
-    def equivalents(key) = [ key, *@aliases.fetch(key, []) ]
-
-    # The keys a requirement row names: its code and the options of a choice.
-    def row_keys(row)
-      [ row[:code], *row[:options] ].compact.filter_map { |code| self.class.key(code) }
-    end
-
-    # The rows of the active programs, without the program itself: a planned
-    # minor that the student also declared does not overlap with itself.
-    def active_rows(program)
-      @rows[program] ||= @active.reject { |entry| entry[:program] == program }.flat_map { |entry| active_rows_of(entry) }
-    end
-
-    def active_rows_of(entry)
-      @rows_of ||= {}.compare_by_identity
-      @rows_of[entry] ||= entry[:requirements].filter_map do |row|
-        keys = [ *row_keys(row), self.class.key(row[:course]) ].compact.flat_map { |key| equivalents(key) }
-        ActiveRow.new(keys.to_set, row[:planned_term], row[:planned_term_uid]) if keys.any?
-      end
-    end
+    def same?(key, other) = @course_keys.same?(key, other)
   end
 end

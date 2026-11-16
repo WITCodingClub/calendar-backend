@@ -12,7 +12,7 @@ module AcademicProfiles
   # - expected_end: the last semester of the timeline, or nil.
   # - planned_term, planned_term_uid, and behind on each requirement row.
   #
-  # The term of a plan semester comes from ProgramTimeline.term_uid. It keeps
+  # The term of a plan semester comes from TermCode.plan_term. It keeps
   # the order of the plan: a co-op or a summer class can move the real terms.
   class PlanTerms
     PAST = "past"
@@ -43,15 +43,15 @@ module AcademicProfiles
       )
     end
 
-    # past, current, registering, or future. A summer term between the
-    # current term and the registering term is future: the registering term
-    # is the next fall or spring term, as in NextTermCourses. nil without a
-    # current term. PlanEstimate also uses it.
+    # past, current, registering, or future. Students register for the next
+    # fall or spring term, so a summer term between the current term and the
+    # registering term is future. nil without a current term. PlanEstimate
+    # also uses it.
     def self.time_of(uid, current)
       return nil if current.nil?
       return PAST if uid < current
       return CURRENT if uid == current
-      return REGISTERING if uid == NextTermCourses.default_term_uid(current)
+      return REGISTERING if uid == TermCode.next_regular_term(current)
 
       FUTURE
     end
@@ -64,7 +64,7 @@ module AcademicProfiles
         uid:       semester.uid,
         year:      semester.year,
         season:    semester.season,
-        when:      time_of(semester.uid),
+        when:      self.class.time_of(semester.uid, @current),
         estimated: semester.year > EXACT_YEARS,
         co_op:     semester.rows.all? { |row| CoOpRows.co_op?(row) }
       }
@@ -73,7 +73,7 @@ module AcademicProfiles
     # A row with no plan semester (an elective list of a minor) or no start
     # term has no planned term and is never behind.
     def row_terms(row)
-      uid = ProgramTimeline.term_uid(@start, row[:year], row[:season])
+      uid = TermCode.plan_term(@start, row[:year], row[:season])
       { planned_term: TermCode.label(uid), planned_term_uid: uid, behind: behind?(row, uid) }
     end
 
@@ -82,7 +82,5 @@ module AcademicProfiles
     def behind?(row, uid)
       !uid.nil? && !@current.nil? && row[:status] == "open" && uid <= @current
     end
-
-    def time_of(uid) = self.class.time_of(uid, @current)
   end
 end

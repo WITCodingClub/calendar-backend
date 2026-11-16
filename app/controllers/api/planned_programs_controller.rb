@@ -8,7 +8,6 @@ module Api
     authenticate_with_token
     include DegreePlanningFlag
 
-    # POST /api/user/planned_programs
     # Params: program (a slug from GET /api/v1/catalog/programs), catalog_year
     # (optional, the newest catalog year when blank).
     def create
@@ -22,7 +21,6 @@ module Api
       render_error e.message, status: :unprocessable_content, code: e.code
     end
 
-    # DELETE /api/user/planned_programs/:id
     # id is the public id of the planned row, or the slug of its program.
     def destroy
       program = AcademicProfiles::PlannedPrograms.new(current_user).find(params[:id])

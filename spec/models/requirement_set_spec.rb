@@ -76,6 +76,13 @@ RSpec.describe RequirementSet do
     end
   end
 
+  it "finds a plan by name, case and spaces ignored" do
+    plan = create(:program_plan, requirement_set: subject, name: "Three Year Program")
+
+    expect(subject.plan_named(" three year program ")).to eq(plan)
+    expect(subject.plan_named("Ten Year Program")).to be_nil
+  end
+
   it "deletes its plans, their rows, and its elective lists with it" do
     plan = create(:program_plan, requirement_set: subject)
     create(:program_plan_item, program_plan: plan)

@@ -6,7 +6,6 @@ module Api
   class CourseOutcomesController < BaseController
     authenticate_with_token
 
-    # PUT /api/user/course_outcomes
     def update
       authorize current_user, :update?
 
@@ -14,7 +13,7 @@ module Api
       results = CourseOutcomes::Recorder.new(current_user, terms).call
 
       render json: { terms: results.map(&:as_json) }
-    rescue AcademicProfiles::InvalidProfileError => e
+    rescue CourseOutcomes::InvalidOutcomesError => e
       render_error e.message, status: :unprocessable_content, code: e.code
     end
   end

@@ -3,7 +3,7 @@
 require "rails_helper"
 
 RSpec.describe AcademicProfiles::ElectiveListRule do
-  def rule(group, aliases = {}) = described_class.new(group, aliases)
+  def rule(group, aliases = {}) = described_class.new(group, AcademicProfiles::CourseKeys.new(aliases))
 
   it "takes a course on the list, or an old or new code of one" do
     group = create(:elective_group)

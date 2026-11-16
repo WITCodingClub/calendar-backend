@@ -39,7 +39,7 @@ class AcademicProfileSerializer
       level:           profile&.level,
       class_standing:  profile&.class_standing,
       admit_type:      profile&.admit_type,
-      admit_term:      AcademicProfiles::TermCode.label(profile&.admit_term_uid),
+      admit_term:      TermCode.label(profile&.admit_term_uid),
       admit_term_code: profile&.admit_term_uid&.to_s,
       updated_at:      profile&.updated_at&.iso8601,
       programs:        @user.student_programs.active.includes(:catalog_year).order(:id).map { |program| program_json(program) }

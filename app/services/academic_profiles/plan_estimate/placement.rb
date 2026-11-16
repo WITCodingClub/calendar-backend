@@ -7,40 +7,37 @@ module AcademicProfiles
     # each term either one co-op or a load of classes. See
     # docs/degree-requirements.md for the rules and a flow chart.
     class Placement
-      DONE = DegreeProgress::STATUSES
+      DONE = CourseHistory::STATUSES
       # When an open row moved later for more than one reason, moved is the
       # first of these.
       REASONS = %w[co_op prerequisite offered load].freeze
-      # The value that PrerequisiteCheck counts as passed with a C or better.
-      PASSED = [ { outcome: nil } ].freeze
-
       # The courses that count for the prerequisite check of a row in one
-      # term. A course of the plan (waiting) counts when its row is placed
-      # before the term, or always with plan: :passed. A course outside the
-      # plan counts when the student took it, or always with outside:
-      # :passed.
+      # term (PrerequisiteCheck), each as passed with a C or better (no
+      # outcome). A course of the plan (waiting) counts when its row is
+      # placed before the term, or always with plan: :passed. A course
+      # outside the plan counts when the student took it, or always with
+      # outside: :passed.
       Counted = Struct.new(:waiting, :placed_at, :term, :taken, :outside, :plan) do
-        def fetch(key, default)
-          if waiting.include?(key)
-            plan == :passed || (placed_at[key] && placed_at[key] < term) ? PASSED : default
+        def counted(key)
+          passed = if waiting.include?(key)
+            plan == :passed || (placed_at[key] && placed_at[key] < term)
           else
-            outside == :passed || taken.include?(key) ? PASSED : default
+            outside == :passed || taken.include?(key)
           end
+          passed ? [ nil ] : []
         end
       end
 
       # rows: the requirement rows with the fields of PlanTerms.
       # prerequisites: answers prerequisites([subject, number]) with a tree
-      # or nil (CourseDetails). aliases: each pair with its old and new
-      # pairs.
-      # taken: the [subject, number] keys of the courses the student did or
-      # takes.
-      def initialize(rows, current_term_uid:, prerequisites:, aliases:, taken: [])
+      # or nil (CourseDetails). taken: the [subject, number] keys of the
+      # courses the student did or takes.
+      def initialize(rows, current_term_uid:, prerequisites:, course_keys:, taken: [])
         @rows = rows
         @taken = taken.to_set
         @current = current_term_uid
         @prerequisites = prerequisites
-        @aliases = aliases
+        @course_keys = course_keys
         @placed = {}
         @reasons = Hash.new { |hash, index| hash[index] = Set.new }
         @credits = Hash.new(0)
@@ -89,7 +86,7 @@ module AcademicProfiles
             place_classes(uid)
           end
           note_reasons(uid)
-          uid = Rules.next_term(uid)
+          uid = TermCode.next_term(uid)
         end
       end
 
@@ -118,7 +115,9 @@ module AcademicProfiles
       # offered. The term is full when the next row would go over its load,
       # but a term with no row takes one, so the walk moves on.
       def place_classes(uid)
-        return if @co_op_terms.include?(uid) && !Rules.classes_in_co_op_term?
+        # A student cannot usually take classes in a co-op term without
+        # approval, so a co-op term gets no classes.
+        return if @co_op_terms.include?(uid)
 
         limit = [ load(uid), Rules::MAX_TERM_CREDITS ].min
         queue.each do |index|
@@ -257,7 +256,7 @@ module AcademicProfiles
       # A slot or a choice names no single course, so it never waits.
       def blocked?(index, uid)
         row = @rows[index]
-        return false unless row[:kind] == "course" && (pair = CatalogCourse.parse_code(row[:code]))
+        return false unless row[:kind] == "course" && (pair = CourseKeys.parse(row[:code]))
 
         tree = @prerequisites.prerequisites(pair)
         return false if tree.nil?
@@ -268,7 +267,7 @@ module AcademicProfiles
 
       def not_met?(tree, uid, outside, plan)
         counted = Counted.new(waiting, @placed_at, uid, taken_keys, outside, plan)
-        PrerequisiteCheck.new(counted, @aliases).call(tree)[:status] == PrerequisiteCheck::NOT_MET
+        PrerequisiteCheck.new(counted, @course_keys).call(tree)[:status] == PrerequisiteCheck::NOT_MET
       end
 
       # The courses the student did or takes, and the courses of the done
@@ -294,8 +293,7 @@ module AcademicProfiles
       def keys(index)
         row = @rows[index]
         codes = row[:kind] == "choice" ? Array(row[:options]) : [ row[:code] ]
-        codes.filter_map { |code| CatalogCourse.parse_code(code) if code }
-             .flat_map { |pair| [ pair, *@aliases.fetch(pair, []) ] }.uniq
+        @course_keys.expand(codes.filter_map { |code| CourseKeys.parse(code) if code })
       end
 
       def co_op?(index) = CoOpRows.co_op?(@rows[index])
@@ -319,24 +317,24 @@ module AcademicProfiles
 
       # A fall or spring term takes classes. A summer term takes classes only
       # where the plan has a class row in that summer.
-      def class_term?(uid) = !Rules.summer?(uid) || plan_loads.key?(uid)
+      def class_term?(uid) = !TermCode.summer?(uid) || plan_loads.key?(uid)
 
       # A co-op can go in a fall or spring term, or in a summer term where
       # the plan has a semester.
-      def co_op_usable?(uid) = !Rules.summer?(uid) || plan_summers.include?(uid)
+      def co_op_usable?(uid) = !TermCode.summer?(uid) || plan_summers.include?(uid)
 
       def plan_summers
-        @plan_summers ||= plan_rows.map { |index| @rows[index][:planned_term_uid] }.select { |uid| Rules.summer?(uid) }.to_set
+        @plan_summers ||= plan_rows.map { |index| @rows[index][:planned_term_uid] }.select { |uid| TermCode.summer?(uid) }.to_set
       end
 
       def first_term
-        @first_term ||= Rules.next_term(@current)
+        @first_term ||= TermCode.next_term(@current)
       end
 
       def last_term
         @last_term ||= begin
           plan_end = plan_rows.map { |index| @rows[index][:planned_term_uid] }.max || @current
-          Rules::EXTRA_TERMS.times.reduce([ plan_end, @current ].max) { |uid, _| Rules.next_term(uid) }
+          Rules::EXTRA_TERMS.times.reduce([ plan_end, @current ].max) { |uid, _| TermCode.next_term(uid) }
         end
       end
     end
