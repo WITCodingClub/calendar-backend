@@ -27,16 +27,12 @@ module CourseCalendars
       end
     end
 
-    # A batch in which both change trackers read whether a course has an
+    # A batch in which CourseChangeTrackable reads whether a course has an
     # enrollment from flags, a hash of course_id => true/false that the caller
     # loaded for many courses in one query. A course not in flags is checked and
     # added on its first save.
     def self.batch_with_enrollment_flags(flags, &)
-      batch do
-        CourseChangeTrackable.with_enrollment_cache(flags) do
-          MeetingTimeChangeTrackable.with_enrollment_cache(flags, &)
-        end
-      end
+      batch { CourseChangeTrackable.with_enrollment_cache(flags, &) }
     end
 
     # The flags for batch_with_enrollment_flags, in one query.
