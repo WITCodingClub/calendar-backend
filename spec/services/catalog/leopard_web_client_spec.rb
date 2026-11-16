@@ -58,11 +58,11 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
     end
 
     it "sends the term and the crn, which Banner needs to pick a section" do
-      service  = described_class.new(action: :get_enrollment_info, term: 202710,
+      service  = described_class.new(term: 202710,
                                      course_reference_number: 16_160)
       requests = stub_connection(service, body: ENROLLMENT_HTML)
 
-      service.call
+      service.get_enrollment_info
 
       expect(requests.size).to eq(1)
       expect(requests.first[:method]).to eq(:post)
@@ -71,55 +71,45 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
     end
 
     it "returns the enrollment and waitlist numbers" do
-      service = described_class.new(action: :get_enrollment_info, term: 202710,
+      service = described_class.new(term: 202710,
                                     course_reference_number: 16_160)
       stub_connection(service, body: ENROLLMENT_HTML)
 
-      result = service.call
+      result = service.get_enrollment_info
 
       expect(result[:enrollment]).to eq(actual: 15, maximum: 16, seats_available: 1)
       expect(result[:waitlist]).to eq(capacity: 0, actual: 0, seats_available: 0)
     end
 
     it "keeps the negative count of an over-enrolled section, as the importer does" do
-      service = described_class.new(action: :get_enrollment_info, term: 202710,
+      service = described_class.new(term: 202710,
                                     course_reference_number: 16_962)
       stub_connection(service, body: OVER_ENROLLED_HTML)
 
-      result = service.call
+      result = service.get_enrollment_info
 
       expect(result[:enrollment]).to eq(actual: 23, maximum: 15, seats_available: -8)
       expect(result[:waitlist][:seats_available]).to eq(-2)
     end
 
     it "returns nil when the page carries no enrollment section" do
-      service = described_class.new(action: :get_enrollment_info, term: 202710,
+      service = described_class.new(term: 202710,
                                     course_reference_number: 16_160)
       stub_connection(service, body: EMPTY_HTML)
 
-      expect(service.call).to be_nil
+      expect(service.get_enrollment_info).to be_nil
     end
 
     it "refuses to ask without a term" do
-      service = described_class.new(action: :get_enrollment_info, course_reference_number: 16_160)
+      service = described_class.new(course_reference_number: 16_160)
 
-      expect { service.call }.to raise_error(ArgumentError, /term is required/)
+      expect { service.get_enrollment_info }.to raise_error(ArgumentError, /term is required/)
     end
 
     it "refuses to ask without a crn" do
-      service = described_class.new(action: :get_enrollment_info, term: 202710)
+      service = described_class.new(term: 202710)
 
-      expect { service.call }.to raise_error(ArgumentError, /course_reference_number is required/)
-    end
-  end
-
-  describe ".get_enrollment_info" do
-    it "passes the term and the crn through to the instance" do
-      expect(described_class).to receive(:new).with(
-        action: :get_enrollment_info, term: 202710, course_reference_number: 16_160
-      ).and_return(instance_double(described_class, call: nil))
-
-      described_class.get_enrollment_info(term: 202710, course_reference_number: 16_160)
+      expect { service.get_enrollment_info }.to raise_error(ArgumentError, /course_reference_number is required/)
     end
   end
 
@@ -152,7 +142,7 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
     end
 
     def service_with(fmt)
-      service = described_class.new(action: :get_class_details, term: 202710,
+      service = described_class.new(term: 202710,
                                     course_reference_number: 16_004)
       allow(service).to receive(:handle_response).and_return({ title: "Calculus 2A" })
       allow(service).to receive(:get_faculty_meeting_times).and_return(fmt)
@@ -162,7 +152,7 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
     end
 
     it "keeps the instructor Banner reports alongside the meeting times" do
-      details = service_with(fmt_payload).call
+      details = service_with(fmt_payload).get_class_details
 
       expect(details[:faculty]).to eq([
         {
@@ -176,25 +166,25 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
     it "drops an entry with no email, which no faculty record can match" do
       fmt_payload["fmt"].first["faculty"] << { "displayName" => "Staff", "emailAddress" => "" }
 
-      expect(service_with(fmt_payload).call[:faculty].size).to eq(1)
+      expect(service_with(fmt_payload).get_class_details[:faculty].size).to eq(1)
     end
 
     it "lists an instructor once when several meetings share them" do
       fmt_payload["fmt"] << fmt_payload["fmt"].first.deep_dup
 
-      expect(service_with(fmt_payload).call[:faculty].size).to eq(1)
+      expect(service_with(fmt_payload).get_class_details[:faculty].size).to eq(1)
     end
 
     it "defaults primaryIndicator to false when Banner omits it" do
       fmt_payload["fmt"].first["faculty"].first.delete("primaryIndicator")
 
-      expect(service_with(fmt_payload).call[:faculty].first["primaryIndicator"]).to be(false)
+      expect(service_with(fmt_payload).get_class_details[:faculty].first["primaryIndicator"]).to be(false)
     end
   end
 
   describe "#get_class_details requests" do
     let(:service) do
-      described_class.new(action: :get_class_details, term: 202710, course_reference_number: 16_004)
+      described_class.new(term: 202710, course_reference_number: 16_004)
     end
 
     let(:connection) { instance_double(Faraday::Connection, get: nil) }
@@ -220,7 +210,7 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
         wait_for_all.call(:enrollment, { enrollment: { seats_available: 4, maximum: 30 }, waitlist: { capacity: 5, seats_available: 2 } })
       end
 
-      details = service.call
+      details = service.get_class_details
 
       expect(details).to include(title: "Calculus 2A", seats_available: 4, seats_capacity: 30,
                                  waitlist_capacity: 5, waitlist_available: 2)
@@ -230,7 +220,7 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       allow(service).to receive(:get_faculty_meeting_times).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
       allow(service).to receive(:get_enrollment_info).and_return(nil)
 
-      expect { service.call }.to raise_error(Catalog::LeopardWebClient::RequestError, "Banner is down")
+      expect { service.get_class_details }.to raise_error(Catalog::LeopardWebClient::RequestError, "Banner is down")
     end
 
     it "returns nil for a missing section, even when the other requests fail" do
@@ -238,14 +228,14 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       allow(service).to receive(:get_faculty_meeting_times).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
       allow(service).to receive(:get_enrollment_info).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
 
-      expect(service.call).to be_nil
+      expect(service.get_class_details).to be_nil
     end
 
     it "keeps the details when only the enrollment request fails" do
       allow(service).to receive(:get_faculty_meeting_times).and_return(nil)
       allow(service).to receive(:get_enrollment_info).and_raise(Catalog::LeopardWebClient::RequestError, "Banner is down")
 
-      expect(service.call).to eq({ title: "Calculus 2A" })
+      expect(service.get_class_details).to eq({ title: "Calculus 2A" })
     end
   end
 
@@ -310,7 +300,7 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
                                                { status: 200, body: { fmt: [] }.to_json,
                                                  headers: { "Content-Type" => "application/json" } })
 
-      result = described_class.get_faculty_meeting_times(term: 202720, course_reference_number: 20382)
+      result = described_class.new(term: 202720, course_reference_number: 20382).get_faculty_meeting_times
 
       expect(result).to eq("fmt" => [])
       expect(stub).to have_been_requested.twice
@@ -320,7 +310,7 @@ RSpec.describe Catalog::LeopardWebClient, type: :service do
       stub = stub_request(:get, url).with(query: hash_including({}))
       Catalog::BannerThrottle::COOLDOWN_AFTER.times { Catalog::BannerThrottle.record_failure }
 
-      expect { described_class.get_faculty_meeting_times(term: 202720, course_reference_number: 20382) }
+      expect { described_class.new(term: 202720, course_reference_number: 20382).get_faculty_meeting_times }
         .to raise_error(described_class::RequestError)
       expect(stub).not_to have_been_requested
     end

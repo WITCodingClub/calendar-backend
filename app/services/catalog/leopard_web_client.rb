@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Catalog
-  class LeopardWebClient < ApplicationService
+  class LeopardWebClient
     require "faraday"
     require "nokogiri"
 
@@ -18,62 +18,17 @@ module Catalog
     class SessionError < StandardError; end
     class ParseError < StandardError; end
 
-    attr_reader :term, :course_reference_number, :action
+    attr_reader :term, :course_reference_number
 
-    def initialize(action:, term: nil, course_reference_number: nil)
-      @action = action
+    def initialize(term: nil, course_reference_number: nil)
       @term = term
       @course_reference_number = course_reference_number
-      super()
     end
 
-    def call
-      case action
-      when :get_class_details
-        get_class_details
-      when :get_enrollment_info
-        get_enrollment_info
-      when :get_faculty_meeting_times
-        get_faculty_meeting_times
-      when :get_course_catalog
-        get_course_catalog
-      when :get_active_terms
-        get_active_terms
-      when :get_subjects
-        get_subjects
-      when :fetch_linked_sections
-        fetch_linked_sections
-      else
-        raise ArgumentError, "Unknown action: #{action}"
-      end
-    end
-
-    def call!
-      call
-    end
-
+    # The section's details, meeting times, instructors, and seats, or nil
+    # when Banner has no such section.
     def self.get_class_details(term:, course_reference_number:)
-      new(
-        action: :get_class_details,
-        term: term,
-        course_reference_number: course_reference_number
-      ).call
-    end
-
-    def self.get_enrollment_info(term:, course_reference_number:)
-      new(
-        action: :get_enrollment_info,
-        term: term,
-        course_reference_number: course_reference_number
-      ).call
-    end
-
-    def self.get_faculty_meeting_times(term:, course_reference_number:)
-      new(
-        action: :get_faculty_meeting_times,
-        term: term,
-        course_reference_number: course_reference_number
-      ).call
+      new(term: term, course_reference_number: course_reference_number).get_class_details
     end
 
     # Banner's lecture and lab pairs for one section, as option groups: the
@@ -82,18 +37,13 @@ module Catalog
     # { crn: Integer, credit_hours: Integer or nil }; Banner gives a lab 0
     # credit hours here.
     def self.fetch_linked_sections(term:, course_reference_number:)
-      new(
-        action: :fetch_linked_sections,
-        term: term,
-        course_reference_number: course_reference_number
-      ).call
+      new(term: term, course_reference_number: course_reference_number).fetch_linked_sections
     end
 
+    # Every section of the term from the class search, as { success:, courses: }.
+    # A failed search is reported and answers success: false.
     def self.get_course_catalog(term:)
-      new(
-        action: :get_course_catalog,
-        term: term
-      ).call
+      new(term: term).get_course_catalog
     end
 
     # The pages Banner shows for a section's course: the description, the
@@ -119,14 +69,13 @@ module Catalog
 
     # @return [Hash{Symbol => String, nil}] the HTML of each page in COURSE_DETAIL_PAGES
     def self.get_course_details(term:, course_reference_number:)
-      new(action: :get_course_details, term: term, course_reference_number: course_reference_number).course_details
+      new(term: term, course_reference_number: course_reference_number).course_details
     end
 
     # The requests go one after another, not at once, so a sync of every
     # course in a term stays gentle on Banner.
     def course_details
-      raise ArgumentError, "term is required" unless term
-      raise ArgumentError, "course_reference_number is required" unless course_reference_number
+      require_section!
 
       COURSE_DETAIL_PAGES.to_h do |page, path|
         response = connection.get(path, { term: term, courseReferenceNumber: course_reference_number })
@@ -147,7 +96,7 @@ module Catalog
       cached = Rails.cache.read(ACTIVE_TERMS_CACHE_KEY)
       return cached if cached
 
-      result = new(action: :get_active_terms).call
+      result = new.get_active_terms
       Rails.cache.write(ACTIVE_TERMS_CACHE_KEY, result, expires_in: 10.minutes) if result[:success]
       result
     end
@@ -156,14 +105,11 @@ module Catalog
     # end with the code, "Computer Science (COMP)", and some do not:
     # "Climate Resilience" is CRES (Catalog::SubjectLabels).
     def self.get_subjects(term:)
-      new(action: :get_subjects, term: term).call
+      new(term: term).get_subjects
     end
 
-    private
-
     def fetch_linked_sections
-      raise ArgumentError, "term is required" unless term
-      raise ArgumentError, "course_reference_number is required" unless course_reference_number
+      require_section!
 
       response = connection.get("fetchLinkedSections", { term: term, courseReferenceNumber: course_reference_number })
       data = handle_response(response, :json)
@@ -181,8 +127,7 @@ module Catalog
     end
 
     def get_class_details
-      raise ArgumentError, "term is required" unless term
-      raise ArgumentError, "course_reference_number is required" unless course_reference_number
+      require_section!
 
       # Banner gives the details, the meeting times, and the seats on three
       # separate requests. Send them together, not one after another. The
@@ -233,16 +178,13 @@ module Catalog
         details[:faculty] = extract_faculty(meeting_times_data["fmt"])
       end
 
-      begin
-        enrollment_data = enrollment_attempt.value!
-        if enrollment_data
-          details[:seats_available] = enrollment_data.dig(:enrollment, :seats_available)
-          details[:seats_capacity]  = enrollment_data.dig(:enrollment, :maximum)
-          details[:waitlist_available] = enrollment_data.dig(:waitlist, :seats_available)
-          details[:waitlist_capacity]  = enrollment_data.dig(:waitlist, :capacity)
-        end
-      rescue => e
-        Rails.error.report(e, handled: true, context: { crn: course_reference_number, term: term })
+      # The section is still worth having without its seats.
+      enrollment_data = BannerThrottle.report_unless_cooldown(crn: course_reference_number, term: term) { enrollment_attempt.value! }
+      if enrollment_data
+        details[:seats_available] = enrollment_data.dig(:enrollment, :seats_available)
+        details[:seats_capacity]  = enrollment_data.dig(:enrollment, :maximum)
+        details[:waitlist_available] = enrollment_data.dig(:waitlist, :seats_available)
+        details[:waitlist_capacity]  = enrollment_data.dig(:waitlist, :capacity)
       end
 
       details
@@ -253,8 +195,7 @@ module Catalog
     # enrollment section at all, the parser returns nil, and the seat columns are
     # never written.
     def get_enrollment_info
-      raise ArgumentError, "term is required" unless term
-      raise ArgumentError, "course_reference_number is required" unless course_reference_number
+      require_section!
 
       response = connection.post("getEnrollmentInfo", {
                                    term: term,
@@ -262,6 +203,115 @@ module Catalog
                                  })
 
       handle_response(response, :enrollment_info)
+    end
+
+    def get_faculty_meeting_times
+      require_section!
+
+      response = connection.get("getFacultyMeetingTimes", {
+                                  term: term,
+                                  courseReferenceNumber: course_reference_number
+                                })
+
+      handle_response(response, :json)
+    end
+
+    def get_active_terms
+      response = terms_connection.get("courseSearch/getTerms", {
+                                        searchTerm: "",
+                                        offset: 1,
+                                        max: 100
+                                      })
+
+      if response.success?
+        terms = parse_json_response(response.body)
+        {
+          success: true,
+          terms: terms.map do |t|
+            {
+              code: t["code"],
+              description: t["description"]
+            }
+          end
+        }
+      else
+        {
+          success: false,
+          error: "Failed to fetch terms: #{response.status}",
+          terms: []
+        }
+      end
+    end
+
+    def get_subjects
+      raise ArgumentError, "term is required" unless term
+
+      response = terms_connection.get("classSearch/get_subject", {
+                                        searchTerm: "",
+                                        term: term,
+                                        offset: 1,
+                                        max: 500
+                                      })
+      handle_error(response) unless response.success?
+
+      # The JSON escapes HTML: "Hum &amp; Soc Sci". getClassDetails, read
+      # with Nokogiri, gives "Hum & Soc Sci".
+      parse_json_response(response.body).map { |s| { code: s["code"], description: CGI.unescapeHTML(s["description"].to_s) } }
+    end
+
+    def get_course_catalog
+      raise ArgumentError, "term is required" unless term
+
+      initialize_search_session!
+
+      all_courses = []
+      offset = 0
+      total_count = nil
+      page_size = 500
+      first_response_data = nil
+
+      loop do
+        response = fetch_catalog_page(offset, page_size)
+
+        if response.success?
+          data = parse_json_response(response.body)
+          first_response_data ||= data
+          courses = data["data"] || []
+          total_count ||= data["totalCount"] || 0
+
+          all_courses.concat(courses)
+
+          break if all_courses.length >= total_count || courses.empty?
+
+          offset += page_size
+        else
+          handle_error(response)
+        end
+      end
+
+      {
+        success: true,
+        courses: all_courses,
+        total_count: total_count,
+        raw_response: first_response_data
+      }
+    rescue ArgumentError
+      raise
+    rescue => e
+      Rails.error.report(e, handled: true, context: { term: term })
+      {
+        success: false,
+        error: e.message,
+        courses: [],
+        total_count: 0
+      }
+    end
+
+    private
+
+    def require_section!
+      raise ArgumentError, "term is required" unless term
+      raise ArgumentError, "course_reference_number is required" unless course_reference_number
     end
 
     # getFacultyMeetingTimes answers with the section's instructors alongside its
@@ -298,18 +348,6 @@ module Catalog
       Attempt.new(yield, nil)
     rescue StandardError => e
       Attempt.new(nil, e)
-    end
-
-    def get_faculty_meeting_times
-      raise ArgumentError, "term is required" unless term
-      raise ArgumentError, "course_reference_number is required" unless course_reference_number
-
-      response = connection.get("getFacultyMeetingTimes", {
-                                  term: term,
-                                  courseReferenceNumber: course_reference_number
-                                })
-
-      handle_response(response, :json)
     end
 
     def connection
@@ -424,97 +462,6 @@ module Catalog
         "LeopardWeb request failed with status #{response.status}: #{response.body}",
         status: response.status
       )
-    end
-
-    def get_active_terms
-      response = terms_connection.get("courseSearch/getTerms", {
-                                        searchTerm: "",
-                                        offset: 1,
-                                        max: 100
-                                      })
-
-      if response.success?
-        terms = parse_json_response(response.body)
-        {
-          success: true,
-          terms: terms.map do |t|
-            {
-              code: t["code"],
-              description: t["description"]
-            }
-          end
-        }
-      else
-        {
-          success: false,
-          error: "Failed to fetch terms: #{response.status}",
-          terms: []
-        }
-      end
-    end
-
-    def get_subjects
-      raise ArgumentError, "term is required" unless term
-
-      response = terms_connection.get("classSearch/get_subject", {
-                                        searchTerm: "",
-                                        term: term,
-                                        offset: 1,
-                                        max: 500
-                                      })
-      handle_error(response) unless response.success?
-
-      # The JSON escapes HTML: "Hum &amp; Soc Sci". getClassDetails, read
-      # with Nokogiri, gives "Hum & Soc Sci".
-      parse_json_response(response.body).map { |s| { code: s["code"], description: CGI.unescapeHTML(s["description"].to_s) } }
-    end
-
-    def get_course_catalog
-      raise ArgumentError, "term is required" unless term
-
-      initialize_search_session!
-
-      all_courses = []
-      offset = 0
-      total_count = nil
-      page_size = 500
-      first_response_data = nil
-
-      loop do
-        response = fetch_catalog_page(offset, page_size)
-
-        if response.success?
-          data = parse_json_response(response.body)
-          first_response_data ||= data
-          courses = data["data"] || []
-          total_count ||= data["totalCount"] || 0
-
-          all_courses.concat(courses)
-
-          break if all_courses.length >= total_count || courses.empty?
-
-          offset += page_size
-        else
-          handle_error(response)
-        end
-      end
-
-      {
-        success: true,
-        courses: all_courses,
-        total_count: total_count,
-        raw_response: first_response_data
-      }
-    rescue ArgumentError
-      raise
-    rescue => e
-      Rails.error.report(e, handled: true, context: { term: term })
-      {
-        success: false,
-        error: e.message,
-        courses: [],
-        total_count: 0
-      }
     end
 
     def initialize_search_session!

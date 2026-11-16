@@ -139,6 +139,19 @@ module Catalog
         ActiveSupport::ExecutionContext.set(banner_budget: name, &)
       end
 
+      # Runs the block for one item of a longer Banner run. A CooldownError
+      # goes up, so the job stops and retries after the cooldown
+      # (Catalog::BannerCooldownRetry). Any other error is reported with the
+      # context, and the answer is the fallback, so the run goes on.
+      def report_unless_cooldown(fallback: nil, **context)
+        yield
+      rescue CooldownError
+        raise
+      rescue StandardError => e
+        Rails.error.report(e, handled: true, context: context)
+        fallback
+      end
+
       # Specs replace this, so they do not wait.
       def pause(seconds)
         sleep(seconds)

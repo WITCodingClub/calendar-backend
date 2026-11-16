@@ -14,22 +14,7 @@ module Catalog
     retry_banner_cooldown within: 15.minutes
 
     def perform(course_ids)
-      courses = Course.where(id: course_ids)
-                      .includes(:term, meeting_times: [ :meeting_time_rooms, { rooms: :building } ])
-                      .to_a
-      return if courses.empty?
-
-      section_sync = Catalog::SectionSync.new
-      flags = CourseCalendars::SyncMarker.enrollment_flags(courses.map(&:id))
-      CourseCalendars::SyncMarker.batch_with_enrollment_flags(flags) do
-        courses.each do |course|
-          section_sync.call(course, course.term.uid)
-        rescue Catalog::BannerThrottle::CooldownError
-          raise
-        rescue => e
-          Rails.error.report(e, handled: true, context: { course_id: course.id, crn: course.crn })
-        end
-      end
+      Catalog::SectionSync.call_many(course_ids)
     end
   end
 end

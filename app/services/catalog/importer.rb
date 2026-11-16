@@ -78,152 +78,44 @@ module Catalog
       result
     end
 
-    # The section's own credits from Banner's search data. A lab reports 0
-    # there, so it gets nil: its credits belong to the linked lecture.
-    def self.credit_hours_for(course_data)
-      hours = course_data["creditHours"]
-      hours = course_data["creditHourLow"] if hours.nil? && course_data["creditHourIndicator"].blank?
-      hours.to_i.positive? ? hours.to_i : nil
-    end
-
-    # The part of term ("1" for the full term, a code such as "FA1" or "FA2"
-    # for one half), the campus, and the cross-list group, from Banner's search
-    # data. A cross-list group joins sections of different courses that meet
-    # together, such as an undergraduate and a graduate ARCH studio. Its
-    # identifier is unique only in its term, and the seats count the whole
-    # group.
-    def self.section_details_for(course_data)
-      {
-        part_of_term:          course_data["partOfTerm"].presence,
-        campus:                CGI.unescapeHTML(course_data["campusDescription"].to_s).presence,
-        cross_list_identifier: course_data["crossList"].presence,
-        cross_list_capacity:   course_data["crossListCapacity"]&.to_i,
-        cross_list_available:  course_data["crossListAvailable"]&.to_i
-      }
-    end
-
     private
 
     def process_course(course_data)
-      crn = course_data["courseReferenceNumber"] || course_data["crn"]
-      term_uid = course_data["term"] || course_data["termEffective"]
+      section = BannerSection.from_search(course_data)
+      crn = section.crn
+      term = @terms.fetch(section.term_uid.to_s)
+      schedule_type = section.schedule_type
+      raise "Unknown or missing schedule type '#{section.schedule_type_text}' for CRN #{crn}" unless schedule_type
 
-      term = @terms[term_uid.to_s]
-      unless term
-        raise "Term with UID #{term_uid} not found. Please create the term first."
-      end
-
-      schedule_type_desc = course_data["scheduleTypeDescription"] || course_data["scheduleType"]
-      schedule_type_match = schedule_type_desc.to_s.match(/\(([^)]+)\)/)
-      raw_code = schedule_type_match ? schedule_type_match[1] : nil
-      schedule_type_key = raw_code ? Course::ScheduleType.key_for_code(raw_code) : nil
-
-      raise "Unknown or missing schedule type '#{schedule_type_desc}' (extracted code: #{raw_code.inspect}) for CRN #{crn}" unless schedule_type_key
-
-      raw_meeting_times = []
-      if course_data["meetingsFaculty"].is_a?(Array)
-        course_data["meetingsFaculty"].each do |session|
-          meeting_time = session["meetingTime"]
-          raw_meeting_times << meeting_time if meeting_time.present?
-        end
-      end
-
-      meeting_times = deduplicate_meeting_times(raw_meeting_times)
-
-      start_date = nil
-      end_date = nil
-      if meeting_times.any?
-        first_meeting = meeting_times.first
-        parsed_start = parse_date(first_meeting["startDate"])
-        parsed_end = parse_date(first_meeting["endDate"])
-
-        if term.section_dates?(parsed_start, parsed_end)
-          start_date = parsed_start
-          end_date = parsed_end
-        else
-          Rails.logger.warn("Invalid dates for term #{term.name}: #{parsed_start} to #{parsed_end}, using term defaults")
-          start_date = term.start_date
-          end_date = term.end_date
-        end
-      else
-        start_date = term.start_date
-        end_date = term.end_date
-      end
-
+      details = section.attributes
+      start_date, end_date = section_dates(section, term)
       if start_date.nil? || end_date.nil?
         raise "Cannot determine dates for CRN #{crn}: no meeting times and term #{term.uid} (#{term.name}) has no dates set"
       end
 
-      # Banner says which sections must be taken together. Keep it: inferring the
-      # pairing from the sequence number works most of the time, but this is the
-      # registrar's own answer.
-      link_identifier   = course_data["linkIdentifier"].presence
-      is_section_linked = ActiveModel::Type::Boolean.new.cast(course_data["isSectionLinked"]) || false
-
-      seats = seat_counts(course_data)
-      waitlist = waitlist_counts(course_data)
-      credit_hours = credit_hours_for(course_data)
-      section_details = self.class.section_details_for(course_data)
+      # Re-importing a term is how existing rows learn their link identifier
+      # and the other details, so these are written on update too.
+      update_attrs = details.slice(:title, :credit_hours, :link_identifier, :is_section_linked,
+                                   :part_of_term, :campus, :cross_list_identifier)
+                            .merge(start_date: start_date, end_date: end_date, **section.counts)
 
       course = Course.find_or_create_by!(crn: crn, term: term) do |c|
-        c.title = course_data["courseTitle"] || "Untitled Course"
-        c.subject = Catalog::SubjectLabels.label(CGI.unescapeHTML(course_data["subjectDescription"].to_s),
-                                                 course_data["subject"] || course_data["subjectCode"])
-        c.course_number = course_data["courseNumber"]
-        c.schedule_type = schedule_type_key
-        c.section_number = Catalog::SectionNumber.normalize(course_data["sequenceNumber"] || course_data["sectionNumber"])
-        c.credit_hours = credit_hours
-        c.grade_mode = nil
-        c.start_date = start_date
-        c.end_date = end_date
-        c.term = term
-        c.link_identifier = link_identifier
-        c.is_section_linked = is_section_linked
-        c.seats_capacity = seats[:capacity]
-        c.seats_available = seats[:available]
-        c.waitlist_capacity = waitlist[:capacity]
-        c.waitlist_available = waitlist[:available]
-        c.assign_attributes(section_details)
+        c.assign_attributes(update_attrs)
+        c.subject = Catalog::SubjectLabels.label(details[:subject_description], details[:subject_code])
+        c.course_number = details[:course_number]
+        c.schedule_type = schedule_type
+        c.section_number = details[:section_number]
       end
 
       if course.previously_new_record?
         @changes[:created] += 1
       else
-        update_attrs = {}
-        update_attrs[:start_date] = start_date if start_date.present?
-        update_attrs[:end_date] = end_date if end_date.present?
-
-        raw_title = course_data["courseTitle"] || "Untitled Course"
-        new_title = Course.normalize_value_for(:title, raw_title)
-        update_attrs[:title] = new_title if course.title != new_title
-        update_attrs[:credit_hours] = credit_hours if course.credit_hours != credit_hours
-
-        # Re-importing a term is how existing rows learn their link identifier,
-        # so these have to be written on update and not only on create.
-        update_attrs[:link_identifier]   = link_identifier   if course.link_identifier != link_identifier
-        update_attrs[:is_section_linked] = is_section_linked if course.is_section_linked != is_section_linked
-        section_details.each { |name, value| update_attrs[name] = value if course[name] != value }
-
-        # Set both counts together or neither. The database checks that
-        # seats_available is not more than seats_capacity, so a half update can
-        # fail on a section whose capacity went down.
-        if seats[:capacity].present? && seats[:available].present?
-          update_attrs[:seats_capacity] = seats[:capacity]
-          update_attrs[:seats_available] = seats[:available]
-        end
-        if waitlist[:capacity].present? && waitlist[:available].present?
-          update_attrs[:waitlist_capacity] = waitlist[:capacity]
-          update_attrs[:waitlist_available] = waitlist[:available]
-        end
-
         # The counts cover the section row. Meeting times and instructors can
         # still change below while the section counts as unchanged.
-        if update_attrs.any?
-          course.update!(update_attrs)
-          @changes[course.saved_changes? ? :updated : :unchanged] += 1
-        else
-          @changes[:unchanged] += 1
-        end
+        course.assign_attributes(update_attrs)
+        changed = course.changed?
+        course.save! if changed
+        @changes[changed ? :updated : :unchanged] += 1
       end
 
       orphan_exam = FinalExam.orphan.find_by(crn: course.crn, term: term)
@@ -232,12 +124,8 @@ module Catalog
         Rails.logger.info("Linked FinalExam for CRN #{course.crn} to course #{course.id}")
       end
 
-      if meeting_times.any?
-        kept_ids = Catalog::MeetingTimesIngest.call(
-          course: course,
-          raw_meeting_times: meeting_times,
-          locations: @locations
-        )
+      if section.meeting_times.any?
+        kept_ids = Catalog::MeetingTimesIngest.call(course: course, meetings: section.meeting_times, locations: @locations)
 
         # Remove meeting times that no longer exist upstream (e.g. Banner changed a
         # section's day/time), but only when the ingest produced rows — never wipe
@@ -247,9 +135,8 @@ module Catalog
         Rails.logger.warn("No meeting times found for course CRN #{crn}")
       end
 
-      faculty_data = course_data["faculty"] || []
-      if faculty_data.any?
-        Faculties::Ingest.call(course: course, raw_faculty: faculty_data, faculty: @faculty)
+      if section.faculty.any?
+        Faculties::Ingest.call(course: course, raw_faculty: section.faculty, faculty: @faculty)
       else
         Rails.logger.warn("No faculty data found for course CRN #{crn}")
       end
@@ -257,40 +144,16 @@ module Catalog
       course
     end
 
-    # Banner ships seat counts in the catalog payload we already fetch, so this
-    # costs no extra request. Before this, only the per-user upload path recorded
-    # seats, which left every catalog-imported term with no enrollment data.
-    #
-    # seats_available is maximumEnrollment minus enrollment, so an over-enrolled
-    # section reports a negative number. About 17% of sections do. Store what
-    # Banner reports: clamping to 0 makes an over-enrolled section read as full.
-    def seat_counts(course_data)
-      capacity = course_data["maximumEnrollment"]
-      available = course_data["seatsAvailable"]
+    # The dates of the first meeting, or the term's dates when there is no
+    # meeting or Banner's dates are outside the term.
+    def section_dates(section, term)
+      first = section.meeting_times.first
+      return [ first.start_date, first.end_date ] if first && term.section_dates?(first.start_date, first.end_date)
 
-      {
-        capacity: capacity.nil? ? nil : capacity.to_i,
-        available: available.nil? ? nil : available.to_i
-      }
-    end
-
-    def waitlist_counts(course_data)
-      capacity = course_data["waitCapacity"]
-      available = course_data["waitAvailable"]
-
-      {
-        capacity: capacity.nil? ? nil : capacity.to_i,
-        available: available.nil? ? nil : available.to_i
-      }
-    end
-
-    # Banner sends creditHours for current terms, but older terms (2022 and 2023)
-    # send it as null and put the fixed value in creditHourLow. A section linked
-    # to a lecture, such as a lab, reports 0, and the lecture carries the
-    # credits. Some labs stand alone and carry credits (ARCH studios are 6), so
-    # the schedule type does not decide this. Store nil for 0.
-    def credit_hours_for(course_data)
-      self.class.credit_hours_for(course_data)
+      if first
+        Rails.logger.warn("Invalid dates for term #{term.name}: #{first.start_date} to #{first.end_date}, using term defaults")
+      end
+      [ term.start_date, term.end_date ]
     end
 
     def validate_courses_data!
@@ -318,57 +181,6 @@ module Catalog
           raise ArgumentError, "course at index #{index} has invalid term UID: #{term_uid}"
         end
       end
-    end
-
-    def parse_date(date_string)
-      return nil if date_string.blank?
-
-      Date.strptime(date_string, "%m/%d/%Y")
-    rescue ArgumentError => e
-      Rails.logger.warn("Failed to parse date '#{date_string}': #{e.message}")
-      nil
-    end
-
-    def deduplicate_meeting_times(raw_meeting_times)
-      return [] if raw_meeting_times.blank?
-
-      grouped = raw_meeting_times.group_by { |mt| meeting_time_schedule_key(mt) }
-
-      grouped.map do |_key, entries|
-        next entries.first if entries.size == 1
-
-        with_location = entries.find { |mt| meeting_time_has_location?(mt) }
-        with_location || entries.first
-      end
-    end
-
-    def meeting_time_schedule_key(mt)
-      days = %w[sunday monday tuesday wednesday thursday friday saturday].map do |day|
-        mt[day] || mt[day.to_sym] ? 1 : 0
-      end.join
-
-      [
-        mt["startDate"] || mt[:startDate],
-        mt["endDate"] || mt[:endDate],
-        mt["beginTime"] || mt[:beginTime],
-        mt["endTime"] || mt[:endTime],
-        days
-      ]
-    end
-
-    def meeting_time_has_location?(mt)
-      building = (mt["building"] || mt[:building]).to_s.strip
-      room = (mt["room"] || mt[:room]).to_s.strip
-
-      return false if building.blank?
-      return false if building.downcase == "tbd"
-
-      if room.present?
-        return false if room == "0"
-        return false if room.downcase == "tbd"
-      end
-
-      true
     end
   end
 end

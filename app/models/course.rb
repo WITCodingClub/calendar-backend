@@ -94,6 +94,8 @@ class Course < ApplicationRecord
   after_save :update_term_dates, if: -> { saved_change_to_start_date? || saved_change_to_end_date? }
 
   scope :joins_catalog_course, -> { joins(CATALOG_COURSE_JOIN) }
+  # Sections that Banner has not confirmed since the time (banner_synced_at).
+  scope :banner_synced_before, ->(time) { where(banner_synced_at: nil).or(where(banner_synced_at: ...time)) }
 
   enum :status, { active: "active", cancelled: "cancelled" }
   enum :schedule_type, Course::ScheduleType::TYPES.transform_values { |v| v[:code] }

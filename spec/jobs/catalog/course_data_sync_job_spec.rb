@@ -57,6 +57,14 @@ RSpec.describe Catalog::CourseDataSyncJob do
       .and_return(class_details(meeting_times: meeting_times, faculty: faculty))
   end
 
+  # Whether the section row changes, leaving out the seats, which the
+  # stubbed details always change.
+  def unchanged_section?(details)
+    section = Catalog::BannerSection.from_class_details(details.except(:seats_available, :seats_capacity,
+                                                                       :waitlist_available, :waitlist_capacity))
+    Catalog::SectionSync.new.send(:sync_section, course, section, term.uid)
+  end
+
   def linked_rooms
     course.meeting_times.reload.flat_map { |mt| mt.rooms.map { |r| [ r.building.abbreviation, r.number ] } }.uniq
   end
@@ -64,7 +72,7 @@ RSpec.describe Catalog::CourseDataSyncJob do
   before do
     Catalog::MeetingTimesIngest.call(
       course: course,
-      raw_meeting_times: Catalog::MeetingTimesIngest.normalize_leopard_web([ banner_meeting_time ])
+      meetings: [ Catalog::BannerSection::Meeting.from_class_details(banner_meeting_time) ]
     )
   end
 
@@ -225,10 +233,9 @@ RSpec.describe Catalog::CourseDataSyncJob do
     # so every section counted as changed.
     it "counts a section with the same schedule type as unchanged" do
       stub_schedule_type("Lecture (LEC)")
-      sync = Catalog::SectionSync.new
+      details = Catalog::LeopardWebClient.get_class_details(term: term.uid, course_reference_number: course.crn)
 
-      expect(sync.send(:course_data_changed?, course, Catalog::LeopardWebClient.get_class_details(term: term.uid, course_reference_number: course.crn)))
-        .to be(false)
+      expect(unchanged_section?(details)).to be(false)
     end
 
     # Banner sends this text for some sections. It has no code, so the enum
@@ -267,11 +274,9 @@ RSpec.describe Catalog::CourseDataSyncJob do
     it "counts a section with the same label as unchanged, and does not ask for the subject list" do
       course.update!(subject: "Climate Resilience (CRES)")
       allow(Catalog::LeopardWebClient).to receive(:get_subjects)
-      fresh = Catalog::LeopardWebClient.get_class_details(term: term.uid, course_reference_number: course.crn)
-      fresh[:subject] = Catalog::SubjectLabels.for_term(fresh[:subject], term.uid, stored: course.subject)
+      details = Catalog::LeopardWebClient.get_class_details(term: term.uid, course_reference_number: course.crn)
 
-      expect(Catalog::SectionSync.new.send(:course_data_changed?, course, fresh.merge(title: course.title)))
-        .to be(false)
+      expect(unchanged_section?(details.merge(title: course.title))).to be(false)
       expect(Catalog::LeopardWebClient).not_to have_received(:get_subjects)
     end
   end

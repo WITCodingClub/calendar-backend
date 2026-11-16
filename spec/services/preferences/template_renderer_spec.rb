@@ -8,8 +8,8 @@ RSpec.describe Preferences::TemplateRenderer do
   let(:meeting_time) do
     Catalog::MeetingTimesIngest.call(
       course: course,
-      raw_meeting_times: [
-        {
+      meetings: [
+        Catalog::BannerSection::Meeting.from_search(
           "startDate"           => "09/08/2026",
           "endDate"             => "10/20/2026",
           "beginTime"           => "1300",
@@ -18,7 +18,7 @@ RSpec.describe Preferences::TemplateRenderer do
           "buildingDescription" => "Beatty Hall",
           "room"                => "420",
           "monday"              => true
-        }
+        )
       ]
     )
     course.meeting_times.first
