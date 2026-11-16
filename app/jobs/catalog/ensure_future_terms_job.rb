@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Catalog
-  class Catalog::EnsureFutureTermsJob < ApplicationJob
+  class EnsureFutureTermsJob < ApplicationJob
     queue_as :default
 
     def perform(terms_ahead: 6)

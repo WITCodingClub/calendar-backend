@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Catalog
-  class Catalog::CourseDataSyncJob < ApplicationJob
+  class CourseDataSyncJob < ApplicationJob
     queue_as :low
 
     # SolidQueue calls this key with the job's arguments, so it has to accept them.
