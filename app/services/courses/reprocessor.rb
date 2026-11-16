@@ -20,7 +20,7 @@ module Courses
       term = Term.find_by(uid: term_uid)
       raise Courses::InvalidPayloadError, "Term with UID #{term_uid} not found" unless term
 
-      Rails.logger.info("[CourseReprocess] Starting for user #{user.id} (#{user.email}), term #{term.uid}")
+      Rails.logger.info("[CourseReprocess] Starting for user #{user.id}, term #{term.uid}")
 
       current_enrollments = user.enrollments.includes(:course).where(term: term)
       current_crns        = current_enrollments.map { |e| e.course.crn }
@@ -43,8 +43,14 @@ module Courses
       end
 
       # The processor starts a sync (CourseCalendars.resync). The sync deletes
-      # the calendar events of the removed courses in every provider.
-      processed_courses = Courses::Processor.new(courses, user).call
+      # the calendar events of the removed courses in every provider. When the
+      # processor fails, the removed courses still need that sync.
+      begin
+        processed_courses = Courses::Processor.new(courses, user).call
+      rescue StandardError
+        CourseCalendars.resync(user, force: false) if removed_courses.any?
+        raise
+      end
 
       Rails.logger.info("[CourseReprocess] User #{user.id}: Done — removed #{removed_courses.count} enrollments")
 

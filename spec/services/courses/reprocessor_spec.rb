@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe Courses::Reprocessor do
+  include ActiveJob::TestHelper
+
   let(:user) { create(:user) }
   let!(:term) { create(:term, uid: 202710) }
 
@@ -124,6 +126,33 @@ RSpec.describe Courses::Reprocessor do
 
       # The sync reconcile (CourseCalendars::Provider#update_calendar_events)
       # deletes the events of the removed course in every provider.
+      it "queues the sync for the removed course when the processor fails" do
+        create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
+        allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_raise(Catalog::BannerThrottle::CooldownError.new(42))
+
+        expect { described_class.new(payload, user).call }
+          .to raise_error(Catalog::BannerThrottle::CooldownError)
+          .and have_enqueued_job(CourseCalendars::SyncJob).with(user, force: false)
+        expect(Enrollment.exists?(old_enrollment.id)).to be(false)
+      end
+
+      it "deletes the removed course's calendar event when the queued sync runs" do
+        stub_google_service_account
+        credential = create(:oauth_credential, user: user, token_expires_at: 1.hour.from_now)
+        calendar   = create(:course_calendar, oauth_credential: credential, external_calendar_id: "reprocess-cal")
+        row = create(:calendar_event, course_calendar: calendar, meeting_time: create(:course_meeting_time, course: old_course),
+                                      external_event_id: "evt-old", start_time: 1.day.from_now, end_time: 1.day.from_now + 1.hour)
+        delete = stub_request(:delete, %r{/calendars/reprocess-cal/events/evt-old}).to_return(status: 204)
+        allow(Catalog::LeopardWebClient).to receive(:get_class_details).and_raise(Catalog::BannerThrottle::CooldownError.new(42))
+
+        perform_enqueued_jobs(only: CourseCalendars::SyncJob) do
+          expect { described_class.new(payload, user).call }.to raise_error(Catalog::BannerThrottle::CooldownError)
+        end
+
+        expect(delete).to have_been_requested
+        expect(CalendarEvent.exists?(row.id)).to be(false)
+      end
+
       it "queues a sync for a user with a course calendar" do
         create(:course_calendar, oauth_credential: create(:oauth_credential, user: user))
 
