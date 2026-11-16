@@ -32,7 +32,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `McpTools` | The MCP server, its tools, prompts, and apps (`docs/mcp.md`) |
 | `McpPlatforms` | The addresses of hosted MCP clients, which skip the per-IP rate limits (`docs/mcp.md`) |
 | `Risc` | Google RISC security events |
-| `FriendMeetings`, `Friendships`, `MeetingLinks` | Friends features |
+| `FriendMeetings`, `Friendships`, `FriendGroups`, `MeetingLinks` | Friends features |
 | `Notifications` | Turning the reminders of every calendar event off and on |
 | `Passkeys` | The passkey sign-in ceremony |
 | `Faculties` | The faculty directory and RateMyProfessor |
@@ -40,11 +40,11 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `UniversityCalendar` | The university event calendar import |
 | `Embeddings` | Vector embeddings |
 | `Preferences` | Calendar preferences: resolution, versions, templates |
-| `FeatureFlags` | Flipper flags, groups, and actors |
+| `FeatureFlags` | Flipper flags, groups, and actors. Add a new flag to `FeatureFlags::DESCRIPTIONS` |
 | `TwentyFiveLive` | 25Live: client, sync job, models, and value objects |
-| `Cleanup` | Maintenance jobs |
+| `Cleanup` | Maintenance jobs. `Cleanup::ExpiredRecordsJob` deletes the expired rows of each `Expirable` model |
 
-Code with no domain stays at the root of its folder, for example `ApplicationService`, `JsonWebTokenService`, and `AppMetrics`.
+Code with no domain stays at the root of its folder, for example `ApplicationService`, `JsonWebTokenService`, `AppMetrics`, `HttpFetcher` (every request to an outside site that an importer reads), and `PdfText` (every PDF that an importer reads).
 
 ## Controllers and routes
 
