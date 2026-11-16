@@ -55,12 +55,11 @@ module Api
     end
 
     def destroy
-      friend_user = find_by_any_id!(User, params[:friend_id])
-      friendship  = Friendship.accepted_between(current_user, friend_user)
-      return render_error("Friendship not found", status: :not_found) if friendship.nil?
+      removal = Friendships::Removal.new(current_user, find_by_any_id!(User, params[:friend_id]))
+      return render_error("Friendship not found", status: :not_found) unless removal.found?
 
-      authorize friendship, :destroy?
-      friendship.destroy!
+      authorize removal.friendship, :destroy?
+      removal.call
       render json: { ok: true }, status: :ok
     end
 
@@ -77,7 +76,7 @@ module Api
 
     def find_unexpired_friendship_or_request
       friend_user = find_by_any_id!(User, params[:friend_id])
-      friendship  = Friendship.unexpired.between(current_user, friend_user).first
+      friendship  = Friendship.unexpired_between(current_user, friend_user)
       return friendship if friendship
 
       render_error "Friendship not found", status: :not_found

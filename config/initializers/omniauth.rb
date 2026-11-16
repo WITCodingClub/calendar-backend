@@ -1,10 +1,7 @@
 # frozen_string_literal: true
 
 Rails.application.config.middleware.use OmniAuth::Builder do
-  redirect_uri = if Rails.env.production?
-    host = ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev")
-    "https://#{host}/auth/google_oauth2/callback"
-  end
+  redirect_uri = ("https://#{Rails.configuration.x.application_host}/auth/google_oauth2/callback" if Rails.env.production?)
 
   provider(
     :google_oauth2,

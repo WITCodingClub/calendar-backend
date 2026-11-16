@@ -109,16 +109,15 @@ constraints AdminConstraint.new do
     get  "service_account/authorize", to: "service_account#start", as: :service_account_authorize
     post "service_account/revoke",    to: "service_account#revoke",    as: :service_account_revoke
 
-    # These tools can run jobs, change flags, read any row, or show console
-    # sessions, so they need a super admin. Other admins get the fallback
-    # below, which sends them away.
-    constraints SuperAdminConstraint.new do
-      mount MissionControl::Jobs::Engine, at: "jobs"
+    # AdminAccess names the level each tool needs. Other admins get the
+    # fallback below, which sends them away.
+    constraints(AdminConstraint.new(:jobs)) { mount MissionControl::Jobs::Engine, at: "jobs" }
+    constraints AdminConstraint.new(:feature_flags) do
       mount Flipper::UI.app(Flipper) { |builder| builder.use FeatureFlags::UserActorAdapter::UnknownActorRedirect }, at: "flipper"
-      mount Blazer::Engine,               at: "blazer"
-      mount PgHero::Engine,               at: "pghero"
-      mount Audits1984::Engine,           at: "audits"
     end
+    constraints(AdminConstraint.new(:sql)) { mount Blazer::Engine, at: "blazer" }
+    constraints(AdminConstraint.new(:database)) { mount PgHero::Engine, at: "pghero" }
+    constraints(AdminConstraint.new(:console_audits)) { mount Audits1984::Engine, at: "audits" }
   end
 end
 

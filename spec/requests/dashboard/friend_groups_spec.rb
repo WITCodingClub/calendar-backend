@@ -16,7 +16,7 @@ RSpec.describe "Dashboard friend groups", type: :request do
   after { Flipper.disable(FeatureFlags::FRIEND_GROUPS) }
 
   def add_to(group, member = friend)
-    create(:friend_group_membership, friend_group: group, friendship: user.accepted_friendship_with(member))
+    create(:friend_group_membership, friend_group: group, friendship: Friendship.accepted_between(user, member))
   end
 
   context "when the friend_groups flag is off" do
@@ -261,7 +261,7 @@ RSpec.describe "Dashboard friend groups", type: :request do
     describe "groups that a friend shared with the user" do
       let(:shared_group) do
         create(:friend_group, :shared, user: friend, name: "Suitemates").tap do |group|
-          create(:friend_group_membership, friend_group: group, friendship: user.accepted_friendship_with(friend))
+          create(:friend_group_membership, friend_group: group, friendship: Friendship.accepted_between(user, friend))
         end
       end
 
@@ -296,7 +296,7 @@ RSpec.describe "Dashboard friend groups", type: :request do
       it "opts out and opts back in, and keeps the friendship" do
         set_status("opted_out")
         expect(shared_group.membership_for(user)).to be_opted_out
-        expect(user.friend_of?(friend)).to be(true)
+        expect(Friendship.accepted_between(user, friend)).to be_present
 
         set_status("active")
         expect(shared_group.membership_for(user)).to be_active
@@ -336,7 +336,7 @@ RSpec.describe "Dashboard friend groups", type: :request do
         delete dashboard_friend_group_path(group.public_id)
 
         expect(FriendGroup.exists?(group.id)).to be(false)
-        expect(user.friend_of?(friend)).to be(true)
+        expect(Friendship.accepted_between(user, friend)).to be_present
         expect(flash[:notice]).to eq("Group \"Study group\" deleted.")
       end
 

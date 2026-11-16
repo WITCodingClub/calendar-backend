@@ -31,8 +31,7 @@ module Api
       def index
         authorize FriendGroup
 
-        groups = policy_scope(FriendGroup).includes(:user, memberships: { friendship: %i[requester addressee] })
-                                          .order(:name)
+        groups = policy_scope(FriendGroup).with_members.order(:name)
 
         render json: { groups: groups.map { |group| FriendGroupSerializer.new(group).as_json } }, status: :ok
       end
@@ -156,7 +155,7 @@ module Api
 
       # A pending request or a stranger is not a friend, so both answer 404.
       def friendship_with!(friend_id)
-        friendship = current_user.accepted_friendship_with(find_by_any_id(User, friend_id))
+        friendship = Friendship.accepted_between(current_user, find_by_any_id(User, friend_id))
         raise ActiveRecord::RecordNotFound, "Friend not found" if friendship.nil?
 
         friendship
@@ -164,7 +163,7 @@ module Api
 
       # Loads the group again with its members, so the answer shows the change.
       def render_group(group = @group, status: :ok)
-        group = FriendGroup.includes(:user, memberships: { friendship: %i[requester addressee] }).find(group.id)
+        group = FriendGroup.with_members.find(group.id)
         render json: { group: FriendGroupSerializer.new(group).as_json }, status: status
       end
     end

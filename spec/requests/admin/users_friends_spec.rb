@@ -23,7 +23,7 @@ RSpec.describe "Admin user friends", type: :request do
       expect(flash[:notice]).to eq("Added #{friend.full_name} as a friend.")
       expect(Friendship.exists?(old.id)).to be(false)
       expect(user.friends).to contain_exactly(friend)
-      expect(user.accepted_friendship_with(friend).expires_at).to be_nil
+      expect(Friendship.accepted_between(user, friend).expires_at).to be_nil
     end
 
     it "still reports an unexpired friend" do

@@ -143,7 +143,7 @@ module UniversityCalendar
       if description.present? && summary.present?
         description = description.sub(/\AEvent Name:.*/, "Event Name: #{summary}")
       end
-      category    = UniversityCalendarEvent.infer_category(summary, event_type)
+      category    = Category.infer(summary, event_type)
       is_all_day  = %w[holiday study_day].include?(category) || all_day_event?(ics_event)
 
       if is_all_day
@@ -314,7 +314,7 @@ module UniversityCalendar
       fuzzy_matches = find_fuzzy_duplicates_in_memory(attrs)
       return nil if fuzzy_matches.empty?
 
-      UniversityCalendarEvent.preferred_event(fuzzy_matches)
+      DuplicateMatcher.preferred_event(fuzzy_matches)
     end
 
     def add_event_to_content_cache(event)
@@ -340,9 +340,7 @@ module UniversityCalendar
           e.end_time   >= end_day_begin   && e.end_time   < end_day_end
       end
 
-      candidates.select do |event|
-        UniversityCalendarEvent.similarity(attrs[:summary], event.summary) >= UniversityCalendarEvent::SIMILARITY_THRESHOLD
-      end
+      candidates.select { |event| DuplicateMatcher.similar?(attrs[:summary], event.summary) }
     end
 
     def cleanup_merged_single_day_events(merged_attrs, excluded_uid)

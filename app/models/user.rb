@@ -203,8 +203,12 @@ class User < ApplicationRecord
     notifications_disabled_until.present? && notifications_disabled_until > Time.current
   end
 
+  # The longest pause of the reminders. A pause with no duration lasts this long
+  # too. The API and the MCP tool reject a longer duration.
+  MAX_NOTIFICATION_PAUSE = 100.years
+
   def disable_notifications!(duration: nil)
-    update!(notifications_disabled_until: duration.nil? ? 100.years.from_now : duration.from_now)
+    update!(notifications_disabled_until: (duration || MAX_NOTIFICATION_PAUSE).from_now)
   end
 
   def enable_notifications!
@@ -221,14 +225,8 @@ class User < ApplicationRecord
     User.where(id: friend_ids)
   end
 
-  def friend_of?(other_user)
-    accepted_friendship_with(other_user).present?
-  end
-
   # The friendships that count as a friendship for this user: accepted and not
-  # expired. This is the ONE place that decides "is this an accepted
-  # friendship". Every check goes through here: accepted_friendship_with, the
-  # membership validation, FriendGroup#members, and FriendGroup.by_friend_id_for.
+  # expired (Friendship.active).
   def accepted_friendships
     Friendship.accepted_for(self)
   end
@@ -242,27 +240,6 @@ class User < ApplicationRecord
   def reload(*)
     @accepted_friendship_ids = nil
     super
-  end
-
-  # The accepted friendship between this user and other_user, or nil.
-  def accepted_friendship_with(other_user)
-    return nil if other_user.nil? || other_user.id == id
-
-    accepted_friendships.find_by(
-      "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
-      id, other_user.id, other_user.id, id
-    )
-  end
-
-  # Returns true when a friendship was removed, false when there was none.
-  # Its friend group memberships go with it.
-  def remove_friend(other_user)
-    friendship = accepted_friendship_with(other_user)
-    return false if friendship.nil?
-
-    @accepted_friendship_ids = nil
-    friendship.destroy!
-    true
   end
 
   def incoming_friend_requests

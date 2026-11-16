@@ -185,61 +185,49 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
     end
   end
 
-  describe "#call" do
+  describe "#call!" do
     it "returns true when every request succeeds" do
       stub_all_endpoints
 
-      expect(described_class.new.call).to be(true)
+      expect(described_class.new.call!).to be(true)
     end
 
     [ 401, 403, 404, 500, 503 ].each do |status|
-      it "reports a RequestError with status #{status} and returns false" do
+      it "raises a RequestError with status #{status}" do
         stub_endpoint("organizations", status: status)
 
-        reports = capture_error_reports(TwentyFiveLive::Client::RequestError) do
-          expect(described_class.new.call).to be(false)
-        end
-
-        expect(reports.first.error.status).to eq(status)
-        expect(reports.first.error.message).to eq("25Live API returned #{status} for organizations")
+        expect { described_class.new.call! }.to raise_error(TwentyFiveLive::Client::RequestError) { |error|
+          expect(error.status).to eq(status)
+          expect(error.message).to eq("25Live API returned #{status} for organizations")
+        }
       end
     end
 
-    it "reports a body that is not JSON and returns false" do
+    it "raises for a body that is not JSON" do
       stub_endpoint("organizations", body: "<html>Service Unavailable</html>")
 
-      reports = capture_error_reports(TwentyFiveLive::Client::RequestError) do
-        expect(described_class.new.call).to be(false)
-      end
-
-      expect(reports.first.error.message).to start_with("25Live API returned non-JSON for organizations")
-      expect(reports.first.error.status).to be_nil
+      expect { described_class.new.call! }.to raise_error(TwentyFiveLive::Client::RequestError) { |error|
+        expect(error.message).to start_with("25Live API returned non-JSON for organizations")
+        expect(error.status).to be_nil
+      }
     end
 
-    it "reports an empty body as non-JSON" do
+    it "raises for an empty body as non-JSON" do
       stub_endpoint("organizations", body: "")
 
-      reports = capture_error_reports(TwentyFiveLive::Client::RequestError) do
-        expect(described_class.new.call).to be(false)
-      end
-
-      expect(reports.size).to eq(1)
+      expect { described_class.new.call! }.to raise_error(TwentyFiveLive::Client::RequestError)
     end
 
-    it "reports a JSON body of the wrong shape and returns false" do
+    it "raises for a JSON body of the wrong shape" do
       stub_endpoint("organizations", body: "[]")
 
-      reports = capture_error_reports(TypeError) do
-        expect(described_class.new.call).to be(false)
-      end
-
-      expect(reports.size).to eq(1)
+      expect { described_class.new.call! }.to raise_error(TypeError)
     end
 
     it "does not retry an HTTP error status" do
       stub_endpoint("organizations", status: 503)
 
-      capture_error_reports(TwentyFiveLive::Client::RequestError) { described_class.new.call }
+      expect { described_class.new.call! }.to raise_error(TwentyFiveLive::Client::RequestError)
 
       expect(WebMock).to have_requested(:get, "#{base_url}organizations.json").once
     end
@@ -270,16 +258,6 @@ RSpec.describe TwentyFiveLive::Client, type: :service do
         expect { described_class.new.call! }.to raise_error(error)
         expect(WebMock).to have_requested(:get, "#{base_url}organizations.json").times(3)
       end
-    end
-
-    it "reports the network error from #call and returns false" do
-      stub_request(:get, "#{base_url}organizations.json").to_raise(Errno::ECONNREFUSED)
-
-      reports = capture_error_reports(Errno::ECONNREFUSED) do
-        expect(described_class.new.call).to be(false)
-      end
-
-      expect(reports.first).to be_handled
     end
   end
 

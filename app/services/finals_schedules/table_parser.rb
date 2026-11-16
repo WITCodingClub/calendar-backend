@@ -286,7 +286,7 @@ module FinalsSchedules
     end
 
     # "WENTW212" becomes "WENTW 212" and "CEIS 414A/B" becomes
-    # "CEIS 414A / CEIS 414B", so FinalExam::ROOM_PATTERN finds each room. A
+    # "CEIS 414A / CEIS 414B", so ExamRooms::ROOM_PATTERN finds each room. A
     # building with no room ("WATSN") or a named space ("ANXNO CRIT RM") stays
     # as it is. A no-exam marker becomes its title-case label ("SEE FACULTY FOR
     # DETAILS" becomes "See Faculty"). "#N/A" is a spreadsheet error, not a

@@ -121,7 +121,7 @@ RSpec.describe "Api::Friends::SharedGroups", type: :request do
       end
 
       it "leaves out the group when the friendship with the owner ends" do
-        member.remove_friend(owner)
+        Friendships::Removal.new(member, owner).call
 
         get "/api/friends/shared_groups", headers: headers
 
@@ -174,7 +174,7 @@ RSpec.describe "Api::Friends::SharedGroups", type: :request do
       it "opts out, and opts back in" do
         set_status("opted_out")
         expect(group.membership_for(member)).to be_opted_out
-        expect(member.friend_of?(owner)).to be(true)
+        expect(Friendship.accepted_between(member, owner)).to be_present
 
         set_status("active")
         expect(group.membership_for(member)).to be_active

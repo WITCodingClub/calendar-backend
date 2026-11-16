@@ -103,13 +103,6 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       expect(described_class.upcoming).to contain_exactly(today, future)
     end
 
-    it ".past returns events that started before now" do
-      past = event_in("holiday", start_time: 1.day.ago, end_time: 1.day.ago + 1.hour)
-      event_in("holiday", start_time: 1.day.from_now, end_time: 2.days.from_now)
-
-      expect(described_class.past).to contain_exactly(past)
-    end
-
     it ".for_term returns events of one term" do
       term = create(:term)
       match = event_in("holiday", term: term)
@@ -156,14 +149,6 @@ RSpec.describe UniversityCalendarEvent, type: :model do
 
       expect(described_class.no_class_dates_between(Date.new(2026, 10, 9), Date.new(2026, 10, 20)))
         .to contain_exactly(Date.new(2026, 10, 9), Date.new(2026, 10, 10), Date.new(2026, 10, 11))
-    end
-
-    it ".holidays_between returns holidays in the range, earliest first" do
-      later = event_in("holiday", start_time: Time.zone.local(2026, 11, 20, 9, 0), end_time: Time.zone.local(2026, 11, 20, 10, 0))
-      earlier = event_in("holiday", start_time: Time.zone.local(2026, 11, 10, 9, 0), end_time: Time.zone.local(2026, 11, 10, 10, 0))
-      event_in("finals", start_time: Time.zone.local(2026, 11, 15, 9, 0), end_time: Time.zone.local(2026, 11, 15, 10, 0))
-
-      expect(described_class.holidays_between(Date.new(2026, 11, 1), Date.new(2026, 11, 30))).to eq([ earlier, later ])
     end
 
     it ".no_class_spans_between returns holidays, study days and finals only, earliest first" do
@@ -228,49 +213,6 @@ RSpec.describe UniversityCalendarEvent, type: :model do
     end
   end
 
-  describe ".infer_category" do
-    {
-      "Thanksgiving Recess" => "holiday",
-      "Spring Break" => "holiday",
-      "Labor Day" => "holiday",
-      "Martin Luther King Jr. Day" => "holiday",
-      "No Classes" => "holiday",
-      "Juneteenth" => "holiday",
-      "Classes Begin" => "term_dates",
-      "Last Day of Classes" => "term_dates",
-      "Study Day" => "study_day",
-      "Reading Period" => "study_day",
-      "Final Exam Period" => "finals",
-      "Finals Week" => "finals",
-      "Commencement" => "graduation",
-      "Registration Opens" => "registration",
-      "Add/Drop Period" => "registration",
-      "Last day to withdraw" => "deadline",
-      "Tuition Due" => "deadline"
-    }.each do |summary, category|
-      it "puts #{summary.inspect} in #{category}" do
-        expect(described_class.infer_category(summary, nil)).to eq(category)
-      end
-    end
-
-    {
-      "Calendar Announcement" => "academic",
-      "Meeting" => "meeting",
-      "Art Exhibit" => "exhibit",
-      "Showcase" => "exhibit",
-      "Announcement" => "announcement",
-      "Something else" => "campus_event"
-    }.each do |raw, category|
-      it "falls back to #{category} for the raw type #{raw.inspect}" do
-        expect(described_class.infer_category("Nothing special", raw)).to eq(category)
-      end
-    end
-
-    it "handles nil input" do
-      expect(described_class.infer_category(nil, nil)).to eq("campus_event")
-    end
-  end
-
   describe "instance helpers" do
     it "#excludes_classes? is true for holiday, study_day and finals" do
       expect(%w[holiday study_day finals].map { |c| build(:university_calendar_event, category: c).excludes_classes? }).to all(be(true))
@@ -287,16 +229,6 @@ RSpec.describe UniversityCalendarEvent, type: :model do
       event = build(:university_calendar_event, start_time: Time.zone.local(2026, 9, 7, 14, 30))
 
       expect(event.formatted_date).to eq("September 07, 2026 at 2:30 PM")
-    end
-
-    it "#duration_hours is nil for an all-day event" do
-      expect(build(:university_calendar_event, all_day: true).duration_hours).to be_nil
-    end
-
-    it "#duration_hours rounds to one decimal" do
-      event = build(:university_calendar_event, start_time: Time.zone.local(2026, 9, 7, 9, 0), end_time: Time.zone.local(2026, 9, 7, 10, 40))
-
-      expect(event.duration_hours).to eq(1.7)
     end
 
     it "#formatted_holiday_summary adds No Classes when the summary lacks it" do

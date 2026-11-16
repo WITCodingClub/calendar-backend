@@ -264,7 +264,7 @@ RSpec.describe FriendGroup, type: :model do
 
     it "replaces the members" do
       old = create(:user).tap { |u| create(:friendship, :accepted, requester: u, addressee: owner) }
-      create(:friend_group_membership, friend_group: group, friendship: owner.accepted_friendship_with(old))
+      create(:friend_group_membership, friend_group: group, friendship: Friendship.accepted_between(owner, old))
 
       group.save_with_members!({}, friend_ids: [ friend.public_id ])
 
@@ -272,7 +272,7 @@ RSpec.describe FriendGroup, type: :model do
     end
 
     it "leaves the members alone when friend_ids is nil" do
-      create(:friend_group_membership, friend_group: group, friendship: owner.accepted_friendship_with(friend))
+      create(:friend_group_membership, friend_group: group, friendship: Friendship.accepted_between(owner, friend))
 
       group.save_with_members!({ name: "Renamed" })
 
@@ -296,14 +296,10 @@ RSpec.describe FriendGroup, type: :model do
     let(:owner)  { group.user }
     let(:friend) { create(:user).tap { |u| create(:friendship, :accepted, requester: u, addressee: owner) } }
     let!(:membership) do
-      create(:friend_group_membership, friend_group: group, friendship: owner.accepted_friendship_with(friend))
+      create(:friend_group_membership, friend_group: group, friendship: Friendship.accepted_between(owner, friend))
     end
 
     before { allow_any_instance_of(User).to receive(:accepted_friendships).and_return(Friendship.none) } # rubocop:disable RSpec/AnyInstance
-
-    it "is followed by User#accepted_friendship_with" do
-      expect(owner.accepted_friendship_with(friend)).to be_nil
-    end
 
     it "is followed by the membership validation" do
       expect(membership.reload).not_to be_valid

@@ -23,12 +23,7 @@ module Users
         return
       end
 
-      user = result.user
-      # Stay signed in past the :timeoutable idle limit, as the Google sign-in does.
-      user.remember_me = true
-      sign_in(:user, user)
-
-      redirect_to after_sign_in_path_for(user), notice: "Welcome, #{user.first_name}!"
+      redirect_to sign_in_with_session!(result.user), notice: "Welcome, #{result.user.first_name}!"
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
       Rails.error.report(e, handled: true)
       redirect_to new_user_session_path, alert: "Failed to sign in with Microsoft. Please try again."

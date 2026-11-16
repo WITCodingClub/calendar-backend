@@ -53,7 +53,7 @@ RSpec.describe "Dashboard authorization", type: :request do
   # A group that the friend owns and shares, with the user in it.
   def shared_group_with_user
     group = create(:friend_group, :shared, user: friend)
-    create(:friend_group_membership, friend_group: group, friendship: user.accepted_friendship_with(friend))
+    create(:friend_group_membership, friend_group: group, friendship: Friendship.accepted_between(user, friend))
     group
   end
 

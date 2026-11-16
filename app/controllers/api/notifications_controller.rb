@@ -41,8 +41,8 @@ module Api
           return
         end
 
-        if duration > 100.years.to_i
-          render_error "Duration cannot exceed 100 years", status: :bad_request
+        if duration > User::MAX_NOTIFICATION_PAUSE.to_i
+          render_error "Duration cannot exceed #{User::MAX_NOTIFICATION_PAUSE.inspect}", status: :bad_request
           return
         end
       end

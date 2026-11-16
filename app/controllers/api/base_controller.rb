@@ -8,6 +8,7 @@ module Api
   class BaseController < ActionController::API
     include Pundit::Authorization
     include Api::ErrorRendering
+    include Api::DomainErrors
     include Api::LegacyRouteCounting
     include Api::TokenAuthentication
     include Api::PublicIdLookupable

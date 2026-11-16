@@ -21,18 +21,10 @@ module Users
 
     def create
       passkey = Passkeys::Authentication.verify!(handle: params[:handle], params: params)
-      user = passkey.user
-      # Stay signed in past the :timeoutable idle limit, as the Google sign-in does.
-      user.remember_me = true
-      sign_in(:user, user)
 
-      render json: { redirect_to: after_sign_in_path_for(user) }, status: :ok
-    rescue Passkeys::Authentication::Failed => e
-      message = {
-        expired: "That sign-in attempt expired. Try again.",
-        unknown: "Unknown passkey"
-      }.fetch(e.reason, "Could not verify this passkey")
-      render json: { error: message }, status: :unauthorized
+      render json: { redirect_to: sign_in_with_session!(passkey.user) }, status: :ok
+    rescue Passkeys::Failed => e
+      render json: { error: e.message }, status: :unauthorized
     rescue ActionController::ParameterMissing
       render json: { error: "Missing passkey credential" }, status: :bad_request
     end

@@ -37,7 +37,7 @@ module Dashboard
     end
 
     def friendship_with(friend_public_id)
-      current_user.accepted_friendship_with(User.find_by_public_id(friend_public_id))
+      Friendship.accepted_between(current_user, User.find_by_public_id(friend_public_id))
     end
   end
 end

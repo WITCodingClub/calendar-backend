@@ -14,7 +14,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
   end
 
   def add_to(group, friend)
-    create(:friend_group_membership, friend_group: group, friendship: user.accepted_friendship_with(friend))
+    create(:friend_group_membership, friend_group: group, friendship: Friendship.accepted_between(user, friend))
   end
 
   after { Flipper.disable(FeatureFlags::FRIEND_GROUPS) }
@@ -235,7 +235,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
         expect(response).to have_http_status(:ok)
         expect(response.parsed_body.dig("group", "members").pluck("id")).to eq([ keep.public_id, add_new.public_id ])
         expect(group.reload.name).to eq("Study group")
-        expect(user.friend_of?(drop)).to be(true)
+        expect(Friendship.accepted_between(user, drop)).to be_present
       end
 
       it "applies the name and the members together" do
@@ -432,7 +432,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
         expect(response).to have_http_status(:ok)
         expect(response.parsed_body).to eq("ok" => true)
         expect(FriendGroup.exists?(group.id)).to be(false)
-        expect(user.friend_of?(friend)).to be(true)
+        expect(Friendship.accepted_between(user, friend)).to be_present
       end
 
       it "does not delete another user's group" do
@@ -521,7 +521,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
 
         expect(response).to have_http_status(:ok)
         expect(response.parsed_body.dig("group", "members")).to eq([])
-        expect(user.friend_of?(friend)).to be(true)
+        expect(Friendship.accepted_between(user, friend)).to be_present
       end
 
       it "answers 404 for a friend who is not in the group" do
@@ -564,7 +564,7 @@ RSpec.describe "Api::Friends::Groups", type: :request do
       it "does not show another user's groups" do
         friend = befriend
         theirs = create(:friend_group, user: friend)
-        create(:friend_group_membership, friend_group: theirs, friendship: user.accepted_friendship_with(friend))
+        create(:friend_group_membership, friend_group: theirs, friendship: Friendship.accepted_between(user, friend))
 
         get "/api/friends", headers: headers
 

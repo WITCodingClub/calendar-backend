@@ -31,13 +31,13 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `Oauth` | The OAuth 2.1 server for MCP clients: consent page, client registration, metadata (`docs/mcp.md`) |
 | `McpTools` | The MCP server, its tools, prompts, and apps (`docs/mcp.md`) |
 | `McpPlatforms` | The addresses of hosted MCP clients, which skip the per-IP rate limits (`docs/mcp.md`) |
-| `Risc` | Google RISC security events |
+| `Risc` | Google RISC security events: the token check, the event handler, and the stream management client (`Risc::StreamClient`, used by the `risc:*` rake tasks) |
 | `FriendMeetings`, `Friendships`, `FriendGroups`, `MeetingLinks` | Friends features |
 | `Notifications` | Turning the reminders of every calendar event off and on |
-| `Passkeys` | The passkey sign-in ceremony |
+| `Passkeys` | The passkey sign-in and registration ceremonies, and their `Passkeys::Failed` messages |
 | `Faculties` | The faculty directory and RateMyProfessor |
-| `FinalsSchedules` | Finals schedule PDFs and their parsers |
-| `UniversityCalendar` | The university event calendar import |
+| `FinalsSchedules` | Finals schedule PDFs, their parsers, and the rooms that an exam location names (`ExamRooms`) |
+| `UniversityCalendar` | The university event calendar import: the category of a feed event (`Category`) and the match of a repeated event (`DuplicateMatcher`) |
 | `Embeddings` | Vector embeddings |
 | `Preferences` | Calendar preferences: resolution, versions, templates, colors, reminders. `PreferenceFields` lists the fields |
 | `FeatureFlags` | Flipper flags, groups, and actors. Add a new flag to `FeatureFlags::DESCRIPTIONS` |
@@ -87,6 +87,7 @@ flowchart TD
 
 - **API route files:** `routes/api.rb` draws each file in `routes/api/` inside `namespace :api`. Put a new API route in the file for its area. The catch-all route stays last in `routes/api.rb`.
 - **API:** every API controller inherits from `Api::BaseController`. `CLAUDE.md` has the rules for auth, errors, and old paths.
+- **Admin access:** `AdminAccess` lists the lowest access level of each admin section that needs more than admin access. The admin navigation, the policies (`CourseCatalogPolicy`, `ServiceAccountPolicy`), and the route constraints (`AdminConstraint.new(:jobs)`) read it. Add a new section there, not as a role test in a controller. `spec/policies/admin_access_spec.rb` checks that the three agree.
 - **Fixed URLs:** the OAuth callbacks, `/risc/events`, and `/calendar/:token` never change. Google, Microsoft, and calendar apps store them.
 - **Catalog pages:** the dashboard pages for courses, instructors, finals, and university events (#797) are read-only and open to every signed-in user. They include `Dashboard::CatalogPages`. The course and instructor pages use the `Catalog::` query objects and render the hashes of the `Catalog::` serializers, so they show the same data as the public catalog API. The finals and events pages use `FinalsSchedules::FinalExamQuery` and `UniversityCalendar::EventQuery`. Do not show a field there that the API leaves out, such as a faculty email. The prerequisite map on a course page (#448) comes from `Catalog::PrerequisiteGraph`. It walks the same prerequisites and unlocked courses that the API gives for each course, and `Dashboard::PrerequisiteGraphHelper` places the boxes.
 
@@ -112,7 +113,7 @@ An action that the API, the dashboard and an MCP tool all offer lives in one ser
 
 ```mermaid
 flowchart LR
-  API["Api:: controller"] --> S["Service: Notifications::Toggle, Friendships::Request,<br/>MeetingLinks::Removal, OauthCredentials::Disconnect,<br/>Passkeys::Authentication"]
+  API["Api:: controller"] --> S["Service: Notifications::Toggle, Friendships::Request,<br/>MeetingLinks::Removal, OauthCredentials::Disconnect,<br/>Friendships::Removal, Passkeys::Authentication, Passkeys::Registration"]
   D["Dashboard:: controller"] --> S
   M["McpTools:: tool"] --> S
   S --> Models

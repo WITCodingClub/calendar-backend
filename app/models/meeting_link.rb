@@ -53,8 +53,6 @@ class MeetingLink < ApplicationRecord
   # Cleanup::OldMeetingLinksJob deletes it (#854).
   KEEP_STOPPED_FOR = 7.days
 
-  STATUSES = %w[active used revoked expired].freeze
-
   belongs_to :user
   belongs_to :friend_meeting, optional: true
   belongs_to :guest_user, class_name: "User", optional: true

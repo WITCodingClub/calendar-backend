@@ -38,15 +38,13 @@ module Api
       return render_not_found unless link
 
       authorize link, :destroy?
-      permanent = MeetingLinks::Removal.permanent?(params[:permanent])
-      result    = MeetingLinks::Removal.call(link, permanent: permanent)
+      result  = MeetingLinks::Removal.call(link, permanent: MeetingLinks::Removal.permanent?(params[:permanent]))
+      refusal = result.refusal
 
-      if result == :deleted
+      if result.deleted?
         head :no_content
-      elsif result == :active
-        render_error "Revoke the link before you delete it", status: :conflict, code: "MEETING_LINK_ACTIVE"
-      elsif result == :used && permanent
-        render_error "A used link keeps its meeting, so it cannot be deleted", status: :conflict, code: "MEETING_LINK_USED"
+      elsif refusal&.code
+        render_error refusal.message, status: :conflict, code: refusal.code
       else
         render json: { meeting_link: MeetingLinkSerializer.new(link).as_json }
       end

@@ -4,6 +4,8 @@ module McpTools
   # Pauses or resumes the reminders of every calendar event, like
   # PATCH /api/user/notifications.
   class SetNotifications < BaseWriteTool
+    # The tool's own limit of one year, shorter than the API's
+    # User::MAX_NOTIFICATION_PAUSE.
     MAX_HOURS = 24 * 365
 
     tool_name "set_notifications"

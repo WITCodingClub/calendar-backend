@@ -173,7 +173,7 @@ module Admin
       end
 
       # An expired row does not count. Friendship removes it before the create.
-      existing = Friendship.unexpired.between(@user, friend).first
+      existing = Friendship.unexpired_between(@user, friend)
 
       if existing
         if existing.accepted?
@@ -201,32 +201,21 @@ module Admin
         return
       end
 
-      friendship = Friendship.where(
-        "(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
-        @user.id, friend.id, friend.id, @user.id
-      ).first
-
-      if friendship.nil?
+      removal = Friendships::Removal.new(@user, friend)
+      unless removal.found?
         redirect_to admin_user_path(@user), alert: "Friendship not found."
         return
       end
 
-      friendship.destroy!
+      removal.call
       redirect_to admin_user_path(@user), notice: "Removed #{friend.full_name} as a friend."
     end
 
     private
 
+    # A public id, a bare hashid, or a database id (EncodedIds .find).
     def set_user
-      @user = if params[:id].start_with?("usr_")
-                User.find_by_public_id(params[:id])
-      elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
-                User.find_by_hashid(params[:id])
-      else
-                User.find(params[:id])
-      end
-
-      raise ActiveRecord::RecordNotFound unless @user
+      @user = User.find(params[:id])
     end
 
     def user_params

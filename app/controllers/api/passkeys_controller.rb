@@ -33,68 +33,21 @@ module Api
     def registration_options
       authorize Passkey.new(user: current_user), :create?
 
-      options = WebAuthn::Credential.options_for_create(
-        user: {
-          # Base64url like every credential id in these options, so the client
-          # decodes every binary field the same way. The gem passes this value
-          # through untouched, and nothing reads the handle back — we resolve
-          # the account from the credential id.
-          id:           Base64.urlsafe_encode64(current_user.public_id, padding: false),
-          name:         current_user.email,
-          display_name: current_user.full_name.presence || current_user.email
-        },
-        # Offering the credentials this account already holds stops an
-        # authenticator from silently registering a second key for the same
-        # account.
-        exclude:                current_user.passkeys.pluck(:external_id),
-        authenticator_selection: { resident_key: "preferred", user_verification: "preferred" }
-      )
-
-      record = WebauthnChallenge.issue!(
-        challenge: options.challenge,
-        purpose:   "registration",
-        user:      current_user
-      )
-
-      render json: { handle: record.handle, options: options.as_json }, status: :ok
+      render json: Passkeys::Registration.options(current_user), status: :ok
     end
 
     def create
-      passkey = Passkey.new(user: current_user)
-      authorize passkey, :create?
+      authorize Passkey.new(user: current_user), :create?
 
-      challenge = WebauthnChallenge.consume(handle: params[:handle], purpose: "registration")
-
-      # Holding the handle is not authority to register. The caller proved who
-      # they are with a token or a handoff, and the challenge has to belong to
-      # that same account — otherwise a leaked handle would let anyone attach
-      # their own authenticator to someone else's account.
-      if challenge.nil? || challenge.user_id != current_user.id
-        render_error "Passkey registration expired. Start again.", status: :unprocessable_content
-        return
-      end
-
-      owner = current_user
-
-      credential = WebAuthn::Credential.from_create(Passkeys::CredentialParams.attestation(params))
-      credential.verify(challenge.challenge)
-
-      passkey.assign_attributes(
-        external_id: credential.id,
-        public_key:  credential.public_key,
-        sign_count:  credential.sign_count,
-        nickname:    params[:nickname].to_s.strip.presence || default_nickname(owner)
-      )
-      passkey.save!
+      passkey = Passkeys::Registration.create!(user: current_user, handle: params[:handle], params: params,
+                                               nickname: params[:nickname])
 
       # Spent only now, so a failed attempt can be retried with the same link.
       PasskeyHandoff.consume(code: params[:handoff], purpose: "register") if params[:handoff].present?
 
       render json: { passkey: serialize(passkey) }, status: :created
-    # ArgumentError: the gem raises it for a field that is not valid base64url.
-    rescue WebAuthn::Error, ArgumentError => e
-      Rails.logger.warn("Passkey registration rejected: #{e.class} #{e.message}")
-      render_error "Could not verify this passkey", status: :unprocessable_content
+    rescue Passkeys::Failed => e
+      render_error e.message, status: :unprocessable_content
     end
 
     def destroy
@@ -116,8 +69,7 @@ module Api
       render json: Passkeys::Authentication.options, status: :ok
     end
 
-    # Unauthenticated. Returns the same body as onboarding, so the extension can
-    # reuse one code path for "I have a token now".
+    # Unauthenticated.
     def authenticate
       passkey = Passkeys::Authentication.verify!(handle: params[:handle], params: params)
       user = passkey.user
@@ -129,16 +81,10 @@ module Api
         return render json: { code: PasskeyHandoff.issue!(user: user, purpose: "session") }, status: :ok
       end
 
-      render json: {
-        pub_id: user.public_id.delete_prefix("usr_"),
-        jwt:    JsonWebTokenService.issue(user: user, source: "passkey", request: request, passkey: passkey)
-      }, status: :ok
-    rescue Passkeys::Authentication::Failed => e
-      message = {
-        expired: "Sign-in expired. Start again.",
-        unknown: "Unknown passkey"
-      }.fetch(e.reason, "Could not verify this passkey")
-      render_error message, status: :unauthorized
+      jwt = JsonWebTokenService.issue(user: user, source: "passkey", request: request, passkey: passkey)
+      render json: SessionTokenSerializer.new(user, jwt).as_json, status: :ok
+    rescue Passkeys::Failed => e
+      render_error e.message, status: :unauthorized
     end
 
     # Mints the code the extension hands to the passkey page so the page can
@@ -150,7 +96,6 @@ module Api
     end
 
     # Unauthenticated: trades the code the page redirected back with for a JWT.
-    # Same body as onboarding, so the extension keeps one code path.
     def exchange
       user = PasskeyHandoff.consume(code: params[:code], purpose: "session")
 
@@ -159,10 +104,8 @@ module Api
         return
       end
 
-      render json: {
-        pub_id: user.public_id.delete_prefix("usr_"),
-        jwt:    JsonWebTokenService.issue(user: user, source: "passkey", request: request)
-      }, status: :ok
+      jwt = JsonWebTokenService.issue(user: user, source: "passkey", request: request)
+      render json: SessionTokenSerializer.new(user, jwt).as_json, status: :ok
     end
 
     private
@@ -189,15 +132,6 @@ module Api
       return if @current_user
 
       super
-    end
-
-    def default_nickname(owner)
-      taken = owner.passkeys.pluck(:nickname)
-      return "Passkey" if taken.exclude?("Passkey")
-
-      index = 2
-      index += 1 while taken.include?("Passkey #{index}")
-      "Passkey #{index}"
     end
 
     def serialize(passkey)

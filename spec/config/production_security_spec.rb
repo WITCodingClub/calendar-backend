@@ -20,7 +20,7 @@ RSpec.describe "Production SSL and host settings" do
   end
 
   it "accepts only the public host" do
-    expect(active_lines).to include('config.hosts = [ ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev") ]')
+    expect(active_lines).to include("config.hosts = [ config.x.application_host ]")
   end
 
   it "does not check the host of the health check" do
@@ -32,7 +32,7 @@ RSpec.describe "Production SSL and host settings" do
   # Links built outside a request (meeting links, feed URLs, mail) take their
   # host and protocol from these options. Without the protocol they use http.
   it "builds links outside a request with the public host over https" do
-    options = '{ host: ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev"), protocol: "https" }'
+    options = '{ host: config.x.application_host, protocol: "https" }'
 
     expect(active_lines).to include(
       "config.action_mailer.default_url_options     = #{options}",
@@ -45,6 +45,14 @@ RSpec.describe "Production SSL and host settings" do
   it "uses the same host for the Google OAuth callback" do
     omniauth = Rails.root.join("config/initializers/omniauth.rb").read
 
-    expect(omniauth).to include('ENV.fetch("APPLICATION_HOST", "calendar.witcc.dev")')
+    expect(omniauth).to include("Rails.configuration.x.application_host")
+  end
+
+  it "defaults the public host to calendar.witcc.dev in production only" do
+    application = Rails.root.join("config/application.rb").read
+
+    expect(application).to include(
+      'config.x.application_host = ENV["APPLICATION_HOST"].presence || ("calendar.witcc.dev" if Rails.env.production?)'
+    )
   end
 end

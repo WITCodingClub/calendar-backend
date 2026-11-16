@@ -26,8 +26,8 @@
 # /api/friends/groups routes. SharedFriendGroupSerializer renders a group
 # that someone shared with the user.
 #
-# Preload memberships: { friendship: [:requester, :addressee] } before a list
-# of groups is serialized, or each group runs its own queries.
+# Load a list of groups with FriendGroup.with_members before it is serialized,
+# or each group runs its own queries.
 class FriendGroupSerializer
   # The short form inside each friend of GET /api/friends.
   def self.summary(group)

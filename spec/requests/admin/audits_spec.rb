@@ -3,12 +3,12 @@
 require "rails_helper"
 
 RSpec.describe "Admin console audits", type: :request do
-  let(:admin) { create(:user, :super_admin, first_name: "Ada", last_name: "Lovelace") }
+  let(:admin) { create(:user, access_level: :owner, first_name: "Ada", last_name: "Lovelace") }
   let(:other_admin) { create(:user, :admin, first_name: "Grace", last_name: "Hopper") }
   let(:console_user) { Console1984::User.create!(username: "deploy") }
   let!(:console_session) { Console1984::Session.create!(user: console_user, reason: "Fix a stuck sync") }
 
-  context "when a super admin is signed in" do
+  context "when an owner is signed in" do
     before { sign_in admin }
 
     it "lists console sessions" do
@@ -35,6 +35,16 @@ RSpec.describe "Admin console audits", type: :request do
       audit = Audits1984::Audit.last
       expect(audit.auditor).to eq(admin)
       expect(audit).to be_flagged
+    end
+  end
+
+  context "when a super admin is signed in" do
+    it "does not show console sessions" do
+      sign_in create(:user, :super_admin)
+
+      get "/admin/audits"
+
+      expect(response).to redirect_to(dashboard_root_path)
     end
   end
 

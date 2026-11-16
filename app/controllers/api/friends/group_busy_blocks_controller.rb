@@ -43,7 +43,7 @@ module Api
                 .find_by_public_id(params[:group_id])
         raise ActiveRecord::RecordNotFound, "Group not found" if group.nil?
 
-        FriendGroup.includes(:user, memberships: { friendship: %i[requester addressee] }).find(group.id)
+        FriendGroup.with_members.find(group.id)
       end
     end
   end

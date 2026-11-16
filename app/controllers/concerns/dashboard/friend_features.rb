@@ -30,7 +30,7 @@ module Dashboard
     # when there is none.
     def find_expiry_friendship(require_flag: true)
       friend     = User.find_by_public_id(params[:friend_id])
-      friendship = Friendship.unexpired.between(current_user, friend).first if friend && friend.id != current_user.id
+      friendship = Friendship.unexpired_between(current_user, friend) if friend && friend.id != current_user.id
 
       unless friendship && (!require_flag || Friendships::Features.expiry?(current_user))
         skip_authorization

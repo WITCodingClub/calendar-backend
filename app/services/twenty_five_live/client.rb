@@ -18,13 +18,6 @@ module TwentyFiveLive
     READ_TIMEOUT = 30
     MAX_RETRIES  = 3
 
-    def call
-      call!
-    rescue => e
-      Rails.error.report(e, handled: true)
-      false
-    end
-
     def call!
       sync_organizations
       sync_event_categories

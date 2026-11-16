@@ -9,9 +9,6 @@ module Risc
   class Validator
     class ValidationError < StandardError; end
     class InvalidTokenError < ValidationError; end
-    class InvalidIssuerError < ValidationError; end
-    class InvalidAudienceError < ValidationError; end
-    class InvalidSignatureError < ValidationError; end
     class KeyNotFoundError < ValidationError; end
     # Google's config or JWKS could not be fetched. This says nothing about the
     # token, so it is not a ValidationError: the job retries it and does not
@@ -59,14 +56,9 @@ module Risc
 
       payload = decoded[0]
       ActiveSupport::HashWithIndifferentAccess.new(payload)
+    # A bad signature, issuer, or audience is a JWT::DecodeError too.
     rescue JWT::DecodeError => e
       raise InvalidTokenError, "Invalid token: #{e.message}"
-    rescue JWT::VerificationError => e
-      raise InvalidSignatureError, "Invalid signature: #{e.message}"
-    rescue JWT::InvalidIssuerError => e
-      raise InvalidIssuerError, "Invalid issuer: #{e.message}"
-    rescue JWT::InvalidAudError => e
-      raise InvalidAudienceError, "Invalid audience: #{e.message}"
     end
 
     def extract_event_data(decoded_token)
