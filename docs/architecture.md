@@ -22,12 +22,12 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `Courses` | A user's course list: enrollments, processed events |
 | `AcademicProfiles` | A student's level, class standing, and programs from LeopardWeb (`docs/academic-profile.md`) |
 | `CourseOutcomes` | The outcome of each finished course, without the letter grade (`docs/academic-profile.md`) |
-| `CourseCalendars` | Calendar sync for every provider: sync jobs, provider selection, sync markers, the ICS feed (`docs/ics-feed.md`) |
-| `GoogleCalendar` | Google Calendar: the provider, event labels, colors, rate limits, calendar jobs |
-| `MicrosoftGraph` | Microsoft Graph: the HTTP client, the calendar provider, calendar jobs |
+| `CourseCalendars` | Calendar sync for every provider: the provider base class with the sync loop, the provider registry, the per-user lock and retry rules of the jobs, sync markers, the ICS feed (`docs/ics-feed.md`) |
+| `GoogleCalendar` | Google Calendar: the remote calls of the provider, event labels, rate limits, calendar jobs |
+| `MicrosoftGraph` | Microsoft Graph: the HTTP client, the remote calls of the provider, calendar jobs |
 | `GoogleSignIn` | Google sign-in and account linking: token checks, code exchange, OAuth state |
 | `MicrosoftSignIn` | Sign-in with a WIT Microsoft account |
-| `OauthCredentials` | Token refresh and revoke for every provider |
+| `OauthCredentials` | Token refresh and revoke jobs for every provider, and the signed OAuth state. `OauthCredential#refresh!` and `#mark_revoked!` hold the token rules |
 | `Oauth` | The OAuth 2.1 server for MCP clients: consent page, client registration, metadata (`docs/mcp.md`) |
 | `McpTools` | The MCP server, its tools, prompts, and apps (`docs/mcp.md`) |
 | `McpPlatforms` | The addresses of hosted MCP clients, which skip the per-IP rate limits (`docs/mcp.md`) |
@@ -39,12 +39,27 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `FinalsSchedules` | Finals schedule PDFs and their parsers |
 | `UniversityCalendar` | The university event calendar import |
 | `Embeddings` | Vector embeddings |
-| `Preferences` | Calendar preferences: resolution, versions, templates |
+| `Preferences` | Calendar preferences: resolution, versions, templates, colors, reminders. `PreferenceFields` lists the fields |
 | `FeatureFlags` | Flipper flags, groups, and actors. Add a new flag to `FeatureFlags::DESCRIPTIONS` |
 | `TwentyFiveLive` | 25Live: client, sync job, models, and value objects |
 | `Cleanup`, `Database` | Maintenance jobs. `Cleanup::ExpiredRecordsJob` deletes the expired rows of each `Expirable` model |
 
 Code with no domain stays at the root of its folder, for example `ApplicationService`, `JsonWebTokenService`, `AppMetrics`, `HttpFetcher` (every request to an outside site that an importer reads), and `PdfText` (every PDF that an importer reads).
+
+## Calendar providers
+
+`CourseCalendars::Provider` owns everything that does not depend on the provider: the sync loop, the "edits in the calendar win" merge (`CourseCalendars::EventEdits`), the tracking rows, the duplicate race, and the "event is gone, make it again" step. `GoogleCalendar::Provider` and `MicrosoftGraph::CalendarProvider` subclass it and make only the remote calls. Models and jobs reach a provider through `CourseCalendars::Providers.for(name)`, never by a test of the provider name. A new provider is a new subclass and a new entry in `CourseCalendars::Providers::CLASSES`.
+
+```mermaid
+flowchart TD
+  Syncer[CourseCalendars::ScheduleSyncer] --> Base[CourseCalendars::Provider: sync loop, edits, rows]
+  Base --> Google[GoogleCalendar::Provider: Google API calls]
+  Base --> Microsoft[MicrosoftGraph::CalendarProvider: Graph calls]
+  Models[CalendarEvent, CourseCalendar, OauthCredential] --> Registry[CourseCalendars::Providers.for]
+  Jobs[OauthCredentials::RefreshTokensJob] --> Registry
+  Registry --> Google
+  Registry --> Microsoft
+```
 
 ## Controllers and routes
 
