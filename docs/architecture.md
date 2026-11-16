@@ -34,7 +34,7 @@ This page gives the rules for where code goes. Issue #710 set them. Follow them 
 | `Risc` | Google RISC security events |
 | `FriendMeetings`, `Friendships`, `FriendGroups`, `MeetingLinks` | Friends features |
 | `Notifications` | Turning the reminders of every calendar event off and on |
-| `Passkeys` | The passkey sign-in ceremony |
+| `Passkeys` | The passkey sign-in and registration ceremonies, and their `Passkeys::Failed` messages |
 | `Faculties` | The faculty directory and RateMyProfessor |
 | `FinalsSchedules` | Finals schedule PDFs and their parsers |
 | `UniversityCalendar` | The university event calendar import |
@@ -112,7 +112,7 @@ An action that the API, the dashboard and an MCP tool all offer lives in one ser
 
 ```mermaid
 flowchart LR
-  API["Api:: controller"] --> S["Service: Notifications::Toggle, Friendships::Request,<br/>MeetingLinks::Removal, OauthCredentials::Disconnect,<br/>Passkeys::Authentication"]
+  API["Api:: controller"] --> S["Service: Notifications::Toggle, Friendships::Request,<br/>MeetingLinks::Removal, OauthCredentials::Disconnect,<br/>Friendships::Removal, Passkeys::Authentication, Passkeys::Registration"]
   D["Dashboard:: controller"] --> S
   M["McpTools:: tool"] --> S
   S --> Models

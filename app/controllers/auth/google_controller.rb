@@ -130,12 +130,7 @@ module Auth
         end
       end
 
-      # Without a remember cookie, :timeoutable signs the person out after 30
-      # idle minutes and the session cookie ends when the browser closes.
-      user.remember_me = true
-      sign_in(:user, user)
-
-      redirect_to after_sign_in_path_for(user), notice: "Welcome, #{user.first_name}!"
+      redirect_to sign_in_with_session!(user), notice: "Welcome, #{user.first_name}!"
     end
   end
 end

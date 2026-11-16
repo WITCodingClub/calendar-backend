@@ -56,7 +56,7 @@ module Api
 
       token = JsonWebTokenService.issue(user: user, source: "google_onboard", request: request)
 
-      render json: { pub_id: user.public_id.delete_prefix("usr_"), jwt: token }, status: :ok
+      render json: SessionTokenSerializer.new(user, token).as_json, status: :ok
     end
 
     private

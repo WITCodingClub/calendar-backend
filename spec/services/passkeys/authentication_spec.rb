@@ -6,7 +6,7 @@ RSpec.describe Passkeys::Authentication do
   def reason_of
     yield
     nil
-  rescue described_class::Failed => e
+  rescue Passkeys::Failed => e
     e.reason
   end
 

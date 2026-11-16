@@ -33,6 +33,16 @@ class ApplicationController < ActionController::Base
 
   private
 
+  # Every dashboard sign-in (Google, Microsoft, passkey) ends here. Without a
+  # remember cookie, :timeoutable signs the person out after 30 idle minutes
+  # and the session cookie ends when the browser closes. Returns the path to
+  # send the user to.
+  def sign_in_with_session!(user)
+    user.remember_me = true
+    sign_in(:user, user)
+    after_sign_in_path_for(user)
+  end
+
   # Audits1984 (mounted at /admin/audits) calls this to find the auditor.
   def find_current_auditor
     current_user if current_user&.admin_access?
