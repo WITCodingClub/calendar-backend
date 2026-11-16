@@ -77,6 +77,7 @@ module Api
     def sync
       authorize UniversityCalendarEvent, :sync?
       UniversityCalendar::SyncJob.perform_later
+      TwentyFiveLive::SyncJob.perform_later
       render json: { message: "University calendar sync queued" }
     end
 

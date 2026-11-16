@@ -20,11 +20,13 @@ RSpec.describe CourseCalendars::ResyncAudience do
 
   it "narrows to the users enrolled in a term" do
     term     = create(:term)
-    enrolled = user_with_calendar
-    create(:enrollment, user: enrolled, course: create(:course, term: term))
+    enrolled  = user_with_calendar
+    microsoft = user_with_calendar(provider: "microsoft")
+    [ enrolled, microsoft ].each { |user| create(:enrollment, user: user, course: create(:course, term: term)) }
     user_with_calendar
 
-    expect(described_class.enrolled_in(term.id)).to contain_exactly(enrolled)
+    # Finals reach Microsoft calendars too, not only Google ones.
+    expect(described_class.enrolled_in(term.id)).to contain_exactly(enrolled, microsoft)
   end
 
   it "narrows to the users who show university events" do

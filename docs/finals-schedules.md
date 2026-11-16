@@ -13,6 +13,8 @@ flowchart LR
   job --> sync[Calendar re-sync for the term]
 ```
 
+The re-sync reaches every user with a course in the term and a course calendar, on Google or Microsoft (`CourseCalendars::ResyncAudience.enrolled_in`).
+
 ## The parser
 
 `PdfText` runs the `pdftotext` command from poppler for the finals PDFs, the catalog PDFs, and the term elective lists. The production image installs `poppler-utils` in the `Dockerfile`, and `mise bootstrap` installs poppler for development. Without it, the job fails with "pdftotext is not installed". The final stage of the `Dockerfile` runs `pdftotext -v`, so `docker build` fails, and the deploy stops before the push, when the package is missing.

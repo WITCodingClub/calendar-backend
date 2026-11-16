@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Admin university calendar backfill", type: :request do
+RSpec.describe "Admin university calendar sync and backfill", type: :request do
   before do
     stub_request(:get, "https://api.github.com/repos/WITCodingClub/calendar/releases/latest")
       .to_return(status: 200, body: { tag_name: "v0.0.0" }.to_json)
@@ -25,5 +25,10 @@ RSpec.describe "Admin university calendar backfill", type: :request do
     post backfill_admin_university_calendar_events_path, params: { start_date: [ "x" ], end_date: [ "y" ] }
 
     expect(flash[:alert]).to eq("Invalid date format.")
+  end
+
+  it "queues the calendar sync and the 25Live sync" do
+    expect { post sync_admin_university_calendar_events_path }
+      .to have_enqueued_job(UniversityCalendar::SyncJob).and have_enqueued_job(TwentyFiveLive::SyncJob)
   end
 end

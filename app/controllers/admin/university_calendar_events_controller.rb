@@ -43,6 +43,7 @@ module Admin
       authorize UniversityCalendarEvent
 
       UniversityCalendar::SyncJob.perform_later
+      TwentyFiveLive::SyncJob.perform_later
       redirect_to admin_university_calendar_events_path, notice: "University calendar sync queued successfully."
     end
 
