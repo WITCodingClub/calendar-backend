@@ -28,5 +28,15 @@ RSpec.describe Preferences::Reminders do
     it "gives nil for a setting that is not a list" do
       expect(described_class.for_sync(nil)).to be_nil
     end
+
+    # Rows saved before the type check can hold another type.
+    it "counts an unknown type as minutes" do
+      expect(described_class.for_sync([ { "time" => "10", "type" => "weeks", "method" => "popup" } ]))
+        .to eq([ described_class::Reminder.new(delivery: "popup", minutes: 10) ])
+    end
+
+    it "leaves out a reminder with no type" do
+      expect(described_class.for_sync([ { "time" => "10", "type" => "", "method" => "popup" } ])).to eq([])
+    end
   end
 end

@@ -34,9 +34,10 @@ module Preferences
 
       settings.filter_map do |reminder|
         next unless reminder.is_a?(Hash) && METHODS.include?(reminder["method"])
-        next if reminder["time"].blank? || !TIME_TYPES.include?(reminder["type"])
+        next if reminder["time"].blank? || reminder["type"].blank?
 
-        Reminder.new(delivery: stored_method(reminder["method"]), minutes: (reminder["time"].to_f * MINUTES.fetch(reminder["type"])).to_i)
+        # Rows saved before the type check can hold another type. It counts as minutes.
+        Reminder.new(delivery: stored_method(reminder["method"]), minutes: (reminder["time"].to_f * MINUTES.fetch(reminder["type"], 1)).to_i)
       end
     end
   end
