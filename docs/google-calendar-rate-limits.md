@@ -43,7 +43,7 @@ flowchart TD
   call -->|quotaExceeded or dailyLimitExceeded| report
 ```
 
-These jobs retry: `CourseCalendars::SyncJob`, `CourseCalendars::HistoricalSyncJob`, `GoogleCalendar::CreateJob`, `GoogleCalendar::DeleteJob`, `GoogleCalendar::EventDeleteJob`, `MicrosoftGraph::CalendarPlacementJob`, and the `FriendMeetings::` jobs. The last two retry other provider failures too (`retry_on_provider_errors`). Add `retry_on_rate_limits` to a new job that calls a provider.
+These jobs retry: `CourseCalendars::SyncJob`, `CourseCalendars::HistoricalSyncJob`, `GoogleCalendar::DeleteJob`, `GoogleCalendar::EventDeleteJob`, `MicrosoftGraph::CalendarPlacementJob`, and the `FriendMeetings::` jobs. The last two retry other provider failures too (`retry_on_provider_errors`). Add `retry_on_rate_limits` to a new job that calls a provider.
 
 When a user has a Google and a Microsoft calendar, `CourseCalendars::ScheduleSyncer` raises an error only when every provider fails. A rate limit is the exception: the syncer raises it after the other providers finish. The job then retries, and the user is not recorded as synced, so the nightly sync still picks the user.
 
