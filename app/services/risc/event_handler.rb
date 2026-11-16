@@ -15,6 +15,16 @@ module Risc
       ActiveRecord::TransactionRollbackError # deadlock, serialization failure
     ].freeze
 
+    # The action of each event type that does not depend on the event, and
+    # whether it revokes every Google credential of the person.
+    ACTIONS = {
+      SecurityEvent::SESSIONS_REVOKED                   => [ "sessions_revoked", true ],
+      SecurityEvent::TOKENS_REVOKED                     => [ "tokens_revoked", true ],
+      SecurityEvent::TOKEN_REVOKED                      => [ "token_revoked", true ],
+      SecurityEvent::ACCOUNT_ENABLED                    => [ "account_enabled", false ],
+      SecurityEvent::ACCOUNT_CREDENTIAL_CHANGE_REQUIRED => [ "credential_change_required", false ]
+    }.freeze
+
     attr_reader :event_data, :security_event
 
     def initialize(event_data)
@@ -37,24 +47,7 @@ module Risc
         return { success: true, action: "user_not_found" }
       end
 
-      result = case event_data[:event_type]
-      when SecurityEvent::SESSIONS_REVOKED
-                 handle_sessions_revoked(user)
-      when SecurityEvent::TOKENS_REVOKED
-                 handle_tokens_revoked(user)
-      when SecurityEvent::TOKEN_REVOKED
-                 handle_token_revoked(user)
-      when SecurityEvent::ACCOUNT_DISABLED
-                 handle_account_disabled(user)
-      when SecurityEvent::ACCOUNT_ENABLED
-                 handle_account_enabled(user)
-      when SecurityEvent::ACCOUNT_CREDENTIAL_CHANGE_REQUIRED
-                 handle_credential_change_required(user)
-      else
-                 Rails.logger.warn("Unknown RISC event type: #{event_data[:event_type]}")
-                 { action: "unknown_event_type" }
-      end
-
+      result = handle(user)
       @security_event.mark_processed!
 
       { success: true, **result }
@@ -96,43 +89,31 @@ module Risc
       end
     end
 
-    def handle_sessions_revoked(user)
-      Rails.logger.info("RISC: Sessions revoked for user #{user.id}")
-      revoke_all_oauth_credentials(user)
-      { action: "sessions_revoked", oauth_credentials_revoked: true }
-    end
+    def handle(user)
+      event_type = event_data[:event_type]
+      return handle_account_disabled(user) if event_type == SecurityEvent::ACCOUNT_DISABLED
 
-    def handle_tokens_revoked(user)
-      Rails.logger.info("RISC: OAuth tokens revoked for user #{user.id}")
-      revoke_all_oauth_credentials(user)
-      { action: "tokens_revoked", oauth_credentials_revoked: true }
-    end
-
-    def handle_token_revoked(user)
-      Rails.logger.info("RISC: Specific OAuth token revoked for user #{user.id}")
-      revoke_all_oauth_credentials(user)
-      { action: "token_revoked", oauth_credentials_revoked: true }
-    end
-
-    def handle_account_disabled(user)
-      Rails.logger.info("RISC: Account disabled for user #{user.id}, reason: #{event_data[:reason]}")
-
-      if event_data[:reason] == "hijacking"
-        revoke_all_oauth_credentials(user)
-        { action: "account_disabled_hijacking", oauth_credentials_revoked: true }
-      else
-        { action: "account_disabled", reason: event_data[:reason] }
+      action, revoke = ACTIONS[event_type]
+      unless action
+        Rails.logger.warn("Unknown RISC event type: #{event_type}")
+        return { action: "unknown_event_type" }
       end
+
+      Rails.logger.info("RISC: #{action} for user #{user.id}")
+      return { action: action } unless revoke
+
+      revoke_all_oauth_credentials(user)
+      { action: action, oauth_credentials_revoked: true }
     end
 
-    def handle_account_enabled(user)
-      Rails.logger.info("RISC: Account enabled for user #{user.id}")
-      { action: "account_enabled" }
-    end
+    # Google disables an account for a reason. Only a hijacked account needs
+    # its tokens revoked.
+    def handle_account_disabled(user)
+      Rails.logger.info("RISC: account_disabled for user #{user.id}, reason: #{event_data[:reason]}")
+      return { action: "account_disabled", reason: event_data[:reason] } unless event_data[:reason] == "hijacking"
 
-    def handle_credential_change_required(user)
-      Rails.logger.info("RISC: Credential change required for user #{user.id}")
-      { action: "credential_change_required" }
+      revoke_all_oauth_credentials(user)
+      { action: "account_disabled_hijacking", oauth_credentials_revoked: true }
     end
 
     def handle_verification_event

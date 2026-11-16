@@ -75,4 +75,44 @@ RSpec.describe Risc::EventHandler do
     expect(result).to include(success: false)
     expect(Rails.error).to have_received(:report).with(an_instance_of(ActiveRecord::RecordInvalid), handled: true, context: { jti: data[:jti] })
   end
+
+  describe "the action of each event type" do
+    def process(event_type, reason: nil)
+      described_class.new(event_data.merge(jti: "synthetic-#{SecureRandom.hex(4)}", event_type:, reason:)).process
+    end
+
+    {
+      SecurityEvent::SESSIONS_REVOKED => "sessions_revoked",
+      SecurityEvent::TOKENS_REVOKED   => "tokens_revoked",
+      SecurityEvent::TOKEN_REVOKED    => "token_revoked"
+    }.each do |event_type, action|
+      it "revokes every Google credential for #{action}" do
+        expect(process(event_type)).to eq(success: true, action: action, oauth_credentials_revoked: true)
+        expect(OauthCredential.exists?(credential.id)).to be(false)
+      end
+    end
+
+    {
+      SecurityEvent::ACCOUNT_ENABLED                    => "account_enabled",
+      SecurityEvent::ACCOUNT_CREDENTIAL_CHANGE_REQUIRED => "credential_change_required"
+    }.each do |event_type, action|
+      it "only records #{action}" do
+        expect(process(event_type)).to eq(success: true, action: action)
+        expect(OauthCredential.exists?(credential.id)).to be(true)
+      end
+    end
+
+    it "revokes the credentials of a hijacked account only" do
+      expect(process(SecurityEvent::ACCOUNT_DISABLED, reason: "bulk-account")).to eq(success: true, action: "account_disabled", reason: "bulk-account")
+      expect(OauthCredential.exists?(credential.id)).to be(true)
+
+      expect(process(SecurityEvent::ACCOUNT_DISABLED, reason: "hijacking"))
+        .to eq(success: true, action: "account_disabled_hijacking", oauth_credentials_revoked: true)
+      expect(OauthCredential.exists?(credential.id)).to be(false)
+    end
+
+    it "marks an unknown event type processed" do
+      expect(process("https://schemas.example.test/unknown")).to eq(success: true, action: "unknown_event_type")
+    end
+  end
 end
