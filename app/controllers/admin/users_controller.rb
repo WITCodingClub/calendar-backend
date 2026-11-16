@@ -120,23 +120,12 @@ module Admin
         return
       end
 
-      credentials = Google::Auth::UserRefreshCredentials.new(
-        client_id:     Rails.application.credentials.dig(:google, :client_id),
-        client_secret: Rails.application.credentials.dig(:google, :client_secret),
-        refresh_token: credential.refresh_token,
-        scope:         [ "https://www.googleapis.com/auth/calendar" ]
-      )
-      credentials.refresh!
-
-      credential.update!(
-        access_token:     credentials.access_token,
-        token_expires_at: Time.current + credentials.expires_in.seconds
-      )
+      credential.refresh!
 
       redirect_to admin_user_path(@user), notice: "OAuth token refreshed for #{credential.email}."
     rescue ActiveRecord::RecordNotFound
       redirect_to admin_user_path(@user), alert: "OAuth credential not found."
-    rescue Signet::AuthorizationError => e
+    rescue Signet::AuthorizationError, MicrosoftGraph::AuthError => e
       redirect_to admin_user_path(@user), alert: "Failed to refresh token for #{credential.email}: #{e.message}"
     rescue => e
       Rails.error.report(e, handled: true, context: { user_id: @user.id })

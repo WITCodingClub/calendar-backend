@@ -101,33 +101,13 @@ module Cleanup
       Rails.logger.info "[Cleanup::UntrackedGoogleEventsJob] Deleted #{event.id} " \
                         "(#{event.summary.inspect}) from calendar #{calendar.id}"
     rescue Google::Apis::ClientError => e
-      # 410 Gone: the event was already deleted.
-      raise unless [ 404, 410 ].include?(e.status_code)
+      raise unless GoogleCalendar::Provider.gone?(e)
     end
 
     # The service account created and owns every app-managed calendar, so it can
     # list and delete regardless of the state of the user's OAuth tokens.
     def calendar_service
-      @calendar_service ||= begin
-        service = Google::Apis::CalendarV3::CalendarService.new
-        service.authorization = service_account_credentials
-        service
-      end
-    end
-
-    def service_account_credentials
-      service_account_config = Rails.application.credentials.dig(:google, :service_account)
-
-      credentials_json = if service_account_config.is_a?(String)
-                           service_account_config
-      else
-                           service_account_config.to_json
-      end
-
-      Google::Auth::ServiceAccountCredentials.make_creds(
-        json_key_io: StringIO.new(credentials_json),
-        scope:       Google::Apis::CalendarV3::AUTH_CALENDAR
-      )
+      @calendar_service ||= GoogleCalendar::CalendarServices.service_account
     end
   end
 end

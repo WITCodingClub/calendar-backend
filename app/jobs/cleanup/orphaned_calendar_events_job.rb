@@ -36,26 +36,26 @@ module Cleanup
     private
 
     def delete_orphaned_event(event)
-      calendar = event.course_calendar
+      calendar   = event.course_calendar
       credential = calendar&.oauth_credential
 
       # A Microsoft row deletes its remote event from the destroy callback below.
       if calendar&.google? && credential && calendar.external_calendar_id.present?
         begin
-          service = build_calendar_service(credential)
+          service = GoogleCalendar::CalendarServices.for_credential(credential)
           service.delete_event(calendar.external_calendar_id, event.external_event_id)
           Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Deleted event #{event.external_event_id} from Google Calendar"
         rescue Google::Apis::ClientError => e
           # Any other error keeps the row, so the next run tries the remote
           # event again. perform reports the error and counts it.
-          raise unless [ 404, 410 ].include?(e.status_code)
+          raise unless GoogleCalendar::Provider.gone?(e)
 
           Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Event #{event.external_event_id} already deleted from Google Calendar"
-        rescue Signet::AuthorizationError => e
+        rescue Signet::AuthorizationError
           # Google refused the refresh token, so the remote event is out of
           # reach until the person connects again. Any other refusal, such as
           # invalid_client, keeps the row and perform reports it.
-          raise unless GoogleCalendar::CalendarServices.invalid_grant?(e)
+          raise unless credential.token_revoked?
 
           Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Google token revoked for credential #{credential.id}, so event #{event.external_event_id} stays on Google Calendar"
         end
@@ -63,33 +63,6 @@ module Cleanup
 
       event.destroy!
       Rails.logger.info "[Cleanup::OrphanedCalendarEventsJob] Deleted event #{event.id} from database"
-    end
-
-    def build_calendar_service(credential)
-      service = Google::Apis::CalendarV3::CalendarService.new
-      service.authorization = build_google_authorization(credential)
-      service
-    end
-
-    def build_google_authorization(credential)
-      creds = Google::Auth::UserRefreshCredentials.new(
-        client_id: Rails.application.credentials.dig(:google, :client_id),
-        client_secret: Rails.application.credentials.dig(:google, :client_secret),
-        scope: [ "https://www.googleapis.com/auth/calendar" ],
-        access_token: credential.access_token,
-        refresh_token: credential.refresh_token,
-        expires_at: credential.token_expires_at
-      )
-
-      if credential.token_expires_at && credential.token_expires_at < Time.current
-        creds.refresh!
-        credential.update!(
-          access_token: creds.access_token,
-          token_expires_at: Time.zone.at(creds.expires_at)
-        )
-      end
-
-      creds
     end
   end
 end

@@ -22,13 +22,7 @@ module Cleanup
       flagged = 0
 
       unusable_credentials.find_each do |credential|
-        credential.update!(
-          metadata: (credential.metadata || {}).merge(
-            "token_revoked"     => true,
-            "token_revoked_at"  => Time.current.iso8601,
-            "revocation_reason" => REASON
-          )
-        )
+        credential.mark_revoked!(REASON)
         flagged += 1
       end
 

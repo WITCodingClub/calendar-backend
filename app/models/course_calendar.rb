@@ -64,8 +64,7 @@ class CourseCalendar < ApplicationRecord
   # later, so destroying the row does not enqueue a delete job.
   attr_accessor :skip_remote_deletion
 
-  # The nightly job syncs every calendar every six hours. A calendar with no
-  # sync for a day has missed four runs, so the admin pages flag it.
+  # The admin pages flag a calendar with no sync for this long.
   STALE_AFTER = 1.day
 
   scope :for_user, ->(user) { joins(:oauth_credential).where(oauth_credentials: { user_id: user.id }) }
@@ -73,10 +72,6 @@ class CourseCalendar < ApplicationRecord
 
   def mark_synced!
     update_columns(last_synced_at: Time.current) # rubocop:disable Rails/SkipsModelValidations
-  end
-
-  def needs_sync?(threshold = 1.hour)
-    last_synced_at.nil? || last_synced_at < threshold.ago
   end
 
   private
@@ -92,11 +87,7 @@ class CourseCalendar < ApplicationRecord
   def enqueue_remote_calendar_deletion
     return if skip_remote_deletion || external_calendar_id.blank? || primary_placement?
 
-    if microsoft?
-      MicrosoftGraph::CalendarDeleteJob.perform_later(oauth_credential_id, external_calendar_id)
-    else
-      GoogleCalendar::DeleteJob.perform_later(external_calendar_id)
-    end
+    CourseCalendars::Providers.for(provider).delete_calendar_later(self)
   rescue => e
     Rails.error.report(e, handled: true, context: { course_calendar_id: id })
   end

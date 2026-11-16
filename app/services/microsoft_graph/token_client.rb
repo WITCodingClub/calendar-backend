@@ -47,8 +47,7 @@ module MicrosoftGraph
     #
     # invalid_grant means Microsoft will not take the refresh token again: the
     # person revoked access, an admin removed consent, or the token expired.
-    # The credential is marked revoked, like a Google token that
-    # OauthCredentials::RefreshTokensJob cannot refresh, so the dashboard asks for a new
+    # The credential is marked revoked, so the dashboard asks for a new
     # sign-in.
     # Microsoft gives a new refresh token with each refresh. Two refreshes of
     # one credential at the same time (a sync and OauthCredentials::RefreshTokensJob) can
@@ -72,23 +71,13 @@ module MicrosoftGraph
         token
       end
     rescue AuthError => e
-      mark_revoked(credential) if e.body.is_a?(Hash) && e.body["error"] == "invalid_grant"
+      credential.mark_revoked!("invalid_grant") if e.body.is_a?(Hash) && e.body["error"] == "invalid_grant"
       raise
     end
 
     private
 
     attr_reader :settings
-
-    def mark_revoked(credential)
-      credential.update!(
-        metadata: (credential.metadata || {}).merge(
-          "token_revoked"     => true,
-          "token_revoked_at"  => Time.current.iso8601,
-          "revocation_reason" => "invalid_grant"
-        )
-      )
-    end
 
     def authority_url
       "#{AUTHORITY}/#{settings[:tenant_id]}/oauth2/v2.0"

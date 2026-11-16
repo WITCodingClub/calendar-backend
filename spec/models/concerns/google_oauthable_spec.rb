@@ -5,33 +5,21 @@ require "rails_helper"
 RSpec.describe GoogleOauthable do
   let(:user) { create(:user) }
 
-  describe "#reset_google_credential" do
-    it "reads the credential again on the next call" do
+  describe "#google_credential" do
+    it "gives the first Google account the person linked" do
+      first = create(:oauth_credential, user: user, created_at: 2.days.ago)
+      create(:oauth_credential, user: user, email: "second@example.test", created_at: 1.day.ago)
+      create(:oauth_credential, :microsoft, user: user, created_at: 3.days.ago)
+
+      expect(user.google_credential).to eq(first)
+    end
+
+    it "reads a credential that was linked after an earlier call" do
       expect(user.google_credential).to be_nil
 
       credential = create(:oauth_credential, user: user)
-      user.reset_google_credential
 
       expect(user.google_credential).to eq(credential)
-    end
-
-    it "does nothing when no credential is cached" do
-      expect { user.reset_google_credential }.not_to raise_error
-    end
-  end
-
-  describe "#refresh_google_token!" do
-    it "keeps the credential readable after the refresh" do
-      credential = create(:oauth_credential, user: user, refresh_token: "synthetic-refresh", token_expires_at: 1.minute.ago)
-      stub_request(:post, "https://oauth2.googleapis.com/token").to_return(
-        status: 200, body: { access_token: "synthetic-refreshed-token", expires_in: 3600, token_type: "Bearer" }.to_json,
-        headers: { "Content-Type" => "application/json" }
-      )
-
-      user.refresh_google_token!
-
-      expect(user.google_credential).to eq(credential)
-      expect(user.google_access_token).to eq("synthetic-refreshed-token")
     end
   end
 end
