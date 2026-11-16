@@ -79,7 +79,6 @@ class RequirementSet < ApplicationRecord
     plans.find { |plan| !plan.accelerated } || plans.first
   end
 
-  # The plan with this name, case ignored, or nil.
   def plan_named(name) = program_plans.to_a.find { |plan| plan.name.casecmp?(name.to_s.strip) }
 
   # The last import of a catalog year saw every set whose last_seen_at is

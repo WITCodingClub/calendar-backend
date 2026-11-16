@@ -3,9 +3,6 @@
 module Api
   module V1
     module Catalog
-      # GET /api/v1/catalog/programs
-      # GET /api/v1/catalog/programs/:slug
-      #
       # Degree programs from the academic catalog, for one catalog year
       # (docs/degree-requirements.md). Without catalog_year, the newest
       # imported year.
