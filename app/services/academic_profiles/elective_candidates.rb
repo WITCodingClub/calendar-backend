@@ -37,7 +37,6 @@ module AcademicProfiles
     LIMIT = 25
     PREREQUISITE_RANK = { "met" => 0, "unknown" => 1, nil => 1, "not_met" => 2 }.freeze
     SEATS_RANK = { true => 0, nil => 1, false => 2 }.freeze
-    COUNTED = CourseHistory::STATUSES
     # The school code of a term elective list (TermElectives::SCHOOLS) for
     # the school of a requirement set. A list of the HSS school, or with no
     # school, is for every program. A set of a school with no code (an old
@@ -242,7 +241,7 @@ module AcademicProfiles
     end
 
     def taken_keys
-      @taken_keys ||= (@taken.select { |course| COUNTED.include?(course[:status]) }
+      @taken_keys ||= (@taken.select { |course| CourseHistory.counted?(course[:status]) }
                              .filter_map { |course| CourseCode.parse(course[:code]) } + @skip).to_set
     end
 

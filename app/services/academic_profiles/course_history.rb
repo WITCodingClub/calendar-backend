@@ -11,6 +11,8 @@ module AcademicProfiles
     # The statuses of a course that fills a requirement (#1019).
     STATUSES = %w[done in_progress registered].freeze
 
+    def self.counted?(status) = STATUSES.include?(status)
+
     # A course the student took or takes. term is the Term. credits are the
     # credit hours of its sections, or nil. status is done, in_progress,
     # registered (a term after the current term, #1019), or not_passed. A

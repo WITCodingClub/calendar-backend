@@ -31,8 +31,6 @@ module AcademicProfiles
   #
   # GET /api/user/next_term_courses and the My programs dashboard page send it.
   class NextTermCourses
-    COUNTED = CourseHistory::STATUSES
-
     # The outcomes of the courses that count for PrerequisiteCheck: the
     # taken courses (by key), and each assumed course as passed with a C or
     # better (no outcome).
@@ -141,7 +139,7 @@ module AcademicProfiles
         uid = row[:planned_term_uid]
         next if uid.nil?
 
-        if uid == term_uid && COUNTED.exclude?(row[:status])
+        if uid == term_uid && !CourseHistory.counted?(row[:status])
           planned << row
         elsif uid < term_uid && uid <= behind_limit && row[:status] == "open"
           behind << row
@@ -175,7 +173,7 @@ module AcademicProfiles
     # attempt, such as a D in an earlier term, and the retake is in the
     # term. Each course once, in plan order.
     def registered_json(entry)
-      codes = entry[:requirements].filter_map { |row| row[:course] if COUNTED.include?(row[:status]) }
+      codes = entry[:requirements].filter_map { |row| row[:course] if CourseHistory.counted?(row[:status]) }
       codes.flat_map { |code| term_registered.select { |course| course_keys.equivalent_codes(code).include?(course[:code]) } }
            .uniq { |course| course[:code] }
            .map { |course| { code: course[:code], title: course[:title], crns: term_crns.fetch(course[:code], []) } }
@@ -300,7 +298,7 @@ module AcademicProfiles
     # course in the same term meet a prerequisite. A transfer credit (#1020)
     # has no term and always counts.
     def taken_courses
-      @taken_courses ||= progress[:courses].select { |course| COUNTED.include?(course[:status]) }
+      @taken_courses ||= progress[:courses].select { |course| CourseHistory.counted?(course[:status]) }
                                            .select { |course| term_uid.nil? || course[:term_uid].nil? || course[:term_uid] < term_uid }
                                            .group_by { |course| CourseCode.parse(course[:code]) }
     end

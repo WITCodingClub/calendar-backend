@@ -74,7 +74,7 @@ module AcademicProfiles
     # has the rows the plan puts in it, and no other. estimate: any other
     # term.
     def basis_of(uid, term_rows, rows)
-      return TAKEN if term_rows.all? { |row| Placement::DONE.include?(row[:status]) }
+      return TAKEN if term_rows.all? { |row| CourseHistory.counted?(row[:status]) }
 
       planned = rows.select { |row| row[:planned_term_uid] == uid }
       planned.size == term_rows.size && term_rows.all? { |row| row[:planned_term_uid] == uid } ? PLAN : ESTIMATE
