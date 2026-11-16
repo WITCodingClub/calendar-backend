@@ -16,7 +16,8 @@ module CourseCalendars
   #   #fetch_event(row)                                  -> CourseCalendars::RemoteEvent, or nil when gone
   #   #patch_event(row, event_id, event, remote:, force:) -> the event id, or nil when gone
   #   #delete_event(row)                                -> deletes it; a missing event counts as deleted
-  #   #delete_duplicate_event(calendar, event_id)       -> deletes an event the app just made twice
+  #   #delete_duplicate_event(calendar, event_id, notify:) -> deletes an event the app just made twice;
+  #                                                        notify: true tells the invited friends
   #   #insert_friend_meeting(calendar, meeting, invite:)         -> the row's external id columns
   #   #patch_friend_meeting(row, meeting, attendees:)            -> the event id, or nil when gone
   #   #delete_friend_meeting(row)                                -> deletes it; missing counts as deleted
@@ -122,14 +123,7 @@ module CourseCalendars
       return nil unless calendar
 
       remote = insert_friend_meeting(calendar, meeting, invite: invite)
-      calendar.calendar_events.create!(row_attributes(meeting.calendar_event).merge(remote).merge(friend_meeting: meeting))
-    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
-      raise if e.is_a?(ActiveRecord::RecordInvalid) && !e.record.errors.of_kind?(:friend_meeting_id, :taken)
-
-      # A concurrent publish already tracks this meeting, so the event just
-      # created is a duplicate.
-      delete_duplicate_event(calendar, remote[:external_event_id]) if remote
-      nil
+      track_new_event(calendar, remote, row_attributes(meeting.calendar_event).merge(remote).merge(friend_meeting: meeting), notify: invite)
     end
 
     # Writes the meeting's current title, place, time, and (with attendees:
@@ -197,11 +191,10 @@ module CourseCalendars
         row = existing[event.source_key]
 
         if row.nil?
-          create_event(calendar, event)
-          stats[:created] += 1
+          stats[create_event(calendar, event) ? :created : :skipped] += 1
         elsif force || row.data_changed?(event)
           result = update_event(calendar, row, event, force: force)
-          stats[result == :skipped_user_edit ? :skipped : :updated] += 1
+          stats[%i[skipped_user_edit duplicate].include?(result) ? :skipped : :updated] += 1
         else
           row.mark_synced!
           stats[:skipped] += 1
@@ -213,16 +206,38 @@ module CourseCalendars
 
     def create_event(calendar, event)
       remote = insert_event(calendar, event)
-      row    = calendar.calendar_events.create!(row_attributes(event).merge(event.source_key.first => event.source.id).merge(remote))
-      event_created(row, event)
+      row    = track_new_event(calendar, remote, row_attributes(event).merge(event.source_key.first => event.source.id).merge(remote))
+      event_created(row, event) if row
       row
-    rescue ActiveRecord::RecordNotUnique
-      # A concurrent sync already created the tracking row for this event, so
-      # the insert above made a duplicate remote event.
-      Rails.logger.warn({ message: "Duplicate event race, removing the extra remote event", user_id: user.id,
-                          calendar_id: calendar.id, external_event_id: remote&.dig(:external_event_id) }.to_json)
-      delete_duplicate_event(calendar, remote[:external_event_id]) if remote
+    end
+
+    # Saves the row that tracks an event the provider just made. When a
+    # concurrent sync already tracks the same source, the event is a
+    # duplicate: it is deleted and the result is nil. The other sync's row
+    # can be committed before the uniqueness validation runs (RecordInvalid
+    # with :taken) or only before the insert (RecordNotUnique). The savepoint
+    # keeps a RecordNotUnique from aborting a transaction the caller has open.
+    # notify: true tells the friends invited to the duplicate that it is gone.
+    def track_new_event(calendar, remote, attributes, notify: false)
+      CalendarEvent.transaction(requires_new: true) { calendar.calendar_events.create!(attributes) }
+    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
+      raise if e.is_a?(ActiveRecord::RecordInvalid) && !source_taken?(e.record)
+
+      Rails.error.report(e, handled: true, context: { user_id: user.id, calendar_id: calendar.id })
+      remove_duplicate(calendar, remote[:external_event_id], notify: notify)
       nil
+    end
+
+    # A failed delete leaves the duplicate in the calendar, but the other
+    # sync's row is good, so the sync goes on. The report names the event.
+    def remove_duplicate(calendar, event_id, notify:)
+      delete_duplicate_event(calendar, event_id, notify: notify)
+    rescue StandardError => e
+      Rails.error.report(e, handled: true, context: { user_id: user.id, calendar_id: calendar.id, external_event_id: event_id })
+    end
+
+    def source_taken?(row)
+      CalendarEvent::SOURCE_COLUMNS.values.any? { |column| row.errors.of_kind?(column, :taken) }
     end
 
     # A hook for the work a provider does after the row of a new event exists.
@@ -233,7 +248,8 @@ module CourseCalendars
     # event. A forced update writes the app's values and forgets the edits.
     # An event that is gone is made again.
     #
-    # Returns :updated, :skipped_user_edit, or :recreated.
+    # Returns :updated, :skipped_user_edit, :recreated, or :duplicate when a
+    # concurrent sync made the event again first.
     def update_event(calendar, row, event, force:)
       event_id = row.external_event_id
       remote   = nil
@@ -283,8 +299,7 @@ module CourseCalendars
                           calendar_event_id: row.id }.to_json)
       row.skip_remote_deletion = true
       row.destroy!
-      create_event(calendar, event)
-      :recreated
+      create_event(calendar, event) ? :recreated : :duplicate
     end
 
     def row_attributes(event)

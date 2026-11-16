@@ -440,6 +440,23 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
 
       expect(service.update_specific_events([ class_event ])).to eq(created: 1, updated: 0, skipped: 0)
     end
+
+    it "deletes the new event when a concurrent sync already tracks it" do
+      calendar
+      # The other sync tracks the event while this one waits for Graph.
+      stub_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events").to_return do
+        create(:calendar_event, course_calendar: calendar, meeting_time: meeting_time, external_event_id: "AAMkSyntheticOtherSync")
+        graph_json_response("event_created")
+      end
+      delete = stub_request(:delete, "#{graph}/me/events/#{created_event_id}").to_return(status: 204)
+      recurring = class_event_for(meeting_time, recurrence: [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO", "EXDATE;TZID=America/New_York:20261012T090000" ])
+
+      expect(service.update_specific_events([ recurring ])).to eq(created: 0, updated: 0, skipped: 1)
+
+      expect(delete).to have_been_requested.once
+      expect(a_request(:get, %r{/me/events/#{created_event_id}/instances})).not_to have_been_made
+      expect(calendar.calendar_events.sole.external_event_id).to eq("AAMkSyntheticOtherSync")
+    end
   end
 
   describe "#delete_events" do
@@ -656,6 +673,16 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
         service.create_friend_meeting_event(meeting)
 
         expect(create_stub).to have_been_requested.once
+      end
+
+      it "deletes the new event when the meeting is already tracked in the calendar" do
+        meeting_row(calendar)
+        stub_request(:post, primary_events_url).to_return(graph_json_response("meeting_created", status: 201))
+        delete = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticMeeting1").to_return(status: 204)
+
+        expect(service.create_friend_meeting_event(meeting)).to be_nil
+        expect(delete).to have_been_requested.once
+        expect(meeting.calendar_events.count).to eq(1)
       end
 
       it "keeps the meeting row when the course sync runs" do

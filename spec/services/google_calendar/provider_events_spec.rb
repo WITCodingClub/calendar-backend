@@ -82,11 +82,6 @@ RSpec.describe GoogleCalendar::Provider do
     end
 
     it "deletes the new event when a concurrent sync already tracks it" do
-      # create_event rescues only RecordNotUnique. When the other sync's row
-      # is there before the uniqueness validation runs, create! raises
-      # RecordInvalid, the sync fails, and the new event stays as a duplicate.
-      pending "create_event does not rescue RecordInvalid for a taken university_calendar_event"
-
       # The other sync tracks the event while this one waits for Google.
       stub_request(:post, events_url).to_return do
         create(:calendar_event, :for_university_event, course_calendar: calendar, university_calendar_event: university_event,
@@ -95,10 +90,53 @@ RSpec.describe GoogleCalendar::Provider do
       end
       delete = stub_request(:delete, "#{events_url}/syntheticmeetingevent1").with(query: { "sendUpdates" => "none" }).to_return(status: 204)
 
-      sync(event_data)
+      expect(sync(event_data)).to include(created: 0, skipped: 1)
 
       expect(delete).to have_been_requested.once
       expect(calendar.calendar_events.sole.external_event_id).to eq("synthetic-other-sync")
+    end
+
+    it "deletes the new event when the other sync's row lands between the validation and the insert" do
+      stub_request(:post, events_url).to_return(json)
+      delete = stub_request(:delete, "#{events_url}/syntheticmeetingevent1").with(query: { "sendUpdates" => "none" }).to_return(status: 204)
+      other_sync = false
+      allow_any_instance_of(CalendarEvent).to receive(:valid?).and_wrap_original do |original, *args| # rubocop:disable RSpec/AnyInstance
+        original.call(*args).tap do
+          next if other_sync
+
+          other_sync = true
+          create(:calendar_event, :for_university_event, course_calendar: calendar, university_calendar_event: university_event,
+                                                         external_event_id: "synthetic-other-sync")
+        end
+      end
+
+      expect(sync(event_data)).to include(created: 0, skipped: 1)
+
+      expect(delete).to have_been_requested.once
+      expect(calendar.calendar_events.sole.external_event_id).to eq("synthetic-other-sync")
+    end
+
+    it "reports a failed delete of the duplicate and finishes the sync" do
+      stub_request(:post, events_url).to_return do
+        create(:calendar_event, :for_university_event, course_calendar: calendar, university_calendar_event: university_event)
+        json
+      end
+      stub_request(:delete, "#{events_url}/syntheticmeetingevent1").with(query: hash_including({})).to_return(google_error(500))
+      allow(Rails.error).to receive(:report)
+
+      expect(sync(event_data)).to include(created: 0, skipped: 1)
+
+      expect(Rails.error).to have_received(:report)
+        .with(instance_of(Google::Apis::ServerError), handled: true,
+                                                      context: { user_id: user.id, calendar_id: calendar.id, external_event_id: "syntheticmeetingevent1" })
+    end
+
+    it "raises a validation error that is not a taken source and keeps the event" do
+      stub_request(:post, events_url).to_return(json.merge(body: { summary: "Synthetic Lecture" }.to_json))
+
+      expect { sync(event_data) }.to raise_error(ActiveRecord::RecordInvalid, /External event/)
+
+      expect(a_request(:delete, /googleapis/)).not_to have_been_made
     end
   end
 
@@ -236,6 +274,20 @@ RSpec.describe GoogleCalendar::Provider do
       expect(sync(event_data)).to include(updated: 1)
       expect(insert).to have_been_requested.once
       expect(calendar.calendar_events.sole.external_event_id).to eq("syntheticmeetingevent1")
+    end
+
+    it "counts an event that a concurrent sync made again first as skipped" do
+      stub_request(:get, event_url).to_return(google_error(404))
+      stub_request(:post, events_url).to_return do
+        create(:calendar_event, :for_university_event, course_calendar: calendar, university_calendar_event: university_event,
+                                                       external_event_id: "synthetic-other-sync")
+        json
+      end
+      delete = stub_request(:delete, "#{events_url}/syntheticmeetingevent1").with(query: { "sendUpdates" => "none" }).to_return(status: 204)
+
+      expect(sync(event_data)).to include(updated: 0, skipped: 1)
+      expect(delete).to have_been_requested.once
+      expect(calendar.calendar_events.sole.external_event_id).to eq("synthetic-other-sync")
     end
 
     [ 404, 410 ].each do |status|
