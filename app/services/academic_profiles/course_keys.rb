@@ -14,15 +14,14 @@ module AcademicProfiles
       Current.course_keys ||= new(CourseCodeAlias.reviewed_pairs)
     end
 
-    # aliases: each key with the keys of its old and new codes.
-    def initialize(aliases = {})
+    # aliases: each key with the keys of its old and new codes
+    # (CourseCodeAlias.reviewed_pairs).
+    def initialize(aliases)
       @aliases = aliases
     end
 
-    # A key and the keys of its old and new codes.
     def equivalents(key) = [ key, *@aliases.fetch(key, []) ]
 
-    # Every key of keys with its old and new codes, each one time.
     def expand(keys) = keys.flat_map { |key| equivalents(key) }.uniq
 
     def same?(key, other) = equivalents(key).include?(other)

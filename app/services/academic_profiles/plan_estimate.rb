@@ -24,7 +24,7 @@ module AcademicProfiles
     # start_term_uid and current_term_uid: Banner codes. prerequisites:
     # answers prerequisites([subject, number]) (CourseDetails). taken: the
     # [subject, number] keys of the courses the student did or takes.
-    def initialize(start_term_uid, current_term_uid:, prerequisites:, course_keys: CourseKeys.new, taken: [])
+    def initialize(start_term_uid, current_term_uid:, prerequisites:, course_keys:, taken: [])
       @start = start_term_uid
       @current = current_term_uid
       @prerequisites = prerequisites

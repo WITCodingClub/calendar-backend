@@ -40,7 +40,7 @@ RSpec.describe DegreeRequirements::Importer do
   it "stores the requirement set, plans, rows, and elective lists of a program" do
     import
 
-    set = DegreeProgram.find_by!(slug: "widget-design-bs").requirement_set_for(catalog_year)
+    set = DegreeProgram.find_by!(slug: "widget-design-bs").requirement_sets.find_by(catalog_year: catalog_year)
     expect(set).to have_attributes(name: "Widget Design, B.S.", school_name: "The School of Widgetry",
                                    department_name: "Widget Design & Gears", total_credits: 120, source: "html",
                                    path: "/previous-catalogs/2024-2025/widgetry/widget-design/widget-design-bs/")

@@ -77,8 +77,6 @@ module AcademicProfiles
       "admit_term"
     end
 
-    def term_uid(year_index, season) = TermCode.plan_term(start_term_uid, year_index, season)
-
     # One plan semester of the rows of DegreeProgress: its plan year and
     # season, its term (nil without a start term), and its rows.
     Semester = Data.define(:year, :season, :uid, :rows)

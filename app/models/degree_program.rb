@@ -83,10 +83,6 @@ class DegreeProgram < ApplicationRecord
   validates :slug, presence: true, uniqueness: true, format: { with: /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/ }
   validate :parent_is_a_top_program
 
-  def requirement_set_for(catalog_year)
-    requirement_sets.find_by(catalog_year: catalog_year)
-  end
-
   private
 
   # A concentration belongs to a major, never to itself or to another

@@ -82,7 +82,7 @@ module DegreeRequirements
       end
 
       groups = assign_groups_to_plans(groups, plans.size)
-      plans = link_placeholders(plans, groups)
+      plans = PlaceholderLinker.call(plans, groups)
 
       Page.new(name: squish((@doc.at_css("h1.page-title") || @doc.at_css("h1"))&.text), start_year: CatalogSource.page_start_year(@html),
                school_name: breadcrumb[0], department_name: breadcrumb[1], description: description,
@@ -258,9 +258,6 @@ module DegreeRequirements
         group.with(plan_index: plan_count > 1 && group.plan_index >= 0 ? group.plan_index : nil)
       end
     end
-
-    # Links each placeholder to the list it names: PlaceholderLinker.
-    def link_placeholders(plans, groups) = PlaceholderLinker.call(plans, groups)
 
     # The name of a list with no h2 to h5 above it: the paragraph just before
     # it, such as "<p><strong>Building Sciences Electives:</strong></p>", past

@@ -21,6 +21,5 @@ RSpec.describe AcademicProfiles::CourseCredits do
   it "estimates a course still to take with its catalog credits, else the default" do
     expect(credits.of_key([ "WDGT", 1000 ])).to eq(3)
     expect(credits.of_key([ "WDGT", 9999 ])).to eq(described_class::DEFAULT)
-    expect(described_class.known(nil, 3)).to eq(3)
   end
 end

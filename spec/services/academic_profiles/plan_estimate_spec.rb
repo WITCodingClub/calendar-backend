@@ -8,6 +8,7 @@ RSpec.describe AcademicProfiles::PlanEstimate do
   let(:start) { 202610 }
   let(:current) { 202710 }
   let(:trees) { {} }
+  let(:no_aliases) { AcademicProfiles::CourseKeys.new({}) }
   let(:prerequisites) do
     trees_by_pair = trees
     Class.new { define_method(:prerequisites) { |pair| trees_by_pair[pair] } }.new
@@ -30,7 +31,7 @@ RSpec.describe AcademicProfiles::PlanEstimate do
 
   def estimate(rows, current_term_uid: current)
     entry = AcademicProfiles::PlanTerms.new(start, current_term_uid: current_term_uid).call({ requirements: rows })
-    described_class.new(start, current_term_uid: current_term_uid, prerequisites: prerequisites).call(entry)
+    described_class.new(start, current_term_uid: current_term_uid, prerequisites: prerequisites, course_keys: no_aliases).call(entry)
   end
 
   def placed(result)
@@ -189,8 +190,8 @@ RSpec.describe AcademicProfiles::PlanEstimate do
     rows = [ course("COMP 2070", 1, "spring"), course("COMP 2071", 2, "spring"), course("WDGT 2201", 2, "spring") ]
     entry = AcademicProfiles::PlanTerms.new(start, current_term_uid: current).call({ requirements: rows })
 
-    waits = described_class.new(start, current_term_uid: current, prerequisites: prerequisites).call(entry)
-    taken = described_class.new(start, current_term_uid: current, prerequisites: prerequisites, taken: [ [ "COMP", 285 ] ]).call(entry)
+    waits = described_class.new(start, current_term_uid: current, prerequisites: prerequisites, course_keys: no_aliases).call(entry)
+    taken = described_class.new(start, current_term_uid: current, prerequisites: prerequisites, course_keys: no_aliases, taken: [ [ "COMP", 285 ] ]).call(entry)
 
     expect(placed(waits)["COMP 2071"]).to eq([ "Fall 2027", "prerequisite" ])
     expect(placed(taken)["COMP 2071"]).to eq([ "Spring 2027", nil ])
