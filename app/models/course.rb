@@ -72,11 +72,11 @@ class Course < ApplicationRecord
 
   belongs_to :term
 
-  # Ordered on the join so `faculties.first` is Banner's primary instructor and
-  # not whichever join row happens to be oldest.
   # Banner's lecture and lab pairs for this section (Catalog::SectionLinksSync).
   has_many :section_links, dependent: :delete_all
   has_many :banner_linked_courses, through: :section_links, source: :linked_course
+  # Ordered on the join so `faculties.first` is Banner's primary instructor and
+  # not whichever join row happens to be oldest.
   has_many :course_faculties, -> { in_banner_order }, dependent: :destroy, inverse_of: :course
   has_many :faculties, through: :course_faculties
   has_many :meeting_times, class_name: "Course::MeetingTime", dependent: :destroy
@@ -110,10 +110,6 @@ class Course < ApplicationRecord
     CourseCode.subject_of(subject)
   end
 
-  # Banner writes linked sections as <slot><key>. The slot says what the section
-  # is for within the pairing, and the key says which pairing it belongs to. In
-  # CHEM 1000 the lecture "A1" goes with the labs "B1", and the lecture "A2"
-  # with the labs "B2".
   # The public id is derived from the numeric id, not stored, so a list of them
   # is built rather than plucked.
   def self.public_id_for(id)
@@ -131,6 +127,10 @@ class Course < ApplicationRecord
     decode_id(hash)
   end
 
+  # Banner writes linked sections as <slot><key>. The slot says what the section
+  # is for within the pairing, and the key says which pairing it belongs to. In
+  # CHEM 1000 the lecture "A1" goes with the labs "B1", and the lecture "A2"
+  # with the labs "B2".
   def link_slot
     link_identifier&.first
   end

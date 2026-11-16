@@ -70,9 +70,6 @@ class Faculty < ApplicationRecord
   # jobs and the Missing RMP IDs page use this scope, not every professor who
   # ever taught (#712).
   scope :teaching_current_or_future, -> { where(id: CourseFaculty.current_or_future.select(:faculty_id)) }
-  scope :needs_directory_sync, -> {
-    where(directory_last_synced_at: nil).or(where(directory_last_synced_at: ...7.days.ago))
-  }
 
   def full_name
     display_name.presence || [ first_name, middle_name, last_name ].compact.join(" ").squish
@@ -110,22 +107,8 @@ class Faculty < ApplicationRecord
     }
   end
 
-  def calculate_rating_stats
-    return {} if rmp_ratings.empty?
-
-    {
-      avg_rating: rmp_ratings.average(:clarity_rating)&.round(2),
-      avg_difficulty: rmp_ratings.average(:difficulty_rating)&.round(2),
-      num_ratings: rmp_ratings.count,
-      would_take_again_percent: calculate_would_take_again_percent
-    }
-  end
-
-  def update_ratings!      = Faculties::UpdateRatingsJob.perform_later(id)
-  def sync_from_directory! = Faculties::DirectoryLookupJob.perform_later(id)
-  def teaches_courses?     = courses.exists?
-  def has_directory_data?  = directory_last_synced_at.present? || directory_raw_data.present?
-  def needs_directory_data? = !has_directory_data?
+  def teaches_courses? = courses.exists?
+  def needs_directory_data? = directory_last_synced_at.nil? && directory_raw_data.blank?
 
   def rmp_numeric_id
     return nil if rmp_id.blank?
@@ -136,31 +119,6 @@ class Faculty < ApplicationRecord
       return numeric_part if numeric_part.match?(/\A\d+\z/)
     end
     rmp_id
-  end
-
-  def rmp_teacher_node
-    rmp_raw_data&.dig("teacher", "data", "node")
-  end
-
-  def rmp_all_ratings_raw
-    rmp_raw_data&.fetch("all_ratings", []) || []
-  end
-
-  def rmp_last_updated
-    timestamp = rmp_raw_data&.dig("metadata", "last_updated_at")
-    return nil if timestamp.blank?
-
-    Time.zone.parse(timestamp)
-  rescue ArgumentError
-    nil
-  end
-
-  def photo_display_url
-    if photo.attached?
-      Rails.application.routes.url_helpers.rails_blob_path(photo, only_path: true)
-    else
-      photo_url
-    end
   end
 
   def update_photo_from_url!(url)
@@ -185,32 +143,15 @@ class Faculty < ApplicationRecord
     false
   end
 
-  # One batch with one job for each professor (Faculties::RefreshRatingsJob).
-  def self.update_all_ratings!
-    Faculties::RefreshRatingsJob.perform_later
-  end
-
-  def self.sync_all_from_directory!
-    Faculties::DirectorySyncJob.perform_later
-  end
-
   private
 
   def enqueue_directory_lookup
-    last_full_sync = Rails.cache.read("faculty_directory_last_full_sync_at")
-    if last_full_sync.present? && last_full_sync > 24.hours.ago
+    last_full_sync = Rails.cache.read(Faculties::DirectorySyncJob::LAST_FULL_SYNC_CACHE_KEY)
+    if last_full_sync.present? && last_full_sync > Faculties::DirectoryLookupJob::FRESH_FOR.ago
       Rails.logger.info("[Faculty] Skipping individual lookup for #{email} — full sync ran at #{last_full_sync.iso8601}")
       return
     end
 
     Faculties::DirectoryLookupJob.perform_later(id)
-  end
-
-  def calculate_would_take_again_percent
-    total = rmp_ratings.where.not(would_take_again: nil).count
-    return nil if total.zero?
-
-    yes_count = rmp_ratings.where(would_take_again: true).count
-    ((yes_count.to_f / total) * 100).round(2)
   end
 end

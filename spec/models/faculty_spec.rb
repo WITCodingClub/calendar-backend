@@ -92,10 +92,6 @@ RSpec.describe Faculty, type: :model do
 
       expect(described_class.teaching_current_or_future.to_a.count(current_faculty)).to eq(1)
     end
-
-    it "queues the batched ratings refresh" do
-      expect { described_class.update_all_ratings! }.to have_enqueued_job(Faculties::RefreshRatingsJob)
-    end
   end
 
   describe "#similar_instructors" do
@@ -198,14 +194,6 @@ RSpec.describe Faculty, type: :model do
 
       expect(described_class.with_courses).to contain_exactly(teacher)
     end
-
-    it "finds stale directory syncs" do
-      create(:faculty, directory_last_synced_at: 1.day.ago)
-      stale = create(:faculty, directory_last_synced_at: 8.days.ago)
-      never = create(:faculty)
-
-      expect(described_class.needs_directory_sync).to contain_exactly(stale, never)
-    end
   end
 
   describe "name helpers" do
@@ -242,51 +230,18 @@ RSpec.describe Faculty, type: :model do
 
       expect(faculty.reload.rmp_stats).to eq(avg_rating: 4.5, avg_difficulty: 3.0, num_ratings: 12, would_take_again_percent: 75.0)
     end
-
-    it "#calculate_rating_stats is empty without ratings" do
-      expect(faculty.calculate_rating_stats).to eq({})
-    end
-
-    it "#calculate_rating_stats averages the ratings" do
-      create(:rmp_rating, faculty: faculty, clarity_rating: 5, difficulty_rating: 2, would_take_again: true)
-      create(:rmp_rating, faculty: faculty, clarity_rating: 4, difficulty_rating: 3, would_take_again: false)
-      create(:rmp_rating, faculty: faculty, clarity_rating: 3, difficulty_rating: 4, would_take_again: nil)
-
-      expect(faculty.calculate_rating_stats).to eq(avg_rating: 4.0, avg_difficulty: 3.0, num_ratings: 3, would_take_again_percent: 50.0)
-    end
-
-    it "#calculate_rating_stats has no percent when nobody answered" do
-      create(:rmp_rating, faculty: faculty, clarity_rating: 5, difficulty_rating: 2, would_take_again: nil)
-
-      expect(faculty.calculate_rating_stats[:would_take_again_percent]).to be_nil
-    end
-  end
-
-  describe "job wrappers" do
-    include ActiveJob::TestHelper
-
-    let(:faculty) { create(:faculty, directory_last_synced_at: Time.current) }
-
-    it "enqueues a ratings update and a directory sync" do
-      expect { faculty.update_ratings! }.to have_enqueued_job(Faculties::UpdateRatingsJob).with(faculty.id)
-      expect { faculty.sync_from_directory! }.to have_enqueued_job(Faculties::DirectoryLookupJob).with(faculty.id)
-    end
-
-    it ".sync_all_from_directory! enqueues the sync job" do
-      expect { described_class.sync_all_from_directory! }.to have_enqueued_job(Faculties::DirectorySyncJob)
-    end
   end
 
   describe "directory data flags" do
     it "needs data when never synced and no raw data" do
       faculty = build(:faculty)
 
-      expect([ faculty.has_directory_data?, faculty.needs_directory_data? ]).to eq([ false, true ])
+      expect(faculty.needs_directory_data?).to be(true)
     end
 
     it "has data when synced or when raw data exists" do
-      expect(build(:faculty, directory_last_synced_at: Time.current).has_directory_data?).to be(true)
-      expect(build(:faculty, directory_raw_data: { "mail" => "x" }).has_directory_data?).to be(true)
+      expect(build(:faculty, directory_last_synced_at: Time.current).needs_directory_data?).to be(false)
+      expect(build(:faculty, directory_raw_data: { "mail" => "x" }).needs_directory_data?).to be(false)
     end
 
     it "#teaches_courses? reflects the courses" do
@@ -309,13 +264,13 @@ RSpec.describe Faculty, type: :model do
     end
 
     it "skips the individual lookup right after a full sync" do
-      Rails.cache.write("faculty_directory_last_full_sync_at", 1.hour.ago)
+      Rails.cache.write(Faculties::DirectorySyncJob::LAST_FULL_SYNC_CACHE_KEY, 1.hour.ago)
 
       expect { create(:faculty) }.not_to have_enqueued_job(Faculties::DirectoryLookupJob)
     end
 
     it "looks up again when the full sync is older than a day" do
-      Rails.cache.write("faculty_directory_last_full_sync_at", 2.days.ago)
+      Rails.cache.write(Faculties::DirectorySyncJob::LAST_FULL_SYNC_CACHE_KEY, 2.days.ago)
 
       expect { create(:faculty) }.to have_enqueued_job(Faculties::DirectoryLookupJob)
     end
@@ -339,46 +294,6 @@ RSpec.describe Faculty, type: :model do
 
       expect(build(:faculty, rmp_id: encoded).rmp_numeric_id).to eq(encoded)
       expect(build(:faculty, rmp_id: "plain-id").rmp_numeric_id).to eq("plain-id")
-    end
-
-    it "#rmp_teacher_node and #rmp_all_ratings_raw read the raw data" do
-      faculty = build(:faculty, rmp_raw_data: { "teacher" => { "data" => { "node" => { "id" => "t1" } } }, "all_ratings" => [ { "id" => "r1" } ] })
-
-      expect(faculty.rmp_teacher_node).to eq("id" => "t1")
-      expect(faculty.rmp_all_ratings_raw).to eq([ { "id" => "r1" } ])
-    end
-
-    it "returns safe defaults without raw data" do
-      faculty = build(:faculty, rmp_raw_data: nil)
-
-      expect(faculty.rmp_teacher_node).to be_nil
-      expect(faculty.rmp_all_ratings_raw).to eq([])
-      expect(faculty.rmp_last_updated).to be_nil
-    end
-
-    it "#rmp_last_updated parses the timestamp" do
-      faculty = build(:faculty, rmp_raw_data: { "metadata" => { "last_updated_at" => "2026-09-01T12:00:00Z" } })
-
-      expect(faculty.rmp_last_updated).to eq(Time.utc(2026, 9, 1, 12))
-    end
-
-    it "#rmp_last_updated is nil for a bad timestamp" do
-      faculty = build(:faculty, rmp_raw_data: { "metadata" => { "last_updated_at" => "not a date" } })
-
-      expect(faculty.rmp_last_updated).to be_nil
-    end
-  end
-
-  describe "#photo_display_url" do
-    it "falls back to the photo url" do
-      expect(build(:faculty, photo_url: "https://photos.example.test/a.jpg").photo_display_url).to eq("https://photos.example.test/a.jpg")
-    end
-
-    it "uses the blob path when a photo is attached" do
-      faculty = create(:faculty)
-      faculty.photo.attach(io: StringIO.new("synthetic image bytes"), filename: "a.jpg", content_type: "image/jpeg")
-
-      expect(faculty.photo_display_url).to start_with("/rails/active_storage/blobs/")
     end
   end
 
