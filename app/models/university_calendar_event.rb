@@ -93,6 +93,9 @@ class UniversityCalendarEvent < ApplicationRecord
   scope :past,          -> { where(start_time: ...Time.current) }
   scope :holidays,      -> { where(category: "holiday") }
   scope :finals,        -> { where(category: "finals") }
+  # The finals events that are days with no classes. The university feed puts
+  # announcements such as "Final Exam Schedule Online" in the same category.
+  scope :finals_periods, -> { finals.where("summary ILIKE ? OR summary ILIKE ?", "%Final Exam Period%", "%Study Day%") }
   scope :for_term,      ->(term) { where(term: term) }
   scope :with_location, -> { where.not(location: [ nil, "" ]) }
   scope :by_categories, ->(cats) { where(category: cats) }

@@ -5,10 +5,11 @@ require "icalendar"
 module CourseCalendars
   # Builds the iCalendar feed that calendar apps poll at /calendar/:token.
   #
-  # The feed has one recurring event for each class meeting, then the finals,
-  # the university events, and the friend meetings that the user sent to it.
-  # The body has no per-request timestamps (DTSTAMP is the last change of each
-  # event), so the same data gives the same bytes.
+  # EventBuilder gives the class, final exam, and university events with the
+  # person's preferences applied, as the Google and Outlook sync gets them.
+  # This class only renders them, then adds the friend meetings that the
+  # person sent to the feed. The body has no per-request timestamps (DTSTAMP
+  # is the last change of each event), so the same data gives the same bytes.
   #
   #   CourseCalendars::IcsFeed.new(user).to_ical
   class IcsFeed
@@ -20,11 +21,13 @@ module CourseCalendars
     # Google Calendar ignores both and uses its own schedule.
     REFRESH_INTERVAL = "PT1H"
 
-    # The last change to how the feed builds a class event from the same rows.
-    # No row's updated_at moves for such a change, so LAST-MODIFIED and
-    # SEQUENCE are at least this time, and calendar apps fetch the new copy.
-    # Move it forward when a code change alters the event body.
-    CLASS_EVENT_LOGIC_CHANGED_AT = Time.find_zone!(TZID).local(2026, 10, 28, 18, 0)
+    # The last change to how the feed builds an event from the same rows. No
+    # row's updated_at moves for such a change, so LAST-MODIFIED and SEQUENCE
+    # are at least this time, and calendar apps fetch the new copy. Move it
+    # forward when a code change alters an event body.
+    EVENT_LOGIC_CHANGED_AT = Time.find_zone!(TZID).local(2026, 11, 16, 12, 0)
+
+    UID_DOMAIN = "calendar-util.wit.edu"
 
     # The rendered feed, from Rails.cache when no row that it reads has
     # changed (CacheKey). A miss builds it and keeps it for CacheKey::TTL.
@@ -36,10 +39,7 @@ module CourseCalendars
       @user    = user
       @courses = user.courses
                      .includes(:term, meeting_times: [ :meeting_time_rooms, { rooms: :building }, { course: [ :faculties, :term ] } ])
-      # Loads the courses now: the finals relation needs their IDs.
-      @final_exams = FinalExam.where(course_id: @courses.map(&:id))
-                              .where(exam_date: Time.zone.today..)
-                              .includes(:course)
+                     .to_a
     end
 
     def to_ical
@@ -48,9 +48,9 @@ module CourseCalendars
 
     def calendar
       @preference_resolver = Preferences::Resolver.new(@user)
-      @template_renderer   = Preferences::TemplateRenderer.new(user_id: @user.id)
-      @holidays            = Holidays.new(@courses)
-      @recurrence_end      = RecurrenceEnd.new(@courses)
+      @recurrence          = RecurrenceBuilder.preloaded(@user, @courses)
+      preferences = Preferences::Applier.new(@user, resolver: @preference_resolver)
+      builder     = EventBuilder.new(@user, recurrence: @recurrence, preferences: preferences)
 
       cal = Icalendar::Calendar.new
       cal.prodid = "-//WITCC//Course Calendar//EN"
@@ -60,16 +60,13 @@ module CourseCalendars
       cal.append_custom_property("X-PUBLISHED-TTL", REFRESH_INTERVAL) # Apple and Microsoft
       add_timezone(cal)
 
-      @courses.each do |course|
-        meeting_times_without_duplicates(course).each do |meeting_time|
-          next if meeting_time.day_of_week.blank?
-
-          cal.event { |e| fill_class_event(e, course, meeting_time) }
+      builder.class_entries(@courses).each { |entry| cal.event { |e| fill_class_event(e, entry.source, entry.event) } }
+      builder.final_exam_entries.each { |entry| cal.event { |e| fill_final_exam(e, entry.source, entry.event) } }
+      if (dates = university_event_dates)
+        builder.university_event_entries(time_scope: dates).each do |entry|
+          cal.event { |e| fill_university_event(e, entry.source, entry.event) }
         end
       end
-
-      FinalExamEvents.new(@final_exams).append_to(cal)
-      UniversityEvents.new(@user, @courses, @preference_resolver).append_to(cal)
       FriendMeetingEvents.new(@user).append_to(cal)
 
       cal
@@ -97,140 +94,124 @@ module CourseCalendars
       end
     end
 
-    # Meeting times with the same day and hours are one event. Of each group,
-    # the first one with a real room wins.
-    def meeting_times_without_duplicates(course)
-      course.meeting_times
-            .group_by { |mt| [ mt.day_of_week, mt.begin_time, mt.end_time ] }
-            .map do |_key, group|
-              non_tbd = group.reject { |mt| LocationHelper.tbd_building?(mt.building) || mt.rooms.all? { |r| LocationHelper.tbd_room?(r) } }
-              non_tbd.any? ? non_tbd.first : group.first
-            end
+    # The class location is the catalog's room text. The feed has never
+    # applied the location template to classes, while Google and Outlook do.
+    def fill_class_event(e, meeting_time, event)
+      set_times(e, event)
+      set_text(e, event.merge(location: meeting_time.location_text))
+
+      e.rrule = @recurrence.build_recurrence_rule(meeting_time, date_only_until: event[:all_day]).delete_prefix("RRULE:")
+      @recurrence.holiday_dates(meeting_time).each do |date|
+        e.append_exdate(event[:all_day] ? Icalendar::Values::Date.new(date) : time_value(@recurrence.exdate_time(date, event[:start_time])))
+      end
+
+      e.uid = "course-#{meeting_time.course.crn}-meeting-#{meeting_time.id}@#{UID_DOMAIN}"
+      set_color(e, event[:color_id] || meeting_time.event_color)
+      set_changed_at(e, class_changed_at(meeting_time))
     end
 
-    def fill_class_event(e, course, meeting_time)
-      first_meeting_date = find_first_meeting_date(meeting_time)
-      return unless first_meeting_date
+    def fill_final_exam(e, final_exam, event)
+      set_times(e, event)
+      set_text(e, event)
+      e.uid = "final-exam-#{final_exam.id}@#{UID_DOMAIN}"
+      set_color(e, event[:color_id])
 
-      start_time = parse_time(first_meeting_date, meeting_time.begin_time)
-      end_time   = parse_time(first_meeting_date, meeting_time.end_time)
+      course = final_exam.course
+      set_changed_at(e, [
+        final_exam.updated_at,
+        course&.updated_at,
+        *course&.faculties&.map(&:updated_at),
+        @preference_resolver.last_changed_at_for(final_exam),
+        EVENT_LOGIC_CHANGED_AT
+      ].compact.max)
+    end
 
-      if meeting_time.all_day?
-        e.dtstart = Icalendar::Values::Date.new(first_meeting_date)
-        e.dtend   = Icalendar::Values::Date.new(first_meeting_date + 1.day)
+    def fill_university_event(e, event_record, event)
+      set_times(e, event)
+      set_text(e, event)
+      e.uid        = "university-#{event_record.ics_uid}@#{UID_DOMAIN}"
+      e.categories = [ event_record.category.titleize ] if event_record.category.present?
+      set_color(e, event[:color_id])
+      set_changed_at(e, [
+        event_record.updated_at,
+        @preference_resolver.last_changed_at_for(event_record),
+        EVENT_LOGIC_CHANGED_AT
+      ].compact.max)
+
+      return unless event_record.category == "holiday"
+
+      e.append_custom_property("X-MICROSOFT-CDO-ALLDAYEVENT", "TRUE")
+      e.append_custom_property("X-MICROSOFT-CDO-BUSYSTATUS", "FREE")
+      e.transp = "TRANSPARENT"
+    end
+
+    # An all-day event ends on the day after its last day (RFC 5545).
+    def set_times(e, event)
+      if event[:all_day]
+        e.dtstart = Icalendar::Values::Date.new(event[:start_time].to_date)
+        e.dtend   = Icalendar::Values::Date.new(event[:end_time].to_date + 1.day)
       else
-        e.dtstart = Icalendar::Values::DateTime.new(start_time, tzid: TZID)
-        e.dtend   = Icalendar::Values::DateTime.new(end_time,   tzid: TZID)
+        e.dtstart = time_value(event[:start_time])
+        e.dtend   = time_value(event[:end_time])
       end
+    end
 
-      prefs   = @preference_resolver.resolve_for(meeting_time)
-      context = Preferences::TemplateRenderer.build_context_from_meeting_time(meeting_time)
+    def set_text(e, event)
+      e.summary     = event[:summary]
+      e.description = event[:description] unless event[:description].to_s.empty?
+      e.location    = event[:location]    if event[:location].present?
+    end
 
-      e.summary = if prefs[:title_template].present?
-                    @template_renderer.render(prefs[:title_template], context)
-      else
-                    course.title
-      end
+    def set_color(e, color_hex)
+      return unless color_hex
 
-      e.description = @template_renderer.render(prefs[:description_template], context) if prefs[:description_template].present?
-
-      location = class_location(meeting_time)
-      e.location = location if location
-
-      add_recurrence(e, meeting_time, course)
-
-      @holidays.exdates_for(meeting_time, start_time).each do |exdate|
-        if meeting_time.all_day?
-          e.append_exdate(Icalendar::Values::Date.new(exdate.to_date))
-        else
-          e.append_exdate(Icalendar::Values::DateTime.new(exdate, tzid: TZID))
-        end
-      end
-
-      e.uid = "course-#{course.crn}-meeting-#{meeting_time.id}@calendar-util.wit.edu"
-
-      color_hex = Preferences::Colors.normalize(prefs[:color_id]) || meeting_time.event_color
       e.color = color_hex
       e.append_custom_property("X-APPLE-CALENDAR-COLOR", color_hex)
-
-      # RFC 5545 3.8.7.2: without a METHOD property, DTSTAMP is the time
-      # the event last changed. Time.current would change the body (and
-      # the ETag) on every request.
-      last_modified = meeting_time_last_modified(course, meeting_time)
-      e.dtstamp = Icalendar::Values::DateTime.new(last_modified, tzid: TZID)
-      e.last_modified = Icalendar::Values::DateTime.new(last_modified, tzid: TZID)
-      e.sequence      = (last_modified.to_i / 60)
     end
 
-    def class_location(meeting_time)
-      non_tbd_rooms = meeting_time.rooms.reject { |r| LocationHelper.tbd_room?(r) }
-      if non_tbd_rooms.any? && meeting_time.building &&
-         !LocationHelper.tbd_building?(meeting_time.building)
-        "#{meeting_time.building.name} - #{non_tbd_rooms.map(&:formatted_number).join(' / ')}"
-      elsif non_tbd_rooms.any?
-        non_tbd_rooms.map(&:formatted_number).join(" / ")
-      elsif LocationHelper.tbd_building?(meeting_time.building) || LocationHelper.tbd_room?(meeting_time.room)
-        "TBD"
-      end
+    # RFC 5545 3.8.7.2: without a METHOD property, DTSTAMP is the time the
+    # event last changed. Time.current would change the body (and the ETag)
+    # on every request.
+    def set_changed_at(e, changed_at)
+      e.dtstamp       = time_value(changed_at)
+      e.last_modified = time_value(changed_at)
+      e.sequence      = changed_at.to_i / 60
     end
 
-    def add_recurrence(e, meeting_time, course)
-      recurrence_end = @recurrence_end.for(meeting_time, course)
-      day_sym        = meeting_time.day_of_week.to_sym
-
-      if meeting_time.all_day?
-        until_time = Time.utc(recurrence_end.year, recurrence_end.month, recurrence_end.day)
-        rule       = IceCube::Rule.weekly.day(day_sym).until(until_time)
-        e.rrule    = rule.to_ical.gsub(/UNTIL=(\d{8})T\d{6}Z?/, 'UNTIL=\1')
-      else
-        # End-of-day in local (Eastern) zone as UTC, so evening classes keep
-        # their final occurrence instead of it falling past a bare-UTC UNTIL.
-        until_time = Time.zone.local(recurrence_end.year, recurrence_end.month, recurrence_end.day, 23, 59, 59).utc
-        rule       = IceCube::Rule.weekly.day(day_sym).until(until_time)
-        e.rrule    = rule.to_ical
-      end
-    end
+    def time_value(time) = Icalendar::Values::DateTime.new(time, tzid: TZID)
 
     # The last change to anything that the class event shows. A calendar client
     # keeps its copy until LAST-MODIFIED or SEQUENCE goes up, so a new title
-    # template, color, holiday, or room must move it too, as must a change to
-    # the feed code (CLASS_EVENT_LOGIC_CHANGED_AT). Every row here is
+    # template, color, holiday, or room must move it too. Every row here is
     # already loaded, so this runs no query.
-    def meeting_time_last_modified(course, meeting_time)
+    def class_changed_at(meeting_time)
       [
-        course.updated_at,
+        meeting_time.course.updated_at,
         meeting_time.updated_at,
         @preference_resolver.last_changed_at_for(meeting_time),
         *meeting_time.course.faculties.map(&:updated_at),
         *meeting_time.meeting_time_rooms.map(&:updated_at),
         *meeting_time.rooms.map(&:updated_at),
         *meeting_time.rooms.filter_map { |room| room.building&.updated_at },
-        *@holidays.for(meeting_time).map(&:updated_at),
-        CLASS_EVENT_LOGIC_CHANGED_AT
+        *@recurrence.holidays_for_meeting_time(meeting_time).map(&:updated_at),
+        EVENT_LOGIC_CHANGED_AT
       ].compact.max
     end
 
-    def parse_time(date, time_int)
-      return nil unless date && time_int
+    # The dates of the person's terms, for the university events. A term with
+    # no start or end date yet falls back to the dates of the meeting times.
+    def university_event_dates
+      term_ids = @courses.map(&:term_id).compact.uniq
+      return if term_ids.empty?
 
-      hours   = time_int / 100
-      minutes = time_int % 100
-      Time.zone.local(date.year, date.month, date.day, hours, minutes)
-    end
-
-    def find_first_meeting_date(meeting_time)
-      return nil if meeting_time.day_of_week.blank?
-
-      target_wday  = Course::MeetingTime.day_of_weeks[meeting_time.day_of_week]
-      current_date = meeting_time.start_date.to_date
-
-      7.times do
-        return current_date if current_date.wday == target_wday
-
-        current_date += 1.day
+      min, max = Term.where(id: term_ids).where.not(start_date: nil).where.not(end_date: nil)
+                     .pick(Arel.sql("min(start_date)"), Arel.sql("max(end_date)"))
+      unless min && max
+        meeting_times = @courses.flat_map(&:meeting_times)
+        min = meeting_times.filter_map(&:start_date).min
+        max = meeting_times.filter_map(&:end_date).max
       end
-
-      nil
+      min..max if min && max
     end
   end
 end

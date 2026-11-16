@@ -83,7 +83,7 @@ module CourseCalendars
           # courses_faculties has no timestamps: its columns are the data.
           course_faculties: rows(course_faculties, :faculty_id, :primary_indicator, timestamps: false),
           faculties: rows(Faculty.where(id: course_faculties.select(:faculty_id))),
-          # RecurrenceEnd reads the finals week of each term from every final in it.
+          # RecurrenceBuilder reads the finals week of each term from every final in it.
           final_exams: summary(FinalExam.where(term_id: term_ids).or(FinalExam.where(course_id: course_ids))),
           # Holidays, finals periods, and the categories the user syncs.
           university_events: summary(UniversityCalendarEvent.all),

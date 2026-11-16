@@ -17,7 +17,7 @@ A class meets on a date when the date is on its meeting day, is from `start_date
 
 The finals cutoffs come from the whole term. A section that starts after the term's Study Day can get an `effective_end_date` before its `start_date`. That section has no meetings, in the response and in the synced calendar.
 
-`CourseCalendars::RecurrenceBuilder` gives both values. Calendar sync uses the same methods for the `UNTIL` and `EXDATE` lines, so the extension and the synced calendar agree.
+`CourseCalendars::RecurrenceBuilder` gives both values. Calendar sync and the ICS feed use the same methods for the `UNTIL` and `EXDATE` lines, so the extension, the synced calendar, and the feed agree. `UniversityCalendarEvent.finals_periods` picks the Study Day and Final Exam Period events.
 
 ```mermaid
 flowchart TD
