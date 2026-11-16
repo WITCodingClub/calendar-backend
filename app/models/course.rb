@@ -249,13 +249,7 @@ class Course < ApplicationRecord
 
   private
 
-  # Within a Term.with_deferred_date_updates block, accumulates which terms need
-  # updating rather than running once per course save.
   def update_term_dates
-    if (pending = Thread.current[Term::PENDING_DATE_UPDATES_KEY])
-      pending[term_id] ||= term
-    else
-      term.update_dates_from_courses!
-    end
+    term.course_dates_changed!
   end
 end

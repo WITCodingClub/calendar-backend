@@ -92,21 +92,6 @@ RSpec.describe UniversityCalendar::TermDates do
     end
   end
 
-  describe ".fallback_end_date_from_courses" do
-    it "returns nil without a term" do
-      expect(described_class.fallback_end_date_from_courses(nil)).to be_nil
-    end
-
-    it "returns the latest course end date in the term year range" do
-      term = create(:term, year: 2031, season: :fall)
-      create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2031, 12, 10))
-      create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2031, 12, 18))
-      create(:course, term: term, start_date: Date.new(2031, 9, 1), end_date: Date.new(2034, 12, 31))
-
-      expect(described_class.fallback_end_date_from_courses(term)).to eq(Date.new(2031, 12, 18))
-    end
-  end
-
   describe ".leopard_web_registration_open_date" do
     include ActiveSupport::Testing::TimeHelpers
 

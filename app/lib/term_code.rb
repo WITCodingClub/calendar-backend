@@ -51,6 +51,13 @@ module TermCode
     ((season == "fall" ? year + 1 : year) * 100) + suffix
   end
 
+  # The code of the first term name in a text: 202810 for "Registration for
+  # Fall 2027". nil when the text names none.
+  def find_in(text)
+    match = text.to_s.match(/\b#{LABEL_TEXT}\b/)
+    match && self.for(Integer(match[2], 10), match[1])
+  end
+
   # The first season that a text names, in the order fall, spring, summer:
   # "fall" for "Fall Semester 2026". nil when it names none.
   def season_in(text)
