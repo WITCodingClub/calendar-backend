@@ -48,7 +48,7 @@ module DegreeRequirements
 
     def wayback? = kind == :wayback
 
-    def year_span = "#{start_year}-#{start_year + 1}"
+    def year_span = TermCode.catalog_year_name(start_year)
 
     # The site path the catalog year starts at: "/previous-catalogs/2024-2025/" or "/".
     def home_path = kind == :archive ? "/previous-catalogs/#{year_span}/" : "/"

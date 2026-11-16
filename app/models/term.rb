@@ -48,23 +48,10 @@ class Term < ApplicationRecord
     summer: 3
   }
 
-  # Stored enum values are not chronological (fall=2 sorts before summer=3),
-  # so ordering or comparing on the raw season column misorders terms within a year.
-  SEASON_CHRONOLOGICAL_POSITIONS = { "spring" => 1, "summer" => 2, "fall" => 3 }.freeze
-
-  def self.season_position(season_name)
-    SEASON_CHRONOLOGICAL_POSITIONS.fetch(season_name.to_s)
-  end
-
-  # CASE terms.season WHEN 1 THEN 1 ... END, built as an Arel node so no SQL string is interpolated.
-  def self.season_position_node
-    seasons.reduce(Arel::Nodes::Case.new(arel_table[:season])) do |node, (name, value)|
-      node.when(value).then(season_position(name))
-    end
-  end
-
-  scope :chronological, -> { order(:year).order(season_position_node.asc) }
-  scope :reverse_chronological, -> { order(year: :desc).order(season_position_node.desc) }
+  # The uid is the Banner code (TermCode), and the codes sort in time order.
+  # The season column does not: fall is 2 and summer 3.
+  scope :chronological, -> { order(:uid) }
+  scope :reverse_chronological, -> { order(uid: :desc) }
 
   scope :enrolled_for, ->(user) { where(id: Enrollment.where(user: user).select(:term_id)) }
 
@@ -80,11 +67,7 @@ class Term < ApplicationRecord
   scope :current_and_future, ->(current_term = Term.current) {
     return none unless current_term
 
-    year = arel_table[:year]
-    later_season = season_position_node.gteq(season_position(current_term.season))
-
-    where(year.gt(current_term.year).or(year.eq(current_term.year).and(later_season)))
-      .reverse_chronological
+    where(uid: current_term.uid..).reverse_chronological
   }
 
   def self.with_deferred_date_updates
@@ -100,13 +83,19 @@ class Term < ApplicationRecord
     "#{season.to_s.capitalize} #{year}"
   end
 
-  # Only dates in the term's year range count.
+  # A section of the term starts in the term's year or the year before, and
+  # ends in the term's year or the year after. Banner has sections with
+  # dates of another term, and the importer and the term dates skip them.
+  def section_dates?(start_date, end_date)
+    section_start_dates.cover?(start_date) && section_end_dates.cover?(end_date)
+  end
+
+  def section_start_dates = Date.new(year - 1, 1, 1)..Date.new(year, 12, 31)
+  def section_end_dates = Date.new(year, 1, 1)..Date.new(year + 1, 12, 31)
+
   def update_dates_from_courses!
     new_start, new_end = courses
-                         .where.not(start_date: nil)
-                         .where.not(end_date: nil)
-                         .where("EXTRACT(YEAR FROM start_date) >= ? AND EXTRACT(YEAR FROM start_date) <= ?", year - 1, year)
-                         .where("EXTRACT(YEAR FROM end_date) >= ? AND EXTRACT(YEAR FROM end_date) <= ?", year, year + 1)
+                         .where(start_date: section_start_dates, end_date: section_end_dates)
                          .pick(Arel.sql("MIN(start_date)"), Arel.sql("MAX(end_date)"))
 
     return unless new_start && new_end
@@ -202,22 +191,18 @@ class Term < ApplicationRecord
   end
 
   def self.find_current(today)
-    expected_season = case today.month
-    when 1..5 then :spring
-    when 6..7 then :summer
-    when 8..12 then :fall
-    end
+    expected = TermCode.for_date(today)
 
     if today.month == 12 && today.day >= 15
-      spring_next_year = find_by(year: today.year + 1, season: :spring)
+      spring_next_year = find_by(uid: TermCode.next_term(expected))
       return spring_next_year if spring_next_year
     end
 
-    expected_term = find_by(year: today.year, season: expected_season)
+    expected_term = find_by(uid: expected)
     return expected_term if expected_term
 
-    if expected_season == :spring
-      fall_term = find_by(year: today.year - 1, season: :fall)
+    if TermCode.season(expected) == "spring"
+      fall_term = find_by(uid: TermCode.for(today.year - 1, "fall"))
       return fall_term if fall_term&.active?
     end
 
@@ -234,13 +219,7 @@ class Term < ApplicationRecord
   # Pass the current term when the caller already has it. Term.current sends
   # up to six queries, so the API and the dashboard ask for it only once.
   def self.next(current_term = current)
-    return nil unless current_term
-
-    case current_term.season.to_sym
-    when :fall   then find_by(year: current_term.year + 1, season: :spring)
-    when :spring then find_by(year: current_term.year, season: :summer)
-    when :summer then find_by(year: current_term.year, season: :fall)
-    end
+    current_term && find_by(uid: TermCode.next_term(current_term.uid))
   end
 
   def self.current_uid  = current&.uid

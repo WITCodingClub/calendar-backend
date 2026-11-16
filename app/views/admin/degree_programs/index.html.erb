@@ -20,8 +20,9 @@
   <% t.column("Catalog years", align: :right) do |program| %>
     <% years = @start_years.fetch(program.id, []) %>
     <% if years.any? %>
-      <span title="<%= years.map { |year| "#{year}-#{year + 1}" }.join(", ") %>">
-        <%= years.size == 1 ? "#{years.first}-#{years.first + 1}" : "#{years.first}-#{years.first + 1} to #{years.last}-#{years.last + 1}" %>
+      <% names = years.map { |year| TermCode.catalog_year_name(year) } %>
+      <span title="<%= names.join(", ") %>">
+        <%= names.size == 1 ? names.first : "#{names.first} to #{names.last}" %>
       </span>
       <div class="text-xs text-on-surface-variant"><%= pluralize(years.size, "year") %></div>
     <% end %>

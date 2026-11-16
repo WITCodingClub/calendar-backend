@@ -10,7 +10,9 @@
 # catalog term can be older, so this module does not read it.
 module TermCode
   SEASON_SUFFIXES = { "fall" => 10, "spring" => 20, "summer" => 30 }.freeze
-  LABEL = /\A(fall|spring|summer)\s+(\d{4})\z/i
+  # A term name in a text, such as "Fall 2025": the season and the year.
+  LABEL_TEXT = /(fall|spring|summer)\s+(\d{4})/i
+  LABEL = /\A#{LABEL_TEXT}\z/
   CODE  = /\A\d{4}(10|20|30)\z/
 
   # Banner starts long after this year. A later year than a few years from
@@ -21,16 +23,22 @@ module TermCode
   module_function
 
   # The code of a label ("Fall 2025") or of a code (202610 or "202610"), or
-  # nil when the value is neither, or its year is out of range.
+  # nil when the value is neither, or its year is out of range. Use it for
+  # what a person typed.
   def parse(value)
+    code = read(value)
+    code if code && (FIRST_YEAR..(Time.zone.today.year + YEARS_AHEAD)).cover?(code / 100)
+  end
+
+  # parse with no year range, for a value that only has to name a stored
+  # term.
+  def read(value)
     text = value.to_s.strip
-    code = if text.match?(CODE)
+    if text.match?(CODE)
       Integer(text, 10)
     elsif (match = text.match(LABEL))
       self.for(Integer(match[2], 10), match[1])
     end
-
-    code if code && (FIRST_YEAR..(Time.zone.today.year + YEARS_AHEAD)).cover?(code / 100)
   end
 
   # The code of a season ("fall", :spring) of a calendar year, as Term#year
@@ -41,6 +49,23 @@ module TermCode
     return nil if suffix.nil?
 
     ((season == "fall" ? year + 1 : year) * 100) + suffix
+  end
+
+  # The first season that a text names, in the order fall, spring, summer:
+  # "fall" for "Fall Semester 2026". nil when it names none.
+  def season_in(text)
+    text = text.to_s.downcase
+    SEASON_SUFFIXES.keys.find { |season| text.include?(season) }
+  end
+
+  # The code of the term that a date is in by its month: spring to May,
+  # summer in June and July, fall from August.
+  def for_date(date)
+    season = if date.month >= 8 then "fall"
+    elsif date.month >= 6 then "summer"
+    else "spring"
+    end
+    self.for(date.year, season)
   end
 
   # { year:, season: } of a code, with the calendar year (202710 is fall
@@ -89,8 +114,10 @@ module TermCode
   # The catalog year of a term, such as "2025-2026".
   def catalog_year(code)
     start_year = catalog_start_year(code)
-    start_year && "#{start_year}-#{start_year + 1}"
+    start_year && catalog_year_name(start_year)
   end
+
+  def catalog_year_name(start_year) = "#{start_year}-#{start_year + 1}"
 
   # The code of a semester of a plan of study ("Year 3, fall") for a
   # program that started in start, or nil. Year 1 is the academic year of

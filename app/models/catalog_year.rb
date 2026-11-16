@@ -28,6 +28,11 @@
 class CatalogYear < ApplicationRecord
   SOURCES = { html: "html", wayback: "wayback", pdf: "pdf" }.freeze
   STATUSES = { pending: "pending", imported: "imported", missing: "missing", failed: "failed" }.freeze
+  # The first catalog year that matches Banner data (Spring 2014).
+  FIRST_START_YEAR = 2013
+  # The first catalog year that the catalog site has as HTML. Older years
+  # come only from a PDF (#865, DegreeRequirements::PdfCatalog).
+  FIRST_HTML_START_YEAR = 2019
 
   enum :source, SOURCES, validate: true, prefix: true
   enum :status, STATUSES, validate: true
@@ -37,7 +42,7 @@ class CatalogYear < ApplicationRecord
   has_many :catalog_year_courses, dependent: :delete_all
 
   validates :start_year, presence: true, uniqueness: true,
-                         numericality: { only_integer: true, greater_than_or_equal_to: 2010 }
+                         numericality: { only_integer: true, greater_than_or_equal_to: FIRST_START_YEAR }
 
-  def name = "#{start_year}-#{start_year + 1}"
+  def name = TermCode.catalog_year_name(start_year)
 end

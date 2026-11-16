@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 namespace :degree_requirements do
-  # The first catalog year that matches Banner data (Spring 2014). Years
-  # before 2019-2020 are PDFs (#865): DegreeRequirements::PdfCatalog::FILES.
-  first_year = 2013
-
   desc "Queue the import of one catalog year: bin/rails 'degree_requirements:import[2024]'. " \
        "FORCE=1 imports an index that lists far fewer programs than the last import."
   task :import, [ :start_year ] => :environment do |_, args|
@@ -13,7 +9,7 @@ namespace :degree_requirements do
 
     force = ENV["FORCE"].present?
     DegreeRequirements::ImportJob.enqueue_in_batch(start_year, force: force)
-    puts "Queued the import of #{start_year}-#{start_year + 1}#{' with force' if force}."
+    puts "Queued the import of #{TermCode.catalog_year_name(start_year)}#{' with force' if force}."
   end
 
   desc "Link the elective slots of every stored plan to the shared lists: HSS, English sequence, co-op, " \
@@ -33,8 +29,9 @@ namespace :degree_requirements do
     puts "No master's program for these Double Leopard names: #{result.unmatched.join(', ')}" if result.unmatched.any?
   end
 
-  desc "Queue the import of every catalog year from #{first_year}-#{first_year + 1} to this year"
+  desc "Queue the import of every catalog year from the first one that matches Banner data to this year"
   task import_all: :environment do
+    first_year = CatalogYear::FIRST_START_YEAR
     (first_year..Date.current.year).each do |start_year|
       DegreeRequirements::ImportJob.enqueue_in_batch(start_year)
     end

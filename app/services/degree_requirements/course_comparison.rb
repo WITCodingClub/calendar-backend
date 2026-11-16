@@ -99,7 +99,7 @@ module DegreeRequirements
     # subject as Banner labels it, "Computer Science (COMP)", so the code is
     # read from the label the same way CatalogCourse rows get it.
     def codes_offered_in_year
-      terms = TermCode.catalog_year_codes(catalog_year.start_year).map { |code| Term.where(TermCode.year_and_season(code)) }.reduce(:or)
+      terms = Term.where(uid: TermCode.catalog_year_codes(catalog_year.start_year))
       Course.where(term_id: terms.select(:id)).distinct.pluck(:subject, :course_number)
             .to_set { |subject, number| [ CourseCode.subject_of(subject), number ] }
     end

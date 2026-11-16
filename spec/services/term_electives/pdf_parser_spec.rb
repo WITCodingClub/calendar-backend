@@ -16,7 +16,7 @@ RSpec.describe TermElectives::PdfParser do
 
     it "reads the title and the term" do
       expect(result).to have_attributes(title: "Spring 2031 School of Computing and Data Science Electives",
-                                        season: "spring", year: 2031)
+                                        term_uid: 203120)
     end
 
     it "gives each course the nearest heading above it" do
@@ -41,7 +41,7 @@ RSpec.describe TermElectives::PdfParser do
         [ "PHIL 3800", "Humanities" ],
         [ "PHIL 4501", "Humanities" ]
       ])
-      expect(result).to have_attributes(season: "spring", year: 2031)
+      expect(result).to have_attributes(term_uid: 203120)
     end
   end
 
@@ -50,7 +50,7 @@ RSpec.describe TermElectives::PdfParser do
 
     it "reads the subject column, and gives each course once" do
       expect(codes(result)).to eq([ [ "CRES 1000", nil ], [ "ECON 4102", nil ] ])
-      expect(result).to have_attributes(season: "fall", year: 2030)
+      expect(result).to have_attributes(term_uid: 203110)
     end
   end
 
@@ -66,18 +66,18 @@ RSpec.describe TermElectives::PdfParser do
     text = "Spring 2031 Electives\n" + ("\n• COMP2000 – Data Structures\n" * 8) +
            "Students who took COMP2000 in Fall 2030 may not take it again.\n"
 
-    expect(described_class.parse(text)).to have_attributes(season: "spring", year: 2031)
+    expect(described_class.parse(text)).to have_attributes(term_uid: 203120)
   end
 
   it "gives no term when the title names two terms" do
     result = described_class.parse("Fall 2030 and Spring 2031 Electives\n• COMP2000 – Data Structures\n")
 
-    expect(result).to have_attributes(season: nil, year: nil)
+    expect(result).to have_attributes(term_uid: nil)
   end
 
   it "gives no term when the text names none" do
     result = described_class.parse("Electives\n• COMP2000 – Data Structures\n")
 
-    expect(result).to have_attributes(season: nil, year: nil, title: "Electives")
+    expect(result).to have_attributes(term_uid: nil, title: "Electives")
   end
 end

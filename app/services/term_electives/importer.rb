@@ -56,9 +56,9 @@ module TermElectives
 
       text = PdfText.extract(pdf)
       parsed = PdfParser.parse(text)
-      term = Term.find_by(year: parsed.year, season: parsed.season) if parsed.year
+      term = Term.find_by(uid: parsed.term_uid) if parsed.term_uid
       if term.nil?
-        Rails.logger.warn("[TermElectives] no term for #{url} (#{parsed.season} #{parsed.year})")
+        Rails.logger.warn("[TermElectives] no term for #{url} (#{TermCode.label(parsed.term_uid) || 'no term in the title'})")
         counts[:skipped] += 1
         return
       end

@@ -106,13 +106,11 @@ module AcademicProfiles
       HssDetails.with_open_slots(entry)
     end
 
-    # The estimate needs a start term, a current term with a Banner code, a
-    # plan of study, and the course details (credits, terms offered,
-    # prerequisites). A planned program and a program argument keep the
-    # fields of #990 only.
+    # The estimate needs a start term, a current term, a plan of study, and
+    # the course details (credits, terms offered, prerequisites). A planned
+    # program and a program argument keep the fields of #990 only.
     def estimate?(entry, row, start)
-      @with_details && row&.status == "active" && start && entry[:plan] &&
-        current_term&.uid.to_s.match?(TermCode::CODE)
+      @with_details && row&.status == "active" && start && entry[:plan] && current_term
     end
 
     def estimate(entry, start)

@@ -22,7 +22,8 @@ RSpec.describe McpTools::Completions do
     end
 
     it "matches the start of the uid or the name, ignoring case" do
-      expect(complete("term", "2031")[:values]).to eq([ current, summer, future ].map { |term| term.uid.to_s })
+      # Fall 2030 is 203110: a code has the year its academic year ends in.
+      expect(complete("term", "2031")[:values]).to eq([ current, summer, past ].map { |term| term.uid.to_s })
       expect(complete("term", "FALL")[:values]).to eq([ future, past ].map { |term| term.uid.to_s })
       expect(complete("term", "fall 2030")[:values]).to eq([ past.uid.to_s ])
     end

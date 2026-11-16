@@ -27,7 +27,7 @@ RSpec.describe CatalogYear do
   it { is_expected.to have_many(:catalog_year_courses).dependent(:delete_all) }
   it { is_expected.to validate_presence_of(:start_year) }
   it { is_expected.to validate_uniqueness_of(:start_year) }
-  it { is_expected.to validate_numericality_of(:start_year).only_integer.is_greater_than_or_equal_to(2010) }
+  it { is_expected.to validate_numericality_of(:start_year).only_integer.is_greater_than_or_equal_to(CatalogYear::FIRST_START_YEAR) }
 
   it do
     expect(subject).to define_enum_for(:source).with_values(html: "html", wayback: "wayback", pdf: "pdf")

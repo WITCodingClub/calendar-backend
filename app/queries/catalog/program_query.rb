@@ -8,7 +8,6 @@ module Catalog
     class FilterError < ::Catalog::FilterError; end
 
     YEAR_SPAN = /\A(\d{4})(?:\s*[-\u2013\u2014]\s*(\d{2}|\d{4}))?\z/
-    TERM_NAME = /\A(fall|spring|summer)\s+(\d{4})\z/i
 
     # The first year of a catalog year, from "2024", "2024-2025", "2024-25",
     # or a term name: a catalog year starts in the fall, so "Spring 2024" is
@@ -16,9 +15,8 @@ module Catalog
     # follow each other.
     def self.start_year(value)
       text = value.to_s.strip
-      if (term = TERM_NAME.match(text))
-        year = term[2].to_i
-        return term[1].casecmp?("fall") ? year : year - 1
+      if (term = TermCode::LABEL.match(text))
+        return TermCode.catalog_start_year(TermCode.for(term[2].to_i, term[1]))
       end
 
       match = YEAR_SPAN.match(text)

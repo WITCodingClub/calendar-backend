@@ -50,7 +50,7 @@ We do not store letter grades, GPA, or W numbers. The extension converts each le
 
 ## Terms
 
-LeopardWeb shows a term as a label, for example "Fall 2025". `TermCode` (`app/lib/term_code.rb`) converts a label to a Banner term code (Fall 2025 is `202610`), and owns all term code arithmetic: the next term, the catalog year of a term, and the term of a plan semester. The tables store the code as an integer, not a `terms` row, because a catalog term can be older than the first row in `terms`.
+LeopardWeb shows a term as a label, for example "Fall 2025". `TermCode` (`app/lib/term_code.rb`) converts a label to a Banner term code (Fall 2025 is `202610`), and owns all term code arithmetic: the next term, the term of a date, the season a text names, the catalog year of a term and its name ("2025-2026"), and the term of a plan semester. The rest of the app finds a `terms` row by its code (`Term.find_by(uid:)`), and `Term` orders rows by the code, because the codes sort in time order. The tables store the code as an integer, not a `terms` row, because a catalog term can be older than the first row in `terms`.
 
 ## Profile sync
 

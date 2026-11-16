@@ -56,13 +56,12 @@ module Admin
 
     private
 
-    MIN_TERM_YEAR = 2012
-
+    # Banner lists terms from long before the first catalog year that the
+    # app reads.
     def build_combined_terms_list
       combined = @api_terms.filter_map do |api_term|
-        uid    = api_term[:code].to_i
-        parsed = TermCode.year_and_season(uid)
-        next unless parsed && parsed[:year] >= MIN_TERM_YEAR
+        uid = api_term[:code].to_i
+        next unless uid.to_s.match?(TermCode::CODE) && TermCode.catalog_start_year(uid) >= CatalogYear::FIRST_START_YEAR
 
         db_term = @db_terms[uid]
         { uid: uid, description: api_term[:description], in_database: db_term.present?, db_term: db_term, from_api: true }

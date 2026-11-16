@@ -46,6 +46,24 @@ RSpec.describe TermCode do
     expect(described_class.for(2026, :winter)).to be_nil
   end
 
+  it "reads a code or label with no year range" do
+    year = Time.zone.today.year + 10
+
+    expect(described_class.read("Spring #{year}")).to eq((year * 100) + 20)
+    expect(described_class.read("Winter 2025")).to be_nil
+  end
+
+  it "finds the season a text names" do
+    expect(described_class.season_in("Fall Semester 2026")).to eq("fall")
+    expect(described_class.season_in("Commencement")).to be_nil
+  end
+
+  it "gives the term of a date by its month" do
+    dates = [ Date.new(2026, 5, 31), Date.new(2026, 6, 1), Date.new(2026, 7, 31), Date.new(2026, 8, 1) ]
+
+    expect(dates.map { |date| described_class.for_date(date) }).to eq([ 202620, 202630, 202630, 202710 ])
+  end
+
   it "splits a code into the calendar year and the season" do
     expect(described_class.year_and_season(202710)).to eq(year: 2026, season: :fall)
     expect(described_class.year_and_season("202630")).to eq(year: 2026, season: :summer)

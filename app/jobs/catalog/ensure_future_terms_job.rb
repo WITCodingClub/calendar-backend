@@ -5,7 +5,7 @@ module Catalog
     queue_as :default
 
     def perform(terms_ahead: 6)
-      uids = [ current_uid ]
+      uids = [ TermCode.for_date(Time.zone.today) ]
       terms_ahead.times { uids << TermCode.next_term(uids.last) }
       existing = Term.where(uid: uids).pluck(:uid).to_set
 
@@ -15,19 +15,6 @@ module Catalog
         term = Term.create!(uid: uid, **TermCode.year_and_season(uid))
         Rails.logger.info "[Catalog::EnsureFutureTermsJob] Created term: #{term.season.capitalize} #{term.year} (uid: #{uid})"
       end
-    end
-
-    private
-
-    # The season of today by month: fall from August, summer from June,
-    # spring before that.
-    def current_uid
-      today = Time.zone.today
-      season = if today.month >= 8 then :fall
-      elsif today.month >= 6 then :summer
-      else :spring
-      end
-      TermCode.for(today.year, season)
     end
   end
 end

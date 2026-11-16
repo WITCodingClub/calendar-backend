@@ -177,14 +177,6 @@ RSpec.describe Term, type: :model do
     end
   end
 
-  describe ".season_position" do
-    it "maps seasons to chronological positions" do
-      expect(described_class.season_position(:spring)).to eq(1)
-      expect(described_class.season_position("summer")).to eq(2)
-      expect(described_class.season_position(:fall)).to eq(3)
-    end
-  end
-
   describe ".date_window" do
     it "gives a window for each season" do
       expect(described_class.date_window(2026, :spring)).to eq(Date.new(2025, 8, 1)..Date.new(2026, 6, 30))
