@@ -2,10 +2,16 @@
 
 module Preferences
   # The title, description and location that a calendar event gets from the
-  # resolved preferences (Preferences::Resolver) and an event context
-  # (TemplateRenderer.build_context_from_meeting_time). A field with no
-  # template keeps the value of the context.
+  # resolved preferences (Preferences::Resolver) and the variables of its
+  # Preferences::Context. A field with no template keeps the variable's value.
   class Preview
+    # One template rendered for one record, after the strict check. Raises
+    # TemplateRenderer::InvalidTemplateError.
+    def self.render_template(template, record)
+      TemplateRenderer.validate_template(template)
+      TemplateRenderer.new.render(template, Context.for(record).variables)
+    end
+
     # One preview renders many events with one renderer, so a template that
     # many events share is parsed once.
     def initialize

@@ -11,7 +11,7 @@ class BusyBlocksSerializer
 
   def as_json(*)
     {
-      time_zone:  Time.zone.tzinfo.name,
+      time_zone:  SchoolTimeZone::NAME,
       start_date: @from.iso8601,
       end_date:   @to.iso8601,
       busy:       @blocks.map { |block| block_json(block) }

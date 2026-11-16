@@ -14,17 +14,20 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
   let(:meeting_time) { create(:course_meeting_time) }
   let(:zone)         { Time.find_zone!("America/New_York") }
 
-  let(:class_event) do
-    {
-      summary:         "Synthetic Course",
-      description:     "COMP-1000-01",
-      location:        "Synthetic Hall - 101",
-      start_time:      zone.local(2026, 9, 14, 9, 0),
-      end_time:        zone.local(2026, 9, 14, 10, 15),
-      meeting_time_id: meeting_time.id,
-      recurrence:      nil,
-      all_day:         false
-    }
+  # As CourseCalendars::EventBuilder gives it: with the person's preferences.
+  let(:class_event) { class_event_for(meeting_time) }
+
+  def class_event_for(source, recurrence: nil)
+    Preferences::Applier.new(user).apply(CourseCalendars::Event.new(
+      source:      source,
+      summary:     "Synthetic Course",
+      description: "COMP-1000-01",
+      location:    "Synthetic Hall - 101",
+      start_time:  zone.local(2026, 9, 14, 9, 0),
+      end_time:    zone.local(2026, 9, 14, 10, 15),
+      recurrence:  recurrence && CourseCalendars::Recurrence.parse(recurrence),
+      all_day:     false
+    ))
   end
 
   let(:created_event_id) { "AAMkSyntheticEvent1" }
@@ -128,9 +131,7 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
                   .to_return(graph_json_response("event_instances"))
       cancel = stub_request(:delete, "#{graph}/me/events/AAMkSyntheticOccurrence1").to_return(status: 204)
 
-      service.update_calendar_events([ class_event.merge(
-        recurrence: [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO", "EXDATE;TZID=America/New_York:20261012T090000" ]
-      ) ])
+      service.update_calendar_events([ class_event_for(meeting_time, recurrence: [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO", "EXDATE;TZID=America/New_York:20261012T090000" ]) ])
 
       expect(instances).to have_been_requested
       expect(cancel).to have_been_requested
@@ -143,9 +144,7 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
         .with(query: hash_including({})).to_return(graph_json_response("event_instances"))
       stub_request(:delete, "#{graph}/me/events/AAMkSyntheticOccurrence1").to_return(status: 429)
       allow_any_instance_of(Faraday::Retry::Middleware).to receive(:sleep) # rubocop:disable RSpec/AnyInstance
-      recurring = class_event.merge(
-        recurrence: [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO", "EXDATE;TZID=America/New_York:20261012T090000" ]
-      )
+      recurring = class_event_for(meeting_time, recurrence: [ "RRULE:FREQ=WEEKLY;UNTIL=20261212T045959Z;BYDAY=MO", "EXDATE;TZID=America/New_York:20261012T090000" ])
       allow(Rails.error).to receive(:report)
 
       service.update_calendar_events([ recurring ])
@@ -352,7 +351,7 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
                        })
       patch = stub_request(:patch, "#{graph}/me/events/#{created_event_id}").to_return(graph_json_response("event_updated"))
 
-      service.update_calendar_events([ class_event.merge(recurrence: rule) ])
+      service.update_calendar_events([ class_event_for(meeting_time, recurrence: rule) ])
 
       expect(patch).to have_been_requested
     end
@@ -384,17 +383,6 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
     end
   end
 
-  # Prosopite raises in Prosopite.scan when the same query runs once for each
-  # event (#654).
-  it "loads the records behind several events without one query for each" do
-    calendar
-    stub_event_create
-    events = Array.new(3) { class_event.merge(meeting_time_id: create(:course_meeting_time).id) }
-
-    expect { Prosopite.scan { service.update_calendar_events(events) } }.not_to raise_error
-    expect(calendar.calendar_events.count).to eq(3)
-  end
-
   describe "event colors" do
     let(:categories_url) { "#{graph}/me/outlook/masterCategories" }
 
@@ -405,7 +393,7 @@ RSpec.describe MicrosoftGraph::CalendarProvider, :microsoft_graph do
       create_stub = stub_request(:post, "#{graph}/me/calendars/AAMkSyntheticCalendar1/events")
                     .with(body: hash_including("categories" => [ "WIT Banana" ]))
                     .to_return(graph_json_response("event_created"))
-      second_event = class_event.merge(meeting_time_id: create(:course_meeting_time).id)
+      second_event = class_event_for(create(:course_meeting_time))
 
       service.update_calendar_events([ class_event, second_event ])
 

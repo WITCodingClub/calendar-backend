@@ -3,7 +3,7 @@
 # The preference fields that CalendarPreference and EventPreference share, and
 # their rules. FIELDS is the one list of them: Preferences::Resolver,
 # Preferences::Version and the change check below read it, and
-# CalendarEvent.generate_data_hash hashes the event fields they produce.
+# CourseCalendars::Event#data_hash hashes the event fields they produce.
 module PreferenceFields
   extend ActiveSupport::Concern
 
@@ -60,7 +60,7 @@ module PreferenceFields
       next reminder unless reminder.is_a?(Hash)
 
       stringified = reminder.stringify_keys
-      stringified["method"] = "popup" if stringified["method"] == "notification"
+      stringified["method"] = Preferences::Reminders.stored_method(stringified["method"])
       stringified
     end
   end

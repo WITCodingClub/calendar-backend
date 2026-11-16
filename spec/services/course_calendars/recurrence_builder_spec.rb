@@ -27,19 +27,20 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
     end
   end
 
-  describe "#parse_time" do
+  describe "#time_on" do
     it "turns an integer time into a local time" do
-      expect(builder.parse_time(Date.new(2026, 9, 14), 1330)).to eq(Time.zone.local(2026, 9, 14, 13, 30))
+      expect(builder.time_on(Date.new(2026, 9, 14), 1330)).to eq(Time.zone.local(2026, 9, 14, 13, 30))
     end
 
     it "returns nil without a date" do
-      expect(builder.parse_time(nil, 900)).to be_nil
+      expect(builder.time_on(nil, 900)).to be_nil
     end
   end
 
-  describe "#build_recurrence_rule" do
+  describe "#recurrence_for rule" do
+    let(:start_time) { Time.zone.local(2026, 9, 14, 9, 0) }
     it "repeats weekly until the end of the last day in local time" do
-      rule = builder.build_recurrence_rule(meeting_time)
+      rule = builder.recurrence_for(meeting_time, start_time).lines.first
 
       expect(rule).to start_with("RRULE:FREQ=WEEKLY")
       expect(rule).to include("BYDAY=MO", "UNTIL=20261216T045959Z")
@@ -48,34 +49,34 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
     it "stops the day before the course's final exam" do
       create(:final_exam, course: course, term: term, exam_date: Date.new(2026, 12, 10))
 
-      expect(builder.build_recurrence_rule(meeting_time)).to include("UNTIL=20261210T045959Z")
+      expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261210T045959Z")
     end
 
     it "stops the day before the term's first final when the course has none" do
       create(:final_exam, term: term, exam_date: Date.new(2026, 12, 12))
 
-      expect(builder.build_recurrence_rule(meeting_time)).to include("UNTIL=20261212T045959Z")
+      expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261212T045959Z")
     end
 
     it "ignores an early final that few sections of the term hold when the course has none" do
       create(:final_exam, term: term, exam_date: Date.new(2026, 11, 19))
       create_list(:final_exam, 10, term: term, exam_date: Date.new(2026, 12, 10))
 
-      expect(builder.build_recurrence_rule(meeting_time)).to include("UNTIL=20261210T045959Z")
+      expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261210T045959Z")
     end
 
     it "stops the day before Study Day" do
       create(:university_calendar_event, term: term, category: "finals", summary: "Study Day",
                                          start_time: Time.zone.local(2026, 12, 8, 0, 0), end_time: Time.zone.local(2026, 12, 8, 23, 59))
 
-      expect(builder.build_recurrence_rule(meeting_time)).to include("UNTIL=20261208T045959Z")
+      expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261208T045959Z")
     end
 
     it "ignores a finals announcement that is not a no-class day" do
       create(:university_calendar_event, term: term, category: "finals", summary: "Final Exam Schedule Online",
                                          start_time: Time.zone.local(2026, 11, 1, 9, 0), end_time: Time.zone.local(2026, 11, 1, 10, 0))
 
-      expect(builder.build_recurrence_rule(meeting_time)).to include("UNTIL=20261216T045959Z")
+      expect(builder.recurrence_for(meeting_time, start_time).rule).to include("UNTIL=20261216T045959Z")
     end
   end
 
@@ -202,31 +203,33 @@ RSpec.describe CourseCalendars::RecurrenceBuilder do
     end
   end
 
-  describe "#build_recurrence_with_exclusions" do
+  describe "#recurrence_for exclusions" do
     let(:start_time) { Time.zone.local(2026, 9, 14, 9, 0) }
 
-    it "returns nil without a rule" do
-      expect(builder.build_recurrence_with_exclusions(meeting_time, nil, start_time)).to be_nil
+    it "returns nil without a meeting day" do
+      meeting_time.day_of_week = nil
+
+      expect(builder.recurrence_for(meeting_time, start_time)).to be_nil
     end
 
     it "adds an EXDATE for a holiday on the meeting day" do
       holiday(Time.zone.local(2026, 10, 12, 0, 0))
 
-      expect(builder.build_recurrence_with_exclusions(meeting_time, "RRULE:X", start_time))
-        .to eq([ "RRULE:X", "EXDATE;TZID=America/New_York:20261012T090000" ])
+      expect(builder.recurrence_for(meeting_time, start_time).lines.drop(1))
+        .to eq([ "EXDATE;TZID=America/New_York:20261012T090000" ])
     end
 
     it "adds an EXDATE for the meeting day inside a holiday of several days" do
       holiday(Time.zone.local(2026, 11, 21, 0, 0), Time.zone.local(2026, 11, 25, 23, 0))
 
-      expect(builder.build_recurrence_with_exclusions(meeting_time, "RRULE:X", start_time))
-        .to eq([ "RRULE:X", "EXDATE;TZID=America/New_York:20261123T090000" ])
+      expect(builder.recurrence_for(meeting_time, start_time).lines.drop(1))
+        .to eq([ "EXDATE;TZID=America/New_York:20261123T090000" ])
     end
 
     it "adds no EXDATE for a holiday on another day" do
       holiday(Time.zone.local(2026, 10, 13, 0, 0))
 
-      expect(builder.build_recurrence_with_exclusions(meeting_time, "RRULE:X", start_time)).to eq([ "RRULE:X" ])
+      expect(builder.recurrence_for(meeting_time, start_time).exdates).to eq([])
     end
   end
 

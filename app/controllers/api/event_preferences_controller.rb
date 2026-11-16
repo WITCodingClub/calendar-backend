@@ -92,7 +92,7 @@ module Api
 
       authorize preference || EventPreference.new(user: current_user, preferenceable: preferenceable), :show?
 
-      context        = Preferences::TemplateRenderer.build_context_from_meeting_time(preferenceable)
+      context        = Preferences::Context.for(preferenceable).variables
       preview        = (@preview ||= Preferences::Preview.new).call(resolved_data[:preferences], context)
 
       resolved_prefs = resolved_data[:preferences].dup
@@ -149,7 +149,7 @@ module Api
       return settings unless settings.is_a?(Array)
 
       settings.map do |r|
-        r.is_a?(Hash) ? r.merge("method" => r["method"] == "popup" ? "notification" : r["method"]) : r
+        r.is_a?(Hash) ? r.merge("method" => Preferences::Reminders.client_method(r["method"])) : r
       end
     end
   end

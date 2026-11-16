@@ -64,7 +64,7 @@ module MeetingLinks
         ActiveRecord.after_all_transactions_commit { MeetingLinkMailer.booked(link).deliver_later }
         link
       end
-    rescue FriendMeetings::Creator::Error, ActiveRecord::RecordInvalid => e
+    rescue FriendMeetings::Error, ActiveRecord::RecordInvalid => e
       raise Invalid, e.message
     rescue ActiveRecord::Deadlocked
       raise Invalid, "Another booking happened at the same moment. Pick your time again."

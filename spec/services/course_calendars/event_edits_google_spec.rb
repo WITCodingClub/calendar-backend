@@ -95,7 +95,8 @@ RSpec.describe CourseCalendars::EventEdits do
         edits = edits_for(all_day_event("2026-11-26", "2026-11-28"))
 
         expect(edits.edited_fields).to eq(%w[end_time])
-        expect(edits.merge({}, %w[end_time])).to eq(end_time: zone.local(2026, 11, 27))
+        event = CourseCalendars::Event.new(source: nil, summary: "Synthetic Lecture", start_time: day, end_time: day.end_of_day)
+        expect(edits.merge(event, %w[end_time]).end_time).to eq(zone.local(2026, 11, 27))
       end
     end
 
@@ -129,12 +130,12 @@ RSpec.describe CourseCalendars::EventEdits do
     it "puts the person's value in place of each edited field only" do
       remote = remote_event(summary: "Edited", description: "My notes",
                             end: Google::Apis::CalendarV3::EventDateTime.new(date_time: (start + 2.hours).iso8601))
-      data   = { summary: "Synthetic Lecture", description: "CRN 10001", location: "New Hall", end_time: start + 1.hour }
+      event  = CourseCalendars::Event.new(source: nil, summary: "Synthetic Lecture", description: "CRN 10001",
+                                          location: "New Hall", start_time: start, end_time: start + 1.hour)
 
-      merged = edits_for(remote).merge(data, %w[summary description end_time])
+      merged = edits_for(remote).merge(event, %w[summary description end_time])
 
-      expect(merged).to eq(summary: "Edited", description: "CRN 10001", location: "New Hall", end_time: start + 2.hours)
-      expect(data[:summary]).to eq("Synthetic Lecture")
+      expect(merged).to have_attributes(summary: "Edited", description: "CRN 10001", location: "New Hall", end_time: start + 2.hours)
     end
   end
 

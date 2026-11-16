@@ -18,11 +18,13 @@ module CourseCalendars
     # the terms' finals dates loaded, for a response that lists a whole
     # schedule. Its lookups then send no query for each course or term.
     def self.preloaded(user, courses)
-      new(user).tap do |builder|
-        builder.preload_holidays_for_user!
-        builder.preload_final_exam_dates!(courses.map(&:id))
-        builder.preload_term_finals_dates!(courses.map(&:term_id).uniq)
-      end
+      new(user).tap { |builder| builder.preload_for!(courses) }
+    end
+
+    def preload_for!(courses)
+      preload_holidays_for_user!
+      preload_final_exam_dates!(courses.map(&:id))
+      preload_term_finals_dates!(courses.map(&:term_id).uniq)
     end
 
     # One builder for each user, keyed by user id, for a response that lists
@@ -45,19 +47,6 @@ module CourseCalendars
       self.class.new(other_user).tap { |copy| copy.share_lookups_from(self) }
     end
 
-    protected
-
-    attr_reader :course_final_dates, :term_finals_start_dates, :term_finals_period_dates, :all_holidays_preloaded
-
-    def share_lookups_from(other)
-      @course_final_dates       = other.course_final_dates.dup
-      @term_finals_start_dates  = other.term_finals_start_dates.dup
-      @term_finals_period_dates = other.term_finals_period_dates.dup
-      @all_holidays_preloaded   = other.all_holidays_preloaded
-    end
-
-    public
-
     def find_first_meeting_date(meeting_time)
       return nil if meeting_time.day_of_week.blank?
 
@@ -74,31 +63,23 @@ module CourseCalendars
       nil
     end
 
-    def parse_time(date, time_int)
+    # The local time on the date for an HHMM integer such as 1330.
+    def time_on(date, time_int)
       return nil unless date && time_int
 
-      Time.zone.local(date.year, date.month, date.day, time_int / 100, time_int % 100)
+      SchoolTimeZone.zone.local(date.year, date.month, date.day, time_int / 100, time_int % 100)
     end
 
-    # The weekly rule, "RRULE:FREQ=WEEKLY;UNTIL=...;BYDAY=MO".
-    #
-    # UNTIL is the end of the last day in the local zone, as UTC. A bare
-    # Time.utc(..., 23, 59, 59) drops the last meeting of an evening class,
-    # whose start falls after midnight UTC. With date_only_until, UNTIL is a
-    # DATE: RFC 5545 needs that when DTSTART is a DATE (an all-day event). The
-    # ICS feed uses it; Google and Outlook take the date-time form.
-    def build_recurrence_rule(meeting_time, date_only_until: false)
+    # The weekly rule of the meeting time, until effective_end_date, without
+    # the no-class days. start_time is the first meeting.
+    def recurrence_for(meeting_time, start_time)
       return nil if meeting_time.day_of_week.blank?
 
-      last_day = effective_end_date(meeting_time)
-      rule = IceCube::Rule.weekly.day(meeting_time.day_of_week.to_sym)
-      ical = if date_only_until
-               rule.until(Time.utc(last_day.year, last_day.month, last_day.day)).to_ical
-                   .gsub(/UNTIL=(\d{8})T\d{6}Z?/, 'UNTIL=\1')
-      else
-               rule.until(Time.zone.local(last_day.year, last_day.month, last_day.day, 23, 59, 59).utc).to_ical
+      exdates = holiday_dates(meeting_time).map do |date|
+        SchoolTimeZone.zone.local(date.year, date.month, date.day, start_time.hour, start_time.min, 0)
       end
-      "RRULE:#{ical}"
+      Recurrence.until_end_of(IceCube::Rule.weekly.day(meeting_time.day_of_week.to_sym),
+                              effective_end_date(meeting_time), exdates: exdates)
     end
 
     # The last date the class can meet: meeting_time.end_date, cut back to
@@ -187,14 +168,6 @@ module CourseCalendars
                                                                     .minimum(:start_time)&.to_date
     end
 
-    # The RRULE line, then an EXDATE line for each no-class day, or nil with
-    # no rule.
-    def build_recurrence_with_exclusions(meeting_time, recurrence_rule, start_time)
-      return nil unless recurrence_rule
-
-      [ recurrence_rule, *holiday_dates(meeting_time).map { |date| format_exdate(date, start_time) } ]
-    end
-
     # The dates on this meeting time's day that a no-class event in its date
     # range covers. A multi-day event gives each of its days on the meeting day.
     # @return [Array<Date>]
@@ -261,14 +234,15 @@ module CourseCalendars
       end
     end
 
-    # The class start on the date: "EXDATE;TZID=America/New_York:20241128T090000",
-    # the form Google Calendar takes.
-    def format_exdate(date, start_time)
-      "EXDATE;TZID=#{Time.zone.tzinfo.name}:#{exdate_time(date, start_time).strftime('%Y%m%dT%H%M%S')}"
-    end
+    protected
 
-    def exdate_time(date, start_time)
-      Time.zone.local(date.year, date.month, date.day, start_time.hour, start_time.min, 0)
+    attr_reader :course_final_dates, :term_finals_start_dates, :term_finals_period_dates, :all_holidays_preloaded
+
+    def share_lookups_from(other)
+      @course_final_dates       = other.course_final_dates.dup
+      @term_finals_start_dates  = other.term_finals_start_dates.dup
+      @term_finals_period_dates = other.term_finals_period_dates.dup
+      @all_holidays_preloaded   = other.all_holidays_preloaded
     end
   end
 end

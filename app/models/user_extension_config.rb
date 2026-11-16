@@ -43,7 +43,15 @@ class UserExtensionConfig < ApplicationRecord
   # The selected categories that still sync, without holidays, which every user gets.
   # A category that no longer syncs can stay stored from before, so filter it out here.
   def synced_university_event_categories
-    (university_event_categories || []) & (UniversityCalendarEvent::SYNCABLE_CATEGORIES - [ "holiday" ])
+    (university_event_categories || []) & (UniversityCalendarEvent::SYNCABLE_CATEGORIES - [ UniversityCalendarEvent::HOLIDAY ])
+  end
+
+  # The color a class of this schedule type gets when no preference sets one.
+  def default_color_for(schedule_type)
+    case schedule_type
+    when "lecture"    then default_color_lecture
+    when "laboratory" then default_color_lab
+    end
   end
 
   private

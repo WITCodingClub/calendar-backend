@@ -33,9 +33,7 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
 
       expect(google).to have_received(:update_calendar_events).with(
         contain_exactly(
-          a_hash_including(meeting_time_id: meeting_time.id),
-          a_hash_including(final_exam_id: final_exam.id),
-          a_hash_including(university_calendar_event_id: holiday.id)
+          have_attributes(source: meeting_time), have_attributes(source: final_exam), have_attributes(source: holiday)
         ),
         force: true
       ).ordered
@@ -165,13 +163,12 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
     end
 
     it "builds the events with the injected event builder" do
-      events = instance_double(CourseCalendars::EventBuilder, preload_holidays!: nil, finals_events: [], university_events: [])
-      allow(events).to receive(:course_events).and_return([ { summary: "X" } ])
+      event  = instance_double(CourseCalendars::Event)
+      events = instance_double(CourseCalendars::EventBuilder, class_events: [ event ], final_exam_events: [], university_events: [])
 
       described_class.new(user, events: events).sync_schedule
 
-      expect(events).to have_received(:course_events).with(anything, prefer_valid_locations: true)
-      expect(google).to have_received(:update_calendar_events).with([ { summary: "X" } ], force: false)
+      expect(google).to have_received(:update_calendar_events).with([ event ], force: false)
     end
   end
 
@@ -203,7 +200,7 @@ RSpec.describe CourseCalendars::ScheduleSyncer do
       syncer.sync_historical(force: true)
 
       expect(google).to have_received(:update_specific_events)
-        .with([ a_hash_including(final_exam_id: past_final.id) ], force: true)
+        .with([ have_attributes(source: past_final) ], force: true)
     end
 
     it "returns nil and calls no provider when there is nothing in the past" do

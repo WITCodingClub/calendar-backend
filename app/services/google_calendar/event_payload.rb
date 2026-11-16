@@ -1,23 +1,22 @@
 # frozen_string_literal: true
 
 module GoogleCalendar
-  # Turns the event hash the sync builds (the same one Microsoft gets) into a
-  # Google::Apis::CalendarV3::Event, and a Google event back into a
-  # CourseCalendars::RemoteEvent.
+  # Turns a CourseCalendars::Event into a Google::Apis::CalendarV3::Event, and
+  # a Google event back into a CourseCalendars::RemoteEvent.
   #
   # A custom color needs an event label. When the calendar cannot take labels,
   # the event gets the legacy colorId nearest to the color. Google reads
   # eventLabelId only when the request asks for label version 1, so pass
   # request_options(event) to insert_event and update_event.
   class EventPayload
-    def self.build(event_data, labels = nil)
-      new(event_data, labels).to_event
+    def self.build(event, labels = nil)
+      new(event, labels).to_event
     end
 
     # With attendees: true the event lists the invited friends. Without, it
     # has none: an update replaces the whole event.
     def self.for_friend_meeting(meeting, attendees:)
-      google_event = build(meeting.event_data)
+      google_event = build(meeting.calendar_event)
       return google_event unless attendees
 
       google_event.attendees = meeting.invitees.map do |friend|
@@ -59,33 +58,33 @@ module GoogleCalendar
     end
     private_class_method :parse_time, :normalize_recurrence
 
-    def initialize(event_data, labels = nil)
-      @data   = event_data
+    def initialize(event, labels = nil)
+      @event  = event
       @labels = labels
     end
 
     def to_event
       google_event = Google::Apis::CalendarV3::Event.new(
-        summary:     data[:summary],
-        description: data[:description],
-        location:    data[:location]
+        summary:     event.summary,
+        description: event.description,
+        location:    event.location
       )
       apply_color(google_event)
       apply_times(google_event)
 
-      google_event.recurrence = data[:recurrence] if data[:recurrence].present?
+      google_event.recurrence = event.recurrence.lines if event.recurrence
       apply_reminders(google_event)
-      google_event.visibility = data[:visibility] if data[:visibility].present?
+      google_event.visibility = event.visibility if event.visibility.present?
 
       google_event
     end
 
     private
 
-    attr_reader :data, :labels
+    attr_reader :event, :labels
 
     def apply_color(google_event)
-      hex      = data[:color_id]
+      hex      = event.color_id
       label_id = labels.label_id_for(hex) if labels && hex
 
       if labels&.available? && (hex.nil? || label_id)
@@ -97,12 +96,12 @@ module GoogleCalendar
     end
 
     def apply_times(google_event)
-      if data[:all_day]
-        google_event.start = { date: data[:start_time].to_date.to_s }
-        google_event.end   = { date: (data[:end_time].to_date + 1.day).to_s }
+      if event.all_day?
+        google_event.start = { date: event.start_time.in_time_zone(SchoolTimeZone::NAME).to_date.to_s }
+        google_event.end   = { date: event.exclusive_end_date.to_s }
       else
-        start_time_et = data[:start_time].in_time_zone(SchoolTimeZone::NAME)
-        end_time_et   = data[:end_time].in_time_zone(SchoolTimeZone::NAME)
+        start_time_et = event.start_time.in_time_zone(SchoolTimeZone::NAME)
+        end_time_et   = event.end_time.in_time_zone(SchoolTimeZone::NAME)
 
         google_event.start = { date_time: start_time_et.iso8601, time_zone: SchoolTimeZone::NAME }
         google_event.end   = { date_time: end_time_et.iso8601,   time_zone: SchoolTimeZone::NAME }
@@ -110,7 +109,7 @@ module GoogleCalendar
     end
 
     def apply_reminders(google_event)
-      reminders = Preferences::Reminders.for_sync(data[:reminder_settings])
+      reminders = Preferences::Reminders.for_sync(event.reminder_settings)
       return if reminders.nil?
 
       # An empty list means "no reminders". It must still send use_default: false,

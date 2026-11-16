@@ -105,7 +105,7 @@ The app also deletes each revoked or expired link that was never used, 7 days af
 - **Not signed in**: the page shows the owner's free times.
 - **Signed in** with an account of this app: the page shows only the times when both people are free. The name and email are filled in.
 
-The page shows the owner's name, the title, the meeting length, and start times. It shows no course data. Free times are on weekdays, from 8:00 AM to 9:00 PM Eastern Time, every 30 minutes, and at least one hour from now. Busy time is the person's class times (`BusyBlocks`) and their friend meetings.
+The page shows the owner's name, the title, the meeting length, and start times. It shows no course data. Free times are on weekdays, from 8:00 AM to 9:00 PM Eastern Time, every 30 minutes, and at least one hour from now. Busy time is the person's busy blocks (`BusyBlocks`): class times, final exams, and the friend meetings the person owns or was invited to.
 
 `POST /meet/:token` with `start_time`, `name`, and `email` books the time. The page then shows a confirmation to that browser only.
 

@@ -5,9 +5,9 @@ module MeetingLinks
   # the link's date range, when the owner is free for the whole meeting length.
   # With a signed-in guest, the guest must be free too.
   #
-  # Busy time comes from BusyBlocks (class times only, no course data) and from
-  # the person's friend meetings that have not ended. The answer holds only
-  # start and end times, so the public page can show nothing else.
+  # Busy time comes from BusyBlocks: classes, final exams, and friend
+  # meetings, with no course data. The answer holds only start and end times,
+  # so the public page can show nothing else.
   #
   #   MeetingLinks::Slots.new(link).call
   #   # => [#<data MeetingLinks::Slots::Slot start_time=..., end_time=...>, ...]
@@ -65,30 +65,17 @@ module MeetingLinks
     def busy_times(user)
       return [] if days.empty?
 
-      class_blocks(user) + meeting_blocks(user)
-    end
-
-    def class_blocks(user)
       BusyBlocks.new(user, from: days.first, to: days.last).call.map do |block|
         [ at(block.date, block.start), at(block.date, block.end) ]
       end
     end
 
-    # The person's own friend meetings and the ones they were added to. A
-    # repeating meeting is busy at each occurrence until it stops repeating.
-    def meeting_blocks(user)
-      range_start = days.first.in_time_zone.beginning_of_day
-      range_end   = (days.last + 1).in_time_zone.beginning_of_day
-      meetings    = FriendMeeting.live.not_ended.where(user: user)
-                                 .or(FriendMeeting.live.not_ended.where(id: user.friend_meeting_attendees.select(:friend_meeting_id)))
-
-      meetings.overlapping(range_start, range_end).flat_map do |meeting|
-        meeting.occurrences_between(range_start, range_end)
-      end
-    end
-
+    # "24:00" is the midnight after the date (a friend meeting that goes on
+    # past midnight).
     def at(date, hhmm)
       hours, minutes = hhmm.split(":").map(&:to_i)
+      return (date + 1).in_time_zone.beginning_of_day if hours == 24
+
       date.in_time_zone.change(hour: hours, min: minutes)
     end
   end

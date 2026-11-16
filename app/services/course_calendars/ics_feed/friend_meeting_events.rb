@@ -24,18 +24,12 @@ module CourseCalendars
       private
 
       def fill(e, meeting)
-        e.dtstart  = Icalendar::Values::DateTime.new(meeting.local_start, tzid: TZID)
-        e.dtend    = Icalendar::Values::DateTime.new(meeting.end_time.in_time_zone(TZID), tzid: TZID)
+        IcsFeed.set_times(e, meeting.calendar_event)
         e.summary  = meeting.title
         e.location = meeting.location if meeting.location.present?
-        e.rrule    = meeting.recurrence.first.delete_prefix("RRULE:") if meeting.repeating?
-        e.uid      = "friend-meeting-#{meeting.public_id}@calendar-util.wit.edu"
-        # From updated_at, not the request time, so an unchanged meeting gives
-        # the same feed body (and ETag) on every request.
-        changed_at      = meeting.updated_at.in_time_zone(TZID)
-        e.dtstamp       = Icalendar::Values::DateTime.new(changed_at, tzid: TZID)
-        e.last_modified = Icalendar::Values::DateTime.new(changed_at, tzid: TZID)
-        e.sequence = (meeting.updated_at.to_i / 60)
+        e.rrule    = meeting.recurrence.rule if meeting.repeating?
+        e.uid      = IcsFeed.uid("friend-meeting-#{meeting.public_id}")
+        IcsFeed.set_changed_at(e, meeting.updated_at)
 
         meeting.invitees.each do |friend|
           e.append_attendee(Icalendar::Values::CalAddress.new("mailto:#{friend.email}", cn: friend.full_name))

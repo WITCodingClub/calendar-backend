@@ -139,17 +139,17 @@ RSpec.describe FriendMeetings::Updater do
     end
 
     it "refuses repeat options for a one-time meeting, an unknown or blank frequency, and a bad date" do
-      expect { update(meeting, repeat_interval: 2) }.to raise_error(FriendMeetings::Creator::Error, /need a repeating frequency/)
-      expect { update(meeting, frequency: "yearly") }.to raise_error(FriendMeetings::Creator::Error, /frequency must be one of/)
-      expect { update(meeting, frequency: nil) }.to raise_error(FriendMeetings::Creator::Error, /frequency must be one of/)
+      expect { update(meeting, repeat_interval: 2) }.to raise_error(FriendMeetings::Error, /need a repeating frequency/)
+      expect { update(meeting, frequency: "yearly") }.to raise_error(FriendMeetings::Error, /frequency must be one of/)
+      expect { update(meeting, frequency: nil) }.to raise_error(FriendMeetings::Error, /frequency must be one of/)
       expect { update(meeting, frequency: "daily", repeat_until: "soon") }
-        .to raise_error(FriendMeetings::Creator::Error, "repeat_until must be an ISO 8601 date")
+        .to raise_error(FriendMeetings::Error, "repeat_until must be an ISO 8601 date")
     end
   end
 
   it "refuses an empty change and a time without an offset" do
-    expect { described_class.call(meeting: meeting, changes: {}) }.to raise_error(FriendMeetings::Creator::Error, /at least one/)
+    expect { described_class.call(meeting: meeting, changes: {}) }.to raise_error(FriendMeetings::Error, /at least one/)
     expect { described_class.call(meeting: meeting, changes: { start_time: "2026-10-14T15:00:00" }) }
-      .to raise_error(FriendMeetings::Creator::Error, /UTC offset/)
+      .to raise_error(FriendMeetings::Error, /UTC offset/)
   end
 end

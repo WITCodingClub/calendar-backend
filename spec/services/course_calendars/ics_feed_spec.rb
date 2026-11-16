@@ -74,7 +74,7 @@ RSpec.describe CourseCalendars::IcsFeed do
       events = parsed.events
 
       expect(events.map { |e| e.uid.to_s }).to eq([ "course-#{course.crn}-meeting-#{real.id}@calendar-util.wit.edu" ])
-      expect(events.first.location).to eq("FCT Sample Hall - 112")
+      expect(events.first.location).to eq("FCT Sample Hall 112")
     end
 
     it "shows only the room number when the building is TBD" do
@@ -84,11 +84,20 @@ RSpec.describe CourseCalendars::IcsFeed do
       expect(class_event.location).to eq("112")
     end
 
+    # The default location template is "{{building}} {{room}}", as in Google and Outlook.
     it "shows TBD for room 0 in a real building" do
       hall = create(:building, name: "FCT Sample Hall")
       create(:course_meeting_time_room, meeting_time: meeting_time, room: create(:room, building: hall, number: "0"))
 
-      expect(class_event.location).to eq("TBD")
+      expect(class_event.location).to eq("FCT Sample Hall TBD")
+    end
+
+    it "applies the person's location template to a class, as the sync does" do
+      create(:calendar_preference, user: user, scope: :global, location_template: "Room {{room}}")
+      hall = create(:building, name: "FCT Sample Hall")
+      create(:course_meeting_time_room, meeting_time: meeting_time, room: create(:room, building: hall, number: "112"))
+
+      expect(class_event.location).to eq("Room 112")
     end
 
     it "has no location when the class has no room" do
@@ -262,7 +271,7 @@ RSpec.describe CourseCalendars::IcsFeed do
 
   it "moves LAST-MODIFIED and SEQUENCE to the last feed code change when every row is older" do
     event = class_event
-    changed_at = described_class::EVENT_LOGIC_CHANGED_AT
+    changed_at = CourseCalendars::Event::LOGIC_CHANGED_AT
 
     expect(event.last_modified.to_time).to eq(changed_at)
     expect(event.sequence).to eq(changed_at.to_i / 60)

@@ -155,26 +155,18 @@ class FriendMeeting < ApplicationRecord
     end
   end
 
-  # The event hash that the provider services take, in the same shape as a
-  # course event from CourseCalendars::EventBuilder.
-  def event_data
-    {
-      summary:    title,
-      location:   location.presence,
-      start_time: start_time,
-      end_time:   end_time,
-      recurrence: recurrence,
-      all_day:    false
-    }
+  # The meeting as the calendar sync sends it.
+  def calendar_event
+    CourseCalendars::Event.new(source: self, summary: title, location: location.presence, start_time: start_time,
+                               end_time: end_time, recurrence: recurrence, all_day: false)
   end
 
-  # A repeating meeting repeats until the end of repeat_until in local time.
-  # UNTIL is that moment in UTC, like a course RRULE, so a late meeting keeps
-  # its last occurrence.
+  # A repeating meeting repeats until the end of repeat_until in local time,
+  # like a course rule, so a late meeting keeps its last occurrence.
   def recurrence
     return nil unless repeating? && repeat_until && start_time
 
-    [ "RRULE:#{recurrence_rule.until(recurrence_until.utc).to_ical}" ]
+    CourseCalendars::Recurrence.until_end_of(recurrence_rule, repeat_until)
   end
 
   # The days of a weekly meeting, in week order. The day of the first

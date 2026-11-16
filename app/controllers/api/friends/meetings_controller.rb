@@ -125,8 +125,8 @@ module Api
         zone  = Time.find_zone!(SchoolTimeZone::NAME)
         return zone.parse(Date.iso8601(value).to_s) if value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
 
-        FriendMeetings::Creator.parse_time(value, name)
-      rescue Date::Error, FriendMeetings::Creator::Error
+        FriendMeetings::RequestValues.time(value, name)
+      rescue Date::Error, FriendMeetings::Error
         raise ActionController::BadRequest, "#{name} must be an ISO 8601 date or a time with a UTC offset"
       end
 

@@ -13,12 +13,10 @@ module CourseCalendars
       @user = user
     end
 
-    # @return [Integer] the number of events deleted
     def call
       CourseCalendars::Providers.services_for(user).sum { |service| prune_with(service) }
     end
 
-    # @param service [#course_calendar, #delete_events] one provider service
     def prune_with(service)
       course_calendar = service.course_calendar
       return 0 unless course_calendar
@@ -33,22 +31,12 @@ module CourseCalendars
       service.delete_events(unwanted)
     end
 
-    # Of the given university event ids, the ones this person's settings still want.
-    # @param candidate_ids [Array<Integer>] university calendar event ids to check
-    # @return [Array<Integer>] the wanted subset of candidate_ids
+    # The ids, of the given ones, that the person's settings still want
+    # (UniversityCalendarEvent.categories_wanted_by, the rule EventBuilder uses).
     def wanted_ids(candidate_ids)
       return [] if candidate_ids.empty?
 
-      candidates = UniversityCalendarEvent.where(id: candidate_ids)
-      ids = candidates.holidays.ids
-
-      user_config = user.user_extension_config
-      return ids unless user_config&.sync_university_events
-
-      categories = user_config.synced_university_event_categories
-      return ids if categories.empty?
-
-      ids | candidates.by_categories(categories).ids
+      UniversityCalendarEvent.where(id: candidate_ids).by_categories(UniversityCalendarEvent.categories_wanted_by(user)).ids
     end
   end
 end

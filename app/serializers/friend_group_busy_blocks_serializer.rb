@@ -15,7 +15,7 @@ class FriendGroupBusyBlocksSerializer
   def as_json(*)
     {
       group_id:   @group.public_id,
-      time_zone:  Time.zone.tzinfo.name,
+      time_zone:  SchoolTimeZone::NAME,
       start_date: @from.iso8601,
       end_date:   @to.iso8601,
       people:     @blocks_by_person.map { |person, blocks| person_json(person, blocks) }
