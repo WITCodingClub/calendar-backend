@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module McpTools
-  # PATCH /api/user/notifications: pauses or resumes the reminders of every
-  # calendar event.
+  # Pauses or resumes the reminders of every calendar event, like
+  # PATCH /api/user/notifications.
   class SetNotifications < BaseWriteTool
     MAX_HOURS = 24 * 365
 
@@ -54,15 +54,7 @@ module McpTools
       # user.updated_at changes on each pause and resume, so an answer
       # cannot make the change twice.
       with_confirmation(change_message(disabled, duration), unchanged: -> { current }, version: record_version(user)) do
-        if disabled
-          duration ? user.disable_notifications!(duration: duration) : user.disable_notifications!
-        else
-          # The same steps as Api::NotificationsController#enable: the next sync
-          # puts the reminders back on every event.
-          user.enable_notifications!
-          user.update_column(:calendar_needs_sync, true) # rubocop:disable Rails/SkipsModelValidations
-          CourseCalendars::SyncJob.perform_later(user, force: true)
-        end
+        Notifications::Toggle.call(user, disabled: disabled, duration: duration)
 
         current
       end
