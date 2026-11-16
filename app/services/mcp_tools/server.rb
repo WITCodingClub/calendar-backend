@@ -88,7 +88,23 @@ module McpTools
         # carry, so it stays off.
         input_required_legacy_shim: false
       ).tap do |server|
+        server.singleton_class.prepend(IconsOnEveryVersion)
         server.completion_handler { |params| Completions.call(params) }
+      end
+    end
+
+    # The SDK leaves icons and description out of serverInfo when the client
+    # asks for protocol 2025-06-18 or older, because those versions do not
+    # define them. Clients that ask for an older version, such as some
+    # connector clients, then show no icon. A JSON-RPC client ignores fields it
+    # does not know, so the server sends both on every version.
+    module IconsOnEveryVersion
+      private
+
+      def init(...)
+        super.tap do |result|
+          result[:serverInfo] = server_info.slice(:icons, :description).merge(result[:serverInfo])
+        end
       end
     end
 

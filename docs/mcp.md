@@ -473,6 +473,10 @@ A write tool changes only the signed-in student's own data, through the same mod
 
 `server.json` at the repo root describes the server for the official MCP Registry. The registry holds only this metadata. It does not call the endpoint.
 
+### Icon
+
+`public/icon.png` (180x180) is the icon of the server. `McpTools::Server` sends it in `serverInfo.icons` on every protocol version, also on 2025-06-18 and older, where the SDK would leave it out. `server.json` names the same file. The Claude connector directory does not read either: upload the icon in the listing step of the submission portal.
+
 - The `MCP Registry` workflow (`.github/workflows/mcp-registry.yml`) validates `server.json` on each pull request that changes it. When the change reaches `main`, the workflow publishes it.
 - The registry refuses a version that it already has. Increase `version` in `server.json` with each change. The pull request check fails when `server.json` changes and `version` does not.
 - A failed publish does not run again by itself. Fix the cause, then run the workflow by hand on `main` (`gh workflow run "MCP Registry" --ref main`).
