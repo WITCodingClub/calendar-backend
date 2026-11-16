@@ -18,7 +18,7 @@ module Courses
       validate_input!
 
       term = Term.find_by(uid: term_uid)
-      raise ArgumentError, "Term with UID #{term_uid} not found" unless term
+      raise Courses::InvalidPayloadError, "Term with UID #{term_uid} not found" unless term
 
       Rails.logger.info("[CourseReprocess] Starting for user #{user.id} (#{user.email}), term #{term.uid}")
 
@@ -64,12 +64,12 @@ module Courses
     ALREADY_GONE_STATUSES = [ 404, 410 ].freeze
 
     def validate_input!
-      raise ArgumentError, "courses cannot be nil"   if courses.nil?
-      raise ArgumentError, "courses must be an array" unless courses.is_a?(Array)
-      raise ArgumentError, "courses cannot be empty"  if courses.empty?
+      raise Courses::InvalidPayloadError, "courses cannot be nil"   if courses.nil?
+      raise Courses::InvalidPayloadError, "courses must be an array" unless courses.is_a?(Array)
+      raise Courses::InvalidPayloadError, "courses cannot be empty"  if courses.empty?
 
       term_uids = courses.map { |c| c[:term] || c["term"] }.uniq
-      raise ArgumentError, "All courses must be from the same term" if term_uids.length > 1
+      raise Courses::InvalidPayloadError, "All courses must be from the same term" if term_uids.length > 1
 
       # Check the whole payload before any enrollment is removed below. A
       # payload that Courses::Processor refuses must not cost the user their

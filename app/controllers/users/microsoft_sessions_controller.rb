@@ -31,7 +31,7 @@ module Users
 
       redirect_to after_sign_in_path_for(user), notice: "Welcome, #{user.first_name}!"
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
-      Rails.logger.error("Microsoft sign-in error: #{e.class}: #{e.message}")
+      Rails.error.report(e, handled: true)
       redirect_to new_user_session_path, alert: "Failed to sign in with Microsoft. Please try again."
     end
 

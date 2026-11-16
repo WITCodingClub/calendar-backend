@@ -6,8 +6,6 @@ module Api
   class GoogleCalendarsController < BaseController
     authenticate_with_token
 
-    # POST /api/user/google_calendar
-    #
     # The email is optional. Without it, the person picks any Google account in
     # the OAuth screen. With it, only that account is accepted, as in older
     # extension builds.
@@ -25,12 +23,8 @@ module Api
 
         render json: { message: "OAuth required", email: email.presence, oauth_url: oauth_url }, status: :ok
       end
-    rescue => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
-      render_error "Failed to request Google Calendar", status: :internal_server_error
     end
 
-    # POST /api/user/google_calendar/emails
     def add_email
       email = params[:email].to_s.strip
 
@@ -57,12 +51,8 @@ module Api
       calendar_id = service.create_or_get_course_calendar
 
       render json: { message: "Calendar shared with email", calendar_id: calendar_id }, status: :ok
-    rescue => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
-      render_error "Failed to add email to Google Calendar", status: :internal_server_error
     end
 
-    # DELETE /api/user/google_calendar/emails
     def remove_email
       email = params[:email].to_s.strip
 
@@ -93,9 +83,6 @@ module Api
       end
 
       render json: { message: "email removed from Google Calendar association" }, status: :ok
-    rescue => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
-      render_error "Failed to remove email from Google Calendar", status: :internal_server_error
     end
   end
 end

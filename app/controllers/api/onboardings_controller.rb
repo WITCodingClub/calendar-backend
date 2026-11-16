@@ -59,9 +59,6 @@ module Api
       token = JsonWebTokenService.issue(user: user, source: "google_onboard", request: request)
 
       render json: { pub_id: user.public_id.delete_prefix("usr_"), jwt: token }, status: :ok
-    rescue => e
-      Rails.error.report(e, handled: true)
-      render_error "Failed to onboard user", status: :internal_server_error
     end
 
     private

@@ -4,7 +4,6 @@ module Api
   class ExtensionConfigsController < BaseController
     authenticate_with_token
 
-    # GET /api/user/extension_config
     def show
       config = current_user.user_extension_config || UserExtensionConfig.new(user: current_user)
 
@@ -29,12 +28,8 @@ module Api
           }
         end
       }, status: :ok
-    rescue ActiveRecord::ActiveRecordError => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
-      render_error "Failed to fetch user extension config", status: :internal_server_error
     end
 
-    # PUT /api/user/extension_config
     def update
       config = UserExtensionConfig.find_or_initialize_by(user_id: current_user.id)
       authorize config, :update?
@@ -72,9 +67,6 @@ module Api
                      pub_id: config.public_id,
                      details: config.errors.full_messages
       end
-    rescue ActiveRecord::ActiveRecordError => e
-      Rails.error.report(e, handled: true, context: { user_id: current_user.id })
-      render_error "Failed to update user extension config", status: :internal_server_error
     end
   end
 end

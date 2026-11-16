@@ -44,7 +44,7 @@ module Auth
     rescue WrongAccountError
       redirect_to "/oauth/failure?error=#{CGI.escape("Sign in with your own WIT Microsoft account (#{@user.email}).")}"
     rescue MicrosoftGraph::Error, ActionController::ParameterMissing, ActiveRecord::RecordInvalid => e
-      Rails.logger.error("Microsoft calendar OAuth error: #{e.class}: #{e.message}")
+      Rails.error.report(e, handled: true, context: { user_id: @user&.id })
       redirect_to "/oauth/failure?error=#{CGI.escape('Could not connect the Microsoft calendar. Please try again.')}"
     end
 

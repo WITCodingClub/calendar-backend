@@ -24,8 +24,8 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
       post "/api/user/google_calendar", params: { email: "linked@example.com" }, headers: headers
 
       expect(response).to have_http_status(:internal_server_error)
-      expect(json).to eq("error" => "Failed to request Google Calendar", "code" => "INTERNAL_ERROR")
-      expect(Rails.error).to have_received(:report).with(an_instance_of(StandardError), handled: true, context: { user_id: user.id })
+      expect(json).to eq("error" => "Internal server error", "code" => "INTERNAL_ERROR")
+      expect(Rails.error).to have_received(:report).with(an_instance_of(StandardError))
     end
 
     it "does not treat the Google account of another user as connected" do
@@ -75,8 +75,8 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
       post "/api/user/google_calendar/emails", params: { email: "first@example.com" }, headers: headers, as: :json
 
       expect(response).to have_http_status(:internal_server_error)
-      expect(json).to eq("error" => "Failed to add email to Google Calendar", "code" => "INTERNAL_ERROR")
-      expect(Rails.error).to have_received(:report).with(an_instance_of(StandardError), handled: true, context: { user_id: user.id })
+      expect(json).to eq("error" => "Internal server error", "code" => "INTERNAL_ERROR")
+      expect(Rails.error).to have_received(:report).with(an_instance_of(StandardError))
     end
   end
 
@@ -142,7 +142,7 @@ RSpec.describe "Api::GoogleCalendars", type: :request do
       delete "/api/user/google_calendar/emails", params: { email: primary.email }, headers: headers, as: :json
 
       expect(response).to have_http_status(:internal_server_error)
-      expect(json).to eq("error" => "Failed to remove email from Google Calendar", "code" => "INTERNAL_ERROR")
+      expect(json).to eq("error" => "Internal server error", "code" => "INTERNAL_ERROR")
     end
   end
 end
