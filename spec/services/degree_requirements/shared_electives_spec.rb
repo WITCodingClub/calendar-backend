@@ -61,7 +61,7 @@ RSpec.describe DegreeRequirements::SharedElectives do
       expect(hss.subject_codes).to include("HIST", "PSYC", "LITR")
       expect(second.reload.elective_group).to eq(hss)
       expect(english.reload.elective_group.courses.map { |course| [ course.subject_code, course.course_number ] })
-        .to eq(described_class::ENGLISH_SEQUENCE)
+        .to eq(SharedElectiveList::ENGLISH_SEQUENCE)
       expect(free.reload.elective_group).to have_attributes(any_course: true, subject_codes: [])
       expect(set.elective_groups.reload.map(&:position)).to eq([ page_list.position, 1, 2, 3 ])
     end
@@ -83,15 +83,5 @@ RSpec.describe DegreeRequirements::SharedElectives do
       expect { described_class.call(set) }.not_to change(ElectiveGroup, :count)
       expect(later.reload.elective_group.courses.map(&:course_number)).to eq([ 3500, 4500, 5000 ])
     end
-  end
-
-  it "gives the kind of a list by its name" do
-    expect(described_class.kind_of("HSS Electives")).to eq(:hss)
-    expect(described_class.kind_of("HSS Elective (PSYC4552)")).to eq(:directed_hss)
-    expect(described_class.kind_of("Co-op")).to eq(:co_op)
-    expect(described_class.kind_of("Computer Science Electives")).to be_nil
-    expect(described_class.hss_list?("Humanities Electives")).to be(true)
-    expect(described_class.hss_list?("English Sequence")).to be(false)
-    expect(described_class.hss_list?(nil)).to be(false)
   end
 end

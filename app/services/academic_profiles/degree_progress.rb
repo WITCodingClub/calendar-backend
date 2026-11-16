@@ -288,7 +288,7 @@ module AcademicProfiles
     end
 
     def english_sequence?(course)
-      DegreeRequirements::SharedElectives::ENGLISH_SEQUENCE.any? { |code| course_keys.same?(code, course.key) }
+      SharedElectiveList::ENGLISH_SEQUENCE.any? { |code| course_keys.same?(code, course.key) }
     end
 
     def english_slots_full?(items, groups, results)

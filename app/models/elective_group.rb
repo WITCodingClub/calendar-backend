@@ -48,13 +48,12 @@ class ElectiveGroup < ApplicationRecord
   validates :min_courses, :min_credits, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validate :plan_in_same_requirement_set
 
-  # The kind of a shared list (DegreeRequirements::SharedElectives), such as
-  # :hss or :co_op, or nil for a list of the program page.
-  def shared_kind = DegreeRequirements::SharedElectives.kind_of(name)
+  # The kind of a shared list, such as :hss or :co_op, or nil for a list of
+  # the program page.
+  def shared_kind = SharedElectiveList.kind_of(name)
 
-  def hss_list? = DegreeRequirements::SharedElectives::HSS_KINDS.include?(shared_kind)
+  def hss_list? = SharedElectiveList.hss?(name)
 
-  # A "Required ..." list with no minimum needs every course.
   def every_course_required? = name.to_s.match?(/\Arequired\b/i)
 
   private

@@ -513,7 +513,7 @@ RSpec.describe "MCP tool output schemas" do
         ]
       })
       plan = create(:program_plan, requirement_set: set)
-      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: DegreeRequirements::SharedElectives::HSS.subject_codes)
+      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: SharedElectiveList::HSS.subject_codes)
       english = create(:elective_group, requirement_set: set, name: "English Sequence")
       create(:elective_group_course, elective_group: english, subject_code: "ENGL", course_number: 1100)
       create(:program_plan_item, :placeholder, program_plan: plan, label: "English Sequence", elective_group: english)

@@ -36,7 +36,7 @@ RSpec.describe AcademicProfiles::PlanTerms do
   end
 
   it "marks a semester co-op only when every row is in the Co-op list" do
-    co_op = DegreeRequirements::SharedElectives::CO_OP.name
+    co_op = SharedElectiveList::CO_OP.name
     rows = [ row(3, "fall", elective_list: co_op), row(3, "spring", elective_list: co_op), row(3, "spring") ]
 
     expect(call(rows)[:timeline].map { |semester| semester.values_at(:term, :co_op) })

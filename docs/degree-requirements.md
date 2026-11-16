@@ -225,7 +225,7 @@ flowchart TD
 
 ## Shared elective lists
 
-Most elective slots name a list that is not on the program page. The catalog defines these once, for every program, on its policy pages. `DegreeRequirements::SharedElectives` links them. `PlanWriter` runs it after each HTML or PDF import, and `bin/rails degree_requirements:shared_electives` runs it on every stored set.
+Most elective slots name a list that is not on the program page. The catalog defines these once, for every program, on its policy pages. `SharedElectiveList` (a model-layer table) holds each list with its kind, and `DegreeRequirements::SharedElectives` links the slots to them. Degree progress reads a list's kind (`ElectiveGroup#shared_kind`), not its display name. `PlanWriter` runs the linker after each HTML or PDF import, and `bin/rails degree_requirements:shared_electives` runs it on every stored set.
 
 | Slot label | Shared list | What counts |
 |---|---|---|
@@ -375,7 +375,7 @@ Each program in the result also gives its plan against real terms (#990). `Acade
 - `timeline` has one entry for each plan semester, in plan order: `term`, `uid`, `year`, `season`, `when`, `estimated`, and `co_op`. It is empty without a start term, or for a program with no plan of study (a minor).
 - `when` compares the Banner code with `Term.current`, as `NextTermCourses` does. `past` is before the current term. `current` is the current term. `registering` is the default term of `NextTermCourses`: the next fall or spring term after the current term. `future` is every later term. A summer term between the current term and the registering term is `future`, because the registering term is never a summer term. `when` is null when WIT Calendar has no current term.
 - `estimated` is true for each semester after plan year 2. A co-op or a summer class can move these terms. The timeline keeps the order of the plan.
-- `co_op` is true when every row of the semester is a co-op row: a row of the `Co-op` elective list (`DegreeRequirements::SharedElectives::CO_OP`), a co-op course row (`COOP 3500`, `COOP 4500`, `COOP 5000`), or a choice of those courses. Most plans list a co-op semester as a course row. `AcademicProfiles::CoOpRows.co_op?` is the one test for a co-op row. `PlanTerms`, `PlanEstimate`, and `summary.co_ops` use it. `COOP 2500` is a normal course row.
+- `co_op` is true when every row of the semester is a co-op row: a row of the `Co-op` elective list (`SharedElectiveList::CO_OP`), a co-op course row (`COOP 3500`, `COOP 4500`, `COOP 5000`), or a choice of those courses. Most plans list a co-op semester as a course row. `AcademicProfiles::CoOpRows.co_op?` is the one test for a co-op row. `PlanTerms`, `PlanEstimate`, and `summary.co_ops` use it. `COOP 2500` is a normal course row.
 - `expected_end` is `{ term, estimated }` of the last semester of the timeline, or null when the timeline is empty.
 - For an active program, `PlanEstimate` then replaces `timeline` and `expected_end` with the estimate (see the next section). The fields below keep their meaning.
 - Each requirement row has `planned_term` (such as `Fall 2027`) and `planned_term_uid`. Both are null for a row with no plan semester (an elective list of a minor) and for a program with no start term.

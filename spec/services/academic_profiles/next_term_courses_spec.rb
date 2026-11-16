@@ -541,7 +541,7 @@ RSpec.describe AcademicProfiles::NextTermCourses do
       set.update!(hss_requirement: { "min_credits" => 20, "categories" => DegreeRequirements::HssNoteParser.base_categories + [
         { "name" => "Ethics", "subject_codes" => [], "courses" => %w[PHIL4501] }
       ] })
-      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: DegreeRequirements::SharedElectives::HSS.subject_codes)
+      hss = create(:elective_group, :subjects, requirement_set: set, subject_codes: SharedElectiveList::HSS.subject_codes)
       item(:placeholder, year: 1, season: "fall", label: "HSS Elective", elective_group: hss)
       item(:placeholder, year: 1, season: "fall", label: "HSS Elective", elective_group: hss)
       item(:placeholder, label: "HSS Elective", elective_group: hss)

@@ -12,8 +12,9 @@ module DegreeRequirements
   # - English Placement (/academic-policies-procedures/ug/english-placement/):
   #   the English sequences.
   #
-  # Each rule becomes an ElectiveGroup of the set with no plan: a list of
-  # courses, a list of subjects (subject_codes), or any course (any_course).
+  # Each list (SharedElectiveList) becomes an ElectiveGroup of the set with no
+  # plan: a list of courses, a list of subjects (subject_codes), or any
+  # course (any_course).
   # A slot that the program page already linked keeps its list. A slot that
   # no rule names, such as "CONM Elective", stays open.
   #
@@ -23,82 +24,42 @@ module DegreeRequirements
     HSS_URL = "#{SITE_URL}/academic-policies-procedures/ug/hss-elective-requirements/".freeze
     ENGLISH_URL = "#{SITE_URL}/academic-policies-procedures/ug/english-placement/".freeze
 
-    HUMANITIES = %w[CSAS HIST HSSI HUMN LITR PHIL].freeze
-    SOCIAL_SCIENCES = %w[COMM CSAS ECON ENVM HSSI POLS PSYC SOCL].freeze
-    # Every course of the four English sequences. A slot takes one course.
-    ENGLISH_SEQUENCE = [ [ "ENGL", 700 ], [ "ENGL", 800 ], [ "ENGL", 900 ], [ "ENGL", 1100 ], [ "ENGL", 2200 ] ].freeze
-
-    Rule = Data.define(:name, :heading, :notes, :subject_codes, :courses, :any_course)
-
-    HSS = Rule.new(name: "HSS Electives", heading: "Humanities or social science elective",
-                   notes: "Any humanities or social science course (#{HSS_URL})",
-                   subject_codes: (HUMANITIES + SOCIAL_SCIENCES).uniq.sort, courses: [], any_course: false)
-    HUMANITIES_RULE = Rule.new(name: "Humanities Electives", heading: "Humanities elective",
-                               notes: "Any humanities course (#{HSS_URL})",
-                               subject_codes: HUMANITIES, courses: [], any_course: false)
-    SOCIAL_SCIENCES_RULE = Rule.new(name: "Social Science Electives", heading: "Social science elective",
-                                    notes: "Any social science course (#{HSS_URL})",
-                                    subject_codes: SOCIAL_SCIENCES, courses: [], any_course: false)
-    ENGLISH = Rule.new(name: "English Sequence", heading: "One course of the student's English sequence",
-                       notes: "The English sequence from the English placement (#{ENGLISH_URL})",
-                       subject_codes: [], courses: ENGLISH_SEQUENCE, any_course: false)
-    # A co-op semester is a work term. COOP2500 (Introduction to Cooperative
-    # Education) is a course row of its own, required before the first
-    # term, so it does not meet a co-op semester. Nor does COOP3000
-    # (optional co-op) or COOP6500 (graduate).
-    CO_OP_TERMS = [ [ "COOP", 3500 ], [ "COOP", 4500 ], [ "COOP", 5000 ] ].freeze
-    CO_OP = Rule.new(name: "Co-op", heading: "Co-op semester",
-                     notes: "COOP3500 and COOP4500 are required. COOP5000 is an additional co-op work semester.",
-                     subject_codes: [], courses: CO_OP_TERMS, any_course: false)
-    FREE = Rule.new(name: "Free Electives", heading: "Free or general elective", notes: "Any course",
-                    subject_codes: [], courses: [], any_course: true)
+    # The notes each list gets, by kind.
+    NOTES = {
+      hss:            "Any humanities or social science course (#{HSS_URL})",
+      humanities:     "Any humanities course (#{HSS_URL})",
+      social_science: "Any social science course (#{HSS_URL})",
+      english:        "The English sequence from the English placement (#{ENGLISH_URL})",
+      co_op:          "COOP3500 and COOP4500 are required. COOP5000 is an additional co-op work semester.",
+      free:           "Any course",
+      directed_hss:   "A directed HSS elective (#{HSS_URL})"
+    }.freeze
 
     # "HSS 03 Elective (PSYC4552)": a directed HSS elective names its course.
     DIRECTED = /\A(?:hss|hhs)\b[^()]*\(\s*([a-z]{4})\s*(\d{3,4})\s*\)\z/i
-    # The list name of a directed HSS elective, such as "HSS Elective
-    # (PSYC4552)".
-    DIRECTED_NAME = "HSS Elective ("
-    # The kind of each shared list, by its name. Degree progress decides how
-    # a slot fills from its kind, not from its display name.
-    KINDS = { HSS.name => :hss, HUMANITIES_RULE.name => :humanities, SOCIAL_SCIENCES_RULE.name => :social_science,
-              ENGLISH.name => :english, CO_OP.name => :co_op, FREE.name => :free }.freeze
-    HSS_KINDS = %i[hss humanities social_science directed_hss].freeze
     # A bare "Elective" is left out: on some pages it means a program elective.
     FREE_LABEL = /\A(?:free|general|open)\s+electives?\z/
 
     def self.call(set) = new(set).call
 
-    # The kind of a list by its name: one of KINDS, :directed_hss, or nil
-    # for a list of the program's own page.
-    def self.kind_of(name)
-      return nil if name.nil?
-
-      KINDS[name] || (:directed_hss if name.start_with?(DIRECTED_NAME))
-    end
-
-    # true for the list of an HSS slot: HSS Electives, Humanities Electives,
-    # Social Science Electives, or a directed HSS elective.
-    def self.hss_list?(name) = HSS_KINDS.include?(kind_of(name))
-
-    # The rule for a slot label, or nil. Only a label that names the whole
-    # requirement matches: "Math or Science Elective" names no rule.
+    # The SharedElectiveList for a slot label, or nil. Only a label that
+    # names the whole requirement matches: "Math or Science Elective" names
+    # no list.
     def self.rule_for(label)
       text = label.to_s.downcase.gsub(/[*†]/, "").squish
       if (match = DIRECTED.match(text))
-        code = [ match[1].upcase, match[2].to_i ]
-        return Rule.new(name: "#{DIRECTED_NAME}#{code.join})", heading: label.to_s.squish,
-                        notes: "A directed HSS elective (#{HSS_URL})", subject_codes: [], courses: [ code ], any_course: false)
+        return SharedElectiveList.directed([ match[1].upcase, match[2].to_i ], label.to_s.squish)
       end
 
       bare = text.sub(/[\s\d]+\z/, "")
       case bare
-      when /\Aenglish sequence\z/ then ENGLISH
+      when /\Aenglish sequence\z/ then SharedElectiveList::ENGLISH
       when /\A(?:hss|hhs)(?:\s+\d{1,2})?\s+electives?\z/, %r{\Ahumanities\s*(?:or|and|&|/)\s*social sciences?\s+electives?\z}
-        HSS
-      when /\Ahumanities\s+electives?\z/ then HUMANITIES_RULE
-      when /\Asocial sciences?\s+electives?\z/ then SOCIAL_SCIENCES_RULE
-      when /\Aco-?op(?:\s+semester)?\z/ then CO_OP
-      when FREE_LABEL then FREE
+        SharedElectiveList::HSS
+      when /\Ahumanities\s+electives?\z/ then SharedElectiveList::HUMANITIES_LIST
+      when /\Asocial sciences?\s+electives?\z/ then SharedElectiveList::SOCIAL_SCIENCES_LIST
+      when /\Aco-?op(?:\s+semester)?\z/ then SharedElectiveList::CO_OP
+      when FREE_LABEL then SharedElectiveList::FREE
       end
     end
 
@@ -137,7 +98,7 @@ module DegreeRequirements
 
     def create_group(rule)
       position = (@set.elective_groups.maximum(:position) || -1) + 1
-      group = @set.elective_groups.create!(name: rule.name, heading: rule.heading, notes: rule.notes, position: position,
+      group = @set.elective_groups.create!(name: rule.name, heading: rule.heading, notes: NOTES.fetch(rule.kind), position: position,
                                            subject_codes: rule.subject_codes, any_course: rule.any_course)
       rule.courses.each_with_index do |(subject, number), index|
         group.courses.create!(subject_code: subject, course_number: number, position: index)
