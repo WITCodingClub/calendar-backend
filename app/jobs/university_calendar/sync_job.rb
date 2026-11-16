@@ -14,6 +14,9 @@ module UniversityCalendar
 
     limits_concurrency to: 1, group: CONCURRENCY_GROUP, key: -> { "university_calendar_sync" }
 
+    # The feed runs once a week, so a feed that is down gets two more tries.
+    retry_on IcsImport::FetchError, wait: 1.hour, attempts: 3
+
     def perform
       Rails.logger.info("Starting university calendar sync")
 

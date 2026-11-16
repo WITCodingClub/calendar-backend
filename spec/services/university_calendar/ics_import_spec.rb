@@ -419,20 +419,20 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
       it "raises with the HTTP status for a server error" do
         stub_feed("feed.ics", status: 500)
 
-        expect { described_class.call }.to raise_error(RuntimeError, "Failed to fetch ICS feed: 500")
+        expect { described_class.call }.to raise_error(described_class::FetchError, /HTTP 500/)
         expect(UniversityCalendarEvent.count).to eq(0)
       end
 
       it "raises with the HTTP status for a missing feed" do
         stub_request(:get, feed_url).to_return(status: 404, body: "")
 
-        expect { described_class.call }.to raise_error(RuntimeError, "Failed to fetch ICS feed: 404")
+        expect { described_class.call }.to raise_error(described_class::FetchError, /HTTP 404/)
       end
 
-      it "raises a Faraday error when the request times out" do
+      it "raises a fetch error when the request times out" do
         stub_request(:get, feed_url).to_timeout
 
-        expect { described_class.call }.to raise_error(Faraday::Error)
+        expect { described_class.call }.to raise_error(described_class::FetchError)
       end
     end
   end

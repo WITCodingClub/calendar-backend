@@ -38,6 +38,12 @@ RSpec.describe UniversityCalendar::SyncJob do
     expect(TwentyFiveLive::Client).not_to have_received(:call!)
   end
 
+  it "tries a feed that is down again later" do
+    allow(UniversityCalendar::IcsImport).to receive(:call).and_raise(UniversityCalendar::IcsImport::FetchError, "GET feed: HTTP 503")
+
+    expect { described_class.perform_now }.to have_enqueued_job(described_class)
+  end
+
   it "belongs to the fixed concurrency group" do
     expect(described_class::CONCURRENCY_GROUP).to eq("UniversityCalendarSyncJob")
   end
