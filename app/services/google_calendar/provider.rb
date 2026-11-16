@@ -25,6 +25,9 @@ module GoogleCalendar
     # sharingRateLimitExceeded.
     RATE_LIMIT_ERRORS = [ Google::Apis::RateLimitError ].freeze
     TRANSIENT_ERRORS  = [ *RATE_LIMIT_ERRORS, Google::Apis::ServerError ].freeze
+    # A friend meeting removal also retries a network failure and a 4xx, such
+    # as a permission error, which can pass after the person fixes sharing.
+    REMOVAL_RETRY_ERRORS = [ Google::Apis::TransmissionError, Google::Apis::ClientError ].freeze
 
     # A second Google account only shares the calendar, so the person's edits
     # stay.

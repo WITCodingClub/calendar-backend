@@ -13,8 +13,6 @@ module FriendMeetings
   # and a meeting that comes back later comes back without attendees, so the
   # friends get no second invitation.
   class Publisher
-    AUTH_ERRORS = CourseCalendars::Providers.auth_errors.freeze
-
     attr_reader :user
 
     def initialize(user, services: nil)
@@ -86,10 +84,10 @@ module FriendMeetings
         provider = row.course_calendar.provider
         service  = targets[provider]&.first
         service ? service.delete_friend_meeting_event(row) : row.destroy!
-      rescue *AUTH_ERRORS => e
+      rescue *CourseCalendars::Providers.auth_errors => e
         log_failure("Could not delete a friend meeting event: token refused", meeting, provider, e)
         # The listed class name, so the removal sweep finds it for any subclass.
-        meeting.publication_for(provider)&.mark_failed!(AUTH_ERRORS.find { |klass| e.is_a?(klass) }.name)
+        meeting.publication_for(provider)&.mark_failed!(CourseCalendars::Providers.auth_errors.find { |klass| e.is_a?(klass) }.name)
         kept = true
       rescue StandardError => e
         log_failure("Could not delete a friend meeting event", meeting, provider, e)
