@@ -213,16 +213,9 @@ module Admin
 
     private
 
+    # A public id, a bare hashid, or a database id (EncodedIds .find).
     def set_user
-      @user = if params[:id].start_with?("usr_")
-                User.find_by_public_id(params[:id])
-      elsif params[:id].match?(/^[a-z0-9]+$/) && !params[:id].match?(/^\d+$/)
-                User.find_by_hashid(params[:id])
-      else
-                User.find(params[:id])
-      end
-
-      raise ActiveRecord::RecordNotFound unless @user
+      @user = User.find(params[:id])
     end
 
     def user_params

@@ -1,81 +1,65 @@
 # frozen_string_literal: true
 
 module Admin
+  # Finds a record by its public id ("usr_...") from the admin search box. The
+  # prefix comes from each model's set_public_id_prefix.
   class PublicIdLookupController < Admin::ApplicationController
-    MODEL_MAPPING = {
-      "trm" => { model: Term,    path_method: :admin_term_path },
-      "crs" => { model: Course,  path_method: :admin_course_path },
-      "fac" => { model: Faculty, path_method: :admin_faculty_path },
-      "usr" => { model: User,    path_method: :admin_user_path }
+    PATHS = {
+      Term    => :admin_term_path,
+      Course  => :admin_course_path,
+      Faculty => :admin_faculty_path,
+      User    => :admin_user_path
     }.freeze
+
+    MODELS_BY_PREFIX = PATHS.keys.index_by(&:public_id_prefix).freeze
 
     def lookup
       authorize :admin, :access_admin_endpoints?
 
-      public_id = params[:public_id]&.strip&.downcase
-
-      if public_id.blank?
-        return render json: { error: "Public ID is required" }, status: :bad_request
-      end
-
-      prefix  = public_id.split("_").first
-      mapping = MODEL_MAPPING[prefix]
-
-      unless mapping
-        return render json: { error: "Unknown public ID prefix: #{prefix}" }, status: :not_found
-      end
-
-      record = mapping[:model].find_by_public_id(public_id)
-
-      unless record
-        return render json: { error: "Record not found" }, status: :not_found
-      end
-
-      display_name = case record
-      when Term    then record.name
-      when Faculty then record.full_name
-      when Course  then "#{record.code} - #{record.title}"
-      when User    then record.email || "User ##{record.id}"
-      else record.to_s
-      end
+      record, error = find_record
+      return render(json: { error: error[:message] }, status: error[:status]) if error
 
       render json: {
         public_id:    record.public_id,
-        type:         mapping[:model].name,
-        display_name: display_name,
-        path:         send(mapping[:path_method], record)
+        type:         record.class.name,
+        display_name: display_name(record),
+        path:         send(PATHS.fetch(record.class), record)
       }
-    rescue => e
-      Rails.error.report(e, handled: true, context: { public_id: public_id })
-      render json: { error: "Internal error: #{e.message}" }, status: :internal_server_error
     end
 
     def redirect
       authorize :admin, :access_admin_endpoints?
 
-      public_id = params[:public_id]&.strip&.downcase
+      record, error = find_record
+      return redirect_to(admin_root_path, alert: error[:message]) if error
 
-      if public_id.blank?
-        flash[:alert] = "Public ID is required"
-        return redirect_to admin_root_path
+      redirect_to send(PATHS.fetch(record.class), record)
+    end
+
+    private
+
+    # [record, nil], or [nil, { message:, status: }].
+    def find_record
+      public_id = params[:public_id].to_s.strip.downcase
+      return [ nil, { message: "Public ID is required", status: :bad_request } ] if public_id.blank?
+
+      prefix = public_id.split("_").first
+      model  = MODELS_BY_PREFIX[prefix]
+      return [ nil, { message: "Unknown public ID prefix: #{prefix}", status: :not_found } ] unless model
+
+      record = model.find_by_public_id(public_id)
+      return [ nil, { message: "Record not found for public ID: #{public_id}", status: :not_found } ] unless record
+
+      [ record, nil ]
+    end
+
+    def display_name(record)
+      case record
+      when Term    then record.name
+      when Faculty then record.full_name
+      when Course  then "#{record.code} - #{record.title}"
+      when User    then record.email || "User ##{record.id}"
       end
-
-      prefix  = public_id.split("_").first
-      mapping = MODEL_MAPPING[prefix]
-
-      unless mapping
-        flash[:alert] = "Unknown public ID prefix: #{prefix}"
-        return redirect_to admin_root_path
-      end
-
-      record = mapping[:model].find_by_public_id(public_id)
-
-      unless record
-        flash[:alert] = "Record not found for public ID: #{public_id}"
-        return redirect_to admin_root_path
-      end
-
-      redirect_to send(mapping[:path_method], record)
     end
   end
 end
