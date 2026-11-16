@@ -5,7 +5,6 @@ module Api
   class SessionsController < BaseController
     authenticate_with_token
 
-    # GET /api/user/sessions
     def index
       authorize UserSession.new(user: current_user), :index?
 
@@ -14,15 +13,9 @@ module Api
       render json: { sessions: sessions }, status: :ok
     end
 
-    # DELETE /api/user/sessions/:session_id
     def destroy
-      session = find_by_any_id(UserSession, params[:session_id])
-      session = nil unless session&.user_id == current_user.id
-
-      if session.nil?
-        render_error "Session not found", status: :not_found
-        return
-      end
+      session = find_by_any_id(current_user.user_sessions, params[:session_id])
+      return render_error("Session not found", status: :not_found) if session.nil?
 
       authorize session, :destroy?
       session.revoke!(reason: "signed out by the user")
@@ -30,8 +23,6 @@ module Api
       render json: { message: "Session ended" }, status: :ok
     end
 
-    # POST /api/user/sessions/revoke_all
-    #
     # Keeps the caller signed in by default: someone clearing a lost device
     # should not have to sign back in on the device they are holding.
     def revoke_all

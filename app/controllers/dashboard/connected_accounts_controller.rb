@@ -10,8 +10,7 @@ module Dashboard
 
       credentials = current_user.oauth_credentials.includes(:course_calendar).order(:created_at).to_a
       @credentials = credentials.select { |credential| credential.provider == "google" }
-      # The last Google account stays, because it signs the person in. An
-      # Outlook connection can always go.
+      # OauthCredential#removable? from the loaded rows, with no query for each row.
       @can_disconnect = @credentials.size > 1
       @add_account_url = add_account_url
       @extension_install_url = Rails.configuration.x.extension_install_url
@@ -26,14 +25,7 @@ module Dashboard
     end
 
     def destroy
-      credential = current_user.oauth_credentials.find_by(id: params[:id])
-
-      unless credential
-        # Try encoded ID lookup
-        credential = OauthCredential.find_by_public_id(params[:id])
-        credential = nil unless credential&.user_id == current_user.id
-      end
-
+      credential = current_user.oauth_credentials.find_by_public_id(params[:id])
       unless credential
         skip_authorization
         return redirect_to dashboard_connected_accounts_path, alert: "Credential not found."
@@ -41,23 +33,17 @@ module Dashboard
 
       authorize credential, :destroy?
 
-      unless credential.removable?
-        redirect_to dashboard_connected_accounts_path,
-                    alert: "Cannot disconnect your only Google account."
-        return
+      if OauthCredentials::Disconnect.call(credential)
+        redirect_to dashboard_connected_accounts_path, notice: "Account disconnected."
+      else
+        redirect_to dashboard_connected_accounts_path, alert: "Cannot disconnect your only Google account."
       end
-
-      credential.destroy!
-      redirect_to dashboard_connected_accounts_path, notice: "Account disconnected."
     end
 
-    # PATCH /dashboard/connected_accounts/:id/calendar_placement
-    #
     # Moves the course events of an Outlook connection between a calendar of
     # their own and the person's main calendar. The move runs in a job.
     def calendar_placement
-      credential = OauthCredential.find_by_public_id(params[:id])
-      credential = nil unless credential&.user_id == current_user.id && credential.provider == "microsoft"
+      credential = current_user.oauth_credentials.microsoft.find_by_public_id(params[:id])
 
       unless credential && MicrosoftGraph.enabled_for?(current_user)
         skip_authorization

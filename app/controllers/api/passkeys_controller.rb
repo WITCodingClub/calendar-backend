@@ -102,8 +102,7 @@ module Api
 
     # DELETE /api/user/passkeys/:passkey_id
     def destroy
-      passkey = find_by_any_id(Passkey, params[:passkey_id])
-      passkey = nil unless passkey&.user_id == current_user.id
+      passkey = find_by_any_id(current_user.passkeys, params[:passkey_id])
 
       if passkey.nil?
         render_error "Passkey not found", status: :not_found
