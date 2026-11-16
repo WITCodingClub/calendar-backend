@@ -2,8 +2,6 @@
 
 module Auth
   class StatusController < ApplicationController
-    skip_before_action :authenticate_user!, raise: false
-
     def show
       render json: {
         authenticated: user_signed_in?,
