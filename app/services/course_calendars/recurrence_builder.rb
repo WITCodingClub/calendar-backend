@@ -4,9 +4,7 @@ module CourseCalendars
   # Builds the dates, times, and recurrence lines of one person's course events.
   #
   # The lookups of final exam dates, finals periods, and holidays are memoized
-  # in this object. CourseScheduleSyncable keeps one instance for each user
-  # object, so the caches live as long as the user object, as they did when
-  # they were instance variables of the user.
+  # in this object, so they live as long as one sync.
   class RecurrenceBuilder
     attr_reader :user
 

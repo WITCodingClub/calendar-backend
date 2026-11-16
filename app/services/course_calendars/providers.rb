@@ -35,11 +35,24 @@ module CourseCalendars
     # gets no services, and the sync does nothing.
     def services_for(user)
       services = []
-      services << GoogleCalendar::Provider.new(user) if user.google_credential.present?
-      if MicrosoftGraph.enabled_for?(user) && CourseCalendar.microsoft.for_user(user).exists?
-        services << MicrosoftGraph::CalendarProvider.new(user)
-      end
+      services << GoogleCalendar::Provider.new(user) if google?(user)
+      services << MicrosoftGraph::CalendarProvider.new(user) if microsoft?(user)
       services
     end
+
+    # Whether a sync for the person would reach any provider, by the same rule
+    # as services_for, without building the services.
+    def syncs?(user)
+      google?(user) || microsoft?(user)
+    end
+
+    def google?(user)
+      user.google_credential.present?
+    end
+
+    def microsoft?(user)
+      MicrosoftGraph.enabled_for?(user) && CourseCalendar.microsoft.for_user(user).exists?
+    end
+    private_class_method :google?, :microsoft?
   end
 end

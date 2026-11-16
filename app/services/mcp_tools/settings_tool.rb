@@ -198,7 +198,7 @@ module McpTools
     end
 
     # The stored form, the same as the extension sends: string values, and
-    # popup for a notification (ReminderSettingsNormalizable).
+    # popup for a notification (PreferenceFields).
     def parse_reminders(reminders)
       raise ToolError, "reminders must be a list" unless reminders.is_a?(Array)
 
@@ -210,7 +210,7 @@ module McpTools
 
     # Only a user with a synced calendar needs a sync.
     def sync_calendar
-      return unless user.google_credential || user.course_calendars.microsoft.exists?
+      return unless CourseCalendars::Providers.syncs?(user)
 
       CourseCalendars::SyncJob.perform_later(user, force: true)
     end

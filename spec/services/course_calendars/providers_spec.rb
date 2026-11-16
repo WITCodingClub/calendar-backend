@@ -64,4 +64,20 @@ RSpec.describe CourseCalendars::Providers do
       expect { described_class.for("yahoo") }.to raise_error(KeyError)
     end
   end
+
+  describe ".syncs?" do
+    let(:user) { create(:user) }
+
+    it "is true for a person with a Google credential" do
+      create(:oauth_credential, user: user)
+
+      expect(described_class.syncs?(user)).to be(true)
+    end
+
+    it "is false for a person whose Microsoft calendar the flag keeps out" do
+      create(:course_calendar, :microsoft, oauth_credential: create(:oauth_credential, :microsoft, user: user))
+
+      expect(described_class.syncs?(user)).to be(false)
+    end
+  end
 end

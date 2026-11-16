@@ -156,7 +156,7 @@ class FriendMeeting < ApplicationRecord
   end
 
   # The event hash that the provider services take, in the same shape as a
-  # course event from CourseScheduleSyncable.
+  # course event from CourseCalendars::EventBuilder.
   def event_data
     {
       summary:    title,
