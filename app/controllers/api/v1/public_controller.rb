@@ -37,8 +37,6 @@ module Api
         render_error exception.message, status: :bad_request, code: "INVALID_FILTER"
       end
 
-      # A page of a catalog list, with the filters its query object declares
-      # (Catalog::Filters), read from the request by their types.
       def list_request(list)
         ::Catalog::ListRequest.new(list, filter_params(::Catalog::ListRequest.query(list)), page: params[:page], per_page: params[:per_page])
       end
