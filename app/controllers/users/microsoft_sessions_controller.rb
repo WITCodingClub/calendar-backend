@@ -12,7 +12,6 @@ module Users
   class MicrosoftSessionsController < ApplicationController
     before_action :require_microsoft_sign_in
 
-    # GET /auth/microsoft/callback
     def create
       auth = request.env["omniauth.auth"]
       return head(:not_found) unless auth
@@ -35,8 +34,6 @@ module Users
       redirect_to new_user_session_path, alert: "Failed to sign in with Microsoft. Please try again."
     end
 
-    # GET /auth/failure?strategy=microsoft
-    #
     # OmniAuth sends a failed or cancelled sign-in here.
     def failure
       redirect_to new_user_session_path, alert: "Failed to sign in with Microsoft. Please try again."

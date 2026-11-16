@@ -8,14 +8,12 @@ module Api
   class BackfillsController < BaseController
     authenticate_with_token
 
-    # GET /api/user/backfills
     def index
       authorize current_user, :show?
 
       render json: UserBackfillsSerializer.new(current_user).as_json
     end
 
-    # PUT /api/user/backfills/:name
     def update
       authorize current_user, :update?
 

@@ -6,8 +6,6 @@ module Api
 
     before_action :require_microsoft_graph
 
-    # POST /api/user/microsoft_calendar
-    #
     # Returns the URL that starts the Microsoft sign-in for calendar sync.
     # Answers 404 while the Microsoft Graph provider is off for this person.
     # `placement` ("separate" or "primary") says where a first connection puts
@@ -19,8 +17,6 @@ module Api
       render json: { message: "OAuth required", oauth_url: oauth_url }, status: :ok
     end
 
-    # PATCH /api/user/microsoft_calendar
-    #
     # Moves the course events of a connected calendar. "primary" puts them in
     # the person's main calendar, where they show as busy. The move runs in a
     # job, so the answer is 202.

@@ -15,7 +15,6 @@ module Auth
 
     before_action :load_state
 
-    # GET /auth/microsoft_graph?state=...
     def start
       code_verifier = SecureRandom.urlsafe_base64(64)
       session[SESSION_KEY] = { "nonce" => @state["nonce"], "code_verifier" => code_verifier }
@@ -24,7 +23,6 @@ module Auth
                   allow_other_host: true
     end
 
-    # GET /auth/microsoft_graph/callback?code=...&state=...
     def callback
       pending = session.delete(SESSION_KEY)
 

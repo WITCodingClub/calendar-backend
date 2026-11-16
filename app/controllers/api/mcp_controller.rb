@@ -11,7 +11,6 @@ module Api
     before_action :authenticate_oauth_token!
     before_action :challenge_missing_tool_scope
 
-    # POST /api/mcp
     def create
       server    = McpTools::Server.build(user: current_user, application: @access_token.application,
                                          scopes: @scopes, request: request)

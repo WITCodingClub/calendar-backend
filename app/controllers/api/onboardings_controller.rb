@@ -2,8 +2,6 @@
 
 module Api
   class OnboardingsController < BaseController
-    # POST /api/user/onboard
-    #
     # Identity is the student's WIT Google account — the limited Workspace
     # account the school provisions on the wit.edu domain. We verify it with
     # Google and key the account to that verified @wit.edu address, so it proves

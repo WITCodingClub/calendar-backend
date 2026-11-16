@@ -4,7 +4,6 @@ module Api
   class ProfilesController < BaseController
     authenticate_with_token
 
-    # GET /api/user
     def show
       authorize current_user, :show?
       render json: {
