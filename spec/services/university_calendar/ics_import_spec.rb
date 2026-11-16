@@ -268,6 +268,22 @@ RSpec.describe UniversityCalendar::IcsImport, type: :service do
         expect(result[:changed_categories]).to eq([ "campus_event" ])
       end
 
+      it "moves a finals schedule announcement out of finals and counts both categories as changed" do
+        existing = create(:university_calendar_event,
+                          ics_uid:    "finals-schedule-announcement@example.test",
+                          summary:    "Spring 2027 Final Exam Schedule Available to Students",
+                          category:   "finals",
+                          start_time: at(2027, 2, 22).beginning_of_day,
+                          end_time:   at(2027, 2, 22).end_of_day)
+        stub_feed("finals_schedule_announcement.ics")
+
+        result = described_class.call
+
+        expect(existing.reload.category).to eq("academic")
+        expect(result).to include(updated: 1)
+        expect(result[:changed_categories]).to contain_exactly("academic", "finals")
+      end
+
       it "skips a new entry that matches another event's content exactly" do
         create(:university_calendar_event,
                ics_uid:    "other-source@example.test",

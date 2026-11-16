@@ -110,6 +110,23 @@ RSpec.describe UniversityCalendar::SyncJob do
     end
   end
 
+  describe ".resync_users" do
+    let!(:opted_in) { user_with_calendar(sync_university_events: true) }
+    let!(:opted_out) { user_with_calendar(sync_university_events: false) }
+
+    it "syncs every user with a course calendar when a no-class category is in the list" do
+      expect(synced_user_ids { described_class.resync_users(%w[academic finals]) }).to contain_exactly(opted_in.id, opted_out.id)
+    end
+
+    it "syncs only the opted-in users for other categories" do
+      expect(synced_user_ids { described_class.resync_users(%w[academic deadline]) }).to eq([ opted_in.id ])
+    end
+
+    it "treats nil as no category" do
+      expect(synced_user_ids { described_class.resync_users(nil) }).to eq([ opted_in.id ])
+    end
+  end
+
   describe "term dates" do
     let(:year) { Time.zone.today.year }
     let!(:term) { create(:term, year: year, season: :fall) }

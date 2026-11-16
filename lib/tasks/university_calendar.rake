@@ -17,4 +17,21 @@ namespace :university_calendar do
     result = UniversityCalendar::BackfillJob.perform_now(start_date, end_date)
     puts "Backfill complete: #{result}"
   end
+
+  desc "Infer the category of every stored event again and print the changes. " \
+       "ENV: DRY_RUN=0 saves them and queues the calendar syncs; without it the task only prints."
+  task recategorize: :environment do
+    # Only DRY_RUN=0 or false saves. Unset prints the changes only.
+    apply = ENV["DRY_RUN"].present? && !ActiveModel::Type::Boolean.new.cast(ENV["DRY_RUN"])
+    changes = UniversityCalendar::Recategorize.call(apply:)
+
+    changes.each { |change| puts "  ##{change.event_id} #{change.summary.inspect}: #{change.from || 'none'} -> #{change.to}" }
+    if changes.empty?
+      puts "Every event already has the inferred category."
+    elsif apply
+      puts "Changed #{changes.size} events and queued the calendar syncs."
+    else
+      puts "Would change #{changes.size} events. Run again with DRY_RUN=0 to save them."
+    end
+  end
 end
